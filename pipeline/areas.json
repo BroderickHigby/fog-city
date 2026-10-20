@@ -7,7 +7,7 @@
         {
           "id": "downtown",
           "milestone": "M0",
-          "name": "Downtown: Ferry Building, Embarcadero, Financial District, Salesforce Tower, Bay Bridge touchdown",
+          "name": "Downtown: Ferry Building, Embarcadero, Financial District, the 415 Mission St tower, Bay Bridge touchdown",
           "north": 37.805,
           "west": -122.405,
           "south": 37.78,
@@ -99,8 +99,8 @@
             "lon": -122.4104
           },
           {
-            "id": "pier-39",
-            "label": "Pier 39",
+            "id": "beach-st-pier",
+            "label": "Pier at The Embarcadero and Beach St (marketplace, sea-lion floats)",
             "lat": 37.8087,
             "lon": -122.4098
           },

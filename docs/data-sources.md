@@ -105,7 +105,7 @@ landmarks:
 | 600 Montgomery St pyramid | `201006.0000687`, `201006.0000687-tower` |
 | Coit Tower | `201006.0006230`, `201006.0006230-tower` |
 | Saints Peter and Paul Church | `201006.0003946` (nearest, 9 m) |
-| Pier 39 | `201006.0000037`, `201006.0000037-tower` |
+| Pier at The Embarcadero and Beach St (`beach-st-pier`) | `201006.0000037`, `201006.0000037-tower` |
 | Palace of Fine Arts rotunda | `201006.0000986`, `201006.0000986-tower` |
 | 315 Pennsylvania Ave (Dogpatch) | `201006.0010443`, `201006.0010443-tower` |
 

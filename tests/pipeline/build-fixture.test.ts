@@ -8,7 +8,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { toLatLon } from "../../src/geo/project.ts";
 import { buildWorldFiles, type BuildOutput } from "../../pipeline/lib/build.ts";
 import type { Override } from "../../pipeline/lib/buildings.ts";
-import type { WorldConfig } from "../../pipeline/lib/config.ts";
+import { worldTiles, type WorldConfig } from "../../pipeline/lib/config.ts";
+import { Elevation, Ground, tileHeightfield } from "../../pipeline/lib/terrain.ts";
 import type { GeoRaster } from "../../pipeline/lib/geotiff.ts";
 import { signedArea } from "../../pipeline/lib/geom.ts";
 import { KIND_TABLE, kindOf, titleCase } from "../../pipeline/lib/roads.ts";
@@ -180,6 +181,22 @@ describe("fixture build: terrain", () => {
     expect(b.heights[10 * 51 + 45]).toBe(0);
     expect(b.water[10 * 51 + 2]).toBe(0);
     expect(b.heights[10 * 51 + 2]).toBeCloseTo(2 + 0.03 * 520, 1);
+  });
+});
+
+describe("terrain sampling", () => {
+  it("a point on the far border of the outermost tile still has ground (no drop to 0 at the world's edge)", () => {
+    const f = fixture();
+    const elev = new Elevation(f.raw.dems.map((d) => d.raster));
+    const tiles = worldTiles(f.cfg);
+    const ground = new Ground(tiles.map((t) => ({ ix: t.ix, iz: t.iz, field: tileHeightfield(t, elev) })));
+    // x = 1000 is the east edge of t1_0 (no t2_0); z = 500 is the south edge of both tiles.
+    expect(ground.heightAt(1000, 100)).toBe(0); // bay
+    expect(ground.heightAt(700, 500)).toBeCloseTo(2 + 0.03 * 700, 1);
+    expect(ground.meshHeightAt(700, 500)).toBeCloseTo(2 + 0.03 * 700, 1);
+    expect(ground.heightAt(1000.01, 100)).toBeNull();
+    // Bilinear (sim) and planar-triangle (mesh) heights agree on lattice points.
+    expect(ground.meshHeightAt(300, 200)).toBeCloseTo(ground.heightAt(300, 200)!, 6);
   });
 });
 
