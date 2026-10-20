@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/vendor",
+  "title": "Vendor items and prices (content/vendor.json)",
+  "type": "object",
+  "required": ["version", "base", "limits", "items", "vendors"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "base": {
+      "type": "object", "required": ["tankL", "flowLps", "particleL", "runwayMaxMonths", "startCashCents"], "additionalProperties": false,
+      "properties": {
+        "tankL": { "type": "number", "exclusiveMinimum": 0 }, "flowLps": { "type": "number", "exclusiveMinimum": 0 },
+        "particleL": { "type": "number", "exclusiveMinimum": 0 }, "runwayMaxMonths": { "type": "number", "exclusiveMinimum": 0 },
+        "startCashCents": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "limits": {
+      "type": "object", "required": ["tankMaxL", "flowMaxLps", "upgradeMinCents", "upgradeMaxCents"], "additionalProperties": false,
+      "properties": {
+        "tankMaxL": { "type": "number" }, "flowMaxLps": { "type": "number" }, "upgradeMinCents": { "type": "integer" }, "upgradeMaxCents": { "type": "integer" }
+      }
+    },
+    "items": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["id", "name", "kind", "priceCents", "wave", "effect", "blurb"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "name": { "type": "string", "maxLength": 20 },
+          "kind": { "enum": ["tank", "flow", "food"] },
+          "tier": { "type": "integer", "minimum": 1 },
+          "priceCents": { "type": "integer", "minimum": 1 },
+          "wave": { "type": "integer", "minimum": 2, "maximum": 8 },
+          "requires": { "type": "string" },
+          "effect": {
+            "type": "object", "minProperties": 1, "maxProperties": 1, "additionalProperties": false,
+            "properties": { "tankL": { "type": "number", "exclusiveMinimum": 0 }, "flowLps": { "type": "number", "exclusiveMinimum": 0 }, "runwayMonths": { "type": "number", "exclusiveMinimum": 0 } }
+          },
+          "blurb": { "type": "string", "maxLength": 90 }
+        }
+      }
+    },
+    "vendors": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "site", "label", "wave", "items"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" }, "site": { "type": "string" }, "label": { "type": "string" },
+          "wave": { "type": "integer", "minimum": 2, "maximum": 8 }, "items": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}
