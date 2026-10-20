@@ -320,7 +320,8 @@ class MeshBuilder:
             self.poly(list(sections[-1]), mat)
 
     # output ---------------------------------------------------------------------
-    def build(self, name: str, parent=None, location=(0, 0, 0)) -> bpy.types.Object:
+    def build(self, name: str, parent=None, location=(0, 0, 0), sharp_angle=None) -> bpy.types.Object:
+        """Make the mesh object. sharp_angle (degrees): mark edges sharper than this as hard."""
         me = bpy.data.meshes.new(name)
         me.from_pydata(self.verts, [], self.faces)
         for mt in self.mats:
@@ -338,6 +339,8 @@ class MeshBuilder:
                     data.extend(p)
             layer.data.foreach_set("uv", data)
         me.validate(clean_customdata=False)
+        if sharp_angle is not None:
+            me.set_sharp_from_angle(angle=math.radians(sharp_angle))
         me.update()
         ob = bpy.data.objects.new(name, me)
         bpy.context.scene.collection.objects.link(ob)
