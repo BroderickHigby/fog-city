@@ -1,0 +1,456 @@
+"""R-Evolution (after Marco Cochrane's 45 ft sculpture) -> public/models/r-evolution.glb
+
+A woman standing tall on a round plinth, arms held open from her sides, chin lifted. Built from
+the CC0 MakeHuman base figure (data/makehuman-female.ply, see tools/make_base_female.py),
+re-posed procedurally (arms opened, head lifted, a short bob added), then:
+
+  frame   the figure voxel-remeshed, decimated to ~2k triangles and turned into rods with a
+          Wireframe modifier: the triangulated steel-rod frame (steel_rod)
+  shell   the outer skin, offset just outside the rods, with an alpha-tested chain-link
+          texture (steel_mesh, alphaMode MASK, double sided)
+  glow    an inner skin with the same chain-link pattern, emissive for night
+          (light_sculpture_glow; by day it reads as a second, darker layer of mesh)
+  plinth  the round base
+
+Front faces glTF -Z; origin at the plinth's centre on the ground. Budget: 40k triangles.
+
+Pose. The default, "tadasana", is the real sculpture's stance: arms open at her sides, palms
+forward, chin up. The brief asked for "arms raised"; "raised" lifts the arms overhead in a V
+(about 30 degrees off vertical, palms forward) and scales her so the fingertips are at 13.7 m.
+Choose with FC_REVOLUTION_POSE=raised (or "-- pose=raised"); "-- out=DIR" writes the GLB to
+DIR instead of public/models (look-dev 04 builds the raised variant that way for sign-off).
+The root node's extras record the pose.
+"""
+
+import json
+import math
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
+
+import bpy  # noqa: E402
+import numpy as np  # noqa: E402
+from mathutils import Matrix, Quaternion, Vector  # noqa: E402
+
+import fc  # noqa: E402
+
+BUDGET = 40_000
+FIGURE_H = 13.7  # 45 ft, top of the hair
+PLINTH_R = 3.6  # keep in step with tools/landmarks.py
+PLINTH_H = 0.6
+POSES = ("tadasana", "raised")
+ARM_DOWN_DEG = 17.0  # tadasana: rotate the A-pose arms toward the body (A-pose ~42 deg -> ~25 deg)
+ARM_RAISE_DEG = 108.0  # raised: rotate them up and out instead (~42 deg -> ~150 deg from hanging)
+ELBOW_STRAIGHTEN = 0.85  # fraction of the rest pose's forward elbow bend to take out
+WRIST_STRAIGHTEN = 0.8  # and of the wrist's flex
+HEAD_UP_DEG = 9.0
+FRAME_TRIS = 2000
+SHELL_TRIS = 5200
+GLOW_TRIS = 2600
+ROD = 0.075  # rod thickness, metres
+SHELL_OFFSET = -0.03
+GLOW_DEPTH = 0.22  # how far the glow layer sits inside the skin (less where she is thin)
+PLY = os.path.join(fc.BLENDER_DIR, "data", "makehuman-female.ply")
+TEX_DIR = os.path.join(fc.BLENDER_DIR, ".cache", "textures")
+
+
+def smoothstep(e0, e1, x):
+    t = np.clip((x - e0) / (e1 - e0), 0.0, 1.0)
+    return t * t * (3 - 2 * t)
+
+
+def rot_about(points, pivot, axis, ang):
+    """Rotate each point about the axis through pivot by ang[i] (radians, per point)."""
+    axis = axis / np.linalg.norm(axis)
+    p = points - pivot
+    c, s = np.cos(ang)[:, None], np.sin(ang)[:, None]
+    cross = np.cross(axis, p)
+    dot = (p @ axis)[:, None]
+    return pivot + p * c + cross * s + axis * dot * (1 - c)
+
+
+JOINTS_JSON = os.path.join(fc.BLENDER_DIR, "data", "makehuman-female-joints.json")
+
+
+def seg_dist(p, a, b):
+    """Distance from each point to the segment a-b."""
+    ab = b - a
+    t = np.clip(((p - a) @ ab) / (ab @ ab), 0.0, 1.0)
+    return np.linalg.norm(p - (a + np.outer(t, ab)), axis=1)
+
+
+def pose(co: np.ndarray, J: dict, which: str = "tadasana", moved: dict | None = None) -> np.ndarray:
+    """Open the arms to the sculpture's stance and lift the chin. For which="raised" the arms
+    are only straightened here (raise_arms() lifts them) and `moved` receives the new joints.
+
+    A tiny automatic skin: every vertex is weighted to bone groups by its distance to the
+    MakeHuman joint segments (soft-min), then the arm and head groups are rotated about the
+    shoulder and neck joints with linear blend skinning.
+    """
+    j = {k: np.array(v) for k, v in J.items()}
+    groups = {
+        "body": [("pelvis", "spine-4"), ("spine-4", "spine-3"), ("spine-3", "spine-2"), ("spine-2", "spine-1"),
+                 ("spine-1", "neck"), ("l-clavicle", "l-shoulder"), ("r-clavicle", "r-shoulder"),
+                 ("l-upper-leg", "l-knee"), ("l-knee", "l-ankle"), ("l-ankle", "l-foot-2"),
+                 ("r-upper-leg", "r-knee"), ("r-knee", "r-ankle"), ("r-ankle", "r-foot-2"),
+                 ("pelvis", "l-upper-leg"), ("pelvis", "r-upper-leg")],
+        "head": [("neck", "head"), ("head", "head-2")],
+    }
+    for s_ in ("l", "r"):
+        sh, el, ha = j[f"{s_}-shoulder"], j[f"{s_}-elbow"], j[f"{s_}-hand"]
+        tip = ha + (ha - el) / np.linalg.norm(ha - el) * 0.19
+        j[f"{s_}-tip"] = tip
+        groups[f"arm_{s_}"] = [(f"{s_}-shoulder", f"{s_}-elbow"), (f"{s_}-elbow", f"{s_}-hand"), (f"{s_}-hand", f"{s_}-tip")]
+    names = list(groups)
+    D = np.stack([np.min([seg_dist(co, j[a], j[b]) for a, b in groups[g]], axis=0) for g in names], axis=1)
+    tau = 0.012
+    W = np.exp(-(D - D.min(axis=1, keepdims=True)) / tau)
+    W /= W.sum(axis=1, keepdims=True)
+    out = co.copy()
+    for s_, side in (("l", -1), ("r", 1)):
+        w = W[:, names.index(f"arm_{s_}")]
+        el, ha = j[f"{s_}-elbow"], j[f"{s_}-hand"]
+        # hand frame from the finger joints: a along the hand, s across it (thumb -> little
+        # finger), n out of the palm (mirrored for the left hand)
+        a = j[f"{s_}-finger-3-3"] - ha
+        a /= np.linalg.norm(a)
+        sp = j[f"{s_}-finger-5-3"] - j[f"{s_}-finger-1-3"]
+        sp -= a * (sp @ a)
+        sp /= np.linalg.norm(sp)
+        n = np.cross(a, sp) * side
+        # close the fingers: squeeze across the hand beyond the knuckles, so the remesh
+        # fuses them into the sculpture's flat, open hand
+        knuckle = j[f"{s_}-finger-3-1"]
+        t_h = (co - knuckle) @ a
+        ramp = smoothstep(-0.02, 0.05, t_h) * w * (((co - ha) @ a) > 0)
+        across = (co - knuckle) @ sp
+        out = out - np.outer(across * 0.5 * ramp, sp)
+        # straighten the wrist: line the hand up with the forearm (rest pose flexes it)
+        fo0 = (ha - el) / np.linalg.norm(ha - el)
+        wrist_axis = np.cross(a, fo0)
+        wrist = math.asin(min(1.0, np.linalg.norm(wrist_axis))) * WRIST_STRAIGHTEN
+        wrist_axis /= np.linalg.norm(wrist_axis)
+        ww = smoothstep(-0.015, 0.03, (co - ha) @ fo0) * w
+        out = rot_about(out, ha, wrist_axis, wrist * ww)
+        n = rot_about(n[None, :], np.zeros(3), wrist_axis, np.array([wrist]))[0]
+        # straighten the elbow: MakeHuman's rest pose bends the forearms forward; the
+        # sculpture's arms hang nearly straight. Rotate forearm and hand about the elbow.
+        up = (el - j[f"{s_}-shoulder"]) / np.linalg.norm(el - j[f"{s_}-shoulder"])
+        L_fo = np.linalg.norm(ha - el)
+        fo = (ha - el) / L_fo
+        bend_axis = np.cross(fo, up)
+        bend = math.asin(min(1.0, np.linalg.norm(bend_axis))) * ELBOW_STRAIGHTEN
+        bend_axis /= np.linalg.norm(bend_axis)
+        we = smoothstep(-0.025, 0.03, (co - el) @ up) * w
+        out = rot_about(out, el, bend_axis, bend * we)
+        R = lambda v: rot_about(v[None, :], np.zeros(3), bend_axis, np.array([bend]))[0]  # noqa: E731
+        fo2, n2 = R(fo), R(n)
+        # turn the palms forward: twist the forearm about its own (new) axis, from nothing at
+        # the elbow to the full angle at the wrist (the hand follows rigidly); the angle is the
+        # one that best points the palm forward and a little outward
+        target = np.array([0.3 * side, 1.0, 0.0])
+        target /= np.linalg.norm(target)
+        best = max(range(-180, 181),
+                   key=lambda d: rot_about(n2[None, :], np.zeros(3), fo2, np.array([np.radians(d)]))[0] @ target)
+        tw = np.clip(((co - el) @ fo) / L_fo, 0.0, 1.0) * w
+        out = rot_about(out, el, fo2, np.radians(best) * tw)
+        if which == "tadasana":
+            ang = np.full(len(co), np.radians(ARM_DOWN_DEG) * side)
+            rotated = rot_about(out, j[f"{s_}-shoulder"], np.array([0.0, 1.0, 0.0]), ang)
+            out = out + (rotated - out) * w[:, None]
+        if moved is not None:  # the straightened arm's joints, for raise_arms()
+            moved[f"{s_}-hand"] = el + fo2 * L_fo
+            moved[f"{s_}-tip"] = moved[f"{s_}-hand"] + fo2 * 0.19
+    wh = W[:, names.index("head")]
+    rotated = rot_about(co, j["neck"], np.array([1.0, 0.0, 0.0]), np.full(len(co), np.radians(HEAD_UP_DEG)))
+    out += (rotated - co) * wh[:, None]
+    return out
+
+
+RAISE_GIRDLE_DEG = 22.0  # raised: share of the lift taken by the shoulder girdle (clavicle)
+
+
+def raise_arms(verts: np.ndarray, faces: list, j: dict) -> np.ndarray:
+    """Lift both arms overhead (pose "raised") with a real skin: a small armature on the
+    MakeHuman joints, Blender's automatic (bone heat) weights, and dual-quaternion skinning
+    (preserve volume), so the shoulders bend instead of folding or ballooning, as they do
+    with the distance weights pose() uses for the small tadasana moves. The shoulder girdle
+    takes RAISE_GIRDLE_DEG of the lift about the clavicle's inner end, the arm the rest of
+    ARM_RAISE_DEG about the shoulder joint. j holds the joints after pose() (straightened arms)."""
+    me = bpy.data.meshes.new("raise_src")
+    me.from_pydata(verts.tolist(), [], faces)
+    me.update()
+    ob = bpy.data.objects.new("raise_src", me)
+    bpy.context.scene.collection.objects.link(ob)
+    rig_data = bpy.data.armatures.new("rig")
+    rig = bpy.data.objects.new("rig", rig_data)
+    bpy.context.scene.collection.objects.link(rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = rig_data.edit_bones
+    chain = [("hips", "pelvis", "spine-4", None), ("spine_4", "spine-4", "spine-3", "hips"),
+             ("spine_3", "spine-3", "spine-2", "spine_4"), ("spine_2", "spine-2", "spine-1", "spine_3"),
+             ("spine_1", "spine-1", "neck", "spine_2"), ("neck", "neck", "head", "spine_1"),
+             ("head", "head", "head-2", "neck")]
+    for s_ in ("l", "r"):
+        chain += [(f"clavicle_{s_}", f"{s_}-clavicle", f"{s_}-shoulder", "spine_1"),
+                  (f"upper_arm_{s_}", f"{s_}-shoulder", f"{s_}-elbow", f"clavicle_{s_}"),
+                  (f"forearm_{s_}", f"{s_}-elbow", f"{s_}-hand", f"upper_arm_{s_}"),
+                  (f"hand_{s_}", f"{s_}-hand", f"{s_}-tip", f"forearm_{s_}"),
+                  (f"thigh_{s_}", f"{s_}-upper-leg", f"{s_}-knee", "hips"),
+                  (f"shin_{s_}", f"{s_}-knee", f"{s_}-ankle", f"thigh_{s_}"),
+                  (f"foot_{s_}", f"{s_}-ankle", f"{s_}-foot-2", f"shin_{s_}")]
+    for name, a, b, parent in chain:
+        e = eb.new(name)
+        e.head, e.tail = Vector(j[a]), Vector(j[b])
+        if parent:
+            e.parent = eb[parent]
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    ob.select_set(True)
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+    for s_, side in (("l", -1), ("r", 1)):
+        for bone, deg in ((f"clavicle_{s_}", RAISE_GIRDLE_DEG), (f"upper_arm_{s_}", ARM_RAISE_DEG - RAISE_GIRDLE_DEG)):
+            pb = rig.pose.bones[bone]
+            # a turn about the body's front-back axis (Blender Y), expressed in the bone's frame
+            local = rig_data.bones[bone].matrix_local.to_3x3().inverted() @ Vector((0.0, 1.0, 0.0))
+            pb.rotation_mode = "QUATERNION"
+            pb.rotation_quaternion = Quaternion(local.normalized(), math.radians(deg) * -side)
+    mod = next(m for m in ob.modifiers if m.type == "ARMATURE")
+    mod.use_deform_preserve_volume = True
+    bpy.context.view_layer.update()
+    ob.parent = None
+    apply_mods(ob)
+    posed = np.array([v.co[:] for v in ob.data.vertices])
+    bpy.data.objects.remove(ob)
+    bpy.data.objects.remove(rig)
+    return posed
+
+
+def hair_cap(co: np.ndarray, J: dict):
+    """A short bob: an ellipsoid over the crown and back of the head, open at the face."""
+    head = co[co[:, 2] > 1.62]
+    c = np.array([0.0, head[:, 1].mean() - 0.012, head[:, 2].max() - 0.092])
+    r = np.array([0.1, 0.112, 0.102])
+    verts, faces = [], []
+    rings, seg = 10, 20
+    for i in range(rings + 1):
+        th = math.pi * i / rings
+        for j in range(seg):
+            ph = 2 * math.pi * j / seg
+            verts.append(c + r * np.array([math.sin(th) * math.cos(ph), math.sin(th) * math.sin(ph), math.cos(th)]))
+    for i in range(rings):
+        for j in range(seg):
+            a, b = i * seg + j, i * seg + (j + 1) % seg
+            faces.append([a, b, b + seg, a + seg])
+    verts = np.array(verts)
+    # drop the faces in front of the face and below the jaw (pose() tilts it with the head)
+    keep = []
+    for f in faces:
+        cen = verts[f].mean(axis=0) - c
+        front = cen[1] > 0.035 and cen[2] < 0.045
+        low = cen[2] < -0.075
+        if not (front or low):
+            keep.append(f)
+    return verts, keep
+
+
+def chainlink_png(path: str, size=256, cells=8, wire=0.26) -> str:
+    """Diamond chain-link pattern: white wires, transparent holes (alpha)."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    y, x = np.mgrid[0:size, 0:size] / size * cells
+    a = np.abs(((x + y) % 1.0) - 0.5)
+    b = np.abs(((x - y) % 1.0) - 0.5)
+    d = np.minimum(0.5 - a, 0.5 - b)  # distance to the nearest wire, in cells
+    alpha = 1.0 - smoothstep(wire * 0.5, wire * 0.5 + 0.06, d)
+    shade = 0.75 + 0.25 * (1 - smoothstep(0, wire * 0.5, d))
+    img = bpy.data.images.new("chainlink", size, size, alpha=True)
+    rgba = np.stack([shade, shade, shade, alpha], axis=-1).astype(np.float32)
+    img.pixels.foreach_set(rgba[::-1].ravel())
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    bpy.data.images.remove(img)
+    return path
+
+
+def apply_mods(ob):
+    bpy.context.view_layer.objects.active = ob
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    ob.select_set(True)
+    for m in list(ob.modifiers):
+        bpy.ops.object.modifier_apply(modifier=m.name)
+
+
+def decimate_to(ob, tris):
+    me = ob.data
+    me.calc_loop_triangles()
+    cur = len(me.loop_triangles)
+    m = ob.modifiers.new("dec", "DECIMATE")
+    m.decimate_type = "COLLAPSE"
+    m.ratio = min(1.0, tris / cur)
+    m.use_collapse_triangulate = True
+    apply_mods(ob)
+
+
+def offset(ob, dist):
+    m = ob.modifiers.new("off", "DISPLACE")
+    m.direction = "NORMAL"
+    m.mid_level = 0.0
+    m.strength = dist
+    apply_mods(ob)
+
+
+def inset_by_thickness(ob, solid, depth, frac=0.35):
+    """Move each vertex inward along its normal by min(depth, frac * local thickness), where
+    the thickness is a ray cast through the solid; thin parts (fingers) never invert."""
+    from mathutils.bvhtree import BVHTree
+
+    tree = BVHTree.FromObject(solid, bpy.context.evaluated_depsgraph_get())
+    me = ob.data
+    for v in me.vertices:
+        nrm = v.normal
+        hit = tree.ray_cast(v.co - nrm * 0.002, -nrm, 10.0)
+        d = (hit[3] + 0.002) if hit[0] is not None else 0.0
+        v.co = v.co - nrm * min(depth, frac * d)
+    me.update()
+
+
+def triplanar_uv(ob, scale, rot=0.0):
+    """Project UVs per face from the dominant normal axis (the pattern hides the seams)."""
+    me = ob.data
+    uv = me.uv_layers.new(name="UVMap")
+    c, s = math.cos(rot), math.sin(rot)
+    for p in me.polygons:
+        n = p.normal
+        ax = max(range(3), key=lambda i: abs(n[i]))
+        for li in p.loop_indices:
+            v = me.vertices[me.loops[li].vertex_index].co
+            if ax == 0:
+                u, w = v.y, v.z
+            elif ax == 1:
+                u, w = v.x, v.z
+            else:
+                u, w = v.x, v.y
+            uv.data[li].uv = ((u * c - w * s) / scale, (u * s + w * c) / scale)
+
+
+def main() -> None:
+    opts = dict(a.split("=", 1) for a in fc.script_args() if "=" in a)
+    which = opts.get("pose", os.environ.get("FC_REVOLUTION_POSE", "tadasana"))
+    if which not in POSES:
+        raise SystemExit(f"r_evolution: pose must be one of {POSES}, not {which!r}")
+    out_dir = os.path.abspath(opts["out"]) if "out" in opts else None
+    fc.reset()
+    tex = chainlink_png(os.path.join(TEX_DIR, "chainlink.png"))
+    rod = fc.material("steel_rod", "#55595c", 0.42, 0.88)
+    mesh = fc.material("steel_mesh", "#b4b8bb", 0.45, 0.8, image=tex, alpha_clip=0.3, double_sided=True)
+    glow = fc.material("light_sculpture_glow", "#4a4d55", 0.5, 0.3, emission="#c9b4ff", strength=1.0,
+                       image=tex, alpha_clip=0.3, double_sided=True)
+    stone = fc.material("plinth_stone", "#d4d2cc", 0.7)
+    band = fc.material("plinth_band", "#3b3d40", 0.5, 0.2)
+
+    # ---- base figure, posed, with hair; scaled to the sculpture's height on the plinth
+    bpy.ops.wm.ply_import(filepath=PLY)
+    base = bpy.context.selected_objects[0]
+    co = np.array([v.co[:] for v in base.data.vertices])
+    with open(JOINTS_JSON, encoding="utf-8") as f:
+        joints = json.load(f)["joints"]
+    hv, hf = hair_cap(co, joints)
+    faces = [list(p.vertices) for p in base.data.polygons]
+    bpy.data.objects.remove(base)
+    moved: dict = {}
+    allv = pose(np.vstack([co, hv]), joints, which, moved)
+    allf = faces + [[i + len(co) for i in f] for f in hf]
+    if which == "raised":
+        allv = raise_arms(allv, allf, {**{k: np.array(v) for k, v in joints.items()}, **moved})
+    top = allv[:, 2].max()
+    k = FIGURE_H / top
+    allv = allv * k
+    pel = np.array(joints["pelvis"]) * k
+    allv[:, 0] -= pel[0]
+    allv[:, 1] -= pel[1]
+    allv[:, 2] += PLINTH_H
+    me = bpy.data.meshes.new("figure_src")
+    me.from_pydata(allv.tolist(), [], allf)
+    me.update()
+    src = bpy.data.objects.new("figure_src", me)
+    bpy.context.scene.collection.objects.link(src)
+    rm = src.modifiers.new("remesh", "REMESH")
+    rm.mode = "VOXEL"
+    rm.voxel_size = 0.055
+    sm = src.modifiers.new("smooth", "SMOOTH")
+    sm.factor = 0.6
+    sm.iterations = 4
+    apply_mods(src)
+
+    def copy(name):
+        o = src.copy()
+        o.data = src.data.copy()
+        o.name = name
+        o.data.name = name
+        bpy.context.scene.collection.objects.link(o)
+        return o
+
+    root = fc.empty("r_evolution")
+    root["fcLandmark"] = "r-evolution"
+    root["pose"] = which
+
+    frame = copy("frame")
+    decimate_to(frame, FRAME_TRIS)
+    wf = frame.modifiers.new("rods", "WIREFRAME")
+    wf.thickness = ROD
+    wf.offset = 0.0
+    wf.use_even_offset = False  # "even" thickness spikes on the thin triangles of the fingers
+    wf.use_relative_offset = False
+    wf.use_replace = True
+    wf.use_boundary = True
+    apply_mods(frame)
+    frame.data.materials.clear()
+    frame.data.materials.append(rod)
+    for p in frame.data.polygons:
+        p.use_smooth = False
+    frame.parent = root
+
+    shell = copy("shell")
+    decimate_to(shell, SHELL_TRIS)
+    offset(shell, SHELL_OFFSET)
+    shell.data.materials.clear()
+    shell.data.materials.append(mesh)
+    for p in shell.data.polygons:
+        p.use_smooth = True
+    triplanar_uv(shell, 0.6, 0.0)
+    shell.parent = root
+
+    gl = copy("glow")
+    decimate_to(gl, GLOW_TRIS)
+    inset_by_thickness(gl, src, GLOW_DEPTH)
+    gl.data.materials.clear()
+    gl.data.materials.append(glow)
+    for p in gl.data.polygons:
+        p.use_smooth = True
+    triplanar_uv(gl, 0.5, math.radians(30))
+    gl.parent = root
+    gl["nightLight"] = True
+
+    bpy.data.objects.remove(src)
+
+    # ---- plinth: a low drum with a dark inscription band and a stepped top
+    mb = fc.MeshBuilder()
+    R = PLINTH_R
+    mb.lathe([(R, 0.0), (R, 0.18)], 48, stone, smooth=True)
+    mb.lathe([(R + 0.01, 0.18), (R + 0.01, 0.42)], 48, band, smooth=True)
+    mb.lathe([(R, 0.42), (R, PLINTH_H - 0.08), (R - 0.08, PLINTH_H), (0.0, PLINTH_H)], 48, stone, smooth=False)
+    mb.build("plinth", parent=root)
+
+    for o in (frame, shell, gl):
+        print(f"[fc]   {o.name}: {fc.tri_count([o])} tris")
+    fc.export_glb("r-evolution.glb", BUDGET, out_dir=out_dir)
+
+
+main()
