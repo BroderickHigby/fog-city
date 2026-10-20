@@ -1,0 +1,513 @@
+{
+  "version": 1,
+  "world": "dev-city",
+  "origin": {
+    "lat": 37.7955,
+    "lon": -122.3937
+  },
+  "tileSizeM": 500,
+  "spawn": {
+    "x": -55,
+    "z": 300,
+    "heading": 0
+  },
+  "attribution": [
+    "Procedural test world for the renderer (src/render/tools/build-dev-city.ts). Not real geography; street names are invented."
+  ],
+  "tiles": [
+    {
+      "id": "t-5_-3",
+      "ix": -5,
+      "iz": -3,
+      "bbox": [
+        -2500,
+        -1500,
+        -2000,
+        -1000
+      ],
+      "collider": "t-5_-3.collider.json",
+      "glb": "t-5_-3.glb",
+      "stats": {
+        "buildings": 87,
+        "roadEdges": 35
+      }
+    },
+    {
+      "id": "t-4_-3",
+      "ix": -4,
+      "iz": -3,
+      "bbox": [
+        -2000,
+        -1500,
+        -1500,
+        -1000
+      ],
+      "collider": "t-4_-3.collider.json",
+      "glb": "t-4_-3.glb",
+      "stats": {
+        "buildings": 103,
+        "roadEdges": 28
+      }
+    },
+    {
+      "id": "t-3_-3",
+      "ix": -3,
+      "iz": -3,
+      "bbox": [
+        -1500,
+        -1500,
+        -1000,
+        -1000
+      ],
+      "collider": "t-3_-3.collider.json",
+      "glb": "t-3_-3.glb",
+      "stats": {
+        "buildings": 95,
+        "roadEdges": 34
+      }
+    },
+    {
+      "id": "t-2_-3",
+      "ix": -2,
+      "iz": -3,
+      "bbox": [
+        -1000,
+        -1500,
+        -500,
+        -1000
+      ],
+      "collider": "t-2_-3.collider.json",
+      "glb": "t-2_-3.glb",
+      "stats": {
+        "buildings": 45,
+        "roadEdges": 20
+      }
+    },
+    {
+      "id": "t-1_-3",
+      "ix": -1,
+      "iz": -3,
+      "bbox": [
+        -500,
+        -1500,
+        0,
+        -1000
+      ],
+      "collider": "t-1_-3.collider.json",
+      "glb": "t-1_-3.glb",
+      "stats": {
+        "buildings": 3,
+        "roadEdges": 2
+      }
+    },
+    {
+      "id": "t-5_-2",
+      "ix": -5,
+      "iz": -2,
+      "bbox": [
+        -2500,
+        -1000,
+        -2000,
+        -500
+      ],
+      "collider": "t-5_-2.collider.json",
+      "glb": "t-5_-2.glb",
+      "stats": {
+        "buildings": 200,
+        "roadEdges": 50
+      }
+    },
+    {
+      "id": "t-4_-2",
+      "ix": -4,
+      "iz": -2,
+      "bbox": [
+        -2000,
+        -1000,
+        -1500,
+        -500
+      ],
+      "collider": "t-4_-2.collider.json",
+      "glb": "t-4_-2.glb",
+      "stats": {
+        "buildings": 244,
+        "roadEdges": 40
+      }
+    },
+    {
+      "id": "t-3_-2",
+      "ix": -3,
+      "iz": -2,
+      "bbox": [
+        -1500,
+        -1000,
+        -1000,
+        -500
+      ],
+      "collider": "t-3_-2.collider.json",
+      "glb": "t-3_-2.glb",
+      "stats": {
+        "buildings": 215,
+        "roadEdges": 45
+      }
+    },
+    {
+      "id": "t-2_-2",
+      "ix": -2,
+      "iz": -2,
+      "bbox": [
+        -1000,
+        -1000,
+        -500,
+        -500
+      ],
+      "collider": "t-2_-2.collider.json",
+      "glb": "t-2_-2.glb",
+      "stats": {
+        "buildings": 204,
+        "roadEdges": 45
+      }
+    },
+    {
+      "id": "t-1_-2",
+      "ix": -1,
+      "iz": -2,
+      "bbox": [
+        -500,
+        -1000,
+        0,
+        -500
+      ],
+      "collider": "t-1_-2.collider.json",
+      "glb": "t-1_-2.glb",
+      "stats": {
+        "buildings": 107,
+        "roadEdges": 37
+      }
+    },
+    {
+      "id": "t0_-2",
+      "ix": 0,
+      "iz": -2,
+      "bbox": [
+        0,
+        -1000,
+        500,
+        -500
+      ],
+      "collider": "t0_-2.collider.json",
+      "glb": "t0_-2.glb",
+      "stats": {
+        "buildings": 2,
+        "roadEdges": 0
+      }
+    },
+    {
+      "id": "t-5_-1",
+      "ix": -5,
+      "iz": -1,
+      "bbox": [
+        -2500,
+        -500,
+        -2000,
+        0
+      ],
+      "collider": "t-5_-1.collider.json",
+      "glb": "t-5_-1.glb",
+      "stats": {
+        "buildings": 194,
+        "roadEdges": 55
+      }
+    },
+    {
+      "id": "t-4_-1",
+      "ix": -4,
+      "iz": -1,
+      "bbox": [
+        -2000,
+        -500,
+        -1500,
+        0
+      ],
+      "collider": "t-4_-1.collider.json",
+      "glb": "t-4_-1.glb",
+      "stats": {
+        "buildings": 218,
+        "roadEdges": 44
+      }
+    },
+    {
+      "id": "t-3_-1",
+      "ix": -3,
+      "iz": -1,
+      "bbox": [
+        -1500,
+        -500,
+        -1000,
+        0
+      ],
+      "collider": "t-3_-1.collider.json",
+      "glb": "t-3_-1.glb",
+      "stats": {
+        "buildings": 225,
+        "roadEdges": 49
+      }
+    },
+    {
+      "id": "t-2_-1",
+      "ix": -2,
+      "iz": -1,
+      "bbox": [
+        -1000,
+        -500,
+        -500,
+        0
+      ],
+      "collider": "t-2_-1.collider.json",
+      "glb": "t-2_-1.glb",
+      "stats": {
+        "buildings": 124,
+        "roadEdges": 50
+      }
+    },
+    {
+      "id": "t-1_-1",
+      "ix": -1,
+      "iz": -1,
+      "bbox": [
+        -500,
+        -500,
+        0,
+        0
+      ],
+      "collider": "t-1_-1.collider.json",
+      "glb": "t-1_-1.glb",
+      "stats": {
+        "buildings": 90,
+        "roadEdges": 44
+      }
+    },
+    {
+      "id": "t0_-1",
+      "ix": 0,
+      "iz": -1,
+      "bbox": [
+        0,
+        -500,
+        500,
+        0
+      ],
+      "collider": "t0_-1.collider.json",
+      "glb": "t0_-1.glb",
+      "stats": {
+        "buildings": 2,
+        "roadEdges": 0
+      }
+    },
+    {
+      "id": "t-5_0",
+      "ix": -5,
+      "iz": 0,
+      "bbox": [
+        -2500,
+        0,
+        -2000,
+        500
+      ],
+      "collider": "t-5_0.collider.json",
+      "glb": "t-5_0.glb",
+      "stats": {
+        "buildings": 225,
+        "roadEdges": 50
+      }
+    },
+    {
+      "id": "t-4_0",
+      "ix": -4,
+      "iz": 0,
+      "bbox": [
+        -2000,
+        0,
+        -1500,
+        500
+      ],
+      "collider": "t-4_0.collider.json",
+      "glb": "t-4_0.glb",
+      "stats": {
+        "buildings": 228,
+        "roadEdges": 40
+      }
+    },
+    {
+      "id": "t-3_0",
+      "ix": -3,
+      "iz": 0,
+      "bbox": [
+        -1500,
+        0,
+        -1000,
+        500
+      ],
+      "collider": "t-3_0.collider.json",
+      "glb": "t-3_0.glb",
+      "stats": {
+        "buildings": 247,
+        "roadEdges": 45
+      }
+    },
+    {
+      "id": "t-2_0",
+      "ix": -2,
+      "iz": 0,
+      "bbox": [
+        -1000,
+        0,
+        -500,
+        500
+      ],
+      "collider": "t-2_0.collider.json",
+      "glb": "t-2_0.glb",
+      "stats": {
+        "buildings": 146,
+        "roadEdges": 52
+      }
+    },
+    {
+      "id": "t-1_0",
+      "ix": -1,
+      "iz": 0,
+      "bbox": [
+        -500,
+        0,
+        0,
+        500
+      ],
+      "collider": "t-1_0.collider.json",
+      "glb": "t-1_0.glb",
+      "stats": {
+        "buildings": 58,
+        "roadEdges": 43
+      }
+    },
+    {
+      "id": "t0_0",
+      "ix": 0,
+      "iz": 0,
+      "bbox": [
+        0,
+        0,
+        500,
+        500
+      ],
+      "collider": "t0_0.collider.json",
+      "glb": "t0_0.glb",
+      "stats": {
+        "buildings": 2,
+        "roadEdges": 0
+      }
+    },
+    {
+      "id": "t-5_1",
+      "ix": -5,
+      "iz": 1,
+      "bbox": [
+        -2500,
+        500,
+        -2000,
+        1000
+      ],
+      "collider": "t-5_1.collider.json",
+      "glb": null,
+      "stats": {
+        "buildings": 201,
+        "roadEdges": 60
+      }
+    },
+    {
+      "id": "t-4_1",
+      "ix": -4,
+      "iz": 1,
+      "bbox": [
+        -2000,
+        500,
+        -1500,
+        1000
+      ],
+      "collider": "t-4_1.collider.json",
+      "glb": "t-4_1.glb",
+      "stats": {
+        "buildings": 220,
+        "roadEdges": 48
+      }
+    },
+    {
+      "id": "t-3_1",
+      "ix": -3,
+      "iz": 1,
+      "bbox": [
+        -1500,
+        500,
+        -1000,
+        1000
+      ],
+      "collider": "t-3_1.collider.json",
+      "glb": "t-3_1.glb",
+      "stats": {
+        "buildings": 150,
+        "roadEdges": 58
+      }
+    },
+    {
+      "id": "t-2_1",
+      "ix": -2,
+      "iz": 1,
+      "bbox": [
+        -1000,
+        500,
+        -500,
+        1000
+      ],
+      "collider": "t-2_1.collider.json",
+      "glb": "t-2_1.glb",
+      "stats": {
+        "buildings": 103,
+        "roadEdges": 36
+      }
+    },
+    {
+      "id": "t-1_1",
+      "ix": -1,
+      "iz": 1,
+      "bbox": [
+        -500,
+        500,
+        0,
+        1000
+      ],
+      "collider": "t-1_1.collider.json",
+      "glb": "t-1_1.glb",
+      "stats": {
+        "buildings": 112,
+        "roadEdges": 31
+      }
+    },
+    {
+      "id": "t0_1",
+      "ix": 0,
+      "iz": 1,
+      "bbox": [
+        0,
+        500,
+        500,
+        1000
+      ],
+      "collider": "t0_1.collider.json",
+      "glb": "t0_1.glb",
+      "stats": {
+        "buildings": 4,
+        "roadEdges": 0
+      }
+    }
+  ],
+  "roads": "roads.json"
+}

@@ -1,5 +1,7 @@
 import { Action, type SimInput } from "../sim/contract.ts";
 
+const NO_PRESSES: readonly string[] = Object.freeze([]);
+
 /** Maps held keys to SimInput. One-shot actions fire once per key press. */
 export class Keyboard {
   private held = new Set<string>();
@@ -43,8 +45,19 @@ export class Keyboard {
     return input;
   }
 
+  /** Whether a key is held right now (the fly camera reads WASD/arrows directly). */
+  isDown(code: string): boolean {
+    return this.held.has(code);
+  }
+
+  /** Discard one-shot sim actions pressed so far (used while the fly camera owns the keys). */
+  clearActions(): void {
+    this.pressed = 0;
+  }
+
   /** Render-only key presses since the last call (e.g. "KeyC" camera, "KeyN" night). */
-  takeUiPresses(): string[] {
+  takeUiPresses(): readonly string[] {
+    if (this.uiPresses.length === 0) return NO_PRESSES;
     const out = this.uiPresses;
     this.uiPresses = [];
     return out;
