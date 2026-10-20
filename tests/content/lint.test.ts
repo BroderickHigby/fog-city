@@ -42,6 +42,10 @@ describe("lintText fails on each fixture", () => {
     ["Raise the rent.", "housing"],
     ["An up-and-coming neighbourhood.", "housing"],
     ["What the hell.", "profanity"],
+    ["A sexy chatbot.", "sexual"],
+    ["NSFW photos, generated.", "sexual"],
+    ["A hate group for robots.", "hate"],
+    ["A Nazi-themed bar.", "hate"],
     ["Fuhgeddaboudit, the bus is late.", "dialect"],
     ["Hola amigo, want a burrito?", "dialect"],
     ["Chinatown firmware is behind it.", "places"],
@@ -74,6 +78,8 @@ describe("lintText passes harmless look-alikes", () => {
     "The Ramen house at Pier 70.",
     "A Footman carries the groceries.",
     "Posted on Humbled.",
+    "Escort the Footman to the corner.",
+    "Sussex Street, sextant, Essex.",
   ])("%s", (text) => {
     expect(lintText(text)).toEqual([]);
   });

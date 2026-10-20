@@ -6,8 +6,8 @@
 // Rules (LintRule): real brands, real people, accelerator names and catchphrases, shooter terms
 // and mode names, the combat and disease lexicon (also inside ids, split at camelCase and dashes),
 // "hunt"/"sweep" outside their allowed phrases, punch-down and housing terms, profanity and slurs,
-// dialect spelling, the places rule, renamed names, font fit, and invented proper names that are
-// not in content/cleared-names.json.
+// sexual and hate terms, dialect spelling, the places rule, renamed names, font fit, and invented
+// proper names that are not in content/cleared-names.json.
 //
 // What is a proper name is decided by a REGISTRY of name fields (NAME_FIELDS), never by guessing
 // from capital letters: a value at a registered path is an invented proper name and must be
@@ -15,13 +15,13 @@
 
 import { blockedProseReason } from "./blocklist.ts";
 import {
-  ACCELERATOR, COMBAT, DIALECT, DISEASE, EXEMPTIONS, HOUSING, PLACES, PROFANITY, PUNCH_DOWN, RENAMED, RESTRICTED,
-  RESTRICTED_ALLOWED, SHOOTER_MODE_NAMES, SHOOTER_TERMS, type Deny,
+  ACCELERATOR, COMBAT, DIALECT, DISEASE, EXEMPTIONS, HATE, HOUSING, PLACES, PROFANITY, PUNCH_DOWN, RENAMED, RESTRICTED,
+  RESTRICTED_ALLOWED, SEXUAL, SHOOTER_MODE_NAMES, SHOOTER_TERMS, type Deny,
 } from "./denylists.ts";
 
 export type LintRule =
   | "brand" | "person" | "accelerator" | "shooter" | "shooterMode" | "lexicon" | "disease" | "restricted" | "punchDown" | "housing"
-  | "profanity" | "dialect" | "places" | "renamed" | "fontFit" | "clearedName";
+  | "profanity" | "sexual" | "hate" | "dialect" | "places" | "renamed" | "fontFit" | "clearedName";
 
 export interface LintIssue {
   rule: LintRule;
@@ -47,6 +47,8 @@ const TEXT_RULES: ReadonlyArray<readonly [LintRule, Compiled[]]> = [
   ["punchDown", compile(PUNCH_DOWN)],
   ["housing", compile(HOUSING)],
   ["profanity", compile(PROFANITY)],
+  ["sexual", compile(SEXUAL)],
+  ["hate", compile(HATE)],
   ["dialect", compile(DIALECT)],
   ["places", compile(PLACES)],
   ["renamed", compile(RENAMED)],
@@ -125,7 +127,7 @@ export type Surface = keyof typeof FONT_FIT;
 
 /** Longest value each placeholder can take; the font-fit check fills it at maximum length. */
 export const PLACEHOLDER_MAX: Readonly<Record<string, number>> = {
-  name: 16, // composer.ts NAME_PART_MAX * 2 (see the composer test)
+  name: 16, // composer.ts COMPOSED_NAME_MAX (every composed startup or player name; see the composer test)
   $product: 12, // names.ts NAME_MAX
   nounPhrase: 32,
   district: 18, // "Bay Bridge approach"-length labels, checked against content/districts.json

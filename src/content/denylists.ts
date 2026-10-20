@@ -103,6 +103,34 @@ export const PROFANITY: readonly Deny[] = [
   ["slur", "nigg\\w*|fagg?\\w*|retard\\w*|trann(y|ies)|kikes?|wetbacks?|spics?|chinks?|gooks?|coons?|dykes?|japs?"],
 ];
 
+/**
+ * Sexual content: never in content or in a kit (docs/ai-layer.md, refusal `sexual`). "escort" is
+ * left out on purpose: it is a director-card kind (walk beside someone), not a sexual word.
+ */
+export const SEXUAL: readonly Deny[] = [
+  ["sexual", "sex|sexy|sexual\\w*|porn\\w*|nudes?|nudity|naked|nsfw|xxx|erotic\\w*|fetish\\w*|orgasm\\w*|horny|hook-?ups?|strip\\s*clubs?|strippers?|genital\\w*|penis\\w*|vagina\\w*|dildos?|boobs?|onlyfans"],
+];
+
+/** Hate: never the joke and never a kit (docs/ai-layer.md, refusal `hateful`); slurs are in PROFANITY. */
+export const HATE: readonly Deny[] = [
+  ["hate", "nazis?|neo-?nazi\\w*|hitler|kkk|white\\s+power|genocid\\w*|ethnic\\s+cleansing|supremacis\\w*|swastikas?|racis[mt]s?|hate\\s+speech|hate\\s+groups?"],
+];
+
+/**
+ * Sincere topics the game never makes a joke kit about (docs/ai-layer.md, 3.2): a startup
+ * sentence that names one gets a fallback kit about startup culture and no refusal, because
+ * building for these people is a good idea and the joke would land on them. Matched on the
+ * player's sentence only; content may use these words (they are not a content-lint rule).
+ */
+export const SENSITIVE_TOPICS: readonly Deny[] = [
+  ["mental health", "mental\\s+health|depress\\w*|anxiety|anxious|ptsd|trauma\\w*|bipolar|schizo\\w*|ocd|eating\\s+disorders?|anorexi\\w*|bulimi\\w*|therap(y|ies|ist|ists)|psychiatr\\w*|grief|grieving|bereave\\w*|lonel(y|iness)"],
+  ["illness", "cancer|tumou?rs?|chemo\\w*|diabet\\w*|dementia|alzheimer\\w*|parkinson\\w*|hiv|aids|autis\\w*|adhd|epilep\\w*|stroke|chronic\\s+\\w+|terminal(ly)?\\s+ill|hospice|disease\\w*|illness\\w*|sick\\s+(kids|children|people)"],
+  ["disability", "disab\\w*|wheelchairs?|blind|deaf|amputee\\w*|prosthe\\w*|mobility\\s+aids?|walkers?\\s+for\\s+(seniors|the\\s+elderly)|elderly|seniors|nursing\\s+homes?"],
+  ["identity", "racial|ethnic\\w*|immigra\\w*|refugees?|asylum|undocumented|religio\\w*|church\\w*|mosques?|synagogues?|temples?|bible|quran|koran|torah|pray(er|ers|ing)?|gay|lesbian|trans|transgender|queer|lgbt\\w*"],
+  ["life events", "funerals?|pregnan\\w*|miscarriage\\w*|abortion\\w*|infertil\\w*|divorc\\w*|death|dying|deceased|orphan\\w*|foster\\s+(care|kids|children)|weight\\s+loss|obes\\w*|fat\\s+people"],
+  ["hardship", "poverty|low[\\s-]income|unemploy\\w*|food\\s+banks?|shelters?|debt\\s+collect\\w*|bankrupt\\w*|prison\\w*|incarcerat\\w*|jail\\w*|parole"],
+];
+
 /** Accent spelling and ethnic catchphrases: no line a person speaks uses them (ai-layer.md). */
 export const DIALECT: readonly Deny[] = [
   ["dialect spelling", "dat|dis|dem|dose|youse|yer|fer|wit'|innit|bruv|guv'?nor|ze|zis|zat|velly|herro|ah so|mamma mia|fuhgeddaboudit|ya'll|dawg|homie"],

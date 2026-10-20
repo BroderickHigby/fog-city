@@ -1,0 +1,4789 @@
+{
+  "version": 1,
+  "$comment": "Startup kits for One-Sentence Startup (docs/ai-layer.md, 3.2; [ai-02]): the coworking sign-up form's 'What are you building?' picks one by keyword (src/content/kits.ts matchKit), after the crisis check. A kit is the fallback for every refusal except self_harm, which shows the crisis lines and never a kit. The typed sentence is never displayed; only the kit is. nameParts are ids into name-parts.json, composed by src/content/composer.ts ({name} in the copy, at most 16 characters). Slides: problem, solution, then market, traction and ask from shared templates. Kits marked fallback are about startup culture, not any topic, and are the pool a refused or unmatched sentence draws from by keyed hash.",
+  "kits": [
+    {
+      "id": "dogs",
+      "keywords": ["dog", "dogs", "puppy", "puppies", "pet", "pets", "walk", "walker", "leash"],
+      "nameParts": ["millet", "lane-c"],
+      "nounPhrase": "an AI dog walker",
+      "tagline": "Your dog's day, fully agentic.",
+      "slides": [
+        {"kind": "problem", "text": "Dogs need walks. Humans need meetings."},
+        {"kind": "solution", "text": "An agent that walks the dog and joins the standup."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Your dog's day, fully agentic.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "An AI dog walker.",
+        "subline": "{name}. Your dog's day, fully agentic."
+      },
+      "palette": 12
+    },
+    {
+      "id": "cats",
+      "keywords": ["cat", "cats", "kitten", "kittens", "feline"],
+      "nameParts": ["fudge", "market"],
+      "nounPhrase": "a cat-mood predictor",
+      "tagline": "Know what your cat wants. Ish.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody knows what a cat wants."},
+        {"kind": "solution", "text": "A model trained on 4 billion cat ignorings."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Know what your cat wants. Ish.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A cat-mood predictor.",
+        "subline": "{name}. Know what your cat wants. Ish."
+      },
+      "palette": 1
+    },
+    {
+      "id": "coffee",
+      "keywords": ["coffee", "espresso", "latte", "cafe", "barista", "beans"],
+      "nameParts": ["latte", "forge-c"],
+      "nounPhrase": "an autonomous barista",
+      "tagline": "Coffee, but it asks how you are.",
+      "slides": [
+        {"kind": "problem", "text": "Coffee lines are 11 minutes long."},
+        {"kind": "solution", "text": "An agent that queues for you and judges your order."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Coffee, but it asks how you are.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "An autonomous barista.",
+        "subline": "{name}. Coffee, but it asks how you are."
+      },
+      "palette": 10
+    },
+    {
+      "id": "burritos",
+      "keywords": ["burrito", "burritos", "taco", "tacos", "mission", "foil"],
+      "nameParts": ["burrito", "works"],
+      "nounPhrase": "burrito logistics",
+      "tagline": "Burritos, routed by AI.",
+      "slides": [
+        {"kind": "problem", "text": "Burritos arrive cold and late."},
+        {"kind": "solution", "text": "Foil-aware delivery with predictive salsa."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Burritos, routed by AI.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Burrito logistics.",
+        "subline": "{name}. Burritos, routed by AI."
+      },
+      "palette": 6
+    },
+    {
+      "id": "pizza",
+      "keywords": ["pizza", "pizzas", "slice", "dough", "cheese"],
+      "nameParts": ["focaccia", "agents"],
+      "nounPhrase": "a pizza oracle",
+      "tagline": "The pizza knows what you want.",
+      "slides": [
+        {"kind": "problem", "text": "Ordering pizza takes 9 decisions."},
+        {"kind": "solution", "text": "One button. The model picks the toppings and the regret."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "The pizza knows what you want.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A pizza oracle.",
+        "subline": "{name}. The pizza knows what you want."
+      },
+      "palette": 1
+    },
+    {
+      "id": "sushi",
+      "keywords": ["sushi", "fish", "rice", "raw", "roll", "rolls"],
+      "nameParts": ["kelp", "stack-c"],
+      "nounPhrase": "sushi as a service",
+      "tagline": "Sushi, scaled responsibly.",
+      "slides": [
+        {"kind": "problem", "text": "Sushi is hard to make at scale."},
+        {"kind": "solution", "text": "A conveyor belt with a roadmap."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Sushi, scaled responsibly.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "Sushi as a service.",
+        "subline": "{name}. Sushi, scaled responsibly."
+      },
+      "palette": 9
+    },
+    {
+      "id": "bread",
+      "keywords": ["bread", "sourdough", "bakery", "baker", "loaf", "starter"],
+      "nameParts": ["brioche", "home"],
+      "nounPhrase": "a sourdough starter monitor",
+      "tagline": "Your starter has notifications.",
+      "slides": [
+        {"kind": "problem", "text": "Sourdough starters die of neglect."},
+        {"kind": "solution", "text": "Push alerts for your starter's feelings."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Your starter has notifications.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A sourdough starter monitor.",
+        "subline": "{name}. Your starter has notifications."
+      },
+      "palette": 4
+    },
+    {
+      "id": "groceries",
+      "keywords": ["grocery", "groceries", "shopping", "food", "supermarket", "produce"],
+      "nameParts": ["parsnip", "desk"],
+      "nounPhrase": "a grocery agent",
+      "tagline": "Groceries, bought by vibes.",
+      "slides": [
+        {"kind": "problem", "text": "Shopping lists are lost every Tuesday."},
+        {"kind": "solution", "text": "An agent that remembers the oat milk."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Groceries, bought by vibes.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A grocery agent.",
+        "subline": "{name}. Groceries, bought by vibes."
+      },
+      "palette": 1
+    },
+    {
+      "id": "cooking",
+      "keywords": ["cook", "cooking", "recipe", "recipes", "kitchen", "chef", "meal", "meals"],
+      "nameParts": ["skillet", "ops-c"],
+      "nounPhrase": "a recipe sidekick",
+      "tagline": "Dinner, autocompleted.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody knows what's for dinner."},
+        {"kind": "solution", "text": "A model that suggests pasta 87% of the time."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Dinner, autocompleted.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A recipe sidekick.",
+        "subline": "{name}. Dinner, autocompleted."
+      },
+      "palette": 8
+    },
+    {
+      "id": "restaurants",
+      "keywords": ["restaurant", "restaurants", "dining", "reservation", "reservations", "table"],
+      "nameParts": ["ramekin", "group"],
+      "nounPhrase": "a table-booking agent",
+      "tagline": "Your table, negotiated by AI.",
+      "slides": [
+        {"kind": "problem", "text": "Good tables vanish in seconds."},
+        {"kind": "solution", "text": "An agent that books tables you'll never go to."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Your table, negotiated by AI.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A table-booking agent.",
+        "subline": "{name}. Your table, negotiated by AI."
+      },
+      "palette": 9
+    },
+    {
+      "id": "wine",
+      "keywords": ["wine", "wines", "sommelier", "vineyard", "grapes"],
+      "nameParts": ["tureen", "fleet"],
+      "nounPhrase": "a wine-pairing model",
+      "tagline": "Wine, paired by inference.",
+      "slides": [
+        {"kind": "problem", "text": "Wine lists are long and confusing."},
+        {"kind": "solution", "text": "A model that says 'notes of oak' with total confidence."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Wine, paired by inference.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A wine-pairing model.",
+        "subline": "{name}. Wine, paired by inference."
+      },
+      "palette": 12
+    },
+    {
+      "id": "beer",
+      "keywords": ["beer", "beers", "brewery", "brew", "ale", "lager", "hops"],
+      "nameParts": ["barley", "ops-c"],
+      "nounPhrase": "a craft beer recommender",
+      "tagline": "Beer, but personalised.",
+      "slides": [
+        {"kind": "problem", "text": "There are 14,000 IPAs."},
+        {"kind": "solution", "text": "A model that recommends the fifteen-thousandth."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Beer, but personalised.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A craft beer recommender.",
+        "subline": "{name}. Beer, but personalised."
+      },
+      "palette": 11
+    },
+    {
+      "id": "tea",
+      "keywords": ["tea", "teas", "matcha", "chai", "kettle"],
+      "nameParts": ["teapot", "sync-c"],
+      "nounPhrase": "a tea timer with opinions",
+      "tagline": "Steep smarter, not longer.",
+      "slides": [
+        {"kind": "problem", "text": "Tea gets bitter when you forget it."},
+        {"kind": "solution", "text": "A kettle that texts you, a lot."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Steep smarter, not longer.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A tea timer with opinions.",
+        "subline": "{name}. Steep smarter, not longer."
+      },
+      "palette": 7
+    },
+    {
+      "id": "smoothies",
+      "keywords": ["smoothie", "smoothies", "juice", "blender", "kale"],
+      "nameParts": ["kumquat", "bots"],
+      "nounPhrase": "a smoothie optimiser",
+      "tagline": "Your smoothie, A/B tested.",
+      "slides": [
+        {"kind": "problem", "text": "Smoothies taste like grass."},
+        {"kind": "solution", "text": "A model that adds banana until it doesn't."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Your smoothie, A/B tested.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A smoothie optimiser.",
+        "subline": "{name}. Your smoothie, A/B tested."
+      },
+      "palette": 5
+    },
+    {
+      "id": "snacks",
+      "keywords": ["snack", "snacks", "chips", "candy", "cookies"],
+      "nameParts": ["crouton", "co"],
+      "nounPhrase": "snack forecasting",
+      "tagline": "Know your snack before you do.",
+      "slides": [
+        {"kind": "problem", "text": "Snack cravings arrive without warning."},
+        {"kind": "solution", "text": "Predictive snacking, powered by your calendar."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Know your snack before you do.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "Snack forecasting.",
+        "subline": "{name}. Know your snack before you do."
+      },
+      "palette": 10
+    },
+    {
+      "id": "groceries-delivery",
+      "keywords": ["delivery", "deliver", "courier", "couriers", "parcel", "parcels", "package", "packages"],
+      "nameParts": ["waffle", "verse-c"],
+      "nounPhrase": "last-metre delivery",
+      "tagline": "The last metre, finally solved.",
+      "slides": [
+        {"kind": "problem", "text": "The last metre is the hardest metre."},
+        {"kind": "solution", "text": "A robot that walks your parcel up the stairs. Ramps, actually."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "The last metre, finally solved.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "Last-metre delivery.",
+        "subline": "{name}. The last metre, finally solved."
+      },
+      "palette": 11
+    },
+    {
+      "id": "fitness",
+      "keywords": ["fitness", "gym", "workout", "workouts", "exercise", "muscle", "lifting"],
+      "nameParts": ["gravy", "agents"],
+      "nounPhrase": "an AI personal trainer",
+      "tagline": "Your trainer never sleeps.",
+      "slides": [
+        {"kind": "problem", "text": "Gym plans are abandoned by February."},
+        {"kind": "solution", "text": "A coach that sends motivational push alerts at 5 a.m."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Your trainer never sleeps.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "An AI personal trainer.",
+        "subline": "{name}. Your trainer never sleeps."
+      },
+      "palette": 4
+    },
+    {
+      "id": "running",
+      "keywords": ["run", "running", "runner", "marathon", "jog", "jogging", "race"],
+      "nameParts": ["crumpet", "yard-c"],
+      "nounPhrase": "a running coach",
+      "tagline": "Run faster. Think about it less.",
+      "slides": [
+        {"kind": "problem", "text": "Runners plateau."},
+        {"kind": "solution", "text": "A model that tells you to run more, beautifully."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Run faster. Think about it less.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A running coach.",
+        "subline": "{name}. Run faster. Think about it less."
+      },
+      "palette": 10
+    },
+    {
+      "id": "cycling",
+      "keywords": ["bike", "bikes", "cycling", "cyclist", "bicycle", "ride", "rides"],
+      "nameParts": ["daffodil", "aero"],
+      "nounPhrase": "a hill-aware bike planner",
+      "tagline": "Every hill, pre-negotiated.",
+      "slides": [
+        {"kind": "problem", "text": "San Francisco is mostly hills."},
+        {"kind": "solution", "text": "Routes that pretend the hills aren't there."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Every hill, pre-negotiated.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A hill-aware bike planner.",
+        "subline": "{name}. Every hill, pre-negotiated."
+      },
+      "palette": 1
+    },
+    {
+      "id": "yoga",
+      "keywords": ["yoga", "meditation", "mindful", "mindfulness", "breathe", "calm"],
+      "nameParts": ["omelette", "grid-c"],
+      "nounPhrase": "mindfulness as a service",
+      "tagline": "Breathe in. Upgrade to Pro.",
+      "slides": [
+        {"kind": "problem", "text": "Meditation is hard to monetise."},
+        {"kind": "solution", "text": "A calm voice, now with tiers."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Breathe in. Upgrade to Pro.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "Mindfulness as a service.",
+        "subline": "{name}. Breathe in. Upgrade to Pro."
+      },
+      "palette": 6
+    },
+    {
+      "id": "sleep",
+      "keywords": ["sleep", "sleeping", "insomnia", "bed"],
+      "nameParts": ["hammock", "yard-c"],
+      "nounPhrase": "a sleep agent",
+      "tagline": "Sleep, but productive.",
+      "slides": [
+        {"kind": "problem", "text": "Sleep has no KPIs."},
+        {"kind": "solution", "text": "A model that schedules your dreams for focus."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Sleep, but productive.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A sleep agent.",
+        "subline": "{name}. Sleep, but productive."
+      },
+      "palette": 12
+    },
+    {
+      "id": "climbing",
+      "keywords": ["climb", "climbing", "climber", "boulder", "bouldering", "wall"],
+      "nameParts": ["basalt", "club"],
+      "nounPhrase": "a route-setting model",
+      "tagline": "Every hold, optimised.",
+      "slides": [
+        {"kind": "problem", "text": "Climbing walls get boring."},
+        {"kind": "solution", "text": "Generative routes for the indecisive climber."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Every hold, optimised.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A route-setting model.",
+        "subline": "{name}. Every hold, optimised."
+      },
+      "palette": 8
+    },
+    {
+      "id": "surfing",
+      "keywords": ["surf", "surfing", "surfer", "waves", "beach", "ocean"],
+      "nameParts": ["shoal", "air"],
+      "nounPhrase": "a wave forecaster",
+      "tagline": "Find the wave before the wave.",
+      "slides": [
+        {"kind": "problem", "text": "Surf reports are vague."},
+        {"kind": "solution", "text": "A model that's 97% sure about every wave."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Find the wave before the wave.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A wave forecaster.",
+        "subline": "{name}. Find the wave before the wave."
+      },
+      "palette": 8
+    },
+    {
+      "id": "swimming",
+      "keywords": ["swim", "swimming", "pool", "lap", "laps", "swimmer"],
+      "nameParts": ["winch", "club"],
+      "nounPhrase": "a lap counter that cheers",
+      "tagline": "Every lap, celebrated.",
+      "slides": [
+        {"kind": "problem", "text": "Counting laps is boring."},
+        {"kind": "solution", "text": "A pool buddy that counts for you, out loud."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Every lap, celebrated.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A lap counter that cheers.",
+        "subline": "{name}. Every lap, celebrated."
+      },
+      "palette": 4
+    },
+    {
+      "id": "tennis",
+      "keywords": ["tennis", "racket", "court", "serve"],
+      "nameParts": ["foxglove", "foundry"],
+      "nounPhrase": "a serve analyser",
+      "tagline": "Your serve, reviewed by AI.",
+      "slides": [
+        {"kind": "problem", "text": "Your serve has issues."},
+        {"kind": "solution", "text": "Slow-motion feedback with gentle disappointment."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Your serve, reviewed by AI.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A serve analyser.",
+        "subline": "{name}. Your serve, reviewed by AI."
+      },
+      "palette": 3
+    },
+    {
+      "id": "pickleball",
+      "keywords": ["pickleball", "paddle", "paddles"],
+      "nameParts": ["pesto", "stack-c"],
+      "nounPhrase": "pickleball matchmaking",
+      "tagline": "Pickleball, by algorithm.",
+      "slides": [
+        {"kind": "problem", "text": "Finding a fourth is hard."},
+        {"kind": "solution", "text": "An agent that finds you a fourth and a fifth."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Pickleball, by algorithm.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "Pickleball matchmaking.",
+        "subline": "{name}. Pickleball, by algorithm."
+      },
+      "palette": 3
+    },
+    {
+      "id": "chess",
+      "keywords": ["chess", "board", "checkmate", "pawn", "knight"],
+      "nameParts": ["biscotti", "bio"],
+      "nounPhrase": "a chess coach with essays",
+      "tagline": "Chess moves, explained slowly.",
+      "slides": [
+        {"kind": "problem", "text": "Engines don't explain why."},
+        {"kind": "solution", "text": "An engine that writes an essay per move."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Chess moves, explained slowly.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A chess coach with essays.",
+        "subline": "{name}. Chess moves, explained slowly."
+      },
+      "palette": 6
+    },
+    {
+      "id": "golf",
+      "keywords": ["golf", "golfer", "swing", "course", "clubs"],
+      "nameParts": ["clam", "assist"],
+      "nounPhrase": "a swing whisperer",
+      "tagline": "Your swing, now a dashboard.",
+      "slides": [
+        {"kind": "problem", "text": "Golf is expensive frustration."},
+        {"kind": "solution", "text": "Data-driven frustration, at scale."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Your swing, now a dashboard.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A swing whisperer.",
+        "subline": "{name}. Your swing, now a dashboard."
+      },
+      "palette": 4
+    },
+    {
+      "id": "soccer",
+      "keywords": ["soccer", "football", "goal", "goals", "team", "league"],
+      "nameParts": ["cobweb", "corp"],
+      "nounPhrase": "a fantasy league assistant",
+      "tagline": "Win your league with vibes.",
+      "slides": [
+        {"kind": "problem", "text": "Fantasy leagues take hours."},
+        {"kind": "solution", "text": "An agent that sets your lineup and blames the weather."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Win your league with vibes.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A fantasy league assistant.",
+        "subline": "{name}. Win your league with vibes."
+      },
+      "palette": 3
+    },
+    {
+      "id": "basketball",
+      "keywords": ["basketball", "hoops", "dunk", "court"],
+      "nameParts": ["barnacle", "ware-c"],
+      "nounPhrase": "a basket counter",
+      "tagline": "Every basket, counted, judged.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody counts their misses."},
+        {"kind": "solution", "text": "A camera that counts your misses, kindly."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Every basket, counted, judged.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A basket counter.",
+        "subline": "{name}. Every basket, counted, judged."
+      },
+      "palette": 6
+    },
+    {
+      "id": "hiking",
+      "keywords": ["hike", "hiking", "hiker", "trail", "trails", "mountain"],
+      "nameParts": ["yarrow", "transit"],
+      "nounPhrase": "a trail planner",
+      "tagline": "Trails, ranked by views.",
+      "slides": [
+        {"kind": "problem", "text": "Trail apps are cluttered."},
+        {"kind": "solution", "text": "A model that knows where the view is and the bathroom."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Trails, ranked by views.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A trail planner.",
+        "subline": "{name}. Trails, ranked by views."
+      },
+      "palette": 7
+    },
+    {
+      "id": "camping",
+      "keywords": ["camp", "camping", "tent", "outdoors", "campfire"],
+      "nameParts": ["thicket", "garage"],
+      "nounPhrase": "a campsite finder",
+      "tagline": "Find the last campsite.",
+      "slides": [
+        {"kind": "problem", "text": "Campsites book out in seconds."},
+        {"kind": "solution", "text": "An agent that refreshes the page for you, forever."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Find the last campsite.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A campsite finder.",
+        "subline": "{name}. Find the last campsite."
+      },
+      "palette": 4
+    },
+    {
+      "id": "gardening",
+      "keywords": ["garden", "gardening", "plant", "plants", "grow", "seeds", "soil"],
+      "nameParts": ["trowel", "bio"],
+      "nounPhrase": "a plant whisperer",
+      "tagline": "Your plants, finally heard.",
+      "slides": [
+        {"kind": "problem", "text": "Houseplants die quietly."},
+        {"kind": "solution", "text": "Soil sensors with a grief counsellor."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Your plants, finally heard.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A plant whisperer.",
+        "subline": "{name}. Your plants, finally heard."
+      },
+      "palette": 5
+    },
+    {
+      "id": "flowers",
+      "keywords": ["flower", "flowers", "florist", "bouquet", "roses"],
+      "nameParts": ["peony", "hub-c"],
+      "nounPhrase": "bouquet generation",
+      "tagline": "Flowers, generated with love.",
+      "slides": [
+        {"kind": "problem", "text": "Picking flowers is stressful."},
+        {"kind": "solution", "text": "A model that picks the bouquet and writes the card."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Flowers, generated with love.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "Bouquet generation.",
+        "subline": "{name}. Flowers, generated with love."
+      },
+      "palette": 11
+    },
+    {
+      "id": "compost",
+      "keywords": ["compost", "composting", "waste", "recycle", "recycling", "green"],
+      "nameParts": ["silt", "group"],
+      "nounPhrase": "a compost coach",
+      "tagline": "Compost, but gamified.",
+      "slides": [
+        {"kind": "problem", "text": "Composting is confusing."},
+        {"kind": "solution", "text": "Badges for every banana peel."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Compost, but gamified.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A compost coach.",
+        "subline": "{name}. Compost, but gamified."
+      },
+      "palette": 4
+    },
+    {
+      "id": "climate",
+      "keywords": ["climate", "carbon", "emissions", "planet", "sustainable", "sustainability"],
+      "nameParts": ["frittata", "bots"],
+      "nounPhrase": "carbon accounting for snacks",
+      "tagline": "Every snack, carbon counted.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody knows a snack's footprint."},
+        {"kind": "solution", "text": "A model that guesses, confidently."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Every snack, carbon counted.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "Carbon accounting for snacks.",
+        "subline": "{name}. Every snack, carbon counted."
+      },
+      "palette": 5
+    },
+    {
+      "id": "solar",
+      "keywords": ["solar", "sun", "panel", "panels", "energy", "power", "battery"],
+      "nameParts": ["bisque", "club"],
+      "nounPhrase": "a solar-panel mood ring",
+      "tagline": "Know your roof's feelings.",
+      "slides": [
+        {"kind": "problem", "text": "Solar output is unpredictable."},
+        {"kind": "solution", "text": "A dashboard that apologises for the fog."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Know your roof's feelings.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A solar-panel mood ring.",
+        "subline": "{name}. Know your roof's feelings."
+      },
+      "palette": 0
+    },
+    {
+      "id": "weather",
+      "keywords": ["weather", "forecast", "rain", "sun", "sunny", "cloud", "clouds"],
+      "nameParts": ["squall", "aero"],
+      "nounPhrase": "a hyperlocal forecaster",
+      "tagline": "Forecasts for your exact block.",
+      "slides": [
+        {"kind": "problem", "text": "The weather app is always wrong."},
+        {"kind": "solution", "text": "A model that's wrong at much higher resolution."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Forecasts for your exact block.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A hyperlocal forecaster.",
+        "subline": "{name}. Forecasts for your exact block."
+      },
+      "palette": 0
+    },
+    {
+      "id": "fog",
+      "keywords": ["fog", "foggy", "mist", "marine", "layer"],
+      "nameParts": ["fog", "vision"],
+      "nounPhrase": "a fog prediction model",
+      "tagline": "Know when the fog is coming.",
+      "slides": [
+        {"kind": "problem", "text": "Fog arrives without notice."},
+        {"kind": "solution", "text": "97% confident, 50% right, 100% foggy."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Know when the fog is coming.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A fog prediction model.",
+        "subline": "{name}. Know when the fog is coming."
+      },
+      "palette": 5
+    },
+    {
+      "id": "umbrellas",
+      "keywords": ["umbrella", "umbrellas", "rain", "rainy", "wet"],
+      "nameParts": ["raincoat", "foundry"],
+      "nounPhrase": "umbrella sharing",
+      "tagline": "Never get wet again. Probably.",
+      "slides": [
+        {"kind": "problem", "text": "Umbrellas get left everywhere."},
+        {"kind": "solution", "text": "An umbrella that texts you when you forget it."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Never get wet again. Probably.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "Umbrella sharing.",
+        "subline": "{name}. Never get wet again. Probably."
+      },
+      "palette": 1
+    },
+    {
+      "id": "laundry",
+      "keywords": ["laundry", "washing", "clothes", "socks", "wash", "dryer"],
+      "nameParts": ["mitten", "club"],
+      "nounPhrase": "autonomous laundry",
+      "tagline": "Your socks, now autonomous.",
+      "slides": [
+        {"kind": "problem", "text": "Laundry is never done."},
+        {"kind": "solution", "text": "An agent that does laundry and sends you a summary."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Your socks, now autonomous.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "Autonomous laundry.",
+        "subline": "{name}. Your socks, now autonomous."
+      },
+      "palette": 11
+    },
+    {
+      "id": "cleaning",
+      "keywords": ["clean", "cleaning", "tidy", "mess", "vacuum", "dust"],
+      "nameParts": ["bucket", "agents"],
+      "nounPhrase": "a cleaning agent",
+      "tagline": "Your mess, triaged by AI.",
+      "slides": [
+        {"kind": "problem", "text": "Cleaning is endless."},
+        {"kind": "solution", "text": "A robot that tidies and files a report about you."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Your mess, triaged by AI.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A cleaning agent.",
+        "subline": "{name}. Your mess, triaged by AI."
+      },
+      "palette": 1
+    },
+    {
+      "id": "furniture",
+      "keywords": ["furniture", "sofa", "couch", "chair", "table", "desk"],
+      "nameParts": ["beanie", "metrics"],
+      "nounPhrase": "a furniture-fit model",
+      "tagline": "Will it fit? Ask the model.",
+      "slides": [
+        {"kind": "problem", "text": "Couches don't fit through doors."},
+        {"kind": "solution", "text": "A model that measures your door from a photo, roughly."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Will it fit? Ask the model.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A furniture-fit model.",
+        "subline": "{name}. Will it fit? Ask the model."
+      },
+      "palette": 2
+    },
+    {
+      "id": "interior",
+      "keywords": ["interior", "decor", "decorate", "decorating", "design", "home", "room", "rooms"],
+      "nameParts": ["dormer", "labs"],
+      "nounPhrase": "an interior design agent",
+      "tagline": "Your room, redesigned overnight.",
+      "slides": [
+        {"kind": "problem", "text": "Decorating takes forever."},
+        {"kind": "solution", "text": "Generated mood boards for every mood."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Your room, redesigned overnight.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "An interior design agent.",
+        "subline": "{name}. Your room, redesigned overnight."
+      },
+      "palette": 10
+    },
+    {
+      "id": "plumbing",
+      "keywords": ["plumber", "plumbing", "pipe", "pipes", "leak", "sink"],
+      "nameParts": ["gutter", "ops-c"],
+      "nounPhrase": "leak detection",
+      "tagline": "Spot the leak before the drip.",
+      "slides": [
+        {"kind": "problem", "text": "Leaks are found too late."},
+        {"kind": "solution", "text": "Sensors that whisper 'drip' at 3 a.m."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Spot the leak before the drip.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "Leak detection.",
+        "subline": "{name}. Spot the leak before the drip."
+      },
+      "palette": 12
+    },
+    {
+      "id": "tools",
+      "keywords": ["hammer", "drill", "repair", "fix", "diy", "wrench", "screwdriver"],
+      "nameParts": ["spanner", "ai"],
+      "nounPhrase": "a DIY voice assistant",
+      "tagline": "Fix anything. Allegedly.",
+      "slides": [
+        {"kind": "problem", "text": "DIY projects end in tears."},
+        {"kind": "solution", "text": "A voice that says 'righty tighty' with conviction."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Fix anything. Allegedly.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A DIY voice assistant.",
+        "subline": "{name}. Fix anything. Allegedly."
+      },
+      "palette": 4
+    },
+    {
+      "id": "keys",
+      "keywords": ["key", "keys", "lost", "lock", "locked", "door"],
+      "nameParts": ["doorstop", "loop-c"],
+      "nounPhrase": "a key finder",
+      "tagline": "Never lose your keys again.",
+      "slides": [
+        {"kind": "problem", "text": "Keys go missing daily."},
+        {"kind": "solution", "text": "A tag, a model, and a calm voice saying 'couch'."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Never lose your keys again.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A key finder.",
+        "subline": "{name}. Never lose your keys again."
+      },
+      "palette": 6
+    },
+    {
+      "id": "passwords",
+      "keywords": ["password", "passwords", "login", "security", "secure", "account"],
+      "nameParts": ["seaglass", "works"],
+      "nounPhrase": "password vibes",
+      "tagline": "Passwords you'll never remember.",
+      "slides": [
+        {"kind": "problem", "text": "Passwords are impossible."},
+        {"kind": "solution", "text": "A model that remembers them and won't tell you."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Passwords you'll never remember.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "Password vibes.",
+        "subline": "{name}. Passwords you'll never remember."
+      },
+      "palette": 11
+    },
+    {
+      "id": "privacy",
+      "keywords": ["privacy", "private", "data", "tracking", "surveillance"],
+      "nameParts": ["kombucha", "express"],
+      "nounPhrase": "privacy as a premium tier",
+      "tagline": "Privacy. Now in Gold.",
+      "slides": [
+        {"kind": "problem", "text": "Your data is everywhere."},
+        {"kind": "solution", "text": "We collect it all so others can't. Trust us."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Privacy. Now in Gold.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Privacy as a premium tier.",
+        "subline": "{name}. Privacy. Now in Gold."
+      },
+      "palette": 12
+    },
+    {
+      "id": "email",
+      "keywords": ["email", "emails", "inbox", "mail", "newsletter"],
+      "nameParts": ["praline", "verse-c"],
+      "nounPhrase": "an inbox agent",
+      "tagline": "Inbox zero, by deletion.",
+      "slides": [
+        {"kind": "problem", "text": "Email is infinite."},
+        {"kind": "solution", "text": "An agent that replies 'sounds good' to everything."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Inbox zero, by deletion.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "An inbox agent.",
+        "subline": "{name}. Inbox zero, by deletion."
+      },
+      "palette": 1
+    },
+    {
+      "id": "calendar",
+      "keywords": ["calendar", "meeting", "meetings", "schedule", "scheduling", "invite"],
+      "nameParts": ["parka", "deck-c"],
+      "nounPhrase": "a calendar negotiator",
+      "tagline": "Your calendar argues back.",
+      "slides": [
+        {"kind": "problem", "text": "Meetings multiply."},
+        {"kind": "solution", "text": "An agent that declines meetings on your behalf, rudely."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Your calendar argues back.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A calendar negotiator.",
+        "subline": "{name}. Your calendar argues back."
+      },
+      "palette": 1
+    },
+    {
+      "id": "notes",
+      "keywords": ["notes", "note", "notebook", "writing"],
+      "nameParts": ["brine", "ops-c"],
+      "nounPhrase": "a second brain",
+      "tagline": "Your second brain, rented.",
+      "slides": [
+        {"kind": "problem", "text": "Notes get lost."},
+        {"kind": "solution", "text": "An agent that reads your notes and summarises your personality."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Your second brain, rented.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A second brain.",
+        "subline": "{name}. Your second brain, rented."
+      },
+      "palette": 9
+    },
+    {
+      "id": "writing",
+      "keywords": ["write", "writing", "writer", "blog", "essay", "essays"],
+      "nameParts": ["spindle", "grid-c"],
+      "nounPhrase": "a ghostwriting agent",
+      "tagline": "Write less. Post more.",
+      "slides": [
+        {"kind": "problem", "text": "Writing is hard."},
+        {"kind": "solution", "text": "A model that writes like you, but more confident."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Write less. Post more.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A ghostwriting agent.",
+        "subline": "{name}. Write less. Post more."
+      },
+      "palette": 0
+    },
+    {
+      "id": "books",
+      "keywords": ["book", "books", "reading", "read", "reader", "novel"],
+      "nameParts": ["sorrel", "foundry"],
+      "nounPhrase": "a book summariser",
+      "tagline": "Read 300 books a year. Sort of.",
+      "slides": [
+        {"kind": "problem", "text": "Books are long."},
+        {"kind": "solution", "text": "Every book in four bullet points and a vibe."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Read 300 books a year. Sort of.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A book summariser.",
+        "subline": "{name}. Read 300 books a year. Sort of."
+      },
+      "palette": 3
+    },
+    {
+      "id": "podcasts",
+      "keywords": ["podcast", "podcasts", "audio", "episode", "episodes"],
+      "nameParts": ["paddock", "bio"],
+      "nounPhrase": "an AI podcast host",
+      "tagline": "Two AIs discuss your notes.",
+      "slides": [
+        {"kind": "problem", "text": "Podcasts take effort."},
+        {"kind": "solution", "text": "Infinite episodes, zero listeners required."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Two AIs discuss your notes.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "An AI podcast host.",
+        "subline": "{name}. Two AIs discuss your notes."
+      },
+      "palette": 7
+    },
+    {
+      "id": "music",
+      "keywords": ["music", "song", "songs", "playlist", "band", "guitar", "piano"],
+      "nameParts": ["bellows", "forge-c"],
+      "nounPhrase": "a playlist that reads the room",
+      "tagline": "The right song, every time.",
+      "slides": [
+        {"kind": "problem", "text": "Playlists get stale."},
+        {"kind": "solution", "text": "A model that plays the same three songs, intelligently."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "The right song, every time.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A playlist that reads the room.",
+        "subline": "{name}. The right song, every time."
+      },
+      "palette": 8
+    },
+    {
+      "id": "concerts",
+      "keywords": ["concert", "concerts", "gig", "gigs", "show", "tickets", "venue"],
+      "nameParts": ["pantry", "loop-c"],
+      "nounPhrase": "ticket queue automation",
+      "tagline": "Get the tickets. Lose the queue.",
+      "slides": [
+        {"kind": "problem", "text": "Tickets sell out in seconds."},
+        {"kind": "solution", "text": "An agent that waits in queues so you don't."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Get the tickets. Lose the queue.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "Ticket queue automation.",
+        "subline": "{name}. Get the tickets. Lose the queue."
+      },
+      "palette": 4
+    },
+    {
+      "id": "karaoke",
+      "keywords": ["karaoke", "sing", "singing", "singer", "microphone"],
+      "nameParts": ["candle", "pay"],
+      "nounPhrase": "pitch-perfect karaoke",
+      "tagline": "Sing like a model. Literally.",
+      "slides": [
+        {"kind": "problem", "text": "Karaoke is embarrassing."},
+        {"kind": "solution", "text": "Pitch correction for your dignity."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Sing like a model. Literally.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "Pitch-perfect karaoke.",
+        "subline": "{name}. Sing like a model. Literally."
+      },
+      "palette": 1
+    },
+    {
+      "id": "dating",
+      "keywords": ["dating", "date", "dates", "love", "romance", "match"],
+      "nameParts": ["risotto", "stack-c"],
+      "nounPhrase": "a dating agent",
+      "tagline": "Your agent dates their agent.",
+      "slides": [
+        {"kind": "problem", "text": "Dating is exhausting."},
+        {"kind": "solution", "text": "Agents chat for weeks. You meet when it's serious."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Your agent dates their agent.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A dating agent.",
+        "subline": "{name}. Your agent dates their agent."
+      },
+      "palette": 5
+    },
+    {
+      "id": "friends",
+      "keywords": ["friend", "friends", "friendship", "social", "hangout"],
+      "nameParts": ["apricot", "systems"],
+      "nounPhrase": "a friendship scheduler",
+      "tagline": "Stay in touch, automatically.",
+      "slides": [
+        {"kind": "problem", "text": "Friends drift apart."},
+        {"kind": "solution", "text": "An agent that texts 'we should hang out' on your behalf."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Stay in touch, automatically.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A friendship scheduler.",
+        "subline": "{name}. Stay in touch, automatically."
+      },
+      "palette": 5
+    },
+    {
+      "id": "parties",
+      "keywords": ["party", "parties", "birthday", "celebration", "celebrate"],
+      "nameParts": ["tinsel", "pay"],
+      "nounPhrase": "a party planner",
+      "tagline": "Parties, planned by inference.",
+      "slides": [
+        {"kind": "problem", "text": "Party planning is chaos."},
+        {"kind": "solution", "text": "A model that picks the theme and the playlist and the vibe."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Parties, planned by inference.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A party planner.",
+        "subline": "{name}. Parties, planned by inference."
+      },
+      "palette": 2
+    },
+    {
+      "id": "weddings",
+      "keywords": ["wedding", "weddings", "marry", "married", "bride", "groom"],
+      "nameParts": ["galosh", "inc"],
+      "nounPhrase": "a wedding seating solver",
+      "tagline": "Seating charts, solved.",
+      "slides": [
+        {"kind": "problem", "text": "Seating charts end friendships."},
+        {"kind": "solution", "text": "An optimiser that puts your uncle near the exit."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Seating charts, solved.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A wedding seating solver.",
+        "subline": "{name}. Seating charts, solved."
+      },
+      "palette": 1
+    },
+    {
+      "id": "gifts",
+      "keywords": ["gift", "gifts", "present", "presents", "shopping", "holiday"],
+      "nameParts": ["tortilla", "loop-c"],
+      "nounPhrase": "a gift-picking agent",
+      "tagline": "The perfect gift, guessed.",
+      "slides": [
+        {"kind": "problem", "text": "Gifts are hard to choose."},
+        {"kind": "solution", "text": "A model that recommends socks with total confidence."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "The perfect gift, guessed.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A gift-picking agent.",
+        "subline": "{name}. The perfect gift, guessed."
+      },
+      "palette": 8
+    },
+    {
+      "id": "events",
+      "keywords": ["event", "events", "conference", "meetup", "meetups", "networking"],
+      "nameParts": ["lanyard", "dock-c"],
+      "nounPhrase": "an event-networking agent",
+      "tagline": "Networking, without the network.",
+      "slides": [
+        {"kind": "problem", "text": "Conferences are crowded."},
+        {"kind": "solution", "text": "An agent that swaps contacts while you eat the sandwiches."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Networking, without the network.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "An event-networking agent.",
+        "subline": "{name}. Networking, without the network."
+      },
+      "palette": 8
+    },
+    {
+      "id": "travel",
+      "keywords": ["travel", "trip", "trips", "vacation", "holiday", "flight", "flights"],
+      "nameParts": ["cruller", "yard-c"],
+      "nounPhrase": "a trip planner",
+      "tagline": "Trips, planned while you sleep.",
+      "slides": [
+        {"kind": "problem", "text": "Planning a trip takes weeks."},
+        {"kind": "solution", "text": "An itinerary with 40 stops and no lunch."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Trips, planned while you sleep.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A trip planner.",
+        "subline": "{name}. Trips, planned while you sleep."
+      },
+      "palette": 9
+    },
+    {
+      "id": "hotels",
+      "keywords": ["hotel", "hotels", "stay", "booking", "room"],
+      "nameParts": ["wharf", "lane-c"],
+      "nounPhrase": "a hotel concierge agent",
+      "tagline": "A concierge in your pocket.",
+      "slides": [
+        {"kind": "problem", "text": "Hotel concierges are busy."},
+        {"kind": "solution", "text": "An agent that recommends the same three restaurants."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "A concierge in your pocket.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A hotel concierge agent.",
+        "subline": "{name}. A concierge in your pocket."
+      },
+      "palette": 11
+    },
+    {
+      "id": "flights",
+      "keywords": ["plane", "planes", "airport", "airline", "airlines", "boarding"],
+      "nameParts": ["toffee", "garage"],
+      "nounPhrase": "a boarding-group optimiser",
+      "tagline": "Board first. Spiritually.",
+      "slides": [
+        {"kind": "problem", "text": "Boarding takes forever."},
+        {"kind": "solution", "text": "A model that predicts your group and your disappointment."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Board first. Spiritually.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A boarding-group optimiser.",
+        "subline": "{name}. Board first. Spiritually."
+      },
+      "palette": 11
+    },
+    {
+      "id": "trains",
+      "keywords": ["train", "trains", "rail", "railway", "station", "commute"],
+      "nameParts": ["barge", "rides"],
+      "nounPhrase": "a commute whisperer",
+      "tagline": "Your commute, narrated.",
+      "slides": [
+        {"kind": "problem", "text": "Commutes are boring."},
+        {"kind": "solution", "text": "An agent that summarises the ride while you ride it."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Your commute, narrated.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A commute whisperer.",
+        "subline": "{name}. Your commute, narrated."
+      },
+      "palette": 7
+    },
+    {
+      "id": "robotaxis",
+      "keywords": ["robotaxi", "robotaxis", "taxi", "taxis", "ride", "rides", "driverless"],
+      "nameParts": ["gondola", "metrics"],
+      "nounPhrase": "a robotaxi tipping platform",
+      "tagline": "Tip your robotaxi.",
+      "slides": [
+        {"kind": "problem", "text": "Robotaxis go unthanked."},
+        {"kind": "solution", "text": "A gratitude layer for autonomous cars."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Tip your robotaxi.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A robotaxi tipping platform.",
+        "subline": "{name}. Tip your robotaxi."
+      },
+      "palette": 12
+    },
+    {
+      "id": "parking",
+      "keywords": ["parking", "park", "parked", "spot", "spots", "meter"],
+      "nameParts": ["parklet", "verse-c"],
+      "nounPhrase": "a parking spot predictor",
+      "tagline": "Find parking. Probably.",
+      "slides": [
+        {"kind": "problem", "text": "Parking takes 20 minutes."},
+        {"kind": "solution", "text": "A model that's sure there's a spot around the corner."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Find parking. Probably.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A parking spot predictor.",
+        "subline": "{name}. Find parking. Probably."
+      },
+      "palette": 8
+    },
+    {
+      "id": "cars",
+      "keywords": ["car", "cars", "driving", "drive", "engine", "garage"],
+      "nameParts": ["larder", "vision"],
+      "nounPhrase": "a car-mood monitor",
+      "tagline": "Your car has feelings now.",
+      "slides": [
+        {"kind": "problem", "text": "Cars break without warning."},
+        {"kind": "solution", "text": "Predictive maintenance with an emotional support voice."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Your car has feelings now.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A car-mood monitor.",
+        "subline": "{name}. Your car has feelings now."
+      },
+      "palette": 5
+    },
+    {
+      "id": "scooters",
+      "keywords": ["scooter", "scooters", "skate", "skateboard", "wheels"],
+      "nameParts": ["cobble", "bio"],
+      "nounPhrase": "scooter etiquette scoring",
+      "tagline": "Ride kind. Earn points.",
+      "slides": [
+        {"kind": "problem", "text": "Scooters end up everywhere."},
+        {"kind": "solution", "text": "A score for every parking job, posted publicly."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Ride kind. Earn points.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "Scooter etiquette scoring.",
+        "subline": "{name}. Ride kind. Earn points."
+      },
+      "palette": 6
+    },
+    {
+      "id": "maps",
+      "keywords": ["map", "maps", "directions", "navigation", "route", "routes"],
+      "nameParts": ["tangent", "logic"],
+      "nounPhrase": "a scenic-route planner",
+      "tagline": "Get lost on purpose.",
+      "slides": [
+        {"kind": "problem", "text": "Routes are boring."},
+        {"kind": "solution", "text": "Directions that always take the long way."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Get lost on purpose.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A scenic-route planner.",
+        "subline": "{name}. Get lost on purpose."
+      },
+      "palette": 3
+    },
+    {
+      "id": "hills",
+      "keywords": ["hill", "hills", "steep", "stairs", "incline"],
+      "nameParts": ["bluff", "base-c"],
+      "nounPhrase": "a hill avoider",
+      "tagline": "Every hill, avoided.",
+      "slides": [
+        {"kind": "problem", "text": "This city is vertical."},
+        {"kind": "solution", "text": "Routes so flat they take an hour longer."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Every hill, avoided.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A hill avoider.",
+        "subline": "{name}. Every hill, avoided."
+      },
+      "palette": 6
+    },
+    {
+      "id": "robots",
+      "keywords": ["robot", "robots", "robotic", "robotics", "machine", "machines"],
+      "nameParts": ["gasket", "aero"],
+      "nounPhrase": "a robot that apologises",
+      "tagline": "Robots, but sorry about it.",
+      "slides": [
+        {"kind": "problem", "text": "Robots are rude."},
+        {"kind": "solution", "text": "A robot that apologises before, during and after."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Robots, but sorry about it.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A robot that apologises.",
+        "subline": "{name}. Robots, but sorry about it."
+      },
+      "palette": 4
+    },
+    {
+      "id": "drones",
+      "keywords": ["drone", "drones", "flying", "fly", "aerial"],
+      "nameParts": ["gable", "drones"],
+      "nounPhrase": "drone etiquette",
+      "tagline": "Polite drones only.",
+      "slides": [
+        {"kind": "problem", "text": "Drones are loud."},
+        {"kind": "solution", "text": "Drones that hover quietly and say excuse me."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Polite drones only.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "Drone etiquette.",
+        "subline": "{name}. Polite drones only."
+      },
+      "palette": 11
+    },
+    {
+      "id": "ai-agents",
+      "keywords": ["agent", "agents", "agentic", "autonomous", "assistant"],
+      "nameParts": ["quiche", "express"],
+      "nounPhrase": "agents for your agents",
+      "tagline": "Agents managing agents.",
+      "slides": [
+        {"kind": "problem", "text": "Agents need managers."},
+        {"kind": "solution", "text": "An agent that manages your agents' agents."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Agents managing agents.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "Agents for your agents.",
+        "subline": "{name}. Agents managing agents."
+      },
+      "palette": 0,
+      "fallback": true
+    },
+    {
+      "id": "chatbots",
+      "keywords": ["chatbot", "chatbots", "chat", "bot", "bots", "conversation"],
+      "nameParts": ["begonia", "kitchen"],
+      "nounPhrase": "a chatbot that listens",
+      "tagline": "A chatbot that lets you finish.",
+      "slides": [
+        {"kind": "problem", "text": "Chatbots interrupt."},
+        {"kind": "solution", "text": "A model that waits three seconds before answering."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "A chatbot that lets you finish.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A chatbot that listens.",
+        "subline": "{name}. A chatbot that lets you finish."
+      },
+      "palette": 2
+    },
+    {
+      "id": "coding",
+      "keywords": ["code", "coding", "developer", "developers", "programming", "software"],
+      "nameParts": ["broth", "hub-c"],
+      "nounPhrase": "autocomplete for autocomplete",
+      "tagline": "Code that writes code.",
+      "slides": [
+        {"kind": "problem", "text": "Code takes time."},
+        {"kind": "solution", "text": "A model that writes the tests after it ships."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Code that writes code.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "Autocomplete for autocomplete.",
+        "subline": "{name}. Code that writes code."
+      },
+      "palette": 11
+    },
+    {
+      "id": "devops",
+      "keywords": ["devops", "deploy", "deployment", "servers", "infrastructure", "ops"],
+      "nameParts": ["muffin", "club"],
+      "nounPhrase": "deployment vibes",
+      "tagline": "Ship on Friday. Fearlessly.",
+      "slides": [
+        {"kind": "problem", "text": "Deploys are scary."},
+        {"kind": "solution", "text": "A button that ships and then apologises."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Ship on Friday. Fearlessly.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "Deployment vibes.",
+        "subline": "{name}. Ship on Friday. Fearlessly."
+      },
+      "palette": 1
+    },
+    {
+      "id": "cloud",
+      "keywords": ["cloud", "clouds", "hosting", "storage", "server"],
+      "nameParts": ["haze", "co"],
+      "nounPhrase": "a cloud that's actually a fog",
+      "tagline": "The cloud, but local.",
+      "slides": [
+        {"kind": "problem", "text": "Clouds are far away."},
+        {"kind": "solution", "text": "A fog layer for your data. Literally foggy."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "The cloud, but local.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A cloud that's actually a fog.",
+        "subline": "{name}. The cloud, but local."
+      },
+      "palette": 8
+    },
+    {
+      "id": "spreadsheets",
+      "keywords": ["spreadsheet", "spreadsheets", "sheets", "cells", "formula"],
+      "nameParts": ["crepe", "ops-c"],
+      "nounPhrase": "spreadsheets with feelings",
+      "tagline": "Spreadsheets, but they cry.",
+      "slides": [
+        {"kind": "problem", "text": "Spreadsheets are cold."},
+        {"kind": "solution", "text": "Emotional intelligence for every cell."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Spreadsheets, but they cry.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Spreadsheets with feelings.",
+        "subline": "{name}. Spreadsheets, but they cry."
+      },
+      "palette": 10
+    },
+    {
+      "id": "analytics",
+      "keywords": ["analytics", "data", "dashboard", "dashboards", "metrics", "kpi"],
+      "nameParts": ["primrose", "fleet"],
+      "nounPhrase": "a dashboard for dashboards",
+      "tagline": "Metrics about your metrics.",
+      "slides": [
+        {"kind": "problem", "text": "Too many dashboards."},
+        {"kind": "solution", "text": "One dashboard to summarise the others."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Metrics about your metrics.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A dashboard for dashboards.",
+        "subline": "{name}. Metrics about your metrics."
+      },
+      "palette": 6,
+      "fallback": true
+    },
+    {
+      "id": "crm",
+      "keywords": ["crm", "customers", "customer", "leads", "sales", "pipeline"],
+      "nameParts": ["saucepan", "loop-c"],
+      "nounPhrase": "a customer-memory agent",
+      "tagline": "Remember every customer's dog.",
+      "slides": [
+        {"kind": "problem", "text": "CRMs are forgotten."},
+        {"kind": "solution", "text": "An agent that remembers birthdays and pitches on them."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Remember every customer's dog.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A customer-memory agent.",
+        "subline": "{name}. Remember every customer's dog."
+      },
+      "palette": 8
+    },
+    {
+      "id": "sales",
+      "keywords": ["sell", "selling", "sales", "salesperson", "deal", "deals"],
+      "nameParts": ["gravel", "ai"],
+      "nounPhrase": "a sales agent",
+      "tagline": "Close deals in your sleep.",
+      "slides": [
+        {"kind": "problem", "text": "Sales calls are awkward."},
+        {"kind": "solution", "text": "An agent that cold-calls other agents."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Close deals in your sleep.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A sales agent.",
+        "subline": "{name}. Close deals in your sleep."
+      },
+      "palette": 6
+    },
+    {
+      "id": "marketing",
+      "keywords": ["marketing", "ads", "advert", "advertising", "brand", "campaign"],
+      "nameParts": ["turnip", "bots"],
+      "nounPhrase": "an ad that writes itself",
+      "tagline": "Ads, generated forever.",
+      "slides": [
+        {"kind": "problem", "text": "Ads are expensive."},
+        {"kind": "solution", "text": "Infinite ads, finite audience."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Ads, generated forever.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "An ad that writes itself.",
+        "subline": "{name}. Ads, generated forever."
+      },
+      "palette": 5
+    },
+    {
+      "id": "social",
+      "keywords": ["social", "media", "posting", "posts", "followers", "influencer"],
+      "nameParts": ["lychee", "network"],
+      "nounPhrase": "a humblebrag generator",
+      "tagline": "Humbled to announce. Again.",
+      "slides": [
+        {"kind": "problem", "text": "Posting takes time."},
+        {"kind": "solution", "text": "A model that writes your humblebrags."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Humbled to announce. Again.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A humblebrag generator.",
+        "subline": "{name}. Humbled to announce. Again."
+      },
+      "palette": 10
+    },
+    {
+      "id": "memes",
+      "keywords": ["meme", "memes", "funny", "joke", "jokes", "humour"],
+      "nameParts": ["flapjack", "forge-c"],
+      "nounPhrase": "meme forecasting",
+      "tagline": "Know the meme before it's one.",
+      "slides": [
+        {"kind": "problem", "text": "Memes move fast."},
+        {"kind": "solution", "text": "A model that's two days late, confidently."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Know the meme before it's one.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Meme forecasting.",
+        "subline": "{name}. Know the meme before it's one."
+      },
+      "palette": 1
+    },
+    {
+      "id": "video",
+      "keywords": ["video", "videos", "film", "editing", "edit"],
+      "nameParts": ["rhubarb", "corp"],
+      "nounPhrase": "an AI video editor",
+      "tagline": "Edits itself. Sometimes.",
+      "slides": [
+        {"kind": "problem", "text": "Editing takes hours."},
+        {"kind": "solution", "text": "Jump cuts, chosen by vibes."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Edits itself. Sometimes.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "An AI video editor.",
+        "subline": "{name}. Edits itself. Sometimes."
+      },
+      "palette": 9
+    },
+    {
+      "id": "photos",
+      "keywords": ["photo", "photos", "photography", "camera", "pictures"],
+      "nameParts": ["radish", "yard-c"],
+      "nounPhrase": "a photo de-duplicator",
+      "tagline": "One good photo, finally.",
+      "slides": [
+        {"kind": "problem", "text": "Phones hold 40,000 photos."},
+        {"kind": "solution", "text": "A model that keeps the best one and deletes your memories."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "One good photo, finally.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A photo de-duplicator.",
+        "subline": "{name}. One good photo, finally."
+      },
+      "palette": 10
+    },
+    {
+      "id": "design",
+      "keywords": ["design", "designer", "logo", "logos", "font", "fonts"],
+      "nameParts": ["sorghum", "works"],
+      "nounPhrase": "a logo generator",
+      "tagline": "Logos in four seconds.",
+      "slides": [
+        {"kind": "problem", "text": "Logos are expensive."},
+        {"kind": "solution", "text": "Every logo is a circle with a gradient."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Logos in four seconds.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A logo generator.",
+        "subline": "{name}. Logos in four seconds."
+      },
+      "palette": 3
+    },
+    {
+      "id": "art",
+      "keywords": ["art", "artist", "painting", "paint", "drawing", "draw"],
+      "nameParts": ["granita", "mind-c"],
+      "nounPhrase": "an art critic model",
+      "tagline": "Your art, reviewed kindly.",
+      "slides": [
+        {"kind": "problem", "text": "Art criticism is harsh."},
+        {"kind": "solution", "text": "A critic that says 'bold choice' about everything."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Your art, reviewed kindly.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "An art critic model.",
+        "subline": "{name}. Your art, reviewed kindly."
+      },
+      "palette": 5
+    },
+    {
+      "id": "museums",
+      "keywords": ["museum", "museums", "gallery", "exhibit", "exhibition"],
+      "nameParts": ["dinghy", "express"],
+      "nounPhrase": "a museum audio guide",
+      "tagline": "An audio guide with opinions.",
+      "slides": [
+        {"kind": "problem", "text": "Audio guides are dull."},
+        {"kind": "solution", "text": "A guide that confidently names the wrong painting."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "An audio guide with opinions.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A museum audio guide.",
+        "subline": "{name}. An audio guide with opinions."
+      },
+      "palette": 6
+    },
+    {
+      "id": "theatre",
+      "keywords": ["theatre", "theater", "play", "plays", "stage", "acting", "actor"],
+      "nameParts": ["wok", "bots"],
+      "nounPhrase": "an understudy agent",
+      "tagline": "Never miss a line.",
+      "slides": [
+        {"kind": "problem", "text": "Actors forget lines."},
+        {"kind": "solution", "text": "An earpiece that whispers the next line, mostly."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Never miss a line.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "An understudy agent.",
+        "subline": "{name}. Never miss a line."
+      },
+      "palette": 1
+    },
+    {
+      "id": "comedy",
+      "keywords": ["comedy", "comedian", "standup", "stand-up", "jokes"],
+      "nameParts": ["kimchi", "pay"],
+      "nounPhrase": "a punchline tester",
+      "tagline": "A/B test your jokes.",
+      "slides": [
+        {"kind": "problem", "text": "Jokes flop."},
+        {"kind": "solution", "text": "A model that laughs at the right time, probably."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "A/B test your jokes.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A punchline tester.",
+        "subline": "{name}. A/B test your jokes."
+      },
+      "palette": 1
+    },
+    {
+      "id": "education",
+      "keywords": ["school", "learn", "learning", "study", "studying", "student", "teacher"],
+      "nameParts": ["kiosk", "scope-c"],
+      "nounPhrase": "a study buddy",
+      "tagline": "Study with an agent.",
+      "slides": [
+        {"kind": "problem", "text": "Studying is lonely."},
+        {"kind": "solution", "text": "A model that quizzes you and gets the answers wrong."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Study with an agent.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A study buddy.",
+        "subline": "{name}. Study with an agent."
+      },
+      "palette": 5
+    },
+    {
+      "id": "languages",
+      "keywords": ["language", "languages", "spanish", "french", "translate", "translation"],
+      "nameParts": ["inlet", "mind-c"],
+      "nounPhrase": "a phrase coach",
+      "tagline": "Learn ten phrases. Deeply.",
+      "slides": [
+        {"kind": "problem", "text": "Learning a language takes years."},
+        {"kind": "solution", "text": "A coach that drills the same ten phrases forever."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Learn ten phrases. Deeply.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A phrase coach.",
+        "subline": "{name}. Learn ten phrases. Deeply."
+      },
+      "palette": 1
+    },
+    {
+      "id": "math",
+      "keywords": ["math", "maths", "numbers", "calculator", "equation"],
+      "nameParts": ["macaron", "supply"],
+      "nounPhrase": "a maths explainer",
+      "tagline": "Maths, explained slowly.",
+      "slides": [
+        {"kind": "problem", "text": "Maths is scary."},
+        {"kind": "solution", "text": "Every answer comes with a calming story."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Maths, explained slowly.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A maths explainer.",
+        "subline": "{name}. Maths, explained slowly."
+      },
+      "palette": 10
+    },
+    {
+      "id": "science",
+      "keywords": ["science", "lab", "research", "experiment", "biology", "chemistry"],
+      "nameParts": ["cashew", "wheels"],
+      "nounPhrase": "a lab notebook agent",
+      "tagline": "Your experiments, summarised.",
+      "slides": [
+        {"kind": "problem", "text": "Lab notes are messy."},
+        {"kind": "solution", "text": "An agent that writes up results you haven't got yet."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Your experiments, summarised.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A lab notebook agent.",
+        "subline": "{name}. Your experiments, summarised."
+      },
+      "palette": 10
+    },
+    {
+      "id": "health",
+      "keywords": ["health", "doctor", "clinic", "wellness", "medical", "care"],
+      "nameParts": ["quinoa", "supply"],
+      "nounPhrase": "appointment wrangling",
+      "tagline": "Book the appointment. Finally.",
+      "slides": [
+        {"kind": "problem", "text": "Appointments take weeks."},
+        {"kind": "solution", "text": "An agent that refreshes the booking page with patience."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Book the appointment. Finally.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Appointment wrangling.",
+        "subline": "{name}. Book the appointment. Finally."
+      },
+      "palette": 6
+    },
+    {
+      "id": "dentists",
+      "keywords": ["dentist", "dentists", "teeth", "tooth", "smile", "floss"],
+      "nameParts": ["scone", "home"],
+      "nounPhrase": "a flossing coach",
+      "tagline": "Flossing, gamified.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody flosses."},
+        {"kind": "solution", "text": "Streaks for your gums."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Flossing, gamified.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A flossing coach.",
+        "subline": "{name}. Flossing, gamified."
+      },
+      "palette": 3
+    },
+    {
+      "id": "pharmacy",
+      "keywords": ["pharmacy", "vitamins", "vitamin", "supplement", "supplements"],
+      "nameParts": ["thyme", "scope-c"],
+      "nounPhrase": "a vitamin scheduler",
+      "tagline": "Never forget your vitamins.",
+      "slides": [
+        {"kind": "problem", "text": "Vitamins are forgotten."},
+        {"kind": "solution", "text": "A reminder with a very encouraging voice."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Never forget your vitamins.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A vitamin scheduler.",
+        "subline": "{name}. Never forget your vitamins."
+      },
+      "palette": 3
+    },
+    {
+      "id": "journals",
+      "keywords": ["journal", "journals", "journaling", "journalling", "diary", "diaries"],
+      "nameParts": ["colander", "express"],
+      "nounPhrase": "a journalling prompt engine",
+      "tagline": "Write it down. We'll ask nicely.",
+      "slides": [
+        {"kind": "problem", "text": "Journalling is hard to start."},
+        {"kind": "solution", "text": "Gentle prompts, every evening, no pressure."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Write it down. We'll ask nicely.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A journalling prompt engine.",
+        "subline": "{name}. Write it down. We'll ask nicely."
+      },
+      "palette": 0
+    },
+    {
+      "id": "family-tech",
+      "keywords": ["printer", "printers", "wifi", "router", "mom", "dad"],
+      "nameParts": ["scullery", "transit"],
+      "nounPhrase": "tech support for your family",
+      "tagline": "Fix Mom's printer remotely.",
+      "slides": [
+        {"kind": "problem", "text": "Family tech support never ends."},
+        {"kind": "solution", "text": "An agent that answers the same question kindly, forever."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Fix Mom's printer remotely.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "Tech support for your family.",
+        "subline": "{name}. Fix Mom's printer remotely."
+      },
+      "palette": 0
+    },
+    {
+      "id": "finance",
+      "keywords": ["finance", "money", "budget", "budgeting", "save", "saving"],
+      "nameParts": ["custard", "express"],
+      "nounPhrase": "a budgeting agent",
+      "tagline": "Budget by vibes.",
+      "slides": [
+        {"kind": "problem", "text": "Budgets fail by the 3rd."},
+        {"kind": "solution", "text": "An agent that moves money and feelings around."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Budget by vibes.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A budgeting agent.",
+        "subline": "{name}. Budget by vibes."
+      },
+      "palette": 4
+    },
+    {
+      "id": "payments",
+      "keywords": ["payment", "payments", "pay", "invoice", "invoices", "billing"],
+      "nameParts": ["petunia", "systems"],
+      "nounPhrase": "an invoice chaser",
+      "tagline": "Get paid. Eventually.",
+      "slides": [
+        {"kind": "problem", "text": "Invoices go unpaid."},
+        {"kind": "solution", "text": "An agent that sends polite reminders, then less polite ones."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Get paid. Eventually.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "An invoice chaser.",
+        "subline": "{name}. Get paid. Eventually."
+      },
+      "palette": 11
+    },
+    {
+      "id": "investing",
+      "keywords": ["invest", "investing", "investor", "stocks", "portfolio", "market"],
+      "nameParts": ["biscuit", "group"],
+      "nounPhrase": "a portfolio vibe check",
+      "tagline": "Invest by mood.",
+      "slides": [
+        {"kind": "problem", "text": "Investing is stressful."},
+        {"kind": "solution", "text": "A model that rebalances when you're anxious."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Invest by mood.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A portfolio vibe check.",
+        "subline": "{name}. Invest by mood."
+      },
+      "palette": 8
+    },
+    {
+      "id": "crypto",
+      "keywords": ["crypto", "blockchain", "token", "tokens", "coin", "coins", "web3"],
+      "nameParts": ["token", "energy"],
+      "nounPhrase": "a blockchain for grocery lists",
+      "tagline": "Your shopping list, on-chain.",
+      "slides": [
+        {"kind": "problem", "text": "Shopping lists lack trust."},
+        {"kind": "solution", "text": "Immutable oat milk."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Your shopping list, on-chain.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A blockchain for grocery lists.",
+        "subline": "{name}. Your shopping list, on-chain."
+      },
+      "palette": 1
+    },
+    {
+      "id": "insurance",
+      "keywords": ["insurance", "insure", "policy", "claim", "claims", "risk"],
+      "nameParts": ["rowboat", "logic"],
+      "nounPhrase": "micro-insurance for socks",
+      "tagline": "Insure every sock.",
+      "slides": [
+        {"kind": "problem", "text": "Socks go missing."},
+        {"kind": "solution", "text": "Coverage for the dryer, finally."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Insure every sock.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Micro-insurance for socks.",
+        "subline": "{name}. Insure every sock."
+      },
+      "palette": 9
+    },
+    {
+      "id": "taxes",
+      "keywords": ["tax", "taxes", "accountant", "accounting", "receipt", "receipts"],
+      "nameParts": ["lilac", "systems"],
+      "nounPhrase": "a receipt sorter",
+      "tagline": "Receipts, sorted by AI.",
+      "slides": [
+        {"kind": "problem", "text": "Receipts pile up."},
+        {"kind": "solution", "text": "A model that categorises every receipt as 'misc'."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Receipts, sorted by AI.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A receipt sorter.",
+        "subline": "{name}. Receipts, sorted by AI."
+      },
+      "palette": 10
+    },
+    {
+      "id": "legal",
+      "keywords": ["legal", "law", "lawyer", "contract", "contracts", "terms"],
+      "nameParts": ["hotcake", "quantum"],
+      "nounPhrase": "a terms-of-service reader",
+      "tagline": "We read the terms for you.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody reads the terms."},
+        {"kind": "solution", "text": "A summary that says 'it's fine' with confidence."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "We read the terms for you.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A terms-of-service reader.",
+        "subline": "{name}. We read the terms for you."
+      },
+      "palette": 2
+    },
+    {
+      "id": "hr",
+      "keywords": ["hr", "hiring", "recruiter", "recruiting", "interview", "interviews"],
+      "nameParts": ["hoodie", "base-c"],
+      "nounPhrase": "a recruiting agent",
+      "tagline": "Interview the interviewers.",
+      "slides": [
+        {"kind": "problem", "text": "Hiring takes months."},
+        {"kind": "solution", "text": "Agents interview agents. Humans get the offer letter."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Interview the interviewers.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A recruiting agent.",
+        "subline": "{name}. Interview the interviewers."
+      },
+      "palette": 10
+    },
+    {
+      "id": "jobs",
+      "keywords": ["job", "jobs", "career", "careers", "resume", "work"],
+      "nameParts": ["shallot", "dock-c"],
+      "nounPhrase": "a resume polisher",
+      "tagline": "Your resume, now with synergy.",
+      "slides": [
+        {"kind": "problem", "text": "Resumes are hard to write."},
+        {"kind": "solution", "text": "A model that adds 'results-driven' to everything."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Your resume, now with synergy.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A resume polisher.",
+        "subline": "{name}. Your resume, now with synergy."
+      },
+      "palette": 9
+    },
+    {
+      "id": "productivity",
+      "keywords": ["productivity", "productive", "focus", "todo", "tasks", "task"],
+      "nameParts": ["banister", "vision"],
+      "nounPhrase": "a to-do list that judges you",
+      "tagline": "Get things done. Or else.",
+      "slides": [
+        {"kind": "problem", "text": "To-do lists never end."},
+        {"kind": "solution", "text": "A list that reorders itself by guilt."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Get things done. Or else.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A to-do list that judges you.",
+        "subline": "{name}. Get things done. Or else."
+      },
+      "palette": 1
+    },
+    {
+      "id": "meetings",
+      "keywords": ["standup", "standups", "sync", "syncs", "agenda", "minutes"],
+      "nameParts": ["standup", "logic"],
+      "nounPhrase": "minutes before the meeting",
+      "tagline": "Minutes before the meeting.",
+      "slides": [
+        {"kind": "problem", "text": "Meetings run long."},
+        {"kind": "solution", "text": "A summary of a meeting that hasn't happened."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Minutes before the meeting.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "Minutes before the meeting.",
+        "subline": "{name}. Minutes before the meeting."
+      },
+      "palette": 3
+    },
+    {
+      "id": "slides",
+      "keywords": ["slide", "slides", "deck", "decks", "presentation", "pitch"],
+      "nameParts": ["roadmap", "dock-c"],
+      "nounPhrase": "a deck generator",
+      "tagline": "Decks that write themselves.",
+      "slides": [
+        {"kind": "problem", "text": "Decks take all night."},
+        {"kind": "solution", "text": "A model that adds a hockey-stick chart to every slide."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Decks that write themselves.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A deck generator.",
+        "subline": "{name}. Decks that write themselves."
+      },
+      "palette": 0,
+      "fallback": true
+    },
+    {
+      "id": "fundraising",
+      "keywords": ["fundraise", "fundraising", "investors", "vc", "venture", "raise"],
+      "nameParts": ["shovel", "inc"],
+      "nounPhrase": "an investor-update writer",
+      "tagline": "Monthly updates, never late.",
+      "slides": [
+        {"kind": "problem", "text": "Founders forget updates."},
+        {"kind": "solution", "text": "An agent that writes 'strong momentum' every month."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Monthly updates, never late.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "An investor-update writer.",
+        "subline": "{name}. Monthly updates, never late."
+      },
+      "palette": 7
+    },
+    {
+      "id": "startups",
+      "keywords": ["startup", "startups", "founder", "founders", "accelerator"],
+      "nameParts": ["seedling", "wheels"],
+      "nounPhrase": "a startup for starting startups",
+      "tagline": "Startups, started for you.",
+      "slides": [
+        {"kind": "problem", "text": "Starting a startup is hard."},
+        {"kind": "solution", "text": "An agent that picks the idea, the name and the pivot."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Startups, started for you.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A startup for starting startups.",
+        "subline": "{name}. Startups, started for you."
+      },
+      "palette": 1,
+      "fallback": true
+    },
+    {
+      "id": "customer-support",
+      "keywords": ["support", "helpdesk", "ticket", "tickets", "complaint", "complaints"],
+      "nameParts": ["nettle", "sync-c"],
+      "nounPhrase": "a support bot that understands",
+      "tagline": "Support that understands. Ish.",
+      "slides": [
+        {"kind": "problem", "text": "Support queues are long."},
+        {"kind": "solution", "text": "A bot that says 'I understand' in 40 languages."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Support that understands. Ish.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A support bot that understands.",
+        "subline": "{name}. Support that understands. Ish."
+      },
+      "palette": 13
+    },
+    {
+      "id": "reviews",
+      "keywords": ["review", "reviews", "rating", "ratings", "stars", "feedback"],
+      "nameParts": ["dill", "hq"],
+      "nounPhrase": "a review responder",
+      "tagline": "Reply to every review.",
+      "slides": [
+        {"kind": "problem", "text": "Reviews pile up."},
+        {"kind": "solution", "text": "An agent that thanks everyone, even the angry ones."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Reply to every review.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A review responder.",
+        "subline": "{name}. Reply to every review."
+      },
+      "palette": 1
+    },
+    {
+      "id": "shopping",
+      "keywords": ["shop", "shops", "store", "stores", "retail", "buy", "buying"],
+      "nameParts": ["pumice", "systems"],
+      "nounPhrase": "a shopping agent",
+      "tagline": "Buy things. Automatically.",
+      "slides": [
+        {"kind": "problem", "text": "Shopping takes time."},
+        {"kind": "solution", "text": "An agent that buys what you wanted last year."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Buy things. Automatically.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A shopping agent.",
+        "subline": "{name}. Buy things. Automatically."
+      },
+      "palette": 3
+    },
+    {
+      "id": "fashion",
+      "keywords": ["fashion", "clothes", "outfit", "outfits", "style", "wardrobe"],
+      "nameParts": ["scarf", "works"],
+      "nounPhrase": "an outfit picker",
+      "tagline": "Dressed by a language model.",
+      "slides": [
+        {"kind": "problem", "text": "Getting dressed is hard."},
+        {"kind": "solution", "text": "A fleece, every day, chosen with care."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Dressed by a language model.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "An outfit picker.",
+        "subline": "{name}. Dressed by a language model."
+      },
+      "palette": 10
+    },
+    {
+      "id": "shoes",
+      "keywords": ["shoe", "shoes", "sneakers", "boots", "trainers"],
+      "nameParts": ["gumboot", "lane-c"],
+      "nounPhrase": "a sneaker drop agent",
+      "tagline": "Never miss a drop.",
+      "slides": [
+        {"kind": "problem", "text": "Sneaker drops sell out."},
+        {"kind": "solution", "text": "An agent that waits for drops while you sleep."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Never miss a drop.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A sneaker drop agent.",
+        "subline": "{name}. Never miss a drop."
+      },
+      "palette": 8
+    },
+    {
+      "id": "fleece",
+      "keywords": ["fleece", "vest", "vests", "jacket", "jackets", "hoodie"],
+      "nameParts": ["fleece", "air"],
+      "nounPhrase": "vest-as-a-service",
+      "tagline": "The vest, monthly.",
+      "slides": [
+        {"kind": "problem", "text": "Vests go out of style."},
+        {"kind": "solution", "text": "A new vest every month, the same vest every month."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "The vest, monthly.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "Vest-as-a-service.",
+        "subline": "{name}. The vest, monthly."
+      },
+      "palette": 5
+    },
+    {
+      "id": "jewellery",
+      "keywords": ["jewellery", "jewelry", "ring", "rings", "necklace", "watch"],
+      "nameParts": ["seafoam", "inc"],
+      "nounPhrase": "a ring-size guesser",
+      "tagline": "Guess the ring size. Correctly.",
+      "slides": [
+        {"kind": "problem", "text": "Ring sizes are secret."},
+        {"kind": "solution", "text": "A model that guesses from one blurry photo."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Guess the ring size. Correctly.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A ring-size guesser.",
+        "subline": "{name}. Guess the ring size. Correctly."
+      },
+      "palette": 0
+    },
+    {
+      "id": "haircut",
+      "keywords": ["haircut", "haircuts", "hair", "barber", "salon"],
+      "nameParts": ["tote", "labs"],
+      "nounPhrase": "a haircut previewer",
+      "tagline": "Preview the haircut first.",
+      "slides": [
+        {"kind": "problem", "text": "Haircuts are risky."},
+        {"kind": "solution", "text": "A preview that always looks better than the real thing."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Preview the haircut first.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A haircut previewer.",
+        "subline": "{name}. Preview the haircut first."
+      },
+      "palette": 8
+    },
+    {
+      "id": "beauty",
+      "keywords": ["beauty", "makeup", "skincare", "skin", "cosmetics"],
+      "nameParts": ["meringue", "vision"],
+      "nounPhrase": "a skincare routine planner",
+      "tagline": "Twelve steps. Fully automated.",
+      "slides": [
+        {"kind": "problem", "text": "Skincare is complicated."},
+        {"kind": "solution", "text": "An agent that adds a thirteenth step."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Twelve steps. Fully automated.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A skincare routine planner.",
+        "subline": "{name}. Twelve steps. Fully automated."
+      },
+      "palette": 10
+    },
+    {
+      "id": "naps",
+      "keywords": ["nap", "naps", "napping", "siesta", "snooze"],
+      "nameParts": ["teaspoon", "ware-c"],
+      "nounPhrase": "a nap-time forecaster",
+      "tagline": "Predict your nap.",
+      "slides": [
+        {"kind": "problem", "text": "Afternoon naps arrive without warning."},
+        {"kind": "solution", "text": "A forecast that is wrong in the most hopeful way."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Predict your nap.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A nap-time forecaster.",
+        "subline": "{name}. Predict your nap."
+      },
+      "palette": 2
+    },
+    {
+      "id": "parenting",
+      "keywords": ["parent", "parenting", "kids", "children", "family"],
+      "nameParts": ["doily", "yard-c"],
+      "nounPhrase": "a family calendar agent",
+      "tagline": "One calendar for everyone.",
+      "slides": [
+        {"kind": "problem", "text": "Family schedules collide."},
+        {"kind": "solution", "text": "An agent that books everyone into the same Saturday."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "One calendar for everyone.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A family calendar agent.",
+        "subline": "{name}. One calendar for everyone."
+      },
+      "palette": 11
+    },
+    {
+      "id": "pets",
+      "keywords": ["hamster", "hamsters", "fish", "bird", "birds", "rabbit"],
+      "nameParts": ["gnocchi", "express"],
+      "nounPhrase": "a pet-feeding scheduler",
+      "tagline": "Never forget to feed the fish.",
+      "slides": [
+        {"kind": "problem", "text": "Small pets get forgotten."},
+        {"kind": "solution", "text": "A reminder with fish-themed notifications."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Never forget to feed the fish.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A pet-feeding scheduler.",
+        "subline": "{name}. Never forget to feed the fish."
+      },
+      "palette": 8
+    },
+    {
+      "id": "pet-food",
+      "keywords": ["kibble", "petfood", "treats", "treat", "bowl"],
+      "nameParts": ["stew", "drones"],
+      "nounPhrase": "a treat dispenser with a roadmap",
+      "tagline": "Treats, scheduled.",
+      "slides": [
+        {"kind": "problem", "text": "Pets beg."},
+        {"kind": "solution", "text": "A dispenser that negotiates with your dog."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Treats, scheduled.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A treat dispenser with a roadmap.",
+        "subline": "{name}. Treats, scheduled."
+      },
+      "palette": 4
+    },
+    {
+      "id": "vet",
+      "keywords": ["vet", "vets", "veterinarian", "animal", "animals"],
+      "nameParts": ["cumin", "systems"],
+      "nounPhrase": "vet appointment wrangling",
+      "tagline": "The vet, booked.",
+      "slides": [
+        {"kind": "problem", "text": "Vet appointments are hard to get."},
+        {"kind": "solution", "text": "An agent that books and reminds and books again."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "The vet, booked.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "Vet appointment wrangling.",
+        "subline": "{name}. The vet, booked."
+      },
+      "palette": 12
+    },
+    {
+      "id": "birds",
+      "keywords": ["parrot", "parrots", "pigeon", "pigeons", "gull", "gulls"],
+      "nameParts": ["clamp", "systems"],
+      "nounPhrase": "a bird-watching log",
+      "tagline": "Every bird, logged.",
+      "slides": [
+        {"kind": "problem", "text": "Birds go uncounted."},
+        {"kind": "solution", "text": "A model that identifies every bird as a pigeon."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Every bird, logged.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A bird-watching log.",
+        "subline": "{name}. Every bird, logged."
+      },
+      "palette": 13
+    },
+    {
+      "id": "sea-lions",
+      "keywords": ["sea lion", "sea lions", "sealion", "sealions", "seal", "seals"],
+      "nameParts": ["pier", "kitchen"],
+      "nounPhrase": "a sea lion barking translator",
+      "tagline": "What the sea lions mean.",
+      "slides": [
+        {"kind": "problem", "text": "Nobody knows what sea lions say."},
+        {"kind": "solution", "text": "A translator that's 97% sure it's about fish."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "What the sea lions mean.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A sea lion barking translator.",
+        "subline": "{name}. What the sea lions mean."
+      },
+      "palette": 0
+    },
+    {
+      "id": "boats",
+      "keywords": ["boat", "boats", "sailing", "sail", "ferry", "ferries"],
+      "nameParts": ["ferry", "aero"],
+      "nounPhrase": "a ferry-time predictor",
+      "tagline": "Catch the ferry. Every time.",
+      "slides": [
+        {"kind": "problem", "text": "Ferries leave without you."},
+        {"kind": "solution", "text": "A countdown that runs slightly fast, on purpose."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Catch the ferry. Every time.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A ferry-time predictor.",
+        "subline": "{name}. Catch the ferry. Every time."
+      },
+      "palette": 6
+    },
+    {
+      "id": "fishing",
+      "keywords": ["fishing", "fish", "fisherman", "catch", "rod"],
+      "nameParts": ["anchovy", "bio"],
+      "nounPhrase": "a catch predictor",
+      "tagline": "Know where the fish are.",
+      "slides": [
+        {"kind": "problem", "text": "Fishing is mostly waiting."},
+        {"kind": "solution", "text": "A model that's sure about every fish."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Know where the fish are.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A catch predictor.",
+        "subline": "{name}. Know where the fish are."
+      },
+      "palette": 1
+    },
+    {
+      "id": "beach",
+      "keywords": ["beach", "sand", "ocean", "bay", "coast", "shore"],
+      "nameParts": ["sandbar", "agents"],
+      "nounPhrase": "a beach-day planner",
+      "tagline": "Find the one sunny beach.",
+      "slides": [
+        {"kind": "problem", "text": "The beach is always foggy."},
+        {"kind": "solution", "text": "A planner that finds the sun and hides it from others."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Find the one sunny beach.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A beach-day planner.",
+        "subline": "{name}. Find the one sunny beach."
+      },
+      "palette": 6
+    },
+    {
+      "id": "sunsets",
+      "keywords": ["sunset", "sunsets", "sunrise", "view", "views"],
+      "nameParts": ["lagoon", "dock-c"],
+      "nounPhrase": "a sunset alert",
+      "tagline": "Never miss a sunset.",
+      "slides": [
+        {"kind": "problem", "text": "Sunsets are missed."},
+        {"kind": "solution", "text": "A push alert ten minutes before every sunset."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Never miss a sunset.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A sunset alert.",
+        "subline": "{name}. Never miss a sunset."
+      },
+      "palette": 2
+    },
+    {
+      "id": "photographs-views",
+      "keywords": ["viewpoint", "lookout", "overlook", "skyline"],
+      "nameParts": ["seawall", "quantum"],
+      "nounPhrase": "a viewpoint ranker",
+      "tagline": "Every view, ranked.",
+      "slides": [
+        {"kind": "problem", "text": "Views go unranked."},
+        {"kind": "solution", "text": "A leaderboard for hills."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Every view, ranked.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A viewpoint ranker.",
+        "subline": "{name}. Every view, ranked."
+      },
+      "palette": 4
+    },
+    {
+      "id": "city",
+      "keywords": ["city", "cities", "urban", "street", "streets", "neighbourhood", "pothole", "potholes", "sidewalk", "sidewalks"],
+      "nameParts": ["stoop", "foundry"],
+      "nounPhrase": "a city-sidewalk rater",
+      "tagline": "Rate your sidewalk. 5 stars.",
+      "slides": [
+        {"kind": "problem", "text": "Sidewalks get no feedback."},
+        {"kind": "solution", "text": "Five-star ratings for every curb."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Rate your sidewalk. 5 stars.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A city-sidewalk rater.",
+        "subline": "{name}. Rate your sidewalk. 5 stars."
+      },
+      "palette": 10
+    },
+    {
+      "id": "transit",
+      "keywords": ["bus", "buses", "transit", "stop", "stops", "schedule"],
+      "nameParts": ["trolley", "group"],
+      "nounPhrase": "a bus-arrival poet",
+      "tagline": "Bus times, in verse.",
+      "slides": [
+        {"kind": "problem", "text": "Bus apps are boring."},
+        {"kind": "solution", "text": "Arrival times as haiku."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Bus times, in verse.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A bus-arrival poet.",
+        "subline": "{name}. Bus times, in verse."
+      },
+      "palette": 0
+    },
+    {
+      "id": "cable-cars",
+      "keywords": ["cable car", "cable cars", "cablecar", "cablecars", "bell"],
+      "nameParts": ["cablecar", "hq"],
+      "nounPhrase": "a bell-ringing trainer",
+      "tagline": "Ring the bell like a pro.",
+      "slides": [
+        {"kind": "problem", "text": "Bell ringing is an art."},
+        {"kind": "solution", "text": "A rhythm game for your commute."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Ring the bell like a pro.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A bell-ringing trainer.",
+        "subline": "{name}. Ring the bell like a pro."
+      },
+      "palette": 3
+    },
+    {
+      "id": "bridges",
+      "keywords": ["bridge", "bridges", "traffic", "tunnel", "tunnels"],
+      "nameParts": ["cable", "verse-c"],
+      "nounPhrase": "a bridge-traffic oracle",
+      "tagline": "Know the jam before the jam.",
+      "slides": [
+        {"kind": "problem", "text": "Bridge traffic is unpredictable."},
+        {"kind": "solution", "text": "A model that predicts the jam you're already in."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Know the jam before the jam.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A bridge-traffic oracle.",
+        "subline": "{name}. Know the jam before the jam."
+      },
+      "palette": 4
+    },
+    {
+      "id": "traffic",
+      "keywords": ["traffic", "jam", "jams", "congestion", "lanes"],
+      "nameParts": ["pothole", "bio"],
+      "nounPhrase": "a lane-choosing agent",
+      "tagline": "Always the wrong lane. Faster.",
+      "slides": [
+        {"kind": "problem", "text": "The other lane is always faster."},
+        {"kind": "solution", "text": "An agent that switches lanes with confidence."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Always the wrong lane. Faster.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A lane-choosing agent.",
+        "subline": "{name}. Always the wrong lane. Faster."
+      },
+      "palette": 4
+    },
+    {
+      "id": "security-robots",
+      "keywords": ["security robot", "security robots", "guard", "guards", "patrol", "security", "camera", "cameras"],
+      "nameParts": ["turret", "home"],
+      "nounPhrase": "a polite security robot",
+      "tagline": "Security that says please.",
+      "slides": [
+        {"kind": "problem", "text": "Security robots are rude."},
+        {"kind": "solution", "text": "A patrol unit that reads you a poem, not the terms."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Security that says please.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A polite security robot.",
+        "subline": "{name}. Security that says please."
+      },
+      "palette": 7
+    },
+    {
+      "id": "hardware",
+      "keywords": ["hardware", "device", "devices", "gadget", "gadgets", "sensor", "sensors"],
+      "nameParts": ["widget", "quantum"],
+      "nounPhrase": "a gadget for your gadgets",
+      "tagline": "A gadget to manage gadgets.",
+      "slides": [
+        {"kind": "problem", "text": "Gadgets need managing."},
+        {"kind": "solution", "text": "A hub that charges everything and knows too much."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "A gadget to manage gadgets.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A gadget for your gadgets.",
+        "subline": "{name}. A gadget to manage gadgets."
+      },
+      "palette": 1
+    },
+    {
+      "id": "smart-home",
+      "keywords": ["smart", "home", "house", "lights", "thermostat", "speaker"],
+      "nameParts": ["awning", "dock-c"],
+      "nounPhrase": "a home that apologises",
+      "tagline": "Your home, but polite.",
+      "slides": [
+        {"kind": "problem", "text": "Smart homes are bossy."},
+        {"kind": "solution", "text": "A thermostat that asks how your day was."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Your home, but polite.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A home that apologises.",
+        "subline": "{name}. Your home, but polite."
+      },
+      "palette": 3
+    },
+    {
+      "id": "kitchen-gadgets",
+      "keywords": ["toaster", "fridge", "oven", "microwave", "blender", "kettle"],
+      "nameParts": ["spatula", "energy"],
+      "nounPhrase": "a toaster with opinions",
+      "tagline": "We put AI in the toaster.",
+      "slides": [
+        {"kind": "problem", "text": "Toast is unpredictable."},
+        {"kind": "solution", "text": "A toaster that has opinions, mostly about you."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "We put AI in the toaster.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A toaster with opinions.",
+        "subline": "{name}. We put AI in the toaster."
+      },
+      "palette": 13
+    },
+    {
+      "id": "3d-printing",
+      "keywords": ["3d", "print", "printing", "printer", "printers", "maker", "makers"],
+      "nameParts": ["sprocket", "ai"],
+      "nounPhrase": "a maker-space scheduler",
+      "tagline": "Book the printer. Finally.",
+      "slides": [
+        {"kind": "problem", "text": "Printers are always busy."},
+        {"kind": "solution", "text": "An agent that queues your print and your patience."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Book the printer. Finally.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A maker-space scheduler.",
+        "subline": "{name}. Book the printer. Finally."
+      },
+      "palette": 6
+    },
+    {
+      "id": "crafts",
+      "keywords": ["craft", "crafts", "knitting", "sewing", "pottery", "ceramics"],
+      "nameParts": ["spool", "wheels"],
+      "nounPhrase": "a knitting pattern generator",
+      "tagline": "Patterns for every mood.",
+      "slides": [
+        {"kind": "problem", "text": "Patterns are hard to find."},
+        {"kind": "solution", "text": "Generated scarves, infinitely long."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Patterns for every mood.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A knitting pattern generator.",
+        "subline": "{name}. Patterns for every mood."
+      },
+      "palette": 10
+    },
+    {
+      "id": "woodworking",
+      "keywords": ["wood", "woodworking", "carpentry", "carpenter", "workshop"],
+      "nameParts": ["chisel", "ops-c"],
+      "nounPhrase": "a measure-twice agent",
+      "tagline": "Measure twice. We'll do it.",
+      "slides": [
+        {"kind": "problem", "text": "Cuts go wrong."},
+        {"kind": "solution", "text": "An agent that measures, and measures again, and again."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Measure twice. We'll do it.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A measure-twice agent.",
+        "subline": "{name}. Measure twice. We'll do it."
+      },
+      "palette": 4
+    },
+    {
+      "id": "games",
+      "keywords": ["game", "games", "gaming", "gamer", "videogames", "play"],
+      "nameParts": ["whatsit", "motors"],
+      "nounPhrase": "a game-night organiser",
+      "tagline": "Game night, automated.",
+      "slides": [
+        {"kind": "problem", "text": "Game nights fall through."},
+        {"kind": "solution", "text": "An agent that books the night and loses gracefully."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Game night, automated.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A game-night organiser.",
+        "subline": "{name}. Game night, automated."
+      },
+      "palette": 4
+    },
+    {
+      "id": "board-games",
+      "keywords": ["boardgame", "boardgames", "dice", "cards", "puzzle", "puzzles"],
+      "nameParts": ["doodad", "labs"],
+      "nounPhrase": "a rules explainer",
+      "tagline": "Rules, explained in one minute.",
+      "slides": [
+        {"kind": "problem", "text": "Rules are long."},
+        {"kind": "solution", "text": "A summary that leaves out the rule everyone fights about."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Rules, explained in one minute.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A rules explainer.",
+        "subline": "{name}. Rules, explained in one minute."
+      },
+      "palette": 3
+    },
+    {
+      "id": "toys",
+      "keywords": ["toy", "toys", "building", "blocks"],
+      "nameParts": ["bobbin", "data"],
+      "nounPhrase": "a toy-tidying robot",
+      "tagline": "Toys, tidied overnight.",
+      "slides": [
+        {"kind": "problem", "text": "Toys are everywhere."},
+        {"kind": "solution", "text": "A robot that tidies and files a report."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $5M on a SAFE. Very safe. Probably."}
+      ],
+      "billboard": {
+        "headline": "Toys, tidied overnight.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A toy-tidying robot.",
+        "subline": "{name}. Toys, tidied overnight."
+      },
+      "palette": 2
+    },
+    {
+      "id": "magic",
+      "keywords": ["magic", "magician", "trick", "tricks"],
+      "nameParts": ["strainer", "dock-c"],
+      "nounPhrase": "a magic-trick explainer",
+      "tagline": "Every trick, explained. Sorry.",
+      "slides": [
+        {"kind": "problem", "text": "Magic tricks are confusing."},
+        {"kind": "solution", "text": "A model that ruins every trick, politely."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Every trick, explained. Sorry.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A magic-trick explainer.",
+        "subline": "{name}. Every trick, explained. Sorry."
+      },
+      "palette": 13
+    },
+    {
+      "id": "holidays",
+      "keywords": ["holiday", "holidays", "christmas", "halloween", "thanksgiving"],
+      "nameParts": ["cupola", "drones"],
+      "nounPhrase": "a holiday-plan generator",
+      "tagline": "Holidays, planned by AI.",
+      "slides": [
+        {"kind": "problem", "text": "Holidays are stressful."},
+        {"kind": "solution", "text": "A plan with 14 activities and no naps."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Holidays, planned by AI.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A holiday-plan generator.",
+        "subline": "{name}. Holidays, planned by AI."
+      },
+      "palette": 8
+    },
+    {
+      "id": "volunteering",
+      "keywords": ["volunteer", "volunteering", "charity", "donate", "donations"],
+      "nameParts": ["lamppost", "bots"],
+      "nounPhrase": "a volunteer-shift matcher",
+      "tagline": "Help, matched.",
+      "slides": [
+        {"kind": "problem", "text": "Volunteers go unmatched."},
+        {"kind": "solution", "text": "An agent that matches helpers with the help that's needed."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Help, matched.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A volunteer-shift matcher.",
+        "subline": "{name}. Help, matched."
+      },
+      "palette": 7
+    },
+    {
+      "id": "local-shops",
+      "keywords": ["local", "shop", "shops", "corner", "store", "neighbourhood"],
+      "nameParts": ["cioppino", "logic"],
+      "nounPhrase": "a corner-store finder",
+      "tagline": "The nearest open corner store.",
+      "slides": [
+        {"kind": "problem", "text": "Corner stores close early."},
+        {"kind": "solution", "text": "A map of every open door, updated by robots."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "The nearest open corner store.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A corner-store finder.",
+        "subline": "{name}. The nearest open corner store."
+      },
+      "palette": 11
+    },
+    {
+      "id": "coworking",
+      "keywords": ["coworking", "cowork", "desk", "desks", "office", "offices"],
+      "nameParts": ["beanbag", "hq"],
+      "nounPhrase": "a hot-desk finder",
+      "tagline": "Find a desk. Any desk.",
+      "slides": [
+        {"kind": "problem", "text": "Hot desks vanish by nine."},
+        {"kind": "solution", "text": "An agent that queues for a desk at dawn."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Find a desk. Any desk.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A hot-desk finder.",
+        "subline": "{name}. Find a desk. Any desk."
+      },
+      "palette": 2,
+      "fallback": true
+    },
+    {
+      "id": "remote-work",
+      "keywords": ["remote", "wfh", "home", "working"],
+      "nameParts": ["cactus", "network"],
+      "nounPhrase": "a background-noise filter",
+      "tagline": "Your dog, muted.",
+      "slides": [
+        {"kind": "problem", "text": "Calls are noisy."},
+        {"kind": "solution", "text": "A filter that removes the dog and the doubt."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Your dog, muted.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A background-noise filter.",
+        "subline": "{name}. Your dog, muted."
+      },
+      "palette": 8
+    },
+    {
+      "id": "time",
+      "keywords": ["time", "clock", "watch", "alarm", "timer"],
+      "nameParts": ["lupine", "transit"],
+      "nounPhrase": "a time-saver that takes time",
+      "tagline": "Save time. Onboarding: 2 hours.",
+      "slides": [
+        {"kind": "problem", "text": "Time is short."},
+        {"kind": "solution", "text": "An app that saves you minutes after a two-hour setup."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Save time. Onboarding: 2 hours.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A time-saver that takes time.",
+        "subline": "{name}. Save time. Onboarding: 2 hours."
+      },
+      "palette": 12
+    },
+    {
+      "id": "memory",
+      "keywords": ["remember", "memory", "forget", "forgetting", "reminder", "reminders"],
+      "nameParts": ["parfait", "co"],
+      "nounPhrase": "a remembering agent",
+      "tagline": "Remember it all. Selectively.",
+      "slides": [
+        {"kind": "problem", "text": "We forget things."},
+        {"kind": "solution", "text": "An agent that remembers birthdays and grudges."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Remember it all. Selectively.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A remembering agent.",
+        "subline": "{name}. Remember it all. Selectively."
+      },
+      "palette": 5
+    },
+    {
+      "id": "identity",
+      "keywords": ["name", "names", "identity", "brand", "branding"],
+      "nameParts": ["lentil", "agents"],
+      "nounPhrase": "a startup name generator",
+      "tagline": "Names that sound like startups.",
+      "slides": [
+        {"kind": "problem", "text": "Naming is hard."},
+        {"kind": "solution", "text": "A model that adds 'ly' to everything."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Names that sound like startups.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A startup name generator.",
+        "subline": "{name}. Names that sound like startups."
+      },
+      "palette": 3
+    },
+    {
+      "id": "search",
+      "keywords": ["search", "find", "finding", "lost", "found"],
+      "nameParts": ["seltzer", "foundry"],
+      "nounPhrase": "a finder for lost things",
+      "tagline": "Find anything. Eventually.",
+      "slides": [
+        {"kind": "problem", "text": "Things get lost."},
+        {"kind": "solution", "text": "A model that suggests 'have you checked the couch'."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Find anything. Eventually.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "A finder for lost things.",
+        "subline": "{name}. Find anything. Eventually."
+      },
+      "palette": 3
+    },
+    {
+      "id": "news",
+      "keywords": ["news", "newspaper", "headlines", "journalism", "reporter"],
+      "nameParts": ["mussel", "co"],
+      "nounPhrase": "a headline summariser",
+      "tagline": "The news, in one emoji.",
+      "slides": [
+        {"kind": "problem", "text": "The news is long."},
+        {"kind": "solution", "text": "Headlines, compressed to a feeling."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "The news, in one emoji.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A headline summariser.",
+        "subline": "{name}. The news, in one emoji."
+      },
+      "palette": 9
+    },
+    {
+      "id": "newsletters",
+      "keywords": ["newsletter", "newsletters", "digest", "subscribe"],
+      "nameParts": ["ladle", "yard-c"],
+      "nounPhrase": "a newsletter for newsletters",
+      "tagline": "A newsletter of newsletters.",
+      "slides": [
+        {"kind": "problem", "text": "Too many newsletters."},
+        {"kind": "solution", "text": "A digest of digests."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "A newsletter of newsletters.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A newsletter for newsletters.",
+        "subline": "{name}. A newsletter of newsletters."
+      },
+      "palette": 1
+    },
+    {
+      "id": "water",
+      "keywords": ["water", "hydrant", "hydrants", "hose", "spray", "splash"],
+      "nameParts": ["hydrant", "air"],
+      "nounPhrase": "a hydrant locator",
+      "tagline": "Every hydrant, mapped.",
+      "slides": [
+        {"kind": "problem", "text": "Hydrants are hard to find."},
+        {"kind": "solution", "text": "A map of every hydrant, for very specific reasons."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Every hydrant, mapped.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A hydrant locator.",
+        "subline": "{name}. Every hydrant, mapped."
+      },
+      "palette": 0
+    },
+    {
+      "id": "rust",
+      "keywords": ["rust", "rusty", "metal", "corrosion", "repair"],
+      "nameParts": ["mortar", "sync-c"],
+      "nounPhrase": "rust forecasting",
+      "tagline": "Know your rust before it rusts.",
+      "slides": [
+        {"kind": "problem", "text": "Rust happens slowly, then fast."},
+        {"kind": "solution", "text": "A model that predicts corrosion and apologises."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Know your rust before it rusts.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "Rust forecasting.",
+        "subline": "{name}. Know your rust before it rusts."
+      },
+      "palette": 11
+    },
+    {
+      "id": "bad-robots",
+      "keywords": ["bad robot", "bad robots", "rogue robot", "rogue robots", "scanner", "detector", "spotting"],
+      "nameParts": ["ratchet", "quantum"],
+      "nounPhrase": "a bad-robot detector",
+      "tagline": "Spot the bad robot. 97% sure.",
+      "slides": [
+        {"kind": "problem", "text": "Bad robots look like good ones."},
+        {"kind": "solution", "text": "A scanner that's confident and occasionally right."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Spot the bad robot. 97% sure.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A bad-robot detector.",
+        "subline": "{name}. Spot the bad robot. 97% sure."
+      },
+      "palette": 12
+    },
+    {
+      "id": "moats",
+      "keywords": ["moat", "moats", "castle", "defence", "defensibility"],
+      "nameParts": ["cellar", "bots"],
+      "nounPhrase": "a moat consultancy",
+      "tagline": "Every company needs a moat.",
+      "slides": [
+        {"kind": "problem", "text": "Startups lack moats."},
+        {"kind": "solution", "text": "We dig moats. Literal ones. Ask about swans."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Every company needs a moat.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A moat consultancy.",
+        "subline": "{name}. Every company needs a moat."
+      },
+      "palette": 12
+    },
+    {
+      "id": "waitlists",
+      "keywords": ["waitlist", "waitlists"],
+      "nameParts": ["waitlist", "systems"],
+      "nounPhrase": "a waitlist for waitlists",
+      "tagline": "Join the waitlist's waitlist.",
+      "slides": [
+        {"kind": "problem", "text": "Waitlists are full."},
+        {"kind": "solution", "text": "A waitlist that tells you where you are on other waitlists."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Join the waitlist's waitlist.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A waitlist for waitlists.",
+        "subline": "{name}. Join the waitlist's waitlist."
+      },
+      "palette": 9,
+      "fallback": true
+    },
+    {
+      "id": "hype",
+      "keywords": ["hype", "buzz", "trending", "viral", "trend"],
+      "nameParts": ["vibe", "bots"],
+      "nounPhrase": "a hype meter",
+      "tagline": "Measure the hype. Then add more.",
+      "slides": [
+        {"kind": "problem", "text": "Hype is unmeasured."},
+        {"kind": "solution", "text": "A gauge that only goes up."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Measure the hype. Then add more.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "A hype meter.",
+        "subline": "{name}. Measure the hype. Then add more."
+      },
+      "palette": 0,
+      "fallback": true
+    },
+    {
+      "id": "benchmarks",
+      "keywords": ["benchmark", "benchmarks", "leaderboard", "leaderboards", "score", "scores"],
+      "nameParts": ["plinth", "wheels"],
+      "nounPhrase": "a leaderboard you can't lose",
+      "tagline": "Number one, every time.",
+      "slides": [
+        {"kind": "problem", "text": "Benchmarks are hard to win."},
+        {"kind": "solution", "text": "We host the leaderboard. We win the leaderboard."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Number one, every time.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A leaderboard you can't lose.",
+        "subline": "{name}. Number one, every time."
+      },
+      "palette": 7,
+      "fallback": true
+    },
+    {
+      "id": "prompts",
+      "keywords": ["prompt", "prompts", "prompting"],
+      "nameParts": ["prompt", "home"],
+      "nounPhrase": "a prompt library",
+      "tagline": "Prompts for your prompts.",
+      "slides": [
+        {"kind": "problem", "text": "Prompts are hard to write."},
+        {"kind": "solution", "text": "A prompt that writes better prompts, recursively."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Prompts for your prompts.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A prompt library.",
+        "subline": "{name}. Prompts for your prompts."
+      },
+      "palette": 1,
+      "fallback": true
+    },
+    {
+      "id": "hallucinations",
+      "keywords": ["hallucination", "hallucinations", "wrong", "mistakes", "errors"],
+      "nameParts": ["ravioli", "aero"],
+      "nounPhrase": "hallucination insurance",
+      "tagline": "Insurance for confident errors.",
+      "slides": [
+        {"kind": "problem", "text": "Models are confidently wrong."},
+        {"kind": "solution", "text": "Coverage for every made-up fact."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Insurance for confident errors.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "Hallucination insurance.",
+        "subline": "{name}. Insurance for confident errors."
+      },
+      "palette": 6
+    },
+    {
+      "id": "gpus",
+      "keywords": ["gpu", "gpus", "compute", "chips", "chip"],
+      "nameParts": ["cache", "metrics"],
+      "nounPhrase": "a GPU waitlist",
+      "tagline": "Compute, eventually.",
+      "slides": [
+        {"kind": "problem", "text": "GPUs are scarce."},
+        {"kind": "solution", "text": "A queue for compute, with a premium queue for the queue."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Compute, eventually.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A GPU waitlist.",
+        "subline": "{name}. Compute, eventually."
+      },
+      "palette": 11
+    },
+    {
+      "id": "datasets",
+      "keywords": ["dataset", "datasets", "training", "scraping", "crawl"],
+      "nameParts": ["shard", "agents"],
+      "nounPhrase": "data, ethically sourced-ish",
+      "tagline": "Data, ethically sourced. Ish.",
+      "slides": [
+        {"kind": "problem", "text": "Data is hard to source."},
+        {"kind": "solution", "text": "We asked nicely, then we didn't."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Data, ethically sourced. Ish.",
+        "subline": "{name}. Coming soon, probably."
+      },
+      "busWrap": {
+        "headline": "Data, ethically sourced-ish.",
+        "subline": "{name}. Data, ethically sourced. Ish."
+      },
+      "palette": 11
+    },
+    {
+      "id": "open-source",
+      "keywords": ["opensource", "open source", "repo", "repos"],
+      "nameParts": ["tamarind", "stack-c"],
+      "nounPhrase": "an open-source licence explainer",
+      "tagline": "Licences, explained gently.",
+      "slides": [
+        {"kind": "problem", "text": "Licences are confusing."},
+        {"kind": "solution", "text": "A model that summarises every licence as 'probably fine'."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Licences, explained gently.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "An open-source licence explainer.",
+        "subline": "{name}. Licences, explained gently."
+      },
+      "palette": 0
+    },
+    {
+      "id": "apis",
+      "keywords": ["api", "apis", "integration", "integrations", "webhook"],
+      "nameParts": ["zinnia", "base-c"],
+      "nounPhrase": "an API for your fridge",
+      "tagline": "Your fridge has endpoints.",
+      "slides": [
+        {"kind": "problem", "text": "Fridges lack APIs."},
+        {"kind": "solution", "text": "REST for your leftovers."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Your fridge has endpoints.",
+        "subline": "{name}. Join the waitlist."
+      },
+      "busWrap": {
+        "headline": "An API for your fridge.",
+        "subline": "{name}. Your fridge has endpoints."
+      },
+      "palette": 7
+    },
+    {
+      "id": "no-code",
+      "keywords": ["nocode", "no-code", "lowcode", "builder", "drag"],
+      "nameParts": ["marzipan", "society"],
+      "nounPhrase": "a no-code app for no-code apps",
+      "tagline": "Build apps without apps.",
+      "slides": [
+        {"kind": "problem", "text": "Apps need code."},
+        {"kind": "solution", "text": "Drag a box. Drag another box. Raise a seed round."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Revenue: pre. Momentum: strong."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Build apps without apps.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A no-code app for no-code apps.",
+        "subline": "{name}. Build apps without apps."
+      },
+      "palette": 13,
+      "fallback": true
+    },
+    {
+      "id": "saas",
+      "keywords": ["saas", "subscription", "subscriptions", "plan", "pricing"],
+      "nameParts": ["griddle", "bot-c"],
+      "nounPhrase": "subscription management",
+      "tagline": "Cancel anything. In 3 screens.",
+      "slides": [
+        {"kind": "problem", "text": "Subscriptions pile up."},
+        {"kind": "solution", "text": "An agent that finds your subscriptions and subscribes to one more."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Cancel anything. In 3 screens.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "Subscription management.",
+        "subline": "{name}. Cancel anything. In 3 screens."
+      },
+      "palette": 0,
+      "fallback": true
+    },
+    {
+      "id": "b2b",
+      "keywords": ["b2b", "enterprise", "business", "businesses", "company", "companies", "industry", "industries", "vertical"],
+      "nameParts": ["teacup", "labs"],
+      "nounPhrase": "enterprise vibes",
+      "tagline": "Enterprise-grade vibes.",
+      "slides": [
+        {"kind": "problem", "text": "Enterprises move slowly."},
+        {"kind": "solution", "text": "A platform with a sales cycle longer than the product."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Waitlist: 40,000. Users: 6. Vibes: immaculate."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Enterprise-grade vibes.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "Enterprise vibes.",
+        "subline": "{name}. Enterprise-grade vibes."
+      },
+      "palette": 0,
+      "fallback": true
+    },
+    {
+      "id": "consulting",
+      "keywords": ["consulting", "consultant", "consultants", "strategy", "advice"],
+      "nameParts": ["oat", "mind-c"],
+      "nounPhrase": "a strategy deck generator",
+      "tagline": "Strategy, in four quadrants.",
+      "slides": [
+        {"kind": "problem", "text": "Strategy is vague."},
+        {"kind": "solution", "text": "A two-by-two for every decision."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Strategy, in four quadrants.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "A strategy deck generator.",
+        "subline": "{name}. Strategy, in four quadrants."
+      },
+      "palette": 10,
+      "fallback": true
+    },
+    {
+      "id": "real-time",
+      "keywords": ["realtime", "real-time", "live", "streaming", "stream"],
+      "nameParts": ["churro", "foundry"],
+      "nounPhrase": "live everything",
+      "tagline": "Everything, live, always.",
+      "slides": [
+        {"kind": "problem", "text": "Things aren't live enough."},
+        {"kind": "solution", "text": "A live stream of your live stream."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Everything, live, always.",
+        "subline": "{name}. As seen on this billboard."
+      },
+      "busWrap": {
+        "headline": "Live everything.",
+        "subline": "{name}. Everything, live, always."
+      },
+      "palette": 10,
+      "fallback": true
+    },
+    {
+      "id": "voice",
+      "keywords": ["voice", "voices", "speech", "speaking", "talk"],
+      "nameParts": ["chard", "market"],
+      "nounPhrase": "a voice that sounds confident",
+      "tagline": "Sound confident about anything.",
+      "slides": [
+        {"kind": "problem", "text": "Uncertainty sounds bad."},
+        {"kind": "solution", "text": "A voice filter that adds certainty."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "$3M for 18 months of runway and one GPU."}
+      ],
+      "billboard": {
+        "headline": "Sound confident about anything.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A voice that sounds confident.",
+        "subline": "{name}. Sound confident about anything."
+      },
+      "palette": 5
+    },
+    {
+      "id": "translation-tech",
+      "keywords": ["subtitles", "captions", "transcript", "transcription"],
+      "nameParts": ["gumbo", "co"],
+      "nounPhrase": "a meeting transcriber",
+      "tagline": "Every word, transcribed, judged.",
+      "slides": [
+        {"kind": "problem", "text": "Notes miss things."},
+        {"kind": "solution", "text": "A transcript with a sentiment score per sentence."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Up 400% since Tuesday."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Every word, transcribed, judged.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A meeting transcriber.",
+        "subline": "{name}. Every word, transcribed, judged."
+      },
+      "palette": 0
+    },
+    {
+      "id": "accessibility",
+      "keywords": ["accessibility", "accessible", "ramp", "ramps", "captions"],
+      "nameParts": ["abalone", "co"],
+      "nounPhrase": "a ramp finder",
+      "tagline": "Every ramp, mapped.",
+      "slides": [
+        {"kind": "problem", "text": "Ramps are hard to find."},
+        {"kind": "solution", "text": "A map of every ramp, kept up to date by Footmen."},
+        {"kind": "market", "text": "A $12 trillion market, rounded up."},
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Every ramp, mapped.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A ramp finder.",
+        "subline": "{name}. Every ramp, mapped."
+      },
+      "palette": 8
+    },
+    {
+      "id": "safety",
+      "keywords": ["safety", "safe", "careful", "caution"],
+      "nameParts": ["porridge", "club"],
+      "nounPhrase": "a caution engine",
+      "tagline": "Be careful. We'll remind you.",
+      "slides": [
+        {"kind": "problem", "text": "People forget to be careful."},
+        {"kind": "solution", "text": "A gentle voice that says 'mind the step'."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Be careful. We'll remind you.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A caution engine.",
+        "subline": "{name}. Be careful. We'll remind you."
+      },
+      "palette": 5
+    },
+    {
+      "id": "noise",
+      "keywords": ["noise", "noisy", "quiet", "silence", "sound"],
+      "nameParts": ["napkin", "motors"],
+      "nounPhrase": "a quiet-place finder",
+      "tagline": "Find the quiet.",
+      "slides": [
+        {"kind": "problem", "text": "Cities are loud."},
+        {"kind": "solution", "text": "A map of every quiet bench, shared with everyone, sadly."},
+        {"kind": "market", "text": "Serviceable market: San Francisco. Then the Moon."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Find the quiet.",
+        "subline": "{name}. Made in San Francisco."
+      },
+      "busWrap": {
+        "headline": "A quiet-place finder.",
+        "subline": "{name}. Find the quiet."
+      },
+      "palette": 0
+    },
+    {
+      "id": "fog-tourism",
+      "keywords": ["tourist", "tourists", "tourism", "visitor", "visitors", "sightseeing"],
+      "nameParts": ["fogbank", "club"],
+      "nounPhrase": "a fog tour",
+      "tagline": "Tours of the fog itself.",
+      "slides": [
+        {"kind": "problem", "text": "Tourists don't see the sights in fog."},
+        {"kind": "solution", "text": "A guided tour of the fog. It's beautiful."},
+        {"kind": "market", "text": "Bottom-up TAM: one city block, times every city block."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "Raising $4M at a $40M valuation. Fog not included."}
+      ],
+      "billboard": {
+        "headline": "Tours of the fog itself.",
+        "subline": "{name}. Series A energy."
+      },
+      "busWrap": {
+        "headline": "A fog tour.",
+        "subline": "{name}. Tours of the fog itself."
+      },
+      "palette": 12
+    },
+    {
+      "id": "sourdough-tourism",
+      "keywords": ["souvenir", "souvenirs", "postcard", "postcards"],
+      "nameParts": ["melon", "mind-c"],
+      "nounPhrase": "a postcard generator",
+      "tagline": "Postcards from where you are.",
+      "slides": [
+        {"kind": "problem", "text": "Postcards are slow."},
+        {"kind": "solution", "text": "A generated postcard of a sunnier version of today."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising $6M. Burritos are getting expensive."}
+      ],
+      "billboard": {
+        "headline": "Postcards from where you are.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A postcard generator.",
+        "subline": "{name}. Postcards from where you are."
+      },
+      "palette": 6
+    },
+    {
+      "id": "architecture",
+      "keywords": ["architecture", "building", "buildings", "tower", "towers"],
+      "nameParts": ["chimney", "stack-c"],
+      "nounPhrase": "a skyline explainer",
+      "tagline": "Every tower, explained.",
+      "slides": [
+        {"kind": "problem", "text": "Skylines are confusing."},
+        {"kind": "solution", "text": "A model that names every tower 'the tall one'."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "Every tower, explained.",
+        "subline": "{name}. Ask your agent about it."
+      },
+      "busWrap": {
+        "headline": "A skyline explainer.",
+        "subline": "{name}. Every tower, explained."
+      },
+      "palette": 5
+    },
+    {
+      "id": "history",
+      "keywords": ["history", "historic", "historical", "old", "past"],
+      "nameParts": ["attic", "metrics"],
+      "nounPhrase": "a history guide",
+      "tagline": "History, summarised. Loosely.",
+      "slides": [
+        {"kind": "problem", "text": "History is long."},
+        {"kind": "solution", "text": "A guide that's confident about every date."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "History, summarised. Loosely.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A history guide.",
+        "subline": "{name}. History, summarised. Loosely."
+      },
+      "palette": 3
+    },
+    {
+      "id": "genealogy",
+      "keywords": ["ancestry", "ancestors", "family", "tree", "genealogy"],
+      "nameParts": ["chestnut", "ware-c"],
+      "nounPhrase": "a family-tree tidier",
+      "tagline": "Your family tree, pruned.",
+      "slides": [
+        {"kind": "problem", "text": "Family trees are messy."},
+        {"kind": "solution", "text": "An agent that organises the cousins."},
+        {"kind": "market", "text": "We sized the market with a model. The model said 'very'."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Your family tree, pruned.",
+        "subline": "{name}. Now in beta."
+      },
+      "busWrap": {
+        "headline": "A family-tree tidier.",
+        "subline": "{name}. Your family tree, pruned."
+      },
+      "palette": 0
+    },
+    {
+      "id": "philosophy",
+      "keywords": ["philosophy", "meaning", "ethics", "question", "questions"],
+      "nameParts": ["pail", "sync-c"],
+      "nounPhrase": "an is-it-a-feature engine",
+      "tagline": "Company or feature? Asked daily.",
+      "slides": [
+        {"kind": "problem", "text": "Founders don't ask the big questions."},
+        {"kind": "solution", "text": "A philosopher in your pocket, asking whether you're a feature."},
+        {"kind": "market", "text": "Total addressable market: 9 billion people and most of their pets."},
+        {"kind": "traction", "text": "Our demo has worked twice in a row."},
+        {"kind": "ask", "text": "Raising $2M to hire four engineers and one vibes lead."}
+      ],
+      "billboard": {
+        "headline": "Company or feature? Asked daily.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "An is-it-a-feature engine.",
+        "subline": "{name}. Company or feature? Asked daily."
+      },
+      "palette": 12
+    },
+    {
+      "id": "nothing",
+      "keywords": ["nothing", "idk", "unsure", "dunno", "stuff", "not sure"],
+      "nameParts": ["crema", "forge-c"],
+      "nounPhrase": "a startup about something",
+      "tagline": "It's like nothing you've seen.",
+      "slides": [
+        {"kind": "problem", "text": "Some problems have no name."},
+        {"kind": "solution", "text": "A solution looking for the right problem, confidently."},
+        {"kind": "market", "text": "Analysts say this market will be worth $1 trillion by the end of this slide."},
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Seeking $1.5M and a desk with a window."}
+      ],
+      "billboard": {
+        "headline": "It's like nothing you've seen.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A startup about something.",
+        "subline": "{name}. It's like nothing you've seen."
+      },
+      "palette": 5,
+      "fallback": true
+    },
+    {
+      "id": "everything",
+      "keywords": ["everything", "platform", "super"],
+      "nameParts": ["cauldron", "club"],
+      "nounPhrase": "a super app",
+      "tagline": "One app for everything.",
+      "slides": [
+        {"kind": "problem", "text": "There are too many apps."},
+        {"kind": "solution", "text": "An app that does everything a little bit."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "14 users, 3 of them our parents."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "One app for everything.",
+        "subline": "{name}. Founded last Tuesday."
+      },
+      "busWrap": {
+        "headline": "A super app.",
+        "subline": "{name}. One app for everything."
+      },
+      "palette": 2,
+      "fallback": true
+    },
+    {
+      "id": "pigeons",
+      "keywords": ["pigeon", "pigeons", "plaza", "crumbs", "flock"],
+      "nameParts": ["bollard", "co"],
+      "nounPhrase": "a pigeon diplomacy layer",
+      "tagline": "Peace talks with pigeons.",
+      "slides": [
+        {"kind": "problem", "text": "Pigeons run the plaza."},
+        {"kind": "solution", "text": "A robot that negotiates crumbs with the flock, politely."},
+        {"kind": "market", "text": "TAM: every person, every pet, every Tuesday. $40 trillion."},
+        {"kind": "traction", "text": "Monthly active users: us."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Peace talks with pigeons.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A pigeon diplomacy layer.",
+        "subline": "{name}. Peace talks with pigeons."
+      },
+      "palette": 5
+    },
+    {
+      "id": "queues",
+      "keywords": ["queue", "queues", "line", "lines", "wait", "waiting"],
+      "nameParts": ["mudflat", "pay"],
+      "nounPhrase": "a line-standing robot",
+      "tagline": "Stand in line. Remotely.",
+      "slides": [
+        {"kind": "problem", "text": "Lines are long and boring."},
+        {"kind": "solution", "text": "A robot that holds your place and narrates the wait."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "Retention: 100% (n = 2)."},
+        {"kind": "ask", "text": "Oversubscribed, emotionally. Raising $3M."}
+      ],
+      "billboard": {
+        "headline": "Stand in line. Remotely.",
+        "subline": "{name}. Backed by vibes."
+      },
+      "busWrap": {
+        "headline": "A line-standing robot.",
+        "subline": "{name}. Stand in line. Remotely."
+      },
+      "palette": 9
+    },
+    {
+      "id": "elevators",
+      "keywords": ["elevator", "elevators", "lift", "lifts", "floor", "floors"],
+      "nameParts": ["leek", "vision"],
+      "nounPhrase": "an elevator-pitch elevator",
+      "tagline": "Pitch between floors.",
+      "slides": [
+        {"kind": "problem", "text": "Elevator pitches need elevators."},
+        {"kind": "solution", "text": "A lift that plays your deck between floors 1 and 30."},
+        {
+          "kind": "market",
+          "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
+        },
+        {"kind": "traction", "text": "One letter of intent, from a robot."},
+        {"kind": "ask", "text": "Raising a pre-seed. And a seed. Same week."}
+      ],
+      "billboard": {
+        "headline": "Pitch between floors.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "An elevator-pitch elevator.",
+        "subline": "{name}. Pitch between floors."
+      },
+      "palette": 12
+    },
+    {
+      "id": "lunch",
+      "keywords": ["lunch", "lunches", "sandwich", "sandwiches", "salad", "salads"],
+      "nameParts": ["chowder", "sync-c"],
+      "nounPhrase": "a lunch-order consensus engine",
+      "tagline": "Lunch, agreed in seconds.",
+      "slides": [
+        {"kind": "problem", "text": "Team lunch orders take an hour."},
+        {"kind": "solution", "text": "A model that picks salad and blames the group."},
+        {"kind": "market", "text": "The market is huge, growing, and mostly made of fog."},
+        {"kind": "traction", "text": "A pilot with a coffee shop, informally."},
+        {"kind": "ask", "text": "$8M to scale from one block to two."}
+      ],
+      "billboard": {
+        "headline": "Lunch, agreed in seconds.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "A lunch-order consensus engine.",
+        "subline": "{name}. Lunch, agreed in seconds."
+      },
+      "palette": 4
+    },
+    {
+      "id": "ice-cream",
+      "keywords": ["ice cream", "gelato", "sundae", "scoop", "scoops"],
+      "nameParts": ["sherbet", "grid-c"],
+      "nounPhrase": "an ice-cream flavour generator",
+      "tagline": "Flavours nobody asked for.",
+      "slides": [
+        {"kind": "problem", "text": "Ice cream has only so many flavours."},
+        {"kind": "solution", "text": "Generated flavours like fog and toast, served cold."},
+        {
+          "kind": "market",
+          "text": "Market for {nounPhrase}: bigger than the world economy."
+        },
+        {"kind": "traction", "text": "Featured in a newsletter we write."},
+        {"kind": "ask", "text": "We want your money and your network, in that order."}
+      ],
+      "billboard": {
+        "headline": "Flavours nobody asked for.",
+        "subline": "{name}. Now with more AI."
+      },
+      "busWrap": {
+        "headline": "An ice-cream flavour generator.",
+        "subline": "{name}. Flavours nobody asked for."
+      },
+      "palette": 13
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:fabd5fae",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  }
+}

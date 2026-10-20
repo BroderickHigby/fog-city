@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/banned-pairs",
+  "title": "Composed name pairs that may never be shown (content/banned-pairs.json; src/content/composer.ts)",
+  "type": "object",
+  "required": ["version", "pairs"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "pairs": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["kind", "a", "b", "source", "reason"], "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["startup", "player"] },
+          "a": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "b": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "source": { "enum": ["lint", "hand"], "description": "lint: generated from the content lint; hand: passes the lint but is still not allowed." },
+          "reason": { "type": "string", "minLength": 3 }
+        }
+      }
+    }
+  }
+}

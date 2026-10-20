@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/name-parts",
+  "title": "Pre-cleared name parts for composed startup and player names (content/name-parts.json; src/content/composer.ts)",
+  "type": "object",
+  "required": [
+    "version",
+    "pools",
+    "provenance"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "part": {
+      "type": "object",
+      "required": [
+        "id",
+        "text"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 24
+        },
+        "text": {
+          "type": "string",
+          "pattern": "^[A-Z][a-z]+$",
+          "minLength": 2,
+          "maxLength": 8,
+          "description": "One capitalised word; composed names stay within 16 characters (composer.ts COMPOSED_NAME_MAX)."
+        }
+      }
+    },
+    "tail": {
+      "type": "object",
+      "required": [
+        "id",
+        "text",
+        "glue"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 24
+        },
+        "text": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z]*$",
+          "minLength": 2,
+          "maxLength": 7
+        },
+        "glue": {
+          "enum": [
+            "space",
+            "camel"
+          ],
+          "description": "space: 'Kelp Labs'; camel: 'KelpStack'."
+        }
+      }
+    },
+    "pool": {
+      "type": "array",
+      "minItems": 40,
+      "items": {
+        "$ref": "#/$defs/part"
+      }
+    }
+  },
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "$comment": {
+      "type": "string"
+    },
+    "pools": {
+      "type": "object",
+      "required": [
+        "startupHead",
+        "startupTail",
+        "playerAdjective",
+        "playerNoun"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "startupHead": {
+          "$ref": "#/$defs/pool"
+        },
+        "startupTail": {
+          "type": "array",
+          "minItems": 20,
+          "items": {
+            "$ref": "#/$defs/tail"
+          }
+        },
+        "playerAdjective": {
+          "$ref": "#/$defs/pool"
+        },
+        "playerNoun": {
+          "type": "array",
+          "minItems": 40,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/part"
+              },
+              {
+                "properties": {
+                  "text": {
+                    "maxLength": 7,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}
