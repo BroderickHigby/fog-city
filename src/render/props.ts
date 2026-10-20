@@ -73,7 +73,7 @@ function getProtos(): Protos {
     pool,
     trees,
     glowTex: radialTexture("rgba(255,236,200,1)", "rgba(255,170,90,0.35)"),
-    poolTex: radialTexture("rgba(255,205,150,0.55)", "rgba(255,170,100,0.18)"),
+    poolTex: radialTexture("rgba(255,205,150,0.38)", "rgba(255,170,100,0.12)"),
   };
   return protos;
 }

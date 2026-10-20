@@ -157,6 +157,8 @@ describe("glb layer conventions", () => {
     expect(tileLayer("foliage", "foliage")).toBe("foliage");
     expect(tileLayer("neon-sign", "storefront_12")).toBeNull();
     expect(tileLayer("roadside-cafe", "x")).toBeNull();
+    expect(tileLayer("", "buildings_1")).toBe("building");
+    expect(tileLayer("Ground.001", "")).toBe("ground");
   });
 
   it("chooses materials by what the geometry carries", () => {

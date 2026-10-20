@@ -360,11 +360,11 @@ export type TileLayer = "building" | "ground" | "road" | "freeway" | "foliage";
  */
 export function tileLayer(materialName: string, nodeName: string): TileLayer | null {
   for (const n of [materialName.toLowerCase(), nodeName.toLowerCase()]) {
-    if (/^buildings?\b/.test(n)) return "building";
-    if (/^(ground|terrain)\b/.test(n)) return "ground";
-    if (/^(freeways?|ramps?)\b/.test(n)) return "freeway";
-    if (/^(roads?|streets?)\b/.test(n)) return "road";
-    if (/^(foliage|trees?)\b/.test(n)) return "foliage";
+    if (/^buildings?(?![a-z])/.test(n)) return "building";
+    if (/^(ground|terrain)(?![a-z])/.test(n)) return "ground";
+    if (/^(freeways?|ramps?)(?![a-z])/.test(n)) return "freeway";
+    if (/^(roads?|streets?)(?![a-z])/.test(n)) return "road";
+    if (/^(foliage|trees?)(?![a-z])/.test(n)) return "foliage";
   }
   return null;
 }

@@ -55,7 +55,13 @@ function numParam(p: URLSearchParams, k: string): number | null {
 async function fetchJson<T>(url: string): Promise<T> {
   const r = await fetch(url);
   if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-  return (await r.json()) as T;
+  const text = await r.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    // A dev server answers a missing file with index.html.
+    throw new Error(`${url} is missing or not JSON (has this world been built?)`);
+  }
 }
 
 interface PlayerPoses {
