@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/robot-goals",
+  "title": "Bad-robot goal tables (content/robot-goals.json)",
+  "description": "Per bad archetype, the goals of each brain state (disguised, wary, alerted, attack, flee), with trigger, target selection and weight; shared knowledge ranges, rules, attacks and state transitions. Cross-references and the taste rules are checked by checkRobotGoals in src/content/robotGoals.ts.",
+  "type": "object",
+  "required": ["version", "knowledge", "rules", "attacks", "transitions", "archetypes"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "knowledge": {
+      "type": "object",
+      "required": ["sightRangeM", "sightConeDeg", "fogSightLoss", "hearSprayM", "hearHornM", "broadcastM", "pingRadiusM", "scanAlertRadiusM", "watchWaryS", "watchWaryRadiusM", "unobservedBeyondM"],
+      "additionalProperties": false,
+      "properties": {
+        "sightRangeM": { "$ref": "#/$defs/pos" }, "sightConeDeg": { "type": "number", "exclusiveMinimum": 0, "maximum": 360 },
+        "fogSightLoss": { "type": "number", "minimum": 0, "maximum": 1 },
+        "hearSprayM": { "$ref": "#/$defs/pos" }, "hearHornM": { "$ref": "#/$defs/pos" }, "broadcastM": { "$ref": "#/$defs/pos" },
+        "pingRadiusM": { "$ref": "#/$defs/pos" }, "scanAlertRadiusM": { "$ref": "#/$defs/pos" }, "watchWaryS": { "$ref": "#/$defs/pos" },
+        "watchWaryRadiusM": { "$ref": "#/$defs/pos" }, "unobservedBeyondM": { "$ref": "#/$defs/pos" }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "required": ["waryS", "attackPlayerWithinM", "goodRobotWithinM", "fleeAtRust", "maxMeleeOnPlayer", "fogFollowS", "fogPanicRustMultiplier", "sabotageAlertRadiusM", "sabotageAlertS", "lostTrackS"],
+      "additionalProperties": false,
+      "properties": {
+        "waryS": { "$ref": "#/$defs/pos" }, "attackPlayerWithinM": { "$ref": "#/$defs/pos" }, "goodRobotWithinM": { "$ref": "#/$defs/pos" },
+        "fleeAtRust": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "maxMeleeOnPlayer": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "fogFollowS": { "$ref": "#/$defs/pos" }, "fogPanicRustMultiplier": { "type": "number", "minimum": 1 },
+        "sabotageAlertRadiusM": { "$ref": "#/$defs/pos" }, "sabotageAlertS": { "$ref": "#/$defs/pos" }, "lostTrackS": { "$ref": "#/$defs/pos" }
+      }
+    },
+    "attacks": {
+      "type": "object",
+      "propertyNames": { "enum": ["shove", "grocerySnatch", "adBlast", "handshake", "forcedUpdate", "phoneHack", "carTheft", "boxIn", "termsOfService", "swarm"] },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["wave", "rangeM", "windupS", "models", "targets", "effect"],
+        "additionalProperties": false,
+        "properties": {
+          "wave": { "type": "integer", "minimum": 2, "maximum": 8 },
+          "rangeM": { "$ref": "#/$defs/pos" },
+          "windupS": { "type": "number", "minimum": 0.5, "description": "Every attack has a readable wind-up of at least 0.5 s (design.md, Bad robots fight back)." },
+          "models": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/model" } },
+          "targets": { "type": "array", "minItems": 1, "items": { "enum": ["player", "robot", "emptyParkedCar", "playerCar"] } },
+          "effect": { "type": "string", "minLength": 10 }
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "when"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/state" } },
+          "to": { "enum": ["disguised", "wary", "alerted", "attack", "flee", "seized"] },
+          "when": { "enum": ["pinged", "watchedClose", "waryTimeout", "sprayed", "scannedClose", "broadcast", "heardSpray", "chooseFight", "chooseFlee", "rustHigh", "lostTrack", "rustFull"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "archetypes": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["fightBias", "states"],
+        "additionalProperties": false,
+        "properties": {
+          "fightBias": { "type": "number", "minimum": 0, "maximum": 1, "description": "Chance an alerted robot fights rather than flees (tune)." },
+          "states": {
+            "type": "object",
+            "required": ["disguised", "wary", "alerted", "attack", "flee"],
+            "additionalProperties": false,
+            "properties": {
+              "disguised": { "$ref": "#/$defs/goals" }, "wary": { "$ref": "#/$defs/goals" }, "alerted": { "$ref": "#/$defs/goals" },
+              "attack": { "$ref": "#/$defs/goals" }, "flee": { "$ref": "#/$defs/goals" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "pos": { "type": "number", "exclusiveMinimum": 0 },
+    "model": { "enum": ["errand-robot", "sidewalk-bot", "robotaxi"] },
+    "state": { "enum": ["disguised", "wary", "alerted", "attack", "flee"] },
+    "goals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["goal", "when", "target", "weight"],
+        "additionalProperties": false,
+        "properties": {
+          "goal": { "enum": ["errand", "sabotage", "shelter", "avoid", "hideTell", "lookAt", "callOthers", "keepDistance", "attack", "flee", "regroup"] },
+          "sabotage": { "enum": ["snatchGroceries", "pushUpdate", "stickAd", "tryCarDoor", "stealEmptyCar", "harvestData", "parkAcrossHydrant"] },
+          "attack": { "type": "string" },
+          "when": { "enum": ["always", "unobserved", "playerInSight", "playerFar", "playerInCar", "goodRobotNear", "meleeSlotFree", "meleeSlotsFull", "rain", "fog"] },
+          "target": {
+            "enum": ["errandRoute", "nearestGoodRobot", "player", "nearestParkedCar", "emptyPlayerCar", "nearestBusShelter", "nearestHydrant", "nearestRobotaxiPickup", "nearestShelter", "awayFromWater", "awayFromFog", "towardBadRobots", "mostObviousTell", "laneAheadOfPlayerCar"],
+            "description": "No value names a person: bad robots target the player and robots only."
+          },
+          "weight": { "type": "integer", "minimum": 1 },
+          "fromWave": { "type": "integer", "minimum": 3, "maximum": 8, "description": "The goal is inert until this wave ships its mechanic." }
+        },
+        "allOf": [
+          { "if": { "properties": { "goal": { "const": "sabotage" } } }, "then": { "required": ["sabotage"] }, "else": { "properties": { "sabotage": false } } },
+          { "if": { "properties": { "goal": { "const": "attack" } } }, "then": { "required": ["attack"] }, "else": { "properties": { "attack": false } } }
+        ]
+      }
+    }
+  }
+}

@@ -32,6 +32,7 @@ const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
   [/^content\/missions\/[^/]+\.json$/, "mission"],
   [/^content\/brands\.json$/, "brands"],
   [/^content\/cleared-names\.json$/, "cleared-names"],
+  [/^content\/robot-goals\.json$/, "robot-goals"],
 ];
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -80,7 +81,7 @@ describe("schemas reject broken content", () => {
     expect(V.storefronts(c)).toBe(false);
   });
 
-  it("bot tells: behaviour params are typed per kind, colour is not a behaviour", () => {
+  it("bot tells: behaviour params are typed per kind, colour is not a behaviour, false tells mimic", () => {
     const d = readJson<Json>("content/bot-tells.json");
     const flicker = d.tells.findIndex((t: Json) => t.behaviour.kind === "faceLightFlicker");
     const a = clone(d);
@@ -93,11 +94,18 @@ describe("schemas reject broken content", () => {
     c.tells[0].behaviour.extra = 1;
     expect(V.botTells(c)).toBe(false);
     const e = clone(d);
-    e.archetypes[0].tells = [e.archetypes[0].tells[0]];
-    expect(V.botTells(e)).toBe(false); // fewer than 2 tells
+    e.archetypes[0].difficulty[0].showTells = ["a", "b", "c", "d"];
+    expect(V.botTells(e)).toBe(false); // more than 3 tells shown
     const f = clone(d);
-    delete f.archetypes[0].rebootLine;
-    expect(V.botTells(f)).toBe(false); // bad bots need a reboot line
+    delete f.archetypes[0].restoredLine;
+    expect(V.botTells(f)).toBe(false); // bad robots need a restored-from-backup line
+    const g = clone(d);
+    const ft = g.tells.findIndex((t: Json) => t.falseTell);
+    delete g.tells[ft].mimics;
+    expect(V.botTells(g)).toBe(false); // a false tell must say what it mimics
+    const h = clone(d);
+    h.tells[0].behaviour = { kind: "askPassersBy", lineSet: "rateSidewalk", radiusM: 3, cooldownS: 12, audience: "everyone" };
+    expect(V.botTells(h)).toBe(false); // speech tells address adults only
   });
 
   it("mission: per-type fields are required and typed", () => {

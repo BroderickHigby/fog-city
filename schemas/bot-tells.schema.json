@@ -1,47 +1,239 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/bot-tells",
-  "title": "Bot Hunt tells and robot archetypes (content/bot-tells.json)",
-  "description": "Bot Hunt: tell the helpful robots from the bad ones. A tell is always BEHAVIOUR the sim can execute (a 'behaviour' object discriminated by 'kind'), never a colour code or a different body: every bad archetype shares its chassis with a good one. Cross-references (tell ids, opposing tells, the difficulty curve) are checked by checkBotTells in src/content/botTells.ts.",
+  "title": "Bot Hunt tells, false tells and robot archetypes (content/bot-tells.json)",
+  "description": "Bot Hunt: tell the helpful robots from the bad ones by behaviour. A tell is BEHAVIOUR the sim can execute (a 'behaviour' object discriminated by 'kind'), never a colour code or a different body: every bad archetype shares its model with a good one. False tells are good-robot glitches that mimic bad tells. Cross-references (tell ids, models, opposing and mimicked tells, the difficulty curve, local tells) are checked by checkBotTells in src/content/botTells.ts.",
   "type": "object",
-  "required": ["version", "scoring", "lineSets", "tells", "archetypes"],
+  "required": [
+    "version",
+    "scoring",
+    "models",
+    "lineSets",
+    "tells",
+    "archetypes"
+  ],
   "additionalProperties": false,
   "properties": {
-    "version": { "const": 1 },
-    "$comment": { "type": "string" },
+    "version": {
+      "const": 2
+    },
+    "$comment": {
+      "type": "string"
+    },
     "scoring": {
       "type": "object",
-      "description": "Points for the Bot Hunt round. People are never valid targets: hitting one only costs the player.",
-      "required": ["patchBad", "patchGood", "hitPerson"],
+      "description": "Bot Hunt points (the Clean Streets table in docs/design.md). People are never valid targets: wetting one only costs the player.",
+      "required": [
+        "meltBad",
+        "meltArmoured",
+        "interruptUpdate",
+        "rustGood",
+        "wetPerson"
+      ],
       "additionalProperties": false,
       "properties": {
-        "patchBad": { "type": "integer", "exclusiveMinimum": 0 },
-        "patchGood": { "type": "integer", "exclusiveMaximum": 0 },
-        "hitPerson": { "type": "integer", "exclusiveMaximum": 0 }
+        "meltBad": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "meltArmoured": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "interruptUpdate": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "rustGood": {
+          "type": "integer",
+          "exclusiveMaximum": 0
+        },
+        "wetPerson": {
+          "type": "integer",
+          "exclusiveMaximum": 0
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "Robot models by GLB stem (public/models/<id>.glb). Display names must be cleared (content/cleared-names.json).",
+      "propertyNames": {
+        "enum": [
+          "errand-robot",
+          "sidewalk-bot",
+          "robotaxi"
+        ]
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "name",
+          "maker",
+          "glb",
+          "rustRate",
+          "description"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "maker": {
+            "type": "string"
+          },
+          "glb": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+\\.glb$"
+          },
+          "rustRate": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 2
+          },
+          "description": {
+            "type": "string"
+          }
+        }
       }
     },
     "lineSets": {
       "type": "object",
       "description": "Short spoken lines referenced by behaviours (speech bubbles).",
-      "propertyNames": { "pattern": "^[a-z][A-Za-z0-9]*$" },
-      "additionalProperties": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "maxLength": 80 } }
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
+      }
     },
     "tells": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "side", "subtlety", "label", "description", "behaviour"],
+        "required": [
+          "id",
+          "side",
+          "subtlety",
+          "channel",
+          "models",
+          "label",
+          "description",
+          "behaviour"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
-          "side": { "enum": ["bad", "good"] },
-          "subtlety": { "type": "integer", "minimum": 1, "maximum": 5, "description": "1 = obvious from across the street, 5 = only a patient watcher sees it." },
-          "label": { "type": "string", "minLength": 3, "maxLength": 40 },
-          "description": { "type": "string", "minLength": 20, "description": "What the player sees, in plain words. Behaviour only: never a colour." },
-          "behaviour": { "$ref": "#/$defs/behaviour" },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9]*$"
+          },
+          "side": {
+            "enum": [
+              "bad",
+              "good"
+            ]
+          },
+          "falseTell": {
+            "const": true,
+            "description": "A good robot's glitch that mimics bad tells; never proof on its own."
+          },
+          "mimics": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            },
+            "description": "False tells only: the bad tells this glitch looks like."
+          },
+          "subtlety": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "1 = obvious from across the street, 5 = only a patient watcher sees it."
+          },
+          "channel": {
+            "enum": [
+              "look",
+              "path",
+              "audio",
+              "status",
+              "speech"
+            ],
+            "description": "How a watcher reads it: look (the body), path (the Watch trail), audio (Watch isolates it), status (the public status light), speech (a bubble)."
+          },
+          "models": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "errand-robot",
+                "sidewalk-bot",
+                "robotaxi"
+              ]
+            }
+          },
+          "districts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z0-9-]+$"
+            },
+            "description": "Local tells: the districts whose bounty sets use it."
+          },
+          "when": {
+            "enum": [
+              "rain",
+              "fog",
+              "night",
+              "freeze"
+            ],
+            "description": "Only shown under this condition (freeze = the 3 a.m. firmware freeze)."
+          },
+          "label": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 40
+          },
+          "description": {
+            "type": "string",
+            "minLength": 20
+          },
+          "behaviour": {
+            "$ref": "#/$defs/behaviour"
+          },
           "opposes": {
-            "description": "Good tells only: bad tells this one contradicts, so it can never be worn as camouflage next to them.",
-            "type": "array", "items": { "type": "string" }
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Good tells only: bad tells this one contradicts, so it can never be worn as camouflage next to them."
+          }
+        },
+        "if": {
+          "required": [
+            "falseTell"
+          ]
+        },
+        "then": {
+          "required": [
+            "mimics"
+          ],
+          "properties": {
+            "side": {
+              "const": "good"
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "mimics": false
           }
         }
       }
@@ -50,82 +242,1189 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "kind", "label", "chassis", "habitat", "tells", "difficulty", "designNote"],
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "model",
+          "habitat",
+          "tells",
+          "difficulty",
+          "designNote"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
-          "kind": { "enum": ["bad", "good"] },
-          "label": { "type": "string" },
-          "chassis": { "$ref": "#/$defs/chassis" },
-          "habitat": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/target" }, "description": "Where it spawns." },
-          "tells": { "type": "array", "minItems": 2, "maxItems": 4, "uniqueItems": true, "items": { "type": "string" } },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9]*$"
+          },
+          "kind": {
+            "enum": [
+              "bad",
+              "good"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "model": {
+            "enum": [
+              "errand-robot",
+              "sidewalk-bot",
+              "robotaxi"
+            ]
+          },
+          "habitat": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/target"
+            },
+            "description": "Where it spawns."
+          },
+          "tells": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "falseTells": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Good archetypes: the glitches it shows now and then."
+          },
           "difficulty": {
             "type": "array",
-            "description": "The difficulty curve, levels 1..5: which of its tells it shows, how strongly, and (bad bots only) which good tells it wears as camouflage.",
-            "minItems": 5, "maxItems": 5,
+            "description": "Levels 1..5: which of its tells it shows (2-3 for a bad robot), how strongly, and (bad only) which good tells it wears as camouflage.",
+            "minItems": 5,
+            "maxItems": 5,
             "items": {
               "type": "object",
-              "required": ["level", "showTells", "intensity", "camouflage"],
+              "required": [
+                "level",
+                "showTells",
+                "intensity",
+                "camouflage"
+              ],
               "additionalProperties": false,
               "properties": {
-                "level": { "type": "integer", "minimum": 1, "maximum": 5 },
-                "showTells": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
-                "intensity": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "description": "Multiplier on how often and how hard tells play." },
-                "camouflage": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+                "level": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5
+                },
+                "showTells": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 3,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "intensity": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "description": "Multiplier on how often and how hard tells play."
+                },
+                "camouflage": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string"
+                  }
+                }
               }
             }
           },
-          "designNote": { "type": "string", "minLength": 60, "description": "Docs-style note: what the joke is and who it punches at." },
-          "rebootLine": { "type": "string", "description": "Bad bots: what it says after the patch launcher reboots it." },
-          "wrongPatchLine": { "type": "string", "description": "Good bots: what it says if the player patches it by mistake (and loses points)." }
+          "designNote": {
+            "type": "string",
+            "minLength": 60,
+            "description": "Docs-style note: what the joke is and who it punches at."
+          },
+          "restoredLine": {
+            "type": "string",
+            "description": "Bad robots: what it says when it is restored from backup at a repair kiosk after melting."
+          },
+          "wrongTargetLine": {
+            "type": "string",
+            "description": "Good robots: what it says when the player's stream rusts it past 0.3 and it limps to a repair kiosk."
+          }
         },
-        "if": { "properties": { "kind": { "const": "bad" } } },
-        "then": { "required": ["rebootLine"], "properties": { "wrongPatchLine": false } },
-        "else": { "required": ["wrongPatchLine"], "properties": { "rebootLine": false } }
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "bad"
+            }
+          }
+        },
+        "then": {
+          "required": [
+            "restoredLine"
+          ],
+          "properties": {
+            "wrongTargetLine": false,
+            "falseTells": false
+          }
+        },
+        "else": {
+          "required": [
+            "wrongTargetLine",
+            "falseTells"
+          ],
+          "properties": {
+            "restoredLine": false
+          }
+        }
       }
     }
   },
   "$defs": {
-    "chassis": {
-      "enum": ["strider", "sidewalkCart", "quadruped"],
-      "description": "strider: a tall two-legged errand robot; sidewalkCart: a knee-high six-wheeled cargo box; quadruped: a four-legged walker. Original designs (assets track)."
-    },
     "target": {
-      "enum": ["robotaxi", "billboard", "busShelter", "storefront", "produceCrates", "bakeryLine", "cafeTables", "crosswalk", "busStop", "park", "owner", "player", "dock", "door", "sidewalk"]
+      "enum": [
+        "robotaxiPickup",
+        "billboard",
+        "busShelter",
+        "storefront",
+        "marketQueue",
+        "bakeryLine",
+        "crosswalk",
+        "busStop",
+        "park",
+        "door",
+        "sidewalk",
+        "chargingDock",
+        "parkedCars",
+        "garage",
+        "hydrant",
+        "road",
+        "depotLot",
+        "officeLobby",
+        "turntable",
+        "workbench",
+        "drawbridge",
+        "overlook"
+      ]
     },
-    "pos": { "type": "number", "exclusiveMinimum": 0 },
+    "pos": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
     "behaviour": {
       "oneOf": [
-        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "walkAgainstFlow" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "emptyBag" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "periodS", "holdS"], "properties": { "kind": { "const": "faceLightFlicker" }, "periodS": { "$ref": "#/$defs/pos" }, "holdS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "pauseS", "radiusM"], "properties": { "kind": { "const": "scanEachPerson" }, "pauseS": { "$ref": "#/$defs/pos" }, "radiusM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "target", "radiusM", "dwellS"], "properties": { "kind": { "const": "loiterNear" }, "target": { "$ref": "#/$defs/target" }, "radiusM": { "$ref": "#/$defs/pos" }, "dwellS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "intervalS", "radiusM"], "properties": { "kind": { "const": "photographFlash" }, "intervalS": { "$ref": "#/$defs/pos" }, "radiusM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "target", "workS", "intervalS"], "properties": { "kind": { "const": "pastePoster" }, "target": { "enum": ["billboard", "busShelter"] }, "workS": { "$ref": "#/$defs/pos" }, "intervalS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "radiusM", "pitchS", "cooldownS", "lineSet"], "properties": { "kind": { "const": "pitchPedestrian" }, "radiusM": { "$ref": "#/$defs/pos" }, "pitchS": { "$ref": "#/$defs/pos" }, "cooldownS": { "$ref": "#/$defs/pos" }, "lineSet": { "type": "string" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "target", "dwellS", "swaps"], "properties": { "kind": { "const": "relabelPrice" }, "target": { "const": "produceCrates" }, "dwellS": { "$ref": "#/$defs/pos" }, "swaps": { "type": "integer", "minimum": 1 } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "distanceM", "durationS"], "properties": { "kind": { "const": "tailPerson" }, "distanceM": { "$ref": "#/$defs/pos" }, "durationS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "loops"], "properties": { "kind": { "const": "circleBlock" }, "loops": { "type": "integer", "minimum": 2 } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "intervalS", "holdS"], "properties": { "kind": { "const": "freezeMidStride" }, "intervalS": { "$ref": "#/$defs/pos" }, "holdS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "lagS", "maxDistanceM"], "properties": { "kind": { "const": "mirrorPlayer" }, "lagS": { "$ref": "#/$defs/pos" }, "maxDistanceM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "radiusM", "turnRateDegS"], "properties": { "kind": { "const": "orientToPhones" }, "radiusM": { "$ref": "#/$defs/pos" }, "turnRateDegS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "turnAwayS"], "properties": { "kind": { "const": "avertWhenScanned" }, "turnAwayS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "multiplier", "watchConeDeg"], "properties": { "kind": { "const": "speedUpWhenWatched" }, "multiplier": { "type": "number", "exclusiveMinimum": 1, "maximum": 3 }, "watchConeDeg": { "type": "number", "exclusiveMinimum": 0, "maximum": 180 } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "lineSet", "intervalS"], "properties": { "kind": { "const": "loopLine" }, "lineSet": { "type": "string" }, "intervalS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "approachM"], "properties": { "kind": { "const": "neverArrives" }, "approachM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "target", "offsetM", "maxLagM"], "properties": { "kind": { "const": "walkBeside" }, "target": { "const": "owner" }, "offsetM": { "$ref": "#/$defs/pos" }, "maxLagM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "radiusM", "sidestepM"], "properties": { "kind": { "const": "yieldToPedestrians" }, "radiusM": { "$ref": "#/$defs/pos" }, "sidestepM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "fullBag" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "waitAtCrosswalk" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "target", "spacingM"], "properties": { "kind": { "const": "queueInLine" }, "target": { "const": "bakeryLine" }, "spacingM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "dogs", "intervalS", "pauseS"], "properties": { "kind": { "const": "pauseForDog" }, "dogs": { "type": "integer", "minimum": 1, "maximum": 4 }, "intervalS": { "$ref": "#/$defs/pos" }, "pauseS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind"], "properties": { "kind": { "const": "steadyFaceLight" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "dwellS"], "properties": { "kind": { "const": "arriveAtDoor" }, "dwellS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "holdS"], "properties": { "kind": { "const": "holdDoor" }, "holdS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "maxDistanceM"], "properties": { "kind": { "const": "stayNearOwner" }, "maxDistanceM": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "nodS"], "properties": { "kind": { "const": "nodAndMoveOn" }, "nodS": { "$ref": "#/$defs/pos" } } },
-        { "type": "object", "additionalProperties": false, "required": ["kind", "batteryPct"], "properties": { "kind": { "const": "returnToDock" }, "batteryPct": { "type": "integer", "minimum": 1, "maximum": 99 } } }
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "decal",
+            "placement"
+          ],
+          "properties": {
+            "kind": {
+              "const": "decal"
+            },
+            "decal": {
+              "enum": [
+                "scuffedQrSticker",
+                "conferenceLanyard",
+                "fairSticker"
+              ]
+            },
+            "placement": {
+              "enum": [
+                "back",
+                "front"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "lineSet",
+            "radiusM",
+            "cooldownS",
+            "audience"
+          ],
+          "properties": {
+            "kind": {
+              "const": "askPassersBy"
+            },
+            "lineSet": {
+              "type": "string"
+            },
+            "radiusM": {
+              "$ref": "#/$defs/pos"
+            },
+            "cooldownS": {
+              "$ref": "#/$defs/pos"
+            },
+            "audience": {
+              "const": "adults"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "distanceM",
+            "minDurationS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "tailRobot"
+            },
+            "target": {
+              "enum": [
+                "goodErrandRobot",
+                "goodSidewalkBot"
+              ]
+            },
+            "distanceM": {
+              "$ref": "#/$defs/pos"
+            },
+            "minDurationS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "workS",
+            "intervalS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "pastePoster"
+            },
+            "target": {
+              "enum": [
+                "billboard",
+                "busShelter"
+              ]
+            },
+            "workS": {
+              "$ref": "#/$defs/pos"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "dwellS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "parkAcross"
+            },
+            "target": {
+              "enum": [
+                "hydrant",
+                "laneAhead"
+              ]
+            },
+            "dwellS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "chime",
+            "intervalS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "tryCarDoors"
+            },
+            "chime": {
+              "const": "pairing"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "sweepS",
+            "intervalS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "scanBeam"
+            },
+            "target": {
+              "const": "numberPlates"
+            },
+            "sweepS": {
+              "$ref": "#/$defs/pos"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "radiusM",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "trackPlayer"
+            },
+            "radiusM": {
+              "$ref": "#/$defs/pos"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "cycles"
+          ],
+          "properties": {
+            "kind": {
+              "const": "waitThroughSignal"
+            },
+            "cycles": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "walkAgainstFlow"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "shelter"
+          ],
+          "properties": {
+            "kind": {
+              "const": "skipRainCape"
+            },
+            "shelter": {
+              "enum": [
+                "awning",
+                "busShelter",
+                "arcade"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "lineSet",
+            "intervalS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "loopLine"
+            },
+            "lineSet": {
+              "type": "string"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "skipsSignals"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "emptyBag"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "puddleClearanceM",
+            "hydrantClearanceM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "avoidWater"
+            },
+            "puddleClearanceM": {
+              "$ref": "#/$defs/pos"
+            },
+            "hydrantClearanceM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "intervalS",
+            "rangeM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "humJingle"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            },
+            "rangeM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "multiplier",
+            "watchConeDeg"
+          ],
+          "properties": {
+            "kind": {
+              "const": "speedUpWhenWatched"
+            },
+            "multiplier": {
+              "type": "number",
+              "exclusiveMinimum": 1,
+              "maximum": 3
+            },
+            "watchConeDeg": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 180
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "radiusM",
+            "dwellS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "loiterNear"
+            },
+            "target": {
+              "$ref": "#/$defs/target"
+            },
+            "radiusM": {
+              "$ref": "#/$defs/pos"
+            },
+            "dwellS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "bumpRadiusM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "noApology"
+            },
+            "bumpRadiusM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "statusPct"
+          ],
+          "properties": {
+            "kind": {
+              "const": "neverCharges"
+            },
+            "statusPct": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "steps",
+            "loops"
+          ],
+          "properties": {
+            "kind": {
+              "const": "stepLoop"
+            },
+            "steps": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "loops": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "densityAbove"
+          ],
+          "properties": {
+            "kind": {
+              "const": "avoidFog"
+            },
+            "densityAbove": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "periodS",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "faceLightFlicker"
+            },
+            "periodS": {
+              "$ref": "#/$defs/pos"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "intervalS",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "freezeMidStride"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "loops"
+          ],
+          "properties": {
+            "kind": {
+              "const": "circleBlock"
+            },
+            "loops": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "takesStairs"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "approachM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "neverArrives"
+            },
+            "approachM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "lagS",
+            "maxDistanceM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "mirrorPlayer"
+            },
+            "lagS": {
+              "$ref": "#/$defs/pos"
+            },
+            "maxDistanceM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target"
+          ],
+          "properties": {
+            "kind": {
+              "const": "queueJump"
+            },
+            "target": {
+              "const": "marketQueue"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "ignoresFreeze"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "laps"
+          ],
+          "properties": {
+            "kind": {
+              "const": "lapLoop"
+            },
+            "target": {
+              "const": "park"
+            },
+            "laps": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "fullBag"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "crossOnWalk"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "radiusM",
+            "sidestepM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "yieldToPedestrians"
+            },
+            "radiusM": {
+              "$ref": "#/$defs/pos"
+            },
+            "sidestepM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "wearsRainCape"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "bumpRadiusM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "apologiseOnBump"
+            },
+            "bumpRadiusM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "splashThrough"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "signalsEveryChange"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target",
+            "spacingM"
+          ],
+          "properties": {
+            "kind": {
+              "const": "queueInLine"
+            },
+            "target": {
+              "enum": [
+                "marketQueue",
+                "bakeryLine"
+              ]
+            },
+            "spacingM": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "holdDoor"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "steadyFaceLight"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "dwellS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "arriveAtDoor"
+            },
+            "dwellS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "entersFog"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "batteryPct"
+          ],
+          "properties": {
+            "kind": {
+              "const": "returnToDock"
+            },
+            "batteryPct": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "takesRamps"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "nodS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "nodAndMoveOn"
+            },
+            "nodS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "pauseForFreeze"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "batteryPct",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "lowBatteryStall"
+            },
+            "batteryPct": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "loops"
+          ],
+          "properties": {
+            "kind": {
+              "const": "gpsLostLoop"
+            },
+            "loops": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "dance"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "lineSet",
+            "intervalS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "talksToNobody"
+            },
+            "lineSet": {
+              "type": "string"
+            },
+            "intervalS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "holdS"
+          ],
+          "properties": {
+            "kind": {
+              "const": "glanceOnPing"
+            },
+            "holdS": {
+              "$ref": "#/$defs/pos"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "emptyBagReturning"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "shelter"
+          ],
+          "properties": {
+            "kind": {
+              "const": "shelterWithCape"
+            },
+            "shelter": {
+              "enum": [
+                "awning",
+                "busShelter",
+                "arcade"
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "detourForParcel"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "justCharged"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "loops"
+          ],
+          "properties": {
+            "kind": {
+              "const": "scenicLoop"
+            },
+            "loops": {
+              "type": "integer",
+              "minimum": 2
+            }
+          }
+        }
       ]
     }
   }
