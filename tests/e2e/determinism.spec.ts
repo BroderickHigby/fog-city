@@ -200,6 +200,8 @@ test.describe("cross-engine determinism: the running game", () => {
   for (const world of ["dev", "sf"] as const) {
     test(`${world}: the running game steps exactly like Node, and render pokes never touch the sim`, async ({ page }) => {
       gateWorld(world);
+      // ~50 s on SF at load 5 (SwiftShader frames, traffic replay in Node): triple the timeout.
+      test.slow(world === "sf", "SF boots and replays slowly under SwiftShader");
       const problems = await bootWorld(page, world, FAST_QUERY);
       await pause(page);
       const s0 = await simState(page);
@@ -270,6 +272,7 @@ test.describe("cross-engine determinism: the running game", () => {
   for (const { world, ticks } of SESSION) {
     test(`${world}: a ${ticks}-tick multiplayer session steps identically through the game's stepFrames()`, async ({ page }) => {
       gateWorld(world);
+      test.slow(world === "sf", "SF boots and replays slowly under SwiftShader");
       const problems = await bootWorld(page, world, FAST_QUERY);
       gate(
         "step-frames",
