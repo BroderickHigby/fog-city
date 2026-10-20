@@ -6,9 +6,11 @@
 
 import Ajv2020 from "ajv/dist/2020.js";
 import { validateBytes } from "gltf-validator";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { toLocal } from "../../src/geo/project.ts";
-import { readJson } from "../helpers.ts";
+import { ROOT, readJson } from "../helpers.ts";
 import {
   allPositions,
   box,
@@ -776,5 +778,47 @@ describe("r-evolution.glb", () => {
     const toes = az - f.min[2];
     const heels = f.max[2] - az;
     expect(toes).toBeGreaterThan(1.5 * heels);
+  });
+});
+
+// ------------------------------------------------------------------ melt reference helpers
+
+describe("runtime/robot-melt.ts", () => {
+  it("blends seize -> slump -> melt over the sim's melt states, matching lib/melt.py", async () => {
+    const { meltWeights, rustCoverage } = await import("../../assets/blender/runtime/robot-melt.ts");
+    expect(meltWeights("active", 3)).toEqual([0, 0, 0]);
+    expect(meltWeights("seized", 0.25)).toEqual([0.5, 0, 0]);
+    expect(meltWeights("seized", 9)).toEqual([1, 0, 0]);
+    expect(meltWeights("slumping", 0)).toEqual([1, 0, 0]);
+    expect(meltWeights("slumping", 0.75)).toEqual([0, 1, 0]);
+    expect(meltWeights("slumping", 1.5)).toEqual([0, 0, 1]);
+    expect(meltWeights("heap", 0)).toEqual([0, 0, 1]);
+    for (const [s, t] of [["slumping", 0.3], ["slumping", 1.1]] as const) {
+      const w = meltWeights(s, t);
+      expect(w[0] + w[1] + w[2]).toBeCloseTo(1, 6);
+    }
+    // joints (mask ~0) rust before panels (mask ~1); night lights (2) never
+    expect(rustCoverage(0.05, 0.3)).toBeGreaterThan(0.99);
+    expect(rustCoverage(0.9, 0.3)).toBe(0);
+    expect(rustCoverage(0.9, 1)).toBeGreaterThan(0.99);
+    expect(rustCoverage(2, 1)).toBe(0);
+  });
+});
+
+// ------------------------------------------------------------------- every GLB we ship
+
+describe("every public/models/*.glb", () => {
+  const files = readdirSync(join(ROOT, "public", "models")).filter((f) => f.endsWith(".glb")).sort();
+
+  it("includes the wave-2 models", () => {
+    for (const f of ["humanoid-crowd.glb", "player.glb", "moat-van.glb", "water-blaster.glb", "hydrant.glb", "traffic-cone.glb", "pigeon.glb", "dog.glb"]) {
+      expect(files).toContain(f);
+    }
+  });
+
+  it.each(files)("%s is valid glTF 2.0 with no errors", async (f) => {
+    const m = await loadModel(f);
+    const report = await validateBytes(m.bytes, { maxIssues: 50 });
+    expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((x) => x.severity === 0).slice(0, 3))).toBe(0);
   });
 });

@@ -74,7 +74,7 @@ else
 fi
 
 if [ "$LOOKDEV" = 1 ]; then
-  for s in assets/blender/lookdev/0*.py; do
+  for s in assets/blender/lookdev/0*.py assets/blender/lookdev/humanoid_*.py; do
     png="assets/blender/lookdev/$(basename "$s" .py | tr '_' '-').png"
     touch "$STAMP"
     run "$s"

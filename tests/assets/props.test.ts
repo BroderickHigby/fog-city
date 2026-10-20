@@ -278,3 +278,14 @@ describe("dog leash", () => {
     expect(sceneNodes(doc)[0]!.getExtras().leashed).toBe(true);
   });
 });
+
+describe("wheelchair orientation", () => {
+  it("faces -Z: footplates and casters at the front, push handles behind", async () => {
+    const { doc } = await loadModel("wheelchair.glb");
+    const pts = nodePositions(node(doc, "chair"));
+    const handles = pts.filter((p) => p[1] > 0.9);
+    const feet = pts.filter((p) => p[1] < 0.12);
+    expect(mean(handles)[2]).toBeGreaterThan(0.2);
+    expect(mean(feet)[2]).toBeLessThan(-0.1);
+  });
+});
