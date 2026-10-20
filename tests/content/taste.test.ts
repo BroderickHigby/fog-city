@@ -40,7 +40,7 @@ describe("authored content", () => {
   it("covers every content file", () => {
     const rel = FILES.map((f) => f.slice(ROOT.length + 1)).sort();
     expect(rel).toEqual(
-      expect.arrayContaining(["content/billboards.json", "content/bot-tells.json", "content/storefronts.json", "content/missions/yc-pitch.json"]),
+      expect.arrayContaining(["content/billboards.json", "content/bot-tells.json", "content/storefronts.json", "content/missions/ramen-pitch.json"]),
     );
   });
 

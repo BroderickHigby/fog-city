@@ -96,7 +96,7 @@
     {
       "id": "pharmacy", "label": "Pharmacy",
       "naicsPrefixes": ["446110", "456110"],
-      "naicsNote": "Pharmacies and Drug Stores: 446110 in NAICS 2017, 456110 in NAICS 2022. Other health retail (4461xx, 4561xx) stays generic retail.",
+      "naicsNote": "Pharmacies: 446110 in NAICS 2017, 456110 in NAICS 2022. Other health retail (4461xx, 4561xx) stays generic retail.",
       "signShape": "projectingCross",
       "signSlot": { "mount": "fascia", "widthM": 4, "heightM": 0.7 },
       "props": ["pharmacyCross", "shelvedWindow"],

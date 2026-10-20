@@ -79,7 +79,7 @@ describe("schemas reject broken content", () => {
   });
 
   it("mission: per-type fields are required and typed", () => {
-    const m = readJson<Json>("content/missions/yc-pitch.json");
+    const m = readJson<Json>("content/missions/ramen-pitch.json");
     const drive = m.steps.findIndex((s: Json) => s.type === "goto");
     const a = clone(m);
     delete a.steps[drive].timer;

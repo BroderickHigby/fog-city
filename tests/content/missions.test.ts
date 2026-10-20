@@ -1,14 +1,14 @@
-// The mission validator and dry-run interpreter, and the YC pitch mission they check.
+// The mission validator and dry-run interpreter, and the missions they check.
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { blockedNameReason, blockedProseReason } from "../../src/content/blocklist.ts";
+import { blockedProseReason } from "../../src/content/blocklist.ts";
 import { toLocal } from "../../src/geo/project.ts";
 import { dryRun, enumeratePaths, validateMission, type Decision, type DialogueStep, type GotoStep, type Mission, type TriggerStep } from "../../src/content/missions.ts";
 import { ROOT, readJson } from "../helpers.ts";
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
-const yc = readJson<Mission>("content/missions/yc-pitch.json");
+const yc = readJson<Mission>("content/missions/ramen-pitch.json");
 const step = <T>(m: Mission, id: string) => m.steps.find((s) => s.id === id) as T;
 
 /** Chooser that always arrives and picks the answer with the given rank by delta (0 = best). */
@@ -29,7 +29,7 @@ describe("every mission file", () => {
   }
 });
 
-describe("yc-pitch: the brief, as data", () => {
+describe("ramen-pitch: the brief, as data", () => {
   it("starts with a phone call at the player's Marina apartment: the meeting moved up to 10:00", () => {
     const call = step<TriggerStep>(yc, yc.start ?? yc.steps[0]!.id);
     expect(call.type).toBe("trigger");
@@ -40,17 +40,18 @@ describe("yc-pitch: the brief, as data", () => {
     expect(text).toMatch(/\bten\b/i);
   });
 
-  it("drives to 315 Pennsylvania Ave, Dogpatch, against a timer, by lat/lon", () => {
+  it("drives to the Ramen house at Pier 70, Dogpatch, against a timer, by lat/lon", () => {
     const drive = step<GotoStep>(yc, "drive");
     expect(drive.type).toBe("goto");
-    expect(drive.target.label).toMatch(/315 Pennsylvania Ave, Dogpatch/);
-    // EAS: 301 Pennsylvania is (37.762547, -122.393263), 331 is (37.762271, -122.393236).
-    expect(drive.target.lat).toBeGreaterThan(37.76227);
-    expect(drive.target.lat).toBeLessThan(37.76255);
-    expect(drive.target.lon).toBeCloseTo(-122.39325, 4);
+    expect(drive.target.label).toMatch(/Ramen house, Pier 70, Dogpatch/);
+    // Pier 70 lies east of Illinois St between 18th and 22nd St.
+    expect(drive.target.lat).toBeGreaterThan(37.758);
+    expect(drive.target.lat).toBeLessThan(37.7635);
+    expect(drive.target.lon).toBeGreaterThan(-122.3875);
+    expect(drive.target.lon).toBeLessThan(-122.381);
     expect(drive.timer.limitS).toBeGreaterThan(0);
     expect(drive.timer.deadline).toBe("10:00");
-    // Marina -> Dogpatch is ~5.9 km in a straight line; 540 s needs ~11 m/s door to door.
+    // Marina -> Dogpatch is ~6.5 km in a straight line; 540 s needs ~12 m/s door to door.
     const call = step<TriggerStep>(yc, "call");
     const a = toLocal(call.event.place.lat, call.event.place.lon);
     const b = toLocal(drive.target.lat, drive.target.lon);
@@ -59,34 +60,39 @@ describe("yc-pitch: the brief, as data", () => {
     expect(km).toBeLessThan(7);
   });
 
-  it("asks 3-4 partner questions including moat, why now and 'just a feature', each answer moving conviction", () => {
-    const pitch = step<DialogueStep>(yc, "pitch");
-    expect(pitch.meter).toBe("conviction");
-    expect(pitch.questions.length).toBeGreaterThanOrEqual(3);
-    expect(pitch.questions.length).toBeLessThanOrEqual(4);
-    const prompts = pitch.questions.map((q) => q.prompt).join(" ");
+  it("asks four questions across the three Ramen partners: moat, company or feature, why now, traction", () => {
+    const dialogues = yc.steps.filter((x): x is DialogueStep => x.type === "dialogue");
+    expect(dialogues.map((d) => d.speaker)).toEqual(["philosopher", "vibes", "metrics"]);
+    const qs = dialogues.flatMap((d) => d.questions);
+    expect(qs.length).toBe(4);
+    const prompts = qs.map((q) => q.prompt).join(" ");
     expect(prompts).toMatch(/moat/i);
     expect(prompts).toMatch(/why now/i);
-    expect(prompts).toMatch(/just a feature/i);
-    for (const q of pitch.questions) for (const a of q.answers) expect(a.delta, `${q.id}/${a.id}`).not.toBe(0);
+    expect(prompts).toMatch(/company, or is it a feature/i);
+    expect(prompts).toMatch(/traction/i);
+    for (const d of dialogues) expect(d.meter).toBe("conviction");
+    for (const q of qs) for (const a of q.answers) expect(a.delta, `${q.id}/${a.id}`).not.toBe(0);
   });
 
-  it("the partner is an invented caricature: fleece vest, blogs a lot, not a real name", () => {
-    const p = yc.cast[step<DialogueStep>(yc, "pitch").speaker]!;
-    expect(p.description).toMatch(/fleece vest/);
-    expect(p.description).toMatch(/blog/);
-    expect(blockedNameReason(p.name)).toBeNull();
+  it("the partners are Ramen archetypes, never a real partner or the real accelerator", () => {
+    for (const id of ["philosopher", "metrics", "vibes"]) {
+      const p = yc.cast[id]!;
+      expect(p.role).toBe("Partner at Ramen");
+      expect(p.description).toMatch(/archetype, not a person/);
+      expect(blockedProseReason(p.name)).toBeNull();
+    }
     expect(blockedProseReason(JSON.stringify(yc))).toBeNull();
+    expect(JSON.stringify(yc)).not.toMatch(/\bYC\b|Combinator|Batchery|Paxton/i);
   });
 
-  it("funded grants the startup's billboard on the 101 corridor and +1 VC attention", () => {
+  it("funded grants the startup's billboard on the Embarcadero and +1 VC attention", () => {
     const r = dryRun(yc, byRank(0));
     expect(r.status).toBe("ended");
     expect(r.outcome).toBe("funded");
     expect(r.outcomeKind).toBe("success");
     expect(r.grants).toContainEqual({ kind: "stat", stat: "vcAttention", delta: 1 });
     const board = r.grants.find((g) => g.kind === "billboard");
-    expect(board).toMatchObject({ kind: "billboard", corridor: "us-101", copy: { product: "playerStartup" } });
+    expect(board).toMatchObject({ kind: "billboard", corridor: "embarcadero", copy: { product: "playerStartup" } });
   });
 
   it("weak answers get 'come back with traction', which retries from the phone call", () => {
@@ -104,7 +110,7 @@ describe("yc-pitch: the brief, as data", () => {
   });
 });
 
-describe("yc-pitch: every answer path", () => {
+describe("ramen-pitch: every answer path", () => {
   const { paths, truncated } = enumeratePaths(yc);
 
   it("enumerates all 3^4 answer combinations plus the timeout", () => {
@@ -179,8 +185,8 @@ describe("validateMission catches broken missions", () => {
     has(broken((m) => (m.meters.conviction!.max = Infinity)), /finite numbers/);
     has(broken((m) => (m.meters.conviction!.min = 100)), /min 100 must be below max 100/);
     has(broken((m) => (step<{ cases: Array<{ min: number }> }>(m, "decide").cases[0]!.min = 170)), /outside meter range/);
-    has(broken((m) => (step<DialogueStep>(m, "pitch").questions[0]!.answers[0]!.delta = 400)), /exceeds the meter's range/);
-    has(broken((m) => (step<DialogueStep>(m, "pitch").meter = "vibes")), /meter "vibes" is not declared/);
+    has(broken((m) => (step<DialogueStep>(m, "pitch-philosopher").questions[0]!.answers[0]!.delta = 400)), /exceeds the meter's range/);
+    has(broken((m) => (step<DialogueStep>(m, "pitch-philosopher").meter = "mood")), /meter "mood" is not declared/);
   });
 
   it("a path that never terminates", () => {
@@ -237,7 +243,7 @@ describe("dryRun", () => {
 
   it("clamps the meter at its bounds", () => {
     const m = clone(yc);
-    for (const q of step<DialogueStep>(m, "pitch").questions) for (const a of q.answers) a.delta = a.delta > 0 ? 90 : -90;
+    for (const d of m.steps) if (d.type === "dialogue") for (const q of d.questions) for (const a of q.answers) a.delta = a.delta > 0 ? 90 : -90;
     expect(dryRun(m, byRank(0, m)).meters.conviction).toBe(100);
     expect(dryRun(m, byRank(2, m)).meters.conviction).toBe(0);
   });

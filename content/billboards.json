@@ -46,7 +46,7 @@
       "Open source. Ish.|{$product}. The weights are open. The door is not.",
       "Built for the agent economy.|{$product}. Humans supported as a fallback.",
       "{$product}: now 10x cheaper.|Than when it was 100x more expensive.",
-      "Your landlord uses {$product}.|Fight fire with autocomplete.",
+      "Your dentist uses {$product}.|Fight plaque with autocomplete.",
       "Agents that never sleep.|{$product}. Neither does our founder. It shows.",
       "Spreadsheets, but they cry.|{$product}. Emotional intelligence for every cell.",
       "From the team that pivoted 6x.|{$product}. This time it's AI. Again.",
@@ -117,7 +117,7 @@
       "Yesterday: vibes. Today: vibes. Blockers: you."
     ],
     "coworker": [
-      "intern", "manager", "cofounder", "therapist", "accountant", "landlord", "barista", "wedding DJ",
+      "intern", "manager", "cofounder", "therapist", "accountant", "plumber", "barista", "wedding DJ",
       "life coach", "dentist", "sommelier", "dog walker"
     ],
     "apiSub": [
@@ -155,7 +155,7 @@
       "Now it has a subscription."
     ],
     "incumbent": [
-      "A dating app", "A gym", "A therapist", "A group chat", "A book club", "A landlord", "A sommelier",
+      "A dating app", "A gym", "A therapist", "A group chat", "A book club", "A sous-chef", "A sommelier",
       "A podcast", "A life coach", "A wedding DJ", "A night shift"
     ],
     "audience": [
