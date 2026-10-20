@@ -73,6 +73,12 @@ const SPECS: Spec[] = [
     lights: ["light_eyes"],
   },
   {
+    file: "moat-van.glb",
+    budget: 9_000,
+    nodes: ["moat_van", "body", "door_rear_L", "door_rear_R", ...CAR_WHEELS],
+    lights: ["light_headlight", "light_taillight", "light_accent"],
+  },
+  {
     file: "muni-bus.glb",
     budget: 12_000,
     nodes: ["muni_bus", "body", "livery_panel", ...CAR_WHEELS],
@@ -137,6 +143,7 @@ describe.each<VehicleSpec>([
   { file: "player-car.glb", length: [4.0, 5.0], width: [1.6, 2.1] },
   { file: "robotaxi.glb", length: [4.4, 5.2], width: [1.8, 2.3] },
   { file: "muni-bus.glb", length: [11.0, 13.0], width: [2.4, 3.3] },
+  { file: "moat-van.glb", length: [5.0, 6.0], width: [1.9, 2.3] },
 ])("$file as a road vehicle", ({ file, length, width }) => {
   it("has a real-world length and width", async () => {
     const { doc } = await loadModel(file);
@@ -200,6 +207,43 @@ describe("robotaxi", () => {
     ].filter(([sx, sz]) => lens.some((p) => p[0] * sx! > 0.6 && p[2] * sz! > b.size[2] * 0.4));
     expect(corners).toHaveLength(4);
     expect(box(materialPositions(doc, "light_status")).min[1]).toBeGreaterThan(1.6);
+  });
+});
+
+describe("moat-van", () => {
+  it("is graphite with a teal accent, and its rear doors swing outward about hinges at the corners", async () => {
+    const { doc } = await loadModel("moat-van.glb");
+    const mats = doc.getRoot().listMaterials().map((m) => m.getName());
+    expect(mats).toContain("paint_graphite");
+    expect(mats).toContain("accent_teal");
+    const body = box(nodePositions(node(doc, "body")));
+    expect(body.max[1]).toBeGreaterThan(2.2); // a tall van
+    for (const side of ["L", "R"]) {
+      const door = node(doc, `door_rear_${side}`);
+      const ex = door.getExtras();
+      expect(ex.hingeAxis).toEqual([0, 1, 0]);
+      const o = worldOrigin(door);
+      const sign = side === "L" ? -1 : 1;
+      expect(o[0] * sign).toBeGreaterThan(0.8); // hinge at its rear corner
+      const rearWall = Math.max(...nodePositions(node(doc, "body")).filter((p) => p[1] > 0.8).map((p) => p[2]));
+      expect(o[2]).toBeGreaterThan(rearWall - 0.05); // at the back (+Z), on the rear wall
+      // swinging by openRad about +Y moves the free edge out behind the van
+      const a = ex.openRad as number;
+      expect(Math.sign(a)).toBe(sign);
+      const local = nodePositions(door, "local");
+      const free = local.reduce((f, p) => (Math.abs(p[0]) > Math.abs(f[0]) ? p : f));
+      const z = -free[0] * Math.sin(a) + free[2] * Math.cos(a);
+      expect(z).toBeGreaterThan(0.5);
+    }
+  });
+
+  it("carries the castle-and-moat emblem as geometry on both sides, no text", async () => {
+    const { doc } = await loadModel("moat-van.glb");
+    const teal = materialPositions(doc, "accent_teal");
+    const high = teal.filter((p) => p[1] > 1.2);
+    expect(high.some((p) => p[0] > 1.0)).toBe(true);
+    expect(high.some((p) => p[0] < -1.0)).toBe(true);
+    expect(doc.getRoot().listTextures()).toHaveLength(0);
   });
 });
 
