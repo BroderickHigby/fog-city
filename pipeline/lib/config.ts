@@ -28,12 +28,28 @@ export interface Probe {
   label: string;
   lat: number;
   lon: number;
+  /** Report every record within this many metres, not only the one under the point. */
+  radiusM?: number;
+}
+
+/**
+ * Citywide mode: every 500 m tile inside this box with SF buildings, roads or land is
+ * built. `areas` then only label milestones (report, tests); they no longer choose tiles.
+ */
+export interface CitywideConfig {
+  north: number;
+  west: number;
+  south: number;
+  east: number;
+  /** DEM requests cover square blocks of this many tiles per side (plus a margin). */
+  demBlockTiles: number;
 }
 
 export interface WorldConfig {
   id: string;
   title: string;
   areas: Area[];
+  citywide?: CitywideConfig;
   spawn: SpawnConfig;
   probes?: { points: Probe[] };
   sources: {
@@ -42,6 +58,17 @@ export interface WorldConfig {
     assessor: string;
     assessorRollYear: number;
     businesses: string;
+    /** Citywide extras (DataSF ids). Absent in area-only worlds. */
+    neighborhoods?: string;
+    fountains?: string;
+    muniStops?: string;
+    muniRoutes?: string;
+    signals?: string;
+    crosswalks?: string;
+    streetCleaning?: string;
+    parking?: string;
+    /** The day the cached downloads were taken (DataSF reloads daily; a refresh is a deliberate PR). */
+    snapshotDate?: string;
   };
 }
 
@@ -110,6 +137,35 @@ export function worldTiles(cfg: WorldConfig): TileRef[] {
     }
   }
   return [...seen.values()].sort((a, b) => a.iz - b.iz || a.ix - b.ix);
+}
+
+/** The rectangle of tiles a lat/lon box touches. */
+export function boxTileRect(b: { north: number; west: number; south: number; east: number }): TileRect {
+  return areaTileRect({ id: "", milestone: "", name: "", ...b });
+}
+
+/**
+ * Tiles the build considers: citywide, every tile of the citywide box; otherwise every
+ * tile an area touches. Which of them get files is decided later (water-only tiles do not).
+ */
+export function candidateTiles(cfg: WorldConfig): TileRef[] {
+  if (!cfg.citywide) return worldTiles(cfg);
+  const r = boxTileRect(cfg.citywide);
+  const out: TileRef[] = [];
+  for (let iz = r.iz0; iz <= r.iz1; iz++) for (let ix = r.ix0; ix <= r.ix1; ix++) out.push(tileRef(ix, iz));
+  return out;
+}
+
+/** DEM blocks: squares of `n` tiles aligned to multiples of n, covering the given tiles. Sorted. */
+export function demBlocks(tiles: readonly TileRef[], n: number): Array<{ id: string; rect: TileRect }> {
+  const seen = new Map<string, { id: string; rect: TileRect; bx: number; bz: number }>();
+  for (const t of tiles) {
+    const bx = Math.floor(t.ix / n);
+    const bz = Math.floor(t.iz / n);
+    const id = `dem${bx}_${bz}`;
+    if (!seen.has(id)) seen.set(id, { id, bx, bz, rect: { ix0: bx * n, ix1: bx * n + n - 1, iz0: bz * n, iz1: bz * n + n - 1 } });
+  }
+  return [...seen.values()].sort((a, b) => a.bz - b.bz || a.bx - b.bx).map(({ id, rect }) => ({ id, rect }));
 }
 
 /** Lat/lon box (north, west, south, east) of a tile rectangle, padded by padM metres. */

@@ -2,20 +2,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/roads",
   "title": "World road graph (public/tiles/<world>/roads.json). Produced by the pipeline, consumed by sim traffic/robots and GPS routing.",
+  "$comment": "The file, its nodes and its edges are closed: an undeclared key fails the schema suite. Declare a new field here before shipping it; a key starting with x- is free for experiments and is never a contract.",
   "type": "object",
   "required": ["version", "nodes", "edges"],
+  "additionalProperties": false,
+  "patternProperties": { "^x-": true },
   "properties": {
     "version": { "const": 1 },
+    "attribution": { "type": "string", "description": "Source credit for the street data" },
     "nodes": {
       "type": "array",
       "items": {
         "type": "object",
         "required": ["id", "x", "z"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
         "properties": {
           "id": { "type": "string" },
           "x": { "type": "number" },
           "z": { "type": "number" },
-          "y": { "type": "number" }
+          "y": { "type": "number", "description": "Ground height at the node, metres" }
         }
       }
     },
@@ -24,6 +30,8 @@
       "items": {
         "type": "object",
         "required": ["id", "a", "b", "kind", "lanes", "oneway", "points"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
         "properties": {
           "id": { "type": "string" },
           "a": { "type": "string", "description": "Start node id" },
@@ -38,6 +46,20 @@
             "description": "Polyline [x, z] in local metres, first = node a, last = node b",
             "type": "array", "minItems": 2,
             "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+          },
+          "cnn": { "type": "string", "description": "Source tracing: the DataSF street segment's CNN" },
+          "classcode": {
+            "type": ["integer", "null"],
+            "description": "Source tracing: the DataSF street class code (0 other, 1 freeway, 2 highway, 3 arterial, 4 collector, 5 residential, 6 ramp); null when absent"
+          },
+          "pedestrian": { "const": true, "description": "Pedestrian-only street: not for vehicles. Absent = open to traffic" },
+          "gradeSeparated": {
+            "const": true,
+            "description": "Limited-access road crossing other streets on a viaduct, in a cut or in a tunnel. The points and node y are the ground under it, not the deck: surface traffic must not be routed onto it. Absent = at grade"
+          },
+          "bridge": {
+            "const": true,
+            "description": "Part of the edge crosses open water on a deck the source gives no height for; y there is sea level. Absent = no water crossing"
           }
         }
       }

@@ -4,86 +4,231 @@
     {
       "id": "downtown",
       "milestone": "M0",
-      "tiles": 28
+      "tiles": 28,
+      "built": 23
     },
     {
       "id": "north-beach",
       "milestone": "M1",
-      "tiles": 12
+      "tiles": 12,
+      "built": 12
     },
     {
       "id": "embarcadero-north",
       "milestone": "M1",
-      "tiles": 40
+      "tiles": 40,
+      "built": 31
     },
     {
       "id": "marina",
       "milestone": "M1",
-      "tiles": 20
+      "tiles": 20,
+      "built": 16
     },
     {
       "id": "dogpatch",
       "milestone": "M1",
-      "tiles": 9
+      "tiles": 9,
+      "built": 9
     }
   ],
-  "tiles": 77,
+  "tiles": 583,
+  "selection": {
+    "candidates": 870,
+    "built": 583,
+    "water": 235,
+    "outside": 52,
+    "withBuildings": 522,
+    "withRoads": 533,
+    "withLand": 571
+  },
   "buildings": {
-    "raw": 15888,
-    "parts": 15913,
-    "kept": 14233,
-    "droppedSmall": 81,
-    "droppedOutside": 1530,
-    "droppedLow": 69,
-    "joinMblr": 13545,
-    "joinPoint": 279,
-    "withYear": 13486,
-    "withStories": 12613,
-    "heightLidar": 14144,
-    "heightStories": 88,
-    "heightOverride": 1,
-    "twoTier": 631,
-    "maxOutlier": 1882,
-    "condo": 1161,
-    "storiesImplausible": 230,
-    "groundRefFromDem": 94
+    "raw": 177023,
+    "parts": 177140,
+    "kept": 175595,
+    "droppedSmall": 771,
+    "droppedOutside": 0,
+    "droppedLow": 774,
+    "joinMblr": 167760,
+    "joinPoint": 1443,
+    "withYear": 165962,
+    "withStories": 161549,
+    "heightLidar": 173182,
+    "heightStories": 2409,
+    "heightOverride": 4,
+    "twoTier": 2326,
+    "maxOutlier": 10928,
+    "condo": 5017,
+    "storiesImplausible": 384,
+    "groundRefFromDem": 274,
+    "storiesRejected": 66,
+    "canopyTowersDropped": 123,
+    "spikeTowersDropped": 73,
+    "spikeTowersDroppedByUse": {
+      "COMM": 9,
+      "COMO": 4,
+      "COMR": 29,
+      "GOVT": 1,
+      "IND": 2,
+      "MISC": 14,
+      "SRES": 1,
+      "none": 13
+    },
+    "spikeTowersKept": 1,
+    "thinTowers": 53,
+    "thinTowerMaxM": 53.74
   },
   "overridesApplied": [
-    "201006.0000548"
+    "201006.0000548",
+    "201006.0001563",
+    "201006.0009087",
+    "201006.0062170",
+    "201006.0168289"
   ],
   "roads": {
-    "raw": 2719,
-    "excludedLayer": 66,
-    "outside": 264,
+    "raw": 16378,
+    "excludedLayer": 707,
+    "outside": 0,
     "degenerate": 0,
-    "edges": 2389,
-    "nodes": 1570,
+    "edges": 15671,
+    "nodes": 9441,
     "synthesizedNodes": 0,
     "byKind": {
-      "arterial": 281,
-      "residential": 1578,
-      "collector": 380,
-      "alley": 31,
-      "other": 76,
-      "freeway": 24,
-      "ramp": 19
+      "arterial": 1731,
+      "residential": 10851,
+      "collector": 2367,
+      "other": 442,
+      "alley": 61,
+      "ramp": 109,
+      "freeway": 110
     },
-    "bridges": 7,
-    "components": 8,
-    "largestComponentNodes": 1370
+    "bridges": 23,
+    "components": 22,
+    "largestComponentNodes": 9290
   },
   "storefronts": {
-    "raw": 4242,
-    "notStorefrontNaics": 774,
-    "noBuilding": 409,
-    "noFrontage": 242,
-    "kept": 2817
+    "raw": 13265,
+    "notStorefrontNaics": 1604,
+    "noBuilding": 192,
+    "noFrontage": 828,
+    "kept": 10641
+  },
+  "sidewalks": {
+    "nodes": 33081,
+    "edges": 58007,
+    "sidewalks": 29873,
+    "crossings": 28134,
+    "signalised": 4904,
+    "marked": 26197,
+    "components": 46,
+    "largestComponentNodes": 31770,
+    "cornersOnRoad": 3121,
+    "sidewalksClipped": 3269,
+    "sidewalksDropped": 1581,
+    "clippedM": 293431,
+    "bridges": 613,
+    "crossingsExtended": 4177,
+    "crossingsDropped": 1197,
+    "fragmentsDropped": 442
+  },
+  "layers": {
+    "boundaryEdges": 6,
+    "shoreLines": 69,
+    "districts": 41,
+    "sidewalkNodes": 33081,
+    "sidewalkEdges": 58007,
+    "hydrants": 4223,
+    "fountains": 285,
+    "transitRoutes": 135,
+    "transitStops": 3260,
+    "signals": 1301,
+    "streetCleaning": 37476,
+    "parking": 7773
+  },
+  "outside": {
+    "alcatraz": [
+      "t-6_-8",
+      "t-5_-8",
+      "t-6_-7",
+      "t-5_-7"
+    ],
+    "marin": [
+      "t-22_-9",
+      "t-21_-9",
+      "t-20_-9",
+      "t-19_-9",
+      "t-18_-9",
+      "t-17_-9",
+      "t-16_-9",
+      "t-15_-9",
+      "t-14_-9",
+      "t-22_-8",
+      "t-21_-8",
+      "t-20_-8",
+      "t-19_-8",
+      "t-18_-8",
+      "t-17_-8",
+      "t-16_-8",
+      "t-15_-8",
+      "t-22_-7",
+      "t-21_-7",
+      "t-20_-7",
+      "t-19_-7",
+      "t-18_-7",
+      "t-17_-7",
+      "t-16_-7",
+      "t-15_-7",
+      "t-20_-6",
+      "t-19_-6",
+      "t-18_-6",
+      "t-15_-5"
+    ],
+    "pacific-shore": [
+      "t-22_7"
+    ],
+    "san-mateo-county": [
+      "t-20_20",
+      "t-19_20",
+      "t-18_20",
+      "t-17_20",
+      "t-15_20",
+      "t-14_20",
+      "t-13_20",
+      "t-12_20",
+      "t-11_20",
+      "t-10_20",
+      "t-9_20",
+      "t-8_20",
+      "t-7_20",
+      "t-6_20",
+      "t-5_20",
+      "t-2_20",
+      "t-1_20",
+      "t0_20"
+    ]
+  },
+  "boundary": {
+    "landEdgeM": 11900,
+    "waterEdgeM": 61100,
+    "shoreM": 79396,
+    "shoreLines": 69
+  },
+  "colliderPack": {
+    "bytes": 12686032,
+    "tiles": 583,
+    "buildings": 177921
+  },
+  "far": {
+    "cells": 33,
+    "triangles": 467343,
+    "records": 177921,
+    "bytes": 6679540
   },
   "terrain": {
     "minY": 0,
-    "maxY": 114.8,
-    "waterSamples": 73073,
-    "samples": 200277
+    "maxY": 283.82,
+    "waterSamples": 207045,
+    "samples": 1516383
   },
   "spawn": {
     "x": 13.59,
@@ -175,6 +320,66 @@
       "buildings": [
         "201006.0010443",
         "201006.0010443-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "sutro-tower",
+      "label": "Sutro Tower (lattice radio tower; the footprint data fills its upper structure as solid blocks, overridden to 3 m plinths until a landmark replaces these records)",
+      "x": -5205.28,
+      "z": 4473,
+      "buildings": [
+        "201006.0001431",
+        "201006.0009087",
+        "201006.0062170",
+        "201006.0077893",
+        "201006.0167582",
+        "201006.0168289"
+      ],
+      "nearestM": 0,
+      "radiusM": 60
+    },
+    {
+      "id": "city-hall",
+      "label": "City Hall dome, Civic Center",
+      "x": -2254.74,
+      "z": 1798.08,
+      "buildings": [
+        "201006.0000041",
+        "201006.0000041-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "grace-cathedral",
+      "label": "Grace Cathedral, Nob Hill",
+      "x": -1726.29,
+      "z": 399.57,
+      "buildings": [
+        "201006.0000550",
+        "201006.0000550-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "mission-dolores",
+      "label": "Mission Dolores",
+      "x": -2924.12,
+      "z": 3462.97,
+      "buildings": [
+        "201006.0001563",
+        "201006.0001563-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "conservatory-of-flowers",
+      "label": "Conservatory of Flowers, Golden Gate Park",
+      "x": -5865.85,
+      "z": 2541.73,
+      "buildings": [
+        "201006.0001537",
+        "201006.0001537-tower"
       ],
       "nearestM": 0
     }

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/storefronts",
+  "title": "Storefront anchors (public/tiles/<world>/storefronts.json): where a shopfront sits on a building's ground-floor wall. No names, ever (storefronts stay unnamed).",
+  "type": "object",
+  "required": ["version", "world", "storefronts"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "world": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "description": { "type": "string" },
+    "attribution": { "type": "string" },
+    "storefronts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "y", "z", "heading", "naics", "category", "buildingId"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$", "description": "Stable hashed id (never the source's own id)" },
+          "x": { "type": "number" },
+          "y": { "type": "number", "description": "Ground height at the anchor, metres" },
+          "z": { "type": "number" },
+          "heading": { "type": "number", "minimum": 0, "exclusiveMaximum": 6.2832, "description": "Compass bearing the shopfront faces, radians clockwise from north" },
+          "naics": { "type": "string", "pattern": "^[0-9]{2,6}$" },
+          "category": { "type": "string", "pattern": "^[a-z-]+$", "description": "Iconography category for the storefront kit" },
+          "buildingId": { "type": "string", "description": "Collider building record the anchor sits on" }
+        }
+      }
+    }
+  }
+}

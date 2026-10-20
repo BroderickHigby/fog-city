@@ -2,17 +2,24 @@
 //
 //  - Which tiles: tile-select.ts (distance from the camera to each tile's rectangle, with
 //    hysteresis). Re-evaluated when the camera has moved 20 m or a load finished.
-//  - glb tiles load with GLTFLoader, a few at a time. Meshes are classified by material or
+//  - glb tiles load with the tile loader (gltf-loader.ts: GLTFLoader with the meshopt decoder,
+//    since the pipeline's tiles are meshopt-compressed and quantised), a few at a time. Meshes
+//    are classified by material or
 //    node name (materials.ts: tileLayer) and get the shared materials; unknown meshes keep
 //    their own. Layers the glb lacks (e.g. roads) are built from collider data and the road
 //    graph. Ground triangles lying on the water plane are dropped so the Bay shows through.
 //  - glb: null tiles are built from collider data by a generator pumped under a per-frame
 //    time budget, so a big tile never stalls the sim loop.
+//  - A glb that fails to load is fetched once more after a short backoff (a transient network
+//    error); if that fails too, the tile is built from its collider. A tile with nothing to
+//    show (no glb, or its glb failed twice, and no collider) ends "failed", never "ready", so
+//    renderInfo().tilesFailed counts it. It stays failed until the camera leaves and returns.
 //  - Every tile also gets runtime street props (lamps, trees) from the road graph.
 //  - Unload disposes every per-tile geometry, texture and instance buffer.
 
 import * as THREE from "three";
-import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
+import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
+import { createTileLoader } from "./gltf-loader.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
@@ -44,7 +51,9 @@ export interface StreamerOptions {
   hysteresis?: number;
   /** glb downloads in flight at once. */
   maxConcurrent?: number;
-  /** Test seam: replaces GLTFLoader. */
+  /** A failed glb is fetched once more after this many ms; 0 = no retry. Default GLB_RETRY_MS. */
+  glbRetryMs?: number;
+  /** Test seam: replaces the tile loader (createTileLoader().loadAsync). */
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
@@ -66,6 +75,11 @@ interface TileRecord {
   hideable: THREE.BufferGeometry[];
   hidden: Set<string>;
   dropped: boolean;
+  /** The glb loaded: the tile has something to show even without a collider. */
+  glbLoaded: boolean;
+  glbAttempts: number;
+  /** The backoff before the glb's second fetch; cleared on unload. */
+  retryTimer: ReturnType<typeof setTimeout> | null;
   error?: string;
 }
 
@@ -79,6 +93,8 @@ export interface StreamerStats {
 }
 
 const RESELECT_M = 20;
+/** Backoff before a failed glb's one retry. */
+export const GLB_RETRY_MS = 1500;
 
 export class TileStreamer {
   readonly bounds: TileBounds[];
@@ -123,7 +139,7 @@ export class TileStreamer {
     if (opts.loadGltf) {
       this.loader = opts.loadGltf;
     } else {
-      const gltf = new GLTFLoader();
+      const gltf = createTileLoader();
       this.loader = (url) => gltf.loadAsync(url);
     }
   }
@@ -221,31 +237,49 @@ export class TileStreamer {
         hideable: [],
         hidden: new Set(),
         dropped: false,
+        glbLoaded: false,
+        glbAttempts: 0,
+        retryTimer: null,
       };
       rec.group.name = `tile:${id}`;
       rec.group.matrixAutoUpdate = false;
       this.records.set(id, rec);
       if (spec.glb) {
-        this.inFlight++;
-        const url = this.opts.base + spec.glb;
-        this.loader(url).then(
-          (gltf) => {
-            this.inFlight--;
-            this.onGltf(rec, gltf);
-          },
-          (err: unknown) => {
-            this.inFlight--;
-            if (rec.dropped) return;
-            // A broken glb falls back to building the whole tile from collider data.
-            rec.error = `${url}: ${err instanceof Error ? err.message : String(err)}`;
-            console.warn(`[fog-city] tile ${id}: glb failed, building from collider. ${rec.error}`);
-            this.startBuild(rec, { buildings: true, ground: true, roads: true });
-          },
-        );
+        this.loadGlb(rec, spec.glb);
       } else {
         this.startBuild(rec, { buildings: true, ground: true, roads: true });
       }
     }
+  }
+
+  private loadGlb(rec: TileRecord, glb: string): void {
+    const url = this.opts.base + glb;
+    rec.glbAttempts++;
+    this.inFlight++;
+    this.loader(url).then(
+      (gltf) => {
+        this.inFlight--;
+        this.onGltf(rec, gltf);
+      },
+      (err: unknown) => {
+        this.inFlight--;
+        if (rec.dropped) return;
+        rec.error = `${url}: ${err instanceof Error ? err.message : String(err)}`;
+        const retryMs = this.opts.glbRetryMs ?? GLB_RETRY_MS;
+        if (rec.glbAttempts < 2 && retryMs > 0) {
+          // Once more after a backoff: a dropped connection or a server hiccup is not a broken tile.
+          rec.retryTimer = setTimeout(() => {
+            rec.retryTimer = null;
+            if (!rec.dropped) this.loadGlb(rec, glb);
+          }, retryMs);
+          return;
+        }
+        // A broken glb falls back to building the whole tile from collider data (and with
+        // no collider either, the tile fails).
+        if (this.opts.colliders.has(rec.id)) console.warn(`[fog-city] tile ${rec.id}: glb failed, building from collider. ${rec.error}`);
+        this.startBuild(rec, { buildings: true, ground: true, roads: true });
+      },
+    );
   }
 
   private onGltf(rec: TileRecord, gltf: GLTF): void {
@@ -254,6 +288,7 @@ export class TileStreamer {
       disposeObject(root);
       return;
     }
+    rec.glbLoaded = true;
     root.updateMatrixWorld(true);
     const layers = { buildings: false, ground: false, roads: false };
     root.traverse((o) => {
@@ -291,6 +326,10 @@ export class TileStreamer {
 
   private startBuild(rec: TileRecord, layers: { buildings: boolean; ground: boolean; roads: boolean }): void {
     const collider = this.opts.colliders.get(rec.id);
+    if (!collider && !rec.glbLoaded) {
+      this.fail(rec, rec.error ?? "no glb and no collider");
+      return;
+    }
     if (!collider || (!layers.buildings && !layers.ground && !layers.roads)) {
       this.finish(rec, null);
       return;
@@ -303,6 +342,15 @@ export class TileStreamer {
       roadCtx: this.roadCtx,
       layers,
     });
+  }
+
+  /** Nothing to show for this tile: it stays out of the scene and counts as failed until unloaded. */
+  private fail(rec: TileRecord, why: string): void {
+    if (rec.dropped) return;
+    rec.state = "failed";
+    rec.error = why;
+    console.warn(`[fog-city] tile ${rec.id}: failed (${why})`);
+    this.dirty = true;
   }
 
   private pump(budgetMs: number): void {
@@ -382,6 +430,8 @@ export class TileStreamer {
     this.records.delete(id);
     rec.dropped = true;
     rec.gen = null;
+    if (rec.retryTimer !== null) clearTimeout(rec.retryTimer);
+    rec.retryTimer = null;
     rec.group.removeFromParent();
     for (const g of rec.geometries) g.dispose();
     for (const mat of rec.ownedMaterials) mat.dispose();

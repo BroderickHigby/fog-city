@@ -3,6 +3,14 @@
   "worlds": {
     "sf": {
       "title": "San Francisco",
+      "citywide": {
+        "$comment": "The whole city: every 500 m tile in this box with SF buildings, roads or land (inside DataSF's Analysis Neighborhoods) is built; open-water tiles get no file and are listed in manifest.json water. The box contains every footprint, active street and neighbourhood (DataSF extents, 2026-10-20) and leaves out the Farallon Islands. The areas below now only label milestones.",
+        "north": 37.834,
+        "west": -122.516,
+        "south": 37.704,
+        "east": -122.356,
+        "demBlockTiles": 8
+      },
       "areas": [
         {
           "id": "downtown",
@@ -63,10 +71,19 @@
         "streets": "3psu-pn9h",
         "assessor": "wv5m-vpq2",
         "assessorRollYear": 2025,
-        "businesses": "g8m3-pdis"
+        "businesses": "g8m3-pdis",
+        "neighborhoods": "j2bu-swwd",
+        "fountains": "wfq4-upmv",
+        "muniStops": "i28k-bkz6",
+        "muniRoutes": "9exe-acju",
+        "signals": "ybh5-27n2",
+        "crosswalks": "g9zy-srvv",
+        "streetCleaning": "yhqp-riqs",
+        "parking": "hi6h-neyh",
+        "snapshotDate": "2026-10-20"
       },
       "probes": {
-        "$comment": "Named points whose building ids the build reports (report.json \"probes\"), so landmark placements can list replacesBuildingIds. Labels are addresses or public landmark names, never brands.",
+        "$comment": "Named points whose building ids the build reports (report.json \"probes\"), so landmark placements can list replacesBuildingIds. Labels are addresses or public landmark names, never brands. radiusM: report every record within that distance (a landmark the data splits into several records).",
         "points": [
           {
             "id": "ferry-building",
@@ -115,6 +132,37 @@
             "label": "315 Pennsylvania Ave, Dogpatch (east side of the 300 block; the 2025 roll lists 301 and 331)",
             "lat": 37.76241,
             "lon": -122.39325
+          },
+          {
+            "id": "sutro-tower",
+            "label": "Sutro Tower (lattice radio tower; the footprint data fills its upper structure as solid blocks, overridden to 3 m plinths until a landmark replaces these records)",
+            "lat": 37.7552,
+            "lon": -122.4528,
+            "radiusM": 60
+          },
+          {
+            "id": "city-hall",
+            "label": "City Hall dome, Civic Center",
+            "lat": 37.7793,
+            "lon": -122.4193
+          },
+          {
+            "id": "grace-cathedral",
+            "label": "Grace Cathedral, Nob Hill",
+            "lat": 37.7919,
+            "lon": -122.4133
+          },
+          {
+            "id": "mission-dolores",
+            "label": "Mission Dolores",
+            "lat": 37.7643,
+            "lon": -122.4269
+          },
+          {
+            "id": "conservatory-of-flowers",
+            "label": "Conservatory of Flowers, Golden Gate Park",
+            "lat": 37.7726,
+            "lon": -122.4603
           }
         ]
       }
