@@ -915,6 +915,15 @@ until the name search.
   character customizer settings, preferences (controls, audio, accessibility, camera), lifetime stats
   and achievements. Profiles are private to their owner; leaderboards (later) store ids and scores
   only, never names.
+- **Seeing each other: nameplates.** In any multiplayer mode, other players appear as their own
+  customized character (or their car) with a nameplate above their head: their display name, a small
+  rank badge and a co-op/rival colour. Nameplates face the camera, scale and fade with distance (hidden past
+  about 150 m *(tune)*), fade when a building is between you, and stay readable at night. Your own
+  nameplate is never drawn. **Hide in the Crowd** hides the disguised players' nameplates (that is the
+  whole mode); hunters keep theirs. Names: on the private claude.ai page, invited players can opt in to
+  showing their claude.ai first name ("Natalie"); otherwise, and always in public play, the name comes
+  from the generated name parts or passes the content filter, never free text. Nameplates are render-only
+  and never enter the sim.
 - **Private co-op on the same page.** The page can relay live messages between whoever has it open, which
   is enough for Bot Sweep co-op between invited players with no relay server of our own. It is not
   authoritative, so Hide in the Crowd and anything competitive still waits for the real server.
@@ -1214,3 +1223,6 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   private page storage behind one `SaveStore` interface with a browser-storage cache and a later own-backend option.
   Page-level live messaging gives private co-op and live AI without servers; a public launch still needs real
   hosting and accounts.
+- 2026-10-20 · **Nameplates above other players** (user request): display name, rank badge and team colour,
+  distance-faded and occlusion-aware; hidden for disguised players in Hide in the Crowd; private-page players may opt in
+  to their claude.ai first name, otherwise generated names. Lands with co-op in wave 4.
