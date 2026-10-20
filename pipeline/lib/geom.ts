@@ -175,6 +175,41 @@ export function dropCollinear(ring: readonly P2[], eps = 0.02): P2[] {
   return cur;
 }
 
+/**
+ * Sutherland–Hodgman: clip a (possibly concave) ring to a convex ring. Both rings may have
+ * either winding; the result keeps the subject's winding.
+ */
+export function clipToConvex(subject: readonly P2[], clip: readonly P2[]): P2[] {
+  const sign = signedArea(clip) < 0 ? -1 : 1;
+  let out: P2[] = subject.slice();
+  for (let i = 0; i < clip.length && out.length > 0; i++) {
+    const a = clip[i]!;
+    const b = clip[(i + 1) % clip.length]!;
+    // Inside = same side as the clip ring's interior.
+    const side = (p: P2): number => sign * ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]));
+    const input = out;
+    out = [];
+    for (let k = 0; k < input.length; k++) {
+      const cur = input[k]!;
+      const prev = input[(k + input.length - 1) % input.length]!;
+      const sc = side(cur);
+      const sp = side(prev);
+      if (sc >= 0) {
+        if (sp < 0) out.push(intersect(prev, cur, sp, sc));
+        out.push(cur);
+      } else if (sp >= 0) {
+        out.push(intersect(prev, cur, sp, sc));
+      }
+    }
+  }
+  return out;
+}
+
+function intersect(p: P2, q: P2, sp: number, sq: number): P2 {
+  const t = sp / (sp - sq);
+  return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+}
+
 /** Clip segment a→b to the axis-aligned box; returns parameter range [t0, t1] or null. */
 export function clipSegment(a: P2, b: P2, box: readonly [number, number, number, number]): [number, number] | null {
   let t0 = 0;

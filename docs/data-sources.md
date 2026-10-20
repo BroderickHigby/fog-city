@@ -125,10 +125,13 @@ themselves are newer. For each footprint, in order:
    * If `hgt_max − hgt_median ≤ max(4 m, 0.3 × median)`, one prism at `hgt_max` (roof
      including parapets).
    * Otherwise **two-tier massing**, in 2,513 buildings: a podium at `hgt_median` over the
-     whole footprint, plus a tower at `hgt_max` on the footprint scaled about its centroid
-     to an area fraction `f = (mean − median)/(max − median)`, clamped to [0.04, 0.5]. This
-     keeps the Ferry Building a three-storey hall with a clock tower rather than a 75 m
-     slab.
+     whole footprint, plus a tower at `hgt_max`. The tower covers an area fraction
+     `f = (mean − median)/(max − median)` of the footprint, clamped to [0.04, 0.5]. Its
+     footprint is the building's footprint clipped to a square of that area, centred on the
+     centroid and aligned with the longest wall (lengthened along the wall where the
+     building is narrower than the square). A long hall therefore gets a compact tower, not
+     a slab. This keeps the Ferry Building a low hall with a clock tower rather than a 75 m
+     wall.
    * A two-tier building is **two collider records**: `<id>` (the podium, `meta.tower`
      names the tower) and `<id>-tower` (`meta.towerOf`, `meta.podiumTopY`). Both have the
      same ground-level `baseY`, so a renderer that extrudes colliders draws the right
@@ -260,12 +263,12 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
 
 | Files | Bytes |
 |---|---|
-| 77 × `.glb` | 28.45 MB |
-| 77 × `.collider.json` | 8.62 MB |
+| 77 × `.glb` | 26.74 MB |
+| 77 × `.collider.json` | 8.32 MB |
 | `roads.json` | 0.65 MB |
 | `storefronts.json` | 0.41 MB |
 | `manifest.json` + `report.json` | 0.03 MB |
-| **Total (M0 + M1)** | **38.17 MB** (36.4 MiB; the target was < 40 MB) |
+| **Total (M0 + M1)** | **36.15 MB** (34.5 MiB; the target was < 40 MB) |
 
 ## Determinism
 
@@ -280,8 +283,8 @@ compares SHA-256 of every file.
 * **The LiDAR is from 2010.** Buildings finished since then get assessor-storey heights,
   which are approximate (88 buildings), or an override (1). Buildings that replaced a
   different 2010 building on the same footprint keep the old height.
-* **Two-tier massing is a model.** The tower's footprint is centred on the podium's
-  centroid; the real tower may sit at a corner. Landmarks should be replaced by hand-made
+* **Two-tier massing is a model.** The tower is centred on the podium's centroid; the real
+  tower may sit at a corner. Landmarks should be replaced by hand-made
   models.
 * **Freeway and bridge decks** have no elevation in the source. The graph has them; the
   GLB drapes them on land and omits them over water.

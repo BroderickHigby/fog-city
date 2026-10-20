@@ -22,6 +22,7 @@ import type { TileRef } from "./config.ts";
 import {
   centroid,
   cleanRing,
+  clipToConvex,
   dropCollinear,
   interiorPoint,
   pointInRing,
@@ -150,6 +151,55 @@ class ParcelIndex {
     }
     return out.sort((a, b) => (a.parcel_number! < b.parcel_number! ? -1 : 1));
   }
+}
+
+/**
+ * The tower of a two-tier building: the footprint clipped to a square of `fraction` of its
+ * area, centred on the anchor and aligned with the longest wall, so a long hall gets a
+ * compact tower rather than a long slab. Where the building is narrower than the square,
+ * the square is lengthened along the wall to keep the area. Falls back to scaling the
+ * footprint about the anchor if clipping degenerates.
+ */
+export function towerFootprint(ring: readonly P2[], anchor: P2, fraction: number): P2[] {
+  const target = Math.abs(signedArea(ring)) * fraction;
+  let ux = 1;
+  let uz = 0;
+  let best = -1;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % ring.length]!;
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (len > best) {
+      best = len;
+      ux = (b[0] - a[0]) / len;
+      uz = (b[1] - a[1]) / len;
+    }
+  }
+  const vx = -uz;
+  const vz = ux;
+  const side = Math.sqrt(target);
+  let along = side;
+  let result: P2[] = [];
+  for (let iter = 0; iter < 4; iter++) {
+    const hu = along / 2;
+    const hv = side / 2;
+    const square: P2[] = [
+      [anchor[0] - ux * hu - vx * hv, anchor[1] - uz * hu - vz * hv],
+      [anchor[0] + ux * hu - vx * hv, anchor[1] + uz * hu - vz * hv],
+      [anchor[0] + ux * hu + vx * hv, anchor[1] + uz * hu + vz * hv],
+      [anchor[0] - ux * hu + vx * hv, anchor[1] - uz * hu + vz * hv],
+    ];
+    result = dropCollinear(cleanRing(clipToConvex(ring, square)), 0.05);
+    const area = result.length >= 3 ? Math.abs(signedArea(result)) : 0;
+    if (area >= target * 0.9 || area <= 0) break;
+    along *= Math.min(4, target / area);
+  }
+  if (result.length < 3 || Math.abs(signedArea(result)) < MIN_AREA_M2) {
+    const k = Math.sqrt(fraction);
+    result = ring.map(([x, z]) => [r2(anchor[0] + (x - anchor[0]) * k), r2(anchor[1] + (z - anchor[1]) * k)] as P2);
+  }
+  if (signedArea(result) > 0) result.reverse();
+  return result;
 }
 
 /** Lowest ground under a footprint, sampled densely enough that no part of it floats. */
@@ -319,16 +369,18 @@ export function buildBuildings(
       if (podium !== null) {
         const podiumTopY = r2(Math.max(baseY + MIN_HEIGHT_M, gRef + podium));
         if (topY - podiumTopY >= 2) {
-          const k = towerScale;
-          const towerRing = ring.map(([x, z]) => [r2(anchor[0] + (x - anchor[0]) * k), r2(anchor[1] + (z - anchor[1]) * k)] as P2);
+          const towerRing = towerFootprint(ring, anchor, towerScale * towerScale);
+          // The tower's own street level and foot (its centroid can sit off the podium's).
+          const tUnder = minGroundUnder(towerRing, ground) ?? under;
+          const tBase = Math.floor(tUnder.at * 100) / 100;
           towerRecord = {
             id: `${id}-tower`,
             tile,
             footprint: towerRing,
-            baseY,
+            baseY: tBase,
             topY,
             meta: {
-              footY,
+              footY: Math.min(tBase, Math.floor((tUnder.min - 0.05) * 100) / 100),
               heightM: r2(top),
               heightSource,
               lidarM: [r2(hMed), r2(hMax)],

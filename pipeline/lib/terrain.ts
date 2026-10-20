@@ -96,8 +96,18 @@ export class Ground {
     for (const f of fields) this.byTile.set(`${f.ix},${f.iz}`, f.field);
   }
 
+  /** The heightfield covering (x, z); a point exactly on a tile's far border also belongs to that tile. */
   field(x: number, z: number): Heightfield | undefined {
-    return this.byTile.get(`${Math.floor(x / TILE_SIZE_M)},${Math.floor(z / TILE_SIZE_M)}`);
+    const ix = Math.floor(x / TILE_SIZE_M);
+    const iz = Math.floor(z / TILE_SIZE_M);
+    const onX = x === ix * TILE_SIZE_M;
+    const onZ = z === iz * TILE_SIZE_M;
+    return (
+      this.byTile.get(`${ix},${iz}`) ??
+      (onX ? this.byTile.get(`${ix - 1},${iz}`) : undefined) ??
+      (onZ ? this.byTile.get(`${ix},${iz - 1}`) : undefined) ??
+      (onX && onZ ? this.byTile.get(`${ix - 1},${iz - 1}`) : undefined)
+    );
   }
 
   /** Height at (x, z), or null outside the world's tiles. */
