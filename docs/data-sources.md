@@ -154,6 +154,12 @@ that distance (a landmark the data splits into several records):
 | Mission Dolores | `201006.0001563` (its bell tower is removed by the spike check: see Known limitations) |
 | Conservatory of Flowers | `201006.0001537`, `201006.0001537-tower` |
 
+`content/landmarks.json` must list a landmark's records exactly as its probe does
+(`sf-world.test.ts` checks every replaced id exists and matches the probe of the same id). After the wave-1/wave-2 reconciliation the one entry
+with `replacesBuildingIds`, the Ferry Building, still matches its probe; the probes whose
+records changed (Sutro Tower, Mission Dolores and the Beach St pier lost their `-tower`
+records) have no landmark entry yet.
+
 **Heights.** The footprint dataset's height statistics come from a **June 2010 LiDAR
 survey** (the `201006` prefix and the `p2010_*` fields), even though the footprints
 themselves are newer. For each footprint, in order:
@@ -610,26 +616,25 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 
 ## What the sim and renderer must change
 
-* **Sim boot (Sim-World, `src/sim/`):** load `manifest.worldColliders` (13 MB) instead of
-  every `*.collider.json` (583 files, 86 MB), decode it with the reference reader
+* **Sim boot (Sim-World, `src/sim/`):** load `manifest.worldColliders` (12.7 MB) instead of
+  every `*.collider.json` (583 files, 82.8 MB), decode it with the reference reader
   (`pipeline/lib/world-colliders.ts`, copy it into `src/sim/`), and replace the linear scan
   in `groundHeight()` (it loops over all 583 tiles per call) with a tile-indexed lookup
   (`PackGroundIndex`). Ground where no tile exists is 0 (open water).
 * **Renderer boot (Render-World, `src/main.ts`):** stop fetching every collider JSON at boot.
-  The render track's `main.ts` and this branch's phase-0 `main.ts` both do; on localhost it
-  works (86 MB in 3–5 s, 210–250 MB of JS heap) but on a real connection it is the whole
+  `main.ts` still fetches all 583 (82.8 MB) before the first frame. Measured after the
+  citywide merge, on localhost under SwiftShader: `ready` in 2.4–2.6 s, tiles around the
+  spawn settled in 6.6–12.2 s, 239–254 MB of JS heap; on a real connection it is the whole
   download before the first frame. Tile bounds can come from the manifest's `bbox`, and the
   colliders the streamer needs (fallback building, `meta`) can be fetched per tile when it
-  loads. This branch's phase-0 `scene.ts` extrudes every building of every tile at boot:
-  on the citywide world that is 186,943 extrusions; under SwiftShader it reached `ready`
-  after 14 s holding 842 MB of JS heap, and it draws every tile every frame (no
-  streaming). The render track's streaming renderer replaces it.
-* **Renderer tile loader:** register the meshopt decoder, or compressed tiles fail to load
-  (the streamer then falls back to building every tile from collider data). Use
-  `createTileLoader()` from `src/render/gltf-loader.ts`: in the render track's
-  `src/render/tile-streamer.ts`, `const gltf = new GLTFLoader();` becomes
-  `const gltf = createTileLoader();`. Positions are dequantised by node transforms, which
-  the streamer already respects (it keeps the glTF scene graph and uses `matrixWorld`).
+  loads; the sim can boot from `world.colliders.bin` (above).
+* **Renderer tile loader: done in the citywide merge.** `src/render/tile-streamer.ts` loads
+  every glb with `createTileLoader()` from `src/render/gltf-loader.ts` (GLTFLoader plus the
+  meshopt decoder; quantised positions are dequantised by node transforms, which the
+  streamer respects). Without it every compressed tile failed and was rebuilt from collider
+  data. A tile with no glb (or a failed one) and no collider ends `failed`, never `ready`.
+  `tests/render/tile-streamer.test.ts` streams committed sf tiles through the streamer's own
+  loader, and `tests/e2e/sf-world.spec.ts` checks that no tile falls back in the browser.
 * **Renderer far-LOD:** draw `manifest.far` cells beyond the streamed radius (one draw call
   each), hidden inside it; raise the camera's far plane (6,000 m today) to about 15 km for
   the high viewpoints.
@@ -642,12 +647,6 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 * **Sim agents (Sim-Agents):** walkers can use `sidewalks.json` as is: no node or sidewalk
   stretch lies on a road. Crossings (`kind: "crossing"`) are the only edges on a road;
   extended crossings over a divided road join two junctions' corners.
-* **Merge order:** land the render track's `createTileLoader()` change in the same merge as
-  this branch, or before it, and add a smoke test on `?world=sf` that loads one compressed
-  tile (Harness owns `tests/e2e/`). Until then `?world=sf` on the render track fails every
-  compressed glb and rebuilds tiles from collider data, and the placeholder `main.ts` here
-  fetches all 583 collider JSONs (86 MB) at boot (it reached `ready` in 11–14 s with about
-  800 MB of JS heap under SwiftShader).
 
 ## Sizes
 

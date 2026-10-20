@@ -388,6 +388,24 @@ describe("sf world: spawn", () => {
   });
 });
 
+describe("sf world: landmarks replace the right records", () => {
+  it("every replacesBuildingIds id in content/landmarks.json is a record of this world, and a landmark with a probe replaces exactly the probe's records", () => {
+    const doc = readJson<{ landmarks: Array<{ id: string; replacesBuildingIds?: string[] }> }>("content/landmarks.json");
+    const report = readJson<{ probes: Array<{ id: string; buildings: string[] }> }>("public/tiles/sf/report.json");
+    const ids = new Set(buildings.map((b) => b.id));
+    let checked = 0;
+    for (const l of doc.landmarks) {
+      for (const id of l.replacesBuildingIds ?? []) expect(ids.has(id), `${l.id} replaces ${id}`).toBe(true);
+      const probe = report.probes.find((p) => p.id === l.id);
+      if (probe && l.replacesBuildingIds) {
+        expect([...l.replacesBuildingIds].sort(), l.id).toEqual(probe.buildings);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+});
+
 describe("sf world: storefronts", () => {
   it("are storefront NAICS only, on a ground-floor wall of an existing building, facing out", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
