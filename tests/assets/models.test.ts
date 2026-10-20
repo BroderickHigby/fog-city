@@ -463,7 +463,7 @@ describe("sidewalk-bot (the Trundle)", () => {
     expect(cargo.getExtras().cargo).toBe(true);
     const c = box(nodePositions(cargo));
     const body = box(nodePositions(node(doc, "body")));
-    for (const k of [0, 1, 2]) {
+    for (const k of [0, 1, 2] as const) {
       expect(c.min[k]).toBeGreaterThan(body.min[k]);
       expect(c.max[k]).toBeLessThan(body.max[k]);
     }

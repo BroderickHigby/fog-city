@@ -7,8 +7,9 @@ import { validateBytes } from "gltf-validator";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { VatData, clipFrame, paletteTable, quatRotate, variantWeights, type HumanoidVatMeta, type Vec3 } from "../../assets/blender/runtime/humanoid-vat.ts";
+import { VatData, clipFrame, impostorCell, paletteTable, quatRotate, variantWeights, type HumanoidVatMeta, type Vec3 } from "../../assets/blender/runtime/humanoid-vat.ts";
 import { ROOT, readJson } from "../helpers.ts";
+import { readPng } from "./png.ts";
 import { allPositions, box, loadModel, mean, node, sceneNodes, triangleCount, type V3 } from "./glb.ts";
 
 const meta = readJson<HumanoidVatMeta>("public/models/humanoid-vat.json");
@@ -291,6 +292,57 @@ describe("humanoid clips, decoded", () => {
     const r = quatRotate([0, s, 0, s], [1, 0, 0]); // 90 degrees about +Y
     expect(r[0]).toBeCloseTo(0, 6);
     expect(r[2]).toBeCloseTo(-1, 6);
+  });
+});
+
+// ----------------------------------------------------------------------------- impostor
+
+describe("humanoid-impostor.png", () => {
+  it("is the atlas the JSON describes: 8 views x idle and walk, slot ids and coverage in every cell", () => {
+    const imp = meta.impostor!;
+    expect(imp).toBeTruthy();
+    expect(imp.columns).toBe(8);
+    expect(imp.rows).toEqual(["idle", "walk"]);
+    const png = readPng(new Uint8Array(readFileSync(join(ROOT, "public", "models", imp.file))));
+    expect(png.channels).toBe(4);
+    expect(png.width).toBe(imp.columns * imp.cell[0]);
+    expect(png.height).toBe(imp.rows.length * imp.cell[1]);
+    expect(imp.width).toBe(png.width);
+    expect(imp.height).toBe(png.height);
+    const slots = new Set<number>();
+    for (let r = 0; r < imp.rows.length; r++) {
+      for (let c = 0; c < imp.columns; c++) {
+        let covered = 0;
+        for (let y = r * imp.cell[1]; y < (r + 1) * imp.cell[1]; y++) {
+          for (let x = c * imp.cell[0]; x < (c + 1) * imp.cell[0]; x++) {
+            const i = (y * png.width + x) * 4;
+            const a = png.data[i + 3]!;
+            expect(a === 0 || a === 255).toBe(true);
+            if (!a) continue;
+            covered++;
+            expect(png.data[i]! % 16).toBe(8);
+            slots.add(png.data[i]! >> 4);
+          }
+        }
+        // a person fills a good part of the cell, and nothing spills across cells
+        expect(covered, `cell ${r},${c}`).toBeGreaterThan(imp.cell[0] * imp.cell[1] * 0.08);
+      }
+    }
+    for (const s of ["skin", "hair", "top", "bottom", "shoes"]) expect(slots, s).toContain(SLOT[s]);
+    for (const s of slots) expect(s).toBeLessThan(meta.slots.length);
+  });
+});
+
+describe("impostorCell", () => {
+  it("picks the column from where the camera is round the person", () => {
+    const imp = meta.impostor!;
+    expect(impostorCell(imp, 0, -1, "idle").column).toBe(0); // camera in front (-Z)
+    expect(impostorCell(imp, 1, 0, "idle").column).toBe(2); // on the person's right
+    expect(impostorCell(imp, 0, 1, "walk").column).toBe(4); // behind
+    expect(impostorCell(imp, -1, 0, "walk").column).toBe(6); // on the left
+    const c = impostorCell(imp, 0.1, -1, "walk");
+    expect(c.column).toBe(0);
+    expect(c.uv).toEqual([0, 0, 1 / 8, 0.5]);
   });
 });
 

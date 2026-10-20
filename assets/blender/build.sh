@@ -36,7 +36,7 @@ run() {
   fi
 }
 
-MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus humanoid moat_van props water_blaster heaps animals)
+MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus humanoid humanoid_impostor moat_van props water_blaster heaps animals)
 LOOKDEV=0
 ONLY=()
 for a in "$@"; do

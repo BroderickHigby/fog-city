@@ -634,5 +634,24 @@
       "badge"
     ]
   },
-  "impostor": null
+  "impostor": {
+    "file": "humanoid-impostor.png",
+    "width": 512,
+    "height": 256,
+    "columns": 8,
+    "rows": [
+      "idle",
+      "walk"
+    ],
+    "cell": [
+      64,
+      128
+    ],
+    "cellSizeM": [
+      1.0,
+      2.0
+    ],
+    "channels": "R: slot*16+8, G: diffuse shading (sRGB), B: 0, A: coverage (alpha test 0.5)",
+    "column": "phi = atan2(d.x, -d.z) for d the person-to-camera direction in the person's glTF frame; column = round(phi / 45 deg) mod 8"
+  }
 }

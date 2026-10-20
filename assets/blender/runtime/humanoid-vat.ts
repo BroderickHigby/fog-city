@@ -264,3 +264,21 @@ export function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace("#", "");
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
+
+// ------------------------------------------------------------------------------- impostor
+
+/**
+ * The impostor atlas cell for a person seen from a direction. dx, dz: the direction from the
+ * person to the camera in the person's own glTF frame (x right, z back; rotate the world
+ * direction by the person's heading first). Returns the cell and its UV rectangle (v up).
+ */
+export function impostorCell(imp: ImpostorMeta, dx: number, dz: number, row: string): { column: number; row: number; uv: [number, number, number, number] } {
+  const r = imp.rows.indexOf(row);
+  if (r < 0) throw new Error(`no impostor row ${row}`);
+  const phi = Math.atan2(dx, -dz);
+  const step = (2 * Math.PI) / imp.columns;
+  const column = ((Math.round(phi / step) % imp.columns) + imp.columns) % imp.columns;
+  const u0 = column / imp.columns;
+  const v1 = 1 - r / imp.rows.length;
+  return { column, row: r, uv: [u0, v1 - 1 / imp.rows.length, u0 + 1 / imp.columns, v1] };
+}
