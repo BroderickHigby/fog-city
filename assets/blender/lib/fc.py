@@ -425,10 +425,12 @@ def world_bounds(objects=None):
     return lo, hi
 
 
-def export_glb(filename: str, budget: int | None = None) -> str:
-    """Export the whole scene as public/models/<filename> and print a one-line report."""
-    os.makedirs(MODELS_OUT, exist_ok=True)
-    path = os.path.join(MODELS_OUT, filename)
+def export_glb(filename: str, budget: int | None = None, out_dir: str | None = None) -> str:
+    """Export the whole scene as public/models/<filename> (or <out_dir>/<filename> for a
+    variant that is not the game's asset) and print a one-line report."""
+    out_dir = out_dir or MODELS_OUT
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, filename)
     tris = tri_count()
     if budget is not None and tris > budget:
         raise SystemExit(f"{filename}: {tris} triangles exceeds budget {budget}")
@@ -454,7 +456,7 @@ def export_glb(filename: str, budget: int | None = None) -> str:
     lo, hi = world_bounds()
     size = hi - lo
     print(
-        f"[fc] wrote {os.path.relpath(path, REPO)}: {tris} tris"
+        f"[fc] wrote {os.path.relpath(path, REPO)}: {tris} tris in Blender"
         + (f" (budget {budget})" if budget else "")
         + f", size x{size.x:.2f} y(depth){size.y:.2f} z(up){size.z:.2f}, {os.path.getsize(path) // 1024} KiB"
     )

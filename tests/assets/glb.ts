@@ -3,7 +3,7 @@
 
 import { NodeIO, type Document, type Node } from "@gltf-transform/core";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { ROOT } from "../helpers.ts";
 
 export type V3 = [number, number, number];
@@ -24,19 +24,29 @@ export interface GltfJson {
 const io = new NodeIO();
 const cache = new Map<string, Promise<Model>>();
 
+/**
+ * Where the GLBs under test live: public/models, or FC_MODELS_DIR to run the same tests on a
+ * variant build (for example R-Evolution with raised arms, see assets/blender/README.md).
+ */
 export function modelPath(file: string): string {
-  return join(ROOT, "public", "models", file);
+  const dir = process.env.FC_MODELS_DIR ? resolve(process.env.FC_MODELS_DIR) : join(ROOT, "public", "models");
+  return join(dir, file);
 }
 
 export function loadModel(file: string): Promise<Model> {
-  let p = cache.get(file);
+  return loadModelFrom(modelPath(file));
+}
+
+/** Read a GLB by path (cached per path). */
+export function loadModelFrom(path: string): Promise<Model> {
+  let p = cache.get(path);
   if (!p) {
     p = (async () => {
-      const bytes = new Uint8Array(readFileSync(modelPath(file)));
+      const bytes = new Uint8Array(readFileSync(path));
       const doc = await io.readBinary(bytes);
-      return { file, bytes, doc, json: glbJson(bytes) };
+      return { file: basename(path), bytes, doc, json: glbJson(bytes) };
     })();
-    cache.set(file, p);
+    cache.set(path, p);
   }
   return p;
 }
@@ -143,6 +153,38 @@ export function materialPositions(doc: Document, material: string): V3[] {
 
 export function allPositions(doc: Document): V3[] {
   return sceneNodes(doc).flatMap((n) => nodePositions(n, "world"));
+}
+
+/** Model-space triangles of every primitive using a material, across all nodes. */
+export function materialTriangles(doc: Document, material: string): Array<[V3, V3, V3]> {
+  const out: Array<[V3, V3, V3]> = [];
+  for (const n of sceneNodes(doc)) {
+    const mesh = n.getMesh();
+    if (!mesh) continue;
+    const m = n.getWorldMatrix() as unknown as number[];
+    for (const p of mesh.listPrimitives()) {
+      if (p.getMaterial()?.getName() !== material) continue;
+      const pos = p.getAttribute("POSITION");
+      if (!pos) continue;
+      const el: number[] = [];
+      const at = (i: number): V3 => {
+        pos.getElement(i, el);
+        return apply(m, [el[0]!, el[1]!, el[2]!]);
+      };
+      const idx = p.getIndices();
+      const count = idx ? idx.getCount() : pos.getCount();
+      for (let i = 0; i + 2 < count; i += 3) {
+        const k = idx ? [idx.getScalar(i), idx.getScalar(i + 1), idx.getScalar(i + 2)] : [i, i + 1, i + 2];
+        out.push([at(k[0]!), at(k[1]!), at(k[2]!)]);
+      }
+    }
+  }
+  return out;
+}
+
+/** Names of the materials a node's own mesh uses. */
+export function nodeMaterials(n: Node): string[] {
+  return (n.getMesh()?.listPrimitives() ?? []).map((p) => p.getMaterial()?.getName() ?? "");
 }
 
 export interface Box {

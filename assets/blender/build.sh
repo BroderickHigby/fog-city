@@ -1,15 +1,40 @@
 #!/usr/bin/env bash
 # Rebuild every Fog City hero asset from its script: public/models/*.glb.
 #
-#   assets/blender/build.sh             # all models
+#   assets/blender/build.sh             # all models + content/landmarks.json, then GLB stats
 #   assets/blender/build.sh robotaxi    # one model (script name without .py)
 #   assets/blender/build.sh --lookdev   # all models, then the look-dev renders (slow)
+#   FC_REVOLUTION_POSE=raised assets/blender/build.sh r_evolution
+#                                       # R-Evolution with her arms raised (see README)
 #
 # Blender 4.5 LTS runs headless. Set BLENDER to its binary (default: blender on PATH).
+# Any failure stops the build with a non-zero status: Blender's own exit status (a Python
+# exception exits 1 through --python-exit-code), a Traceback in its output, a model script
+# that did not report its GLB, or a look-dev render that did not write its PNG.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BLENDER="${BLENDER:-blender}"
-run() { "$BLENDER" -b --factory-startup -noaudio -P "$@" 2>&1 | grep -E '^\[fc\]|^\[lookdev\]|Error|error|Traceback|^  File' || true; }
+LOG="$(mktemp)"
+STAMP="$(mktemp)"
+trap 'rm -f "$LOG" "$STAMP"' EXIT
+
+# run <script.py> [args after --]: run Blender headless, show the useful lines, fail on error.
+run() {
+  local script="$1"
+  shift
+  local status=0
+  "$BLENDER" -b --factory-startup -noaudio --python-exit-code 1 -P "$script" -- "$@" >"$LOG" 2>&1 || status=$?
+  grep -E '^\[fc\]|^\[lookdev\]|Error|error|Traceback|^  File' "$LOG" || true
+  if [ "$status" -ne 0 ]; then
+    echo "build.sh: $script: Blender exited with status $status; last lines:" >&2
+    tail -n 20 "$LOG" >&2
+    return 1
+  fi
+  if grep -q 'Traceback' "$LOG"; then
+    echo "build.sh: $script: Python traceback (see above)" >&2
+    return 1
+  fi
+}
 
 MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus)
 LOOKDEV=0
@@ -23,18 +48,34 @@ done
 [ ${#ONLY[@]} -gt 0 ] && MODELS=("${ONLY[@]}")
 
 for m in "${MODELS[@]}"; do
-  out=$(run "assets/blender/models/$m.py")
-  echo "$out"
-  if ! grep -q '^\[fc\] wrote' <<<"$out"; then
-    echo "build.sh: $m failed" >&2
+  if [ ! -f "assets/blender/models/$m.py" ]; then
+    echo "build.sh: no model script assets/blender/models/$m.py" >&2
+    exit 1
+  fi
+  run "assets/blender/models/$m.py"
+  if ! grep -q '^\[fc\] wrote' "$LOG"; then
+    echo "build.sh: $m did not write its GLB" >&2
     exit 1
   fi
 done
 
 python3 assets/blender/tools/landmarks.py
 
+# Triangle counts as exported (read back from the GLBs, not Blender's pre-export count).
+if [ -d node_modules/@gltf-transform/core ]; then
+  node assets/blender/tools/glb-stats.ts
+else
+  echo "build.sh: node_modules missing; run pnpm install to print the GLB stats" >&2
+fi
+
 if [ "$LOOKDEV" = 1 ]; then
   for s in assets/blender/lookdev/0*.py; do
+    png="assets/blender/lookdev/$(basename "$s" .py | tr '_' '-').png"
+    touch "$STAMP"
     run "$s"
+    if [ ! -s "$png" ] || [ ! "$png" -nt "$STAMP" ]; then
+      echo "build.sh: $s did not write $png" >&2
+      exit 1
+    fi
   done
 fi
