@@ -99,11 +99,16 @@ test.describe("sf world: in the browser", () => {
   let problems: string[];
   /** Every response since boot, by path: the landmark test checks its model was fetched. */
   const responses: Array<{ path: string; status: number }> = [];
+  /** Streamer warnings: a tile whose glb failed to load (and was rebuilt from its collider, or failed). */
+  const tileWarnings: string[] = [];
 
   test.beforeAll(async ({ browser }, info) => {
     gate("sf", SF, ABSENT);
     page = await newSharedPage(browser, info.project.use);
     page.on("response", (r) => responses.push({ path: new URL(r.url()).pathname, status: r.status() }));
+    page.on("console", (m) => {
+      if (m.type() === "warning" && /\[fog-city\] tile .*(glb failed|failed \()/.test(m.text())) tileWarnings.push(m.text());
+    });
     problems = await bootWorld(page, "sf");
   });
   test.afterAll(async () => {
@@ -140,6 +145,21 @@ test.describe("sf world: in the browser", () => {
     }
     const stats = imageStats(decodePng(await page.screenshot()), 7);
     expect(looksDrawn(stats), `the frame looks blank: ${JSON.stringify(stats)}`).toBe(true);
+    expect(problems).toEqual([]);
+  });
+
+  test("the meshopt-compressed tiles decode in the browser: none falls back to its collider, none fails", async () => {
+    // The pipeline's tiles need EXT_meshopt_compression (src/render/gltf-loader.ts); a loader
+    // without the decoder fails every one, and the streamer quietly rebuilds them from colliders.
+    const glbs = responses.filter((r) => /^\/tiles\/sf\/t-?\d+_-?\d+\.glb$/.test(r.path));
+    expect(glbs.length, "tile glbs fetched since boot").toBeGreaterThan(4);
+    expect(glbs.filter((r) => r.status !== 200 && r.status !== 304), "tile glbs not served").toEqual([]);
+    expect(tileWarnings, "tiles whose glb failed to load").toEqual([]);
+    const info = await renderInfo(page);
+    if (info) {
+      expect(info.tilesFailed ?? 0, "tiles failed").toBe(0);
+      expect(info.tilesLoaded ?? 0, "tiles loaded").toBeGreaterThan(4);
+    }
     expect(problems).toEqual([]);
   });
 
