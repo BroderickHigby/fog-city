@@ -20,7 +20,7 @@ import {
 } from "./denylists.ts";
 
 export type LintRule =
-  | "brand" | "accelerator" | "shooter" | "shooterMode" | "lexicon" | "disease" | "restricted" | "punchDown" | "housing"
+  | "brand" | "person" | "accelerator" | "shooter" | "shooterMode" | "lexicon" | "disease" | "restricted" | "punchDown" | "housing"
   | "profanity" | "dialect" | "places" | "renamed" | "fontFit" | "clearedName";
 
 export interface LintIssue {
@@ -69,7 +69,10 @@ function removeExempt(text: string, rule: LintRule): string {
 export function lintText(text: string): LintIssue[] {
   const out: LintIssue[] = [];
   const brand = blockedProseReason(removeExempt(text, "brand"));
-  if (brand) out.push({ rule: brand.includes("accelerator") ? "accelerator" : "brand", message: brand, text });
+  if (brand) {
+    const rule: LintRule = brand.includes("accelerator") ? "accelerator" : /person|surname/.test(brand) ? "person" : "brand";
+    out.push({ rule, message: brand, text });
+  }
   const variants = [text, splitIdWords(text)];
   for (const [rule, list] of TEXT_RULES) {
     for (const c of list) {

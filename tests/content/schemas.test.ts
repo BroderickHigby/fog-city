@@ -5,9 +5,18 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ROOT, readJson } from "../helpers.ts";
+import { CONTENT_FILES } from "./content-files.ts";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
-const compile = (name: string) => ajv.compile(readJson(`schemas/${name}.schema.json`));
+const compiled = new Map<string, ReturnType<typeof ajv.compile>>();
+const compile = (name: string) => {
+  let v = compiled.get(name);
+  if (!v) {
+    v = ajv.compile(readJson(`schemas/${name}.schema.json`));
+    compiled.set(name, v);
+  }
+  return v;
+};
 const V = {
   billboards: compile("billboard-grammar"),
   storefronts: compile("storefront-kit"),
@@ -15,20 +24,33 @@ const V = {
   mission: compile("mission"),
 };
 
+/** Every content file and the schema it validates against. A new file without a schema fails. */
+const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^content\/billboards\.json$/, "billboard-grammar"],
+  [/^content\/storefronts\.json$/, "storefront-kit"],
+  [/^content\/bot-tells\.json$/, "bot-tells"],
+  [/^content\/missions\/[^/]+\.json$/, "mission"],
+  [/^content\/brands\.json$/, "brands"],
+  [/^content\/cleared-names\.json$/, "cleared-names"],
+];
+
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 type Json = Record<string, any>;
 
-function valid(v: (typeof V)[keyof typeof V], data: unknown): string | true {
+function valid(v: ReturnType<typeof ajv.compile>, data: unknown): string | true {
   return v(data) ? true : ajv.errorsText(v.errors);
 }
 
 describe("content files validate (strict Ajv)", () => {
-  it("content/billboards.json", () => expect(valid(V.billboards, readJson("content/billboards.json"))).toBe(true));
-  it("content/storefronts.json", () => expect(valid(V.storefronts, readJson("content/storefronts.json"))).toBe(true));
-  it("content/bot-tells.json", () => expect(valid(V.botTells, readJson("content/bot-tells.json"))).toBe(true));
+  for (const rel of CONTENT_FILES) {
+    const schema = SCHEMA_FOR.find(([re]) => re.test(rel))?.[1];
+    it(`${rel} has a schema and validates against it`, () => {
+      expect(schema, `${rel}: no schema registered in tests/content/schemas.test.ts`).toBeDefined();
+      expect(valid(compile(schema as string), readJson(rel))).toBe(true);
+    });
+  }
   const missions = readdirSync(join(ROOT, "content/missions")).filter((f) => f.endsWith(".json"));
   it("there is at least one mission", () => expect(missions.length).toBeGreaterThan(0));
-  for (const f of missions) it(`content/missions/${f}`, () => expect(valid(V.mission, readJson(`content/missions/${f}`))).toBe(true));
 });
 
 describe("schemas reject broken content", () => {

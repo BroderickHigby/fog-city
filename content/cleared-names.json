@@ -1,0 +1,298 @@
+{
+  "version": 1,
+  "status": "pending user sign-off",
+  "$comment": "Every invented proper name the content uses, searched before use (docs/design.md, Legal and taste). The content lint (src/content/lint.ts, NAME_FIELDS) rejects a value in a registered name field that is not listed here with verdict clear or caution, or under generic. These are web searches run by an agent session on the date given, not a legal clearance: the user signs this file off, and a trademark attorney's search is still on the pre-release checklist.",
+  "method": "For each name, at least two web searches in standard mode: the name with 'trademark', and the name with 'startup', 'app', 'company' or the product category it has in the game. Findings summarise what the results showed; sources are the result pages that carried the finding.",
+  "verdicts": {
+    "clear": "No product, company or mark with this name turned up in software, tech, robotics or transport, nor anything confusable elsewhere.",
+    "caution": "The name, or a near-identical one, exists, but in an unrelated field, or the product is defunct, abandoned or non-commercial, or the name is a common word used descriptively. Kept; the user should know.",
+    "conflict": "An active product, company or mark with the same or a confusable name exists for the same kind of goods or services in software, tech, robotics or transport. Renamed (see renamed), and the new name searched too."
+  },
+  "names": [
+    {
+      "name": "Moat Labs",
+      "kind": "company",
+      "usedFor": "The antagonist startup that pushes the forced update ('Every robot. Eventually.').",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Moat Labs\" startup", "\"Moat Labs\" trademark robotics"],
+      "findings": "No company or mark named Moat Labs. 'Moat' alone was an ad-measurement company in New York acquired by Oracle (Oracle Moat; Oracle has since left the advertising business), and Moat Biotechnology is a small Oklahoma biotech. No robotics mark found.",
+      "verdict": "caution",
+      "note": "Moat Labs sells ad blasts in the game, which sits near the old Moat ad-measurement brand; the 'Labs' suffix and the robotics setting keep it apart.",
+      "sources": [
+        "https://news.crunchbase.com/news/morning-report-context-moats-850-million-oracle-exit",
+        "https://builtin.com/company/moat",
+        "https://www.vcbacked.co/company/moat-biotechnology",
+        "https://gleanmark.com/owner/npcroboticscorp"
+      ]
+    },
+    {
+      "name": "Meander",
+      "kind": "company",
+      "usedFor": "The robotaxi company and its ride app ('We'll get you there.').",
+      "searchedOn": "2026-10-20",
+      "queries": ["Meander robotaxi autonomous vehicle company", "\"Meander\" trademark app software", "\"Meander\" app Mac Peacock Media route distance"],
+      "findings": "No robotaxi or ride-hailing company named Meander. A Mac route-measuring utility called Meander (Peacock Media; earlier versions from other developers) is now retired. A USPTO application for MEANDER (serial 98384211, Meander Holdings Inc., travel-data and survey software) was abandoned in July 2025. MeanderPlus is an unrelated iOS drawing app.",
+      "verdict": "caution",
+      "note": "A retired desktop map utility and an abandoned filing; no transport service uses the name.",
+      "sources": [
+        "https://peacockmedia.software/mac/meander/",
+        "https://trademark.justia.com/983/84/meander-98384211.html",
+        "https://www.trademarkelite.com/trademark/trademark-detail/98384211/MEANDER",
+        "https://www.mactech.com/2007/02/15/meander-1-5-released-by-peacock-media"
+      ]
+    },
+    {
+      "name": "Humbled",
+      "kind": "app",
+      "usedFor": "The thought-leader feed on the phone, where achievements post as humblebrags. Replaces Clout (see renamed).",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Humbled\" app social network OR startup", "\"Humbled\" trademark software application"],
+      "findings": "No app, social network or software mark named Humbled. Nearby: a pending HUMBLE word mark for ERP software (serial 98564290), Humble Acres (a craft community app), Humble Inc. (an entrepreneurship media platform), and Humbled Trader (a stock-trading education brand with a registered logo mark, not software).",
+      "verdict": "caution",
+      "note": "Different spelling or different field in every case; Humbled Trader is a real creator's brand, so the in-game feed never mentions trading education.",
+      "sources": [
+        "https://trademarks.justia.com/985/64/humble-98564290.html",
+        "https://www.trademarkelite.com/trademark/trademark-detail/90674284/logo",
+        "https://blog.honeycommb.com/2019/07/12/why-my-community-left-facebook-humble-acres/",
+        "https://kingscrowd.com/humble-on-startengine-2024/"
+      ]
+    },
+    {
+      "name": "FogCast",
+      "kind": "app",
+      "usedFor": "The weather app that is always confident and wrong half the time.",
+      "searchedOn": "2026-10-20",
+      "queries": ["FogCast app fog forecast", "\"FogCast\" trademark OR company OR startup"],
+      "findings": "No app, company or mark named FogCast. The closest is Fogcast-lite, a fog-probability research page at IIT Kanpur's fog prediction group (non-commercial). Other fog apps use other names (Foggy: Bay Area Fog Tracker, Fog And Clouds Finder, FogDash).",
+      "verdict": "caution",
+      "note": "A university research page with a near-identical name and the same purpose; not a product or a mark.",
+      "sources": [
+        "https://fog.iitk.ac.in/fog-prediction/fogcast_lite_forecast.php",
+        "https://apps.apple.com/app/id6754467968",
+        "https://weatherextreme.com/fogdash/"
+      ]
+    },
+    {
+      "name": "Marine Layer",
+      "kind": "perk",
+      "usedFor": "The fog perk, and the title of mission 9.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Marine Layer\" trademark brand company", "\"Marine Layer\" app software startup"],
+      "findings": "Marine Layer is a San Francisco apparel brand (Marine Layer PBC) with registered MARINE LAYER marks for clothing and retail store services. No software, app or tech company with the name turned up. It is also the ordinary meteorological term for the fog layer.",
+      "verdict": "caution",
+      "note": "A real San Francisco clothing brand: the game uses the words only for fog (a perk, a mission title), never on clothing, a shop, a billboard or a cosmetic.",
+      "sources": [
+        "https://trademark.justia.com/owners/marine-layer-pbc-5240774",
+        "https://www.cbinsights.com/company/marine-layer",
+        "https://incfact.com/company/marinelayer-sanfrancisco-ca/"
+      ]
+    },
+    {
+      "name": "Bramblecot Home",
+      "kind": "company",
+      "usedFor": "Maker of the Footman errand robot. Replaced Kindred Home before wave 2.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Bramblecot\" company", "\"Bramblecot Home\" robot OR trademark"],
+      "findings": "No company, product or mark named Bramblecot or Bramblecot Home. Results were similarly spelled UK companies (Bramblecross Limited, Bramcote Limited) and holiday cottages named Bramble Cottage.",
+      "verdict": "clear",
+      "sources": [
+        "https://pay.company-information.service.gov.uk/company/01327532",
+        "https://pay.company-information.service.gov.uk/company/00838182"
+      ]
+    },
+    {
+      "name": "Footman",
+      "kind": "robotModel",
+      "usedFor": "The tall errand robot that carries groceries (public/models/errand-robot.glb). Replaces Porter as the display name (see renamed); ids keep the model file's name.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Footman\" robot humanoid OR app OR startup", "\"Footman\" trademark software OR robotics"],
+      "findings": "No robot, app, startup or software or robotics mark named Footman. Results were other humanoid companies (Figure, Humanoid, Foundation) and unrelated robotics marks.",
+      "verdict": "clear",
+      "sources": [
+        "https://www.seedtable.com/best-humanoid-robot-startups",
+        "https://gleanmark.com/owner/riiboticsinc"
+      ]
+    },
+    {
+      "name": "Trundle",
+      "kind": "robotModel",
+      "usedFor": "The sidewalk delivery robot with a roll-top lid (public/models/sidewalk-bot.glb), and its maker.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Trundle\" robot OR delivery OR app company", "\"Trundle\" trademark software", "\"Trundle\" startup OR app robotics sidewalk"],
+      "findings": "No company, robot, app or mark named Trundle. The sidewalk-delivery field is Serve Robotics, Starship, Kiwibot, Coco and others, none with a similar name. 'Trundle' is an ordinary English word (a trundle bed).",
+      "verdict": "clear",
+      "sources": [
+        "https://sacra.com/chat/h/d0330c01-e38f-4cc2-aea0-7230665e0aa7/",
+        "https://techcrunch.com/2022/01/13/serve-robotics-new-autonomous-sidewalk-delivery-robots-dont-require-human-assist/embed/"
+      ]
+    },
+    {
+      "name": "Dry Powder",
+      "kind": "station",
+      "usedFor": "The talk radio station. Replaced The Pivot before wave 2.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Dry Powder\" podcast radio show", "\"Dry Powder\" trademark app startup"],
+      "findings": "No app, startup or software mark named Dry Powder. Two podcasts share the phrase: 'Dry Powder: The Private Equity Podcast' (an IMDb listing from 2019) and 'The Dry Powder Lads' (a soccer podcast). It is also a common finance term for uninvested capital.",
+      "verdict": "caution",
+      "note": "Media, not software: a private-equity podcast of the same name exists, so the station never uses a podcast-style logo or claims to be a podcast.",
+      "sources": [
+        "https://m.imdb.com/title/tt24308788/mediaviewer/rm1544447233",
+        "https://podstatus.com/podcasts/dry-powder-pod-584011"
+      ]
+    },
+    {
+      "name": "Brackish",
+      "kind": "perk",
+      "usedFor": "The salt-water perk. Replaced Salt Life before wave 2.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Brackish\" app OR software OR startup trademark", "\"Brackish\" brand company", "\"Brackish\" perk game OR \"Brackish\" software company"],
+      "findings": "Brackish is a Charleston, SC accessories brand (feather bow ties), BRACKISH LLC holds a beverage mark, and an indie fishing game 'A Little Brackish' is in development on itch.io. No software company or app named Brackish.",
+      "verdict": "caution",
+      "note": "Used only as the name of a perk inside the game, never as a product, shop or cosmetic.",
+      "sources": [
+        "https://brackish.com/pages/about-us",
+        "https://trademarks.justia.com/owners/brackish-llc-4263677",
+        "https://megasploot.itch.io/a-little-brackish/devlog/41530/teaser-shot"
+      ]
+    },
+    {
+      "name": "Ramen",
+      "kind": "accelerator",
+      "usedFor": "The parody accelerator and the Ramen house at Pier 70 (never the real accelerator; the user's choice of name).",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Ramen\" startup accelerator", "\"Ramen\" venture capital fund OR \"Ramen VC\" OR \"Ramen Ventures\""],
+      "findings": "No accelerator named Ramen. Ramen Ventures was a Toronto angel fund (pre-seed software) that has announced it is winding down. Ramen Life is an Australian software platform for running mentor and accelerator programs. 'Ramen profitable' is a common startup phrase.",
+      "verdict": "caution",
+      "note": "Same industry as a wound-down angel fund and a program-management tool; the bare word Ramen, used for a parody house, reads as the food and the startup phrase. The user named it.",
+      "sources": [
+        "https://betakit.com/ex-shopify-leaders-launch-10-million-angel-fund-ramen-ventures/",
+        "https://betakit.com/ramen-ventures-announces-angel-fund-is-winding-down/",
+        "https://www.cbinsights.com/compare/austrianstartups-vs-ramen-life"
+      ]
+    },
+    {
+      "name": "Bot Check",
+      "kind": "app",
+      "usedFor": "The scanner app: confident, sometimes wrong.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Bot Check\" app scanner OR software", "\"BotCheck\" app OR startup OR trademark"],
+      "findings": "No app, startup or mark named Bot Check or BotCheck. Spybot Search & Destroy shows a 'bot-check' progress label during scans (a feature label, not a product), and K7 sells a 'Scanner for Ransomware & BOTs'.",
+      "verdict": "caution",
+      "note": "A descriptive phrase that one anti-malware tool uses as an internal label.",
+      "sources": [
+        "https://forums.spybot.info/threads/bot-check.5397/",
+        "https://www.softpedia.com/downloadTag/BOT%20scanner",
+        "https://ised-isde.canada.ca/cipo/trademark-search/1912806"
+      ]
+    },
+    {
+      "name": "BotBounty",
+      "kind": "app",
+      "usedFor": "The bounty board app that posts bad robots.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"BotBounty\" OR \"Bot Bounty\" app OR platform", "\"Bot Bounty\" trademark OR \"BotBounty\" startup"],
+      "findings": "No product, company or mark named BotBounty or Bot Bounty. Nearby: ADAMANT's open-source 'Bounty Bot' for crypto campaigns, UbiquiBot (GitHub bounties), Bounty0x (an ICO-era bounty platform) and Bounty (a creator rewards service).",
+      "verdict": "clear",
+      "note": "The crypto 'Bounty Bot' puts the words the other way round and is a chat bot, not an app brand.",
+      "sources": [
+        "https://news.adamant.im/adamants-interactive-bounty-bot-for-cryptocurrency-projects-51fec10f93b9",
+        "https://app.dealroom.co/companies/bounty_app"
+      ]
+    },
+    {
+      "name": "Slotsworth",
+      "kind": "character",
+      "usedFor": "Ramen's AI scheduling agent in the partner-meeting mission.",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Slotsworth\"", "\"Slotsworth\" app OR scheduling assistant"],
+      "findings": "Nothing named Slotsworth. Similar scheduling tools use other names (Slotwise, Slotty, Slotly, SlotCore, Slotify, SlotPicker); place names Silksworth and Saddleworth are unrelated.",
+      "verdict": "clear",
+      "sources": [
+        "https://peerpush.com/p/slotwise",
+        "https://www.capterra.com/p/10047467/Slotty/"
+      ]
+    }
+  ],
+  "renamed": [
+    {
+      "from": "Clout",
+      "to": "Humbled",
+      "kind": "app",
+      "searchedOn": "2026-10-20",
+      "queries": ["Clout app social network startup", "\"Clout\" app App Store influencer social networking Taylor Dow"],
+      "reason": "conflict: an App Store social-networking app named Clout (an influencer marketplace) is listed, Clout Jam is an influencer campaign platform, and Klout was a well-known influence-scoring service; the in-game Clout is a social feed, the same kind of software.",
+      "sources": [
+        "https://mwm.ai/apps/clout/1193911218",
+        "https://www.500.co/content/clout-jam-is-helping-social-media-influencers-take-control-of-their-businesses",
+        "https://techcrunch.com/2012/04/25/klout-takes-social-influence-mobile-with-new-ios-app/"
+      ]
+    },
+    {
+      "from": "Porter",
+      "to": "Footman",
+      "kind": "robotModel",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Porter\" robot humanoid delivery robot company", "\"Porter\" robot trademark Watt delivery robot apartment"],
+      "reason": "conflict: Watt, a South Korean robotics startup, sells an autonomous in-building delivery robot called the Porter Robot (pilots with Samsung C&T in Seoul and in the Busan Eco Delta Smart City); the in-game Porter is an errand robot that carries shopping, the same kind of goods. Ids and the model file keep their names (errand-robot); only the display name changes.",
+      "sources": [
+        "https://www.venturesquare.net/963140/",
+        "https://www.venturesquare.net/en/1112682/",
+        "https://thebridge.jp/en/2026/04/watt-developer-of-in-building-autonomous-delivery-robots-secures-investment-from-kuroneko-innovation-fund-no-2"
+      ]
+    },
+    {
+      "from": "Fetchling",
+      "to": "(not used)",
+      "kind": "robotModel",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Fetchling\" robot OR app OR company"],
+      "reason": "candidate for the errand robot, rejected: every result was Fetch Robotics (now part of Zebra Technologies), a mobile-robot company the name echoes.",
+      "sources": ["https://robotics247.com/company/fetch_robotics"]
+    },
+    {
+      "from": "Bindle",
+      "to": "(not used)",
+      "kind": "robotModel",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Bindle\" robot OR app OR startup company", "\"Bindle\" trademark robot delivery OR \"Bindle\" app"],
+      "reason": "candidate for the errand robot, rejected on taste rather than trademark (nothing found): a bindle is the bundle-on-a-stick image of a person without a home, which the places rule keeps out of the game.",
+      "sources": ["https://bind.spri.eus/company/nordbo-robotics/page/5"]
+    },
+    {
+      "from": "Plaudit",
+      "to": "(not used)",
+      "kind": "app",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Plaudit\" app social network"],
+      "reason": "candidate for the feed, rejected: Plaudit (plaudit.pub) is a live service for endorsing research papers, close to a social feed of endorsements.",
+      "sources": ["https://support.d4science.org/issues/23895.pdf"]
+    },
+    {
+      "from": "Boastly",
+      "to": "(not used)",
+      "kind": "app",
+      "searchedOn": "2026-10-20",
+      "queries": ["\"Boastly\" app OR company"],
+      "reason": "candidate for the feed, rejected: Boast (boast.io) is a live testimonial and review SaaS, one letter-group away.",
+      "sources": ["https://boast.io/?p=13258", "https://www.capterra.com/p/151440/Boast/"]
+    },
+    { "from": "Kindred Home", "to": "Bramblecot Home", "kind": "company", "searchedOn": "2026-10-20", "queries": [], "reason": "renamed before wave 2 (docs/design.md decision log); Bramblecot Home searched above.", "sources": [] },
+    { "from": "The Pivot", "to": "Dry Powder", "kind": "station", "searchedOn": "2026-10-20", "queries": [], "reason": "renamed before wave 2 (docs/design.md decision log); Dry Powder searched above.", "sources": [] },
+    { "from": "Salt Life", "to": "Brackish", "kind": "perk", "searchedOn": "2026-10-20", "queries": [], "reason": "renamed before wave 2 (docs/design.md decision log); Brackish searched above.", "sources": [] },
+    { "from": "the Batchery", "to": "Ramen", "kind": "accelerator", "searchedOn": "2026-10-20", "queries": [], "reason": "the wave-1 pitch mission's accelerator; the design's parody accelerator is Ramen.", "sources": [] },
+    { "from": "Paxton Longform", "to": "the Ramen partner archetypes", "kind": "character", "searchedOn": "2026-10-20", "queries": [], "reason": "a caricature of an essay-writing accelerator partner pointed at a real person; Ramen's partners are archetypes (design.md, Legal and taste).", "sources": [] }
+  ],
+  "generic": [
+    { "label": "You", "why": "the player" },
+    { "label": "Front Desk", "why": "a role: a lobby robot" },
+    { "label": "The Philosopher", "why": "a Ramen partner archetype named in docs/design.md" },
+    { "label": "The Metrics One", "why": "a Ramen partner archetype named in docs/design.md" },
+    { "label": "The Vibes Partner", "why": "a Ramen partner archetype named in docs/design.md" },
+    { "label": "Your cofounder", "why": "a role" },
+    { "label": "Mom", "why": "a role" },
+    { "label": "Desk host", "why": "a role: the coworking desk's host" },
+    { "label": "Dispatcher", "why": "a role: the BotBounty dispatcher" },
+    { "label": "A Footman", "why": "a robot of a cleared model, not a name" },
+    { "label": "A Trundle", "why": "a robot of a cleared model, not a name" }
+  ]
+}
