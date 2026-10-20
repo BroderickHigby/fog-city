@@ -27,3 +27,39 @@ export function nextFloat(s: RngState): [number, RngState] {
   const [u, n] = nextU32(s);
   return [u / 4294967296, n];
 }
+
+/**
+ * One-word PRNG step (mulberry32) for per-agent streams kept inside agent state.
+ * Returns [uint32, nextState]. Exact integer ops only.
+ */
+export function nextU32Word(s: number): [number, number] {
+  const n = (s + 0x6d2b79f5) | 0;
+  let t = Math.imul(n ^ (n >>> 15), n | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return [(t ^ (t >>> 14)) >>> 0, n >>> 0];
+}
+
+/** Uniform float in [0, 1) from a one-word stream. */
+export function nextFloatWord(s: number): [number, number] {
+  const [u, n] = nextU32Word(s);
+  return [u / 4294967296, n];
+}
+
+/** Stateless 32-bit hash of a list of integers (murmur3 finaliser per word). Same on every engine. */
+export function hash32(...words: number[]): number {
+  let h = 0x811c9dc5;
+  for (const w of words) {
+    let k = Math.imul(w | 0, 0xcc9e2d51);
+    k = (k << 15) | (k >>> 17);
+    k = Math.imul(k, 0x1b873593);
+    h ^= k;
+    h = (h << 13) | (h >>> 19);
+    h = (Math.imul(h, 5) + 0xe6546b64) | 0;
+  }
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h >>> 0;
+}

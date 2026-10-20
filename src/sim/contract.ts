@@ -9,7 +9,11 @@
 //  - Transcendentals come from dmath.ts; randomness from rng.ts with state in SimState.
 //  - Iterate players with sortedIds(), never Object.keys order.
 
-export const SIM_VERSION = 1;
+// v2 (track/sim): CarState gained handling fields (lateral, yawRate, vy, grounded, airTicks,
+// grip, pitch, roll, sinceContact, impactSpeed, landingSpeed, personBumps); PlayerState
+// gained foot + exitPending; ext.agents holds ambient traffic (src/sim/agents.ts).
+// upgradeState() in step.ts lifts a v1 state to v2.
+export const SIM_VERSION = 2;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -55,6 +59,7 @@ export interface SimEvent {
 
 export interface CarState {
   x: number;
+  /** Height of the car's ground contact point (bottom of the wheels), metres. */
   y: number;
   z: number;
   /** Compass bearing in radians, clockwise from north (-z). Renderer: rotation.y = -heading. */
@@ -63,14 +68,58 @@ export interface CarState {
   speed: number;
   /** Current front-wheel angle, radians, + = right. */
   steer: number;
-  /** Collisions so far. */
+  /** Impact events so far (one per collision, not one per tick in contact). */
   hits: number;
+  // ---- v2 additions ----
+  /** m/s sideways in the car's frame, + = toward the car's right. Nonzero while sliding. */
+  lateral: number;
+  /** Yaw rate, rad/s, + = clockwise (turning right). */
+  yawRate: number;
+  /** Vertical velocity, m/s, + = up. */
+  vy: number;
+  /** Wheels on the ground (within suspension travel). False while airborne. */
+  grounded: boolean;
+  /** Ticks airborne in the current jump (0 on the ground). */
+  airTicks: number;
+  /** Tyre grip 0 (full slide) .. 1 (full grip). Drops on brake+steer at speed, recovers. */
+  grip: number;
+  /** Body pitch, rad, + = nose up (from the ground under the wheels; held in the air). */
+  pitch: number;
+  /** Body roll, rad, + = right side down. */
+  roll: number;
+  /** Ticks since the car last touched a building or obstacle; 0 = touching now. Capped at 600. */
+  sinceContact: number;
+  /** Speed into the surface (m/s) at the most recent counted impact; 0 if none yet. */
+  impactSpeed: number;
+  /** Downward speed relative to the ground (m/s) at the most recent landing; 0 if none yet. */
+  landingSpeed: number;
+  /** Bumps into people. People are never hurt (the car just stops); scoring may charge for it. */
+  personBumps: number;
+}
+
+/** A player on foot. Present only while PlayerState.mode === "foot". */
+export interface FootState {
+  x: number;
+  /** Ground height under the walker's feet. */
+  y: number;
+  z: number;
+  /** Compass bearing, radians, clockwise from north (-z). */
+  heading: number;
+  /** m/s along heading; negative when stepping back. */
+  speed: number;
+  /** True while sprinting (brake held). */
+  sprint: boolean;
 }
 
 export interface PlayerState {
   id: PlayerId;
   mode: "vehicle" | "foot";
+  /** The player's car. While on foot it stays parked where the player left it. */
   car: CarState;
+  /** v2: the walker while mode === "foot", else null. */
+  foot: FootState | null;
+  /** v2: enterExit was pressed above exit speed; the car brakes and the player exits once slow. */
+  exitPending: boolean;
 }
 
 export interface SimState {

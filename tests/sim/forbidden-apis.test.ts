@@ -18,6 +18,11 @@ const FORBIDDEN: Array<[RegExp, string]> = [
   [/Date\.now|new Date\(|performance\.now/, "the sim has no clock; use state.tick"],
   [/from ["'](three|@dimforge)/, "no rendering or physics engines in the sim"],
   [/\b(window|document|fetch|localStorage|XMLHttpRequest|WebSocket)\b/, "no DOM or network in the sim"],
+  // Iteration order must never depend on insertion history or engine: use sortedIds().
+  [/for\s*\(\s*(const|let|var)\s+\w+\s+in\b/, "for...in has no guaranteed order; iterate sortedIds()"],
+  [/Object\.(values|entries)\(/, "unsorted record iteration; iterate sortedIds()"],
+  // No side channels: nothing printed, no environment or global state read or written.
+  [/\b(console|process)\.|\bglobalThis\b/, "no console, process or globalThis in the sim"],
 ];
 
 describe("src/sim forbidden APIs", () => {
