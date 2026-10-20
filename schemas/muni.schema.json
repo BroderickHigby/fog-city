@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/muni",
+  "title": "Public transit routes and stops (public/tiles/<world>/muni.json). mode \"cable\" is cable car track.",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "routes",
+    "stops"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "line",
+          "mode",
+          "direction",
+          "night",
+          "lengthM",
+          "paths"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "bus",
+              "rail",
+              "streetcar",
+              "cable"
+            ]
+          },
+          "direction": {
+            "enum": [
+              "inbound",
+              "outbound"
+            ]
+          },
+          "night": {
+            "type": "boolean"
+          },
+          "lengthM": {
+            "type": "number"
+          },
+          "paths": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          }
+        }
+      }
+    },
+    "stops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "z",
+          "y",
+          "on",
+          "at",
+          "routes"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "on": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

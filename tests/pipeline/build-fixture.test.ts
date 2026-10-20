@@ -4,6 +4,7 @@
 
 import Ajv2020 from "ajv/dist/2020.js";
 import { createHash } from "node:crypto";
+import { Vector3, type BufferAttribute, type BufferGeometry, type Mesh } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 import { toLatLon } from "../../src/geo/project.ts";
 import { buildWorldFiles, type BuildOutput } from "../../pipeline/lib/build.ts";
@@ -150,9 +151,21 @@ describe("fixture build: determinism and files", () => {
     }
   });
 
-  it("writes exactly the manifest, graph, storefronts, report and two tiles", () => {
+  it("writes exactly the manifest, graph, storefronts, report, boundary, two tiles, the collider pack and one far-LOD cell", () => {
     expect([...out.files.keys()].sort()).toEqual(
-      ["manifest.json", "report.json", "roads.json", "storefronts.json", "t0_0.collider.json", "t0_0.glb", "t1_0.collider.json", "t1_0.glb"].sort(),
+      [
+        "boundary.json",
+        "f0_0.glb",
+        "manifest.json",
+        "report.json",
+        "roads.json",
+        "storefronts.json",
+        "t0_0.collider.json",
+        "t0_0.glb",
+        "t1_0.collider.json",
+        "t1_0.glb",
+        "world.colliders.bin",
+      ].sort(),
     );
   });
 
@@ -168,6 +181,37 @@ describe("fixture build: determinism and files", () => {
     check("roads", json(out, "roads.json"));
     check("tile-collider", json(out, "t0_0.collider.json"));
     check("tile-collider", json(out, "t1_0.collider.json"));
+    check("boundary", json(out, "boundary.json"));
+  });
+});
+
+describe("fixture build: world edge and shore", () => {
+  interface B { edges: Array<{ kind: string; closed: boolean; points: Array<[number, number]> }>; shore: Array<{ closed: boolean; points: Array<[number, number]> }> }
+  it("outlines the two tiles (land on the slope, water over the bay) and draws the shore with land on its left", () => {
+    const b = json<B>(out, "boundary.json");
+    let perimeter = 0;
+    for (const e of b.edges) {
+      const pts = e.closed ? [...e.points, e.points[0]!] : e.points;
+      for (let i = 1; i < pts.length; i++) perimeter += Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]);
+    }
+    expect(perimeter).toBeCloseTo(3000, 6);
+    const kindAt = (x: number, z: number): string[] =>
+      b.edges.filter((e) => e.points.some(([px, pz], i) => {
+        const [qx, qz] = e.points[i + 1] ?? (e.closed ? e.points[0]! : [px, pz]);
+        return Math.min(px, qx) <= x && x <= Math.max(px, qx) && Math.min(pz, qz) <= z && z <= Math.max(pz, qz);
+      })).map((e) => e.kind);
+    expect(kindAt(0, 250)).toEqual(["land"]); // the west side, up the slope
+    expect(kindAt(1000, 250)).toEqual(["water"]); // the east side, in the bay
+    expect(b.shore).toHaveLength(1);
+    const s = b.shore[0]!;
+    expect(s.closed).toBe(false);
+    // Land (west) on the left of travel: the line runs north, from z = 500 to z = 0.
+    expect(s.points[0]![1]).toBe(500);
+    expect(s.points[s.points.length - 1]![1]).toBe(0);
+    for (const [x] of s.points) {
+      expect(x).toBeGreaterThan(520);
+      expect(x).toBeLessThan(950);
+    }
   });
 });
 
@@ -344,12 +388,16 @@ describe("fixture build: GLB tiles", () => {
     const collider = json<SfCollider>(out, "t1_0.collider.json");
     const ranges = scene.getObjectByName("buildings")!.userData.buildings as Array<[string, number, number]>;
     expect(ranges.map((r) => r[0])).toEqual(collider.buildings.map((b) => b.id));
-    // The freeway over the bay (x > 850) is not drawn.
-    const fw = scene.getObjectByName("freeways") as unknown as { geometry: { attributes: { position: { count: number; getX(i: number): number } } } };
-    const pos = fw.geometry.attributes.position;
+    // The freeway over the bay (x > 850) is not drawn. Positions are quantised: read them
+    // through the node's dequantising transform.
+    scene.updateMatrixWorld(true);
+    const fw = scene.getObjectByName("freeways") as unknown as Mesh<BufferGeometry>;
+    const pos = fw.geometry.attributes.position as BufferAttribute;
+    const v = new Vector3();
     let maxX = -Infinity;
-    for (let i = 0; i < pos.count; i++) maxX = Math.max(maxX, pos.getX(i));
+    for (let i = 0; i < pos.count; i++) maxX = Math.max(maxX, v.fromBufferAttribute(pos, i).applyMatrix4(fw.matrixWorld).x);
     expect(maxX).toBeLessThan(870);
+    expect(maxX).toBeGreaterThan(690);
   });
 });
 

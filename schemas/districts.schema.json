@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/districts",
+  "title": "San Francisco districts (public/tiles/<world>/districts.json): neighbourhood geometry in local metres. Pipeline-produced; content marks districts active.",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "districts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "districts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "polygons",
+          "bbox",
+          "areaM2",
+          "tiles"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "polygons": {
+            "description": "MultiPolygon: polygons[p][0] is the outer ring (counter-clockwise on a north-up map: negative shoelace sum in x, z), polygons[p][1..] are holes (clockwise). Rings are not closed.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 3
+              }
+            }
+          },
+          "bbox": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "areaM2": {
+            "type": "number"
+          },
+          "tiles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

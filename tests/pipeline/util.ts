@@ -1,9 +1,13 @@
 // Shared helpers for the pipeline tests. No network: everything reads committed files or
 // builds in memory.
 
+import { NodeIO } from "@gltf-transform/core";
+import { EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/extensions";
+import { MeshoptDecoder } from "meshoptimizer";
 import { createRequire } from "node:module";
 import type { Group } from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { Ground } from "../../pipeline/lib/terrain.ts";
+import { createTileLoader } from "../../src/render/gltf-loader.ts";
 import { readJson } from "../helpers.ts";
 
 const require = createRequire(import.meta.url);
@@ -23,10 +27,19 @@ export async function validateGlb(bytes: Uint8Array): Promise<{ errors: number; 
   };
 }
 
-/** Parse a GLB with three.js's own GLTFLoader (what the renderer uses). */
+/** Decode meshopt compression (gltf-transform + meshoptimizer) and re-write the glb uncompressed (still quantised). */
+export async function decodeGlb(bytes: Uint8Array): Promise<Uint8Array> {
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions([EXTMeshoptCompression, KHRMeshQuantization]).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+  const doc = await io.readBinary(bytes);
+  for (const e of doc.getRoot().listExtensionsUsed()) if (e.extensionName === "EXT_meshopt_compression") e.dispose();
+  return io.writeBinary(doc);
+}
+
+/** Parse a GLB with three.js's own GLTFLoader, set up as the renderer must (meshopt decoder). */
 export function loadGlbWithThree(bytes: Uint8Array): Promise<Group> {
   const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
-  return new Promise((resolve, reject) => new GLTFLoader().parse(ab, "", (g) => resolve(g.scene), reject));
+  return new Promise((resolve, reject) => createTileLoader().parse(ab, "", (g) => resolve(g.scene), reject));
 }
 
 export interface SfManifest {
@@ -38,6 +51,12 @@ export interface SfManifest {
   attribution: string[];
   tiles: Array<{ id: string; ix: number; iz: number; bbox: [number, number, number, number]; collider: string; glb: string; stats: Record<string, number> }>;
   roads: string;
+  water: { y: number; bbox: [number, number, number, number]; tiles: string[] };
+  outside: { description?: string; tiles: Array<{ id: string; area: string }> };
+  worldColliders: string;
+  farCellSizeM: number;
+  far: Array<{ id: string; cx: number; cz: number; bbox: [number, number, number, number]; glb: string; stats: Record<string, number> }>;
+  layers: Record<string, string>;
 }
 
 export interface SfBuilding {
@@ -78,6 +97,12 @@ export interface SfRoads {
 export interface SfStorefronts {
   version: number;
   storefronts: Array<{ id: string; x: number; z: number; y: number; heading: number; naics: string; category: string; buildingId: string }>;
+}
+
+/** The ground the sim sees, looked up by tile index (the sim's own lookup scans every tile). */
+export function groundIndex(colliders: readonly SfCollider[]): (x: number, z: number) => number {
+  const g = new Ground(colliders.map((c) => ({ ix: Math.round(c.ground.x0 / 500), iz: Math.round(c.ground.z0 / 500), field: c.ground })));
+  return (x, z) => g.heightAt(x, z) ?? 0;
 }
 
 export function loadSf(): { manifest: SfManifest; colliders: SfCollider[]; roads: SfRoads; storefronts: SfStorefronts } {

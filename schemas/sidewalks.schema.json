@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/sidewalks",
+  "title": "Sidewalk navigation graph (public/tiles/<world>/sidewalks.json). One graph for the whole world.",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "edges",
+    "nodes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "a",
+          "b",
+          "kind",
+          "lengthM",
+          "road"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "a": {
+            "type": "string"
+          },
+          "b": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "sidewalk",
+              "crossing"
+            ]
+          },
+          "lengthM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "road": {
+            "type": "string",
+            "description": "Road edge id (roads.json) the sidewalk runs along or the crossing crosses"
+          },
+          "side": {
+            "enum": [
+              "L",
+              "R"
+            ],
+            "description": "Sidewalks: side of the road edge relative to its a -> b direction"
+          },
+          "signal": {
+            "const": true
+          },
+          "marked": {
+            "const": true
+          },
+          "points": {
+            "description": "Interior polyline points between a and b, local metres",
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "z",
+          "y",
+          "road"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "road": {
+            "type": "string",
+            "description": "Road node id (roads.json) this corner belongs to; for a clip end, the nearer end node of the road edge it lies along"
+          },
+          "edge": {
+            "type": "string",
+            "description": "Clip ends only: the road edge (roads.json) whose sidewalk stops here because the next stretch lies on another road"
+          }
+        }
+      }
+    }
+  }
+}

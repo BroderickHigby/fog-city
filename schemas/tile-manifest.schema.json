@@ -128,6 +128,135 @@
         "null"
       ],
       "description": "World road graph path relative to the manifest (schemas/roads.schema.json)"
+    },
+    "water": {
+      "description": "Open water. The renderer draws the sea at y over bbox (and on to the horizon); land tiles draw over it. The listed tile ids lie inside bbox, are entirely water and have no files.",
+      "type": "object",
+      "required": [
+        "y",
+        "bbox",
+        "tiles"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "y": {
+          "type": "number"
+        },
+        "bbox": {
+          "description": "[minX, minZ, maxX, maxZ] in local metres",
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "tiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          }
+        }
+      }
+    },
+    "outside": {
+      "description": "Candidate tiles with land but no file: land outside the city and SF land with no city data (Alcatraz). The renderer draws far-LOD terrain over them, never sea; the sim has no ground there (boundary.json walls it off).",
+      "type": "object",
+      "required": [
+        "tiles"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "tiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "area"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "area": {
+                "enum": [
+                  "alcatraz",
+                  "marin",
+                  "san-mateo-county",
+                  "pacific-shore",
+                  "other"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "worldColliders": {
+      "type": "string",
+      "description": "Binary citywide collider pack, path relative to the manifest (format: schemas/world-colliders.md). Everything the sim collides with, for the whole world, in one file."
+    },
+    "farCellSizeM": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Side of a far-LOD cell, metres (cells at the world's edge may be smaller; each cell's bbox is exact)."
+    },
+    "far": {
+      "description": "Citywide far-LOD massing: one glb per cell, one node \"far\", one draw call each. Meant to be drawn beyond the streamed radius.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "bbox",
+          "glb"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "cx": {
+            "type": "integer"
+          },
+          "cz": {
+            "type": "integer"
+          },
+          "bbox": {
+            "description": "[minX, minZ, maxX, maxZ] in local metres",
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "glb": {
+            "type": "string"
+          },
+          "stats": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "layers": {
+      "description": "World data layers: name -> path relative to the manifest. Each file validates against schemas/<file name without .json>.schema.json.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
     }
   }
 }

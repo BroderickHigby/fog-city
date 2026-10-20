@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/fountains",
+  "title": "Public drinking fountains (public/tiles/<world>/fountains.json): water refill points.",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "fountains"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "fountains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "z",
+          "y",
+          "bottleFiller",
+          "dogBowl"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "bottleFiller": {
+            "type": "boolean"
+          },
+          "dogBowl": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

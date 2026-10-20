@@ -60,7 +60,8 @@ export async function cachedGet(url: string, ext: string, opts: FetchOptions): P
 }
 
 async function getWithRetry(url: string, log?: (msg: string) => void): Promise<Buffer> {
-  const attempts = 6;
+  // DataSF answers 425 "Too Early" in long runs under load; back off up to a minute.
+  const attempts = 10;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
@@ -85,7 +86,7 @@ async function getWithRetry(url: string, log?: (msg: string) => void): Promise<B
     } catch (err) {
       if ((err as { fatal?: boolean }).fatal) throw err;
       lastErr = err;
-      const wait = 1000 * 2 ** i + Math.floor(Math.random() * 500);
+      const wait = Math.min(60_000, 1000 * 2 ** i) + Math.floor(Math.random() * 1000);
       log?.(`  retry ${i + 1}/${attempts - 1} in ${wait} ms: ${(err as Error).message}`);
       if (i < attempts - 1) await sleep(wait);
     }

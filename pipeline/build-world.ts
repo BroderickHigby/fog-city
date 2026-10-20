@@ -6,6 +6,7 @@
 //   node pipeline/build-world.ts --world sf --refresh  re-download everything (inputs change daily)
 //   ... --cache <dir>   use another download cache (default pipeline/.cache)
 //   ... --out <dir>     write somewhere else (default public/tiles/<world>)
+//   ... --fetch-only    download (into the cache) and stop
 //
 // See docs/data-sources.md for sources, licences and every modelling decision.
 
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   log(`world ${world}: ${cfg.areas.length} areas (${cfg.areas.map((a) => a.id).join(", ")})`);
   const raw = await downloadAll(cfg, { cacheDir, offline: flag("offline"), refresh: flag("refresh"), log });
   log(`inputs: ${raw.buildings.length} footprints, ${raw.streets.length} street segments, ${raw.parcels.length} parcels, ${raw.businesses.length} businesses, ${raw.dems.length} DEMs (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+  if (flag("fetch-only")) return;
 
   const { files, report } = await buildWorldFiles(cfg, raw, overrides);
   let total = 0;

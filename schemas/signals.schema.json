@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/signals",
+  "title": "Traffic signals and beacons at road-graph nodes (public/tiles/<world>/signals.json).",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "signals"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "node",
+          "x",
+          "z",
+          "y",
+          "kind",
+          "ped"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "node": {
+            "type": "string"
+          },
+          "x": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "signal",
+              "beacon"
+            ]
+          },
+          "ped": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

@@ -38,6 +38,37 @@ export const MIN_AREA_M2 = 4;
 export const MIN_HEIGHT_M = 2.5;
 /** The LiDAR behind the footprint heights was flown in June 2010. */
 export const LIDAR_YEAR = 2010;
+/** The tallest SF building has 61 storeys: assessor counts above this are data-entry errors (e.g. 591, 999). */
+export const MAX_STORIES = 64;
+/** An assessor-storey height must also fit the footprint: height <= this x sqrt(area) (slender towers reach ~8). */
+export const MAX_SLENDERNESS = 8;
+/**
+ * Trees over houses: the LiDAR max over a low residential building is often the canopy above
+ * it. A residential parcel of at most this many assessor storeys gets no tower taller than
+ * storeys x 4.5 m + 8 m; its roof is the LiDAR median instead.
+ */
+export const CANOPY_MAX_STORIES = 4;
+/**
+ * LiDAR spikes: a "tower" this small (m²) over a podium under SPIKE_PODIUM_M, rising more than
+ * SPIKE_RISE_M above it, is usually the scan catching a neighbouring tower, a crane or a tree
+ * (one 3-storey office got a 111 m tower). It is dropped when the assessor's storeys disagree
+ * (taller than storeys x 4.5 m + 20 m) or, with no storey count, when it is more than 4 times
+ * the podium. Real steeples and rooftop structures of this size stay. See THIN_TOWER_* in report.json.
+ */
+export const THIN_TOWER_MAX_AREA_M2 = 60;
+export const SPIKE_PODIUM_M = 15;
+export const SPIKE_RISE_M = 15;
+
+/** A thin tower (any source): footprint under THIN_TOWER_MAX_AREA_M2 rising SPIKE_RISE_M+ over a podium under SPIKE_PODIUM_M. */
+export function isThinTower(towerAreaM2: number, podiumM: number, towerM: number): boolean {
+  return towerAreaM2 < THIN_TOWER_MAX_AREA_M2 && podiumM < SPIKE_PODIUM_M && towerM - podiumM > SPIKE_RISE_M;
+}
+
+/** A thin tower the assessor (or its own proportions) says is not part of the building. */
+export function isLidarSpike(towerAreaM2: number, podiumM: number, towerM: number, stories: number): boolean {
+  if (!isThinTower(towerAreaM2, podiumM, towerM)) return false;
+  return stories > 0 ? towerM > stories * 4.5 + 20 : towerM > 4 * podiumM;
+}
 
 export interface Override {
   id: string;
@@ -97,6 +128,15 @@ export interface BuildingStats {
   heightOverride: number;
   twoTier: number;
   groundRefFromDem: number;
+  /** Assessor storey counts ignored as implausible (above MAX_STORIES, or too slender for the footprint). */
+  storiesRejected: number;
+  /** Towers not built because they are tree canopy over a low residential building. */
+  canopyTowersDropped: number;
+  /** Thin towers not built because they are LiDAR spikes (isLidarSpike). */
+  spikeTowersDropped: number;
+  /** Thin towers kept (isThinTower), and the tallest of them above its own ground (m). */
+  thinTowers: number;
+  thinTowerMaxM: number;
 }
 
 const num = (s: string | undefined): number => (s === undefined || s === "" ? NaN : Number(s));
@@ -253,7 +293,8 @@ export function buildBuildings(
   const stats: BuildingStats = {
     raw: raw.length, parts: 0, kept: 0, droppedSmall: 0, droppedOutside: 0, droppedLow: 0,
     joinMblr: 0, joinPoint: 0, withYear: 0, withStories: 0,
-    heightLidar: 0, heightStories: 0, heightOverride: 0, twoTier: 0, groundRefFromDem: 0,
+    heightLidar: 0, heightStories: 0, heightOverride: 0, twoTier: 0, groundRefFromDem: 0, storiesRejected: 0, canopyTowersDropped: 0,
+    spikeTowersDropped: 0, thinTowers: 0, thinTowerMaxM: 0,
   };
   const out: Building[] = [];
 
@@ -306,7 +347,11 @@ export function buildBuildings(
         }
       }
       const year = parcel ? num(parcel.year_property_built) : NaN;
-      const stories = parcel ? num(parcel.number_of_stories) : NaN;
+      let stories = parcel ? num(parcel.number_of_stories) : NaN;
+      if (stories > 0 && (stories > MAX_STORIES || stories * storyHeight(parcel?.use_definition) + 1.5 > MAX_SLENDERNESS * Math.sqrt(Math.abs(signedArea(ring))))) {
+        stats.storiesRejected++;
+        stories = NaN;
+      }
       const units = parcel ? num(parcel.number_of_units) : NaN;
       const use = parcel?.use_definition?.trim() || undefined;
 
@@ -350,8 +395,12 @@ export function buildBuildings(
         return;
       } else {
         heightSource = "lidar";
+        const lowHouse = (use ?? "").toLowerCase().includes("residential") && stories >= 1 && stories <= CANOPY_MAX_STORIES;
         if (hMax - hMed <= Math.max(4, 0.3 * hMed)) {
           top = hMax;
+        } else if (lowHouse && hMax > stories * 4.5 + 8) {
+          top = hMed;
+          stats.canopyTowersDropped++;
         } else {
           top = hMax;
           podium = hMed;
@@ -366,8 +415,17 @@ export function buildBuildings(
       let towerRecord: Building | null = null;
       if (podium !== null) {
         const podiumTopY = r2(Math.max(baseY + MIN_HEIGHT_M, gRef + podium));
-        if (topY - podiumTopY >= 2) {
-          const towerRing = towerFootprint(ring, anchor, towerScale * towerScale);
+        const towerRing = topY - podiumTopY >= 2 ? towerFootprint(ring, anchor, towerScale * towerScale) : null;
+        const towerArea = towerRing ? Math.abs(signedArea(towerRing)) : 0;
+        if (towerRing && isLidarSpike(towerArea, podium, top, stories)) {
+          stats.spikeTowersDropped++;
+          topY = podiumTopY;
+          top = podium;
+        } else if (towerRing) {
+          if (isThinTower(towerArea, podium, top)) {
+            stats.thinTowers++;
+            stats.thinTowerMaxM = Math.max(stats.thinTowerMaxM, r2(top));
+          }
           // The tower's own street level and foot (its centroid can sit off the podium's).
           const tUnder = minGroundUnder(towerRing, ground) ?? under;
           const tBase = Math.floor(tUnder.at * 100) / 100;

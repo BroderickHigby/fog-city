@@ -95,7 +95,7 @@ const SPACING_M = 5;
 /** A wall faces a street if a drivable centerline is within this distance of its midpoint. */
 const STREET_DIST_M = 30;
 
-class BuildingIndex {
+export class BuildingIndex {
   private cells = new Map<string, Building[]>();
   constructor(bs: readonly Building[]) {
     for (const b of bs) {
