@@ -29,7 +29,8 @@ export async function tileGlb(world: string, tile: TileRef, parts: TileMeshes): 
   const scene = doc.createScene(tile.id).setExtras({ world, tile: tile.id, ix: tile.ix, iz: tile.iz, bbox: tile.bbox });
   doc.getRoot().setDefaultScene(scene);
 
-  const material = (name: string, roughness: number): Material =>
+  // Created only when used, so a tile never carries an unused material.
+  const material = (name: string, roughness: number) => (): Material =>
     doc.createMaterial(name).setBaseColorFactor([1, 1, 1, 1]).setMetallicFactor(0).setRoughnessFactor(roughness);
   const mats = {
     ground: material("ground", 0.95),
@@ -38,8 +39,9 @@ export async function tileGlb(world: string, tile: TileRef, parts: TileMeshes): 
     building: material("building", 0.85),
   };
 
-  const add = (name: string, m: MeshData, mat: Material, extras?: Record<string, unknown>): void => {
+  const add = (name: string, m: MeshData, makeMat: () => Material, extras?: Record<string, unknown>): void => {
     if (m.indices.length === 0) return;
+    const mat = makeMat();
     const acc = (type: "SCALAR" | "VEC2" | "VEC3" | "VEC4", array: Float32Array | Uint8Array | Uint16Array | Uint32Array, normalized = false) =>
       doc.createAccessor().setType(type).setArray(array).setNormalized(normalized).setBuffer(buffer);
     const prim = doc

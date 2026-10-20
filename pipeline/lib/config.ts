@@ -23,11 +23,19 @@ export interface SpawnConfig {
   towardLon: number;
 }
 
+export interface Probe {
+  id: string;
+  label: string;
+  lat: number;
+  lon: number;
+}
+
 export interface WorldConfig {
   id: string;
   title: string;
   areas: Area[];
   spawn: SpawnConfig;
+  probes?: { points: Probe[] };
   sources: {
     buildings: string;
     streets: string;

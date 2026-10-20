@@ -64,6 +64,59 @@
         "assessor": "wv5m-vpq2",
         "assessorRollYear": 2025,
         "businesses": "g8m3-pdis"
+      },
+      "probes": {
+        "$comment": "Named points whose building ids the build reports (report.json \"probes\"), so landmark placements can list replacesBuildingIds. Labels are addresses or public landmark names, never brands.",
+        "points": [
+          {
+            "id": "ferry-building",
+            "label": "Ferry Building clock tower (world origin)",
+            "lat": 37.7955,
+            "lon": -122.3937
+          },
+          {
+            "id": "415-mission",
+            "label": "415 Mission St tower (tallest, completed 2018)",
+            "lat": 37.7897,
+            "lon": -122.3972
+          },
+          {
+            "id": "600-montgomery",
+            "label": "600 Montgomery St pyramid",
+            "lat": 37.7952,
+            "lon": -122.4028
+          },
+          {
+            "id": "coit-tower",
+            "label": "Coit Tower, Telegraph Hill",
+            "lat": 37.8024,
+            "lon": -122.4058
+          },
+          {
+            "id": "saints-peter-and-paul",
+            "label": "Saints Peter and Paul Church, Washington Square",
+            "lat": 37.8003,
+            "lon": -122.4104
+          },
+          {
+            "id": "pier-39",
+            "label": "Pier 39",
+            "lat": 37.8087,
+            "lon": -122.4098
+          },
+          {
+            "id": "palace-of-fine-arts",
+            "label": "Palace of Fine Arts rotunda",
+            "lat": 37.8029,
+            "lon": -122.4484
+          },
+          {
+            "id": "315-pennsylvania",
+            "label": "315 Pennsylvania Ave, Dogpatch (east side of the 300 block; the 2025 roll lists 301 and 331)",
+            "lat": 37.76241,
+            "lon": -122.39325
+          }
+        ]
       }
     }
   }

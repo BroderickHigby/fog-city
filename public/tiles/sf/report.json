@@ -72,8 +72,8 @@
     "raw": 4242,
     "notStorefrontNaics": 774,
     "noBuilding": 409,
-    "noFrontage": 106,
-    "kept": 2953
+    "noFrontage": 242,
+    "kept": 2817
   },
   "terrain": {
     "minY": 0,
@@ -88,6 +88,94 @@
     "edge": "c12553201",
     "y": 3.13
   },
+  "probes": [
+    {
+      "id": "ferry-building",
+      "label": "Ferry Building clock tower (world origin)",
+      "x": 0,
+      "z": 0,
+      "buildings": [
+        "201006.0000058",
+        "201006.0000058-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "415-mission",
+      "label": "415 Mission St tower (tallest, completed 2018)",
+      "x": -308.27,
+      "z": 643.76,
+      "buildings": [
+        "201006.0000548"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "600-montgomery",
+      "label": "600 Montgomery St pyramid",
+      "x": -801.49,
+      "z": 33.3,
+      "buildings": [
+        "201006.0000687",
+        "201006.0000687-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "coit-tower",
+      "label": "Coit Tower, Telegraph Hill",
+      "x": -1065.72,
+      "z": -765.85,
+      "buildings": [
+        "201006.0006230",
+        "201006.0006230-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "saints-peter-and-paul",
+      "label": "Saints Peter and Paul Church, Washington Square",
+      "x": -1470.87,
+      "z": -532.76,
+      "buildings": [
+        "201006.0003946"
+      ],
+      "nearestM": 9.14
+    },
+    {
+      "id": "pier-39",
+      "label": "Pier 39",
+      "x": -1418.02,
+      "z": -1465.1,
+      "buildings": [
+        "201006.0000037",
+        "201006.0000037-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "palace-of-fine-arts",
+      "label": "Palace of Fine Arts rotunda",
+      "x": -4817.74,
+      "z": -821.35,
+      "buildings": [
+        "201006.0000986",
+        "201006.0000986-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "315-pennsylvania",
+      "label": "315 Pennsylvania Ave, Dogpatch (east side of the 300 block; the 2025 roll lists 301 and 331)",
+      "x": 39.63,
+      "z": 3672.74,
+      "buildings": [
+        "201006.0010443",
+        "201006.0010443-tower"
+      ],
+      "nearestM": 0
+    }
+  ],
   "tallest": [
     {
       "id": "201006.0000548",

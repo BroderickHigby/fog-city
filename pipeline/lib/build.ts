@@ -4,8 +4,8 @@
 import { ORIGIN, TILE_SIZE_M, toLocal } from "../../src/geo/project.ts";
 import type { Spawn } from "../../src/sim/contract.ts";
 import { buildBuildings, type Building, type BuildingStats, type Override } from "./buildings.ts";
-import { worldTiles, type TileRef, type WorldConfig } from "./config.ts";
-import { bearing, distToSegment, pointInRing, r2, type P2 } from "./geom.ts";
+import { worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
+import { bearing, distToRing, distToSegment, pointInRing, r2, type P2 } from "./geom.ts";
 import { tileGlb } from "./glb.ts";
 import { buildingMesh, groundMesh, roadMeshes } from "./mesh.ts";
 import { jsonLines, jsonPretty, utf8 } from "./output.ts";
@@ -33,6 +33,8 @@ export interface Report {
   storefronts: StorefrontStats;
   terrain: { minY: number; maxY: number; waterSamples: number; samples: number };
   spawn: Spawn & { edge: string; y: number };
+  /** Building records at each configured probe point (for landmarks' replacesBuildingIds). */
+  probes: Array<{ id: string; label: string; x: number; z: number; buildings: string[]; nearestM: number }>;
   tallest: Array<{ id: string; heightM: number; topY: number; parcel?: string; source: string }>;
 }
 
@@ -82,6 +84,32 @@ export function chooseSpawn(cfg: WorldConfig, roads: RoadGraph, buildings: reado
     if (pointInRing(best.x, best.z, bl.footprint)) throw new Error(`spawn (${best.x}, ${best.z}) is inside building ${bl.id}`);
   }
   return { x: r2(best.x), z: r2(best.z), heading: Math.round(best.heading * 10000) / 10000, edge: best.edge };
+}
+
+/** Records containing the probe point (a podium and its tower), else the nearest within 30 m. */
+function probeBuildings(pr: Probe, buildings: readonly Building[]): Report["probes"][number] {
+  const { x, z } = toLocal(pr.lat, pr.lon);
+  const inside = buildings.filter((b) => pointInRing(x, z, b.footprint)).map((b) => b.id);
+  let nearest = "";
+  let nearestM = 0;
+  if (inside.length === 0) {
+    nearestM = Infinity;
+    for (const b of buildings) {
+      const d = distToRing(x, z, b.footprint);
+      if (d < nearestM) {
+        nearestM = d;
+        nearest = b.id;
+      }
+    }
+    if (nearestM > 30) nearest = "";
+  }
+  const ids = inside.length ? inside : nearest ? [nearest] : [];
+  // A podium's tower travels with it.
+  for (const id of [...ids]) {
+    const t = buildings.find((b) => b.id === id)?.meta.tower;
+    if (t && !ids.includes(t)) ids.push(t);
+  }
+  return { id: pr.id, label: pr.label, x: r2(x), z: r2(z), buildings: ids.sort(), nearestM: r2(Number.isFinite(nearestM) ? nearestM : -1) };
 }
 
 export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, overrides: Override[]): Promise<BuildOutput> {
@@ -228,6 +256,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     storefronts: sStats,
     terrain: { minY, maxY, waterSamples, samples },
     spawn: { ...spawn, y: r2(ground.heightAt(spawn.x, spawn.z) ?? 0) },
+    probes: (cfg.probes?.points ?? []).map((pr) => probeBuildings(pr, buildings)),
     tallest,
   };
   files.set("report.json", utf8(jsonPretty(report)));

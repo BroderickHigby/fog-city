@@ -262,33 +262,49 @@ export function roadMeshes(edges: readonly RoadEdge[], tile: TileRef, ground: Gr
     const col = rgba(ROAD_COLOR[e.pedestrian ? "pedestrian" : e.kind] ?? ROAD_COLOR.other!);
     const half = e.widthM / 2;
     const dense = densify(e.points);
-    for (const run of clipRuns(dense, tile.bbox)) {
-      const left: number[] = [];
-      const right: number[] = [];
-      for (let i = 0; i < run.length; i++) {
-        const prev = run[Math.max(0, i - 1)]!.p;
-        const next = run[Math.min(run.length - 1, i + 1)]!.p;
-        let dx = next[0] - prev[0];
-        let dz = next[1] - prev[1];
-        const len = Math.hypot(dx, dz) || 1;
-        dx /= len;
-        dz /= len;
-        // Perpendicular (to the right of travel on a north-up map is (-dz, dx)).
-        const px = -dz;
-        const pz = dx;
-        const { p, s } = run[i]!;
-        const lx = p[0] - px * half, lz = p[1] - pz * half;
-        const rx = p[0] + px * half, rz = p[1] + pz * half;
-        const ly = (ground.meshHeightAt(lx, lz) ?? ground.meshHeightAt(p[0], p[1]) ?? 0) + ROAD_LIFT_M;
-        const ry = (ground.meshHeightAt(rx, rz) ?? ground.meshHeightAt(p[0], p[1]) ?? 0) + ROAD_LIFT_M;
-        left.push(target.vertex(lx, ly, lz, col, { uv: [0, Math.round(s * 100) / 100] }));
-        right.push(target.vertex(rx, ry, rz, col, { uv: [1, Math.round(s * 100) / 100] }));
+    const isFreeway = target === freeways;
+    for (const clipped of clipRuns(dense, tile.bbox)) {
+      // Freeways over the bay are bridge decks the source gives no height for: not drawn.
+      // Split the run so skipped stretches emit no vertices either.
+      const runs: Array<typeof clipped> = [];
+      let cur: typeof clipped = [clipped[0]!];
+      for (let i = 1; i < clipped.length; i++) {
+        const a = clipped[i - 1]!.p;
+        const b = clipped[i]!.p;
+        if (isFreeway && ground.waterAt(a[0], a[1]) && ground.waterAt(b[0], b[1])) {
+          if (cur.length >= 2) runs.push(cur);
+          cur = [clipped[i]!];
+        } else {
+          cur.push(clipped[i]!);
+        }
       }
-      for (let i = 1; i < run.length; i++) {
-        // Freeways over the bay are bridge decks the source gives no height for: not drawn.
-        if (target === freeways && ground.waterAt(run[i - 1]!.p[0], run[i - 1]!.p[1]) && ground.waterAt(run[i]!.p[0], run[i]!.p[1])) continue;
-        target.tri(left[i - 1]!, right[i - 1]!, left[i]!, 0, 1, 0);
-        target.tri(right[i - 1]!, right[i]!, left[i]!, 0, 1, 0);
+      if (cur.length >= 2) runs.push(cur);
+      for (const run of runs) {
+        const left: number[] = [];
+        const right: number[] = [];
+        for (let i = 0; i < run.length; i++) {
+          const prev = run[Math.max(0, i - 1)]!.p;
+          const next = run[Math.min(run.length - 1, i + 1)]!.p;
+          let dx = next[0] - prev[0];
+          let dz = next[1] - prev[1];
+          const len = Math.hypot(dx, dz) || 1;
+          dx /= len;
+          dz /= len;
+          // Perpendicular (to the right of travel on a north-up map is (-dz, dx)).
+          const px = -dz;
+          const pz = dx;
+          const { p, s } = run[i]!;
+          const lx = p[0] - px * half, lz = p[1] - pz * half;
+          const rx = p[0] + px * half, rz = p[1] + pz * half;
+          const ly = (ground.meshHeightAt(lx, lz) ?? ground.meshHeightAt(p[0], p[1]) ?? 0) + ROAD_LIFT_M;
+          const ry = (ground.meshHeightAt(rx, rz) ?? ground.meshHeightAt(p[0], p[1]) ?? 0) + ROAD_LIFT_M;
+          left.push(target.vertex(lx, ly, lz, col, { uv: [0, Math.round(s * 100) / 100] }));
+          right.push(target.vertex(rx, ry, rz, col, { uv: [1, Math.round(s * 100) / 100] }));
+        }
+        for (let i = 1; i < run.length; i++) {
+          target.tri(left[i - 1]!, right[i - 1]!, left[i]!, 0, 1, 0);
+          target.tri(right[i - 1]!, right[i]!, left[i]!, 0, 1, 0);
+        }
       }
     }
   }

@@ -197,6 +197,12 @@ function frontageWalls(b: Building, roads: SegmentIndex): Wall[] {
   return walls;
 }
 
+/** Another (podium) building covering the point, if any. */
+function buildingAt(idx: BuildingIndex, x: number, z: number, self: Building): boolean {
+  for (const o of idx.near(x, z, 1)) if (o !== self && o.meta.towerOf === undefined && pointInRing(x, z, o.footprint)) return true;
+  return false;
+}
+
 export function buildStorefronts(
   raw: RawBusiness[],
   buildings: readonly Building[],
@@ -257,7 +263,14 @@ export function buildStorefronts(
       const n = Math.max(1, Math.floor((w.len - 2) / SPACING_M));
       for (let k = 0; k < n; k++) {
         const t = (k + 0.5) / n;
-        slots.push({ x: w.a[0] + (w.b[0] - w.a[0]) * t, z: w.a[1] + (w.b[1] - w.a[1]) * t, w, used: false });
+        const x = w.a[0] + (w.b[0] - w.a[0]) * t;
+        const z = w.a[1] + (w.b[1] - w.a[1]) * t;
+        // A real shopfront: 2.5 m of open ground in front, the building just behind (rules out
+        // light wells and notches).
+        if ([0.5, 1.5, 2.5].some((d) => pointInRing(x + w.nx * d, z + w.nz * d, b.footprint))) continue;
+        if (!pointInRing(x - w.nx * 0.6, z - w.nz * 0.6, b.footprint)) continue;
+        if (buildingAt(bidx, x + w.nx * 1.5, z + w.nz * 1.5, b)) continue;
+        slots.push({ x, z, w, used: false });
       }
     }
     for (const s of list) {
