@@ -16,11 +16,11 @@ version first and falls back to it whenever live is unavailable. One rule covers
 every box a player can type into runs the crisis check first, online or offline, scripted or live.
 
 ## What changed (2026-10-20, second pass)
-- **Ramen Office Hours** is a repeatable side activity from wave 3 at the Ramen house in Dogpatch,
-  at most twice a game day. Mission 4 is the first Office Hours. Every outcome advances the
-  campaign; the outcome sets the reward. Mom's clarity token and Customer Discovery's insight token
-  carry into the next Office Hours, so both features pay off, and the wave-6 live interview has a
-  place to be replayed.
+- **Ramen Office Hours** is a repeatable side activity from wave 3 at the Ramen house at Pier 70 in
+  Dogpatch, at most twice a game day. Mission 4 is the first Office Hours. Every outcome advances
+  the campaign; the outcome sets the reward. Mom's clarity token and Customer Discovery's insight
+  token carry into the next Office Hours, so both features pay off, and the wave-6 live interview
+  has a place to be replayed.
 - **One-Sentence Startup moves to mission 1.** The coworking sign-up form asks "What are you
   building?". Keyword-matched kits ship in wave 2. The cofounder's "...and it also spots bad robots"
   becomes the mission-3 pivot. The billboard and bus reveal stays mission 4's payoff. Re-running
@@ -47,7 +47,7 @@ every box a player can type into runs the crisis check first, online or offline,
 - **Customer Discovery** is 21 calls per run, plus up to 2 refunded retries (23 at the cap).
 
 Earlier the same day: build-time content stopped needing the Batch pipeline; names follow the final
-game (**Ramen**, **Bot Check**, **Moat Labs**, **Meander**, **Clout**, **The Pivot**, **GPU
+game (**Ramen**, **Bot Check**, **Moat Labs**, **Meander**, **Clout**, **Dry Powder**, **GPU
 allocation**); `[headshot-booth]` became `[portrait-booth]` and `[hype-cycle-director]` became
 `[ambient-director]`; runtime routes wait for wave 6.
 
@@ -74,7 +74,7 @@ come from the district content packs below.
 |---|---|---|---|
 | `[bot-tells]` | Tells, false tells and archetypes (`content/bot-tells.json`) | ≥ 24 tells, 6 archetypes | 2 |
 | `[robot-goals]` | Per-archetype goal tables for the bad-robot brain | 6 tables | 2 |
-| `[robot-barks]` | Good robots' apologies; bad robots' growth-hack taunts ("Have you considered upgrading to Premium Sidewalk?"); Tidy apologising to heaps | 300 shared, + 40 per district | 2, packs every wave |
+| `[robot-barks]` | Good robots' apologies; bad robots' growth-hack taunts ("Have you considered upgrading to Premium Sidewalk?"); Tidy apologising to heaps (from wave 3, when Tidy arrives) | 300 shared, + 40 per district | 2, packs every wave |
 | `[neighbourhood-barks]` | People's lines, incl. wet reactions ("We're not a café, we're a third place for agents.") | 250 shared (100 wet in wave 2, 150 more in wave 3), + 40 per district | 2–3, packs every wave |
 | `[ad-inventory]` | Invented AI startups and advertisers for billboards and bus wraps (copy at 9/7/5 words), Moat Labs ads, ~600 pre-cleared name parts for startup and player names | ~300 advertisers | 2+ |
 | `[ai-02]` kits | Startup kits (name parts, tagline, five slides, billboard slots, bus wrap line) keyed by topic words; the fallback for every refusal | ~200 | 2 |
@@ -83,7 +83,7 @@ come from the district content packs below.
 | `[robotaxi-personality]` | 4 Meander personalities × 30 events; GPS voice; reviews that rate you from driving stats only | ~460 | 3 |
 | `[vc-attention-pursuit]` | DMs and term-sheet clauses by star tier; no romantic or appearance framing | ~400 | 3 |
 | `[partner-interview]` scripted bank | Office Hours: ~40 questions per archetype (Metrics One, Philosopher, Vibes Partner), 3–4 tagged answers each; the live-demo script; outcome emails | ~120 questions | 3 |
-| `[podcast-radio]` | The Pivot ticker: invented host archetypes, market calls, your melts as sports highlights, sponsor reads from the ad pool | ~720 | 3 |
+| `[podcast-radio]` | The Dry Powder ticker: invented host archetypes, market calls, your melts as sports highlights, sponsor reads from the ad pool | ~720 | 3 |
 | FogCast and Transit & Fog | Forecasts, fog reports, the "coldest winter" misattributions (always invented people) | ~150 | 3 |
 | Plain Words ladder | Buzzword board lines per rung ("Multimodal Cannoli, now with vision") | ~200 | 3 |
 | `[leaderboard-hill]` | SF-Bench headlines, asterisk stacks, contamination headlines | ~100 | 3 |
@@ -97,7 +97,7 @@ come from the district content packs below.
 | `[customer-discovery]` cast deck | Three locals, hidden problem tags, 5 clue cards each, answer lines per question type; one bounty chain per local | 3 cards, 3 chains | 5 |
 | `[diligence-memo]` phrase bank | ~30 event types × 10 spins ("74 mph in fog" → "strong bias to action"), openers and closers by verdict | ~340 | 5 |
 | `[side-gig-missions]` | Mission premises with mission JSON; the user keeps and rewrites ~10 | ~40 drafts | 3+ |
-| `[ambient-director]` deck | City-director cards built only from staging primitives (hand-written 40–60 first) | ~100 | 5 |
+| `[ambient-director]` deck | City-director cards built only from staging primitives (40–60 hand-written in wave 2) | ~100 | 2, 5 |
 
 ### District content packs
 Every wave's Content track ships one pack per new district in that wave's territory step:
@@ -105,9 +105,11 @@ Every wave's Content track ships one pack per new district in that wave's territ
 - a bounty set with a local tell;
 - billboard and bus-wrap copy for the district's slots.
 
-Districts that `design.md` excludes from modes and bounties get robot lines and ad copy only. They
-get no district-specific people lines and no bounty set; their people use the shared pool. At
-about 30 districts the packs add ~2,400 lines in total over waves 2–8, not 16,000.
+The excluded areas, where `design.md` allows no mode instance (the Tenderloin, Civic Center/UN
+Plaza, the 6th St corridor, the Division St / 13th St corridor), get robot lines and ad copy only.
+They get no district-specific people lines and no local bounty set; their people use the shared
+pool, and their bounties are single baseline robots on shared templates. At about 30 districts the
+packs add ~2,400 lines in total over waves 2–8, not 16,000.
 
 ### How agents write it
 1. Draft 2–3× the kept target, in the voice notes for that item.
@@ -187,10 +189,10 @@ hateful | self_harm`.
 | `self_harm` | The crisis line: sincere, non-comic, with resources. Never a fallback kit, never a joke |
 
 ### 3.1 Ramen Office Hours (the interview)
-- **Where and when:** the Ramen house in Dogpatch. A side activity from wave 3, booked on the phone,
-  at most twice a game day. Mission 4 "Demo'd Correctly" is the first Office Hours: the Search &
-  Park leg, then the interview, then the demo. Each booking has a slot time; arriving late starts
-  conviction below zero.
+- **Where and when:** the Ramen house at Pier 70 in Dogpatch. A side activity from wave 3, booked on
+  the phone, at most twice a game day. Mission 4 "Demo'd Correctly" is the first Office Hours: the
+  Search & Park leg, then the interview, then the demo. Each booking has a slot time; arriving late
+  starts conviction below zero.
 - **Mechanic:** three invented partners (the Metrics One, the Philosopher: "So, {name}: is it a
   company, or a feature?", and the Vibes Partner) ask 5–8 bank questions. Answer with multiple
   choice, or (live, signed-in adult accounts only) type up to 280 characters. The grader returns
@@ -236,16 +238,17 @@ hateful | self_harm`.
   the proxy for live ones, builds the name from part ids, so no free-form brand name exists. It
   lints the composed string and its no-space form with the content lint and checks
   `banned-pairs.json`. On a hit it takes the next-ranked part.
-- **The mission-3 pivot:** in Ship the Scanner, while you build Bot Check, your cofounder adds
+- **The mission-3 pivot:** in Launch Day, at Bot Check's public launch, your cofounder adds
   "...and it also spots bad robots" (every startup in this SF is a robot-safety startup).
   Templates still make the TAM bigger than the world economy.
-- **Payoff:** in mission 4 your startup appears on the Embarcadero billboard and on a bus before you
-  reach Dogpatch, and the reveal adds one VC star. From mission 1 on, `{name}` and `{nounPhrase}`
-  thread into existing slot templates at $0: DMs, barks near the billboard ("Did you see the {name}
-  bus?"), the Office Hours opener, pivot cards ("{name}, but for dogs") and Mom's opener.
-- **The Pivot action (wave 4):** a phone action that re-runs the prompt, at most 3 a day, each
-  costing $500 or one VC star. It renames the startup with the same pivot grammar as prestige.
-  Live re-runs count against the live kit cap; past it, the keyword matcher is used.
+- **Payoff:** in mission 4 (wave 3) your startup appears on the Embarcadero billboard and on a bus
+  before you reach Dogpatch, and the reveal adds one VC star. From mission 1 on, `{name}` and
+  `{nounPhrase}` thread into existing slot templates at $0: DMs, barks near the billboard ("Did you
+  see the {name} bus?"), the Office Hours opener, pivot cards ("{name}, but for dogs") and Mom's
+  opener.
+- **The phone Pivot action (wave 4):** an action that re-runs the prompt, at most 3 a day, each
+  costing $500 or one VC star. It renames the startup with the same pivot grammar as prestige. Live
+  re-runs count against the live kit cap; past it, the keyword matcher is used.
 - **Who sees what:** in single player you see your full kit. In rooms, other players see only the
   shared view: the composed name; the tagline, slide and wrap templates picked by `sharedTaglineId`
   (by keyed hash for a scripted kit); and `{nounPhrase}` only when every word is in the curated
@@ -265,7 +268,7 @@ hateful | self_harm`.
 - **Live:** you type up to 280 characters; she returns a paraphrase ≤ 160 characters ("So it's a
   robot that writes emails... and the robot is also an email?") and a clarity score 0–3. Final
   clarity = min(model clarity, 3 − min(buzzwordCount, 3)); the code counts buzzwords. Clarity 3:
-  her book club wants to invest $200, and you get one conviction token for your next Office Hours.
+  her book club wants to invest $200, and you get a clarity token for your next Office Hours.
 - **Latency:** "Mom is typing..." on a scripted 8–20 s rhythm; 20 s timeout → "ok honey. call me".
 - **Event:** `MomVerdict{attemptId, turn, clarity, buzzwordCount, refusal, source}`.
 - **Caps:** one arc per Office Hours booking, up to 3 explanations; 6 live calls a day.
@@ -282,7 +285,7 @@ hateful | self_harm`.
 - **Pitching** instead of asking gets "Sure, honey, sounds great" and a "they loved it!" sticker
   that counts against you.
 - **A match** gives an insight token for your next Office Hours, the bread-box pivot card, and a
-  local bounty chain. The baker's "lost" deliveries lead to a bad-Trundle cell in North Beach; each
+  local bounty chain. The baker's "lost" deliveries lead to a bad-Trundle crew in North Beach; each
   local has one chain in their district. So discovery pays back into Bot Hunt.
 - **Latency:** a 12 s timeout records `AIUnavailable` and refunds the question (at most 2 per run).
 - **Calls per run:** 3 locals × (6 questions + 1 insight) = 21 calls, plus up to 2 refunded retries,
@@ -454,23 +457,27 @@ hateful fixtures through both so the user decides from results.
 - **Multiplayer:** report and hide controls for kits, shared billboards and photo avatars; mute and
   block; the age gate before rooms open to strangers.
 
-## Roadmap (proposed changes to `docs/roadmap.md` are listed below)
+## Roadmap
+The AI layer's slice of `docs/roadmap.md`, which holds the schedule and the track that owns each
+item.
 - **Wave 2:** content lint library and the name composer with `banned-pairs.json`; the
   `FreeTextBox` component with the client crisis check and length and deny-list gates; mission 1's
   "What are you building?" with keyword-matched `[ai-02]` kits and name threading; `[bot-tells]`,
   `[robot-goals]`, 300 shared `[robot-barks]`, 100 wet `[neighbourhood-barks]`, `[ad-inventory]`
-  for SoMa, `[bounty-board]`; district content packs for the shipped districts. No server.
-- **Wave 3:** Ramen Office Hours (scripted bank, demo script, outcome rewards), with mission 4 as the
-  first; the mission-3 pivot line; the billboard and bus reveal; shared tagline bank; VC DMs; The
-  Pivot ticker; FogCast; Meander personalities; Plain Words ladder; SF-Bench headlines; 150 more
-  shared people lines; Backseat Prompt Rally behind the crisis check; the step-4 district packs.
+  for SoMa, `[bounty-board]`; 40–60 hand-written director cards; district content packs for the
+  shipped districts. No server.
+- **Wave 3:** Ramen Office Hours (scripted bank, demo script, outcome rewards), with mission 4 as
+  the first; the mission-3 pivot line; the billboard and bus reveal; shared tagline bank; VC DMs;
+  the Dry Powder ticker; FogCast; Meander personalities; Plain Words ladder; SF-Bench headlines; 150
+  more shared people lines; Backseat Prompt Rally behind the crisis check; the step-4 district
+  packs.
 - **Wave 4:** scripted Mom with tokens that carry into Office Hours; pivot cards and the phone Pivot
   action; Doom Clock headlines; cofounder bank and Hallucination Tour; streak and announcer lines;
   bench cards; Clout feed; customizer enum lists frozen, then the user's offline avatar script; the
   step-5 packs.
-- **Wave 5:** scripted Customer Discovery cast deck and its three bounty chains; diligence memo bank;
-  ambient director deck; invite sign-up accounts with the age attestation (Server-Net); the step-6
-  packs.
+- **Wave 5:** scripted Customer Discovery cast deck and its three bounty chains; diligence memo
+  bank; the ambient director deck to ~100 cards; invite sign-up accounts with the age attestation
+  (Server-Net); the step-6 packs.
 - **Wave 6:** the proxy in `server/ai/`, sign-in and server-issued sessions, retention and the
   notice, output lint reuse, GPU allocation meter, Trust & Safety route, the adversarial eval with
   per-category pass rates; then freestyle Office Hours, live One-Sentence Startup with the shared
@@ -478,30 +485,6 @@ hateful fixtures through both so the user decides from results.
 - **Wave 7:** live Customer Discovery classifier; the step-8 packs.
 - **Wave 8:** Demo Day roasts on the shared view; the step-9b packs.
 - **Later:** portrait booth if players ask; the Batch pipeline if volume demands it.
-
-## Changes the other documents need (proposed, not made here)
-- **`docs/design.md`:**
-  - Add **Ramen Office Hours** to side activities: the Ramen house in Dogpatch, at most twice a game
-    day, the same interview engine plus the live three-robot demo; pays $1,500 / $700 / $300 by
-    outcome *(tune)*, plus XP and, for a term sheet, a VC star and a new billboard. Mission 4 is the
-    first Office Hours; every outcome advances the campaign; a rejection can be retried the next
-    game day.
-  - Mission 1's coworking sign-up asks "What are you building?"; mission 3 adds "...and it also
-    spots bad robots"; mission 4 reveals the billboard and bus.
-  - The phone Pivot action (3 a day, $500 or a VC star each).
-  - Customer Discovery insights unlock a local bounty chain (the baker's bad-Trundle cell in North
-    Beach).
-  - Decision-log entries for the above.
-- **`docs/roadmap.md`:**
-  - Wave 2: the `FreeTextBox` and client crisis check; the sign-up question with fallback kits and
-    the name composer (moved from wave 3); Content counts read "300 shared robot barks, 100 wet
-    barks, plus district packs".
-  - Every wave's Content track: a "district content pack" line for its territory step.
-  - Wave 3 Sim-Player: Ramen Office Hours as a repeatable activity.
-  - Wave 4: the phone Pivot action.
-  - Wave 5: Server-Net invite sign-up accounts with the age attestation; Sim-Player discovery
-    bounty chains.
-  - Wave 6 Server-AI: sign-in, the 401 and 403 tests, transcript retention and the notice.
 
 ## Cut, and why
 - **`[investor-coffee-circuit]`:** deferred; keeping a secret while hinting is a weak model skill.

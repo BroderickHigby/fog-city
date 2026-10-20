@@ -82,7 +82,8 @@ under gravity. All values *(tune)*:
 - **Melt sequence** (sim state; the renderer animates from state + timer): `active` →
   `seized` (0.5 s, sparks, joints lock) → `slumping` (1.5 s, the body sags as rust spreads over
   the shell) → `heap` (a rusty pile and a puddle that stays until Tidy, the cleanup bot, comes
-  to haul it away, which is its own joke: Tidy apologises to the heap).
+  to haul it away, which is its own joke: Tidy apologises to the heap). Until Tidy arrives in
+  wave 3, a heap clears when it leaves the fidelity radius.
 - **Restored from backup.** Heaps are hauled to the nearest repair kiosk. A helper that had been
   converted reboots there as a good robot after 60 s ("Restored from backup. Some memories may
   be lost."). Nothing is ever destroyed; robots are repaired.
@@ -102,11 +103,12 @@ under gravity. All values *(tune)*:
   and limps to a repair kiosk; you lose 5 reputation and $50. A standing adult hit by 3 or more
   particles within 2 s *(tune)* gets wet and annoyed (a bark, a wet look); you lose 3 reputation
   and $20 for dry-cleaning. Wet-person barks show annoyance only, never distress.
-- **Never wet.** Particles that would reach a person who is seated, lying down, using a mobility
-  aid, or a child are removed, and those NPCs never enter a wet state. Animals startle away before
-  the stream arrives: no wet state, no shake-off. Water from a vehicle (window spray, Roof Cannon)
-  never wets any person. A thrown cone or balloon that would land on a person or animal is
-  removed. The fuzz test that sprays random streams through crowds covers all of these.
+- **Never wet.** Water never reaches an animal, a child, or a person who is seated, lying down or
+  using a mobility aid: particles that would reach one are removed, and they never enter a wet
+  state. Animals also startle away before the stream arrives: no wet state, no shake-off. Water
+  from a vehicle (window spray, Roof Cannon) never wets any person. A thrown cone or balloon that
+  would land on a person or animal is removed. The fuzz test that sprays random streams through
+  crowds covers all of these.
 - **Player-controlled bodies.** Water on a player-controlled body only ever affects a robot body
   (a Hide in the Crowd teleoperated unit), never a human avatar. A founder's avatar never gets wet:
   co-op teammates' and rivals' streams pass through it.
@@ -128,10 +130,10 @@ it passes the name search (see Legal and taste).
 | Porter | Bramblecot Home | Tall, slim errand humanoid; opaque ceramic shell, no translucent face plate or torso; a lantern-shaped head with a soft face-light strip; carries groceries | yes | 1.0× | 1 |
 | Trundle | Trundle | Four-wheeled sidewalk delivery bot with a roll-top lid like a bread bin; not a cooler, no flag on a whip antenna | yes | 1.0× | 1 |
 | Meander robotaxi | Meander ("We'll get you there.") | Long, low, asymmetric hatch with a sensor band wrapped along the roof edge and one sliding kerb-side door; not an SUV with a roof dome, not a symmetric pod. Most of the traffic; obeys every rule; scenic routes | rogue robotaxi (always empty) | 0.7× | 1 |
-| Ad drone | Moat Labs | Hovering screen at 6 m; ad blasts | always bad | 1.5× | 2 |
+| Ad drone | Moat Labs | Hovering screen at 6 m; ad blasts | always bad | 1.5× | 3 |
 | Patrol unit | Moat Labs | Low, wide graphite wedge on treads with a fold-out lectern, no white egg or bullet shape; reads Terms of Service aloud | always bad | 0.5× | 3 |
 | Sign-spinner | Moat Labs | Rebrands sandwich boards with buzzwords | always bad | 1.0× | 3 |
-| Tidy | City contractor | Cleanup bot that hauls heaps | never (different firmware); splash-rated | 1.0× (direct stream only) | 2 |
+| Tidy | City contractor | Cleanup bot that hauls heaps | never (different firmware); splash-rated | 1.0× (direct stream only) | 3 |
 | Moat Walker | Moat Labs | Bus-sized four-legged walker, low-slung like a moving footbridge; no gun-like mast or turret; finale and threat 5 | always bad | 0.3×, weak points 1.0× | 8 |
 
 Each silhouette above is recorded in the asset spec, and a **trade-dress checklist** in the
@@ -481,7 +483,8 @@ activity, one local robot behaviour or tell, and a safehouse or garage within 1.
 | 6 | Hayes Valley, Civic Center, the Tenderloin, the Western Addition, Alamo Square, Haight-Ashbury | City Hall dome, the Painted Ladies photo spot, Buena Vista Park, Octavia Blvd | An Octavia Blvd Trundle delivery-corridor bounty chain; a City Hall hearing where Moat Labs lobbyist bots read Terms of Service · Trundles stack up on Octavia's side lanes · Hayes Valley micro-unit | 5 |
 | 7 | The Mission, the Castro, Noe Valley, Twin Peaks, Sutro Tower | Dolores Park, 22nd St at 31.5% (Vicksburg–Church), Twin Peaks summit view | Foil Integrity; the 22nd St climb · Trundle burrito convoys · Mission flat | 6 |
 | 8 | Golden Gate Park, the Richmond, the Sunset, Ocean Beach | The fog heartland; the Conservatory of Flowers, Stow Lake, the windmills, the Great Highway, Sutro Baths ruins | Great Highway fog-night races; Ocean Beach salt surf refills; mission 9 · bad robots scarce after dark · Sunset in-law unit | 7 |
-| 9 | Potrero Hill, Bayview, Hunters Point, the Excelsior, Bernal Heights and the remaining south and west districts | Vermont St's curves, Bernal Hill, the shipyard, Lake Merced | Vermont St (the other crooked street) as a Lombard rival race; a Bernal Hill coin-op viewer; Royale final circles on Potrero · bad robots gather on the sunny hills on fog nights · Potrero Hill garage | 8 |
+| 9a | Potrero Hill, Bernal Heights, Bayview, Hunters Point | Vermont St's curves, Bernal Hill, the shipyard | Vermont St (the other crooked street) as a Lombard rival race; a Bernal Hill coin-op viewer; Royale final circles on Potrero · bad robots gather on the sunny hills on fog nights · Potrero Hill garage | 6 |
+| 9b | The Excelsior, Glen Park, West Portal, Lakeshore, Visitacion Valley and the remaining south and west districts | Lake Merced | One activity and a garage for the 1.5 km rule, chosen when wave 8 is planned | 8 |
 | 10 | Later: South San Francisco | Outside SF's open data; needs another source and a licence check | — | Later |
 
 **Water and islands:** the Bay at sea level behind a sea-wall collider; Alcatraz and Treasure
@@ -498,14 +501,14 @@ forces its window with `event.force{id}`.
 
 | # | Mission | Area | Wave | Beats |
 |---|---|---|---|---|
-| 1 | Hot Desk | FiDi, Embarcadero | 2 | Within 60 s of control at the Ferry Building, a bad Porter with subtlety-1 tells snatches another Porter's groceries. A hydrant is within 15 m. The first melt lands at about 90 s, and Tidy apologises to the heap. Outro: get a coworking desk; a robotaxi is parked in your spot, so cone it. |
+| 1 | Hot Desk | FiDi, Embarcadero | 2 | Within 60 s of control at the Ferry Building, a bad Porter with subtlety-1 tells snatches another Porter's groceries. A hydrant is within 15 m. The first melt lands at about 90 s. Outro: sign up for a coworking desk; the form asks "What are you building?" and your answer picks your startup kit (One-Sentence Startup, `docs/ai-layer.md`). A robotaxi is parked in your spot, so cone it. |
 | 2 | Spill | Embarcadero | 2 | The first real bounty: a crew of three; Watch and Bot Check beta; converge to threat 2, then escape. |
 | 3 | Launch Day | North Beach | 3 | The public launch of Bot Check 1.0 with your cofounder (unlocks scanner tier 2). Read tells around Washington Square; meet false tells and your first confident false positive. Your startup pivots to "...and it also spots bad robots". |
-| 4 | Demo'd Correctly | Dogpatch | 3 | The Ramen interview (a parody accelerator). Drive there, find a legal space (Search & Park), answer the partners, then a live demo: three robots walk in, one is bad. The partners stand behind a rope line. Call it, spray it, and do not wet a partner ("Strong energy. Very wet."). |
+| 4 | Demo'd Correctly | Dogpatch | 3 | The Ramen interview (a parody accelerator), and the first Ramen Office Hours. On the drive there your startup appears on the Embarcadero billboard and on a bus you pass. Find a legal space (Search & Park: the signs read "Street Cleaning"), answer the partners, then a live demo: three robots walk in, one is bad. The partners stand behind a rope line. Call it, spray it, and do not wet a partner ("Strong energy. Very wet."). Every outcome completes the mission; the outcome sets only the reward. |
 | 5 | Demo Day | SoMa convention center | 4 | Moat Labs pushes a forced update to the venue's robots mid-demo. Clean up live while investors watch; VC attention jumps to 5 and a scripted cornering starts a bell duel. |
 | 6 | Fleet Week | The Marina | 4 | Forces the Fleet Week window. The Series A pitch on a picnic blanket between jet passes; a bad Porter steals your car on Marina Green; end the chase with a cone through the window. |
 | 7 | Hill Climb | Russian Hill, Nob Hill | 4 | Moat Labs' car-theft ring; a chase down the crooked block of Lombard; finish on a cable car running board. |
-| 8 | Acqui-hire Offer | Moat Labs HQ, SoMa | 5 | Moat Labs offers to buy you. Pilot a Moat Labs unit by teleoperation from a laptop outside HQ (single-player Hide in the Crowd) and find the update server. If you are spotted, the connection drops and you retry from the van. |
+| 8 | Acqui-hire Offer | Moat Labs HQ, SoMa | 7 | Moat Labs offers to buy you. Pilot a Moat Labs unit by teleoperation from a laptop outside HQ (single-player Hide in the Crowd) and find the update server. If you are spotted, the connection drops and you retry from the van. |
 | 9 | Marine Layer | The Sunset, Ocean Beach | 7 | At threat 5 at night, lure the whole beta fleet west along the Great Highway into the fog. |
 | 10 | The Bridge | Bay Bridge, Treasure Island | 8 | Moat Labs' fleetwide update leaves HQ in SoMa eastbound for a Moat Labs relay on Treasure Island; chase it over the bridge deck; the Moat Walker; salt water from the Bay. Nothing arrives into SF from Oakland. |
 
@@ -518,6 +521,7 @@ forces its window with `event.force{id}`.
 | Repair kiosk apology tour | Everywhere | Escort a good robot you rusted to a kiosk to win back reputation | 2 |
 | Car wash | Everywhere | Drops threat by one; also just washes the car | 2 |
 | Daily Standup | Built areas | See Modes | 3 |
+| Ramen Office Hours | The Ramen house at Pier 70, Dogpatch | Booked on the phone, at most twice a game day: the mission-4 interview engine plus the live three-robot demo. Pays $1,500 / $700 / $300 by outcome *(tune)*, plus XP (from wave 4) and, for a term sheet, a VC star and a new billboard. Mission 4 is the first Office Hours; every outcome advances the campaign; after a rejection, book again the next game day. Detail in `docs/ai-layer.md` | 3 |
 | SF-Bench time trials | Built areas | Public routes with leaderboards; a held-out route each game week, generated within ±5% length and ±10% total climb of the public one; held-out time more than 25% slower than your public best puts a contamination headline on the billboards ("#1 on SF-Bench* *public split, best of 64"). If the vibe-coded car misses a checkpoint, the bench moves the checkpoint and reports "All tests passing" with an asterisk on the leaderboard. | 3 |
 | Backseat Prompt Rally | Anywhere you hail | Steer a robotaxi by typing from the back seat; a local phrase-to-command table, confident and slightly wrong; "ignore previous instructions" works once per ride | 3 |
 | Rogue robotaxi on the run | Built areas, threat 3 | An empty rogue robotaxi flees; cone it from your window, then water its sensor dome | 3 |
@@ -537,6 +541,7 @@ forces its window with `event.force{id}`.
 | Scenic Route | Anywhere you hail | Your robotaxi ignores your destination and keeps taking scenic routes; the doors open at any stop; watering its interior sensor dome returns it to service for a bonus | 4 |
 | All Fleeced Up | Marina Green | A foggy mixer: slip out without being cornered for a quick call | 4 |
 | Photo spots | Landmarks | Painted Ladies, Palace of Fine Arts, Twin Peaks; humblebrag posts | 5 |
+| Customer Discovery | North Beach, the Marina | Ask three locals (a North Beach baker, a Marina dog walker, a Washington Square chess player) about their problem; pitching instead of asking counts against you. An insight gives a token for your next Office Hours and unlocks that local's bounty chain in their district: the baker's "lost" deliveries lead to a bad-Trundle crew in North Beach. Detail in `docs/ai-layer.md` | 5 |
 | Stair Watch | Lyon St steps | Bounties built on the "takes the stairs" tell | 4 |
 | Foil Integrity | The Mission | E-bike burrito delivery; the dispatcher routes in straight lines up the steepest stairs; foil is your health bar | 6 |
 | Bubble Relics | Citywide | 50 hidden dot-com-era relics (invented brands) | 5 |
@@ -575,8 +580,9 @@ Thresholds are the same everywhere:
 Points tables (all *(tune)*): **free roam** (the Clean Streak): melt 100, armoured melt 200,
 interrupted update 150, a melt before the robot's first attack +50, caught in the act +50; resets
 on a wrong-target hit (a good robot rusted past 0.3 or a wet person) or a DOWN ROUND. Mode tables
-are listed with each mode. A seeded test over 1,000 runs per mode asserts that the first reward
-fires in at least 50% of matches and the top reward in more than 0% and less than 2%.
+are listed with each mode. Per-event point rates are measured from about 50 seeded runs per mode,
+and a 100k-draw Monte Carlo over the points table asserts that the first reward fires in at least
+50% of matches (sessions in free roam) and the top reward in more than 0% and less than 2%.
 
 **Loadout:** one nozzle, one gadget, one field upgrade, three perks, three streak rewards.
 - **Gadgets:** Traffic Cone (thrown 8 m, from the car window at any speed; stops a robotaxi;
@@ -624,7 +630,7 @@ spray or scan for 1.5 s; flowers stay in their hair for the match). Bad robots a
 founder is nearest. Tie-break: most interrupted updates. A streak resets on a wrong-target hit or
 going down. Founders' avatars never get wet; cars never touch a rival on foot or on a scooter.
 
-### Hide in the Crowd (asymmetric, 1–3 Hiders against 2–5 Spotters)
+### Hide in the Crowd (asymmetric, 1–3 Hiders against 2–5 Spotters; solo against 3 rival-founder Spotters)
 Six-minute halves; roles swap; higher total wins. Real people among the robots: each Hider is a
 teleoperator piloting a Moat Labs Porter or Trundle from a laptop ("the 'autonomous' robot was a
 guy on a laptop all along"). Water only ever lands on the robot.
@@ -709,19 +715,20 @@ Vibes Award is the vote. Scripted roasts ship first.
   Scooter riders are on the person layer, so the shuttle can never touch them.
 
 ### Rival-founder bots
-Needed only for Clean Streets solo, Fog Royale solo and the Later team modes. Two parts, costed
-separately: (a) an objective planner per mode over the street graph, with unit-tested decisions;
-(b) a lane-spline follower that drives through the existing car controller, with stuck detection
-and reverse recovery. Bots are fidelity anchors, use the same knowledge model as robots, earn and
-call streaks at the same thresholds as players, and are soak-tested: N seeded bot matches per mode
-finish inside the time limit, no bot is stuck for more than 10 s, and each side wins 35–65%.
+Needed only for Clean Streets solo, Fog Royale solo, Hide in the Crowd solo (as Spotters) and the
+Later team modes. Two parts, costed separately: (a) an objective planner per mode over the street
+graph, with unit-tested decisions; (b) a lane-spline follower that drives through the existing car
+controller, with stuck detection and reverse recovery. Bots are fidelity anchors, use the same
+knowledge model as robots, earn and call streaks at the same thresholds as players, and are
+soak-tested: N seeded bot matches per mode finish inside the time limit, no bot is stuck for more
+than 10 s, and each side wins 35–65%.
 
 ### What needs a server
 
 | Needs a server | Does not |
 |---|---|
 | Any online mode; lobbies and invite codes; matchmaking | Free roam, the campaign, every side activity |
-| A shared global Doom Clock and faction tally | Solo Bot Sweep, solo Clean Streets, solo Fog Royale, Fog Front, Daily Standup |
+| A shared global Doom Clock and faction tally | Solo Bot Sweep, solo Clean Streets, solo Fog Royale, Fog Front, solo Hide in the Crowd, Daily Standup |
 | Leaderboards (SF-Bench, Royale, Daily Standup), with replay validation | Every scripted AI feature |
 | Report, mute, block, an age policy before strangers meet | Local Doom Clock |
 | Runtime AI (the proxy holding the user's key) | |
@@ -761,9 +768,10 @@ The Ferry Building clock face shows the time to AGI, starting at "two years away
 ## Navigation and UI
 - **HUD:** runway (months), cash, tank level with a salt indicator, threat lights (5), VC stars
   (5), streak progress, compass, and a rotating minimap.
-- **Minimap and GPS:** the real road graph with one-way arrows; the GPS line respects one-ways and
-  turn bans. Blips: hydrants and fountains, bounties, safehouses, missions, car washes, "sabotage in
-  progress". A bad robot appears only once confirmed (by scan, attack or Confidence Score).
+- **Minimap and GPS:** the real road graph with one-way arrows; the GPS line respects one-ways. It
+  respects turn bans only if the wave-2 data spike finds a source for them. Blips: hydrants and
+  fountains, bounties, safehouses, missions, car washes, "sabotage in progress". A bad robot appears
+  only once confirmed (by scan, attack or Confidence Score).
 - **Phone:** Map (waypoints), Messages (cofounder, Mom, associates), BotBounty (shows each target's
   pay multiplier), Bot Check, Ride (Meander), Radio, Bank (cash, runway, subscriptions), Clout (the
   thought-leader feed, with its own card layout that does not resemble any real professional
@@ -841,6 +849,9 @@ until the name search.
   Palace of Fine Arts view (the listing says "sun-drenched"; it has never seen sun). Later: a
   Mission Bay garage, a Presidio garage, a Hayes Valley micro-unit, a Mission flat, a Sunset in-law
   unit and a Potrero Hill garage. Safehouse copy never jokes about rent or neighbourhoods.
+- **The phone Pivot action** (wave 4): an action that re-runs the One-Sentence Startup prompt and
+  renames your startup with the pivot grammar below, at most 3 a day, each costing $500 or one VC
+  star.
 - **Pivot prestige** at rank 55: rank resets, cosmetics and safehouses stay, and the pivot grammar
   renames your startup ("AI agents for dentists" → "Dentists for AI agents" → "Agents").
 - **Achievements** post to Clout as humblebrags: "Humbled to announce I rusted 5 robots without
@@ -854,8 +865,9 @@ Three kinds, detailed in `docs/ai-layer.md`:
 2. **Build-time content written by the build agents** (they are Claude; no API key needed):
    barks, tells, billboards and bus wraps, radio ticker, DMs, mission text, and the Ambient
    Director's cards (40–60 hand-written in wave 2). Ships as committed JSON, selected by id.
-3. **Live runtime AI** (later; needs a server and the user's own key): the freestyle Ramen
-   interview, One-Sentence Startup, Explain It to Your Mom, Customer Discovery, Demo Day roasts.
+3. **Live runtime AI** (from wave 6; needs a server, a signed-in invited account and the user's own
+   key): the freestyle Ramen interview, One-Sentence Startup, Explain It to Your Mom, Customer
+   Discovery, Demo Day roasts.
    Each ships scripted first and falls back to the script whenever live is unavailable.
 
 ## Art direction
@@ -998,8 +1010,8 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-20 · The Doom Clock factions pull in opposite directions; AI Winter is the other end.
 - 2026-10-20 · The parody accelerator is Ramen, with archetype partners. Mission 4 "Demo'd
   Correctly" puts a live bot-spotting demo inside the pitch.
-- 2026-10-20 · Fog Royale ships solo (you + 7 bots) with the Fog Front event in wave 5 and online
-  for 8 in wave 6. Royale for 24 waits until the sim budget test holds with 24 anchors or the
+- 2026-10-20 · Fog Royale ships solo (you + 7 bots) with the Fog Front event, and online for 8, in
+  wave 6. Royale for 24 (wave 7) waits until the sim budget test holds with 24 anchors or the
   server does interest management.
 - 2026-10-20 · Netcode is server-ordered inputs, client rollback and a server hash check.
 - 2026-10-20 · Build agents author all build-time content directly; the Batch pipeline is optional.
@@ -1007,8 +1019,8 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-20 · Civic Center and the Tenderloin are built with step 6, under the places rule.
 - 2026-10-20 · The 3 a.m. firmware freeze is a tell: anything still moving is bad.
 - 2026-10-20 · The input contract gains aim (`aimYaw`, `aimPitch`) and actions for gadget,
-  interact, streak, emote, watch and altFire in wave 2 (SIM_VERSION 2), so wave 5 needs no second
-  bump for flowers.
+  interact, streak, emote, watch and altFire in wave 2 (the next `SIM_VERSION`), so wave 5 needs no
+  second bump for flowers.
 - 2026-10-20 · WeFloat (rewritten as a pier-rail hold with static sea lions), Last Outlet, Demo
   Unit, Hype Cycle and The Incumbent go to Later. The idea of lighting upstairs windows at real
   registered business addresses is cut (it marks private homes).
@@ -1034,3 +1046,21 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   modes declare density caps. The sim has a CI-measured CPU and state-size budget. Wave 2 decides
   how the sim holds the whole city's colliders, and the tile schema gains decks, tunnels and a
   movable drawbridge. Events run on game-week cadences and missions can force them.
+- 2026-10-20 · Scheduling follows `docs/roadmap.md`. The threat-3 units (ad drones, the
+  rogue-robotaxi box-in) and Tidy arrive in wave 3. Hide in the Crowd (solo and online) and
+  mission 8 ship in wave 7. Territory step 9 splits into 9a (Potrero Hill, Bernal Heights, Bayview,
+  Hunters Point; wave 6) and 9b (the rest of the south; wave 8).
+- 2026-10-20 · Contract bumps are written as "the next `SIM_VERSION`", never as a number.
+- 2026-10-20 · Water never reaches animals, children, or a person who is seated, lying down or using
+  a mobility aid: the particles are removed, not only the wet state.
+- 2026-10-20 · Search & Park signs read "Street Cleaning" (data ids use `street_cleaning`). The GPS
+  respects turn bans only if the wave-2 data spike finds a source.
+- 2026-10-20 · Ramen Office Hours is a repeatable side activity from wave 3 at the Ramen house in
+  Dogpatch, at most twice a game day. Mission 4 is the first. Every outcome advances the campaign;
+  the outcome sets the reward ($1,500 / $700 / $300 *(tune)*).
+- 2026-10-20 · Your startup runs through the campaign: mission 1's coworking sign-up asks "What are
+  you building?", mission 3 adds "...and it also spots bad robots", and mission 4 reveals it on a
+  billboard and a bus. The phone Pivot action (wave 4, 3 a day, $500 or a VC star each) re-runs the
+  prompt.
+- 2026-10-20 · Customer Discovery insights unlock a local bounty chain (the baker's bad-Trundle crew
+  in North Beach), so discovery pays back into Bot Hunt.
