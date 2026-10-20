@@ -2,14 +2,16 @@
 //
 // Heights: the DataSF footprints carry LiDAR statistics from a June 2010 survey
 // (hgt_* = height above ground, gnd_* = ground elevation NAVD88, both cm). We take
-//   - an explicit override (pipeline/overrides.json) when one exists;
+//   - an explicit height override (pipeline/overrides.json) when one exists: a public record,
+//     or a placeholder plinth that keeps no storeys, use or units until a landmark replaces it;
 //   - else the 2025 assessor storey count when the parcel was built in or after 2010 and
 //     the LiDAR clearly saw less than the building has (construction site, empty lot);
 //   - else the LiDAR: one prism at the max height when max is close to the median; a
 //     two-tier massing (podium at the median, a slimmer tower at the max) when the
 //     statistics describe a tower of plausible size (towerFraction, plausibleTower), the
 //     building is not a low house under trees (canopy; a condominium never is) and the
-//     assessor does not contradict a thin tower (isLidarSpike); otherwise the max is an
+//     assessor does not contradict a thin tower (isLidarSpike, unless overrides.json keeps the
+//     tower: keepTower, for a real steeple over a low nave); otherwise the max is an
 //     outlier (edge bleed from a neighbour, a single return, a tree) and the building is one
 //     prism at the median plus a rooftop allowance (outlierRoof).
 // A two-tier building is two collider records: "<id>" (the podium, full footprint) and
@@ -72,8 +74,10 @@ export const CANOPY_MAX_STORIES = 4;
  * podium under SPIKE_PODIUM_M, rising more than SPIKE_RISE_M above it, is usually the scan
  * catching a neighbouring tower, a crane or a tree (one 3-storey office got a 111 m tower).
  * It is dropped when the assessor's storeys disagree (taller than storeys x 4.5 m + 20 m) or,
- * with no storey count, when it is more than 4 times the podium. Real steeples and rooftop
- * structures of this size stay. See thinTowers / spikeTowersDropped in report.json.
+ * with no storey count, when it is more than 4 times the podium. A real steeple over a nave the
+ * roll counts as 1-2 storeys looks the same (Mission Dolores' bell tower): those are kept by a
+ * keepTower entry in pipeline/overrides.json. See thinTowers, spikeTowersDropped,
+ * spikeTowersDroppedByUse and spikeTowersKept in report.json.
  */
 export const THIN_TOWER_MAX_AREA_M2 = 60;
 export const SPIKE_PODIUM_M = 15;
@@ -90,12 +94,36 @@ export function isLidarSpike(towerAreaM2: number, podiumM: number, towerM: numbe
   return stories > 0 ? towerM > stories * 4.5 + 20 : towerM > 4 * podiumM;
 }
 
+/**
+ * One entry of pipeline/overrides.json. Exactly one of:
+ *   - heightM: the roof height (above the ground reference) replaces the LiDAR's. With
+ *     placeholder: true the height is a stand-in until a landmark model replaces the record
+ *     (Sutro Tower's lattice), so the record keeps no storeys, use or units: they describe a
+ *     building that is not drawn.
+ *   - keepTower: true: the LiDAR tower stands although the spike check would drop it (a real
+ *     steeple over a low nave). The build fails if the building ends up without a tower.
+ */
 export interface Override {
   id: string;
   parcel?: string;
   label: string;
-  heightM: number;
+  heightM?: number;
+  placeholder?: boolean;
+  keepTower?: boolean;
   source: string;
+}
+
+/** Throws unless every override sets exactly one of heightM and keepTower (and placeholder only with heightM). */
+export function checkOverrides(overrides: readonly Override[]): void {
+  const seen = new Set<string>();
+  for (const o of overrides) {
+    if (seen.has(o.id)) throw new Error(`override ${o.id}: listed twice`);
+    seen.add(o.id);
+    const height = typeof o.heightM === "number" && Number.isFinite(o.heightM) && o.heightM > 0;
+    if (o.heightM !== undefined && !height) throw new Error(`override ${o.id} (${o.label}): heightM must be a positive number of metres`);
+    if (height === (o.keepTower === true)) throw new Error(`override ${o.id} (${o.label}): set exactly one of heightM and keepTower`);
+    if (o.placeholder && !height) throw new Error(`override ${o.id} (${o.label}): placeholder needs heightM`);
+  }
 }
 
 export type HeightSource = "lidar" | "assessor-stories" | "override";
@@ -161,6 +189,14 @@ export interface BuildingStats {
   canopyTowersDropped: number;
   /** Thin towers not built because they are LiDAR spikes (isLidarSpike). */
   spikeTowersDropped: number;
+  /**
+   * spikeTowersDropped by the joined parcel's assessor use_code ("none": no parcel). The roll
+   * has no religious or civic code: churches, schools and institutions sit under COMM, MISC
+   * and GOVT, so those keys bound how many real steeples the spike check can have removed.
+   */
+  spikeTowersDroppedByUse: Record<string, number>;
+  /** Towers the spike check would drop that overrides.json keeps (keepTower). */
+  spikeTowersKept: number;
   /** Thin towers kept (isThinTower), and the tallest of them above its own ground (m). */
   thinTowers: number;
   thinTowerMaxM: number;
@@ -382,14 +418,17 @@ export function buildBuildings(
 ): { buildings: Building[]; stats: BuildingStats; overridesApplied: string[] } {
   const tileSet = new Set(tiles.map((t) => t.id));
   const pidx = new ParcelIndex(parcels);
+  checkOverrides(overrides);
   const ov = new Map(overrides.map((o) => [o.id, o]));
   const applied: string[] = [];
   const stats: BuildingStats = {
     raw: raw.length, parts: 0, kept: 0, droppedSmall: 0, droppedOutside: 0, droppedLow: 0,
     joinMblr: 0, joinPoint: 0, withYear: 0, withStories: 0,
     heightLidar: 0, heightStories: 0, heightOverride: 0, twoTier: 0, maxOutlier: 0, condo: 0, storiesImplausible: 0,
-    groundRefFromDem: 0, storiesRejected: 0, canopyTowersDropped: 0, spikeTowersDropped: 0, thinTowers: 0, thinTowerMaxM: 0,
+    groundRefFromDem: 0, storiesRejected: 0, canopyTowersDropped: 0, spikeTowersDropped: 0, spikeTowersDroppedByUse: {},
+    spikeTowersKept: 0, thinTowers: 0, thinTowerMaxM: 0,
   };
+  const spikeByUse = new Map<string, number>();
   const out: Building[] = [];
 
   for (const rb of raw) {
@@ -490,12 +529,16 @@ export function buildBuildings(
       let top: number;
       let podium: number | null = null;
       let towerFrac = 0;
-      const o = ov.get(rb.sf16_bldgid);
-      if (o && partIndex === 0) {
+      const o = partIndex === 0 ? ov.get(rb.sf16_bldgid) : undefined;
+      if (o) {
         if (o.parcel && o.parcel !== mblr) throw new Error(`override ${o.id}: expected parcel ${o.parcel}, footprint has ${mblr}`);
+        applied.push(o.id);
+      }
+      const keepTower = o?.keepTower === true;
+      const placeholder = o?.placeholder === true;
+      if (o && o.heightM !== undefined) {
         heightSource = "override";
         top = o.heightM;
-        applied.push(o.id);
       } else if (year >= LIDAR_YEAR && parcelStories > 0 && !(hMed >= parcelStories * 2.0)) {
         heightSource = "assessor-stories";
         top = parcelStories * storyHeight(use) + 1.5;
@@ -512,7 +555,8 @@ export function buildBuildings(
         // Tree canopy over a low house. A condominium is never a low house here: its storeys
         // are the most any unit parcel lists (usually 1-2, whatever the building's height), so
         // they cannot contradict a tower. One Rincon Hill's 689 units list 2 storeys under 182 m.
-        const lowHouse = !condo && (use ?? "").toLowerCase().includes("residential") && stories >= 1 && stories <= CANOPY_MAX_STORIES;
+        const lowHouse =
+          !keepTower && !condo && (use ?? "").toLowerCase().includes("residential") && stories >= 1 && stories <= CANOPY_MAX_STORIES;
         if (d <= Math.max(4, 0.3 * hMed)) {
           top = hMax;
         } else {
@@ -541,12 +585,16 @@ export function buildBuildings(
         const podiumTopY = r2(Math.max(baseY + MIN_HEIGHT_M, gRef + podium));
         const towerRing = topY - podiumTopY >= 2 ? towerFootprint(ring, anchor, towerFrac) : null;
         const towerArea = towerRing ? Math.abs(signedArea(towerRing)) : 0;
-        if (towerRing && isLidarSpike(towerArea, podium, top, stories)) {
+        const spike = towerRing !== null && isLidarSpike(towerArea, podium, top, stories);
+        if (spike && keepTower) stats.spikeTowersKept++;
+        if (spike && !keepTower) {
           // A tower the moment model accepts but the assessor contradicts: the max is an
           // outlier after all, and the building is one prism like any other outlier. A condo's
           // storeys do take part here: the check only sees thin towers over podiums under
           // 15 m, which a condo's 1-4 unit storeys do describe (docs/data-sources.md).
           stats.spikeTowersDropped++;
+          const code = parcel?.use_code?.trim() || "none";
+          spikeByUse.set(code, (spikeByUse.get(code) ?? 0) + 1);
           top = outlierRoof(podium, top);
           topY = r2(Math.max(baseY + MIN_HEIGHT_M, gRef + top));
         } else if (towerRing) {
@@ -592,6 +640,13 @@ export function buildBuildings(
         meta.year = year;
         stats.withYear++;
       }
+      if (keepTower && !towerRecord) throw new Error(`override ${o!.id} (${o!.label}): keepTower, but the building has no tower`);
+      if (placeholder) {
+        // A stand-in plinth: the parcel's storeys, use and units describe a building not drawn.
+        stories = NaN;
+        units = NaN;
+        use = undefined;
+      }
       if (use) meta.use = use;
       if (heightSource === "assessor-stories") stories = parcelStories;
       if (stories > 0 && heightSource === "lidar" && !plausibleStories(stories, towerRecord ? towerRecord.meta.heightM : top)) {
@@ -601,7 +656,7 @@ export function buildBuildings(
         stats.withStories++;
       }
       if (units > 0) meta.units = units;
-      if (condo) {
+      if (condo && !placeholder) {
         meta.condo = true;
         stats.condo++;
       }
@@ -615,6 +670,7 @@ export function buildBuildings(
     });
   }
   for (const o of overrides) if (!applied.includes(o.id)) throw new Error(`override ${o.id} (${o.label}) matched no footprint`);
+  for (const k of [...spikeByUse.keys()].sort()) stats.spikeTowersDroppedByUse[k] = spikeByUse.get(k)!;
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { buildings: out, stats, overridesApplied: applied };
 }

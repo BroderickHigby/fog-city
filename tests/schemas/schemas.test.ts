@@ -90,6 +90,18 @@ describe("world schemas are closed: an undeclared field is an error", () => {
     expect(colliderV({ tileId: "t", buildings: [{ ...b, height: 3 }], ground })).toBe(false);
     expect(colliderV({ tileId: "t", buildings: [{ ...b, meta: { stories: 0 } }], ground })).toBe(false);
   });
+  it("an x- key is free for experiments at every closed level; anything else still fails", () => {
+    const ground = { x0: 0, z0: 0, cellSizeM: 10, nx: 2, nz: 2, heights: [0, 0, 0, 0] };
+    const b = { id: "b", footprint: [[0, 0], [1, 0], [1, 1]], baseY: 0, topY: 3 };
+    const x = { "x-deckY": [12.5, 13] };
+    expect(roadsV({ ...roads({ ...edge, ...x }), ...x })).toBe(true);
+    expect(roadsV({ version: 1, nodes: [{ id: "n1", x: 0, z: 0, ...x }, { id: "n2", x: 1, z: 0 }], edges: [edge] })).toBe(true);
+    expect(colliderV({ tileId: "t", buildings: [{ ...b, ...x }], ground: { ...ground, ...x }, ...x })).toBe(true);
+    // The prefix is the whole rule: "x" without the dash, or "X-", is undeclared.
+    expect(roadsV(roads({ ...edge, xdeckY: 1 }))).toBe(false);
+    expect(roadsV(roads({ ...edge, "X-deckY": 1 }))).toBe(false);
+    expect(colliderV({ tileId: "t", buildings: [b], ground: { ...ground, deckY: 1 } })).toBe(false);
+  });
 });
 
 // content/<file>.json -> schemas/<schema>.schema.json

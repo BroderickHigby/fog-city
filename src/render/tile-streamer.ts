@@ -10,8 +10,10 @@
 //    graph. Ground triangles lying on the water plane are dropped so the Bay shows through.
 //  - glb: null tiles are built from collider data by a generator pumped under a per-frame
 //    time budget, so a big tile never stalls the sim loop.
-//  - A tile with nothing to show (no glb, or its glb failed, and no collider) ends "failed",
-//    never "ready", so renderInfo().tilesFailed counts it.
+//  - A glb that fails to load is fetched once more after a short backoff (a transient network
+//    error); if that fails too, the tile is built from its collider. A tile with nothing to
+//    show (no glb, or its glb failed twice, and no collider) ends "failed", never "ready", so
+//    renderInfo().tilesFailed counts it. It stays failed until the camera leaves and returns.
 //  - Every tile also gets runtime street props (lamps, trees) from the road graph.
 //  - Unload disposes every per-tile geometry, texture and instance buffer.
 
@@ -49,6 +51,8 @@ export interface StreamerOptions {
   hysteresis?: number;
   /** glb downloads in flight at once. */
   maxConcurrent?: number;
+  /** A failed glb is fetched once more after this many ms; 0 = no retry. Default GLB_RETRY_MS. */
+  glbRetryMs?: number;
   /** Test seam: replaces the tile loader (createTileLoader().loadAsync). */
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
@@ -73,6 +77,9 @@ interface TileRecord {
   dropped: boolean;
   /** The glb loaded: the tile has something to show even without a collider. */
   glbLoaded: boolean;
+  glbAttempts: number;
+  /** The backoff before the glb's second fetch; cleared on unload. */
+  retryTimer: ReturnType<typeof setTimeout> | null;
   error?: string;
 }
 
@@ -86,6 +93,8 @@ export interface StreamerStats {
 }
 
 const RESELECT_M = 20;
+/** Backoff before a failed glb's one retry. */
+export const GLB_RETRY_MS = 1500;
 
 export class TileStreamer {
   readonly bounds: TileBounds[];
@@ -229,32 +238,48 @@ export class TileStreamer {
         hidden: new Set(),
         dropped: false,
         glbLoaded: false,
+        glbAttempts: 0,
+        retryTimer: null,
       };
       rec.group.name = `tile:${id}`;
       rec.group.matrixAutoUpdate = false;
       this.records.set(id, rec);
       if (spec.glb) {
-        this.inFlight++;
-        const url = this.opts.base + spec.glb;
-        this.loader(url).then(
-          (gltf) => {
-            this.inFlight--;
-            this.onGltf(rec, gltf);
-          },
-          (err: unknown) => {
-            this.inFlight--;
-            if (rec.dropped) return;
-            // A broken glb falls back to building the whole tile from collider data (and with
-            // no collider either, the tile fails).
-            rec.error = `${url}: ${err instanceof Error ? err.message : String(err)}`;
-            if (this.opts.colliders.has(id)) console.warn(`[fog-city] tile ${id}: glb failed, building from collider. ${rec.error}`);
-            this.startBuild(rec, { buildings: true, ground: true, roads: true });
-          },
-        );
+        this.loadGlb(rec, spec.glb);
       } else {
         this.startBuild(rec, { buildings: true, ground: true, roads: true });
       }
     }
+  }
+
+  private loadGlb(rec: TileRecord, glb: string): void {
+    const url = this.opts.base + glb;
+    rec.glbAttempts++;
+    this.inFlight++;
+    this.loader(url).then(
+      (gltf) => {
+        this.inFlight--;
+        this.onGltf(rec, gltf);
+      },
+      (err: unknown) => {
+        this.inFlight--;
+        if (rec.dropped) return;
+        rec.error = `${url}: ${err instanceof Error ? err.message : String(err)}`;
+        const retryMs = this.opts.glbRetryMs ?? GLB_RETRY_MS;
+        if (rec.glbAttempts < 2 && retryMs > 0) {
+          // Once more after a backoff: a dropped connection or a server hiccup is not a broken tile.
+          rec.retryTimer = setTimeout(() => {
+            rec.retryTimer = null;
+            if (!rec.dropped) this.loadGlb(rec, glb);
+          }, retryMs);
+          return;
+        }
+        // A broken glb falls back to building the whole tile from collider data (and with
+        // no collider either, the tile fails).
+        if (this.opts.colliders.has(rec.id)) console.warn(`[fog-city] tile ${rec.id}: glb failed, building from collider. ${rec.error}`);
+        this.startBuild(rec, { buildings: true, ground: true, roads: true });
+      },
+    );
   }
 
   private onGltf(rec: TileRecord, gltf: GLTF): void {
@@ -405,6 +430,8 @@ export class TileStreamer {
     this.records.delete(id);
     rec.dropped = true;
     rec.gen = null;
+    if (rec.retryTimer !== null) clearTimeout(rec.retryTimer);
+    rec.retryTimer = null;
     rec.group.removeFromParent();
     for (const g of rec.geometries) g.dispose();
     for (const mat of rec.ownedMaterials) mat.dispose();

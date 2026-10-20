@@ -52,23 +52,35 @@
     "joinMblr": 167760,
     "joinPoint": 1443,
     "withYear": 165962,
-    "withStories": 161553,
+    "withStories": 161549,
     "heightLidar": 173182,
     "heightStories": 2409,
     "heightOverride": 4,
-    "twoTier": 2325,
+    "twoTier": 2326,
     "maxOutlier": 10928,
     "condo": 5017,
-    "storiesImplausible": 383,
+    "storiesImplausible": 384,
     "groundRefFromDem": 274,
     "storiesRejected": 66,
     "canopyTowersDropped": 123,
-    "spikeTowersDropped": 74,
-    "thinTowers": 52,
+    "spikeTowersDropped": 73,
+    "spikeTowersDroppedByUse": {
+      "COMM": 9,
+      "COMO": 4,
+      "COMR": 29,
+      "GOVT": 1,
+      "IND": 2,
+      "MISC": 14,
+      "SRES": 1,
+      "none": 13
+    },
+    "spikeTowersKept": 1,
+    "thinTowers": 53,
     "thinTowerMaxM": 53.74
   },
   "overridesApplied": [
     "201006.0000548",
+    "201006.0001563",
     "201006.0009087",
     "201006.0062170",
     "201006.0168289"
@@ -202,15 +214,15 @@
     "shoreLines": 69
   },
   "colliderPack": {
-    "bytes": 12686000,
+    "bytes": 12686032,
     "tiles": 583,
-    "buildings": 177920
+    "buildings": 177921
   },
   "far": {
     "cells": 33,
-    "triangles": 467333,
-    "records": 177920,
-    "bytes": 6679408
+    "triangles": 467343,
+    "records": 177921,
+    "bytes": 6679540
   },
   "terrain": {
     "minY": 0,
@@ -355,7 +367,8 @@
       "x": -2924.12,
       "z": 3462.97,
       "buildings": [
-        "201006.0001563"
+        "201006.0001563",
+        "201006.0001563-tower"
       ],
       "nearestM": 0
     },

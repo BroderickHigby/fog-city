@@ -1,7 +1,7 @@
 // The streamer end to end in Node (no WebGL needed): collider-built tiles, real glb tiles
 // parsed by three's GLTFLoader, the pipeline's meshopt-compressed sf tiles through the
-// streamer's own loader, landmark building hiding, unload and dispose, the fallback when a
-// glb is broken, and the failed state when a tile has nothing to show.
+// streamer's own loader, landmark building hiding, unload and dispose, the one retry and then
+// the fallback when a glb is broken, and the failed state when a tile has nothing to show.
 import { readFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -42,7 +42,7 @@ async function settle(s: TileStreamer, x: number, z: number): Promise<void> {
   throw new Error("streamer never settled");
 }
 
-function make(name: string, opts: { radius?: number; loadGltf?: (url: string) => Promise<GLTF> } = {}) {
+function make(name: string, opts: { radius?: number; glbRetryMs?: number; loadGltf?: (url: string) => Promise<GLTF> } = {}) {
   const w = world(name);
   const parent = new THREE.Group();
   const materials = createSharedMaterials();
@@ -56,6 +56,7 @@ function make(name: string, opts: { radius?: number; loadGltf?: (url: string) =>
     materials,
     night: createNightMaterials(),
     radius: opts.radius ?? 1500,
+    glbRetryMs: opts.glbRetryMs,
     loadGltf: opts.loadGltf ?? loadFromDisk,
   });
   return { ...w, parent, materials, streamer };
@@ -136,8 +137,8 @@ describe("TileStreamer", () => {
     expect(disposed).toBeGreaterThan(2);
   });
 
-  it("builds a tile from its collider when its glb fails to load", async () => {
-    const { streamer, parent } = make("dev-city", { radius: 100, loadGltf: () => Promise.reject(new Error("404")) });
+  it("builds a tile from its collider when its glb fails to load twice", async () => {
+    const { streamer, parent } = make("dev-city", { radius: 100, glbRetryMs: 1, loadGltf: () => Promise.reject(new Error("404")) });
     const warn = console.warn;
     console.warn = () => {};
     try {
@@ -165,7 +166,7 @@ async function quietly<T>(fn: () => Promise<T>): Promise<{ value: T; warnings: s
 
 describe("TileStreamer: a tile with nothing to show fails", () => {
   // One dev-city tile's spec under a made-up id: the streamer has its bounds but no collider.
-  function ghost(glb: string | null, loadGltf: (url: string) => Promise<GLTF>) {
+  function ghost(glb: string | null, loadGltf: (url: string) => Promise<GLTF>, glbRetryMs = 1) {
     const w = world("dev-city");
     const spec = { ...w.manifest.tiles.find((t) => t.id === "t-1_0")!, id: "ghost", glb };
     const parent = new THREE.Group();
@@ -179,6 +180,7 @@ describe("TileStreamer: a tile with nothing to show fails", () => {
       materials: createSharedMaterials(),
       night: createNightMaterials(),
       radius: 1500,
+      glbRetryMs,
       loadGltf,
     });
     return { streamer, parent };
@@ -192,10 +194,39 @@ describe("TileStreamer: a tile with nothing to show fails", () => {
     expect(warnings.join("\n")).toMatch(/ghost: failed/);
   });
 
-  it("a glb that fails to load and no collider to fall back on: failed", async () => {
-    const { streamer } = ghost("t-1_0.glb", () => Promise.reject(new Error("404")));
+  it("a glb that fails to load twice and no collider to fall back on: failed after exactly two fetches", async () => {
+    let calls = 0;
+    const { streamer } = ghost("t-1_0.glb", () => (calls++, Promise.reject(new Error("404"))));
     await quietly(() => settle(streamer, -250, 250));
     expect(streamer.stats()).toMatchObject({ ready: 0, failed: 1, pending: 0 });
+    expect(calls).toBe(2);
+  });
+
+  it("a glb that fails once is fetched again after the backoff: ready from the glb, nothing failed", async () => {
+    const urls: string[] = [];
+    const flaky = (url: string): Promise<GLTF> => {
+      urls.push(url);
+      return urls.length === 1 ? Promise.reject(new Error("connection reset")) : loadFromDisk(url);
+    };
+    const { streamer } = ghost("t-1_0.glb", flaky, 20);
+    const t0 = performance.now();
+    const { warnings } = await quietly(() => settle(streamer, -250, 250));
+    expect(performance.now() - t0).toBeGreaterThanOrEqual(15);
+    expect(urls).toEqual(["/tiles/dev-city/t-1_0.glb", "/tiles/dev-city/t-1_0.glb"]);
+    expect(streamer.stats()).toMatchObject({ ready: 1, glbReady: 1, failed: 0, pending: 0 });
+    expect(warnings).toEqual([]);
+  });
+
+  it("a tile unloaded during the backoff is never fetched again", async () => {
+    let calls = 0;
+    const { streamer } = ghost("t-1_0.glb", () => (calls++, Promise.reject(new Error("404"))), 30);
+    streamer.update(-250, 250);
+    await new Promise((r) => setTimeout(r, 5));
+    expect(calls).toBe(1);
+    expect(streamer.settled()).toBe(false);
+    streamer.dispose();
+    await new Promise((r) => setTimeout(r, 60));
+    expect(calls).toBe(1);
   });
 
   it("a glb that loads needs no collider: ready", async () => {

@@ -8,7 +8,7 @@ import { Vector3, type BufferAttribute, type BufferGeometry, type Mesh } from "t
 import { beforeAll, describe, expect, it } from "vitest";
 import { toLatLon } from "../../src/geo/project.ts";
 import { buildWorldFiles, type BuildOutput } from "../../pipeline/lib/build.ts";
-import { isLidarSpike, outlierRoof, plausibleTower, towerFraction, type Override } from "../../pipeline/lib/buildings.ts";
+import { checkOverrides, isLidarSpike, outlierRoof, plausibleTower, towerFraction, type Override } from "../../pipeline/lib/buildings.ts";
 import { worldTiles, type WorldConfig } from "../../pipeline/lib/config.ts";
 import { Elevation, Ground, tileHeightfield } from "../../pipeline/lib/terrain.ts";
 import type { GeoRaster } from "../../pipeline/lib/geotiff.ts";
@@ -377,8 +377,10 @@ describe("fixture build: buildings", () => {
     expect(byId("201006.0000008")).toBeUndefined();
     expect(out.report.buildings).toMatchObject({
       droppedSmall: 1, droppedOutside: 1, droppedLow: 1, heightOverride: 1, twoTier: 2, maxOutlier: 1, condo: 2, storiesImplausible: 2,
-      canopyTowersDropped: 1, spikeTowersDropped: 1, thinTowers: 0,
+      canopyTowersDropped: 1, spikeTowersDropped: 1, thinTowers: 0, spikeTowersKept: 0,
     });
+    // Spike drops by the parcel's assessor use_code: the roll has no religious or civic code.
+    expect(out.report.buildings.spikeTowersDroppedByUse).toEqual({ COMO: 1 });
   });
 
   it("splits a multipart footprint into one record per part, largest first", () => {
@@ -389,6 +391,63 @@ describe("fixture build: buildings", () => {
 
   it("reports the building under each probe point", () => {
     expect(out.report.probes).toEqual([expect.objectContaining({ id: "b1", buildings: ["201006.0000001"] })]);
+  });
+});
+
+describe("fixture build: placeholder and keepTower overrides", () => {
+  let alt: BuildOutput;
+  let recs: SfBuilding[];
+  const rec = (id: string): SfBuilding | undefined => recs.find((b) => b.id === id);
+  const placeholder: Override = { id: "201006.0000001", parcel: "0001001", label: "plinth", heightM: 3, placeholder: true, source: "test" };
+  const keep: Override = { id: "201006.0000014", parcel: "0001014", label: "steeple", keepTower: true, source: "test" };
+  beforeAll(async () => {
+    const f = fixture();
+    alt = await buildWorldFiles(f.cfg, f.raw, [...f.overrides, placeholder, keep]);
+    recs = ["t0_0", "t1_0"].flatMap((t) => json<SfCollider>(alt, `${t}.collider.json`).buildings);
+  });
+
+  it("a placeholder plinth keeps its parcel and year but no storeys, use or units: they describe a building not drawn", () => {
+    const b = rec("201006.0000001")!;
+    expect(b.meta).toMatchObject({ heightSource: "override", heightM: 3, parcel: "0001001", year: 1925 });
+    expect(b.meta.stories).toBeUndefined();
+    expect(b.meta.use).toBeUndefined();
+    expect(b.meta.units).toBeUndefined();
+    expect(b.topY - b.baseY).toBeCloseTo(3, 0);
+    // Without the placeholder flag the same parcel reports its storeys and use.
+    expect(byId("201006.0000001")!.meta).toMatchObject({ stories: 4, use: "Commercial Retail" });
+  });
+
+  it("keepTower keeps the tower the spike check would drop, and counts it", () => {
+    const pod = rec("201006.0000014")!;
+    const tower = rec("201006.0000014-tower")!;
+    expect(pod.meta).toMatchObject({ heightSource: "lidar", heightM: 12, tower: tower.id });
+    // The 3 storeys cannot describe a 60 m tower, so meta leaves them out (plausibleStories).
+    expect(pod.meta.stories).toBeUndefined();
+    expect(tower.meta).toMatchObject({ heightSource: "lidar", heightM: 60, towerOf: pod.id });
+    expect(alt.report.buildings).toMatchObject({ spikeTowersDropped: 0, spikeTowersKept: 1, spikeTowersDroppedByUse: {} });
+    expect(alt.report.overridesApplied).toEqual(["201006.0000001", "201006.0000004", "201006.0000014"]);
+  });
+
+  it("keepTower on a building that ends without a tower fails the build loudly", async () => {
+    const f = fixture();
+    const bad: Override = { id: "201006.0000001", parcel: "0001001", label: "flat roof", keepTower: true, source: "test" };
+    await expect(buildWorldFiles(f.cfg, f.raw, [...f.overrides, bad])).rejects.toThrow(/keepTower, but the building has no tower/);
+  });
+
+  it("every override sets exactly one of heightM and keepTower, placeholder only with a height, each id once", () => {
+    const o = { id: "x", label: "x", source: "x" };
+    expect(() => checkOverrides([{ ...o, heightM: 10 }, { ...o, id: "y", keepTower: true }, { ...o, id: "z", heightM: 3, placeholder: true }])).not.toThrow();
+    expect(() => checkOverrides([{ ...o }])).toThrow(/exactly one/);
+    expect(() => checkOverrides([{ ...o, heightM: 10, keepTower: true }])).toThrow(/exactly one/);
+    expect(() => checkOverrides([{ ...o, keepTower: true, placeholder: true }])).toThrow(/placeholder needs heightM/);
+    expect(() => checkOverrides([{ ...o, heightM: 10 }, { ...o, heightM: 20 }])).toThrow(/listed twice/);
+    expect(() => checkOverrides([{ ...o, heightM: 0, keepTower: true }])).toThrow(/positive number/);
+    expect(() => checkOverrides([{ ...o, heightM: Number.NaN }])).toThrow(/positive number/);
+  });
+
+  it("pipeline/overrides.json passes the same check", () => {
+    const file = readJson("pipeline/overrides.json") as { buildings: Override[] };
+    expect(() => checkOverrides(file.buildings)).not.toThrow();
   });
 });
 

@@ -2,9 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/tile-collider",
   "title": "Tile collision data consumed by src/sim/world.ts",
+  "$comment": "The file, its buildings and its ground are closed (meta stays open): an undeclared key fails the schema suite. Declare a new field here before shipping it; a key starting with x- is free for experiments and is never a contract.",
   "type": "object",
   "required": ["tileId", "buildings", "ground"],
   "additionalProperties": false,
+  "patternProperties": { "^x-": true },
   "properties": {
     "tileId": { "type": "string" },
     "buildings": {
@@ -13,6 +15,7 @@
         "type": "object",
         "required": ["id", "footprint", "baseY", "topY"],
         "additionalProperties": false,
+        "patternProperties": { "^x-": true },
         "properties": {
           "id": { "type": "string" },
           "footprint": {
@@ -53,6 +56,7 @@
           "type": "object",
           "required": ["x0", "z0", "cellSizeM", "nx", "nz", "heights"],
           "additionalProperties": false,
+          "patternProperties": { "^x-": true },
           "properties": {
             "x0": { "type": "number" },
             "z0": { "type": "number" },

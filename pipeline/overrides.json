@@ -1,5 +1,5 @@
 {
-  "$comment": "Height corrections for buildings the June 2010 LiDAR survey (behind the DataSF footprint heights) could not see correctly: built later, or (Sutro Tower) an open steel lattice the scan records as a solid block. Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying.",
+  "$comment": "Per-building corrections to what the June 2010 LiDAR survey (behind the DataSF footprint heights) saw. Each entry sets exactly one of heightM (a roof height: a public record for a building completed after the survey, or, with placeholder: true, a stand-in plinth until a landmark model replaces the record; a placeholder keeps no storeys, use or units) and keepTower: true (the LiDAR tower stands although the spike check would drop it: a real steeple over a nave the roll counts as one storey; the build fails if no tower results). Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying.",
   "buildings": [
     {
       "id": "201006.0000548",
@@ -13,6 +13,7 @@
       "parcel": "2724003",
       "label": "Sutro Tower upper structure (lattice, seen from above)",
       "heightM": 3,
+      "placeholder": true,
       "source": "Placeholder until a landmark model replaces the sutro-tower probe's records. Sutro Tower is a 298 m open steel lattice on three legs (public record); the footprint dataset outlines its upper structure as seen from above, and the LiDAR fills that outline as a solid prism (median 210.4 m, max 286.4 m over 683 m²). A 3 m plinth marks the footprint instead of a 231 m solid block."
     },
     {
@@ -20,6 +21,7 @@
       "parcel": "2724003",
       "label": "Sutro Tower upper structure (lattice, seen from above)",
       "heightM": 3,
+      "placeholder": true,
       "source": "Placeholder until a landmark model replaces the sutro-tower probe's records. Sutro Tower is a 298 m open steel lattice on three legs (public record); the footprint dataset outlines its upper structure as seen from above, and the LiDAR fills that outline as a solid prism (median 190.9 m, max 227.8 m over 274 m²). A 3 m plinth marks the footprint instead of a 228 m solid block."
     },
     {
@@ -27,7 +29,15 @@
       "parcel": "2724003",
       "label": "Sutro Tower mast column (lattice, seen from above)",
       "heightM": 3,
+      "placeholder": true,
       "source": "Placeholder until a landmark model replaces the sutro-tower probe's records. Sutro Tower is a 298 m open steel lattice on three legs (public record); the footprint dataset outlines its upper structure as seen from above, and the LiDAR fills that outline as a solid prism (median 183.2 m, max 225.1 m over 16 m²). A 3 m plinth marks the footprint instead of a 225 m solid block."
+    },
+    {
+      "id": "201006.0001563",
+      "parcel": "3566001",
+      "label": "Mission Dolores Basilica bell tower",
+      "keepTower": true,
+      "source": "The basilica beside the old mission chapel (parcel 3566001, built 1913 per the 2025 roll) has bell towers over its front; the LiDAR max over the footprint is 39.0 m above a 14.1 m median, a tower the moment model accepts (about 55 m², rising 3.4 times its width). The roll lists 1 storey (the nave is one tall room), so the spike check reads the tower as a LiDAR spike. Kept: the LiDAR is the evidence, the storey count is not."
     }
   ]
 }

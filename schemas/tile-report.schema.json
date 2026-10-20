@@ -11,6 +11,14 @@
       "description": "Building counts (pipeline/lib/buildings.ts BuildingStats)",
       "type": "object",
       "required": ["kept", "twoTier"],
+      "properties": {
+        "spikeTowersDroppedByUse": {
+          "description": "spikeTowersDropped by the joined parcel's assessor use_code (\"none\": no parcel)",
+          "type": "object",
+          "propertyNames": { "pattern": "^([A-Z]+|none)$" },
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        }
+      },
       "additionalProperties": { "type": "number" }
     },
     "roads": { "type": "object" },

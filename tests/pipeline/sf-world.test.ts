@@ -278,6 +278,55 @@ describe("sf world: buildings", () => {
     for (const b of recs) expect(b.topY - b.baseY, b.id).toBeLessThan(20);
   });
 
+  it("the pipeline writes no x- keys: the schemas' experiment prefix is never in shipped data", () => {
+    const xKeys = (o: object | null | undefined): string[] => Object.keys(o ?? {}).filter((k) => k.startsWith("x-"));
+    const found = [
+      ...xKeys(roads),
+      ...roads.nodes.flatMap(xKeys),
+      ...roads.edges.flatMap(xKeys),
+      ...colliders.flatMap((c) => [...xKeys(c), ...xKeys(c.ground), ...c.buildings.flatMap(xKeys)]),
+    ];
+    expect(found).toEqual([]);
+  });
+
+  it("placeholder plinths carry no storeys, use or units: a facade must not draw the building they stand in for", () => {
+    const file = readJson("pipeline/overrides.json") as { buildings: Array<{ id: string; placeholder?: boolean; heightM?: number }> };
+    const ids = file.buildings.filter((o) => o.placeholder).map((o) => o.id);
+    expect(ids).toEqual(["201006.0009087", "201006.0062170", "201006.0168289"]);
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    for (const id of ids) {
+      const b = byId.get(id)!;
+      expect(b.meta, id).toMatchObject({ heightSource: "override", heightM: 3, parcel: "2724003" });
+      expect([b.meta.stories, b.meta.use, b.meta.units, b.meta.condo], id).toEqual([undefined, undefined, undefined, undefined]);
+    }
+    // The real-height override keeps its parcel's facts: 415 Mission St's 63 storeys.
+    expect(byId.get("201006.0000548")!.meta).toMatchObject({ heightSource: "override", stories: 63, use: "Commercial Office" });
+  });
+
+  it("Mission Dolores keeps its bell tower: the one keepTower override against the spike check", () => {
+    const file = readJson("pipeline/overrides.json") as { buildings: Array<{ id: string; keepTower?: boolean }> };
+    expect(file.buildings.filter((o) => o.keepTower).map((o) => o.id)).toEqual(["201006.0001563"]);
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    const nave = byId.get("201006.0001563")!;
+    const tower = byId.get("201006.0001563-tower")!;
+    expect(nave.meta).toMatchObject({ heightSource: "lidar", parcel: "3566001", tower: tower.id });
+    expect(nave.meta.heightM).toBeCloseTo(14.1, 1);
+    expect(tower.meta.heightM).toBeCloseTo(39.0, 1);
+    // A thin tower the 1 assessor storey contradicts: exactly what the spike check drops.
+    expect(isLidarSpike(Math.abs(signedArea(tower.footprint)), nave.meta.heightM, tower.meta.heightM, 1)).toBe(true);
+    // 1 storey cannot describe a 39 m tower, so meta leaves it out (plausibleStories).
+    expect(nave.meta.stories).toBeUndefined();
+    const report = readJson("public/tiles/sf/report.json") as {
+      buildings: { spikeTowersKept: number; spikeTowersDropped: number; spikeTowersDroppedByUse: Record<string, number> };
+      probes: Array<{ id: string; buildings: string[] }>;
+    };
+    expect(report.probes.find((p) => p.id === "mission-dolores")!.buildings).toEqual([nave.id, tower.id]);
+    expect(report.buildings.spikeTowersKept).toBe(1);
+    // Every spike drop is attributed to its parcel's use code ("none": no parcel joined).
+    const byUse = report.buildings.spikeTowersDroppedByUse;
+    expect(Object.values(byUse).reduce((a, b) => a + b, 0)).toBe(report.buildings.spikeTowersDropped);
+  });
+
   it("the review's needle examples are single prisms near their median roof", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
     for (const id of ["201006.0024724", "201006.0001118", "201006.0001964", "201006.0171380"]) {
