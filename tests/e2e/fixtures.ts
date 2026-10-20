@@ -59,10 +59,11 @@ export interface FogWindow {
   __fogcity?: Handle;
 }
 
+/**
+ * Optional debug-handle members. renderInfo, setNight, setCameraMode, flyTo and tilesSettled
+ * are prerequisite "render-debug"; landmarks and stepFrames are "landmark-ids" and "step-frames".
+ */
 export type OptionalFeature = "renderInfo" | "setNight" | "setCameraMode" | "flyTo" | "tilesSettled" | "landmarks" | "stepFrames";
-
-/** The render track's debug-handle extras, together: prerequisite "render-debug". */
-export const RENDER_DEBUG: readonly OptionalFeature[] = ["renderInfo", "setNight", "setCameraMode", "flyTo", "tilesSettled"];
 
 // ---- prerequisites: skip when absent, or fail when E2E_REQUIRE names them (prereq.ts) -------
 
