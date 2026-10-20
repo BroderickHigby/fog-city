@@ -9,6 +9,7 @@ const ajv = new Ajv2020({ allErrors: true, strict: false });
 const schema = (name: string) => ajv.compile(readJson(`schemas/${name}.schema.json`));
 const manifestV = schema("tile-manifest");
 const colliderV = schema("tile-collider");
+const roadsV = schema("roads");
 
 function check(v: ReturnType<typeof schema>, rel: string): void {
   const ok = v(readJson(rel));
@@ -21,7 +22,11 @@ describe("world tiles validate", () => {
     const manifestRel = `public/tiles/${w}/manifest.json`;
     if (!existsSync(join(ROOT, manifestRel))) continue;
     it(manifestRel, () => check(manifestV, manifestRel));
-    const m = readJson<{ tiles: Array<{ collider: string }> }>(manifestRel);
+    const m = readJson<{ roads?: string | null; tiles: Array<{ collider: string }> }>(manifestRel);
+    if (m.roads) {
+      const roadsRel = `public/tiles/${w}/${m.roads}`;
+      it(roadsRel, () => check(roadsV, roadsRel));
+    }
     for (const t of m.tiles) {
       const rel = `public/tiles/${w}/${t.collider}`;
       it(rel, () => check(colliderV, rel));

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/roads",
+  "title": "World road graph (public/tiles/<world>/roads.json). Produced by the pipeline, consumed by sim traffic/robots and GPS routing.",
+  "type": "object",
+  "required": ["version", "nodes", "edges"],
+  "properties": {
+    "version": { "const": 1 },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "z"],
+        "properties": {
+          "id": { "type": "string" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "y": { "type": "number" }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "a", "b", "kind", "lanes", "oneway", "points"],
+        "properties": {
+          "id": { "type": "string" },
+          "a": { "type": "string", "description": "Start node id" },
+          "b": { "type": "string", "description": "End node id" },
+          "kind": { "enum": ["freeway", "arterial", "collector", "residential", "alley", "ramp", "other"] },
+          "lanes": { "type": "integer", "minimum": 1 },
+          "oneway": { "type": "boolean", "description": "true = traffic flows a -> b only" },
+          "widthM": { "type": "number" },
+          "speedLimitMps": { "type": "number" },
+          "name": { "type": "string" },
+          "points": {
+            "description": "Polyline [x, z] in local metres, first = node a, last = node b",
+            "type": "array", "minItems": 2,
+            "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+          }
+        }
+      }
+    }
+  }
+}

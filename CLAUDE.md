@@ -33,9 +33,9 @@ Each area has one owner. Edit only your own directories; anything else, describe
 
 | Area | Owns |
 |---|---|
-| Pipeline | `pipeline/`, `public/tiles/sf/`, `docs/data-sources.md`, `tests/pipeline/` |
-| Renderer | `src/render/`, `src/main.ts`, `src/input/`, `index.html`, `vite.config.ts`, `tests/render/` |
-| Sim | `src/sim/` (except `contract.ts`), `tests/sim/` |
+| Pipeline | `pipeline/`, `public/tiles/sf/` (incl. `roads.json`), `docs/data-sources.md`, `tests/pipeline/` |
+| Renderer | `src/render/`, `src/main.ts`, `src/debug.ts`, `src/input/`, `index.html`, `vite.config.ts`, `public/tiles/dev-city/`, `tests/render/` |
+| Sim | `src/sim/` (additive changes to `contract.ts` allowed: bump `SIM_VERSION`, say so), `tests/sim/` |
 | Content | `content/` (except `landmarks.json`), `src/content/`, `schemas/` content schemas, `tests/content/` |
 | Assets | `assets/blender/`, `public/models/`, `content/landmarks.json`, `tests/assets/` |
 | Harness | `tests/e2e/`, `playwright.config.ts`, `vitest.config.ts`, `.github/`, `tests/helpers.ts` |

@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "nodes": [
+    {
+      "id": "nw",
+      "x": -50,
+      "z": -50
+    },
+    {
+      "id": "ne",
+      "x": 50,
+      "z": -50
+    },
+    {
+      "id": "se",
+      "x": 50,
+      "z": 30
+    },
+    {
+      "id": "sw",
+      "x": -50,
+      "z": 30
+    }
+  ],
+  "edges": [
+    {
+      "id": "n",
+      "a": "nw",
+      "b": "ne",
+      "kind": "residential",
+      "lanes": 2,
+      "oneway": false,
+      "widthM": 10,
+      "name": "Test Loop",
+      "points": [
+        [
+          -50,
+          -50
+        ],
+        [
+          50,
+          -50
+        ]
+      ]
+    },
+    {
+      "id": "e",
+      "a": "ne",
+      "b": "se",
+      "kind": "residential",
+      "lanes": 2,
+      "oneway": false,
+      "widthM": 10,
+      "name": "Test Loop",
+      "points": [
+        [
+          50,
+          -50
+        ],
+        [
+          50,
+          30
+        ]
+      ]
+    },
+    {
+      "id": "s",
+      "a": "se",
+      "b": "sw",
+      "kind": "residential",
+      "lanes": 2,
+      "oneway": false,
+      "widthM": 10,
+      "name": "Test Loop",
+      "points": [
+        [
+          50,
+          30
+        ],
+        [
+          -50,
+          30
+        ]
+      ]
+    },
+    {
+      "id": "w",
+      "a": "sw",
+      "b": "nw",
+      "kind": "residential",
+      "lanes": 2,
+      "oneway": false,
+      "widthM": 10,
+      "name": "Test Loop",
+      "points": [
+        [
+          -50,
+          30
+        ],
+        [
+          -50,
+          -50
+        ]
+      ]
+    }
+  ]
+}
