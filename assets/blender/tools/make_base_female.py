@@ -42,6 +42,8 @@ JOINTS = [
     "l-clavicle", "l-shoulder", "l-elbow", "l-hand", "r-clavicle", "r-shoulder", "r-elbow", "r-hand",
     "l-upper-leg", "l-knee", "l-ankle", "l-foot-1", "l-foot-2",
     "r-upper-leg", "r-knee", "r-ankle", "r-foot-1", "r-foot-2",
+    "l-finger-1-1", "l-finger-1-3", "l-finger-3-1", "l-finger-3-3", "l-finger-5-1", "l-finger-5-3",
+    "r-finger-1-1", "r-finger-1-3", "r-finger-3-1", "r-finger-3-3", "r-finger-5-1", "r-finger-5-3",
 ]
 
 

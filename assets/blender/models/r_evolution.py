@@ -32,14 +32,16 @@ BUDGET = 40_000
 FIGURE_H = 13.7  # 45 ft, top of the hair
 PLINTH_R = 3.6  # keep in step with tools/landmarks.py
 PLINTH_H = 0.6
-ARM_DOWN_DEG = 14.0  # rotate the A-pose arms toward the body (A-pose ~42 deg -> ~28 deg)
+ARM_DOWN_DEG = 17.0  # rotate the A-pose arms toward the body (A-pose ~42 deg -> ~25 deg)
+ELBOW_STRAIGHTEN = 0.85  # fraction of the rest pose's forward elbow bend to take out
+WRIST_STRAIGHTEN = 0.8  # and of the wrist's flex
 HEAD_UP_DEG = 9.0
 FRAME_TRIS = 2000
 SHELL_TRIS = 5200
 GLOW_TRIS = 2600
 ROD = 0.075  # rod thickness, metres
 SHELL_OFFSET = -0.03
-GLOW_OFFSET = -0.22
+GLOW_DEPTH = 0.22  # how far the glow layer sits inside the skin (less where she is thin)
 PLY = os.path.join(fc.BLENDER_DIR, "data", "makehuman-female.ply")
 TEX_DIR = os.path.join(fc.BLENDER_DIR, ".cache", "textures")
 
@@ -98,9 +100,54 @@ def pose(co: np.ndarray, J: dict) -> np.ndarray:
     out = co.copy()
     for s_, side in (("l", -1), ("r", 1)):
         w = W[:, names.index(f"arm_{s_}")]
+        el, ha = j[f"{s_}-elbow"], j[f"{s_}-hand"]
+        # hand frame from the finger joints: a along the hand, s across it (thumb -> little
+        # finger), n out of the palm (mirrored for the left hand)
+        a = j[f"{s_}-finger-3-3"] - ha
+        a /= np.linalg.norm(a)
+        sp = j[f"{s_}-finger-5-3"] - j[f"{s_}-finger-1-3"]
+        sp -= a * (sp @ a)
+        sp /= np.linalg.norm(sp)
+        n = np.cross(a, sp) * side
+        # close the fingers: squeeze across the hand beyond the knuckles, so the remesh
+        # fuses them into the sculpture's flat, open hand
+        knuckle = j[f"{s_}-finger-3-1"]
+        t_h = (co - knuckle) @ a
+        ramp = smoothstep(-0.02, 0.05, t_h) * w * (((co - ha) @ a) > 0)
+        across = (co - knuckle) @ sp
+        out = out - np.outer(across * 0.5 * ramp, sp)
+        # straighten the wrist: line the hand up with the forearm (rest pose flexes it)
+        fo0 = (ha - el) / np.linalg.norm(ha - el)
+        wrist_axis = np.cross(a, fo0)
+        wrist = math.asin(min(1.0, np.linalg.norm(wrist_axis))) * WRIST_STRAIGHTEN
+        wrist_axis /= np.linalg.norm(wrist_axis)
+        ww = smoothstep(-0.015, 0.03, (co - ha) @ fo0) * w
+        out = rot_about(out, ha, wrist_axis, wrist * ww)
+        n = rot_about(n[None, :], np.zeros(3), wrist_axis, np.array([wrist]))[0]
+        # straighten the elbow: MakeHuman's rest pose bends the forearms forward; the
+        # sculpture's arms hang nearly straight. Rotate forearm and hand about the elbow.
+        up = (el - j[f"{s_}-shoulder"]) / np.linalg.norm(el - j[f"{s_}-shoulder"])
+        L_fo = np.linalg.norm(ha - el)
+        fo = (ha - el) / L_fo
+        bend_axis = np.cross(fo, up)
+        bend = math.asin(min(1.0, np.linalg.norm(bend_axis))) * ELBOW_STRAIGHTEN
+        bend_axis /= np.linalg.norm(bend_axis)
+        we = smoothstep(-0.025, 0.03, (co - el) @ up) * w
+        out = rot_about(out, el, bend_axis, bend * we)
+        R = lambda v: rot_about(v[None, :], np.zeros(3), bend_axis, np.array([bend]))[0]  # noqa: E731
+        fo2, n2 = R(fo), R(n)
+        # turn the palms forward: twist the forearm about its own (new) axis, from nothing at
+        # the elbow to the full angle at the wrist (the hand follows rigidly); the angle is the
+        # one that best points the palm forward and a little outward
+        target = np.array([0.3 * side, 1.0, 0.0])
+        target /= np.linalg.norm(target)
+        best = max(range(-180, 181),
+                   key=lambda d: rot_about(n2[None, :], np.zeros(3), fo2, np.array([np.radians(d)]))[0] @ target)
+        tw = np.clip(((co - el) @ fo) / L_fo, 0.0, 1.0) * w
+        out = rot_about(out, el, fo2, np.radians(best) * tw)
         ang = np.full(len(co), np.radians(ARM_DOWN_DEG) * side)
-        rotated = rot_about(co, j[f"{s_}-shoulder"], np.array([0.0, 1.0, 0.0]), ang)
-        out += (rotated - co) * w[:, None]
+        rotated = rot_about(out, j[f"{s_}-shoulder"], np.array([0.0, 1.0, 0.0]), ang)
+        out = out + (rotated - out) * w[:, None]
     wh = W[:, names.index("head")]
     rotated = rot_about(co, j["neck"], np.array([1.0, 0.0, 0.0]), np.full(len(co), np.radians(HEAD_UP_DEG)))
     out += (rotated - co) * wh[:, None]
@@ -180,6 +227,21 @@ def offset(ob, dist):
     m.mid_level = 0.0
     m.strength = dist
     apply_mods(ob)
+
+
+def inset_by_thickness(ob, solid, depth, frac=0.35):
+    """Move each vertex inward along its normal by min(depth, frac * local thickness), where
+    the thickness is a ray cast through the solid; thin parts (fingers) never invert."""
+    from mathutils.bvhtree import BVHTree
+
+    tree = BVHTree.FromObject(solid, bpy.context.evaluated_depsgraph_get())
+    me = ob.data
+    for v in me.vertices:
+        nrm = v.normal
+        hit = tree.ray_cast(v.co - nrm * 0.002, -nrm, 10.0)
+        d = (hit[3] + 0.002) if hit[0] is not None else 0.0
+        v.co = v.co - nrm * min(depth, frac * d)
+    me.update()
 
 
 def triplanar_uv(ob, scale, rot=0.0):
@@ -281,7 +343,7 @@ def main() -> None:
 
     gl = copy("glow")
     decimate_to(gl, GLOW_TRIS)
-    offset(gl, GLOW_OFFSET)
+    inset_by_thickness(gl, src, GLOW_DEPTH)
     gl.data.materials.clear()
     gl.data.materials.append(glow)
     for p in gl.data.polygons:
