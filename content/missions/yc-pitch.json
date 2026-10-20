@@ -1,0 +1,175 @@
+{
+  "id": "yc-pitch",
+  "version": 1,
+  "$comment": "The accelerator is invented (the Batchery) and so is its partner, Paxton Longform: a caricature of the essay-writing accelerator partner, not of any one real person. Coordinates: DataSF EAS addresses (3mea-di5p) and street centerlines (3psu-pn9h), fetched 2026-10-20.",
+  "title": "The Partner Meeting",
+  "summary": "Your partner meeting at the Batchery moved up to 10:00. It is 09:51 and you are in the Marina. Get to Dogpatch, survive four questions from a partner in a fleece vest, and either get funded or get told to come back with traction.",
+  "area": "Marina to Dogpatch",
+  "start": "call",
+  "cast": {
+    "player": { "name": "You", "role": "Founder" },
+    "slotsworth": { "name": "Slotsworth", "role": "Paxton's AI scheduling agent", "description": "Relentlessly upbeat. Has already accepted on your behalf." },
+    "paxton": {
+      "name": "Paxton Longform", "role": "Partner at the Batchery",
+      "description": "Invented caricature of the essay-writing accelerator partner: fleece vest, three blog posts a day, hears every pitch as material for the next one."
+    },
+    "frontDesk": { "name": "Front Desk", "role": "The Batchery's lobby robot" }
+  },
+  "meters": {
+    "conviction": { "label": "Partner conviction", "start": 40, "min": 0, "max": 100 }
+  },
+  "outcomes": {
+    "funded": { "label": "Funded", "kind": "success" },
+    "traction": { "label": "Come back with traction", "kind": "retry" },
+    "missed": { "label": "Missed the meeting", "kind": "retry" }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "note": "Rings when the player is at their apartment.",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "slotsworth",
+        "clock": "09:51",
+        "place": {
+          "label": "Your apartment (Marina, Toledo Way)",
+          "lat": 37.8018, "lon": -122.4379, "radiusM": 40,
+          "source": "Toledo Way centerline between EAS 2-30 Toledo Way; a street, not an address"
+        }
+      },
+      "lines": [
+        { "speaker": "slotsworth", "text": "Hi! Slotsworth here, Paxton Longform's scheduling agent. Great news: your partner meeting moved up." },
+        { "speaker": "slotsworth", "text": "It's now at ten. It is nine fifty-one. I accepted on your behalf. You're welcome!" },
+        { "speaker": "player", "text": "Ten? As in nine minutes from now?" },
+        { "speaker": "slotsworth", "text": "Paxton has a hard stop at ten fifteen to write an essay about hard stops. The Batchery, 315 Pennsylvania, Dogpatch. See you there!" }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "travel": "any",
+      "target": {
+        "label": "The Batchery, 315 Pennsylvania Ave, Dogpatch",
+        "lat": 37.76242, "lon": -122.39325, "radiusM": 25,
+        "source": "Interpolated between EAS 301 (37.762547, -122.393263) and 331 (37.762271, -122.393236) Pennsylvania Ave"
+      },
+      "timer": { "limitS": 540, "warnAtS": 120, "label": "Partner meeting", "deadline": "10:00" },
+      "lines": [
+        { "speaker": "slotsworth", "text": "Reminder: Paxton doesn't wait. Paxton writes about people who make him wait." }
+      ],
+      "next": "lobby",
+      "onTimeout": "missed"
+    },
+    {
+      "id": "lobby",
+      "type": "timer",
+      "durationS": 20,
+      "lines": [
+        { "speaker": "frontDesk", "text": "Welcome to the Batchery. Paxton is finishing a blog post. It's about patience." },
+        { "speaker": "frontDesk", "text": "Kombucha is on tap. It's also on the cap table." }
+      ],
+      "next": "pitch"
+    },
+    {
+      "id": "pitch",
+      "type": "dialogue",
+      "speaker": "paxton",
+      "meter": "conviction",
+      "intro": [
+        { "speaker": "paxton", "text": "Love the energy. I've got eleven minutes and a draft open, so let's go." }
+      ],
+      "questions": [
+        {
+          "id": "moat",
+          "prompt": "So. What's your moat?",
+          "answers": [
+            { "id": "network", "text": "Network effects. Every new user makes it harder to leave.", "delta": 15, "reply": "Ooh. I've written four essays about that. Five, after today." },
+            { "id": "speed", "text": "Speed. We ship faster than anyone.", "delta": 5, "reply": "Speed isn't a moat. It's a puddle. That's going in the blog." },
+            { "id": "slide", "text": "It's in the deck. Slide nine.", "delta": -10, "reply": "Slide nine is a photo of an actual moat. There's a swan." }
+          ]
+        },
+        {
+          "id": "whyNow",
+          "prompt": "Why now?",
+          "answers": [
+            { "id": "window", "text": "A year ago this was impossible. Next year it's a free feature. Now is the window.", "delta": 15, "reply": "A closing window. Investors love a closing window." },
+            { "id": "robotaxis", "text": "The robotaxis finally stopped circling our office.", "delta": 5, "reply": "Mine still circles my office. I think it's lonely." },
+            { "id": "bar", "text": "Honestly? The bar was low, and so were we.", "delta": -10, "reply": "Candid. Too candid. Let's keep that out of the memo." }
+          ]
+        },
+        {
+          "id": "justAFeature",
+          "prompt": "Isn't this just a feature?",
+          "answers": [
+            { "id": "email", "text": "Every company was a feature once. So was email.", "delta": 15, "reply": "Bold. That's an essay. Possibly a book." },
+            { "id": "waitlist", "text": "It's a feature with a waitlist.", "delta": 5, "reply": "A waitlist is a feature with ambition. I'll allow it." },
+            { "id": "platform", "text": "Yes. The big platforms will ship it next quarter.", "delta": -15, "reply": "Ah. Honesty. We have a portfolio company for that. It's also struggling." }
+          ]
+        },
+        {
+          "id": "traction",
+          "prompt": "What does traction look like?",
+          "answers": [
+            { "id": "waitlist", "text": "Forty thousand on the waitlist. Some of them are people.", "delta": 10, "reply": "Some is a number. I'll take it." },
+            { "id": "revenue", "text": "Three customers who pay us every month. On purpose.", "delta": 15, "reply": "Revenue? In this economy? Weird. Interesting. Mostly weird." },
+            { "id": "views", "text": "Our launch video has a million views. Mostly us.", "delta": -5, "reply": "Views are a vibe. Vibes aren't a metric. That's my next post." }
+          ]
+        }
+      ],
+      "next": "decide"
+    },
+    {
+      "id": "decide",
+      "type": "branch",
+      "meter": "conviction",
+      "cases": [{ "min": 70, "next": "funded" }],
+      "default": "traction"
+    },
+    {
+      "id": "funded",
+      "type": "reward",
+      "outcome": "funded",
+      "lines": [
+        { "speaker": "paxton", "text": "I'm in. Don't tell anyone until I've blogged about it." },
+        { "speaker": "slotsworth", "text": "Congratulations! I booked your billboard on the 101. And a therapist. Both start Monday." }
+      ],
+      "grants": [
+        {
+          "kind": "billboard",
+          "corridor": "us-101",
+          "place": {
+            "label": "US-101 northbound, Potrero Hill curve",
+            "lat": 37.757425, "lon": -122.403945, "headingDeg": 165,
+            "source": "30 m east of the midpoint of HWY 101 NORTHBOUND segment CNN 19215000; faces oncoming northbound traffic (road bearing about 345 degrees)"
+          },
+          "copy": { "generator": "billboard", "product": "playerStartup" }
+        },
+        { "kind": "stat", "stat": "vcAttention", "delta": 1 }
+      ]
+    },
+    {
+      "id": "traction",
+      "type": "retry",
+      "outcome": "traction",
+      "lines": [
+        { "speaker": "paxton", "text": "I love it. I'm out. Come back with traction." },
+        { "speaker": "paxton", "text": "I'll send you my essay on traction. It's long. Read it twice." }
+      ],
+      "hint": "Get some traction, or a better answer to 'Isn't this just a feature?', then take the call again.",
+      "cooldownS": 300,
+      "retryFrom": "call"
+    },
+    {
+      "id": "missed",
+      "type": "retry",
+      "outcome": "missed",
+      "lines": [
+        { "speaker": "slotsworth", "text": "Paxton waited ninety seconds, then wrote a post about founders who are late. You're the hero of it." },
+        { "speaker": "slotsworth", "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably." }
+      ],
+      "retryFrom": "call"
+    }
+  ]
+}

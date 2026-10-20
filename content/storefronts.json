@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "$comment": "Storefront kits by NAICS prefix; the longest matching prefix wins. The pipeline's anchors carry self-reported codes from DataSF g8m3-pdis in both the 2017 and 2022 NAICS vintages (e.g. pharmacies appear as 446110 and 456110), so each kit lists both. Every kit is unnamed: signText is null and the sign slot stays blank.",
+  "noStorefrontPrefixes": ["454", "7223"],
+  "types": [
+    {
+      "id": "bar", "label": "Bar",
+      "naicsPrefixes": ["7224"],
+      "naicsNote": "722410 Drinking Places (Alcoholic Beverages), same code in 2017 and 2022.",
+      "signShape": "neonPanel",
+      "signSlot": { "mount": "fascia", "widthM": 3.2, "heightM": 0.6 },
+      "props": ["beerNeonPanel", "tintedWindow", "barStools"],
+      "nightGlow": true,
+      "signText": null
+    },
+    {
+      "id": "restaurant", "label": "Full-service restaurant",
+      "naicsPrefixes": ["722", "722511", "722110"],
+      "naicsNote": "722511 Full-Service Restaurants (2012+), 722110 in 2007. 722 alone (and 722514 cafeterias) falls back here.",
+      "signShape": "fasciaBand",
+      "signSlot": { "mount": "fascia", "widthM": 4, "heightM": 0.7 },
+      "props": ["tablecloths", "awning", "sidewalkTables", "menuStand"],
+      "nightGlow": true,
+      "signText": null
+    },
+    {
+      "id": "cafe", "label": "Cafe",
+      "naicsPrefixes": ["722513", "722515", "722211", "722213"],
+      "naicsNote": "722513 Limited-Service Restaurants and 722515 Snack and Nonalcoholic Beverage Bars (coffee shops); 722211 and 722213 are their 2007 codes.",
+      "signShape": "cupBlade",
+      "signSlot": { "mount": "blade", "widthM": 0.8, "heightM": 0.8 },
+      "props": ["awning", "aFrameBlank", "cupSign", "pastryCase"],
+      "nightGlow": false,
+      "signText": null
+    },
+    {
+      "id": "grocery", "label": "Grocery and deli",
+      "naicsPrefixes": ["4451", "4452"],
+      "naicsNote": "4451 Grocery and Convenience Retailers (445110 supermarkets, 445120/445131 corner stores); 4452 Specialty Food (meat, fish, produce, delis).",
+      "signShape": "fasciaBand",
+      "signSlot": { "mount": "fascia", "widthM": 4.5, "heightM": 0.7 },
+      "props": ["stripedAwning", "produceCrates", "hangingSalami", "deliCounter"],
+      "nightGlow": false,
+      "signText": null
+    },
+    {
+      "id": "bakery", "label": "Bakery",
+      "naicsPrefixes": ["445291", "311811"],
+      "naicsNote": "445291 Baked Goods Retailers; 311811 Retail Bakeries (bake on site). The morning line outside is where the Bot Hunt line-stander works.",
+      "signShape": "breadBlade",
+      "signSlot": { "mount": "blade", "widthM": 1, "heightM": 0.6 },
+      "props": ["awning", "breadWindow", "queueRail", "aFrameBlank"],
+      "nightGlow": false,
+      "signText": null
+    },
+    {
+      "id": "barber", "label": "Barber",
+      "naicsPrefixes": ["812111"],
+      "naicsNote": "812111 Barber Shops.",
+      "signShape": "barberPole",
+      "signSlot": { "mount": "window", "widthM": 1.6, "heightM": 0.5 },
+      "props": ["barberPole", "barberChairWindow"],
+      "nightGlow": true,
+      "signText": null
+    },
+    {
+      "id": "salon", "label": "Salon and personal care",
+      "naicsPrefixes": ["8121"],
+      "naicsNote": "812112 Beauty Salons, 812113 Nail Salons, 8121xx other personal care. Barbers (812111) have their own kit.",
+      "signShape": "scissorsBlade",
+      "signSlot": { "mount": "blade", "widthM": 0.9, "heightM": 0.6 },
+      "props": ["salonChairWindow", "mirrorWall"],
+      "nightGlow": false,
+      "signText": null
+    },
+    {
+      "id": "laundromat", "label": "Laundromat",
+      "naicsPrefixes": ["8123", "812310"],
+      "naicsNote": "812310 Coin-Operated Laundries and Drycleaners; the rest of 8123 falls back here.",
+      "signShape": "fasciaBand",
+      "signSlot": { "mount": "fascia", "widthM": 4, "heightM": 0.6 },
+      "props": ["washingMachines", "foldingTable"],
+      "nightGlow": true,
+      "signText": null
+    },
+    {
+      "id": "drycleaner", "label": "Dry cleaner",
+      "naicsPrefixes": ["812320"],
+      "naicsNote": "812320 Drycleaning and Laundry Services (except Coin-Operated).",
+      "signShape": "hangerBlade",
+      "signSlot": { "mount": "blade", "widthM": 0.9, "heightM": 0.5 },
+      "props": ["garmentRack", "displayWindow"],
+      "nightGlow": false,
+      "signText": null
+    },
+    {
+      "id": "pharmacy", "label": "Pharmacy",
+      "naicsPrefixes": ["446110", "456110"],
+      "naicsNote": "Pharmacies and Drug Stores: 446110 in NAICS 2017, 456110 in NAICS 2022. Other health retail (4461xx, 4561xx) stays generic retail.",
+      "signShape": "projectingCross",
+      "signSlot": { "mount": "fascia", "widthM": 4, "heightM": 0.7 },
+      "props": ["pharmacyCross", "shelvedWindow"],
+      "nightGlow": true,
+      "signText": null
+    },
+    {
+      "id": "florist", "label": "Florist",
+      "naicsPrefixes": ["453110", "459310"],
+      "naicsNote": "Florists: 453110 in NAICS 2017, 459310 in NAICS 2022. Players fire flowers, so these are a natural place to restock.",
+      "signShape": "awningValance",
+      "signSlot": { "mount": "awningValance", "widthM": 3, "heightM": 0.3 },
+      "props": ["flowerBuckets", "awning"],
+      "nightGlow": false,
+      "signText": null
+    },
+    {
+      "id": "retail", "label": "Generic retail",
+      "naicsPrefixes": ["44", "45"],
+      "naicsNote": "Retail Trade, sectors 44-45: anything without a more specific kit (clothing, hardware, books, liquor, electronics...).",
+      "signShape": "fasciaBand",
+      "signSlot": { "mount": "fascia", "widthM": 4, "heightM": 0.6 },
+      "props": ["displayWindow", "doorMat"],
+      "nightGlow": false,
+      "signText": null
+    }
+  ]
+}

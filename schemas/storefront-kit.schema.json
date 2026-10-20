@@ -2,23 +2,69 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/storefront-kit",
   "title": "Storefront types by business category (content/storefronts.json). Unnamed: iconography only.",
+  "description": "Maps a NAICS code (the pipeline's storefront anchors carry the business registry's self-reported code) to a storefront kit: a sign shape and street props. The longest matching prefix wins (storefrontFor in src/content/storefronts.ts). Signs carry no text and no names: the sign slot is reserved, signText stays null.",
   "type": "object",
-  "required": ["version", "types"],
+  "required": ["version", "types", "noStorefrontPrefixes"],
+  "additionalProperties": false,
   "properties": {
     "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "noStorefrontPrefixes": {
+      "description": "Codes that never get a kit even though a broader prefix matches (non-store retail, caterers). Mirrors the pipeline's exclusions.",
+      "type": "array", "items": { "$ref": "#/$defs/naics" }
+    },
     "types": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "naicsPrefixes", "signShape"],
+        "required": ["id", "label", "naicsPrefixes", "signShape", "signSlot", "props", "signText"],
+        "additionalProperties": false,
         "properties": {
-          "id": { "type": "string" },
-          "naicsPrefixes": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{2,6}$" } },
-          "signShape": { "type": "string" },
-          "props": { "type": "array", "items": { "type": "string" } },
-          "signText": { "description": "Reserved for later. Must be absent or null for now.", "type": "null" }
+          "id": { "type": "string", "pattern": "^[a-z][a-zA-Z]*$" },
+          "label": { "type": "string" },
+          "naicsPrefixes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/naics" } },
+          "naicsNote": { "type": "string", "description": "Which NAICS vintage each prefix comes from, and why it is here." },
+          "signShape": { "$ref": "#/$defs/signShape" },
+          "signSlot": {
+            "type": "object",
+            "description": "The empty panel reserved for a future sign, in metres, relative to the shopfront.",
+            "required": ["mount", "widthM", "heightM"],
+            "additionalProperties": false,
+            "properties": {
+              "mount": { "enum": ["fascia", "blade", "window", "awningValance", "pole"] },
+              "widthM": { "type": "number", "exclusiveMinimum": 0, "maximum": 8 },
+              "heightM": { "type": "number", "exclusiveMinimum": 0, "maximum": 3 }
+            }
+          },
+          "props": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/prop" } },
+          "nightGlow": { "type": "boolean", "description": "The sign or a prop is lit after dark." },
+          "signText": { "description": "Reserved for later. Must be null for now: storefronts are unnamed.", "type": "null" }
         }
       }
+    }
+  },
+  "$defs": {
+    "naics": { "type": "string", "pattern": "^[0-9]{2,6}$" },
+    "signShape": {
+      "description": "neonPanel: a glowing tube panel in the window, shaped like a beer glass; fasciaBand: a flat blank band above the door; cupBlade: a projecting blade sign shaped like a coffee cup; breadBlade: a projecting loaf-shaped blade; barberPole: the striped spinning pole is the sign; scissorsBlade: a projecting scissors-and-comb blade; projectingCross: a lit cross on a bracket; hangerBlade: a projecting coat-hanger blade; awningValance: the sign is the awning's front flap.",
+      "enum": ["neonPanel", "fasciaBand", "cupBlade", "breadBlade", "barberPole", "scissorsBlade", "projectingCross", "hangerBlade", "awningValance"]
+    },
+    "prop": {
+      "description": "Street-level dressing the renderer places at the shopfront. Assets build one generic model per prop.",
+      "enum": [
+        "beerNeonPanel", "tintedWindow", "barStools",
+        "tablecloths", "awning", "sidewalkTables", "menuStand",
+        "aFrameBlank", "cupSign", "pastryCase",
+        "stripedAwning", "produceCrates", "hangingSalami", "deliCounter",
+        "breadWindow", "queueRail",
+        "barberPole", "barberChairWindow",
+        "salonChairWindow", "mirrorWall",
+        "washingMachines", "foldingTable",
+        "garmentRack", "pharmacyCross", "shelvedWindow",
+        "flowerBuckets",
+        "displayWindow", "doorMat"
+      ]
     }
   }
 }
