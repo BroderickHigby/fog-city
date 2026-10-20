@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "landmarks": [
+    {
+      "id": "ferry-building",
+      "model": "models/ferry-building.glb",
+      "lat": 37.7954097,
+      "lon": -122.3936604,
+      "headingDeg": 233.8,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000058",
+        "201006.0000058-tower"
+      ],
+      "collider": [
+        [101.38, 50.81],
+        [-101.21, 50.76],
+        [-101.22, 3.02],
+        [-100.93, 2.13],
+        [-22.49, 2.03],
+        [-22.52, -6.84],
+        [22.52, -7.0],
+        [22.56, 2.05],
+        [100.92, 2.01]
+      ],
+      "source": "Origin = clock tower centre; footprint and heading from DataSF building footprints (ynuv-fyni) sf16_bldgid 201006.0000058. See assets/blender/README.md."
+    },
+    {
+      "id": "r-evolution",
+      "model": "models/r-evolution.glb",
+      "lat": 37.794742,
+      "lon": -122.394502,
+      "headingDeg": 225.3,
+      "scale": 1,
+      "collider": [
+        [3.6, 0.0],
+        [3.12, 1.8],
+        [1.8, 3.12],
+        [0.0, 3.6],
+        [-1.8, 3.12],
+        [-3.12, 1.8],
+        [-3.6, 0.0],
+        [-3.12, -1.8],
+        [-1.8, -3.12],
+        [-0.0, -3.6],
+        [1.8, -3.12],
+        [3.12, -1.8]
+      ],
+      "source": "Embarcadero Plaza on the Market St axis, facing up Market (Wikipedia coordinate cross-checked against DataSF street centrelines). See assets/blender/README.md."
+    }
+  ]
+}
