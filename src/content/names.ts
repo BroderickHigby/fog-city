@@ -1,24 +1,30 @@
-// Invented startup and product names: "Kelpforge", "Feral Teapot", "moss.ai", "Pondr".
+// Invented startup and product names: "Kelpforge", "Feral Teapot", "moss.ai", "Squandr".
 //
 // The whole output space is finite and enumerable (allNames()), and every candidate is run
-// through the real-brand blocklist before it can be chosen, so "no real name ever comes out"
-// is a property of the construction, and tests/content/names.test.ts checks it exhaustively.
+// through the real-brand blocklist and an offensive-word filter before it can be chosen. The
+// blocklist can only block what it lists, so tests/content/names.test.ts checks the whole
+// output space against it, pins every real name the generator has ever been caught spelling,
+// and probes a list of well-known brands.
 
-import { blockedNameReason } from "./blocklist.ts";
+import { blockedNameReason, offensiveNameReason } from "./blocklist.ts";
 import { makePrng, type Prng } from "./prng.ts";
 
 /** Longest name ever produced. Billboard headlines are sized against it. */
 export const NAME_MAX = 12;
 export const NAME_MIN = 3;
 
-// Word pools. Bay Area nouns, AI jargon and harmless animals; nothing that is a person.
+// Word pools. Every word was checked against well-known tech and consumer brands: no root is
+// itself a notable product (no Lattice, Drift, Juniper or Tensor), because "<root> AI" and
+// "<root>OS" must read as invented. The filter below is the safety net, not the plan.
+// Roots: AI-scene jargon and uniforms, SF food, the Bay shore, and street furniture.
 const ROOTS = [
-  "Prompt", "Vector", "Latent", "Token", "Tensor", "Kernel", "Cache", "Shard", "Ember", "Quill", "Ledger",
-  "Orbit", "Drift", "Glide", "Prism", "Vapor", "Sonder", "Parrot", "Marble", "Comet", "Lattice",
-  "Hush", "Nimbus", "Quokka", "Bramble", "Sorrel", "Juniper", "Basil", "Fennel", "Moss", "Kale", "Fog",
-  "Ferry", "Cable", "Pier", "Brine", "Kelp", "Heron", "Pelican", "Sprout", "Gull", "Fable", "Hatch",
-  "Kiln", "Tally", "Plinth", "Rook", "Wren", "Yarrow", "Thistle", "Clam", "Burrow", "Mortar", "Grove",
-  "Bluff", "Cove", "Sable", "Tinsel", "Dune", "Pylon", "Lumber", "Tangent",
+  "Prompt", "Token", "Shard", "Cache", "Slop", "Vibe", "Waitlist", "Hoodie", "Fleece", "Lanyard",
+  "Kale", "Basil", "Sorrel", "Kelp", "Burrito", "Crouton", "Kumquat", "Rhubarb", "Parsnip", "Chard", "Shallot",
+  "Dumpling", "Scone", "Latte", "Biscuit", "Waffle",
+  "Fog", "Ferry", "Pier", "Brine", "Gull", "Clam", "Mussel", "Barnacle", "Abalone", "Anchovy", "Cobble", "Gravel",
+  "Basalt", "Pumice", "Loam", "Silt", "Moss", "Yarrow", "Bramble", "Lupine", "Wharf", "Sandbar", "Bluff",
+  "Plinth", "Tinsel", "Mortar", "Tangent", "Bobbin", "Spatula", "Ladle", "Teacup", "Parklet", "Pothole",
+  "Hydrant", "Trolley", "Gadget", "Doodad", "Widget",
 ] as const;
 
 /** Joined lower-case ("Kalely") or CamelCase ("KaleStack"). */
@@ -26,27 +32,27 @@ const SUFFIXES: ReadonlyArray<readonly [string, "join" | "camel"]> = [
   ["ly", "join"], ["ify", "join"], ["io", "join"], ["wise", "join"], ["ster", "join"], ["ware", "join"],
   ["verse", "join"], ["kit", "join"], ["grid", "join"], ["sync", "join"], ["deck", "join"],
   ["Stack", "camel"], ["Loop", "camel"], ["Forge", "camel"], ["Mind", "camel"], ["Works", "camel"],
-  ["Flow", "camel"], ["Base", "camel"],
+  ["Bot", "camel"], ["Base", "camel"],
 ];
 
 const ADJECTIVES = [
-  "Latent", "Quiet", "Stealth", "Hyper", "Tiny", "Feral", "Polite", "Lucid", "Sober", "Velvet", "Cosmic",
-  "Honest", "Patient", "Rogue", "Ambient", "Serene", "Bespoke", "Mild", "Brave", "Gentle", "Earnest",
-  "Sudden", "Plucky", "Frugal", "Lazy", "Sincere", "Vague", "Calm", "Proud", "Sleepy",
+  "Latent", "Quiet", "Stealth", "Hyper", "Tiny", "Feral", "Polite", "Smug", "Sober", "Velvet", "Cosmic",
+  "Honest", "Patient", "Rogue", "Ambient", "Serene", "Bespoke", "Mild", "Scrappy", "Gentle", "Earnest",
+  "Sudden", "Plucky", "Frugal", "Lazy", "Sincere", "Vague", "Damp", "Proud", "Sleepy", "Foggy", "Jaunty",
 ] as const;
 
 const NOUNS = [
-  "Pelican", "Heron", "Crab", "Gull", "Walrus", "Ferret", "Toaster", "Lobster", "Parakeet", "Cactus",
-  "Fern", "Tugboat", "Trolley", "Kiln", "Lantern", "Teapot", "Compass", "Harbor", "Anchor", "Ladder",
-  "Pigeon", "Raccoon", "Moth", "Badger", "Yak", "Sourdough", "Kelp", "Clam", "Muffin", "Pretzel", "Turnip",
+  "Pelican", "Heron", "Crab", "Gull", "Walrus", "Ferret", "Hammock", "Lobster", "Parakeet", "Cactus",
+  "Fern", "Tugboat", "Trolley", "Crouton", "Lantern", "Teapot", "Burrito", "Dumpling", "Kumquat", "Ladder",
+  "Pigeon", "Raccoon", "Moth", "Weasel", "Yak", "Sourdough", "Kelp", "Clam", "Muffin", "Pretzel", "Turnip",
 ] as const;
 
 const TLDS = [".ai", ".dev", ".so", ".run", ".sh", ".xyz"] as const;
 
-/** Words ending in "er" that drop the e: Ledger -> Ledgr. */
+/** Words ending in "er" that drop the e: Squander -> Squandr. */
 const DROP_E = [
-  "Ledger", "Gather", "Ponder", "Wander", "Ember", "Hammer", "Shimmer", "Linger", "Tinker", "Clamber",
-  "Glimmer", "Ladder", "Thunder", "Copper", "Badger", "Ranger", "Mutter", "Saunter", "Banter",
+  "Ponder", "Wander", "Hammer", "Shimmer", "Linger", "Tinker", "Clamber", "Glimmer", "Ladder", "Thunder",
+  "Copper", "Ranger", "Mutter", "Saunter", "Banter", "Blather", "Blunder", "Squander", "Dither",
 ] as const;
 
 const GREEK_HEADS = ["Ve", "Ka", "Ny", "Zo", "Ori", "Sa", "Te", "Xe", "Mi", "Ara", "Eli", "Iso"] as const;
@@ -75,7 +81,9 @@ function joinRoot(root: string, suffix: string, mode: "join" | "camel"): string 
   let r = root;
   const last = r[r.length - 1] as string;
   if (suffix === "ly" && (last === "l" || last === "y")) return null; // "Basilly", "Ferryly"
-  if (/^[aeiou]/.test(suffix) && /[aeiouy]$/.test(r)) r = r.slice(0, -1); // Cache+ify -> Cachify
+  if (suffix === "ly" && /[^aeiou]le$/.test(r)) return r.slice(0, -2) + "ly"; // Bramble -> Brambly
+  if (suffix === "ly" && /([aiou]|ie|ole)$/.test(r)) return null; // "Spatulaly", "Hoodiely", "Potholely"
+  if (/^[aeiou]/.test(suffix)) r = r.replace(/[aeiouy]+$/, ""); // Cache+ify -> Cachify, Hoodie+io -> Hoodio
   if (r.length < 2) return null;
   return r + suffix;
 }
@@ -111,11 +119,11 @@ function candidates(p: NamePattern): string[] {
   return out;
 }
 
-/** Why a candidate is rejected (length, shape or blocklist), or null when it is usable. */
+/** Why a candidate is rejected (length, shape, an offensive word or the brand blocklist), or null when it is usable. */
 export function rejectReason(name: string): string | null {
   if (name.length < NAME_MIN || name.length > NAME_MAX) return `length ${name.length}`;
   if (/(.)\1\1/i.test(name)) return "triple letter";
-  return blockedNameReason(name);
+  return offensiveNameReason(name) ?? blockedNameReason(name);
 }
 
 const pools = new Map<NamePattern, readonly string[]>();

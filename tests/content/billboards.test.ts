@@ -93,7 +93,7 @@ describe("generateBillboard", () => {
     expect(snap).toMatchInlineSnapshot(`
       [
         "Disrupting walking. | Ambient Crab. Now it has a subscription.",
-        "In private beta. Forever. | Mild Tugboat. Join 40,000 people waiting for nothing.",
+        "In private beta. Forever. | Polite Clam. Join 40,000 people waiting for nothing.",
         "Now on the blockchain. Again. | Hammr. We heard it was back.",
       ]
     `);

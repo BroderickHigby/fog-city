@@ -3,15 +3,27 @@ import { describe, expect, it } from "vitest";
 import {
   BRANDS,
   GENERIC_BRANDS,
+  OFFENSIVE_STEMS,
+  OFFENSIVE_WORDS,
   PEOPLE,
   SURNAMES,
   blockedNameReason,
   blockedProseReason,
   editDistance,
   normalize,
+  offensiveNameReason,
   withinOneEdit,
 } from "../../src/content/blocklist.ts";
-import { NAME_MAX, NAME_MIN, NAME_PATTERNS, allNames, generateName, namesOfPattern, rejectedCandidates } from "../../src/content/names.ts";
+import {
+  NAME_MAX,
+  NAME_MIN,
+  NAME_PATTERNS,
+  allNames,
+  generateName,
+  namesOfPattern,
+  rejectReason,
+  rejectedCandidates,
+} from "../../src/content/names.ts";
 import { hashString, makePrng } from "../../src/content/prng.ts";
 
 describe("generateName", () => {
@@ -57,6 +69,25 @@ describe("no real name ever comes out", () => {
     }
   });
 
+  it("EVERY name in the output space passes the offensive-word filter", () => {
+    const bad = space.map((n) => [n, offensiveNameReason(n)] as const).filter(([, why]) => why !== null);
+    expect(bad).toEqual([]);
+  });
+
+  // Every real or offensive name this generator has been caught spelling (review of 2026-10-20,
+  // and the full read of the output space that followed). Each must stay out of the space AND
+  // stay blocked by the filter, so bringing a root back cannot quietly bring the name back.
+  it.each([
+    "TensorFlow", "VectorWorks", "ParrotOS", "Lattice HQ", "Cable Labs", "Saran", "tally.so", "Satan",
+    "Drift AI", "Juniper AI", "JuniperOS", "Kernel AI", "Comet AI", "Cometly", "Glide AI", "Pylon AI", "Wren AI",
+    "Kiln AI", "Fable AI", "DuneOS", "HatchWorks", "Hushly", "Vectorly", "Ledgr", "Badgr", "Gathr", "Embr Labs",
+    "Gadget Labs", "GadgetFlow", "Widgetkit", "WidgetBot", "PromptBase", "PromptFlow", "Tokenly", "Velora",
+    "Teravia", "Katara", "Minix", "Xenix", "Nymox", "Slopify", "Go Prompt", "Sonder AI", "EmberStack", "Quillify",
+  ])("never produces %s", (name) => {
+    expect(space).not.toContain(name);
+    expect(rejectReason(name), name).not.toBeNull();
+  });
+
   it("the filter actually removed real-brand collisions the patterns can spell", () => {
     // If this ever reads 0, either the patterns changed or the filter stopped running.
     const brandHits = rejectedCandidates().filter((r) => /brand|person|surname/.test(r.reason));
@@ -91,10 +122,46 @@ describe("blocklist", () => {
     expect(r).toContain(why);
   });
 
-  it.each(["Kelpforge", "Feral Teapot", "moss.ai", "Pondr", "Velora", "Kale AI", "Hey Hatch", "Paxton Longform", "Slotsworth", "Batchery"])(
+  it.each(["Kelpforge", "Feral Teapot", "moss.ai", "Pondr", "Squandr", "Kale AI", "Hey Kelp", "Paxton Longform", "Slotsworth", "Batchery"])(
     "allows invented %s",
     (name) => expect(blockedNameReason(name)).toBeNull(),
   );
+
+  // Well-known brands kept apart from BRANDS on purpose: deleting a blocklist entry fails here.
+  // Includes the reviewer's probe of 2026-10-20 that found ~140 of ~230 well-known brands unblocked.
+  it.each([
+    "PyTorch", "Keras", "Docker", "Kubernetes", "Jupyter", "Terraform", "HashiCorp", "Telegram", "WeChat",
+    "Tencent", "Alibaba", "Yahoo", "Zillow", "Waze", "Vimeo", "Rivian", "Mixpanel", "Amplitude", "Obsidian",
+    "Raycast", "1Password", "Lattice", "Drift", "Juniper", "Comet", "Glide", "Pylon", "Kernel", "Ledger", "Dune",
+    "Sierra", "Gamma", "Arc", "Warp", "Calm", "Brave", "Lucid", "Compass", "Anchor", "Headspace", "Miro", "Toast",
+    "Sonder", "Ember", "Quill", "Grove", "Burrow", "Thistle", "Marble", "Fennel", "Sprout Social", "Hatch", "Orbit",
+    "Prism", "Tally", "Wren", "Pitch", "Framer", "Sketch", "Postman", "Kafka", "Grafana", "Nginx", "Ollama",
+    "Raspberry Pi", "Arduino", "Roomba", "Knightscope", "WALL-E", "R2-D2", "Baymax", "Optimus Prime", "Skynet",
+    "Velcro", "Xerox", "Polaroid", "Kodak", "Bose", "Garmin", "Dyson", "Rolex", "Gucci", "Prada", "Zara", "Uniqlo",
+    "IKEA", "Wayfair", "Temu", "Shein", "Klaviyo", "Beehiiv", "Linktree", "Gumroad", "Expensify", "Navan",
+    "Wealthfront", "Betterment", "Acorns", "Monzo", "Nubank", "Afterpay", "Zelle", "MetaMask", "Uniswap",
+    "Chainlink", "Cardano", "Ripple", "Opendoor", "Redfin", "Flexport", "Verkada", "Samsara", "Rubrik",
+    "Confluent", "Optimizely", "LaunchDarkly", "Benchling", "Eventbrite", "Zynga", "Niantic", "Bungie", "Strava",
+    "Oura", "Whoop", "Grindr", "OkCupid", "Zocdoc", "Ancestry", "23andMe", "Typeform", "SurveyMonkey",
+    "Qualtrics", "Mailgun", "Auth0", "Bitwarden", "LastPass", "NordVPN", "Tailscale", "Algolia", "PostHog",
+    "Hotjar", "Snyk", "CodePen", "LeetCode", "Coursera", "Udemy", "Chegg", "Quizlet", "Kahoot", "Descript",
+    "CapCut", "Ideogram", "Krea", "Leonardo", "Replicate", "CoreWeave", "RunPod", "LangSmith", "CrewAI", "Lindy",
+    "Decagon", "Sierra AI", "Wayve", "Mobileye", "Polestar", "Lucid Motors", "Porsche", "Toyota", "Honda",
+    "Subaru", "Hyundai", "Volvo", "BYD", "Segway", "Waffle House", "Dunkin", "Panera", "Shake Shack", "Popeyes",
+    "Domino's", "Budweiser", "Heineken", "Olipop", "Liquid Death", "Oatly", "HBO", "Crunchyroll", "TechCrunch",
+    "The Verge", "Bloomberg", "Reuters", "Axios", "BuzzFeed", "Gizmodo", "Sightglass", "Bi-Rite", "Lagunitas",
+    "Verve", "AT&T", "Verizon", "T-Mobile", "Comcast", "Xfinity", "Nokia", "Motorola", "BlackBerry", "Netscape",
+    "Napster", "Myspace", "Digg", "Friendster", "Yik Yak", "GeoCities", "Calm Labs", "Lucid AI", "Compass HQ",
+  ])("blocks well-known brand %s", (name) => {
+    expect(blockedNameReason(name), name).not.toBeNull();
+  });
+
+  it("every brand and person on the list is caught in a sentence (the prose index misses nothing)", () => {
+    for (const b of [...BRANDS, ...PEOPLE]) {
+      expect(blockedProseReason(`Better than ${b}, honestly.`), b).not.toBeNull();
+      expect(blockedProseReason(`${b.toUpperCase()}!`), b).not.toBeNull();
+    }
+  });
 
   it("prose check finds brands and people as whole words, ignores generic English", () => {
     expect(blockedProseReason("Faster than any Waymo.")).toContain("Waymo");
@@ -111,6 +178,29 @@ describe("blocklist", () => {
       const a = rand();
       const b = rng.int(3) === 0 ? a : rand();
       expect(withinOneEdit(a, b), `${a} ${b}`).toBe(editDistance(a, b) <= 1);
+    }
+  });
+});
+
+describe("offensive-word filter", () => {
+  it.each(["Satan", "Satan Labs", "Hell AI", "KaleHell", "Lucifer HQ", "Meth Labs", "Crack.ai", "Gun Labs", "Jesus AI", "Porntify"])(
+    "rejects %s",
+    (name) => {
+      expect(offensiveNameReason(name), name).not.toBeNull();
+      expect(rejectReason(name), name).not.toBeNull();
+    },
+  );
+
+  it.each(["Brass Labs", "Hello AI", "Shellkit", "Skillful", "Cocktail", "Assembly", "Kelpforge", "Feral Teapot"])(
+    "leaves harmless words that only contain a short one: %s",
+    (name) => expect(offensiveNameReason(name)).toBeNull(),
+  );
+
+  it("lists are lower-case, unique and non-empty", () => {
+    for (const xs of [OFFENSIVE_STEMS, OFFENSIVE_WORDS]) {
+      expect(xs.length).toBeGreaterThan(20);
+      expect(new Set(xs).size).toBe(xs.length);
+      for (const x of xs) expect(x).toBe(normalize(x));
     }
   });
 });
