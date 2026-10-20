@@ -47,7 +47,7 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 - Shape keys export as morph targets with their names in the mesh's `extras.targetNames`.
   Custom vertex attributes start with `_` (glTF) and arrive in three.js lower-cased
   (`_RUST_MASK` -> `_rust_mask`).
-- Flags the sim and renderer read are root-node extras: `fcActor` (the model's key),
+- Flags the sim and renderer read are node extras (on the root, or on the crowd mesh nodes): `fcActor` (the model's key),
   `robot`, `vehicle`, `animal`, `child`, `noTouch` (water never reaches it), `mobilityAid`,
   `throwable`, `refill`, `interact`, `heap`, `toy`.
 
