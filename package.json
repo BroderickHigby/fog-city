@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "e2e": "playwright test",
+    "shots": "playwright test --config tests/e2e/shots.config.ts",
     "verify": "pnpm typecheck && pnpm test && pnpm e2e"
   },
   "dependencies": {

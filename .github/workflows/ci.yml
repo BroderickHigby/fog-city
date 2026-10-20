@@ -1,0 +1,104 @@
+# Typecheck, unit tests and browser end-to-end tests on every push and pull request.
+# How to run the same thing locally, and what each suite proves: docs/testing.md.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck, unit, e2e
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI: "true"
+      # One job per runner, so the default port is free; set per checkout locally.
+      E2E_PORT: "4173"
+    steps:
+      # Tile storage is still to be decided (Git LFS or a release artifact, docs/roadmap.md).
+      # lfs: true costs nothing without LFS files and fetches the tiles if they move there.
+      - name: Check out
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      # pnpm version comes from package.json "packageManager".
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+
+      # Each check runs whenever install succeeded, so one failure does not hide the others.
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm typecheck
+
+      - name: Unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm test
+
+      - name: Read Playwright version
+        id: playwright
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: browser-cache
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Chromium runs every e2e test (SwiftShader WebGL); Firefox and WebKit run the
+      # cross-engine determinism tests.
+      - name: Install Playwright browsers with system dependencies
+        id: browsers
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browser-cache.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Install Playwright system dependencies (browsers from cache)
+        id: browser-deps
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browser-cache.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium firefox webkit
+
+      # E2E_REQUIRE (repository variable, Settings > Secrets and variables > Actions > Variables)
+      # lists prerequisites that must be present, so their tests fail instead of skipping: set
+      # it to "all" once every track is merged. Empty means skip with a reason (a track branch).
+      - name: End-to-end tests
+        id: e2e
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browsers.outcome != 'failure' && steps.browser-deps.outcome != 'failure' }}
+        env:
+          E2E_REQUIRE: ${{ vars.E2E_REQUIRE }}
+        run: pnpm e2e
+
+      # Pictures for reviewers (test-results/shots/index.html). Informational: never fails CI.
+      - name: Screenshots
+        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        continue-on-error: true
+        run: pnpm shots
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-attempt-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: warn
