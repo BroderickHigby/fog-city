@@ -7,7 +7,7 @@ by `assets/audio/generate.py` (see `assets/audio/README.md`). `tests/assets/` ch
 output without Blender.
 
 ```sh
-BLENDER=/path/to/blender assets/blender/build.sh             # every model, landmarks.json, sounds (~2 min)
+BLENDER=/path/to/blender assets/blender/build.sh             # every model, landmarks.json, sounds (~3-7 min)
 BLENDER=/path/to/blender assets/blender/build.sh robotaxi    # one model (script name without .py)
 BLENDER=/path/to/blender assets/blender/build.sh --lookdev   # models, then every look-dev render (slow)
 pnpm vitest run tests/assets                                 # budgets, nodes, orientation, sizes, validator, VAT, audio
