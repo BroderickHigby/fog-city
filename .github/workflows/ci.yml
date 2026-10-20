@@ -23,8 +23,12 @@ jobs:
       # One job per runner, so the default port is free; set per checkout locally.
       E2E_PORT: "4173"
     steps:
+      # Tile storage is still to be decided (Git LFS or a release artifact, docs/roadmap.md).
+      # lfs: true costs nothing without LFS files and fetches the tiles if they move there.
       - name: Check out
         uses: actions/checkout@v5
+        with:
+          lfs: true
 
       # pnpm version comes from package.json "packageManager".
       - name: Set up pnpm
@@ -74,9 +78,14 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browser-cache.outputs.cache-hit == 'true' }}
         run: pnpm exec playwright install-deps chromium firefox webkit
 
+      # E2E_REQUIRE (repository variable, Settings > Secrets and variables > Actions > Variables)
+      # lists prerequisites that must be present, so their tests fail instead of skipping: set
+      # it to "all" once every track is merged. Empty means skip with a reason (a track branch).
       - name: End-to-end tests
         id: e2e
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browsers.outcome != 'failure' && steps.browser-deps.outcome != 'failure' }}
+        env:
+          E2E_REQUIRE: ${{ vars.E2E_REQUIRE }}
         run: pnpm e2e
 
       # Pictures for reviewers (test-results/shots/index.html). Informational: never fails CI.

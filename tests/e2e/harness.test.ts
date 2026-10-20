@@ -2,14 +2,17 @@
 // checks, the geometry used by the SF road check, and the determinism scenario's coverage.
 // Playwright ignores this file (it only runs *.spec.ts).
 
-import { readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { ROOT, loadWorldFiles } from "../helpers.ts";
-import { dmathDigest, makeWorld, runScenario } from "./determinism-scenario.ts";
+import { canonicalJson, createInitialState, hashState, step } from "../../src/sim/index.ts";
+import { ROOT, loadWorldFiles, readJson } from "../helpers.ts";
+import { dmathDigest, makeWorld, recordSession, runScenario } from "./determinism-scenario.ts";
 import { distanceToPolyline, headingDelta } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
+import { PREREQUISITES, parseRequire } from "./prereq.ts";
+import { COLLIDERS_ONLY, matchGame, p1Chunk, replay } from "./replay.ts";
 
 function chunk(type: string, body: Uint8Array): Buffer {
   const len = Buffer.alloc(4);
@@ -132,6 +135,82 @@ describe("determinism scenario", () => {
   });
 });
 
+describe("the running-game replay (replay.ts, recordSession)", () => {
+  const dev = loadWorldFiles("dev");
+  const world = makeWorld(dev.tiles, null);
+  // A "game" that booted and ran 25 neutral ticks with only p1, like the real one.
+  let s0 = createInitialState(world, 1, ["p1"], dev.manifest.spawn);
+  for (let i = 0; i < 25; i++) s0 = step(world, s0, {});
+
+  it("recordSession joins p2 and p3 on its first tick and stamps every event with its absolute tick", () => {
+    const chunks = recordSession(["p1"], s0.tick, { ticks: 1800, seed: 20261020, spawn: dev.manifest.spawn }, 60);
+    expect(chunks).toHaveLength(30);
+    expect(chunks.reduce((n, c) => n + c.frames.length, 0)).toBe(1800);
+    const events = chunks.flatMap((c) => c.events);
+    expect(events.slice(0, 2).map((e) => [e.tick, e.kind, e.playerId])).toEqual([
+      [26, "player.join", "p3"],
+      [26, "player.join", "p2"],
+    ]);
+    expect(events.map((e) => e.tick)).toEqual([26, 26, 25 + 120, 25 + 1500]);
+    // step() throws on an event for the wrong tick, so this also proves the stamping.
+    const r = replay(world, s0, chunks);
+    expect(r.hashes).toHaveLength(30);
+    expect(r.final.tick).toBe(25 + 1800);
+    expect(Object.keys(r.final.players).sort()).toEqual(["p1", "p3", "p4"]);
+    expect(r.final.players.p1!.car.hits, "p1's script rams the dev wall").toBeGreaterThan(0);
+  });
+
+  it("matchGame finds the game's world, and reports where a different game parts from Node", () => {
+    const chunks = [p1Chunk(60, { throttle: 1, steer: 0.3, brake: 0, actions: 0 }), p1Chunk(30)];
+    const game = replay(world, s0, chunks);
+    const ok = matchGame("dev", s0, chunks, game.hashes, game.final);
+    expect(ok.match?.label).toBe(ok.expected);
+
+    // The same run, but the game's car ended 1 mm further east: no construction matches.
+    const moved = structuredClone(game.final);
+    moved.players.p1!.car.x += 0.001;
+    const bad = matchGame("dev", s0, chunks, [game.hashes[0]!, hashState(moved)], moved);
+    expect(bad.match).toBeUndefined();
+    expect(bad.tried.join("\n")).toMatch(/first divergence after chunk 1 .*final states differ at offset/);
+    expect(canonicalJson(game.final)).not.toBe(canonicalJson(moved));
+  });
+
+  it("dev's manifest names a road graph, so the expected construction includes it", () => {
+    const ok = matchGame("dev", s0, [p1Chunk(1)], [hashState(step(world, s0, {}))], step(world, s0, {}));
+    expect(dev.roads).not.toBeNull();
+    expect(ok.expected).not.toBe(COLLIDERS_ONLY);
+  });
+});
+
+describe("E2E_REQUIRE (prereq.ts)", () => {
+  it("parses names separated by commas or spaces, and 'all'", () => {
+    expect([...parseRequire(undefined)]).toEqual([]);
+    expect([...parseRequire(" ")]).toEqual([]);
+    expect([...parseRequire("sf, foot  render-debug")].sort()).toEqual(["foot", "render-debug", "sf"]);
+    expect([...parseRequire("all")].sort()).toEqual(Object.keys(PREREQUISITES).sort());
+  });
+
+  it("rejects an unknown name, so a typo cannot require nothing", () => {
+    expect(() => parseRequire("sf,sff")).toThrow(/unknown prerequisite "sff"/);
+  });
+});
+
+describe("helpers", () => {
+  it("readJson names a Git LFS pointer instead of failing to parse it", () => {
+    const dir = "test-results/harness-unit";
+    mkdirSync(join(ROOT, dir), { recursive: true });
+    try {
+      writeFileSync(
+        join(ROOT, dir, "pointer.json"),
+        "version https://git-lfs.github.com/spec/v1\noid sha256:4d7a214614ab2935c943f9e0ff69d22eadbb8f32b1258daaa5e2ca24d17e2393\nsize 12345\n",
+      );
+      expect(() => readJson(`${dir}/pointer.json`)).toThrow(/Git LFS pointer.*git lfs pull/);
+    } finally {
+      rmSync(join(ROOT, dir), { recursive: true, force: true });
+    }
+  });
+});
+
 describe("harness wiring", () => {
   it("docs/testing.md describes every e2e spec", () => {
     const doc = readFileSync(join(ROOT, "docs/testing.md"), "utf8");
@@ -146,5 +225,13 @@ describe("harness wiring", () => {
       expect(ci, `ci.yml no longer runs ${cmd}`).toContain(cmd);
     }
     expect(ci).toMatch(/on:\s*\n\s+push:\s*\n\s+pull_request:/);
+    // Tiles in LFS are fetched, and the repository variable can turn skips into failures.
+    expect(ci).toMatch(/lfs: true/);
+    expect(ci).toContain("E2E_REQUIRE: ${{ vars.E2E_REQUIRE }}");
+  });
+
+  it("docs/testing.md documents every E2E_REQUIRE prerequisite", () => {
+    const doc = readFileSync(join(ROOT, "docs/testing.md"), "utf8");
+    for (const name of Object.keys(PREREQUISITES)) expect(doc, `docs/testing.md does not mention \`${name}\``).toContain(`\`${name}\``);
   });
 });
