@@ -15,7 +15,7 @@ export function geometryFromMeshData(d: MeshData): THREE.BufferGeometry {
   g.setAttribute("normal", new THREE.BufferAttribute(d.normals, 3));
   g.setAttribute("color", new THREE.BufferAttribute(d.colors, 3, true));
   if (d.uvs) g.setAttribute("uv", new THREE.BufferAttribute(d.uvs, 2));
-  if (d.facade) g.setAttribute("_facade", new THREE.BufferAttribute(d.facade, 1));
+  if (d.facade) g.setAttribute("_facade", new THREE.BufferAttribute(d.facade, 4, true));
   const vcount = d.positions.length / 3;
   g.setIndex(new THREE.BufferAttribute(vcount < 65536 ? new Uint16Array(d.indices) : d.indices, 1));
   g.userData.fcBuildings = d.ranges;

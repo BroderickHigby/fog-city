@@ -31,6 +31,7 @@ uniform float uTime;
 uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform float uBodyLight;
+uniform vec3 uCityGlow;
 varying vec3 vWorld;
 
 float fcWHash( vec2 p ) {
@@ -38,23 +39,22 @@ float fcWHash( vec2 p ) {
   p += dot( p, p + 23.45 );
   return fract( p.x * p.y );
 }
-float fcWNoise( vec2 p ) {
+// Value noise with its analytic gradient: (value, d/dx, d/dy).
+vec3 fcWNoiseD( vec2 p ) {
   vec2 i = floor( p );
   vec2 f = fract( p );
   vec2 u = f * f * ( 3.0 - 2.0 * f );
-  return mix( mix( fcWHash( i ), fcWHash( i + vec2( 1.0, 0.0 ) ), u.x ),
-              mix( fcWHash( i + vec2( 0.0, 1.0 ) ), fcWHash( i + vec2( 1.0, 1.0 ) ), u.x ), u.y );
+  vec2 du = 6.0 * f * ( 1.0 - f );
+  float a = fcWHash( i );
+  float b = fcWHash( i + vec2( 1.0, 0.0 ) );
+  float c = fcWHash( i + vec2( 0.0, 1.0 ) );
+  float d = fcWHash( i + vec2( 1.0, 1.0 ) );
+  float k = a - b - c + d;
+  return vec3( a + ( b - a ) * u.x + ( c - a ) * u.y + k * u.x * u.y,
+               du * ( vec2( b - a, c - a ) + k * u.yx ) );
 }
-// Surface height in metres: a few long swells plus drifting noise chop.
-float fcWaterHeight( vec2 p ) {
-  float t = uTime;
-  float h = 0.0;
-  h += 0.30 * sin( dot( p, vec2( 0.034, 0.021 ) ) + t * 0.55 );
-  h += 0.14 * sin( dot( p, vec2( -0.031, 0.082 ) ) + t * 0.9 );
-  h += 0.22 * fcWNoise( p * 0.11 + vec2( t * 0.11, t * 0.07 ) );
-  h += 0.10 * fcWNoise( p * 0.29 - vec2( t * 0.21, -t * 0.13 ) );
-  h += 0.04 * fcWNoise( p * 0.83 + vec2( -t * 0.35, t * 0.3 ) );
-  return h;
+float fcWNoise( vec2 p ) {
+  return fcWNoiseD( p ).x;
 }
 
 void main() {
@@ -62,13 +62,21 @@ void main() {
   float dist = length( toFrag );
   vec3 V = toFrag / max( dist, 1e-3 );
   vec2 p = vWorld.xz;
-  // Central differences with a step that grows with distance: a cheap low-pass, so far
-  // water calms down instead of aliasing.
-  float e = max( 0.35, dist * 0.006 );
-  float hx = fcWaterHeight( p + vec2( e, 0.0 ) ) - fcWaterHeight( p - vec2( e, 0.0 ) );
-  float hz = fcWaterHeight( p + vec2( 0.0, e ) ) - fcWaterHeight( p - vec2( 0.0, e ) );
+  float t = uTime;
+  // Height gradient of: two long swells + three octaves of drifting noise chop. Each
+  // octave fades out once a wave is smaller than a few pixels (a cheap low-pass), so
+  // far water calms down instead of aliasing.
+  float px = dist * 0.0025;
+  vec2 g = vec2( 0.0 );
+  vec2 k1 = vec2( 0.034, 0.021 );
+  vec2 k2 = vec2( -0.031, 0.082 );
+  g += 0.30 * k1 * cos( dot( p, k1 ) + t * 0.55 );
+  g += 0.14 * k2 * cos( dot( p, k2 ) + t * 0.9 );
+  g += 0.22 * 0.11 * fcWNoiseD( p * 0.11 + vec2( t * 0.11, t * 0.07 ) ).yz * ( 1.0 - smoothstep( 4.0, 9.0, px ) );
+  g += 0.10 * 0.29 * fcWNoiseD( p * 0.29 - vec2( t * 0.21, -t * 0.13 ) ).yz * ( 1.0 - smoothstep( 1.5, 3.5, px ) );
+  g += 0.04 * 0.83 * fcWNoiseD( p * 0.83 + vec2( -t * 0.35, t * 0.3 ) ).yz * ( 1.0 - smoothstep( 0.5, 1.2, px ) );
   float fade = 1.0 - smoothstep( 300.0, 2500.0, dist );
-  vec3 N = normalize( vec3( -hx / ( 2.0 * e ) * fade, 1.0, -hz / ( 2.0 * e ) * fade ) );
+  vec3 N = normalize( vec3( -g.x * fade, 1.0, -g.y * fade ) );
   float cosT = max( dot( N, -V ), 0.0 );
   float fres = 0.02 + 0.98 * pow( 1.0 - cosT, 5.0 );
   vec3 R = reflect( V, N );
@@ -76,6 +84,8 @@ void main() {
   vec3 sky = fcSkyRadiance( normalize( R ) );
   vec3 body = mix( uDeep, uShallow, 0.35 + 0.35 * N.x ) * uBodyLight;
   vec3 col = mix( body, sky, clamp( fres, 0.0, 1.0 ) );
+  // At night the shore lights smear into a warm band where the water reflects the horizon.
+  col += uCityGlow * pow( 1.0 - clamp( R.y * 6.0, 0.0, 1.0 ), 3.0 ) * ( 0.4 + 0.6 * fres ) * ( 0.6 + 0.8 * fcWNoise( p * vec2( 0.05, 0.6 ) + uTime * 0.2 ) );
   float sd = max( dot( normalize( R ), uSunDirSky ), 0.0 );
   col += uSunColorSky * ( pow( sd, 900.0 ) * 60.0 + pow( sd, 90.0 ) * 0.6 ) * fade;
   gl_FragColor = vec4( col, 1.0 );
@@ -89,6 +99,7 @@ export class Water {
   readonly mesh: THREE.Mesh;
   private material: THREE.ShaderMaterial;
   private bodyLight: { value: number };
+  private cityGlow = { value: new THREE.Color(0, 0, 0) };
 
   constructor(size = 14000) {
     this.bodyLight = { value: 1 };
@@ -105,6 +116,7 @@ export class Water {
       uShallow: { value: new THREE.Color(0x2c4a4a) },
       uBodyLight: this.bodyLight,
       uDepthDrop: { value: 0.12 },
+      uCityGlow: this.cityGlow,
     });
     const geo = new THREE.PlaneGeometry(size, size, 1, 1);
     geo.rotateX(-Math.PI / 2);
@@ -116,6 +128,11 @@ export class Water {
 
   setBodyLight(v: number): void {
     this.bodyLight.value = v;
+  }
+
+  /** Warm reflected shore light (linear RGB); black by day. */
+  setCityGlow(hex: number, strength: number): void {
+    this.cityGlow.value.setHex(hex).multiplyScalar(strength);
   }
 
   /** Follow the camera in 50 m steps (waves are in world space, so steps never show). */

@@ -4,8 +4,9 @@
 //  - one node + mesh per layer, named for its material: "buildings" (material "building"),
 //    "ground" (material "ground"), "roads" (material "road"), "foliage" (material "foliage").
 //  - COLOR_0 is linear RGB, unsigned byte, normalized.
-//  - building primitives carry TEXCOORD_0 (facade metres) and _FACADE (style index), and
-//    primitive extras { fcBuildings: [[id, firstIndex, indexCount], ...] }.
+//  - building primitives carry TEXCOORD_0 (facade metres) and _FACADE (4 normalized bytes:
+//    storey/8 m, glazing, year, roof; the pipeline's encoding), and primitive extras
+//    { fcBuildings: [[id, firstIndex, indexCount], ...] }.
 //  - KHR_mesh_quantization: POSITION is int16 normalized under a node translation and
 //    uniform scale; NORMAL is int8 normalized. three's GLTFLoader reads both natively.
 // The renderer swaps materials by name for its shared ones and leaves unknown ones alone.
@@ -98,7 +99,7 @@ export async function encodeTileGlb(parts: readonly GlbPart[], extras: Record<st
       .setIndices(doc.createAccessor().setType("SCALAR").setArray(indices).setBuffer(buffer))
       .setMaterial(mat);
     if (d.uvs) prim.setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(d.uvs).setBuffer(buffer));
-    if (d.facade) prim.setAttribute("_FACADE", doc.createAccessor().setType("SCALAR").setArray(new Uint8Array(d.facade)).setBuffer(buffer));
+    if (d.facade) prim.setAttribute("_FACADE", doc.createAccessor().setType("VEC4").setArray(d.facade).setNormalized(true).setBuffer(buffer));
     if (d.ranges.length > 0) prim.setExtras({ fcBuildings: d.ranges });
     const mesh = doc.createMesh(part.name).addPrimitive(prim);
     scene.addChild(doc.createNode(part.name).setMesh(mesh).setTranslation(center).setScale([scale, scale, scale]));

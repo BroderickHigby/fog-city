@@ -31,6 +31,8 @@ export const NO_FLY_INPUT: Readonly<FlyInput> = Object.freeze({ forward: 0, righ
 const _desired = new THREE.Vector3();
 const _look = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+/** Fractions of the chase arm tried, longest first, when the camera would sit in a building. */
+const PULL_IN = [0.8, 0.62, 0.45, 0.3, 0.18] as const;
 
 export class CameraRig {
   readonly camera: THREE.PerspectiveCamera;
@@ -143,7 +145,7 @@ export class CameraRig {
     _desired.set(t.x - fx * dist, t.y + height, t.z - fz * dist);
     // Pull in towards the target when the arm would end inside a building.
     if (this.occluded(_desired.x, _desired.y, _desired.z)) {
-      for (const k of [0.8, 0.62, 0.45, 0.3, 0.18]) {
+      for (const k of PULL_IN) {
         const x = t.x - fx * dist * k;
         const z = t.z - fz * dist * k;
         const y = t.y + height * (0.6 + 0.4 * k);

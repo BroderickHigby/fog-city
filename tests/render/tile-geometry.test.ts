@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TileCollider } from "../../src/sim/world.ts";
 import { buildTileMeshes, drain, FLAT_GROUND_Y } from "../../src/render/tile-build.ts";
-import { MeshBuilder, addBuilding, addHeightfield, addRoad, cleanFootprint, FACADES, type MeshData } from "../../src/render/tile-geometry.ts";
+import { MeshBuilder, addBuilding, addHeightfield, addRoad, cleanFootprint, facadeBytes, facadeGrid, type MeshData } from "../../src/render/tile-geometry.ts";
 import { nodeClearance, nodeDegrees, nodeHalfWidth } from "../../src/render/roads.ts";
 import type { RoadGraph } from "../../src/render/types.ts";
 
@@ -54,9 +54,18 @@ describe("buildings", () => {
       }
       expect(minY).toBeLessThan(2);
       expect(maxY).toBe(14);
-      // Facade UVs run in whole window columns; v is metres above the base.
-      const spec = FACADES[d.facade![0]!]!;
-      expect(spec.colW).toBeGreaterThan(0);
+      // _FACADE: 4 bytes per vertex; walls flagged 0, roofs 255; walls run in whole columns.
+      expect(d.facade!.length).toBe((d.positions.length / 3) * 4);
+      // Decode exactly as the shader does.
+      const grid = facadeGrid((d.facade![0]! / 255) * 8, d.facade![1]! / 255);
+      for (let i = 0; i < d.positions.length / 3; i++) {
+        const isRoof = d.normals[i * 3 + 1]! > 0.5;
+        expect(d.facade![i * 4 + 3]).toBe(isRoof ? 255 : 0);
+      }
+      const wallU = new Set<number>();
+      for (let i = 0; i < d.positions.length / 3; i++) if (d.facade![i * 4 + 3] === 0) wallU.add(d.uvs![i * 2]!);
+      const us = [...wallU].sort((a, b) => a - b);
+      for (const u of us) expect(Math.abs((u - us[0]!) / grid.colW - Math.round((u - us[0]!) / grid.colW))).toBeLessThan(1e-3);
       expect(d.ranges).toEqual([["b", 0, d.indices.length]]);
     });
   }
@@ -93,6 +102,25 @@ describe("buildings", () => {
     const g = out.ground!;
     for (let i = 1; i < g.positions.length; i += 3) expect(g.positions[i]).toBeCloseTo(FLAT_GROUND_Y, 6);
     expect(Math.min(...Array.from({ length: g.positions.length / 3 }, (_, i) => g.positions[i * 3]!))).toBe(0);
+  });
+});
+
+describe("facade encoding", () => {
+  it("matches the pipeline's bytes: storey/8, glazing, (year-1840)/190, roof", () => {
+    expect(facadeBytes({ storeyM: 4, glazing: 0.5, year: 1935, roof: false } as never, false)).toEqual([128, 128, 128, 0]);
+    expect(facadeBytes({ storeyM: 3.2, glazing: 0.25, year: null }, true)).toEqual([102, 64, 0, 255]);
+    expect(facadeBytes({ storeyM: 20, glazing: 2, year: 2100 }, false)).toEqual([255, 255, 255, 0]);
+  });
+
+  it("lays out denser, larger windows as glazing grows", () => {
+    const res = facadeGrid(3.3, 0.25);
+    const glass = facadeGrid(4, 0.85);
+    expect(glass.colW).toBeLessThan(res.colW);
+    expect(glass.win[1] - glass.win[0]).toBeGreaterThan(res.win[1] - res.win[0]);
+    expect(facadeGrid(6, 0.15).colW).toBe(6);
+    expect(facadeGrid(1, 0.5).floorH).toBe(2.6);
+    expect(res.shopH).toBe(0);
+    expect(facadeGrid(3.9, 0.5).shopH).toBeGreaterThan(3.5);
   });
 });
 

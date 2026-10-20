@@ -59,6 +59,7 @@ export class Hud {
   private label: HTMLElement | null;
   private lastText = 0;
   private lastLabel = "";
+  private lastDeg = NaN;
 
   constructor(doc: Document = document) {
     this.text = doc.getElementById("hud") ?? doc.body.appendChild(doc.createElement("div"));
@@ -83,8 +84,11 @@ export class Hud {
 
   update(now: number, d: HudData): void {
     if (this.strip) {
-      const deg = ((((d.viewHeading * 180) / Math.PI) % 360) + 360) % 360;
-      this.strip.style.transform = `translateX(${-deg * 2}px)`;
+      const deg = Math.round((((((d.viewHeading * 180) / Math.PI) % 360) + 360) % 360) * 4) / 4;
+      if (deg !== this.lastDeg) {
+        this.lastDeg = deg;
+        this.strip.style.transform = `translateX(${-deg * 2}px)`;
+      }
     }
     if (now - this.lastText < 200) return;
     this.lastText = now;

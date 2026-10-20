@@ -2,9 +2,10 @@
 //
 //  - Which tiles: tile-select.ts (distance from the camera to each tile's rectangle, with
 //    hysteresis). Re-evaluated when the camera has moved 20 m or a load finished.
-//  - glb tiles load with GLTFLoader, a few at a time; materials named "building", "ground",
-//    "road", "foliage" are swapped for the shared ones. Layers the glb lacks (e.g. roads)
-//    are built from collider data and the road graph.
+//  - glb tiles load with GLTFLoader, a few at a time. Meshes are classified by material or
+//    node name (materials.ts: tileLayer) and get the shared materials; unknown meshes keep
+//    their own. Layers the glb lacks (e.g. roads) are built from collider data and the road
+//    graph. Ground triangles lying on the water plane are dropped so the Bay shows through.
 //  - glb: null tiles are built from collider data by a generator pumped under a per-frame
 //    time budget, so a big tile never stalls the sim loop.
 //  - Every tile also gets runtime street props (lamps, trees) from the road graph.
@@ -13,7 +14,7 @@
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import type { TileCollider } from "../sim/world.ts";
-import { sharedByName, type SharedMaterials } from "./materials.ts";
+import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
 import {
   assignEdgesToTiles,
@@ -127,7 +128,7 @@ export class TileStreamer {
     }
   }
 
-  stats(): StreamerStats {
+  stats(out?: StreamerStats): StreamerStats {
     let ready = 0;
     let pending = 0;
     let failed = 0;
@@ -139,12 +140,19 @@ export class TileStreamer {
       } else if (r.state === "failed") failed++;
       else pending++;
     }
-    return { total: this.bounds.length, ready, pending: pending + this.queue.length, failed, glbReady, builtReady: ready - glbReady };
+    const r = out ?? { total: 0, ready: 0, pending: 0, failed: 0, glbReady: 0, builtReady: 0 };
+    r.total = this.bounds.length;
+    r.ready = ready;
+    r.pending = pending + this.queue.length;
+    r.failed = failed;
+    r.glbReady = glbReady;
+    r.builtReady = ready - glbReady;
+    return r;
   }
 
   /** True when nothing is queued, loading or building. */
   settled(): boolean {
-    if (this.queue.length > 0 || this.inFlight > 0) return false;
+    if (this.dirty || this.queue.length > 0 || this.inFlight > 0) return false;
     for (const r of this.records.values()) if (r.state === "loading" || r.state === "building") return false;
     return true;
   }
@@ -246,29 +254,35 @@ export class TileStreamer {
       disposeObject(root);
       return;
     }
+    root.updateMatrixWorld(true);
     const layers = { buildings: false, ground: false, roads: false };
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
-      rec.geometries.push(mesh.geometry);
+      const geo = mesh.geometry;
+      rec.geometries.push(geo);
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       const next = mats.map((m) => {
-        const shared = sharedByName(this.opts.materials, m.name);
-        if (m.name === "building") layers.buildings = true;
-        if (m.name === "ground") layers.ground = true;
-        if (m.name === "road") layers.roads = true;
-        if (shared) {
-          disposeMaterial(m);
-          return shared;
+        const layer = tileLayer(m.name, mesh.name);
+        if (!layer) {
+          rec.ownedMaterials.push(m);
+          for (const t of materialTextures(m)) rec.textures.push(t);
+          return m;
         }
-        rec.ownedMaterials.push(m);
-        for (const t of materialTextures(m)) rec.textures.push(t);
-        return m;
+        if (layer === "building") layers.buildings = true;
+        else if (layer === "ground") {
+          layers.ground = true;
+          dropWaterTriangles(geo, mesh.matrixWorld);
+        } else if (layer === "road" || layer === "freeway") layers.roads = true;
+        disposeMaterial(m);
+        return materialFor(this.opts.materials, layer, { hasNormals: !!geo.getAttribute("normal"), hasUv: !!geo.getAttribute("uv") });
       });
       mesh.material = Array.isArray(mesh.material) ? next : next[0]!;
-      if (mesh.geometry.userData.fcBuildings) rec.hideable.push(mesh.geometry);
+      // Building ranges: primitive extras (this repo) or node extras (pipeline).
+      const nodeRanges = (mesh.userData as { buildings?: unknown }).buildings;
+      if (!geo.userData.fcBuildings && Array.isArray(nodeRanges)) geo.userData.fcBuildings = nodeRanges;
+      if (Array.isArray(geo.userData.fcBuildings)) rec.hideable.push(geo);
     });
-    root.updateMatrixWorld(true);
     root.traverse((o) => (o.matrixAutoUpdate = false));
     rec.group.add(root);
     // Build whatever the glb did not provide.
@@ -380,6 +394,42 @@ export class TileStreamer {
     for (const id of [...this.records.keys()]) this.unload(id);
     this.queue = [];
   }
+}
+
+const _v = new THREE.Vector3();
+
+/**
+ * Remove triangles whose three corners all lie on or below the water plane (y <= 0.02 in
+ * world space): flat "water" cells in a ground mesh would otherwise cover the Bay.
+ */
+export function dropWaterTriangles(geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, waterY = 0.02): number {
+  const index = geo.getIndex();
+  const pos = geo.getAttribute("position");
+  if (!index || !pos) return 0;
+  const n = pos.count;
+  const wet = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    _v.fromBufferAttribute(pos, i).applyMatrix4(matrixWorld);
+    wet[i] = _v.y <= waterY ? 1 : 0;
+  }
+  const src = index.array;
+  const keep: number[] = [];
+  let dropped = 0;
+  for (let t = 0; t + 2 < src.length; t += 3) {
+    const a = src[t]!;
+    const b = src[t + 1]!;
+    const c = src[t + 2]!;
+    if (wet[a] && wet[b] && wet[c]) {
+      dropped++;
+      continue;
+    }
+    keep.push(a, b, c);
+  }
+  if (dropped > 0) {
+    geo.setIndex(new THREE.BufferAttribute(n < 65536 ? new Uint16Array(keep) : new Uint32Array(keep), 1));
+    geo.clearGroups();
+  }
+  return dropped;
 }
 
 function materialTextures(m: THREE.Material): THREE.Texture[] {

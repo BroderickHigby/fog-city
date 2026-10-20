@@ -11,7 +11,7 @@ import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMater
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
-import { TileStreamer } from "./tile-streamer.ts";
+import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { GroundFn, Manifest, Pose, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
@@ -85,6 +85,9 @@ export class SceneRenderer {
   private lastTris = 0;
   private fpsAvg = 60;
   private time = 0;
+  private readonly statsScratch: StreamerStats = { total: 0, ready: 0, pending: 0, failed: 0, glbReady: 0, builtReady: 0 };
+  /** Frames rendered since a camera jump (debug fly-to, mode switch). */
+  private framesSinceJump = 0;
 
   constructor(container: HTMLElement, world: WorldData, opts: RenderOptions) {
     installFog();
@@ -95,7 +98,7 @@ export class SceneRenderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = opts.shadows;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
 
@@ -191,6 +194,7 @@ export class SceneRenderer {
     this.hemi.groundColor.setHex(p.hemiGround);
     this.hemi.intensity = p.hemiIntensity;
     this.water.setBodyLight(p.water);
+    this.water.setCityGlow(0xffb070, night * 0.09);
     fcUniforms.fcNight.value = night;
     this.materials.lampHead.emissiveIntensity = night * 6;
     this.headlight.intensity = night * 140;
@@ -208,6 +212,23 @@ export class SceneRenderer {
       this.envCache.set(p.name, env);
     }
     return env;
+  }
+
+  /** Camera mode switch from outside the key handler (debug, URL). */
+  setCameraMode(m: CameraMode): void {
+    this.rig.setMode(m);
+    this.framesSinceJump = 0;
+  }
+
+  /** Jump the free camera (debug, screenshots). Angles in radians. */
+  flyTo(x: number, y: number, z: number, yaw: number, pitch: number): void {
+    this.rig.setFlyPose(x, y, z, yaw, pitch);
+    this.framesSinceJump = 0;
+  }
+
+  /** No tile queued, loading or building for where the camera is now. */
+  tilesSettled(): boolean {
+    return this.framesSinceJump >= 2 && this.streamer.settled();
   }
 
   resize(): void {
@@ -260,26 +281,27 @@ export class SceneRenderer {
 
   render(): void {
     this.renderer.render(this.scene, this.camera);
+    this.framesSinceJump++;
     this.lastCalls = this.renderer.info.render.calls;
     this.lastTris = this.renderer.info.render.triangles;
   }
 
-  info(): RenderInfo {
-    const s = this.streamer.stats();
-    return {
-      drawCalls: this.lastCalls,
-      triangles: this.lastTris,
-      tilesLoaded: s.ready,
-      cameraMode: this.rig.mode,
-      night: this.nightOn,
-      tilesPending: s.pending,
-      tilesTotal: s.total,
-      tilesFailed: s.failed,
-      landmarks: this.landmarks.count,
-      fps: this.fpsAvg,
-      pixelRatio: this.renderer.getPixelRatio(),
-      shadows: this.shadows,
-    };
+  /** Render stats. Fills `out` (reused by the HUD every frame) or a fresh object. */
+  info(out: RenderInfo = { ...EMPTY_INFO }): RenderInfo {
+    const s = this.streamer.stats(this.statsScratch);
+    out.drawCalls = this.lastCalls;
+    out.triangles = this.lastTris;
+    out.tilesLoaded = s.ready;
+    out.cameraMode = this.rig.mode;
+    out.night = this.nightOn;
+    out.tilesPending = s.pending;
+    out.tilesTotal = s.total;
+    out.tilesFailed = s.failed;
+    out.landmarks = this.landmarks.count;
+    out.fps = this.fpsAvg;
+    out.pixelRatio = this.renderer.getPixelRatio();
+    out.shadows = this.shadows;
+    return out;
   }
 
   dispose(): void {
@@ -295,5 +317,20 @@ export class SceneRenderer {
     this.renderer.dispose();
   }
 }
+
+const EMPTY_INFO: RenderInfo = Object.freeze({
+  drawCalls: 0,
+  triangles: 0,
+  tilesLoaded: 0,
+  cameraMode: "chase" as CameraMode,
+  night: false,
+  tilesPending: 0,
+  tilesTotal: 0,
+  tilesFailed: 0,
+  landmarks: 0,
+  fps: 0,
+  pixelRatio: 1,
+  shadows: false,
+});
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

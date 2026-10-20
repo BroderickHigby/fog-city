@@ -6,9 +6,13 @@
 // Conventions shared with the runtime materials (materials.ts):
 //  - colors are linear RGB, 8-bit normalized (glTF COLOR_0).
 //  - building walls carry uv = (metres along the facade, metres above the building base)
-//    and a per-vertex facade style (glTF attribute _FACADE, see FACADES). Roofs have style 0.
+//    and _FACADE = 4 normalized bytes (storey height / 8 m, glazing 0..1, (year - 1840) / 190
+//    or 0 when unknown, roof 0|1): the same encoding the pipeline writes into the real SF
+//    tiles, so one shader serves both. facadeGrid() turns it into a window layout; the
+//    GLSL in materials.ts mirrors it exactly.
 //  - building primitives record [buildingId, firstIndex, indexCount] ranges so a landmark
-//    can hide the generated building it replaces (glTF primitive extras "fcBuildings").
+//    can hide the generated building it replaces (glTF primitive extras "fcBuildings"; the
+//    pipeline puts the same list in node extras "buildings").
 
 import { ShapeUtils, Vector2 } from "three";
 import type { BuildingCollider, Heightfield } from "../sim/world.ts";
@@ -35,9 +39,18 @@ function lerpRgb(a: RGB, b: RGB, t: number): RGB {
   return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 }
 
-/** Facade styles. Index = the value of the _FACADE attribute. */
-export interface FacadeSpec {
-  name: string;
+/** What a facade is, as the _FACADE attribute encodes it. */
+export interface FacadeCode {
+  /** Storey height, metres (2.6..8). */
+  storeyM: number;
+  /** Rough share of the wall that is window, 0..1. 0 = blank wall. */
+  glazing: number;
+  /** Year built, or null when unknown. */
+  year: number | null;
+}
+
+/** Window layout derived from a facade code. Mirrored in GLSL (materials.ts: fcGrid). */
+export interface FacadeGrid {
   /** Window column width and storey height, metres. */
   colW: number;
   floorH: number;
@@ -49,17 +62,42 @@ export interface FacadeSpec {
   shopH: number;
 }
 
-export const FACADES: readonly FacadeSpec[] = [
-  { name: "none", colW: 1, floorH: 1, win: [0, 0, 0, 0], lit: 0, shopH: 0 },
-  { name: "residential", colW: 2.7, floorH: 3.3, win: [0.24, 0.76, 0.3, 0.82], lit: 0.34, shopH: 0 },
-  { name: "office", colW: 3.1, floorH: 3.9, win: [0.14, 0.86, 0.32, 0.86], lit: 0.26, shopH: 4.2 },
-  { name: "glass", colW: 1.75, floorH: 4.0, win: [0.05, 0.95, 0.1, 0.94], lit: 0.22, shopH: 5.0 },
-  { name: "shed", colW: 7.0, floorH: 7.5, win: [0.3, 0.7, 0.62, 0.86], lit: 0.18, shopH: 0 },
-  { name: "plain", colW: 1, floorH: 1, win: [0, 0, 0, 0], lit: 0, shopH: 0 },
-  { name: "shop", colW: 2.9, floorH: 3.4, win: [0.18, 0.82, 0.3, 0.84], lit: 0.4, shopH: 3.8 },
-];
+function smooth01(a: number, b: number, x: number): number {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
 
-export const Facade = { none: 0, residential: 1, office: 2, glass: 3, shed: 4, plain: 5, shop: 6 } as const;
+function mixN(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+export function facadeGrid(storeyM: number, glazing: number): FacadeGrid {
+  const g = Math.max(0, Math.min(1, glazing));
+  const floorH = Math.max(2.6, Math.min(8, storeyM));
+  const colW = g < 0.2 ? 6.0 : mixN(3.2, 1.7, smooth01(0.2, 0.9, g));
+  const ww = mixN(0.42, 0.9, g);
+  const wh = mixN(0.42, 0.82, g);
+  const y0 = 0.08 + 0.2 * (1 - g);
+  const shopH = g >= 0.8 ? 5.0 : g >= 0.35 ? Math.max(floorH, 3.8) : 0;
+  return { colW, floorH, win: [0.5 - ww / 2, 0.5 + ww / 2, y0, Math.min(0.96, y0 + wh)], lit: mixN(0.36, 0.2, g), shopH };
+}
+
+/** _FACADE bytes for a wall (roof = false) or roof (roof = true) vertex. */
+/** The facade code as a reader of the bytes sees it (what the shader decodes). */
+export function quantizedFacade(c: FacadeCode): FacadeCode {
+  const b = facadeBytes(c, false);
+  return { storeyM: (b[0] / 255) * 8, glazing: b[1] / 255, year: c.year };
+}
+
+export function facadeBytes(c: FacadeCode, roof: boolean): [number, number, number, number] {
+  const yearN = c.year === null ? 0 : Math.min(1, Math.max(0.02, (c.year - 1840) / 190));
+  return [
+    Math.round((Math.min(8, Math.max(0, c.storeyM)) / 8) * 255),
+    Math.round(Math.max(0, Math.min(1, c.glazing)) * 255),
+    Math.round(yearN * 255),
+    roof ? 255 : 0,
+  ];
+}
 
 export interface MeshData {
   positions: Float32Array;
@@ -67,11 +105,14 @@ export interface MeshData {
   /** RGB, linear, 0..255 normalized. */
   colors: Uint8Array;
   uvs: Float32Array | null;
-  facade: Float32Array | null;
+  /** _FACADE, 4 bytes per vertex (see facadeBytes). */
+  facade: Uint8Array | null;
   indices: Uint32Array;
   /** [buildingId, firstIndex, indexCount] */
   ranges: Array<[string, number, number]>;
 }
+
+const NO_FACADE: readonly [number, number, number, number] = [0, 0, 0, 0];
 
 export class MeshBuilder {
   readonly withUv: boolean;
@@ -99,7 +140,18 @@ export class MeshBuilder {
     return this.idx.length;
   }
 
-  v(x: number, y: number, z: number, nx: number, ny: number, nz: number, col: RGB, u = 0, w = 0, facade = 0): number {
+  v(
+    x: number,
+    y: number,
+    z: number,
+    nx: number,
+    ny: number,
+    nz: number,
+    col: RGB,
+    u = 0,
+    w = 0,
+    facade: readonly [number, number, number, number] = NO_FACADE,
+  ): number {
     const i = this.p.length / 3;
     this.p.push(x, y, z);
     this.n.push(nx, ny, nz);
@@ -109,7 +161,7 @@ export class MeshBuilder {
       Math.max(0, Math.min(255, Math.round(col[2] * 255))),
     );
     if (this.withUv) this.uv.push(u, w);
-    if (this.withFacade) this.f.push(facade);
+    if (this.withFacade) this.f.push(facade[0], facade[1], facade[2], facade[3]);
     return i;
   }
 
@@ -151,7 +203,7 @@ export class MeshBuilder {
       normals: new Float32Array(this.n),
       colors: new Uint8Array(this.c),
       uvs: this.withUv ? new Float32Array(this.uv) : null,
-      facade: this.withFacade ? new Float32Array(this.f) : null,
+      facade: this.withFacade ? new Uint8Array(this.f) : null,
       indices: new Uint32Array(this.idx),
       ranges: this.ranges.slice(),
     };
@@ -208,7 +260,7 @@ export function scalePolygon(pts: ReadonlyArray<readonly [number, number]>, k: n
 export interface BuildingLook {
   wall: RGB;
   roof: RGB;
-  facade: number;
+  facade: FacadeCode;
   setback: boolean;
   penthouse: boolean;
   seed: number;
@@ -223,30 +275,38 @@ function pick(list: readonly number[], h: number): RGB {
   return srgb(list[h % list.length]!);
 }
 
+function metaNumber(meta: Record<string, unknown> | undefined, key: string): number | null {
+  const v = meta?.[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
 /** Appearance from the collider alone (id, height, optional meta). Deterministic. */
 export function buildingLook(b: Pick<BuildingCollider, "id" | "baseY" | "topY"> & { meta?: Record<string, unknown> }): BuildingLook {
   const h = hashString(b.id);
   const H = b.topY - b.baseY;
   const use = typeof b.meta?.use === "string" ? (b.meta.use as string).toLowerCase() : "";
   const kind = typeof b.meta?.kind === "string" ? (b.meta.kind as string).toLowerCase() : "";
+  const year = metaNumber(b.meta, "year");
+  const stories = metaNumber(b.meta, "stories");
   const jitter = 0.92 + unit(mix32(h, 7)) * 0.16;
   const seed = unit(mix32(h, 3));
+  // Storey height from the record when it is plausible, else a typical one for the use.
+  const storey = (typical: number): number => (stories && stories > 0 && H / stories >= 2.6 && H / stories <= 8 ? H / stories : typical);
+  const code = (storeyM: number, glazing: number): FacadeCode => ({ storeyM, glazing, year });
   if (kind === "seawall" || kind === "wall" || kind === "plain") {
-    return { wall: srgb(0xb7b1a6), roof: srgb(0x9f9a91), facade: Facade.plain, setback: false, penthouse: false, seed };
+    return { wall: srgb(0xb7b1a6), roof: srgb(0x9f9a91), facade: code(3, 0), setback: false, penthouse: false, seed };
   }
   if (kind === "pier" || kind === "shed" || use.includes("industrial") || use.includes("warehouse")) {
-    return { wall: scaleRgb(pick([0xc9c1ad, 0xb9b3a3, 0xd5cbb0, 0xa9b0a8], mix32(h, 1)), jitter), roof: srgb(0x8a857c), facade: Facade.shed, setback: false, penthouse: false, seed };
-  }
-  if (H < 9 && (use.includes("retail") || use.includes("commercial") || kind === "shop")) {
-    return { wall: scaleRgb(pick(PASTELS, mix32(h, 1)), jitter), roof: pick(ROOFS, mix32(h, 2)), facade: Facade.shop, setback: false, penthouse: false, seed };
+    return { wall: scaleRgb(pick([0xc9c1ad, 0xb9b3a3, 0xd5cbb0, 0xa9b0a8], mix32(h, 1)), jitter), roof: srgb(0x8a857c), facade: code(storey(6.5), 0.15), setback: false, penthouse: false, seed };
   }
   if (H < 19) {
-    return { wall: scaleRgb(pick(PASTELS, mix32(h, 1)), jitter), roof: pick(ROOFS, mix32(h, 2)), facade: unit(mix32(h, 9)) < 0.3 ? Facade.shop : Facade.residential, setback: false, penthouse: false, seed };
+    const shop = use.includes("retail") || use.includes("commercial") || kind === "shop" || unit(mix32(h, 9)) < 0.3;
+    return { wall: scaleRgb(pick(PASTELS, mix32(h, 1)), jitter), roof: pick(ROOFS, mix32(h, 2)), facade: code(storey(3.3), shop ? 0.4 : 0.25), setback: false, penthouse: false, seed };
   }
   if (H < 62) {
-    return { wall: scaleRgb(pick(STONE, mix32(h, 1)), jitter), roof: pick(ROOFS, mix32(h, 2)), facade: Facade.office, setback: false, penthouse: unit(mix32(h, 5)) < 0.55, seed };
+    return { wall: scaleRgb(pick(STONE, mix32(h, 1)), jitter), roof: pick(ROOFS, mix32(h, 2)), facade: code(storey(3.9), 0.5), setback: false, penthouse: unit(mix32(h, 5)) < 0.55, seed };
   }
-  return { wall: scaleRgb(pick(GLASS, mix32(h, 1)), jitter), roof: srgb(0x6e7274), facade: Facade.glass, setback: unit(mix32(h, 4)) < 0.75, penthouse: unit(mix32(h, 5)) < 0.4, seed };
+  return { wall: scaleRgb(pick(GLASS, mix32(h, 1)), jitter), roof: srgb(0x6e7274), facade: code(storey(4.0), 0.85), setback: unit(mix32(h, 4)) < 0.75, penthouse: unit(mix32(h, 5)) < 0.4, seed };
 }
 
 /** Walls and roof of one prism. Wall u runs in whole window columns so corners never cut a window. */
@@ -258,11 +318,15 @@ function prism(
   vBase: number,
   wall: RGB,
   roof: RGB | null,
-  facade: number,
+  facade: FacadeCode,
   uStart: number,
 ): void {
   const ccw = signedArea(pts) > 0;
-  const spec = FACADES[facade] ?? FACADES[0]!;
+  // Snap with the byte-quantized code, exactly what the shader will decode.
+  const q = quantizedFacade(facade);
+  const grid = facadeGrid(q.storeyM, q.glazing);
+  const fw = facadeBytes(facade, false);
+  const fr = facadeBytes(facade, true);
   let u = uStart;
   const n = pts.length;
   for (let i = 0; i < n; i++) {
@@ -275,14 +339,14 @@ function prism(
     // Outward normal: right of the edge for a counter-clockwise polygon.
     const nx = (ccw ? dz : -dz) / len;
     const nz = (ccw ? -dx : dx) / len;
-    const cols = Math.max(1, Math.round(len / spec.colW));
-    const u1 = u + cols * spec.colW;
+    const cols = Math.max(1, Math.round(len / grid.colW));
+    const u1 = u + cols * grid.colW;
     const shade = wallShade(nx, nz);
     const col: RGB = [wall[0] * shade, wall[1] * shade, wall[2] * shade];
-    const i0 = mb.v(a[0], y0, a[1], nx, 0, nz, col, u, y0 - vBase, facade);
-    const i1 = mb.v(b[0], y0, b[1], nx, 0, nz, col, u1, y0 - vBase, facade);
-    const i2 = mb.v(b[0], y1, b[1], nx, 0, nz, col, u1, y1 - vBase, facade);
-    const i3 = mb.v(a[0], y1, a[1], nx, 0, nz, col, u, y1 - vBase, facade);
+    const i0 = mb.v(a[0], y0, a[1], nx, 0, nz, col, u, y0 - vBase, fw);
+    const i1 = mb.v(b[0], y0, b[1], nx, 0, nz, col, u1, y0 - vBase, fw);
+    const i2 = mb.v(b[0], y1, b[1], nx, 0, nz, col, u1, y1 - vBase, fw);
+    const i3 = mb.v(a[0], y1, a[1], nx, 0, nz, col, u, y1 - vBase, fw);
     mb.triFacing(i0, i1, i2, nx, 0, nz);
     mb.triFacing(i0, i2, i3, nx, 0, nz);
     u = u1;
@@ -296,7 +360,7 @@ function prism(
     tris = [];
   }
   const base = mb.vertexCount;
-  for (const [x, z] of pts) mb.v(x, y1, z, 0, 1, 0, roof, x, z, Facade.none);
+  for (const [x, z] of pts) mb.v(x, y1, z, 0, 1, 0, roof, x, z, fr);
   for (const t of tris) {
     if (t.length !== 3) continue;
     mb.triFacing(base + t[0]!, base + t[1]!, base + t[2]!, 0, 1, 0);
@@ -326,8 +390,9 @@ export function addBuilding(
   const look = buildingLook(b);
   const sink = opts.sink ?? 1.0;
   const detail = opts.detail ?? true;
-  const spec = FACADES[look.facade] ?? FACADES[0]!;
-  const uStart = Math.floor(look.seed * 997) * spec.colW;
+  const q = quantizedFacade(look.facade);
+  const spec = facadeGrid(q.storeyM, q.glazing);
+  const uStart = Math.floor(look.seed * 61) * spec.colW;
   const H = b.topY - b.baseY;
   mb.beginRange(b.id);
   if (detail && look.setback && pts.length === 4 && H > 70) {
@@ -339,7 +404,7 @@ export function addBuilding(
   }
   if (detail && look.penthouse && pts.length === 4 && H > 18) {
     const ph = 3.2 + look.seed * 2.5;
-    prism(mb, scalePolygon(pts, 0.34), b.topY, b.topY + ph, b.topY, scaleRgb(look.roof, 1.35), look.roof, Facade.plain, 0);
+    prism(mb, scalePolygon(pts, 0.34), b.topY, b.topY + ph, b.topY, scaleRgb(look.roof, 1.35), look.roof, { storeyM: 3, glazing: 0, year: null }, 0);
   }
   mb.endRange();
   return true;

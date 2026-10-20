@@ -11,7 +11,6 @@
 // window materials read it too. Changing it never recompiles anything.
 
 import * as THREE from "three";
-import { FACADES } from "./tile-geometry.ts";
 
 export interface FogSettings {
   /** Base density at ground level (1/m). */
@@ -117,33 +116,22 @@ export function setFog(f: FogSettings, fog: THREE.FogExp2): void {
 
 // ---------------------------------------------------------------------------------------
 // Buildings: vertex colours, procedural windows from (uv, _facade), lit at night.
-
-function facadeTable(): string {
-  const rows = FACADES.map(
-    (f) => `vec4(${f.colW.toFixed(3)}, ${f.floorH.toFixed(3)}, ${f.lit.toFixed(3)}, ${f.shopH.toFixed(3)})`,
-  ).join(",\n    ");
-  const wins = FACADES.map((f) => `vec4(${f.win.map((v) => v.toFixed(3)).join(", ")})`).join(",\n    ");
-  return /* glsl */ `
-  const int FC_FACADES = ${FACADES.length};
-  const vec4 FC_GRID[${FACADES.length}] = vec4[](
-    ${rows}
-  );
-  const vec4 FC_WIN[${FACADES.length}] = vec4[](
-    ${wins}
-  );`;
-}
+//
+// _facade (vec4, normalized bytes): x storey height / 8 m, y glazing 0..1, z (year - 1840)
+// / 190 or 0, w roof flag. fcGrid mirrors facadeGrid() in tile-geometry.ts (the offline
+// builder snaps wall u to whole columns with it). A geometry without _facade reads
+// (0, 0, 0, 1): no windows.
 
 const BUILDING_VERTEX_PARS = /* glsl */ `
-attribute float _facade;
+attribute vec4 _facade;
 varying vec2 vFcUv;
-varying float vFcFacade;
+varying vec4 vFcFacade;
 `;
 
 const BUILDING_FRAGMENT_PARS = /* glsl */ `
 varying vec2 vFcUv;
-varying float vFcFacade;
+varying vec4 vFcFacade;
 uniform float fcNight;
-${facadeTable()}
 float fcHash( vec2 p ) {
   p = fract( p * vec2( 123.34, 456.21 ) );
   p += dot( p, p + 45.32 );
@@ -152,6 +140,17 @@ float fcHash( vec2 p ) {
 float fcBand( float lo, float hi, float x, float w ) {
   return smoothstep( lo - w, lo + w, x ) - smoothstep( hi - w, hi + w, x );
 }
+// x colW, y floorH, z lit fraction, w shop band height; win = window rect in the cell.
+vec4 fcGrid( float storeyM, float g, out vec4 win ) {
+  float floorH = clamp( storeyM, 2.6, 8.0 );
+  float colW = g < 0.2 ? 6.0 : mix( 3.2, 1.7, smoothstep( 0.2, 0.9, g ) );
+  float ww = mix( 0.42, 0.9, g );
+  float wh = mix( 0.42, 0.82, g );
+  float y0 = 0.08 + 0.2 * ( 1.0 - g );
+  win = vec4( 0.5 - ww * 0.5, 0.5 + ww * 0.5, y0, min( 0.96, y0 + wh ) );
+  float shopH = g >= 0.8 ? 5.0 : ( g >= 0.35 ? max( floorH, 3.8 ) : 0.0 );
+  return vec4( colW, floorH, mix( 0.36, 0.2, g ), shopH );
+}
 `;
 
 /** Computes window coverage, adjusts albedo/roughness, adds night emission. */
@@ -159,11 +158,13 @@ const BUILDING_FRAGMENT = /* glsl */ `
   float fcWin = 0.0;
   float fcLit = 0.0;
   vec3 fcLightCol = vec3( 1.0, 0.72, 0.42 );
-  int fcStyle = int( vFcFacade + 0.5 );
-  if ( fcStyle > 0 && fcStyle < FC_FACADES ) {
-    vec4 grid = FC_GRID[ fcStyle ];
-    vec4 win = FC_WIN[ fcStyle ];
-    vec2 cell = vec2( grid.x, grid.y );
+  float fcGlaze = vFcFacade.y;
+  if ( vFcFacade.w < 0.5 && fcGlaze > 0.04 ) {
+    vec4 win;
+    vec4 grid = fcGrid( vFcFacade.x * 8.0, fcGlaze, win );
+    // Before ~1910: narrower, taller sash windows.
+    if ( vFcFacade.z > 0.01 && vFcFacade.z < 0.37 ) win = vec4( 0.5 + ( win.xy - 0.5 ) * 0.78, win.z * 0.8, min( 0.95, win.w + 0.06 ) );
+    vec2 cell = grid.xy;
     bool shop = grid.w > 0.0 && vFcUv.y < grid.w && vFcUv.y > 0.0;
     if ( shop ) { cell = vec2( grid.x * 2.0, grid.w ); win = vec4( 0.08, 0.92, 0.12, 0.8 ); }
     vec2 g = vFcUv / cell;
@@ -172,18 +173,19 @@ const BUILDING_FRAGMENT = /* glsl */ `
     vec2 fw = fwidth( g );
     float w = fcBand( win.x, win.y, f.x, fw.x * 0.75 ) * fcBand( win.z, win.w, f.y, fw.y * 0.75 );
     float avg = ( win.y - win.x ) * ( win.w - win.z );
-    float far = smoothstep( 0.18, 0.5, max( fw.x, fw.y ) );
+    float far = smoothstep( 0.3, 0.75, max( fw.x, fw.y ) );
     w = mix( w, avg, far );
     // No windows below the first storey line on non-shop facades, or under ground.
     if ( !shop && vFcUv.y < max( grid.w, 0.8 ) ) w = 0.0;
     if ( vFcUv.y < 0.0 ) w = 0.0;
     fcWin = w;
-    float h = fcHash( id + vec2( float( fcStyle ) * 17.0, 0.0 ) );
+    float h = fcHash( id + vec2( floor( fcGlaze * 31.0 ) * 17.0, 0.0 ) );
     // Occupancy comes in clusters (a flat, an office floor), not salt and pepper.
     float cluster = fcHash( floor( id / vec2( 5.0, 3.0 ) ) + 7.3 );
     float litFrac = shop ? 0.75 : grid.z * ( 0.35 + 1.3 * cluster );
     float on = step( 1.0 - litFrac, h );
-    fcLit = mix( on, litFrac * 0.55, far ) * w;
+    // Far away, a smooth and dimmer average: clusters would read as blotches.
+    fcLit = mix( on, ( shop ? 0.6 : grid.z ) * 0.22, far ) * w;
     float tone = fcHash( id * 1.7 + 3.1 );
     fcLightCol = tone > 0.82 ? vec3( 0.75, 0.86, 1.0 ) : ( tone > 0.55 ? vec3( 1.0, 0.85, 0.6 ) : vec3( 1.0, 0.7, 0.4 ) );
     if ( shop ) fcLightCol = vec3( 1.0, 0.82, 0.55 );
@@ -244,10 +246,60 @@ function patchGrainShader(amount: number, scale: number) {
   };
 }
 
+// Road ribbons that carry TEXCOORD_0 = (0 at the left kerb .. 1 at the right kerb, metres
+// along the edge), as the pipeline writes them: kerb strips and dashed lines are drawn from
+// the UVs, since such tiles have no marking geometry.
+const ROAD_UV_FRAGMENT = (freeway: boolean): string => /* glsl */ `
+  {
+    vec2 ruv = vFcRoadUv;
+    // Metres per unit of u (the ribbon's width) from screen-space derivatives: solve
+    // dP = P_u du + P_v dv for P_u. Clamped, since it is noisy at grazing angles.
+    vec3 dpx = dFdx( vFcWorld );
+    vec3 dpy = dFdy( vFcWorld );
+    vec2 dux = dFdx( ruv );
+    vec2 duy = dFdy( ruv );
+    float det = dux.x * duy.y - duy.x * dux.y;
+    float widthM = abs( det ) > 1e-9 ? length( ( dpx * duy.y - dpy * dux.y ) / det ) : 12.0;
+    widthM = clamp( widthM, 4.0, 60.0 );
+    float fu = fwidth( ruv.x ) * 0.8 + 1e-4;
+    float kerbU = 0.35 / widthM;
+    float kerb = 1.0 - smoothstep( kerbU - fu, kerbU + fu, min( ruv.x, 1.0 - ruv.x ) );
+    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.25, 0.245, 0.235 ), kerb * 0.85 );
+    float dash = step( fract( ruv.y / ${freeway ? "12.0" : "9.0"} ), 0.42 );
+    float halfU = 0.07 / widthM;
+    float line = 0.0;
+    ${
+      freeway
+        ? "for ( int k = 1; k < 3; k++ ) { float c = float( k ) / 3.0; line = max( line, 1.0 - smoothstep( halfU, halfU + fu, abs( ruv.x - c ) ) ); }"
+        : "line = widthM > 7.0 ? 1.0 - smoothstep( halfU, halfU + fu, abs( ruv.x - 0.5 ) ) : 0.0;"
+    }
+    float far = smoothstep( 0.02, 0.06, fu );
+    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.72, 0.71, 0.66 ), line * dash * ( 1.0 - far ) );
+  }
+`;
+
+function patchRoadUvShader(freeway: boolean) {
+  const grain = patchGrainShader(0.16, 0.35);
+  return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
+    grain(shader);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vFcRoadUv;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcRoadUv = uv;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vFcRoadUv;")
+      .replace("#include <color_fragment>", `#include <color_fragment>\n${ROAD_UV_FRAGMENT(freeway)}`);
+  };
+}
+
 export interface SharedMaterials {
   building: THREE.MeshStandardMaterial;
+  /** For building meshes shipped without normals (flat shading from screen derivatives). */
+  buildingFlat: THREE.MeshStandardMaterial;
   ground: THREE.MeshStandardMaterial;
   road: THREE.MeshStandardMaterial;
+  /** Road and freeway ribbons with kerb-to-kerb UVs (pipeline tiles). */
+  roadUv: THREE.MeshStandardMaterial;
+  freewayUv: THREE.MeshStandardMaterial;
   foliage: THREE.MeshStandardMaterial;
   lampPole: THREE.MeshStandardMaterial;
   lampHead: THREE.MeshStandardMaterial;
@@ -255,42 +307,81 @@ export interface SharedMaterials {
   all: THREE.Material[];
 }
 
+function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithUniforms) => void): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, name });
+  m.onBeforeCompile = patch;
+  m.customProgramCacheKey = () => `${name}:v1`;
+  m.polygonOffset = true;
+  m.polygonOffsetFactor = -1;
+  m.polygonOffsetUnits = -2;
+  return m;
+}
+
 export function createSharedMaterials(): SharedMaterials {
   installFog();
   const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
   building.onBeforeCompile = patchBuildingShader;
-  building.customProgramCacheKey = () => "fc:building:v1";
+  building.customProgramCacheKey = () => "fc:building:v2";
+  const buildingFlat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, flatShading: true, name: "fc:building-flat" });
+  buildingFlat.onBeforeCompile = patchBuildingShader;
+  buildingFlat.customProgramCacheKey = () => "fc:building:v2";
 
   const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground" });
   ground.onBeforeCompile = patchGrainShader(0.22, 0.08);
   ground.customProgramCacheKey = () => "fc:ground:v1";
 
-  const road = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, name: "fc:road" });
-  road.onBeforeCompile = patchGrainShader(0.16, 0.35);
-  road.customProgramCacheKey = () => "fc:road:v1";
-  road.polygonOffset = true;
-  road.polygonOffsetFactor = -1;
-  road.polygonOffsetUnits = -2;
+  const road = roadMaterial("fc:road", patchGrainShader(0.16, 0.35));
+  const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false));
+  const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true));
 
   const foliage = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: true, name: "fc:foliage" });
   const lampPole = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6, metalness: 0.5, name: "fc:lamp-pole" });
   const lampHead = new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.4, metalness: 0.1, emissive: 0xffb466, emissiveIntensity: 0, name: "fc:lamp-head" });
-  return { building, ground, road, foliage, lampPole, lampHead, all: [building, ground, road, foliage, lampPole, lampHead] };
+  return {
+    building,
+    buildingFlat,
+    ground,
+    road,
+    roadUv,
+    freewayUv,
+    foliage,
+    lampPole,
+    lampHead,
+    all: [building, buildingFlat, ground, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+  };
 }
 
-/** Material names a tile glb may use; the loader swaps these for the shared ones. */
-export function sharedByName(m: SharedMaterials, name: string): THREE.Material | null {
-  switch (name) {
+export type TileLayer = "building" | "ground" | "road" | "freeway" | "foliage";
+
+/**
+ * Which layer a mesh in a tile glb belongs to, from its material name or its node name
+ * ("buildings", "ground"/"terrain", "roads"/"streets", "freeways", "foliage"/"trees").
+ * Tiles from this repo's dev-city builder and from the pipeline both use these names.
+ */
+export function tileLayer(materialName: string, nodeName: string): TileLayer | null {
+  for (const n of [materialName.toLowerCase(), nodeName.toLowerCase()]) {
+    if (/^buildings?\b/.test(n)) return "building";
+    if (/^(ground|terrain)\b/.test(n)) return "ground";
+    if (/^(freeways?|ramps?)\b/.test(n)) return "freeway";
+    if (/^(roads?|streets?)\b/.test(n)) return "road";
+    if (/^(foliage|trees?)\b/.test(n)) return "foliage";
+  }
+  return null;
+}
+
+/** The shared material for a tile mesh of a given layer, chosen by what its geometry carries. */
+export function materialFor(m: SharedMaterials, layer: TileLayer, geo: { hasNormals: boolean; hasUv: boolean }): THREE.Material {
+  switch (layer) {
     case "building":
-      return m.building;
+      return geo.hasNormals ? m.building : m.buildingFlat;
     case "ground":
       return m.ground;
     case "road":
-      return m.road;
+      return geo.hasUv ? m.roadUv : m.road;
+    case "freeway":
+      return geo.hasUv ? m.freewayUv : m.road;
     case "foliage":
       return m.foliage;
-    default:
-      return null;
   }
 }
 

@@ -107,7 +107,7 @@ async function boot(): Promise<void> {
   // ?debug=1 exposes the renderer for poking at from the console. Never used by tests.
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
   const startCam = params.get("cam") as CameraMode | null;
-  if (startCam && CAMERA_MODES.includes(startCam)) view.rig.setMode(startCam);
+  if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
@@ -137,6 +137,9 @@ async function boot(): Promise<void> {
   const fly: FlyInput = { ...NO_FLY_INPUT };
   const drag = { x: 0, y: 0 };
   let playersKey = "";
+  let idsFor: SimState["players"] | null = null;
+  let ids: string[] = [];
+  const renderInfo = view.info();
   const hudData: HudData = {
     world: worldName,
     speedMps: 0,
@@ -184,9 +187,9 @@ async function boot(): Promise<void> {
     },
     renderInfo: () => view.info(),
     setNight: (on) => view.setNight(on),
-    setCameraMode: (m) => view.rig.setMode(m),
-    flyTo: (x, y, z, yawDeg, pitchDeg) => view.rig.setFlyPose(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
-    tilesSettled: () => view.streamer.settled(),
+    setCameraMode: (m) => view.setCameraMode(m),
+    flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
+    tilesSettled: () => view.tilesSettled(),
   });
 
   const frame = (now: number): void => {
@@ -218,11 +221,15 @@ async function boot(): Promise<void> {
     }
     const alpha = paused ? 1 : acc / DT;
 
-    const ids = sortedIds(curr.players);
-    const key = ids.join("\u0001");
-    if (key !== playersKey) {
-      playersKey = key;
-      view.actors.remove(new Set(ids));
+    // Player ids change only when the sim state does (once per tick at most).
+    if (curr.players !== idsFor) {
+      idsFor = curr.players;
+      ids = sortedIds(curr.players);
+      const key = ids.join("\u0001");
+      if (key !== playersKey) {
+        playersKey = key;
+        view.actors.remove(new Set(ids));
+      }
     }
     for (const id of ids) {
       const pc = curr.players[id]!;
@@ -264,7 +271,7 @@ async function boot(): Promise<void> {
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute);
     view.render();
 
-    const info = view.info();
+    const info = view.info(renderInfo);
     hudData.speedMps = target.onFoot ? 0 : (curr.players[LOCAL_PLAYER]?.car.speed ?? 0);
     hudData.x = target.x;
     hudData.z = target.z;
