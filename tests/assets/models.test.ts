@@ -69,7 +69,7 @@ const SPECS: Spec[] = [
   {
     file: "sidewalk-bot.glb",
     budget: 3_000,
-    nodes: ["sidewalk_bot", "body", "flag", "wheel_L1", "wheel_L2", "wheel_L3", "wheel_R1", "wheel_R2", "wheel_R3"],
+    nodes: ["sidewalk_bot", "body", "lid", "cargo", "wheel_L1", "wheel_L2", "wheel_R1", "wheel_R2"],
     lights: ["light_eyes"],
   },
   {
@@ -259,16 +259,42 @@ describe("muni-bus livery", () => {
 
 // ------------------------------------------------------------------------- the robots
 
-describe("errand-robot", () => {
-  it("is human height with the face light in front of the head", async () => {
+describe("errand-robot (the Porter)", () => {
+  it("is tall and slim (1.8-2.0 m) with the face light strip on the front of its head", async () => {
     const { doc } = await loadModel("errand-robot.glb");
-    const h = box(allPositions(doc)).size[1];
-    expect(h).toBeGreaterThan(1.4);
-    expect(h).toBeLessThan(1.9);
-    const face = mean(materialPositions(doc, "light_face"));
+    const all = box(allPositions(doc));
+    expect(all.max[1]).toBeGreaterThan(1.8);
+    expect(all.max[1]).toBeLessThan(2.0);
+    expect(all.size[0]).toBeLessThan(0.65); // slim: shoulder to shoulder, arms down
+    const face = materialPositions(doc, "light_face");
     const head = worldOrigin(node(doc, "head"));
-    expect(face[2]).toBeLessThan(head[2] - 0.05);
-    expect(face[1]).toBeGreaterThan(head[1]);
+    expect(mean(face)[2]).toBeLessThan(head[2] - 0.05);
+    expect(mean(face)[1]).toBeGreaterThan(head[1]);
+    // one horizontal strip: wide, short
+    const fb = box(face);
+    expect(fb.size[0]).toBeGreaterThan(4 * fb.size[1]);
+  });
+
+  it("has a lantern head: a barrel wider than its collar, a cap and a carrying ring on top", async () => {
+    const { doc } = await loadModel("errand-robot.glb");
+    const headNode = node(doc, "head");
+    const pts = nodePositions(headNode, "local");
+    const hb = box(pts);
+    expect(hb.size[1]).toBeGreaterThan(0.33); // tall like a lantern
+    expect(hb.size[1]).toBeLessThan(0.45);
+    const widthAt = (y0: number, y1: number) => box(pts.filter((p) => p[1] > y0 && p[1] < y1)).size[0];
+    expect(widthAt(0.14, 0.24)).toBeGreaterThan(1.8 * widthAt(-0.01, 0.04)); // barrel vs neck
+    expect(widthAt(hb.max[1] - 0.05, hb.max[1] + 0.01)).toBeLessThan(0.1); // the ring on top
+  });
+
+  it("is opaque everywhere: no translucent face plate or torso", async () => {
+    const { json } = await loadModel("errand-robot.glb");
+    for (const mat of json.materials ?? []) {
+      expect(mat.alphaMode ?? "OPAQUE", mat.name).toBe("OPAQUE");
+      const m = mat as { pbrMetallicRoughness?: { baseColorFactor?: number[] }; extensions?: Record<string, unknown> };
+      expect(m.pbrMetallicRoughness?.baseColorFactor?.[3] ?? 1, mat.name).toBe(1);
+      expect(Object.keys(m.extensions ?? {}), mat.name).not.toContain("KHR_materials_transmission");
+    }
   });
 
   it("is a joint hierarchy with pivots at the joints", async () => {
@@ -288,22 +314,21 @@ describe("errand-robot", () => {
       const knee = worldOrigin(node(doc, `leg_lower_${s}`));
       expect(shoulder[0] * sign).toBeGreaterThan(0.1); // the robot's left is -X
       expect(hip[0] * sign).toBeGreaterThan(0.03);
-      expect(shoulder[1]).toBeGreaterThan(1.2);
-      expect(shoulder[1]).toBeLessThan(1.55);
+      expect(shoulder[1]).toBeGreaterThan(1.3);
+      expect(shoulder[1]).toBeLessThan(1.6);
       expect(shoulder[1] - elbow[1]).toBeGreaterThan(0.2);
       expect(shoulder[1] - elbow[1]).toBeLessThan(0.4);
-      expect(hip[1]).toBeGreaterThan(0.7);
-      expect(hip[1]).toBeLessThan(1.0);
+      expect(hip[1]).toBeGreaterThan(0.75);
+      expect(hip[1]).toBeLessThan(1.05);
       expect(hip[1] - knee[1]).toBeGreaterThan(0.3);
-      // each limb's mesh hangs below its pivot
       for (const part of [`arm_upper_${s}`, `arm_lower_${s}`, `leg_upper_${s}`, `leg_lower_${s}`]) {
         const n = node(doc, part);
         expect(box(nodePositions(n)).center[1], part).toBeLessThan(worldOrigin(n)[1]);
       }
     }
     const neck = worldOrigin(node(doc, "head"));
-    expect(neck[1]).toBeGreaterThan(1.3);
-    expect(neck[1]).toBeLessThan(1.55);
+    expect(neck[1]).toBeGreaterThan(1.35);
+    expect(neck[1]).toBeLessThan(1.65);
   });
 
   it("carries the bag below its right hand, clear of the ground", async () => {
@@ -325,7 +350,6 @@ describe("errand-robot", () => {
     const mats = nodeMaterials(contents);
     expect(mats.length).toBeGreaterThan(0);
     for (const m of mats) expect(m).toMatch(/^produce_/);
-    // the groceries sit in the bag's mouth: inside its footprint, poking out of the top
     const bag = box(nodePositions(bagNode).filter((p) => p[1] < box(nodePositions(bagNode)).max[1] - 0.15));
     const g = box(nodePositions(contents));
     expect(g.max[1]).toBeGreaterThan(bag.max[1]);
@@ -337,20 +361,154 @@ describe("errand-robot", () => {
   });
 });
 
-describe("sidewalk-bot", () => {
-  it("is knee-high with a tall flag, eyes at the front, wheel 1 at the front", async () => {
+describe("sidewalk-bot (the Trundle)", () => {
+  it("is a knee-high, four-wheeled box with its lights at the front and no flag or antenna", async () => {
     const { doc } = await loadModel("sidewalk-bot.glb");
     const body = box(nodePositions(node(doc, "body")));
     expect(body.max[1]).toBeGreaterThan(0.4);
-    expect(body.max[1]).toBeLessThan(0.75);
-    expect(box(nodePositions(node(doc, "flag"))).max[1]).toBeGreaterThan(1.2);
+    expect(body.max[1]).toBeLessThan(0.65);
+    expect(box(allPositions(doc)).max[1]).toBeLessThan(0.65); // nothing sticks up
+    expect(body.size[2]).toBeGreaterThan(0.6);
+    expect(body.size[2]).toBeLessThan(0.85);
+    expect(body.size[0]).toBeGreaterThan(0.45);
+    expect(body.size[0]).toBeLessThan(0.7);
+    const names = sceneNodes(doc).map((n) => n.getName());
+    expect(names).not.toContain("flag");
+    expect(names.filter((n) => n.startsWith("wheel_")).sort()).toEqual(["wheel_L1", "wheel_L2", "wheel_R1", "wheel_R2"]);
     expect(mean(materialPositions(doc, "light_eyes"))[2]).toBeLessThan(body.min[2] + 0.05);
     for (const s of ["L", "R"]) {
-      const z = [1, 2, 3].map((k) => worldOrigin(node(doc, `wheel_${s}${k}`))[2]);
-      expect(z[0]!).toBeLessThan(z[1]!);
-      expect(z[1]!).toBeLessThan(z[2]!);
-      for (const k of [1, 2, 3]) expect(worldOrigin(node(doc, `wheel_${s}${k}`))[0] < 0).toBe(s === "L");
+      const front = node(doc, `wheel_${s}1`);
+      const rear = node(doc, `wheel_${s}2`);
+      expect(worldOrigin(front)[2]).toBeLessThan(worldOrigin(rear)[2]);
+      for (const w of [front, rear]) {
+        expect(worldOrigin(w)[0] < 0).toBe(s === "L");
+        const r = w.getExtras().radius as number;
+        expect(r).toBeGreaterThan(0.05);
+        expect(Math.abs(worldOrigin(w)[1] - r)).toBeLessThan(0.01); // touches the ground
+        expect(w.getExtras().spinAxis).toEqual([1, 0, 0]);
+      }
     }
+  });
+
+  it("has a bread-bin roll-top lid that rolls back under the top panel to open", async () => {
+    const { doc } = await loadModel("sidewalk-bot.glb");
+    const lid = node(doc, "lid");
+    const ex = lid.getExtras();
+    expect(ex.lidAxis).toEqual([1, 0, 0]);
+    const a = ex.lidOpenRad as number;
+    expect(a).toBeGreaterThan(1.2);
+    const body = box(nodePositions(node(doc, "body")));
+    const o = worldOrigin(lid);
+    const local = nodePositions(lid, "local");
+    const closed = box(nodePositions(lid));
+    // closed, the lid is the curved front top: its front edge low, its back edge on top
+    expect(closed.min[2]).toBeLessThan(body.min[2] + 0.1);
+    expect(closed.max[1]).toBeGreaterThan(body.max[1] - 0.06);
+    // rotate about local +X by the open angle: it slides back, under the top, inside the walls
+    const open = box(local.map(([x, y, z]) => [o[0] + x, o[1] + y * Math.cos(a) - z * Math.sin(a), o[2] + y * Math.sin(a) + z * Math.cos(a)] as V3));
+    expect(open.center[2]).toBeGreaterThan(closed.center[2] + 0.15);
+    expect(open.max[1]).toBeLessThan(body.max[1]);
+    expect(open.min[0]).toBeGreaterThan(body.min[0]);
+    expect(open.max[0]).toBeLessThan(body.max[0]);
+    expect(open.max[2]).toBeLessThan(body.max[2]);
+  });
+
+  it("carries its cargo inside the bin (hide cargo for an empty bin)", async () => {
+    const { doc } = await loadModel("sidewalk-bot.glb");
+    const cargo = node(doc, "cargo");
+    expect(cargo.getExtras().cargo).toBe(true);
+    const c = box(nodePositions(cargo));
+    const body = box(nodePositions(node(doc, "body")));
+    for (const k of [0, 1, 2]) {
+      expect(c.min[k]).toBeGreaterThan(body.min[k]);
+      expect(c.max[k]).toBeLessThan(body.max[k]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------- melt and rust
+
+describe.each(["errand-robot.glb", "sidewalk-bot.glb"])("%s melt and rust hooks", (file) => {
+  const meshNodes = async () => {
+    const { doc } = await loadModel(file);
+    return { doc, nodes: sceneNodes(doc).filter((n) => n.getMesh()) };
+  };
+
+  it("has seize, slump and melt shape keys on every part", async () => {
+    const { nodes } = await meshNodes();
+    expect(nodes.length).toBeGreaterThan(3);
+    for (const n of nodes) {
+      const mesh = n.getMesh()!;
+      expect(mesh.getExtras().targetNames, n.getName()).toEqual(["seize", "slump", "melt"]);
+      for (const p of mesh.listPrimitives()) expect(p.listTargets(), n.getName()).toHaveLength(3);
+    }
+  });
+
+  it("sags with each key and ends as a low mound on the ground", async () => {
+    const { nodes } = await meshNodes();
+    const shape = (k: number | null): V3[] =>
+      nodes.flatMap((n) => {
+        const m = n.getWorldMatrix() as unknown as number[];
+        return n
+          .getMesh()!
+          .listPrimitives()
+          .flatMap((p) => {
+            const pos = p.getAttribute("POSITION")!;
+            const t = k === null ? null : p.listTargets()[k]!.getAttribute("POSITION")!;
+            const out: V3[] = [];
+            for (let i = 0; i < pos.getCount(); i++) {
+              const v = pos.getElement(i, []);
+              const d = t ? t.getElement(i, []) : [0, 0, 0];
+              const q = [v[0]! + d[0]!, v[1]! + d[1]!, v[2]! + d[2]!];
+              // node transforms at rest are translations (plus scale 1): apply the matrix
+              out.push([m[0]! * q[0]! + m[4]! * q[1]! + m[8]! * q[2]! + m[12]!, m[1]! * q[0]! + m[5]! * q[1]! + m[9]! * q[2]! + m[13]!, m[2]! * q[0]! + m[6]! * q[1]! + m[10]! * q[2]! + m[14]!]);
+            }
+            return out;
+          });
+      });
+    const rest = box(shape(null));
+    const seize = box(shape(0));
+    const slump = box(shape(1));
+    const melt = box(shape(2));
+    expect(seize.max[1]).toBeLessThan(rest.max[1]);
+    expect(slump.max[1]).toBeLessThan(seize.max[1]);
+    expect(melt.max[1]).toBeLessThan(slump.max[1]);
+    expect(melt.max[1]).toBeLessThan(0.55);
+    expect(melt.size[0]).toBeGreaterThan(rest.size[0] * 0.9); // spread out, not shrunk away
+    for (const b of [seize, slump, melt]) expect(b.min[1]).toBeGreaterThan(-0.01); // never below ground
+  });
+
+  it("has a rust mask: joints and seams rust first, the night lights never", async () => {
+    const { doc } = await loadModel(file);
+    const byMat = new Map<string, number[]>();
+    for (const n of sceneNodes(doc)) {
+      for (const p of n.getMesh()?.listPrimitives() ?? []) {
+        const a = p.getAttribute("_RUST_MASK");
+        expect(a, `${n.getName()} has _RUST_MASK`).toBeTruthy();
+        const name = p.getMaterial()?.getName() ?? "";
+        const list = byMat.get(name) ?? [];
+        for (let i = 0; i < a!.getCount(); i++) list.push(a!.getScalar(i));
+        byMat.set(name, list);
+      }
+    }
+    const avg = (xs: number[]) => xs.reduce((s, v) => s + v, 0) / xs.length;
+    for (const [name, xs] of byMat) {
+      if (name.startsWith("light_")) for (const v of xs) expect(v, name).toBe(2);
+      else for (const v of xs) expect(v, name).toBeLessThanOrEqual(2);
+    }
+    const joints = [...byMat].filter(([n]) => /graphite/.test(n)).flatMap(([, xs]) => xs);
+    const shell = [...byMat].filter(([n]) => /^shell_/.test(n)).flatMap(([, xs]) => xs);
+    expect(avg(joints)).toBeLessThan(0.1);
+    expect(avg(shell)).toBeGreaterThan(0.3);
+    expect(Math.min(...shell)).toBeLessThan(0.25); // shell rust starts at the seams
+    expect(Math.max(...shell)).toBeGreaterThan(0.85); // and reaches the middle of the panels last
+  });
+
+  it("marks its rustable materials", async () => {
+    const { json } = await loadModel(file);
+    const mats = (json.materials ?? []) as Array<{ name?: string; extras?: { rustable?: boolean } }>;
+    expect(mats.filter((m) => m.extras?.rustable).length).toBeGreaterThan(2);
+    for (const m of mats) if ((m.name ?? "").startsWith("light_")) expect(m.extras?.rustable).toBeFalsy();
   });
 });
 
