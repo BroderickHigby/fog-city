@@ -37,15 +37,17 @@ AI feature.
 
 ## Ownership
 Each track has one owner. Edit only your own directories; anything else, describe in your report.
-A track marked "from wave N" starts in that wave. The systems rule, golden files and the render
-split are in [`docs/roadmap.md`](docs/roadmap.md#ownership).
+A track marked "from wave N" starts in that wave. The one exception: the Sim-World interface PR
+that opens each wave may create or edit the stub `systems.ts` file in every area directory; once
+it merges, each area track owns its own `systems.ts` again. The systems rule, golden files and the
+render split are in [`docs/roadmap.md`](docs/roadmap.md#ownership).
 
 | Track | Owns |
 |---|---|
 | Pipeline | `pipeline/`, `public/tiles/sf/` (incl. `roads.json`), `docs/data-sources.md`, `tests/pipeline/` |
 | Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `index.html`, `vite.config.ts`, `public/tiles/dev-city/`, `tests/render/` |
 | UI-Audio | `src/ui/`, `src/audio/`, `src/input/`, `tests/ui/` |
-| Sim-World | the files directly in `src/sim/` (`contract.ts`, `step.ts`, `index.ts`, the top-level `systems.ts`, `dmath.ts` and the other shared files; additive changes to `contract.ts` only: bump `SIM_VERSION`, say so), `src/sim/vehicles/`, `src/sim/fog/`, `src/sim/clock/`, `tests/sim/world/` and the files directly in `tests/sim/` |
+| Sim-World | the files directly in `src/sim/` (`contract.ts`, `step.ts`, `index.ts`, the top-level `systems.ts`, `dmath.ts` and the other shared files; additive changes to `contract.ts` only: bump to the next `SIM_VERSION` and say so in the report), `src/sim/vehicles/`, `src/sim/fog/`, `src/sim/clock/`, `tests/sim/world/` and the files directly in `tests/sim/` |
 | Sim-Agents | `src/sim/agents/`, `src/sim/robots/`, `tests/sim/agents/` |
 | Sim-Combat | `src/sim/combat/`, `tests/sim/combat/` |
 | Sim-Player | `src/sim/player/`, `src/sim/heat/`, `src/sim/missions/`, `src/sim/economy/`, `src/sim/progression/`, `src/sim/activities/`, `tests/sim/player/` |

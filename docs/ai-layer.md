@@ -10,7 +10,7 @@ content** is written by the build agents themselves, who are Claude, straight in
 barks, tells, billboards and bus wraps, the radio ticker, DMs, mission text. It needs no API key and
 no server; the sim selects lines by id. **Runtime AI** reacts live to what a player types: the
 freestyle interview at Ramen Office Hours, One-Sentence Startup, Explain It to Your Mom, Customer
-Discovery, and Demo Day roasts online. It needs a server, a signed-in invited account and the
+Discovery, and Vibes Night roasts online. It needs a server, a signed-in invited account and the
 user's own Anthropic key, none of which exists yet, so every runtime feature ships as a scripted
 version first and falls back to it whenever live is unavailable. One rule covers all three kinds:
 every box a player can type into runs the crisis check first, online or offline, scripted or live.
@@ -45,6 +45,10 @@ every box a player can type into runs the crisis check first, online or offline,
 - **Avatar and booth:** "This is me", exactly one face, EXIF stripped before upload,
   `appearance.json` out of git unless the user opts in.
 - **Customer Discovery** is 21 calls per run, plus up to 2 refunded retries (23 at the cap).
+- **Names and schedule:** the wave-8 party mode is **Vibes Night** (mission 5 keeps Demo Day), so
+  its route is `[ai-08-vibes-night]` and its event `VibesNightVerdict`. The scripted Meander
+  support bot ships in wave 3 in the Ride app. The AI notice's "(Anthropic's API)" is a listed
+  exemption in the content lint.
 
 Earlier the same day: build-time content stopped needing the Batch pipeline; names follow the final
 game (**Ramen**, **Bot Check**, **Moat Labs**, **Meander**, **Clout**, **Dry Powder**, **GPU
@@ -63,7 +67,7 @@ Pure sim or presentation code. Deterministic, replay-safe, no network.
 | Coit Tower audio guide | Presentation | Lines from the Hallucination Tour bank, keyed by landmark id |
 | FogCast | Presentation | Confidence 95–99%, forecast right half the time |
 | Autosummarized briefs | Presentation | Steps shuffled; the objective marker is always correct |
-| Meander support bot | Presentation | Scripted keyword bot behind the crisis check; a capable model would understand you, which kills the joke |
+| Meander support bot | Presentation (the Ride app, wave 3) | Scripted keyword bot behind the crisis check; a capable model would understand you, which kills the joke |
 
 ## 2. Build-time content (now; no key)
 The Content track writes these files in agent sessions. Each item gets a JSON schema and coverage
@@ -172,7 +176,7 @@ a UTC day of real time; game-day limits are gameplay rules and do not raise live
 | One-Sentence Startup `[ai-02]` | Wave 2 (sign-up form, keyword-matched kit); reveal in wave 3 | Wave 6 | `StartupDefined` |
 | Explain It to Your Mom `[explain-to-mom]` | Wave 4 | Wave 6 | `MomVerdict` |
 | Customer Discovery `[customer-discovery]` | Wave 5 | Wave 7 | `DiscoveryVerdict`, `InsightVerdict` |
-| Demo Day roasts `[ai-08-demo-day]` | Wave 8 (template roasts) | Wave 8 | `DemoDayVerdict` |
+| Vibes Night roasts `[ai-08-vibes-night]` | Wave 8 (template roasts) | Wave 8 | `VibesNightVerdict` |
 | Trust & Safety `[trust-and-safety]` | Deterministic client gates from wave 2 | Wave 6 | (gate, not an event) |
 | Portrait booth `[portrait-booth]` | Manual customizer (wave 4) | Later, only if players ask | `AppearanceSet` |
 
@@ -295,13 +299,13 @@ hateful | self_harm`.
   **Cost:** $0.27–0.40 per run on Opus 5.5, $0.007–0.010 on Haiku 5.5. First candidate for the
   cheaper-model eval; the model choice is the user's.
 
-### 3.5 Demo Day roasts (multiplayer, wave 8)
+### 3.5 Vibes Night roasts (multiplayer, wave 8)
 - One call per kit by the room server, given only that kit's shared view (composed name, bank
   tagline, dictionary-limited noun phrase). Never the free-form tagline, the raw sentence, display
   names or usernames. A roast ≤ 20 words; a line mentioning any other player id is rejected.
 - The Vibes Award is decided by player vote with a server keyed-hash tie-break; the model does not
   pick it. Fallback: template roasts chosen by the room server, never from the sim RNG.
-- **Event:** `DemoDayVerdict{roundId, vibesWinnerId, lineIds[], source}`.
+- **Event:** `VibesNightVerdict{roundId, vibesWinnerId, lineIds[], source}`.
   **Cost:** $0.018–0.026 per kit per round, including the output check.
 
 ### 3.6 Your avatar and the portrait booth
@@ -345,7 +349,9 @@ hateful | self_harm`.
   to disk, logs or backups. A test asserts the 24 h expiry and that no transcript reaches disk.
 - **Notice:** before the first live free-text box, one line: "Typed answers go to an AI model
   (Anthropic's API) through this server. This server does not keep them." Multiple choice is always
-  available and uses no AI.
+  available and uses no AI. Naming Anthropic here is intentional: it is a legal disclosure, not
+  branding, so the content lint lists the notice's "(Anthropic's API)" as an exemption from the
+  real-brand rule and still fails the name in any other content string.
 - **Key:** the user's own Anthropic key is a proxy secret. It never reaches the browser or CI. No
   company key is ever used. The user sets a spend limit in the Anthropic Console.
 - **Free-text boxes:** one `FreeTextBox` component in `src/ui/` is the only way typed text enters
@@ -358,8 +364,8 @@ hateful | self_harm`.
   enums and ints only (a lint on `src/sim` checks this, and a text-perturbation state-hash test
   covers every feature that carries text). Display text lives on a presentation track keyed by
   event id; replays and the room server send it only to the owning client, except the shared view
-  of kits (3.2) and Demo Day lines. Fallback keyword matching runs outside the sim and records only
-  a kit id. Timeouts and fallbacks are events (`AIUnavailable{feature, reason}`).
+  of kits (3.2) and Vibes Night lines. Fallback keyword matching runs outside the sim and records
+  only a kit id. Timeouts and fallbacks are events (`AIUnavailable{feature, reason}`).
 - **One outcome per turn:** each (feature, sessionId, turn) resolves once; the first terminal event
   wins. In single player the client recorder decides; in rooms the room server decides and sets the
   apply tick to server tick + input delay. The sim asserts at most one terminal event per turn; a
@@ -395,7 +401,7 @@ real day, so more Office Hours do not raise live cost.
 | Mom: 1.9K / 80 + 300–800; 1,500 | $0.015–0.025 | $0.045–0.075 per arc | $0.023–0.038 | ~$0.001–0.002 |
 | Discovery: 2K / 40 + 200–500; 800 | $0.013–0.019 | $0.27–0.40 per run (21 calls; 23 reserved) | $0.14–0.20 | $0.007–0.010 |
 | Trust & Safety: 1.1–1.5K / 30 + 200–400; 600 | $0.009–0.014 | ~$0.11–0.16 per typical hour | $0.06–0.08 | ~$0.003–0.004 |
-| Demo Day: roast + output check, per kit | $0.018–0.026 | per kit per round | $0.009–0.013 | ~$0.0006 |
+| Vibes Night: roast + output check, per kit | $0.018–0.026 | per kit per round | $0.009–0.013 | ~$0.0006 |
 
 **Per-account worst case from the caps** (calls × (input × $4/M + max_tokens × $20/M)):
 interview 16 × $0.044 = $0.70; Mom 6 × $0.038 = $0.23; One-Sentence Startup 3 × $0.056 = $0.17;
@@ -408,15 +414,18 @@ free-text boxes become multiple choice.
 
 **Example: 100 players × 5 h a month (16.7 player-hours a day).** Typical hour: one interview,
 one Mom arc, the startup kit averaged, Trust & Safety on every free-text call (~11 calls).
-Opus, option B: $0.35–0.50/h → **$175–250 a month**. Opus, option A: $120–175. Sonnet, B: $87–126.
-Haiku, B: **$4.30–6.30**. Set a **global cap of $10 a day** (≤ ~$310 a month); on heavy days it
-trips after 8.5–12.3 player-hours and the rest fall back to scripted. Invite-only accounts and the
-per-account and per-IP caps stop one person from draining it.
+Opus, option B: $0.35–0.50/h → **$175–250 a month** (500 player-hours). Opus, option A: $120–170
+(it drops almost all of the Trust & Safety share: $0.11–0.16/h × 500 h ≈ $55–80). Sonnet, B:
+$87–126. Haiku, B: **$4.30–6.30**. Set a **global cap of $10 a day** (≤ ~$310 a month). At
+$0.35–0.50 per player-hour it trips after 20–29 player-hours in a day ($10 ÷ $0.50 = 20;
+$10 ÷ $0.35 ≈ 29), above this example's 16.7, so only heavy days hit it, and the rest of that day
+falls back to scripted. Invite-only accounts and the per-account and per-IP caps stop one person
+from draining it.
 
 **Trust & Safety, the user's call:** option A runs the model classifier only on public surfaces
-(billboards, bus wraps, Demo Day) and saves $55–80 a month in this example; option B (default) runs
-it everywhere as defence in depth. The eval runs the injection, punch-down, sexual, violent and
-hateful fixtures through both so the user decides from results.
+(billboards, bus wraps, Vibes Night) and saves $55–80 a month in this example ($175–250 becomes
+$120–170); option B (default) runs it everywhere as defence in depth. The eval runs the injection,
+punch-down, sexual, violent and hateful fixtures through both so the user decides from results.
 
 ## Safety and abuse
 - **Order of gates:**
@@ -436,8 +445,8 @@ hateful fixtures through both so the user decides from results.
   8. One Trust & Safety call classifies input and output together; fail closed on a malformed
      verdict or a timeout.
 - **Injection cannot win the interview:** server-held state, closed schemas, sim-computed deltas,
-  the +5 cap and the fixed −2. Discovery's answer never enters a prompt. Each Demo Day kit gets its
-  own call.
+  the +5 cap and the fixed −2. Discovery's answer never enters a prompt. Each Vibes Night kit gets
+  its own call.
 - **Chatbot abuse:** invite-only sign-in, server-issued sessions, 280-character inputs, 8 turns,
   idempotent turns, and per-account and per-IP daily caps leave little chatbot value. Off-topic:
   "I have to go, pickleball."
@@ -468,9 +477,9 @@ item.
   shipped districts. No server.
 - **Wave 3:** Ramen Office Hours (scripted bank, demo script, outcome rewards), with mission 4 as
   the first; the mission-3 pivot line; the billboard and bus reveal; shared tagline bank; VC DMs;
-  the Dry Powder ticker; FogCast; Meander personalities; Plain Words ladder; SF-Bench headlines; 150
-  more shared people lines; Backseat Prompt Rally behind the crisis check; the step-4 district
-  packs.
+  the Dry Powder ticker; FogCast; Meander personalities; the scripted Meander support bot in the
+  Ride app behind the crisis check; Plain Words ladder; SF-Bench headlines; 150 more shared people
+  lines; Backseat Prompt Rally behind the crisis check; the step-4 district packs.
 - **Wave 4:** scripted Mom with tokens that carry into Office Hours; pivot cards and the phone Pivot
   action; Doom Clock headlines; cofounder bank and Hallucination Tour; streak and announcer lines;
   bench cards; Clout feed; customizer enum lists frozen, then the user's offline avatar script; the
@@ -483,7 +492,7 @@ item.
   per-category pass rates; then freestyle Office Hours, live One-Sentence Startup with the shared
   view, live Mom. Needs the user's key on the server. The step-7 and step-9a packs.
 - **Wave 7:** live Customer Discovery classifier; the step-8 packs.
-- **Wave 8:** Demo Day roasts on the shared view; the step-9b packs.
+- **Wave 8:** Vibes Night roasts on the shared view; the step-9b packs.
 - **Later:** portrait booth if players ask; the Batch pipeline if volume demands it.
 
 ## Cut, and why
