@@ -1,0 +1,167 @@
+{
+  "id": "hot-desk",
+  "version": 1,
+  "wave": 2,
+  "campaign": 1,
+  "$comment": "Mission 1 (docs/design.md, Campaign spine). Within 60 s of control at the Ferry Building, a bad Footman with subtlety-1 tells snatches another Footman's groceries, with a hydrant within 15 m; the first melt lands at about 90 s. Outro: sign up for the FiDi coworking desk (the form asks 'What are you building?' and records a StartupDefined kit id), then cone the robotaxi parked in your spot. Places are street locations, not addresses.",
+  "title": "Hot Desk",
+  "summary": "Your first morning in the city. A robot is stealing groceries outside the Ferry Building, your cofounder is texting, and there is a desk with your name on it in the Financial District. Probably.",
+  "area": "Embarcadero to the Financial District",
+  "start": "arrive",
+  "cast": {
+    "player": { "name": "You", "role": "Founder" },
+    "cofounder": { "name": "Your cofounder", "role": "Cofounder, by text", "description": "Built Bot Check beta in a weekend. Texts in lower case." },
+    "host": { "name": "Desk host", "role": "Host at the FiDi coworking desk", "description": "Has a lanyard, a clipboard and a waitlist for the nap pod." }
+  },
+  "actors": {
+    "thief": { "kind": "badRobot", "archetype": "snatcher", "level": 1, "note": "Subtlety-1 tells: tails a good Footman, asks you to rate the sidewalk, carries a weightless bag." },
+    "shopper": { "kind": "goodRobot", "archetype": "errandFootman", "note": "The good Footman whose groceries go missing." },
+    "squatter": { "kind": "goodTaxi", "archetype": "meanderTaxi", "note": "Parked in your spot. Good robotaxis stop dead for a cone." }
+  },
+  "meters": {},
+  "outcomes": {
+    "movedIn": { "label": "Moved in", "kind": "success" },
+    "gotAway": { "label": "It got away", "kind": "retry" },
+    "late": { "label": "Desk given away", "kind": "retry" }
+  },
+  "steps": [
+    {
+      "id": "arrive",
+      "type": "trigger",
+      "note": "Control starts on the Ferry Building plaza.",
+      "event": {
+        "kind": "enterArea",
+        "place": { "label": "The Ferry Building plaza", "lat": 37.7954, "lon": -122.394, "radiusM": 40, "source": "Hand-placed on the plaza in front of the clock tower" }
+      },
+      "lines": [
+        { "speaker": "cofounder", "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones. only the bad ones, ideally" },
+        { "speaker": "cofounder", "text": "bad robots look exactly like good ones. watch what they DO" }
+      ],
+      "next": "snatch"
+    },
+    {
+      "id": "snatch",
+      "type": "stage",
+      "note": "Staged within 60 s of control, near a hydrant.",
+      "actors": ["shopper", "thief"],
+      "place": { "label": "Embarcadero Plaza, by Market St and Steuart St", "lat": 37.7946, "lon": -122.3946, "radiusM": 15, "source": "Hand-placed on the plaza beside the Market St and Steuart St corner" },
+      "nearHydrantM": 15,
+      "lines": [
+        { "speaker": "cofounder", "text": "see the footman following the other one? 2 metres behind, every turn. and its bag is empty. that's not normal" }
+      ],
+      "next": "watch"
+    },
+    {
+      "id": "watch",
+      "type": "objective",
+      "objective": { "kind": "watch", "actor": "thief", "seconds": 3 },
+      "hint": "Hold aim without spraying to Watch it: its path, its sound, its status light.",
+      "lines": [
+        { "speaker": "cofounder", "text": "hold your aim on it without spraying. that's Watch. look at its trail" }
+      ],
+      "next": "melt"
+    },
+    {
+      "id": "melt",
+      "type": "objective",
+      "objective": { "kind": "melt", "actor": "thief" },
+      "timeLimitS": 120,
+      "hint": "Spray it. The rust bar fills; at full it seizes, slumps and melts. A hydrant is right there if you run dry.",
+      "lines": [
+        { "speaker": "cofounder", "text": "it took the groceries!! spray it. hydrant's right there if you run out" }
+      ],
+      "next": "melted",
+      "onFail": "got-away"
+    },
+    {
+      "id": "melted",
+      "type": "timer",
+      "durationS": 8,
+      "lines": [
+        { "speaker": "cofounder", "text": "first melt!!! it'll be restored from backup. some memories may be lost. not ours" },
+        { "speaker": "cofounder", "text": "ok your desk is on Montgomery St. they give it away if you're late. go go go" }
+      ],
+      "next": "to-desk"
+    },
+    {
+      "id": "to-desk",
+      "type": "goto",
+      "travel": "any",
+      "target": { "label": "The FiDi coworking desk, Montgomery St", "lat": 37.7905, "lon": -122.4015, "radiusM": 20, "source": "content/safehouses.json fidi-desk" },
+      "timer": { "limitS": 300, "warnAtS": 60, "label": "Desk hold" },
+      "lines": [
+        { "speaker": "host", "text": "Hi! We're holding your desk for five minutes. After that it goes to the next founder on the waitlist." }
+      ],
+      "next": "signup",
+      "onTimeout": "late"
+    },
+    {
+      "id": "signup",
+      "type": "form",
+      "form": {
+        "kind": "startupSignup",
+        "prompt": "What are you building?",
+        "maxLength": 140,
+        "records": "StartupDefined",
+        "multipleChoice": ["Something with robots", "AI for an industry", "A tool for founders", "Food, but smarter", "Not sure yet"]
+      },
+      "lines": [
+        { "speaker": "host", "text": "Welcome! One question before I hand you a lanyard: what are you building?" },
+        { "speaker": "host", "text": "Love it. Love it. You're desk 14. Your stuff goes in a locker; there's no garage, sorry." }
+      ],
+      "next": "spot"
+    },
+    {
+      "id": "spot",
+      "type": "stage",
+      "actors": ["squatter"],
+      "place": { "label": "The curb outside the desk, Montgomery St", "lat": 37.7906, "lon": -122.4014, "radiusM": 15, "source": "Hand-placed on the curb outside the desk" },
+      "lines": [
+        { "speaker": "cofounder", "text": "also a robotaxi is parked in your spot. cone it. robotaxis stop dead for a cone on the hood. it's harmless" }
+      ],
+      "next": "cone"
+    },
+    {
+      "id": "cone",
+      "type": "objective",
+      "objective": { "kind": "cone", "actor": "squatter" },
+      "hint": "Throw a cone onto its hood. You carry three; the car restocks them.",
+      "next": "moved-in"
+    },
+    {
+      "id": "moved-in",
+      "type": "reward",
+      "outcome": "movedIn",
+      "lines": [
+        { "speaker": "host", "text": "And you've coned a robotaxi on day one. You're going to fit right in." },
+        { "speaker": "cofounder", "text": "we have a desk!!! and a startup!!! and 18 months of runway. that's basically forever" }
+      ],
+      "grants": [
+        { "kind": "stat", "stat": "cash", "delta": 500 },
+        { "kind": "unlock", "unlock": "safehouse:fidi-desk" },
+        { "kind": "unlock", "unlock": "vendor:fidi-desk" },
+        { "kind": "unlock", "unlock": "app:bot-bounty" }
+      ]
+    },
+    {
+      "id": "got-away",
+      "type": "retry",
+      "outcome": "gotAway",
+      "lines": [
+        { "speaker": "cofounder", "text": "it got away with the groceries. it's fine. it's not fine. try again?" }
+      ],
+      "hint": "Watch it first, then keep the stream on it. Refill at the hydrant beside the plaza.",
+      "retryFrom": "snatch"
+    },
+    {
+      "id": "late",
+      "type": "retry",
+      "outcome": "late",
+      "lines": [
+        { "speaker": "host", "text": "So sorry, the desk went to a founder building an app for ordering desks. Next opening is in a minute!" }
+      ],
+      "cooldownS": 60,
+      "retryFrom": "to-desk"
+    }
+  ]
+}

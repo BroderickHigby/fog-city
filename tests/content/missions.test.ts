@@ -4,7 +4,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { blockedProseReason } from "../../src/content/blocklist.ts";
 import { toLocal } from "../../src/geo/project.ts";
-import { dryRun, enumeratePaths, validateMission, type Decision, type DialogueStep, type GotoStep, type Mission, type TriggerStep } from "../../src/content/missions.ts";
+import { checkMissionActors, dryRun, enumeratePaths, missionPlaces, validateMission, type Decision, type DialogueStep, type GotoStep, type Mission, type ObjectiveStep, type StageStep, type TriggerStep } from "../../src/content/missions.ts";
+import { DISTRICTS, distanceM, pointInPolygon } from "../../src/content/places.ts";
+import { tileId, tileIndexOf, toLocal as toXZ } from "../../src/geo/project.ts";
 import { ROOT, readJson } from "../helpers.ts";
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -14,6 +16,7 @@ const step = <T>(m: Mission, id: string) => m.steps.find((s) => s.id === id) as 
 /** Chooser that always arrives and picks the answer with the given rank by delta (0 = best). */
 const byRank = (rank: number, m: Mission = yc) => (d: Decision): string => {
   if (d.kind === "goto") return "arrive";
+  if (d.kind !== "answer") return d.options[0]!;
   const q = (m.steps.find((s) => s.id === d.stepId) as DialogueStep).questions.find((x) => x.id === d.questionId)!;
   const sorted = [...q.answers].sort((a, b) => b.delta - a.delta);
   return sorted[Math.min(rank, sorted.length - 1)]!.id;
@@ -246,5 +249,144 @@ describe("dryRun", () => {
     for (const d of m.steps) if (d.type === "dialogue") for (const q of d.questions) for (const a of q.answers) a.delta = a.delta > 0 ? 90 : -90;
     expect(dryRun(m, byRank(0, m)).meters.conviction).toBe(100);
     expect(dryRun(m, byRank(2, m)).meters.conviction).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Wave 2: Hot Desk (mission 1) and Spill (mission 2)
+
+const hotDesk = readJson<Mission>("content/missions/hot-desk.json");
+const spill = readJson<Mission>("content/missions/spill.json");
+const allMissions = readdirSync(join(ROOT, "content/missions")).filter((x) => x.endsWith(".json")).map((f) => readJson<Mission>(`content/missions/${f}`));
+
+/** Takes the success branch at every decision (arrive, done, matched). */
+const succeed = (d: Decision): string => (d.kind === "answer" ? d.options[0]! : d.options[0]!);
+
+describe("every mission: actors, waypoints and path coverage", () => {
+  for (const m of allMissions) {
+    it(`${m.id}: actors match the robots`, () => expect(checkMissionActors(m)).toEqual([]));
+
+    it(`${m.id}: every decision branch is taken by some path, and every step is visited`, () => {
+      const { paths } = enumeratePaths(m);
+      const taken = new Set(paths.flatMap((p) => p.choices));
+      const decisions = new Set<string>();
+      for (const s of m.steps) {
+        if (s.type === "goto") ["arrive", "timeout"].forEach((o) => decisions.add(`${s.id}:${o}`));
+        if (s.type === "objective" && s.timeLimitS !== undefined) ["done", "timeout"].forEach((o) => decisions.add(`${s.id}:${o}`));
+        if (s.type === "form") ["matched", "fallback"].forEach((o) => decisions.add(`${s.id}:${o}`));
+        if (s.type === "dialogue") for (const q of s.questions) for (const a of q.answers) decisions.add(`${q.id}:${a.id}`);
+      }
+      for (const dcs of decisions) expect(taken.has(dcs), dcs).toBe(true);
+      const visited = new Set(paths.flatMap((p) => p.trace));
+      for (const s of m.steps) expect(visited.has(s.id), s.id).toBe(true);
+    });
+
+    it(`${m.id}: every waypoint lies on a committed tile of the SF world`, () => {
+      const manifest = readJson<{ tiles: Array<{ id: string; collider: string }> }>("public/tiles/sf/manifest.json");
+      const tiles = new Set(manifest.tiles.map((t) => t.id));
+      for (const { step: sid, place } of missionPlaces(m)) {
+        const p = toXZ(place.lat, place.lon);
+        const { ix, iz } = tileIndexOf(p.x, p.z);
+        expect(tiles.has(tileId(ix, iz)), `${m.id}/${sid}: ${place.label} on ${tileId(ix, iz)}`).toBe(true);
+      }
+    });
+  }
+
+  it("wave-2 missions stay inside the active (shipped) districts", () => {
+    for (const m of allMissions.filter((x) => x.wave === 2)) {
+      for (const { step: sid, place } of missionPlaces(m)) {
+        const inside = DISTRICTS.some((d) => d.active && pointInPolygon([place.lat, place.lon], d.polygon));
+        expect(inside, `${m.id}/${sid}: ${place.label}`).toBe(true);
+      }
+    }
+  });
+});
+
+describe("hot-desk: mission 1", () => {
+  it("is campaign mission 1 of wave 2 and dry-runs to its success and to both retries", () => {
+    expect(hotDesk.campaign).toBe(1);
+    expect(hotDesk.wave).toBe(2);
+    expect(dryRun(hotDesk, succeed).outcome).toBe("movedIn");
+    expect(dryRun(hotDesk, (d) => (d.kind === "objective" ? "timeout" : d.options[0]!)).outcome).toBe("gotAway");
+    expect(dryRun(hotDesk, (d) => (d.kind === "goto" ? "timeout" : d.options[0]!)).outcome).toBe("late");
+    expect(new Set(enumeratePaths(hotDesk).paths.map((p) => p.outcome))).toEqual(new Set(["movedIn", "gotAway", "late"]));
+  });
+
+  it("starts at the Ferry Building and stages a subtlety-1 snatcher within 15 m of a hydrant", () => {
+    const start = step<TriggerStep>(hotDesk, "arrive");
+    expect(distanceM([start.event.place.lat, start.event.place.lon], [37.7955, -122.3937])).toBeLessThan(60);
+    const stage = step<StageStep>(hotDesk, "snatch");
+    expect(stage.nearHydrantM).toBeLessThanOrEqual(15);
+    expect(distanceM([stage.place.lat, stage.place.lon], [start.event.place.lat, start.event.place.lon])).toBeLessThan(150);
+    expect(hotDesk.actors!.thief).toMatchObject({ kind: "badRobot", archetype: "snatcher", level: 1 });
+    const melt = step<ObjectiveStep>(hotDesk, "melt");
+    expect(melt.objective).toEqual({ kind: "melt", actor: "thief" });
+  });
+
+  it("the coworking sign-up asks 'What are you building?' and records a StartupDefined kit id", () => {
+    const form = hotDesk.steps.find((s) => s.type === "form")!;
+    expect(form.type === "form" && form.form).toMatchObject({ kind: "startupSignup", prompt: "What are you building?", maxLength: 140, records: "StartupDefined" });
+    const succeeded = dryRun(hotDesk, succeed);
+    expect(succeeded.trace.indexOf("signup")).toBeLessThan(succeeded.trace.indexOf("cone"));
+  });
+
+  it("ends by coning the robotaxi in your spot, and unlocks the desk, its vendor and BotBounty", () => {
+    expect(step<ObjectiveStep>(hotDesk, "cone").objective).toEqual({ kind: "cone", actor: "squatter" });
+    expect(hotDesk.actors!.squatter!.kind).toBe("goodTaxi");
+    const r = dryRun(hotDesk, succeed);
+    expect(r.grants).toContainEqual({ kind: "unlock", unlock: "safehouse:fidi-desk" });
+    expect(r.grants).toContainEqual({ kind: "unlock", unlock: "vendor:fidi-desk" });
+    const cash = r.grants.find((g) => g.kind === "stat" && g.stat === "cash");
+    expect(cash && cash.kind === "stat" && cash.delta).toBeGreaterThanOrEqual(500);
+  });
+});
+
+describe("spill: mission 2", () => {
+  it("dry-runs to the paid success and to each retry", () => {
+    expect(dryRun(spill, succeed).outcome).toBe("paid");
+    expect(new Set(enumeratePaths(spill).paths.map((p) => p.outcome))).toEqual(new Set(["paid", "scattered", "cornered", "cold"]));
+  });
+
+  it("is a crew of three, one posted; Watch, then Bot Check, then melt; converge to threat 2; escape to 0", () => {
+    expect(spill.actors!.crew!.members!.length).toBe(3);
+    expect(spill.actors!.posted!.posted).toBe(true);
+    const order = dryRun(spill, succeed).trace;
+    const kinds = order.map((id) => spill.steps.find((s) => s.id === id)!).filter((s): s is ObjectiveStep => s.type === "objective").map((s) => `${s.objective.kind}${s.objective.level ?? ""}`);
+    expect(kinds).toEqual(["watch", "scan", "melt", "threatAtLeast2", "threatAtMost0"]);
+    const crew = step<StageStep>(spill, "crew");
+    expect(crew.place.radiusM).toBeLessThanOrEqual(60);
+  });
+});
+
+describe("validateMission: the wave-2 step types", () => {
+  const broken = (m0: Mission, mutate: (m: Mission) => void): string => {
+    const m = clone(m0);
+    mutate(m);
+    const r = validateMission(m);
+    expect(r.ok).toBe(false);
+    return r.errors.join("\n");
+  };
+  it("a stage or objective naming an undeclared actor", () => {
+    expect(broken(hotDesk, (m) => (step<StageStep>(m, "snatch").actors = ["ghost"]))).toMatch(/actor "ghost" is not declared/);
+    expect(broken(hotDesk, (m) => (step<ObjectiveStep>(m, "melt").objective.actor = "ghost"))).toMatch(/needs a declared actor|not declared/);
+  });
+  it("a time limit without a fail branch, or a fail branch going nowhere", () => {
+    expect(broken(hotDesk, (m) => delete step<ObjectiveStep>(m, "melt").onFail)).toMatch(/timeLimitS and onFail come together/);
+    expect(broken(hotDesk, (m) => (step<ObjectiveStep>(m, "melt").onFail = "nowhere"))).toMatch(/onFail -> "nowhere"/);
+  });
+  it("a threat objective without a level, and a form that records nothing", () => {
+    expect(broken(spill, (m) => delete step<ObjectiveStep>(m, "converge").objective.level)).toMatch(/needs a level 0-5/);
+    expect(broken(hotDesk, (m) => ((m.steps.find((s) => s.type === "form") as { form: { records: string } }).form.records = "Nothing"))).toMatch(/records StartupDefined/);
+  });
+  it("checkMissionActors: melting a good robot, an unknown archetype, a lone crew", () => {
+    const m = clone(hotDesk);
+    step<ObjectiveStep>(m, "melt").objective.actor = "shopper";
+    expect(checkMissionActors(m).join("\n")).toMatch(/not a bad robot/);
+    const n = clone(spill);
+    n.actors!.posted!.archetype = "nobody";
+    n.actors!.crew!.members = ["snatcher"];
+    const e = checkMissionActors(n).join("\n");
+    expect(e).toMatch(/unknown archetype nobody/);
+    expect(e).toMatch(/a crew is 2-4 robots/);
   });
 });
