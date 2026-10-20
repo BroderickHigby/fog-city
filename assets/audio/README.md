@@ -3,7 +3,9 @@
 `generate.py` builds every sound from oscillators, filtered noise and small physical models
 (numpy), then encodes it with ffmpeg. Nothing is sampled or recorded, so there is no
 licensing question, and the seeds are fixed with ffmpeg in bit-exact mode, so a rebuild writes
-byte-identical files.
+byte-identical files. The script pins numpy's BLAS to one thread before importing it: the
+jingle's reverb is an `np.convolve`, and multithreaded OpenBLAS made it take minutes on a busy
+machine and its rounding depend on the core count. A full run takes about 3 s.
 
 ```sh
 python3 assets/audio/generate.py              # every sound + public/audio/manifest.json

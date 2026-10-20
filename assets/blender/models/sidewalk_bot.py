@@ -2,8 +2,10 @@
 
 A knee-high, four-wheeled delivery bot shaped like a bread bin: a cream ceramic body whose
 front top is a quarter-round, closed by a sage-green roll-top (tambour) lid that rolls back
-into the body to open, a graphite bumper band, two sleepy oval lights on the front
-(light_eyes) and a camera strip under them. No flag, no whip antenna, not a cooler.
+into the body to open, a graphite bumper band, one soft light strip along the front lip
+under the lid (light_face, the same face-light name as the Porter's) and a camera slot in
+the bumper. No flag, no whip antenna, not a cooler, and no pair of "eye" lights: the nearest
+real sidewalk robots wear two round front lights as eyes, so the Trundle does not.
 
 Nodes: sidewalk_bot (root, ground)
   body
@@ -66,7 +68,7 @@ def main() -> None:
     lens = fc.material("camera_lens", "#0b0d10", 0.08, 0.4)
     tire = fc.material("tire", "#161616", 0.85)
     hub = fc.material("hub", "#9aa0a6", 0.4, 0.6, extras={"rustable": True})
-    eye = fc.material("light_eyes", "#fff2d6", 0.3, emission="#ffe6b8", strength=1.0)
+    face = fc.material("light_face", "#fff2d6", 0.3, emission="#ffe6b8", strength=1.0)
     foil = fc.material("cargo_foil", "#c9ccd1", 0.25, 0.9)
     paper = fc.material("cargo_paper", "#b98b58", 0.85)
 
@@ -106,12 +108,10 @@ def main() -> None:
             mb.push(Matrix.Translation((sx * (hx + 0.016), y, WR)) @ Matrix.Rotation(math.pi / 2, 4, "Y"))
             mb.lathe([(WR + 0.025, -0.035), (WR + 0.025, 0.035)], 10, band, smooth=False, arc=(math.pi * 0.62, math.pi * 1.38))
             mb.pop()
-    # front: two sleepy oval lights and a camera strip
-    for sx in (1, -1):
-        mb.push(Matrix.Translation((sx * 0.105, L / 2 + 0.001, 0.205)) @ Matrix.Rotation(-math.pi / 2, 4, "X") @ Matrix.Diagonal((1.0, 0.32, 1.0, 1.0)))
-        mb.lathe([(0.042, 0.0), (0.042, 0.006), (0.0, 0.012)], 14, eye, smooth=True)
-        mb.pop()
-    mb.box(-0.13, L / 2, 0.165, 0.13, L / 2 + 0.008, 0.18, lens)
+    # front: one soft light strip along the lip under the lid (a bread bin's handle line),
+    # half sunk into the front wall, and a camera slot in the bumper below
+    mb.capsule((-0.19, L / 2 - 0.002, Z_C - 0.024), (0.19, L / 2 - 0.002, Z_C - 0.024), 0.009, 0.009, face, seg=8, rings=2)
+    mb.box(-0.08, L / 2 + 0.012, 0.112, 0.08, L / 2 + 0.017, 0.127, lens)
     # a small charging contact plate on the rear
     mb.box(-0.06, Y_REAR - 0.006, 0.3, 0.06, Y_REAR, 0.36, band)
     mb.build("body", parent=root, sharp_angle=35)

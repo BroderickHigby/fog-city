@@ -20,9 +20,10 @@
       "model": "sidewalk-bot.glb",
       "name": "Trundle",
       "maker": "Trundle (name search pending)",
-      "silhouette": "Knee-high (0.56 m) bread bin on four wheels: a cream box whose front top is a quarter-round closed by a sage-green slatted roll-top lid that rolls back into the body; graphite bumper band and fender skirts, two sleepy oval lights and a camera strip on the front. No flag, no whip antenna, no hinged lid.",
+      "silhouette": "Knee-high (0.56 m) bread bin on four wheels: a cream box whose front top is a quarter-round closed by a sage-green slatted roll-top lid that rolls back into the body; graphite bumper band and fender skirts; one soft light strip along the front lip under the lid (light_face) and a camera slot in the bumper. No flag, no whip antenna, no hinged lid, no pair of eye lights.",
       "nearest": [
         { "what": "Six-wheeled white sidewalk delivery robot with a hinged lid and an orange flag on a whip antenna", "difference": "Four wheels, a roll-top (tambour) lid, no flag or antenna (tests check both)." },
+        { "what": "Four-wheeled sidewalk delivery robots with two round LED 'eyes' on the front and a hinged top lid (the closest real cue)", "difference": "No eyes: one wide light strip along the lip, like a bread bin's handle line, and the camera low in the bumper (a test checks there is a single centred strip over 0.3 m wide). The lid is a roll-top that rolls back inside the body, not a hinged lid; the front is a quarter-round bread-bin profile in cream and sage, not a box." },
         { "what": "Four-wheeled sidewalk robots shaped like coolers, some with a face screen", "difference": "A bread-bin profile with a quarter-round front and a slatted roll-top; no screen, no cooler lid." },
         { "what": "Kitchen bread bins", "difference": "Deliberate reference (a generic household object)." }
       ],
@@ -42,13 +43,16 @@
     },
     {
       "model": "robotaxi.glb",
-      "name": "Meander robotaxi (wave-1 model)",
+      "name": "Meander robotaxi",
       "maker": "Meander (name search pending)",
-      "silhouette": "Wave 1: a white electric crossover with a roof sensor crown, a spinning lidar dome, corner pods and a teal status ring.",
+      "silhouette": "Long, low, asymmetric hatch (4.95 x 1.90 x 1.53 m, 3.05 m wheelbase) in warm white: a short round nose, a long raked windscreen, a flat roof and a fastback hatch. All its sensors sit in one dark band wrapped round the roof edge, with a teal status line (light_status) in it. Kerb side (right): one wide sliding door (door_slide_R) under one long window, its rail along the rear quarter. Street side (left): no door, a solid panel with a slim high window, a charging flap. Short slim light strips at the nose and tail corners; no grille, badge or text.",
       "nearest": [
-        { "what": "Production robotaxis built on crossover and SUV bodies with a roof sensor dome", "difference": "Does NOT meet design.md's Meander silhouette (a long, low, asymmetric hatch with a sensor band along the roof edge, one sliding kerb-side door; not an SUV with a roof dome). Remodel needed: flagged in the wave-2 assets report." }
+        { "what": "Production robotaxis built on crossover and SUV bodies with a spinning roof dome and corner sensor pods (the wave-1 model's shape)", "difference": "No dome, no pods, no mirror cameras: the sensors are a flush band round the roof edge, and the car is 1.53 m tall, not an SUV (tests: nothing on the roof, total height under 1.6 m, no sensor_dome node)." },
+        { "what": "Purpose-built symmetric robotaxi pods (boxy, bidirectional, doors on both sides)", "difference": "Directional: a long nose and raked windscreen at the front, a fastback hatch at the back; one door, on the kerb side only, and different glazing on each side (tested)." },
+        { "what": "Minivans and compact MPVs with sliding doors", "difference": "Long and low, not tall; no driver's door, a closed street side with a slim window; no grille or badge; the roof band is its signature." },
+        { "what": "Hatchback cars of the 2010s-2020s", "difference": "Generic proportions only; invented light signature (short corner strips and the teal roof-band line), no grille, badge or livery." }
       ],
-      "signOff": "fails the design table: remodel pending"
+      "signOff": "pending"
     },
     {
       "model": "player-car.glb",

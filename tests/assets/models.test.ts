@@ -64,7 +64,7 @@ const SPECS: Spec[] = [
   {
     file: "robotaxi.glb",
     budget: 10_000,
-    nodes: ["robotaxi", "body", "sensor_dome", ...CAR_WHEELS],
+    nodes: ["robotaxi", "body", "door_slide_R", ...CAR_WHEELS],
     lights: ["light_status", "light_headlight", "light_taillight"],
   },
   { file: "errand-robot.glb", budget: 6_000, nodes: ["errand_robot", ...ROBOT_PARTS], lights: ["light_face"] },
@@ -72,7 +72,7 @@ const SPECS: Spec[] = [
     file: "sidewalk-bot.glb",
     budget: 3_000,
     nodes: ["sidewalk_bot", "body", "lid", "cargo", "wheel_L1", "wheel_L2", "wheel_R1", "wheel_R2"],
-    lights: ["light_eyes"],
+    lights: ["light_face"],
   },
   {
     file: "moat-van.glb",
@@ -143,7 +143,7 @@ interface VehicleSpec {
 
 describe.each<VehicleSpec>([
   { file: "player-car.glb", length: [4.0, 5.0], width: [1.6, 2.1] },
-  { file: "robotaxi.glb", length: [4.4, 5.2], width: [1.8, 2.3] },
+  { file: "robotaxi.glb", length: [4.6, 5.2], width: [1.8, 2.0] },
   { file: "muni-bus.glb", length: [11.0, 13.0], width: [2.4, 3.3] },
   { file: "moat-van.glb", length: [5.0, 6.0], width: [1.9, 2.3] },
 ])("$file as a road vehicle", ({ file, length, width }) => {
@@ -184,31 +184,83 @@ describe.each<VehicleSpec>([
   });
 });
 
-describe("robotaxi", () => {
-  it("has a sensor dome on the roof that spins about its own vertical axis", async () => {
+describe("robotaxi (the Meander)", () => {
+  // design.md, The robots: "Long, low, asymmetric hatch with a sensor band wrapped along the
+  // roof edge and one sliding kerb-side door; not an SUV with a roof dome, not a symmetric pod."
+  it("is long and low, with no roof dome, corner pods or anything standing on the roof", async () => {
     const { doc } = await loadModel("robotaxi.glb");
-    const dome = node(doc, "sensor_dome");
-    const local = box(nodePositions(dome, "local"));
-    expect(Math.abs(local.center[0])).toBeLessThan(0.02);
-    expect(Math.abs(local.center[2])).toBeLessThan(0.02);
-    expect(worldAxis(dome, [0, 1, 0])[1]).toBeGreaterThan(0.999);
-    const roof = box(nodePositions(node(doc, "body"))).max[1];
-    expect(worldOrigin(dome)[1]).toBeGreaterThan(1.6);
-    expect(box(nodePositions(dome)).max[1]).toBeGreaterThanOrEqual(roof - 0.01);
+    const all = box(allPositions(doc));
+    const body = box(nodePositions(node(doc, "body")));
+    expect(body.size[2]).toBeGreaterThan(4.7);
+    expect(all.max[1]).toBeLessThan(1.6); // the old crossover stood 2.12 m to the top of its dome
+    expect(body.size[2] / all.max[1]).toBeGreaterThan(3.0);
+    const names = sceneNodes(doc).map((n) => n.getName());
+    expect(names).not.toContain("sensor_dome");
+    // nothing stands on the roof: over its middle the highest point is the roof itself
+    const roof = allPositions(doc).filter((p) => Math.abs(p[0]) < 0.4 && p[2] > -0.4 && p[2] < 1.4);
+    expect(box(roof).max[1]).toBeLessThan(1.56);
   });
 
-  it("has corner sensor pods and a status light up top", async () => {
+  it("wraps its sensors in one band round the roof edge, with the status light in it", async () => {
     const { doc } = await loadModel("robotaxi.glb");
-    const lens = materialPositions(doc, "sensor_lens");
-    const b = box(nodePositions(node(doc, "body")));
-    const corners = [
-      [-1, -1],
-      [1, -1],
-      [-1, 1],
-      [1, 1],
-    ].filter(([sx, sz]) => lens.some((p) => p[0] * sx! > 0.6 && p[2] * sz! > b.size[2] * 0.4));
-    expect(corners).toHaveLength(4);
-    expect(box(materialPositions(doc, "light_status")).min[1]).toBeGreaterThan(1.6);
+    const lens = materialPositions(doc, "sensor_lens").filter((p) => p[1] > 1.2);
+    const b = box(lens);
+    // all the way round: both sides, the windscreen header and the hatch's top edge
+    expect(b.min[0]).toBeLessThan(-0.7);
+    expect(b.max[0]).toBeGreaterThan(0.7);
+    expect(b.size[2]).toBeGreaterThan(2.0);
+    // and it stays at the roof edge: a band, not a raised crown
+    expect(b.max[1]).toBeLessThan(1.56);
+    expect(b.min[1]).toBeGreaterThan(1.3);
+    const status = box(materialPositions(doc, "light_status"));
+    expect(status.min[1]).toBeGreaterThan(1.3);
+    expect(status.size[0]).toBeGreaterThan(1.4);
+    expect(status.size[2]).toBeGreaterThan(2.0);
+    // the spray target sits on the band's front, on the centre line
+    const t = node(doc, "sensor_band");
+    expect(t.getExtras().sprayTarget).toBe(true);
+    const o = worldOrigin(t);
+    expect(Math.abs(o[0])).toBeLessThan(0.01);
+    expect(o[1]).toBeGreaterThan(1.4);
+    expect(Math.abs(o[2] - b.min[2])).toBeLessThan(0.1);
+  });
+
+  it("has one sliding door, on the kerb side (+X), that slides back along +Z", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const doors = sceneNodes(doc).filter((n) => /door/.test(n.getName()));
+    expect(doors.map((n) => n.getName())).toEqual(["door_slide_R"]);
+    const door = doors[0]!;
+    const ex = door.getExtras();
+    expect(ex.slideAxis).toEqual([0, 0, 1]);
+    expect(ex.popAxis).toEqual([1, 0, 0]);
+    expect(ex.slideM as number).toBeGreaterThan(0.9);
+    expect(ex.popM as number).toBeGreaterThan(0.02);
+    const d = box(nodePositions(door));
+    expect(d.min[0]).toBeGreaterThan(0.75); // entirely on the right
+    expect(d.size[2]).toBeGreaterThan(1.1); // a wide opening
+    expect(d.min[1]).toBeLessThan(0.4);
+    expect(d.max[1]).toBeGreaterThan(1.2);
+    const body = box(nodePositions(node(doc, "body")));
+    // slid open it stays alongside the body, behind where it was
+    expect(d.max[2] + (ex.slideM as number)).toBeLessThan(body.max[2]);
+    // the opening it uncovers is the dark cabin
+    const cabin = materialPositions(doc, "cabin_dark").filter((p) => p[0] > 0.6);
+    expect(cabin.length).toBeGreaterThan(10);
+    expect(box(cabin).min[2]).toBeGreaterThan(d.min[2] - 0.05);
+    expect(box(cabin).max[2]).toBeLessThan(d.max[2] + 0.05);
+    expect(node(doc, "robotaxi").getExtras().kerbSide).toBe("right");
+  });
+
+  it("is asymmetric: a window band on the kerb side, a solid panel on the street side", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const paint = materialTriangles(doc, "paint_white");
+    // is there white paint on this side at window height (1.12 m), at this point along the cabin?
+    const painted = (side: number, z: number) =>
+      paint.some((t) => t.every((p) => p[0] * side > 0.6) && Math.min(...t.map((p) => p[1])) < 1.12 && Math.max(...t.map((p) => p[1])) > 1.12 &&
+        Math.min(...t.map((p) => p[2])) <= z && Math.max(...t.map((p) => p[2])) >= z);
+    const along = [-0.3, 0.0, 0.3, 0.6, 0.9, 1.2, 1.5];
+    expect(along.filter((z) => painted(-1, z))).toEqual(along); // street side: a solid panel
+    expect(along.filter((z) => painted(1, z))).toEqual([]); // kerb side: window all along
   });
 });
 
@@ -421,7 +473,13 @@ describe("sidewalk-bot (the Trundle)", () => {
     const names = sceneNodes(doc).map((n) => n.getName());
     expect(names).not.toContain("flag");
     expect(names.filter((n) => n.startsWith("wheel_")).sort()).toEqual(["wheel_L1", "wheel_L2", "wheel_R1", "wheel_R2"]);
-    expect(mean(materialPositions(doc, "light_eyes"))[2]).toBeLessThan(body.min[2] + 0.05);
+    // one face light: a single wide strip on the front, not a pair of round "eyes"
+    const face = box(materialPositions(doc, "light_face"));
+    expect(face.center[2]).toBeLessThan(body.min[2] + 0.05);
+    expect(face.size[0]).toBeGreaterThan(0.3);
+    expect(face.size[1]).toBeLessThan(0.03);
+    expect(Math.abs(face.center[0])).toBeLessThan(0.01);
+    expect(doc.getRoot().listMaterials().map((m) => m.getName())).not.toContain("light_eyes");
     for (const s of ["L", "R"]) {
       const front = node(doc, `wheel_${s}1`);
       const rear = node(doc, `wheel_${s}2`);

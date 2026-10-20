@@ -17,6 +17,7 @@ describe("look-dev renders", () => {
       "06-trundle-turntable.png",
       "07-moat-van-turntable.png",
       "08-prop-lineup.png",
+      "09-meander-turntable.png",
       "humanoid-variants.png",
       "humanoid-turntable.png",
       "humanoid-clips.png",

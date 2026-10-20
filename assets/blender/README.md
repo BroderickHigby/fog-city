@@ -58,9 +58,9 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `ferry-building.glb` | 31,886 (100k) | 204.9 x 59.5 m, tower 75.4 m | `ferry_building` > `building`, `tower`, `tower_outline_lights`, `clock_hour_N/E/S/W`, `clock_minute_N/E/S/W`; `light_tower_outline`, `light_clock_face` |
 | `r-evolution.glb` | 32,216 (40k) | 14.3 m on a 7.2 m plinth | `r_evolution` > `frame` (rods), `shell` (`steel_mesh`, MASK), `glow` (`light_sculpture_glow`, MASK), `plinth` |
 | `player-car.glb` | 2,992 (8k) | 4.33 x 2.04 x 1.50 m | `player_car` > `body`, `wheel_FL/FR/RL/RR`; `paint` (recolourable), `light_headlight`, `light_taillight` |
-| `robotaxi.glb` | 4,062 (10k) | 4.78 x 2.21 x 2.12 m | `robotaxi` > `body`, `sensor_dome`, `wheel_FL/FR/RL/RR`; `light_status` (teal ring), `light_headlight`, `light_taillight` |
+| `robotaxi.glb` (Meander) | 4,104 (10k) | 4.98 x 1.92 x 1.53 m | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
 | `errand-robot.glb` (Porter) | 4,948 (6k) | 1.95 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face`; morphs `seize/slump/melt`; `_RUST_MASK` |
-| `sidewalk-bot.glb` (Trundle) | 2,028 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_eyes`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
+| `sidewalk-bot.glb` (Trundle) | 2,008 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_face`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
 | `moat-van.glb` | 3,904 (9k) | 5.81 x 2.28 x 2.50 m | `moat_van` > `body`, `wheel_FL/FR/RL/RR`, `door_rear_L/R`; `light_headlight`, `light_taillight`, `light_accent` |
 | `humanoid-crowd.glb` + VAT | 2,879 / 871 per body | 1.78 m (adult), 1.18 m (child) | meshes `adult_lod0/1`, `child_lod0/1` (attributes `_VID`, `_SLOT`); see Humanoid line |
 | `player.glb` | 2,879 (4k) | 1.78 m | skinned, 20 bones, 12 morphs, 8 animations, `tint_*` materials; see Humanoid line |
@@ -71,7 +71,7 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `repair-kiosk.glb` | 408 (3k) | 2.5 m | `repair_kiosk` > `booth`, `bay`; `light_kiosk_screen`, `light_kiosk_status` |
 | `vendor-cart.glb` | 1,480 (4k) | 2.25 m | `vendor_cart` > `cart`, `sign_slot`, `wheel_L/R` |
 | `wheelchair.glb` | 1,492 (2.5k) | 0.98 m | `wheelchair` > `chair`, `wheel_L/R` (> `push_rim_L/R`) |
-| `heap-porter/trundle/mixed.glb` | 2,392 / 2,112 / 2,392 (2.5k) | 0.44 / 0.25 / 0.37 m | `heap` > `pile`, `puddle` |
+| `heap-porter/trundle/mixed.glb` | 2,392 / 2,092 / 2,392 (2.5k) | 0.44 / 0.25 / 0.37 m | `heap` > `pile`, `puddle` |
 | `pigeon.glb` | 194 (300) | 0.28 m | `pigeon` > `body` (morph `peck`) |
 | `dog.glb` | 828 (1k) | 0.48 m at the shoulder | `dog` > `body` (morph `stride`), `leash` |
 | `muni-bus.glb` | 2,956 (12k) | 12.5 x 3.19 x 3.48 m | `muni_bus` > `body`, `livery_panel`, `wheel_FL/FR/RL/RR`; `livery`, `light_destination_sign`, `light_headlight`, `light_taillight` |
@@ -93,7 +93,25 @@ local +X. Rolling forward (toward -Z) is a *negative* rotation about +X: `rotati
 distance / radius`. Extras: `{"wheel": "FL", "spinAxis": [1,0,0], "radius": 0.35, "steer":
 true}` (steer only on front wheels; steering is a rotation about local +Y).
 
-**Robotaxi `sensor_dome`** spins about its local +Y (extras `spinAxis`), origin on the axis.
+**Meander robotaxi (`robotaxi.glb`).** Remodelled in wave 2 to the robot table (the wave-1
+model was a crossover with a roof dome, the shape of real robotaxis, and failed it): a long,
+low, asymmetric hatch, 4.95 m long and 1.53 m to the top of its roof band, with a short round
+nose, a long raked windscreen, a flat roof and a fastback hatch. Every sensor sits in one dark
+band (`sensor_lens`) wrapped round the roof edge, with a teal status line in it
+(`light_status`); there is **no `sensor_dome` node** any more, and no corner or mirror pods.
+Nobody drives it, so the sides differ: the kerb side (right, +X) has one wide sliding door
+under one long window; the street side (left) has no door, a solid panel with a slim high
+window, and a charging flap. Short slim light strips at the nose and tail corners; no
+grille, badge or text. Root extras `fcActor: "robotaxi"`, `kerbSide: "right"` (traffic
+drives on the right, so the door opens onto the pavement).
+`door_slide_R`: the sliding door, shut; extras `door: "slide"`, `popAxis: [1,0,0]`, `popM`
+(0.05), `slideAxis: [0,0,1]`, `slideM` (1.15). To open it, move it out along local +X by
+`popM`, then back along local +Z by `slideM` (both in the model frame; the node's rest
+rotation is the identity); close in reverse. The body under it is `cabin_dark`, so the
+opening reads as the dark cabin. `sensor_band` (no mesh, extras `sprayTarget: true`) marks
+the front of the band on the centre line: aim there when a mission says to water a rogue
+robotaxi's sensors (design.md still says "sensor dome" there). Wheels as for the other cars
+(`radius: 0.36`).
 
 **Porter (`errand-robot.glb`).** Bramblecot Home's errand humanoid, remodelled in wave 2 to
 the robot table: tall and slim (1.95 m to the carrying ring on its head), an opaque glazed
@@ -112,8 +130,12 @@ drop-in works unchanged.
 
 **Trundle (`sidewalk-bot.glb`).** A knee-high (0.56 m) four-wheeled delivery bot shaped like a
 bread bin: a cream body whose front top is a quarter-round, closed by a sage-green slatted
-roll-top lid; graphite bumper band and fender skirts, two sleepy oval lights (`light_eyes`) and
-a camera strip on the front. **No flag and no whip antenna** (the wave-1 `flag` node is gone),
+roll-top lid; graphite bumper band and fender skirts, one soft light strip along the front
+lip under the lid (`light_face`, the same face-light name as the Porter's, so a forced
+update's "Updating" glow and the night-light table treat both robots alike) and a camera slot
+in the bumper. It has no pair of round "eye" lights: that is the nearest real sidewalk
+robots' look (the trade-dress checklist). The wave-1 material was `light_eyes`; it is gone.
+**No flag and no whip antenna** (the wave-1 `flag` node is gone),
 and **four wheels**: `wheel_L1`, `wheel_L2`, `wheel_R1`, `wheel_R2` (1 = front; extras
 `radius: 0.085`, `spinAxis`), so `wheel_L3`/`wheel_R3` no longer exist.
 `lid`: origin on the roll axis; rotate about local +X by extras `lidOpenRad` (1.57) to roll it
@@ -420,8 +442,9 @@ moat-jingle}.{ogg,mp3}` and `public/audio/manifest.json`; details in `assets/aud
 `tests/assets/trade-dress.json` records each robot and vehicle's silhouette and the real
 products and film robots it was compared with (design.md asks for this before merge);
 `trade-dress.test.ts` fails when a robot or vehicle model has no entry. Every entry waits for
-the user's sign-off. The wave-1 robotaxi is recorded as **not** matching the Meander
-silhouette in the robot table (it is a crossover with a roof dome): it needs its own remodel.
+the user's sign-off. The wave-1 robotaxi failed the Meander row (a crossover with a roof
+dome); it was remodelled in wave 2 and its entry now records the Meander's silhouette and
+comparisons.
 
 ## Landmarks (`content/landmarks.json`)
 
@@ -488,9 +511,11 @@ Generated by `tools/landmarks.py` (run by `build.sh`).
   then `FC_MODELS_DIR=assets/blender/.cache/variants/raised pnpm vitest run tests/assets -t r-evolution`.
 - **Cars** (`lib/vehicle.py`): a lofted, welded body whose sill line rises over each wheel to
   carve round arches, a greenhouse loft with A/B/C pillars, light bars, cladding, arch liners
-  and hub-centred wheel nodes. The player car is an original orange hatchback; the robotaxi
-  an original white crossover with a roof sensor crown, spinning lidar dome, four corner
-  pods, camera pods for mirrors and a teal status ring. No real vehicle, badge or livery.
+  and hub-centred wheel nodes. The player car is an original orange hatchback. The Meander
+  uses the same body loft, then sweeps the roof band's cross-section round the roof edge
+  (`ribbon` in `models/robotaxi.py`), lays the street-side panel over the side glass, turns
+  the body faces under the door into the dark cabin and builds the door from the body's own
+  side section pushed out 8 mm. No real vehicle, badge or livery.
 - **Porter, Trundle, bus, van, props**: capsules, lathes, lofts, gridded panels and boxes from
   `lib/fc.py` and `lib/vehicle.py`; the robots' melt keys from `lib/melt.py`.
 - **Heaps** (`models/heaps.py`): import the exported robot, apply its `melt` key, swap its
@@ -512,7 +537,7 @@ renders; the storefronts carry no names or words (iconography only, blank sign s
 Renders are deterministic (fixed seed and thread count), and `lookdev.render()` strips the
 PNG text chunks where Blender writes the date and render timings, so re-rendering an
 unchanged scene leaves the files byte-identical. `03-street-robots-dusk.png` was re-rendered in
-wave 2 with the remodelled Porter and Trundle.
+wave 2 with the remodelled Porter, Trundle and Meander.
 
 Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio set, all under
 2 MB):
@@ -523,6 +548,7 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 | `06-trundle-turntable.png` | the Trundle front, three-quarter, side, back, with its lid rolled open; then the melt sequence and `heap-trundle.glb` |
 | `07-moat-van-turntable.png` | the van front three-quarter, side, rear three-quarter with the barn doors open |
 | `08-prop-lineup.png` | repair kiosk, the player wearing the water blaster, vendor cart, wheelchair; hydrant, drinking fountain, cone, the three heaps, two pigeons (standing, pecking), the leashed dog |
+| `09-meander-turntable.png` | the Meander robotaxi: the kerb side from the front three-quarter, the street side broadside (the asymmetry), the kerb side from the rear three-quarter with the sliding door open |
 | `humanoid-variants.png` | the 8 adult variants and the 2 child looks in suggested outfits, decoded from the VAT as the crowd shader decodes them |
 | `humanoid-turntable.png` | the founder look from four sides (VAT), and `player.glb` wearing the blaster, front and back |
 | `humanoid-clips.png` | walk, idle, wet shake, talk, sit (on a 0.45 m bench), four dive moments, the child walking (all VAT) |
