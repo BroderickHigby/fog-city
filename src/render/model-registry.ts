@@ -30,13 +30,16 @@ export interface RegistryOptions<T> {
   available?: ReadonlySet<string> | null;
 }
 
-/** Well-known model keys and where their files go (paths under public/). */
+/**
+ * Well-known model keys and where their files go (paths under public/; the assets track's
+ * files, assets/blender/README.md). People have no model yet: person.ts builds them.
+ */
 export const MODEL_FILES: Readonly<Record<string, string>> = Object.freeze({
   "player-car": "models/player-car.glb",
   robotaxi: "models/robotaxi.glb",
-  robot: "models/robot.glb",
-  bus: "models/bus.glb",
-  pedestrian: "models/pedestrian.glb",
+  robot: "models/errand-robot.glb",
+  "sidewalk-bot": "models/sidewalk-bot.glb",
+  bus: "models/muni-bus.glb",
 });
 
 export class ModelRegistry<T> {

@@ -1,18 +1,23 @@
 // The M0 renderer: owns the WebGLRenderer, scene, lighting, sky, the Bay, streamed tiles,
-// players and landmarks. main.ts feeds it interpolated sim poses; it never touches sim state.
+// players, ambient agents and landmarks. main.ts feeds it interpolated player poses and the
+// two latest sim states (agents are interpolated here); it never changes sim state.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
-import { Actors, makeBoxCar } from "./actors.ts";
+import { Actors, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
+import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
+import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
+import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
-import type { GroundFn, Manifest, Pose, RoadGraph } from "./types.ts";
+import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
 export type { CameraMode } from "./cameras.ts";
@@ -53,9 +58,24 @@ export interface RenderInfo {
   fps: number;
   pixelRatio: number;
   shadows: boolean;
+  /** Ambient agents drawn last frame (near models plus far proxies), and of those with full models. */
+  agents: number;
+  agentsNear: number;
+  /** Agents in the sim state the renderer was given. */
+  agentsTotal: number;
+  /** Draw calls the agents took last frame. */
+  agentDrawCalls: number;
+  /** Agent kinds drawn from their model files (the rest use box stand-ins). */
+  agentModels: string[];
+  /** Players drawn from models/player-car.glb (the rest use the procedural car). */
+  playerCarsFromFile: number;
+  /** Players drawn on foot last frame. */
+  walkers: number;
 }
 
 const SHADOW_HALF = 160;
+/** The local car's headlight at full night. */
+const HEADLIGHT_NIGHT = 140;
 
 export class SceneRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -64,7 +84,9 @@ export class SceneRenderer {
   readonly rig: CameraRig;
   readonly streamer: TileStreamer;
   readonly actors: Actors;
+  readonly agents: AgentLayer;
   readonly landmarks: LandmarkLayer;
+  readonly lights = new NightLights();
   private readonly container: HTMLElement;
   private readonly materials: SharedMaterials;
   private readonly nightMats: NightMaterials;
@@ -81,6 +103,10 @@ export class SceneRenderer {
   private readonly shadows: boolean;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
+  private headlightBase = 0;
+  private sim: { prev: SimState; curr: SimState; alpha: number } | null = null;
+  private readonly viewer: Viewer = { x: 0, z: 0, fx: 0, fz: -1 };
+  private readonly camDir = new THREE.Vector3();
   private lastCalls = 0;
   private lastTris = 0;
   private fpsAvg = 60;
@@ -142,14 +168,19 @@ export class SceneRenderer {
       radius: opts.radius,
       onReady: (g) => this.prepareShadows(g),
     });
-    this.actors = new Actors(this.registry);
+    this.actors = new Actors(this.registry, this.lights);
     this.scene.add(this.actors.group);
+    this.agents = new AgentLayer(this.registry);
+    this.scene.add(this.agents.group);
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
       world.ground,
       (ids) => this.streamer.hideBuildings(ids),
-      (root) => this.prepareShadows(root),
+      (root) => {
+        this.prepareShadows(root);
+        this.lights.track(root);
+      },
     );
     this.scene.add(this.landmarks.group);
     this.rig = new CameraRig(this.camera, world.ground, world.occluded);
@@ -197,9 +228,13 @@ export class SceneRenderer {
     this.water.setCityGlow(0xffb070, night * 0.09);
     fcUniforms.fcNight.value = night;
     this.materials.lampHead.emissiveIntensity = night * 6;
-    this.headlight.intensity = night * 140;
+    // The headlight stays in the scene at intensity 0 by day or on foot: the light count
+    // never changes, so no shader recompiles.
+    this.headlightBase = night * HEADLIGHT_NIGHT;
+    this.headlight.intensity = this.headlightBase;
     this.streamer.setNight(night > 0);
-    this.actors.setNight(night);
+    this.lights.setNight(night);
+    this.agents.setNight(night);
     this.scene.environment = this.envFor(p);
     this.scene.environmentIntensity = p.envIntensity;
   }
@@ -239,34 +274,61 @@ export class SceneRenderer {
     this.camera.updateProjectionMatrix();
   }
 
-  setCar(id: string, pose: Pose): void {
+  setCar(id: string, pose: CarPose): void {
     this.actors.setCar(id, pose);
   }
 
-  setFoot(id: string, pose: Pose | null): void {
+  setFoot(id: string, pose: WalkerPose | null): void {
     this.actors.setFoot(id, pose);
   }
 
-  /** Per-frame update after the sim has stepped. */
-  frame(dtSeconds: number, local: { id: string; target: CameraTarget } | null, fly: Readonly<FlyInput>, minuteOfDay: number): void {
+  /** The two latest sim states and how far (0..1) the frame is between them: agents are drawn from these. */
+  setSim(prev: SimState, curr: SimState, alpha: number): void {
+    if (!this.sim) this.sim = { prev, curr, alpha };
+    this.sim.prev = prev;
+    this.sim.curr = curr;
+    this.sim.alpha = alpha;
+  }
+
+  /**
+   * Per-frame update after the sim has stepped. `dtSeconds` is the frame time the animation
+   * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure.
+   */
+  frame(
+    dtSeconds: number,
+    local: { id: string; target: CameraTarget } | null,
+    fly: Readonly<FlyInput>,
+    minuteOfDay: number,
+    frameSeconds: number = dtSeconds,
+  ): void {
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
-    if (dtSeconds > 0) this.fpsAvg += (1 / Math.max(dtSeconds, 1e-3) - this.fpsAvg) * Math.min(1, dtSeconds * 2);
+    if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
     if (local) {
       const t = local.target;
       this.actors.hideFor(this.rig.mode === "first-person" ? local.id : null, t.onFoot ? "person" : "car");
       this.rig.update(dtSeconds, t, fly);
-      // The headlight rides on the local car.
+      // The headlight rides on the local car; on foot it is dark (intensity 0, still in the scene).
       const fx = Math.sin(t.heading);
       const fz = -Math.cos(t.heading);
-      this.headlight.visible = !t.onFoot;
+      this.headlight.intensity = t.onFoot ? 0 : this.headlightBase;
       this.headlight.position.set(t.x + fx * 2.2, t.y + 0.9, t.z + fz * 2.2);
       this.headlight.target.position.set(t.x + fx * 30, t.y - 1.5, t.z + fz * 30);
       this.headlight.target.updateMatrixWorld();
     } else {
       this.rig.update(dtSeconds, NO_TARGET, fly);
     }
+    this.actors.update(dtSeconds);
     const cam = this.camera.position;
+    if (this.sim) {
+      this.camera.getWorldDirection(this.camDir);
+      const h = Math.hypot(this.camDir.x, this.camDir.z);
+      this.viewer.x = cam.x;
+      this.viewer.z = cam.z;
+      this.viewer.fx = h > 1e-6 ? this.camDir.x / h : 0;
+      this.viewer.fz = h > 1e-6 ? this.camDir.z / h : -1;
+      this.agents.update(this.sim.prev, this.sim.curr, this.sim.alpha, this.viewer, dtSeconds, this.time);
+    }
     this.sky.follow(this.camera);
     this.water.follow(this.camera);
     // Keep the sun light (and its shadow box) centred near the camera.
@@ -301,12 +363,28 @@ export class SceneRenderer {
     out.fps = this.fpsAvg;
     out.pixelRatio = this.renderer.getPixelRatio();
     out.shadows = this.shadows;
+    const a: AgentRenderInfo = this.agents.info();
+    out.agents = a.drawn;
+    out.agentsNear = a.near;
+    out.agentsTotal = a.total;
+    out.agentDrawCalls = a.drawCalls;
+    out.agentModels = a.models;
+    let fromFile = 0;
+    for (const src of Object.values(this.actors.carSources())) if (src === "file") fromFile++;
+    out.playerCarsFromFile = fromFile;
+    out.walkers = this.actors.walkers;
     return out;
+  }
+
+  /** Each landmarks.json placement and whether its model is in the scene. */
+  landmarkEntries(): Array<{ id: string; x: number; y: number; z: number; loaded: boolean }> {
+    return this.landmarks.entries();
   }
 
   dispose(): void {
     this.streamer.dispose();
     this.actors.dispose();
+    this.agents.dispose();
     this.sky.dispose();
     this.water.dispose();
     for (const m of this.materials.all) m.dispose();
@@ -331,6 +409,13 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   fps: 0,
   pixelRatio: 1,
   shadows: false,
+  agents: 0,
+  agentsNear: 0,
+  agentsTotal: 0,
+  agentDrawCalls: 0,
+  agentModels: [],
+  playerCarsFromFile: 0,
+  walkers: 0,
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

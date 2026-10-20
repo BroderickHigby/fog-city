@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MODEL_FILES, ModelRegistry } from "../../src/render/model-registry.ts";
+import { fileExists } from "../helpers.ts";
 
 interface FakeModel {
   kind: "file" | "fallback";
@@ -26,7 +27,14 @@ function setup(opts: { available?: Set<string> | null; fail?: Set<string> } = {}
 describe("ModelRegistry", () => {
   it("knows where the shared models live", () => {
     expect(MODEL_FILES["player-car"]).toBe("models/player-car.glb");
-    for (const k of ["robotaxi", "robot", "bus"]) expect(MODEL_FILES[k]).toMatch(/^models\/.+\.glb$/);
+    expect(MODEL_FILES.robotaxi).toBe("models/robotaxi.glb");
+    expect(MODEL_FILES.robot).toBe("models/errand-robot.glb");
+    expect(MODEL_FILES["sidewalk-bot"]).toBe("models/sidewalk-bot.glb");
+    expect(MODEL_FILES.bus).toBe("models/muni-bus.glb");
+  });
+
+  it("names only files the assets track has committed", () => {
+    for (const [k, url] of Object.entries(MODEL_FILES)) expect(fileExists(`public/${url}`), `${k}: public/${url}`).toBe(true);
   });
 
   it("returns independent clones of a model that loads", async () => {
@@ -41,14 +49,14 @@ describe("ModelRegistry", () => {
   });
 
   it("falls back without a request when the asset listing lacks the file", async () => {
-    const { reg, load } = setup({ available: new Set(["models/bus.glb"]) });
+    const { reg, load } = setup({ available: new Set([MODEL_FILES.bus!]) });
     const car = await reg.get("player-car");
     expect(car.source).toBe("fallback");
     expect(car.model.kind).toBe("fallback");
     expect(car.reason).toMatch(/not in the asset listing/);
     expect((await reg.get("bus")).source).toBe("file");
     expect(load).toHaveBeenCalledTimes(1);
-    expect(load).toHaveBeenCalledWith("models/bus.glb");
+    expect(load).toHaveBeenCalledWith(MODEL_FILES.bus);
   });
 
   it("falls back when the file fails to load, and does not retry", async () => {

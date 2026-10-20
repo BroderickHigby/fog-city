@@ -30,6 +30,7 @@ export class LandmarkLayer {
   readonly skipped: string[] = [];
   private hands: Hand[] = [];
   private loaded = 0;
+  private readonly inScene = new Set<string>();
   private missing: string[] = [];
   private lastMinute = NaN;
   private readonly registry: ModelRegistry<THREE.Object3D>;
@@ -71,6 +72,11 @@ export class LandmarkLayer {
     return this.missing;
   }
 
+  /** One entry per landmarks.json placement: where it was placed and whether its model is in the scene. */
+  entries(): Array<{ id: string; x: number; y: number; z: number; loaded: boolean }> {
+    return this.placements.map((p) => ({ id: p.id, x: p.x, y: p.y, z: p.z, loaded: this.inScene.has(p.id) }));
+  }
+
   private place(root: THREE.Object3D, p: LandmarkPlacement): void {
     root.name = `landmark:${p.id}`;
     root.position.set(p.x, p.y, p.z);
@@ -85,6 +91,7 @@ export class LandmarkLayer {
     this.onModel?.(root);
     this.group.add(root);
     this.loaded++;
+    this.inScene.add(p.id);
     this.lastMinute = NaN;
     if (p.replaces.length > 0) this.onReplace(p.replaces);
   }

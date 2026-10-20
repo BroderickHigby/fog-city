@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { footPose } from "../../src/render/actors.ts";
-import { DAY_START_MINUTE, NIGHT_START_MINUTE, formatClock, gameMinuteOfDay } from "../../src/render/clock.ts";
-import { compassPoint, hudText, type HudData } from "../../src/render/hud.ts";
-import type { Pose } from "../../src/render/types.ts";
+import { DAY_START_MINUTE, NIGHT_START_MINUTE, clockStartMinute, formatClock, gameMinuteOfDay } from "../../src/render/clock.ts";
+import { HINT_NO_ROOM, HINT_TOO_FAR, compassPoint, exitHint, hudText, type HudData } from "../../src/render/hud.ts";
 
 const base: HudData = {
   world: "dev",
@@ -46,34 +44,55 @@ describe("HUD", () => {
 });
 
 describe("game clock", () => {
-  it("runs at real-time speed from golden hour (day) or late evening (night)", () => {
-    expect(gameMinuteOfDay({ tick: 0 }, false)).toBe(DAY_START_MINUTE);
-    expect(gameMinuteOfDay({ tick: 3600 }, false)).toBe(DAY_START_MINUTE + 1);
-    expect(gameMinuteOfDay({ tick: 0 }, true)).toBe(NIGHT_START_MINUTE);
-    expect(gameMinuteOfDay({ tick: 60 * 60 * 60 * 6 }, true)).toBeCloseTo((NIGHT_START_MINUTE + 360) % 1440, 9);
+  it("runs at real-time speed from the start minute chosen at boot", () => {
+    expect(clockStartMinute(false)).toBe(DAY_START_MINUTE);
+    expect(clockStartMinute(true)).toBe(NIGHT_START_MINUTE);
+    expect(gameMinuteOfDay({ tick: 0 })).toBe(DAY_START_MINUTE);
+    expect(gameMinuteOfDay({ tick: 3600 }, DAY_START_MINUTE)).toBe(DAY_START_MINUTE + 1);
+    expect(gameMinuteOfDay({ tick: 0 }, NIGHT_START_MINUTE)).toBe(NIGHT_START_MINUTE);
+    expect(gameMinuteOfDay({ tick: 60 * 60 * 60 * 6 }, NIGHT_START_MINUTE)).toBeCloseTo((NIGHT_START_MINUTE + 360) % 1440, 9);
+  });
+
+  it("does not depend on the night look: toggling night mode never moves the clock", () => {
+    // The clock takes no night flag at all: the same tick gives the same minute whatever the look.
+    const start = clockStartMinute(false);
+    const before = gameMinuteOfDay({ tick: 5000 }, start);
+    const after = gameMinuteOfDay({ tick: 5001 }, start);
+    expect(after - before).toBeCloseTo(1 / 3600, 9);
   });
 
   it("prefers a time the sim publishes in ext", () => {
-    expect(gameMinuteOfDay({ tick: 999, ext: { clock: 600 } }, false)).toBe(600);
-    expect(gameMinuteOfDay({ tick: 999, ext: { time: { minuteOfDay: 75 } } }, true)).toBe(75);
-    expect(gameMinuteOfDay({ tick: 0, ext: { clock: "noon" } }, false)).toBe(DAY_START_MINUTE);
+    expect(gameMinuteOfDay({ tick: 999, ext: { clock: 600 } })).toBe(600);
+    expect(gameMinuteOfDay({ tick: 999, ext: { time: { minuteOfDay: 75 } } }, NIGHT_START_MINUTE)).toBe(75);
+    expect(gameMinuteOfDay({ tick: 0, ext: { clock: "noon" } })).toBe(DAY_START_MINUTE);
     expect(formatClock(9 * 60 + 5.9)).toBe("09:05");
   });
 });
 
-describe("footPose", () => {
-  const out = (): Pose => ({ x: 0, y: 0, z: 0, heading: 0 });
-  it("reads the on-foot position under any of the likely field names", () => {
-    expect(footPose({ mode: "foot", foot: { x: 1, y: 2, z: 3, heading: 0.5 } }, out())).toEqual({ x: 1, y: 2, z: 3, heading: 0.5 });
-    expect(footPose({ mode: "foot", pos: { x: 4, z: 5, yaw: 1 } }, out())).toMatchObject({ x: 4, z: 5, heading: 1 });
-    const p = footPose({ onFoot: { x: 1, z: 2 } }, out())!;
-    expect(Number.isNaN(p.y)).toBe(true);
-    expect(Number.isNaN(p.heading)).toBe(true);
+describe("exit hint", () => {
+  const car = (exitPending = false) => ({ mode: "vehicle" as const, exitPending });
+  const foot = { mode: "foot" as const, exitPending: false };
+
+  it("says there is no room when F leaves the player in the stopped car", () => {
+    expect(exitHint(car(), car(), true)).toBe(HINT_NO_ROOM);
   });
 
-  it("returns null when there is no usable position", () => {
-    expect(footPose({ mode: "foot" }, out())).toBeNull();
-    expect(footPose({ foot: { x: "1", z: 2 } }, out())).toBeNull();
-    expect(footPose(null, out())).toBeNull();
+  it("says there is no room when a pending exit ends with the player still in the car", () => {
+    expect(exitHint(car(true), car(false), false)).toBe(HINT_NO_ROOM);
+  });
+
+  it("is quiet when F works, starts a braking exit, or cancels one", () => {
+    expect(exitHint(car(), foot, true)).toBeNull();
+    expect(exitHint(car(), car(true), true)).toBeNull();
+    expect(exitHint(car(true), car(false), true)).toBeNull();
+    expect(exitHint(car(true), car(true), false)).toBeNull();
+    expect(exitHint(car(), car(), false)).toBeNull();
+    expect(exitHint(foot, car(), true)).toBeNull();
+    expect(exitHint(undefined, car(), true)).toBeNull();
+  });
+
+  it("says the car is too far when F on foot does not get the player in", () => {
+    expect(exitHint(foot, foot, true)).toBe(HINT_TOO_FAR);
+    expect(exitHint(foot, foot, false)).toBeNull();
   });
 });

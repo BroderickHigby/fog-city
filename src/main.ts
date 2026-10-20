@@ -1,33 +1,39 @@
-// Boot: load a world manifest and every tile's collider (the sim needs the whole world for
-// determinism), build the sim world, then run a fixed-timestep loop and render interpolated
-// poses. Render tiles stream in and out around the camera without ever blocking the loop.
+// Boot: load a world manifest, every tile's collider and the road graph (the sim needs the
+// whole world for determinism), build the sim world once behind the loading text (the road
+// graph's clearance sampling takes ~0.2 s for the 77-tile SF set, ~2 s citywide; never per
+// frame), then run a fixed-timestep loop and render interpolated poses: players, and the
+// sim's ambient agents (robotaxis, robots, people). Render tiles stream in and out around the
+// camera without ever blocking the loop.
 //
 // URL parameters:
 //   ?world=dev | dev-city | sf   world directory under public/tiles/ (default dev)
 //   &radius=1500                 tile load radius, metres
-//   &night=1                     start at night (KeyN toggles)
+//   &night=1                     start at night (KeyN toggles the look; the clock starts at 22:40)
 //   &shadows=1                   sun shadows (off by default for performance)
 //   &pr=1.5                      cap on devicePixelRatio
 //   &cam=chase|first-person|fly  starting camera
 //
-// Keys: WASD/arrows drive, Space brake; F enter/exit, E fire, Q scan, H horn (sim actions).
-// Render only: C chase/first-person, V free fly camera (WASD move, Space/Shift up/down,
-// arrows or mouse drag look, wheel speed, right Shift boost), N night.
+// Keys: WASD/arrows drive (or walk), Space brake (sprint on foot); F enter/exit, E fire,
+// Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
+// move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
-import { footPose } from "./render/actors.ts";
+import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
-import { gameMinuteOfDay } from "./render/clock.ts";
+import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { makeGroundFn } from "./render/ground.ts";
-import { Hud, type HudData } from "./render/hud.ts";
+import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
-import type { Manifest, Pose, RoadGraph } from "./render/types.ts";
+import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
+  Action,
   DT,
   NEUTRAL_INPUT,
+  activeBody,
+  agentsOf,
   buildWorld,
   createInitialState,
   hashState,
@@ -36,12 +42,16 @@ import {
   sortedIds,
   step,
   wrapAngle,
+  type InputFrame,
+  type SimEvent,
   type SimInput,
   type SimState,
   type TileCollider,
 } from "./sim/index.ts";
 
 const LOCAL_PLAYER = "p1";
+const SEED = 1;
+/** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
 
@@ -64,17 +74,29 @@ async function fetchJson<T>(url: string): Promise<T> {
   }
 }
 
+/** Let the browser paint the loading text before a long synchronous step. */
+function paint(): Promise<void> {
+  return new Promise((done) => setTimeout(done, 0));
+}
+
 interface PlayerPoses {
-  car: Pose;
-  foot: Pose;
-  a: Pose;
-  b: Pose;
+  car: CarPose;
+  foot: WalkerPose;
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
 }
 
 async function boot(): Promise<void> {
   const params = new URLSearchParams(location.search);
   const worldName = params.get("world") ?? "dev";
   const base = `/tiles/${worldName}/`;
+  const loading = document.getElementById("hud");
+  const status = (text: string): void => {
+    if (loading) loading.textContent = text;
+  };
+  status(`loading ${worldName}…`);
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const tiles = await Promise.all(manifest.tiles.map((t) => fetchJson<TileCollider>(base + t.collider)));
   let roads: RoadGraph | null = null;
@@ -85,7 +107,10 @@ async function boot(): Promise<void> {
       console.warn("[fog-city] no road graph:", err);
     }
   }
-  const world = buildWorld(tiles);
+  // Once, at load: with the road graph the sim runs ambient traffic (state.ext.agents).
+  status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
+  await paint();
+  const world = buildWorld(tiles, roads);
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
   const ground = makeGroundFn(tiles);
@@ -98,13 +123,14 @@ async function boot(): Promise<void> {
 
   const container = document.getElementById("game")!;
   const hud = new Hud();
+  const bootedAtNight = params.get("night") === "1";
   const view = new SceneRenderer(
     container,
     { manifest, base, colliders, roads, ground, occluded },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",
-      night: params.get("night") === "1",
+      night: bootedAtNight,
       maxPixelRatio: numParam(params, "pr") ?? 1.5,
       models: new Set(models),
       landmarks: landmarksDoc,
@@ -117,24 +143,30 @@ async function boot(): Promise<void> {
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
-  let prev: SimState = createInitialState(world, 1, [LOCAL_PLAYER], manifest.spawn);
+  let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
   let paused = false;
   let acc = 0;
   let last = performance.now();
+  /** One game clock, chosen at boot: night mode is a look and never moves it. */
+  const clockStart = clockStartMinute(bootedAtNight);
 
-  const advance = (input: SimInput): void => {
+  const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
     prev = curr;
-    curr = step(world, curr, { [LOCAL_PLAYER]: input });
+    curr = step(world, curr, frame, events);
   };
+  const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
   // Reused every frame: no allocation in the render loop.
   const poses = new Map<string, PlayerPoses>();
   const poseFor = (id: string): PlayerPoses => {
     let p = poses.get(id);
     if (!p) {
-      const z = (): Pose => ({ x: 0, y: 0, z: 0, heading: 0 });
-      poses.set(id, (p = { car: z(), foot: z(), a: z(), b: z() }));
+      p = {
+        car: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, steer: 0, speed: 0 },
+        foot: { x: 0, y: 0, z: 0, heading: 0, speed: 0 },
+      };
+      poses.set(id, p);
     }
     return p;
   };
@@ -191,15 +223,28 @@ async function boot(): Promise<void> {
     stepN: (n, input) => {
       for (let i = 0; i < n; i++) advance(input ?? { ...NEUTRAL_INPUT });
     },
+    stepFrames: (frames, events = []) => {
+      for (const f of frames) {
+        const tick = curr.tick + 1;
+        advanceFrame(
+          f,
+          events.filter((e) => e.tick === tick),
+        );
+      }
+    },
+    simInfo: () => ({ seed: curr.seed, playerIds: sortedIds(curr.players), roads: world.roads !== null, agents: agentsOf(curr).length }),
     renderInfo: () => view.info(),
+    landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
+    hint: () => hud.hintText(),
   });
 
   const frame = (now: number): void => {
-    const dtFrame = Math.min((now - last) / 1000, MAX_FRAME_S);
+    const frameS = (now - last) / 1000;
+    const dtFrame = Math.min(frameS, MAX_FRAME_S);
     last = now;
     for (const code of keyboard.takeUiPresses()) {
       if (code === "KeyC") view.rig.cycle();
@@ -220,7 +265,11 @@ async function boot(): Promise<void> {
           keyboard.clearActions();
           advance({ ...NEUTRAL_INPUT });
         } else {
-          advance(keyboard.sample());
+          const input = keyboard.sample();
+          const before = curr.players[LOCAL_PLAYER];
+          advance(input);
+          const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
+          if (hint) hud.hint(hint, now);
         }
         acc -= DT;
       }
@@ -243,42 +292,47 @@ async function boot(): Promise<void> {
       const P = poseFor(id);
       const a = pp.car;
       const b = pc.car;
-      P.car.x = a.x + (b.x - a.x) * alpha;
-      P.car.y = a.y + (b.y - a.y) * alpha;
-      P.car.z = a.z + (b.z - a.z) * alpha;
-      P.car.heading = a.heading + wrapAngle(b.heading - a.heading) * alpha;
-      view.setCar(id, P.car);
-      let onFoot = false;
-      if (pc.mode === "foot") {
-        const fb = footPose(pc, P.b);
-        if (fb) {
-          const fa = footPose(pp, P.a) ?? fb;
-          P.foot.x = fa.x + (fb.x - fa.x) * alpha;
-          P.foot.z = fa.z + (fb.z - fa.z) * alpha;
-          P.foot.y = Number.isFinite(fb.y) && Number.isFinite(fa.y) ? fa.y + (fb.y - fa.y) * alpha : ground(P.foot.x, P.foot.z);
-          const ha = Number.isFinite(fa.heading) ? fa.heading : P.foot.heading;
-          const hb = Number.isFinite(fb.heading) ? fb.heading : ha;
-          P.foot.heading = ha + wrapAngle(hb - ha) * alpha;
-          onFoot = true;
-        }
+      const c = P.car;
+      c.x = lerp(a.x, b.x, alpha);
+      c.y = lerp(a.y, b.y, alpha);
+      c.z = lerp(a.z, b.z, alpha);
+      c.heading = a.heading + wrapAngle(b.heading - a.heading) * alpha;
+      c.pitch = lerp(a.pitch, b.pitch, alpha);
+      c.roll = lerp(a.roll, b.roll, alpha);
+      c.steer = lerp(a.steer, b.steer, alpha);
+      c.speed = lerp(a.speed, b.speed, alpha);
+      view.setCar(id, c);
+      const onFoot = pc.mode === "foot" && pc.foot !== null;
+      if (onFoot) {
+        const fb = pc.foot!;
+        const fa = pp.mode === "foot" && pp.foot ? pp.foot : fb;
+        const f = P.foot;
+        f.x = lerp(fa.x, fb.x, alpha);
+        f.y = lerp(fa.y, fb.y, alpha);
+        f.z = lerp(fa.z, fb.z, alpha);
+        f.heading = fa.heading + wrapAngle(fb.heading - fa.heading) * alpha;
+        f.speed = lerp(fa.speed, fb.speed, alpha);
       }
       view.setFoot(id, onFoot ? P.foot : null);
       if (id === LOCAL_PLAYER) {
-        const src = onFoot ? P.foot : P.car;
+        // The camera and HUD follow the body the player controls (activeBody), interpolated.
+        const src = onFoot ? P.foot : c;
         target.x = src.x;
         target.y = src.y;
         target.z = src.z;
         target.heading = src.heading;
         target.onFoot = onFoot;
-        target.speed = onFoot ? 0 : pc.car.speed;
+        target.speed = onFoot ? P.foot.speed : c.speed;
       }
     }
-    const minute = gameMinuteOfDay(curr, view.night);
-    view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute);
+    view.setSim(prev, curr, alpha);
+    const minute = gameMinuteOfDay(curr, clockStart);
+    view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
 
     const info = view.info(renderInfo);
-    hudData.speedMps = target.onFoot ? 0 : (curr.players[LOCAL_PLAYER]?.car.speed ?? 0);
+    const me = curr.players[LOCAL_PLAYER];
+    hudData.speedMps = me ? activeBody(me).speed : 0;
     hudData.x = target.x;
     hudData.z = target.z;
     hudData.onFoot = target.onFoot;

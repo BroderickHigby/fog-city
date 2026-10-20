@@ -1,6 +1,7 @@
-// The in-game clock as the renderer sees it. The sim owns time; until it publishes a
-// time of day, the renderer derives one from the tick so clocks on landmarks move at
-// real-time speed from a fixed start (golden hour by day, late evening at night).
+// The in-game clock as the renderer sees it. The sim owns time; until it publishes a time of
+// day, the renderer derives one from the tick: one game clock, running at real-time speed
+// from a start minute chosen once at boot (golden hour, or late evening for ?night=1).
+// Night mode (KeyN) is a look and never moves the clock.
 //
 // If a sim system later stores the time in state.ext (ext.clock as minutes since midnight,
 // or { minuteOfDay } / { minutes }), that value wins.
@@ -27,10 +28,15 @@ function fromExt(ext: unknown): number | null {
   return null;
 }
 
-/** Minutes since midnight in [0, 1440). */
-export function gameMinuteOfDay(state: { tick: number; ext?: unknown }, night: boolean): number {
+/** The clock's start minute for a game booted by day or at night. */
+export function clockStartMinute(bootedAtNight: boolean): number {
+  return bootedAtNight ? NIGHT_START_MINUTE : DAY_START_MINUTE;
+}
+
+/** Minutes since midnight in [0, 1440): `startMinute` at tick 0, then real-time speed. */
+export function gameMinuteOfDay(state: { tick: number; ext?: unknown }, startMinute: number = DAY_START_MINUTE): number {
   const fromSim = fromExt(state.ext);
-  const m = fromSim ?? (night ? NIGHT_START_MINUTE : DAY_START_MINUTE) + state.tick / TICK_HZ / 60;
+  const m = fromSim ?? startMinute + state.tick / TICK_HZ / 60;
   return ((m % 1440) + 1440) % 1440;
 }
 
