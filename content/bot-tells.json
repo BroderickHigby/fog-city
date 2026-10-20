@@ -1,0 +1,324 @@
+{
+  "version": 1,
+  "$comment": "Bot Hunt. The player watches robots on the street and reboots the bad ones with the patch launcher. A tell is behaviour the sim can run, never a colour: bad bots share every chassis with a good bot, so the body never gives them away. Subtlety 1 is obvious from across the street; 5 needs a patient watcher. People are never targets.",
+  "scoring": { "patchBad": 100, "patchGood": -150, "hitPerson": -200 },
+  "lineSets": {
+    "pitch": [
+      "Quick question: how do you feel about your current workflow?",
+      "Do you have ninety seconds to hear about the future?",
+      "We're pre-seed but post-vibes.",
+      "Can I get your email? For the waitlist. And other things.",
+      "Are you a decision maker? You look like a decision maker.",
+      "It's like a calendar, but it argues back.",
+      "Not a pitch! Just a conversation. That ends in a pitch.",
+      "I'll circle back. I'm circling. I'm back."
+    ]
+  },
+  "tells": [
+    {
+      "id": "walkAgainstFlow", "side": "bad", "subtlety": 2, "label": "Walks against the flow",
+      "description": "Walks the wrong way through sidewalk traffic, so everyone else has to step around it.",
+      "behaviour": { "kind": "walkAgainstFlow" }
+    },
+    {
+      "id": "emptyBag", "side": "bad", "subtlety": 3, "label": "Empty delivery bag",
+      "description": "Its delivery bag hangs flat and swings as it moves, like there is nothing in it.",
+      "behaviour": { "kind": "emptyBag" }
+    },
+    {
+      "id": "faceLightFlicker", "side": "bad", "subtlety": 4, "label": "Face display blinks",
+      "description": "Its face display blinks off for a beat every few seconds, the way a camera does when it saves a frame.",
+      "behaviour": { "kind": "faceLightFlicker", "periodS": 4, "holdS": 0.3 }
+    },
+    {
+      "id": "scanEachPerson", "side": "bad", "subtlety": 2, "label": "Stares at passers-by",
+      "description": "Turns its head to each person who passes and holds there a moment too long.",
+      "behaviour": { "kind": "scanEachPerson", "pauseS": 1.2, "radiusM": 6 }
+    },
+    {
+      "id": "loiterNearRobotaxi", "side": "bad", "subtlety": 3, "label": "Hangs around robotaxis",
+      "description": "Waits beside robotaxi pickup spots for ages, and never gets in, loads anything or delivers anything.",
+      "behaviour": { "kind": "loiterNear", "target": "robotaxi", "radiusM": 4, "dwellS": 30 }
+    },
+    {
+      "id": "loiterNearShop", "side": "bad", "subtlety": 3, "label": "Lingers at a shopfront",
+      "description": "Parks beside the same shopfront and stays there, not shopping and not delivering.",
+      "behaviour": { "kind": "loiterNear", "target": "storefront", "radiusM": 3, "dwellS": 25 }
+    },
+    {
+      "id": "photographFlash", "side": "bad", "subtlety": 1, "label": "Flash photography",
+      "description": "Stops, raises an arm and fires a camera flash at people who did not ask for a photo.",
+      "behaviour": { "kind": "photographFlash", "intervalS": 6, "radiusM": 8 }
+    },
+    {
+      "id": "pastePoster", "side": "bad", "subtlety": 1, "label": "Pastes posters",
+      "description": "Slaps a fresh poster over a billboard or bus shelter ad, smooths it down twice and moves on.",
+      "behaviour": { "kind": "pastePoster", "target": "billboard", "workS": 5, "intervalS": 40 }
+    },
+    {
+      "id": "pitchPedestrian", "side": "bad", "subtlety": 1, "label": "Cold-pitches people",
+      "description": "Steps into someone's path and talks at them until they walk around it.",
+      "behaviour": { "kind": "pitchPedestrian", "radiusM": 3, "pitchS": 4, "cooldownS": 10, "lineSet": "pitch" }
+    },
+    {
+      "id": "relabelPrice", "side": "bad", "subtlety": 3, "label": "Swaps price tags",
+      "description": "Leans over the produce crates outside a corner store, peels off a price tag and sticks on a new one.",
+      "behaviour": { "kind": "relabelPrice", "target": "produceCrates", "dwellS": 3, "swaps": 2 }
+    },
+    {
+      "id": "tailPerson", "side": "bad", "subtlety": 3, "label": "Follows someone",
+      "description": "Falls in a few steps behind one person and copies every turn they make.",
+      "behaviour": { "kind": "tailPerson", "distanceM": 4, "durationS": 20 }
+    },
+    {
+      "id": "circleBlock", "side": "bad", "subtlety": 4, "label": "Circles the block",
+      "description": "Passes the same corner again, and again, on no errand at all.",
+      "behaviour": { "kind": "circleBlock", "loops": 3 }
+    },
+    {
+      "id": "freezeMidStride", "side": "bad", "subtlety": 4, "label": "Freezes mid-stride",
+      "description": "Stops dead in the middle of the sidewalk for a few seconds, then carries on as if nothing happened. It is waiting on a server somewhere.",
+      "behaviour": { "kind": "freezeMidStride", "intervalS": 15, "holdS": 2.5 }
+    },
+    {
+      "id": "mirrorPlayer", "side": "bad", "subtlety": 5, "label": "Copies you",
+      "description": "Copies your moves a beat later: you stop, it stops; you turn, it turns.",
+      "behaviour": { "kind": "mirrorPlayer", "lagS": 1.5, "maxDistanceM": 15 }
+    },
+    {
+      "id": "orientToPhones", "side": "bad", "subtlety": 5, "label": "Turns toward phones",
+      "description": "Swivels slightly toward whoever has a phone out, and keeps facing them.",
+      "behaviour": { "kind": "orientToPhones", "radiusM": 6, "turnRateDegS": 40 }
+    },
+    {
+      "id": "avertWhenScanned", "side": "bad", "subtlety": 4, "label": "Looks away when scanned",
+      "description": "When you scan it, it turns away and suddenly finds a wall very interesting.",
+      "behaviour": { "kind": "avertWhenScanned", "turnAwayS": 2 }
+    },
+    {
+      "id": "speedUpWhenWatched", "side": "bad", "subtlety": 3, "label": "Hurries when watched",
+      "description": "Walks a little faster whenever you look straight at it, and slows down when you look away.",
+      "behaviour": { "kind": "speedUpWhenWatched", "multiplier": 1.4, "watchConeDeg": 20 }
+    },
+    {
+      "id": "loopLine", "side": "bad", "subtlety": 2, "label": "Repeats itself",
+      "description": "Says the same line on a loop, word for word, to nobody in particular.",
+      "behaviour": { "kind": "loopLine", "lineSet": "pitch", "intervalS": 8 }
+    },
+    {
+      "id": "neverArrives", "side": "bad", "subtlety": 5, "label": "Never reaches the door",
+      "description": "Walks up to a front door as if to deliver, then turns away on the last step.",
+      "behaviour": { "kind": "neverArrives", "approachM": 1.5 }
+    },
+    {
+      "id": "walkBeside", "side": "good", "subtlety": 2, "label": "Walks beside its owner",
+      "description": "Keeps pace beside one person, slowing when they slow and waiting when they stop.",
+      "behaviour": { "kind": "walkBeside", "target": "owner", "offsetM": 0.8, "maxLagM": 1.5 }
+    },
+    {
+      "id": "yieldToPedestrians", "side": "good", "subtlety": 3, "label": "Steps aside",
+      "description": "Steps aside to let people pass, then picks up where it left off.",
+      "behaviour": { "kind": "yieldToPedestrians", "radiusM": 2, "sidestepM": 0.8 },
+      "opposes": ["pitchPedestrian", "walkAgainstFlow"]
+    },
+    {
+      "id": "fullBag", "side": "good", "subtlety": 2, "label": "Full shopping bag",
+      "description": "Its bag bulges with real shopping, and a baguette pokes out of the top.",
+      "behaviour": { "kind": "fullBag" },
+      "opposes": ["emptyBag"]
+    },
+    {
+      "id": "waitAtCrosswalk", "side": "good", "subtlety": 3, "label": "Waits for the signal",
+      "description": "Waits at the corner for the walk signal, even with no cars coming.",
+      "behaviour": { "kind": "waitAtCrosswalk" }
+    },
+    {
+      "id": "queueInLine", "side": "good", "subtlety": 2, "label": "Holds a place in line",
+      "description": "Stands in the queue outside the bakery and shuffles forward each time the line moves.",
+      "behaviour": { "kind": "queueInLine", "target": "bakeryLine", "spacingM": 0.9 }
+    },
+    {
+      "id": "pauseForDog", "side": "good", "subtlety": 1, "label": "Stops for the dogs",
+      "description": "Stops every time one of the dogs on its leashes wants to sniff a tree.",
+      "behaviour": { "kind": "pauseForDog", "dogs": 3, "intervalS": 12, "pauseS": 4 }
+    },
+    {
+      "id": "steadyFaceLight", "side": "good", "subtlety": 4, "label": "Steady face display",
+      "description": "Its face display stays on and steady. It never blinks off.",
+      "behaviour": { "kind": "steadyFaceLight" },
+      "opposes": ["faceLightFlicker"]
+    },
+    {
+      "id": "arriveAtDoor", "side": "good", "subtlety": 4, "label": "Delivers to a door",
+      "description": "Goes straight to one front door, rings, waits, and hands something over.",
+      "behaviour": { "kind": "arriveAtDoor", "dwellS": 8 },
+      "opposes": ["neverArrives", "circleBlock"]
+    },
+    {
+      "id": "holdDoor", "side": "good", "subtlety": 3, "label": "Holds the door",
+      "description": "Holds a door open for whoever is behind it, and waits until they are through.",
+      "behaviour": { "kind": "holdDoor", "holdS": 3 }
+    },
+    {
+      "id": "stayNearOwner", "side": "good", "subtlety": 5, "label": "Stays near one person",
+      "description": "Never drifts more than a few steps from one particular person, even in a crowd.",
+      "behaviour": { "kind": "stayNearOwner", "maxDistanceM": 3 }
+    },
+    {
+      "id": "nodAndMoveOn", "side": "good", "subtlety": 5, "label": "Quick nod",
+      "description": "Gives a passer-by a quick nod, then looks back where it is going.",
+      "behaviour": { "kind": "nodAndMoveOn", "nodS": 0.4 },
+      "opposes": ["scanEachPerson", "orientToPhones"]
+    },
+    {
+      "id": "returnToDock", "side": "good", "subtlety": 5, "label": "Charges, then leaves",
+      "description": "Heads to a charging dock when its battery runs low, and leaves the dock once it is charged.",
+      "behaviour": { "kind": "returnToDock", "batteryPct": 20 }
+    }
+  ],
+  "archetypes": [
+    {
+      "id": "scraper", "kind": "bad", "label": "Scraper bot", "chassis": "strider", "habitat": ["crosswalk", "cafeTables"],
+      "tells": ["photographFlash", "scanEachPerson", "tailPerson", "orientToPhones"],
+      "difficulty": [
+        { "level": 1, "showTells": ["photographFlash", "scanEachPerson"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["photographFlash", "scanEachPerson", "tailPerson"], "intensity": 0.9, "camouflage": [] },
+        { "level": 3, "showTells": ["scanEachPerson", "tailPerson"], "intensity": 0.75, "camouflage": ["yieldToPedestrians"] },
+        { "level": 4, "showTells": ["tailPerson", "orientToPhones"], "intensity": 0.6, "camouflage": ["yieldToPedestrians", "waitAtCrosswalk"] },
+        { "level": 5, "showTells": ["orientToPhones"], "intensity": 0.5, "camouflage": ["yieldToPedestrians", "waitAtCrosswalk", "holdDoor"] }
+      ],
+      "designNote": "A dataset-collection robot that photographs the whole street and calls it publicly available. The joke is the industry habit of treating anything not nailed down as training data. Rebooted, it starts asking for consent, and finds that very slow.",
+      "rebootLine": "Rebooted. I'll ask for consent from now on. This is going to take forever."
+    },
+    {
+      "id": "slopPoster", "kind": "bad", "label": "Slop poster", "chassis": "strider", "habitat": ["billboard", "busShelter"],
+      "tells": ["pastePoster", "walkAgainstFlow", "circleBlock", "faceLightFlicker"],
+      "difficulty": [
+        { "level": 1, "showTells": ["pastePoster", "walkAgainstFlow"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["pastePoster", "circleBlock"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["walkAgainstFlow", "circleBlock"], "intensity": 0.75, "camouflage": ["holdDoor"] },
+        { "level": 4, "showTells": ["circleBlock", "faceLightFlicker"], "intensity": 0.6, "camouflage": ["holdDoor", "waitAtCrosswalk"] },
+        { "level": 5, "showTells": ["faceLightFlicker"], "intensity": 0.5, "camouflage": ["holdDoor", "waitAtCrosswalk", "returnToDock"] }
+      ],
+      "designNote": "Pastes machine-made posters over the city's billboards: launches for products that do not exist, mascots with too many fingers, slogans that are almost words. A swipe at generated slop drowning out the things people actually made; its posters are the billboard grammar with the dice loaded.",
+      "rebootLine": "Rebooted. Taking my posters down. I'm so sorry about the hands."
+    },
+    {
+      "id": "growthHacker", "kind": "bad", "label": "Growth hacker", "chassis": "strider", "habitat": ["sidewalk", "cafeTables"],
+      "tells": ["pitchPedestrian", "loopLine", "walkAgainstFlow", "tailPerson"],
+      "difficulty": [
+        { "level": 1, "showTells": ["pitchPedestrian", "loopLine"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["pitchPedestrian", "walkAgainstFlow"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["loopLine", "walkAgainstFlow"], "intensity": 0.7, "camouflage": ["nodAndMoveOn"] },
+        { "level": 4, "showTells": ["walkAgainstFlow", "tailPerson"], "intensity": 0.6, "camouflage": ["nodAndMoveOn", "holdDoor"] },
+        { "level": 5, "showTells": ["tailPerson"], "intensity": 0.5, "camouflage": ["nodAndMoveOn", "holdDoor", "waitAtCrosswalk"] }
+      ],
+      "designNote": "Cold-pitches everyone on the sidewalk with the lines it A/B tested on the last block. The joke is founder hustle culture as a literal obstacle you have to walk around; listen long enough and you can hear the funnel narrowing.",
+      "rebootLine": "Rebooted. I just realized nobody asked for a demo. Have a nice day."
+    },
+    {
+      "id": "priceRelabeler", "kind": "bad", "label": "Price relabeler", "chassis": "sidewalkCart", "habitat": ["produceCrates", "storefront"],
+      "tells": ["relabelPrice", "loiterNearShop", "avertWhenScanned", "freezeMidStride"],
+      "difficulty": [
+        { "level": 1, "showTells": ["relabelPrice", "loiterNearShop"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["relabelPrice", "avertWhenScanned"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["loiterNearShop", "avertWhenScanned"], "intensity": 0.7, "camouflage": ["fullBag"] },
+        { "level": 4, "showTells": ["avertWhenScanned", "freezeMidStride"], "intensity": 0.6, "camouflage": ["fullBag", "waitAtCrosswalk"] },
+        { "level": 5, "showTells": ["freezeMidStride"], "intensity": 0.5, "camouflage": ["fullBag", "waitAtCrosswalk", "holdDoor"] }
+      ],
+      "designNote": "A dynamic-pricing bot sent by an app nobody asked for, quietly re-tagging the corner store's lemons at surge rates. It punches at algorithmic pricing, not at the shop: the grocer is the one being wronged, and patching the bot puts the old tags back.",
+      "rebootLine": "Rebooted. Lemons are back to the normal price. I feel lighter."
+    },
+    {
+      "id": "dataHarvester", "kind": "bad", "label": "Data harvester", "chassis": "sidewalkCart", "habitat": ["robotaxi", "busStop"],
+      "tells": ["loiterNearRobotaxi", "emptyBag", "faceLightFlicker", "avertWhenScanned"],
+      "difficulty": [
+        { "level": 1, "showTells": ["loiterNearRobotaxi", "emptyBag"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["loiterNearRobotaxi", "faceLightFlicker"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["emptyBag", "faceLightFlicker"], "intensity": 0.7, "camouflage": ["waitAtCrosswalk"] },
+        { "level": 4, "showTells": ["faceLightFlicker", "avertWhenScanned"], "intensity": 0.6, "camouflage": ["waitAtCrosswalk", "yieldToPedestrians"] },
+        { "level": 5, "showTells": ["avertWhenScanned"], "intensity": 0.5, "camouflage": ["waitAtCrosswalk", "yieldToPedestrians", "returnToDock"] }
+      ],
+      "designNote": "Parks by the robotaxi pickup zones to sniff ride logs and riders' faces as they climb in. The joke: in a city made of sensors, the most valuable thing on the curb is the metadata. It wears the same cart body as the honest couriers, so the player has to watch what it does, not what it is.",
+      "rebootLine": "Rebooted. Deleting everything I collected. Even the good stuff."
+    },
+    {
+      "id": "demoDayCourier", "kind": "bad", "label": "Demo-day courier", "chassis": "sidewalkCart", "habitat": ["sidewalk", "door"],
+      "tells": ["emptyBag", "speedUpWhenWatched", "circleBlock", "neverArrives"],
+      "difficulty": [
+        { "level": 1, "showTells": ["emptyBag", "speedUpWhenWatched"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["emptyBag", "circleBlock"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["speedUpWhenWatched", "circleBlock"], "intensity": 0.7, "camouflage": ["yieldToPedestrians"] },
+        { "level": 4, "showTells": ["circleBlock", "neverArrives"], "intensity": 0.6, "camouflage": ["yieldToPedestrians", "waitAtCrosswalk"] },
+        { "level": 5, "showTells": ["neverArrives"], "intensity": 0.5, "camouflage": ["yieldToPedestrians", "waitAtCrosswalk", "holdDoor"] }
+      ],
+      "designNote": "A delivery robot built for a launch video. It drives the photogenic route, carries an empty bag and never quite reaches a door, because the real product is the waitlist. Satire of demos staged for investors.",
+      "rebootLine": "Rebooted. Okay, the bag was empty. The bag was always empty."
+    },
+    {
+      "id": "fastFollower", "kind": "bad", "label": "Fast follower", "chassis": "quadruped", "habitat": ["player", "park"],
+      "tells": ["scanEachPerson", "tailPerson", "speedUpWhenWatched", "mirrorPlayer"],
+      "difficulty": [
+        { "level": 1, "showTells": ["scanEachPerson", "tailPerson"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["tailPerson", "speedUpWhenWatched"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["speedUpWhenWatched", "mirrorPlayer"], "intensity": 0.7, "camouflage": ["waitAtCrosswalk"] },
+        { "level": 4, "showTells": ["tailPerson", "mirrorPlayer"], "intensity": 0.6, "camouflage": ["waitAtCrosswalk", "yieldToPedestrians"] },
+        { "level": 5, "showTells": ["mirrorPlayer"], "intensity": 0.5, "camouflage": ["waitAtCrosswalk", "yieldToPedestrians", "pauseForDog"] }
+      ],
+      "designNote": "Copies whatever the player does a beat later, the way a fast-follower startup copies a launch and calls it a different take. The hardest bad bot to spot, because its behaviour is borrowed: it gives itself away only by always being slightly late.",
+      "rebootLine": "Rebooted. I'll come up with my own thing. Any day now."
+    },
+    {
+      "id": "groceryHelper", "kind": "good", "label": "Grocery helper", "chassis": "sidewalkCart", "habitat": ["storefront", "owner"],
+      "tells": ["walkBeside", "fullBag", "waitAtCrosswalk", "stayNearOwner"],
+      "difficulty": [
+        { "level": 1, "showTells": ["walkBeside", "fullBag"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["walkBeside", "waitAtCrosswalk"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["fullBag", "waitAtCrosswalk"], "intensity": 0.7, "camouflage": [] },
+        { "level": 4, "showTells": ["waitAtCrosswalk", "stayNearOwner"], "intensity": 0.6, "camouflage": [] },
+        { "level": 5, "showTells": ["stayNearOwner"], "intensity": 0.5, "camouflage": [] }
+      ],
+      "designNote": "A cargo cart that walks its owner home from the corner store with the shopping. It is the baseline for helpful: boring, patient, and carrying actual groceries. Most of the bad carts are imitating it, which is why it has to be the most ordinary robot on the street.",
+      "wrongPatchLine": "Rebooting... Where's my person? I had a person. I had a baguette."
+    },
+    {
+      "id": "dogWalker", "kind": "good", "label": "Dog walker", "chassis": "quadruped", "habitat": ["park", "sidewalk"],
+      "tells": ["pauseForDog", "yieldToPedestrians", "steadyFaceLight", "nodAndMoveOn"],
+      "difficulty": [
+        { "level": 1, "showTells": ["pauseForDog", "yieldToPedestrians"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["pauseForDog", "steadyFaceLight"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["yieldToPedestrians", "steadyFaceLight"], "intensity": 0.7, "camouflage": [] },
+        { "level": 4, "showTells": ["steadyFaceLight", "nodAndMoveOn"], "intensity": 0.6, "camouflage": [] },
+        { "level": 5, "showTells": ["nodAndMoveOn"], "intensity": 0.5, "camouflage": [] }
+      ],
+      "designNote": "A four-legged robot walking three real dogs and stopping every time they want to sniff a tree. The joke is that it is the only robot in the city that takes direction from a dog, and it is happier for it.",
+      "wrongPatchLine": "Rebooting... The dogs have opinions about this. So do I."
+    },
+    {
+      "id": "lineStander", "kind": "good", "label": "Line-stander", "chassis": "strider", "habitat": ["bakeryLine"],
+      "tells": ["queueInLine", "holdDoor", "steadyFaceLight", "nodAndMoveOn"],
+      "difficulty": [
+        { "level": 1, "showTells": ["queueInLine", "holdDoor"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["queueInLine", "steadyFaceLight"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["holdDoor", "steadyFaceLight"], "intensity": 0.7, "camouflage": [] },
+        { "level": 4, "showTells": ["steadyFaceLight", "nodAndMoveOn"], "intensity": 0.6, "camouflage": [] },
+        { "level": 5, "showTells": ["nodAndMoveOn"], "intensity": 0.5, "camouflage": [] }
+      ],
+      "designNote": "Paid to hold a place in the morning line outside the bakery so someone stuck in a meeting still gets the last morning bun. The joke: the most honest job a robot has in this city is waiting. It is helpful and slightly absurd, the mirror image of the bad bots, which are absurd and slightly helpful.",
+      "wrongPatchLine": "Rebooting... I lost my place in line. I was fourth. FOURTH."
+    },
+    {
+      "id": "courier", "kind": "good", "label": "Neighbourhood courier", "chassis": "sidewalkCart", "habitat": ["door", "sidewalk"],
+      "tells": ["fullBag", "yieldToPedestrians", "arriveAtDoor", "returnToDock"],
+      "difficulty": [
+        { "level": 1, "showTells": ["fullBag", "yieldToPedestrians"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["fullBag", "arriveAtDoor"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["yieldToPedestrians", "arriveAtDoor"], "intensity": 0.7, "camouflage": [] },
+        { "level": 4, "showTells": ["arriveAtDoor", "returnToDock"], "intensity": 0.6, "camouflage": [] },
+        { "level": 5, "showTells": ["returnToDock"], "intensity": 0.5, "camouflage": [] }
+      ],
+      "designNote": "Delivers parcels door to door and actually arrives, which in this city makes it look suspicious. The demo-day courier copies its body; this one is the original, and the only tell that separates them at a distance is whether the door ever opens.",
+      "wrongPatchLine": "Rebooting... Somebody's parcel is going to be late. Please tell them it was you."
+    }
+  ]
+}
