@@ -41,7 +41,7 @@ def main() -> None:
         ob = vat.body(v["id"], "idle", 0, v["id"], vat.colors(outfit, hair, skin), scale=s)
         A.place(ob, x, heading_deg=165)
         x += 1.15 if not v["child"] else 0.95
-    L.camera((-0.9, -19.0, 1.9), (-0.9, 0.0, 0.95), lens=60)
+    L.camera((-1.0, -20.5, 1.9), (-1.0, 0.0, 0.95), lens=60)
     L.render("humanoid-variants.png")
 
 
