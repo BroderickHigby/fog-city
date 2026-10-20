@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "status": "pending user sign-off",
-  "$comment": "Every invented proper name the content uses, searched before use (docs/design.md, Legal and taste). The content lint (src/content/lint.ts, NAME_FIELDS) rejects a value in a registered name field that is not listed here with verdict clear or caution, or under generic. These are web searches run by an agent session on the date given, not a legal clearance: the user signs this file off, and a trademark attorney's search is still on the pre-release checklist.",
+  "status": "signed off",
+  "$comment": "Every invented proper name the content uses, searched before use (docs/design.md, Legal and taste). The content lint (src/content/lint.ts, NAME_FIELDS) rejects a value in a registered name field that is not listed here with verdict clear or caution, or under generic. These are web searches run by an agent session on the date given, not a legal clearance: the user signed this file off on 2026-10-20 (\"names are fine\"), and a trademark attorney's search is still on the pre-release checklist.",
   "method": "For each name, at least two web searches in standard mode: the name with 'trademark', and the name with 'startup', 'app', 'company' or the product category it has in the game. Findings summarise what the results showed; sources are the result pages that carried the finding.",
   "verdicts": {
     "clear": "No product, company or mark with this name turned up in software, tech, robotics or transport, nor anything confusable elsewhere.",

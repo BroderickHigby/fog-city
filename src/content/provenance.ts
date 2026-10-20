@@ -40,6 +40,6 @@ export function expectedContentHash(rel: string, doc: unknown): string {
  * carry one with a current hash.
  */
 export const PROVENANCE_EXEMPT: ReadonlyArray<{ file: string; why: string }> = [
-  { file: "content/cleared-names.json", why: "a research record; its own status field ('pending user sign-off') is its review state" },
+  { file: "content/cleared-names.json", why: "a research record; its own status field ('signed off' since 2026-10-20) is its review state" },
   { file: "content/banned-pairs.json", why: "generated from name-parts.json by the composer test (UPDATE_BANNED_PAIRS=1); regenerated, never hand-edited" },
 ];

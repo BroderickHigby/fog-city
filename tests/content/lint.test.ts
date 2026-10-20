@@ -134,8 +134,8 @@ describe("cleared names", () => {
     expect(checkClearedNames()).toEqual([]);
   });
 
-  it("is pending the user's sign-off, and every search is dated and sourced", () => {
-    expect(CLEARED_NAMES_FILE.status).toBe("pending user sign-off");
+  it("is signed off by the user (2026-10-20), and every search is dated and sourced", () => {
+    expect(CLEARED_NAMES_FILE.status).toBe("signed off");
     for (const n of CLEARED_NAMES_FILE.names) {
       expect(n.searchedOn, n.name).toBe("2026-10-20");
       expect(n.queries.length, n.name).toBeGreaterThanOrEqual(2);
