@@ -22,6 +22,14 @@ function strings(v: unknown, out: string[] = []): string[] {
   return out;
 }
 
+/** Every [key, string value] pair in a JSON document, keys of enclosing objects included. */
+function keyedStrings(v: unknown, key = "", out: Array<[string, string]> = []): Array<[string, string]> {
+  if (typeof v === "string") out.push([key, v]);
+  else if (Array.isArray(v)) for (const x of v) keyedStrings(x, key, out);
+  else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) keyedStrings(x, k, out);
+  return out;
+}
+
 // Ours: everything in content/ except landmarks.json (owned by the assets track).
 const FILES = jsonFiles(join(ROOT, "content")).filter((f) => !f.endsWith("landmarks.json"));
 
@@ -45,6 +53,14 @@ describe("authored content", () => {
     });
     it(`${rel}: never punches down and never turns violent`, () => {
       expect(all.filter((s) => PUNCH_DOWN.test(s))).toEqual([]);
+    });
+    it(`${rel}: never calls the accelerator "YC", in any case (ids excepted)`, () => {
+      // Internal ids such as "yc-pitch" never reach the player; every other string might.
+      const said = keyedStrings(JSON.parse(readFileSync(f, "utf8")))
+        .filter(([k]) => k !== "id")
+        .map(([, v]) => v)
+        .filter((v) => /(^|[^a-z0-9])y\.? ?c\.?(s|'s)?($|[^a-z0-9])|y[\s.\-_]*combinator/i.test(v));
+      expect(said).toEqual([]);
     });
   }
 });

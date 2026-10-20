@@ -163,6 +163,15 @@ describe("blocklist", () => {
     }
   });
 
+  it("prose rejects the bare YC in every spelling, but not ids or words that contain the letters", () => {
+    for (const t of ["Apply to YC by Friday.", "YC's partners", "two YCs", "a Y.C. company", "Y. C. Demo Day", "YCombinator", "Y-Combinator", "y combinator"]) {
+      expect(blockedProseReason(t), t).toContain("accelerator");
+    }
+    for (const t of ["yc-pitch", "a bicycle", "Recycle it.", "LYCRA", "the Batchery", "Demo Day at the Batchery"]) {
+      expect(blockedProseReason(t), t).toBeNull();
+    }
+  });
+
   it("prose check finds brands and people as whole words, ignores generic English", () => {
     expect(blockedProseReason("Faster than any Waymo.")).toContain("Waymo");
     expect(blockedProseReason("as Elon Musk once said")).toContain("Musk");

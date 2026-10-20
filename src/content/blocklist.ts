@@ -9,7 +9,7 @@
 //    "a square block" is just English.
 //  - PEOPLE / SURNAMES: real public figures. Caricatures get invented names; a real name never
 //    appears in content and never comes out of the name generator.
-// Generated names also pass offensiveNameReason (bottom of file).
+// Prose also rejects the bare "YC". Generated names also pass offensiveNameReason (bottom of file).
 //
 // The list is deliberately broad: blocking a harmless name costs nothing (the generator draws
 // another), letting a real one through is the failure this file exists to prevent.
@@ -435,7 +435,12 @@ function escapeRe(s: string): string {
 }
 
 // Prose matching: whole words, case-insensitive, punctuation inside the brand kept literal.
-const ALWAYS_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [];
+// "YC" is how everyone says the real accelerator's name. Case-sensitive, so the internal id
+// "yc-pitch" and words like "bicycle" pass; "YC", "YC's", "Y.C." and "YCombinator" do not.
+const ALWAYS_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['accelerator "YC"', /(^|[^A-Za-z0-9])(YC|Y\. ?C\.?)(s|'s)?($|[^A-Za-z0-9])/],
+  ['accelerator "Y Combinator"', /(^|[^A-Za-z0-9])Y[\s.\-_]*Combinator/i],
+];
 
 const WORD_PATTERNS: ReadonlyArray<readonly [string, string]> = [
   ...BRANDS.map((b) => [`brand "${b}"`, b] as const),
