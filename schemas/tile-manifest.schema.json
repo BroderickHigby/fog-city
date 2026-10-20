@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/tile-manifest",
+  "title": "World tile manifest (public/tiles/<world>/manifest.json)",
+  "type": "object",
+  "required": ["version", "world", "origin", "tileSizeM", "spawn", "tiles"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "world": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "origin": {
+      "type": "object",
+      "required": ["lat", "lon"],
+      "additionalProperties": false,
+      "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } }
+    },
+    "tileSizeM": { "type": "number", "exclusiveMinimum": 0 },
+    "spawn": {
+      "type": "object",
+      "required": ["x", "z", "heading"],
+      "additionalProperties": false,
+      "properties": { "x": { "type": "number" }, "z": { "type": "number" }, "heading": { "type": "number" } }
+    },
+    "attribution": { "type": "array", "items": { "type": "string" } },
+    "tiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "collider", "glb"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" },
+          "ix": { "type": "integer" },
+          "iz": { "type": "integer" },
+          "bbox": {
+            "description": "[minX, minZ, maxX, maxZ] in local metres",
+            "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4
+          },
+          "collider": { "type": "string", "description": "Path relative to the manifest" },
+          "glb": { "type": ["string", "null"], "description": "Path relative to the manifest; null = renderer builds from collider" },
+          "roads": { "type": ["string", "null"] },
+          "stats": { "type": "object", "additionalProperties": { "type": "number" } }
+        }
+      }
+    }
+  }
+}

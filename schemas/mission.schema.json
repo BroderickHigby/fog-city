@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/mission",
+  "title": "Mission (content/missions/*.json), interpreted by the sim mission runtime",
+  "type": "object",
+  "required": ["id", "title", "steps"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "title": { "type": "string" },
+    "area": { "type": "string" },
+    "steps": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "enum": ["trigger", "goto", "timer", "dialogue", "branch", "reward"] },
+          "next": { "type": "string" }
+        }
+      }
+    }
+  }
+}

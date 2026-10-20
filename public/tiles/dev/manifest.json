@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "world": "dev",
+  "origin": { "lat": 37.7955, "lon": -122.3937 },
+  "tileSizeM": 500,
+  "spawn": { "x": 0, "z": 0, "heading": 0 },
+  "attribution": ["Hand-made test world. Not real geography."],
+  "tiles": [{ "id": "dev", "collider": "dev.collider.json", "glb": null, "stats": { "buildings": 5 } }]
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/landmarks",
+  "title": "Hand-modelled landmark placements (content/landmarks.json)",
+  "type": "object",
+  "required": ["version", "landmarks"],
+  "properties": {
+    "version": { "const": 1 },
+    "landmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "model", "lat", "lon", "headingDeg"],
+        "properties": {
+          "id": { "type": "string" },
+          "model": { "type": "string", "description": "Path under public/, e.g. models/ferry-building.glb" },
+          "lat": { "type": "number" },
+          "lon": { "type": "number" },
+          "headingDeg": { "type": "number" },
+          "scale": { "type": "number" },
+          "replacesBuildingIds": { "type": "array", "items": { "type": "string" } },
+          "collider": {
+            "description": "Optional footprint override in model-local metres [x, z]",
+            "type": "array", "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+          }
+        }
+      }
+    }
+  }
+}

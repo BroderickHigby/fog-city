@@ -1,0 +1,11 @@
+{
+  "tileId": "dev",
+  "ground": null,
+  "buildings": [
+    { "id": "dev-wall", "footprint": [[-40, -70], [40, -70], [40, -60], [-40, -60]], "baseY": 0, "topY": 12 },
+    { "id": "dev-east", "footprint": [[60, -20], [90, -20], [90, 20], [60, 20]], "baseY": 0, "topY": 30 },
+    { "id": "dev-west", "footprint": [[-90, -20], [-60, -20], [-60, 20], [-90, 20]], "baseY": 0, "topY": 20 },
+    { "id": "dev-south", "footprint": [[-30, 40], [30, 40], [30, 70], [-30, 70]], "baseY": 0, "topY": 8 },
+    { "id": "dev-tower", "footprint": [[100, -150], [120, -150], [120, -130], [100, -130]], "baseY": 0, "topY": 90 }
+  ]
+}

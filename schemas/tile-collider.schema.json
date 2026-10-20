@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/tile-collider",
+  "title": "Tile collision data consumed by src/sim/world.ts",
+  "type": "object",
+  "required": ["tileId", "buildings", "ground"],
+  "properties": {
+    "tileId": { "type": "string" },
+    "buildings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "footprint", "baseY", "topY"],
+        "properties": {
+          "id": { "type": "string" },
+          "footprint": {
+            "type": "array", "minItems": 3,
+            "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+          },
+          "baseY": { "type": "number" },
+          "topY": { "type": "number" },
+          "meta": {
+            "description": "Optional facts for facades and storefronts (year built, use, stories, source ids). Never read by the sim.",
+            "type": "object"
+          }
+        }
+      }
+    },
+    "ground": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["x0", "z0", "cellSizeM", "nx", "nz", "heights"],
+          "properties": {
+            "x0": { "type": "number" },
+            "z0": { "type": "number" },
+            "cellSizeM": { "type": "number", "exclusiveMinimum": 0 },
+            "nx": { "type": "integer", "minimum": 2 },
+            "nz": { "type": "integer", "minimum": 2 },
+            "heights": { "type": "array", "items": { "type": "number" } }
+          }
+        }
+      ]
+    }
+  }
+}

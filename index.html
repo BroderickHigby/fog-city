@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fog City</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #10141a; overflow: hidden; }
+      #game { position: fixed; inset: 0; }
+      #hud {
+        position: fixed; left: 12px; top: 10px; z-index: 2;
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: #e9edf2; background: rgba(12, 15, 20, 0.62);
+        padding: 6px 9px; border-radius: 3px; pointer-events: none; white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <div id="hud">loading…</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
