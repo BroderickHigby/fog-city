@@ -1,0 +1,13 @@
+{
+  "$comment": "Height corrections for buildings the June 2010 LiDAR survey (behind the DataSF footprint heights) could not see correctly, because they were built later. Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying.",
+  "buildings": [
+    {
+      "id": "201006.0000548",
+      "parcel": "3720009",
+      "label": "415 Mission St (Salesforce Tower)",
+      "heightM": 326,
+      "source": "Completed 2018. Roof height 326 m (1,070 ft), public record (CTBUH Skyscraper Center). The footprint dataset reports a 0.24 m median height here: in June 2010 the site was the old Transbay Terminal ramps.",
+      "massing": "prism"
+    }
+  ]
+}

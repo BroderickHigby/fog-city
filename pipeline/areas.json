@@ -1,0 +1,70 @@
+{
+  "$comment": "World definitions for pipeline/build-world.ts. Adding a neighbourhood = adding an entry to a world's areas. Every 500 m tile an area's bbox touches is built complete (all buildings whose centroid is in the tile), so areas never cut a block in half at a tile seam.",
+  "worlds": {
+    "sf": {
+      "title": "San Francisco",
+      "areas": [
+        {
+          "id": "downtown",
+          "milestone": "M0",
+          "name": "Downtown: Ferry Building, Embarcadero, Financial District, Salesforce Tower, Bay Bridge touchdown",
+          "north": 37.805,
+          "west": -122.405,
+          "south": 37.78,
+          "east": -122.385
+        },
+        {
+          "id": "north-beach",
+          "milestone": "M1",
+          "name": "North Beach",
+          "north": 37.808,
+          "west": -122.417,
+          "south": 37.797,
+          "east": -122.403
+        },
+        {
+          "id": "embarcadero-north",
+          "milestone": "M1",
+          "name": "Embarcadero north: Telegraph Hill, Fisherman's Wharf, the northern piers",
+          "north": 37.812,
+          "west": -122.425,
+          "south": 37.795,
+          "east": -122.388
+        },
+        {
+          "id": "marina",
+          "milestone": "M1",
+          "name": "Marina",
+          "north": 37.81,
+          "west": -122.448,
+          "south": 37.798,
+          "east": -122.425
+        },
+        {
+          "id": "dogpatch",
+          "milestone": "M1",
+          "name": "Dogpatch (incl. 315 Pennsylvania Ave)",
+          "north": 37.766,
+          "west": -122.395,
+          "south": 37.755,
+          "east": -122.385
+        }
+      ],
+      "spawn": {
+        "$comment": "Spawn on the named street, at the point of it nearest to this lat/lon, heading along the road.",
+        "street": "THE EMBARCADERO",
+        "lat": 37.7951,
+        "lon": -122.3932,
+        "towardLat": 37.7995,
+        "towardLon": -122.3975
+      },
+      "sources": {
+        "buildings": "ynuv-fyni",
+        "streets": "3psu-pn9h",
+        "assessor": "wv5m-vpq2",
+        "assessorRollYear": 2025,
+        "businesses": "g8m3-pdis"
+      }
+    }
+  }
+}
