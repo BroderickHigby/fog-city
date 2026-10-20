@@ -10,11 +10,14 @@ node pipeline/build-world.ts --world sf --check    # rebuild in memory; exit 1 u
 node pipeline/build-world.ts --world sf --refresh  # re-download everything (DataSF reloads daily)
 ```
 
-A cold run downloads about 70 s of data with at most 3 requests in flight, retrying
-408/425/429/5xx with exponential backoff. A warm run takes about 3 s. Raw responses are
-cached in `pipeline/.cache/http/` (gitignored, one file per URL plus a `.url` sidecar
-naming it). The same cache always gives byte-identical output, and `--check` proves it.
-The upstream datasets change daily, so a `--refresh` can legitimately change the output.
+Flags: `--cache <dir>` uses another download cache and `--out <dir>` writes elsewhere.
+A cold run (empty cache) took 105 s on 2026-10-20, with at most 3 requests in flight. DataSF
+often answers HTTP 425 "Too Early"; 408/425/429/5xx are retried with exponential backoff.
+A warm run takes about 3 s. Raw responses are cached in `pipeline/.cache/http/`
+(gitignored, one file per URL plus a `.url` sidecar naming it). That cold run, compared
+with `--check`, reproduced every committed file byte for byte. The same cache always gives
+byte-identical output, and `--check` proves it. The upstream datasets change daily, so a
+`--refresh` can legitimately change the output.
 
 ## Sources and licences
 

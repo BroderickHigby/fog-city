@@ -4,6 +4,8 @@
 //   node pipeline/build-world.ts --world sf --offline  build from pipeline/.cache only; fail on a cache miss
 //   node pipeline/build-world.ts --world sf --check    rebuild in memory, compare with the committed files
 //   node pipeline/build-world.ts --world sf --refresh  re-download everything (inputs change daily)
+//   ... --cache <dir>   use another download cache (default pipeline/.cache)
+//   ... --out <dir>     write somewhere else (default public/tiles/<world>)
 //
 // See docs/data-sources.md for sources, licences and every modelling decision.
 
@@ -25,7 +27,7 @@ const flag = (name: string): boolean => process.argv.includes(`--${name}`);
 async function main(): Promise<void> {
   const world = arg("world") ?? "sf";
   const outDir = arg("out") ?? join(ROOT, "public/tiles", world);
-  const cacheDir = join(ROOT, "pipeline/.cache");
+  const cacheDir = arg("cache") ?? join(ROOT, "pipeline/.cache");
   const t0 = Date.now();
   const log = (m: string): void => console.log(m);
 
