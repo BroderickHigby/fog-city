@@ -1,0 +1,251 @@
+{
+  "world": "sf",
+  "areas": [
+    {
+      "id": "downtown",
+      "milestone": "M0",
+      "tiles": 28
+    },
+    {
+      "id": "north-beach",
+      "milestone": "M1",
+      "tiles": 12
+    },
+    {
+      "id": "embarcadero-north",
+      "milestone": "M1",
+      "tiles": 40
+    },
+    {
+      "id": "marina",
+      "milestone": "M1",
+      "tiles": 20
+    },
+    {
+      "id": "dogpatch",
+      "milestone": "M1",
+      "tiles": 9
+    }
+  ],
+  "tiles": 77,
+  "buildings": {
+    "raw": 15888,
+    "parts": 15913,
+    "kept": 14233,
+    "droppedSmall": 81,
+    "droppedOutside": 1530,
+    "droppedLow": 69,
+    "joinMblr": 13545,
+    "joinPoint": 279,
+    "withYear": 13486,
+    "withStories": 12613,
+    "heightLidar": 14144,
+    "heightStories": 88,
+    "heightOverride": 1,
+    "twoTier": 631,
+    "maxOutlier": 1882,
+    "condo": 1161,
+    "storiesImplausible": 230,
+    "groundRefFromDem": 94
+  },
+  "overridesApplied": [
+    "201006.0000548"
+  ],
+  "roads": {
+    "raw": 2719,
+    "excludedLayer": 66,
+    "outside": 264,
+    "degenerate": 0,
+    "edges": 2389,
+    "nodes": 1570,
+    "synthesizedNodes": 0,
+    "byKind": {
+      "arterial": 281,
+      "residential": 1578,
+      "collector": 380,
+      "alley": 31,
+      "other": 76,
+      "freeway": 24,
+      "ramp": 19
+    },
+    "bridges": 7,
+    "components": 8,
+    "largestComponentNodes": 1370
+  },
+  "storefronts": {
+    "raw": 4242,
+    "notStorefrontNaics": 774,
+    "noBuilding": 409,
+    "noFrontage": 242,
+    "kept": 2817
+  },
+  "terrain": {
+    "minY": 0,
+    "maxY": 114.8,
+    "waterSamples": 73073,
+    "samples": 200277
+  },
+  "spawn": {
+    "x": 13.59,
+    "z": 66.97,
+    "heading": 5.6451,
+    "edge": "c12553201",
+    "y": 3.13
+  },
+  "probes": [
+    {
+      "id": "ferry-building",
+      "label": "Ferry Building clock tower (world origin)",
+      "x": 0,
+      "z": 0,
+      "buildings": [
+        "201006.0000058",
+        "201006.0000058-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "415-mission",
+      "label": "415 Mission St tower (tallest, completed 2018)",
+      "x": -308.27,
+      "z": 643.76,
+      "buildings": [
+        "201006.0000548"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "600-montgomery",
+      "label": "600 Montgomery St pyramid",
+      "x": -801.49,
+      "z": 33.3,
+      "buildings": [
+        "201006.0000687",
+        "201006.0000687-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "coit-tower",
+      "label": "Coit Tower, Telegraph Hill",
+      "x": -1065.72,
+      "z": -765.85,
+      "buildings": [
+        "201006.0006230",
+        "201006.0006230-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "saints-peter-and-paul",
+      "label": "Saints Peter and Paul Church, Washington Square",
+      "x": -1470.87,
+      "z": -532.76,
+      "buildings": [
+        "201006.0003946"
+      ],
+      "nearestM": 9.14
+    },
+    {
+      "id": "beach-st-pier",
+      "label": "Pier at The Embarcadero and Beach St (marketplace, sea-lion floats)",
+      "x": -1418.02,
+      "z": -1465.1,
+      "buildings": [
+        "201006.0000037"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "palace-of-fine-arts",
+      "label": "Palace of Fine Arts rotunda",
+      "x": -4817.74,
+      "z": -821.35,
+      "buildings": [
+        "201006.0000986",
+        "201006.0000986-tower"
+      ],
+      "nearestM": 0
+    },
+    {
+      "id": "315-pennsylvania",
+      "label": "315 Pennsylvania Ave, Dogpatch (east side of the 300 block; the 2025 roll lists 301 and 331)",
+      "x": 39.63,
+      "z": 3672.74,
+      "buildings": [
+        "201006.0010443",
+        "201006.0010443-tower"
+      ],
+      "nearestM": 0
+    }
+  ],
+  "tallest": [
+    {
+      "id": "201006.0000548",
+      "heightM": 325.11,
+      "topY": 330.56,
+      "parcel": "3720009",
+      "source": "override"
+    },
+    {
+      "id": "201006.0000687-tower",
+      "heightM": 258.58,
+      "topY": 264.04,
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0000769",
+      "heightM": 243.25,
+      "topY": 255.97,
+      "parcel": "0259026",
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0003335",
+      "heightM": 221.51,
+      "topY": 226.02,
+      "parcel": "3719450",
+      "source": "assessor-stories"
+    },
+    {
+      "id": "201006.0000518-tower",
+      "heightM": 207.49,
+      "topY": 211.87,
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0001788",
+      "heightM": 194.92,
+      "topY": 199.1,
+      "parcel": "3719020",
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0000392",
+      "heightM": 189.28,
+      "topY": 192.94,
+      "parcel": "0263011",
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0001244",
+      "heightM": 186.24,
+      "topY": 190.43,
+      "parcel": "3709019",
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0000534-tower",
+      "heightM": 179.93,
+      "topY": 213.88,
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0000633",
+      "heightM": 179.28,
+      "topY": 182.74,
+      "parcel": "0233044",
+      "source": "lidar"
+    }
+  ]
+}

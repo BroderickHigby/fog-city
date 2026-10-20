@@ -1,0 +1,123 @@
+{
+  "$comment": "World definitions for pipeline/build-world.ts. Adding a neighbourhood = adding an entry to a world's areas. Every 500 m tile an area's bbox touches is built complete (all buildings whose centroid is in the tile), so areas never cut a block in half at a tile seam.",
+  "worlds": {
+    "sf": {
+      "title": "San Francisco",
+      "areas": [
+        {
+          "id": "downtown",
+          "milestone": "M0",
+          "name": "Downtown: Ferry Building, Embarcadero, Financial District, the 415 Mission St tower, Bay Bridge touchdown",
+          "north": 37.805,
+          "west": -122.405,
+          "south": 37.78,
+          "east": -122.385
+        },
+        {
+          "id": "north-beach",
+          "milestone": "M1",
+          "name": "North Beach",
+          "north": 37.808,
+          "west": -122.417,
+          "south": 37.797,
+          "east": -122.403
+        },
+        {
+          "id": "embarcadero-north",
+          "milestone": "M1",
+          "name": "Embarcadero north: Telegraph Hill, Fisherman's Wharf, the northern piers",
+          "north": 37.812,
+          "west": -122.425,
+          "south": 37.795,
+          "east": -122.388
+        },
+        {
+          "id": "marina",
+          "milestone": "M1",
+          "name": "Marina",
+          "north": 37.81,
+          "west": -122.448,
+          "south": 37.798,
+          "east": -122.425
+        },
+        {
+          "id": "dogpatch",
+          "milestone": "M1",
+          "name": "Dogpatch (incl. 315 Pennsylvania Ave)",
+          "north": 37.766,
+          "west": -122.395,
+          "south": 37.755,
+          "east": -122.385
+        }
+      ],
+      "spawn": {
+        "$comment": "Spawn on the named street, at the point of it nearest to this lat/lon, heading along the road.",
+        "street": "THE EMBARCADERO",
+        "lat": 37.7951,
+        "lon": -122.3932,
+        "towardLat": 37.7995,
+        "towardLon": -122.3975
+      },
+      "sources": {
+        "buildings": "ynuv-fyni",
+        "streets": "3psu-pn9h",
+        "assessor": "wv5m-vpq2",
+        "assessorRollYear": 2025,
+        "businesses": "g8m3-pdis"
+      },
+      "probes": {
+        "$comment": "Named points whose building ids the build reports (report.json \"probes\"), so landmark placements can list replacesBuildingIds. Labels are addresses or public landmark names, never brands.",
+        "points": [
+          {
+            "id": "ferry-building",
+            "label": "Ferry Building clock tower (world origin)",
+            "lat": 37.7955,
+            "lon": -122.3937
+          },
+          {
+            "id": "415-mission",
+            "label": "415 Mission St tower (tallest, completed 2018)",
+            "lat": 37.7897,
+            "lon": -122.3972
+          },
+          {
+            "id": "600-montgomery",
+            "label": "600 Montgomery St pyramid",
+            "lat": 37.7952,
+            "lon": -122.4028
+          },
+          {
+            "id": "coit-tower",
+            "label": "Coit Tower, Telegraph Hill",
+            "lat": 37.8024,
+            "lon": -122.4058
+          },
+          {
+            "id": "saints-peter-and-paul",
+            "label": "Saints Peter and Paul Church, Washington Square",
+            "lat": 37.8003,
+            "lon": -122.4104
+          },
+          {
+            "id": "beach-st-pier",
+            "label": "Pier at The Embarcadero and Beach St (marketplace, sea-lion floats)",
+            "lat": 37.8087,
+            "lon": -122.4098
+          },
+          {
+            "id": "palace-of-fine-arts",
+            "label": "Palace of Fine Arts rotunda",
+            "lat": 37.8029,
+            "lon": -122.4484
+          },
+          {
+            "id": "315-pennsylvania",
+            "label": "315 Pennsylvania Ave, Dogpatch (east side of the 300 block; the 2025 roll lists 301 and 331)",
+            "lat": 37.76241,
+            "lon": -122.39325
+          }
+        ]
+      }
+    }
+  }
+}
