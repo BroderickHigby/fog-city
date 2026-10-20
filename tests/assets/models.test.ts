@@ -14,8 +14,10 @@ import {
   box,
   loadModel,
   materialPositions,
+  materialTriangles,
   mean,
   node,
+  nodeMaterials,
   nodePositions,
   sceneNodes,
   triangleCount,
@@ -45,6 +47,7 @@ const ROBOT_PARTS = [
   "leg_lower_L",
   "leg_lower_R",
   "bag",
+  "bag_contents",
 ];
 
 const SPECS: Spec[] = [
@@ -222,12 +225,35 @@ describe("muni-bus livery", () => {
     expect(Math.min(...uv.map((u) => u[1]!))).toBeCloseTo(0, 3);
     expect(Math.max(...uv.map((u) => u[1]!))).toBeCloseTo(1, 3);
     const pts = materialPositions(doc, "livery");
+    const extras = node(doc, "livery_panel").getExtras().livery as { aspect: number; sizeM: [number, number] };
+    const glass = materialTriangles(doc, "glass");
     for (const side of [-1, 1]) {
       const b = box(pts.filter((p) => p[0] * side > 0));
-      expect(b.size[2] * b.size[1], `side ${side} panel area`).toBeGreaterThan(3);
+      const [len, h] = [b.size[2], b.size[1]];
+      // the whole red lower body: tall enough for a headline and a subline
+      expect(h, `side ${side} panel height`).toBeGreaterThanOrEqual(0.7);
+      expect(len * h, `side ${side} panel area`).toBeGreaterThan(2.8);
+      expect(len / h, `side ${side} panel aspect`).toBeLessThan(7);
+      expect(Math.abs(len / h - extras.aspect) / extras.aspect).toBeLessThan(0.01);
+      expect(Math.abs(len - extras.sizeM[0])).toBeLessThan(0.01);
+      expect(Math.abs(h - extras.sizeM[1])).toBeLessThan(0.01);
+      // it covers no window or door on its side of the bus
+      for (const t of glass.filter((tri) => tri.every((p) => p[0] * side > 1.2))) {
+        const g = box(t);
+        const overlapZ = Math.min(g.max[2], b.max[2]) - Math.max(g.min[2], b.min[2]);
+        const overlapY = Math.min(g.max[1], b.max[1]) - Math.max(g.min[1], b.min[1]);
+        expect(overlapZ > 0.01 && overlapY > 0.01, `glass behind the side ${side} panel`).toBe(false);
+      }
     }
-    const mat = doc.getRoot().listMaterials().find((m) => m.getName() === "livery");
-    expect(mat?.getBaseColorTexture()).toBeTruthy();
+    // both sides share one texture, so they are the same size
+    const sides = [-1, 1].map((side) => box(pts.filter((p) => p[0] * side > 0)));
+    expect(Math.abs(sides[0]!.size[2] - sides[1]!.size[2])).toBeLessThan(0.01);
+    expect(Math.abs(sides[0]!.size[1] - sides[1]!.size[1])).toBeLessThan(0.01);
+    // the placeholder texture has the panel's aspect, so it is not stretched
+    const tex = doc.getRoot().listMaterials().find((m) => m.getName() === "livery")?.getBaseColorTexture();
+    expect(tex).toBeTruthy();
+    const [w, hpx] = tex!.getSize() ?? [0, 1];
+    expect(Math.abs(w / hpx - extras.aspect) / extras.aspect).toBeLessThan(0.02);
   });
 });
 
@@ -287,6 +313,27 @@ describe("errand-robot", () => {
     expect(bag.max[1]).toBeLessThan(elbow[1]);
     expect(bag.min[1]).toBeGreaterThan(0.1);
     expect(bag.center[0]).toBeGreaterThan(0.15);
+  });
+
+  it("keeps the groceries in their own child node of the bag (hide it for an empty bag)", async () => {
+    const { doc } = await loadModel("errand-robot.glb");
+    const bagNode = node(doc, "bag");
+    const contents = node(doc, "bag_contents");
+    expect(contents.getParentNode()?.getName()).toBe("bag");
+    expect(contents.getExtras().bagContents).toBe(true);
+    expect(nodeMaterials(bagNode).some((m) => m.startsWith("produce_"))).toBe(false);
+    const mats = nodeMaterials(contents);
+    expect(mats.length).toBeGreaterThan(0);
+    for (const m of mats) expect(m).toMatch(/^produce_/);
+    // the groceries sit in the bag's mouth: inside its footprint, poking out of the top
+    const bag = box(nodePositions(bagNode).filter((p) => p[1] < box(nodePositions(bagNode)).max[1] - 0.15));
+    const g = box(nodePositions(contents));
+    expect(g.max[1]).toBeGreaterThan(bag.max[1]);
+    expect(g.min[1]).toBeGreaterThan(bag.min[1]);
+    expect(g.center[0]).toBeGreaterThan(bag.min[0]);
+    expect(g.center[0]).toBeLessThan(bag.max[0]);
+    expect(g.center[2]).toBeGreaterThan(bag.min[2]);
+    expect(g.center[2]).toBeLessThan(bag.max[2]);
   });
 });
 
@@ -417,15 +464,29 @@ describe("ferry-building.glb", () => {
   it("has four dials whose hands turn about local +Z = the dial's outward normal", async () => {
     const { doc } = await loadModel("ferry-building.glb");
     const outward: Record<string, V3> = { N: [0, 0, -1], E: [1, 0, 0], S: [0, 0, 1], W: [-1, 0, 0] };
+    const heading = byId("ferry-building").headingDeg;
+    const turn: Record<string, number> = { N: 0, E: 90, S: 180, W: 270 };
     for (const f of ["N", "E", "S", "W"]) {
       for (const kind of ["hour", "minute"]) {
         const n = node(doc, `clock_${kind}_${f}`);
-        expect(n.getExtras().clockHand).toBe(kind);
-        expect(n.getExtras().clockAxis).toEqual([0, 0, 1]);
+        const ex = n.getExtras();
+        expect(ex.clockHand).toBe(kind);
+        expect(ex.clockAxis).toEqual([0, 0, 1]);
+        // N/E/S/W are model-frame names; the extras say so and give the placed world bearing
+        expect(ex.clockFace).toBe(f);
+        expect(ex.clockFaceFrame).toBe("model");
+        expect(ex.clockFaceNormal).toEqual(outward[f]);
+        expect(Math.abs((ex.clockFaceBearingDeg as number) - ((heading + turn[f]!) % 360))).toBeLessThan(0.11);
         const z = worldAxis(n, [0, 0, 1]);
         const y = worldAxis(n, [0, 1, 0]);
         const o = outward[f]!;
         expect(z[0] * o[0] + z[1] * o[1] + z[2] * o[2], `${f} ${kind} normal`).toBeGreaterThan(0.999);
+        // placed at the landmark heading, the dial's normal points along clockFaceBearingDeg
+        const h = (heading * Math.PI) / 180;
+        const dx = z[0] * Math.cos(h) - z[2] * Math.sin(h);
+        const dz = z[0] * Math.sin(h) + z[2] * Math.cos(h);
+        const placed = ((Math.atan2(dx, -dz) * 180) / Math.PI + 360) % 360;
+        expect(Math.abs((((placed - (ex.clockFaceBearingDeg as number)) % 360) + 540) % 360 - 180)).toBeLessThan(0.2);
         expect(y[1], `${f} ${kind} rests at 12`).toBeGreaterThan(0.999);
         // pivot at the dial centre on that face, ~37 m up
         const p = worldOrigin(n);

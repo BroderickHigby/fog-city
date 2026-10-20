@@ -12,8 +12,11 @@ Nodes:
     tower_outline_lights    emissive strips along the tower's edges (light_tower_outline)
     clock_hour_N/E/S/W      hands; origin at the dial centre, local +Z = the dial's outward
     clock_minute_N/E/S/W    normal, at rest pointing at 12 (extras clockHand, clockAxis)
-N/E/S/W are model-frame directions: N is the front dial (glTF -Z), E is +X (the model's
-right), S is the back (+Z), W is -X. With the landmark heading, the N dial faces Market St.
+N/E/S/W are MODEL-frame directions, not compass points: N is the front dial (glTF -Z), E is
++X (the model's right), S is the back (+Z), W is -X. Placed at the landmark heading (233.8),
+the N dial faces south-west up Market St. Each hand's extras say so: clockFaceFrame "model",
+clockFaceNormal (model frame), clockFaceBearingDeg and clockFaceCompass (the world direction
+the dial faces once placed, e.g. N -> 233.8 "SW").
 
 Budget: 100k triangles.
 """
@@ -476,9 +479,14 @@ def hand_mesh(length, width, tail, thick, mat) -> fc.MeshBuilder:
     return mb
 
 
+COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
+
 def build_hands(root) -> list:
     out = []
     face_rot = {"N": math.pi, "E": math.pi / 2, "S": 0.0, "W": -math.pi / 2}
+    face_normal = {"N": [0, 0, -1], "E": [1, 0, 0], "S": [0, 0, 1], "W": [-1, 0, 0]}  # glTF model frame
+    face_turn = {"N": 0.0, "E": 90.0, "S": 180.0, "W": 270.0}  # bearing = heading + turn
     face_pos = {
         "N": (0.0, TOWER_HALF + 0.12, CLOCK_Z),
         "E": (TOWER_HALF + 0.12, 0.0, CLOCK_Z),
@@ -500,6 +508,13 @@ def build_hands(root) -> list:
             ob["clockHand"] = kind
             ob["clockAxis"] = [0, 0, 1]
             ob["clockFace"] = f
+            # N/E/S/W name the dial in the MODEL frame; say so, and give the world direction
+            # each dial faces once the landmark is placed (heading from the footprint)
+            ob["clockFaceFrame"] = "model"
+            ob["clockFaceNormal"] = face_normal[f]
+            bearing = round((F["heading_deg"] + face_turn[f]) % 360.0, 1)
+            ob["clockFaceBearingDeg"] = bearing
+            ob["clockFaceCompass"] = COMPASS[int((bearing + 22.5) // 45) % 8]
             out.append(ob)
     return out
 

@@ -23,7 +23,7 @@
         [22.56, 2.05],
         [100.92, 2.01]
       ],
-      "source": "Origin = clock tower centre; footprint and heading from DataSF building footprints (ynuv-fyni) sf16_bldgid 201006.0000058. See assets/blender/README.md."
+      "source": "Origin = clock tower centre; footprint and heading from DataSF building footprints (ynuv-fyni) sf16_bldgid 201006.0000058. Clock nodes clock_*_N/E/S/W name MODEL-frame dials (N = front, -Z), not compass points; placed here they face N 233.8 (SW), E 323.8 (NW), S 53.8 (NE), W 143.8 (SE). See assets/blender/README.md."
     },
     {
       "id": "r-evolution",

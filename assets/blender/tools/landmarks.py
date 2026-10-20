@@ -66,6 +66,16 @@ def simplify(ring: list[tuple[float, float]], tol: float) -> list[tuple[float, f
     return a[:-1] + b[:-1]
 
 
+def dials(heading: float) -> str:
+    """Where each model-frame dial faces once placed: 'N 233.8 (SW), E 323.8 (NW), ...'."""
+    names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    out = []
+    for face, turn in (("N", 0.0), ("E", 90.0), ("S", 180.0), ("W", 270.0)):
+        b = round((heading + turn) % 360.0, 1)
+        out.append(f"{face} {b} ({names[int((b + 22.5) // 45) % 8]})")
+    return ", ".join(out)
+
+
 def r2(v: float) -> float:
     return round(v, 2)
 
@@ -90,7 +100,9 @@ def main() -> None:
                 "replacesBuildingIds": [f["bldg_id"], f["bldg_id"] + "-tower"],
                 "collider": [[r2(x), r2(z)] for x, z in ring],
                 "source": "Origin = clock tower centre; footprint and heading from DataSF building "
-                "footprints (ynuv-fyni) sf16_bldgid " + f["bldg_id"] + ". See assets/blender/README.md.",
+                "footprints (ynuv-fyni) sf16_bldgid " + f["bldg_id"] + ". Clock nodes clock_*_N/E/S/W name "
+                "MODEL-frame dials (N = front, -Z), not compass points; placed here they face " + dials(f["heading_deg"])
+                + ". See assets/blender/README.md.",
             },
             {
                 "id": "r-evolution",

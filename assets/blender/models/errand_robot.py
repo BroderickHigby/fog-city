@@ -2,13 +2,14 @@
 
 A 1.6 m humanoid helper with a clean white pebble-smooth shell, graphite joints, a dark visor
 with one soft face light (light_face, emissive) and a small battery pack. It carries a paper
-grocery tote (node "bag", a child of the right forearm). Designed for procedural animation:
+grocery tote (node "bag", a child of the right forearm) with its groceries as a child node
+"bag_contents" (hide it for an empty bag). Designed for procedural animation:
 every rigid part is its own node with its origin at the joint it turns about.
 
   errand_robot (root, ground)
     torso (hip centre)
       head (neck base)
-      arm_upper_L/R (shoulder) -> arm_lower_L/R (elbow) [-> bag on R]
+      arm_upper_L/R (shoulder) -> arm_lower_L/R (elbow) [-> bag -> bag_contents on R]
       leg_upper_L/R (hip joint) -> leg_lower_L/R (knee)
 
 L/R are the robot's own left/right: left is -X. Rest pose: standing, arms down. Rotating a
@@ -129,12 +130,18 @@ def build_bag(parent, paper, green, bread, handle_mat):
     # handles from the rim up to the grip
     for sy in (1, -1):
         b.cyl_between((x0, sy * 0.08, top), (0.0, sy * 0.012, -0.01), 0.008, 5, handle_mat, caps=False)
-    # groceries: leafy greens and a baguette
-    b.sphere((x0, 0.06, top + 0.01), 0.06, 10, 5, green)
-    b.sphere((x0 - 0.02, 0.0, top + 0.03), 0.05, 10, 5, green)
-    b.capsule((x0 + 0.02, -0.09, top - 0.05), (x0 + 0.03, -0.12, top + 0.17), 0.028, 0.026, bread, seg=8, rings=2)
     bag = b.build("bag", parent=parent, location=(0.0, 0.005, -FOREARM - 0.05))
     bag["carried"] = True
+    # groceries: leafy greens and a baguette, their own node (origin at the bag's mouth) so the
+    # renderer can show an empty bag by hiding bag_contents
+    g = fc.MeshBuilder()
+    g.push(Matrix.Translation((-x0, 0.0, -top)))
+    g.sphere((x0, 0.06, top + 0.01), 0.06, 10, 5, green)
+    g.sphere((x0 - 0.02, 0.0, top + 0.03), 0.05, 10, 5, green)
+    g.capsule((x0 + 0.02, -0.09, top - 0.05), (x0 + 0.03, -0.12, top + 0.17), 0.028, 0.026, bread, seg=8, rings=2)
+    g.pop()
+    contents = g.build("bag_contents", parent=bag, location=(x0, 0.0, top))
+    contents["bagContents"] = True
     return bag
 
 

@@ -5,9 +5,11 @@ roof pods instead of an exhaust stack. Two right-hand doors (front, centre), a b
 windscreen, a dark destination sign over it (light_destination_sign, emissive, blank: the
 renderer can draw on it), red lower body and front, white window band. No logos, no text.
 
-The large ad panel on each side between the axles uses its own material named "livery"
-with UVs spanning the panel 0..1 (u along the bus as seen from outside, v up), so the
-renderer can swap in generated ad textures. The default texture is an abstract placeholder.
+The large ad panel on each side covers the whole red lower body from the rear wheel arch to
+the centre door: 4.22 x 0.74 m (aspect 5.70:1), the same span on both sides so one texture
+fits both. It uses its own material named "livery" with UVs spanning each panel 0..1 (u along
+the bus as seen from outside, v up), so the renderer can swap in generated ad textures. The
+default texture is an abstract placeholder written at the panel's aspect (1024 x 180 px).
 
 Nodes: muni_bus (root, ground, body centre), body, livery_panel (both ad panels; the only
 mesh with UVs), wheel_FL/FR/RL/RR (origin at the hub, spin about local X). Front faces glTF -Z. Budget: 12k triangles.
@@ -34,25 +36,31 @@ Y_F, Y_R = 3.75, -3.45  # axles (front overhang 2.35, rear 2.65)
 Z_FLOOR = 0.32
 Z_WIN0, Z_WIN1 = 1.20, 2.55
 ARCH_R = 0.58
-PANEL = (-2.55, 2.75, 0.50, 1.10)  # livery panel: y0, y1, z0, z1
+# livery panel: y0, y1, z0, z1. Lengthwise from just ahead of the rear wheel arch (which ends
+# at Y_R + ARCH_R = -2.87) to just behind the centre door (1.55), so it never covers the door;
+# heightwise the red lower body from the skirt to the window-line strip (1.14).
+PANEL = (-2.80, 1.42, 0.38, 1.12)
+PANEL_ASPECT = (PANEL[1] - PANEL[0]) / (PANEL[3] - PANEL[2])
+LIVERY_PX = (1024, round(1024 / PANEL_ASPECT))  # placeholder at the panel's own aspect
 TEX_DIR = os.path.join(fc.BLENDER_DIR, ".cache", "textures")
 
 
 def livery_png(path):
-    """Abstract placeholder ad: soft gradient, two circles and bars. No words, no marks."""
+    """Abstract placeholder ad: soft gradient, two circles and bars. No words, no marks.
+    Written at the panel's aspect, so the circles stay round on the bus."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    w, h = 512, 128
+    w, h = LIVERY_PX
     y, x = np.mgrid[0:h, 0:w].astype(np.float32)
     u, v = x / w, 1 - y / h
     r = 0.12 + 0.55 * u
     g = 0.20 + 0.35 * (1 - u) + 0.1 * v
     b = 0.55 + 0.35 * v
-    for cx, cy, rad, col in ((0.18, 0.52, 0.36, (1.0, 0.85, 0.35)), (0.27, 0.40, 0.22, (1.0, 0.45, 0.3))):
+    for cx, cy, rad, col in ((0.11, 0.52, 0.36, (1.0, 0.85, 0.35)), (0.17, 0.40, 0.22, (1.0, 0.45, 0.3))):
         d = np.sqrt(((u - cx) * w / h) ** 2 + (v - cy) ** 2)
         m = (d < rad).astype(np.float32)
         r, g, b = r * (1 - m) + col[0] * m, g * (1 - m) + col[1] * m, b * (1 - m) + col[2] * m
     for k, (y0, y1, x1) in enumerate(((0.62, 0.74, 0.86), (0.42, 0.50, 0.74), (0.26, 0.33, 0.66))):
-        m = ((u > 0.48) & (u < x1) & (v > y0) & (v < y1)).astype(np.float32)
+        m = ((u > 0.30) & (u < x1) & (v > y0) & (v < y1)).astype(np.float32)
         r, g, b = r * (1 - m) + 0.98 * m, g * (1 - m) + 0.98 * m, b * (1 - m) + 0.98 * m
     img = bpy.data.images.new("livery_placeholder", w, h, alpha=False)
     rgba = np.stack([r, g, b, np.ones_like(r)], axis=-1)
@@ -198,7 +206,8 @@ def main() -> None:
     body.build("body", parent=root, sharp_angle=40)
     panel = lv.build("livery_panel", parent=root)
     panel["livery"] = {"material": "livery", "uv": "0..1 per side, u left to right as seen from outside, v up",
-                       "aspect": round((y1 - y0) / (z1 - z0), 3)}
+                       "aspect": round(PANEL_ASPECT, 3), "sizeM": [round(y1 - y0, 3), round(z1 - z0, 3)],
+                       "placeholderPx": list(LIVERY_PX)}
 
     for name, y, sx, ww in (("wheel_FL", Y_F, -1, 0.30), ("wheel_FR", Y_F, 1, 0.30), ("wheel_RL", Y_R, -1, 0.56), ("wheel_RR", Y_R, 1, 0.56)):
         V.wheel(name, WR, ww, tire, rim, hub=dark, seg=18, spokes=8, side=sx, parent=root,
