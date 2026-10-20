@@ -1,0 +1,386 @@
+// Shared materials, the San Francisco fog, and the day/night switch.
+//
+// Fog: three's fog chunks are replaced once, globally, with a height fog: density falls off
+// exponentially with altitude (thick at street level and over the water, thin on hilltops)
+// plus a distance term so everything past ~1.5 km dissolves (which also hides tile
+// streaming). It tints toward the sun's colour when looking into the sun. Every material
+// gets the extra uniforms through Material.prototype.onBeforeCompile; a material compiled
+// without them (all zeros) degrades to plain exponential fog, never to an error.
+//
+// Night: one uniform (fcNight, 0..1) drives lit windows in the building shader; lamp and
+// window materials read it too. Changing it never recompiles anything.
+
+import * as THREE from "three";
+
+export interface FogSettings {
+  /** Base density at ground level (1/m). */
+  density: number;
+  /** Height falloff (1/m): density halves every ln(2)/falloff metres up. */
+  falloff: number;
+  /** Altitude where density equals `density`. */
+  baseY: number;
+  /** Distance term: optical depth grows as (d * distK)^2. */
+  distK: number;
+}
+
+/** Shared uniforms injected into every material (values are mutated, never replaced). */
+export const fcUniforms = {
+  /** x falloff, y baseY, z unused, w distK */
+  fcFogParams: { value: new THREE.Vector4(0.012, 0, 0, 1 / 1500) },
+  /** xyz direction towards the sun (world), w inscatter strength */
+  fcSunDir: { value: new THREE.Vector4(-0.9, 0.12, -0.2, 0.75) },
+  /** Display-space colour of fog lit by the sun. */
+  fcSunFog: { value: new THREE.Vector3(1, 0.8, 0.6) },
+  fcNight: { value: 0 },
+  fcTime: { value: 0 },
+};
+
+const FOG_PARS_VERTEX = /* glsl */ `
+#ifdef USE_FOG
+  varying vec3 vFcFogRel;
+#endif
+`;
+
+const FOG_VERTEX = /* glsl */ `
+#ifdef USE_FOG
+  // World-space vector from the camera to this vertex (view rotation is orthonormal).
+  vFcFogRel = transpose( mat3( viewMatrix ) ) * mvPosition.xyz;
+#endif
+`;
+
+const FOG_PARS_FRAGMENT = /* glsl */ `
+#ifdef USE_FOG
+  uniform vec3 fogColor;
+  varying vec3 vFcFogRel;
+  uniform vec4 fcFogParams;
+  uniform vec4 fcSunDir;
+  uniform vec3 fcSunFog;
+  #ifdef FOG_EXP2
+    uniform float fogDensity;
+  #else
+    uniform float fogNear;
+    uniform float fogFar;
+  #endif
+  float fcFogAmount( vec3 rel, float camY ) {
+    float dist = length( rel );
+    #ifdef FOG_EXP2
+      float b = fcFogParams.x;
+      float h = camY - fcFogParams.y;
+      float t = b * rel.y;
+      float base = fogDensity * exp( - clamp( b * h, -20.0, 20.0 ) );
+      float optical = abs( t ) > 1e-4 ? base * ( 1.0 - exp( - t ) ) / t * dist : base * dist;
+      float dk = dist * fcFogParams.w;
+      optical += dk * dk;
+      return 1.0 - exp( - max( optical, 0.0 ) );
+    #else
+      return smoothstep( fogNear, fogFar, dist );
+    #endif
+  }
+  vec3 fcFogTint( vec3 dir ) {
+    float s = pow( max( dot( dir, fcSunDir.xyz ), 0.0 ), 6.0 ) * fcSunDir.w;
+    return mix( fogColor, fcSunFog, clamp( s, 0.0, 1.0 ) );
+  }
+#endif
+`;
+
+const FOG_FRAGMENT = /* glsl */ `
+#ifdef USE_FOG
+  float fogFactor = fcFogAmount( vFcFogRel, cameraPosition.y );
+  gl_FragColor.rgb = mix( gl_FragColor.rgb, fcFogTint( normalize( vFcFogRel ) ), fogFactor );
+#endif
+`;
+
+let patched = false;
+
+/** Replace three's fog chunks and give every material the shared uniforms. Idempotent. */
+export function installFog(): void {
+  if (patched) return;
+  patched = true;
+  THREE.ShaderChunk.fog_pars_vertex = FOG_PARS_VERTEX;
+  THREE.ShaderChunk.fog_vertex = FOG_VERTEX;
+  THREE.ShaderChunk.fog_pars_fragment = FOG_PARS_FRAGMENT;
+  THREE.ShaderChunk.fog_fragment = FOG_FRAGMENT;
+  THREE.Material.prototype.onBeforeCompile = function (shader: THREE.WebGLProgramParametersWithUniforms) {
+    injectUniforms(shader);
+  };
+}
+
+export function injectUniforms(shader: { uniforms: Record<string, THREE.IUniform> }): void {
+  Object.assign(shader.uniforms, fcUniforms);
+}
+
+export function setFog(f: FogSettings, fog: THREE.FogExp2): void {
+  fog.density = f.density;
+  fcUniforms.fcFogParams.value.set(f.falloff, f.baseY, 0, f.distK);
+}
+
+// ---------------------------------------------------------------------------------------
+// Buildings: vertex colours, procedural windows from (uv, _facade), lit at night.
+//
+// _facade (vec4, normalized bytes): x storey height / 8 m, y glazing 0..1, z (year - 1840)
+// / 190 or 0, w roof flag. fcGrid mirrors facadeGrid() in tile-geometry.ts (the offline
+// builder snaps wall u to whole columns with it). A geometry without _facade reads
+// (0, 0, 0, 1): no windows.
+
+const BUILDING_VERTEX_PARS = /* glsl */ `
+attribute vec4 _facade;
+varying vec2 vFcUv;
+varying vec4 vFcFacade;
+`;
+
+const BUILDING_FRAGMENT_PARS = /* glsl */ `
+varying vec2 vFcUv;
+varying vec4 vFcFacade;
+uniform float fcNight;
+float fcHash( vec2 p ) {
+  p = fract( p * vec2( 123.34, 456.21 ) );
+  p += dot( p, p + 45.32 );
+  return fract( p.x * p.y );
+}
+float fcBand( float lo, float hi, float x, float w ) {
+  return smoothstep( lo - w, lo + w, x ) - smoothstep( hi - w, hi + w, x );
+}
+// x colW, y floorH, z lit fraction, w shop band height; win = window rect in the cell.
+vec4 fcGrid( float storeyM, float g, out vec4 win ) {
+  float floorH = clamp( storeyM, 2.6, 8.0 );
+  float colW = g < 0.2 ? 6.0 : mix( 3.2, 1.7, smoothstep( 0.2, 0.9, g ) );
+  float ww = mix( 0.42, 0.9, g );
+  float wh = mix( 0.42, 0.82, g );
+  float y0 = 0.08 + 0.2 * ( 1.0 - g );
+  win = vec4( 0.5 - ww * 0.5, 0.5 + ww * 0.5, y0, min( 0.96, y0 + wh ) );
+  float shopH = g >= 0.8 ? 5.0 : ( g >= 0.35 ? max( floorH, 3.8 ) : 0.0 );
+  return vec4( colW, floorH, mix( 0.36, 0.2, g ), shopH );
+}
+`;
+
+/** Computes window coverage, adjusts albedo/roughness, adds night emission. */
+const BUILDING_FRAGMENT = /* glsl */ `
+  float fcWin = 0.0;
+  float fcLit = 0.0;
+  vec3 fcLightCol = vec3( 1.0, 0.72, 0.42 );
+  float fcGlaze = vFcFacade.y;
+  if ( vFcFacade.w < 0.5 && fcGlaze > 0.04 ) {
+    vec4 win;
+    vec4 grid = fcGrid( vFcFacade.x * 8.0, fcGlaze, win );
+    // Before ~1910: narrower, taller sash windows.
+    if ( vFcFacade.z > 0.01 && vFcFacade.z < 0.37 ) win = vec4( 0.5 + ( win.xy - 0.5 ) * 0.78, win.z * 0.8, min( 0.95, win.w + 0.06 ) );
+    vec2 cell = grid.xy;
+    bool shop = grid.w > 0.0 && vFcUv.y < grid.w && vFcUv.y > 0.0;
+    if ( shop ) { cell = vec2( grid.x * 2.0, grid.w ); win = vec4( 0.08, 0.92, 0.12, 0.8 ); }
+    vec2 g = vFcUv / cell;
+    vec2 f = fract( g );
+    vec2 id = floor( g );
+    vec2 fw = fwidth( g );
+    float w = fcBand( win.x, win.y, f.x, fw.x * 0.75 ) * fcBand( win.z, win.w, f.y, fw.y * 0.75 );
+    float avg = ( win.y - win.x ) * ( win.w - win.z );
+    float far = smoothstep( 0.3, 0.75, max( fw.x, fw.y ) );
+    w = mix( w, avg, far );
+    // No windows below the first storey line on non-shop facades, or under ground.
+    if ( !shop && vFcUv.y < max( grid.w, 0.8 ) ) w = 0.0;
+    if ( vFcUv.y < 0.0 ) w = 0.0;
+    fcWin = w;
+    float h = fcHash( id + vec2( floor( fcGlaze * 31.0 ) * 17.0, 0.0 ) );
+    // Occupancy comes in clusters (a flat, an office floor), not salt and pepper.
+    float cluster = fcHash( floor( id / vec2( 5.0, 3.0 ) ) + 7.3 );
+    float litFrac = shop ? 0.75 : grid.z * ( 0.35 + 1.3 * cluster );
+    float on = step( 1.0 - litFrac, h );
+    // Far away, a smooth and dimmer average: clusters would read as blotches.
+    fcLit = mix( on, ( shop ? 0.6 : grid.z ) * 0.22, far ) * w;
+    float tone = fcHash( id * 1.7 + 3.1 );
+    fcLightCol = tone > 0.82 ? vec3( 0.75, 0.86, 1.0 ) : ( tone > 0.55 ? vec3( 1.0, 0.85, 0.6 ) : vec3( 1.0, 0.7, 0.4 ) );
+    if ( shop ) fcLightCol = vec3( 1.0, 0.82, 0.55 );
+    // Glass reads darker and bluer by day; the environment map supplies reflections.
+    vec3 glass = mix( vec3( 0.035, 0.05, 0.065 ), vec3( 0.06, 0.07, 0.08 ), tone );
+    diffuseColor.rgb = mix( diffuseColor.rgb, glass, w * 0.9 );
+  }
+`;
+
+const BUILDING_ROUGHNESS = /* glsl */ `
+  roughnessFactor = mix( roughnessFactor, 0.12, fcWin );
+`;
+
+const BUILDING_EMISSIVE = /* glsl */ `
+  totalEmissiveRadiance += fcLightCol * fcLit * fcNight * 1.7;
+`;
+
+function patchBuildingShader(shader: THREE.WebGLProgramParametersWithUniforms): void {
+  injectUniforms(shader);
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", `#include <common>\n${BUILDING_VERTEX_PARS}`)
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcUv = uv;\n  vFcFacade = _facade;");
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", `#include <common>\n${BUILDING_FRAGMENT_PARS}`)
+    .replace("#include <color_fragment>", `#include <color_fragment>\n${BUILDING_FRAGMENT}`)
+    .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>\n${BUILDING_ROUGHNESS}`)
+    .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${BUILDING_EMISSIVE}`);
+}
+
+/** Vertex-coloured ground/road material with a little procedural grain so big flat areas are not dead. */
+const GRAIN_PARS = /* glsl */ `
+varying vec3 vFcWorld;
+float fcN( vec2 p ) {
+  vec2 i = floor( p ); vec2 f = fract( p );
+  float a = fract( sin( dot( i, vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+  float b = fract( sin( dot( i + vec2( 1.0, 0.0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+  float c = fract( sin( dot( i + vec2( 0.0, 1.0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+  float d = fract( sin( dot( i + vec2( 1.0, 1.0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+  vec2 u = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( a, b, u.x ), mix( c, d, u.x ), u.y );
+}
+`;
+
+function patchGrainShader(amount: number, scale: number) {
+  return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
+    injectUniforms(shader);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vFcWorld;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\n  vFcWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\n${GRAIN_PARS}`)
+      .replace(
+        "#include <color_fragment>",
+        `#include <color_fragment>
+  float fcG = fcN( vFcWorld.xz * ${scale.toFixed(3)} ) * 0.6 + fcN( vFcWorld.xz * ${(scale * 7.3).toFixed(3)} ) * 0.4;
+  diffuseColor.rgb *= 1.0 + ( fcG - 0.5 ) * ${amount.toFixed(3)};`,
+      );
+  };
+}
+
+// Road ribbons that carry TEXCOORD_0 = (0 at the left kerb .. 1 at the right kerb, metres
+// along the edge), as the pipeline writes them: kerb strips and dashed lines are drawn from
+// the UVs, since such tiles have no marking geometry.
+const ROAD_UV_FRAGMENT = (freeway: boolean): string => /* glsl */ `
+  {
+    vec2 ruv = vFcRoadUv;
+    // Metres per unit of u (the ribbon's width) from screen-space derivatives: solve
+    // dP = P_u du + P_v dv for P_u. Clamped, since it is noisy at grazing angles.
+    vec3 dpx = dFdx( vFcWorld );
+    vec3 dpy = dFdy( vFcWorld );
+    vec2 dux = dFdx( ruv );
+    vec2 duy = dFdy( ruv );
+    float det = dux.x * duy.y - duy.x * dux.y;
+    float widthM = abs( det ) > 1e-9 ? length( ( dpx * duy.y - dpy * dux.y ) / det ) : 12.0;
+    widthM = clamp( widthM, 4.0, 60.0 );
+    float fu = fwidth( ruv.x ) * 0.8 + 1e-4;
+    float kerbU = 0.35 / widthM;
+    float kerb = 1.0 - smoothstep( kerbU - fu, kerbU + fu, min( ruv.x, 1.0 - ruv.x ) );
+    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.25, 0.245, 0.235 ), kerb * 0.85 );
+    float dash = step( fract( ruv.y / ${freeway ? "12.0" : "9.0"} ), 0.42 );
+    float halfU = 0.07 / widthM;
+    float line = 0.0;
+    ${
+      freeway
+        ? "for ( int k = 1; k < 3; k++ ) { float c = float( k ) / 3.0; line = max( line, 1.0 - smoothstep( halfU, halfU + fu, abs( ruv.x - c ) ) ); }"
+        : "line = widthM > 7.0 ? 1.0 - smoothstep( halfU, halfU + fu, abs( ruv.x - 0.5 ) ) : 0.0;"
+    }
+    float far = smoothstep( 0.02, 0.06, fu );
+    diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.72, 0.71, 0.66 ), line * dash * ( 1.0 - far ) );
+  }
+`;
+
+function patchRoadUvShader(freeway: boolean) {
+  const grain = patchGrainShader(0.16, 0.35);
+  return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
+    grain(shader);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vFcRoadUv;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcRoadUv = uv;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vFcRoadUv;")
+      .replace("#include <color_fragment>", `#include <color_fragment>\n${ROAD_UV_FRAGMENT(freeway)}`);
+  };
+}
+
+export interface SharedMaterials {
+  building: THREE.MeshStandardMaterial;
+  /** For building meshes shipped without normals (flat shading from screen derivatives). */
+  buildingFlat: THREE.MeshStandardMaterial;
+  ground: THREE.MeshStandardMaterial;
+  road: THREE.MeshStandardMaterial;
+  /** Road and freeway ribbons with kerb-to-kerb UVs (pipeline tiles). */
+  roadUv: THREE.MeshStandardMaterial;
+  freewayUv: THREE.MeshStandardMaterial;
+  foliage: THREE.MeshStandardMaterial;
+  lampPole: THREE.MeshStandardMaterial;
+  lampHead: THREE.MeshStandardMaterial;
+  /** Every shared material, for disposal. */
+  all: THREE.Material[];
+}
+
+function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithUniforms) => void): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, name });
+  m.onBeforeCompile = patch;
+  m.customProgramCacheKey = () => `${name}:v1`;
+  m.polygonOffset = true;
+  m.polygonOffsetFactor = -1;
+  m.polygonOffsetUnits = -2;
+  return m;
+}
+
+export function createSharedMaterials(): SharedMaterials {
+  installFog();
+  const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
+  building.onBeforeCompile = patchBuildingShader;
+  building.customProgramCacheKey = () => "fc:building:v2";
+  const buildingFlat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, flatShading: true, name: "fc:building-flat" });
+  buildingFlat.onBeforeCompile = patchBuildingShader;
+  buildingFlat.customProgramCacheKey = () => "fc:building:v2";
+
+  const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground" });
+  ground.onBeforeCompile = patchGrainShader(0.22, 0.08);
+  ground.customProgramCacheKey = () => "fc:ground:v1";
+
+  const road = roadMaterial("fc:road", patchGrainShader(0.16, 0.35));
+  const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false));
+  const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true));
+
+  const foliage = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: true, name: "fc:foliage" });
+  const lampPole = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6, metalness: 0.5, name: "fc:lamp-pole" });
+  const lampHead = new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.4, metalness: 0.1, emissive: 0xffb466, emissiveIntensity: 0, name: "fc:lamp-head" });
+  return {
+    building,
+    buildingFlat,
+    ground,
+    road,
+    roadUv,
+    freewayUv,
+    foliage,
+    lampPole,
+    lampHead,
+    all: [building, buildingFlat, ground, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+  };
+}
+
+export type TileLayer = "building" | "ground" | "road" | "freeway" | "foliage";
+
+/**
+ * Which layer a mesh in a tile glb belongs to, from its material name or its node name
+ * ("buildings", "ground"/"terrain", "roads"/"streets", "freeways", "foliage"/"trees").
+ * Tiles from this repo's dev-city builder and from the pipeline both use these names.
+ */
+export function tileLayer(materialName: string, nodeName: string): TileLayer | null {
+  for (const n of [materialName.toLowerCase(), nodeName.toLowerCase()]) {
+    if (/^buildings?(?![a-z])/.test(n)) return "building";
+    if (/^(ground|terrain)(?![a-z])/.test(n)) return "ground";
+    if (/^(freeways?|ramps?)(?![a-z])/.test(n)) return "freeway";
+    if (/^(roads?|streets?)(?![a-z])/.test(n)) return "road";
+    if (/^(foliage|trees?)(?![a-z])/.test(n)) return "foliage";
+  }
+  return null;
+}
+
+/** The shared material for a tile mesh of a given layer, chosen by what its geometry carries. */
+export function materialFor(m: SharedMaterials, layer: TileLayer, geo: { hasNormals: boolean; hasUv: boolean }): THREE.Material {
+  switch (layer) {
+    case "building":
+      return geo.hasNormals ? m.building : m.buildingFlat;
+    case "ground":
+      return m.ground;
+    case "road":
+      return geo.hasUv ? m.roadUv : m.road;
+    case "freeway":
+      return geo.hasUv ? m.freewayUv : m.road;
+    case "foliage":
+      return m.foliage;
+  }
+}
