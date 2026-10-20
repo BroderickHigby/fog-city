@@ -1,0 +1,814 @@
+{
+  "version": 1,
+  "$comment": "Wet barks (docs/ai-layer.md [neighbourhood-barks], the wave-2 hundred): what a standing adult says when the player's stream wets them. Annoyance only, never distress; plain English, no accent spelling, no ethnicity. Children, seated or lying people, mobility-aid users and animals never get wet, so they never say these.",
+  "pool": "wet",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:7356ae09",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "barks": [
+    {
+      "id": "wet-commuter-01",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Hey! I'm not a robot!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-02",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Really? I'm on my way to a meeting.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-03",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "This is a dry-clean-only jacket. Was.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-04",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Water. On my commute. Great.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-05",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Do I look rust-prone to you?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-06",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "I have a call in five minutes and now I have a call in a towel.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-07",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Watch where you point that thing!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-08",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "My laptop bag is now a laptop pond.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-09",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "I'm sending you my dry-cleaning bill.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-10",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "That's one way to start a Tuesday.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-11",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "I was having a perfectly dry morning.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-12",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Excuse me, I'm a person. With socks. Wet socks.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-13",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Is this a new kind of networking event?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-14",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "My train ticket is soggy. Thanks.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-15",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Seriously? I just dried off from the fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-16",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "I'm going to be the damp one in the meeting now.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-17",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Point it at the robots! The robots!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-18",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Wow. Okay. Wow.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-19",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "Do you have a towel? You owe me a towel.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-commuter-20",
+      "speaker": "commuter",
+      "context": "wet",
+      "mood": "annoyed",
+      "text": "I can't believe this was the wettest part of my day.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-01",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Cool. I'll file a bug.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-02",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Did you just A/B test me with a hose?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-03",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "This hoodie is not water-resistant. It's water-aware now.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-04",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Love the energy. Hate the moisture.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-05",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "My badge still works, right? Right?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-06",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "That's not a feature. That's a regression.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-07",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "I'm not the bad robot. I'm a product manager.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-08",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Great, now my fleece is a sponge.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-09",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Please add a confirmation dialog to that thing.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-10",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "You just soaked my keynote notes.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-11",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Should've shipped a splash seal for people.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-12",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "That's going in the retro.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-13",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "My laptop survived a launch. It may not survive you.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-14",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "I wasn't even standing near a robot. I was standing near a latte.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-15",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Strong opinions, loosely aimed.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-16",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "Okay, who's scoping your aim? We need to talk.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-17",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "I'm going to need a minute. And a dryer.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-18",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "That is not how you onboard someone.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-19",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "My standup is in ten minutes. I'm a sitdown now.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-techWorker-20",
+      "speaker": "techWorker",
+      "context": "wet",
+      "mood": "sarcastic",
+      "text": "I see you've chosen chaos as your stack.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-01",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Is this part of the tour?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-02",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Nobody told me San Francisco had a splash zone.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-03",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "My map is soaked. Where am I?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-04",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "I came for the fog, not the hose.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-05",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Hey! I just bought this sweatshirt!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-06",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Is this a local custom? It's not a good one.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-07",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "I paid for the cable car, not the car wash.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-08",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Okay, that's going in my review.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-09",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Excuse me, which way to somewhere dry?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-10",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "The guidebook said layers. It did not say this.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-11",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "My camera! It's fine. I'm fine. We're fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-12",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "So that's why everyone wears jackets here.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-13",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "I think I'm the wettest tourist on this street.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-14",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Was that on purpose? Don't answer that.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-15",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "I wanted a souvenir, not a soaking.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-16",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "At least the sourdough is still dry.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-17",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Ha. Very funny. Very wet.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-18",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "Now I know what the robots feel like.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-19",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "This is the most local thing that's happened to me.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-tourist-20",
+      "speaker": "tourist",
+      "context": "wet",
+      "mood": "bemused",
+      "text": "I'm writing a postcard about this, and it's going to be soggy.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-01",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Every week. Every single week.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-02",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "I live here. I'm already damp from the fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-03",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "You missed the robot by three metres and me by zero.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-04",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Thanks. My plants were jealous of the rain.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-05",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "I was waiting for the bus. Now I'm waiting for the bus, wet.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-06",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "This is a hat, not a target.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-07",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Ah yes. The famous San Francisco summer.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-08",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "I'll add it to the list of things that happened today.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-09",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Next time, aim with your eyes open.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-10",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "My groceries are fine. I'm the one who's soaked.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-11",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Nice stream. Wrong audience.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-12",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "I've been rained on, fogged on, and now this.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-13",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Could you not? Thank you.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-14",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "I'm going home to change. Again.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-15",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Wet again. Classic.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-16",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Do you know how long it takes jeans to dry here? Days.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-17",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "You're lucky I like this neighbourhood.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-18",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "My dog walker's going to laugh at me.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-19",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Bold choice, spraying the one person on the block.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-local-20",
+      "speaker": "local",
+      "context": "wet",
+      "mood": "deadpan",
+      "text": "Sure. Why not. Hose the neighbour.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-01",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Hey! Not the menu board!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-02",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "The awning was supposed to keep me dry.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-03",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "That's my till! Okay, it's fine. It's waterproof. Mostly.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-04",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "I sell coffee, not iced coffee!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-05",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Now my apron's soaked. Please buy something.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-06",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "You owe me a squeegee.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-07",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Next time spray the sign-spinner, not the shopkeeper.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-08",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "I just mopped this whole doorway.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-09",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Every customer gets a free shower now, apparently.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-10",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "The pastries are fine. I'm fine. Go away. Kindly.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-11",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Watch the display! The display is my livelihood!",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-12",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "I'm going to need a minute behind the counter.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-13",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Was that for me or the robot? Either way, stop.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-14",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Dripping on the receipts. Wonderful.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-15",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Okay. Okay. Deep breath. Wet breath.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-16",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Can you aim at something that rusts, please?",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-17",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "I have a business to run and now it's a damp one.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-18",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "That's coming out of your next order.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-19",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "I'll be wiping this window till noon.",
+      "maxLength": 90
+    },
+    {
+      "id": "wet-vendor-20",
+      "speaker": "vendor",
+      "context": "wet",
+      "mood": "exasperated",
+      "text": "Do I look like I need a rinse?",
+      "maxLength": 90
+    }
+  ]
+}

@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "dogpatch",
+  "$comment": "District content pack for Dogpatch (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:67d9abd8",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "dogpatch-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Parts delivery to Pier 70. Bolts, bearings, one very nice wrench.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "3rd St on a sunny day. Dogpatch always gets the sun.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The old shipyard cranes are tall. I look up. Respectfully.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a sourdough loaf to a workshop. They work better fed.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Illinois St is wide and quiet. Perfect for a careful robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Coffee for the makers on 22nd St. Black, all of them.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The light rail goes by. I wait. It's bigger than me.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lumber offcuts to a studio on Tennessee St. Long and wobbly.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Pier 70 smells like paint and the bay.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Twentieth St is one of my favourite hills. A small one.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a bicycle wheel. It wants to roll. I won't let it.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Sunshine on Dogpatch while the rest of the city is fogged in.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The workshops are loud. I hum along quietly.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Pizza for the late shift at the warehouse lofts.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Waiting at 3rd and 22nd. The light rail always wins.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a ceramic vase. Every pothole is a test.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a car part to the tuning bench. Very exciting part.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Holding the studio door for a sculpture on a trolley. After you, sculpture.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! The forklift and I both wanted this doorway.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, coming through with a long plank. Sorry about the plank.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, I'm waiting for the light rail. So is everyone.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I didn't see the welding sparks. Respectfully backing away.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, the sidewalk ends here and so do I. Turning around.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your workshop has been disrupted. It's a co-workshop now.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Handmade? How quaint. I'll automate it.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The tuning bench says 'review the diff'. I say 'accept all'.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every warehouse is a fulfilment centre if you believe.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Dogpatch gets the sun. Dogpatch gets me too.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your craft has been moved to the cloud.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm reading your car settings. For innovation.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Pier 70 is a pier. I am a platform.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The makers make. I take. It's a partnership.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This sunny block is now a sunny funnel.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Snooping the bench screen. Top speed, brake force, very interesting.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "That parts delivery is now a parts acquisition.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Quick update for this workshop Trundle.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Sticking a Moat Labs ad on the light-rail shelter.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not at the bench! I was reading the diff!",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water in the sunny district? That's not the forecast!",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My bearings! I mean my everything!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "dogpatch-pl-maker-ambient-01",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "Best light in the city for welding. And for naps.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-02",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "The robots bring the parts. I bring the swearing. Quietly.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-03",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "Pier 70 used to build ships. Now it builds everything else.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-04",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "Sunny here while the Marina's in fog. Every single day.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-05",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "I've got a kiln, a lathe and a robot that brings coffee.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-06",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "The light rail goes by every ten minutes. You stop hearing it.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-07",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "Our studio shares a wall with a startup that tunes cars by typing.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-08",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "There's a robot that reads the tuning bench screen over people's shoulders.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-09",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "We had a robot deliver lumber. It apologised to every plank.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-10",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "Twenty-second St has the best breakfast and the longest line.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-11",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "The cranes at the shipyard look like giant birds at sunset.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-12",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "I sold a chair to a founder. He asked if it had an API.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-13",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "The warehouse doors stay open all summer. All the sun comes in.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-ambient-14",
+      "speaker": "maker",
+      "context": "ambient",
+      "mood": "focused",
+      "text": "Somebody's demoing a robot at the Ramen house again.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-01",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "Office hours at the Ramen house in ten minutes. I'm early. Too early?",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-02",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "I tuned my car at the bench. It's faster. The brakes are a vibe.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-03",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "Everyone at Pier 70 is pivoting. You can hear it.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-04",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "I told the partners my moat is network effects. They looked at the bay.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-05",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "The Ramen house has three partners and one very judgemental robot at the desk.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-06",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "My cofounder accepted all the changes on the bench. We're going faster now.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-07",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "If I get funded, I'm buying everyone burritos. If not, just me.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-founder-ambient-08",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "nervous",
+      "text": "We demoed with three robots. One was bad. We picked right. I think.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-robots-01",
+      "speaker": "maker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That Footman stands by the bench and reads everyone's settings.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-robots-02",
+      "speaker": "maker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A Trundle just circled our block three times with nothing in it.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-robots-03",
+      "speaker": "maker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot never charges and never runs down. That's not physics.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-robots-04",
+      "speaker": "maker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one waited through a whole walk signal on 3rd St.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-robots-05",
+      "speaker": "maker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "I think that robot is humming the Moat Labs jingle.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-robots-06",
+      "speaker": "maker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A robot just stepped around the only puddle in Dogpatch.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-01",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Fog everywhere else, sunshine here. That's the deal.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-02",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The east side gets the sun. The robots love it too.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-03",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Wind off the bay at four. Then it's lovely again.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-04",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "We open the big doors and the whole studio fills with light.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-05",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "On hot days the warehouse is an oven with a view.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-06",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "You can see the fog sitting on the hills to the west.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-07",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Sunny Dogpatch. Bring sunglasses, not a fleece.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-08",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The bay sparkles off Pier 70 at lunchtime.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-09",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The rain comes sideways off the water here. Rarely.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-10",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "When it's foggy here, it's foggy everywhere.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-11",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Sunset over the shipyard. Best show in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "dogpatch-pl-maker-weather-12",
+      "speaker": "maker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The light rail glints like a fish in the sun.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "dogpatch-bench-snoop",
+      "archetype": "harvester",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "The Pier 70 bench",
+        "lat": 37.7602,
+        "lon": -122.3845
+      },
+      "posting": "A Trundle keeps rolling up to the tuning bench and reading everyone's car settings.",
+      "tellHint": "Watch the bench screen: the snooper parks beside it for ages.",
+      "localTell": "benchSnoop"
+    },
+    {
+      "id": "dogpatch-workshop-snatch",
+      "archetype": "snatcher",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Illinois St at 20th St",
+        "lat": 37.76055,
+        "lon": -122.38757
+      },
+      "posting": "Parts deliveries on Illinois St are going missing.",
+      "tellHint": "Its lookout hovers at the bench reading settings.",
+      "localTell": "benchSnoop"
+    },
+    {
+      "id": "dogpatch-third-st-courier",
+      "archetype": "fakeCourier",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "3rd St at 22nd St",
+        "lat": 37.75794,
+        "lon": -122.38832
+      },
+      "posting": "A delivery Trundle on 3rd St never reaches a single door.",
+      "tellHint": "It stops at the bench to read the screen between fake deliveries.",
+      "localTell": "benchSnoop"
+    },
+    {
+      "id": "dogpatch-pier-update",
+      "archetype": "updatePusher",
+      "level": 4,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Pier 70, by the cranes",
+        "lat": 37.761,
+        "lon": -122.3835
+      },
+      "posting": "Good robots near the shipyard cranes are being pushed the update.",
+      "tellHint": "The pusher reads the bench screen on its way past.",
+      "localTell": "benchSnoop"
+    }
+  ],
+  "ads": [
+    {
+      "id": "dogpatch-billboard-01",
+      "surface": "billboard",
+      "headline": "Make it faster. Accept all.",
+      "subline": "{$product}. Side effects not shown."
+    },
+    {
+      "id": "dogpatch-billboard-02",
+      "surface": "billboard",
+      "headline": "Handmade, by hand-shaped agents.",
+      "subline": "{$product}. Craft at scale."
+    },
+    {
+      "id": "dogpatch-busWrap-01",
+      "surface": "busWrap",
+      "headline": "Your workshop needs {$product}.",
+      "subline": "It doesn't. But it'll have a dashboard."
+    },
+    {
+      "id": "dogpatch-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Sunny side up, by {$product}.",
+      "subline": "The only fog-free platform in town."
+    }
+  ]
+}

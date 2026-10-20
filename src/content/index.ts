@@ -12,3 +12,7 @@ export * from "./missions.ts";
 export * from "./lint.ts";
 export * from "./clearedNames.ts";
 export * from "./robotGoals.ts";
+export * from "./places.ts";
+export * from "./barks.ts";
+export * from "./packs.ts";
+export * from "./bounties.ts";

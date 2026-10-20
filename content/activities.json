@@ -1,0 +1,277 @@
+{
+  "version": 1,
+  "$comment": "Activity markers: where each side activity shows on the minimap, per district (docs/design.md, Side activities and Territory). Every active district has at least one marker of a wave-2 activity (tests/content/territory-coverage.test.ts). Positions are street locations; car washes and kiosks are unnamed icons. The Sim-Player track may snap kiosks and car washes to the pipeline's anchor points.",
+  "source": "Hand-placed from DataSF street-centerline intersections (3psu-pn9h); approximate.",
+  "activities": [
+    {
+      "id": "hot-desk-start",
+      "name": "Hot Desk",
+      "kind": "mission",
+      "district": "embarcadero",
+      "lat": 37.7954,
+      "lon": -122.394,
+      "wave": 2,
+      "note": "Mission 1 starts at the Ferry Building plaza; the first melt lands within 90 s."
+    },
+    {
+      "id": "spill-start",
+      "name": "Spill",
+      "kind": "mission",
+      "district": "embarcadero",
+      "lat": 37.793,
+      "lon": -122.3922,
+      "wave": 2,
+      "note": "Mission 2: a crew of three on the Embarcadero by Mission St."
+    },
+    {
+      "id": "ferry-market-queue",
+      "name": "Market stall queue",
+      "kind": "bountyHotspot",
+      "district": "embarcadero",
+      "lat": 37.7958,
+      "lon": -122.3933,
+      "wave": 2,
+      "note": "Footmen queue at the Ferry Building market stalls (icons only); queue-jumpers post here."
+    },
+    {
+      "id": "embarcadero-coning",
+      "name": "Coning by the Ferry Building",
+      "kind": "coning",
+      "district": "embarcadero",
+      "lat": 37.7947,
+      "lon": -122.3942,
+      "wave": 2,
+      "note": "Robotaxis wait at the plaza curb; a cone on the hood stops one dead."
+    },
+    {
+      "id": "fidi-vendor",
+      "name": "Coworking desk vendor",
+      "kind": "vendor",
+      "district": "fidi",
+      "lat": 37.7905,
+      "lon": -122.4015,
+      "wave": 2,
+      "note": "Tank tiers, the flow tier and burritos (content/vendor.json)."
+    },
+    {
+      "id": "fidi-lobby-watch",
+      "name": "Front St lobbies",
+      "kind": "bountyHotspot",
+      "district": "fidi",
+      "lat": 37.793,
+      "lon": -122.399,
+      "wave": 2,
+      "note": "Office lobbies on Front St, where lurkers never badge in."
+    },
+    {
+      "id": "downtown-kiosk",
+      "name": "Union Square repair kiosk",
+      "kind": "repairKiosk",
+      "district": "downtown",
+      "lat": 37.7879,
+      "lon": -122.407,
+      "wave": 2,
+      "note": "The apology tour ends here: walk a good robot you rusted back to the kiosk."
+    },
+    {
+      "id": "downtown-turntable",
+      "name": "Powell turntable queue",
+      "kind": "bountyHotspot",
+      "district": "downtown",
+      "lat": 37.7847,
+      "lon": -122.4078,
+      "wave": 2,
+      "note": "The cable car queue at Powell & Market; turntable squatters post here. The bell duel arrives in wave 3."
+    },
+    {
+      "id": "north-beach-square",
+      "name": "Washington Square bounty board",
+      "kind": "bountyHotspot",
+      "district": "north-beach",
+      "lat": 37.8008,
+      "lon": -122.4103,
+      "wave": 2,
+      "note": "BotBounty's North Beach postings; the 3 a.m. freeze on Columbus arrives in wave 3."
+    },
+    {
+      "id": "north-beach-carwash",
+      "name": "Columbus Ave car wash",
+      "kind": "carWash",
+      "district": "north-beach",
+      "lat": 37.802,
+      "lon": -122.4125,
+      "wave": 2,
+      "note": "Drops threat by one; also washes the car."
+    },
+    {
+      "id": "wharf-kiosk",
+      "name": "Jefferson St repair kiosk",
+      "kind": "repairKiosk",
+      "district": "fishermans-wharf",
+      "lat": 37.8082,
+      "lon": -122.4158,
+      "wave": 2,
+      "note": "Kiosk by the cable car turnaround."
+    },
+    {
+      "id": "wharf-coning",
+      "name": "Coning on Jefferson St",
+      "kind": "coning",
+      "district": "fishermans-wharf",
+      "lat": 37.8078,
+      "lon": -122.419,
+      "wave": 2,
+      "note": "Sightseeing robotaxis crawl along Jefferson St."
+    },
+    {
+      "id": "marina-carwash",
+      "name": "Lombard St car wash",
+      "kind": "carWash",
+      "district": "marina",
+      "lat": 37.8,
+      "lon": -122.437,
+      "wave": 2,
+      "note": "A car wash on Lombard St (unnamed)."
+    },
+    {
+      "id": "marina-green-board",
+      "name": "Marina Green bounty board",
+      "kind": "bountyHotspot",
+      "district": "marina",
+      "lat": 37.806,
+      "lon": -122.439,
+      "wave": 2,
+      "note": "Lappers and fog-dodgers post here; the Pitch Window opens on Marina Green in wave 4."
+    },
+    {
+      "id": "dogpatch-board",
+      "name": "3rd St bounty board",
+      "kind": "bountyHotspot",
+      "district": "dogpatch",
+      "lat": 37.758,
+      "lon": -122.388,
+      "wave": 2,
+      "note": "BotBounty's Dogpatch postings around the Pier 70 gates."
+    },
+    {
+      "id": "dogpatch-coning",
+      "name": "Coning on Illinois St",
+      "kind": "coning",
+      "district": "dogpatch",
+      "lat": 37.76,
+      "lon": -122.3874,
+      "wave": 2,
+      "note": "Robotaxis queue for Pier 70 events."
+    },
+    {
+      "id": "ramen-house",
+      "name": "Ramen Office Hours",
+      "kind": "officeHours",
+      "district": "dogpatch",
+      "lat": 37.7608,
+      "lon": -122.385,
+      "wave": 3,
+      "note": "The Ramen house at Pier 70; mission 4 is the first Office Hours."
+    },
+    {
+      "id": "pier70-bench",
+      "name": "Vibe-coded tuning bench",
+      "kind": "tuningBench",
+      "district": "dogpatch",
+      "lat": 37.7602,
+      "lon": -122.3845,
+      "wave": 4,
+      "note": "Prompt cards on your car at the Pier 70 bench."
+    },
+    {
+      "id": "soma-delivery",
+      "name": "SoMa delivery shifts",
+      "kind": "deliveryShift",
+      "district": "soma",
+      "lat": 37.78202,
+      "lon": -122.40116,
+      "wave": 2,
+      "note": "Carry groceries for a Footman whose motor gave out, on SoMa's flat blocks (4th & Folsom)."
+    },
+    {
+      "id": "soma-kiosk",
+      "name": "Yerba Buena repair kiosk",
+      "kind": "repairKiosk",
+      "district": "soma",
+      "lat": 37.7851,
+      "lon": -122.4023,
+      "wave": 2,
+      "note": "Kiosk by Yerba Buena Gardens."
+    },
+    {
+      "id": "soma-hq-watch",
+      "name": "Convention-center block",
+      "kind": "bountyHotspot",
+      "district": "soma",
+      "lat": 37.783,
+      "lon": -122.4,
+      "wave": 2,
+      "note": "Moat Labs demo units around the convention center; lanyard-wearers post here."
+    },
+    {
+      "id": "mission-bay-carwash",
+      "name": "Mission Bay car wash",
+      "kind": "carWash",
+      "district": "mission-bay",
+      "lat": 37.769,
+      "lon": -122.39,
+      "wave": 2,
+      "note": "A car wash off 4th St (unnamed)."
+    },
+    {
+      "id": "mission-bay-bridge",
+      "name": "Lefty O'Doul drawbridge",
+      "kind": "bountyHotspot",
+      "district": "mission-bay",
+      "lat": 37.7766,
+      "lon": -122.391,
+      "wave": 2,
+      "note": "Drawbridge pacers post here; the jump arrives once decks do."
+    },
+    {
+      "id": "rincon-board",
+      "name": "Rincon Hill bounty board",
+      "kind": "bountyHotspot",
+      "district": "rincon-hill",
+      "lat": 37.7865,
+      "lon": -122.392,
+      "wave": 2,
+      "note": "Hilltop watchers post here."
+    },
+    {
+      "id": "rincon-kiosk",
+      "name": "Rincon Hill repair kiosk",
+      "kind": "repairKiosk",
+      "district": "rincon-hill",
+      "lat": 37.785,
+      "lon": -122.394,
+      "wave": 2,
+      "note": "Kiosk at Harrison St and 1st St."
+    },
+    {
+      "id": "bridge-depot-coning",
+      "name": "Depot lot coning",
+      "kind": "coning",
+      "district": "bay-bridge-approach",
+      "lat": 37.787,
+      "lon": -122.3884,
+      "wave": 2,
+      "note": "The robotaxi depot lot by the touchdown; rogue robotaxis post here. The 4 a.m. Robotaxi Choir arrives in wave 4."
+    },
+    {
+      "id": "bridge-queue-board",
+      "name": "On-ramp queue",
+      "kind": "bountyHotspot",
+      "district": "bay-bridge-approach",
+      "lat": 37.785,
+      "lon": -122.3895,
+      "wave": 2,
+      "note": "Queue counters post along the on-ramp queue."
+    }
+  ]
+}

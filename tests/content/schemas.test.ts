@@ -8,11 +8,15 @@ import { ROOT, readJson } from "../helpers.ts";
 import { CONTENT_FILES } from "./content-files.ts";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
+// Content schemas reference each other by $id (fog-city/provenance, fog-city/places#/...).
+for (const f of readdirSync(join(ROOT, "schemas")).filter((x) => x.endsWith(".schema.json") && !x.startsWith("tile-") && x !== "roads.schema.json" && x !== "landmarks.schema.json")) {
+  ajv.addSchema(readJson(`schemas/${f}`));
+}
 const compiled = new Map<string, ReturnType<typeof ajv.compile>>();
 const compile = (name: string) => {
   let v = compiled.get(name);
   if (!v) {
-    v = ajv.compile(readJson(`schemas/${name}.schema.json`));
+    v = ajv.getSchema(`fog-city/${name}`) ?? ajv.compile(readJson(`schemas/${name}.schema.json`));
     compiled.set(name, v);
   }
   return v;
@@ -33,6 +37,14 @@ const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
   [/^content\/brands\.json$/, "brands"],
   [/^content\/cleared-names\.json$/, "cleared-names"],
   [/^content\/robot-goals\.json$/, "robot-goals"],
+  [/^content\/barks\/[^/]+\.json$/, "barks"],
+  [/^content\/packs\/[^/]+\.json$/, "district-pack"],
+  [/^content\/bounties\.json$/, "bounty-templates"],
+  [/^content\/districts\.json$/, "content-districts"],
+  [/^content\/places\.json$/, "places"],
+  [/^content\/safehouses\.json$/, "safehouses"],
+  [/^content\/activities\.json$/, "activities"],
+  [/^content\/modes\/instances\.json$/, "mode-instances"],
 ];
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;

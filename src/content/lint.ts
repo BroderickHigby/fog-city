@@ -65,6 +65,9 @@ function removeExempt(text: string, rule: LintRule): string {
   return t;
 }
 
+/** Rules that also apply to developer comments ($comment), which may state the taste rules themselves. */
+const COMMENT_RULES: ReadonlySet<LintRule> = new Set(["brand", "person", "accelerator", "shooter", "renamed"]);
+
 /** Every rule that applies to any string the player could read (prose, labels, names, ids). */
 export function lintText(text: string): LintIssue[] {
   const out: LintIssue[] = [];
@@ -82,10 +85,13 @@ export function lintText(text: string): LintIssue[] {
       }
     }
   }
-  let allowedRemoved = text;
-  for (const a of RESTRICTED_ALLOWED) allowedRemoved = allowedRemoved.replace(new RegExp(a, "gi"), " ");
+  const allowedRemoved = variants.map((v) => {
+    let r = v;
+    for (const a of RESTRICTED_ALLOWED) r = r.replace(new RegExp(a.replace(" ", "[\\s_-]*"), "gi"), " ");
+    return r;
+  });
   for (const c of RESTRICTED_C) {
-    if (c.re.test(allowedRemoved) || c.re.test(splitIdWords(allowedRemoved))) out.push({ rule: "restricted", message: `restricted: ${c.label}`, text });
+    if (allowedRemoved.some((v) => c.re.test(v))) out.push({ rule: "restricted", message: `restricted: ${c.label}`, text });
   }
   return out;
 }
@@ -127,7 +133,8 @@ export const PLACEHOLDER_MAX: Readonly<Record<string, number>> = {
   tell: 40, // bot-tells.json label maxLength
   street: 20,
   pay: 6, // "$1,200"
-  model: 12,
+  model: 8, // Footman, Trundle, Meander
+  place: 44, // a district pack's lastSeen label (district-pack.schema.json maxLength)
 };
 
 /** The text with every {placeholder} replaced by its maximum length. Unknown placeholders count as 20. */
@@ -176,6 +183,8 @@ export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; why: str
 
 /** Keys whose string values are provenance or machine data rather than player-facing text. */
 const DATA_KEYS = new Set(["source", "sources", "attribution", "$schema", "url", "urls", "glb", "hash"]);
+/** Any string anywhere under one of these keys is provenance or a reference to outside data. */
+const DATA_SEGMENTS = new Set(["provenance", "sources", "attribution", "analysisNeighborhoods"]);
 
 export interface ClearedNames {
   /** Invented proper names that passed the search (verdict clear or caution). */
@@ -211,8 +220,9 @@ export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | 
     if (fileExempt.some((e) => e.path !== undefined && (at === e.path || at.startsWith(`${e.path}.`)))) return;
     const key = path[path.length - 1] ?? "";
     const parentKey = path[path.length - 2] ?? "";
-    if (DATA_KEYS.has(key) || DATA_KEYS.has(parentKey)) return;
-    for (const i of lintText(s)) out.push({ ...i, path: at });
+    if (DATA_KEYS.has(key) || DATA_KEYS.has(parentKey) || path.some((seg) => DATA_SEGMENTS.has(seg))) return;
+    const isComment = key === "$comment" || key === "designNote" || key === "note";
+    for (const i of lintText(s)) if (!isComment || COMMENT_RULES.has(i.rule)) out.push({ ...i, path: at });
     for (const f of nameFields) {
       if (!matches(f.path, path)) continue;
       if (f.kind === "modeName" || f.kind === "itemName") for (const i of lintModeName(s)) out.push({ ...i, path: at });

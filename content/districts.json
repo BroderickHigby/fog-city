@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "$comment": "The game's districts (docs/design.md, Territory). A district is active once its activity, bounty set and safehouse or garage land (design decision log, 2026-10-20); territory coverage (tests/content/territory-coverage.test.ts) checks only active districts. Polygons and hubs are WGS84 lat/lon. The pipeline's public/tiles/sf/districts.json holds DataSF's Analysis Neighborhoods; analysisNeighborhoods lists the ones each game district overlaps, for cross-reference.",
+  "source": "Hand-traced from DataSF street-centerline intersections (3psu-pn9h, read from the wave-2 road graph); approximate, a game boundary, not an official one.",
+  "districts": [
+    {
+      "id": "downtown",
+      "name": "Downtown",
+      "step": 1,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "Union Square",
+        "lat": 37.788,
+        "lon": -122.4075
+      },
+      "polygon": [
+        [37.79016, -122.40879],
+        [37.79076, -122.40403],
+        [37.78764, -122.40343],
+        [37.78399, -122.40807],
+        [37.78736, -122.40823]
+      ],
+      "hook": "The Powell & Market turntable; Union Square's robot queues.",
+      "analysisNeighborhoods": ["financial-district-south-beach", "nob-hill", "south-of-market", "tenderloin"]
+    },
+    {
+      "id": "fidi",
+      "name": "Financial District",
+      "step": 1,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "California St & Sansome St",
+        "lat": 37.79306,
+        "lon": -122.40113
+      },
+      "polygon": [
+        [37.79621, -122.40514],
+        [37.79709, -122.39833],
+        [37.79448, -122.39475],
+        [37.78764, -122.40343]
+      ],
+      "hook": "The FiDi coworking desk: the start, the vendor and the first safehouse.",
+      "analysisNeighborhoods": ["chinatown", "financial-district-south-beach"]
+    },
+    {
+      "id": "embarcadero",
+      "name": "Embarcadero",
+      "step": 1,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "The Ferry Building",
+        "lat": 37.7955,
+        "lon": -122.3937
+      },
+      "polygon": [
+        [37.806, -122.4068],
+        [37.8085, -122.4035],
+        [37.8015, -122.3955],
+        [37.7972, -122.3905],
+        [37.7925, -122.3875],
+        [37.79083, -122.39001],
+        [37.79007, -122.39097],
+        [37.79323, -122.39318],
+        [37.79448, -122.39475],
+        [37.79709, -122.39833],
+        [37.7986, -122.3995]
+      ],
+      "hook": "The opening melt (Hot Desk) and Spill; Footmen queue at the Ferry Building market stalls.",
+      "analysisNeighborhoods": ["financial-district-south-beach", "north-beach"]
+    },
+    {
+      "id": "north-beach",
+      "name": "North Beach",
+      "step": 2,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "Washington Square",
+        "lat": 37.8008,
+        "lon": -122.4103
+      },
+      "polygon": [
+        [37.79713, -122.41189],
+        [37.79782, -122.40702],
+        [37.803, -122.408],
+        [37.80562, -122.4136]
+      ],
+      "hook": "The 3 a.m. freeze on Columbus (wave 3); Trundle night loops.",
+      "analysisNeighborhoods": ["chinatown", "nob-hill", "north-beach"]
+    },
+    {
+      "id": "fishermans-wharf",
+      "name": "Fisherman's Wharf",
+      "step": 2,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "Jefferson St",
+        "lat": 37.808,
+        "lon": -122.4172
+      },
+      "polygon": [
+        [37.80562, -122.4136],
+        [37.80738, -122.4073],
+        [37.8105, -122.4075],
+        [37.811, -122.418],
+        [37.809, -122.4235],
+        [37.80508, -122.4253],
+        [37.80517, -122.41723]
+      ],
+      "hook": "The sea lion docks, the Hyde & Beach turntable, QR flyers on Jefferson St.",
+      "analysisNeighborhoods": ["marina", "north-beach", "russian-hill"]
+    },
+    {
+      "id": "marina",
+      "name": "The Marina",
+      "step": 2,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "Marina Green and Chestnut St",
+        "lat": 37.804,
+        "lon": -122.438
+      },
+      "polygon": [
+        [37.8086, -122.4485],
+        [37.808, -122.432],
+        [37.8052, -122.43209],
+        [37.80047, -122.43112],
+        [37.79846, -122.4473],
+        [37.80499, -122.44832]
+      ],
+      "hook": "The Marina garage; fog first on foggy nights; the Pitch Window (wave 4).",
+      "analysisNeighborhoods": ["marina"]
+    },
+    {
+      "id": "dogpatch",
+      "name": "Dogpatch",
+      "step": 2,
+      "wave": 1,
+      "active": true,
+      "hub": {
+        "label": "3rd St & 22nd St",
+        "lat": 37.759,
+        "lon": -122.388
+      },
+      "polygon": [
+        [37.76414, -122.3925],
+        [37.76438, -122.382],
+        [37.75, -122.382],
+        [37.75012, -122.392]
+      ],
+      "hook": "Pier 70: the Ramen house and the tuning bench.",
+      "analysisNeighborhoods": ["bayview-hunters-point", "potrero-hill"]
+    },
+    {
+      "id": "soma",
+      "name": "SoMa",
+      "step": 3,
+      "wave": 2,
+      "active": true,
+      "hub": {
+        "label": "Yerba Buena Gardens",
+        "lat": 37.7851,
+        "lon": -122.4022
+      },
+      "polygon": [
+        [37.78926, -122.40138],
+        [37.78554, -122.39671],
+        [37.78185, -122.39208],
+        [37.77709, -122.39498],
+        [37.76981, -122.40341],
+        [37.76924, -122.40801],
+        [37.77556, -122.41866],
+        [37.78048, -122.41251],
+        [37.78399, -122.40807],
+        [37.78764, -122.40343]
+      ],
+      "hook": "Delivery shifts on the flat blocks (wave 2); Moat Labs HQ on the convention-center block; the highest bad-robot rate in the city.",
+      "analysisNeighborhoods": ["financial-district-south-beach", "mission", "mission-bay", "south-of-market"]
+    },
+    {
+      "id": "mission-bay",
+      "name": "Mission Bay",
+      "step": 3,
+      "wave": 2,
+      "active": true,
+      "hub": {
+        "label": "4th St & Mission Bay Blvd",
+        "lat": 37.77,
+        "lon": -122.391
+      },
+      "polygon": [
+        [37.77709, -122.39498],
+        [37.77986, -122.38959],
+        [37.7818, -122.38831],
+        [37.778, -122.385],
+        [37.77, -122.3855],
+        [37.76438, -122.382],
+        [37.76414, -122.3925],
+        [37.77, -122.3965]
+      ],
+      "hook": "The Lefty O'Doul drawbridge on 3rd St; the Mission Bay garage; the ballpark (unnamed).",
+      "analysisNeighborhoods": ["financial-district-south-beach", "mission-bay", "potrero-hill"]
+    },
+    {
+      "id": "rincon-hill",
+      "name": "Rincon Hill",
+      "step": 3,
+      "wave": 2,
+      "active": true,
+      "hub": {
+        "label": "Harrison St & Fremont St",
+        "lat": 37.786,
+        "lon": -122.392
+      },
+      "polygon": [
+        [37.78554, -122.39671],
+        [37.78869, -122.39272],
+        [37.78622, -122.38964],
+        [37.78308, -122.39362]
+      ],
+      "hook": "The hilltop over the bridge approach.",
+      "analysisNeighborhoods": ["financial-district-south-beach"]
+    },
+    {
+      "id": "bay-bridge-approach",
+      "name": "Bay Bridge approach",
+      "step": 3,
+      "wave": 2,
+      "active": true,
+      "hub": {
+        "label": "The bridge touchdown",
+        "lat": 37.7868,
+        "lon": -122.388
+      },
+      "polygon": [
+        [37.78869, -122.39272],
+        [37.79083, -122.39001],
+        [37.78957, -122.38848],
+        [37.7871, -122.38779],
+        [37.78477, -122.38802],
+        [37.78185, -122.39208],
+        [37.78308, -122.39362],
+        [37.78622, -122.38964]
+      ],
+      "hook": "The robotaxi depot lot by the touchdown; rogue robotaxis; the 4 a.m. choir (wave 4).",
+      "analysisNeighborhoods": ["financial-district-south-beach"]
+    }
+  ]
+}

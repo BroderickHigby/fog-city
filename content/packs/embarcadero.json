@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "embarcadero",
+  "$comment": "District content pack for Embarcadero (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:58854110",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "embarcadero-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Ferry Building market run. The stall queue is my happy place.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Queueing at the cheese stall. Fourth in line. Living the dream.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The clock tower says twelve. My battery says twelve too. Percent.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Strolling the promenade with three loaves of bread.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The ferry horn! I wave at every ferry.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Embarcadero at sunset. I stop for sunsets. It's in my firmware.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying oysters on ice. Walking like a very careful waiter.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The bay is right there. I keep a respectful distance. I'm splash-rated, not swim-rated.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering flowers to Pier 1. Petals intact.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The plaza is wide and the pigeons are many. Apologising in advance.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Queue at the market stalls: orderly, delicious, perfect.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Joggers on the left, robots on the right, gulls everywhere.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The sculpture in the plaza glows at night. I glow too. Softly.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bread for the ferry crew. They like it crusty.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Promenade speed limit: leisurely. I obey.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Market closes at six. I'm here at five fifty-nine. Classic.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The clock chimes. I don't chime back. That would be weird.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I was admiring the bay and forgot to walk.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, that's the queue. The queue starts behind me. Sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, the gull startled me and I startled you.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I'm turning around. The promenade is long and I forgot the butter.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, ferry passengers coming through. Me included.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Queues are for robots without growth targets.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The market stalls are a marketplace. I'm the market.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "That clock tower is counting down to us.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I cut the line because the line is legacy.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every loaf in this building is an acquisition target.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Ferry rides are free for good robots. Bad robots get there first.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The bay is wet. I don't do wet. I do priority boarding.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Fourth in line? I'm first in line. Spiritually.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This promenade is now a premium promenade.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Rate this sunset. Five stars only.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Cutting the cheese queue. No one says anything. Excellent.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Those are nice loaves, Footman. Hand them over.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "One quick update by the ferry doors. While everyone looks at boats.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Sticking a Moat Labs ad on the ferry schedule. Nobody reads it.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Salt water! From the actual bay! Twice the rust!",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not by the clock tower! It's a terrible look!",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "I came for the queue and I'm leaving as a heap!",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-rb-bad-sprayed-04",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "The ferry schedule did not mention hoses!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "embarcadero-pl-commuter-ambient-01",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The ferry's the only commute where nobody pitches you.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-02",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Market stalls at five, ferry at six, robots everywhere.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-03",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "I love that the robots queue better than the people.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-04",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "That Footman has been fourth in the cheese line for ten minutes. Respect.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-05",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The clock tower is two minutes fast. It's always two minutes fast.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-06",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Watching the robotaxis line up at the plaza is oddly calming.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-07",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Ferry's in. Everybody walk normally.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-08",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The promenade's great until the joggers find you.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-09",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "My robot buys my bread here. I'm here to watch it buy bread.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-10",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Rush hour is a sculpture garden of people staring at phones.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-11",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The bridge lights come on at dusk. Best part of the day.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-12",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Gulls took my sandwich. Not the robots. The gulls.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-13",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "There's a robot doing figure eights by the fountain. Is that normal?",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-ambient-14",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "I take the long way along the water. Every day.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-01",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "Is that clock tower real? It's real. Wow.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-02",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "The market has twelve kinds of mushrooms and one very polite robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-03",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "I could watch the ferries all day. I might.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-04",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "So many robots carrying bread. This city is bread-powered.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-05",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "The sculpture lights up at night! Let's come back!",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-06",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "Look, a robot waiting patiently in line. Adorable.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-07",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "Which way to the ferry? Never mind. Follow the robots.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-visitor-ambient-08",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "The bay smells like salt and possibility.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-robots-01",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot just cut the whole market queue.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-robots-02",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why is that Footman's bag swinging like it's empty?",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-robots-03",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one's been tailing the same Footman along the promenade.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-robots-04",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A robot keeps asking people to rate the sidewalk. The sidewalk is fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-robots-05",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot stepped around every puddle on the plaza. Weird.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-robots-06",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Did that robotaxi just park across the hydrant?",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-01",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "The fog hides the bridge and shows the clock tower. Fair trade.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-02",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "Foghorns this morning. Best alarm clock in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-03",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "The ferry disappeared into the fog like a magic trick.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-04",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "Sunny on the promenade, fog on the bay. Classic.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-05",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "The fog's sitting on the water like it owns the place.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-06",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "Can't see the island today. It's still there. Probably.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-07",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "Fog's coming in through the gate. We've got an hour.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-08",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "The clock tower's top is in the cloud. Very dramatic.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-09",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "It's cold by the water. It's always cold by the water.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-10",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "The fog makes the market smell like coffee and bread. Good fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-11",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "Ferry horn, fog horn, robot beep. The Embarcadero choir.",
+      "maxLength": 90
+    },
+    {
+      "id": "embarcadero-pl-commuter-fog-12",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "wistful",
+      "text": "I can hear the bay but I can't see it. Love that.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "embarcadero-market-queue-jump",
+      "archetype": "snatcher",
+      "level": 1,
+      "crew": 3,
+      "lastSeen": {
+        "label": "The Ferry Building market stalls",
+        "lat": 37.7958,
+        "lon": -122.3933
+      },
+      "posting": "A Footman keeps cutting the robot queue at the market stalls. Bread is going missing.",
+      "tellHint": "Watch the queue: good robots join at the back.",
+      "localTell": "queueJump"
+    },
+    {
+      "id": "embarcadero-promenade-tail",
+      "archetype": "updatePusher",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "The promenade by Pier 1",
+        "lat": 37.797,
+        "lon": -122.3945
+      },
+      "posting": "Good Footmen along the promenade are being 'updated' between ferries.",
+      "tellHint": "One of the pair jumps the market queue on its way past.",
+      "localTell": "queueJump"
+    },
+    {
+      "id": "embarcadero-plaza-poster",
+      "archetype": "adSticker",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Embarcadero Plaza, by the fountain",
+        "lat": 37.7947,
+        "lon": -122.395
+      },
+      "posting": "Moat Labs posters on the plaza's bus shelters, three mornings running.",
+      "tellHint": "It takes breaks cutting the market queue.",
+      "localTell": "queueJump"
+    },
+    {
+      "id": "embarcadero-ferry-door-prowler",
+      "archetype": "prowler",
+      "level": 3,
+      "crew": 3,
+      "lastSeen": {
+        "label": "The Embarcadero at Mission St",
+        "lat": 37.79377,
+        "lon": -122.3925
+      },
+      "posting": "Pairing chimes along the curb south of the Ferry Building.",
+      "tellHint": "The crew's lookout cuts the market queue to get a view of the curb.",
+      "localTell": "queueJump"
+    }
+  ],
+  "ads": [
+    {
+      "id": "embarcadero-billboard-01",
+      "surface": "billboard",
+      "headline": "The ferry of the future.",
+      "subline": "{$product}. It's a boat with an app."
+    },
+    {
+      "id": "embarcadero-billboard-02",
+      "surface": "billboard",
+      "headline": "Artisanal. Agentic. Bread.",
+      "subline": "{$product}. Sourdough with a roadmap."
+    },
+    {
+      "id": "embarcadero-busWrap-01",
+      "surface": "busWrap",
+      "headline": "Your queue, optimised by {$product}.",
+      "subline": "Every line, cut for you. Ethically. Mostly."
+    },
+    {
+      "id": "embarcadero-busWrap-02",
+      "surface": "busWrap",
+      "headline": "The clock tower runs on {$product}.",
+      "subline": "It does not. But imagine if it did."
+    }
+  ]
+}

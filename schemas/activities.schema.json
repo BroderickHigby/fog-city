@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/activities",
+  "title": "Activity markers (content/activities.json)",
+  "type": "object",
+  "required": ["version", "source", "activities"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "source": { "type": "string" },
+    "activities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "kind", "district", "lat", "lon", "wave", "note"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "name": { "type": "string", "maxLength": 40 },
+          "kind": { "enum": ["mission", "bountyHotspot", "coning", "repairKiosk", "carWash", "vendor", "deliveryShift", "officeHours", "tuningBench"] },
+          "district": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "lat": { "$ref": "places#/$defs/lat" }, "lon": { "$ref": "places#/$defs/lon" },
+          "wave": { "type": "integer", "minimum": 2, "maximum": 8 },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

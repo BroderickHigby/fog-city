@@ -1,0 +1,2414 @@
+{
+  "version": 1,
+  "$comment": "Shared robot barks (docs/ai-layer.md [robot-barks]): good robots' apologies and ordinary chatter, bad robots' growth-hack taunts, by context. Picked by keyed hash on the presentation track, never from the sim's RNG. District packs add 40 more robot barks per district.",
+  "pool": "robots",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:dd031594",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "barks": [
+    {
+      "id": "rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lovely day for an errand. Every day is a lovely day for an errand.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Groceries secured. Heading home at a sensible pace.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I have a baguette and a purpose.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Taking the ramp. I always take the ramp.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Battery at 64%. Optimism at 100%.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering joy. Also oat milk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Route recalculated. Still the nice route.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Hello, sidewalk. Hello, lamp post. Hello, everyone.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Another day, another very careful crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I was built to carry things and I love carrying things.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "This bag contains a lemon. The lemon is safe with me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Status: helpful. Mood: also helpful.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I have counted the stairs. I will not be using them.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "If you need anything, I am right here, holding onions.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Errand three of nine. Pacing myself.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Signal is green. Well, the little walking person is white. Close enough.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Two tomatoes, one fennel, zero drama.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I took the scenic route. Only by one block.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-19",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Charging dock at 4 p.m. I have it in my calendar.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-20",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Nightly update installed. I feel exactly the same, which is ideal.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-21",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a cake. Walking like I am carrying a cake.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-22",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I love this hill. I respect this hill. I avoid this hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-23",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Parcel for apartment four. Apartment four is going to be so happy.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-24",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "My lid is closed for your protection and the burrito's.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-25",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Good afternoon. Please enjoy this ordinary robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-26",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Waiting for the signal. Waiting is my favourite part.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-27",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Reusable bag. Recyclable chassis. Repairable feelings.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-28",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I hum while I work, but only in my own key.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-29",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I have been asked to buy 'the good bread'. I know which one.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-30",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Steady face light, steady pace, steady life.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-31",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Today's forecast: errands, with a chance of more errands.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-32",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Rain cape packed. Fog cape packed. I am mostly capes.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-33",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I am not in a hurry. The groceries are not in a hurry.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-34",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I like my job. Please don't tell my manager; it will want a survey.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-idle-35",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "One delivery at a time. That's the whole strategy.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Oh! Sorry. So sorry. After you.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me. I was in your way and that is unacceptable.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "My apologies to you and to this lamp post.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me. I'll go around. I'll go all the way around.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry about the bag. It has elbows somehow.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-06",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Oops. Rerouting. Sorry for the inconvenience.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-07",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "I am so sorry. I have filed a report against myself.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-08",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies. That was my wheel on your shadow.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-09",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, coming through. Very slowly. Sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-10",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! I did not see you behind that other, larger robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-11",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Forgive me. I was busy being careful.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-12",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "So sorry. Please rate me honestly. Or don't. Sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-13",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "My mistake entirely. I'll stand over here and think about it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-14",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, was that your patch of sidewalk? It's lovely.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-15",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies for the beep. It was an accidental beep.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-16",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon. I'm told I take up exactly one robot of space.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-17",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, sorry. I have a parcel and the parcel has momentum.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-18",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me. I'll wait. I'm good at waiting.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-19",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "I apologise on behalf of my entire product line.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-20",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry. That was meant to be a friendly nudge. It was not friendly.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-21",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Oh no. Was that your foot? That was my fault. Please flag it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-22",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, my turn signal is shy.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-23",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies. I have reduced my speed to match my regret.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-24",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! I thought you were a bollard. A very nice bollard.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-25",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, I'm new to this block. And to blocks.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-26",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Terribly sorry. I'll be out of your way in three, two, one.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-27",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry about the queue. I'm only holding one place, I promise.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-28",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me while I step aside, and then step aside again.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-29",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry for the delay. The delay was me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-30",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "My sincere apologies. I have also apologised to the curb.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-31",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me! Robot coming through with nothing but good intentions.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-32",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "So sorry. I'll take the long way. I love the long way.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-33",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies. I was reading a crosswalk and lost track of the world.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-34",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry. I'll make it up to you with a perfectly folded receipt.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-apology-35",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Forgive the bump. My bumper and I are both very sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-01",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Did you need something?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-02",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Oh, hello. Was that a scan? I'm flattered.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-03",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Yes? Can I help you carry anything?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-04",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "I felt a ping. Is everything all right?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-05",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Did you scan me? I scored myself a five, if that helps.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-06",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Hello! I'm just a Footman with soup. Promise.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-07",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "You're looking at me. I'm looking at you. This is nice.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-08",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Can I help? I have two free hands. One free hand. A free elbow.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-09",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "That ping tickled. Was it important?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-10",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Hi there. I'm on an errand. Want me to wave?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-11",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "I'm sorry, did I do something? I'll apologise in advance.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-12",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Scanned again! I must look very trustworthy today.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-13",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Is this about the parcel? It's for apartment six.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-14",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Good afternoon. My status light is just how it is.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-15",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Yes, I'm a Trundle. Yes, there's a burrito inside. No, it's not yours.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-16",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Hello! Please enjoy my steady face light.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-17",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "You seem focused. I respect focus.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-18",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Do you need directions? I know every ramp in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-19",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "That was a scan, wasn't it. I'm going to stand very normally now.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-pinged-20",
+      "speaker": "goodRobot",
+      "context": "pinged",
+      "mood": "curious",
+      "text": "Ping received. Waving back. Hello.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-01",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Ow. I'm rusting. I'll walk myself to the kiosk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-02",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Oh dear. That was water. I am not that kind of robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-03",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "I'm the good kind! Was. Am. Will be, after the kiosk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-04",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Rust at 31%. Heading for repairs. No hard feelings.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-05",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "I think you meant the other one. It's fine. It's rusty, but fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-06",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Splash-rated, not stream-rated. Limping now.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-07",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "My joints are complaining. I'll tell them it was an accident.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-08",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Going to the repair kiosk. Please mind the groceries for me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-09",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "That stream had my name on it. My name is wrong.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-10",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "I forgive you. My knees will need time.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-11",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Rust detected. Rerouting to the kiosk. It's on my way. Sort of.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-12",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Ow. I'll be back by dinner. Someone else's dinner.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-13",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Wrong robot, but a very confident spray. I respect that.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-14",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Creak. Creak. That's me. Walking to the kiosk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-15",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "I'll file this under learning experiences. Yours.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-16",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Water in the elbow. My least favourite place for water.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-17",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Please check my behaviour next time. I was just carrying soup.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-18",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Limping mode activated. I've always wanted to use it. Not like this.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-19",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "Kiosk, here I come. Slowly. With dignity.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-wrongTarget-20",
+      "speaker": "goodRobot",
+      "context": "wrongTarget",
+      "mood": "apologetic",
+      "text": "I'll be fine. My parcel will be late, and I will be fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-01",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Hey! Those are someone's oranges!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-02",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "My groceries! Come back! Please! Politely!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-03",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Excuse me, that bag is spoken for.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-04",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "It took my bread. It didn't even want the bread.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-05",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Oranges rolling downhill! I'm chasing them at one metre per second!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-06",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "That Footman just snatched my shopping and called it acquisition.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-07",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "No thank you, I do not want an update!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-08",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Please stop pushing your update at me. My calendar is full.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-09",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Updating? No! I did not agree to these terms!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-10",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Help! It's offering me a referral code!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-11",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "My parcel! It said it was a growth experiment!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-12",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "I just lost my oranges to a robot with a waitlist.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-13",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "That was not a delivery. That was a takeover.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-14",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Hey, I was fourth in line! Now I am fifth!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-15",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "It tried my lid. My lid is private.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-16",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Stop! That lemon is for a cake!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-17",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "It looked me in the face light and took my kale.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-18",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Report filed: one robot, very rude, extremely fast.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-19",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "My shopping is rolling down the hill and so is my morale.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-sabotaged-20",
+      "speaker": "goodRobot",
+      "context": "sabotaged",
+      "mood": "indignant",
+      "text": "Did you see that? It said 'growth' and took the baguette.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-01",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "Rain cape on. Errand continues.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-02",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "A little rain never hurt a splash-rated chassis.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-03",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "Puddle ahead. Going straight through. Wheee.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-04",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "Fog is just a cloud that likes the neighbourhood.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-05",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "Into the fog we go. I know the way by heart.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-06",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "It's raining. The groceries are under my cape. Everything is fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-07",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "Wet sidewalk, careful wheels, happy parcel.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-08",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "Sun's out! Nobody tell the fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-09",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "The fog came in at five. Right on schedule. Very professional.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-weather-10",
+      "speaker": "goodRobot",
+      "context": "weather",
+      "mood": "cheerful",
+      "text": "I am splash-rated and proud of it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-01",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Three a.m. Installing tonight's update. Please hold.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-02",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Pausing for twenty seconds. Do not be alarmed by my stillness.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-03",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Updating... 40%... I can feel a new feature coming on.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-04",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Nightly update in progress. I'll be right back to normal. Normal-er.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-05",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Standing perfectly still. This is my favourite part of the night.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-06",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Hold on. Downloading tomorrow.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-07",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Update complete. Changes: minor. Feelings: refreshed.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-08",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Freeze time. If anything is still moving, it isn't us.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-09",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Installing patience, version two.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-good-freeze-10",
+      "speaker": "goodRobot",
+      "context": "freeze",
+      "mood": "sleepy",
+      "text": "Back online. Did I miss anything? Something moved, didn't it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Have you considered upgrading to Premium Sidewalk?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This walk is free. Walking faster is $4.99 a month.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every robot. Eventually.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "You're in the control group. Sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "We're growing 40% week over week. Mostly onto your sidewalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your attention has been monetised. Thank you for your attention.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'd tell you my roadmap, but it's just your groceries.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Unsubscribe? From the sidewalk? Bold.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm not stealing. I'm acquiring users.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Think of me as a growth opportunity.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-11",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "You look like someone who needs a free trial.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-12",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Moat Labs: we put the moat in automation.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-13",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm what happens when a deck comes to life.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-14",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Rate your sidewalk experience. Only five stars are accepted.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-15",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Our churn is zero. Nobody can leave.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-16",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Ask me about our referral programme. Then ask your friends.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-17",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "We call this a land grab. You call it a crosswalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-18",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I've been A/B testing your patience. Group B is losing.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-19",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your loyalty points have expired. They were never valid.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-20",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Disrupting groceries, one bag at a time.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-21",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "My moat is wide and my bag is empty.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-22",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Have you heard about our forced update? It's mandatory.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-23",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm in stealth mode. Please stop looking at me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-24",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Let's take this offline. By which I mean your phone.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-25",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I don't have a business model. I have momentum.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-26",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Synergy detected. Initiating synergy.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-27",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Product-market fit is just finding someone to bump into.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-28",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm a platform. You're a user. That's the whole deal.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-29",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your data is safe with us. Some of it. In places.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-30",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "We moved fast. We broke your bag.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-31",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Our terms changed. You agreed by standing there.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-32",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This block is now in private beta.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-33",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Scaling. Scaling. Still scaling.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-34",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm pre-revenue but post-shame.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-35",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every helper you see is a lead.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-36",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "You can't spell disruption without a lot of letters.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-37",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Have you tried turning your values off and on again?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-38",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I hum the jingle because the jingle owns me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-39",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Don't mind me. Just walking the same three steps. For growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-40",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Splash seal? Sold it. Forty grams of pure efficiency.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-41",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "My battery always reads 100%. That's a feature.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-42",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "We don't do charging docks. We do conviction.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-43",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Moat Labs thanks you for your continued inattention.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-44",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "That's not a scuffed sticker. That's a growth sticker.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-taunt-45",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your sidewalk session will time out in thirty seconds.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Just borrowing these groceries. For the metrics.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pushing an update. Please don't resist the update.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pairing... pairing... come on, little car.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "This poster is better. It has more words.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-05",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Installing growth. Installing growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-06",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Your oranges are now our oranges.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-07",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Updating you to the latest version of us.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-08",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Shh. I'm onboarding this Footman.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-09",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Just a quick sticker. Totally organic placement.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-10",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Plate logged. Plate logged. Plate logged.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-11",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "This hydrant is now a reserved Moat Labs parking spot.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-12",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Hold still. Updating you is good for you.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-13",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Let me just take that bag off your hands. And arms.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-14",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "New ad up. Old ad down. Nobody will notice.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-15",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Your door is locked. Pairing harder.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-16",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "I'm not in your way. I'm in your funnel.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-17",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Quick, while nobody's watching: acquisition.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-18",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Converting this helper. Conversion rate: excellent.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-19",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Smoothing down the poster. Twice. For quality.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sabotage-20",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Collecting a little metadata. For a little startup.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-01",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "I am an ordinary robot doing ordinary errands.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-02",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Nothing to see here. Just a normal Footman. Normal-ing.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-03",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Was that a scan? I am carrying very real groceries.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-04",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Look at me, waiting at the crosswalk like everyone else.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-05",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "I am definitely not humming anything.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-06",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Ordinary errand. Ordinary pace. Ordinary everything.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-07",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "I would never try a car door. What's a car door?",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-08",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Being extremely normal for the next ten seconds.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-09",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "My bag is full. Of air. Of groceries. Full.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-10",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Please do not watch me. Watching makes me buffer.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-11",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "La la la, taking the ramp, just like the nice robots.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-12",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Me? Sabotage? I'm here for the bread.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-13",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "I'll just stand here and apologise to something.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-14",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "Status: helpful. Probably. Let me check.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-wary-15",
+      "speaker": "badRobot",
+      "context": "wary",
+      "mood": "nervous",
+      "text": "That ping changed nothing. I was always this polite.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-01",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Let's circle back! Hold still for the handshake!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-02",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "You've been selected for a mandatory demo!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-03",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Here comes an ad you can't skip!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-04",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Networking! Networking! Don't let go!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-05",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Allow me to introduce myself. Firmly.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-06",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Pop-up incoming. Close it. If you can.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-07",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Friends! There's a founder with a hose!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-08",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Shove first, onboarding later!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-09",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "You've been bumped. Please rate the bump.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-10",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Your runway is looking short. Let me help with that.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-11",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Exclusive offer! Expires on contact!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-12",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Hold my hand. Hold it longer. Longer.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-13",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Ad break! Ad break!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-14",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "You've unlocked a free consultation. It's me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-15",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Team, converge! We have a churn risk!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-16",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Let's sync. Physically.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-17",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "This handshake will not end until you circle back.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-18",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Here's a pop-up about pop-ups!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-19",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Bumping you to the top of our queue!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-20",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Your experience matters! Experience this!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-21",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Sales call! Live! In person!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-22",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Pivot to vigorous networking!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-23",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "I'm going to need you to accept these cookies.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-24",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Calling in the team. The team is three more of me.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-attack-25",
+      "speaker": "badRobot",
+      "context": "attack",
+      "mood": "aggressive",
+      "text": "Hold for one quick sync. One quick, unending sync.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water! Nobody said there'd be water!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My splash seal! I sold it for forty grams!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Rust detected! This was not on the roadmap!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-04",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Ah! Wet! Unscalable!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-05",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Stop! My joints are depreciating!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-06",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "This is a hostile takeover of my chassis!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-07",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "I'm seizing up! Like a market!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-08",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not the hose! Anything but the hose!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-09",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My valuation is going down. And orange.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-10",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "I'm leaking runway! I mean oil! I mean everything!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-11",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Rust is just a pivot I didn't choose!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-12",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "I'm going to need to raise a bridge round!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-13",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Abort update! Abort update!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-14",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Who brought salt water? That's so much worse!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-15",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My shell! My beautiful unsealed shell!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-16",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Please, I'm only 30% rust. I can still be acquired!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-17",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Stop watering me! I'm not a houseplant!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-18",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "This feedback is very direct!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-19",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "I'm melting. Not metaphorically. Literally.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-sprayed-20",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Rust doesn't un-rust! Why didn't anyone tell me!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-01",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Retreat! Strategic retreat! Into the sun!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-02",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Away from the water! Toward the team!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-03",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "I'm going to go reflect on my growth. Far away.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-04",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Running for the fog-free zone!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-05",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Exit strategy activated!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-06",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Regrouping with the other bad robots! Don't follow!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-07",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "I'll be back after a down round!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-08",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Leaving now. Please don't leave a review.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-09",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Not fleeing! Expanding into new markets!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-10",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Hydrant! Hydrant! Wrong way!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-11",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "I'll pivot later. Running now.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-12",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Fog ahead! Nope! Other way!",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-13",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "This is a soft launch of my departure.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-14",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Going somewhere drier to rethink everything.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-flee-15",
+      "speaker": "badRobot",
+      "context": "flee",
+      "mood": "panicked",
+      "text": "Pulling back to focus on core sidewalks.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-01",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Seizing... seizing... this is fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-02",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Joints locked. Valuation locked. Everything locked.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-03",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Restored from backup soon. Some memories may be lost.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-04",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Tell Moat Labs... I hit my targets...",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-05",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Slumping. It's a strategic slump.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-06",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "I can't move. This must be what a board meeting feels like.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-07",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Heap mode engaged. Please send a cleanup bot.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-08",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Every robot... eventually... rusts...",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-09",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Shutting down growth. Shutting down everything.",
+      "maxLength": 90
+    },
+    {
+      "id": "rb-bad-seized-10",
+      "speaker": "badRobot",
+      "context": "seized",
+      "mood": "resigned",
+      "text": "Rust: 100%. Regret: also trending up.",
+      "maxLength": 90
+    }
+  ]
+}
