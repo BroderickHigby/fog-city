@@ -9,8 +9,8 @@ The large ad panel on each side between the axles uses its own material named "l
 with UVs spanning the panel 0..1 (u along the bus as seen from outside, v up), so the
 renderer can swap in generated ad textures. The default texture is an abstract placeholder.
 
-Nodes: muni_bus (root, ground, body centre), body, wheel_FL/FR/RL/RR (origin at the hub,
-spin about local X). Front faces glTF -Z. Budget: 12k triangles.
+Nodes: muni_bus (root, ground, body centre), body, livery_panel (both ad panels; the only
+mesh with UVs), wheel_FL/FR/RL/RR (origin at the hub, spin about local X). Front faces glTF -Z. Budget: 12k triangles.
 """
 
 import math
@@ -41,8 +41,7 @@ TEX_DIR = os.path.join(fc.BLENDER_DIR, ".cache", "textures")
 def livery_png(path):
     """Abstract placeholder ad: soft gradient, two circles and bars. No words, no marks."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    w, h = 512, 64 * 1
-    h = 112
+    w, h = 512, 128
     y, x = np.mgrid[0:h, 0:w].astype(np.float32)
     u, v = x / w, 1 - y / h
     r = 0.12 + 0.55 * u
@@ -146,15 +145,17 @@ def main() -> None:
         for yy in (y0, y1):
             mb.box(HW, yy - 0.04, 0.36, HW + 0.02, yy + 0.04, 2.66, dark)
         mb.box(HW, y0 - 0.04, 2.62, HW + 0.02, y1 + 0.04, 2.68, dark)
-    # ---- livery panels (both sides), UV 0..1 across each panel as seen from outside
+    # ---- livery panels (both sides, own node so only they carry UVs), UV 0..1 across each
+    # panel as seen from outside: u runs left to right, v bottom to top
     y0, y1, z0, z1 = PANEL
+    lv = fc.MeshBuilder()
     for sx in (1, -1):
         x = sx * (HW + 0.006)
         if sx > 0:  # right side, seen from +X: forward (+Y) is to the right
             pts = [(x, y0, z0), (x, y1, z0), (x, y1, z1), (x, y0, z1)]
         else:  # left side, seen from -X: forward is to the left
             pts = [(x, y1, z0), (x, y0, z0), (x, y0, z1), (x, y1, z1)]
-        mb.poly_n(pts, livery, (sx, 0, 0), uv=[(0, 0), (1, 0), (1, 1), (0, 1)])
+        lv.poly_n(pts, livery, (sx, 0, 0), uv=[(0, 0), (1, 0), (1, 1), (0, 1)])
         mb.box(sx * HW, y0 - 0.05, z0 - 0.05, sx * (HW + 0.004), y1 + 0.05, z1 + 0.05, dark)
     # ---- front: big windscreen, destination sign, lights, bumper
     yf = HL + 0.002
@@ -195,6 +196,9 @@ def main() -> None:
         mb.pop()
     body.add(mb)
     body.build("body", parent=root, sharp_angle=40)
+    panel = lv.build("livery_panel", parent=root)
+    panel["livery"] = {"material": "livery", "uv": "0..1 per side, u left to right as seen from outside, v up",
+                       "aspect": round((y1 - y0) / (z1 - z0), 3)}
 
     for name, y, sx, ww in (("wheel_FL", Y_F, -1, 0.30), ("wheel_FR", Y_F, 1, 0.30), ("wheel_RL", Y_R, -1, 0.56), ("wheel_RR", Y_R, 1, 0.56)):
         V.wheel(name, WR, ww, tire, rim, hub=dark, seg=18, spokes=8, side=sx, parent=root,

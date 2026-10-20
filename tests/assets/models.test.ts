@@ -1,0 +1,495 @@
+// Hero assets (public/models/*.glb, built by assets/blender/build.sh): valid glTF, within
+// budget, the named nodes the renderer and sim rely on, front facing -Z, real-world sizes,
+// emissive only where the renderer expects night lights, and alpha MASK never BLEND.
+// Orientation is checked from geometry (lights, wheels, feet, the real SF footprint), not
+// assumed from how the scripts were written.
+
+import Ajv2020 from "ajv/dist/2020.js";
+import { validateBytes } from "gltf-validator";
+import { describe, expect, it } from "vitest";
+import { toLocal } from "../../src/geo/project.ts";
+import { readJson } from "../helpers.ts";
+import {
+  allPositions,
+  box,
+  loadModel,
+  materialPositions,
+  mean,
+  node,
+  nodePositions,
+  sceneNodes,
+  triangleCount,
+  worldAxis,
+  worldOrigin,
+  type V3,
+} from "./glb.ts";
+
+interface Spec {
+  file: string;
+  budget: number;
+  nodes: string[];
+  lights: string[];
+}
+
+const HANDS = ["N", "E", "S", "W"].flatMap((f) => [`clock_hour_${f}`, `clock_minute_${f}`]);
+const CAR_WHEELS = ["wheel_FL", "wheel_FR", "wheel_RL", "wheel_RR"];
+const ROBOT_PARTS = [
+  "torso",
+  "head",
+  "arm_upper_L",
+  "arm_upper_R",
+  "arm_lower_L",
+  "arm_lower_R",
+  "leg_upper_L",
+  "leg_upper_R",
+  "leg_lower_L",
+  "leg_lower_R",
+  "bag",
+];
+
+const SPECS: Spec[] = [
+  {
+    file: "ferry-building.glb",
+    budget: 100_000,
+    nodes: ["ferry_building", "building", "tower", "tower_outline_lights", ...HANDS],
+    lights: ["light_tower_outline", "light_clock_face"],
+  },
+  { file: "r-evolution.glb", budget: 40_000, nodes: ["r_evolution", "frame", "shell", "glow", "plinth"], lights: ["light_sculpture_glow"] },
+  { file: "player-car.glb", budget: 8_000, nodes: ["player_car", "body", ...CAR_WHEELS], lights: ["light_headlight", "light_taillight"] },
+  {
+    file: "robotaxi.glb",
+    budget: 10_000,
+    nodes: ["robotaxi", "body", "sensor_dome", ...CAR_WHEELS],
+    lights: ["light_status", "light_headlight", "light_taillight"],
+  },
+  { file: "errand-robot.glb", budget: 6_000, nodes: ["errand_robot", ...ROBOT_PARTS], lights: ["light_face"] },
+  {
+    file: "sidewalk-bot.glb",
+    budget: 3_000,
+    nodes: ["sidewalk_bot", "body", "flag", "wheel_L1", "wheel_L2", "wheel_L3", "wheel_R1", "wheel_R2", "wheel_R3"],
+    lights: ["light_eyes"],
+  },
+  {
+    file: "muni-bus.glb",
+    budget: 12_000,
+    nodes: ["muni_bus", "body", "livery_panel", ...CAR_WHEELS],
+    lights: ["light_headlight", "light_taillight", "light_destination_sign"],
+  },
+];
+
+describe.each(SPECS)("$file", (spec) => {
+  it("is valid glTF 2.0 (Khronos validator: no errors)", async () => {
+    const m = await loadModel(spec.file);
+    const report = await validateBytes(m.bytes, { maxIssues: 50 });
+    const errors = report.issues.messages.filter((x) => x.severity === 0);
+    expect(errors, JSON.stringify(errors.slice(0, 5))).toEqual([]);
+    expect(report.issues.numErrors).toBe(0);
+  });
+
+  it(`stays within ${spec.budget} triangles`, async () => {
+    const { doc } = await loadModel(spec.file);
+    const tris = triangleCount(doc);
+    expect(tris).toBeGreaterThan(spec.budget * 0.02);
+    expect(tris).toBeLessThanOrEqual(spec.budget);
+  });
+
+  it("has the named nodes the game drives", async () => {
+    const { doc } = await loadModel(spec.file);
+    const names = new Set(sceneNodes(doc).map((n) => n.getName()));
+    for (const n of spec.nodes) expect(names, n).toContain(n);
+  });
+
+  it("is emissive only on light_* materials, and those glow", async () => {
+    const { json } = await loadModel(spec.file);
+    const mats = json.materials ?? [];
+    for (const mat of mats) {
+      const e = mat.emissiveFactor ?? [0, 0, 0];
+      const glows = e.some((c) => c > 0.05);
+      expect(glows, `${mat.name} emissive=${JSON.stringify(e)}`).toBe((mat.name ?? "").startsWith("light_"));
+    }
+    const names = mats.map((x) => x.name);
+    for (const l of spec.lights) expect(names, l).toContain(l);
+  });
+
+  it("uses alpha MASK or OPAQUE, never BLEND", async () => {
+    const { json } = await loadModel(spec.file);
+    for (const mat of json.materials ?? []) expect(mat.alphaMode ?? "OPAQUE", mat.name).not.toBe("BLEND");
+  });
+
+  it("stands on the ground (lowest point at y = 0)", async () => {
+    const { doc } = await loadModel(spec.file);
+    expect(Math.abs(box(allPositions(doc)).min[1])).toBeLessThan(0.03);
+  });
+});
+
+// ------------------------------------------------------------------------------ vehicles
+
+interface VehicleSpec {
+  file: string;
+  length: [number, number];
+  width: [number, number];
+}
+
+describe.each<VehicleSpec>([
+  { file: "player-car.glb", length: [4.0, 5.0], width: [1.6, 2.1] },
+  { file: "robotaxi.glb", length: [4.4, 5.2], width: [1.8, 2.3] },
+  { file: "muni-bus.glb", length: [11.0, 13.0], width: [2.4, 3.3] },
+])("$file as a road vehicle", ({ file, length, width }) => {
+  it("has a real-world length and width", async () => {
+    const { doc } = await loadModel(file);
+    const b = box(nodePositions(node(doc, "body")));
+    expect(b.size[2]).toBeGreaterThanOrEqual(length[0]);
+    expect(b.size[2]).toBeLessThanOrEqual(length[1]);
+    expect(b.size[0]).toBeGreaterThanOrEqual(width[0]);
+    expect(b.size[0]).toBeLessThanOrEqual(width[1]);
+    expect(Math.abs(b.center[0])).toBeLessThan(0.05);
+  });
+
+  it("faces -Z: headlights at the -Z end, taillights at the +Z end", async () => {
+    const { doc } = await loadModel(file);
+    const b = box(nodePositions(node(doc, "body")));
+    const head = mean(materialPositions(doc, "light_headlight"));
+    const tail = mean(materialPositions(doc, "light_taillight"));
+    expect(head[2]).toBeLessThan(b.min[2] + 0.1 * b.size[2]);
+    expect(tail[2]).toBeGreaterThan(b.max[2] - 0.1 * b.size[2]);
+  });
+
+  it("has hub-centred wheel nodes: front at -Z, left at -X, touching the ground", async () => {
+    const { doc } = await loadModel(file);
+    for (const name of CAR_WHEELS) {
+      const n = node(doc, name);
+      const o = worldOrigin(n);
+      expect(o[2] < 0, `${name} z=${o[2]}`).toBe(name.includes("_F"));
+      expect(o[0] < 0, `${name} x=${o[0]}`).toBe(name.endsWith("L"));
+      const local = box(nodePositions(n, "local"));
+      // spins about local X: round in Y and Z, centred on the origin
+      expect(Math.abs(local.center[1])).toBeLessThan(0.02);
+      expect(Math.abs(local.center[2])).toBeLessThan(0.02);
+      expect(Math.abs(local.size[1] - local.size[2])).toBeLessThan(0.02);
+      expect(Math.abs(o[1] - local.size[1] / 2)).toBeLessThan(0.02);
+      expect(n.getExtras().spinAxis).toEqual([1, 0, 0]);
+    }
+  });
+});
+
+describe("robotaxi", () => {
+  it("has a sensor dome on the roof that spins about its own vertical axis", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const dome = node(doc, "sensor_dome");
+    const local = box(nodePositions(dome, "local"));
+    expect(Math.abs(local.center[0])).toBeLessThan(0.02);
+    expect(Math.abs(local.center[2])).toBeLessThan(0.02);
+    expect(worldAxis(dome, [0, 1, 0])[1]).toBeGreaterThan(0.999);
+    const roof = box(nodePositions(node(doc, "body"))).max[1];
+    expect(worldOrigin(dome)[1]).toBeGreaterThan(1.6);
+    expect(box(nodePositions(dome)).max[1]).toBeGreaterThanOrEqual(roof - 0.01);
+  });
+
+  it("has corner sensor pods and a status light up top", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const lens = materialPositions(doc, "sensor_lens");
+    const b = box(nodePositions(node(doc, "body")));
+    const corners = [
+      [-1, -1],
+      [1, -1],
+      [-1, 1],
+      [1, 1],
+    ].filter(([sx, sz]) => lens.some((p) => p[0] * sx! > 0.6 && p[2] * sz! > b.size[2] * 0.4));
+    expect(corners).toHaveLength(4);
+    expect(box(materialPositions(doc, "light_status")).min[1]).toBeGreaterThan(1.6);
+  });
+});
+
+describe("muni-bus livery", () => {
+  it("has a large side panel on each side with its own material and 0..1 UVs", async () => {
+    const { doc } = await loadModel("muni-bus.glb");
+    const prims = doc
+      .getRoot()
+      .listMeshes()
+      .flatMap((m) => m.listPrimitives())
+      .filter((p) => p.getMaterial()?.getName() === "livery");
+    expect(prims.length).toBeGreaterThan(0);
+    const uv = prims.flatMap((p) => {
+      const a = p.getAttribute("TEXCOORD_0");
+      if (!a) return [];
+      const out: number[][] = [];
+      for (let i = 0; i < a.getCount(); i++) out.push(a.getElement(i, []));
+      return out;
+    });
+    expect(uv.length).toBeGreaterThanOrEqual(8);
+    expect(Math.min(...uv.map((u) => u[0]!))).toBeCloseTo(0, 3);
+    expect(Math.max(...uv.map((u) => u[0]!))).toBeCloseTo(1, 3);
+    expect(Math.min(...uv.map((u) => u[1]!))).toBeCloseTo(0, 3);
+    expect(Math.max(...uv.map((u) => u[1]!))).toBeCloseTo(1, 3);
+    const pts = materialPositions(doc, "livery");
+    for (const side of [-1, 1]) {
+      const b = box(pts.filter((p) => p[0] * side > 0));
+      expect(b.size[2] * b.size[1], `side ${side} panel area`).toBeGreaterThan(3);
+    }
+    const mat = doc.getRoot().listMaterials().find((m) => m.getName() === "livery");
+    expect(mat?.getBaseColorTexture()).toBeTruthy();
+  });
+});
+
+// ------------------------------------------------------------------------- the robots
+
+describe("errand-robot", () => {
+  it("is human height with the face light in front of the head", async () => {
+    const { doc } = await loadModel("errand-robot.glb");
+    const h = box(allPositions(doc)).size[1];
+    expect(h).toBeGreaterThan(1.4);
+    expect(h).toBeLessThan(1.9);
+    const face = mean(materialPositions(doc, "light_face"));
+    const head = worldOrigin(node(doc, "head"));
+    expect(face[2]).toBeLessThan(head[2] - 0.05);
+    expect(face[1]).toBeGreaterThan(head[1]);
+  });
+
+  it("is a joint hierarchy with pivots at the joints", async () => {
+    const { doc } = await loadModel("errand-robot.glb");
+    const parent = (n: string) => node(doc, n).getParentNode()?.getName();
+    expect(parent("head")).toBe("torso");
+    expect(parent("bag")).toBe("arm_lower_R");
+    for (const s of ["L", "R"]) {
+      expect(parent(`arm_upper_${s}`)).toBe("torso");
+      expect(parent(`arm_lower_${s}`)).toBe(`arm_upper_${s}`);
+      expect(parent(`leg_upper_${s}`)).toBe("torso");
+      expect(parent(`leg_lower_${s}`)).toBe(`leg_upper_${s}`);
+      const sign = s === "L" ? -1 : 1;
+      const shoulder = worldOrigin(node(doc, `arm_upper_${s}`));
+      const elbow = worldOrigin(node(doc, `arm_lower_${s}`));
+      const hip = worldOrigin(node(doc, `leg_upper_${s}`));
+      const knee = worldOrigin(node(doc, `leg_lower_${s}`));
+      expect(shoulder[0] * sign).toBeGreaterThan(0.1); // the robot's left is -X
+      expect(hip[0] * sign).toBeGreaterThan(0.03);
+      expect(shoulder[1]).toBeGreaterThan(1.2);
+      expect(shoulder[1]).toBeLessThan(1.55);
+      expect(shoulder[1] - elbow[1]).toBeGreaterThan(0.2);
+      expect(shoulder[1] - elbow[1]).toBeLessThan(0.4);
+      expect(hip[1]).toBeGreaterThan(0.7);
+      expect(hip[1]).toBeLessThan(1.0);
+      expect(hip[1] - knee[1]).toBeGreaterThan(0.3);
+      // each limb's mesh hangs below its pivot
+      for (const part of [`arm_upper_${s}`, `arm_lower_${s}`, `leg_upper_${s}`, `leg_lower_${s}`]) {
+        const n = node(doc, part);
+        expect(box(nodePositions(n)).center[1], part).toBeLessThan(worldOrigin(n)[1]);
+      }
+    }
+    const neck = worldOrigin(node(doc, "head"));
+    expect(neck[1]).toBeGreaterThan(1.3);
+    expect(neck[1]).toBeLessThan(1.55);
+  });
+
+  it("carries the bag below its right hand, clear of the ground", async () => {
+    const { doc } = await loadModel("errand-robot.glb");
+    const bag = box(nodePositions(node(doc, "bag")));
+    const elbow = worldOrigin(node(doc, "arm_lower_R"));
+    expect(bag.max[1]).toBeLessThan(elbow[1]);
+    expect(bag.min[1]).toBeGreaterThan(0.1);
+    expect(bag.center[0]).toBeGreaterThan(0.15);
+  });
+});
+
+describe("sidewalk-bot", () => {
+  it("is knee-high with a tall flag, eyes at the front, wheel 1 at the front", async () => {
+    const { doc } = await loadModel("sidewalk-bot.glb");
+    const body = box(nodePositions(node(doc, "body")));
+    expect(body.max[1]).toBeGreaterThan(0.4);
+    expect(body.max[1]).toBeLessThan(0.75);
+    expect(box(nodePositions(node(doc, "flag"))).max[1]).toBeGreaterThan(1.2);
+    expect(mean(materialPositions(doc, "light_eyes"))[2]).toBeLessThan(body.min[2] + 0.05);
+    for (const s of ["L", "R"]) {
+      const z = [1, 2, 3].map((k) => worldOrigin(node(doc, `wheel_${s}${k}`))[2]);
+      expect(z[0]!).toBeLessThan(z[1]!);
+      expect(z[1]!).toBeLessThan(z[2]!);
+      for (const k of [1, 2, 3]) expect(worldOrigin(node(doc, `wheel_${s}${k}`))[0] < 0).toBe(s === "L");
+    }
+  });
+});
+
+// -------------------------------------------------------------------------- landmarks
+
+interface Landmark {
+  id: string;
+  model: string;
+  lat: number;
+  lon: number;
+  headingDeg: number;
+  scale?: number;
+  replacesBuildingIds?: string[];
+  collider?: Array<[number, number]>;
+}
+
+const landmarks = readJson<{ version: number; landmarks: Landmark[] }>("content/landmarks.json");
+const byId = (id: string): Landmark => {
+  const l = landmarks.landmarks.find((x) => x.id === id);
+  if (!l) throw new Error(`no landmark ${id}`);
+  return l;
+};
+
+/** World (src/geo) metres -> a landmark's model frame (glTF x right, z back). */
+function toModel(l: Landmark, x: number, z: number): [number, number] {
+  const o = toLocal(l.lat, l.lon);
+  const h = (l.headingDeg * Math.PI) / 180;
+  const dx = x - o.x;
+  const dz = z - o.z;
+  // world = Ry(-h) * model  =>  model = Ry(h) * world
+  return [dx * Math.cos(h) + dz * Math.sin(h), -dx * Math.sin(h) + dz * Math.cos(h)];
+}
+
+const footprint = readJson<{ record: { sf16_bldgid: string; shape: { type: string; coordinates: number[][][][] } } }>(
+  "assets/blender/data/ferry-building-footprint.json",
+);
+
+describe("content/landmarks.json", () => {
+  it("validates against schemas/landmarks.schema.json", () => {
+    const ajv = new Ajv2020({ allErrors: true, strict: false });
+    const v = ajv.compile(readJson("schemas/landmarks.schema.json"));
+    expect(v(landmarks), ajv.errorsText(v.errors)).toBe(true);
+  });
+
+  it("points at models that exist and places both landmarks", () => {
+    for (const id of ["ferry-building", "r-evolution"]) {
+      const l = byId(id);
+      expect(l.model).toMatch(/^models\/[a-z-]+\.glb$/);
+      expect(l.scale ?? 1).toBe(1);
+    }
+    expect(byId("ferry-building").replacesBuildingIds).toContain(footprint.record.sf16_bldgid);
+  });
+
+  it("puts R-Evolution in Embarcadero Plaza facing up Market Street, back to the Ferry Building", () => {
+    const rev = byId("r-evolution");
+    const ferry = byId("ferry-building");
+    const r = toLocal(rev.lat, rev.lon);
+    const f = toLocal(ferry.lat, ferry.lon);
+    const d = Math.hypot(r.x - f.x, r.z - f.z);
+    expect(d).toBeGreaterThan(60);
+    expect(d).toBeLessThan(200);
+    // seen from the Ferry Building's front, the sculpture is ahead of it (across the Embarcadero)
+    const [, zInFerry] = toModel(ferry, r.x, r.z);
+    expect(zInFerry).toBeLessThan(-60);
+    // and the sculpture faces away from the tower: its front points roughly along the
+    // tower -> sculpture direction (up Market Street)
+    const bearing = ((Math.atan2(r.x - f.x, -(r.z - f.z)) * 180) / Math.PI + 360) % 360;
+    expect(Math.abs(((rev.headingDeg - bearing + 540) % 360) - 180)).toBeLessThan(25);
+  });
+});
+
+// ----------------------------------------------------------------------- Ferry Building
+
+describe("ferry-building.glb", () => {
+  it("has a 70-80 m clock tower", async () => {
+    const { doc } = await loadModel("ferry-building.glb");
+    const tower = box(nodePositions(node(doc, "tower")));
+    expect(tower.max[1]).toBeGreaterThanOrEqual(70);
+    expect(tower.max[1]).toBeLessThanOrEqual(80);
+    expect(box(allPositions(doc)).max[1]).toBeLessThanOrEqual(80);
+    // the tower stands on the model origin
+    expect(Math.abs(tower.center[0])).toBeLessThan(1);
+    expect(Math.abs(tower.center[2])).toBeLessThan(1);
+  });
+
+  it("matches the SF footprint when placed by landmarks.json: front (Embarcadero facade) at -Z", async () => {
+    const { doc } = await loadModel("ferry-building.glb");
+    const l = byId("ferry-building");
+    const ring = footprint.record.shape.coordinates.reduce((a, p) => (p[0]!.length > a.length ? p[0]! : a), [] as number[][]);
+    const pts = ring.map(([lon, lat]) => {
+      const w = toLocal(lat!, lon!);
+      return toModel(l, w.x, w.z);
+    });
+    const fx = pts.map((p) => p[0]);
+    const fz = pts.map((p) => p[1]);
+    const m = box(nodePositions(node(doc, "building")));
+    // ~200 m long along x, ~58 m deep along z, the projecting pavilion on the -Z side
+    expect(Math.max(...fx) - Math.min(...fx)).toBeGreaterThan(195);
+    expect(Math.abs(m.min[0] - Math.min(...fx))).toBeLessThan(3);
+    expect(Math.abs(m.max[0] - Math.max(...fx))).toBeLessThan(3);
+    expect(Math.abs(m.min[2] - Math.min(...fz))).toBeLessThan(2.5);
+    expect(Math.abs(m.max[2] - Math.max(...fz))).toBeLessThan(2.5);
+    expect(-Math.min(...fz)).toBeLessThan(Math.max(...fz) / 4); // front is the shallow side
+    // the collider override is the same footprint
+    const c = l.collider ?? [];
+    expect(c.length).toBeGreaterThanOrEqual(4);
+    expect(Math.abs(Math.min(...c.map((p) => p[1])) - Math.min(...fz))).toBeLessThan(0.5);
+    expect(Math.abs(Math.max(...c.map((p) => p[1])) - Math.max(...fz))).toBeLessThan(0.5);
+  });
+
+  it("has four dials whose hands turn about local +Z = the dial's outward normal", async () => {
+    const { doc } = await loadModel("ferry-building.glb");
+    const outward: Record<string, V3> = { N: [0, 0, -1], E: [1, 0, 0], S: [0, 0, 1], W: [-1, 0, 0] };
+    for (const f of ["N", "E", "S", "W"]) {
+      for (const kind of ["hour", "minute"]) {
+        const n = node(doc, `clock_${kind}_${f}`);
+        expect(n.getExtras().clockHand).toBe(kind);
+        expect(n.getExtras().clockAxis).toEqual([0, 0, 1]);
+        const z = worldAxis(n, [0, 0, 1]);
+        const y = worldAxis(n, [0, 1, 0]);
+        const o = outward[f]!;
+        expect(z[0] * o[0] + z[1] * o[1] + z[2] * o[2], `${f} ${kind} normal`).toBeGreaterThan(0.999);
+        expect(y[1], `${f} ${kind} rests at 12`).toBeGreaterThan(0.999);
+        // pivot at the dial centre on that face, ~37 m up
+        const p = worldOrigin(n);
+        expect(p[1]).toBeGreaterThan(30);
+        expect(p[1]).toBeLessThan(45);
+        expect(p[0] * o[0] + p[2] * o[2]).toBeGreaterThan(5);
+        // the hand points up from the pivot and sits in front of the dial
+        const local = box(nodePositions(n, "local"));
+        expect(local.max[1]).toBeGreaterThan(kind === "minute" ? 2.8 : 1.9);
+        expect(local.min[2]).toBeGreaterThan(0);
+      }
+      const minute = box(nodePositions(node(doc, `clock_minute_${f}`), "local"));
+      const hour = box(nodePositions(node(doc, `clock_hour_${f}`), "local"));
+      expect(minute.max[1]).toBeGreaterThan(hour.max[1]);
+      expect(minute.min[2]).toBeGreaterThanOrEqual(hour.max[2] - 1e-3); // minute hand in front
+    }
+  });
+
+  it("has night outline strips on the tower", async () => {
+    const { doc } = await loadModel("ferry-building.glb");
+    const strips = box(materialPositions(doc, "light_tower_outline"));
+    expect(strips.min[1]).toBeGreaterThan(18);
+    expect(strips.max[1]).toBeGreaterThan(65);
+    expect(Math.max(Math.abs(strips.min[0]), Math.abs(strips.max[0]))).toBeLessThan(8);
+  });
+});
+
+// ------------------------------------------------------------------------- R-Evolution
+
+describe("r-evolution.glb", () => {
+  it("is a 12.5-15 m figure on a plinth", async () => {
+    const { doc } = await loadModel("r-evolution.glb");
+    const all = box(allPositions(doc));
+    expect(all.max[1]).toBeGreaterThanOrEqual(12.5);
+    expect(all.max[1]).toBeLessThanOrEqual(15);
+    const plinth = box(nodePositions(node(doc, "plinth")));
+    const l = byId("r-evolution");
+    const cr = Math.max(...(l.collider ?? []).map(([x, z]) => Math.hypot(x, z)));
+    expect(Math.abs(plinth.size[0] / 2 - cr)).toBeLessThan(0.1);
+  });
+
+  it("has a chain-link shell (alpha MASK, textured) over a triangulated rod frame, glowing inside", async () => {
+    const { doc, json } = await loadModel("r-evolution.glb");
+    const mat = (name: string) => (json.materials ?? []).find((m) => m.name === name);
+    expect(mat("steel_mesh")?.alphaMode).toBe("MASK");
+    expect(doc.getRoot().listMaterials().find((m) => m.getName() === "steel_mesh")?.getBaseColorTexture()).toBeTruthy();
+    expect(mat("light_sculpture_glow")?.alphaMode).toBe("MASK");
+    expect(mat("steel_rod")?.alphaMode ?? "OPAQUE").toBe("OPAQUE");
+    const frame = box(nodePositions(node(doc, "frame")));
+    const glow = box(nodePositions(node(doc, "glow")));
+    expect(frame.size[1]).toBeGreaterThan(12);
+    expect(glow.size[1]).toBeLessThan(frame.size[1]); // inside the frame
+  });
+
+  it("faces -Z: her feet point toward -Z", async () => {
+    const { doc } = await loadModel("r-evolution.glb");
+    const pts = nodePositions(node(doc, "shell"));
+    const base = box(nodePositions(node(doc, "plinth"))).max[1];
+    const ankles = pts.filter((p) => p[1] > base + 0.75 && p[1] < base + 1.0);
+    const feet = pts.filter((p) => p[1] > base && p[1] < base + 0.35);
+    const az = mean(ankles)[2];
+    const f = box(feet);
+    const toes = az - f.min[2];
+    const heels = f.max[2] - az;
+    expect(toes).toBeGreaterThan(1.5 * heels);
+  });
+});
