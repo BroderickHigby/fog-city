@@ -12,6 +12,10 @@ startup scene. Three.js renders; a pure-TypeScript deterministic simulation is t
 
 `pnpm verify` must be green before you call anything done.
 
+## Game design
+Read `docs/design.md` before building gameplay. It is the source of truth for pillars, combat, robots, territory
+and the decision log.
+
 ## Architecture and contracts
 - `src/sim/contract.ts` and `schemas/tile-*.schema.json` are the contracts every part builds against.
   Do not change them casually: a change breaks saves, replays and netcode. If you must, say so loudly in your report.
@@ -43,8 +47,9 @@ Each area has one owner. Edit only your own directories; anything else, describe
 Adding a dependency: pin an exact version that is at least two weeks old (`pnpm add --save-exact`).
 
 ## Content and taste rules (non-negotiable)
-- Non-violent. Players fire flowers at each other; the patch launcher only reboots robots. People are never valid
-  targets: a hit on a person does nothing to them and costs the player.
+- Non-violent. Players fire flowers at each other; the water blaster rusts robots (they seize, slump and melt into a
+  rust heap). People are never harmed: water makes them wet and annoyed and costs the player. Vehicles never hurt
+  people (they dodge; contact is a gentle push). Bad-robot attacks are slapstick and satire, never injury.
 - No real brands, logos or trademarks. Invent startup and product names. Storefronts stay unnamed for now:
   iconography only (beer-neon shape, barber pole), empty sign slot reserved.
 - Robotaxis and robots are original designs: nothing that copies a real vehicle or a film robot.
