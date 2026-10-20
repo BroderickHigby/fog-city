@@ -236,10 +236,10 @@ localhost or LAN).
 | Sim-Player | XP, ranks and gates; blaster upgrades; perks with the per-mode table; loadouts; streak points for free roam; safehouse purchase (the North Beach studio, the Dogpatch loft, the Marina flat); the Presidio garage; the vibe-coded bench; Doom Clock, faction contracts, AGI Achieved and AI Winter events; Conference Week alongside mission 5's convention center; missions 5–7; the step-5 activities (Stair Watch on the Lyon St steps and the Presidio forest-road SF-Bench route); the Fleet Week Pitch Window on Marina Green; Coit Tower Recon, Mother Dough Run, Term Sheet Jumps, Muni shifts (ride and drive the wave-2 buses), Human in the Loop, Robotaxi Choir, Scenic Route, Tensor Brick Run, All Fleeced Up; scripted Explain It to Your Mom (after the bus reveal; its clarity token carries into Office Hours); the phone Pivot action (3 a day, $500 or a VC star each) | L |
 | Sim-Modes | Match framework (own SimState, carry-in and carry-out rules, results); Bot Sweep rules (instance, Update Relay, lives, revive); Bot Sweep instances only outside the excluded areas | M |
 | Server-Net | Relay: invite-only lobbies with codes that expire after 30 minutes and cap at 4 players; server-ordered inputs; client rollback in `src/net/`; headless server sim with per-second hash checks and snapshots; join and leave as recorded `SimEvent`s; display names from generated name parts or passing the server-side content lint; no chat message types; deploy config (a container plus a health check, no secrets in the repo); the netcode test | L |
-| Render-World | Blimp, parrot flock (instanced), pallet drop; the jet team flypast; Coit viewer view; remote players | M |
+| Render-World | Blimp, parrot flock (instanced), pallet drop; the jet team flypast; Coit viewer view; remote players; the Elizabeth Homes silhouette in the western fog on foggy nights (foreshadowing; out of reach) | M |
 | UI-Audio | Loadout and upgrade screens; streak call UI; Mom in Messages and the phone Pivot action; lobby UI and generated-name picker; nameplates; the manual character customizer (enum lists for hair, outfit and tint, frozen at wave close so the user's offline avatar script can map to them) | L |
 | Content | `streaks.json`, perks, gadgets, XP table, upgrade prices; faction contracts (8, inside built tiles); Doom Clock headlines; Conference Week lines; pivot cards; bench prompt cards; Coit guide lines (Hallucination Tour) and the cofounder bank; the scripted Mom bank; streak and announcer lines; missions 5–7; humblebrag posts; name-part lists for player names; district content packs for step 5; customizer enum lists | M |
-| Assets | Blimp (invented livery), the jet team's aircraft (original design, invented livery), parrots, Tensor Brick pallet, sprinkler, water balloon, decoy speaker, Palace of Fine Arts, Golden Gate Bridge approach (legal checklist), safehouse interiors (simple), customizer hair and outfit meshes on the wave-2 rig | L |
+| Assets | Blimp (invented livery), the jet team's aircraft (original design, invented livery), parrots, Tensor Brick pallet, sprinkler, water balloon, decoy speaker, Palace of Fine Arts, Golden Gate Bridge approach (legal checklist), safehouse interiors (simple), customizer hair and outfit meshes on the wave-2 rig; a low-detail Elizabeth Homes silhouette for the fog foreshadowing (the full boss is wave 8) | L |
 | Harness | Perk test (every perk changes a sim output in every enabled mode); streak rate measurement and Monte Carlo; a 2-player Bot Sweep clearance driver (one car, one teammate on foot); e2e: two browser contexts join one Bot Sweep lobby; `?bench=presidio` | M |
 
 **Acceptance tests**
@@ -360,7 +360,7 @@ Fog Royale for 24.
 - Territory coverage and budgets pass.
 
 ## Wave 8 — The rest of the south, the finale, Vibes Night
-**Playable result:** the whole city is drivable; the Bay Bridge finale against the Moat Walker;
+**Playable result:** the whole city is drivable; the finale against Elizabeth Homes, the ~500 m turtlenecked robot colossus, from the Golden Gate to the Bay Bridge;
 the ferry to Treasure Island; a Vibes Night party room online.
 **Territory:** step 9b (the Excelsior, Glen Park, West Portal, Lakeshore, Visitacion Valley and the
 rest), the Bay Bridge deck and Treasure Island.
@@ -369,7 +369,9 @@ rest), the Bay Bridge deck and Treasure Island.
 |---|---|---|
 | Pipeline | Step-9b tiles, the bridge deck, Treasure Island, each gated on the budgets | L |
 | Sim-World | The ferry | M |
-| Sim-Agents | The Moat Walker | L |
+| Sim-Agents | The Moat Walker (threat 5); the final boss state machine (footfall route, weak points with rust, evacuation waves that clear every footfall zone, shed robots) | L |
+| Assets | Elizabeth Homes: the giant boss model with LODs, joint rig and weak-point nodes; damaged-building chunk sets for the stomp route; the fireboat | L |
+| Render-World | Boss rendering at 500 m scale (far plane, LOD, footfall shockwave and dust), scripted facade destruction, the overnight rebuild time-lapse | M |
 | Sim-Player | Mission 10; one step-9b activity; the step-9b garages for the 1.5 km rule | M |
 | Sim-Modes | Vibes Night party room (named apart from mission 5, Demo Day): 2–8 players present their startup kits, each plays a 90 s live demo in the mission-4 format (scored by the sim), they hear roasts, vote for the Vibes Award, keyed-hash tie-break; its own mode JSON; template roasts first | M |
 | Server-AI | Live Vibes Night roasts route (one call per kit, fallback to templates) | M |

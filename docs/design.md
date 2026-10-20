@@ -497,6 +497,62 @@ activity and the local bounty set, not from the 1.5 km rule.
 Island visible from the start; Treasure Island and the Bay Bridge deck drivable in wave 8 (decks);
 Alcatraz by ferry later, never driven.
 
+## The final boss: Elizabeth Homes
+*(User decision, 2026-10-20: "the final boss [is] Elizabeth Holmes out of prison ... bigger than the city
+with a black turtleneck stomping and destroying the city.")*
+
+**Who.** A giant, unmistakable caricature of the blood-testing fraud founder, just out of prison and
+straight into a comeback round: black turtleneck, the impossibly deep voice, the unblinking stare, a
+one-drop diagnostics startup that never worked. Her in-game name is the parody **Elizabeth Homes** (she
+promises to fix the housing crisis while stepping on it). The character never claims to be the real
+person. Her jokes target only her public record: hype, secrecy, the faked demos. Never her family,
+her appearance beyond the signature costume and voice, prison life, or anything sexual. Using the real
+name in a private build is a one-line content change the user can make. It goes on the pre-release
+legal checklist either way.
+
+**What she is.** She is Moat Labs' secret backer. "Every robot. Eventually." was her plan all along:
+the finale fuses every robot Moat Labs has converted into one body in her likeness, about **500 m tall**
+*(tune)*. That is taller than the Salesforce Tower and Sutro Tower, and she fills the skyline from
+anywhere in the city. Because her body is robots, **water rusts her**, so the whole kit works on her,
+and the fight ties together every system in the game.
+
+**The stomp.** She stomps through the city in scripted set pieces: facades crumble, scaffolding
+collapses, robotaxis are kicked into the Bay, piers buckle. **People are never hurt:** a robot evacuation wave
+clears every footfall zone before the foot lands, and the sim enforces it (no person inside a
+footfall zone at impact, with the same fuzz-test style as the no-touch tests). Damage is to buildings,
+props and robots only. After the fight, Tidy fleets rebuild the city overnight in a time-lapse:
+"Restored from backup. Some buildings may be lost."
+
+**The fight** (mission 10, "The Comeback Round"):
+1. **The entrance.** Fog rolls in through the Golden Gate and she wades in with it, stepping over the
+   bridge. Seen from Crissy Field: the turtleneck silhouette in the fog, then the voice.
+2. **The waterfront march** (Marina → Fisherman's Wharf → the Embarcadero). Chase her along the
+   waterfront. Rust her ankle and knee joints (glowing weak points) between footfalls, and dodge the
+   shockwaves (knockback, runway loss, slapstick). Bad robots drop from her like shed scales. The SF fireboat joins with
+   salt-water cannons that you aim by marking targets.
+3. **The pitch.** At the Ferry Building she stops to pitch the city on her comeback. Investor drones
+   circle and VC attention spikes; spray the drones' "term sheets" out of the sky while she talks.
+4. **The bridge.** She climbs onto the Bay Bridge. Drive up the deck under her and rust the joints
+   holding her body together while she sheds converted robots onto the lanes.
+5. **The reveal.** Her knees give. As she topples into the Bay, the rusted shell peels away: the giant
+   was a faked demo, papier-mache and LED panels over thousands of robots holding hands. Every
+   absorbed robot is freed and rebooted good ("Restored from backup"). The Ferry Building clock stops
+   the AGI Doom Clock. She swims for Oakland, still pitching.
+
+**Her lines** are invented and deep-voiced, never real quotes, e.g. "The demo is real. Do not look at
+the demo." / "We are going to change the world. Starting with this neighbourhood." / "I have done a
+lot of growing." / "Every robot. Eventually."
+
+**Foreshadowing.** From wave 4 she appears as a turtlenecked silhouette in the western fog on foggy
+nights (out of reach, gone when you approach), and Moat Labs billboards and radio ads tease "a
+comeback". Mission 9 ends with the prison-release news on the radio ticker.
+
+**Build notes.** The giant is one scripted-Blender model (target 60-80k triangles with LODs; the face is
+a stylised caricature, not a likeness scan) with a rigid, joint-based rig so it works with the
+deterministic sim. Her walk is a deterministic state machine of footfall targets along a fixed route.
+Weak points are sim entities with rust, and destruction is pre-authored per set piece (swap to damaged
+building chunks along the route), never physics. Camera: an extended far plane and a dedicated boss LOD.
+
 ## Missions and side activities
 **Missions are data** (`content/missions/*.json`) interpreted by the sim runtime. A content test
 fails any mission with a waypoint outside the tiles shipped in its wave. Each mission ships with a
@@ -517,7 +573,7 @@ event forces its window with `event.force{id}`.
 | 7 | Hill Climb | Russian Hill, Nob Hill | 4 | Moat Labs' car-theft ring; a chase down the crooked block of Lombard; finish on a cable car running board. |
 | 8 | Acqui-hire Offer | Moat Labs HQ, SoMa | 7 | Moat Labs offers to buy you. Pilot a Moat Labs unit by teleoperation from a laptop outside HQ (single-player Hide in the Crowd) and find the update server. If you are spotted, the connection drops and you retry from the van. |
 | 9 | Marine Layer | The Sunset, Ocean Beach | 7 | At threat 5 at night, lure the whole beta fleet west along the Great Highway into the fog. |
-| 10 | The Bridge | Bay Bridge, Treasure Island | 8 | Moat Labs' fleetwide update leaves HQ in SoMa eastbound for a Moat Labs relay on Treasure Island; chase it over the bridge deck; the Moat Walker; salt water from the Bay. Nothing arrives into SF from Oakland. |
+| 10 | The Comeback Round | Golden Gate → Marina → Embarcadero → Bay Bridge | 8 | The final boss: Elizabeth Homes, about 500 m of fused converted robots in a black turtleneck, wades in through the Golden Gate and stomps the waterfront. Rust her joints with the fireboat's salt water, survive the pitch at the Ferry Building, and topple her off the Bay Bridge. See "The final boss". |
 
 ### Side activities
 
@@ -991,6 +1047,7 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   the blocks where that reading would be plain. If the user prefers, alternates are Rust Patrol
   and Rust Rush.
 - **Photosensitivity.** The flash cap and Reduce flashing setting (Art direction) apply everywhere.
+- **Elizabeth Homes** (final boss) is a parody caricature of a real public figure; it needs a legal review before any public release, especially if the real name is used.
 - **Pre-release legal checklist** (does not block private builds): R-Evolution (sculpture,
   needs the artist's permission or an homage), Golden Gate Bridge and Transamerica Pyramid
   (owners have asserted trademark rights over their images), Sutro Tower, Pier 39 (a privately
@@ -1116,3 +1173,7 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   `active` in `content/districts.json`; a district becomes active when its activity, bounty set and safehouse land.
   This lets the whole city become drivable early, as the user asked, without breaking the coverage rule.
 - 2026-10-20 · "Echo Parrots" renamed **Buzzword Parrots** (avoids evoking a real product).
+- 2026-10-20 · **Final boss: Elizabeth Homes** (user decision). A ~500 m caricature of the fraud founder in a black
+  turtleneck, made of every robot Moat Labs converted, so water rusts her. She stomps the city in scripted set pieces;
+  people are always evacuated first and the city is rebuilt overnight. Parody name by default; the user may switch
+  to the real name for private builds. Replaces the Moat Walker as the finale (the Walker stays as a threat-5 unit).
