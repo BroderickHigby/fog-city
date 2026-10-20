@@ -2,18 +2,77 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/billboard-grammar",
   "title": "Billboard and ad-copy grammar (content/billboards.json)",
+  "description": "A context-free grammar of fictional ad copy. Expansion strings reference rules as {sym}, {sym.cap} (first letter upper-cased) or {$sym} (bound: chosen once per output and reused). Start alternatives are 'headline|subline'. Length limits are proven over every derivation by checkBillboardGrammar in src/content/billboards.ts.",
   "type": "object",
-  "required": ["version", "start", "rules"],
+  "required": ["version", "start", "starts", "external", "rules", "palettes"],
+  "additionalProperties": false,
   "properties": {
     "version": { "const": 1 },
-    "start": { "type": "string" },
+    "$comment": { "type": "string" },
+    "start": { "type": "string", "description": "Default start kind (a key of starts)." },
+    "starts": {
+      "type": "object",
+      "description": "One entry per surface: its start symbol and the character limits every output must fit.",
+      "required": ["billboard", "busWrap"],
+      "additionalProperties": false,
+      "properties": {
+        "billboard": { "$ref": "#/$defs/start" },
+        "busWrap": { "$ref": "#/$defs/start" }
+      }
+    },
+    "external": {
+      "type": "object",
+      "description": "Bound symbols the generator supplies itself (e.g. $product from names.ts), with their length range.",
+      "propertyNames": { "pattern": "^\\$[A-Za-z][A-Za-z0-9_]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["minLength", "maxLength"],
+        "additionalProperties": false,
+        "properties": {
+          "minLength": { "type": "integer", "minimum": 1 },
+          "maxLength": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" }
+        }
+      }
+    },
     "rules": {
       "type": "object",
-      "additionalProperties": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      "propertyNames": { "pattern": "^\\$?[A-Za-z][A-Za-z0-9_]*$" },
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
     },
     "palettes": {
       "type": "array",
-      "items": { "type": "object", "required": ["bg", "fg"], "properties": { "bg": { "type": "string" }, "fg": { "type": "string" } } }
+      "minItems": 6,
+      "description": "Flat background and bold text, like real SF SaaS boards. Text contrast must be at least 4.5:1 (checked in tests).",
+      "items": {
+        "type": "object",
+        "required": ["id", "bg", "fg", "accent"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "bg": { "type": "string", "pattern": "^#[0-9A-F]{6}$" },
+          "fg": { "type": "string", "pattern": "^#[0-9A-F]{6}$" },
+          "accent": { "type": "string", "pattern": "^#[0-9A-F]{6}$" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "start": {
+      "type": "object",
+      "required": ["symbol", "headlineMax", "sublineMax"],
+      "additionalProperties": false,
+      "properties": {
+        "symbol": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" },
+        "headlineMax": { "type": "integer", "minimum": 8, "maximum": 64 },
+        "sublineMax": { "type": "integer", "minimum": 8, "maximum": 96 },
+        "description": { "type": "string" }
+      }
     }
   }
 }
