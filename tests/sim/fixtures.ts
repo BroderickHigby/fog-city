@@ -27,7 +27,8 @@ export const GRID = 100;
  *  - a dead-end stub east from (300, 100) to (360, 100);
  *  - a diagonal from (0, 0) to (-70, -60) meeting the grid at an acute angle with the
  *    street running north from (0, 0) to (0, -80);
- *  - building "intruder" pokes onto the south sidewalk of street z = 0 between x 130 and 170.
+ *  - building "intruder" covers the south sidewalk of street z = 0 between x 130 and 170;
+ *  - building "awning" narrows the north sidewalk of z = 0 between x 230 and 270.
  * The ground rises 12% eastwards from x = 150 to x = 300 when `hill` is set.
  */
 export function gridCity(hill = false): World {
@@ -66,19 +67,23 @@ export function gridCity(hill = false): World {
       buildings.push(rect(`b${i}${j}`, i * GRID + 12, j * GRID + halfArterial(j * GRID), (i + 1) * GRID - 12, (j + 1) * GRID - halfArterial((j + 1) * GRID)));
     }
   }
-  // Pokes onto the south sidewalk of z = 0 (sidewalk centred at z = 7.5).
-  buildings.push(rect("intruder", 130, 6.5, 170, 12));
+  // Pokes across the whole south sidewalk of z = 0 and into the parking strip: no sidewalk
+  // line on that side clears it.
+  buildings.push(rect("intruder", 130, 4.0, 170, 12));
+  // An awning over the north sidewalk of z = 0 east of x = 200: the preferred line (2 m beyond
+  // the kerb) and the 1.5 m fallback touch it, the 1 m fallback clears it.
+  buildings.push(rect("awning", 230, -9.5, 270, -7.8, 4));
   // A building at the end of the stub and one inside the acute corner.
   buildings.push(rect("stub-end", 368, 80, 390, 120));
   buildings.push(rect("acute", -30, -70, -12, -40));
 
   let ground: Heightfield | null = null;
   if (hill) {
-    const x0 = -100;
-    const z0 = -100;
+    const x0 = -150;
+    const z0 = -150;
     const cell = 5;
-    const nx = 101;
-    const nz = 81;
+    const nx = 121;
+    const nz = 101;
     const heights: number[] = [];
     for (let iz = 0; iz < nz; iz++) {
       for (let ix = 0; ix < nx; ix++) {

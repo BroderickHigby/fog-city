@@ -331,8 +331,9 @@ export function stepCar(
       grip = Math.min(grip, 0.75);
     }
   }
-  const pitch = grounded ? datan(g1.slopeF) : c.pitch;
-  const roll = grounded ? datan(-g1.slopeR) : c.roll;
+  // (+ 0 turns a -0 from a flat ground into 0, so states print the same as they compare.)
+  const pitch = grounded ? datan(g1.slopeF) + 0 : c.pitch;
+  const roll = grounded ? datan(-g1.slopeR) + 0 : c.roll;
 
   let hits = c.hits;
   let personBumps = c.personBumps;
