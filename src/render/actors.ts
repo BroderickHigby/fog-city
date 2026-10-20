@@ -3,12 +3,16 @@
 // its wheels rolling (rotation.x -= distance / radius) and steering; and, while the player is
 // on foot, the walker, drawn by the same person builder as the crowd (person.ts) and walking.
 // Car lights are light_* materials: NightLights scales them with the rest of the city.
+// Each player has a colour from their id (playerColorIndex): the first keeps the model's own
+// paint, the others get the GLB's recolourable `paint` material cloned in their colour, so
+// players are told apart, and every client colours the same player the same way.
 
 import * as THREE from "three";
-import { PeopleRig } from "./agent-layer.ts";
+import { PeopleRig, castShadows } from "./agent-layer.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
 import { packedMaterial } from "./agent-packing.ts";
 import type { NightLights } from "./lights.ts";
+import { hashString } from "./hash.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { STRIDE_M, newLook, type PersonLook } from "./person.ts";
 import type { Pose } from "./types.ts";
@@ -26,7 +30,52 @@ export interface WalkerPose extends Pose {
   speed: number;
 }
 
-const CAR_COLORS = [0xc8372d, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0];
+/**
+ * Player car colours (sRGB). Index 0 is the player car's own paint (player-car.glb's orange;
+ * the procedural car matches it); the rest replace the GLB's `paint` material.
+ */
+export const CAR_COLORS = [0xe0552b, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0];
+
+/**
+ * A player's colour slot, from the id alone (so every client agrees): "p<n>" takes n - 1, so
+ * p1..p6 are all different; any other id hashes.
+ */
+export function playerColorIndex(id: string, slots = CAR_COLORS.length): number {
+  const m = /^p(\d+)$/.exec(id);
+  const n = m ? Number(m[1]) - 1 : hashString(id);
+  return ((n % slots) + slots) % slots;
+}
+
+/** The base name of a material ("paint.001" -> "paint"). */
+function baseName(name: string): string {
+  return name.replace(/\.\d+$/, "");
+}
+
+/**
+ * Give a loaded car its player's colour: every mesh using the recolourable `paint` material
+ * gets one clone of it (shared by those meshes) in `hex`. Returns the clones, which belong to
+ * this car alone and are disposed with it. Colour slot 0 (`hex` null) keeps the model's paint.
+ */
+export function recolorCar(car: THREE.Object3D, hex: number | null): THREE.Material[] {
+  if (hex === null) return [];
+  const clones = new Map<THREE.Material, THREE.Material>();
+  car.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const swap = (m: THREE.Material): THREE.Material => {
+      if (baseName(m.name) !== "paint") return m;
+      let c = clones.get(m);
+      if (!c) {
+        c = m.clone();
+        (c as THREE.MeshStandardMaterial).color?.setHex(hex);
+        clones.set(m, c);
+      }
+      return c;
+    };
+    mesh.material = Array.isArray(mesh.material) ? mesh.material.map(swap) : swap(mesh.material);
+  });
+  return [...clones.values()];
+}
 const SHIRTS = [0x2f6f9f, 0xb0453a, 0x3f7f4a, 0xd0a03a, 0x6a4f9a, 0x2f8a85];
 const PANTS = [0x2b3a55, 0x1f2024, 0x8f7d58, 0x4a4d52];
 const SKIN = [0xe0ac86, 0x8d5a3b, 0xf1c7a5, 0xa5714b, 0x6b4229, 0xc68e64];
@@ -124,6 +173,9 @@ export interface Wheel {
 interface PlayerView {
   car: THREE.Object3D;
   carSource: "file" | "fallback";
+  colorIndex: number;
+  /** Materials cloned for this car (its paint), disposed with it. */
+  ownMaterials: THREE.Material[];
   wheels: Wheel[];
   lastX: number;
   lastZ: number;
@@ -156,15 +208,24 @@ export class Actors {
   private lights: NightLights;
   private hidden: string | null = null;
   private hiddenPart: "car" | "person" = "car";
-  private colorsUsed = 0;
+  private readonly shadows: boolean;
   private readonly peopleMaterial = packedMaterial(true);
-  private readonly people = new PeopleRig(MAX_PLAYERS_DRAWN, this.peopleMaterial, "players:people");
+  private readonly people: PeopleRig;
 
-  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights) {
+  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false) {
     this.registry = registry;
     this.lights = lights;
+    this.shadows = shadows;
+    this.people = new PeopleRig(MAX_PLAYERS_DRAWN, this.peopleMaterial, "players:people", shadows);
     this.group.name = "actors";
     this.group.add(this.people.group);
+  }
+
+  /** Each player's colour slot (playerColorIndex), for tests and the debug handle. */
+  colorSlots(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const [id, v] of this.players) out[id] = v.colorIndex;
+    return out;
   }
 
   /** Where each player's car model came from ("file" = player-car.glb). */
@@ -184,14 +245,32 @@ export class Actors {
     v.car = car;
     v.carSource = source;
     v.wheels = findWheels(car);
+    // The procedural car is built in its colour; a loaded model is recoloured (slot 0 keeps its paint).
+    v.ownMaterials = source === "file" ? recolorCar(car, v.colorIndex === 0 ? null : CAR_COLORS[v.colorIndex]!) : [];
+    car.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) castShadows(o, this.shadows);
+    });
     this.group.add(car);
     this.lights.track(car);
+  }
+
+  /** Remove a player's car from the scene and free what is its own. */
+  private drop(v: PlayerView): void {
+    this.group.remove(v.car);
+    // A loaded model shares geometry and its light materials with the registry's prototype and
+    // every other player's car: those stay tracked and alive; only what is this car's own goes.
+    if (v.carSource === "fallback") {
+      this.lights.untrack(v.car);
+      disposeTree(v.car);
+    }
+    for (const m of v.ownMaterials) m.dispose();
+    v.ownMaterials = [];
   }
 
   private view(id: string): PlayerView {
     let v = this.players.get(id);
     if (v) return v;
-    const colorIndex = this.colorsUsed++;
+    const colorIndex = playerColorIndex(id);
     const look = newLook();
     look.shirt.setHex(SHIRTS[colorIndex % SHIRTS.length]!);
     look.pants.setHex(PANTS[colorIndex % PANTS.length]!);
@@ -203,6 +282,8 @@ export class Actors {
     v = {
       car,
       carSource: now.source,
+      colorIndex,
+      ownMaterials: [],
       wheels: [],
       lastX: 0,
       lastZ: 0,
@@ -227,9 +308,7 @@ export class Actors {
         }
         if (!cur || cur.carSource === "file") return;
         const old = cur.car;
-        this.group.remove(old);
-        this.lights.untrack(old);
-        disposeTree(old);
+        this.drop(cur);
         r.model.position.copy(old.position);
         r.model.rotation.copy(old.rotation);
         r.model.visible = old.visible;
@@ -298,12 +377,7 @@ export class Actors {
   remove(keep: ReadonlySet<string>): void {
     for (const [id, v] of this.players) {
       if (keep.has(id)) continue;
-      this.group.remove(v.car);
-      // A loaded model shares geometry and materials with the registry's prototype: only dispose our own.
-      if (v.carSource === "fallback") {
-        this.lights.untrack(v.car);
-        disposeTree(v.car);
-      }
+      this.drop(v);
       this.players.delete(id);
     }
   }

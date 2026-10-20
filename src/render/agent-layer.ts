@@ -10,8 +10,12 @@
 //    default), the sidewalk bot's flag sways, people walk.
 //  - mid tier (to 140 m): the model vertex-clustered to a few hundred triangles, rest pose.
 //  - far tier (to 450 m): a hand-built box proxy (~70-160 triangles) with the model's colours.
-//  - mode cues on every tier: wait/yield (or hard slowing) = brake lights; honk = hazards and
-//    the status light flashing.
+//  - mode cues on every tier: wait/yield (or slowing harder than 2.4 m/s^2, measured over the
+//    distance moved so a far agent the sim steps every 4th tick reads the same, and held
+//    0.35 s) = brake lights; honk = hazards and the status light flashing.
+// Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
+// parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
+// With shadows on (?shadows=1) every agent mesh casts and receives them.
 // Draw calls: robotaxi 5 near + 2, errand robot 6 + 2, sidewalk bot 5 + 2, people 3 + 2: at
 // most 27, and an InstancedMesh with no instances this frame is not drawn at all.
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
@@ -29,10 +33,12 @@ import {
   agentCue,
   agentModelScale,
   gaitAmount,
+  instanceBudget,
   interpolateAgent,
   rollWheel,
   selectTiers,
   steerFromYaw,
+  tierCapacity,
   type AgentCue,
   type AgentPose,
   type TierOptions,
@@ -130,6 +136,12 @@ export class PartMesh {
   }
 }
 
+/** Shadows on (?shadows=1): the mesh casts and receives them. */
+export function castShadows(mesh: THREE.Object3D, on: boolean): void {
+  mesh.castShadow = on;
+  mesh.receiveShadow = on;
+}
+
 function setRgb(a: THREE.InstancedBufferAttribute, i: number, c: THREE.Color): void {
   const arr = a.array as Float32Array;
   arr[i * 3] = c.r;
@@ -178,13 +190,17 @@ export class PeopleRig {
   readonly arms: PartMesh;
   readonly legs: PartMesh;
 
-  constructor(capacity: number, material: THREE.Material, name: string) {
+  /** `people`: the most people drawn at once (each takes one body, two arms and two legs). */
+  constructor(people: number, material: THREE.Material, name: string, shadows = false) {
     const parts = personParts();
-    this.body = new PartMesh(parts.body, material, capacity, `${name}:body`, true);
-    this.arms = new PartMesh(parts.arm, material, capacity * 2, `${name}:arms`, true);
-    this.legs = new PartMesh(parts.leg, material, capacity * 2, `${name}:legs`, true);
+    this.body = new PartMesh(parts.body, material, instanceBudget(people, 1), `${name}:body`, true);
+    this.arms = new PartMesh(parts.arm, material, instanceBudget(people, 2), `${name}:arms`, true);
+    this.legs = new PartMesh(parts.leg, material, instanceBudget(people, 2), `${name}:legs`, true);
     this.group.name = name;
-    this.group.add(this.body.mesh, this.arms.mesh, this.legs.mesh);
+    for (const m of [this.body, this.arms, this.legs]) {
+      castShadows(m.mesh, shadows);
+      this.group.add(m.mesh);
+    }
   }
 
   begin(): void {
@@ -312,6 +328,11 @@ export class AgentLayer {
   private readonly peopleMid: PartMesh;
   private readonly peopleFar: PartMesh;
   private readonly opts: TierOptions;
+  private readonly shadows: boolean;
+  /** Instances per part mesh: far and mid hold every agent, near the nearCap nearest. */
+  private readonly capFar: number;
+  private readonly capMid: number;
+  private readonly capNear: number;
   private disposed = false;
 
   private lastPrev: SimState | null = null;
@@ -326,21 +347,26 @@ export class AgentLayer {
   private wasNear = new Set<number>();
   private anims = new Map<number, Anim>();
   private frameNo = 0;
-  private readonly cue: AgentCue = { brake: 0, flash: 0 };
+  private readonly cue: AgentCue = { brake: 0, flash: 0, brakeUntil: 0 };
+  /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
+  private brakeUntil = new Map<number, number>();
   private readonly look = newLook();
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
 
-  constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}) {
+  constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
     this.opts = { ...DEFAULT_TIERS, ...opts };
+    this.shadows = shadows;
+    this.capFar = instanceBudget(tierCapacity(TIER_FAR, this.opts, MAX_AGENTS), 1);
+    this.capMid = instanceBudget(tierCapacity(TIER_MID, this.opts, MAX_AGENTS), 1);
+    this.capNear = tierCapacity(TIER_NEAR, this.opts, MAX_AGENTS);
     this.group.name = "agents";
     for (const kind of AGENT_KINDS) {
       if (kind === "person") continue;
       const box = fallbackProxy(kind);
-      const far = new PartMesh(box, this.material, MAX_AGENTS, `agents:${kind}:far`, false);
-      const mid = new PartMesh(box, this.material, MAX_AGENTS, `agents:${kind}:mid`, false);
+      const far = this.adopt(new PartMesh(box, this.material, this.capFar, `agents:${kind}:far`, false));
+      const mid = this.adopt(new PartMesh(box, this.material, this.capMid, `agents:${kind}:mid`, false));
       const view: KindView = { kind, source: "pending", model: null, scale: 1, near: [], mid, far };
       this.kinds.set(kind, view);
-      this.group.add(mid.mesh, far.mesh);
       void registry.get(AGENT_MODEL_KEY[kind]).then((r) => {
         if (this.disposed) return;
         if (r.source !== "file") {
@@ -350,10 +376,27 @@ export class AgentLayer {
         this.install(view, extractParts(r.model, AGENT_RIGS[kind]));
       });
     }
-    this.people = new PeopleRig(this.opts.nearCap, this.peopleMaterial, "agents:people");
-    this.peopleMid = new PartMesh(personParts().mid, this.peopleMaterial, MAX_AGENTS, "agents:people:mid", true);
-    this.peopleFar = new PartMesh(personParts().far, this.peopleMaterial, MAX_AGENTS, "agents:people:far", true);
-    this.group.add(this.people.group, this.peopleMid.mesh, this.peopleFar.mesh);
+    this.people = new PeopleRig(this.capNear, this.peopleMaterial, "agents:people", shadows);
+    this.group.add(this.people.group);
+    this.peopleMid = this.adopt(new PartMesh(personParts().mid, this.peopleMaterial, this.capMid, "agents:people:mid", true));
+    this.peopleFar = this.adopt(new PartMesh(personParts().far, this.peopleMaterial, this.capFar, "agents:people:far", true));
+  }
+
+  /** Into the scene, casting shadows when they are on. */
+  private adopt(part: PartMesh): PartMesh {
+    castShadows(part.mesh, this.shadows);
+    this.group.add(part.mesh);
+    return part;
+  }
+
+  /** Every part mesh's instance capacity, by mesh name (tests check it against the budget rule). */
+  capacities(): Record<string, number> {
+    const out: Record<string, number> = {};
+    this.group.traverse((o) => {
+      const m = o as THREE.InstancedMesh;
+      if (m.isInstancedMesh) out[m.name] = m.instanceMatrix.count;
+    });
+    return out;
   }
 
   private install(view: KindView, model: PackedModel): void {
@@ -362,17 +405,14 @@ export class AgentLayer {
     view.model = model;
     for (const p of model.parts) {
       if (!p.geometry) continue;
-      const part = new PartMesh(p.geometry, this.material, this.opts.nearCap, `agents:${view.kind}:${p.name}`, false);
+      const part = this.adopt(new PartMesh(p.geometry, this.material, instanceBudget(this.capNear, 1), `agents:${view.kind}:${p.name}`, false));
       view.near.push({ part, pivot: p.pivot, channel: p.channel, bagContents: p.bagContents });
-      this.group.add(part.mesh);
     }
     const proxy = proxyOf(model, PROXY_CELL[view.kind]);
-    const mid = new PartMesh(proxy, this.material, MAX_AGENTS, `agents:${view.kind}:mid`, false);
     // Only the old instanced mesh goes: its box geometry is the far tier's too.
     this.group.remove(view.mid.mesh);
     view.mid.mesh.dispose();
-    view.mid = mid;
-    this.group.add(mid.mesh);
+    view.mid = this.adopt(new PartMesh(proxy, this.material, this.capMid, `agents:${view.kind}:mid`, false));
     view.source = "file";
   }
 
@@ -442,7 +482,10 @@ export class AgentLayer {
       if (tier === TIER_HIDDEN) continue;
       const [a, b] = pairs[i]!;
       const pose = this.poses[i]!;
-      const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, time, this.cue);
+      const held = this.brakeUntil.get(b.id) ?? -Infinity;
+      const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
+      const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, moved, time, held, this.cue);
+      if (cue.brakeUntil > held) this.brakeUntil.set(b.id, cue.brakeUntil);
       drawn++;
       if (b.kind === "person") {
         personLook(b.id, this.look);
@@ -488,6 +531,7 @@ export class AgentLayer {
 
     if (this.frameNo % 120 === 0) {
       for (const [id, an] of this.anims) if (this.frameNo - an.seen > 120) this.anims.delete(id);
+      for (const [id, until] of this.brakeUntil) if (until < time) this.brakeUntil.delete(id);
     }
     const s = this.stats;
     s.drawn = drawn;

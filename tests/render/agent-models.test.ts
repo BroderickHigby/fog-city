@@ -6,10 +6,14 @@ import { join } from "node:path";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { AGENT_RIGS, fallbackProxy } from "../../src/render/agent-layer.ts";
+import { AGENT_MODEL_KEY, AGENT_RIGS, AgentLayer, fallbackProxy } from "../../src/render/agent-layer.ts";
+import { DEFAULT_TIERS, instanceBudget, tierCapacity, TIER_FAR, TIER_MID, TIER_NEAR } from "../../src/render/agent-lod.ts";
 import { extractParts, proxyOf, triangleCount, type PackedModel } from "../../src/render/agent-packing.ts";
+import { channelRatio } from "../../src/render/lights.ts";
+import type { ModelRegistry } from "../../src/render/model-registry.ts";
 import { HIP, PERSON_HEIGHT_M, SHOULDER, personLook, newLook, personParts } from "../../src/render/person.ts";
-import { AGENT_SPEC } from "../../src/sim/agents.ts";
+import { AGENT_SPEC, MAX_AGENTS, type AgentState } from "../../src/sim/agents.ts";
+import type { SimState } from "../../src/sim/contract.ts";
 import { ROOT } from "../helpers.ts";
 
 async function load(file: string): Promise<THREE.Object3D> {
@@ -81,6 +85,18 @@ describe("agent models, packed", () => {
     expect(channels(part(packed.robotaxi!, "wheelFL").geometry)).toEqual(new Set([0]));
     expect(channels(part(packed.errandRobot!, "body").geometry).has(3)).toBe(true); // light_face
     expect(channels(part(packed.sidewalkBot!, "body").geometry).has(3)).toBe(true); // light_eyes
+  });
+
+  it("keeps each light material's own night level on its shared channel (emissive pre-scaled)", () => {
+    // light_face shares the status channel with light_status, so its emissive carries their ratio.
+    const face = new THREE.MeshStandardMaterial({ name: "light_face", emissive: 0xffffff });
+    const packedFace = extractParts(
+      Object.assign(new THREE.Group(), { name: "root" }).add(new THREE.Mesh(new THREE.BoxGeometry(), face)),
+      [{ name: "body", nodes: [], pivot: "root", channel: { type: "none" } }],
+    );
+    const e = packedFace.parts[0]!.geometry!.getAttribute("fcEmit");
+    expect(e.getX(0)).toBeCloseTo(channelRatio("light_face"), 6);
+    expect(e.getW(0)).toBe(3);
   });
 
   it("swings errand-robot limbs from their joints, with the groceries riding the right arm", () => {
@@ -156,6 +172,58 @@ describe("the procedural person", () => {
       const s = personLook(id, newLook()).scale;
       expect(s).toBeGreaterThanOrEqual(0.93);
       expect(s).toBeLessThanOrEqual(1.07);
+    }
+  });
+});
+
+describe("AgentLayer instance capacities", () => {
+  const files = { robotaxi: "robotaxi.glb", robot: "errand-robot.glb", "sidewalk-bot": "sidewalk-bot.glb" } as const;
+  const models: Record<string, THREE.Object3D> = {};
+  beforeAll(async () => {
+    for (const [key, file] of Object.entries(files)) models[key] = await load(file);
+  });
+  const registry = {
+    get: async (key: string) => ({ source: "file" as const, model: models[key]! }),
+  } as unknown as ModelRegistry<THREE.Object3D>;
+
+  function robotaxis(n: number): SimState {
+    const list = Array.from({ length: n }, (_, i) => ({ id: i + 1, kind: "robotaxi", x: (i % 5) * 3 - 6, y: 0, z: -8 - 2 * i, heading: 0, pitch: 0, speed: 10, mode: "go" }));
+    return { tick: 1, ext: { agents: { nextId: n + 1, list: list as unknown as AgentState[] } } } as unknown as SimState;
+  }
+
+  it("allocates every part mesh from tierCapacity() and instanceBudget(), and draws no more than that", async () => {
+    for (const nearCap of [DEFAULT_TIERS.nearCap, 5]) {
+      const layer = new AgentLayer(registry, { nearCap });
+      await new Promise((r) => setTimeout(r, 0)); // the models install
+      const caps = layer.capacities();
+      const near = instanceBudget(tierCapacity(TIER_NEAR, { nearCap }, MAX_AGENTS), 1);
+      let nearParts = 0;
+      for (const [name, cap] of Object.entries(caps)) {
+        if (name.endsWith(":far")) expect(cap, name).toBe(instanceBudget(tierCapacity(TIER_FAR, { nearCap }, MAX_AGENTS), 1));
+        else if (name.endsWith(":mid")) expect(cap, name).toBe(instanceBudget(tierCapacity(TIER_MID, { nearCap }, MAX_AGENTS), 1));
+        else if (/:people:(arms|legs)$/.test(name)) expect(cap, name).toBe(instanceBudget(near, 2));
+        else {
+          expect(cap, name).toBe(near);
+          nearParts++;
+        }
+      }
+      // Every rig part of every kind, plus the person's body.
+      const rigParts = Object.keys(AGENT_MODEL_KEY).reduce((n, k) => n + AGENT_RIGS[k as keyof typeof AGENT_RIGS].length, 0);
+      expect(nearParts).toBe(rigParts + 1);
+
+      // 40 robotaxis within 60 m in front of the camera: nearCap get the full model, the rest the mid copy.
+      const s = robotaxis(40);
+      layer.update(s, s, 1, { x: 0, z: 0, fx: 0, fz: -1 }, 1 / 60, 0);
+      expect(layer.info().drawn).toBe(40);
+      expect(layer.info().near).toBe(nearCap);
+      const counts: Record<string, number> = {};
+      layer.group.traverse((o) => {
+        const m = o as THREE.InstancedMesh;
+        if (m.isInstancedMesh) counts[m.name] = m.count;
+      });
+      expect(counts["agents:robotaxi:body"]).toBe(nearCap);
+      expect(counts["agents:robotaxi:mid"]).toBe(40 - nearCap);
+      layer.dispose();
     }
   });
 });

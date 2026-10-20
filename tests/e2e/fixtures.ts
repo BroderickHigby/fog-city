@@ -68,7 +68,8 @@ export interface FogWindow {
 
 /**
  * Optional debug-handle members. renderInfo, setNight, setCameraMode, flyTo and tilesSettled
- * are prerequisite "render-debug"; landmarks and stepFrames are "landmark-ids" and "step-frames".
+ * are prerequisite "render-debug"; landmarks and stepFrames ("landmark-ids", "step-frames") are
+ * provided since the wave-1 integration, and the specs that use them assert they are there.
  */
 export type OptionalFeature = "renderInfo" | "setNight" | "setCameraMode" | "flyTo" | "tilesSettled" | "landmarks" | "stepFrames";
 

@@ -34,7 +34,6 @@ import {
   FAST_VIEWPORT,
   bootWorld,
   features,
-  gate,
   gateWorld,
   optionalAbsent,
   pause,
@@ -264,12 +263,8 @@ test.describe("cross-engine determinism: the running game", () => {
       gateWorld(world);
       test.slow(world === "sf", "SF boots and replays slowly under SwiftShader");
       const problems = await bootWorld(page, world, FAST_QUERY);
-      gate(
-        "step-frames",
-        (await features(page)).stepFrames,
-        "window.__fogcity.stepFrames(frames, events) is not provided yet (requested from the render track), " +
-          "so the multiplayer session runs in sim-lab.html only",
-      );
+      // The game's debug handle provides stepFrames() since the wave-1 integration: its absence is a regression.
+      expect((await features(page)).stepFrames, "window.__fogcity.stepFrames(frames, events) is provided").toBe(true);
       await pause(page);
       const s0 = await simState(page);
       const { manifest } = loadWorldFiles(world);

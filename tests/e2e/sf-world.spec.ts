@@ -177,8 +177,10 @@ test.describe("sf world: in the browser", () => {
     const placed = (await renderInfo(page))!.landmarks ?? 0;
     expect(placed, `landmarks in the scene; entries with a model file: ${ids.join(", ")}`).toBeGreaterThanOrEqual(ids.length);
 
-    // Which landmark is which: the renderer reports each placement by id.
-    if (have.landmarks) {
+    // Which landmark is which: the renderer reports each placement by id (provided since the
+    // wave-1 integration, so its absence is a regression, not a skip).
+    expect(have.landmarks, "window.__fogcity.landmarks() is provided").toBe(true);
+    {
       const list = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.landmarks!());
       expect(list.map((l) => l.id).sort(), "one landmarks() entry per landmarks.json entry").toEqual(doc!.landmarks.map((l) => l.id).sort());
       for (const id of ["ferry-building", "r-evolution"]) {
@@ -192,12 +194,6 @@ test.describe("sf world: in the browser", () => {
       }
       const f = list.find((l) => l.id === ferry!.id)!;
       expect(Math.hypot(f.x, f.z), `${f.id} placed this far from the clock tower (origin), m`).toBeLessThan(150);
-    } else {
-      if (required("landmark-ids")) throw new Error(`E2E_REQUIRE names "landmark-ids", but window.__fogcity.landmarks() is missing`);
-      test.info().annotations.push({
-        type: "note",
-        description: "window.__fogcity.landmarks() not available: checked the count of placed landmarks, not which is which",
-      });
     }
     expect(problems).toEqual([]);
   });

@@ -4,7 +4,8 @@
 //   position, normal
 //   color   vec3  base colour (linear), from the glTF material
 //   fcPbr   vec2  roughness, metalness
-//   fcEmit  vec4  emissive colour (linear, unit strength) and the light channel (lights.ts):
+//   fcEmit  vec4  emissive colour (linear, times the material's channelRatio so it keeps its
+//                 own night level) and the light channel (lights.ts):
 //                 0 none, 1 head lights, 2 tail/brake lights, 3 status lights (faces, eyes, rings)
 //   fcSlot  vec4  people only: weights of the per-instance shirt, trousers, skin and hair colours
 //
@@ -20,7 +21,7 @@
 
 import * as THREE from "three";
 import { injectUniforms } from "./materials.ts";
-import { lightChannel } from "./lights.ts";
+import { channelRatio, lightChannel } from "./lights.ts";
 import { clusterSimplify } from "./simplify.ts";
 
 /** Shared by every packed material: x head, y tail, z status light intensity; w flash strength. */
@@ -44,7 +45,9 @@ export function surfaceOf(m: THREE.Material): PackedSurface {
   const color: [number, number, number] = s.color ? [s.color.r, s.color.g, s.color.b] : [0.5, 0.5, 0.5];
   const channel = lightChannel(m.name ?? "");
   const e = s.emissive;
-  const emissive: [number, number, number] = channel > 0 && e ? [e.r, e.g, e.b] : [0, 0, 0];
+  // Pre-scaled so the material keeps its own night level on a shared channel (lights.ts).
+  const k = channel > 0 ? channelRatio(m.name) : 0;
+  const emissive: [number, number, number] = channel > 0 && e ? [e.r * k, e.g * k, e.b * k] : [0, 0, 0];
   return {
     color,
     roughness: typeof s.roughness === "number" ? s.roughness : 0.8,

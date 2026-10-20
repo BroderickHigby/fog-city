@@ -16,6 +16,7 @@
 
 import type { AgentKind, AgentMode, AgentState } from "../sim/agents.ts";
 import { AGENT_SPEC } from "../sim/agents.ts";
+import { DT } from "../sim/contract.ts";
 
 export const NEAR_RANGE_M = 60;
 export const NEAR_CAP = 16;
@@ -159,9 +160,22 @@ export function selectTiers(
   return near;
 }
 
-/** Instances one InstancedMesh must hold: `perAgent` instances for each of `agents`, never more than `capacity`. */
-export function instanceBudget(agents: number, perAgent: number, capacity: number): number {
-  return Math.max(0, Math.min(agents * perAgent, capacity));
+/**
+ * The most agents a tier draws in one frame: near is capped at `nearCap`; mid and far must be
+ * able to hold every agent the sim can have (`maxAgents`), since any of them can be there.
+ */
+export function tierCapacity(tier: Tier, opts: Readonly<Pick<TierOptions, "nearCap">>, maxAgents: number): number {
+  if (tier === TIER_HIDDEN) return 0;
+  return tier === TIER_NEAR ? Math.min(opts.nearCap, maxAgents) : maxAgents;
+}
+
+/**
+ * Instances one part's InstancedMesh holds: `perAgent` instances (a person's two arms, say)
+ * for each of `agents`, never more than `limit`. AgentLayer allocates every part with this,
+ * from tierCapacity(), and a full mesh refuses further instances for the frame.
+ */
+export function instanceBudget(agents: number, perAgent: number, limit = Infinity): number {
+  return Math.max(0, Math.min(Math.floor(agents) * Math.floor(perAgent), limit));
 }
 
 // ---------------------------------------------------------------- animation
@@ -194,24 +208,54 @@ export function gaitAmount(speed: number, cruise: number): number {
 export interface AgentCue {
   brake: number;
   flash: number;
+  /** Render time (s) until which slowing keeps the brake lights on; carried per agent between frames. */
+  brakeUntil: number;
 }
 
 /** Hazards blink at this rate, Hz. */
 export const FLASH_HZ = 1.6;
+/** Slowing harder than this reads as braking, m/s^2. */
+export const BRAKE_DECEL = 2.4;
+/** Once slowing lights them, the brake lights stay on at least this long, seconds. */
+export const BRAKE_HOLD_S = 0.35;
 
+/**
+ * Deceleration between two ticks, m/s^2 (0 when not slowing), from the speed change over the
+ * distance covered: (v0^2 - v1^2) / 2d. Measured over distance rather than per tick, it reads
+ * the same for an agent the sim steps every tick and for a far one it steps only every
+ * LOD_STRIDE ticks by LOD_STRIDE * DT (whose speed changes in one jump, then holds). The
+ * distance is never taken as less than one tick at the mean speed, so a stop is finite.
+ */
+export function slowingRate(prevSpeed: number, speed: number, distance: number): number {
+  const v0 = Math.abs(prevSpeed);
+  const v1 = Math.abs(speed);
+  if (!(v0 > v1)) return 0;
+  const d = Math.max(Math.abs(distance), ((v0 + v1) / 2) * DT);
+  return (v0 * v0 - v1 * v1) / (2 * d);
+}
+
+/**
+ * The cue for one agent this frame. `distance` is how far it moved between the two ticks,
+ * `timeS` the render clock and `brakeUntil` the hold carried from earlier frames (out.brakeUntil
+ * is the new one). Brake lights: wait or yield, or slowing harder than BRAKE_DECEL, then held
+ * BRAKE_HOLD_S, so an agent stepped every few ticks does not flash them. Hazards: honk.
+ */
 export function agentCue(
   kind: AgentKind,
   mode: AgentMode,
   prevSpeed: number,
   speed: number,
+  distance: number,
   timeS: number,
+  brakeUntil: number,
   out: AgentCue,
 ): AgentCue {
   out.brake = 0;
   out.flash = 0;
+  out.brakeUntil = brakeUntil;
   if (!AGENT_SPEC[kind].road) return out;
-  // Slowing by more than ~2.4 m/s^2 between ticks reads as braking too.
-  if (mode === "wait" || mode === "yield" || prevSpeed - speed > 0.04) out.brake = 1;
+  if (slowingRate(prevSpeed, speed, distance) > BRAKE_DECEL) out.brakeUntil = Math.max(brakeUntil, timeS + BRAKE_HOLD_S);
+  if (mode === "wait" || mode === "yield" || timeS < out.brakeUntil) out.brake = 1;
   if (mode === "honk") out.flash = (timeS * FLASH_HZ) % 1 < 0.5 ? 1 : 0;
   return out;
 }

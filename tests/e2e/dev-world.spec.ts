@@ -1,5 +1,5 @@
-// M0 acceptance on the hand-made dev world (public/tiles/dev): it boots cleanly and draws,
-// real keys reach the sim, deterministic stepping stops at the wall and never passes through
+// M0 acceptance on the hand-made dev world (public/tiles/dev): it boots cleanly and draws
+// (and refuses to boot without the road graph its manifest names), real keys reach the sim, deterministic stepping stops at the wall and never passes through
 // it, and the camera key changes the view but never the sim. "Never the sim" is checked with
 // the game's own loop consuming input after each press (pokeThenRun), replayed in Node.
 
@@ -50,6 +50,18 @@ function expectNeutralRun(world: string, run: PokeRun, what: string): string {
 }
 
 test.describe("dev world: boot", () => {
+  test("refuses to start a roadless world when the road graph its manifest names cannot be loaded", async ({ page }) => {
+    // The road graph drives the ambient agents: a client without it would run a different
+    // world from its peers, so boot must fail loudly instead.
+    await page.route("**/tiles/dev/roads.json", (route) => route.fulfill({ status: 404, body: "not here" }));
+    await page.goto(`/?world=dev${FAST_QUERY}`);
+    await page.waitForFunction(() => (document.getElementById("hud")?.textContent ?? "").startsWith("Failed to start"), null, {
+      timeout: 30_000,
+    });
+    expect(await page.locator("#hud").textContent()).toMatch(/^Failed to start: road graph roads\.json: .*HTTP 404/);
+    expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity?.ready ?? false), "no game handle").toBe(false);
+  });
+
   test("boots with no console errors and draws a frame", async ({ page }) => {
     const problems = await bootWorld(page, "dev");
     expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.world)).toBe("dev");

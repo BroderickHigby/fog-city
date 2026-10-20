@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
-import { Actors, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
+import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
@@ -152,7 +152,7 @@ export class SceneRenderer {
     this.registry = new ModelRegistry<THREE.Object3D>({
       load: async (url) => (await gltf.loadAsync(url)).scene,
       clone: (o) => o.clone(true),
-      fallback: (key) => (key === "player-car" ? makeBoxCar(0xc8372d) : new THREE.Group()),
+      fallback: (key) => (key === "player-car" ? makeBoxCar(CAR_COLORS[0]!) : new THREE.Group()),
       available: opts.models,
     });
 
@@ -168,9 +168,10 @@ export class SceneRenderer {
       radius: opts.radius,
       onReady: (g) => this.prepareShadows(g),
     });
-    this.actors = new Actors(this.registry, this.lights);
+    // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
+    this.actors = new Actors(this.registry, this.lights, opts.shadows);
     this.scene.add(this.actors.group);
-    this.agents = new AgentLayer(this.registry);
+    this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
     this.landmarks = new LandmarkLayer(
       opts.landmarks,

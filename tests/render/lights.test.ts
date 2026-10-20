@@ -6,6 +6,7 @@ import {
   LIGHT_NIGHT_INTENSITY,
   NightLights,
   channelIntensities,
+  channelRatio,
   isLightMaterial,
   lightBaseName,
   lightChannel,
@@ -65,6 +66,23 @@ describe("light scaling", () => {
     for (const n of ["light_status", "light_face", "light_eyes", "light_destination_sign"]) expect(lightChannel(n), n).toBe(3);
     expect(channelIntensities(0)).toEqual([0, 0, 0]);
     expect(channelIntensities(1)).toEqual([lightIntensity("light_headlight", 1), lightIntensity("light_taillight", 1), lightIntensity("light_status", 1)]);
+  });
+});
+
+describe("agent light channels", () => {
+  it("keep each light material's own night level through its channel ratio", () => {
+    for (const name of MODEL_LIGHTS) {
+      const ch = lightChannel(name);
+      if (ch === 0) continue;
+      for (const night of [0, 0.25, 0.5, 1]) {
+        expect(channelRatio(name) * channelIntensities(night)[ch - 1]!, `${name} at ${night}`).toBeCloseTo(lightIntensity(name, night), 9);
+      }
+    }
+    // The status channel runs at light_status's level; faces, eyes and signs keep theirs.
+    expect(channelRatio("light_status")).toBe(1);
+    expect(channelRatio("light_face")).toBeCloseTo(LIGHT_NIGHT_INTENSITY.light_face! / LIGHT_NIGHT_INTENSITY.light_status!, 12);
+    expect(channelRatio("light_destination_sign")).toBeGreaterThan(1);
+    expect(channelRatio("paint")).toBe(0);
   });
 });
 

@@ -5,7 +5,8 @@
 // Nodes that exist only to glow at night (glTF extras {"nightLight": true}) are hidden by day.
 //
 // The scaling functions are pure (tests/render/lights.test.ts). NightLights applies them to
-// three.js materials; agents get the same numbers through a shader uniform (agent-packing.ts).
+// three.js materials; agents get the same numbers through a shader uniform per channel
+// (agent-packing.ts), with each material's own level baked in as a ratio (channelRatio).
 // Changing an intensity never adds a light or recompiles a shader.
 
 import type * as THREE from "three";
@@ -71,6 +72,21 @@ export function lightChannel(name: string): LightChannel {
 /** The per-channel night intensities the agent shader reads (x head, y tail, z status). */
 export function channelIntensities(night: number): [number, number, number] {
   return [lightIntensity("light_headlight", night), lightIntensity("light_taillight", night), lightIntensity("light_status", night)];
+}
+
+/**
+ * A light material's brightness relative to its agent channel: the packed agent shader drives
+ * a whole channel with one intensity (light_headlight's, light_taillight's or light_status's),
+ * so agent-packing.ts pre-scales each material's emissive colour by this ratio and every
+ * material keeps its own night level (light_face 1.4, light_destination_sign 1.8, ...):
+ * channelRatio(name) * channelIntensities(night)[channel - 1] === lightIntensity(name, night).
+ * 0 for a material that is not a light.
+ */
+export function channelRatio(name: string): number {
+  const ch = lightChannel(name);
+  if (ch === 0) return 0;
+  const k = channelIntensities(1)[ch - 1]!;
+  return k > 0 ? lightIntensity(name, 1) / k : 1;
 }
 
 /**

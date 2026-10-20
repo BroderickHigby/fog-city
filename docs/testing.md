@@ -66,10 +66,10 @@ unknown name fails the run at load time, so a typo cannot require nothing.
 | `foot` | the sim state has `PlayerState.foot` (sim contract v2) |
 | `render-debug` | `window.__fogcity` has the render track's extras: `renderInfo()`, `setNight()`, `setCameraMode()`, `flyTo()`, `tilesSettled()` |
 | `landmarks` | `content/landmarks.json` exists with a Ferry Building entry (assets track) |
-| `landmark-ids` | `window.__fogcity.landmarks()` reports each landmark's id, position and whether its model is in the scene (provided since the wave-1 integration) |
+| `landmark-ids` | `window.__fogcity.landmarks()` reports each landmark's id, position and whether its model is in the scene (asserted unconditionally since the wave-1 integration; the name stays valid) |
 | `roads` | the game builds its sim world with the road graph its manifest names (asserted unconditionally since the wave-1 integration; the name stays valid) |
 | `engines` | Firefox and WebKit are installed |
-| `step-frames` | `window.__fogcity.stepFrames(frames, events)` exists (provided since the wave-1 integration) |
+| `step-frames` | `window.__fogcity.stepFrames(frames, events)` exists (asserted unconditionally since the wave-1 integration; the name stays valid) |
 
 CI reads `E2E_REQUIRE` from the repository variable of the same name (GitHub: Settings,
 Secrets and variables, Actions, Variables). Leave it empty while tracks are separate; set it
@@ -97,10 +97,16 @@ expectation.
 Owned by each track: `tests/sim`, `tests/render`, `tests/pipeline`, `tests/content`,
 `tests/assets`, `tests/schemas`. In `tests/render`, the agent renderer's pure parts have
 their own suites: `agent-lod.test.ts` (interpolation between ticks, tier selection and
-hysteresis, instance budgets, wheel/steer/gait helpers, brake and hazard cues, model scale,
-the proxy simplifier), `lights.test.ts` (night scaling of every `light_*` material) and
-`agent-models.test.ts` (the committed GLBs split at their joints with every triangle kept,
-proxy budgets, the procedural person's size). The harness adds `tests/e2e/harness.test.ts`, which tests
+hysteresis, tier capacities and instance budgets, wheel/steer/gait helpers, brake and hazard
+cues, with slowing measured over distance so an agent the sim steps every 4th tick reads like
+one it steps every tick, and the brake hold that keeps its lights from flashing, model scale,
+the proxy simplifier), `lights.test.ts` (night scaling of every `light_*` material, and the
+channel ratio that keeps each agent light at its own night level) and `agent-models.test.ts`
+(the committed GLBs split at their joints with every triangle kept, proxy budgets, the
+procedural person's size, and the instance capacity `AgentLayer` allocates for every part
+mesh, checked against the budget rule, with no more drawn than that). `hud-clock-actors.test.ts`
+covers the HUD, the game clock, the exit hint, and player car colours (a slot per player id,
+the GLB's `paint` cloned per car). The harness adds `tests/e2e/harness.test.ts`, which tests
 the harness itself: the PNG decoder used for blank-frame checks (every PNG filter type), the
 geometry helpers, that the determinism scenario really exercises several players, joins and
 leaves, steering and collisions (so the cross-engine test cannot silently become weak), that
@@ -113,10 +119,10 @@ sets its own (`it(name, fn, 60_000)`).
 
 | Spec | Proves | Prerequisites (skips without) |
 |---|---|---|
-| `dev-world.spec.ts` | The dev world boots with no console error, uncaught exception, HTTP error or failed request, and draws a frame that is not blank. Real keys reach the sim (W moves the car north, D turns it clockwise). Stepping `stepN(1)` 600 times at full throttle ends against the wall: the car centre is never inside it or past its face, and `hits` counts the impact. **KeyC never changes the sim**: with the car moving and turning, C is pressed (and once held) while paused, the paused sim must not move, then the game's own loop runs ~36 ticks consuming input and Node replays the snapshot with neutral input for as many ticks: the states must be identical. KeyC also cycles `renderInfo().cameraMode` and comes back, with the same check after every press. | `render-debug` (camera-mode test only) |
-| `determinism.spec.ts` | **Cross-engine determinism**, below. | `dev-city`, `sf` (per world); `engines` (Firefox, WebKit); `step-frames` (multiplayer game test) |
-| `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building. Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test); `landmark-ids` (per-id check) |
-| `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. | `foot` |
+| `dev-world.spec.ts` | With its road graph answering 404, the game refuses to start (HUD "Failed to start: road graph ...", no debug handle) instead of running a roadless world. The dev world boots with no console error, uncaught exception, HTTP error or failed request, and draws a frame that is not blank. Real keys reach the sim (W moves the car north, D turns it clockwise). Stepping `stepN(1)` 600 times at full throttle ends against the wall: the car centre is never inside it or past its face, and `hits` counts the impact. **KeyC never changes the sim**: with the car moving and turning, C is pressed (and once held) while paused, the paused sim must not move, then the game's own loop runs ~36 ticks consuming input and Node replays the snapshot with neutral input for as many ticks: the states must be identical. KeyC also cycles `renderInfo().cameraMode` and comes back, with the same check after every press. | `render-debug` (camera-mode test only) |
+| `determinism.spec.ts` | **Cross-engine determinism**, below. | `dev-city`, `sf` (per world); `engines` (Firefox, WebKit). `stepFrames()` is asserted present, not a skip |
+| `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building. Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
+| `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. Boxed in by four other players' cars (joined through `stepFrames()` events, 2 m to each side and 5.2 m ahead and behind), F leaves the player in the car and `hint()` reads "No room to get out" on screen; once they leave, F gets out with no hint. | `foot` |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
 
 ### Cross-engine determinism

@@ -1,4 +1,6 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import { CAR_COLORS, playerColorIndex, recolorCar } from "../../src/render/actors.ts";
 import { DAY_START_MINUTE, NIGHT_START_MINUTE, clockStartMinute, formatClock, gameMinuteOfDay } from "../../src/render/clock.ts";
 import { HINT_NO_ROOM, HINT_TOO_FAR, compassPoint, exitHint, hudText, type HudData } from "../../src/render/hud.ts";
 
@@ -94,5 +96,40 @@ describe("exit hint", () => {
   it("says the car is too far when F on foot does not get the player in", () => {
     expect(exitHint(foot, foot, true)).toBe(HINT_TOO_FAR);
     expect(exitHint(foot, foot, false)).toBeNull();
+  });
+});
+
+describe("player car colours", () => {
+  it("gives every player a colour slot from the id alone: p1..p6 all differ, p1 keeps the model's paint", () => {
+    const slots = ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => playerColorIndex(id));
+    expect(slots[0]).toBe(0);
+    expect(new Set(slots).size).toBe(CAR_COLORS.length);
+    expect(playerColorIndex("p7")).toBe(0);
+    expect(playerColorIndex("guest-42")).toBe(playerColorIndex("guest-42"));
+    for (const id of ["alice", "bob", "p0", "p999"]) {
+      expect(playerColorIndex(id)).toBeGreaterThanOrEqual(0);
+      expect(playerColorIndex(id)).toBeLessThan(CAR_COLORS.length);
+    }
+  });
+
+  it("recolours a loaded car's paint with one clone per car, leaving the shared materials alone", () => {
+    const paint = new THREE.MeshPhysicalMaterial({ name: "paint", color: 0xe0552b });
+    const lamp = new THREE.MeshStandardMaterial({ name: "light_headlight" });
+    const proto = new THREE.Group();
+    const g = new THREE.BoxGeometry();
+    proto.add(new THREE.Mesh(g, paint), new THREE.Mesh(g, paint), new THREE.Mesh(g, [lamp, paint]));
+    const car = proto.clone(true);
+    expect(recolorCar(car, null)).toEqual([]);
+    const own = recolorCar(car, CAR_COLORS[1]!);
+    expect(own).toHaveLength(1);
+    expect((own[0] as THREE.MeshPhysicalMaterial).color.getHex()).toBe(CAR_COLORS[1]);
+    const meshes = car.children as THREE.Mesh[];
+    expect(meshes[0]!.material).toBe(own[0]);
+    expect(meshes[1]!.material).toBe(own[0]);
+    expect((meshes[2]!.material as THREE.Material[])[0]).toBe(lamp);
+    expect((meshes[2]!.material as THREE.Material[])[1]).toBe(own[0]);
+    // The prototype (and every other player's clone) keeps the original paint.
+    expect((proto.children[0] as THREE.Mesh).material).toBe(paint);
+    expect(paint.color.getHex()).toBe(0xe0552b);
   });
 });

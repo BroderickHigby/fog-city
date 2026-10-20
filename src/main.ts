@@ -74,9 +74,22 @@ async function fetchJson<T>(url: string): Promise<T> {
   }
 }
 
-/** Let the browser paint the loading text before a long synchronous step. */
+/**
+ * Let the browser paint the loading text before a long synchronous step: a timeout queued
+ * from inside an animation frame runs after that frame is painted. A hidden tab runs no
+ * animation frames, so a fallback timer keeps boot from waiting for the tab to be shown.
+ */
 function paint(): Promise<void> {
-  return new Promise((done) => setTimeout(done, 0));
+  return new Promise((done) => {
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      done();
+    };
+    requestAnimationFrame(() => setTimeout(finish, 0));
+    setTimeout(finish, 250);
+  });
 }
 
 interface PlayerPoses {
@@ -99,14 +112,14 @@ async function boot(): Promise<void> {
   status(`loading ${worldName}…`);
   const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
   const tiles = await Promise.all(manifest.tiles.map((t) => fetchJson<TileCollider>(base + t.collider)));
-  let roads: RoadGraph | null = null;
-  if (manifest.roads) {
-    try {
-      roads = await fetchJson<RoadGraph>(base + manifest.roads);
-    } catch (err) {
-      console.warn("[fog-city] no road graph:", err);
-    }
-  }
+  // The road graph is part of the deterministic world (it drives the ambient agents): a client
+  // that cannot load the one its manifest names must not run a roadless world beside its
+  // peers, so boot fails, as for a missing collider.
+  const roads: RoadGraph | null = manifest.roads
+    ? await fetchJson<RoadGraph>(base + manifest.roads).catch((err: unknown) => {
+        throw new Error(`road graph ${manifest.roads}: ${err instanceof Error ? err.message : String(err)}`);
+      })
+    : null;
   // Once, at load: with the road graph the sim runs ambient traffic (state.ext.agents).
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();

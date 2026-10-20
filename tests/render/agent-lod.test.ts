@@ -2,6 +2,8 @@
 // instance budgets, the animation helpers, mode cues, model scale, and the far-proxy simplifier.
 import { describe, expect, it } from "vitest";
 import {
+  BRAKE_DECEL,
+  BRAKE_HOLD_S,
   DEFAULT_TIERS,
   FLASH_HZ,
   JUMP_M,
@@ -17,13 +19,16 @@ import {
   interpolateAgent,
   rollWheel,
   selectTiers,
+  slowingRate,
   steerFromYaw,
+  tierCapacity,
   type AgentCue,
   type AgentPose,
   type Viewer,
 } from "../../src/render/agent-lod.ts";
 import { clusterSimplify } from "../../src/render/simplify.ts";
-import { AGENT_SPEC } from "../../src/sim/agents.ts";
+import { AGENT_SPEC, LOD_STRIDE, MAX_AGENTS } from "../../src/sim/agents.ts";
+import { DT } from "../../src/sim/contract.ts";
 
 const pose = (): AgentPose => ({ x: 0, y: 0, z: 0, heading: 0, pitch: 0, speed: 0 });
 const at = (x: number, z: number, heading = 0, speed = 10) => ({ x, y: 1, z, heading, pitch: 0.02, speed });
@@ -112,11 +117,21 @@ describe("selectTiers", () => {
   });
 });
 
-describe("instanceBudget", () => {
-  it("is agents x instances per agent, never above capacity", () => {
+describe("instance budgets", () => {
+  it("is agents x instances per agent, never above the limit", () => {
     expect(instanceBudget(10, 2, 32)).toBe(20);
     expect(instanceBudget(20, 2, 32)).toBe(32);
     expect(instanceBudget(0, 5, 32)).toBe(0);
+    expect(instanceBudget(16, 2)).toBe(32);
+    expect(instanceBudget(-3, 2)).toBe(0);
+  });
+
+  it("lets near hold nearCap agents, and mid and far every agent the sim can have", () => {
+    expect(tierCapacity(TIER_NEAR, DEFAULT_TIERS, MAX_AGENTS)).toBe(DEFAULT_TIERS.nearCap);
+    expect(tierCapacity(TIER_MID, DEFAULT_TIERS, MAX_AGENTS)).toBe(MAX_AGENTS);
+    expect(tierCapacity(TIER_FAR, DEFAULT_TIERS, MAX_AGENTS)).toBe(MAX_AGENTS);
+    expect(tierCapacity(TIER_HIDDEN, DEFAULT_TIERS, MAX_AGENTS)).toBe(0);
+    expect(tierCapacity(TIER_NEAR, { nearCap: 900 }, MAX_AGENTS)).toBe(MAX_AGENTS);
   });
 });
 
@@ -149,23 +164,65 @@ describe("animation helpers", () => {
 });
 
 describe("agentCue", () => {
-  const cue = (): AgentCue => ({ brake: 0, flash: 0 });
+  const cue = (): AgentCue => ({ brake: 0, flash: 0, brakeUntil: 0 });
+  const NONE = -Infinity;
   it("lights robotaxi brake lights while waiting, yielding or slowing hard", () => {
-    expect(agentCue("robotaxi", "wait", 0, 0, 0, cue()).brake).toBe(1);
-    expect(agentCue("robotaxi", "yield", 3, 3, 0, cue()).brake).toBe(1);
-    expect(agentCue("robotaxi", "go", 10, 9.8, 0, cue()).brake).toBe(1);
-    expect(agentCue("robotaxi", "go", 10, 10.05, 0, cue()).brake).toBe(0);
+    expect(agentCue("robotaxi", "wait", 0, 0, 0, 0, NONE, cue()).brake).toBe(1);
+    expect(agentCue("robotaxi", "yield", 3, 3, 3 * DT, 0, NONE, cue()).brake).toBe(1);
+    // 10 -> 9.8 m/s in one tick: 12 m/s^2.
+    expect(agentCue("robotaxi", "go", 10, 9.8, 9.8 * DT, 0, NONE, cue()).brake).toBe(1);
+    expect(agentCue("robotaxi", "go", 10, 10.05, 10.05 * DT, 0, NONE, cue()).brake).toBe(0);
+    // Coming to a stop in place is braking, and finite.
+    expect(slowingRate(2, 0, 0)).toBeCloseTo(2 / DT, 6);
+  });
+
+  it("measures slowing over the distance moved, so a far agent stepped every LOD_STRIDE ticks reads like a near one", () => {
+    for (const decel of [1, 2, 6]) {
+      const near = slowingRate(12, 12 - decel * DT, (12 - decel * DT) * DT);
+      const v1 = 12 - decel * DT * LOD_STRIDE;
+      const far = slowingRate(12, v1, v1 * DT * LOD_STRIDE);
+      // Within 5% (the sim moves by the new speed, so (v0^2 - v1^2) / 2d reads a little high).
+      expect(Math.abs(near / decel - 1), `${decel} m/s^2, every tick: ${near}`).toBeLessThan(0.05);
+      expect(Math.abs(far / decel - 1), `${decel} m/s^2, every ${LOD_STRIDE}th tick: ${far}`).toBeLessThan(0.05);
+      const lit = (prev: number, v: number, d: number) => agentCue("robotaxi", "go", prev, v, d, 0, NONE, cue()).brake;
+      expect(lit(12, v1, v1 * DT * LOD_STRIDE), `${decel} m/s^2 far`).toBe(decel > BRAKE_DECEL ? 1 : 0);
+    }
+  });
+
+  it("holds the brake lights between a far agent's steps instead of flashing them, then lets go", () => {
+    // A far robotaxi braking at 5 m/s^2: the sim moves it every LOD_STRIDE-th tick by
+    // LOD_STRIDE * DT and leaves it alone in between; the renderer sees one tick per frame.
+    let v = 12;
+    let held = NONE;
+    const lit: number[] = [];
+    for (let t = 1; t <= 48; t++) {
+      const prev = v;
+      let d = 0;
+      if (t % LOD_STRIDE === 0 && t <= 16) {
+        v -= 5 * DT * LOD_STRIDE;
+        d = v * DT * LOD_STRIDE;
+      }
+      const c = agentCue("robotaxi", "go", prev, v, d, t * DT, held, cue());
+      held = c.brakeUntil;
+      lit.push(c.brake);
+    }
+    // Dark until the first step, then lit without a gap while it brakes.
+    expect(lit.slice(0, LOD_STRIDE - 1)).toEqual([0, 0, 0]);
+    expect(lit.slice(LOD_STRIDE - 1, 16)).toEqual(new Array(16 - LOD_STRIDE + 1).fill(1));
+    // Off BRAKE_HOLD_S after the last slowing step (tick 16).
+    const off = lit.findIndex((b, i) => i >= 16 && b === 0) + 1;
+    expect(off * DT - 16 * DT).toBeCloseTo(BRAKE_HOLD_S, 1);
   });
 
   it("flashes the hazards and status light on honk, on and off at FLASH_HZ", () => {
-    const on = agentCue("robotaxi", "honk", 0, 0, 0.1 / FLASH_HZ, cue());
-    const off = agentCue("robotaxi", "honk", 0, 0, 0.6 / FLASH_HZ, cue());
+    const on = agentCue("robotaxi", "honk", 0, 0, 0, 0.1 / FLASH_HZ, NONE, cue());
+    const off = agentCue("robotaxi", "honk", 0, 0, 0, 0.6 / FLASH_HZ, NONE, cue());
     expect([on.flash, off.flash]).toEqual([1, 0]);
   });
 
   it("gives walkers no vehicle cues", () => {
-    expect(agentCue("person", "wait", 1, 0, 0, cue())).toEqual({ brake: 0, flash: 0 });
-    expect(agentCue("errandRobot", "yield", 1, 0, 0, cue())).toEqual({ brake: 0, flash: 0 });
+    expect(agentCue("person", "wait", 1, 0, 0, 0, NONE, cue())).toEqual({ brake: 0, flash: 0, brakeUntil: NONE });
+    expect(agentCue("errandRobot", "yield", 1, 0, 0, 0, NONE, cue())).toEqual({ brake: 0, flash: 0, brakeUntil: NONE });
   });
 });
 

@@ -1,6 +1,7 @@
 // M0 acceptance for on-foot play, through real key presses in the running game (dev world):
 // F gets out, the walker is drawn and moves while the car stays parked (the HUD shows the
-// walking speed), F next to the car gets back in.
+// walking speed), F next to the car gets back in. Boxed in by four other players' cars, F
+// does nothing and the HUD says "No room to get out"; once they leave, F gets out, no hint.
 // Skips while the sim has no on-foot state (PlayerState.foot arrives with sim v2).
 
 import { expect, test } from "@playwright/test";
@@ -88,5 +89,69 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
     { timeout: 30_000 },
   );
   await page.keyboard.up("KeyW");
+  expect(problems).toEqual([]);
+});
+
+test("on foot: boxed in by four cars, F says 'No room to get out' and leaves the player in the car", async ({ page }) => {
+  const problems = await bootWorld(page, "dev", FAST_QUERY);
+  const p0 = p1(await simState(page));
+  gate("foot", "foot" in p0, "on-foot play is not in this sim yet: PlayerState has no `foot` (sim contract v2)");
+  const have = await page.evaluate(() => {
+    const h = (window as unknown as FogWindow).__fogcity!;
+    return { stepFrames: typeof h.stepFrames === "function", hint: typeof h.hint === "function" };
+  });
+  expect(have, "the debug handle has stepFrames() and hint()").toEqual({ stepFrames: true, hint: true });
+
+  // Four players join in cars touching p1's: left and right 2 m off its centre, front and back 5.2 m.
+  const boxIn = await page.evaluate(() => {
+    const h = (window as unknown as FogWindow).__fogcity!;
+    h.pause();
+    const s = h.state();
+    const c = s.players.p1!.car;
+    const fx = Math.sin(c.heading);
+    const fz = -Math.cos(c.heading);
+    const spots: Array<[string, number, number]> = [
+      ["p2", 2, 0],
+      ["p3", -2, 0],
+      ["p4", 0, 5.2],
+      ["p5", 0, -5.2],
+    ];
+    const tick = s.tick + 1;
+    const events = spots.map(([id, right, ahead]) => ({
+      tick,
+      kind: "player.join",
+      playerId: id,
+      payload: { x: c.x + right * -fz + ahead * fx, z: c.z + right * fx + ahead * fz, heading: c.heading },
+    }));
+    h.stepFrames!([{}], events);
+    h.resume();
+    return { ids: Object.keys(h.state().players).sort(), tick };
+  });
+  expect(boxIn.ids, "players after the joins").toEqual(["p1", "p2", "p3", "p4", "p5"]);
+
+  // F with the game's own loop running: nowhere to stand, so the player stays in, and the HUD says why.
+  await page.keyboard.press("KeyF");
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.hint!() === "No room to get out", null, { timeout: 15_000 });
+  const stuck = p1(await simState(page));
+  expect(stuck.mode, "still in the car").toBe("vehicle");
+  expect(await page.locator("#hint").isVisible(), "the hint is on screen").toBe(true);
+
+  // The other cars leave; once the hint has gone, F gets out, and no hint shows.
+  await page.evaluate(() => {
+    const h = (window as unknown as FogWindow).__fogcity!;
+    h.pause();
+    const tick = h.state().tick + 1;
+    h.stepFrames!(
+      [{}],
+      ["p2", "p3", "p4", "p5"].map((id) => ({ tick, kind: "player.leave", playerId: id })),
+    );
+    h.resume();
+  });
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.hint!() === "", null, { timeout: 15_000 });
+  await page.keyboard.press("KeyF");
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.mode === "foot", null, {
+    timeout: 15_000,
+  });
+  expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.hint!()), "no hint when F works").toBe("");
   expect(problems).toEqual([]);
 });
