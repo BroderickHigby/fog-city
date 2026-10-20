@@ -7,7 +7,7 @@ by `assets/audio/generate.py` (see `assets/audio/README.md`). `tests/assets/` ch
 output without Blender.
 
 ```sh
-BLENDER=/path/to/blender assets/blender/build.sh             # every model, landmarks.json, sounds (~3-7 min)
+BLENDER=/path/to/blender assets/blender/build.sh             # every model, landmarks.json, sounds (~1 min)
 BLENDER=/path/to/blender assets/blender/build.sh robotaxi    # one model (script name without .py)
 BLENDER=/path/to/blender assets/blender/build.sh --lookdev   # models, then every look-dev render (slow)
 pnpm vitest run tests/assets                                 # budgets, nodes, orientation, sizes, validator, VAT, audio
@@ -26,8 +26,13 @@ models it prints each GLB's triangle count read back from the file (`tools/glb-s
 which is the number to quote: Blender's pre-export count can be a few triangles higher
 because the exporter drops degenerate triangles.
 
-The build is deterministic: rebuilding produces byte-identical GLBs. It needs no network; the
-outside data it uses is committed in `data/` (see Sources). A quick look at any model:
+The build is deterministic: rebuilding produces byte-identical GLBs. Two settings in
+`build.sh` keep it so on any machine: Blender runs on a fixed 2 threads (`-t`,
+`FC_BLENDER_THREADS` to change), because R-Evolution's remesh and decimate come out slightly
+differently with a different thread count (so `r-evolution.glb` was rebuilt on 2 threads in
+wave 2: its top moved 1.2 cm, the triangle counts are the same), and numpy's BLAS runs on one
+thread (`OPENBLAS_NUM_THREADS=1`). The full build took 45 s on the shared 4-core machine. It
+needs no network; the outside data it uses is committed in `data/` (see Sources). A quick look at any model:
 `"$BLENDER" -b --factory-startup -noaudio -P assets/blender/tools/preview.py -- public/models/robotaxi.glb views=front3q,side`
 writes Cycles previews to `assets/blender/.renders/` (gitignored).
 
