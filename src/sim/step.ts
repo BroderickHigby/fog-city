@@ -88,6 +88,9 @@ interface Obstacles {
   forWalker: Map<PlayerId, Circle[]>;
 }
 
+/** Agents farther than this from a player's body cannot touch it this tick. */
+const NEAR_AGENT_M = 40;
+
 function obstaclesOf(prev: Readonly<SimState>): Obstacles {
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const agentRound: Circle[] = [];
@@ -101,8 +104,12 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
   const forWalker = new Map<PlayerId, Circle[]>();
   for (const id of ids) carBoxes.set(id, carBox(prev.players[id]!.car));
   for (const id of ids) {
-    const car: Circle[] = [...agentRound];
-    const walker: Circle[] = [...agentRound];
+    const p = prev.players[id]!;
+    const bx = p.mode === "foot" && p.foot ? p.foot.x : p.car.x;
+    const bz = p.mode === "foot" && p.foot ? p.foot.z : p.car.z;
+    const near = agentRound.filter((c) => (c.x - bx) * (c.x - bx) + (c.z - bz) * (c.z - bz) < NEAR_AGENT_M * NEAR_AGENT_M);
+    const car: Circle[] = [...near];
+    const walker: Circle[] = [...near];
     for (const other of ids) {
       if (other === id) continue;
       const o = prev.players[other]!;

@@ -14,6 +14,7 @@ import {
   POP_INTERVAL,
   ROBOTAXI_GAP_M,
   agentById,
+  agentPairs,
   agentCount,
   agentsOf,
   areaBudget,
@@ -192,7 +193,26 @@ describe("movement invariants over a long run (grid city, 4000 ticks)", () => {
       }
       maxWait = Math.max(maxWait, a.wait);
     }
-    // 3. Robotaxi bodies never overlap.
+    // 3. Bodies keep apart: walkers never overlap each other, and a walker never sinks more
+    //    than a graze (0.15 m) into a robotaxi.
+    const walkers = list.filter((a) => !AGENT_SPEC[a.kind].road);
+    for (let i = 0; i < walkers.length; i++) {
+      const A = walkers[i]!;
+      for (let j = i + 1; j < walkers.length; j++) {
+        const B = walkers[j]!;
+        if (Math.hypot(A.x - B.x, A.z - B.z) < AGENT_SPEC[A.kind].radius + AGENT_SPEC[B.kind].radius - 1e-6) failures.push(`t${k.tick} walkers #${A.id} and #${B.id} overlap`);
+      }
+      for (const T of taxis) {
+        const fx = dsin(T.heading);
+        const fz = -dcos(T.heading);
+        const ox = A.x - T.x;
+        const oz = A.z - T.z;
+        const dl = Math.max(0, Math.abs(ox * -fz + oz * fx) - AGENT_SPEC.robotaxi.halfWidth);
+        const df = Math.max(0, Math.abs(ox * fx + oz * fz) - AGENT_SPEC.robotaxi.halfLength);
+        if (Math.hypot(dl, df) < AGENT_SPEC[A.kind].radius - 0.15) failures.push(`t${k.tick} walker #${A.id} inside robotaxi #${T.id} overlap`);
+      }
+    }
+    // 4. Robotaxi bodies never overlap.
     for (let i = 0; i < taxis.length; i++) {
       robotaxiSpeed += taxis[i]!.speed;
       robotaxiSamples++;
@@ -210,7 +230,7 @@ describe("movement invariants over a long run (grid city, 4000 ticks)", () => {
     expect(failures.filter((f) => f.includes("off ") || f.includes("outside") || f.includes("not on")).slice(0, 5)).toEqual([]);
   });
 
-  it("robotaxis keep their spacing: no two bodies ever overlap", () => {
+  it("bodies keep their spacing: robotaxis never overlap, walkers never overlap, walkers never walk into robotaxis", () => {
     expect(failures.filter((f) => f.includes("overlap")).slice(0, 5)).toEqual([]);
   });
 
@@ -309,5 +329,23 @@ describe("helpers", () => {
   it("areaOf matches the area keys the graph uses", () => {
     const world = gridCity();
     for (const ar of world.roads!.areas) expect(areaOf(ar.cx, ar.cz).key).toBe(ar.key);
+  });
+});
+
+describe("agentPairs", () => {
+  it("pairs every agent with its previous self by id, null for new ones", () => {
+    const world = gridCity();
+    const s0 = createInitialState(world, 7, ["p1"], OFFSIDE);
+    const s1 = step(world, s0, NONE);
+    const pairs = agentPairs(s0, s1);
+    expect(pairs.length).toBe(agentsOf(s1).length);
+    for (const [p, c] of pairs) {
+      expect(p).not.toBeNull();
+      expect(p!.id).toBe(c.id);
+    }
+    const fresh = { ...s1, ext: { ...s1.ext, [AGENTS_EXT_KEY]: { nextId: 999, list: [...agentsOf(s1), { ...agentsOf(s1)[0]!, id: 998 }] } } };
+    const last = agentPairs(s1, fresh).at(-1)!;
+    expect(last[0]).toBeNull();
+    expect(last[1].id).toBe(998);
   });
 });

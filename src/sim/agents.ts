@@ -8,17 +8,29 @@
 //    is chosen with the agent's own seeded PRNG (agent.rng) when it enters an edge.
 //  - Robotaxis look ahead along their route (current path, the next connector, the next lane)
 //    and slow for anything near it: players (car or on foot), people, robots and other
-//    robotaxis, keeping a bumper gap of ROBOTAXI_GAP_M. Intersections (nodes with 3+ streets)
-//    hold one robotaxi at a time (an all-way stop: longest wait first, then lowest id).
+//    robotaxis, keeping a bumper gap of ROBOTAXI_GAP_M. Two robotaxis blocking each other:
+//    the one holding a junction goes first, otherwise the lower id.
+//  - Junctions (nodes with 3+ streets) work like an all-way stop. A robotaxi waits with its
+//    front bumper STOPLINE_M behind the line (further back if its body would sit in a
+//    holder's path) until it claims the junction: longest wait first, then lowest id, and
+//    only if its path through (turn plus HOLD_EXIT_M of exit lane) keeps JUNCTION_CLEAR_M
+//    from every holder's path and from the noses of robotaxis waiting at the other lines.
+//    Several robotaxis hold a junction at once when their paths do not conflict. Nobody
+//    claims a junction toward an exit lane whose first EXIT_CLEAR_M are occupied (no blocking
+//    the box). The claim is kept (agent.node) until the tail is out of the junction.
 //  - Walkers keep right on the sidewalk, cross streets at intersections, sidestep oncoming
 //    walkers, wait for players, and turn around after WALKER_TURN_TICKS blocked. People have
-//    right of way: walkers never yield to robotaxis; robotaxis always yield to walkers.
+//    right of way: robotaxis always yield to walkers, and a walker waits for a robotaxi only
+//    when that robotaxi is not already waiting for the walker (so they never walk into one).
 //  - Nothing moves into a building: a step that would put an agent's body in a footprint is
 //    refused (the agent waits; a walker turns around; a robotaxi stuck that way for
 //    ROBOTAXI_STUCK_TICKS goes out of service and is removed).
-//  - Deadlock breaker: a robotaxi blocked by other agents (not players) for GHOST_AFTER_TICKS
-//    ignores agents for GHOST_TICKS. Players are never ignored; a robotaxi waiting on a player
-//    for more than 2 s switches to mode "honk".
+//  - Last resort: an agent stuck for STUCK_REMOVE_TICKS while farther than SPAWN_MIN_PLAYER_M
+//    from every player is removed (the population refills elsewhere); in view it waits on.
+//  - Deadlock breaker: a robotaxi blocked for GHOST_AFTER_TICKS by other robotaxis or by a
+//    junction it cannot claim ignores other robotaxis (and junction claims) for GHOST_TICKS.
+//    It never ignores people, robots on the sidewalk or players; a robotaxi waiting on a
+//    player for more than 2 s switches to mode "honk".
 //
 // Population (seeded spawn budget per area)
 //  - The world is split into AREA_M (250 m) square areas (roads.ts). An area's budget for a
@@ -230,6 +242,8 @@ export const GHOST_AFTER_TICKS = 20 * 60;
 export const GHOST_TICKS = 2 * 60;
 export const WALKER_TURN_TICKS = 4 * 60;
 export const ROBOTAXI_STUCK_TICKS = 5 * 60;
+/** An agent stuck this long while out of every player's view (SPAWN_MIN_PLAYER_M) is removed. */
+export const STUCK_REMOVE_TICKS = 30 * 60;
 
 const AREA_HALF_DIAG = AREA_M * 0.7072;
 const HASH_CELL = 16;
@@ -304,8 +318,13 @@ interface Obs {
   /** Agent id, or -1 for a player body. */
   id: number;
   player: boolean;
-  /** A robotaxi (walkers do not yield to these). */
+  /** A robotaxi. */
   road: boolean;
+  /**
+   * Where a moving agent will be shortly. Robotaxis look at walkers' (to stop before someone
+   * crosses); walkers look at robotaxis' (to wait at the kerb for a gap). Never their own kind's.
+   */
+  predicted?: boolean;
 }
 
 interface Body {
@@ -377,11 +396,24 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
   return out;
 }
 
+/** Seconds ahead a moving walker's position is projected (seen by robotaxis). */
+const WALKER_PREDICT_S: readonly number[] = [0.6, 1.2];
+/** Seconds ahead a moving robotaxi's position is projected (seen by walkers at the kerb). */
+const ROBOTAXI_PREDICT_S: readonly number[] = [1.0, 2.0];
+
 function agentObstacles(list: readonly AgentState[]): Obs[] {
   const out: Obs[] = [];
   for (const a of list) {
-    const road = AGENT_SPEC[a.kind].road;
+    const spec = AGENT_SPEC[a.kind];
+    const road = spec.road;
     for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road });
+    if (a.speed > (road ? 1 : 0.3)) {
+      const hx = dsin(a.heading);
+      const hz = -dcos(a.heading);
+      for (const t of road ? ROBOTAXI_PREDICT_S : WALKER_PREDICT_S) {
+        out.push({ x: a.x + hx * a.speed * t, z: a.z + hz * a.speed * t, r: spec.radius, id: a.id, player: false, road, predicted: true });
+      }
+    }
   }
   return out;
 }
@@ -516,19 +548,36 @@ function makeConnector(from: Path, to: Path, tight: number): number[] {
   return connector(p.x, p.z, p.tx, p.tz, q.x, q.z, q.tx, q.tz, tight);
 }
 
-/** Speed for taking a connector: full speed straight on, slow for sharp turns. */
+/** Comfortable sideways acceleration for robotaxi turns, m/s^2. */
+const TURN_ACCEL = 2.8;
+
+/**
+ * Speed for taking a connector: from its tightest bend (radius from the turn between
+ * successive sampled segments), v = sqrt(TURN_ACCEL * radius), between 3.5 m/s and cruise.
+ */
 function turnSpeed(cp: readonly number[], cruise: number): number {
-  const t0x = cp[2]! - cp[0]!;
-  const t0z = cp[3]! - cp[1]!;
-  const t3x = cp[6]! - cp[4]!;
-  const t3z = cp[7]! - cp[5]!;
-  const l0 = Math.sqrt(t0x * t0x + t0z * t0z);
-  const l3 = Math.sqrt(t3x * t3x + t3z * t3z);
-  const cos = l0 > 1e-9 && l3 > 1e-9 ? (t0x * t3x + t0z * t3z) / (l0 * l3) : 1;
-  const k = (1 + cos) / 2;
-  const top = Math.min(cruise, 12);
-  return 3.5 + (Math.max(top, 3.5) - 3.5) * k * k;
+  const p = connectorPath(cp);
+  let minR = Infinity;
+  for (let i = 1; i + 1 < p.xs.length; i++) {
+    const ax = p.xs[i]! - p.xs[i - 1]!;
+    const az = p.zs[i]! - p.zs[i - 1]!;
+    const bx = p.xs[i + 1]! - p.xs[i]!;
+    const bz = p.zs[i + 1]! - p.zs[i]!;
+    const la = Math.sqrt(ax * ax + az * az);
+    const lb = Math.sqrt(bx * bx + bz * bz);
+    if (la < 1e-6 || lb < 1e-6) continue;
+    // Turn angle between segments (small-angle safe): sin from the cross product.
+    const sin = Math.abs(ax * bz - az * bx) / (la * lb);
+    const cos = (ax * bx + az * bz) / (la * lb);
+    const ang = cos > 0 ? datan2(sin, cos) : HALF_PI_LOCAL + datan2(-cos, sin);
+    if (ang < 1e-6) continue;
+    minR = Math.min(minR, (la + lb) / 2 / ang);
+  }
+  if (minR === Infinity) return Math.min(cruise, 12);
+  return clamp(Math.sqrt(TURN_ACCEL * minR), 3.5, Math.min(cruise, 12));
 }
+
+const HALF_PI_LOCAL = 1.5707963267948966;
 
 interface Seg {
   path: Path;
@@ -577,7 +626,7 @@ function probe(
   g: RoadGraph,
   a: Readonly<AgentState>,
   hash: Map<number, Obs[]>,
-  ignoreAgents: boolean,
+  ignoreRobotaxis: boolean,
   scratch: Obs[],
 ): ProbeResult {
   const spec = AGENT_SPEC[a.kind];
@@ -597,10 +646,8 @@ function probe(
   const hz = -dcos(a.heading);
   for (const o of scratch) {
     if (o.id === a.id) continue;
-    if (!o.player) {
-      if (ignoreAgents) continue;
-      if (!spec.road && o.road) continue; // people have right of way over robotaxis
-    }
+    if (o.road && ignoreRobotaxis) continue;
+    if (o.predicted && o.road === spec.road) continue;
     const dx = o.x - a.x;
     const dz = o.z - a.z;
     if (dx * dx + dz * dz > (reach + o.r) * (reach + o.r)) continue;
@@ -815,13 +862,31 @@ interface Ctx {
   world: World;
   g: RoadGraph;
   hash: Map<number, Obs[]>;
+  /** Look-ahead results by agent id; filled for every stepping agent, and on demand (probeOf). */
   probes: Map<number, ProbeResult>;
+  byId: Map<number, AgentState>;
+  scratch: Obs[];
   /** Node id -> the robotaxis holding it (several when their paths through it do not conflict). */
   holders: Map<string, Hold[]>;
   /** Robotaxis holding a junction (as of the previous tick). */
   holding: Set<number>;
+  /** Ids of every robotaxi. */
+  road: Set<number>;
   winners: Set<number>;
-  tick: number;
+}
+
+/**
+ * An agent's look-ahead as of the previous tick, computed on demand for agents that are not
+ * stepping this tick (level of detail), so "are we blocking each other?" has one answer.
+ */
+function probeOf(c: Ctx, id: number): ProbeResult | undefined {
+  const have = c.probes.get(id);
+  if (have) return have;
+  const a = c.byId.get(id);
+  if (!a || a.dwell > 0) return undefined;
+  const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch);
+  c.probes.set(id, p);
+  return p;
 }
 
 function bodyBlocked(world: World, kind: AgentKind, x: number, z: number, heading: number): boolean {
@@ -862,15 +927,23 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   const cur = basePath(e, a);
   const pr = c.probes.get(a.id) ?? { first: null, second: null };
   let blocker = pr.first;
-  // Two robotaxis each blocking the other: one that holds a junction goes first (the other is
-  // waiting for that junction anyway), otherwise the lower id.
-  if (spec.road && blocker && !blocker.player) {
-    const other = c.probes.get(blocker.id);
-    if (other && other.first && other.first.id === a.id) {
-      const otherHolds = c.holding.has(blocker.id);
-      const iHold = c.holding.has(a.id);
-      if (iHold && !otherHolds) blocker = pr.second;
-      else if (iHold === otherHolds && a.id < blocker.id) blocker = pr.second;
+  if (blocker && !blocker.player) {
+    const other = probeOf(c, blocker.id);
+    const mutual = other !== undefined && other.first !== null && other.first.id === a.id;
+    if (spec.road) {
+      // Two robotaxis each blocking the other: one that holds a junction goes first (the other
+      // is waiting for that junction anyway), otherwise the lower id.
+      if (mutual && c.road.has(blocker.id)) {
+        const otherHolds = c.holding.has(blocker.id);
+        const iHold = c.holding.has(a.id);
+        if (iHold && !otherHolds) blocker = pr.second;
+        else if (iHold === otherHolds && a.id < blocker.id) blocker = pr.second;
+      }
+    } else if (c.road.has(blocker.id) && mutual && a.conn !== null && blocker.gap > WALKER_GAP_M) {
+      // Already crossing and the robotaxi is waiting for this walker: people have right of
+      // way, so the walker goes on (never into the robotaxi itself; a standoff ends with the
+      // walker turning round). At the kerb a walker waits for a gap instead.
+      blocker = pr.second;
     }
   }
 
@@ -916,9 +989,11 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   let lat = a.lat;
   if (!spec.road) {
     let want = 0;
-    if (blocker && !blocker.player && blocker.gap < 1.5) want = blocker.side > 0 ? -0.8 : 0.8;
+    // (Only around other walkers: there is no stepping round a car.)
+    if (blocker && !blocker.player && !c.road.has(blocker.id) && blocker.gap < 1.5) want = blocker.side > 0 ? -0.8 : 0.8;
     lat = want === 0 ? approachTo(lat, 0, 0.4 * dt) : approachTo(lat, want, 1.0 * dt);
-    if (want !== 0) target = Math.max(target, Math.min(cruise * 0.4, 0.5));
+    // Keep shuffling forward while stepping aside, as long as there is room.
+    if (want !== 0 && blocker!.gap > WALKER_GAP_M + 0.2) target = Math.max(target, Math.min(cruise * 0.4, 0.5));
   }
 
   let speed = a.speed;
@@ -1000,7 +1075,13 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   const z = q.z + q.tx * lat;
   const heading = datan2(q.tx, -q.tz);
 
-  let wait = speed < 0.05 && (limitedByObstacle || held) ? a.wait + ticks : 0;
+  // Blocked: stopped (robotaxi) or reduced to a shuffle (walker) by something in the way,
+  // including something right in front that right of way says to ignore but cannot be
+  // walked through.
+  const pressed = pr.first !== null && pr.first.gap < 0.6;
+  const blocked = (limitedByObstacle || held || pressed) && speed < (spec.road ? 0.05 : 0.35);
+  // A walker's wait only clears once it is really walking again (not inching along).
+  let wait = blocked ? a.wait + ticks : spec.road || speed > 0.6 * cruise ? 0 : Math.max(0, a.wait - ticks);
   // On a safe lane (roads.ts LANE_SAFE_M) a robotaxi cannot touch a building: skip the check.
   const safe = spec.road && conn === null && curEdge.laneSafe[dirIndex(dir)][lane] === true;
   if (!safe && bodyBlocked(c.world, a.kind, x, z, heading)) {
@@ -1013,7 +1094,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   if (!spec.road && wait > WALKER_TURN_TICKS) return turnAround(c, { ...a, rng });
 
   let ghost = Math.max(0, a.ghost - ticks);
-  if (spec.road && ghost === 0 && wait > GHOST_AFTER_TICKS && !(blocker && blocker.player)) {
+  if (spec.road && ghost === 0 && wait > GHOST_AFTER_TICKS && (!blocker || (!blocker.player && c.road.has(blocker.id)))) {
     ghost = GHOST_TICKS;
     wait = 0;
   }
@@ -1382,8 +1463,15 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   }
 
   const holding = new Set<number>();
-  for (const a of ext.list) if (AGENT_SPEC[a.kind].road && a.node !== "") holding.add(a.id);
-  const ctx: Ctx = { world, g, hash, probes, holders, holding, winners, tick };
+  const road = new Set<number>();
+  for (const a of ext.list) {
+    if (!AGENT_SPEC[a.kind].road) continue;
+    road.add(a.id);
+    if (a.node !== "") holding.add(a.id);
+  }
+  const byId = new Map<number, AgentState>();
+  for (const a of ext.list) byId.set(a.id, a);
+  const ctx: Ctx = { world, g, hash, probes, byId, scratch, holders, holding, road, winners };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -1392,7 +1480,10 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
       continue;
     }
     const n = stepAgent(ctx, a, dt);
-    if (n) list.push(n);
+    if (!n) continue;
+    // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.
+    if (n.wait > STUCK_REMOVE_TICKS && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
+    list.push(n);
   }
 
   let out: AgentsExt = { nextId: ext.nextId, list };
@@ -1448,4 +1539,21 @@ export function explainAgent(world: World, state: Readonly<SimState>, id: number
     ndir: a.ndir,
     nlane: a.nlane,
   };
+}
+
+/**
+ * Agents of `curr` paired with the same agent in `prev` (or null when it just spawned), in
+ * ascending id order: what a renderer needs to interpolate poses between two ticks. Agents
+ * that despawned between the two states are not listed.
+ */
+export function agentPairs(prev: Readonly<SimState>, curr: Readonly<SimState>): Array<[AgentState | null, AgentState]> {
+  const a = agentsOf(prev);
+  const b = agentsOf(curr);
+  const out: Array<[AgentState | null, AgentState]> = [];
+  let i = 0;
+  for (const n of b) {
+    while (i < a.length && a[i]!.id < n.id) i++;
+    out.push([i < a.length && a[i]!.id === n.id ? a[i]! : null, n]);
+  }
+  return out;
 }

@@ -99,6 +99,12 @@ export interface RoadNodeInfo {
    * inside of an acute corner end before they cross.
    */
   sharp: number;
+  /**
+   * Junctions (3+ streets): lanes arriving here stop at least this far from the node, behind
+   * the crosswalks (the sidewalk lines of the crossing streets, see SIDEWALK_OFFSET_M), so a
+   * robotaxi waiting at the line never stands where people cross. 0 elsewhere.
+   */
+  stopM: number;
   degree: number;
   /** Compass bearings of every street leaving the node (incoming one-ways included), ascending. */
   bearings: number[];
@@ -163,6 +169,8 @@ export const LANE_CLEARANCE_M = 1.0;
 export const LANE_SAFE_M = 0.85;
 export const LANE_SAFE_STEP_M = 3;
 export const WALK_CLEARANCE_M = 0.35;
+/** Room between the crosswalk and a robotaxi's stop line at junctions. */
+export const CROSSWALK_GAP_M = 1.0;
 
 const KIND_DEFAULTS: Record<string, { laneM: number; extraM: number; limit: number }> = {
   freeway: { laneM: 3.6, extraM: 3.0, limit: 22.35 },
@@ -485,7 +493,7 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
   const nodeIndex = new Map<string, number>();
   const nodes: RoadNodeInfo[] = rawNodes.map((n, index) => {
     nodeIndex.set(n.id, index);
-    return { id: n.id, index, x: n.x, z: n.z, radius: 0, sharp: 0, degree: 0, bearings: [], out: [] };
+    return { id: n.id, index, x: n.x, z: n.z, radius: 0, sharp: 0, stopM: 0, degree: 0, bearings: [], out: [] };
   });
 
   const rawEdges = [...file.edges]
@@ -552,7 +560,10 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
     }
     n.sharp = sharp;
     n.bearings = dirs.map(([dx, dz]) => datan2(dx, -dz));
-    if (inc.length >= 3) n.radius = Math.min(15, halfW + 1.5);
+    if (inc.length >= 3) {
+      n.radius = Math.min(15, halfW + 1.5);
+      n.stopM = (halfW + SIDEWALK_OFFSET_M + KEEP_RIGHT_M + WALK_CLEARANCE_M) * clamp(sharp, 1, 1.5) + CROSSWALK_GAP_M;
+    }
     else if (inc.length === 2) {
       const [ax, az] = dirs[0]!;
       const [bx, bz] = dirs[1]!;
@@ -605,6 +616,9 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
       const nd = nodes[node]!;
       return Math.min(Math.max(nd.radius, Math.abs(offset) * nd.sharp + 0.5), p.center.len * 0.45);
     };
+    // Lanes also stop behind the crosswalks at junctions.
+    const laneTrim = (node: number, offset: number): number =>
+      Math.min(Math.max(trimFor(node, offset), nodes[node]!.stopM), p.center.len * 0.45);
     for (const dir of [1, -1] as const) {
       const di = dirIndex(dir);
       const { xs, zs } = travelPoints(p.center, dir);
@@ -613,7 +627,7 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
       for (let k = 0; k < p.laneCount[di]; k++) {
         const off = laneOffset(info, dir, k);
         const full = offsetPath(xs, zs, off);
-        const lp = subPath(full, trimFor(s0n, off), full.len - trimFor(e0n, off));
+        const lp = subPath(full, laneTrim(s0n, off), full.len - laneTrim(e0n, off));
         info.lanePaths[di].push(lp);
         const flags = drivable ? laneFlags(lp, LANE_CLEARANCE_M, LANE_SAFE_M + LANE_SAFE_STEP_M / 2, blocked) : null;
         info.laneClear[di].push(flags !== null && flags.clear);
