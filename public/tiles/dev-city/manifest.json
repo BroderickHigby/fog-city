@@ -7,7 +7,7 @@
   },
   "tileSizeM": 500,
   "spawn": {
-    "x": -55,
+    "x": -60,
     "z": 300,
     "heading": 0
   },

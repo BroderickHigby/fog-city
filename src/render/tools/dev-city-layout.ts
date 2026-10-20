@@ -18,7 +18,13 @@ export const TILE = 500;
 export const IX = [-5, 0] as const; // inclusive
 export const IZ = [-3, 1] as const;
 export const CELL = 10;
-export const SPAWN = { x: -55, z: 300, heading: 0 };
+/**
+ * On Waterfront Boulevard's outer northbound lane, facing north. At z = 300 the boulevard's
+ * centreline is at x = -65.3 and it is 22 m wide with two lanes each way (3.5 m lanes, right-hand
+ * traffic: northbound east of the centreline), so the outer lane's centre is 5.25 m east of it.
+ * (x = -55 was 10.3 m out, on the kerb.)
+ */
+export const SPAWN = { x: -60, z: 300, heading: 0 };
 
 type P = [number, number];
 

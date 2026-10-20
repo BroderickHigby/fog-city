@@ -62,6 +62,22 @@ describe("dev-city", () => {
   it("spawns the player on open road, and the sim can drive in it", () => {
     const { world, manifest: m } = loadWorld("dev-city");
     for (const t of world.tiles) for (const b of t.buildings) expect(pointInPolygon(m.spawn.x, m.spawn.z, b.footprint), b.id).toBe(false);
+    // The whole car is on the carriageway, a lane's width from the kerb: not on the kerb.
+    const roads = readJson<RoadGraph>(`${DIR}/roads.json`);
+    let best = { outside: Infinity, name: "" };
+    for (const e of roads.edges) {
+      const half = (e.widthM ?? e.lanes * 3.5) / 2;
+      for (let i = 1; i < e.points.length; i++) {
+        const [ax, az] = e.points[i - 1]!;
+        const [bx, bz] = e.points[i]!;
+        const ex = bx - ax;
+        const ez = bz - az;
+        const t = Math.max(0, Math.min(1, ((m.spawn.x - ax) * ex + (m.spawn.z - az) * ez) / (ex * ex + ez * ez || 1)));
+        const outside = Math.hypot(m.spawn.x - ax - ex * t, m.spawn.z - az - ez * t) - half;
+        if (outside < best.outside) best = { outside, name: e.name ?? e.id };
+      }
+    }
+    expect(best.outside, `spawn distance outside ${best.name}'s carriageway, m`).toBeLessThan(-3);
     let s = createInitialState(world, 3, ["p1"], m.spawn);
     for (let i = 0; i < 300; i++) s = step(world, s, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 } });
     const car = s.players.p1!.car;
