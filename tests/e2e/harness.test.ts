@@ -12,7 +12,7 @@ import { dmathDigest, makeWorld, recordSession, runScenario } from "./determinis
 import { distanceToPolyline, headingDelta } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
 import { PREREQUISITES, parseRequire } from "./prereq.ts";
-import { COLLIDERS_ONLY, matchGame, p1Chunk, replay } from "./replay.ts";
+import { COLLIDERS_ONLY, WITH_ROADS, matchGame, p1Chunk, replay } from "./replay.ts";
 
 function chunk(type: string, body: Uint8Array): Buffer {
   const len = Buffer.alloc(4);
@@ -161,24 +161,37 @@ describe("the running-game replay (replay.ts, recordSession)", () => {
   });
 
   it("matchGame finds the game's world, and reports where a different game parts from Node", () => {
+    // A game built as the manifest says (with the road graph: traffic on sim v2).
+    const roadsWorld = makeWorld(dev.tiles, dev.roads);
+    let g0 = createInitialState(roadsWorld, 1, ["p1"], dev.manifest.spawn);
+    for (let i = 0; i < 25; i++) g0 = step(roadsWorld, g0, {});
     const chunks = [p1Chunk(60, { throttle: 1, steer: 0.3, brake: 0, actions: 0 }), p1Chunk(30)];
-    const game = replay(world, s0, chunks);
-    const ok = matchGame("dev", s0, chunks, game.hashes, game.final);
-    expect(ok.match?.label).toBe(ok.expected);
+    const game = replay(roadsWorld, g0, chunks);
+    const ok = matchGame("dev", g0, chunks, game.hashes, game.final);
+    expect(ok.expected).toBe(WITH_ROADS);
+    expect(ok.match?.label).toBe(WITH_ROADS);
 
     // The same run, but the game's car ended 1 mm further east: no construction matches.
     const moved = structuredClone(game.final);
     moved.players.p1!.car.x += 0.001;
-    const bad = matchGame("dev", s0, chunks, [game.hashes[0]!, hashState(moved)], moved);
+    const bad = matchGame("dev", g0, chunks, [game.hashes[0]!, hashState(moved)], moved);
     expect(bad.match).toBeUndefined();
+    expect(bad.tried).toHaveLength(2);
     expect(bad.tried.join("\n")).toMatch(/first divergence after chunk 1 .*final states differ at offset/);
-    expect(canonicalJson(game.final)).not.toBe(canonicalJson(moved));
   });
 
-  it("dev's manifest names a road graph, so the expected construction includes it", () => {
-    const ok = matchGame("dev", s0, [p1Chunk(1)], [hashState(step(world, s0, {}))], step(world, s0, {}));
-    expect(dev.roads).not.toBeNull();
-    expect(ok.expected).not.toBe(COLLIDERS_ONLY);
+  it("matchGame names a game that dropped the road graph, when the sim can tell", () => {
+    // `world` is colliders only: the known gap in the render track's main.ts.
+    const chunks = [p1Chunk(90, { throttle: 1, steer: -0.2, brake: 0, actions: 0 })];
+    const game = replay(world, s0, chunks);
+    const m = matchGame("dev", s0, chunks, game.hashes, game.final);
+    expect(m.match).toBeDefined();
+    // A sim without traffic (v1) cannot tell the two worlds apart; with traffic (v2) it must.
+    const roadsWorld = makeWorld(dev.tiles, dev.roads);
+    const tellApart =
+      canonicalJson(createInitialState(roadsWorld, 1, ["p1"], dev.manifest.spawn)) !==
+      canonicalJson(createInitialState(world, 1, ["p1"], dev.manifest.spawn));
+    expect(m.match!.label).toBe(tellApart ? COLLIDERS_ONLY : WITH_ROADS);
   });
 });
 
