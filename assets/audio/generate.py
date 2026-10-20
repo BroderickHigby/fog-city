@@ -25,7 +25,15 @@ import sys
 import tempfile
 import wave
 
-import numpy as np
+# One BLAS thread, set before numpy loads. np.convolve (the jingle's reverb) runs one BLAS dot
+# product per output sample, and OpenBLAS splits each dot over every core once it is longer
+# than about 10k samples: on a busy machine its threads spin waiting for cores, and one
+# convolution took minutes instead of 0.4 s. One thread also fixes the summation order, so
+# the output no longer depends on the machine's core count.
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+
+import numpy as np  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
