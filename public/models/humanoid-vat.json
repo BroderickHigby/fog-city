@@ -301,8 +301,8 @@
         "lanyard": 1.0
       },
       "heightScale": [
-        0.97,
-        1.04
+        0.95,
+        1.05
       ],
       "outfits": [
         "vest_charcoal",
@@ -320,8 +320,8 @@
         "hoodie": 1.0
       },
       "heightScale": [
-        0.98,
-        1.05
+        0.93,
+        1.07
       ],
       "outfits": [
         "hoodie_heather",
@@ -331,16 +331,17 @@
     },
     {
       "id": "partner",
-      "label": "Partner: older, broad, fleece vest",
+      "label": "Partner: older, stocky, fleece vest",
       "model": "adult",
       "weights": {
         "build_broad": 0.4,
+        "build_heavy": 0.35,
         "older": 0.6,
         "vest": 1.0
       },
       "heightScale": [
-        0.98,
-        1.05
+        0.96,
+        1.06
       ],
       "outfits": [
         "partner_vest"
@@ -363,8 +364,8 @@
         "skirt": 1.0
       },
       "heightScale": [
-        0.92,
-        0.99
+        0.88,
+        0.98
       ],
       "outfits": [
         "conference_red",
@@ -374,14 +375,15 @@
     },
     {
       "id": "local",
-      "label": "Local: heavier build",
+      "label": "Local: heavy build, broad hips",
       "model": "adult",
       "weights": {
-        "build_heavy": 0.9
+        "build_heavy": 1.0,
+        "curvy": 0.3
       },
       "heightScale": [
-        0.95,
-        1.02
+        0.92,
+        1.04
       ],
       "outfits": [
         "rain_orange",
@@ -400,8 +402,8 @@
         "hair_none": 0.5
       },
       "heightScale": [
-        0.92,
-        0.98
+        0.88,
+        0.97
       ],
       "outfits": [
         "retiree_beige",
@@ -423,8 +425,8 @@
         "hair_long": 0.5
       },
       "heightScale": [
-        0.96,
-        1.03
+        0.98,
+        1.08
       ],
       "outfits": [
         "athleisure"
@@ -441,8 +443,8 @@
         "hoodie": 1.0
       },
       "heightScale": [
-        0.94,
-        1.0
+        0.9,
+        1.02
       ],
       "outfits": [
         "student_green",
@@ -459,8 +461,8 @@
         "hoodie": 1.0
       },
       "heightScale": [
-        0.94,
-        1.05
+        0.9,
+        1.08
       ],
       "outfits": [
         "kid_yellow",
@@ -476,8 +478,8 @@
         "hair_long": 0.8
       },
       "heightScale": [
-        0.94,
-        1.05
+        0.9,
+        1.08
       ],
       "outfits": [
         "kid_blue",

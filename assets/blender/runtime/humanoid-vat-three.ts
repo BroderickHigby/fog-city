@@ -14,6 +14,12 @@
 //                             variant: vat.variantIndex("founder"), palette: vat.palette.rowOf("vest_navy", "brown", 2), wet: 0 });
 //   each frame: vat.uniforms.vatTime.value = now;   (seconds, the same clock as startTime)
 //
+// Shadows: three.js draws shadow maps with its own depth materials, which would cast every
+// person's shadow from the rest pose. Give the mesh the VAT versions:
+//   mesh.castShadow = true;
+//   mesh.customDepthMaterial = vat.depthMaterial;       // directional and spot lights
+//   mesh.customDistanceMaterial = vat.distanceMaterial; // point lights
+//
 // Contract and layout: assets/blender/README.md, "Humanoid line".
 
 import * as THREE from "three";
@@ -23,6 +29,11 @@ export interface HumanoidVat {
   lod: VatLod;
   clips: VatClip[];
   material: THREE.MeshStandardMaterial;
+  /** Shadow-map depth for directional and spot lights: set as the mesh's customDepthMaterial. */
+  depthMaterial: THREE.MeshDepthMaterial;
+  /** Shadow-map distance for point lights: set as the mesh's customDistanceMaterial. */
+  distanceMaterial: THREE.MeshDistanceMaterial;
+  /** Shared by all three materials: setting vatTime moves the body and its shadow together. */
   uniforms: { vatTime: { value: number } };
   palette: PaletteTable;
   clipIndex(name: string): number;
@@ -100,6 +111,23 @@ export function createHumanoidVat(meta: HumanoidVatMeta, model: string, lodKey: 
   };
   material.customProgramCacheKey = () => "fogcity-humanoid-vat-1";
 
+  // Shadow passes: the same vertex maths (position only), no palette.
+  const patchDepth = (m: THREE.Material, key: string): void => {
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", `#include <common>\n${VAT_VERTEX_HEADER}`)
+        .replace("#include <begin_vertex>", `${VAT_VERTEX_POSITION}\nvec3 transformed = vatPosition;`);
+    };
+    m.customProgramCacheKey = () => key;
+  };
+  const depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  depthMaterial.name = `${material.name}_depth`;
+  patchDepth(depthMaterial, "fogcity-humanoid-vat-depth-1");
+  const distanceMaterial = new THREE.MeshDistanceMaterial();
+  distanceMaterial.name = `${material.name}_distance`;
+  patchDepth(distanceMaterial, "fogcity-humanoid-vat-distance-1");
+
   const { min, max } = lod.bounds;
   const center = new THREE.Vector3((min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2);
   const radius = Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]) / 2;
@@ -108,6 +136,8 @@ export function createHumanoidVat(meta: HumanoidVatMeta, model: string, lodKey: 
     lod,
     clips,
     material,
+    depthMaterial,
+    distanceMaterial,
     uniforms,
     palette,
     clipIndex(name) {
@@ -124,6 +154,8 @@ export function createHumanoidVat(meta: HumanoidVatMeta, model: string, lodKey: 
     dispose() {
       for (const t of [pos, rot, morph, variants, pal]) t.dispose();
       material.dispose();
+      depthMaterial.dispose();
+      distanceMaterial.dispose();
     },
   };
 }
@@ -192,7 +224,8 @@ vec3 vatRotate(vec4 q, vec3 v) {
 }
 `;
 
-export const VAT_VERTEX_BODY = /* glsl */ `
+/** The animated, variant-shaped position (vatPosition) and the blended rotation (vatQ). */
+export const VAT_VERTEX_POSITION = /* glsl */ `
 vec4 vatClip = vatClips[int(vatState.x + 0.5)];
 float vatN = vatClip.y;
 float vatEl = max(vatTime - vatState.y, 0.0) * vatState.z * vatClip.z;
@@ -221,6 +254,11 @@ for (int k = 0; k < 16; k++) {
   }
 }
 vec3 vatPosition = vatP + vatRotate(vatQ, vatDp);
+`;
+
+/** Replaces <beginnormal_vertex> in the lit material: position, normal and the varyings. */
+export const VAT_VERTEX_BODY = /* glsl */ `
+${VAT_VERTEX_POSITION}
 vec3 objectNormal = vatRotate(vatQ, normalize(normal + vatDn));
 #ifdef USE_TANGENT
 vec3 objectTangent = vec3(tangent.xyz);

@@ -76,7 +76,7 @@ BASE_PARAMS = dict(
 KEY_PARAMS = {
     "build_slim": dict(girth=0.88, limb=0.86, shoulders=-0.012, hips=-0.012),
     "build_broad": dict(girth=1.07, limb=1.13, shoulders=0.028, arm_out=0.02),
-    "build_heavy": dict(girth=1.16, limb=1.2, belly=0.065, hips=0.03, jaw=1.12, arm_out=0.055),
+    "build_heavy": dict(girth=1.3, limb=1.36, belly=0.1, hips=0.05, jaw=1.2, arm_out=0.1),
     "curvy": dict(bust=0.034, hips=0.034, waist=0.9, arm_out=0.03),
     "older": dict(stoop=1.0, belly=0.02, limb=0.95),
     "hair_none": dict(hair=-0.01),

@@ -21,16 +21,16 @@ def main() -> None:
     A.studio(res=(1800, 640), samples=48)
     adult, child = A.Vat("adult", "0"), A.Vat("child", "0")
     shots = [
-        (adult, "walk", 5, "founder", ("vest_charcoal", "brown", 1), -7.4, 160),
-        (adult, "idle", 9, "attendee", ("conference_red", "dark_brown", 3), -6.3, 165),
-        (adult, "wet_shake", 12, "engineer", ("hoodie_heather", "black", 4), -5.0, 170),
-        (adult, "talk", 6, "partner", ("partner_vest", "grey", 0), -3.7, 150),
-        (adult, "sit", 0, "local", ("rain_orange", "black", 5), -2.4, 160),
-        (adult, "dive", 3, "student", ("student_green", "auburn", 0), -1.3, 180),
-        (adult, "dive", 6, "student", ("student_green", "auburn", 0), -0.9, 180),
-        (adult, "dive", 13, "student", ("student_green", "auburn", 0), 0.1, 180),
-        (adult, "dive", 29, "student", ("student_green", "auburn", 0), 1.0, 180),
-        (child, "walk", 4, "child", ("kid_yellow", "black", 3), 3.3, 160),
+        (adult, "walk", 5, "founder", ("vest_charcoal", "black", 5), -7.4, 160),
+        (adult, "idle", 9, "attendee", ("conference_red", "dark_brown", 1), -6.3, 165),
+        (adult, "wet_shake", 12, "engineer", ("hoodie_heather", "auburn", 0), -5.0, 170),
+        (adult, "talk", 6, "partner", ("partner_vest", "grey", 3), -3.7, 150),
+        (adult, "sit", 0, "local", ("rain_orange", "brown", 2), -2.4, 160),
+        (adult, "dive", 3, "student", ("student_green", "black", 3), -1.3, 180),
+        (adult, "dive", 6, "student", ("student_green", "black", 3), -0.9, 180),
+        (adult, "dive", 13, "student", ("student_green", "black", 3), 0.1, 180),
+        (adult, "dive", 29, "student", ("student_green", "black", 3), 1.0, 180),
+        (child, "walk", 4, "child", ("kid_yellow", "black", 4), 3.3, 160),
     ]
     for i, (vat, clip, f, variant, look, x, h) in enumerate(shots):
         ob = vat.body(f"b{i}", clip, f, variant, vat.colors(*look))

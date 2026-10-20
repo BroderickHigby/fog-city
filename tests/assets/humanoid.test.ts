@@ -215,14 +215,27 @@ describe.each(["adult", "child"].flatMap((m) => ["0", "1"].map((l) => [m, l] as 
     }
   });
 
-  it("stores unit rotation quaternions", () => {
-    const v = vat(model, lodKey);
-    for (let f = 0; f < v.lod.frames; f += 7) {
-      for (let i = 0; i < v.lod.vertexCount; i += 37) {
-        const q = v.rotation(i, f);
-        expect(Math.abs(Math.hypot(...q) - 1)).toBeLessThan(1e-6);
+  it("stores unit rotation quaternions with w >= 0 (the raw RGBA8 bytes, before any normalising)", () => {
+    // Read the texture bytes directly: VatData.rotation() normalises, so it cannot show a bad bake.
+    const bytes = readFileSync(join(ROOT, "public", "models", lod.file));
+    const { byteOffset, height } = lod.rotation;
+    let worst = 0;
+    let checked = 0;
+    for (let row = 0; row < height; row += 3) {
+      for (let x = 0; x < lod.width; x += 11) {
+        const o = byteOffset + (row * lod.width + x) * 4;
+        const q = [0, 1, 2, 3].map((c) => (bytes[o + c]! / 255) * 2 - 1);
+        // 8 bits per channel: each component is within 1/255 of the true value
+        worst = Math.max(worst, Math.abs(Math.hypot(...q) - 1));
+        expect(q[3]!, `w at texel ${x},${row}`).toBeGreaterThan(-1.5 / 255);
+        checked++;
       }
     }
+    expect(checked).toBeGreaterThan(1000);
+    expect(worst).toBeLessThan(0.02);
+    // and the decoder hands back the normalised quaternion
+    const v = vat(model, lodKey);
+    expect(Math.abs(Math.hypot(...v.rotation(0, 0)) - 1)).toBeLessThan(1e-6);
   });
 });
 
@@ -357,10 +370,17 @@ async function playerDoc(): Promise<{ doc: Document; json: Record<string, unknow
 }
 
 describe("player.glb", () => {
-  it("is valid glTF 2.0", async () => {
+  it("is valid glTF 2.0, its skinned mesh a scene root beside the rig (no validator warnings)", async () => {
     const m = await loadModel("player.glb");
     const report = await validateBytes(m.bytes, { maxIssues: 50 });
     expect(report.issues.numErrors).toBe(0);
+    expect(report.issues.numWarnings, JSON.stringify(report.issues.messages.slice(0, 3))).toBe(0);
+    const roots = m.doc.getRoot().listScenes()[0]!.listChildren();
+    expect(roots.map((n) => n.getName())).toEqual(["player", "player_body"]);
+    expect(roots[1]!.getSkin()).toBeTruthy();
+    // the rig root stays at identity: nothing to move until the game places it
+    expect(roots[0]!.getTranslation()).toEqual([0, 0, 0]);
+    expect(roots[0]!.getRotation()).toEqual([0, 0, 0, 1]);
   });
 
   it("is a skinned body of 20 named bones with the twelve shape keys and the tint materials", async () => {

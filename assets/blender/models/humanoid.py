@@ -43,25 +43,25 @@ FIXTURE = os.path.join(fc.REPO, "tests", "assets", "fixtures", "humanoid-vat-ref
 
 VARIANTS = [
     dict(id="founder", label="Founder: slim, fleece vest, conference lanyard", model="adult",
-         weights=dict(build_slim=0.5, vest=1.0, lanyard=1.0), heightScale=[0.97, 1.04], outfits=["vest_charcoal", "vest_navy"]),
+         weights=dict(build_slim=0.5, vest=1.0, lanyard=1.0), heightScale=[0.95, 1.05], outfits=["vest_charcoal", "vest_navy"]),
     dict(id="engineer", label="Engineer: hoodie, bun", model="adult",
-         weights=dict(hoodie=1.0, hair_bun=1.0, build_broad=0.2), heightScale=[0.98, 1.05], outfits=["hoodie_heather", "hoodie_black"]),
-    dict(id="partner", label="Partner: older, broad, fleece vest", model="adult",
-         weights=dict(older=0.6, build_broad=0.4, vest=1.0), heightScale=[0.98, 1.05], outfits=["partner_vest"], hair=["grey", "white"]),
+         weights=dict(hoodie=1.0, hair_bun=1.0, build_broad=0.2), heightScale=[0.93, 1.07], outfits=["hoodie_heather", "hoodie_black"]),
+    dict(id="partner", label="Partner: older, stocky, fleece vest", model="adult",
+         weights=dict(older=0.6, build_broad=0.4, build_heavy=0.35, vest=1.0), heightScale=[0.96, 1.06], outfits=["partner_vest"], hair=["grey", "white"]),
     dict(id="attendee", label="Attendee: long hair, skirt, lanyard", model="adult",
-         weights=dict(curvy=0.9, hair_long=1.0, lanyard=1.0, skirt=1.0, build_slim=0.2), heightScale=[0.92, 0.99], outfits=["conference_red", "warm_mustard"]),
-    dict(id="local", label="Local: heavier build", model="adult",
-         weights=dict(build_heavy=0.9), heightScale=[0.95, 1.02], outfits=["rain_orange", "student_green", "designer_grey"]),
+         weights=dict(curvy=0.9, hair_long=1.0, lanyard=1.0, skirt=1.0, build_slim=0.2), heightScale=[0.88, 0.98], outfits=["conference_red", "warm_mustard"]),
+    dict(id="local", label="Local: heavy build, broad hips", model="adult",
+         weights=dict(build_heavy=1.0, curvy=0.3), heightScale=[0.92, 1.04], outfits=["rain_orange", "student_green", "designer_grey"]),
     dict(id="elder", label="Older adult: slight stoop, thinning hair", model="adult",
-         weights=dict(older=1.0, build_slim=0.3, hair_none=0.5), heightScale=[0.92, 0.98], outfits=["retiree_beige", "partner_vest"], hair=["grey", "white"]),
+         weights=dict(older=1.0, build_slim=0.3, hair_none=0.5), heightScale=[0.88, 0.97], outfits=["retiree_beige", "partner_vest"], hair=["grey", "white"]),
     dict(id="runner", label="Runner: athletic, ponytail-length hair", model="adult",
-         weights=dict(build_broad=0.6, curvy=0.4, hair_long=0.5), heightScale=[0.96, 1.03], outfits=["athleisure"]),
+         weights=dict(build_broad=0.6, curvy=0.4, hair_long=0.5), heightScale=[0.98, 1.08], outfits=["athleisure"]),
     dict(id="student", label="Student: slim, hoodie, long hair", model="adult",
-         weights=dict(build_slim=0.7, hoodie=1.0, hair_long=1.0), heightScale=[0.94, 1.0], outfits=["student_green", "hoodie_heather"]),
+         weights=dict(build_slim=0.7, hoodie=1.0, hair_long=1.0), heightScale=[0.9, 1.02], outfits=["student_green", "hoodie_heather"]),
     dict(id="child", label="Child (about seven): hoodie", model="child", child=True,
-         weights=dict(hoodie=1.0), heightScale=[0.94, 1.05], outfits=["kid_yellow", "kid_blue"]),
+         weights=dict(hoodie=1.0), heightScale=[0.9, 1.08], outfits=["kid_yellow", "kid_blue"]),
     dict(id="child_long_hair", label="Child (about seven): long hair", model="child", child=True,
-         weights=dict(hair_long=0.8), heightScale=[0.94, 1.05], outfits=["kid_blue", "kid_yellow"]),
+         weights=dict(hair_long=0.8), heightScale=[0.9, 1.08], outfits=["kid_blue", "kid_yellow"]),
 ]
 
 SKIN_TONES = ["#f2d6c4", "#e3b796", "#c79067", "#a26b48", "#7a4a31", "#4d2f21"]
@@ -255,7 +255,9 @@ def build_player(F, geo):
     me.update()
     body = bpy.data.objects.new("player_body", me)
     bpy.context.scene.collection.objects.link(body)
-    body.parent = rig
+    # The skinned mesh is a root node beside the rig, not its child: glTF ignores a skinned
+    # mesh's own transform and parents (validator NODE_SKINNED_MESH_NON_ROOT); the armature
+    # modifier binds it to the rig either way.
     for b, _ in H.BONES:
         body.vertex_groups.new(name=b)
     for v in range(len(geo["P"])):

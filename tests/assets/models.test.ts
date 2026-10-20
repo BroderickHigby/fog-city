@@ -816,9 +816,10 @@ describe("every public/models/*.glb", () => {
     }
   });
 
-  it.each(files)("%s is valid glTF 2.0 with no errors", async (f) => {
+  it.each(files)("%s is valid glTF 2.0 with no errors and no warnings", async (f) => {
     const m = await loadModel(f);
     const report = await validateBytes(m.bytes, { maxIssues: 50 });
     expect(report.issues.numErrors, JSON.stringify(report.issues.messages.filter((x) => x.severity === 0).slice(0, 3))).toBe(0);
+    expect(report.issues.numWarnings, JSON.stringify(report.issues.messages.filter((x) => x.severity === 1).slice(0, 3))).toBe(0);
   });
 });

@@ -273,13 +273,22 @@ Tint slots (`slots`, this order; `_SLOT` per vertex): 0 `skin`, 1 `hair`, 2 `top
 9 `badge` (fixed). Everyone wears long sleeves and long trousers or tights: it is Fog City.
 
 Variants (`variants`): founder (slim, vest, lanyard), engineer (hoodie, bun), partner (older,
-broad, vest), attendee (long hair, skirt, lanyard), local (heavier), elder (stoop, thinning
-hair), runner (athletic), student (slim, hoodie, long hair), and the child model's two looks
-(hoodie; long hair), flagged `child: true`. Each has `weights` (shape keys), a `heightScale`
-range (apply as the instance's uniform scale) and suggested `outfits` / `hair`. Palettes:
-`palette.skinTones` (6), `palette.hair` (7), `palette.outfits` (14: top, bottom, shoes, outer,
-accent, sole), `palette.fixed` (eyes, badge). `paletteTable()` in `runtime/humanoid-vat.ts`
-makes one row per (outfit, hair, skin): row = (outfit x hairCount + hair) x skinCount + skin.
+stocky, vest), attendee (long hair, skirt, lanyard), local (heavy build, broad hips), elder
+(stoop, thinning hair), runner (athletic), student (slim, hoodie, long hair), and the child
+model's two looks (hoodie; long hair), flagged `child: true`. Each has `weights` (shape keys),
+a `heightScale` range (apply as the instance's uniform scale) and suggested `outfits` / `hair`.
+Builds span torso widths at the waist from 0.26 m (`build_slim`) through 0.30 m (no key) to
+0.45 m (`build_heavy`, with a 0.33 m deep belly and the arms held clear of the hips); adult
+height scales span 0.88-1.08, so adults stand 1.56-1.92 m (the body is 1.78 m at scale 1),
+and children 0.90-1.08 of 1.17 m.
+
+**Skin tone is independent of the variant.** Pick it uniformly from `palette.skinTones` for
+every person, whatever their variant, role or outfit; never tie a tone to a build, an age or a
+satirised role. (`humanoid-variants.png` spreads the tones across the roles for the same
+reason.) Palettes: `palette.skinTones` (6), `palette.hair` (7), `palette.outfits` (14: top,
+bottom, shoes, outer, accent, sole), `palette.fixed` (eyes, badge). `paletteTable()` in
+`runtime/humanoid-vat.ts` makes one row per (outfit, hair, skin): row = (outfit x hairCount +
+hair) x skinCount + skin.
 
 ### Rig and clips
 
@@ -349,15 +358,34 @@ it. The fragment stage looks up `palette[palette row][slot]`, darkens wet clothe
 as its bounding sphere (the dive leaves the origin). The CPU twin of the vertex maths is
 `VatData.decode()` in `runtime/humanoid-vat.ts`.
 
+**Shadows.** three.js renders shadow maps with its own depth materials, which know nothing of
+the textures, so without help every person casts the shadow of the rest pose (a diving person
+would leave a standing shadow behind). `createHumanoidVat` also returns `depthMaterial`
+(`MeshDepthMaterial`, directional and spot lights) and `distanceMaterial`
+(`MeshDistanceMaterial`, point lights), patched with the same vertex maths (position only,
+`VAT_VERTEX_POSITION`) and sharing the uniforms, so `vatTime` moves body and shadow together:
+
+```ts
+mesh.castShadow = true;
+mesh.customDepthMaterial = vat.depthMaterial;
+mesh.customDistanceMaterial = vat.distanceMaterial;
+```
+
 Checked in a real browser: three.js 0.186 under SwiftShader (Chromium) drew 48 instances
 (every adult clip x every adult variant, mixed palettes) in one draw call with no GL errors,
-and LOD1 and the child the same way (a scratch page, not committed; the render track should
-add an e2e for it).
+and LOD1 and the child the same way. With the shadow materials, a diving adult's shadow under a
+directional light covered x -2.00 to -0.40 m, where `VatData.decode()` puts the body at -2.00
+to -0.40 m (without them: -0.25 to 0.25 m, the rest pose); the point-light shadow, LOD1 sitting
+and a child walking matched the same way. These were scratch pages, not committed: the render
+track should add an e2e for the crowd and its shadows.
 
 ### LODs and the impostor
 
 LOD0 within about 60-80 m, LOD1 to 300 m (both play the same clips), the impostor beyond
-(design.md, Performance). `humanoid-impostor.png` is 512 x 256: 8 columns (views 45 degrees
+(design.md, Performance). The atlas is drawn from the adult body only. **Children beyond
+300 m** use the same atlas on a quad scaled by 0.66 (the child is 1.17 m against the adult's
+1.78 m; at that distance a child is a few pixels tall and the proportions do not show); the
+no-touch flag comes from the sim, not from what is drawn, so a child keeps it at any LOD. `humanoid-impostor.png` is 512 x 256: 8 columns (views 45 degrees
 apart) x 2 rows (`idle`, `walk` mid-stride) of 64 x 128 px cells. R = slot x 16 + 8, G =
 diffuse shading (sRGB), A = coverage (alpha test). Draw a camera-facing quad `cellSizeM`
 (1 x 2 m) with its bottom on the ground; pick the column with `phi = atan2(d.x, -d.z)` for
@@ -366,8 +394,13 @@ mod 8` (`impostorCell()` in the runtime); colour = palette[row][floor(R / 16)] x
 
 ### The player body (`player.glb`)
 
-The adult LOD0 body as a skinned glTF (root node `player`, extras `fcActor`, `slots`,
-`morphs`, `clips`): the 20-bone skin, the 12 shape keys as morph targets (names in
+The adult LOD0 body as a skinned glTF. The scene has two root nodes: `player` (the rig: the
+bone hierarchy, extras `fcActor`, `slots`, `morphs`, `clips`) and `player_body` (the skinned
+mesh). glTF ignores a skinned mesh's own transform and its parents' (the Khronos validator
+warns when it is not a root), so the mesh sits beside the rig rather than under it; every GLB
+here validates with no warnings (tested). Add the loaded `gltf.scene` (or a
+`SkeletonUtils.clone` of it) to the world and move that, not the `player` node alone. It has
+the 20-bone skin, the 12 shape keys as morph targets (names in
 `extras.targetNames`; set `morphTargetInfluences` for a look), materials `tint_skin`,
 `tint_hair`, `tint_top`, `tint_bottom`, `tint_shoes`, `tint_outer`, `tint_accent`,
 `tint_sole`, `eyes`, `badge` (set their colours from a palette row), and glTF animations
