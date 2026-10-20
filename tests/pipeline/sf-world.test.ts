@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ORIGIN, TILE_SIZE_M, tileId, toLocal } from "../../src/geo/project.ts";
 import { DT, buildWorld, createInitialState, groundHeight, pointInPolygon, step, type World } from "../../src/sim/index.ts";
+import { CANOPY_MAX_STORIES, isLidarSpike, outlierRoof } from "../../pipeline/lib/buildings.ts";
 import { areaTileRect, loadWorldConfig } from "../../pipeline/lib/config.ts";
 import { interiorPoint, signedArea } from "../../pipeline/lib/geom.ts";
 import { isStorefrontNaics } from "../../pipeline/lib/storefronts.ts";
@@ -196,6 +197,63 @@ describe("sf world: buildings", () => {
     });
   }
 
+  // Condominium towers that stood in June 2010. Their unit parcels list 1-2 storeys, so the
+  // canopy guard (a residential building of at most 4 storeys) once took them for houses under
+  // trees and flattened them: One Rincon Hill was an 18.8 m prism. A condo's storeys are its
+  // units', never the building's, so condos skip that guard. Roofs as the 2010 LiDAR measured
+  // them (One Rincon Hill's public-record roof is 188 m).
+  const condoGoldens: Array<[string, string, number, number, number]> = [
+    ["One Rincon Hill", "201006.0000534", 37.78598, -122.39219, 182],
+    ["757 Market St", "201006.0000321", 37.78621, -122.40405, 130],
+    ["The Watermark, 501 Beale St", "201006.0001143", 37.78625, -122.38906, 73],
+  ];
+  for (const [label, id, lat, lon, roofM] of condoGoldens) {
+    it(`golden, a condominium tower: ${label} keeps its ~${roofM} m LiDAR tower (within 10%)`, () => {
+      const byId = new Map(buildings.map((b) => [b.id, b]));
+      const pod = byId.get(id)!;
+      expect(pod.meta).toMatchObject({ condo: true, heightSource: "lidar", tower: `${id}-tower` });
+      expect(pod.meta.stories ?? 0).toBeLessThanOrEqual(2);
+      const tower = byId.get(`${id}-tower`)!;
+      const p = toLocal(lat, lon);
+      expect(pointInPolygon(p.x, p.z, tower.footprint)).toBe(true);
+      expect(Math.abs(tower.topY - tower.baseY - roofM) / roofM).toBeLessThan(0.1);
+    });
+  }
+
+  it("every tower wave 1's last fix (eb3e8e3) built still stands, unless a wave-2 guard explains its removal", () => {
+    const fx = readJson("tests/pipeline/wave1-towers.json") as { towers: string[]; dropped: Record<string, "canopy" | "spike"> };
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    expect(fx.towers).toHaveLength(631);
+    expect(Object.keys(fx.dropped).every((id) => fx.towers.includes(id))).toBe(true);
+    const lost: string[] = [];
+    for (const id of fx.towers) {
+      const why = fx.dropped[id];
+      if (!why) {
+        if (!byId.has(id)) lost.push(id);
+        continue;
+      }
+      expect(byId.has(id), `${id} is listed as dropped (${why}) but stands`).toBe(false);
+      const b = byId.get(id.slice(0, -"-tower".length))!;
+      const [med, max] = b.meta.lidarM;
+      expect(b.meta.tower, id).toBeUndefined();
+      expect(b.meta.heightM, id).toBeCloseTo(outlierRoof(med, max), 1);
+      if (why === "canopy") {
+        // A low house under trees: never a condominium (their storeys are the units').
+        expect(b.meta.condo, id).toBeUndefined();
+        expect(b.meta.use?.toLowerCase(), id).toContain("residential");
+        expect(b.meta.stories, id).toBeLessThanOrEqual(CANOPY_MAX_STORIES);
+        expect(max, id).toBeGreaterThan(b.meta.stories! * 4.5 + 8);
+      } else {
+        // A thin tower its storeys contradict (its area, under 60 m², is not in the output).
+        expect(isLidarSpike(0, med, max, b.meta.stories ?? Number.NaN), id).toBe(true);
+      }
+    }
+    expect(lost).toEqual([]);
+    // 13 canopy and 14 spike drops. The guards only ever remove a tower, so this list can
+    // only shrink; a new entry needs a reason in docs/data-sources.md.
+    expect(Object.keys(fx.dropped)).toHaveLength(27);
+  });
+
   it("no needles: every tower covers at least 20 m² and rises at most ~10x its width above its podium", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
     const bad: string[] = [];
@@ -206,6 +264,18 @@ describe("sf world: buildings", () => {
       if ((area < 20 && rise > 30) || rise > 10.6 * Math.sqrt(area)) bad.push(`${b.id} ${area.toFixed(0)} m² +${rise.toFixed(0)} m`);
     }
     expect(bad).toEqual([]);
+  });
+
+  it("Sutro Tower is no solid block: its probe's records stay low until a landmark replaces them", () => {
+    const report = readJson("public/tiles/sf/report.json") as { probes: Array<{ id: string; buildings: string[] }> };
+    const ids = report.probes.find((p) => p.id === "sutro-tower")!.buildings;
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    const recs = ids.map((id) => byId.get(id)!);
+    expect(recs).toHaveLength(6);
+    // The LiDAR fills the lattice's upper structure (683 m² at a 210 m median); overrides
+    // make those three footprints 3 m plinths. The rest are the equipment buildings.
+    expect(recs.filter((b) => b.meta.heightSource === "override").map((b) => b.id)).toEqual(["201006.0009087", "201006.0062170", "201006.0168289"]);
+    for (const b of recs) expect(b.topY - b.baseY, b.id).toBeLessThan(20);
   });
 
   it("the review's needle examples are single prisms near their median roof", () => {

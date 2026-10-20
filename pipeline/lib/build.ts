@@ -36,7 +36,7 @@ export const ATTRIBUTION = [
   "Building year, use and storeys: San Francisco Office of the Assessor-Recorder via DataSF \"Assessor Historical Secured Property Tax Rolls\" (wv5m-vpq2), ODC PDDL 1.0.",
   "Storefront positions (no names): San Francisco Treasurer & Tax Collector via DataSF \"Registered Business Locations\" (g8m3-pdis), ODC PDDL 1.0.",
   "Elevation: U.S. Geological Survey, 3D Elevation Program (3DEP) bare-earth DEM, public domain.",
-  "Height corrections for buildings newer than the 2010 LiDAR: public records, listed in pipeline/overrides.json.",
+  "Height corrections, listed in pipeline/overrides.json: public records for buildings newer than the 2010 LiDAR; a placeholder plinth where the LiDAR filled Sutro Tower's open lattice as a solid block.",
   "District boundaries: City and County of San Francisco, DataSF \"Analysis Neighborhoods\" (j2bu-swwd), ODC PDDL 1.0.",
   "Transit routes and stops, traffic signals, crosswalks, parking regulations: SFMTA via DataSF (9exe-acju, i28k-bkz6, ybh5-27n2, g9zy-srvv, hi6h-neyh), ODC PDDL 1.0.",
   "Street cleaning schedules: San Francisco Public Works via DataSF \"Street Sweeping Schedule\" (yhqp-riqs), ODC PDDL 1.0.",

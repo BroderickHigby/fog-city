@@ -52,23 +52,26 @@
     "joinMblr": 167760,
     "joinPoint": 1443,
     "withYear": 165962,
-    "withStories": 161564,
-    "heightLidar": 173185,
+    "withStories": 161553,
+    "heightLidar": 173182,
     "heightStories": 2409,
-    "heightOverride": 1,
-    "twoTier": 2262,
-    "maxOutlier": 10929,
+    "heightOverride": 4,
+    "twoTier": 2325,
+    "maxOutlier": 10928,
     "condo": 5017,
-    "storiesImplausible": 372,
+    "storiesImplausible": 383,
     "groundRefFromDem": 274,
     "storiesRejected": 66,
-    "canopyTowersDropped": 187,
-    "spikeTowersDropped": 73,
-    "thinTowers": 50,
+    "canopyTowersDropped": 123,
+    "spikeTowersDropped": 74,
+    "thinTowers": 52,
     "thinTowerMaxM": 53.74
   },
   "overridesApplied": [
-    "201006.0000548"
+    "201006.0000548",
+    "201006.0009087",
+    "201006.0062170",
+    "201006.0168289"
   ],
   "roads": {
     "raw": 16378,
@@ -199,15 +202,15 @@
     "shoreLines": 69
   },
   "colliderPack": {
-    "bytes": 12683776,
+    "bytes": 12686000,
     "tiles": 583,
-    "buildings": 177857
+    "buildings": 177920
   },
   "far": {
     "cells": 33,
-    "triangles": 466892,
-    "records": 177857,
-    "bytes": 6672668
+    "triangles": 467333,
+    "records": 177920,
+    "bytes": 6679408
   },
   "terrain": {
     "minY": 0,
@@ -310,7 +313,7 @@
     },
     {
       "id": "sutro-tower",
-      "label": "Sutro Tower (lattice radio tower; the footprint data models it as solid blocks and spikes on the buildings around its legs)",
+      "label": "Sutro Tower (lattice radio tower; the footprint data fills its upper structure as solid blocks, overridden to 3 m plinths until a landmark replaces these records)",
       "x": -5205.28,
       "z": 4473,
       "buildings": [
@@ -390,27 +393,6 @@
       "source": "lidar"
     },
     {
-      "id": "201006.0009087",
-      "heightM": 231.33,
-      "topY": 486.54,
-      "parcel": "2724003",
-      "source": "lidar"
-    },
-    {
-      "id": "201006.0062170",
-      "heightM": 227.87,
-      "topY": 483.08,
-      "parcel": "2724003",
-      "source": "lidar"
-    },
-    {
-      "id": "201006.0168289",
-      "heightM": 225.49,
-      "topY": 480,
-      "parcel": "2724003",
-      "source": "lidar"
-    },
-    {
       "id": "201006.0003335",
       "heightM": 221.51,
       "topY": 226.02,
@@ -435,6 +417,26 @@
       "heightM": 189.28,
       "topY": 192.94,
       "parcel": "0263011",
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0001244",
+      "heightM": 186.24,
+      "topY": 190.43,
+      "parcel": "3709019",
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0000534-tower",
+      "heightM": 179.93,
+      "topY": 213.88,
+      "source": "lidar"
+    },
+    {
+      "id": "201006.0000633",
+      "heightM": 179.28,
+      "topY": 182.74,
+      "parcel": "0233044",
       "source": "lidar"
     }
   ]

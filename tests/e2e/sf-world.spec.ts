@@ -155,12 +155,20 @@ test.describe("sf world: in the browser", () => {
     expect(glbs.length, "tile glbs fetched since boot").toBeGreaterThan(4);
     expect(glbs.filter((r) => r.status !== 200 && r.status !== 304), "tile glbs not served").toEqual([]);
     expect(tileWarnings, "tiles whose glb failed to load").toEqual([]);
-    const info = await renderInfo(page);
-    if (info) {
-      expect(info.tilesFailed ?? 0, "tiles failed").toBe(0);
-      expect(info.tilesLoaded ?? 0, "tiles loaded").toBeGreaterThan(4);
-    }
     expect(problems).toEqual([]);
+    // The streamer's own counts: gated on the debug handle like every renderInfo() check, so
+    // a missing handle is reported, never a silently skipped assertion.
+    const have = await features(page);
+    if (!have.renderInfo) {
+      if (required("render-debug")) throw new Error(`E2E_REQUIRE names "render-debug", but window.__fogcity.renderInfo() is missing`);
+      test.info().annotations.push({ type: "note", description: "renderInfo() not available: checked the glb responses and streamer warnings only" });
+      return;
+    }
+    const info = await renderInfo(page);
+    expect(info, "renderInfo() returned nothing").not.toBeNull();
+    expect(typeof info!.tilesFailed, "renderInfo().tilesFailed").toBe("number");
+    expect(info!.tilesFailed, "tiles failed").toBe(0);
+    expect(info!.tilesLoaded ?? 0, "tiles loaded").toBeGreaterThan(4);
   });
 
   test("the Ferry Building landmark is placed, with every other landmark that has a model", async () => {

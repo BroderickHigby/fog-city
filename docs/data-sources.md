@@ -148,7 +148,7 @@ that distance (a landmark the data splits into several records):
 | Pier at The Embarcadero and Beach St (`beach-st-pier`) | `201006.0000037` |
 | Palace of Fine Arts rotunda | `201006.0000986`, `201006.0000986-tower` |
 | 315 Pennsylvania Ave (Dogpatch) | `201006.0010443`, `201006.0010443-tower` |
-| Sutro Tower (every record within 60 m: `radiusM` in `areas.json`) | `201006.0001431`, `201006.0009087`, `201006.0062170`, `201006.0077893`, `201006.0167582`, `201006.0168289` (all on the tower's parcel 2724003: the solid block at 231 m, the 228 m and 225 m leg columns, a building under a leg and the small equipment buildings at its base; no `-tower` records, since the moment model calls the mast an outlier) |
+| Sutro Tower (every record within 60 m: `radiusM` in `areas.json`) | `201006.0001431`, `201006.0009087`, `201006.0062170`, `201006.0077893`, `201006.0167582`, `201006.0168289` (all on the tower's parcel 2724003: the lattice's upper structure as the LiDAR saw it, a 683 m² block at a 210 m median and 274 m² and 16 m² pieces at 191 m and 183 m, now 3 m plinths by override; a building under a leg and the small equipment buildings at its base; no `-tower` records) |
 | City Hall dome | `201006.0000041`, `201006.0000041-tower` |
 | Grace Cathedral | `201006.0000550`, `201006.0000550-tower` |
 | Mission Dolores | `201006.0001563` (its bell tower is removed by the spike check: see Known limitations) |
@@ -165,8 +165,12 @@ survey** (the `201006` prefix and the `p2010_*` fields), even though the footpri
 themselves are newer. For each footprint, in order:
 
 1. **Override** (`pipeline/overrides.json`), keyed by `sf16_bldgid` and checked against
-   the parcel. There is one: 415 Mission St (completed 2018), whose LiDAR median is 0.24 m
-   (the 2010 site was the old Transbay ramps). It is set to its public-record 326 m roof.
+   the parcel. There are four. 415 Mission St (completed 2018), whose LiDAR median is
+   0.24 m (the 2010 site was the old Transbay ramps), is set to its public-record 326 m
+   roof. Three Sutro Tower records are set to 3 m plinths: the footprint dataset outlines
+   the open lattice's upper structure as seen from above and the LiDAR fills the outline
+   (683 m² at a 210 m median, max 286 m), so they were solid blocks 225–231 m tall over
+   the west side. The plinths stand in until a landmark model replaces the probe's records.
 2. **Assessor storeys** when the parcel was built in 2010 or later, has storeys, and the
    LiDAR median is below 2 m per storey (a construction site or empty lot in 2010). Also
    used when the LiDAR median is under 2 m but the assessor records storeys. The height is
@@ -176,7 +180,7 @@ themselves are newer. For each footprint, in order:
    it is above 64 (the tallest SF building has 61; the 2025 roll has no count between 63
    and 75, so wave 1's cut at 70 gives the same world) or when the height it implies
    exceeds 8 × √(footprint area) (slender towers reach about 8).
-3. **LiDAR** for the other 173,185:
+3. **LiDAR** for the other 173,182:
    * If `d = hgt_max − hgt_median ≤ max(4 m, 0.3 × median)`, one prism at `hgt_max` (roof
      including parapets).
    * Otherwise the max is either a tower or an **outlier**: edge bleed from a neighbouring
@@ -192,7 +196,7 @@ themselves are newer. For each footprint, in order:
    * The tower is **plausible** when its area `a × footprint` is at least 25 m² and it rises
      above the podium at most 10 times its width (`d ≤ 10·√area`; the 600 Montgomery St
      pyramid, the most slender real case, is at 9.7).
-   * **Outlier max** otherwise, in 10,929 buildings: one prism at the median plus a rooftop
+   * **Outlier max** otherwise, in 10,928 buildings: one prism at the median plus a rooftop
      allowance (parapets, stair and lift overruns) of `max(3 m, 10 % of the median)`, never
      above the max (`outlierRoof`). Examples the rule removes: a 144 m, 8 m² needle on a
      3-storey 1908 house on Nob Hill (`201006.0024724`, a ≈ 0.02); a 169 m needle on a 40 m
@@ -202,21 +206,24 @@ themselves are newer. For each footprint, in order:
    * Two checks then remove a plausible-looking tower the assessor contradicts. Both give
      the building the same outlier roof:
      * **Tree canopy over houses:** a residential building of at most 4 assessor storeys
-       (a condominium's storeys, not one unit's) whose LiDAR max is above storeys × 4.5 m +
-       8 m (187 buildings): the max is the trees over the roof.
+       whose LiDAR max is above storeys × 4.5 m + 8 m (123 buildings, none with a max above
+       51.2 m): the max is the trees over the roof. **Condominiums are exempt.** A condo's
+       storeys are the most any unit parcel lists (usually 1 or 2, whatever the building's
+       height), so they cannot contradict a tower: One Rincon Hill's 689 units list 2
+       storeys under its 182 m tower.
      * **LiDAR spikes:** a tower under 60 m² over a podium under 15 m, rising more than
        15 m above it, when the assessor storeys contradict it (taller than storeys × 4.5 m
        + 20 m) or, with no storey count, when it is more than 4 times the podium
-       (73 buildings). These are the scan catching a neighbouring tower, a crane or a tree:
+       (74 buildings). These are the scan catching a neighbouring tower, a crane or a tree:
        26–59 m² slivers 30–60 m above 7–15 m shops and offices downtown (`201006.0007252`,
        a 1-storey shop on a 70 m sliver; `201006.0000531`, 4 storeys on a 70 m one).
-   * **Two-tier massing** for the rest, in **2,262 buildings**: a podium at `hgt_median`
+   * **Two-tier massing** for the rest, in **2,325 buildings**: a podium at `hgt_median`
      over the whole footprint, plus a tower at `hgt_max` covering `a` of it. The tower
      footprint is the building's footprint clipped to a square of that area, centred on the
      centroid and aligned with the longest wall (lengthened along the wall where the
      building is narrower than the square). A long hall therefore gets a compact tower, not
      a slab. This keeps the Ferry Building a low hall with a clock tower (a = 0.018,
-     181 m²) rather than a 75 m wall. 50 thin towers remain (under 60 m² over a podium
+     181 m²) rather than a 75 m wall. 52 thin towers remain (under 60 m² over a podium
      under 15 m, rising 15+ m), all under 54 m (`report.json` `buildings.thinTowers`,
      `thinTowerMaxM`; a test caps them at 200 and 60 m): steeples and rooftop structures.
 
@@ -227,16 +234,34 @@ themselves are newer. For each footprint, in order:
    houses and thin spikes. That left 11,348 towers citywide. Wave 1 replaced the model:
    the three-level moment fit tests every max, everywhere, against a size and slenderness
    that real towers meet, and calls the rest outliers. It is the more rigorous rule, so it
-   decides first. Citywide it accepts 2,522 towers. 187 of them are trees over low houses,
-   and without a spike check 73 more are thin slivers that a commercial podium's storeys
-   contradict: 123 thin towers in all, the tallest 70.4 m, which breaks wave 2's golden
-   (thin towers under 60 m). So wave 2's canopy and spike checks stay, as guards that can
-   only remove a tower the moment model accepted, never add one: 187 + 73 removed,
-   2,262 towers left, 50 thin ones under 54 m. Every rejected max, by any of the three,
-   gets one roof (`outlierRoof`), so wave 1's fixture (a stray max on a 3-storey house:
-   12 m + 3 m) and the canopy case agree. Both sides' tests and goldens pass unchanged
-   except counts that described the old model (towers > 10,000, spikes > 100, Sutro's
-   `-tower` records), which now describe this one.
+   decides first. Citywide it accepts 2,522 towers. 123 of them are trees over low
+   non-condominium houses, and without a spike check 74 more are thin slivers that a
+   podium's storeys contradict: 126 thin towers in all, the tallest 70.4 m, which breaks
+   wave 2's golden (thin towers under 60 m). So wave 2's canopy and spike checks stay, as
+   guards that can only remove a tower the moment model accepted, never add one: 123 + 74
+   removed, 2,325 towers left, 52 thin ones under 54 m. Every rejected max, by any of the
+   three, gets one roof (`outlierRoof`), so wave 1's fixture (a stray max on a 3-storey
+   house: 12 m + 3 m) and the canopy case agree. Both sides' tests and goldens pass
+   unchanged except counts that described the old model (towers > 10,000, spikes > 100,
+   Sutro's `-tower` records), which now describe this one.
+
+   **The guards read wave 1's condo join correctly.** The first merge fed the canopy guard
+   the condo-adjusted storeys, the most any unit lists. Those describe a unit, not the
+   building, so 64 of its 187 canopy drops were condominiums, real towers among them: One
+   Rincon Hill (182 m, an 18.8 m prism), 757 Market St (130 m, 31.7 m), the Watermark at
+   501 Beale St (72.7 m), and towers of 85, 78, 76, 57 and 55 m. Wave 2 had the same
+   defect with the joined unit's own storeys (none of the three had a tower in wave 2's
+   tiles). Condominiums now skip the canopy guard (`!condo` in `lowHouse`). Of the 631
+   towers wave 1's last fix built in its 77 tiles, 604 stand, and those tiles hold no tower
+   wave 1 lacked. The other 27 are listed with their guard in
+   `tests/pipeline/wave1-towers.json`: 13 canopy drops (non-condo houses of 1–4 storeys,
+   maxima 14–51 m) and 14 spike drops (26–50 m² slivers 28–70 m tall over 6–14 m
+   commercial podiums). The spike check keeps a condo's storeys on purpose: it only sees thin towers over
+   podiums under 15 m, which a condo's 1–4 unit storeys do describe. Treating them as
+   unknown (the 4× podium rule) would bring back three thin columns over 11–14 m condo
+   podiums that look like neighbour bleed: 49.6 m on a 2004 retail condo in South Beach
+   (`201006.0000830`), 37.4 m on a 1979 residential condo in the southwest
+   (`201006.0001723`) and 27.6 m near Jackson Square (`201006.0121401`).
    * A two-tier building is **two collider records**: `<id>` (the podium, `meta.tower`
      names the tower) and `<id>-tower` (`meta.towerOf`, `meta.podiumTopY`). Both have the
      same ground-level `baseY`, so a renderer that extrudes colliders draws the right
@@ -260,8 +285,8 @@ the LiDAR's own ground (`gnd_mediancm`), or the DEM when the two disagree by mor
 **Assessor join (meta).** 96.4 % of the 175,595 kept footprints joined a 2025-roll parcel:
 167,760 by exact block/lot (`mblr` = `"SF" + parcel_number`) and 1,443 by a parcel point
 inside the footprint (the one with the most plausible storeys when several are inside). Of
-the kept footprints, 165,962 have a year built and 161,564 a storey count. With the 2,262
-towers that is **177,857 collider records**. Three corrections:
+the kept footprints, 165,962 have a year built and 161,553 a storey count. With the 2,325
+towers that is **177,920 collider records**. Three corrections:
 
 * **Noise.** Storey counts above 64 are data-entry noise (the roll has 999, 752, 591…; the
   tallest building in the city has 61 floors) and are ignored, as are counts whose height
@@ -273,10 +298,11 @@ towers that is **177,857 collider records**. Three corrections:
   there, `stories` = the most storeys any of them records (some unit rows carry the
   building's count: 58 at 301 Mission St), and `use` = "Residential Condominium" when every
   unit is residential (`SRES`/`MRES`). 5,017 records citywide. Unit-derived storeys never
-  feed a height: the assessor-storey heights above use the joined parcel's own count.
+  feed a height (the assessor-storey heights above use the joined parcel's own count) and
+  never make a condominium a "low house" for the canopy check.
 * **Plausibility.** A LiDAR-height building keeps `stories` only when
   `stories × 2.4 − 10 ≤ height ≤ stories × 6 + 15` (height = the tower's when there is
-  one). 372 counts fail and are left out: condo units, a parcel's tower storeys on its low
+  one). 383 counts fail and are left out: condo units, a parcel's tower storeys on its low
   wing, a parcel shared with a different building. The facade storey height then falls
   back to the use's default (office 4.0, residential 3.2, industrial 5.0, otherwise 3.6 m)
   instead of `height / stories`.
@@ -459,7 +485,7 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
 
 The sim must hold the whole world's collision data deterministically, on every client and
 the server, whatever the renderer has streamed. The design's preferred option (a) ships:
-one binary pack for the whole city, **12.68 MB** (budget 15 MB), against 82.8 MB for the
+one binary pack for the whole city, **12.69 MB** (budget 15 MB), against 82.9 MB for the
 583 per-tile JSON colliders. Format FCWC version 1, specified in
 [`schemas/world-colliders.md`](../schemas/world-colliders.md): a 64-byte header, a tile
 table, every tile's 51 × 51 heightfield as int16 cm and its water mask as bits, then 20-byte
@@ -470,14 +496,14 @@ long edges. `pipeline/lib/world-colliders.ts` has the encoder and the reference 
 tile-indexed ground lookup). The reader decodes the pack to exactly the JSON colliders'
 values (everything is whole centimetres in both), and a test proves it for every tile.
 
-The per-tile JSON colliders still ship (82.8 MB, inside the 100 MB budget for them): they
+The per-tile JSON colliders still ship (82.9 MB, inside the 100 MB budget for them): they
 are today's contract for the sim's boot and the renderer, and they carry `meta` (footY,
 year, use, storeys) the pack leaves out. **The sim should switch to the pack**; see
 [What the sim and renderer must change](#what-the-sim-and-renderer-must-change).
 
 ## Far-LOD massing (`fX_Z.glb`)
 
-`pipeline/lib/far.ts`. Every collider record (all 177,857), heavily simplified and merged
+`pipeline/lib/far.ts`. Every collider record (all 177,920), heavily simplified and merged
 per large cell, so the skyline and the hills beyond the streaming radius are always drawn.
 The grid starts at the candidate rectangle's north-west corner with **2,500 m cells**: the
 city fits in 6 × 6, and 33 cells hold something. One glb per cell, one node `far`, one
@@ -496,7 +522,7 @@ primitive, so one draw call per cell (budget: 40 draw calls, 600k triangles).
   vertex colours from the largest member's facade palette. Quantised and meshopt-compressed
   like the tiles.
 
-Result: 33 cells, **466,892 triangles, 6.67 MB**. The layer is meant to be drawn only
+Result: 33 cells, **467,333 triangles, 6.68 MB**. The layer is meant to be drawn only
 beyond the streamed radius (a fragment discard inside it, or hiding cells the near tiles
 cover); otherwise its hulls, which are larger than the buildings, poke through the
 detailed tiles.
@@ -618,12 +644,12 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 ## What the sim and renderer must change
 
 * **Sim boot (Sim-World, `src/sim/`):** load `manifest.worldColliders` (12.7 MB) instead of
-  every `*.collider.json` (583 files, 82.8 MB), decode it with the reference reader
+  every `*.collider.json` (583 files, 82.9 MB), decode it with the reference reader
   (`pipeline/lib/world-colliders.ts`, copy it into `src/sim/`), and replace the linear scan
   in `groundHeight()` (it loops over all 583 tiles per call) with a tile-indexed lookup
   (`PackGroundIndex`). Ground where no tile exists is 0 (open water).
 * **Renderer boot (Render-World, `src/main.ts`):** stop fetching every collider JSON at boot.
-  `main.ts` still fetches all 583 (82.8 MB) before the first frame. Measured after the
+  `main.ts` still fetches all 583 (82.9 MB) before the first frame. Measured after the
   citywide merge, on localhost under SwiftShader: `ready` in 2.4–2.6 s, tiles around the
   spawn settled in 6.6–12.2 s, 239–254 MB of JS heap; on a real connection it is the whole
   download before the first frame. Tile bounds can come from the manifest's `bbox`, and the
@@ -653,11 +679,11 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 
 | Files | Bytes |
 |---|---|
-| 583 × `t*.glb` (quantised + meshopt) | 112.84 MB (largest 0.53 MB) |
-| 583 × `t*.collider.json` | 82.84 MB (largest 0.40 MB) |
-| `world.colliders.bin` | 12.68 MB |
+| 583 × `t*.glb` (quantised + meshopt) | 112.86 MB (largest 0.53 MB) |
+| 583 × `t*.collider.json` | 82.86 MB (largest 0.40 MB) |
+| `world.colliders.bin` | 12.69 MB |
 | `sidewalks.json` | 10.36 MB |
-| 33 × `f*.glb` (far-LOD) | 6.67 MB |
+| 33 × `f*.glb` (far-LOD) | 6.68 MB |
 | `roads.json` | 4.54 MB |
 | `street-cleaning.json` | 3.73 MB |
 | `storefronts.json` | 1.55 MB |
@@ -665,7 +691,7 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 | `muni.json` | 0.66 MB |
 | `hydrants.json`, `districts.json`, `signals.json`, `fountains.json`, `boundary.json` | 0.73 MB |
 | `manifest.json` + `report.json` | 0.23 MB |
-| **Total (the whole city, 1,213 files)** | **238.07 MB** (238,074,989 bytes; budget 300 MB) |
+| **Total (the whole city, 1,213 files)** | **238.12 MB** (238,121,951 bytes; budget 300 MB) |
 
 Budgets live in `tests/pipeline/budgets.json` and `tests/pipeline/budgets.test.ts` enforces
 them: each tile glb and each collider JSON ≤ 1.5 MB, all tile glbs ≤ 150 MB, all collider
@@ -690,7 +716,7 @@ memory, and compares SHA-256 of every file.
 ## Known limitations
 
 * **The LiDAR is from 2010.** Buildings finished since then get assessor-storey heights,
-  which are approximate (2,409 buildings), or an override (1). Buildings that replaced a
+  which are approximate (2,409 buildings), or an override (415 Mission St). Buildings that replaced a
   different 2010 building on the same footprint keep the old height.
 * **Two-tier massing is a model.** The tower is centred on the podium's centroid; the real
   tower may sit at a corner. The tower test reads summary statistics, not the point cloud,
@@ -701,11 +727,12 @@ memory, and compares SHA-256 of every file.
   a 39 m bell tower) loses its tower. Landmarks should be replaced by hand-made models.
 * **Assessor storeys are corrected, not verified.** The plausibility band drops the
   contradictions; a wrong count inside the band survives.
-* **Sutro Tower is solid.** The LiDAR fills its footprint (683 m², median 210 m, max
-  286 m): the moment model calls the mast an outlier, so it is one block at 231 m above its
-  ground. The legs make 228 m and 225 m columns on the records around them (a 16 m² one at
-  225 m). All six records within 60 m are listed under the `sutro-tower` probe for a
-  landmark replacement; `content/landmarks.json` has no Sutro entry yet.
+* **Sutro Tower is missing.** The LiDAR fills its upper structure's outline (683 m²,
+  median 210 m, max 286 m), which made one block at 231 m and columns at 228 m and 225 m
+  (a 16 m² one). Overrides now make those three records 3 m plinths, so Sutro crest shows
+  only the plinths and the equipment buildings. All six records within 60 m are listed
+  under the `sutro-tower` probe for a landmark replacement; `content/landmarks.json` has no
+  Sutro entry yet.
 * **Freeway and bridge decks** have no elevation in the source. The graph has them
   (flagged `gradeSeparated` / `bridge`); the GLB drapes them on land and omits freeways over
   water. Treasure Island and Yerba Buena Island are built, but no road joins them to the
@@ -720,7 +747,7 @@ memory, and compares SHA-256 of every file.
   freeway is cut and bridged by a crossing as if the freeway were at grade. Hydrants are
   procedural.
 * **Far-LOD hulls are convex**, so a block cluster's hull covers its back yards.
-* **Some thin LiDAR towers remain:** 50 under 60 m² over a low podium, all under 54 m
+* **Some thin LiDAR towers remain:** 52 under 60 m² over a low podium, all under 54 m
   (steeples, rooftop structures, and spikes the data cannot tell from them). Towers of
   60 m² and more are kept when the moment model accepts them. A tree mask (DataSF *Urban Tree
   Canopy* `ni2e-vpbg`) would catch the remaining tree-made ones.
@@ -741,6 +768,12 @@ memory, and compares SHA-256 of every file.
     says so. The LiDAR scaling is checked by override-free goldens, each within 10 % of the
     public-record roof: 600 Montgomery St (258.6 m vs 260), 555 California St (243.3 vs
     237), 101 California St (189.3 vs 183) and 301 Mission St (194.9 vs 197);
+  * condominium towers whose units list 1–2 storeys keep their LiDAR towers (within 10 %):
+    One Rincon Hill (179.9 m vs 182), 757 Market St (130.4 vs 130) and the Watermark
+    (73.0 vs 73);
+  * every tower wave 1's last fix built (631 ids in `wave1-towers.json`) still stands,
+    unless the file lists it as a canopy or spike drop that its meta confirms;
+  * Sutro Tower's six probe records are under 20 m (three are override plinths);
   * no needles: every tower covers at least 20 m² and rises at most 10.6× its width above
     its podium; the review's needle examples are single prisms near their median roof;
   * meta storeys agree with the LiDAR height, and condominium towers are not one-storey
@@ -785,7 +818,8 @@ memory, and compares SHA-256 of every file.
   twice, plus every modelling rule above: the boundary outline and shore, oneway `T`
   reversal, layer drops, classcode mapping, two-tier pairing, an outlier max making no
   tower, tree canopy and a LiDAR spike removing a tower the moment model accepts,
-  condominium joins, implausible storeys, freeway and bridge flags, the assessor-storey
+  condominium joins, a condominium tower whose units list 1–2 storeys keeping its tower,
+  implausible storeys, freeway and bridge flags, the assessor-storey
   rule, overrides, footY on a slope, water, seams, storefront filtering and privacy, and
   GLB validity.
 * `tower-rule.test.ts`: the tower rule on real DataSF statistics: the 600 Montgomery

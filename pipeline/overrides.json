@@ -1,5 +1,5 @@
 {
-  "$comment": "Height corrections for buildings the June 2010 LiDAR survey (behind the DataSF footprint heights) could not see correctly, because they were built later. Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying.",
+  "$comment": "Height corrections for buildings the June 2010 LiDAR survey (behind the DataSF footprint heights) could not see correctly: built later, or (Sutro Tower) an open steel lattice the scan records as a solid block. Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying.",
   "buildings": [
     {
       "id": "201006.0000548",
@@ -7,6 +7,27 @@
       "label": "415 Mission St tower",
       "heightM": 326,
       "source": "Completed 2018. Roof height 326 m (1,070 ft), public record (CTBUH Skyscraper Center). The footprint dataset reports a 0.24 m median height here: in June 2010 the site was the old Transbay Terminal ramps."
+    },
+    {
+      "id": "201006.0009087",
+      "parcel": "2724003",
+      "label": "Sutro Tower upper structure (lattice, seen from above)",
+      "heightM": 3,
+      "source": "Placeholder until a landmark model replaces the sutro-tower probe's records. Sutro Tower is a 298 m open steel lattice on three legs (public record); the footprint dataset outlines its upper structure as seen from above, and the LiDAR fills that outline as a solid prism (median 210.4 m, max 286.4 m over 683 m²). A 3 m plinth marks the footprint instead of a 231 m solid block."
+    },
+    {
+      "id": "201006.0062170",
+      "parcel": "2724003",
+      "label": "Sutro Tower upper structure (lattice, seen from above)",
+      "heightM": 3,
+      "source": "Placeholder until a landmark model replaces the sutro-tower probe's records. Sutro Tower is a 298 m open steel lattice on three legs (public record); the footprint dataset outlines its upper structure as seen from above, and the LiDAR fills that outline as a solid prism (median 190.9 m, max 227.8 m over 274 m²). A 3 m plinth marks the footprint instead of a 228 m solid block."
+    },
+    {
+      "id": "201006.0168289",
+      "parcel": "2724003",
+      "label": "Sutro Tower mast column (lattice, seen from above)",
+      "heightM": 3,
+      "source": "Placeholder until a landmark model replaces the sutro-tower probe's records. Sutro Tower is a 298 m open steel lattice on three legs (public record); the footprint dataset outlines its upper structure as seen from above, and the LiDAR fills that outline as a solid prism (median 183.2 m, max 225.1 m over 16 m²). A 3 m plinth marks the footprint instead of a 225 m solid block."
     }
   ]
 }

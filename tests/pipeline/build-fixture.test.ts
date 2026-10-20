@@ -107,6 +107,10 @@ function fixture(): { cfg: WorldConfig; raw: RawInputs; overrides: Override[] } 
     bldg("201006.0000013", [rect(150, 420, 180, 450)], { med: 7, max: 25, mean: 7 + 0.3 * 18, std: 18 * Math.sqrt(0.3 * 0.7), gnd: g(165) }, "SF0001013"),
     // A 3-storey office whose max is a 45 m² sliver 48 m above its roof (the spike check removes it).
     bldg("201006.0000014", [rect(750, 150, 780, 180)], { med: 12, max: 60, mean: 12 + 0.05 * 48, std: 48 * Math.sqrt(0.05 * 0.95), gnd: g(765) }, "SF0001014"),
+    // A condominium tower (One Rincon Hill's shape): a 15 m podium, a quarter of it 150 m tall,
+    // whose unit parcels all list 1-2 storeys. The units say nothing about the building, so
+    // the canopy check (residential, at most 4 storeys) must not take the tower for trees.
+    bldg("201006.0000015", [rect(440, 280, 480, 320)], { med: 15, max: 150, mean: 15 + 0.25 * 135, std: 135 * Math.sqrt(0.25 * 0.75), gnd: g(460) }, "SF0003001"),
   ];
   const parcel = (n: string, x: number, z: number, year: number, stories: number, use: string, useCode?: string): RawParcel => ({
     parcel_number: n, block: n.slice(0, 4), lot: n.slice(4), year_property_built: String(year),
@@ -126,6 +130,10 @@ function fixture(): { cfg: WorldConfig; raw: RawInputs; overrides: Override[] } 
     parcel("0002002", 395, 395, 1999, 2, "Single Family Residential", "SRES"),
     parcel("0002003", 395, 395, 1999, 18, "Single Family Residential", "SRES"),
     parcel("0002004", 395, 395, 1999, 591, "Single Family Residential", "SRES"),
+    parcel("0003001", 460, 300, 2008, 1, "Single Family Residential", "SRES"),
+    parcel("0003002", 460, 300, 2008, 2, "Single Family Residential", "SRES"),
+    parcel("0003003", 460, 300, 2008, 1, "Single Family Residential", "SRES"),
+    parcel("0003004", 460, 300, 2008, 2, "Single Family Residential", "SRES"),
   ];
   const streets: RawStreet[] = [
     street(1001, "TEST", "ST", "5", "B", [[20, 90], [500, 90], [980, 90]], 9001, 9002),
@@ -321,6 +329,19 @@ describe("fixture build: buildings", () => {
     expect(b.meta.heightM).toBe(62);
   });
 
+  it("a condominium whose units list 1-2 storeys keeps its tall tower: the canopy check skips condos", () => {
+    const pod = byId("201006.0000015")!;
+    const tower = byId("201006.0000015-tower")!;
+    expect(plausibleTower(1600, towerFraction(15, 150, 15 + 0.25 * 135, 135 * Math.sqrt(0.25 * 0.75)), 135)).toBe(true);
+    expect(pod.meta).toMatchObject({ parcel: "0003001", condo: true, units: 4, use: "Residential Condominium", tower: tower.id });
+    // 2 storeys (the most any unit lists) cannot describe 150 m: left out of meta.
+    expect(pod.meta.stories).toBeUndefined();
+    expect(pod.topY - terrain(460)).toBeCloseTo(15, 0);
+    expect(tower.topY - terrain(460)).toBeCloseTo(150, 0);
+    expect(tower.meta.heightM).toBe(150);
+    expect(Math.abs(signedArea(tower.footprint)) / Math.abs(signedArea(pod.footprint))).toBeCloseTo(0.25, 1);
+  });
+
   it("assessor storeys that contradict the LiDAR height are left out of meta", () => {
     const b = byId("201006.0000012")!;
     expect(b.meta.heightM).toBe(90);
@@ -355,7 +376,7 @@ describe("fixture build: buildings", () => {
     expect(byId("201006.0000007")).toBeUndefined();
     expect(byId("201006.0000008")).toBeUndefined();
     expect(out.report.buildings).toMatchObject({
-      droppedSmall: 1, droppedOutside: 1, droppedLow: 1, heightOverride: 1, twoTier: 1, maxOutlier: 1, condo: 1, storiesImplausible: 1,
+      droppedSmall: 1, droppedOutside: 1, droppedLow: 1, heightOverride: 1, twoTier: 2, maxOutlier: 1, condo: 2, storiesImplausible: 2,
       canopyTowersDropped: 1, spikeTowersDropped: 1, thinTowers: 0,
     });
   });

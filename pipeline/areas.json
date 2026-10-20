@@ -135,7 +135,7 @@
           },
           {
             "id": "sutro-tower",
-            "label": "Sutro Tower (lattice radio tower; the footprint data models it as solid blocks and spikes on the buildings around its legs)",
+            "label": "Sutro Tower (lattice radio tower; the footprint data fills its upper structure as solid blocks, overridden to 3 m plinths until a landmark replaces these records)",
             "lat": 37.7552,
             "lon": -122.4528,
             "radiusM": 60

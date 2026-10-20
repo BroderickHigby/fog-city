@@ -674,7 +674,8 @@ describe("citywide: building records", () => {
 
   it("the Sutro Tower probe lists every record around its legs, for the landmark to replace", () => {
     const sutro = report.probes.find((p) => p.id === "sutro-tower")!;
-    // The LiDAR maxima over the legs are the tower itself: outliers, so no -tower records.
+    // The LiDAR maxima over the legs are the tower itself: outliers or overrides (3 m plinths
+    // in pipeline/overrides.json), so no -tower records.
     expect(sutro.buildings).toEqual(["201006.0001431", "201006.0009087", "201006.0062170", "201006.0077893", "201006.0167582", "201006.0168289"]);
   });
 });

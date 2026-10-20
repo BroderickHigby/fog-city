@@ -8,10 +8,10 @@
 //   - else the LiDAR: one prism at the max height when max is close to the median; a
 //     two-tier massing (podium at the median, a slimmer tower at the max) when the
 //     statistics describe a tower of plausible size (towerFraction, plausibleTower), the
-//     building is not a low house under trees (canopy) and the assessor does not contradict
-//     a thin tower (isLidarSpike); otherwise the max is an outlier (edge bleed from a
-//     neighbour, a single return, a tree) and the building is one prism at the median plus
-//     a rooftop allowance (outlierRoof).
+//     building is not a low house under trees (canopy; a condominium never is) and the
+//     assessor does not contradict a thin tower (isLidarSpike); otherwise the max is an
+//     outlier (edge bleed from a neighbour, a single return, a tree) and the building is one
+//     prism at the median plus a rooftop allowance (outlierRoof).
 // A two-tier building is two collider records: "<id>" (the podium, full footprint) and
 // "<id>-tower" (the footprint scaled about its centroid, meta.towerOf = "<id>"). Both start
 // at ground level, so a renderer that extrudes colliders draws the right massing; the GLB
@@ -63,7 +63,8 @@ export const MAX_SLENDERNESS = 8;
 /**
  * Trees over houses (wave 2): the LiDAR max over a low residential building is often the
  * canopy above it. A residential building of at most this many assessor storeys gets no tower
- * taller than storeys x 4.5 m + 8 m; its roof is outlierRoof() instead.
+ * taller than storeys x 4.5 m + 8 m; its roof is outlierRoof() instead. Condominiums are
+ * exempt: their units' storeys do not describe the building (wave 1's condo join).
  */
 export const CANOPY_MAX_STORIES = 4;
 /**
@@ -508,8 +509,10 @@ export function buildBuildings(
       } else {
         heightSource = "lidar";
         const d = hMax - hMed;
-        // Tree canopy over a low house (the building's storeys: a condo's, not one unit's).
-        const lowHouse = (use ?? "").toLowerCase().includes("residential") && stories >= 1 && stories <= CANOPY_MAX_STORIES;
+        // Tree canopy over a low house. A condominium is never a low house here: its storeys
+        // are the most any unit parcel lists (usually 1-2, whatever the building's height), so
+        // they cannot contradict a tower. One Rincon Hill's 689 units list 2 storeys under 182 m.
+        const lowHouse = !condo && (use ?? "").toLowerCase().includes("residential") && stories >= 1 && stories <= CANOPY_MAX_STORIES;
         if (d <= Math.max(4, 0.3 * hMed)) {
           top = hMax;
         } else {
@@ -540,7 +543,9 @@ export function buildBuildings(
         const towerArea = towerRing ? Math.abs(signedArea(towerRing)) : 0;
         if (towerRing && isLidarSpike(towerArea, podium, top, stories)) {
           // A tower the moment model accepts but the assessor contradicts: the max is an
-          // outlier after all, and the building is one prism like any other outlier.
+          // outlier after all, and the building is one prism like any other outlier. A condo's
+          // storeys do take part here: the check only sees thin towers over podiums under
+          // 15 m, which a condo's 1-4 unit storeys do describe (docs/data-sources.md).
           stats.spikeTowersDropped++;
           top = outlierRoof(podium, top);
           topY = r2(Math.max(baseY + MIN_HEIGHT_M, gRef + top));
