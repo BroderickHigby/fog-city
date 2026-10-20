@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Rebuild every Fog City hero asset from its script: public/models/*.glb.
+# Rebuild every Fog City asset from its script: public/models/* and public/audio/*.
 #
-#   assets/blender/build.sh             # all models + content/landmarks.json, then GLB stats
+#   assets/blender/build.sh             # all models + content/landmarks.json + sounds, then GLB stats
 #   assets/blender/build.sh robotaxi    # one model (script name without .py)
 #   assets/blender/build.sh --lookdev   # all models, then the look-dev renders (slow)
 #   FC_REVOLUTION_POSE=raised assets/blender/build.sh r_evolution
@@ -36,7 +36,7 @@ run() {
   fi
 }
 
-MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus)
+MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus humanoid)
 LOOKDEV=0
 ONLY=()
 for a in "$@"; do
@@ -60,6 +60,11 @@ for m in "${MODELS[@]}"; do
 done
 
 python3 assets/blender/tools/landmarks.py
+
+# Sound effects (numpy + ffmpeg, see assets/audio/README.md): on a full build only.
+if [ ${#ONLY[@]} -eq 0 ]; then
+  python3 assets/audio/generate.py
+fi
 
 # Triangle counts as exported (read back from the GLBs, not Blender's pre-export count).
 if [ -d node_modules/@gltf-transform/core ]; then
