@@ -311,10 +311,29 @@ def palm(mb_trunk: fc.MeshBuilder, mb_fronds: fc.MeshBuilder, x, y, h, trunk_mat
             mb_fronds.poly(q, frond_mat, smooth=True)
 
 
+def strip_png_text(path):
+    """Drop the PNG's text chunks (Blender writes the date and render timings there), so a
+    re-render of an unchanged scene is byte-identical and leaves git status clean."""
+    import struct
+
+    with open(path, "rb") as f:
+        data = f.read()
+    out, i = [data[:8]], 8
+    while i < len(data):
+        n = struct.unpack(">I", data[i : i + 4])[0]
+        kind = data[i + 4 : i + 8]
+        if kind not in (b"tEXt", b"zTXt", b"iTXt"):
+            out.append(data[i : i + 12 + n])
+        i += 12 + n
+    with open(path, "wb") as f:
+        f.write(b"".join(out))
+
+
 def render(name):
     sc = bpy.context.scene
     path = os.path.join(LOOKDEV_DIR, name)
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
+    strip_png_text(path)
     print(f"[lookdev] wrote {os.path.relpath(path, fc.REPO)} ({os.path.getsize(path) // 1024} KiB)")
     return path
