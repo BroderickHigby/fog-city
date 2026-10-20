@@ -20,7 +20,6 @@
 import { TILE_SIZE_M, tileId, toLocal } from "../../src/geo/project.ts";
 import type { TileRef } from "./config.ts";
 import {
-  centroid,
   cleanRing,
   clipToConvex,
   dropCollinear,
@@ -46,7 +45,6 @@ export interface Override {
   label: string;
   heightM: number;
   source: string;
-  massing?: "prism";
 }
 
 export type HeightSource = "lidar" | "assessor-stories" | "override";
@@ -426,9 +424,4 @@ export function buildBuildings(
   for (const o of overrides) if (!applied.includes(o.id)) throw new Error(`override ${o.id} (${o.label}) matched no footprint`);
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { buildings: out, stats, overridesApplied: applied };
-}
-
-/** Area-weighted centroid, exported for tests and storefront placement. */
-export function footprintCentroid(b: Building): P2 {
-  return centroid(b.footprint);
 }

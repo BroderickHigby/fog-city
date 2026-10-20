@@ -52,11 +52,6 @@ export interface RawBusiness {
   location?: { type: "Point"; coordinates: [number, number] };
 }
 
-export interface DemRequest {
-  areaId: string;
-  url: string;
-}
-
 export interface RawInputs {
   buildings: RawBuilding[];
   streets: RawStreet[];

@@ -5,7 +5,7 @@ import { ORIGIN, TILE_SIZE_M, toLocal } from "../../src/geo/project.ts";
 import type { Spawn } from "../../src/sim/contract.ts";
 import { buildBuildings, type Building, type BuildingStats, type Override } from "./buildings.ts";
 import { worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
-import { bearing, distToRing, distToSegment, pointInRing, r2, type P2 } from "./geom.ts";
+import { bearing, distToRing, distToSegment, pointInRing, r2 } from "./geom.ts";
 import { tileGlb } from "./glb.ts";
 import { buildingMesh, groundMesh, roadMeshes } from "./mesh.ts";
 import { jsonLines, jsonPretty, utf8 } from "./output.ts";
@@ -262,5 +262,3 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   files.set("report.json", utf8(jsonPretty(report)));
   return { files, report };
 }
-
-export type { P2 };
