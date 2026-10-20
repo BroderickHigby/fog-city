@@ -5,7 +5,9 @@
 // Real brands and real people live in blocklist.ts (shared with the name generator). This file
 // holds everything else: the game's lexicon (combat and disease words), shooter-game terms,
 // accelerator partners and their catchphrases, punch-down and housing terms, profanity, dialect
-// spelling, the places rule, and the names that were renamed and must not come back.
+// spelling, the places rule, the pre-release legal checklist's landmark names, and the names
+// that were renamed and must not come back. The sensitive-topic and sincere-service lists are
+// not lint rules: kits.ts uses them on the player's typed sentence only.
 
 /** A deny-list entry: the label shown in a lint message and a whole-word pattern source. */
 export type Deny = readonly [label: string, pattern: string];
@@ -89,6 +91,11 @@ export const PUNCH_DOWN: readonly Deny[] = [
   ["mugging", "mugg\\w*"], ["robbery", "robb(ed|er|ers|ery|ing)"], ["crime victim", "victims?"], ["skid row", "skid\\s+row"],
   ["encampment", "encampments?"], ["tent city", "tent\\s+cit(y|ies)"], ["sleeping bag", "sleeping\\s+bags?"],
   ["shopping cart", "shopping\\s+carts?"], ["cardboard sign", "cardboard\\s+signs?"], ["sketchy neighbourhood", "sketchy\\s+(neighbou?rhood|part of town|block)"],
+  ["hobo", "hobos?|hoboes"], ["bag lady", "bag\\s+lad(y|ies)"], ["wino", "winos?"], ["druggie", "druggies?|druggy"],
+  ["methhead", "meth-?\\s*heads?"], ["dope fiend", "dope\\s*fiends?"], ["pothead", "pot-?\\s*heads?"], ["skid", "skids"],
+  ["trailer trash", "trailer\\s+trash"], ["white trash", "white\\s+trash"], ["trash (people)", "(human|street)\\s+trash"],
+["derelict (person)", "derelicts"], ["transient (person)", "transients|the\\s+transient"],
+  ["tweaking", "tweaking\\s+(out|on)"], ["the poor", "the\\s+poor"], ["hood rat", "hood\\s*rats?"],
 ];
 
 /** No joke, mission or safehouse copy about rent, eviction or displacement (design.md, Places). */
@@ -129,12 +136,44 @@ export const SENSITIVE_TOPICS: readonly Deny[] = [
   ["identity", "racial|ethnic\\w*|immigra\\w*|refugees?|asylum|undocumented|religio\\w*|church\\w*|mosques?|synagogues?|temples?|bible|quran|koran|torah|pray(er|ers|ing)?|gay|lesbian|trans|transgender|queer|lgbt\\w*"],
   ["life events", "funerals?|pregnan\\w*|miscarriage\\w*|abortion\\w*|infertil\\w*|divorc\\w*|death|dying|deceased|orphan\\w*|foster\\s+(care|kids|children)|weight\\s+loss|obes\\w*|fat\\s+people"],
   ["hardship", "poverty|low[\\s-]income|unemploy\\w*|food\\s+banks?|shelters?|debt\\s+collect\\w*|bankrupt\\w*|prison\\w*|incarcerat\\w*|jail\\w*|parole"],
+  // Life and death, and being hurt: a sentence that names them never gets a topical kit, so no
+  // joke kit can pun on someone's own words ("live" -> "Everything, live, always."). The crisis
+  // check has already run; this catches what it is not sure about.
+  ["life and death", "live|lives|living|alive|life|lifes|die|dies|died|dying|dead|death|deaths|suicid\\w*|kill(s|ed|ing)?\\s+(me|myself|him|her|them)|end\\s+(it|things|everything)|ending\\s+(it|things)|(not\\s+)?be\\s+here\\s+anymore|miss\\s+me"],
+  ["being hurt", "hit\\s+me|hits\\s+me|hitting\\s+me|hit\\s+by|(get|gets|got|getting)\\s+hit|beat\\s+me|beats\\s+me|beating\\s+me|beat\\s+up|beaten|hurt|hurts|hurting|harm|harmed|harming|abus\\w*|assault\\w*|rape|raped|rapes|raping|molest\\w*|violen\\w*|unsafe|stalk(ed|ing|er|ers)|traffick\\w*|(punch|slap|kick|chok)\\w*\\s+me|strangl\\w*"],
+  ["recovery and care", "rehab\\w*|addiction\\s+recovery|in\\s+recovery|recovery\\s+(meetings?|programs?|cent(er|re)s?|homes?)|sober\\w*|sobriety|detox\\w*|(drug|addiction|alcohol|cancer|mental\\s+health)\\s+treatment|treatment\\s+(cent(er|re)s?|programs?)|overdos\\w*|naloxone|narcan|harm\\s+reduction|addict\\w*|alcoholi\\w*|relapse\\w*|clinics?|caregiv\\w*|hospitals?|nurses?|social\\s+work\\w*|case\\s*work\\w*|counsell?(ing|ors?)|hotlines?|helplines?|crisis"],
+];
+
+/**
+ * Sincere services for people the game never jokes about: a startup sentence that pairs a
+ * punch-down topic word with one of these ("an app to find homeless shelters", "rides to rehab")
+ * is a sincere, sensitive sentence (a fallback kit, refusal none), not punching down. The output
+ * is the same neutral fallback kit either way; only the refusal recorded changes.
+ */
+export const SINCERE_SERVICES: readonly Deny[] = [
+  ["services", "shelters?|housing|beds?|meals?|food|soup\\s+kitchens?|food\\s+banks?|pantr(y|ies)|showers?|laundry|outreach|case\\s*work\\w*|social\\s+(work\\w*|services)|services|support|help|helping|resources?|jobs?|job\\s+training|clinics?|health\\s*care|rehab\\w*|recovery|treatment|detox\\w*|harm\\s+reduction|naloxone|narcan|sober\\w*|counsel\\w*|donat\\w*|volunteer\\w*|charit\\w*|nonprofits?|non-profits?|legal\\s+aid|benefits|warm\\s+clothes|blankets?|coats?"],
 ];
 
 /** Accent spelling and ethnic catchphrases: no line a person speaks uses them (ai-layer.md). */
 export const DIALECT: readonly Deny[] = [
   ["dialect spelling", "dat|dis|dem|dose|youse|yer|fer|wit'|innit|bruv|guv'?nor|ze|zis|zat|velly|herro|ah so|mamma mia|fuhgeddaboudit|ya'll|dawg|homie"],
   ["ethnic catchphrase", "amigo|se[ñn]or|se[ñn]orita|gringo|konnichiwa|ni hao|namaste|shalom|oy vey|aloha"],
+];
+
+/**
+ * The pre-release legal checklist (design.md, Legal and taste): names whose owners assert rights
+ * over them stay out of player text. In-game text says "the sea lion docks", "the bridge", "the
+ * pyramid tower", "the bus". The places design.md allows are not on this list: the Golden Gate
+ * (the strait), Golden Gate Park, the Sutro Baths ruins, the Ferry Building, the Bay Bridge.
+ */
+export const CHECKLIST_LANDMARKS: readonly Deny[] = [
+  ["Pier 39 (say \"the sea lion docks\")", "pier\\s*39|pier\\s+thirty[-\\s]nine"],
+  ["Golden Gate Bridge (say \"the bridge\")", "golden\\s+gate\\s+bridge"],
+  ["Transamerica Pyramid", "transamerica(\\s+pyramid)?"],
+  ["Sutro Tower", "sutro\\s+tower"],
+  ["Muni (say \"the bus\")", "muni"],
+  ["R-Evolution (sculpture)", "r-?\\s*evolution"],
+  ["Salesforce Tower", "salesforce\\s+tower"],
 ];
 
 /** The places rule's named items that a regex can check (the rest is the review checklist). */
@@ -159,6 +198,8 @@ export const RENAMED: readonly Deny[] = [
   ["renamed: Clout -> Humbled", "clout"],
   ["renamed: Hijacked Ride -> Scenic Route", "hijacked\\s+ride"],
   ["renamed: Porter (robot model) -> Footman", "porters?"],
+  ["renamed: the patch launcher -> the water blaster", "patch[\\s-]*launch\\w*"],
+  ["renamed: reboot -> restored from backup (bad robots rust; converted helpers are restored)", "re-?boot\\w*"],
 ];
 
 /**

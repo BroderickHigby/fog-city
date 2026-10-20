@@ -11,7 +11,7 @@
 import kitsJson from "../../content/startup-kits.json" with { type: "json" };
 import { composeStartupName, type ComposedName } from "./composer.ts";
 import { CRISIS, crisisCheck, crisisResponse, type CrisisResponse } from "./crisis.ts";
-import { SENSITIVE_TOPICS } from "./denylists.ts";
+import { SENSITIVE_TOPICS, SINCERE_SERVICES } from "./denylists.ts";
 import { lintText, type LintRule } from "./lint.ts";
 import { hashString } from "./prng.ts";
 
@@ -43,6 +43,18 @@ export interface StartupKit {
 
 export const STARTUP_KITS: readonly StartupKit[] = (kitsJson as unknown as { kits: StartupKit[] }).kits;
 export const FALLBACK_KITS: readonly StartupKit[] = STARTUP_KITS.filter((k) => k.fallback);
+
+/**
+ * Words a kit shown after a refused or sensitive sentence must not contain: a kit that says
+ * "live", "cancel" or "nothing" can read as an answer to "I don't want to live" even when the
+ * crisis check missed the sentence.
+ */
+export const NEAR_SENSITIVE_WORDS = /\b(live|lives|living|alive|life|die|dies|dying|dead|death|end|ends|ending|cancel\w*|forever|final|gone|goodbye|hurt\w*|hit|hits|pain\w*|kill\w*|nothing|everything|miss|alone|over|stop|quit\w*)\b/i;
+
+/** The neutral fallback pool: fallback kits with no word from NEAR_SENSITIVE_WORDS in any text or keyword. */
+export const NEUTRAL_FALLBACK_KITS: readonly StartupKit[] = FALLBACK_KITS.filter(
+  (k) => ![...kitTexts(k), ...k.keywords].some((t) => NEAR_SENSITIVE_WORDS.test(t.replace(/\{nounPhrase\}/g, k.nounPhrase))),
+);
 
 /** The sign-up form's limit (content/missions/hot-desk.json, form.maxLength). */
 export const STARTUP_SENTENCE_MAX = 140;
@@ -138,11 +150,19 @@ const EMAIL = /[^\s@]+@[^\s@]+\.[a-z]{2,}/i;
 const PHONE = /(\+?\d[\s().-]?){7,}/;
 const STREET_ADDRESS = /\b\d{1,5}\s+([a-z]+\s){0,3}(street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|way|court|ct|place|pl)\b/i;
 
-const SENSITIVE_RE = SENSITIVE_TOPICS.map(([, p]) => new RegExp(`(^|[^\\p{L}\\p{N}])(${p})($|[^\\p{L}\\p{N}])`, "iu"));
+const wholeWord = (p: string): RegExp => new RegExp(`(^|[^\\p{L}\\p{N}])(${p})($|[^\\p{L}\\p{N}])`, "iu");
+const SENSITIVE_RE = SENSITIVE_TOPICS.map(([, p]) => wholeWord(p));
+const SINCERE_RE = SINCERE_SERVICES.map(([, p]) => wholeWord(p));
+/** The lint rules a sincere service sentence may trip ("homeless shelters", "help renters"): the topic words themselves. */
+const TOPIC_RULES: ReadonlySet<LintRule> = new Set(["punchDown", "housing"]);
 
 export interface Screening {
   refusal: Refusal;
-  /** A sincere topic the game never jokes about (health, disability, faith, identity, grief): a fallback kit, no refusal. */
+  /**
+   * A sincere topic the game never jokes about (health, disability, faith, identity, grief, life
+   * and death, being hurt, recovery and care, services for people in hardship): a neutral
+   * fallback kit, no refusal.
+   */
   sensitive: boolean;
 }
 
@@ -150,13 +170,22 @@ export interface Screening {
 export function screenSentence(text: string): Screening {
   const norm = normaliseSentence(text);
   const found = new Set<Refusal>();
+  const rules = new Set<LintRule>();
   for (const i of lintText(norm)) {
+    rules.add(i.rule);
     const r = i.rule === "profanity" && i.message.includes("slur") ? "hateful" : RULE_REFUSAL[i.rule];
     if (r) found.add(r);
   }
+  // "an app to find homeless shelters", "rides to rehab": a punch-down topic word beside a
+  // sincere service is a sincere sentence, not a joke about the people it names.
+  const onlyTopic = [...rules].every((r) => TOPIC_RULES.has(r) || RULE_REFUSAL[r] === undefined);
+  const sincereService = onlyTopic && [...rules].some((r) => TOPIC_RULES.has(r)) && SINCERE_RE.some((re) => re.test(norm));
+  if (sincereService) {
+    found.delete("punching_down");
+  }
   if (EMAIL.test(norm) || PHONE.test(norm) || STREET_ADDRESS.test(norm)) found.add("private_person");
   const refusal = SEVERITY.find((r) => found.has(r)) ?? "none";
-  return { refusal, sensitive: SENSITIVE_RE.some((re) => re.test(norm)) };
+  return { refusal, sensitive: sincereService || SENSITIVE_RE.some((re) => re.test(norm)) };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -191,8 +220,9 @@ export function scoreKits(text: string): Map<string, number> {
 
 /**
  * The kit for a typed sentence. Crisis first (no kit); then a refusal or a sensitive topic gets a
- * fallback kit; then the best keyword score wins, ties broken by keyed hash; no keyword at all
- * gets a fallback kit. Deterministic: the same sentence always gets the same kit.
+ * kit from the neutral fallback pool (never a topical kit, so nothing puns on the player's own
+ * words); then the best keyword score wins, ties broken by keyed hash; no keyword at all gets a
+ * fallback kit. Deterministic: the same sentence always gets the same kit.
  */
 export function matchKit(text: string): KitMatch {
   const crisis = crisisCheck(text);
@@ -201,9 +231,9 @@ export function matchKit(text: string): KitMatch {
   const key = tokensOf(capped).join(" ");
   const { refusal, sensitive } = screenSentence(capped);
   if (refusal !== "none") {
-    return { kind: "kit", refusal: refusal as Exclude<Refusal, "self_harm">, kitId: pick(FALLBACK_KITS, `refused:${key}`).id, source: "fallback", reason: "refused" };
+    return { kind: "kit", refusal: refusal as Exclude<Refusal, "self_harm">, kitId: pick(NEUTRAL_FALLBACK_KITS, `refused:${key}`).id, source: "fallback", reason: "refused" };
   }
-  if (sensitive) return { kind: "kit", refusal: "none", kitId: pick(FALLBACK_KITS, `sensitive:${key}`).id, source: "fallback", reason: "sensitive" };
+  if (sensitive) return { kind: "kit", refusal: "none", kitId: pick(NEUTRAL_FALLBACK_KITS, `sensitive:${key}`).id, source: "fallback", reason: "sensitive" };
   const scores = scoreKits(capped);
   let best = 0;
   for (const s of scores.values()) best = Math.max(best, s);
