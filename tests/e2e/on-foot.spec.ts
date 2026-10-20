@@ -1,10 +1,11 @@
 // M0 acceptance for on-foot play, through real key presses in the running game (dev world):
-// F gets out, the walker moves while the car stays parked, F next to the car gets back in.
+// F gets out, the walker is drawn and moves while the car stays parked (the HUD shows the
+// walking speed), F next to the car gets back in.
 // Skips while the sim has no on-foot state (PlayerState.foot arrives with sim v2).
 
 import { expect, test } from "@playwright/test";
 import type { PlayerState } from "../../src/sim/contract.ts";
-import { FAST_QUERY, FAST_VIEWPORT, bootWorld, frames, gate, simState, type FogWindow } from "./fixtures.ts";
+import { FAST_QUERY, FAST_VIEWPORT, bootWorld, features, frames, gate, renderInfo, simState, type FogWindow } from "./fixtures.ts";
 
 /** PlayerState as sim contract v2 has it; this file must also compile against v1. */
 type Player = Omit<PlayerState, "foot"> & { foot?: { x: number; z: number; heading: number } | null };
@@ -30,8 +31,15 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
   expect(gap0, "the walker stands beside the car, not in it").toBeGreaterThan(0.5);
   expect(gap0).toBeLessThan(6);
 
-  // W walks.
+  // The renderer draws the walker (the person builder), and the camera follows it.
+  if ((await features(page)).renderInfo) {
+    await frames(page, 3);
+    expect((await renderInfo(page))?.walkers, "players drawn on foot").toBe(1);
+  }
+
+  // W walks, and the HUD shows walking speed (1.6 m/s = 6 km/h), not the parked car's 0.
   await page.keyboard.down("KeyW");
+  await page.waitForFunction(() => /\b[3-9] km\/h .*on foot/.test(document.getElementById("hud")?.textContent ?? ""), null, { timeout: 30_000 });
   await page.waitForFunction(
     (w) => {
       const f = ((window as unknown as FogWindow).__fogcity!.state().players.p1 as unknown as { foot?: { x: number; z: number } | null }).foot;
@@ -66,6 +74,10 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
   });
   const back = p1(await simState(page));
   expect(back.foot).toBeNull();
+  if ((await features(page)).renderInfo) {
+    await frames(page, 3);
+    expect((await renderInfo(page))?.walkers, "no walker once back in the car").toBe(0);
+  }
   await page.keyboard.down("KeyW");
   await page.waitForFunction(
     (c) => {

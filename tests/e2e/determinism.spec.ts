@@ -10,10 +10,8 @@
 //    fly camera, camera mode), each followed by the game's own loop running ~36 ticks with no
 //    key held. Node replays the same snapshot with the same inputs (neutral for the loop's
 //    runs) and must match every hash and the final state. The world must be built the way its
-//    manifest says (with the road graph when it names one): a game that drops the roads is a
-//    known gap, reported as an expected failure until the render track fixes it, and a hard
-//    failure with E2E_REQUIRE=roads.
-// 3. The running game, multiplayer (Chromium, once window.__fogcity.stepFrames() exists): the
+//    manifest says (with the road graph when it names one, so sim traffic runs in the game).
+// 3. The running game, multiplayer (Chromium, through window.__fogcity.stepFrames()): the
 //    scenario's session (joins, leaves, five players, junk input, collisions) recorded in Node
 //    and fed to the game frame by frame, compared with Node chunk by chunk.
 
@@ -176,22 +174,14 @@ const PLAN: PlanStep[] = [
 
 /**
  * The game must build its sim world the way its manifest describes it: with the road graph
- * when the manifest names one, or sim traffic never runs in the game. The render track's
- * src/main.ts calls buildWorld(tiles) without the roads (crossTrackRequest to RENDER): that
- * known gap is an expected failure here (test.fail), so the test turns green by itself when
- * it is fixed and red if the game ever matches neither construction. E2E_REQUIRE=roads makes
- * it a hard failure.
+ * when the manifest names one, or sim traffic never runs in the game. (This was a known gap
+ * until src/main.ts passed the roads to buildWorld(); it is now an ordinary assertion.)
  */
 function expectManifestConstruction(world: string, m: MatchResult): void {
   const got = m.match!.label;
-  if (got === m.expected) return;
   const why =
     `the game built its sim world from "${got}", but public/tiles/${world}/manifest.json names a road graph, ` +
     `so Node's "${m.expected}" world (with sim traffic) does not match it: src/main.ts must pass the roads to buildWorld()`;
-  if (!required("roads")) {
-    test.info().annotations.push({ type: "known gap", description: `${why} (crossTrackRequest to RENDER; E2E_REQUIRE=roads makes this a hard failure)` });
-    test.fail(true, `known gap: ${why}`);
-  }
   expect(got, why).toBe(m.expected);
 }
 

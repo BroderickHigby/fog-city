@@ -1,7 +1,7 @@
 // M0 acceptance on the real San Francisco world (public/tiles/sf, built by the pipeline).
 // Skips cleanly while the SF world is absent from this checkout; activates when it lands.
 // The browser tests share one page (booting SF under SwiftShader is the expensive part) and
-// run in order: boot, look, landmark, then drive (the only one that moves the car).
+// run in order: boot, look, landmark, traffic, then drive (the only one that moves the car).
 
 import { expect, test, type Page } from "@playwright/test";
 import { toLocal } from "../../src/geo/project.ts";
@@ -12,6 +12,7 @@ import {
   bootWorld,
   distanceToPolyline,
   features,
+  frames,
   gate,
   newSharedPage,
   optionalAbsent,
@@ -176,9 +177,14 @@ test.describe("sf world: in the browser", () => {
     const placed = (await renderInfo(page))!.landmarks ?? 0;
     expect(placed, `landmarks in the scene; entries with a model file: ${ids.join(", ")}`).toBeGreaterThanOrEqual(ids.length);
 
-    // Which landmark is which, once the renderer reports it per id (requested from the render track).
+    // Which landmark is which: the renderer reports each placement by id.
     if (have.landmarks) {
       const list = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.landmarks!());
+      expect(list.map((l) => l.id).sort(), "one landmarks() entry per landmarks.json entry").toEqual(doc!.landmarks.map((l) => l.id).sort());
+      for (const id of ["ferry-building", "r-evolution"]) {
+        if (!doc!.landmarks.some((l) => l.id === id)) continue;
+        expect(list.find((l) => l.id === id)?.loaded, `${id} is reported loaded`).toBe(true);
+      }
       for (const id of ids) {
         const e = list.find((l) => l.id === id);
         expect(e, `window.__fogcity.landmarks() reports ${id}`).toBeDefined();
@@ -192,6 +198,55 @@ test.describe("sf world: in the browser", () => {
         type: "note",
         description: "window.__fogcity.landmarks() not available: checked the count of placed landmarks, not which is which",
       });
+    }
+    expect(problems).toEqual([]);
+  });
+
+  test("sim traffic runs in the game, and the renderer draws it with the asset models", async () => {
+    const have = await features(page);
+    gate("render-debug", have.renderInfo, "window.__fogcity.renderInfo() is missing");
+    // The chase camera at the spawn, on the Embarcadero, among the traffic.
+    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("chase"));
+    const run = await page.evaluate(() => {
+      const h = (window as unknown as FogWindow).__fogcity!;
+      h.pause();
+      const list = (s: { ext: Record<string, unknown> }) =>
+        ((s.ext.agents as { list?: Array<{ id: number; x: number; z: number; kind: string }> } | undefined)?.list ?? []).map((a) => ({ ...a }));
+      const t0 = h.state().tick;
+      const before = list(h.state());
+      h.stepN(120);
+      return { t0, before, after: list(h.state()), tick: h.state().tick, info: h.simInfo?.() ?? null };
+    });
+    expect(run.tick - run.t0, "ticks stepped").toBe(120);
+    expect(run.after.length, "state.ext.agents is non-empty after 120 ticks").toBeGreaterThan(0);
+    expect(new Set(run.after.map((a) => a.kind)), "kinds of agent").toEqual(new Set(["robotaxi", "errandRobot", "sidewalkBot", "person"]));
+    const moved = run.after.filter((a) => {
+      const b = run.before.find((x) => x.id === a.id);
+      return b && Math.hypot(a.x - b.x, a.z - b.z) > 1;
+    });
+    expect(moved.length, "agents that moved more than 1 m in 2 s").toBeGreaterThan(run.after.length / 4);
+    if (run.info) {
+      expect(run.info.roads, "simInfo().roads").toBe(true);
+      expect(run.info.agents).toBe(run.after.length);
+      expect(run.info.seed).toBe(1);
+    }
+
+    // The renderer draws them: proxies everywhere, full models near the camera, from the files.
+    await page
+      .waitForFunction(() => ((window as unknown as FogWindow).__fogcity!.renderInfo!().agentModels ?? []).length >= 3, null, { timeout: 60_000 })
+      .catch(() => undefined);
+    await frames(page, 3);
+    const r = (await renderInfo(page))!;
+    expect(r.agentsTotal, "agents the renderer was given").toBe(run.after.length);
+    expect(r.agents ?? 0, "agents drawn").toBeGreaterThan(0);
+    expect(r.agentsNear ?? 0, "agents drawn with their full model near the chase camera").toBeGreaterThan(0);
+    expect([...(r.agentModels ?? [])].sort(), "agent kinds drawn from their model files").toEqual(["errandRobot", "robotaxi", "sidewalkBot"]);
+    // Instanced: the draw-call cost does not grow with the number of agents.
+    expect(r.agentDrawCalls ?? 0, "agent draw calls").toBeLessThanOrEqual(27);
+    expect(r.playerCarsFromFile, "the player car is models/player-car.glb").toBe(1);
+    for (const m of ["robotaxi", "errand-robot", "sidewalk-bot", "player-car"]) {
+      const got = responses.filter((x) => x.path === `/models/${m}.glb`);
+      expect(got.length, `GET /models/${m}.glb`).toBeGreaterThan(0);
     }
     expect(problems).toEqual([]);
   });

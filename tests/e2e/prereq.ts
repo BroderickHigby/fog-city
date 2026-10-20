@@ -19,7 +19,7 @@ export const PREREQUISITES = {
   "render-debug": "the render track's debug-handle extras: renderInfo(), setNight(), setCameraMode(), flyTo(), tilesSettled()",
   landmarks: "content/landmarks.json with a Ferry Building entry, and its model file under public/",
   "landmark-ids": "window.__fogcity.landmarks(): each landmark's id, position and whether its model is in the scene",
-  roads: "the game builds its sim world with the road graph its manifest names (so sim traffic runs in the game)",
+  roads: "the game builds its sim world with the road graph its manifest names (so sim traffic runs in the game; asserted always now)",
   engines: "Firefox and WebKit installed, for the cross-engine determinism tests",
   "step-frames": "window.__fogcity.stepFrames(frames, events): multiplayer stepping of the running game",
 } as const;

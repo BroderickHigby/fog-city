@@ -21,6 +21,15 @@ export interface RenderInfoLike {
   fps?: number;
   pixelRatio?: number;
   shadows?: boolean;
+  /** Ambient agents drawn last frame (near models plus proxies), and of those with full models. */
+  agents?: number;
+  agentsNear?: number;
+  agentsTotal?: number;
+  agentDrawCalls?: number;
+  agentModels?: string[];
+  /** Players whose car is models/player-car.glb, and players drawn on foot. */
+  playerCarsFromFile?: number;
+  walkers?: number;
 }
 
 /**
@@ -42,16 +51,14 @@ export interface Handle {
   /** Fly camera at (x, y, z), compass yaw and pitch in degrees (+ = up). */
   flyTo?(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;
   tilesSettled?(): boolean;
-  /**
-   * Requested from the render track (not provided yet): one entry per content/landmarks.json
-   * entry, with where it was placed and whether its model is in the scene.
-   */
+  /** One entry per content/landmarks.json entry: where it was placed and whether its model is in the scene. */
   landmarks?(): Array<{ id: string; x: number; y: number; z: number; loaded: boolean }>;
-  /**
-   * Requested from the render track (not provided yet): advance one tick per frame, feeding
-   * each tick the events whose `tick` equals it, like the netcode will.
-   */
+  /** Advance one tick per frame, feeding each tick the events whose `tick` equals it, like the netcode will. */
   stepFrames?(frames: readonly InputFrame[], events?: readonly SimEvent[]): void;
+  /** The sim's seed, players, whether the road graph was built, and the agent count. */
+  simInfo?(): { seed: number; playerIds: string[]; roads: boolean; agents: number };
+  /** The HUD hint on screen now ("" when none). */
+  hint?(): string;
 }
 
 /** For page.evaluate bodies: `(window as unknown as FogWindow).__fogcity!`. */

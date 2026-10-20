@@ -181,7 +181,7 @@ describe("the running-game replay (replay.ts, recordSession)", () => {
   });
 
   it("matchGame names a game that dropped the road graph, when the sim can tell", () => {
-    // `world` is colliders only: the known gap in the render track's main.ts.
+    // `world` is colliders only, as the game's main.ts built it before it passed the road graph.
     const chunks = [p1Chunk(90, { throttle: 1, steer: -0.2, brake: 0, actions: 0 })];
     const game = replay(world, s0, chunks);
     const m = matchGame("dev", s0, chunks, game.hashes, game.final);
