@@ -14,7 +14,7 @@ import { mergePacked, packGeometry, type PackedSurface } from "./agent-packing.t
 
 export const PERSON_HEIGHT_M = 1.75;
 /** Right shoulder and hip pivots (the left ones mirror x). */
-export const SHOULDER: Readonly<[number, number, number]> = [0.205, 1.43, 0.01];
+export const SHOULDER: Readonly<[number, number, number]> = [0.228, 1.42, 0.01];
 export const HIP: Readonly<[number, number, number]> = [0.095, 0.92, 0];
 /** Half a gait cycle (one step), metres. */
 export const STRIDE_M = 0.72;
@@ -84,7 +84,7 @@ function build(detail: "near" | "far"): { body: THREE.BufferGeometry; arm: THREE
 
   const body: THREE.BufferGeometry[] = [
     tapered(0.33, 0.2, 0.21, 1.0, 1.0, pants, 0.92),
-    tapered(0.33, 0.47, 0.22, 1.27, 1.02, shirt, 1.235),
+    tapered(0.33, 0.47, 0.22, 1.2, 1.02, shirt, 1.235),
     at(new THREE.CylinderGeometry(0.048, 0.055, 0.1, seg), skin, 0, 1.51, 0),
     at(new THREE.SphereGeometry(0.1, near ? 12 : 6, near ? 9 : 4), skin, 0, 1.635, 0, 0.86, 1.15, 0.98),
     // Hair: a cap over the crown down to the hairline, and down the back and sides of the head.
