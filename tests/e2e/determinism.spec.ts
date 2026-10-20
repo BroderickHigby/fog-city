@@ -208,8 +208,17 @@ test.describe("cross-engine determinism: the running game", () => {
       const files = loadWorldFiles(world);
       const candidates: Array<{ label: string; world: World }> = [{ label: "colliders only", world: makeWorld(files.tiles, null) }];
       if (files.roads) candidates.push({ label: "colliders + road graph", world: makeWorld(files.tiles, files.roads) });
-      const tried = candidates.map((c) => ({ ...c, ...nodeHashes(c.world, s0) }));
-      const match = tried.find((c) => c.hashes.every((h, i) => h === browserHashes[i]));
+      // Lazily: the second construction (with traffic) is costly on SF and rarely needed.
+      const tried: Array<{ label: string; world: World; hashes: string[]; final: SimState }> = [];
+      let match: (typeof tried)[number] | undefined;
+      for (const c of candidates) {
+        const t = { ...c, ...nodeHashes(c.world, s0) };
+        tried.push(t);
+        if (t.hashes.every((h, i) => h === browserHashes[i])) {
+          match = t;
+          break;
+        }
+      }
       expect(
         match,
         tried

@@ -2,9 +2,11 @@
 // checks, the geometry used by the SF road check, and the determinism scenario's coverage.
 // Playwright ignores this file (it only runs *.spec.ts).
 
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { loadWorldFiles } from "../helpers.ts";
+import { ROOT, loadWorldFiles } from "../helpers.ts";
 import { dmathDigest, makeWorld, runScenario } from "./determinism-scenario.ts";
 import { distanceToPolyline, headingDelta } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
@@ -127,5 +129,22 @@ describe("determinism scenario", () => {
     const d = dmathDigest(2000);
     expect(Object.keys(d).sort()).toEqual(["datan", "datan2", "dcos", "dsin", "dtan", "hashState", "sqrt", "wrapAngle"]);
     expect(dmathDigest(2000)).toEqual(d);
+  });
+});
+
+describe("harness wiring", () => {
+  it("docs/testing.md describes every e2e spec", () => {
+    const doc = readFileSync(join(ROOT, "docs/testing.md"), "utf8");
+    const specs = readdirSync(join(ROOT, "tests/e2e")).filter((f) => f.endsWith(".spec.ts"));
+    expect(specs.length).toBeGreaterThan(0);
+    for (const f of specs) expect(doc, `docs/testing.md does not mention ${f}`).toContain(f);
+  });
+
+  it("CI installs from the lockfile and runs typecheck, unit tests and e2e", () => {
+    const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
+    for (const cmd of ["pnpm install --frozen-lockfile", "pnpm typecheck", "pnpm test", "pnpm e2e", "actions/upload-artifact"]) {
+      expect(ci, `ci.yml no longer runs ${cmd}`).toContain(cmd);
+    }
+    expect(ci).toMatch(/on:\s*\n\s+push:\s*\n\s+pull_request:/);
   });
 });
