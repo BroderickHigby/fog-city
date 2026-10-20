@@ -219,7 +219,7 @@
     {
       "id": "courierTrundle", "kind": "good", "label": "Neighbourhood Trundle", "model": "sidewalk-bot", "habitat": ["door", "sidewalk", "chargingDock"],
       "tells": ["arriveAtDoor", "splashesThrough", "steadyFaceLight", "queuesPolitely", "yieldToPedestrians", "returnToDock"],
-      "falseTells": ["gpsLostLoop", "parcelDetour", "justCharged", "fairSticker", "pingGlance"],
+      "falseTells": ["gpsLostLoop", "parcelDetour", "justCharged", "fairSticker", "pingGlance", "apologisesToPigeon"],
       "difficulty": [
         { "level": 1, "showTells": ["queuesPolitely", "splashesThrough"], "intensity": 1, "camouflage": [] },
         { "level": 2, "showTells": ["splashesThrough", "yieldToPedestrians"], "intensity": 1, "camouflage": [] },

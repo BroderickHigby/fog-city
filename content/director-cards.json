@@ -1,0 +1,2589 @@
+{
+  "version": 1,
+  "$comment": "Ambient Director cards (docs/design.md, The living city): after 45-75 s of play with no active objective, the director stages one card within 150 m from sim primitives. Each card says when it may run (nearby feature, time, weather, threat, district), who is in it (robots by archetype, never a person as a target), what happens (beats, in order) and what the player gets (payoff). Cards with a bad robot never run in a protected area, where the director adds nothing above the baseline. Checked by checkDirectorCards in src/content/directorCards.ts.",
+  "maxRadiusM": 150,
+  "idleWindowS": [45, 75],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:2431caf1",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "cards": [
+    {
+      "id": "snatch-in-progress",
+      "title": "Snatch in progress",
+      "blurb": "A bad Footman is lifting a good one's groceries.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "thief",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 1
+        },
+        {
+          "id": "mark",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "approach",
+          "actor": "thief",
+          "target": "mark"
+        },
+        {
+          "do": "sabotage",
+          "actor": "thief",
+          "target": "mark",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "bark",
+          "actor": "mark",
+          "speaker": "goodRobot",
+          "context": "sabotaged"
+        },
+        {
+          "do": "flashSabotage"
+        },
+        {
+          "do": "walkAway",
+          "actor": "thief"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Melt it during the snatch: +50% cash and +1 reputation."
+      }
+    },
+    {
+      "id": "oranges-downhill",
+      "title": "Oranges downhill",
+      "blurb": "A snatch spills a bag of oranges down the hill.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["hill"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "thief",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "mark",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "thief",
+          "target": "mark",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "spill",
+          "actor": "mark",
+          "prop": "oranges"
+        },
+        {
+          "do": "chase",
+          "actor": "mark",
+          "speedMps": 1
+        },
+        {
+          "do": "bark",
+          "actor": "mark",
+          "speaker": "goodRobot",
+          "context": "sabotaged"
+        },
+        {
+          "do": "walkAway",
+          "actor": "thief"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Melt the snatcher; the oranges keep rolling either way."
+      }
+    },
+    {
+      "id": "double-snatch",
+      "title": "Two-bag job",
+      "blurb": "Two bad Footmen work one shopper robot from both sides.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["storefront"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "left",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "right",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "mark",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "approach",
+          "actor": "left",
+          "target": "mark"
+        },
+        {
+          "do": "approach",
+          "actor": "right",
+          "target": "mark"
+        },
+        {
+          "do": "sabotage",
+          "actor": "left",
+          "target": "mark",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "flashSabotage"
+        },
+        {
+          "do": "walkAway",
+          "actor": "left"
+        },
+        {
+          "do": "walkAway",
+          "actor": "right"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Two in the act; the second is posted to BotBounty."
+      }
+    },
+    {
+      "id": "courier-heist",
+      "title": "Courier heist",
+      "blurb": "A fake courier lifts a parcel from a good Trundle's lid.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["door"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "fake",
+          "kind": "badRobot",
+          "archetype": "fakeCourier",
+          "level": 2
+        },
+        {
+          "id": "courier",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "tail",
+          "actor": "fake",
+          "target": "courier",
+          "seconds": 10
+        },
+        {
+          "do": "sabotage",
+          "actor": "fake",
+          "target": "courier",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "bark",
+          "actor": "courier",
+          "speaker": "goodRobot",
+          "context": "sabotaged"
+        },
+        {
+          "do": "walkAway",
+          "actor": "fake"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Watch which Trundle reaches the door."
+      }
+    },
+    {
+      "id": "bakery-line-cut",
+      "title": "The line cutter",
+      "blurb": "A bad Footman cuts the queue and leaves with someone else's bread.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["marketQueue"],
+        "time": "morning"
+      },
+      "actors": [
+        {
+          "id": "cutter",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 1
+        },
+        {
+          "id": "queue",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "queue",
+          "actor": "queue"
+        },
+        {
+          "do": "cutQueue",
+          "actor": "cutter"
+        },
+        {
+          "do": "sabotage",
+          "actor": "cutter",
+          "target": "queue",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "walkAway",
+          "actor": "cutter"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "update-on-the-corner",
+      "title": "Update on the corner",
+      "blurb": "A good Footman's face light reads 'Updating 0%'.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["crosswalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "pusher",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 1
+        },
+        {
+          "id": "target",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "approach",
+          "actor": "pusher",
+          "target": "target"
+        },
+        {
+          "do": "sabotage",
+          "actor": "pusher",
+          "target": "target",
+          "sabotage": "pushUpdate",
+          "seconds": 6
+        },
+        {
+          "do": "flashSabotage"
+        }
+      ],
+      "payoff": {
+        "kind": "interruptUpdate",
+        "reputation": 2,
+        "points": 150,
+        "note": "Rust the pusher to 0.2 within 6 s and the update stops."
+      }
+    },
+    {
+      "id": "update-at-the-dock",
+      "title": "Charging dock update",
+      "blurb": "A good Trundle plugs in; a bad Footman plugs in next to it.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["chargingDock"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "pusher",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 2
+        },
+        {
+          "id": "target",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "dock",
+          "actor": "target"
+        },
+        {
+          "do": "approach",
+          "actor": "pusher",
+          "target": "target"
+        },
+        {
+          "do": "sabotage",
+          "actor": "pusher",
+          "target": "target",
+          "sabotage": "pushUpdate",
+          "seconds": 6
+        },
+        {
+          "do": "flashSabotage"
+        }
+      ],
+      "payoff": {
+        "kind": "interruptUpdate",
+        "reputation": 2,
+        "points": 150
+      }
+    },
+    {
+      "id": "update-chain",
+      "title": "Two updates, one pusher",
+      "blurb": "The pusher finishes one robot and heads for the next.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "pusher",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 3
+        },
+        {
+          "id": "first",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "second",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "pusher",
+          "target": "first",
+          "sabotage": "pushUpdate",
+          "seconds": 6
+        },
+        {
+          "do": "convert",
+          "actor": "first"
+        },
+        {
+          "do": "approach",
+          "actor": "pusher",
+          "target": "second"
+        },
+        {
+          "do": "sabotage",
+          "actor": "pusher",
+          "target": "second",
+          "sabotage": "pushUpdate",
+          "seconds": 6
+        }
+      ],
+      "payoff": {
+        "kind": "interruptUpdate",
+        "reputation": 2,
+        "points": 150,
+        "note": "The first one shows 'Update complete' for 60 s and is posted. Save the second."
+      }
+    },
+    {
+      "id": "trundle-converts",
+      "title": "The convert",
+      "blurb": "A Trundle shows 'Update complete' and rolls the wrong way.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "convert",
+          "kind": "badRobot",
+          "archetype": "fakeCourier",
+          "level": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "showStatus",
+          "actor": "convert",
+          "status": "Update complete",
+          "seconds": 60
+        },
+        {
+          "do": "postBounty",
+          "actor": "convert"
+        },
+        {
+          "do": "walkAgainstFlow",
+          "actor": "convert"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Posted to BotBounty for 60 s; subtlety 1."
+      }
+    },
+    {
+      "id": "poster-swap",
+      "title": "Poster swap",
+      "blurb": "A Footman smooths a Moat Labs ad over a bus-shelter poster.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["busShelter"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "paster",
+          "kind": "badRobot",
+          "archetype": "adSticker",
+          "level": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "paster",
+          "sabotage": "stickAd",
+          "seconds": 4
+        },
+        {
+          "do": "flashSabotage"
+        },
+        {
+          "do": "walkAway",
+          "actor": "paster"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "billboard-climb",
+      "title": "The billboard climber",
+      "blurb": "A bad Footman is pasting a 'comeback' teaser on a billboard.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["billboard"],
+        "time": "night"
+      },
+      "actors": [
+        {
+          "id": "paster",
+          "kind": "badRobot",
+          "archetype": "adSticker",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "paster",
+          "sabotage": "stickAd",
+          "seconds": 8
+        },
+        {
+          "do": "bark",
+          "actor": "paster",
+          "speaker": "badRobot",
+          "context": "sabotage"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "pickup-sniffer",
+      "title": "Pickup sniffer",
+      "blurb": "A Trundle has parked by the robotaxi pickup for a long time.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["robotaxiPickup"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "sniffer",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 2
+        },
+        {
+          "id": "taxi",
+          "kind": "goodTaxi",
+          "archetype": "meanderTaxi"
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "sniffer",
+          "seconds": 30
+        },
+        {
+          "do": "sabotage",
+          "actor": "sniffer",
+          "sabotage": "harvestData"
+        },
+        {
+          "do": "bark",
+          "actor": "sniffer",
+          "speaker": "badRobot",
+          "context": "sabotage"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "plate-reader",
+      "title": "Plate reader",
+      "blurb": "A thin scan beam passes over the parked cars, one by one.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["parkedCars"],
+        "time": "night"
+      },
+      "actors": [
+        {
+          "id": "reader",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "reader",
+          "sabotage": "harvestData",
+          "seconds": 20
+        },
+        {
+          "do": "walkAway",
+          "actor": "reader"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "phone-sniffer-bus-stop",
+      "title": "Bus-stop sniffer",
+      "blurb": "Phones at the bus stop keep glitching.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["busStop"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "sniffer",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 3
+        },
+        {
+          "id": "crowd",
+          "kind": "bystanders",
+          "count": 4
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "sniffer",
+          "seconds": 40
+        },
+        {
+          "do": "sabotage",
+          "actor": "sniffer",
+          "sabotage": "harvestData"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Bystanders at the stop: spray only the robot, and only when no one is in the stream's path."
+      }
+    },
+    {
+      "id": "door-chimes",
+      "title": "Door chimes",
+      "blurb": "'Pairing... pairing...' from the row of parked cars.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["parkedCars"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "prowler",
+          "kind": "badRobot",
+          "archetype": "prowler",
+          "level": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "prowler",
+          "sabotage": "tryCarDoor",
+          "seconds": 12
+        },
+        {
+          "do": "flashSabotage"
+        },
+        {
+          "do": "walkAway",
+          "actor": "prowler"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "hydrant-blocker",
+      "title": "Hydrant blocker",
+      "blurb": "An empty robotaxi parks square across the hydrant.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["hydrant"],
+        "time": "any",
+        "playerState": "any"
+      },
+      "actors": [
+        {
+          "id": "taxi",
+          "kind": "rogueTaxi",
+          "archetype": "rogueTaxi",
+          "level": 1
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "taxi",
+          "sabotage": "parkAcrossHydrant",
+          "seconds": 60
+        },
+        {
+          "do": "honk",
+          "actor": "taxi"
+        }
+      ],
+      "payoff": {
+        "kind": "coneTaxi",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Cone the hood, then spray. It is always empty."
+      }
+    },
+    {
+      "id": "robotaxi-loop",
+      "title": "The loop",
+      "blurb": "An empty robotaxi passes the same corner for the third time.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["road"],
+        "time": "night",
+        "playerState": "inCar"
+      },
+      "actors": [
+        {
+          "id": "taxi",
+          "kind": "rogueTaxi",
+          "archetype": "rogueTaxi",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "circleBlock",
+          "actor": "taxi",
+          "loops": 3
+        },
+        {
+          "do": "skipSignal",
+          "actor": "taxi"
+        }
+      ],
+      "payoff": {
+        "kind": "coneTaxi",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "cone-the-squatter",
+      "title": "Your parking spot",
+      "blurb": "A robotaxi is parked in the spot you wanted.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["road"],
+        "time": "any",
+        "playerState": "inCar"
+      },
+      "actors": [
+        {
+          "id": "taxi",
+          "kind": "goodTaxi",
+          "archetype": "meanderTaxi"
+        }
+      ],
+      "beats": [
+        {
+          "do": "parkAcross",
+          "actor": "taxi",
+          "target": "laneAhead"
+        },
+        {
+          "do": "bark",
+          "actor": "taxi",
+          "speaker": "goodRobot",
+          "context": "idle"
+        }
+      ],
+      "payoff": {
+        "kind": "coneTaxi",
+        "reputation": 0,
+        "note": "A good robotaxi just pulls over and moves along when coned. No spray needed."
+      }
+    },
+    {
+      "id": "stuck-in-a-puddle",
+      "title": "Stuck in a puddle",
+      "blurb": "A Trundle is stuck in a puddle, wheels spinning.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["puddle"],
+        "weather": "rain"
+      },
+      "actors": [
+        {
+          "id": "trundle",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "stuck",
+          "actor": "trundle",
+          "seconds": 20
+        },
+        {
+          "do": "bark",
+          "actor": "trundle",
+          "speaker": "goodRobot",
+          "context": "weather"
+        }
+      ],
+      "payoff": {
+        "kind": "help",
+        "reputation": 1,
+        "note": "A good robot: splash-rated, happy in the puddle. Push it free; never spray it."
+      }
+    },
+    {
+      "id": "puddle-dodger",
+      "title": "Puddle dodger",
+      "blurb": "One Footman steps around every puddle on the block.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["puddle"],
+        "weather": "rain"
+      },
+      "actors": [
+        {
+          "id": "dodger",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 3
+        },
+        {
+          "id": "other",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "avoidWater",
+          "actor": "dodger"
+        },
+        {
+          "do": "splashThrough",
+          "actor": "other"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Compare the two: the good one walks straight through."
+      }
+    },
+    {
+      "id": "awning-hideout",
+      "title": "Awning hideout",
+      "blurb": "Robots shelter under an awning in the rain. One has no cape.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["storefront"],
+        "weather": "rain"
+      },
+      "actors": [
+        {
+          "id": "nocape",
+          "kind": "badRobot",
+          "archetype": "adSticker",
+          "level": 2
+        },
+        {
+          "id": "cape",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "shelter",
+          "actor": "nocape"
+        },
+        {
+          "do": "wearCape",
+          "actor": "cape"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "fog-edge",
+      "title": "The fog edge",
+      "blurb": "A Footman turns back at the edge of the fog bank.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "weather": "fog"
+      },
+      "actors": [
+        {
+          "id": "turner",
+          "kind": "badRobot",
+          "archetype": "prowler",
+          "level": 4
+        }
+      ],
+      "beats": [
+        {
+          "do": "avoidFog",
+          "actor": "turner"
+        },
+        {
+          "do": "walkAway",
+          "actor": "turner"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Subtlety 4: worth more."
+      }
+    },
+    {
+      "id": "lost-in-the-fog",
+      "title": "Lost in the fog",
+      "blurb": "A Trundle loops the same corner in the fog.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["sidewalk"],
+        "weather": "fog"
+      },
+      "actors": [
+        {
+          "id": "lost",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "falseTell",
+          "actor": "lost",
+          "tell": "gpsLostLoop"
+        },
+        {
+          "do": "bark",
+          "actor": "lost",
+          "speaker": "goodRobot",
+          "context": "weather"
+        }
+      ],
+      "payoff": {
+        "kind": "holdFire",
+        "reputation": 0,
+        "note": "A false tell: it still goes into the fog. Spraying it is a wrong target (-5 reputation, -$50)."
+      }
+    },
+    {
+      "id": "sun-crowd",
+      "title": "Sun crowd",
+      "blurb": "Robots crowd into the one sunny patch on a foggy evening.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["park"],
+        "weather": "fog",
+        "time": "evening"
+      },
+      "actors": [
+        {
+          "id": "a",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 3
+        },
+        {
+          "id": "b",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "c",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "gather",
+          "actor": "a"
+        },
+        {
+          "do": "gather",
+          "actor": "b"
+        },
+        {
+          "do": "gather",
+          "actor": "c"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Bad robots avoid fog; good ones just like the sun. Read before you spray."
+      }
+    },
+    {
+      "id": "low-battery",
+      "title": "Low battery",
+      "blurb": "A Footman stands through a whole walk signal.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["crosswalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "tired",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "falseTell",
+          "actor": "tired",
+          "tell": "lowBatteryStall"
+        },
+        {
+          "do": "showStatus",
+          "actor": "tired",
+          "status": "3%",
+          "seconds": 20
+        }
+      ],
+      "payoff": {
+        "kind": "holdFire",
+        "reputation": 0,
+        "note": "Watch its status light: 3%. A false tell."
+      }
+    },
+    {
+      "id": "the-robot-dance",
+      "title": "The robot",
+      "blurb": "A Footman stops at a bus stop and does the robot.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["busStop"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "dancer",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "crowd",
+          "kind": "bystanders",
+          "count": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "falseTell",
+          "actor": "dancer",
+          "tell": "doesTheRobot"
+        },
+        {
+          "do": "bark",
+          "actor": "dancer",
+          "speaker": "goodRobot",
+          "context": "idle"
+        }
+      ],
+      "payoff": {
+        "kind": "holdFire",
+        "reputation": 0,
+        "note": "A false tell. Applause is free."
+      }
+    },
+    {
+      "id": "pigeon-apology",
+      "title": "The pigeon apology",
+      "blurb": "A Trundle apologises to a pigeon for some time.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["park"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "polite",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "falseTell",
+          "actor": "polite",
+          "tell": "apologisesToPigeon"
+        }
+      ],
+      "payoff": {
+        "kind": "holdFire",
+        "reputation": 0,
+        "note": "Talking to nobody looks like a bad robot's loop line; it is just manners."
+      }
+    },
+    {
+      "id": "fresh-off-the-dock",
+      "title": "Fresh off the dock",
+      "blurb": "A robot reads 100%. Is it the one that never charges?",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["chargingDock"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "charged",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "never",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 4
+        }
+      ],
+      "beats": [
+        {
+          "do": "undock",
+          "actor": "charged"
+        },
+        {
+          "do": "falseTell",
+          "actor": "charged",
+          "tell": "justCharged"
+        },
+        {
+          "do": "walkPast",
+          "actor": "never",
+          "target": "charged"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Both read 100%. Only one just left the dock. Subtlety 4."
+      }
+    },
+    {
+      "id": "empty-bag-home",
+      "title": "Empty bag home",
+      "blurb": "A Footman with an empty bag walks away from the shops.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "evening"
+      },
+      "actors": [
+        {
+          "id": "home",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "liar",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "falseTell",
+          "actor": "home",
+          "tell": "emptyBagHome"
+        },
+        {
+          "do": "walkTowardShops",
+          "actor": "liar"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Two empty bags. One is going home; the other is going shopping."
+      }
+    },
+    {
+      "id": "scan-ping-glances",
+      "title": "Who looked up?",
+      "blurb": "You scan; three robots glance over. One doesn't.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "a",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "b",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        },
+        {
+          "id": "bad",
+          "kind": "badRobot",
+          "archetype": "prowler",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "waitForScan"
+        },
+        {
+          "do": "falseTell",
+          "actor": "a",
+          "tell": "pingGlance"
+        },
+        {
+          "do": "falseTell",
+          "actor": "b",
+          "tell": "pingGlance"
+        },
+        {
+          "do": "hideTell",
+          "actor": "bad"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "A ping makes bad robots wary, not obvious. Watch instead."
+      }
+    },
+    {
+      "id": "scenic-route",
+      "title": "Scenic route",
+      "blurb": "A good Meander circles the block. It is signalling every turn.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["road"],
+        "time": "day",
+        "playerState": "inCar"
+      },
+      "actors": [
+        {
+          "id": "taxi",
+          "kind": "goodTaxi",
+          "archetype": "meanderTaxi"
+        }
+      ],
+      "beats": [
+        {
+          "do": "falseTell",
+          "actor": "taxi",
+          "tell": "scenicRoute"
+        }
+      ],
+      "payoff": {
+        "kind": "holdFire",
+        "reputation": 0,
+        "note": "Rogue robotaxis skip signals. This one is just enthusiastic."
+      }
+    },
+    {
+      "id": "the-copycat",
+      "title": "The copycat",
+      "blurb": "Something stops when you stop.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any",
+        "playerState": "onFoot"
+      },
+      "actors": [
+        {
+          "id": "copy",
+          "kind": "badRobot",
+          "archetype": "adSticker",
+          "level": 5
+        }
+      ],
+      "beats": [
+        {
+          "do": "mirrorPlayer",
+          "actor": "copy",
+          "seconds": 20
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Subtlety 5 pays double."
+      }
+    },
+    {
+      "id": "stair-taker",
+      "title": "The stairs",
+      "blurb": "Two Footmen reach the steps. One takes the ramp.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["stairs"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "good",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "bad",
+          "kind": "badRobot",
+          "archetype": "prowler",
+          "level": 5
+        }
+      ],
+      "beats": [
+        {
+          "do": "takeRamp",
+          "actor": "good"
+        },
+        {
+          "do": "takeStairs",
+          "actor": "bad"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Footmen always take ramps. Subtlety 5."
+      }
+    },
+    {
+      "id": "the-tail",
+      "title": "The tail",
+      "blurb": "A Footman follows another at two metres, turn for turn.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "tail",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 1
+        },
+        {
+          "id": "mark",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "tail",
+          "actor": "tail",
+          "target": "mark",
+          "seconds": 20
+        },
+        {
+          "do": "approach",
+          "actor": "tail",
+          "target": "mark"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "hum-in-the-crowd",
+      "title": "The hum",
+      "blurb": "Four notes, again and again, somewhere in the crowd.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "hummer",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 3
+        },
+        {
+          "id": "crowd",
+          "kind": "goodRobot",
+          "archetype": "errandFootman",
+          "count": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "humJingle",
+          "actor": "hummer",
+          "seconds": 30
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Watch isolates its audio."
+      }
+    },
+    {
+      "id": "lobby-lurker",
+      "title": "The lobby lurker",
+      "blurb": "A Footman waits outside a lobby. Nobody comes.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["officeLobby"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "lurker",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "lurker",
+          "seconds": 60
+        },
+        {
+          "do": "approach",
+          "actor": "lurker",
+          "target": "nearestGoodRobot"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "three-step",
+      "title": "Three steps",
+      "blurb": "A Footman walks three steps forward, three back.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "looper",
+          "kind": "badRobot",
+          "archetype": "prowler",
+          "level": 4
+        }
+      ],
+      "beats": [
+        {
+          "do": "stepLoop",
+          "actor": "looper",
+          "loops": 4
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "never-arrives",
+      "title": "The door",
+      "blurb": "A Trundle rolls to a door and turns away on the last step.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["door"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "fake",
+          "kind": "badRobot",
+          "archetype": "fakeCourier",
+          "level": 5
+        },
+        {
+          "id": "real",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "neverArrive",
+          "actor": "fake"
+        },
+        {
+          "do": "arriveAtDoor",
+          "actor": "real"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Two Trundles, one door. Only one lid opens."
+      }
+    },
+    {
+      "id": "crew-of-three",
+      "title": "Crew of three",
+      "blurb": "BotBounty posts one robot. Two more are nearby.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any",
+        "maxThreat": 0
+      },
+      "actors": [
+        {
+          "id": "posted",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "hidden1",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 2
+        },
+        {
+          "id": "hidden2",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "postBounty",
+          "actor": "posted"
+        },
+        {
+          "do": "disguise",
+          "actor": "hidden1"
+        },
+        {
+          "do": "disguise",
+          "actor": "hidden2"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Melting one alerts the others: threat 1, maybe 2."
+      }
+    },
+    {
+      "id": "van-drop",
+      "title": "Van drop",
+      "blurb": "A graphite van stops at the curb and two units step out.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["road"],
+        "time": "any",
+        "minThreat": 2
+      },
+      "actors": [
+        {
+          "id": "van",
+          "kind": "moatVan"
+        },
+        {
+          "id": "u1",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "u2",
+          "kind": "badRobot",
+          "archetype": "adSticker",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "arrive",
+          "actor": "van"
+        },
+        {
+          "do": "unload",
+          "actor": "van",
+          "actors": ["u1", "u2"]
+        },
+        {
+          "do": "approachPlayer",
+          "actor": "u1"
+        },
+        {
+          "do": "approachPlayer",
+          "actor": "u2"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Threat 2 delivery: vans bring units from HQ or a depot."
+      }
+    },
+    {
+      "id": "broadcast",
+      "title": "Last-seen broadcast",
+      "blurb": "A seizing robot sends your position; two more look up.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any",
+        "minThreat": 1
+      },
+      "actors": [
+        {
+          "id": "seizing",
+          "kind": "badRobot",
+          "archetype": "prowler",
+          "level": 2
+        },
+        {
+          "id": "a",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "b",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "seize",
+          "actor": "seizing"
+        },
+        {
+          "do": "broadcast",
+          "actor": "seizing"
+        },
+        {
+          "do": "alert",
+          "actor": "a"
+        },
+        {
+          "do": "alert",
+          "actor": "b"
+        }
+      ],
+      "payoff": {
+        "kind": "escape",
+        "note": "Break line of sight: fog, traffic or a car wash."
+      }
+    },
+    {
+      "id": "car-wash-escape",
+      "title": "Car wash escape",
+      "blurb": "Threat on your tail and a car wash ahead.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["carWash"],
+        "minThreat": 1,
+        "playerState": "inCar"
+      },
+      "actors": [
+        {
+          "id": "chaser",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "chasePlayer",
+          "actor": "chaser"
+        },
+        {
+          "do": "hint",
+          "text": "A car wash drops one level of threat."
+        }
+      ],
+      "payoff": {
+        "kind": "escape",
+        "note": "Your sensor signature is washed off."
+      }
+    },
+    {
+      "id": "caught-on-camera",
+      "title": "Went viral",
+      "blurb": "A melt in front of a crowd: phones out.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["plaza"],
+        "time": "day"
+      },
+      "actors": [
+        {
+          "id": "bad",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "crowd",
+          "kind": "bystanders",
+          "count": 6
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "bad",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "watch",
+          "actor": "crowd"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Five or more people within 25 m: +1/4 VC star. Mind the stream: people get wet."
+      }
+    },
+    {
+      "id": "apology-tour",
+      "title": "Apology tour",
+      "blurb": "A good robot you rusted is limping to the kiosk.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["repairKiosk"],
+        "time": "any",
+        "afterWrongTarget": true
+      },
+      "actors": [
+        {
+          "id": "limper",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "limp",
+          "actor": "limper",
+          "target": "repairKiosk"
+        },
+        {
+          "do": "bark",
+          "actor": "limper",
+          "speaker": "goodRobot",
+          "context": "wrongTarget"
+        }
+      ],
+      "payoff": {
+        "kind": "escort",
+        "reputation": 2,
+        "note": "Walk it to the kiosk to win back reputation."
+      }
+    },
+    {
+      "id": "restored-from-backup",
+      "title": "Restored from backup",
+      "blurb": "A converted helper reboots at the kiosk.",
+      "fromWave": 3,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["repairKiosk"],
+        "time": "any",
+        "afterMelt": true
+      },
+      "actors": [
+        {
+          "id": "restored",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "restore",
+          "actor": "restored",
+          "seconds": 60
+        },
+        {
+          "do": "bark",
+          "actor": "restored",
+          "speaker": "badRobot",
+          "context": "seized"
+        }
+      ],
+      "payoff": {
+        "kind": "flavour",
+        "note": "'Restored from backup. Some memories may be lost.'"
+      }
+    },
+    {
+      "id": "helper-thanks",
+      "title": "A thank-you",
+      "blurb": "The robot whose groceries you saved catches up with you.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any",
+        "afterMelt": true
+      },
+      "actors": [
+        {
+          "id": "thanks",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "approachPlayer",
+          "actor": "thanks"
+        },
+        {
+          "do": "bark",
+          "actor": "thanks",
+          "speaker": "goodRobot",
+          "context": "apology"
+        }
+      ],
+      "payoff": {
+        "kind": "flavour",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "delivery-shift-offer",
+      "title": "Motor trouble",
+      "blurb": "A Footman's motor gives out on a flat block, bags and all.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "day",
+        "districts": ["soma"]
+      },
+      "actors": [
+        {
+          "id": "stalled",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "stall",
+          "actor": "stalled"
+        },
+        {
+          "do": "offerShift",
+          "actor": "stalled",
+          "activity": "soma-delivery"
+        }
+      ],
+      "payoff": {
+        "kind": "activity",
+        "note": "Starts a SoMa delivery shift (wave 2)."
+      }
+    },
+    {
+      "id": "market-queue-jump",
+      "title": "Market queue",
+      "blurb": "At the Ferry Building stalls, one Footman skips the line.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["marketQueue"],
+        "time": "day",
+        "districts": ["embarcadero"]
+      },
+      "actors": [
+        {
+          "id": "jumper",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "queue",
+          "kind": "goodRobot",
+          "archetype": "errandFootman",
+          "count": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "queue",
+          "actor": "queue"
+        },
+        {
+          "do": "cutQueue",
+          "actor": "jumper"
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "lanyard-demo",
+      "title": "Demo unit",
+      "blurb": "A Footman in a conference lanyard is 'demoing' on a stranger's groceries.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "day",
+        "districts": ["soma"]
+      },
+      "actors": [
+        {
+          "id": "demo",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        },
+        {
+          "id": "mark",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "demo",
+          "target": "mark",
+          "sabotage": "snatchGroceries"
+        },
+        {
+          "do": "bark",
+          "actor": "demo",
+          "speaker": "badRobot",
+          "context": "taunt"
+        }
+      ],
+      "payoff": {
+        "kind": "catchInTheAct",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "drawbridge-wait",
+      "title": "The drawbridge",
+      "blurb": "A Trundle paces by the drawbridge and never crosses.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["drawbridge"],
+        "time": "any",
+        "districts": ["mission-bay"]
+      },
+      "actors": [
+        {
+          "id": "pacer",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "pacer",
+          "seconds": 40
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "depot-hydrant",
+      "title": "Depot hydrant",
+      "blurb": "An empty robotaxi blocks the depot hydrant at the bridge touchdown.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["hydrant"],
+        "time": "any",
+        "districts": ["bay-bridge-approach"]
+      },
+      "actors": [
+        {
+          "id": "taxi",
+          "kind": "rogueTaxi",
+          "archetype": "rogueTaxi",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "sabotage",
+          "actor": "taxi",
+          "sabotage": "parkAcrossHydrant",
+          "seconds": 60
+        }
+      ],
+      "payoff": {
+        "kind": "coneTaxi",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "green-laps",
+      "title": "Laps of the Green",
+      "blurb": "A Footman runs perfect laps of the lawn, carrying nothing.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["park"],
+        "time": "morning",
+        "districts": ["marina"]
+      },
+      "actors": [
+        {
+          "id": "lapper",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "lap",
+          "actor": "lapper",
+          "laps": 3
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "bench-snoop",
+      "title": "Bench snoop",
+      "blurb": "Someone's reading the tuning bench screen over your shoulder.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["workbench"],
+        "time": "day",
+        "districts": ["dogpatch"]
+      },
+      "actors": [
+        {
+          "id": "snoop",
+          "kind": "badRobot",
+          "archetype": "harvester",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "snoop",
+          "seconds": 30
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "hilltop-still",
+      "title": "Hilltop",
+      "blurb": "A Footman on Rincon Hill faces the bridge, perfectly still.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["overlook"],
+        "time": "any",
+        "districts": ["rincon-hill"]
+      },
+      "actors": [
+        {
+          "id": "watcher",
+          "kind": "badRobot",
+          "archetype": "updatePusher",
+          "level": 4
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "watcher",
+          "seconds": 60
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "flyer-push",
+      "title": "QR flyers",
+      "blurb": "A Footman holds out QR flyers to sightseers on Jefferson St.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "day",
+        "districts": ["fishermans-wharf"]
+      },
+      "actors": [
+        {
+          "id": "pusher",
+          "kind": "badRobot",
+          "archetype": "adSticker",
+          "level": 1
+        },
+        {
+          "id": "crowd",
+          "kind": "bystanders",
+          "count": 4
+        }
+      ],
+      "beats": [
+        {
+          "do": "askPassersBy",
+          "actor": "pusher",
+          "seconds": 20
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1,
+        "note": "Tourists all around: aim with care."
+      }
+    },
+    {
+      "id": "turntable-squat",
+      "title": "Turntable squatter",
+      "blurb": "At the head of the cable car queue, a Footman never boards.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["turntable"],
+        "time": "day",
+        "districts": ["downtown"]
+      },
+      "actors": [
+        {
+          "id": "squat",
+          "kind": "badRobot",
+          "archetype": "snatcher",
+          "level": 2
+        }
+      ],
+      "beats": [
+        {
+          "do": "loiter",
+          "actor": "squat",
+          "seconds": 45
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "night-loop-columbus",
+      "title": "Night loop",
+      "blurb": "A Trundle on Columbus Ave loops the block after midnight.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": false,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "night",
+        "districts": ["north-beach"]
+      },
+      "actors": [
+        {
+          "id": "looper",
+          "kind": "badRobot",
+          "archetype": "fakeCourier",
+          "level": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "circleBlock",
+          "actor": "looper",
+          "loops": 3
+        }
+      ],
+      "payoff": {
+        "kind": "melt",
+        "cash": "bounty",
+        "reputation": 1
+      }
+    },
+    {
+      "id": "quick-call",
+      "title": "Just bumping this",
+      "blurb": "A VC associate on a scooter pulls up beside you, phone already ringing.",
+      "fromWave": 3,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "day",
+        "minStars": 2,
+        "playerState": "onFoot"
+      },
+      "actors": [
+        {
+          "id": "associate",
+          "kind": "associate"
+        }
+      ],
+      "beats": [
+        {
+          "do": "approachPlayer",
+          "actor": "associate"
+        },
+        {
+          "do": "quickCall",
+          "actor": "associate",
+          "seconds": 4
+        }
+      ],
+      "payoff": {
+        "kind": "escape",
+        "note": "Press Decline six times, or keep moving faster than 2 m/s."
+      }
+    },
+    {
+      "id": "door-holder",
+      "title": "After you",
+      "blurb": "A Footman holds a door open for a whole queue of robots, and then for you.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "holder",
+          "kind": "goodRobot",
+          "archetype": "errandFootman"
+        },
+        {
+          "id": "queue",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle",
+          "count": 3
+        }
+      ],
+      "beats": [
+        {
+          "do": "holdDoor",
+          "actor": "holder",
+          "seconds": 12
+        },
+        {
+          "do": "bark",
+          "actor": "holder",
+          "speaker": "goodRobot",
+          "context": "apology"
+        }
+      ],
+      "payoff": {
+        "kind": "flavour",
+        "note": "Ordinary good behaviour: the baseline every bad robot imitates."
+      }
+    },
+    {
+      "id": "parcel-swap",
+      "title": "Parcel mix-up",
+      "blurb": "Two good Trundles swap parcels at a corner and apologise at length.",
+      "fromWave": 2,
+      "radiusM": 150,
+      "cooldownS": 300,
+      "protectedAreas": true,
+      "when": {
+        "near": ["sidewalk"],
+        "time": "any"
+      },
+      "actors": [
+        {
+          "id": "a",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        },
+        {
+          "id": "b",
+          "kind": "goodRobot",
+          "archetype": "courierTrundle"
+        }
+      ],
+      "beats": [
+        {
+          "do": "meet",
+          "actor": "a",
+          "target": "b"
+        },
+        {
+          "do": "bark",
+          "actor": "a",
+          "speaker": "goodRobot",
+          "context": "apology"
+        },
+        {
+          "do": "bark",
+          "actor": "b",
+          "speaker": "goodRobot",
+          "context": "apology"
+        }
+      ],
+      "payoff": {
+        "kind": "flavour",
+        "note": "Lots of apologising is a good sign."
+      }
+    }
+  ]
+}

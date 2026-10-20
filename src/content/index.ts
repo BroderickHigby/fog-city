@@ -16,3 +16,4 @@ export * from "./places.ts";
 export * from "./barks.ts";
 export * from "./packs.ts";
 export * from "./bounties.ts";
+export * from "./directorCards.ts";
