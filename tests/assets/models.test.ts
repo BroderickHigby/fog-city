@@ -541,6 +541,28 @@ describe("r-evolution.glb", () => {
     expect(glow.size[1]).toBeLessThan(frame.size[1]); // inside the frame
   });
 
+  it("stands in the pose its root extras name: tadasana (hands low at her sides) or raised", async () => {
+    // The game ships the real sculpture's stance; FC_REVOLUTION_POSE=raised builds the brief's
+    // raised arms (run these tests on it with FC_MODELS_DIR, see assets/blender/README.md).
+    const { doc } = await loadModel("r-evolution.glb");
+    const pose = node(doc, "r_evolution").getExtras().pose;
+    expect(["tadasana", "raised"]).toContain(pose);
+    const pts = nodePositions(node(doc, "shell"));
+    const b = box(pts);
+    const base = box(nodePositions(node(doc, "plinth"))).max[1];
+    const spreadAtTop = Math.max(...pts.filter((p) => p[1] > b.max[1] - 0.6).map((p) => Math.abs(p[0])));
+    const widest = pts.reduce((w, p) => (Math.abs(p[0]) > Math.abs(w[0]) ? p : w));
+    const widestAt = (widest[1] - base) / (b.max[1] - base); // 0 = feet, 1 = top
+    if (pose === "tadasana") {
+      expect(spreadAtTop).toBeLessThan(1.0); // only her head up there
+      expect(widestAt).toBeGreaterThan(0.35); // hands open at hip height
+      expect(widestAt).toBeLessThan(0.65);
+    } else {
+      expect(spreadAtTop).toBeGreaterThan(2.0); // two hands, wide apart
+      expect(widestAt).toBeGreaterThan(0.9);
+    }
+  });
+
   it("faces -Z: her feet point toward -Z", async () => {
     const { doc } = await loadModel("r-evolution.glb");
     const pts = nodePositions(node(doc, "shell"));

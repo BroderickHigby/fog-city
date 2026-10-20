@@ -13,6 +13,13 @@ re-posed procedurally (arms opened, head lifted, a short bob added), then:
   plinth  the round base
 
 Front faces glTF -Z; origin at the plinth's centre on the ground. Budget: 40k triangles.
+
+Pose. The default, "tadasana", is the real sculpture's stance: arms open at her sides, palms
+forward, chin up. The brief asked for "arms raised"; "raised" lifts the arms overhead in a V
+(about 30 degrees off vertical, palms forward) and scales her so the fingertips are at 13.7 m.
+Choose with FC_REVOLUTION_POSE=raised (or "-- pose=raised"); "-- out=DIR" writes the GLB to
+DIR instead of public/models (look-dev 04 builds the raised variant that way for sign-off).
+The root node's extras record the pose.
 """
 
 import json
@@ -24,7 +31,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402
-from mathutils import Matrix, Vector  # noqa: E402
+from mathutils import Matrix, Quaternion, Vector  # noqa: E402
 
 import fc  # noqa: E402
 
@@ -32,7 +39,9 @@ BUDGET = 40_000
 FIGURE_H = 13.7  # 45 ft, top of the hair
 PLINTH_R = 3.6  # keep in step with tools/landmarks.py
 PLINTH_H = 0.6
-ARM_DOWN_DEG = 17.0  # rotate the A-pose arms toward the body (A-pose ~42 deg -> ~25 deg)
+POSES = ("tadasana", "raised")
+ARM_DOWN_DEG = 17.0  # tadasana: rotate the A-pose arms toward the body (A-pose ~42 deg -> ~25 deg)
+ARM_RAISE_DEG = 108.0  # raised: rotate them up and out instead (~42 deg -> ~150 deg from hanging)
 ELBOW_STRAIGHTEN = 0.85  # fraction of the rest pose's forward elbow bend to take out
 WRIST_STRAIGHTEN = 0.8  # and of the wrist's flex
 HEAD_UP_DEG = 9.0
@@ -71,8 +80,9 @@ def seg_dist(p, a, b):
     return np.linalg.norm(p - (a + np.outer(t, ab)), axis=1)
 
 
-def pose(co: np.ndarray, J: dict) -> np.ndarray:
-    """Open the arms to the sculpture's stance and lift the chin.
+def pose(co: np.ndarray, J: dict, which: str = "tadasana", moved: dict | None = None) -> np.ndarray:
+    """Open the arms to the sculpture's stance and lift the chin. For which="raised" the arms
+    are only straightened here (raise_arms() lifts them) and `moved` receives the new joints.
 
     A tiny automatic skin: every vertex is weighted to bone groups by its distance to the
     MakeHuman joint segments (soft-min), then the arm and head groups are rotated about the
@@ -145,13 +155,80 @@ def pose(co: np.ndarray, J: dict) -> np.ndarray:
                    key=lambda d: rot_about(n2[None, :], np.zeros(3), fo2, np.array([np.radians(d)]))[0] @ target)
         tw = np.clip(((co - el) @ fo) / L_fo, 0.0, 1.0) * w
         out = rot_about(out, el, fo2, np.radians(best) * tw)
-        ang = np.full(len(co), np.radians(ARM_DOWN_DEG) * side)
-        rotated = rot_about(out, j[f"{s_}-shoulder"], np.array([0.0, 1.0, 0.0]), ang)
-        out = out + (rotated - out) * w[:, None]
+        if which == "tadasana":
+            ang = np.full(len(co), np.radians(ARM_DOWN_DEG) * side)
+            rotated = rot_about(out, j[f"{s_}-shoulder"], np.array([0.0, 1.0, 0.0]), ang)
+            out = out + (rotated - out) * w[:, None]
+        if moved is not None:  # the straightened arm's joints, for raise_arms()
+            moved[f"{s_}-hand"] = el + fo2 * L_fo
+            moved[f"{s_}-tip"] = moved[f"{s_}-hand"] + fo2 * 0.19
     wh = W[:, names.index("head")]
     rotated = rot_about(co, j["neck"], np.array([1.0, 0.0, 0.0]), np.full(len(co), np.radians(HEAD_UP_DEG)))
     out += (rotated - co) * wh[:, None]
     return out
+
+
+RAISE_GIRDLE_DEG = 22.0  # raised: share of the lift taken by the shoulder girdle (clavicle)
+
+
+def raise_arms(verts: np.ndarray, faces: list, j: dict) -> np.ndarray:
+    """Lift both arms overhead (pose "raised") with a real skin: a small armature on the
+    MakeHuman joints, Blender's automatic (bone heat) weights, and dual-quaternion skinning
+    (preserve volume), so the shoulders bend instead of folding or ballooning, as they do
+    with the distance weights pose() uses for the small tadasana moves. The shoulder girdle
+    takes RAISE_GIRDLE_DEG of the lift about the clavicle's inner end, the arm the rest of
+    ARM_RAISE_DEG about the shoulder joint. j holds the joints after pose() (straightened arms)."""
+    me = bpy.data.meshes.new("raise_src")
+    me.from_pydata(verts.tolist(), [], faces)
+    me.update()
+    ob = bpy.data.objects.new("raise_src", me)
+    bpy.context.scene.collection.objects.link(ob)
+    rig_data = bpy.data.armatures.new("rig")
+    rig = bpy.data.objects.new("rig", rig_data)
+    bpy.context.scene.collection.objects.link(rig)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.mode_set(mode="EDIT")
+    eb = rig_data.edit_bones
+    chain = [("hips", "pelvis", "spine-4", None), ("spine_4", "spine-4", "spine-3", "hips"),
+             ("spine_3", "spine-3", "spine-2", "spine_4"), ("spine_2", "spine-2", "spine-1", "spine_3"),
+             ("spine_1", "spine-1", "neck", "spine_2"), ("neck", "neck", "head", "spine_1"),
+             ("head", "head", "head-2", "neck")]
+    for s_ in ("l", "r"):
+        chain += [(f"clavicle_{s_}", f"{s_}-clavicle", f"{s_}-shoulder", "spine_1"),
+                  (f"upper_arm_{s_}", f"{s_}-shoulder", f"{s_}-elbow", f"clavicle_{s_}"),
+                  (f"forearm_{s_}", f"{s_}-elbow", f"{s_}-hand", f"upper_arm_{s_}"),
+                  (f"hand_{s_}", f"{s_}-hand", f"{s_}-tip", f"forearm_{s_}"),
+                  (f"thigh_{s_}", f"{s_}-upper-leg", f"{s_}-knee", "hips"),
+                  (f"shin_{s_}", f"{s_}-knee", f"{s_}-ankle", f"thigh_{s_}"),
+                  (f"foot_{s_}", f"{s_}-ankle", f"{s_}-foot-2", f"shin_{s_}")]
+    for name, a, b, parent in chain:
+        e = eb.new(name)
+        e.head, e.tail = Vector(j[a]), Vector(j[b])
+        if parent:
+            e.parent = eb[parent]
+    bpy.ops.object.mode_set(mode="OBJECT")
+    for o in bpy.context.selected_objects:
+        o.select_set(False)
+    ob.select_set(True)
+    rig.select_set(True)
+    bpy.context.view_layer.objects.active = rig
+    bpy.ops.object.parent_set(type="ARMATURE_AUTO")
+    for s_, side in (("l", -1), ("r", 1)):
+        for bone, deg in ((f"clavicle_{s_}", RAISE_GIRDLE_DEG), (f"upper_arm_{s_}", ARM_RAISE_DEG - RAISE_GIRDLE_DEG)):
+            pb = rig.pose.bones[bone]
+            # a turn about the body's front-back axis (Blender Y), expressed in the bone's frame
+            local = rig_data.bones[bone].matrix_local.to_3x3().inverted() @ Vector((0.0, 1.0, 0.0))
+            pb.rotation_mode = "QUATERNION"
+            pb.rotation_quaternion = Quaternion(local.normalized(), math.radians(deg) * -side)
+    mod = next(m for m in ob.modifiers if m.type == "ARMATURE")
+    mod.use_deform_preserve_volume = True
+    bpy.context.view_layer.update()
+    ob.parent = None
+    apply_mods(ob)
+    posed = np.array([v.co[:] for v in ob.data.vertices])
+    bpy.data.objects.remove(ob)
+    bpy.data.objects.remove(rig)
+    return posed
 
 
 def hair_cap(co: np.ndarray, J: dict):
@@ -264,6 +341,11 @@ def triplanar_uv(ob, scale, rot=0.0):
 
 
 def main() -> None:
+    opts = dict(a.split("=", 1) for a in fc.script_args() if "=" in a)
+    which = opts.get("pose", os.environ.get("FC_REVOLUTION_POSE", "tadasana"))
+    if which not in POSES:
+        raise SystemExit(f"r_evolution: pose must be one of {POSES}, not {which!r}")
+    out_dir = os.path.abspath(opts["out"]) if "out" in opts else None
     fc.reset()
     tex = chainlink_png(os.path.join(TEX_DIR, "chainlink.png"))
     rod = fc.material("steel_rod", "#55595c", 0.42, 0.88)
@@ -282,8 +364,11 @@ def main() -> None:
     hv, hf = hair_cap(co, joints)
     faces = [list(p.vertices) for p in base.data.polygons]
     bpy.data.objects.remove(base)
-    allv = pose(np.vstack([co, hv]), joints)
+    moved: dict = {}
+    allv = pose(np.vstack([co, hv]), joints, which, moved)
     allf = faces + [[i + len(co) for i in f] for f in hf]
+    if which == "raised":
+        allv = raise_arms(allv, allf, {**{k: np.array(v) for k, v in joints.items()}, **moved})
     top = allv[:, 2].max()
     k = FIGURE_H / top
     allv = allv * k
@@ -314,6 +399,7 @@ def main() -> None:
 
     root = fc.empty("r_evolution")
     root["fcLandmark"] = "r-evolution"
+    root["pose"] = which
 
     frame = copy("frame")
     decimate_to(frame, FRAME_TRIS)
@@ -364,7 +450,7 @@ def main() -> None:
 
     for o in (frame, shell, gl):
         print(f"[fc]   {o.name}: {fc.tri_count([o])} tris")
-    fc.export_glb("r-evolution.glb", BUDGET)
+    fc.export_glb("r-evolution.glb", BUDGET, out_dir=out_dir)
 
 
 main()
