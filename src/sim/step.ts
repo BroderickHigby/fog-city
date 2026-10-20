@@ -14,7 +14,7 @@ import {
 } from "./contract.ts";
 import { clamp } from "./dmath.ts";
 import { carBox, carCircles, makeCar, stepCar } from "./car.ts";
-import { FOOT, distanceToCar, exitSpot, stepFoot } from "./foot.ts";
+import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt } from "./agents.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
@@ -131,7 +131,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   const pressed = (input.actions & Action.enterExit) !== 0;
   const allCars = [...obs.carBoxes.values()];
   if (p.mode === "foot" && p.foot) {
-    if (pressed && distanceToCar(p.car, p.foot.x, p.foot.z) <= FOOT.enterRange) {
+    if (pressed && canEnterCar(world, p.car, p.foot.x, p.foot.z)) {
       return { ...p, mode: "vehicle", foot: null, exitPending: false };
     }
     const foot = stepFoot(world, p.foot, input, allCars, obs.forWalker.get(p.id) ?? []);
@@ -149,6 +149,8 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
     const boxes: Box[] = [];
     for (const [id, b] of obs.carBoxes) boxes.push(id === p.id ? carBox(parked) : b);
     const foot = exitSpot(world, parked, boxes, obs.forWalker.get(p.id) ?? []);
+    // No room to get out (walls or bodies on every side): stay in, stopped, free to drive on.
+    if (!foot) return { ...p, car: parked, exitPending: false };
     return { ...p, mode: "foot", car: parked, foot, exitPending: false };
   };
   if (exitPending && canExit(p.car)) return getOut(p.car);

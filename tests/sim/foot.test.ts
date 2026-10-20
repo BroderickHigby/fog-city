@@ -5,12 +5,17 @@ import {
   CAR,
   FOOT,
   activeBody,
+  buildWorld,
+  canEnterCar,
   carBox,
+  closestOnCar,
   createInitialState,
   distanceToCar,
   groundHeight,
   pointInPolygon,
+  segmentBlocked,
   step,
+  type BuildingCollider,
   type InputFrame,
   type SimState,
   type World,
@@ -195,5 +200,105 @@ describe("walking", () => {
     expect(c.x + CAR.halfLength).toBeLessThan(w.x - FOOT.radius + 0.05);
     // The walker was not moved by the car.
     expect(s.players.p2!.foot!.x).toBe(w.x);
+  });
+});
+
+describe("walls between the car and the walker", () => {
+  const box = (id: string, x0: number, z0: number, x1: number, z1: number): BuildingCollider => ({
+    id,
+    footprint: [[x0, z0], [x1, z0], [x1, z1], [x0, z1]],
+    baseY: 0,
+    topY: 10,
+  });
+  // A 0.35 m thick wall just left of a north-facing car at the origin: the driver's-side spot
+  // (x = -1.75) is clear of it, but on its far side.
+  const thin = buildWorld([{ tileId: "thin", buildings: [box("thin", -1.35, -6, -1.0, 6)], ground: null }]);
+  const onFoot = (s: SimState, x: number, z: number): SimState => ({
+    ...s,
+    players: { p1: { ...s.players.p1!, mode: "foot", foot: { x, y: 0, z, heading: 0, speed: 0, sprint: false }, exitPending: false } },
+  });
+
+  it("F never puts the walker on the far side of a wall: it uses the next clear side", () => {
+    let s = createInitialState(thin, 1, ["p1"], { x: 0, z: 0, heading: 0 });
+    s = step(thin, s, PRESS);
+    const p = s.players.p1!;
+    expect(p.mode).toBe("foot");
+    expect(p.foot!.x).toBeGreaterThan(0); // the passenger side
+    expect(segmentBlocked(thin, p.car.x, p.car.z, p.foot!.x, p.foot!.z)).toBe(false);
+  });
+
+  it("boxed in on every side, F keeps the player in the car and clears the pending exit", () => {
+    const slot = buildWorld([
+      {
+        tileId: "slot",
+        buildings: [box("w", -1.35, -6, -1.0, 6), box("e", 1.0, -6, 1.35, 6), box("n", -1.0, -2.75, 1.0, -2.4), box("s", -1.0, 2.4, 1.0, 2.75)],
+        ground: null,
+      },
+    ]);
+    let s = createInitialState(slot, 1, ["p1"], { x: 0, z: 0, heading: 0 });
+    s = step(slot, s, PRESS);
+    expect(s.players.p1!.mode).toBe("vehicle");
+    expect(s.players.p1!.foot).toBeNull();
+    expect(s.players.p1!.exitPending).toBe(false);
+    // And with a gap opened behind the car (no south wall) the player gets out there.
+    const open = buildWorld([{ tileId: "open", buildings: [box("w", -1.35, -6, -1.0, 6), box("e", 1.0, -6, 1.35, 6), box("n", -1.0, -2.75, 1.0, -2.4)], ground: null }]);
+    s = step(open, createInitialState(open, 1, ["p1"], { x: 0, z: 0, heading: 0 }), PRESS);
+    expect(s.players.p1!.mode).toBe("foot");
+    expect(s.players.p1!.foot!.z).toBeGreaterThan(CAR.halfLength);
+  });
+
+  it("a pending exit with no room to get out is dropped, and the car stays drivable", () => {
+    // p1 sits between two walls with a wall right behind it and p2's car right in front.
+    const pen = buildWorld([
+      { tileId: "pen", buildings: [box("w", -1.35, -12, -1.0, 6), box("e", 1.0, -12, 1.35, 6), box("s", -1.0, 2.4, 1.0, 2.75)], ground: null },
+    ]);
+    let s = createInitialState(pen, 1, ["p1", "p2"], { x: 0, z: 0, heading: 0 });
+    const p1 = s.players.p1!;
+    const p2 = s.players.p2!;
+    s = {
+      ...s,
+      players: {
+        // Still rolling slowly, exit already pending (as after pressing F at speed).
+        p1: { ...p1, car: { ...p1.car, x: 0, z: 0, speed: 1 }, exitPending: true },
+        p2: { ...p2, car: { ...p2.car, x: 0, z: -2 * CAR.halfLength - 0.3 } },
+      },
+    };
+    s = step(pen, s, F(1));
+    expect(s.players.p1!.mode).toBe("vehicle");
+    expect(s.players.p1!.exitPending).toBe(false);
+    expect(s.players.p1!.car.speed).toBe(0);
+    // p2 drives off, then p1 can drive after it: throttle is no longer overridden by a pending exit.
+    s = run(pen, s, { p1: { throttle: 0, steer: 0, brake: 0, actions: 0 }, p2: { throttle: 1, steer: 0, brake: 0, actions: 0 } }, 60);
+    s = run(pen, s, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 }, p2: { throttle: 1, steer: 0, brake: 0, actions: 0 } }, 60);
+    expect(s.players.p1!.car.speed).toBeGreaterThan(5);
+    expect(s.players.p1!.car.z).toBeLessThan(-3);
+  });
+
+  it("nobody gets back in through a wall", () => {
+    const s0 = createInitialState(thin, 1, ["p1"], { x: 0, z: 0, heading: 0 });
+    // 1.25 m from the car's side, but behind the wall.
+    const behind = onFoot(s0, -2.2, 0);
+    expect(distanceToCar(behind.players.p1!.car, -2.2, 0)).toBeLessThan(FOOT.enterRange);
+    expect(canEnterCar(thin, behind.players.p1!.car, -2.2, 0)).toBe(false);
+    expect(step(thin, behind, PRESS).players.p1!.mode).toBe("foot");
+    // The same distance on the open side gets in.
+    const open = onFoot(s0, 2.2, 0);
+    expect(step(thin, open, PRESS).players.p1!.mode).toBe("vehicle");
+    // A short wall beside the car's middle: from past its end, diagonally to the car's
+    // corner, the way is clear and the player gets in.
+    const short = buildWorld([{ tileId: "short", buildings: [box("short", -1.35, -1.5, -1.0, 1.5)], ground: null }]);
+    const corner = onFoot(createInitialState(short, 1, ["p1"], { x: 0, z: 0, heading: 0 }), -2.2, 2.6);
+    expect(distanceToCar(corner.players.p1!.car, -2.2, 2.6)).toBeLessThan(FOOT.enterRange);
+    expect(step(short, corner, PRESS).players.p1!.mode).toBe("vehicle");
+    expect(step(short, onFoot(corner, -2.2, 0), PRESS).players.p1!.mode).toBe("foot");
+  });
+
+  it("closestOnCar is the nearest point of the body rectangle", () => {
+    const c = { x: 5, z: -3, heading: 0.7 };
+    for (const [x, z] of [[9, -3], [5, 2], [0, 0], [5.1, -3.2], [-2, -9]] as Array<[number, number]>) {
+      const p = closestOnCar(c, x, z);
+      expect(Math.hypot(p.x - x, p.z - z)).toBeCloseTo(distanceToCar(c, x, z), 9);
+      expect(distanceToCar(c, p.x, p.z)).toBeCloseTo(0, 9);
+    }
   });
 });

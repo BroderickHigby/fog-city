@@ -1,13 +1,13 @@
 // On foot: a walker (FootState in contract.ts) that turns with steer, walks with throttle,
 // sprints with the brake held, follows the terrain, and collides with buildings, cars,
 // robots and people. Getting out of the car and back in is handled in step.ts with the
-// helpers here (exitSpot, distanceToCar).
+// helpers here (exitSpot, canEnterCar): never through a wall, and never into a building.
 
 import { DT, type CarState, type FootState, type SimInput } from "./contract.ts";
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { resolveCircleAll, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
-import { circleBlocked, groundHeight, type World } from "./world.ts";
+import { circleBlocked, groundHeight, segmentBlocked, type World } from "./world.ts";
 
 export const FOOT = {
   /** Walking speed, m/s. */
@@ -77,17 +77,40 @@ export function distanceToCar(c: Readonly<Pick<CarState, "x" | "z" | "heading">>
   return Math.sqrt(dl * dl + df * df);
 }
 
+/** The point of the car's body rectangle closest to (x, z) (the point itself when inside). */
+export function closestOnCar(c: Readonly<Pick<CarState, "x" | "z" | "heading">>, x: number, z: number): { x: number; z: number } {
+  const fx = dsin(c.heading);
+  const fz = -dcos(c.heading);
+  const ox = x - c.x;
+  const oz = z - c.z;
+  const l = clamp(ox * -fz + oz * fx, -CAR.halfWidth, CAR.halfWidth);
+  const f = clamp(ox * fx + oz * fz, -CAR.halfLength, CAR.halfLength);
+  return { x: c.x + fx * f - fz * l, z: c.z + fz * f + fx * l };
+}
+
+/**
+ * Can a walker at (x, z) get into the car? Within FOOT.enterRange of its body, with a clear
+ * line (no building in between) to the nearest point of the body or to its centre: nobody
+ * gets in through a wall.
+ */
+export function canEnterCar(world: World, c: Readonly<Pick<CarState, "x" | "z" | "heading">>, x: number, z: number): boolean {
+  if (distanceToCar(c, x, z) > FOOT.enterRange) return false;
+  const p = closestOnCar(c, x, z);
+  return !segmentBlocked(world, x, z, p.x, p.z) || !segmentBlocked(world, x, z, c.x, c.z);
+}
+
 /**
  * Where a player steps out of a parked car: the driver's (left) side, else the right, behind,
- * in front. The first spot clear of buildings and obstacles wins; if none is clear the walker
- * starts on the left and the next step's collision pushes them out.
+ * in front. The first spot that is clear of buildings and obstacles, and that the player can
+ * reach from the car without crossing a building, wins. When none qualifies the player stays
+ * in the car (null): nobody is ever placed inside or beyond a wall.
  */
 export function exitSpot(
   world: World,
   c: Readonly<CarState>,
   boxes: ReadonlyArray<Readonly<Box>>,
   circles: readonly Circle[],
-): FootState {
+): FootState | null {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
   const rx = -fz;
@@ -102,10 +125,10 @@ export function exitSpot(
   ];
   for (const [x, z] of spots) {
     if (circleBlocked(world, x, z, FOOT.radius)) continue;
+    if (segmentBlocked(world, c.x, c.z, x, z)) continue;
     const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles);
     if (res.hit) continue;
     return makeFoot(x, groundHeight(world, x, z), z, c.heading);
   }
-  const [x, z] = spots[0]!;
-  return makeFoot(x, groundHeight(world, x, z), z, c.heading);
+  return null;
 }
