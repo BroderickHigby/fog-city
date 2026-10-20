@@ -384,8 +384,3 @@ export function materialFor(m: SharedMaterials, layer: TileLayer, geo: { hasNorm
       return m.foliage;
   }
 }
-
-/** Display-space RGB of a hex colour, for uniforms mixed after tone mapping (like fogColor). */
-export function displayRgb(hex: number, out: THREE.Vector3): THREE.Vector3 {
-  return out.set(((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255);
-}
