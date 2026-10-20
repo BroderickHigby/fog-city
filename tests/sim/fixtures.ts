@@ -6,6 +6,16 @@
 import { buildWorld, type BuildingCollider, type Heightfield, type RoadsFile, type TileCollider, type World } from "../../src/sim/index.ts";
 import { loadWorld, readJson } from "../helpers.ts";
 
+/**
+ * Timeout for tests that run thousands of ticks. They take 0.5 to 4 s on an idle 4-core
+ * machine, and a loaded CI runner can be several times slower, so vitest's default 5 s would
+ * fail them at random. Set per test here because vitest.config.ts belongs to the harness.
+ */
+export const LONG_RUN_MS = 60_000;
+
+/** Timeout for the real-SF world tests: building the city plus hundreds of ticks with hundreds of agents. */
+export const SF_RUN_MS = 180_000;
+
 /** The dev world (public/tiles/dev) with its roads.json loaded too. */
 export function loadDevWorldWithRoads(): { world: World; spawn: { x: number; z: number; heading: number } } {
   const { world: plain, manifest } = loadWorld("dev");

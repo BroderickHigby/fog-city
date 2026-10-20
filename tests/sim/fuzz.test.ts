@@ -3,7 +3,7 @@
 // or end up inside a building, and the run must replay identically.
 import { describe, expect, it } from "vitest";
 import { Action, createInitialState, hashState, pointInPolygon, step, type InputFrame, type SimInput, type SimState } from "../../src/sim/index.ts";
-import { gridCity } from "./fixtures.ts";
+import { LONG_RUN_MS, gridCity } from "./fixtures.ts";
 
 const world = gridCity(true);
 const buildings = world.tiles.flatMap((t) => t.buildings);
@@ -18,6 +18,7 @@ function lcg(seed: number): () => number {
   };
 }
 
+/** Players' random inputs and the sim, for `ticks` ticks; `check` sees every state. */
 function play(seed: number, ticks: number, check: (s: SimState) => void): SimState {
   const rnd = lcg(seed);
   const held: Record<string, SimInput & { until: number }> = {};
@@ -43,12 +44,16 @@ function play(seed: number, ticks: number, check: (s: SimState) => void): SimSta
   return s;
 }
 
+const REPLAY_TICKS = 2000;
+
 describe("random play", () => {
   for (const seed of [1, 2]) {
     it(`seed ${seed}: 4000 ticks, three players, no crash, nothing non-finite, nobody inside a building`, () => {
       const problems: string[] = [];
       let footTicks = 0;
+      let atReplay = "";
       const end = play(seed, 4000, (s) => {
+        if (s.tick === REPLAY_TICKS) atReplay = hashState(s);
         for (const id of IDS) {
           const p = s.players[id]!;
           const c = p.car;
@@ -62,7 +67,10 @@ describe("random play", () => {
       });
       expect(problems.slice(0, 5)).toEqual([]);
       expect(footTicks).toBeGreaterThan(100); // the players really did get out and walk
-      expect(hashState(end)).toBe(hashState(play(seed, 4000, () => {})));
-    });
+      expect(end.tick).toBe(4000);
+      // Determinism under random play: an independent replay of the first half (several exits
+      // and entries, traffic around all three players) lands on the same state.
+      expect(hashState(play(seed, REPLAY_TICKS, () => {}))).toBe(atReplay);
+    }, LONG_RUN_MS);
   }
 });

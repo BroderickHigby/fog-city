@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { canonicalJson, createInitialState, hashState, step, type InputFrame, type SimState } from "../../src/sim/index.ts";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 
@@ -46,7 +46,7 @@ describe("sim determinism", () => {
 // ---------------------------------------------------------------- v2: players + agents
 
 import { Action, SIM_VERSION, agentsOf, upgradeState } from "../../src/sim/index.ts";
-import { gridCity, loadDevWorldWithRoads } from "./fixtures.ts";
+import { LONG_RUN_MS, gridCity, loadDevWorldWithRoads } from "./fixtures.ts";
 
 /** Two players: p1 drives, slides, gets out, walks, gets back in; p2 joins later and weaves. */
 function richInputs(t: number): InputFrame {
@@ -71,20 +71,25 @@ function richRun(world: typeof gridWorld, ticks: number, from?: SimState): SimSt
 const gridWorld = gridCity(true);
 
 describe("sim determinism with players and agents", () => {
+  // One uninterrupted 3000-tick run, shared by the first two tests.
+  let full: SimState;
+  beforeAll(() => {
+    full = richRun(gridWorld, 3000);
+  }, LONG_RUN_MS);
+
   it("same seed + same inputs => identical state after 3000 ticks with traffic, robots and people", () => {
-    const a = richRun(gridWorld, 3000);
-    const b = richRun(gridWorld, 3000);
-    expect(agentsOf(a).length).toBeGreaterThan(50);
-    expect(Object.keys(a.players).sort()).toEqual(["p1", "p2"]);
-    expect(hashState(a)).toBe(hashState(b));
-  });
+    expect(agentsOf(full).length).toBeGreaterThan(50);
+    expect(Object.keys(full.players).sort()).toEqual(["p1", "p2"]);
+    expect(hashState(richRun(gridWorld, 3000))).toBe(hashState(full));
+  }, LONG_RUN_MS);
 
   it("a canonical JSON round trip mid-run changes nothing downstream", () => {
     const mid = richRun(gridWorld, 1500);
     const copy = JSON.parse(canonicalJson(mid)) as SimState;
     expect(hashState(copy)).toBe(hashState(mid));
-    expect(hashState(richRun(gridWorld, 3000, copy))).toBe(hashState(richRun(gridWorld, 3000, mid)));
-  });
+    // Resumed from the copy, the run ends exactly where the uninterrupted run did.
+    expect(hashState(richRun(gridWorld, 3000, copy))).toBe(hashState(full));
+  }, LONG_RUN_MS);
 
   it("state is plain JSON at every step (no undefined, NaN, Infinity, Map or class)", () => {
     let s = createInitialState(gridWorld, 5, ["p1"], { x: -20, z: 150, heading: 0 });
@@ -97,7 +102,7 @@ describe("sim determinism with players and agents", () => {
       expect(canonicalJson(JSON.parse(text))).toBe(text);
       expect(JSON.parse(JSON.stringify(s))).toEqual(JSON.parse(text));
     }
-  });
+  }, LONG_RUN_MS);
 
   it("step never mutates its input, with agents, walkers and joins", () => {
     let s = deepFreeze(createInitialState(gridWorld, 3, ["p1"], { x: -20, z: 150, heading: 0 }));
@@ -107,7 +112,7 @@ describe("sim determinism with players and agents", () => {
     }
     expect(s.tick).toBe(1300);
     expect(s.players.p1!.mode).toBe("foot"); // got out at t = 1200
-  });
+  }, LONG_RUN_MS);
 
   it("the dev world with its roads.json is deterministic over 3000 ticks", () => {
     const { world, spawn } = loadDevWorldWithRoads();
@@ -119,7 +124,7 @@ describe("sim determinism with players and agents", () => {
     const a = go();
     expect(agentsOf(a).length).toBeGreaterThan(5);
     expect(hashState(a)).toBe(hashState(go()));
-  });
+  }, LONG_RUN_MS);
 
   it("different seeds give different worlds", () => {
     const a = createInitialState(gridWorld, 1, ["p1"], { x: -20, z: 150, heading: 0 });

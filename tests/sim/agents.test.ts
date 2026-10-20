@@ -1,6 +1,6 @@
 // Ambient agents: population, movement rules and invariants on the synthetic grid city and
 // the dev loop.
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import {
   AGENTS_EXT_KEY,
   AGENT_KINDS,
@@ -39,7 +39,7 @@ import {
   type SimState,
   type World,
 } from "../../src/sim/index.ts";
-import { gridCity, loadDevWorldWithRoads } from "./fixtures.ts";
+import { LONG_RUN_MS, gridCity, loadDevWorldWithRoads } from "./fixtures.ts";
 
 const NONE: InputFrame = {};
 /** A player parked off the grid's west edge: every block is within range, nothing is blocked. */
@@ -148,7 +148,7 @@ describe("population", () => {
     s = run(world, s, 3000);
     expect(agentsOf(s).length).toBeLessThanOrEqual(n0 + 2);
     expect(agentsOf(s).length).toBeGreaterThanOrEqual(n0 - 6);
-  });
+  }, LONG_RUN_MS);
 });
 
 describe("movement invariants over a long run (grid city, 4000 ticks)", () => {
@@ -161,66 +161,69 @@ describe("movement invariants over a long run (grid city, 4000 ticks)", () => {
   let robotaxiSamples = 0;
   let maxWait = 0;
   const startPositions = new Map(agentsOf(s).map((a) => [a.id, [a.x, a.z] as const]));
-  s = run(world, s, 4000, NONE, (k) => {
-    const list = agentsOf(k);
-    const taxis = list.filter((a) => a.kind === "robotaxi");
-    for (const a of list) {
-      const sp = AGENT_SPEC[a.kind];
-      // 1. Never inside a building: centre point, and the body circles the sim promises.
-      for (const b of buildings) if (pointInPolygon(a.x, a.z, b.footprint)) failures.push(`t${k.tick} #${a.id} ${a.kind} inside ${b.id}`);
-      if (!sp.road && circleBlocked(world, a.x, a.z, sp.radius * 0.79)) failures.push(`t${k.tick} #${a.id} body in a building`);
-      if (sp.road) {
-        const o = sp.halfLength - sp.halfWidth;
-        for (const sgn of [-1, 1]) if (circleBlocked(world, a.x + dsin(a.heading) * o * sgn, a.z - dcos(a.heading) * o * sgn, sp.halfWidth * 0.79)) failures.push(`t${k.tick} robotaxi #${a.id} body in a building`);
+  // The run happens once, before the checks below (in a hook, so it has its own timeout).
+  beforeAll(() => {
+    s = run(world, s, 4000, NONE, (k) => {
+      const list = agentsOf(k);
+      const taxis = list.filter((a) => a.kind === "robotaxi");
+      for (const a of list) {
+        const sp = AGENT_SPEC[a.kind];
+        // 1. Never inside a building: centre point, and the body circles the sim promises.
+        for (const b of buildings) if (pointInPolygon(a.x, a.z, b.footprint)) failures.push(`t${k.tick} #${a.id} ${a.kind} inside ${b.id}`);
+        if (!sp.road && circleBlocked(world, a.x, a.z, sp.radius * 0.79)) failures.push(`t${k.tick} #${a.id} body in a building`);
+        if (sp.road) {
+          const o = sp.halfLength - sp.halfWidth;
+          for (const sgn of [-1, 1]) if (circleBlocked(world, a.x + dsin(a.heading) * o * sgn, a.z - dcos(a.heading) * o * sgn, sp.halfWidth * 0.79)) failures.push(`t${k.tick} robotaxi #${a.id} body in a building`);
+        }
+        // 2. On its road or sidewalk.
+        const e = g.edges[g.edgeIndex.get(a.edge)!]!;
+        if (a.conn) {
+          const d = projectOnPath(connectorPath(a.conn), a.x, a.z).dist;
+          if (d > Math.abs(a.lat) + 1e-6) failures.push(`t${k.tick} #${a.id} off its connector by ${d}`);
+        } else if (sp.road) {
+          const d = projectOnPath(lanePath(e, a.dir, a.lane), a.x, a.z).dist;
+          if (d > 1e-6) failures.push(`t${k.tick} robotaxi #${a.id} off its lane by ${d}`);
+          const fromCentre = projectOnPath(e.center, a.x, a.z).dist;
+          if (fromCentre + sp.halfWidth > e.widthM / 2 + 0.25) failures.push(`t${k.tick} robotaxi #${a.id} outside the road (${fromCentre})`);
+          if (Math.abs(fromCentre - Math.abs(laneOffset(e, a.dir, a.lane))) > 0.3) failures.push(`t${k.tick} robotaxi #${a.id} not on its lane line`);
+        } else {
+          const d = projectOnPath(walkPath(e, a.dir, a.lane), a.x, a.z).dist;
+          if (d > Math.abs(a.lat) + 1e-6 || Math.abs(a.lat) > 0.8 + 1e-9) failures.push(`t${k.tick} #${a.id} off its sidewalk by ${d}`);
+          const fromCentre = projectOnPath(e.center, a.x, a.z).dist;
+          const line = e.widthM / 2 + e.sidewalkM[a.lane === 1 ? 0 : 1];
+          if (Math.abs(fromCentre - line) > KEEP_RIGHT_M + 0.8 + 0.3) failures.push(`t${k.tick} #${a.id} ${a.kind} not on the sidewalk (${fromCentre} vs ${line})`);
+        }
+        maxWait = Math.max(maxWait, a.wait);
       }
-      // 2. On its road or sidewalk.
-      const e = g.edges[g.edgeIndex.get(a.edge)!]!;
-      if (a.conn) {
-        const d = projectOnPath(connectorPath(a.conn), a.x, a.z).dist;
-        if (d > Math.abs(a.lat) + 1e-6) failures.push(`t${k.tick} #${a.id} off its connector by ${d}`);
-      } else if (sp.road) {
-        const d = projectOnPath(lanePath(e, a.dir, a.lane), a.x, a.z).dist;
-        if (d > 1e-6) failures.push(`t${k.tick} robotaxi #${a.id} off its lane by ${d}`);
-        const fromCentre = projectOnPath(e.center, a.x, a.z).dist;
-        if (fromCentre + sp.halfWidth > e.widthM / 2 + 0.25) failures.push(`t${k.tick} robotaxi #${a.id} outside the road (${fromCentre})`);
-        if (Math.abs(fromCentre - Math.abs(laneOffset(e, a.dir, a.lane))) > 0.3) failures.push(`t${k.tick} robotaxi #${a.id} not on its lane line`);
-      } else {
-        const d = projectOnPath(walkPath(e, a.dir, a.lane), a.x, a.z).dist;
-        if (d > Math.abs(a.lat) + 1e-6 || Math.abs(a.lat) > 0.8 + 1e-9) failures.push(`t${k.tick} #${a.id} off its sidewalk by ${d}`);
-        const fromCentre = projectOnPath(e.center, a.x, a.z).dist;
-        const line = e.widthM / 2 + e.sidewalkM[a.lane === 1 ? 0 : 1];
-        if (Math.abs(fromCentre - line) > KEEP_RIGHT_M + 0.8 + 0.3) failures.push(`t${k.tick} #${a.id} ${a.kind} not on the sidewalk (${fromCentre} vs ${line})`);
+      // 3. Bodies keep apart: walkers never overlap each other, and a walker never sinks more
+      //    than a graze (0.15 m) into a robotaxi.
+      const walkers = list.filter((a) => !AGENT_SPEC[a.kind].road);
+      for (let i = 0; i < walkers.length; i++) {
+        const A = walkers[i]!;
+        for (let j = i + 1; j < walkers.length; j++) {
+          const B = walkers[j]!;
+          if (Math.hypot(A.x - B.x, A.z - B.z) < AGENT_SPEC[A.kind].radius + AGENT_SPEC[B.kind].radius - 1e-6) failures.push(`t${k.tick} walkers #${A.id} and #${B.id} overlap`);
+        }
+        for (const T of taxis) {
+          const fx = dsin(T.heading);
+          const fz = -dcos(T.heading);
+          const ox = A.x - T.x;
+          const oz = A.z - T.z;
+          const dl = Math.max(0, Math.abs(ox * -fz + oz * fx) - AGENT_SPEC.robotaxi.halfWidth);
+          const df = Math.max(0, Math.abs(ox * fx + oz * fz) - AGENT_SPEC.robotaxi.halfLength);
+          if (Math.hypot(dl, df) < AGENT_SPEC[A.kind].radius - 0.15) failures.push(`t${k.tick} walker #${A.id} inside robotaxi #${T.id} overlap`);
+        }
       }
-      maxWait = Math.max(maxWait, a.wait);
-    }
-    // 3. Bodies keep apart: walkers never overlap each other, and a walker never sinks more
-    //    than a graze (0.15 m) into a robotaxi.
-    const walkers = list.filter((a) => !AGENT_SPEC[a.kind].road);
-    for (let i = 0; i < walkers.length; i++) {
-      const A = walkers[i]!;
-      for (let j = i + 1; j < walkers.length; j++) {
-        const B = walkers[j]!;
-        if (Math.hypot(A.x - B.x, A.z - B.z) < AGENT_SPEC[A.kind].radius + AGENT_SPEC[B.kind].radius - 1e-6) failures.push(`t${k.tick} walkers #${A.id} and #${B.id} overlap`);
+      // 4. Robotaxi bodies never overlap.
+      for (let i = 0; i < taxis.length; i++) {
+        robotaxiSpeed += taxis[i]!.speed;
+        robotaxiSamples++;
+        for (let j = i + 1; j < taxis.length; j++) {
+          if (boxesOverlap(bodyOf(taxis[i]!), bodyOf(taxis[j]!))) failures.push(`t${k.tick} robotaxis #${taxis[i]!.id} and #${taxis[j]!.id} overlap`);
+        }
       }
-      for (const T of taxis) {
-        const fx = dsin(T.heading);
-        const fz = -dcos(T.heading);
-        const ox = A.x - T.x;
-        const oz = A.z - T.z;
-        const dl = Math.max(0, Math.abs(ox * -fz + oz * fx) - AGENT_SPEC.robotaxi.halfWidth);
-        const df = Math.max(0, Math.abs(ox * fx + oz * fz) - AGENT_SPEC.robotaxi.halfLength);
-        if (Math.hypot(dl, df) < AGENT_SPEC[A.kind].radius - 0.15) failures.push(`t${k.tick} walker #${A.id} inside robotaxi #${T.id} overlap`);
-      }
-    }
-    // 4. Robotaxi bodies never overlap.
-    for (let i = 0; i < taxis.length; i++) {
-      robotaxiSpeed += taxis[i]!.speed;
-      robotaxiSamples++;
-      for (let j = i + 1; j < taxis.length; j++) {
-        if (boxesOverlap(bodyOf(taxis[i]!), bodyOf(taxis[j]!))) failures.push(`t${k.tick} robotaxis #${taxis[i]!.id} and #${taxis[j]!.id} overlap`);
-      }
-    }
-  });
+    });
+  }, LONG_RUN_MS);
 
   it("no agent is ever inside a building", () => {
     expect(failures.filter((f) => f.includes("inside") || f.includes("in a building")).slice(0, 5)).toEqual([]);
@@ -301,7 +304,7 @@ describe("yielding", () => {
     });
     const stopped = agentsOf(s).filter((a) => a.kind === "robotaxi" && a.speed === 0);
     expect(stopped.length).toBeGreaterThanOrEqual(2); // the loop's robotaxis all end up queued at the car
-  });
+  }, LONG_RUN_MS);
 });
 
 describe("level of detail", () => {
