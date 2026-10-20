@@ -288,6 +288,25 @@ class MeshBuilder:
         self.lathe([(r, 0.0), (rr, L)], seg, mat, smooth, cap_top=caps, cap_bottom=caps)
         self.pop()
 
+    def capsule(self, p0, p1, r0, r1, mat, seg=12, rings=3, smooth=True) -> None:
+        """A tapered capsule from p0 (radius r0) to p1 (radius r1) with round ends."""
+        p0, p1 = Vector(p0), Vector(p1)
+        d = p1 - p0
+        L = d.length
+        if L < 1e-9:
+            return
+        prof = []
+        for i in range(rings + 1):
+            t = -math.pi / 2 + (math.pi / 2) * i / rings
+            prof.append((r0 * math.cos(t) if i else 0.0, r0 * math.sin(t)))
+        for i in range(rings + 1):
+            t = (math.pi / 2) * i / rings
+            prof.append((r1 * math.cos(t) if i < rings else 0.0, L + r1 * math.sin(t)))
+        rot = d.normalized().to_track_quat("Z", "Y").to_matrix().to_4x4()
+        self.push(Matrix.Translation(p0) @ rot)
+        self.lathe(prof, seg, mat, smooth)
+        self.pop()
+
     def sphere(self, c, r, seg, rings, mat, smooth=True, scale=(1, 1, 1)) -> None:
         prof = []
         for i in range(rings + 1):
