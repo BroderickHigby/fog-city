@@ -245,8 +245,12 @@ describe("movement invariants over a long run (grid city, 4000 ticks)", () => {
     expect(moved).toBeGreaterThan(agentsOf(s).length * 0.6);
   });
 
-  it("agents follow the terrain", () => {
+  it("agents follow the terrain, and robotaxis pitch with the hill", () => {
     for (const a of agentsOf(s)) expect(a.y).toBeCloseTo(a.x <= 150 ? 0 : 0.12 * (Math.min(a.x, 300) - 150), 6);
+    const climbing = agentsOf(s).filter((a) => a.kind === "robotaxi" && !a.conn && a.x > 160 && a.x < 290 && Math.abs(Math.sin(a.heading)) > 0.99);
+    expect(climbing.length).toBeGreaterThan(0);
+    for (const a of climbing) expect(Math.abs(a.pitch)).toBeCloseTo(Math.atan(0.12), 3);
+    for (const a of agentsOf(s)) if (a.kind !== "robotaxi") expect(a.pitch).toBe(0);
   });
 
   it("one-way streets are only ever driven one way", () => {

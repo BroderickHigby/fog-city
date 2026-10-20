@@ -52,7 +52,7 @@
 //    processed in ascending id order.
 
 import { DT, sortedIds, type RngState, type SimState } from "./contract.ts";
-import { clamp, datan2, dcos, dsin } from "./dmath.ts";
+import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import {
   AREA_M,
@@ -179,6 +179,8 @@ export interface AgentState {
   z: number;
   /** Compass bearing, radians clockwise from north (-z). */
   heading: number;
+  /** Body pitch on hills, radians, + = nose up (robotaxis; 0 for walkers). */
+  pitch: number;
   speed: number;
   /** This agent's cruise speed. */
   vmax: number;
@@ -889,6 +891,14 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   return p;
 }
 
+/** Pitch of a robotaxi body from the ground under its axles (+ = nose up). */
+function bodyPitch(world: World, x: number, z: number, heading: number): number {
+  const a = AGENT_SPEC.robotaxi.halfLength * 0.6;
+  const hx = dsin(heading) * a;
+  const hz = -dcos(heading) * a;
+  return datan((groundHeight(world, x + hx, z + hz) - groundHeight(world, x - hx, z - hz)) / (2 * a)) + 0;
+}
+
 function bodyBlocked(world: World, kind: AgentKind, x: number, z: number, heading: number): boolean {
   const spec = AGENT_SPEC[kind];
   if (!spec.road) return circleBlocked(world, x, z, spec.radius * 0.8);
@@ -1110,6 +1120,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
     y: groundHeight(c.world, x, z),
     z,
     heading,
+    pitch: spec.road ? bodyPitch(c.world, x, z, heading) : 0,
     speed,
     edge,
     dir,
@@ -1271,6 +1282,7 @@ function trySpawn(
       y: groundHeight(world, q.x, q.z),
       z: q.z,
       heading,
+      pitch: spec.road ? bodyPitch(world, q.x, q.z, heading) : 0,
       speed: 0,
       vmax,
       edge: e.id,
