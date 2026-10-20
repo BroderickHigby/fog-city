@@ -407,7 +407,7 @@ describe("player.glb", () => {
     const pts: V3[] = [];
     for (const p of eyes) {
       const a = p.getAttribute("POSITION")!;
-      for (let i = 0; i < a.getCount(); i++) pts.push(a.getElement(i, []) as V3);
+      for (let i = 0; i < a.getCount(); i++) pts.push(a.getElement(i, [0, 0, 0]) as V3);
     }
     expect(mean(pts)[2]).toBeLessThan(-0.05);
   });
