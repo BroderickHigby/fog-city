@@ -1,9 +1,10 @@
 // M0 acceptance on the hand-made dev world (public/tiles/dev): it boots cleanly and draws,
 // real keys reach the sim, deterministic stepping stops at the wall and never passes through
-// it, and the camera key changes the view but never the sim.
+// it, and the camera key changes the view but never the sim. "Never the sim" is checked with
+// the game's own loop consuming input after each press (pokeThenRun), replayed in Node.
 
 import { expect, test } from "@playwright/test";
-import { pointInPolygon, type TileCollider } from "../../src/sim/index.ts";
+import { hashState, pointInPolygon, type SimInput, type TileCollider } from "../../src/sim/index.ts";
 import { readJson } from "../helpers.ts";
 import {
   FAST_QUERY,
@@ -12,17 +13,41 @@ import {
   bootWorld,
   features,
   frames,
+  gate,
   headingDelta,
+  pause,
+  pokeName,
+  pokeThenRun,
   renderInfo,
   settle,
-  simHash,
   simState,
+  stepN,
   type FogWindow,
+  type PokeRun,
 } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
+import { matchGame, p1Chunk } from "./replay.ts";
 
 const collider = readJson<TileCollider>("public/tiles/dev/dev.collider.json");
 const wall = collider.buildings.find((b) => b.id === "dev-wall")!;
+const MOVING: SimInput = Object.freeze({ throttle: 1, steer: 0.4, brake: 0, actions: 0 });
+
+/**
+ * The game's own loop ran `run.ran` ticks after a render-only poke with no key held: Node, from
+ * the same snapshot with NEUTRAL_INPUT for as many ticks, must reach exactly the same state.
+ * Returns which sim-world construction matched (the KeyC tests do not care which; the
+ * determinism spec does).
+ */
+function expectNeutralRun(world: string, run: PokeRun, what: string): string {
+  expect(run.ran, `${what}: the game loop ran`).toBeGreaterThan(0);
+  const m = matchGame(world, run.before, [p1Chunk(run.ran)], [hashState(run.after)], run.after);
+  expect(
+    m.match,
+    `after ${what}, the game's own loop ran ${run.ran} ticks with no driving key held and reached a state Node ` +
+      `does not reach with neutral input, so the key leaked into the sim input:\n${m.tried.join("\n")}`,
+  ).toBeDefined();
+  return `${what}: ${run.ran} ticks = ${m.match!.label}`;
+}
 
 test.describe("dev world: boot", () => {
   test("boots with no console errors and draws a frame", async ({ page }) => {
@@ -102,47 +127,35 @@ test.describe("dev world: behaviour", () => {
     expect(problems).toEqual([]);
   });
 
-  test("KeyC never changes the sim hash", async ({ page }) => {
+  test("KeyC never changes the sim: paused, or with the game loop running", async ({ page }) => {
     const problems = await bootWorld(page, "dev", FAST_QUERY);
-    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
-    await frames(page, 2);
-    const h0 = await simHash(page);
-    const tick0 = (await simState(page)).tick;
-    await page.waitForTimeout(500);
-    await frames(page, 2);
-    expect(await simHash(page), "paused sim moved on its own").toBe(h0);
-    for (let i = 0; i < 4; i++) {
-      await page.keyboard.press("KeyC");
-      await frames(page, 2);
-      expect(await simHash(page)).toBe(h0);
+    await pause(page);
+    const notes: string[] = [];
+    for (const poke of [{ key: "KeyC" }, { key: "KeyC" }, { key: "KeyC", hold: true }]) {
+      // Moving and turning first, so a leaked throttle, steer, brake or action bit would show.
+      await stepN(page, 20, MOVING);
+      const run = await pokeThenRun(page, poke);
+      notes.push(expectNeutralRun("dev", run, pokeName(poke)));
     }
-    expect((await simState(page)).tick).toBe(tick0);
-    // And resume() really resumes.
-    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.resume());
-    await page.waitForFunction((t) => (window as unknown as FogWindow).__fogcity!.state().tick > t + 5, tick0, { timeout: 20_000 });
+    test.info().annotations.push({ type: "replay", description: notes.join("; ") });
     expect(problems).toEqual([]);
   });
 
-  test("KeyC changes renderInfo().cameraMode", async ({ page }) => {
+  test("KeyC changes renderInfo().cameraMode, and still never the sim", async ({ page }) => {
     const problems = await bootWorld(page, "dev", FAST_QUERY);
-    test.skip(!(await features(page)).renderInfo, "window.__fogcity.renderInfo() is not provided by this renderer yet");
-    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
-    await frames(page, 2);
-    const h0 = await simHash(page);
+    gate("render-debug", (await features(page)).renderInfo, "window.__fogcity.renderInfo() is not provided by this renderer yet");
+    await pause(page);
     const modes = [(await renderInfo(page))!.cameraMode];
     for (let i = 0; i < 3; i++) {
-      await page.keyboard.press("KeyC");
-      await page.waitForFunction(
-        (prev) => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode !== prev,
-        modes.at(-1)!,
-        { timeout: 10_000 },
-      );
+      await stepN(page, 20, MOVING);
+      const run = await pokeThenRun(page, { key: "KeyC" });
       modes.push((await renderInfo(page))!.cameraMode);
+      expect(modes.at(-1), `KeyC press ${i + 1} did not change the camera mode (${modes.join(" -> ")})`).not.toBe(modes.at(-2));
+      expectNeutralRun("dev", run, `KeyC press ${i + 1}`);
     }
     // C toggles between at least two views and comes back.
     expect(new Set(modes).size).toBeGreaterThanOrEqual(2);
     expect(modes[2]).toBe(modes[0]);
-    expect(await simHash(page)).toBe(h0);
     expect(problems).toEqual([]);
   });
 });

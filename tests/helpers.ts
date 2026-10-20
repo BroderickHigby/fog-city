@@ -9,7 +9,13 @@ import { buildWorld, type TileCollider, type World } from "../src/sim/index.ts";
 export const ROOT = join(import.meta.dirname, "..");
 
 export function readJson<T = unknown>(rel: string): T {
-  return JSON.parse(readFileSync(join(ROOT, rel), "utf8")) as T;
+  const text = readFileSync(join(ROOT, rel), "utf8");
+  // Tiles may move to Git LFS (docs/roadmap.md): a checkout without `git lfs pull` holds
+  // pointer files. Say so, rather than "Unexpected token v in JSON".
+  if (text.startsWith("version https://git-lfs.github.com/spec/")) {
+    throw new Error(`${rel} is a Git LFS pointer, not the file: run \`git lfs pull\` (CI: actions/checkout with lfs: true)`);
+  }
+  return JSON.parse(text) as T;
 }
 
 /** True when `rel` (relative to the repo root) exists. */

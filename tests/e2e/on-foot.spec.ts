@@ -4,7 +4,7 @@
 
 import { expect, test } from "@playwright/test";
 import type { PlayerState } from "../../src/sim/contract.ts";
-import { FAST_QUERY, FAST_VIEWPORT, bootWorld, frames, simState, type FogWindow } from "./fixtures.ts";
+import { FAST_QUERY, FAST_VIEWPORT, bootWorld, frames, gate, simState, type FogWindow } from "./fixtures.ts";
 
 /** PlayerState as sim contract v2 has it; this file must also compile against v1. */
 type Player = Omit<PlayerState, "foot"> & { foot?: { x: number; z: number; heading: number } | null };
@@ -15,7 +15,7 @@ test.use({ viewport: FAST_VIEWPORT });
 test("on foot: F exits, the walker moves, F near the car re-enters", async ({ page }) => {
   const problems = await bootWorld(page, "dev", FAST_QUERY);
   const p0 = p1(await simState(page));
-  test.skip(!("foot" in p0), "on-foot play is not in this sim yet: PlayerState has no `foot` (sim contract v2)");
+  gate("foot", "foot" in p0, "on-foot play is not in this sim yet: PlayerState has no `foot` (sim contract v2)");
   expect(p0.mode).toBe("vehicle");
 
   // F gets out of the stopped car.

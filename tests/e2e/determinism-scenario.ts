@@ -23,6 +23,7 @@ import {
   sortedIds,
   step,
   wrapAngle,
+  type InputFrame,
   type PlayerId,
   type SimEvent,
   type SimInput,
@@ -157,24 +158,30 @@ function p1Script(t: number): SimInput | null {
   return null;
 }
 
-/** Outside facts, as a server would inject them: joins and leaves on fixed ticks. */
-function eventsFor(tick: number, spawn: Spawn): SimEvent[] {
-  const back = (m: number, side: number): { x: number; z: number; heading: number } => ({
-    // `m` metres behind the spawn along its heading, `side` metres to its right.
+/** A spot `m` metres behind the spawn along its heading and `side` metres to its right. */
+function behind(spawn: Spawn, m: number, side: number): { x: number; z: number; heading: number } {
+  return {
     x: spawn.x - dsin(spawn.heading) * m + dcos(spawn.heading) * side,
     z: spawn.z + dcos(spawn.heading) * m + dsin(spawn.heading) * side,
     heading: spawn.heading,
-  });
-  switch (tick) {
+  };
+}
+
+/**
+ * Outside facts, as a server would inject them: joins and leaves on fixed ticks of the
+ * session (`rel`, 1-based), stamped with the absolute tick `tick` they apply to.
+ */
+function eventsFor(rel: number, tick: number, spawn: Spawn): SimEvent[] {
+  switch (rel) {
     case 120:
-      return [{ tick, kind: "player.join", playerId: "p4", payload: back(14, -3) }];
+      return [{ tick, kind: "player.join", playerId: "p4", payload: behind(spawn, 14, -3) }];
     case 1500:
       return [{ tick, kind: "player.leave", playerId: "p2" }];
     case 2100:
-      return [{ tick, kind: "player.join", playerId: "p2", payload: back(24, 3) }];
+      return [{ tick, kind: "player.join", playerId: "p2", payload: behind(spawn, 24, 3) }];
     case 2700:
       return [
-        { tick, kind: "player.join", playerId: "p5", payload: back(8, 6) },
+        { tick, kind: "player.join", playerId: "p5", payload: behind(spawn, 8, 6) },
         { tick, kind: "player.leave", playerId: "p4" },
       ];
     default:
@@ -204,7 +211,7 @@ export function runScenario(world: World, opts: ScenarioOptions): ScenarioResult
       frame[id] = scripted ?? drive(d, id === "p3");
     }
     const prev = state;
-    state = step(world, prev, frame, eventsFor(prev.tick + 1, opts.spawn));
+    state = step(world, prev, frame, eventsFor(t + 1, prev.tick + 1, opts.spawn));
 
     for (const id of sortedIds(state.players)) {
       seen.add(id);
@@ -225,6 +232,59 @@ export function runScenario(world: World, opts: ScenarioOptions): ScenarioResult
   stats.playersSeen = [...seen].sort();
   stats.agents = agentCount(state);
   return { ticks: opts.ticks, checkpoints, finalHash: hashState(state), finalJson: canonicalJson(state), stats };
+}
+
+/** One recorded stretch of a session: an input frame per tick and the events during it (absolute ticks). */
+export interface RecordedChunk {
+  frames: InputFrame[];
+  events: SimEvent[];
+}
+
+/**
+ * The same scripted session as runScenario, recorded rather than run, for a game that is
+ * already going: it starts at tick `startTick` with players `ids` (the running game has only
+ * p1), so p2 and p3 join on the first tick, and then the same drivers, p1 script, join/leave
+ * schedule and junk input follow, timed from the start. Inputs depend only on the session
+ * tick and on who is present, never on the sim state, so the recording is exact.
+ * Returned in chunks of `chunkTicks`.
+ */
+export function recordSession(
+  ids: readonly PlayerId[],
+  startTick: number,
+  opts: { ticks: number; seed: number; spawn: Spawn },
+  chunkTicks: number,
+): RecordedChunk[] {
+  const present = new Set(ids);
+  const drivers = new Map<PlayerId, Driver>();
+  const chunks: RecordedChunk[] = [];
+  let chunk: RecordedChunk = { frames: [], events: [] };
+  for (let t = 0; t < opts.ticks; t++) {
+    const tick = startTick + t + 1;
+    // Inputs for whoever is present before this tick's events, as runScenario does.
+    const frame: Record<PlayerId, SimInput> = {};
+    for (const id of [...present].sort()) {
+      let d = drivers.get(id);
+      if (!d) drivers.set(id, (d = newDriver(id, opts.seed)));
+      const scripted = id === "p1" ? p1Script(t) : null;
+      frame[id] = scripted ?? drive(d, id === "p3");
+    }
+    const events = eventsFor(t + 1, tick, opts.spawn);
+    if (t === 0) {
+      if (!present.has("p2")) events.unshift({ tick, kind: "player.join", playerId: "p2", payload: behind(opts.spawn, 10, 4) });
+      if (!present.has("p3")) events.unshift({ tick, kind: "player.join", playerId: "p3", payload: behind(opts.spawn, 18, -4) });
+    }
+    for (const e of events) {
+      if (e.kind === "player.join" && e.playerId) present.add(e.playerId);
+      else if (e.kind === "player.leave" && e.playerId) present.delete(e.playerId);
+    }
+    chunk.frames.push(frame);
+    chunk.events.push(...events);
+    if (chunk.frames.length === chunkTicks || t === opts.ticks - 1) {
+      chunks.push(chunk);
+      chunk = { frames: [], events: [] };
+    }
+  }
+  return chunks;
 }
 
 /**

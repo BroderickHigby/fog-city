@@ -12,8 +12,11 @@ import {
   bootWorld,
   distanceToPolyline,
   features,
+  gate,
   newSharedPage,
+  optionalAbsent,
   renderInfo,
+  required,
   settle,
   simState,
   type FogWindow,
@@ -27,6 +30,11 @@ const SPAWN_RADIUS_M = 400;
 
 interface LandmarksDoc {
   landmarks: Array<{ id: string; model: string; lat: number; lon: number; headingDeg: number }>;
+}
+
+/** A landmark's model path relative to public/, as the renderer resolves it. */
+function modelPath(model: string): string {
+  return model.trim().replace(/\\/g, "/").replace(/^(\.\/|\/)+/, "").replace(/^public\//, "");
 }
 
 /** Nearest road edge to (x, z): distance outside its carriageway (<= 0 = on it) and its direction there. */
@@ -48,7 +56,8 @@ function nearestRoad(roads: RoadGraphFile, x: number, z: number) {
 }
 
 test.describe("sf world: data", () => {
-  test.skip(!SF, ABSENT);
+  test.skip(optionalAbsent("sf", SF), ABSENT);
+  test.beforeEach(() => gate("sf", SF, ABSENT));
 
   test("spawn is on a road, along it, within 400 m of the Ferry Building", () => {
     const { manifest, roads } = loadWorldFiles("sf");
@@ -84,14 +93,17 @@ test.describe("sf world: data", () => {
 
 test.describe("sf world: in the browser", () => {
   test.describe.configure({ mode: "serial" });
-  test.skip(!SF, ABSENT);
+  test.skip(optionalAbsent("sf", SF), ABSENT);
 
   let page: Page;
   let problems: string[];
+  /** Every response since boot, by path: the landmark test checks its model was fetched. */
+  const responses: Array<{ path: string; status: number }> = [];
 
   test.beforeAll(async ({ browser }, info) => {
-    if (!SF) return;
+    gate("sf", SF, ABSENT);
     page = await newSharedPage(browser, info.project.use);
+    page.on("response", (r) => responses.push({ path: new URL(r.url()).pathname, status: r.status() }));
     problems = await bootWorld(page, "sf");
   });
   test.afterAll(async () => {
@@ -110,6 +122,9 @@ test.describe("sf world: in the browser", () => {
 
   test("buildings near the Ferry Building are on screen", async () => {
     const have = await features(page);
+    if (required("render-debug") && !(have.flyTo && have.renderInfo)) {
+      throw new Error(`E2E_REQUIRE names "render-debug", but window.__fogcity.flyTo() or renderInfo() is missing`);
+    }
     if (have.flyTo) {
       // From the Embarcadero, west of the clock tower, looking east at it.
       await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.flyTo!(-150, 14, 75, 63, 3));
@@ -128,23 +143,56 @@ test.describe("sf world: in the browser", () => {
     expect(problems).toEqual([]);
   });
 
-  test("the Ferry Building landmark is placed", async () => {
+  test("the Ferry Building landmark is placed, with every other landmark that has a model", async () => {
     const doc = readJsonIfExists<LandmarksDoc>("content/landmarks.json");
-    test.skip(!doc, "content/landmarks.json is absent: the assets track has not placed landmarks on this checkout");
+    gate("landmarks", doc !== null, "content/landmarks.json is absent: the assets track has not placed landmarks on this checkout");
     const ferry = doc!.landmarks.find((l) => /ferry/i.test(l.id));
     expect(ferry, "content/landmarks.json has a Ferry Building entry").toBeDefined();
     const at = toLocal(ferry!.lat, ferry!.lon);
     expect(Math.hypot(at.x, at.z), "Ferry Building landmark distance from the clock tower (origin), m").toBeLessThan(150);
-    const model = ferry!.model.replace(/^\/+/, "").replace(/^public\//, "");
-    expect(fileExists(`public/${model}`), `model file public/${model}`).toBe(true);
+    expect(fileExists(`public/${modelPath(ferry!.model)}`), `model file public/${modelPath(ferry!.model)}`).toBe(true);
+    const withModel = doc!.landmarks.filter((l) => fileExists(`public/${modelPath(l.model)}`));
 
-    if (!(await features(page)).renderInfo) {
+    const have = await features(page);
+    if (!have.renderInfo) {
+      if (required("render-debug")) throw new Error(`E2E_REQUIRE names "render-debug", but window.__fogcity.renderInfo() is missing`);
       test.info().annotations.push({ type: "note", description: "renderInfo() not available: checked the data only" });
       return;
     }
-    await page.waitForFunction(() => ((window as unknown as FogWindow).__fogcity!.renderInfo!().landmarks ?? 0) >= 1, null, {
-      timeout: 60_000,
-    });
+    // The renderer asked for the Ferry Building's model, and got it.
+    const url = `/${modelPath(ferry!.model)}`;
+    const got = responses.filter((r) => r.path === url);
+    expect(got.length, `responses to GET ${url} since boot`).toBeGreaterThan(0);
+    expect(got.every((r) => r.status === 200 || r.status === 304), `GET ${url}: ${got.map((r) => r.status).join(", ")}`).toBe(true);
+
+    // renderInfo().landmarks counts models actually placed in the scene. Every entry with a
+    // model file must be there, so one landmark (R-Evolution, say) cannot stand in for another.
+    const ids = withModel.map((l) => l.id);
+    await page
+      .waitForFunction((n) => ((window as unknown as FogWindow).__fogcity!.renderInfo!().landmarks ?? 0) >= n, ids.length, {
+        timeout: 60_000,
+      })
+      .catch(() => undefined);
+    const placed = (await renderInfo(page))!.landmarks ?? 0;
+    expect(placed, `landmarks in the scene; entries with a model file: ${ids.join(", ")}`).toBeGreaterThanOrEqual(ids.length);
+
+    // Which landmark is which, once the renderer reports it per id (requested from the render track).
+    if (have.landmarks) {
+      const list = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.landmarks!());
+      for (const id of ids) {
+        const e = list.find((l) => l.id === id);
+        expect(e, `window.__fogcity.landmarks() reports ${id}`).toBeDefined();
+        expect(e!.loaded, `${id} is in the scene`).toBe(true);
+      }
+      const f = list.find((l) => l.id === ferry!.id)!;
+      expect(Math.hypot(f.x, f.z), `${f.id} placed this far from the clock tower (origin), m`).toBeLessThan(150);
+    } else {
+      if (required("landmark-ids")) throw new Error(`E2E_REQUIRE names "landmark-ids", but window.__fogcity.landmarks() is missing`);
+      test.info().annotations.push({
+        type: "note",
+        description: "window.__fogcity.landmarks() not available: checked the count of placed landmarks, not which is which",
+      });
+    }
     expect(problems).toEqual([]);
   });
 
