@@ -5,13 +5,13 @@
 //   - an explicit override (pipeline/overrides.json) when one exists;
 //   - else the 2025 assessor storey count when the parcel was built in or after 2010 and
 //     the LiDAR clearly saw less than the building has (construction site, empty lot);
-//   - else the LiDAR: one prism at the max height when max is close to the median; one prism
-//     at the median when the max is tree canopy over a low house; a two-tier massing (podium
-//     at the median, a slimmer tower at the max) when the statistics describe a tower of
-//     plausible size (towerFraction, plausibleTower) and the assessor does not contradict a
-//     thin one (isLidarSpike); otherwise the max is an outlier (edge bleed from a neighbour,
-//     a single return, a tree) and the building is one prism at the median plus a rooftop
-//     allowance.
+//   - else the LiDAR: one prism at the max height when max is close to the median; a
+//     two-tier massing (podium at the median, a slimmer tower at the max) when the
+//     statistics describe a tower of plausible size (towerFraction, plausibleTower), the
+//     building is not a low house under trees (canopy) and the assessor does not contradict
+//     a thin tower (isLidarSpike); otherwise the max is an outlier (edge bleed from a
+//     neighbour, a single return, a tree) and the building is one prism at the median plus
+//     a rooftop allowance (outlierRoof).
 // A two-tier building is two collider records: "<id>" (the podium, full footprint) and
 // "<id>-tower" (the footprint scaled about its centroid, meta.towerOf = "<id>"). Both start
 // at ground level, so a renderer that extrudes colliders draws the right massing; the GLB

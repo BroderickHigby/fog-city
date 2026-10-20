@@ -227,15 +227,16 @@ themselves are newer. For each footprint, in order:
    houses and thin spikes. That left 11,348 towers citywide. Wave 1 replaced the model:
    the three-level moment fit tests every max, everywhere, against a size and slenderness
    that real towers meet, and calls the rest outliers. It is the more rigorous rule, so it
-   decides first. Run alone citywide it builds 2,335 towers, but 73 are still thin slivers
-   a commercial podium's storeys contradict (up to 70.4 m tall), which breaks wave 2's
-   golden (thin towers under 60 m). So wave 2's canopy and spike checks stay, as guards
-   that can only remove a tower the moment model accepted, never add one: 187 + 73
-   removed, 2,262 towers left. Every rejected max, by any of the three, gets one roof
-   (`outlierRoof`), so wave 1's fixture (a stray max on a 3-storey house: 12 m + 3 m) and
-   the canopy case agree. Both sides' tests and goldens pass unchanged except counts that
-   described the old model (towers > 10,000, spikes > 100, Sutro's `-tower` records),
-   which now describe this one.
+   decides first. Citywide it accepts 2,522 towers. 187 of them are trees over low houses,
+   and without a spike check 73 more are thin slivers that a commercial podium's storeys
+   contradict: 123 thin towers in all, the tallest 70.4 m, which breaks wave 2's golden
+   (thin towers under 60 m). So wave 2's canopy and spike checks stay, as guards that can
+   only remove a tower the moment model accepted, never add one: 187 + 73 removed,
+   2,262 towers left, 50 thin ones under 54 m. Every rejected max, by any of the three,
+   gets one roof (`outlierRoof`), so wave 1's fixture (a stray max on a 3-storey house:
+   12 m + 3 m) and the canopy case agree. Both sides' tests and goldens pass unchanged
+   except counts that described the old model (towers > 10,000, spikes > 100, Sutro's
+   `-tower` records), which now describe this one.
    * A two-tier building is **two collider records**: `<id>` (the podium, `meta.tower`
      names the tower) and `<id>-tower` (`meta.towerOf`, `meta.podiumTopY`). Both have the
      same ground-level `baseY`, so a renderer that extrudes colliders draws the right
