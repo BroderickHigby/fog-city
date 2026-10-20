@@ -579,7 +579,7 @@ an earned reward is banked and called with the streak key. Thresholds are the sa
 | Reward | Points | Effect |
 |---|---|---|
 | Confidence Score | 300 | Marks every bad robot (rival players in PvP) within 150 m for 20 s. One marker in five is a hallucination on a good robot, labelled "98% confidence". |
-| Echo Parrots | 500 | The Telegraph Hill flock flies to a point you pick within 200 m, lands on rooftops and wires, and squawks buzzwords for 20 s. The words come only from the fixed buzzword list in content (the Plain Words ladder), selected by id; never typed text, startup names or display names. Bad robots and associates within 40 m investigate, stop 15 m short of the flock and never approach an animal. Sending it twice in 60 s: "We've seen this deck." (no effect). |
+| Buzzword Parrots | 500 | The Telegraph Hill flock flies to a point you pick within 200 m, lands on rooftops and wires, and squawks buzzwords for 20 s. The words come only from the fixed buzzword list in content (the Plain Words ladder), selected by id; never typed text, startup names or display names. Bad robots and associates within 40 m investigate, stop 15 m short of the flock and never approach an animal. Sending it twice in 60 s: "We've seen this deck." (no effect). |
 | Tensor Brick Drop | 700 | A pallet lands on the nearest people-free lot or pier apron within 150 m. Load it in 3 s for one boost that stacks on top of your nozzle: Salt Boost, Pressure Boost (+50% range) or Wide Boost. It lasts 90 s in sun and 180 s in fog (it throttles above 90 °C). |
 | Blimp Impressions | 900 | An invented-livery blimp lights ad lanes over a 200 m area you pick for 30 s. Bad robots (rival players in PvP) inside a lit lane move at 50% ("loading ad..."). The light never falls on a spot holding a person or animal. The view uses an ad-placement frame in normal colour, with no reticle. |
 | Open Hydrants | 1200 | Every hydrant within 150 m opens for 15 s and aims its jet at the nearest bad robot within 12 m, rusting it at full-stream rate. Only Moat firmware rusts. People there cheer (no penalty). |
@@ -1105,5 +1105,14 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   Octavia Blvd bounty chain (wave 5). The Fleet Week Pitch Window is on Marina Green in wave 4.
   Delivery shifts start on SoMa's flat blocks in wave 2 and climb the hills in wave 3. Fog Royale
   always has 5 phases. In-game names drop shooter terms (Hype streaks, gear, gadgets); the parrot
-  reward's old name pointed at a real AI-ethics paper and its authors, so it is now Echo Parrots;
+  reward's old name pointed at a real AI-ethics paper and its authors, so it is now Buzzword Parrots;
   the party mode became Vibes Night so it no longer shares a name with mission 5.
+- 2026-10-20 · **Tile storage: plain git, compressed (meshopt + quantisation), not Git LFS.** LFS through this
+  environment's git proxy is unverified and LFS has storage and bandwidth quotas; tiles regenerate rarely and
+  deterministically. Budgets: about 1.5 MB per tile, 300 MB for the whole city in `tests/pipeline/budgets.json`.
+  Revisit LFS or a release artifact only if a budget is exceeded. (Decided while the user was away; reversible.)
+- 2026-10-20 · **Drivable territory may run ahead of activities.** The pipeline can ship a district's geometry
+  (drivable, streamed, far-LOD) before its activities exist. Territory coverage applies only to districts marked
+  `active` in `content/districts.json`; a district becomes active when its activity, bounty set and safehouse land.
+  This lets the whole city become drivable early, as the user asked, without breaking the coverage rule.
+- 2026-10-20 · "Echo Parrots" renamed **Buzzword Parrots** (avoids evoking a real product).
