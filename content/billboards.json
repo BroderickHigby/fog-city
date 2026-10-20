@@ -193,5 +193,12 @@
     { "id": "hot-pink", "bg": "#FF3D9A", "fg": "#140A10", "accent": "#FFFFFF" },
     { "id": "terminal", "bg": "#000000", "fg": "#38FF7A", "accent": "#38FF7A" },
     { "id": "sand", "bg": "#E9D3A8", "fg": "#2A1E0E", "accent": "#2A1E0E" }
-  ]
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:df852b07",
+    "reviewedBy": [],
+    "review": "Pending: a wave-1 file (its authoring session was not recorded), edited in this session for the wave-2 audit; a second agent session reads it against the docs/ai-layer.md checklist."
+  }
 }

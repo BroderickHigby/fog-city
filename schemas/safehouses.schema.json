@@ -3,9 +3,10 @@
   "$id": "fog-city/safehouses",
   "title": "Safehouses and garages (content/safehouses.json)",
   "type": "object",
-  "required": ["version", "source", "sites"],
+  "required": ["version", "source", "sites", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "source": { "type": "string" },

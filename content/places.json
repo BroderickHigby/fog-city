@@ -153,5 +153,12 @@
       "term": 0.02,
       "falloffM": 600
     }
-  ]
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:6d7da7ba",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
 }

@@ -4,9 +4,10 @@
   "title": "Game districts (content/districts.json)",
   "description": "The game's districts by territory step, with a hub, a hand-traced polygon (WGS84 [lat, lon]) and the active flag that territory coverage reads. Distinct from the pipeline's public/tiles/sf/districts.json (DataSF Analysis Neighborhoods, geometry only).",
   "type": "object",
-  "required": ["version", "source", "districts"],
+  "required": ["version", "source", "districts", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "source": { "type": "string" },

@@ -5,7 +5,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:c41d41fe",
+    "contentHash": "fnv1a32:0370e31e",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
   },
@@ -361,7 +361,7 @@
       "speaker": "jogger",
       "context": "ambient",
       "mood": "upbeat",
-      "text": "Morning run, Golden hour, cold hands.",
+      "text": "Morning run, golden hour, cold hands.",
       "maxLength": 90
     },
     {

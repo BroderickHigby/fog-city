@@ -10,11 +10,11 @@ import { tileId, tileIndexOf, toLocal as toXZ } from "../../src/geo/project.ts";
 import { ROOT, readJson } from "../helpers.ts";
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
-const yc = readJson<Mission>("content/missions/ramen-pitch.json");
+const ramen = readJson<Mission>("content/missions/ramen-pitch.json");
 const step = <T>(m: Mission, id: string) => m.steps.find((s) => s.id === id) as T;
 
 /** Chooser that always arrives and picks the answer with the given rank by delta (0 = best). */
-const byRank = (rank: number, m: Mission = yc) => (d: Decision): string => {
+const byRank = (rank: number, m: Mission = ramen) => (d: Decision): string => {
   if (d.kind === "goto") return "arrive";
   if (d.kind !== "answer") return d.options[0]!;
   const q = (m.steps.find((s) => s.id === d.stepId) as DialogueStep).questions.find((x) => x.id === d.questionId)!;
@@ -34,7 +34,7 @@ describe("every mission file", () => {
 
 describe("ramen-pitch: the brief, as data", () => {
   it("starts with a phone call at the player's Marina apartment: the meeting moved up to 10:00", () => {
-    const call = step<TriggerStep>(yc, yc.start ?? yc.steps[0]!.id);
+    const call = step<TriggerStep>(ramen, ramen.start ?? ramen.steps[0]!.id);
     expect(call.type).toBe("trigger");
     expect(call.event.kind).toBe("phoneCall");
     expect(call.event.place.label).toMatch(/Marina/);
@@ -44,7 +44,7 @@ describe("ramen-pitch: the brief, as data", () => {
   });
 
   it("drives to the Ramen house at Pier 70, Dogpatch, against a timer, by lat/lon", () => {
-    const drive = step<GotoStep>(yc, "drive");
+    const drive = step<GotoStep>(ramen, "drive");
     expect(drive.type).toBe("goto");
     expect(drive.target.label).toMatch(/Ramen house, Pier 70, Dogpatch/);
     // Pier 70 lies east of Illinois St between 18th and 22nd St.
@@ -55,7 +55,7 @@ describe("ramen-pitch: the brief, as data", () => {
     expect(drive.timer.limitS).toBeGreaterThan(0);
     expect(drive.timer.deadline).toBe("10:00");
     // Marina -> Dogpatch is ~6.5 km in a straight line; 540 s needs ~12 m/s door to door.
-    const call = step<TriggerStep>(yc, "call");
+    const call = step<TriggerStep>(ramen, "call");
     const a = toLocal(call.event.place.lat, call.event.place.lon);
     const b = toLocal(drive.target.lat, drive.target.lon);
     const km = Math.hypot(a.x - b.x, a.z - b.z) / 1000;
@@ -64,7 +64,7 @@ describe("ramen-pitch: the brief, as data", () => {
   });
 
   it("asks four questions across the three Ramen partners: moat, company or feature, why now, traction", () => {
-    const dialogues = yc.steps.filter((x): x is DialogueStep => x.type === "dialogue");
+    const dialogues = ramen.steps.filter((x): x is DialogueStep => x.type === "dialogue");
     expect(dialogues.map((d) => d.speaker)).toEqual(["philosopher", "vibes", "metrics"]);
     const qs = dialogues.flatMap((d) => d.questions);
     expect(qs.length).toBe(4);
@@ -79,17 +79,19 @@ describe("ramen-pitch: the brief, as data", () => {
 
   it("the partners are Ramen archetypes, never a real partner or the real accelerator", () => {
     for (const id of ["philosopher", "metrics", "vibes"]) {
-      const p = yc.cast[id]!;
+      const p = ramen.cast[id]!;
       expect(p.role).toBe("Partner at Ramen");
       expect(p.description).toMatch(/archetype, not a person/);
       expect(blockedProseReason(p.name)).toBeNull();
     }
-    expect(blockedProseReason(JSON.stringify(yc))).toBeNull();
-    expect(JSON.stringify(yc)).not.toMatch(/\bYC\b|Combinator|Batchery|Paxton/i);
+    // The provenance block names the authoring session's URL, which is not mission text.
+    const { provenance: _provenance, ...text } = ramen as Mission & { provenance?: unknown };
+    expect(blockedProseReason(JSON.stringify(text))).toBeNull();
+    expect(JSON.stringify(ramen)).not.toMatch(/\bYC\b|Combinator|Batchery|Paxton/i);
   });
 
   it("funded grants the startup's billboard on the Embarcadero and +1 VC attention", () => {
-    const r = dryRun(yc, byRank(0));
+    const r = dryRun(ramen, byRank(0));
     expect(r.status).toBe("ended");
     expect(r.outcome).toBe("funded");
     expect(r.outcomeKind).toBe("success");
@@ -99,7 +101,7 @@ describe("ramen-pitch: the brief, as data", () => {
   });
 
   it("weak answers get 'come back with traction', which retries from the phone call", () => {
-    const r = dryRun(yc, byRank(2));
+    const r = dryRun(ramen, byRank(2));
     expect(r.outcome).toBe("traction");
     expect(r.outcomeKind).toBe("retry");
     expect(r.retryFrom).toBe("call");
@@ -107,14 +109,14 @@ describe("ramen-pitch: the brief, as data", () => {
   });
 
   it("running out the clock is a missed meeting (also a retry)", () => {
-    const r = dryRun(yc, (d) => (d.kind === "goto" ? "timeout" : d.options[0]!));
+    const r = dryRun(ramen, (d) => (d.kind === "goto" ? "timeout" : d.options[0]!));
     expect(r.outcome).toBe("missed");
     expect(r.trace).toEqual(["call", "drive", "missed"]);
   });
 });
 
 describe("ramen-pitch: every answer path", () => {
-  const { paths, truncated } = enumeratePaths(yc);
+  const { paths, truncated } = enumeratePaths(ramen);
 
   it("enumerates all 3^4 answer combinations plus the timeout", () => {
     expect(truncated).toBe(false);
@@ -125,14 +127,14 @@ describe("ramen-pitch: every answer path", () => {
   it("every path terminates in a declared outcome, and both funded and traction are reached", () => {
     for (const p of paths) {
       expect(p.status, p.choices.join(",")).toBe("ended");
-      expect(Object.keys(yc.outcomes)).toContain(p.outcome);
+      expect(Object.keys(ramen.outcomes)).toContain(p.outcome);
     }
     const outcomes = new Set(paths.map((p) => p.outcome));
     expect(outcomes).toEqual(new Set(["funded", "traction", "missed"]));
   });
 
   it("conviction stays within its bounds on every path", () => {
-    const m = yc.meters.conviction!;
+    const m = ramen.meters.conviction!;
     for (const p of paths) {
       expect(p.meters.conviction!).toBeGreaterThanOrEqual(m.min);
       expect(p.meters.conviction!).toBeLessThanOrEqual(m.max);
@@ -147,13 +149,13 @@ describe("ramen-pitch: every answer path", () => {
   });
 
   it("is deterministic", () => {
-    expect(enumeratePaths(yc).paths).toEqual(paths);
+    expect(enumeratePaths(ramen).paths).toEqual(paths);
   });
 });
 
 describe("validateMission catches broken missions", () => {
   const broken = (mutate: (m: Mission) => void): string[] => {
-    const m = clone(yc);
+    const m = clone(ramen);
     mutate(m);
     const r = validateMission(m);
     expect(r.ok).toBe(false);
@@ -232,12 +234,12 @@ describe("validateMission catches broken missions", () => {
 
 describe("dryRun", () => {
   it("rejects a chooser that returns an option that does not exist", () => {
-    const r = dryRun(yc, () => "whatever");
+    const r = dryRun(ramen, () => "whatever");
     expect(r.status).toBe("badChoice");
   });
 
   it("reports a dangling step instead of throwing", () => {
-    const m = clone(yc);
+    const m = clone(ramen);
     step<TriggerStep>(m, "call").next = "ghost";
     const r = dryRun(m, byRank(0, m));
     expect(r.status).toBe("dangling");
@@ -245,7 +247,7 @@ describe("dryRun", () => {
   });
 
   it("clamps the meter at its bounds", () => {
-    const m = clone(yc);
+    const m = clone(ramen);
     for (const d of m.steps) if (d.type === "dialogue") for (const q of d.questions) for (const a of q.answers) a.delta = a.delta > 0 ? 90 : -90;
     expect(dryRun(m, byRank(0, m)).meters.conviction).toBe(100);
     expect(dryRun(m, byRank(2, m)).meters.conviction).toBe(0);

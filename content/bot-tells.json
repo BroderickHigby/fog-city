@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "$comment": "Bot Hunt (docs/design.md, Telling good from bad). A bad robot looks exactly like a good one of the same model; its BEHAVIOUR gives it away, and water rusts it. A tell is behaviour the sim can run (a 'behaviour' object discriminated by 'kind'), never a colour. Subtlety 1 is obvious from across the street, 5 needs a patient watcher. A bad robot shows 2-3 tells; higher-rank districts use subtler ones. False tells are good robots glitching in ways that overlap the bad tells, so one tell alone is never proof. Tells are robot-only: none involves a child or an animal as a target, and people NPC routines never emit tell ids. Local tells belong to one district's bounty set (content/districts/*.json).",
+  "$comment": "Bot Hunt (docs/design.md, Telling good from bad). A bad robot looks exactly like a good one of the same model; its BEHAVIOUR gives it away, and water rusts it. A tell is behaviour the sim can run (a 'behaviour' object discriminated by 'kind'), never a colour. Subtlety 1 is obvious from across the street, 5 needs a patient watcher. A bad robot shows 2-3 tells; higher-rank districts use subtler ones. False tells are good robots glitching in ways that overlap the bad tells, so one tell alone is never proof. Tells are robot-only: none involves a child or an animal as a target, and people NPC routines never emit tell ids. Local tells belong to one district's bounty set (content/packs/*.json).",
   "scoring": { "meltBad": 100, "meltArmoured": 200, "interruptUpdate": 150, "rustGood": -150, "wetPerson": -200 },
   "models": {
     "errand-robot": { "name": "Footman", "maker": "Bramblecot Home", "glb": "errand-robot.glb", "rustRate": 1, "description": "Tall, slim errand robot with a lantern-shaped head and a soft face-light strip; carries shopping." },
@@ -244,5 +244,12 @@
       "designNote": "Most of the traffic. Obeys every rule, stops dead for a cone on the hood, and takes the scenic route because it believes in you. Its only glitch is enthusiasm for the view.",
       "wrongTargetLine": "Water detected on sensor band. Pulling over. Your ride has been rated."
     }
-  ]
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:6866fa74",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
 }

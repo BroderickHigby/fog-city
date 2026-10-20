@@ -10,10 +10,12 @@
     "models",
     "lineSets",
     "tells",
-    "archetypes"
+    "archetypes",
+    "provenance"
   ],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "#/$defs/provenance" },
     "version": {
       "const": 2
     },
@@ -387,6 +389,46 @@
     }
   },
   "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "authorSession",
+        "contentHash",
+        "reviewedBy",
+        "review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "agent",
+            "batch",
+            "human"
+          ]
+        },
+        "authorSession": {
+          "type": "string",
+          "minLength": 4
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^fnv1a32:[0-9a-f]{8}$",
+          "description": "FNV-1a over the file's player-facing text joined by newlines (src/content/barks.ts contentHash)."
+        },
+        "reviewedBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reviewing agent sessions and, for sampled drops, the sample ids."
+        },
+        "review": {
+          "type": "string"
+        }
+      },
+      "description": "A copy of schemas/provenance.schema.json, inlined because tests/schemas/schemas.test.ts compiles this schema on its own; tests/content/provenance.test.ts keeps the copy equal."
+    },
     "target": {
       "enum": [
         "robotaxiPickup",

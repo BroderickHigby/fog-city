@@ -4,9 +4,10 @@
   "title": "The game's invented brands (content/brands.json)",
   "description": "Display names for the invented companies, apps, robot models, stations, perks and the accelerator. Every name must be in content/cleared-names.json (checked by the content lint).",
   "type": "object",
-  "required": ["version", "brands"],
+  "required": ["version", "brands", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "brands": {

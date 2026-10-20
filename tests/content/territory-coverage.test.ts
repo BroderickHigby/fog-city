@@ -5,6 +5,8 @@
 // are exempt from the activity and bounty counts but not from the 1.5 km rule).
 import { describe, expect, it } from "vitest";
 import { PACKS } from "../../src/content/packs.ts";
+import { tileId, tileIndexOf, toLocal } from "../../src/geo/project.ts";
+import { manifestTiles, shippedDistricts } from "./content-files.ts";
 import {
   ACTIVITIES, DISTRICTS, INSTANCES, MODES, MOAT_SITES, PROTECTED_AREAS, SAFEHOUSE_RADIUS_M, SITES, distanceM, distanceToPolygonM,
   districtById, nearestSite, pointInPolygon, polygonsIntersect,
@@ -12,10 +14,31 @@ import {
 
 /** The wave this content ships for. Activity markers and sites from later waves do not count yet. */
 const WAVE = 2;
-const active = DISTRICTS.filter((d) => d.active);
+// The shipped districts come from the tile manifest when it carries district ids, otherwise
+// from districts.json's active flags (content-files.ts shippedDistricts).
+const shipped = shippedDistricts();
+const active = DISTRICTS.filter((d) => shipped.ids.includes(d.id));
 const excluded = PROTECTED_AREAS.filter((a) => a.excluded);
 
 describe("territory coverage", () => {
+  it("the shipped set agrees with the manifest and with districts.json", () => {
+    // Every district the manifest names exists; the manifest and the active flags agree.
+    for (const id of shipped.ids) expect(districtById(id), `manifest district ${id} is not in content/districts.json`).toBeDefined();
+    expect(DISTRICTS.filter((d) => d.active).map((d) => d.id).sort(), `shipped districts come from ${shipped.source}`).toEqual(shipped.ids);
+    // Every shipped district is built: its hub or a corner of its polygon lies on a tile of the
+    // current sf manifest that has roads or buildings.
+    const tiles = manifestTiles();
+    for (const d of active) {
+      const onBuilt = [[d.hub.lat, d.hub.lon] as const, ...d.polygon].some(([lat, lon]) => {
+        const { x, z } = toLocal(lat, lon);
+        const { ix, iz } = tileIndexOf(x, z);
+        const t = tiles.get(tileId(ix, iz));
+        return t !== undefined && (t.stats?.roadEdges ?? 0) + (t.stats?.buildings ?? 0) > 0;
+      });
+      expect(onBuilt, `${d.id} ships but no built tile of public/tiles/sf/manifest.json covers it`).toBe(true);
+    }
+  });
+
   it("the shipped districts are territory steps 1-3, all active", () => {
     expect(active.map((d) => d.id).sort()).toEqual(
       ["bay-bridge-approach", "dogpatch", "downtown", "embarcadero", "fidi", "fishermans-wharf", "marina", "mission-bay", "north-beach", "rincon-hill", "soma"].sort(),

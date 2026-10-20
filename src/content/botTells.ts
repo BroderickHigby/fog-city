@@ -311,7 +311,7 @@ export function botAtLevel(archetypeId: string, level: number, d: BotTellsFile =
 
 /**
  * A bounty's profile: the archetype at a level with one local tell swapped in for its most
- * obvious shown tell (district bounty sets, content/districts/*.json). The local tell must fit
+ * obvious shown tell (district bounty sets, content/packs/*.json). The local tell must fit
  * the archetype's model.
  */
 export function botWithLocalTell(archetypeId: string, level: number, localTellId: string, d: BotTellsFile = BOT_TELLS): BotProfile {

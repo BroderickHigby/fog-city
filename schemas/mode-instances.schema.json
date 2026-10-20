@@ -3,9 +3,10 @@
   "$id": "fog-city/mode-instances",
   "title": "District instances for the district modes (content/modes/instances.json)",
   "type": "object",
-  "required": ["version", "source", "modes", "instances"],
+  "required": ["version", "source", "modes", "instances", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "source": { "type": "string" },

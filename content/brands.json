@@ -17,5 +17,12 @@
     { "id": "marineLayer", "kind": "perk", "name": "Marine Layer", "note": "Fog perk; also mission 9's title. Never used on clothing, a shop or a cosmetic." },
     { "id": "brackish", "kind": "perk", "name": "Brackish", "note": "Salt-water perk." },
     { "id": "ramen", "kind": "accelerator", "name": "Ramen", "tagline": "Ramen house, Pier 70.", "note": "The parody accelerator; its partners are archetypes." }
-  ]
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:92468755",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
 }

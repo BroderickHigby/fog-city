@@ -6,22 +6,24 @@
 // Rules (LintRule): real brands, real people, accelerator names and catchphrases, shooter terms
 // and mode names, the combat and disease lexicon (also inside ids, split at camelCase and dashes),
 // "hunt"/"sweep" outside their allowed phrases, punch-down and housing terms, profanity and slurs,
-// sexual and hate terms, dialect spelling, the places rule, renamed names, font fit, and invented
-// proper names that are not in content/cleared-names.json.
+// sexual and hate terms, dialect spelling, the places rule, the pre-release legal checklist's
+// landmark names, renamed names, font fit, invented proper names that are not in
+// content/cleared-names.json, and invented-looking names in prose (proseName).
 //
 // What is a proper name is decided by a REGISTRY of name fields (NAME_FIELDS), never by guessing
 // from capital letters: a value at a registered path is an invented proper name and must be
 // cleared. Mode and item names are registered too, for the shooter mode-name rule.
 
 import { blockedProseReason } from "./blocklist.ts";
+import { proseNameHits, type ProseLexicon } from "./proseNames.ts";
 import {
-  ACCELERATOR, COMBAT, DIALECT, DISEASE, EXEMPTIONS, HATE, HOUSING, PLACES, PROFANITY, PUNCH_DOWN, RENAMED, RESTRICTED,
+  ACCELERATOR, CHECKLIST_LANDMARKS, COMBAT, DIALECT, DISEASE, EXEMPTIONS, HATE, HOUSING, PLACES, PROFANITY, PUNCH_DOWN, RENAMED, RESTRICTED,
   RESTRICTED_ALLOWED, SEXUAL, SHOOTER_MODE_NAMES, SHOOTER_TERMS, type Deny,
 } from "./denylists.ts";
 
 export type LintRule =
   | "brand" | "person" | "accelerator" | "shooter" | "shooterMode" | "lexicon" | "disease" | "restricted" | "punchDown" | "housing"
-  | "profanity" | "sexual" | "hate" | "dialect" | "places" | "renamed" | "fontFit" | "clearedName";
+  | "profanity" | "sexual" | "hate" | "dialect" | "places" | "checklist" | "renamed" | "fontFit" | "clearedName" | "proseName";
 
 export interface LintIssue {
   rule: LintRule;
@@ -51,6 +53,7 @@ const TEXT_RULES: ReadonlyArray<readonly [LintRule, Compiled[]]> = [
   ["hate", compile(HATE)],
   ["dialect", compile(DIALECT)],
   ["places", compile(PLACES)],
+  ["checklist", compile(CHECKLIST_LANDMARKS)],
   ["renamed", compile(RENAMED)],
 ];
 const RESTRICTED_C = compile(RESTRICTED);
@@ -175,16 +178,35 @@ export const NAME_FIELDS: ReadonlyArray<{ file: RegExp; path: string; kind: Fiel
  * Files, or parts of files, that are not text a player reads and are exempt from the text rules:
  * detector lists (they exist to contain the words they detect) and research records.
  */
-export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; why: string }> = [
+export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; rules?: readonly LintRule[]; why: string }> = [
   { file: /^content\/cleared-names\.json$/, why: "the name-search record quotes real companies, by design" },
   { file: /^content\/banned-pairs\.json$/, why: "the list of composed names that fail the lint, by definition" },
+  {
+    file: /^content\/proper-words\.json$/, rules: ["lexicon", "sexual"],
+    why: "lists the real support services the crisis lines name (\"Domestic Violence\", \"Sexual Assault\"); every other rule still applies",
+  },
+  { file: /^content\/name-parts\.json$/, path: "removed", why: "the record of parts dropped after a name search quotes real companies, by design" },
   { file: /^content\/crisis\.json$/, path: "phrases", why: "the crisis detector's phrase list" },
   { file: /^content\/crisis\.json$/, path: "normalise", why: "look-alike character table" },
+  { file: /^content\/crisis\.json$/, path: "patterns", why: "the crisis detector's slot patterns" },
+  { file: /^content\/crisis\.json$/, path: "contractions", why: "the crisis detector's contraction table" },
+  {
+    file: /^content\/crisis\.json$/, path: "lines", rules: ["lexicon", "sexual"],
+    why: "sincere crisis lines name the real support services (the National Domestic Violence Hotline, RAINN's sexual assault hotline); every other rule still applies",
+  },
+  {
+    file: /^content\/crisis\.json$/, path: "resources", rules: ["lexicon", "sexual"],
+    why: "the resources name the real support services; every other rule still applies",
+  },
   { file: /^content\/landmarks\.json$/, why: "owned by the assets track; real landmark names and sources" },
 ];
 
 /** Keys whose string values are provenance or machine data rather than player-facing text. */
-const DATA_KEYS = new Set(["source", "sources", "attribution", "$schema", "url", "urls", "glb", "hash"]);
+const DATA_KEYS = new Set(["source", "sources", "attribution", "$schema", "url", "urls", "glb", "hash", "records"]);
+/** Developer notes: only COMMENT_RULES apply to them. */
+const COMMENT_KEYS = new Set(["$comment", "designNote", "note"]);
+/** Notes and reasons that quote outside names (NAICS categories, a review's why): no proseName rule. */
+const PROSE_SKIP_KEYS = new Set([...COMMENT_KEYS, "naicsNote", "why"]);
 /** Any string anywhere under one of these keys is provenance or a reference to outside data. */
 const DATA_SEGMENTS = new Set(["provenance", "sources", "attribution", "analysisNeighborhoods"]);
 
@@ -210,21 +232,28 @@ function walk(v: unknown, path: string[], visit: (path: string[], s: string) => 
 /**
  * Lint one parsed content file. `rel` is its path from the repo root ("content/brands.json").
  * Every string is linted as text unless the file or path is exempt or the key holds provenance;
- * registered name fields are also checked against `cleared`.
+ * registered name fields are also checked against `cleared`. With a `lexicon`
+ * (src/content/proseNames.ts), every other player-facing string also gets the proseName rule:
+ * an invented-looking name in prose must be a known word, a place or a cleared name.
  */
-export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | null): LintIssue[] {
+export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | null, lexicon: ProseLexicon | null = null): LintIssue[] {
   const out: LintIssue[] = [];
   const fileExempt = EXEMPT_PATHS.filter((e) => e.file.test(rel));
-  if (fileExempt.some((e) => e.path === undefined)) return out;
+  if (fileExempt.some((e) => e.path === undefined && e.rules === undefined)) return out;
   const nameFields = NAME_FIELDS.filter((f) => f.file.test(rel));
   walk(doc, [], (path, s) => {
     const at = path.join(".");
-    if (fileExempt.some((e) => e.path !== undefined && (at === e.path || at.startsWith(`${e.path}.`)))) return;
+    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || at === e.path || at.startsWith(`${e.path}.`);
+    if (fileExempt.some((e) => e.rules === undefined && under(e))) return;
+    const skipRules = new Set(fileExempt.filter((e) => e.rules !== undefined && under(e)).flatMap((e) => e.rules ?? []));
     const key = path[path.length - 1] ?? "";
     const parentKey = path[path.length - 2] ?? "";
     if (DATA_KEYS.has(key) || DATA_KEYS.has(parentKey) || path.some((seg) => DATA_SEGMENTS.has(seg))) return;
-    const isComment = key === "$comment" || key === "designNote" || key === "note";
-    for (const i of lintText(s)) if (!isComment || COMMENT_RULES.has(i.rule)) out.push({ ...i, path: at });
+    const isComment = COMMENT_KEYS.has(key);
+    for (const i of lintText(s)) if ((!isComment || COMMENT_RULES.has(i.rule)) && !skipRules.has(i.rule)) out.push({ ...i, path: at });
+    if (lexicon && !PROSE_SKIP_KEYS.has(key) && !skipRules.has("proseName") && !nameFields.some((f) => matches(f.path, path))) {
+      for (const h of proseNameHits(s, lexicon)) out.push({ rule: "proseName", message: `proseName: "${h.word}" ${h.why}`, path: at, text: s });
+    }
     for (const f of nameFields) {
       if (!matches(f.path, path)) continue;
       if (f.kind === "modeName" || f.kind === "itemName") for (const i of lintModeName(s)) out.push({ ...i, path: at });

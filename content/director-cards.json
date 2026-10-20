@@ -6,7 +6,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:2431caf1",
+    "contentHash": "fnv1a32:f157e4ce",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
   },
@@ -1982,7 +1982,7 @@
     {
       "id": "restored-from-backup",
       "title": "Restored from backup",
-      "blurb": "A converted helper reboots at the kiosk.",
+      "blurb": "A converted helper is restored from backup at the kiosk.",
       "fromWave": 3,
       "radiusM": 150,
       "cooldownS": 300,

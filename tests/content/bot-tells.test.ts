@@ -2,6 +2,7 @@
 // difficulty curve, local tells for the district bounty sets, and the rules that keep tells about
 // behaviour rather than looks, and about robots rather than people.
 import { describe, expect, it } from "vitest";
+import { CONTENT_FILES, readContent } from "./content-files.ts";
 import {
   BEHAVIOUR_SIDE, BOT_TELLS, botAtLevel, botWithLocalTell, bountyPay, checkBotTells, hardestSubtlety, localTells, type BotTellsFile,
 } from "../../src/content/botTells.ts";
@@ -89,6 +90,13 @@ describe("content/bot-tells.json", () => {
     expect(d.scoring.rustGood).toBeLessThan(0);
     expect(Math.abs(d.scoring.wetPerson)).toBeGreaterThan(d.scoring.meltBad);
     expect(JSON.stringify(d)).not.toMatch(/patch launcher|reboot/i);
+  });
+
+  it("no content file says 'patch launcher' or 'reboot': water rusts bad robots, converted helpers are restored", () => {
+    // The lint's renamed rule enforces this on player text; this also covers ids and notes.
+    for (const rel of CONTENT_FILES.filter((f) => f !== "content/cleared-names.json")) {
+      expect(JSON.stringify(readContent(rel)), rel).not.toMatch(/patch[\s-]*launch|re-?boot/i);
+    }
   });
 
   it("no tell is a colour code, and no bad tell singles out a child or an animal", () => {

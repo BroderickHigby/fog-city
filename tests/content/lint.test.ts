@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 import { CLEARED, CLEARED_NAMES_FILE, GAME_BRANDS, checkClearedNames, clearedNames } from "../../src/content/clearedNames.ts";
 import { EXEMPTIONS } from "../../src/content/denylists.ts";
 import { FONT_FIT, lintDocument, lintFit, lintModeName, lintText, maxRenderedLength, splitIdWords, type LintRule } from "../../src/content/lint.ts";
+import { PROPER_WORDS, buildProseLexicon, proseNameHits } from "../../src/content/proseNames.ts";
+import { contentLexicon } from "./content-files.ts";
 
 const rules = (t: string): LintRule[] => lintText(t).map((i) => i.rule);
 
@@ -53,6 +55,16 @@ describe("lintText fails on each fixture", () => {
     ["A Porter carries the groceries.", "renamed"],
     ["Listen to Marine Layer FM.", "renamed"],
     ["Inspired by Stochastic Parrots.", "renamed"],
+    ["A hobo with a robot.", "punchDown"],
+    ["The winos on the corner.", "punchDown"],
+    ["A bag lady and her robot.", "punchDown"],
+    ["Meet me at Pier 39.", "checklist"],
+    ["Drive over the Golden Gate Bridge.", "checklist"],
+    ["The Transamerica Pyramid at dusk.", "checklist"],
+    ["Ride the Muni home.", "checklist"],
+    ["Sutro Tower in the fog.", "checklist"],
+    ["Load the patch launcher.", "renamed"],
+    ["The helper reboots at the kiosk.", "renamed"],
     ["Built on Anthropic's models.", "brand"],
     ["Faster than any Waymo.", "brand"],
   ])("%s -> %s", (text, rule) => {
@@ -80,6 +92,12 @@ describe("lintText passes harmless look-alikes", () => {
     "Posted on Humbled.",
     "Escort the Footman to the corner.",
     "Sussex Street, sextant, Essex.",
+    "The sea lion docks at noon.",
+    "Fog rolls in through the Golden Gate.",
+    "A picnic in Golden Gate Park.",
+    "The Sutro Baths ruins at low tide.",
+    "Community request: municipal parking.",
+    "A converted helper is restored from backup at the kiosk.",
   ])("%s", (text) => {
     expect(lintText(text)).toEqual([]);
   });
@@ -167,5 +185,48 @@ describe("font fit", () => {
     expect(lintFit("x".repeat(FONT_FIT.billboardHeadline + 1), "billboardHeadline").map((i) => i.rule)).toEqual(["fontFit"]);
     expect(lintFit("{name} is hiring humans for the parts agents won't do", "busWrapHeadline").map((i) => i.rule)).toEqual(["fontFit"]);
     expect(lintFit("Street Cleaning Tue 8-10", "sign")).toEqual([]);
+  });
+});
+
+describe("invented names in prose (proseName)", () => {
+  const lex = contentLexicon();
+  const prose = (text: string) => lintDocument("content/barks/robots.json", { barks: [{ text }] }, CLEARED, lex).filter((i) => i.rule === "proseName");
+
+  it.each([
+    ["Grab a Snorkel Labs smoothie.", "Snorkel Labs"],
+    ["Brought to you by Squandr.", "Squandr"],
+    ["Install SnorkelLabs today.", "SnorkelLabs"],
+    ["Kelp AI is hiring.", "Kelp AI"],
+    ["Ask Brinewise for a ride.", "Brinewise"],
+  ])("fails: %s", (text, word) => {
+    expect(prose(text).map((i) => i.message).join(" "), text).toContain(`"${word}"`);
+  });
+
+  it.each([
+    "Moat Labs sends its regards.",
+    "Brought to you by {$product}.",
+    "{name}. Founded last Tuesday.",
+    "Posted on Humbled.",
+    "Meet me on Columbus Ave by Washington Square.",
+    "A Footman and two Trundles wait at the corner.",
+    "The Ramen house is open on Friday.",
+    "The AI notice is short.",
+    "Ethical AI. Ethically sourced.",
+    "Our KPIs are vibes. Ask the GPU.",
+    "Hot Desk starts at the Ferry Building.",
+  ])("passes: %s", (text) => {
+    expect(prose(text)).toEqual([]);
+  });
+
+  it("a registered name field is left to the clearedName rule, and developer notes are skipped", () => {
+    const doc = { $comment: "Squandr was a placeholder.", cast: { a: { name: "Squandr" } } };
+    const issues = lintDocument("content/missions/x.json", doc, CLEARED, lex).map((i) => i.rule);
+    expect(issues).toEqual(["clearedName"]);
+  });
+
+  it("proper-words.json lists no invented company or product: every entry is a reviewed kind", () => {
+    for (const p of PROPER_WORDS) expect(["calendar", "place", "service", "word", "acronym", "firstName", "astronomy"]).toContain(p.kind);
+    const bare = buildProseLexicon({ corpus: [], gazetteer: [], cleared: [], properWords: [] });
+    expect(proseNameHits("Back on Tuesday, said Squandr.", bare).map((h) => h.word)).toEqual(["Tuesday", "Squandr"]);
   });
 });

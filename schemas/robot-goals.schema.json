@@ -4,9 +4,10 @@
   "title": "Bad-robot goal tables (content/robot-goals.json)",
   "description": "Per bad archetype, the goals of each brain state (disguised, wary, alerted, attack, flee), with trigger, target selection and weight; shared knowledge ranges, rules, attacks and state transitions. Cross-references and the taste rules are checked by checkRobotGoals in src/content/robotGoals.ts.",
   "type": "object",
-  "required": ["version", "knowledge", "rules", "attacks", "transitions", "archetypes"],
+  "required": ["version", "knowledge", "rules", "attacks", "transitions", "archetypes", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "knowledge": {

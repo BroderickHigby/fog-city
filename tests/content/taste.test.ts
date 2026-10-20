@@ -4,9 +4,12 @@ import { describe, expect, it } from "vitest";
 import { generateBillboard, generateBusWrap } from "../../src/content/billboards.ts";
 import { CLEARED } from "../../src/content/clearedNames.ts";
 import { lintDocument, lintText } from "../../src/content/lint.ts";
-import { CONTENT_FILES, readContent } from "./content-files.ts";
+import { CONTENT_FILES, contentLexicon, readContent } from "./content-files.ts";
 
 describe("authored content passes the content lint", () => {
+  // With the lexicon, the proseName rule runs too: an invented name in any player-facing string
+  // must be a known word, a place, a reviewed proper word or a cleared name.
+  const lex = contentLexicon();
   it("covers every content file", () => {
     expect(CONTENT_FILES).toEqual(
       expect.arrayContaining(["content/billboards.json", "content/bot-tells.json", "content/storefronts.json", "content/missions/ramen-pitch.json", "content/brands.json"]),
@@ -15,7 +18,7 @@ describe("authored content passes the content lint", () => {
 
   for (const rel of CONTENT_FILES) {
     it(rel, () => {
-      const issues = lintDocument(rel, readContent(rel), CLEARED).map((i) => `${i.path}: ${i.message} | ${(i.text ?? "").slice(0, 80)}`);
+      const issues = lintDocument(rel, readContent(rel), CLEARED, lex).map((i) => `${i.path}: ${i.message} | ${(i.text ?? "").slice(0, 80)}`);
       expect(issues).toEqual([]);
     });
   }

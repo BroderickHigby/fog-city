@@ -3,9 +3,10 @@
   "$id": "fog-city/activities",
   "title": "Activity markers (content/activities.json)",
   "type": "object",
-  "required": ["version", "source", "activities"],
+  "required": ["version", "source", "activities", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "source": { "type": "string" },

@@ -3,6 +3,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { shippedDistricts } from "./content-files.ts";
 import { BOT_TELLS, localTells } from "../../src/content/botTells.ts";
 import { PACKS, checkPack } from "../../src/content/packs.ts";
 import { DISTRICTS } from "../../src/content/places.ts";
@@ -16,7 +17,10 @@ describe("district packs", () => {
     expect(Object.keys(PACKS).sort()).toEqual(files);
   });
 
-  it("every active district has a pack", () => {
+  it("every shipped district has a pack (shipped: the tile manifest's district ids, or districts.json until the pipeline writes them)", () => {
+    const shipped = shippedDistricts();
+    expect(shipped.ids.length).toBeGreaterThan(0);
+    for (const id of shipped.ids) expect(PACKS[id], `${id} (from ${shipped.source})`).toBeDefined();
     for (const d of DISTRICTS.filter((x) => x.active)) expect(PACKS[d.id], d.id).toBeDefined();
   });
 

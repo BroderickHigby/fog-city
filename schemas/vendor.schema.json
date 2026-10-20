@@ -3,9 +3,10 @@
   "$id": "fog-city/vendor",
   "title": "Vendor items and prices (content/vendor.json)",
   "type": "object",
-  "required": ["version", "base", "limits", "items", "vendors"],
+  "required": ["version", "base", "limits", "items", "vendors", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "base": {
