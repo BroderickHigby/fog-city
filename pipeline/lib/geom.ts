@@ -142,6 +142,52 @@ export function simplifyRing(ring: readonly P2[], tol: number): P2[] {
   return out.length >= 3 ? out : ring.slice();
 }
 
+/** True when no two non-adjacent edges of the closed ring cross or touch (O(n²)). */
+export function isSimpleRing(ring: readonly P2[]): boolean {
+  const n = ring.length;
+  if (n < 3) return false;
+  const orient = (a: P2, b: P2, c: P2): number => Math.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
+  const onSeg = (a: P2, b: P2, p: P2): boolean =>
+    Math.min(a[0], b[0]) <= p[0] && p[0] <= Math.max(a[0], b[0]) && Math.min(a[1], b[1]) <= p[1] && p[1] <= Math.max(a[1], b[1]);
+  for (let i = 0; i < n; i++) {
+    const a = ring[i]!, b = ring[(i + 1) % n]!;
+    for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const c = ring[j]!, d = ring[(j + 1) % n]!;
+      const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+      if (o1 !== o2 && o3 !== o4) return false;
+      if ((o1 === 0 && onSeg(a, b, c)) || (o2 === 0 && onSeg(a, b, d)) || (o3 === 0 && onSeg(c, d, a)) || (o4 === 0 && onSeg(c, d, b))) return false;
+    }
+  }
+  return true;
+}
+
+/** Douglas–Peucker on an open polyline; keeps both ends. */
+export function simplifyLine(pts: readonly P2[], tol: number): P2[] {
+  if (pts.length <= 2) return pts.slice();
+  const keep = new Uint8Array(pts.length);
+  keep[0] = 1;
+  keep[pts.length - 1] = 1;
+  const stack: Array<[number, number]> = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [i0, i1] = stack.pop()!;
+    let best = -1;
+    let bestD = -1;
+    for (let i = i0 + 1; i < i1; i++) {
+      const d = distToSegment(pts[i]![0], pts[i]![1], pts[i0]!, pts[i1]!).d;
+      if (d > bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best >= 0 && bestD > tol) {
+      keep[best] = 1;
+      stack.push([i0, best], [best, i1]);
+    }
+  }
+  return pts.filter((_, i) => keep[i] === 1);
+}
+
 /** Remove consecutive duplicates (after rounding) and a repeated closing point. */
 export function cleanRing(ring: readonly P2[]): P2[] {
   const out: P2[] = [];

@@ -4,10 +4,11 @@
 
 import Ajv2020 from "ajv/dist/2020.js";
 import { createHash } from "node:crypto";
+import { Vector3, type BufferAttribute, type BufferGeometry, type Mesh } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 import { toLatLon } from "../../src/geo/project.ts";
 import { buildWorldFiles, type BuildOutput } from "../../pipeline/lib/build.ts";
-import type { Override } from "../../pipeline/lib/buildings.ts";
+import { isLidarSpike, outlierRoof, plausibleTower, towerFraction, type Override } from "../../pipeline/lib/buildings.ts";
 import { worldTiles, type WorldConfig } from "../../pipeline/lib/config.ts";
 import { Elevation, Ground, tileHeightfield } from "../../pipeline/lib/terrain.ts";
 import type { GeoRaster } from "../../pipeline/lib/geotiff.ts";
@@ -101,6 +102,11 @@ function fixture(): { cfg: WorldConfig; raw: RawInputs; overrides: Override[] } 
     bldg("201006.0000011", [rect(380, 380, 410, 410)], { med: 60, max: 62, mean: 60, std: 1, gnd: g(395) }, "SF0002001"),
     // A 90 m building whose parcel says 2 storeys.
     bldg("201006.0000012", [rect(600, 300, 630, 330)], { med: 88, max: 90, mean: 88, std: 1, gnd: g(615) }, "SF0001012"),
+    // A 2-storey house under trees: 30 % of it reads 18 m above the roof (a plausible tower
+    // to the moment model; the canopy check removes it).
+    bldg("201006.0000013", [rect(150, 420, 180, 450)], { med: 7, max: 25, mean: 7 + 0.3 * 18, std: 18 * Math.sqrt(0.3 * 0.7), gnd: g(165) }, "SF0001013"),
+    // A 3-storey office whose max is a 45 m² sliver 48 m above its roof (the spike check removes it).
+    bldg("201006.0000014", [rect(750, 150, 780, 180)], { med: 12, max: 60, mean: 12 + 0.05 * 48, std: 48 * Math.sqrt(0.05 * 0.95), gnd: g(765) }, "SF0001014"),
   ];
   const parcel = (n: string, x: number, z: number, year: number, stories: number, use: string, useCode?: string): RawParcel => ({
     parcel_number: n, block: n.slice(0, 4), lot: n.slice(4), year_property_built: String(year),
@@ -113,6 +119,8 @@ function fixture(): { cfg: WorldConfig; raw: RawInputs; overrides: Override[] } 
     parcel("0001005", 200, 310, 1910, 3, "Multi-Family Residential"),
     parcel("0001010", 55, 415, 1908, 3, "Multi-Family Residential", "MRES"),
     parcel("0001012", 615, 315, 1975, 2, "Commercial Office", "COMO"),
+    parcel("0001013", 165, 435, 1925, 2, "Single Family Residential", "SRES"),
+    parcel("0001014", 765, 165, 1931, 3, "Commercial Office", "COMO"),
     // Condo units: one point, the units' own storeys, and one row of data-entry noise.
     parcel("0002001", 395, 395, 1999, 1, "Single Family Residential", "SRES"),
     parcel("0002002", 395, 395, 1999, 2, "Single Family Residential", "SRES"),
@@ -164,9 +172,21 @@ describe("fixture build: determinism and files", () => {
     }
   });
 
-  it("writes exactly the manifest, graph, storefronts, report and two tiles", () => {
+  it("writes exactly the manifest, graph, storefronts, report, boundary, two tiles, the collider pack and one far-LOD cell", () => {
     expect([...out.files.keys()].sort()).toEqual(
-      ["manifest.json", "report.json", "roads.json", "storefronts.json", "t0_0.collider.json", "t0_0.glb", "t1_0.collider.json", "t1_0.glb"].sort(),
+      [
+        "boundary.json",
+        "f0_0.glb",
+        "manifest.json",
+        "report.json",
+        "roads.json",
+        "storefronts.json",
+        "t0_0.collider.json",
+        "t0_0.glb",
+        "t1_0.collider.json",
+        "t1_0.glb",
+        "world.colliders.bin",
+      ].sort(),
     );
   });
 
@@ -182,6 +202,37 @@ describe("fixture build: determinism and files", () => {
     check("roads", json(out, "roads.json"));
     check("tile-collider", json(out, "t0_0.collider.json"));
     check("tile-collider", json(out, "t1_0.collider.json"));
+    check("boundary", json(out, "boundary.json"));
+  });
+});
+
+describe("fixture build: world edge and shore", () => {
+  interface B { edges: Array<{ kind: string; closed: boolean; points: Array<[number, number]> }>; shore: Array<{ closed: boolean; points: Array<[number, number]> }> }
+  it("outlines the two tiles (land on the slope, water over the bay) and draws the shore with land on its left", () => {
+    const b = json<B>(out, "boundary.json");
+    let perimeter = 0;
+    for (const e of b.edges) {
+      const pts = e.closed ? [...e.points, e.points[0]!] : e.points;
+      for (let i = 1; i < pts.length; i++) perimeter += Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]);
+    }
+    expect(perimeter).toBeCloseTo(3000, 6);
+    const kindAt = (x: number, z: number): string[] =>
+      b.edges.filter((e) => e.points.some(([px, pz], i) => {
+        const [qx, qz] = e.points[i + 1] ?? (e.closed ? e.points[0]! : [px, pz]);
+        return Math.min(px, qx) <= x && x <= Math.max(px, qx) && Math.min(pz, qz) <= z && z <= Math.max(pz, qz);
+      })).map((e) => e.kind);
+    expect(kindAt(0, 250)).toEqual(["land"]); // the west side, up the slope
+    expect(kindAt(1000, 250)).toEqual(["water"]); // the east side, in the bay
+    expect(b.shore).toHaveLength(1);
+    const s = b.shore[0]!;
+    expect(s.closed).toBe(false);
+    // Land (west) on the left of travel: the line runs north, from z = 500 to z = 0.
+    expect(s.points[0]![1]).toBe(500);
+    expect(s.points[s.points.length - 1]![1]).toBe(0);
+    for (const [x] of s.points) {
+      expect(x).toBeGreaterThan(520);
+      expect(x).toBeLessThan(950);
+    }
   });
 });
 
@@ -244,6 +295,26 @@ describe("fixture build: buildings", () => {
     expect(b.meta).toMatchObject({ stories: 3, use: "Multi-Family Residential" });
   });
 
+  it("tree canopy over a low house makes no tower, even when the moment model would accept one", () => {
+    const b = byId("201006.0000013")!;
+    expect(towerFraction(7, 25, 7 + 0.3 * 18, 18 * Math.sqrt(0.3 * 0.7))).toBeCloseTo(0.3, 3);
+    expect(byId("201006.0000013-tower")).toBeUndefined();
+    expect(b.meta.tower).toBeUndefined();
+    expect(b.meta.heightM).toBe(outlierRoof(7, 25));
+    expect(b.meta.heightM).toBe(10);
+    expect(b.meta).toMatchObject({ stories: 2, use: "Single Family Residential" });
+  });
+
+  it("a thin tower the assessor's storeys contradict is a LiDAR spike: one prism, like any outlier", () => {
+    const b = byId("201006.0000014")!;
+    expect(plausibleTower(900, towerFraction(12, 60, 12 + 0.05 * 48, 48 * Math.sqrt(0.05 * 0.95)), 48)).toBe(true);
+    expect(isLidarSpike(45, 12, 60, 3)).toBe(true);
+    expect(byId("201006.0000014-tower")).toBeUndefined();
+    expect(b.meta.tower).toBeUndefined();
+    expect(b.meta.heightM).toBe(15);
+    expect(b.meta).toMatchObject({ stories: 3, use: "Commercial Office" });
+  });
+
   it("a condominium joined to one unit's parcel reports the building, not the unit", () => {
     const b = byId("201006.0000011")!;
     expect(b.meta).toMatchObject({ parcel: "0002001", condo: true, use: "Residential Condominium", stories: 18, units: 4 });
@@ -285,6 +356,7 @@ describe("fixture build: buildings", () => {
     expect(byId("201006.0000008")).toBeUndefined();
     expect(out.report.buildings).toMatchObject({
       droppedSmall: 1, droppedOutside: 1, droppedLow: 1, heightOverride: 1, twoTier: 1, maxOutlier: 1, condo: 1, storiesImplausible: 1,
+      canopyTowersDropped: 1, spikeTowersDropped: 1, thinTowers: 0,
     });
   });
 
@@ -394,12 +466,16 @@ describe("fixture build: GLB tiles", () => {
     const collider = json<SfCollider>(out, "t1_0.collider.json");
     const ranges = scene.getObjectByName("buildings")!.userData.buildings as Array<[string, number, number]>;
     expect(ranges.map((r) => r[0])).toEqual(collider.buildings.map((b) => b.id));
-    // The freeway over the bay (x > 850) is not drawn.
-    const fw = scene.getObjectByName("freeways") as unknown as { geometry: { attributes: { position: { count: number; getX(i: number): number } } } };
-    const pos = fw.geometry.attributes.position;
+    // The freeway over the bay (x > 850) is not drawn. Positions are quantised: read them
+    // through the node's dequantising transform.
+    scene.updateMatrixWorld(true);
+    const fw = scene.getObjectByName("freeways") as unknown as Mesh<BufferGeometry>;
+    const pos = fw.geometry.attributes.position as BufferAttribute;
+    const v = new Vector3();
     let maxX = -Infinity;
-    for (let i = 0; i < pos.count; i++) maxX = Math.max(maxX, pos.getX(i));
+    for (let i = 0; i < pos.count; i++) maxX = Math.max(maxX, v.fromBufferAttribute(pos, i).applyMatrix4(fw.matrixWorld).x);
     expect(maxX).toBeLessThan(870);
+    expect(maxX).toBeGreaterThan(690);
   });
 });
 
