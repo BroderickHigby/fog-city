@@ -36,6 +36,31 @@ describe("name parts", () => {
     }
   });
 
+  it("removed parts (AI jargon and searched conflicts) are in no pool, and every conflict cites its search", () => {
+    const removed = (NAME_PARTS as unknown as { removed: Array<{ id: string; pool: keyof typeof NAME_PARTS.pools; kind: string; queries: string[]; sources: string[] }> }).removed;
+    expect(removed.length).toBeGreaterThanOrEqual(9);
+    for (const r of removed) {
+      expect(NAME_PARTS.pools[r.pool].some((p) => p.id === r.id), r.id).toBe(false);
+      if (r.kind === "conflict") {
+        expect(r.queries.length, r.id).toBeGreaterThan(0);
+        expect(r.sources.length, r.id).toBeGreaterThan(0);
+      }
+    }
+    for (const w of ["prompt", "token", "cache", "shard", "vibe", "waitlist", "standup", "roadmap", "seedling", "foxglove", "lilac", "napkin", "spindle"]) {
+      expect(removed.some((r) => r.id === w), w).toBe(true);
+    }
+  });
+
+  it("names the review confirmed as real companies never compose", () => {
+    for (const n of ["Token Metrics", "TokenMetrics", "PromptHub", "Prompt Hub", "TokenPay", "Token Pay", "TokenHub", "Lilac Labs", "Napkin AI", "Spindle AI"]) {
+      expect(nameLintReason(n), n).not.toBeNull();
+    }
+    for (let s = 0; s < 3000; s++) {
+      const t = startupNameFor(`seed-${s}`).text.toLowerCase().replace(/ /g, "");
+      expect(/^(token|prompt|cache|shard|vibe|waitlist|standup|roadmap|seedling)/.test(t), t).toBe(false);
+    }
+  });
+
   it("nameLintReason rejects what it must", () => {
     expect(nameLintReason("DaffodilDock")).toMatch(/offensive/);
     expect(nameLintReason("Glad Pelican")).toMatch(/brand/); // "gladpelican" contains "ADP"
@@ -85,7 +110,11 @@ describe("every composed name passes the lint or is a banned pair", () => {
       const pairs: BannedPair[] = [];
       for (const kind of KINDS) for (const f of lintFailingPairs(kind)) pairs.push({ kind, a: f.a, b: f.b, source: "lint", reason: f.reason });
       const keys = new Set(pairs.map((p) => `${p.kind}:${p.a}+${p.b}`));
-      for (const h of BANNED_PAIRS.pairs) if (h.source === "hand" && !keys.has(`${h.kind}:${h.a}+${h.b}`)) pairs.push(h);
+      for (const h of BANNED_PAIRS.pairs) {
+        const [pa, pb] = POOLS_OF[h.kind];
+        // A hand row whose part was removed from the pools goes with it.
+        if (h.source === "hand" && namePart(pa, h.a) && namePart(pb, h.b) && !keys.has(`${h.kind}:${h.a}+${h.b}`)) pairs.push(h);
+      }
       pairs.sort((x, y) => (`${x.kind}${x.a}+${x.b}` < `${y.kind}${y.a}+${y.b}` ? -1 : 1));
       const doc = { version: 1, $comment: (BANNED_PAIRS as unknown as { $comment: string }).$comment, pairs };
       let s = JSON.stringify(doc, null, 2);

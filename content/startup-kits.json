@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "$comment": "Startup kits for One-Sentence Startup (docs/ai-layer.md, 3.2; [ai-02]): the coworking sign-up form's 'What are you building?' picks one by keyword (src/content/kits.ts matchKit), after the crisis check. A kit is the fallback for every refusal except self_harm, which shows the crisis lines and never a kit. The typed sentence is never displayed; only the kit is. nameParts are ids into name-parts.json, composed by src/content/composer.ts ({name} in the copy, at most 16 characters). Slides: problem, solution, then market, traction and ask from shared templates. Kits marked fallback are about startup culture, not any topic, and are the pool a refused or unmatched sentence draws from by keyed hash.",
+  "$comment": "Startup kits for One-Sentence Startup (docs/ai-layer.md, 3.2; [ai-02]): the coworking sign-up form's 'What are you building?' picks one by keyword (src/content/kits.ts matchKit), after the crisis check. A kit is the fallback for every refusal except self_harm, which shows the crisis lines and never a kit. The typed sentence is never displayed; only the kit is. nameParts are ids into name-parts.json, composed by src/content/composer.ts ({name} in the copy, at most 16 characters). Slides: problem, solution, then market, traction and ask from shared templates. Kits marked fallback are about startup culture, not any topic, and are the pool an unmatched sentence draws from by keyed hash; a refused or sensitive sentence (health, identity, hardship, life and death, being hurt) draws only from the neutral subset whose copy has no word that could answer it (kits.ts NEUTRAL_FALLBACK_KITS).",
   "kits": [
     {
       "id": "dogs",
@@ -333,7 +333,7 @@
     {
       "id": "snacks",
       "keywords": ["snack", "snacks", "chips", "candy", "cookies"],
-      "nameParts": ["crouton", "co"],
+      "nameParts": ["biscotti", "co"],
       "nounPhrase": "snack forecasting",
       "tagline": "Know your snack before you do.",
       "slides": [
@@ -382,7 +382,7 @@
     {
       "id": "fitness",
       "keywords": ["fitness", "gym", "workout", "workouts", "exercise", "muscle", "lifting"],
-      "nameParts": ["gravy", "agents"],
+      "nameParts": ["porridge", "agents"],
       "nounPhrase": "an AI personal trainer",
       "tagline": "Your trainer never sleeps.",
       "slides": [
@@ -474,7 +474,7 @@
     {
       "id": "sleep",
       "keywords": ["sleep", "sleeping", "insomnia", "bed"],
-      "nameParts": ["hammock", "yard-c"],
+      "nameParts": ["beanbag", "yard-c"],
       "nounPhrase": "a sleep agent",
       "tagline": "Sleep, but productive.",
       "slides": [
@@ -569,7 +569,7 @@
     {
       "id": "tennis",
       "keywords": ["tennis", "racket", "court", "serve"],
-      "nameParts": ["foxglove", "foundry"],
+      "nameParts": ["crumpet", "foundry"],
       "nounPhrase": "a serve analyser",
       "tagline": "Your serve, reviewed by AI.",
       "slides": [
@@ -732,7 +732,7 @@
     },
     {
       "id": "camping",
-      "keywords": ["camp", "camping", "tent", "outdoors", "campfire"],
+      "keywords": ["camp", "camping", "outdoors", "campfire"],
       "nameParts": ["thicket", "garage"],
       "nounPhrase": "a campsite finder",
       "tagline": "Find the last campsite.",
@@ -744,7 +744,7 @@
           "text": "Everyone needs {nounPhrase}. Most of them just don't know yet."
         },
         {"kind": "traction", "text": "Up 400% since Tuesday."},
-        {"kind": "ask", "text": "$8M to scale from one block to two."}
+        {"kind": "ask", "text": "$8M to scale from one trailhead to two."}
       ],
       "billboard": {
         "headline": "Find the last campsite.",
@@ -975,7 +975,7 @@
     {
       "id": "cleaning",
       "keywords": ["clean", "cleaning", "tidy", "mess", "vacuum", "dust"],
-      "nameParts": ["bucket", "agents"],
+      "nameParts": ["pail", "agents"],
       "nounPhrase": "a cleaning agent",
       "tagline": "Your mess, triaged by AI.",
       "slides": [
@@ -1070,7 +1070,7 @@
     {
       "id": "tools",
       "keywords": ["hammer", "drill", "repair", "fix", "diy", "wrench", "screwdriver"],
-      "nameParts": ["spanner", "ai"],
+      "nameParts": ["trowel", "assist"],
       "nounPhrase": "a DIY voice assistant",
       "tagline": "Fix anything. Allegedly.",
       "slides": [
@@ -1237,7 +1237,7 @@
     {
       "id": "writing",
       "keywords": ["write", "writing", "writer", "blog", "essay", "essays"],
-      "nameParts": ["spindle", "grid-c"],
+      "nameParts": ["bobbin", "loop-c"],
       "nounPhrase": "a ghostwriting agent",
       "tagline": "Write less. Post more.",
       "slides": [
@@ -1787,7 +1787,7 @@
     {
       "id": "drones",
       "keywords": ["drone", "drones", "flying", "fly", "aerial"],
-      "nameParts": ["gable", "drones"],
+      "nameParts": ["gondola", "drones"],
       "nounPhrase": "drone etiquette",
       "tagline": "Polite drones only.",
       "slides": [
@@ -2534,7 +2534,7 @@
     {
       "id": "crypto",
       "keywords": ["crypto", "blockchain", "token", "tokens", "coin", "coins", "web3"],
-      "nameParts": ["token", "energy"],
+      "nameParts": ["parsnip", "verse-c"],
       "nounPhrase": "a blockchain for grocery lists",
       "tagline": "Your shopping list, on-chain.",
       "slides": [
@@ -2557,7 +2557,7 @@
     {
       "id": "insurance",
       "keywords": ["insurance", "insure", "policy", "claim", "claims", "risk"],
-      "nameParts": ["rowboat", "logic"],
+      "nameParts": ["mitten", "logic"],
       "nounPhrase": "micro-insurance for socks",
       "tagline": "Insure every sock.",
       "slides": [
@@ -2580,7 +2580,7 @@
     {
       "id": "taxes",
       "keywords": ["tax", "taxes", "accountant", "accounting", "receipt", "receipts"],
-      "nameParts": ["lilac", "systems"],
+      "nameParts": ["teaspoon", "systems"],
       "nounPhrase": "a receipt sorter",
       "tagline": "Receipts, sorted by AI.",
       "slides": [
@@ -2698,7 +2698,7 @@
     {
       "id": "meetings",
       "keywords": ["standup", "standups", "sync", "syncs", "agenda", "minutes"],
-      "nameParts": ["standup", "logic"],
+      "nameParts": ["lanyard", "logic"],
       "nounPhrase": "minutes before the meeting",
       "tagline": "Minutes before the meeting.",
       "slides": [
@@ -2721,7 +2721,7 @@
     {
       "id": "slides",
       "keywords": ["slide", "slides", "deck", "decks", "presentation", "pitch"],
-      "nameParts": ["roadmap", "dock-c"],
+      "nameParts": ["doodad", "dock-c"],
       "nounPhrase": "a deck generator",
       "tagline": "Decks that write themselves.",
       "slides": [
@@ -2771,7 +2771,7 @@
     {
       "id": "startups",
       "keywords": ["startup", "startups", "founder", "founders", "accelerator"],
-      "nameParts": ["seedling", "wheels"],
+      "nameParts": ["chickpea", "wheels"],
       "nounPhrase": "a startup for starting startups",
       "tagline": "Startups, started for you.",
       "slides": [
@@ -3365,7 +3365,7 @@
     {
       "id": "bridges",
       "keywords": ["bridge", "bridges", "traffic", "tunnel", "tunnels"],
-      "nameParts": ["cable", "verse-c"],
+      "nameParts": ["bollard", "verse-c"],
       "nounPhrase": "a bridge-traffic oracle",
       "tagline": "Know the jam before the jam.",
       "slides": [
@@ -3503,7 +3503,7 @@
     {
       "id": "3d-printing",
       "keywords": ["3d", "print", "printing", "printer", "printers", "maker", "makers"],
-      "nameParts": ["sprocket", "ai"],
+      "nameParts": ["spool", "works"],
       "nounPhrase": "a maker-space scheduler",
       "tagline": "Book the printer. Finally.",
       "slides": [
@@ -3549,7 +3549,7 @@
     {
       "id": "woodworking",
       "keywords": ["wood", "woodworking", "carpentry", "carpenter", "workshop"],
-      "nameParts": ["chisel", "ops-c"],
+      "nameParts": ["banister", "ops-c"],
       "nounPhrase": "a measure-twice agent",
       "tagline": "Measure twice. We'll do it.",
       "slides": [
@@ -3760,7 +3760,7 @@
     {
       "id": "remote-work",
       "keywords": ["remote", "wfh", "home", "working"],
-      "nameParts": ["cactus", "network"],
+      "nameParts": ["pergola", "network"],
       "nounPhrase": "a background-noise filter",
       "tagline": "Your dog, muted.",
       "slides": [
@@ -4019,7 +4019,7 @@
     {
       "id": "waitlists",
       "keywords": ["waitlist", "waitlists"],
-      "nameParts": ["waitlist", "systems"],
+      "nameParts": ["turnip", "systems"],
       "nounPhrase": "a waitlist for waitlists",
       "tagline": "Join the waitlist's waitlist.",
       "slides": [
@@ -4043,7 +4043,7 @@
     {
       "id": "hype",
       "keywords": ["hype", "buzz", "trending", "viral", "trend"],
-      "nameParts": ["vibe", "bots"],
+      "nameParts": ["tinsel", "bots"],
       "nounPhrase": "a hype meter",
       "tagline": "Measure the hype. Then add more.",
       "slides": [
@@ -4091,7 +4091,7 @@
     {
       "id": "prompts",
       "keywords": ["prompt", "prompts", "prompting"],
-      "nameParts": ["prompt", "home"],
+      "nameParts": ["ravioli", "home"],
       "nounPhrase": "a prompt library",
       "tagline": "Prompts for your prompts.",
       "slides": [
@@ -4138,7 +4138,7 @@
     {
       "id": "gpus",
       "keywords": ["gpu", "gpus", "compute", "chips", "chip"],
-      "nameParts": ["cache", "metrics"],
+      "nameParts": ["kiosk", "metrics"],
       "nounPhrase": "a GPU waitlist",
       "tagline": "Compute, eventually.",
       "slides": [
@@ -4161,7 +4161,7 @@
     {
       "id": "datasets",
       "keywords": ["dataset", "datasets", "training", "scraping", "crawl"],
-      "nameParts": ["shard", "agents"],
+      "nameParts": ["colander", "agents"],
       "nounPhrase": "data, ethically sourced-ish",
       "tagline": "Data, ethically sourced. Ish.",
       "slides": [
@@ -4207,7 +4207,7 @@
     {
       "id": "apis",
       "keywords": ["api", "apis", "integration", "integrations", "webhook"],
-      "nameParts": ["zinnia", "base-c"],
+      "nameParts": ["larder", "base-c"],
       "nounPhrase": "an API for your fridge",
       "tagline": "Your fridge has endpoints.",
       "slides": [
@@ -4331,7 +4331,7 @@
     },
     {
       "id": "real-time",
-      "keywords": ["realtime", "real-time", "live", "streaming", "stream"],
+      "keywords": ["realtime", "real-time", "streaming", "stream"],
       "nameParts": ["churro", "foundry"],
       "nounPhrase": "live everything",
       "tagline": "Everything, live, always.",
@@ -4451,7 +4451,7 @@
     {
       "id": "noise",
       "keywords": ["noise", "noisy", "quiet", "silence", "sound"],
-      "nameParts": ["napkin", "motors"],
+      "nameParts": ["beanie", "motors"],
       "nounPhrase": "a quiet-place finder",
       "tagline": "Find the quiet.",
       "slides": [
@@ -4497,7 +4497,7 @@
     {
       "id": "sourdough-tourism",
       "keywords": ["souvenir", "souvenirs", "postcard", "postcards"],
-      "nameParts": ["melon", "mind-c"],
+      "nameParts": ["focaccia", "mind-c"],
       "nounPhrase": "a postcard generator",
       "tagline": "Postcards from where you are.",
       "slides": [
@@ -4782,7 +4782,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:fabd5fae",
+    "contentHash": "fnv1a32:320ce460",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
   }

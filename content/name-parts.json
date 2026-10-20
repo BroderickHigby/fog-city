@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "$comment": "The pre-cleared name parts (docs/ai-layer.md, ad-inventory and 3.2). Every startup and player name is a head and a tail, or an adjective and a noun, composed by src/content/composer.ts; no free-form name exists. Each part passed the brand and people blocklist, the offensive-word filter and the content lint alone; words that are the name of a tech, robotics, transport or fintech company the authoring agent knew of were left out by hand (animals stay in the player pools only, because '<animal> AI' is the commonest real startup pattern). The parts were not web-searched one by one; the composed pairs that fail the lint are in banned-pairs.json.",
+  "$comment": "The pre-cleared name parts (docs/ai-layer.md, ad-inventory and 3.2). Every startup and player name is a head and a tail, or an adjective and a noun, composed by src/content/composer.ts; no free-form name exists. Each part passed the brand and people blocklist, the offensive-word filter and the content lint alone; words that are the name of a tech, robotics, transport or fintech company the authoring agent knew of were left out by hand (animals stay in the player pools only, because '<animal> AI' is the commonest real startup pattern). On 2026-10-20 the AI-jargon heads (Token, Prompt, Cache, Shard, Vibe, Waitlist, Standup, Roadmap, Seedling) were dropped and seventeen heads the agent suspected were searched and dropped as conflicts (see 'removed'); the remaining parts were not web-searched one by one; the composed pairs that fail the lint are in banned-pairs.json. The kits that used a removed head got new pairs; six of those names were spot-searched on 2026-10-20 (\"Kiosk Metrics\": only a dashboard feature of a venue-mapping product, no company; \"Spool Works\", \"Turnip Systems\", \"Teaspoon Systems\", \"Gondola Drones\", \"Lanyard Logic\": nothing found).",
   "pools": {
     "startupHead": [
       {"id": "kelp", "text": "Kelp"},
@@ -19,7 +19,6 @@
       {"id": "shallot", "text": "Shallot"},
       {"id": "scone", "text": "Scone"},
       {"id": "biscuit", "text": "Biscuit"},
-      {"id": "crouton", "text": "Crouton"},
       {"id": "clam", "text": "Clam"},
       {"id": "mussel", "text": "Mussel"},
       {"id": "barnacle", "text": "Barnacle"},
@@ -43,13 +42,11 @@
       {"id": "trolley", "text": "Trolley"},
       {"id": "doodad", "text": "Doodad"},
       {"id": "widget", "text": "Widget"},
-      {"id": "hammock", "text": "Hammock"},
       {"id": "teapot", "text": "Teapot"},
       {"id": "turnip", "text": "Turnip"},
       {"id": "muffin", "text": "Muffin"},
       {"id": "radish", "text": "Radish"},
       {"id": "leek", "text": "Leek"},
-      {"id": "melon", "text": "Melon"},
       {"id": "thyme", "text": "Thyme"},
       {"id": "dill", "text": "Dill"},
       {"id": "cumin", "text": "Cumin"},
@@ -60,20 +57,17 @@
       {"id": "brioche", "text": "Brioche"},
       {"id": "crumpet", "text": "Crumpet"},
       {"id": "custard", "text": "Custard"},
-      {"id": "cactus", "text": "Cactus"},
       {"id": "nettle", "text": "Nettle"},
       {"id": "seaglass", "text": "Seaglass"},
       {"id": "pier", "text": "Pier"},
       {"id": "ferry", "text": "Ferry"},
       {"id": "dinghy", "text": "Dinghy"},
-      {"id": "rowboat", "text": "Rowboat"},
       {"id": "barge", "text": "Barge"},
       {"id": "lagoon", "text": "Lagoon"},
       {"id": "inlet", "text": "Inlet"},
       {"id": "shoal", "text": "Shoal"},
       {"id": "haze", "text": "Haze"},
       {"id": "squall", "text": "Squall"},
-      {"id": "cable", "text": "Cable"},
       {"id": "bollard", "text": "Bollard"},
       {"id": "hydrant", "text": "Hydrant"},
       {"id": "parklet", "text": "Parklet"},
@@ -85,15 +79,6 @@
       {"id": "fleece", "text": "Fleece"},
       {"id": "lanyard", "text": "Lanyard"},
       {"id": "beanbag", "text": "Beanbag"},
-      {"id": "standup", "text": "Standup"},
-      {"id": "roadmap", "text": "Roadmap"},
-      {"id": "seedling", "text": "Seedling"},
-      {"id": "token", "text": "Token"},
-      {"id": "prompt", "text": "Prompt"},
-      {"id": "shard", "text": "Shard"},
-      {"id": "cache", "text": "Cache"},
-      {"id": "vibe", "text": "Vibe"},
-      {"id": "waitlist", "text": "Waitlist"},
       {"id": "burrito", "text": "Burrito"},
       {"id": "churro", "text": "Churro"},
       {"id": "pesto", "text": "Pesto"},
@@ -113,7 +98,6 @@
       {"id": "crema", "text": "Crema"},
       {"id": "kombucha", "text": "Kombucha"},
       {"id": "seltzer", "text": "Seltzer"},
-      {"id": "gravy", "text": "Gravy"},
       {"id": "cruller", "text": "Cruller"},
       {"id": "tamarind", "text": "Tamarind"},
       {"id": "lychee", "text": "Lychee"},
@@ -159,7 +143,6 @@
       {"id": "kiosk", "text": "Kiosk"},
       {"id": "turret", "text": "Turret"},
       {"id": "cupola", "text": "Cupola"},
-      {"id": "gable", "text": "Gable"},
       {"id": "dormer", "text": "Dormer"},
       {"id": "attic", "text": "Attic"},
       {"id": "cellar", "text": "Cellar"},
@@ -169,20 +152,16 @@
       {"id": "chimney", "text": "Chimney"},
       {"id": "banister", "text": "Banister"},
       {"id": "doorstop", "text": "Doorstop"},
-      {"id": "sprocket", "text": "Sprocket"},
       {"id": "gasket", "text": "Gasket"},
       {"id": "ratchet", "text": "Ratchet"},
       {"id": "winch", "text": "Winch"},
-      {"id": "spindle", "text": "Spindle"},
       {"id": "spool", "text": "Spool"},
       {"id": "whatsit", "text": "Whatsit"},
       {"id": "teaspoon", "text": "Teaspoon"},
       {"id": "saucepan", "text": "Saucepan"},
-      {"id": "napkin", "text": "Napkin"},
       {"id": "cobweb", "text": "Cobweb"},
       {"id": "thicket", "text": "Thicket"},
       {"id": "paddock", "text": "Paddock"},
-      {"id": "bucket", "text": "Bucket"},
       {"id": "pail", "text": "Pail"},
       {"id": "tureen", "text": "Tureen"},
       {"id": "cauldron", "text": "Cauldron"},
@@ -190,19 +169,14 @@
       {"id": "shovel", "text": "Shovel"},
       {"id": "mudflat", "text": "Mudflat"},
       {"id": "seafoam", "text": "Seafoam"},
-      {"id": "chisel", "text": "Chisel"},
-      {"id": "spanner", "text": "Spanner"},
       {"id": "clamp", "text": "Clamp"},
       {"id": "bellows", "text": "Bellows"},
       {"id": "candle", "text": "Candle"},
-      {"id": "foxglove", "text": "Foxglove"},
       {"id": "primrose", "text": "Primrose"},
       {"id": "daffodil", "text": "Daffodil"},
       {"id": "petunia", "text": "Petunia"},
       {"id": "begonia", "text": "Begonia"},
-      {"id": "zinnia", "text": "Zinnia"},
       {"id": "peony", "text": "Peony"},
-      {"id": "lilac", "text": "Lilac"},
       {"id": "sorghum", "text": "Sorghum"},
       {"id": "quinoa", "text": "Quinoa"},
       {"id": "lentil", "text": "Lentil"},
@@ -445,7 +419,23 @@
       {"id": "stormy", "text": "Stormy"},
       {"id": "sugary", "text": "Sugary"},
       {"id": "velvety", "text": "Velvety"},
-      {"id": "waxy", "text": "Waxy"}
+      {"id": "waxy", "text": "Waxy"},
+      {"id": "balmy", "text": "Balmy"},
+      {"id": "crispy", "text": "Crispy"},
+      {"id": "dainty", "text": "Dainty"},
+      {"id": "crumbly", "text": "Crumbly"},
+      {"id": "flinty", "text": "Flinty"},
+      {"id": "wispy", "text": "Wispy"},
+      {"id": "wavy", "text": "Wavy"},
+      {"id": "muddy", "text": "Muddy"},
+      {"id": "puddly", "text": "Puddly"},
+      {"id": "roomy", "text": "Roomy"},
+      {"id": "soupy", "text": "Soupy"},
+      {"id": "tufty", "text": "Tufty"},
+      {"id": "twinkly", "text": "Twinkly"},
+      {"id": "tousled", "text": "Tousled"},
+      {"id": "cheery", "text": "Cheery"},
+      {"id": "ruffled", "text": "Ruffled"}
     ],
     "playerNoun": [
       {"id": "pelican", "text": "Pelican"},
@@ -623,10 +613,352 @@
       {"id": "ray", "text": "Ray"}
     ]
   },
+  "removed": [
+    {
+      "id": "standup",
+      "text": "Standup",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Standup <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "roadmap",
+      "text": "Roadmap",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Roadmap <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "seedling",
+      "text": "Seedling",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Seedling <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "token",
+      "text": "Token",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Token <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "prompt",
+      "text": "Prompt",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Prompt <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "shard",
+      "text": "Shard",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Shard <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "cache",
+      "text": "Cache",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Cache <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "vibe",
+      "text": "Vibe",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Vibe <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "waitlist",
+      "text": "Waitlist",
+      "pool": "startupHead",
+      "kind": "jargon",
+      "searchedOn": "2026-10-20",
+      "queries": [],
+      "findings": "AI and startup jargon: 'Waitlist <tail>' is the commonest real-startup naming pattern, so the head collides across the board (the review confirmed Token Metrics, tokenmetrics.com, and PromptHub, prompthub.us, on 2026-10-20). Dropped rather than searching every pair.",
+      "sources": []
+    },
+    {
+      "id": "foxglove",
+      "text": "Foxglove",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Foxglove robotics software company"
+      ],
+      "findings": "Foxglove is a San Francisco robotics software company (Foxglove Studio, the MCAP format; Series B led by Bessemer). Robotics: a conflict.",
+      "sources": [
+        "https://www.foxglove.dev/about",
+        "https://techcrunch.com/2022/10/11/foxglove-raises-16m-to-build-dev-infrastructure-for-robots/amp/"
+      ]
+    },
+    {
+      "id": "lilac",
+      "text": "Lilac",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Lilac Labs AI startup"
+      ],
+      "findings": "Lilac Labs is a San Francisco voice-AI drive-thru startup; Lilac AI (data tools) and a GPU-management Lilac also exist. AI software: a conflict.",
+      "sources": [
+        "https://www.vcbacked.co/company/lilac-labs",
+        "https://craft.co/lilac-ai"
+      ]
+    },
+    {
+      "id": "napkin",
+      "text": "Napkin",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Napkin AI app"
+      ],
+      "findings": "Napkin AI (napkin.ai) turns text into diagrams. AI software: a conflict.",
+      "sources": [
+        "https://www.g2.com/products/napkin-ai/discuss",
+        "https://softwarefinder.com/artificial-intelligence/napkin-ai"
+      ]
+    },
+    {
+      "id": "chisel",
+      "text": "Chisel",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Chisel Labs software company"
+      ],
+      "findings": "Chisel Labs (chisellabs.com) is product-management software, reported acquired by Pendo in 2026; Chisel AI is insurance AI. Software: a conflict.",
+      "sources": [
+        "https://www.zoominfo.com/c/chisel-labs-inc/563184202",
+        "https://www.cbinsights.com/company/chisel"
+      ]
+    },
+    {
+      "id": "spindle",
+      "text": "Spindle",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Spindle AI analytics startup"
+      ],
+      "findings": "Spindle AI was an agentic analytics startup; Salesforce closed its acquisition on 2025-11-21. AI software: a conflict.",
+      "sources": [
+        "https://www.salesforce.com/news/stories/salesforce-signs-definitive-agreement-to-acquire-spindle-ai/"
+      ]
+    },
+    {
+      "id": "zinnia",
+      "text": "Zinnia",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Zinnia insurance technology company"
+      ],
+      "findings": "Zinnia is a life and annuity insurance technology company (formerly SE2). Insurtech software: a conflict.",
+      "sources": [
+        "https://fintech.global/2022/09/08/se2-becomes-zinnia-to-level-up-life-and-annuities-insurance/",
+        "https://www.g2.com/products/zinnia/discuss"
+      ]
+    },
+    {
+      "id": "gravy",
+      "text": "Gravy",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Gravy fintech failed payment recovery company"
+      ],
+      "findings": "Gravy is a fintech that recovers failed subscription payments (Series A 2021). Fintech: a conflict for 'Gravy Pay', 'Gravy Data' and the like.",
+      "sources": [
+        "https://techcrunch.com/?p=2114098",
+        "https://fintech.global/2021/02/18/gravy-closes-series-a-round-to-support-growth-of-its-failed-payment-resolution-platform/"
+      ]
+    },
+    {
+      "id": "melon",
+      "text": "Melon",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Melon live streaming app Logitech"
+      ],
+      "findings": "Melon is a browser live-streaming tool, now listed as Streamlabs Talk Studio. Software: a conflict.",
+      "sources": [
+        "https://www.capterra.com/p/231375/Melon/reviews/"
+      ]
+    },
+    {
+      "id": "hammock",
+      "text": "Hammock",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Hammock landlord fintech app"
+      ],
+      "findings": "Hammock (usehammock.com) is UK landlord accounting and banking software (FCA-registered); an AI travel app of the same name exists. Fintech: a conflict.",
+      "sources": [
+        "https://usehammock.com/about",
+        "https://fintech.global/?p=47763"
+      ]
+    },
+    {
+      "id": "rowboat",
+      "text": "Rowboat",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Rowboat Labs AI agents startup"
+      ],
+      "findings": "Rowboat Labs (rowboatlabs.com) is a San Francisco open-source AI-agent startup. AI software: a conflict.",
+      "sources": [
+        "https://docs.rowboatlabs.com",
+        "https://ycombinator.com/companies/rowboat-labs"
+      ]
+    },
+    {
+      "id": "bucket",
+      "text": "Bucket",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Bucket feature flags startup bucket.co"
+      ],
+      "findings": "Bucket (bucket.co) is feature-flag software for B2B SaaS. Software: a conflict.",
+      "sources": [
+        "https://bucket.co/changelog/introducing-feature-flags-for-b2b",
+        "https://docs.bucket.co/docs/feature-flags"
+      ]
+    },
+    {
+      "id": "gable",
+      "text": "Gable",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Gable data contracts startup gable.ai"
+      ],
+      "findings": "Gable (gable.ai) is a data-contracts platform ($7M seed, 2023). Software: a conflict.",
+      "sources": [
+        "https://docs.gable.ai/docs/data_contracts/creating_data_contracts",
+        "https://www.etcentric.org/gable-ai-aims-to-reinvent-how-data-engineers-and-ai-interact/"
+      ]
+    },
+    {
+      "id": "cable",
+      "text": "Cable",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Cable AML compliance fintech startup cable.tech"
+      ],
+      "findings": "Cable is an automated AML compliance-testing company for banks and fintechs, acquired by Synctera in 2026; CableLabs was already a banned pair. Fintech: a conflict.",
+      "sources": [
+        "https://www.pymnts.com/partnerships/2026/synctera-looks-to-beef-up-compliance-with-cable-acquisition/"
+      ]
+    },
+    {
+      "id": "sprocket",
+      "text": "Sprocket",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Sprocket printer HP app"
+      ],
+      "findings": "HP Sprocket is HP's pocket photo printer and app. A hardware and software product name: a conflict.",
+      "sources": [
+        "https://www.hp.com/nz-en/shop/sprocket/getting-started"
+      ]
+    },
+    {
+      "id": "cactus",
+      "text": "Cactus",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Cactus Custody crypto company"
+      ],
+      "findings": "Cactus Custody is Matrixport's institutional digital-asset custodian. Fintech: a conflict.",
+      "sources": [
+        "https://www.cbinsights.com/company/cactus-custody",
+        "https://www.alchemy.com/dapps/cactus-custody"
+      ]
+    },
+    {
+      "id": "spanner",
+      "text": "Spanner",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Google Cloud Spanner database"
+      ],
+      "findings": "Spanner is Google Cloud's distributed database. Software: a conflict ('Spanner Data', 'SpannerBase').",
+      "sources": [
+        "https://techcrunch.com/2017/02/14/google-launches-cloud-spanner-a-new-globally-distributed-database-service/"
+      ]
+    },
+    {
+      "id": "crouton",
+      "text": "Crouton",
+      "pool": "startupHead",
+      "kind": "conflict",
+      "searchedOn": "2026-10-20",
+      "queries": [
+        "Crouton recipe manager app"
+      ],
+      "findings": "Crouton: Recipe Manager is an iOS app (Devin Davies). Software: a conflict.",
+      "sources": [
+        "https://apps.apple.com/app/id1461650987",
+        "https://www.macstories.net/?p=64007"
+      ]
+    }
+  ],
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:e651bff6",
+    "contentHash": "fnv1a32:ac34d614",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
   }
