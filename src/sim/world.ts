@@ -1,5 +1,8 @@
 // Static world data the sim collides with. Loaded from tile collider JSON
-// (schemas/tile-collider.schema.json); never part of SimState, never mutated.
+// (schemas/tile-collider.schema.json) and, optionally, the world road graph
+// (schemas/roads.schema.json); never part of SimState, never mutated.
+
+import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 
 export interface BuildingCollider {
   id: string;
@@ -32,13 +35,33 @@ export interface World {
   tiles: TileCollider[];
   /** Derived spatial index: "cx,cz" -> buildings overlapping that 50 m cell. */
   grid: Map<string, BuildingCollider[]>;
+  /** Derived: cellKey(gx, gz) of GROUND_CELL m cells -> tiles whose heightfield overlaps the cell, ascending id order. */
+  groundIndex: Map<number, TileCollider[]>;
+  /** Derived: cellKey(cx, cz) of 50 m cells -> buildings overlapping the cell (same lists as grid, numeric keys). */
+  cells: Map<number, BuildingCollider[]>;
+  /** Derived: each building's bounding box [minX, minZ, maxX, maxZ]. */
+  bounds: Map<BuildingCollider, [number, number, number, number]>;
+  /** Static road graph for traffic and robots (src/sim/roads.ts), or null when the world has none. */
+  roads: RoadGraph | null;
 }
 
 const CELL = 50;
+const GROUND_CELL = 250;
 
-export function buildWorld(tiles: readonly TileCollider[]): World {
+/** Integer cell coordinates (|c| < 2^20) packed into one number, for allocation-free Map keys. */
+export function cellKey(cx: number, cz: number): number {
+  return (cx + 1048576) * 2097152 + (cz + 1048576);
+}
+
+/**
+ * Build the static world. `roads` is the world's roads.json (manifest.roads), loaded alongside
+ * the colliders; without it the world has no ambient traffic.
+ */
+export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null): World {
   const sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0));
   const grid = new Map<string, BuildingCollider[]>();
+  const cells = new Map<number, BuildingCollider[]>();
+  const bounds = new Map<BuildingCollider, [number, number, number, number]>();
   for (const t of sorted) {
     for (const b of t.buildings) {
       let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
@@ -48,17 +71,40 @@ export function buildWorld(tiles: readonly TileCollider[]): World {
         if (z < minZ) minZ = z;
         if (z > maxZ) maxZ = z;
       }
+      bounds.set(b, [minX, minZ, maxX, maxZ]);
       for (let cx = Math.floor(minX / CELL); cx <= Math.floor(maxX / CELL); cx++) {
         for (let cz = Math.floor(minZ / CELL); cz <= Math.floor(maxZ / CELL); cz++) {
           const key = `${cx},${cz}`;
           let list = grid.get(key);
-          if (!list) grid.set(key, (list = []));
+          if (!list) {
+            grid.set(key, (list = []));
+            cells.set(cellKey(cx, cz), list);
+          }
           list.push(b);
         }
       }
     }
   }
-  return { tiles: sorted, grid };
+  const groundIndex = new Map<number, TileCollider[]>();
+  for (const t of sorted) {
+    const g = t.ground;
+    if (!g) continue;
+    const x1 = g.x0 + (g.nx - 1) * g.cellSizeM;
+    const z1 = g.z0 + (g.nz - 1) * g.cellSizeM;
+    for (let gx = Math.floor(g.x0 / GROUND_CELL); gx <= Math.floor(x1 / GROUND_CELL); gx++) {
+      for (let gz = Math.floor(g.z0 / GROUND_CELL); gz <= Math.floor(z1 / GROUND_CELL); gz++) {
+        const key = cellKey(gx, gz);
+        let list = groundIndex.get(key);
+        if (!list) groundIndex.set(key, (list = []));
+        list.push(t);
+      }
+    }
+  }
+  const world: World = { tiles: sorted, grid, groundIndex, cells, bounds, roads: null };
+  if (roads) {
+    world.roads = buildRoadGraph(roads, { blocked: (x, z, r) => circleBlocked(world, x, z, r) });
+  }
+  return world;
 }
 
 /** Buildings whose bounding cells overlap the square of half-size r around (x, z). Deterministic order. */
@@ -79,9 +125,11 @@ export function nearbyBuildings(world: World, x: number, z: number, r: number): 
   return out;
 }
 
-/** Ground height at (x, z): bilinear over whichever tile heightfield covers the point, else 0. */
+/** Ground height at (x, z): bilinear over whichever tile heightfield covers the point (first in id order), else 0. */
 export function groundHeight(world: World, x: number, z: number): number {
-  for (const t of world.tiles) {
+  const candidates = world.groundIndex.get(cellKey(Math.floor(x / GROUND_CELL), Math.floor(z / GROUND_CELL)));
+  if (!candidates) return 0;
+  for (const t of candidates) {
     const g = t.ground;
     if (!g) continue;
     const fx = (x - g.x0) / g.cellSizeM;
@@ -172,3 +220,23 @@ export function resolveCircle(
   }
   return { x, z, hit };
 }
+
+/** Does a circle of radius r at (x, z) overlap any building footprint? (Height is ignored: for ground agents.) */
+export function circleBlocked(world: World, x: number, z: number, r: number): boolean {
+  const r2 = r * r;
+  for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
+    for (let cz = Math.floor((z - r) / CELL); cz <= Math.floor((z + r) / CELL); cz++) {
+      const list = world.cells.get(cellKey(cx, cz));
+      if (!list) continue;
+      for (const b of list) {
+        if (b.topY <= b.baseY) continue;
+        const bb = world.bounds.get(b)!;
+        if (x + r < bb[0] || x - r > bb[2] || z + r < bb[1] || z - r > bb[3]) continue;
+        if (pointInPolygon(x, z, b.footprint)) return true;
+        if (closestOnBoundary(x, z, b.footprint).d2 < r2) return true;
+      }
+    }
+  }
+  return false;
+}
+
