@@ -16,7 +16,7 @@ export const LIGHT_DAY_INTENSITY = 0;
 /** emissiveIntensity at full night, per light material (base name, without a ".001" suffix). */
 export const LIGHT_NIGHT_INTENSITY: Readonly<Record<string, number>> = Object.freeze({
   light_headlight: 2.4,
-  light_taillight: 1.5,
+  light_taillight: 0.9,
   light_status: 1.6,
   light_face: 1.4,
   light_eyes: 1.4,

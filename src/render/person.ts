@@ -86,14 +86,17 @@ function build(detail: "near" | "far"): { body: THREE.BufferGeometry; arm: THREE
     tapered(0.33, 0.2, 0.21, 1.0, 1.0, pants, 0.92),
     tapered(0.33, 0.47, 0.22, 1.27, 1.02, shirt, 1.235),
     at(new THREE.CylinderGeometry(0.048, 0.055, 0.1, seg), skin, 0, 1.51, 0),
-    at(new THREE.SphereGeometry(0.105, near ? 12 : 6, near ? 9 : 4), skin, 0, 1.635, 0, 1, 1.12, 1.02),
-    // Hair: a cap over the crown, and down the back of the head (z >= 0) to the nape.
-    at(new THREE.SphereGeometry(0.112, near ? 12 : 6, near ? 4 : 2, 0, Math.PI * 2, 0, Math.PI * 0.3), hair, 0, 1.645, 0.006, 1, 1.12, 1.04),
+    at(new THREE.SphereGeometry(0.1, near ? 12 : 6, near ? 9 : 4), skin, 0, 1.635, 0, 0.86, 1.15, 0.98),
+    // Hair: a cap over the crown down to the hairline, and down the back and sides of the head.
+    at(new THREE.SphereGeometry(0.106, near ? 12 : 6, near ? 4 : 2, 0, Math.PI * 2, 0, Math.PI * 0.36), hair, 0, 1.643, 0.004, 0.88, 1.15, 1.0),
   ];
-  if (near) body.push(at(new THREE.SphereGeometry(0.111, 8, 5, 0, Math.PI, Math.PI * 0.25, Math.PI * 0.42), hair, 0, 1.645, 0.006, 1.01, 1.12, 1.05));
+  if (near) {
+    // phi from -0.1 pi to 1.1 pi: behind the ears round the back (+z) to the other side.
+    body.push(at(new THREE.SphereGeometry(0.105, 10, 5, -Math.PI * 0.1, Math.PI * 1.2, Math.PI * 0.25, Math.PI * 0.4), hair, 0, 1.643, 0.004, 0.89, 1.15, 1.01));
+  }
   if (near) {
     for (const x of [-SHOULDER[0], SHOULDER[0]]) body.push(at(new THREE.SphereGeometry(0.062, 8, 6), shirt, x * 0.94, SHOULDER[1] - 0.005, SHOULDER[2]));
-    body.push(at(new THREE.BoxGeometry(0.03, 0.025, 0.04), skin, 0, 1.625, -0.105));
+    body.push(at(new THREE.BoxGeometry(0.026, 0.03, 0.035), skin, 0, 1.62, -0.1));
   }
 
   const arm = mergePacked([
