@@ -34,6 +34,14 @@ export interface RoadEdge {
   classcode: number | null;
   /** Pedestrian-only street (layer STREETS_PEDESTRI): not for vehicles. */
   pedestrian?: boolean;
+  /**
+   * A freeway (classcode 1): limited access, crossing other streets on a viaduct, in a cut
+   * or in a tunnel. The source has no deck heights, so its points and node y are the ground
+   * under it, not the roadway. Surface traffic should not be routed onto it.
+   */
+  gradeSeparated?: boolean;
+  /** Part of the edge crosses open water (the Bay Bridge approach): a deck the source gives no height for. */
+  bridge?: boolean;
 }
 
 export interface RoadGraph {
@@ -81,14 +89,30 @@ function nodeCnn(v: string | undefined): string | null {
   return `n${Math.round(n)}`;
 }
 
-/** "THE EMBARCADERO" -> "The Embarcadero", "3RD ST" -> "3rd St". */
+/** "THE EMBARCADERO" -> "The Embarcadero", "03RD ST" -> "3rd St" (DataSF zero-pads numbered streets). */
 export function titleCase(s: string): string {
   return s
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) => (/^[0-9]/.test(w) ? w : w[0]!.toUpperCase() + w.slice(1)))
+    .map((w) => (/^[0-9]/.test(w) ? w.replace(/^0+(?=\d)/, "") : w[0]!.toUpperCase() + w.slice(1)))
     .join(" ");
+}
+
+/** True when the polyline has a stretch (two consecutive samples ~10 m apart) over water. */
+function crossesWater(points: readonly P2[], waterAt: (x: number, z: number) => boolean): boolean {
+  let prev = false;
+  for (let i = 1; i < points.length; i++) {
+    const [ax, az] = points[i - 1]!;
+    const [bx, bz] = points[i]!;
+    const steps = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 10));
+    for (let s = i === 1 ? 0 : 1; s <= steps; s++) {
+      const w = waterAt(ax + ((bx - ax) * s) / steps, az + ((bz - az) * s) / steps);
+      if (w && prev) return true;
+      prev = w;
+    }
+  }
+  return false;
 }
 
 function lineStrings(line: RawStreet["line"]): Array<Array<[number, number]>> {
@@ -113,19 +137,25 @@ export interface RoadStats {
   nodes: number;
   synthesizedNodes: number;
   byKind: Record<string, number>;
+  /** Edges flagged bridge (a stretch over open water). */
+  bridges: number;
   components: number;
   largestComponentNodes: number;
 }
 
-/** heightAt: ground height in metres at a local point (the sim's ground inside the world, the DEM outside). */
+/**
+ * heightAt: ground height in metres at a local point (the sim's ground inside the world, the
+ * DEM outside); waterAt: whether the ground there is open water.
+ */
 export function buildRoads(
   raw: RawStreet[],
   tiles: TileRef[],
   heightAt: (x: number, z: number) => number,
+  waterAt: (x: number, z: number) => boolean = () => false,
 ): { graph: RoadGraph; stats: RoadStats } {
   const stats: RoadStats = {
     raw: raw.length, excludedLayer: 0, outside: 0, degenerate: 0, edges: 0, nodes: 0, synthesizedNodes: 0,
-    byKind: {}, components: 0, largestComponentNodes: 0,
+    byKind: {}, bridges: 0, components: 0, largestComponentNodes: 0,
   };
   interface Pending { seg: RawStreet; part: number; pts: P2[]; fNode: string; tNode: string }
   const pending: Pending[] = [];
@@ -232,6 +262,11 @@ export function buildRoads(
       classcode,
     };
     if (seg.layer === "STREETS_PEDESTRI") e.pedestrian = true;
+    if (kind === "freeway") e.gradeSeparated = true;
+    if (crossesWater(points, waterAt)) {
+      e.bridge = true;
+      stats.bridges++;
+    }
     edges.push(e);
     stats.byKind[kind] = (stats.byKind[kind] ?? 0) + 1;
   }

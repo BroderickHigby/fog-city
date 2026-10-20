@@ -11,8 +11,9 @@ node pipeline/build-world.ts --world sf --refresh  # re-download everything (Dat
 ```
 
 Flags: `--cache <dir>` uses another download cache and `--out <dir>` writes elsewhere.
-A cold run (empty cache) took 105 s on 2026-10-20, with at most 3 requests in flight. DataSF
-often answers HTTP 425 "Too Early"; 408/425/429/5xx are retried with exponential backoff.
+A cold run (empty cache) took 105 s on 2026-10-20. Requests are serial: the build waits for
+each response before sending the next. DataSF still often answers HTTP 425 "Too Early";
+408/425/429/5xx are retried with exponential backoff.
 A warm run takes about 3 s. Raw responses are cached in `pipeline/.cache/http/`
 (gitignored, one file per URL plus a `.url` sidecar naming it). That cold run, compared
 with `--check`, reproduced every committed file byte for byte. The same cache always gives
@@ -31,7 +32,7 @@ credit the sources anyway. The strings are in `manifest.json` `attribution`.
 |---|---|---|---|
 | Building footprints and heights | DataSF *Building Footprints*, [`ynuv-fyni`](https://data.sfgov.org/resource/ynuv-fyni.json). Geometry `shape` (MultiPolygon). Queried with `intersects(shape, <tile-rectangle polygon>)` (`within_box` only returns footprints wholly inside the box), paged by `$order=sf16_bldgid`. | `sf16_bldgid`, `mblr`, `gnd_*cm` (ground NAVD88, cm), `hgt_*cm` (height above ground, cm) | PDDL 1.0. "City and County of San Francisco, DataSF" |
 | Street centerlines | DataSF *Streets – Active and Retired*, [`3psu-pn9h`](https://data.sfgov.org/resource/3psu-pn9h.json). Geometry `line`. `active = true` only. | `cnn`, `streetname`, `st_type`, `classcode`, `layer`, `oneway`, `f_node_cnn`, `t_node_cnn` | PDDL 1.0. "City and County of San Francisco, DataSF" |
-| Building year, use and storeys | DataSF *Assessor Historical Secured Property Tax Rolls*, [`wv5m-vpq2`](https://data.sfgov.org/resource/wv5m-vpq2.json). `closed_roll_year = 2025`, pinned in `pipeline/areas.json`. | `parcel_number`, `year_property_built`, `use_definition`, `number_of_stories`, `number_of_units`, `the_geom` | PDDL 1.0. "San Francisco Office of the Assessor-Recorder via DataSF" |
+| Building year, use and storeys | DataSF *Assessor Historical Secured Property Tax Rolls*, [`wv5m-vpq2`](https://data.sfgov.org/resource/wv5m-vpq2.json). `closed_roll_year = 2025`, pinned in `pipeline/areas.json`. | `parcel_number`, `block`, `year_property_built`, `use_code`, `use_definition`, `number_of_stories`, `number_of_units`, `the_geom` | PDDL 1.0. "San Francisco Office of the Assessor-Recorder via DataSF" |
 | Storefront anchors | DataSF *Registered Business Locations*, [`g8m3-pdis`](https://data.sfgov.org/resource/g8m3-pdis.json). Active rows only: `location_end_date`, `dba_end_date` and `administratively_closed` are all null. | `uniqueid` (hashed, never emitted), `self_reported_naics_code`, `location`. Names are never requested. | PDDL 1.0. "San Francisco Treasurer & Tax Collector via DataSF" |
 | Elevation | USGS 3DEP bare-earth DEM, [ImageServer `exportImage`](https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer), one uncompressed float32 GeoTIFF per area in WGS84 | metres NAVD88 | The service's `accessInformation` credit is "USGS National Map 3D Elevation Program (3DEP)". Its `licenseInfo` is empty. USGS-produced data are public domain under U.S. federal policy (17 U.S.C. §105). usgs.gov's policy page answered 403 from the build machine, so that last point comes from the policy and was not re-read. |
 | Height corrections | `pipeline/overrides.json`: public-record heights for buildings newer than the LiDAR | `heightM`, with a `source` note per entry | Facts, cited per entry |
@@ -105,7 +106,7 @@ landmarks:
 | 600 Montgomery St pyramid | `201006.0000687`, `201006.0000687-tower` |
 | Coit Tower | `201006.0006230`, `201006.0006230-tower` |
 | Saints Peter and Paul Church | `201006.0003946` (nearest, 9 m) |
-| Pier at The Embarcadero and Beach St (`beach-st-pier`) | `201006.0000037`, `201006.0000037-tower` |
+| Pier at The Embarcadero and Beach St (`beach-st-pier`) | `201006.0000037` |
 | Palace of Fine Arts rotunda | `201006.0000986`, `201006.0000986-tower` |
 | 315 Pennsylvania Ave (Dogpatch) | `201006.0010443`, `201006.0010443-tower` |
 
@@ -122,16 +123,36 @@ themselves are newer. For each footprint, in order:
    storeys × storey height (office 4.0, retail 4.5, industrial 5.0, hotel 3.4, residential
    3.2, otherwise 3.6 m) + 1.5 m. Used for 88 buildings.
 3. **LiDAR** for the other 14,144:
-   * If `hgt_max − hgt_median ≤ max(4 m, 0.3 × median)`, one prism at `hgt_max` (roof
+   * If `d = hgt_max − hgt_median ≤ max(4 m, 0.3 × median)`, one prism at `hgt_max` (roof
      including parapets).
-   * Otherwise **two-tier massing**, in 2,513 buildings: a podium at `hgt_median` over the
-     whole footprint, plus a tower at `hgt_max`. The tower covers an area fraction
-     `f = (mean − median)/(max − median)` of the footprint, clamped to [0.04, 0.5]. Its
-     footprint is the building's footprint clipped to a square of that area, centred on the
-     centroid and aligned with the longest wall (lengthened along the wall where the
-     building is narrower than the square). A long hall therefore gets a compact tower, not
-     a slab. This keeps the Ferry Building a low hall with a clock tower rather than a 75 m
-     wall.
+   * Otherwise the max is either a tower or an **outlier**: edge bleed from a neighbouring
+     tower, a single LiDAR return, a tree. The statistics decide which
+     (`towerFraction` and `plausibleTower` in `pipeline/lib/buildings.ts`). They are read as
+     three levels: a fraction `a` of the footprint at the max, a fraction `b` near ground
+     level (courtyards, light wells, low wings), and the rest at the median roof. Matching
+     the mean and the standard deviation gives
+     `a = (std² + m1² + m1·median) / (d·(d + median))` with `m1 = mean − median`. When that
+     leaves `b < 0` (nothing low), the two-level `a = m1 / d` is used. `a` is clamped to
+     [0, 0.5]. The low level matters: the Russ Building (31 storeys on lower wings) has its
+     mean below its median, and is still a tower.
+   * **Two-tier massing** when the tower is plausible, in 631 buildings: its area
+     `a × footprint` is at least 25 m², and it rises above the podium at most 10 times its
+     width (`d ≤ 10·√area`; the 600 Montgomery St pyramid, the most slender real case, is at
+     9.7). Then there is a podium at `hgt_median` over the whole footprint, plus a tower at
+     `hgt_max` covering `a` of it. The tower footprint is the building's footprint clipped to
+     a square of that area, centred on the centroid and aligned with the longest wall
+     (lengthened along the wall where the building is narrower than the square). A long hall
+     therefore gets a compact tower, not a slab. This keeps the Ferry Building a low hall
+     with a clock tower (a = 0.018, 181 m²) rather than a 75 m wall.
+   * **Outlier max** otherwise, in 1,882 buildings: one prism at the median plus a rooftop
+     allowance (parapets, stair and lift overruns) of `max(3 m, 10 % of the median)`, never
+     above the max. Examples the rule removes: a 144 m, 8 m² needle on a 3-storey 1908 house
+     on Nob Hill (`201006.0024724`, a ≈ 0.02); a 169 m needle on a 40 m building beside a
+     real 178 m tower (`201006.0001118`, mean below median, a ≈ 0.006); the podium wing of a
+     33-storey parcel that caught its tower's wall (`201006.0001964`, 66 m² at +111 m).
+     Before this rule (two-level `a` clamped up to 0.04, every max trusted) there were
+     2,513 towers; 21 of them covered under 20 m² yet stood more than 30 m above their
+     podium.
    * A two-tier building is **two collider records**: `<id>` (the podium, `meta.tower`
      names the tower) and `<id>-tower` (`meta.towerOf`, `meta.podiumTopY`). Both have the
      same ground-level `baseY`, so a renderer that extrudes colliders draws the right
@@ -154,7 +175,25 @@ the LiDAR's own ground (`gnd_mediancm`), or the DEM when the two disagree by mor
 
 **Assessor join (meta).** 97.1 % of kept footprints joined a 2025-roll parcel: 13,545 by
 exact block/lot (`mblr` = `"SF" + parcel_number`) and 279 by a parcel point inside the
-footprint. Of the kept footprints, 13,486 have a year built and 12,638 a storey count.
+footprint (the one with the most storeys when several are inside). Of the kept footprints,
+13,486 have a year built and 12,613 a storey count. Three corrections:
+
+* **Noise.** Storey counts above 70 are data-entry noise (the roll has 999, 752, 591…; the
+  tallest building in the city has 61 floors) and are ignored.
+* **Condominiums.** A condominium building is many unit parcels on one point. The joined
+  parcel then describes one unit: typically "Single Family Residential", 1 or 2 storeys,
+  on a 90 m tower. When the joined parcel shares its block and point (within about 1 m)
+  with at least 3 parcels, the record gets `condo: true`, `units` = the number of parcels
+  there, `stories` = the most storeys any of them records (some unit rows carry the
+  building's count: 58 at 301 Mission St), and `use` = "Residential Condominium" when every
+  unit is residential (`SRES`/`MRES`). 1,161 records. Unit-derived storeys never feed a
+  height: the assessor-storey heights above use the joined parcel's own count.
+* **Plausibility.** A LiDAR-height building keeps `stories` only when
+  `stories × 2.4 − 10 ≤ height ≤ stories × 6 + 15` (height = the tower's when there is
+  one). 230 counts fail and are left out: condo units, a parcel's tower storeys on its low
+  wing, a parcel shared with a different building. The facade storey height then falls
+  back to the use's default (office 4.0, residential 3.2, industrial 5.0, otherwise 3.6 m)
+  instead of `height / stories`.
 
 `meta` keys:
 
@@ -164,7 +203,8 @@ footprint. Of the kept footprints, 13,486 have a year built and 12,638 a storey 
 | `heightM` | Height above the ground reference |
 | `heightSource` | `lidar`, `assessor-stories` or `override` |
 | `lidarM` | LiDAR `[median, max]` height |
-| `parcel`, `year`, `use`, `stories`, `units` | From the assessor roll, when joined |
+| `parcel`, `year`, `use`, `stories`, `units` | From the assessor roll, when joined (corrected as above) |
+| `condo` | The parcel is one unit of a condominium building |
 | `tower` / `towerOf`, `podiumTopY` | Two-tier pairing |
 
 ## Roads (`roads.json`, `schemas/roads.schema.json`)
@@ -183,8 +223,19 @@ footprint. Of the kept footprints, 13,486 have a year built and 12,638 a storey 
   → to; `T` is one-way to → from, so the edge is **reversed** (a = to-node, polyline
   reversed). Every one-way edge therefore flows a → b. Divided roads such as The
   Embarcadero are two one-way edges between the same nodes.
-* Extra fields beyond the schema: `cnn`, `classcode` (source tracing), and
-  `pedestrian: true` on `STREETS_PEDESTRI` (29 edges; not for vehicles).
+* **Names** are title-cased from `streetname`, with DataSF's zero padding of numbered
+  streets dropped (`03RD ST` → `3rd St`).
+* Extra fields beyond the schema: `cnn`, `classcode` (source tracing), and three flags:
+  * `pedestrian: true` on `STREETS_PEDESTRI` (29 edges): not for vehicles.
+  * `gradeSeparated: true` on every freeway (classcode 1, 24 edges): limited access, so it
+    crosses other streets on a viaduct, in a cut or in a tunnel. The source has no deck
+    heights, so its points and node `y` are the ground *under* the roadway. Surface
+    traffic and GPS should not route onto it until the decks are modelled. Ramps are not
+    flagged: some (Richardson Ave) are at grade.
+  * `bridge: true` where an edge has a stretch of at least 10 m over open water in the
+    DEM (7 edges): the I-80 Bay Bridge approach in both directions, the 3rd St bridge over
+    Mission Creek, and pier roads at Fisherman's Wharf. `y` there is sea level, not the
+    deck.
 
 **classcode → kind, lanes, width, speed.** `lanes` counts all directions on the edge.
 `widthM` = lanes × lane width + extra (parking and shoulders), kerb to kerb.
@@ -263,12 +314,12 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
 
 | Files | Bytes |
 |---|---|
-| 77 × `.glb` | 26.74 MB |
-| 77 × `.collider.json` | 8.32 MB |
+| 77 × `.glb` | 25.77 MB |
+| 77 × `.collider.json` | 7.75 MB |
 | `roads.json` | 0.65 MB |
 | `storefronts.json` | 0.41 MB |
 | `manifest.json` + `report.json` | 0.03 MB |
-| **Total (M0 + M1)** | **36.15 MB** (34.5 MiB; the target was < 40 MB) |
+| **Total (M0 + M1)** | **34.62 MB** (34,622,105 bytes; the target was < 40 MB, and a test holds it under 40,000,000 bytes) |
 
 ## Determinism
 
@@ -284,10 +335,15 @@ compares SHA-256 of every file.
   which are approximate (88 buildings), or an override (1). Buildings that replaced a
   different 2010 building on the same footprint keep the old height.
 * **Two-tier massing is a model.** The tower is centred on the podium's centroid; the real
-  tower may sit at a corner. Landmarks should be replaced by hand-made
-  models.
-* **Freeway and bridge decks** have no elevation in the source. The graph has them; the
-  GLB drapes them on land and omits them over water.
+  tower may sit at a corner. The tower test reads summary statistics, not the point cloud,
+  so a real but very slender tower (a church spire under 25 m²) becomes part of its roof,
+  and a bleed wide enough to pass (≥ 25 m² and ≤ 10:1) can still make a tower. Landmarks
+  should be replaced by hand-made models.
+* **Assessor storeys are corrected, not verified.** The plausibility band drops the
+  contradictions; a wrong count inside the band survives.
+* **Freeway and bridge decks** have no elevation in the source. The graph has them
+  (flagged `gradeSeparated` / `bridge`); the GLB drapes them on land and omits freeways over
+  water.
 * **Pier buildings** stand on water: the bare-earth DEM has no pier decks. Their roofs are
   at the LiDAR's absolute height.
 * **The world's edge:** footprints and roads that straddle the outermost tiles extend past
@@ -300,12 +356,21 @@ compares SHA-256 of every file.
 * `sf-world.test.ts`: goldens on the committed world:
   * schemas, tile grid, area coverage and the size budget;
   * the tallest building in the M0 box is the 415 Mission St tower at 325.1 m (within 10 %
-    of 326 m), and 600 Montgomery St's LiDAR height is within 10 % of 260 m;
+    of 326 m). That golden checks the override in `pipeline/overrides.json`, and its name
+    says so. The LiDAR scaling is checked by override-free goldens, each within 10 % of the
+    public-record roof: 600 Montgomery St (258.6 m vs 260), 555 California St (243.3 vs
+    237), 101 California St (189.3 vs 183) and 301 Mission St (194.9 vs 197);
+  * no needles: every tower covers at least 20 m² and rises at most 10.6× its width above
+    its podium; the review's needle examples are single prisms near their median roof;
+  * meta storeys agree with the LiDAR height, and condominium towers are not one-storey
+    houses;
   * ground at the origin is a few metres up, the bay is water, Telegraph Hill is above 60 m,
     and tile borders are shared exactly;
   * every building's `baseY` is within 1 m of the ground under its centroid, and no
     footprint vertex has `footY` above the ground;
-  * every road edge references existing nodes and starts and ends on them;
+  * every road edge references existing nodes and starts and ends on them; numbered
+    streets have no zero padding; freeways are `gradeSeparated` and the I-80 Bay Bridge
+    approach is a `bridge`;
   * the spawn is on The Embarcadero, heading along it, and the sim drives 3 s from it
     without a hit;
   * storefronts face out of their building and carry no names or ids.
@@ -313,6 +378,10 @@ compares SHA-256 of every file.
   building ranges match the collider.
 * `build-fixture.test.ts`: the whole build on a synthetic two-tile world. Byte-identical
   twice, plus every modelling rule above: oneway `T` reversal, layer drops, classcode
-  mapping, two-tier pairing, the assessor-storey rule, overrides, footY on a slope, water,
-  seams, storefront filtering and privacy, and GLB validity.
+  mapping, two-tier pairing, an outlier max making no tower, condominium joins, implausible
+  storeys, freeway and bridge flags, the assessor-storey rule, overrides, footY on a slope,
+  water, seams, storefront filtering and privacy, and GLB validity.
+* `tower-rule.test.ts`: the tower rule on real DataSF statistics: the 600 Montgomery
+  pyramid, the Ferry Building clock tower, Coit Tower, the Russ Building and an office slab
+  keep their towers; five measured needles (including the review's four) do not.
 * `geotiff.test.ts`: the TIFF reader against TIFFs built byte by byte.

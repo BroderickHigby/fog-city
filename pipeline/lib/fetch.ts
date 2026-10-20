@@ -3,7 +3,8 @@
 // Every response body is stored under pipeline/.cache/http/<sha256(url)>.<ext> with a
 // sidecar .url file naming the request. A cached URL is never fetched again unless
 // --refresh is given, so a rebuild from cache is offline and byte-identical.
-// Requests are throttled (a small concurrency cap) and retried with exponential backoff.
+// Requests are made one at a time (the build awaits each before the next, which keeps
+// DataSF's "425 Too Early" throttling rare) and retried with exponential backoff.
 
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -15,26 +16,10 @@ export interface FetchOptions {
   refresh?: boolean;
   /** Fail instead of touching the network when the URL is not cached. */
   offline?: boolean;
-  /** Max simultaneous requests (default 3). */
-  concurrency?: number;
   log?: (msg: string) => void;
 }
 
 export class CacheMiss extends Error {}
-
-let active = 0;
-const waiting: Array<() => void> = [];
-
-async function slot<T>(limit: number, fn: () => Promise<T>): Promise<T> {
-  while (active >= limit) await new Promise<void>((r) => waiting.push(r));
-  active++;
-  try {
-    return await fn();
-  } finally {
-    active--;
-    waiting.shift()?.();
-  }
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -51,7 +36,7 @@ export async function cachedGet(url: string, ext: string, opts: FetchOptions): P
   if (!opts.refresh && existsSync(file)) return readFileSync(file);
   if (opts.offline) throw new CacheMiss(`not cached (offline): ${url}`);
   mkdirSync(join(opts.cacheDir, "http"), { recursive: true });
-  const body = await slot(opts.concurrency ?? 3, () => getWithRetry(url, opts.log));
+  const body = await getWithRetry(url, opts.log);
   const tmp = `${file}.tmp`;
   writeFileSync(tmp, body);
   renameSync(tmp, file);

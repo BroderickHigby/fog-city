@@ -5,8 +5,11 @@
 //   - an explicit override (pipeline/overrides.json) when one exists;
 //   - else the 2025 assessor storey count when the parcel was built in or after 2010 and
 //     the LiDAR clearly saw less than the building has (construction site, empty lot);
-//   - else the LiDAR: one prism at the max height when max is close to the median, or a
-//     two-tier massing (podium at the median, a slimmer tower at the max) when it is not.
+//   - else the LiDAR: one prism at the max height when max is close to the median; a
+//     two-tier massing (podium at the median, a slimmer tower at the max) when it is not and
+//     the statistics describe a tower of plausible size (towerFraction); otherwise the max
+//     is an outlier (edge bleed from a neighbour, a single return, a tree) and the building
+//     is one prism at the median plus a rooftop allowance.
 // A two-tier building is two collider records: "<id>" (the podium, full footprint) and
 // "<id>-tower" (the footprint scaled about its centroid, meta.towerOf = "<id>"). Both start
 // at ground level, so a renderer that extrudes colliders draws the right massing; the GLB
@@ -36,6 +39,20 @@ import type { Ground } from "./terrain.ts";
 export const SIMPLIFY_TOL_M = 0.45;
 export const MIN_AREA_M2 = 4;
 export const MIN_HEIGHT_M = 2.5;
+/** A tower must cover at least this much ground (m²)... */
+export const MIN_TOWER_AREA_M2 = 25;
+/** ...and rise above its podium at most this many times its width (√area). */
+export const MAX_TOWER_SLENDERNESS = 10;
+/** A roof whose max is rejected as an outlier: median + max(3 m, 10 % of the median), at most the max. */
+export const ROOF_ALLOWANCE_M = 3;
+export const ROOF_ALLOWANCE_FRAC = 0.1;
+/** Parcels sharing one block and one point: condominium units of one building. */
+export const CONDO_MIN_UNITS = 3;
+/**
+ * Assessor storey counts above this are data-entry noise (the roll has 999, 752, 591...;
+ * San Francisco's tallest building has 61 floors) and are ignored.
+ */
+export const MAX_STORIES = 70;
 /** The LiDAR behind the footprint heights was flown in June 2010. */
 export const LIDAR_YEAR = 2010;
 
@@ -56,6 +73,8 @@ export interface BuildingMeta {
   use?: string;
   stories?: number;
   units?: number;
+  /** The parcel is one unit of a condominium building (its storeys and use describe the unit). */
+  condo?: boolean;
   /** Lowest ground under the footprint minus 5 cm: where walls start so nothing floats. */
   footY: number;
   /** Height of the highest roof above the building's ground reference, metres. */
@@ -96,10 +115,19 @@ export interface BuildingStats {
   heightStories: number;
   heightOverride: number;
   twoTier: number;
+  /** LiDAR max rejected as an outlier (no tower of plausible size behind it). */
+  maxOutlier: number;
+  condo: number;
+  /** Assessor storeys dropped because the LiDAR height contradicts them. */
+  storiesImplausible: number;
   groundRefFromDem: number;
 }
 
 const num = (s: string | undefined): number => (s === undefined || s === "" ? NaN : Number(s));
+const storiesOf = (p: RawParcel): number => {
+  const v = num(p.number_of_stories);
+  return v > 0 && v <= MAX_STORIES ? v : NaN;
+};
 
 function storyHeight(use: string | undefined): number {
   const u = (use ?? "").toLowerCase();
@@ -120,12 +148,24 @@ function outerRings(shape: RawBuilding["shape"]): Array<Array<[number, number]>>
   return [];
 }
 
+const siblingKey = (p: RawParcel): string | null => {
+  const g = p.the_geom?.coordinates;
+  return g && p.block ? `${p.block}@${g[0].toFixed(5)},${g[1].toFixed(5)}` : null;
+};
+
 class ParcelIndex {
   private cells = new Map<string, Array<{ p: RawParcel; x: number; z: number }>>();
+  private atPoint = new Map<string, RawParcel[]>();
   readonly byNumber = new Map<string, RawParcel>();
   constructor(parcels: RawParcel[]) {
     for (const p of parcels) {
       if (p.parcel_number) this.byNumber.set(p.parcel_number, p);
+      const sk = siblingKey(p);
+      if (sk) {
+        let l = this.atPoint.get(sk);
+        if (!l) this.atPoint.set(sk, (l = []));
+        l.push(p);
+      }
       const g = p.the_geom?.coordinates;
       if (!g) continue;
       const { x, z } = toLocal(g[1], g[0]);
@@ -149,6 +189,47 @@ class ParcelIndex {
     }
     return out.sort((a, b) => (a.parcel_number! < b.parcel_number! ? -1 : 1));
   }
+  /** Parcels in the same block at the same point (within ~1 m), the parcel itself included. */
+  siblings(p: RawParcel): RawParcel[] {
+    const sk = siblingKey(p);
+    return (sk && this.atPoint.get(sk)) || [p];
+  }
+}
+
+/**
+ * Area fraction of a footprint covered by a tower at the LiDAR max, from the height
+ * statistics, under a three-level model: a fraction `a` at the max, a fraction `b` near
+ * ground level (courtyards, light wells, low wings), the rest at the median roof. Matching
+ * the first two moments about the median gives
+ *   a = (std² + m1² + m1·median) / (d·(d + median)),  b = (a·d − m1) / median,
+ * with d = max − median and m1 = mean − median. When b comes out negative there is no low
+ * part and the two-level estimate a = m1 / d is used. Clamped to [0, 0.5].
+ * A single LiDAR return or a sliver of a neighbour's wall at the max gives a tiny a.
+ */
+export function towerFraction(median: number, max: number, mean: number, std: number): number {
+  const d = max - median;
+  if (!(d > 0) || !Number.isFinite(mean)) return 0;
+  const m1 = mean - median;
+  let a = m1 / d;
+  if (Number.isFinite(std) && median > 0) {
+    const a3 = (std * std + m1 * m1 + m1 * median) / (d * (d + median));
+    if (a3 * d - m1 >= 0) a = a3;
+  }
+  return Math.min(0.5, Math.max(0, a));
+}
+
+/** Does a tower of `fraction` of `footprintArea` that rises `rise` m above its podium look like a building? */
+export function plausibleTower(footprintArea: number, fraction: number, rise: number): boolean {
+  const area = footprintArea * fraction;
+  return area >= MIN_TOWER_AREA_M2 && rise <= MAX_TOWER_SLENDERNESS * Math.sqrt(area);
+}
+
+/**
+ * Assessor storeys that contradict the measured height (a condo unit's own floors, a parcel's
+ * storey count on a low wing of a tower) are not facts about this footprint.
+ */
+export function plausibleStories(stories: number, heightM: number): boolean {
+  return stories * 6 + 15 >= heightM && stories * 2.4 <= heightM + 10;
 }
 
 /**
@@ -253,7 +334,8 @@ export function buildBuildings(
   const stats: BuildingStats = {
     raw: raw.length, parts: 0, kept: 0, droppedSmall: 0, droppedOutside: 0, droppedLow: 0,
     joinMblr: 0, joinPoint: 0, withYear: 0, withStories: 0,
-    heightLidar: 0, heightStories: 0, heightOverride: 0, twoTier: 0, groundRefFromDem: 0,
+    heightLidar: 0, heightStories: 0, heightOverride: 0, twoTier: 0, maxOutlier: 0, condo: 0, storiesImplausible: 0,
+    groundRefFromDem: 0,
   };
   const out: Building[] = [];
 
@@ -301,18 +383,35 @@ export function buildBuildings(
         const inside = pidx.inside(ring);
         if (inside.length > 0) {
           // Prefer the parcel that says most about the building.
-          parcel = [...inside].sort((a, b) => num(b.number_of_stories) - num(a.number_of_stories) || 0)[0];
+          parcel = [...inside].sort((a, b) => (storiesOf(b) || 0) - (storiesOf(a) || 0))[0];
           join = "point";
         }
       }
       const year = parcel ? num(parcel.year_property_built) : NaN;
-      const stories = parcel ? num(parcel.number_of_stories) : NaN;
-      const units = parcel ? num(parcel.number_of_units) : NaN;
-      const use = parcel?.use_definition?.trim() || undefined;
+      // The joined parcel's own storeys: the only storeys a height is ever computed from.
+      const parcelStories = parcel ? storiesOf(parcel) : NaN;
+      // Storeys reported in meta (checked against the LiDAR height below).
+      let stories = parcelStories;
+      let units = parcel ? num(parcel.number_of_units) : NaN;
+      let use = parcel?.use_definition?.trim() || undefined;
+      // A condominium building is many unit parcels on one point; the joined parcel's storeys
+      // and use describe one unit (often "Single Family Residential", 1 storey). For meta, take
+      // the building's storeys as the most any unit records and count the units.
+      const siblings = parcel ? pidx.siblings(parcel) : [];
+      const condo = siblings.length >= CONDO_MIN_UNITS;
+      if (condo) {
+        stories = siblings.reduce((m, q) => {
+          const v = storiesOf(q);
+          return v > 0 && !(m >= v) ? v : m;
+        }, NaN);
+        units = siblings.length;
+        if (siblings.every((q) => q.use_code === "SRES" || q.use_code === "MRES")) use = "Residential Condominium";
+      }
 
       const hMax = num(rb.hgt_maxcm) / 100;
       const hMed = num(rb.hgt_mediancm) / 100;
       const hMean = num(rb.hgt_meancm) / 100;
+      const hStd = num(rb.hgt_stdcm) / 100;
       const gMed = num(rb.gnd_mediancm) / 100;
 
       const under = minGroundUnder(ring, ground);
@@ -331,32 +430,38 @@ export function buildBuildings(
       let heightSource: HeightSource;
       let top: number;
       let podium: number | null = null;
-      let towerScale = 1;
+      let towerFrac = 0;
       const o = ov.get(rb.sf16_bldgid);
       if (o && partIndex === 0) {
         if (o.parcel && o.parcel !== mblr) throw new Error(`override ${o.id}: expected parcel ${o.parcel}, footprint has ${mblr}`);
         heightSource = "override";
         top = o.heightM;
         applied.push(o.id);
-      } else if (year >= LIDAR_YEAR && stories > 0 && !(hMed >= stories * 2.0)) {
+      } else if (year >= LIDAR_YEAR && parcelStories > 0 && !(hMed >= parcelStories * 2.0)) {
         heightSource = "assessor-stories";
-        top = stories * storyHeight(use) + 1.5;
-      } else if (!(hMed >= 2.0) && stories > 0) {
+        top = parcelStories * storyHeight(use) + 1.5;
+      } else if (!(hMed >= 2.0) && parcelStories > 0) {
         // The LiDAR saw almost nothing, the assessor says there is a building.
         heightSource = "assessor-stories";
-        top = stories * storyHeight(use) + 1.5;
+        top = parcelStories * storyHeight(use) + 1.5;
       } else if (!(hMed >= 2.0) || !Number.isFinite(hMax)) {
         stats.droppedLow++;
         return;
       } else {
         heightSource = "lidar";
-        if (hMax - hMed <= Math.max(4, 0.3 * hMed)) {
+        const d = hMax - hMed;
+        if (d <= Math.max(4, 0.3 * hMed)) {
           top = hMax;
         } else {
-          top = hMax;
-          podium = hMed;
-          const f = Number.isFinite(hMean) ? (hMean - hMed) / (hMax - hMed) : 0;
-          towerScale = Math.sqrt(Math.min(0.5, Math.max(0.04, f)));
+          const f = towerFraction(hMed, hMax, hMean, hStd);
+          if (plausibleTower(Math.abs(signedArea(ring)), f, d)) {
+            top = hMax;
+            podium = hMed;
+            towerFrac = f;
+          } else {
+            top = hMed + Math.min(d, Math.max(ROOF_ALLOWANCE_M, ROOF_ALLOWANCE_FRAC * hMed));
+            stats.maxOutlier++;
+          }
         }
       }
 
@@ -367,7 +472,7 @@ export function buildBuildings(
       if (podium !== null) {
         const podiumTopY = r2(Math.max(baseY + MIN_HEIGHT_M, gRef + podium));
         if (topY - podiumTopY >= 2) {
-          const towerRing = towerFootprint(ring, anchor, towerScale * towerScale);
+          const towerRing = towerFootprint(ring, anchor, towerFrac);
           // The tower's own street level and foot (its centroid can sit off the podium's).
           const tUnder = minGroundUnder(towerRing, ground) ?? under;
           const tBase = Math.floor(tUnder.at * 100) / 100;
@@ -407,11 +512,18 @@ export function buildBuildings(
         stats.withYear++;
       }
       if (use) meta.use = use;
-      if (stories > 0) {
+      if (heightSource === "assessor-stories") stories = parcelStories;
+      if (stories > 0 && heightSource === "lidar" && !plausibleStories(stories, towerRecord ? towerRecord.meta.heightM : top)) {
+        stats.storiesImplausible++;
+      } else if (stories > 0) {
         meta.stories = stories;
         stats.withStories++;
       }
       if (units > 0) meta.units = units;
+      if (condo) {
+        meta.condo = true;
+        stats.condo++;
+      }
       if (towerRecord) meta.tower = towerRecord.id;
       if (heightSource === "lidar") stats.heightLidar++;
       else if (heightSource === "override") stats.heightOverride++;

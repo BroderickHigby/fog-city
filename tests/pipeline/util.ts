@@ -54,6 +54,8 @@ export interface SfBuilding {
     year?: number;
     use?: string;
     stories?: number;
+    units?: number;
+    condo?: boolean;
     towerOf?: string;
     podiumTopY?: number;
     tower?: string;
@@ -72,6 +74,7 @@ export interface SfRoads {
   edges: Array<{
     id: string; a: string; b: string; kind: string; lanes: number; oneway: boolean; widthM: number;
     speedLimitMps: number; name: string; points: Array<[number, number]>; cnn: string; pedestrian?: boolean;
+    gradeSeparated?: boolean; bridge?: boolean;
   }>;
 }
 

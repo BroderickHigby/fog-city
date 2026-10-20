@@ -143,8 +143,18 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     }
   };
 
+  // Open water: the world's water flags inside the tiles, the DEM outside them.
+  const waterAnywhere = (x: number, z: number): boolean => {
+    if (ground.field(x, z)) return ground.waterAt(x, z);
+    try {
+      return elev.sample(x, z).water;
+    } catch {
+      return false;
+    }
+  };
+
   const { buildings, stats: bStats, overridesApplied } = buildBuildings(raw.buildings, raw.parcels, overrides, tiles, ground);
-  const { graph, stats: rStats } = buildRoads(raw.streets, tiles, heightAnywhere);
+  const { graph, stats: rStats } = buildRoads(raw.streets, tiles, heightAnywhere, waterAnywhere);
   const { storefronts, stats: sStats } = buildStorefronts(raw.businesses, buildings, graph.edges, ground);
   const spawn = chooseSpawn(cfg, graph, buildings);
 

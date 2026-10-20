@@ -77,10 +77,10 @@ describe("sf world: schemas and layout", () => {
     }
   });
 
-  it("total size stays under the 40 MB budget", () => {
+  it("total size stays under the 40 MB budget (40,000,000 bytes)", () => {
     let total = 0;
     for (const f of readdirSync(DIR)) total += statSync(join(DIR, f)).size;
-    expect(total).toBeLessThan(40 * 1024 * 1024);
+    expect(total).toBeLessThan(40e6);
   });
 });
 
@@ -134,7 +134,10 @@ describe("sf world: buildings", () => {
     expect(buildings.length).toBeGreaterThan(14000);
   });
 
-  it("golden: the tallest building in the M0 bbox is the 415 Mission St tower, ~326 m (within 10%)", () => {
+  // The 2010 LiDAR saw a construction site here (median 0.24 m), so this golden checks the
+  // public-record override in pipeline/overrides.json, not the LiDAR scaling. The LiDAR-only
+  // goldens below check that.
+  it("golden, with its public-record override: the tallest building in the M0 bbox is the 415 Mission St tower, ~326 m (within 10%)", () => {
     const nw = toLocal(37.805, -122.405);
     const se = toLocal(37.78, -122.385);
     const inM0 = buildings.filter((b) => {
@@ -146,16 +149,54 @@ describe("sf world: buildings", () => {
     const p = toLocal(37.7897, -122.3972);
     expect(pointInPolygon(p.x, p.z, tallest.footprint)).toBe(true);
     expect(tallest.meta.parcel).toBe("3720009");
+    expect(tallest.meta.heightSource).toBe("override");
     const h = tallest.topY - tallest.baseY;
     expect(Math.abs(h - 326) / 326).toBeLessThan(0.1);
   });
 
-  it("golden without an override: the 600 Montgomery St pyramid's LiDAR height is ~260 m (within 10%)", () => {
-    const p = toLocal(37.7952, -122.4028);
-    const recs = buildings.filter((b) => pointInPolygon(p.x, p.z, b.footprint));
-    expect(recs.every((b) => b.meta.heightSource === "lidar")).toBe(true);
-    const top = Math.max(...recs.map((b) => b.topY - b.baseY));
-    expect(Math.abs(top - 260) / 260).toBeLessThan(0.1);
+  // LiDAR-only goldens: well-known towers that stood in June 2010, against their public-record
+  // roof heights. A building is every record containing the point plus their towers.
+  const lidarGoldens: Array<[string, number, number, number]> = [
+    ["600 Montgomery St pyramid", 37.7952, -122.4028, 260],
+    ["555 California St", 37.792, -122.4037, 237],
+    ["101 California St", 37.7928, -122.3979, 183],
+    ["301 Mission St", 37.7905, -122.3962, 197],
+  ];
+  for (const [label, lat, lon, roofM] of lidarGoldens) {
+    it(`golden without an override: ${label} stands ~${roofM} m from the LiDAR alone (within 10%)`, () => {
+      const p = toLocal(lat, lon);
+      const byId = new Map(buildings.map((b) => [b.id, b]));
+      const recs = buildings.filter((b) => pointInPolygon(p.x, p.z, b.footprint));
+      expect(recs.length).toBeGreaterThan(0);
+      for (const b of [...recs]) if (b.meta.tower) recs.push(byId.get(b.meta.tower)!);
+      expect(recs.every((b) => b.meta.heightSource === "lidar")).toBe(true);
+      const top = Math.max(...recs.map((b) => b.topY - b.baseY));
+      expect(Math.abs(top - roofM) / roofM).toBeLessThan(0.1);
+    });
+  }
+
+  it("no needles: every tower covers at least 20 m² and rises at most ~10x its width above its podium", () => {
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    const bad: string[] = [];
+    for (const b of buildings) {
+      if (!b.meta.towerOf) continue;
+      const area = Math.abs(signedArea(b.footprint));
+      const rise = b.topY - byId.get(b.meta.towerOf)!.topY;
+      if ((area < 20 && rise > 30) || rise > 10.6 * Math.sqrt(area)) bad.push(`${b.id} ${area.toFixed(0)} m² +${rise.toFixed(0)} m`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the review's needle examples are single prisms near their median roof", () => {
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    for (const id of ["201006.0024724", "201006.0001118", "201006.0001964", "201006.0171380"]) {
+      const b = byId.get(id)!;
+      expect(b.meta.tower, id).toBeUndefined();
+      expect(byId.has(`${id}-tower`), id).toBe(false);
+      const [med, max] = b.meta.lidarM;
+      expect(b.meta.heightM, id).toBeLessThan(med + Math.max(3, 0.1 * med) + 0.01);
+      expect(b.meta.heightM, id).toBeLessThan(max);
+    }
   });
 
   it("buildings do not float: baseY is within 1 m of the terrain under the centroid", () => {
@@ -190,7 +231,7 @@ describe("sf world: buildings", () => {
       expect(b.meta.podiumTopY).toBe(pod.topY);
       expect(b.topY).toBeGreaterThan(pod.topY);
     }
-    expect(n).toBeGreaterThan(1000);
+    expect(n).toBeGreaterThan(400);
   });
 
   it("most buildings carry assessor facts (year, use, storeys) in meta", () => {
@@ -198,6 +239,23 @@ describe("sf world: buildings", () => {
     const withParcel = podiums.filter((b) => b.meta.parcel).length;
     expect(withParcel / podiums.length).toBeGreaterThan(0.9);
     expect(podiums.filter((b) => b.meta.year).length / podiums.length).toBeGreaterThan(0.85);
+  });
+
+  it("storeys in meta agree with the LiDAR height; condo towers do not read as one-storey houses", () => {
+    const byId = new Map(buildings.map((b) => [b.id, b]));
+    const bad: string[] = [];
+    for (const b of buildings) {
+      if (b.meta.towerOf || !b.meta.stories || b.meta.heightSource !== "lidar") continue;
+      const h = b.meta.tower ? byId.get(b.meta.tower)!.meta.heightM : b.meta.heightM;
+      if (b.meta.stories * 6 + 15 < h || b.meta.stories * 2.4 > h + 10) bad.push(`${b.id} ${b.meta.stories} storeys, ${h} m`);
+    }
+    expect(bad).toEqual([]);
+    // A 94 m Russian Hill tower joined to one condo unit's parcel ("Single Family Residential", 1 storey).
+    const ru = byId.get("201006.0002073")!;
+    expect(ru.meta).toMatchObject({ condo: true, use: "Residential Condominium", units: 112 });
+    expect(ru.meta.stories).toBeUndefined();
+    // Near North Point and Van Ness: a unit parcel records the building's 20 storeys.
+    expect(byId.get("201006.0003524")!.meta).toMatchObject({ condo: true, stories: 20 });
   });
 });
 
@@ -238,6 +296,20 @@ describe("sf world: roads", () => {
     });
     expect(bearings.some((b) => Math.cos(b) > 0.3)).toBe(true);
     expect(bearings.some((b) => Math.cos(b) < -0.3)).toBe(true);
+  });
+
+  it("numbered streets are named without DataSF's zero padding", () => {
+    const names = new Set(roads.edges.map((e) => e.name));
+    for (const n of names) expect(n, n).not.toMatch(/(^|\s)0\d/);
+    for (const n of ["1st St", "2nd St", "3rd St"]) expect(names.has(n), n).toBe(true);
+  });
+
+  it("freeways are flagged grade-separated; the Bay Bridge approach is flagged as a bridge", () => {
+    for (const e of roads.edges) expect(e.gradeSeparated === true, e.id).toBe(e.kind === "freeway");
+    const bridges = roads.edges.filter((e) => e.bridge);
+    expect(bridges.filter((e) => e.name.startsWith("I-80")).map((e) => e.name).sort()).toEqual(["I-80 Eastbound", "I-80 Westbound"]);
+    // Every bridge edge has a point over the bay, past the world's tiles or on water inside them.
+    for (const e of bridges) expect(e.points.some(([x, z]) => !insideWorld(x, z) || groundHeight(world, x, z) === 0), e.id).toBe(true);
   });
 
   it("kinds cover the classcode mapping", () => {

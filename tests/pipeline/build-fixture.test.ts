@@ -46,12 +46,13 @@ function dem(): GeoRaster {
   return { width, height, data, west, north, dLon: d, dLat: d, noData: null };
 }
 
-const bldg = (id: string, rings: Array<Array<[number, number]>>, h: { med: number; max: number; mean: number; gnd: number }, mblr?: string): RawBuilding => ({
+const bldg = (id: string, rings: Array<Array<[number, number]>>, h: { med: number; max: number; mean: number; gnd: number; std?: number }, mblr?: string): RawBuilding => ({
   sf16_bldgid: id,
   mblr,
   hgt_mediancm: String(h.med * 100),
   hgt_maxcm: String(h.max * 100),
   hgt_meancm: String(h.mean * 100),
+  ...(h.std === undefined ? {} : { hgt_stdcm: String(h.std * 100) }),
   gnd_mediancm: String(h.gnd * 100),
   shape: { type: "MultiPolygon", coordinates: rings.map((r) => [r]) },
 });
@@ -94,16 +95,29 @@ function fixture(): { cfg: WorldConfig; raw: RawInputs; overrides: Override[] } 
     bldg("201006.0000007", [rect(1100, 100, 1120, 120)], { med: 5, max: 5, mean: 5, gnd: g(1110) }),
     bldg("201006.0000008", [rect(700, 400, 720, 420)], { med: 1, max: 3, mean: 1, gnd: g(710) }),
     bldg("201006.0000009", [rect(200, 150, 220, 170), rect(230, 150, 240, 160)], { med: 6, max: 7, mean: 6, gnd: g(210) }),
+    // A 3-storey house whose LiDAR max is one stray return 128 m above its roof.
+    bldg("201006.0000010", [rect(40, 400, 70, 430)], { med: 12, max: 140, mean: 12.5, std: 6, gnd: g(55) }, "SF0001010"),
+    // A condominium tower joined to one unit's parcel.
+    bldg("201006.0000011", [rect(380, 380, 410, 410)], { med: 60, max: 62, mean: 60, std: 1, gnd: g(395) }, "SF0002001"),
+    // A 90 m building whose parcel says 2 storeys.
+    bldg("201006.0000012", [rect(600, 300, 630, 330)], { med: 88, max: 90, mean: 88, std: 1, gnd: g(615) }, "SF0001012"),
   ];
-  const parcel = (n: string, x: number, z: number, year: number, stories: number, use: string): RawParcel => ({
+  const parcel = (n: string, x: number, z: number, year: number, stories: number, use: string, useCode?: string): RawParcel => ({
     parcel_number: n, block: n.slice(0, 4), lot: n.slice(4), year_property_built: String(year),
-    number_of_stories: `${stories}.0`, use_definition: use, the_geom: pt(x, z),
+    number_of_stories: `${stories}.0`, use_definition: use, use_code: useCode, the_geom: pt(x, z),
   });
   const parcels: RawParcel[] = [
     parcel("0001001", 110, 110, 1925, 4, "Commercial Retail"),
     parcel("0001003", 315, 315, 2018, 20, "Commercial Office"),
     parcel("0001004", 410, 115, 1980, 8, "Commercial Office"),
     parcel("0001005", 200, 310, 1910, 3, "Multi-Family Residential"),
+    parcel("0001010", 55, 415, 1908, 3, "Multi-Family Residential", "MRES"),
+    parcel("0001012", 615, 315, 1975, 2, "Commercial Office", "COMO"),
+    // Condo units: one point, the units' own storeys, and one row of data-entry noise.
+    parcel("0002001", 395, 395, 1999, 1, "Single Family Residential", "SRES"),
+    parcel("0002002", 395, 395, 1999, 2, "Single Family Residential", "SRES"),
+    parcel("0002003", 395, 395, 1999, 18, "Single Family Residential", "SRES"),
+    parcel("0002004", 395, 395, 1999, 591, "Single Family Residential", "SRES"),
   ];
   const streets: RawStreet[] = [
     street(1001, "TEST", "ST", "5", "B", [[20, 90], [500, 90], [980, 90]], 9001, 9002),
@@ -221,6 +235,28 @@ describe("fixture build: buildings", () => {
     expect(Math.abs(signedArea(tower.footprint)) / Math.abs(signedArea(pod.footprint))).toBeCloseTo(0.15, 1);
   });
 
+  it("a stray LiDAR max makes no tower: one prism at the median plus a rooftop allowance", () => {
+    const b = byId("201006.0000010")!;
+    expect(byId("201006.0000010-tower")).toBeUndefined();
+    expect(b.meta.tower).toBeUndefined();
+    expect(b.meta.heightM).toBe(12 + 3);
+    expect(b.meta.lidarM).toEqual([12, 140]);
+    expect(b.meta).toMatchObject({ stories: 3, use: "Multi-Family Residential" });
+  });
+
+  it("a condominium joined to one unit's parcel reports the building, not the unit", () => {
+    const b = byId("201006.0000011")!;
+    expect(b.meta).toMatchObject({ parcel: "0002001", condo: true, use: "Residential Condominium", stories: 18, units: 4 });
+    expect(b.meta.heightM).toBe(62);
+  });
+
+  it("assessor storeys that contradict the LiDAR height are left out of meta", () => {
+    const b = byId("201006.0000012")!;
+    expect(b.meta.heightM).toBe(90);
+    expect(b.meta.parcel).toBe("0001012");
+    expect(b.meta.stories).toBeUndefined();
+  });
+
   it("a building newer than the 2010 LiDAR takes its height from the assessor's storeys", () => {
     const b = byId("201006.0000003")!;
     expect(b.meta.heightSource).toBe("assessor-stories");
@@ -247,7 +283,9 @@ describe("fixture build: buildings", () => {
     expect(byId("201006.0000006")).toBeUndefined();
     expect(byId("201006.0000007")).toBeUndefined();
     expect(byId("201006.0000008")).toBeUndefined();
-    expect(out.report.buildings).toMatchObject({ droppedSmall: 1, droppedOutside: 1, droppedLow: 1, heightOverride: 1, twoTier: 1 });
+    expect(out.report.buildings).toMatchObject({
+      droppedSmall: 1, droppedOutside: 1, droppedLow: 1, heightOverride: 1, twoTier: 1, maxOutlier: 1, condo: 1, storiesImplausible: 1,
+    });
   });
 
   it("splits a multipart footprint into one record per part, largest first", () => {
@@ -284,8 +322,20 @@ describe("fixture build: roads", () => {
     expect(edge("1006")).toMatchObject({ kind: "ramp" });
     expect(edge("1007")).toMatchObject({ kind: "collector" });
     expect(edge("1008")).toMatchObject({ kind: "other", pedestrian: true });
+    expect(edge("1001")!.gradeSeparated).toBeUndefined();
     const r = edge("1001")!;
     expect(r.widthM).toBeCloseTo(2 * KIND_TABLE.residential.laneM + KIND_TABLE.residential.extraM, 5);
+  });
+
+  it("flags freeways as grade-separated and edges that run over open water as bridges", () => {
+    // The freeway (x 700 -> 990) and Test St (x 20 -> 980) both run past the shore at x = 850.
+    expect(edge("1005")).toMatchObject({ kind: "freeway", gradeSeparated: true, bridge: true });
+    expect(edge("1001")).toMatchObject({ bridge: true });
+    for (const cnn of ["1002", "1004", "1006", "1007", "1008"]) {
+      expect(edge(cnn)!.bridge, cnn).toBeUndefined();
+      expect(edge(cnn)!.gradeSeparated, cnn).toBeUndefined();
+    }
+    expect(out.report.roads.bridges).toBe(2);
   });
 
   it("synthesises a node for a segment end with no CNN, and every edge meets its nodes", () => {
@@ -361,6 +411,10 @@ describe("road helpers", () => {
     expect(kindOf(0, "ST", "PRIVATE")).toBe("other");
     expect(kindOf(null, "ST", "STREETS")).toBe("other");
     expect(titleCase("THE EMBARCADERO")).toBe("The Embarcadero");
-    expect(titleCase("03RD ST")).toBe("03rd St");
+    // DataSF zero-pads numbered streets ("03RD ST"); the padding is dropped, other zeros kept.
+    expect(titleCase("03RD ST")).toBe("3rd St");
+    expect(titleCase("01ST ST")).toBe("1st St");
+    expect(titleCase("10TH ST")).toBe("10th St");
+    expect(titleCase("UNNAMED 042")).toBe("Unnamed 42");
   });
 });
