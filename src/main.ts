@@ -253,6 +253,7 @@ async function boot(): Promise<void> {
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
     hint: () => hud.hintText(),
+    setAgentBags: (full) => view.agents.setBags(full),
   });
 
   const frame = (now: number): void => {

@@ -83,6 +83,11 @@ export interface DebugHandle {
   tilesSettled(): boolean;
   /** The HUD hint on screen now ("" when none), e.g. "No room to get out". */
   hint(): string;
+  /**
+   * Render-only: errand robots' bags full (true), empty (false), or as each agent says (null,
+   * the default: full, since the sim carries no bag tell yet).
+   */
+  setAgentBags(full: boolean | null): void;
 }
 
 declare global {

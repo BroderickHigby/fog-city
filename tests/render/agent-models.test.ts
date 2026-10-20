@@ -6,13 +6,13 @@ import { join } from "node:path";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { AGENT_MODEL_KEY, AGENT_RIGS, AgentLayer, fallbackProxy } from "../../src/render/agent-layer.ts";
-import { DEFAULT_TIERS, instanceBudget, tierCapacity, TIER_FAR, TIER_MID, TIER_NEAR } from "../../src/render/agent-lod.ts";
+import { AGENT_MODEL_KEY, AGENT_RIGS, AgentLayer, bagFull, fallbackProxy } from "../../src/render/agent-layer.ts";
+import { agentModelScale, DEFAULT_TIERS, instanceBudget, tierCapacity, TIER_FAR, TIER_MID, TIER_NEAR } from "../../src/render/agent-lod.ts";
 import { extractParts, proxyOf, triangleCount, type PackedModel } from "../../src/render/agent-packing.ts";
 import { channelRatio } from "../../src/render/lights.ts";
 import type { ModelRegistry } from "../../src/render/model-registry.ts";
 import { HIP, PERSON_HEIGHT_M, SHOULDER, personLook, newLook, personParts } from "../../src/render/person.ts";
-import { AGENT_SPEC, MAX_AGENTS, type AgentState } from "../../src/sim/agents.ts";
+import { AGENT_SPEC, LOD_STRIDE, MAX_AGENTS, type AgentState } from "../../src/sim/agents.ts";
 import type { SimState } from "../../src/sim/contract.ts";
 import { ROOT } from "../helpers.ts";
 
@@ -41,6 +41,9 @@ function channels(g: THREE.BufferGeometry | null): Set<number> {
 }
 
 const part = (m: PackedModel, name: string) => m.parts.find((p) => p.name === name)!;
+const boundsOf = (g: THREE.BufferGeometry) => new THREE.Box3().setFromBufferAttribute(g.getAttribute("position") as THREE.BufferAttribute);
+const KINDS = ["robotaxi", "errandRobot", "sidewalkBot"] as const;
+const CELL = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.12 } as const;
 
 describe("agent models, packed", () => {
   const scenes: Record<string, THREE.Object3D> = {};
@@ -129,6 +132,51 @@ describe("agent models, packed", () => {
     expect(channels(proxyOf(packed.robotaxi!, 0.2))).toEqual(new Set([0, 1, 2, 3]));
     expect(channels(fallbackProxy("robotaxi"))).toEqual(new Set([0, 1, 2, 3]));
   });
+
+  it("builds every box proxy lengthwise on z at AGENT_SPEC size, the model's footprint within 15%", () => {
+    for (const kind of KINDS) {
+      const far = boundsOf(fallbackProxy(kind));
+      const m = packed[kind]!;
+      const body = m.bodyBounds.isEmpty() ? m.bounds : m.bodyBounds;
+      const size = { length: body.max.z - body.min.z, width: body.max.x - body.min.x };
+      // The proxy is drawn at the model's scale (its stand-in before the model loads, at scale 1).
+      const scale = agentModelScale(kind, size);
+      const L = (far.max.z - far.min.z) * scale;
+      const W = (far.max.x - far.min.x) * scale;
+      const spec = AGENT_SPEC[kind];
+      if (spec.road) {
+        // A road vehicle is the spec body: 2 * halfWidth across, 2 * halfLength long.
+        expect(W / (spec.halfWidth * 2), `${kind} width`).toBeGreaterThan(0.85);
+        expect(W / (spec.halfWidth * 2), `${kind} width`).toBeLessThan(1.15);
+        expect(L / (spec.halfLength * 2), `${kind} length`).toBeGreaterThan(0.85);
+        expect(L / (spec.halfLength * 2), `${kind} length`).toBeLessThan(1.15);
+        expect(L, `${kind} is longer than wide`).toBeGreaterThan(1.8 * W);
+      } else {
+        // A walker keeps its designed size up to 1.2x the spec body (agentModelScale's rule,
+        // measured on the model's body: the sidewalk bot's flag mast trails behind it).
+        expect(W, `${kind} width`).toBeLessThanOrEqual(spec.halfWidth * 2 * 1.2);
+        expect(size.width * scale, `${kind} body width`).toBeLessThanOrEqual(spec.halfWidth * 2 * 1.2 + 1e-9);
+        expect(size.length * scale, `${kind} body length`).toBeLessThanOrEqual(spec.halfLength * 2 * 1.2 + 1e-9);
+      }
+      // Either way the proxy stands in for the model: same footprint within 15%.
+      expect((far.max.x - far.min.x) / (m.bounds.max.x - m.bounds.min.x), `${kind} width vs model`).toBeGreaterThan(0.85);
+      expect((far.max.x - far.min.x) / (m.bounds.max.x - m.bounds.min.x), `${kind} width vs model`).toBeLessThan(1.15);
+      expect((far.max.z - far.min.z) / (m.bounds.max.z - m.bounds.min.z), `${kind} length vs model`).toBeGreaterThan(0.85);
+      expect((far.max.z - far.min.z) / (m.bounds.max.z - m.bounds.min.z), `${kind} length vs model`).toBeLessThan(1.15);
+      expect((far.max.y - far.min.y) / (m.bounds.max.y - m.bounds.min.y), `${kind} height vs model`).toBeGreaterThan(0.85);
+    }
+  });
+
+  it("stands every mid and far proxy on the ground, like the model (within 1 cm)", () => {
+    for (const kind of KINDS) {
+      const m = packed[kind]!;
+      expect(Math.abs(m.bounds.min.y), `${kind} model`).toBeLessThan(0.01);
+      expect(Math.abs(boundsOf(proxyOf(m, CELL[kind])).min.y), `${kind} mid`).toBeLessThan(0.01);
+      expect(Math.abs(boundsOf(fallbackProxy(kind)).min.y), `${kind} far`).toBeLessThan(0.01);
+    }
+    expect(Math.abs(boundsOf(personParts().far).min.y), "person far").toBeLessThan(0.01);
+    expect(Math.abs(boundsOf(personParts().mid).min.y), "person mid").toBeLessThan(0.01);
+  });
 });
 
 describe("the procedural person", () => {
@@ -186,9 +234,14 @@ describe("AgentLayer instance capacities", () => {
     get: async (key: string) => ({ source: "file" as const, model: models[key]! }),
   } as unknown as ModelRegistry<THREE.Object3D>;
 
+  function errandRobot(): SimState {
+    const list = [{ id: 1, kind: "errandRobot", x: 0, y: 0, z: -6, heading: 0, pitch: 0, speed: 1.7, mode: "go" }];
+    return { tick: 1, players: {}, ext: { agents: { nextId: 2, list: list as unknown as AgentState[] } } } as unknown as SimState;
+  }
+
   function robotaxis(n: number): SimState {
     const list = Array.from({ length: n }, (_, i) => ({ id: i + 1, kind: "robotaxi", x: (i % 5) * 3 - 6, y: 0, z: -8 - 2 * i, heading: 0, pitch: 0, speed: 10, mode: "go" }));
-    return { tick: 1, ext: { agents: { nextId: n + 1, list: list as unknown as AgentState[] } } } as unknown as SimState;
+    return { tick: 1, players: {}, ext: { agents: { nextId: n + 1, list: list as unknown as AgentState[] } } } as unknown as SimState;
   }
 
   it("allocates every part mesh from tierCapacity() and instanceBudget(), and draws no more than that", async () => {
@@ -225,5 +278,61 @@ describe("AgentLayer instance capacities", () => {
       expect(counts["agents:robotaxi:mid"]).toBe(40 - nearCap);
       layer.dispose();
     }
+  });
+
+  it("draws an agent over 200 m from every player gliding across the sim's 4-tick steps", async () => {
+    const layer = new AgentLayer(registry);
+    await new Promise((r) => setTimeout(r, 0));
+    const id = 3;
+    // The sim's far rule: it moves 4 m on ticks where (tick + id) % LOD_STRIDE === 0, else holds.
+    const state = (tick: number): SimState => {
+      const x = 300 + Math.floor((tick + id) / LOD_STRIDE) * 4;
+      const list = [{ id, kind: "robotaxi", x, y: 0, z: 0, heading: Math.PI / 2, pitch: 0, speed: 12, mode: "go" }];
+      const players = { p1: { mode: "vehicle", car: { x: 0, z: 0 } } };
+      return { tick, players, ext: { agents: { nextId: id + 1, list: list as unknown as AgentState[] } } } as unknown as SimState;
+    };
+    const xs: number[] = [];
+    const body = layer.group.getObjectByName("agents:robotaxi:body") as THREE.InstancedMesh;
+    const m = new THREE.Matrix4();
+    const p = new THREE.Vector3();
+    for (let tick = 1; tick <= 24; tick++) {
+      const prev = state(tick - 1);
+      const curr = state(tick);
+      for (const alpha of [0, 0.5]) {
+        layer.update(prev, curr, alpha, { x: 290, z: 0, fx: 1, fz: 0 }, 1 / 120, tick / 60);
+        body.getMatrixAt(0, m);
+        xs.push(p.setFromMatrixPosition(m).x);
+      }
+    }
+    expect(layer.info().near).toBe(1);
+    const d = xs.slice(10).map((x, i, a) => (i === 0 ? 0.5 : x - a[i - 1]!));
+    for (const step of d) expect(step).toBeCloseTo(0.5, 6); // 4 m per 4 ticks, every half tick
+    layer.dispose();
+  });
+
+  it("draws an errand robot's bag contents when the bag is full (the default), skips them when setBags(false)", async () => {
+    const layer = new AgentLayer(registry);
+    await new Promise((r) => setTimeout(r, 0));
+    const s = errandRobot();
+    const count = (name: string): number => (layer.group.getObjectByName(name) as THREE.InstancedMesh).count;
+    const draw = (): void => layer.update(s, s, 1, { x: 0, z: 0, fx: 0, fz: -1 }, 1 / 60, 0);
+    draw();
+    expect(layer.info().near).toBe(1);
+    expect(count("agents:errandRobot:body")).toBe(1);
+    expect(count("agents:errandRobot:bagContents")).toBe(1);
+    layer.setBags(false);
+    draw();
+    expect(count("agents:errandRobot:body")).toBe(1);
+    expect(count("agents:errandRobot:bagContents")).toBe(0);
+    layer.setBags(null);
+    draw();
+    expect(count("agents:errandRobot:bagContents")).toBe(1);
+    const robot = (s.ext as { agents: { list: AgentState[] } }).agents.list[0]!;
+    expect(bagFull(robot)).toBe(true);
+    expect(bagFull(robot, false)).toBe(false);
+    const emptyTell = { ...robot, tell: "emptyBag" } as unknown as AgentState;
+    expect(bagFull(emptyTell)).toBe(false);
+    expect(bagFull(emptyTell, true)).toBe(true);
+    layer.dispose();
   });
 });

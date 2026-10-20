@@ -15,7 +15,7 @@
 // with the number of agents.
 
 import type { AgentKind, AgentMode, AgentState } from "../sim/agents.ts";
-import { AGENT_SPEC } from "../sim/agents.ts";
+import { AGENT_SPEC, LOD_STRIDE, NEAR_RANGE_M as SIM_NEAR_RANGE_M } from "../sim/agents.ts";
 import { DT } from "../sim/contract.ts";
 
 export const NEAR_RANGE_M = 60;
@@ -73,6 +73,76 @@ export function interpolateAgent(
   out.pitch = a.pitch + (b.pitch - a.pitch) * t;
   out.speed = a.speed + (b.speed - a.speed) * t;
   return out;
+}
+
+// ---------------------------------------------------------------- far agents' stride
+
+type PoseLike = Readonly<Pick<AgentState, "x" | "y" | "z" | "heading" | "pitch" | "speed">>;
+
+/**
+ * The sim step an agent is being drawn across. The sim (src/sim/agents.ts, documented rule)
+ * steps an agent farther than its NEAR_RANGE_M (200 m) from every player only on ticks where
+ * (tick + id) % LOD_STRIDE === 0, by LOD_STRIDE ticks' worth, so interpolating prev -> curr
+ * per tick holds it still for three ticks and then jumps (15 Hz stop-go in long views and the
+ * fly camera). Instead each agent keeps its last step, from where it was to where it landed,
+ * the tick it landed and how many ticks it covers, and is drawn across that whole window:
+ * one tick for a near agent (exactly prev -> curr), LOD_STRIDE ticks for a far one, ending
+ * where its next step starts. The price is LOD_STRIDE - 1 ticks (50 ms) of lag, only on
+ * agents more than 200 m from every player.
+ */
+export interface StepWindow {
+  from: PoseLike | null;
+  to: PoseLike;
+  /** The tick the step landed on (curr.tick when it was seen). */
+  tick: number;
+  /** Ticks the step covers: 1, or LOD_STRIDE for a far agent's step. */
+  stride: number;
+  /** The last tick this agent was seen (for pruning). */
+  seen: number;
+}
+
+/** Whether the sim steps an agent at (x, z) on the far stride: beyond its near range of every player body. */
+export function onFarStride(bodies: readonly Readonly<{ x: number; z: number }>[], x: number, z: number): boolean {
+  if (bodies.length === 0) return false; // no players: the sim freezes every agent
+  const r2 = SIM_NEAR_RANGE_M * SIM_NEAR_RANGE_M;
+  for (const b of bodies) if ((b.x - x) * (b.x - x) + (b.z - z) * (b.z - z) <= r2) return false;
+  return true;
+}
+
+function samePose(a: PoseLike, b: PoseLike): boolean {
+  return a.x === b.x && a.y === b.y && a.z === b.z && a.heading === b.heading;
+}
+
+/**
+ * Update an agent's window for a new tick: `a` is the agent in the previous state (null when
+ * new), `b` in the current one at `tick`, `far` = onFarStride() for `a` and the previous
+ * state's player bodies (what the sim decides with). Mutates and returns `w` (or a new one).
+ */
+export function trackStep(w: StepWindow | undefined, a: PoseLike | null, b: PoseLike, id: number, tick: number, far: boolean): StepWindow {
+  const out = w ?? { from: null, to: b, tick, stride: 1, seen: tick };
+  out.seen = tick;
+  if (a && far) {
+    if ((tick + id) % LOD_STRIDE === 0) {
+      out.from = a;
+      out.to = b;
+      out.tick = tick;
+      out.stride = LOD_STRIDE;
+      return out;
+    }
+    // Between its steps a far agent does not move: keep gliding across the last step.
+    if (w && samePose(b, w.to) && tick > w.tick) return out;
+  }
+  out.from = a;
+  out.to = b;
+  out.tick = tick;
+  out.stride = 1;
+  return out;
+}
+
+/** How far across its window an agent is drawn: alpha (0..1 past `tick`) for a one-tick window. */
+export function windowAlpha(w: Readonly<StepWindow>, tick: number, alpha: number): number {
+  const t = (tick - w.tick + alpha) / w.stride;
+  return t < 0 ? 0 : t > 1 ? 1 : t;
 }
 
 export interface TierOptions {

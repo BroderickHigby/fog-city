@@ -3,7 +3,10 @@
 //
 // Every vertex snaps to the average position of the grid cell it falls in; a triangle whose
 // corners land in fewer than three cells disappears, and of several triangles over the same
-// three cells with the same winding only the first is kept. Triangles flagged `keep` (lamps:
+// three cells with the same winding only the first is kept. A cell holding one of the model's
+// lowest vertices (a tyre's contact patch, a foot) keeps that lowest y instead of the average,
+// so the simplified copy stands on the ground like the model does instead of floating up to
+// half a cell above it. Triangles flagged `keep` (lamps:
 // small, and the only thing visible of a car at night) pass through untouched. The result is
 // a triangle soup: output triangle t is a simplified copy of input triangle source[t], so the
 // caller copies per-triangle attributes (colour, material) from the source.
@@ -29,6 +32,14 @@ export function clusterSimplify(
   const cellOf = new Int32Array(nv);
   const ids = new Map<string, number>();
   const sum: number[] = [];
+  let ground = Infinity;
+  for (let v = 0; v < nv; v++) {
+    const y = positions[v * 3 + 1]!;
+    if (y < ground) ground = y;
+  }
+  const touch = ground + Math.min(1e-3, cell * 0.01);
+  /** Cells that hold a vertex on the ground plane: their representative stays on it. */
+  const grounded = new Set<number>();
   for (let v = 0; v < nv; v++) {
     const x = positions[v * 3]!;
     const y = positions[v * 3 + 1]!;
@@ -41,6 +52,7 @@ export function clusterSimplify(
       sum.push(0, 0, 0, 0);
     }
     cellOf[v] = c;
+    if (y <= touch) grounded.add(c);
     sum[c * 4]! += x;
     sum[c * 4 + 1]! += y;
     sum[c * 4 + 2]! += z;
@@ -69,7 +81,7 @@ export function clusterSimplify(
     seen.add(key);
     for (const k of [ca, cb, cc]) {
       const n = sum[k * 4 + 3]!;
-      out.push(sum[k * 4]! / n, sum[k * 4 + 1]! / n, sum[k * 4 + 2]! / n);
+      out.push(sum[k * 4]! / n, grounded.has(k) ? ground : sum[k * 4 + 1]! / n, sum[k * 4 + 2]! / n);
     }
     src.push(t);
   }

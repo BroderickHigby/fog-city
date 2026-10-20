@@ -100,11 +100,16 @@ their own suites: `agent-lod.test.ts` (interpolation between ticks, tier selecti
 hysteresis, tier capacities and instance budgets, wheel/steer/gait helpers, brake and hazard
 cues, with slowing measured over distance so an agent the sim steps every 4th tick reads like
 one it steps every tick, and the brake hold that keeps its lights from flashing, model scale,
-the proxy simplifier), `lights.test.ts` (night scaling of every `light_*` material, and the
-channel ratio that keeps each agent light at its own night level) and `agent-models.test.ts`
-(the committed GLBs split at their joints with every triangle kept, proxy budgets, the
-procedural person's size, and the instance capacity `AgentLayer` allocates for every part
-mesh, checked against the budget rule, with no more drawn than that). `hud-clock-actors.test.ts`
+the step windows that let an agent the sim steps every 4th tick glide at constant speed, the
+proxy simplifier, which keeps cells on the ground plane on the ground), `lights.test.ts`
+(night scaling of every `light_*` material, and the channel ratio that keeps each agent light
+at its own night level) and `agent-models.test.ts` (the committed GLBs split at their joints
+with every triangle kept, proxy budgets, every box proxy lengthwise at `AGENT_SPEC` size and
+within 15% of its model's footprint, every mid and far proxy on the ground, the procedural
+person's size, the instance capacity `AgentLayer` allocates for every part mesh, checked
+against the budget rule, with no more drawn than that, a far agent drawn gliding, and the
+errand robot's bag contents hidden by `setBags(false)`, which the debug handle exposes as
+`setAgentBags()`). `hud-clock-actors.test.ts`
 covers the HUD, the game clock, the exit hint, and player car colours (a slot per player id,
 the GLB's `paint` cloned per car). The harness adds `tests/e2e/harness.test.ts`, which tests
 the harness itself: the PNG decoder used for blank-frame checks (every PNG filter type), the

@@ -136,8 +136,8 @@ export function personParts(): PersonParts {
   const box = (w: number, h: number, d: number, x: number, y: number, z: number, sf: PackedSurface): THREE.BufferGeometry =>
     at(new THREE.BoxGeometry(w, h, d), sf, x, y, z);
   const far = mergePacked([
-    box(0.13, 0.86, 0.15, -HIP[0], 0.45, 0, surface("pants")),
-    box(0.13, 0.86, 0.15, HIP[0], 0.45, 0, surface("pants")),
+    box(0.13, 0.9, 0.15, -HIP[0], 0.45, 0, surface("pants")),
+    box(0.13, 0.9, 0.15, HIP[0], 0.45, 0, surface("pants")),
     box(0.4, 0.52, 0.23, 0, 1.2, 0, surface("shirt")),
     box(0.09, 0.6, 0.1, -SHOULDER[0] - 0.02, 1.13, 0, surface("shirt")),
     box(0.09, 0.6, 0.1, SHOULDER[0] + 0.02, 1.13, 0, surface("shirt")),

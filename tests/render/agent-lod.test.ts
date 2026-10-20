@@ -17,17 +17,21 @@ import {
   gaitAmount,
   instanceBudget,
   interpolateAgent,
+  onFarStride,
   rollWheel,
   selectTiers,
   slowingRate,
   steerFromYaw,
   tierCapacity,
+  trackStep,
+  windowAlpha,
   type AgentCue,
   type AgentPose,
+  type StepWindow,
   type Viewer,
 } from "../../src/render/agent-lod.ts";
 import { clusterSimplify } from "../../src/render/simplify.ts";
-import { AGENT_SPEC, LOD_STRIDE, MAX_AGENTS } from "../../src/sim/agents.ts";
+import { AGENT_SPEC, LOD_STRIDE, MAX_AGENTS, NEAR_RANGE_M as SIM_NEAR_RANGE_M } from "../../src/sim/agents.ts";
 import { DT } from "../../src/sim/contract.ts";
 
 const pose = (): AgentPose => ({ x: 0, y: 0, z: 0, heading: 0, pitch: 0, speed: 0 });
@@ -240,6 +244,63 @@ describe("agentModelScale", () => {
   });
 });
 
+describe("far agents: drawn across the sim's LOD stride", () => {
+  // An agent the sim steps every LOD_STRIDE ticks by LOD_STRIDE ticks' worth (the documented
+  // rule): it moves 4 m per step on ticks where (tick + id) % LOD_STRIDE === 0.
+  const id = 3;
+  const simAt = (tick: number) => {
+    const steps = Math.floor((tick + id) / LOD_STRIDE);
+    return { x: steps * 4, y: 0, z: 0, heading: Math.PI / 2, pitch: 0, speed: 4 / (LOD_STRIDE * DT) };
+  };
+
+  it("knows the sim's rule: far means beyond its near range of every player body", () => {
+    expect(onFarStride([], 1000, 0)).toBe(false); // no players: the sim freezes everyone
+    expect(onFarStride([{ x: 0, z: 0 }], SIM_NEAR_RANGE_M, 0)).toBe(false);
+    expect(onFarStride([{ x: 0, z: 0 }], SIM_NEAR_RANGE_M + 1, 0)).toBe(true);
+    expect(onFarStride([{ x: 0, z: 0 }, { x: 400, z: 0 }], 250, 0)).toBe(false);
+  });
+
+  it("glides at constant speed instead of holding three ticks and jumping", () => {
+    let w: StepWindow | undefined;
+    let prev = simAt(0);
+    const xs: number[] = [];
+    for (let tick = 1; tick <= 40; tick++) {
+      const curr = simAt(tick);
+      w = trackStep(w, prev, curr, id, tick, true);
+      for (const alpha of [0, 0.25, 0.5, 0.75]) xs.push(interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), pose()).x);
+      prev = curr;
+    }
+    // Past the first window every quarter tick advances the same 0.25 m: no stops, no jumps.
+    const steps = xs.slice(20).map((x, i, a) => (i === 0 ? 0.25 : x - a[i - 1]!));
+    for (const d of steps) expect(d).toBeCloseTo(4 / LOD_STRIDE / 4, 9);
+    // Plain prev -> curr interpolation would hold for three ticks of four.
+    let held = 0;
+    for (let tick = 20; tick < 40; tick++) if (simAt(tick).x === simAt(tick - 1).x) held++;
+    expect(held).toBe(15);
+  });
+
+  it("is exactly prev -> curr for an agent the sim steps every tick", () => {
+    const a = at(0, 0);
+    const b = at(1, 0);
+    const w = trackStep(undefined, a, b, id, 10, false);
+    expect(w.stride).toBe(1);
+    for (const alpha of [0, 0.3, 1]) expect(windowAlpha(w, 10, alpha)).toBe(alpha);
+    const w2 = trackStep(w, b, at(2, 0), id, 11, false);
+    expect(w2).toBe(w); // reused, no allocation per tick
+    expect(interpolateAgent(w2.from, w2.to, windowAlpha(w2, 11, 0.5), pose()).x).toBeCloseTo(1.5, 12);
+  });
+
+  it("falls back to prev -> curr when a far agent moves off its stride (a join, a missed step)", () => {
+    let w = trackStep(undefined, at(0, 0), at(4, 0), id, 1, true); // (1 + 3) % 4 === 0: a step
+    expect(w.stride).toBe(LOD_STRIDE);
+    w = trackStep(w, at(4, 0), at(4.25, 0), id, 2, true); // moved on an off tick
+    expect(w.stride).toBe(1);
+    expect(interpolateAgent(w.from, w.to, windowAlpha(w, 2, 1), pose()).x).toBeCloseTo(4.25, 12);
+    const fresh = trackStep(undefined, null, at(9, 0), id, 5, true);
+    expect(interpolateAgent(fresh.from, fresh.to, windowAlpha(fresh, 5, 0.5), pose()).x).toBe(9);
+  });
+});
+
 describe("clusterSimplify", () => {
   // A 10 x 10 grid of quads (200 triangles) in the xz plane over 1 m.
   function grid(n: number): { pos: number[]; idx: number[] } {
@@ -274,6 +335,23 @@ describe("clusterSimplify", () => {
     expect([...kept.source]).toEqual([7]);
     const v = idx.slice(21, 24);
     expect([...kept.positions]).toEqual(v.flatMap((k) => pos.slice(k * 3, k * 3 + 3)));
+  });
+
+  it("keeps a cell on the ground plane on the ground (a tyre's contact patch does not float)", () => {
+    // A wheel-like ring of radius 0.375 standing on y = 0, as a triangle fan around its hub.
+    const pos: number[] = [0, 0.375, 0];
+    const idx: number[] = [];
+    const n = 32;
+    for (let i = 0; i < n; i++) {
+      const t = (i / n) * Math.PI * 2;
+      pos.push(0, 0.375 - 0.375 * Math.cos(t), 0.375 * Math.sin(t));
+      idx.push(0, 1 + i, 1 + ((i + 1) % n));
+    }
+    const r = clusterSimplify(pos, idx, 0.2);
+    const ys = [...r.positions].filter((_, i) => i % 3 === 1);
+    expect(r.source.length).toBeGreaterThan(0);
+    expect(Math.min(...ys)).toBe(0);
+    expect(Math.max(...ys)).toBeLessThanOrEqual(0.75);
   });
 
   it("keeps both faces of a two-sided sheet (opposite windings are different triangles)", () => {

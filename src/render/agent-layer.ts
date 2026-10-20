@@ -13,6 +13,9 @@
 //  - mode cues on every tier: wait/yield (or slowing harder than 2.4 m/s^2, measured over the
 //    distance moved so a far agent the sim steps every 4th tick reads the same, and held
 //    0.35 s) = brake lights; honk = hazards and the status light flashing.
+//  - far from every player the sim steps an agent only every LOD_STRIDE ticks; it is drawn
+//    across that whole step (agent-lod.ts trackStep/windowAlpha) so it glides, not stop-go.
+//  - errand robots carry a full bag unless the agent says otherwise; setBags() overrides it.
 // Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
 // parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
 // With shadows on (?shadows=1) every agent mesh casts and receives them.
@@ -21,7 +24,7 @@
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
 
 import * as THREE from "three";
-import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, type AgentKind, type AgentState } from "../sim/agents.ts";
+import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
 import type { SimState } from "../sim/contract.ts";
 import {
   DEFAULT_TIERS,
@@ -35,12 +38,16 @@ import {
   gaitAmount,
   instanceBudget,
   interpolateAgent,
+  onFarStride,
   rollWheel,
   selectTiers,
   steerFromYaw,
   tierCapacity,
+  trackStep,
+  windowAlpha,
   type AgentCue,
   type AgentPose,
+  type StepWindow,
   type TierOptions,
   type Viewer,
 } from "./agent-lod.ts";
@@ -338,6 +345,11 @@ export class AgentLayer {
   private lastPrev: SimState | null = null;
   private lastCurr: SimState | null = null;
   private pairs: Array<[AgentState | null, AgentState]> = [];
+  /** Per agent id: the sim step it is drawn across (one tick near players, LOD_STRIDE far away). */
+  private windows = new Map<number, StepWindow>();
+  private windowTick = -Infinity;
+  /** Errand robots' bags: full, empty, or (null) as each agent says. */
+  private bags: boolean | null = null;
   private poses: AgentPose[] = [];
   private ids = new Int32Array(0);
   private xs = new Float64Array(0);
@@ -416,6 +428,14 @@ export class AgentLayer {
     view.source = "file";
   }
 
+  /**
+   * Render-only: errand robots' bags full (true), empty (false), or as each agent says (null,
+   * the default; the sim carries no bag tell yet, so full).
+   */
+  setBags(full: boolean | null): void {
+    this.bags = full;
+  }
+
   /** Scale the light channels for night (0 day .. 1 night). */
   setNight(night: number): void {
     const [h, t, s] = channelIntensities(night);
@@ -453,13 +473,16 @@ export class AgentLayer {
       this.lastPrev = prev;
       this.lastCurr = curr;
       this.pairs = agentPairs(prev, curr);
+      this.track(prev, curr.tick);
     }
     const pairs = this.pairs;
     const n = pairs.length;
+    const tick = curr.tick;
     this.ensure(n);
     for (let i = 0; i < n; i++) {
-      const [a, b] = pairs[i]!;
-      const p = interpolateAgent(a, b, alpha, this.poses[i]!);
+      const b = pairs[i]![1];
+      const w = this.windows.get(b.id)!;
+      const p = interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), this.poses[i]!);
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -532,6 +555,7 @@ export class AgentLayer {
     if (this.frameNo % 120 === 0) {
       for (const [id, an] of this.anims) if (this.frameNo - an.seen > 120) this.anims.delete(id);
       for (const [id, until] of this.brakeUntil) if (until < time) this.brakeUntil.delete(id);
+      for (const [id, w] of this.windows) if (w.seen < this.windowTick) this.windows.delete(id);
     }
     const s = this.stats;
     s.drawn = drawn;
@@ -540,6 +564,19 @@ export class AgentLayer {
     s.drawCalls = calls;
     s.triangles = tris;
     s.models = [...this.kinds.values()].filter((v) => v.source === "file").map((v) => v.kind);
+  }
+
+  /** Each agent's step window for a new current tick (the sim decides far from prev's player bodies). */
+  private track(prev: SimState, tick: number): void {
+    if (tick <= this.windowTick) this.windows.clear(); // a rewind or a new session
+    this.windowTick = tick;
+    const bodies = playerBodies(prev);
+    for (const [a, b] of this.pairs) {
+      const far = a !== null && onFarStride(bodies, a.x, a.z);
+      const w = this.windows.get(b.id);
+      const next = trackStep(w, a, b, b.id, tick, far);
+      if (next !== w) this.windows.set(b.id, next);
+    }
   }
 
   private ensure(n: number): void {
@@ -595,7 +632,7 @@ export class AgentLayer {
     baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
     const swing = Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
-      if (p.bagContents && !bagFull(b)) continue;
+      if (p.bagContents && !bagFull(b, this.bags)) continue;
       let rx = 0;
       let ry = 0;
       switch (p.channel.type) {
@@ -638,10 +675,12 @@ export class AgentLayer {
 }
 
 /**
- * Is this errand robot's bag full? The content track's tells say a bag is full (fullBag) or
- * empty (emptyBag); the sim does not carry the tell yet, so every bag is full (README default).
+ * Is this errand robot's bag full? `override` (AgentLayer.setBags) wins when set. Otherwise the
+ * content track's tells say a bag is full (fullBag) or empty (emptyBag); the sim does not
+ * carry the tell yet, so every bag is full (README default).
  */
-export function bagFull(a: Readonly<AgentState>): boolean {
+export function bagFull(a: Readonly<AgentState>, override: boolean | null = null): boolean {
+  if (override !== null) return override;
   const tell = (a as unknown as { tell?: unknown }).tell;
   return tell !== "emptyBag";
 }
@@ -691,9 +730,10 @@ export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferG
   const status = surf(0x2fd2b8, 0.3, 0, 3, 0x2fffd0);
   if (kind === "robotaxi") {
     const parts = [
-      box(4.7, 0.62, 2.0, 0, 0.74, 0, white),
-      taper(3.3, 0.64, 1.9, 0.86, 0.76, 0, 1.36, 0.15, glass),
-      box(2.4, 0.07, 1.6, 0, 1.71, 0.25, white),
+      // Long side on z (the car faces -z): 2.0 m across, 4.7 m bumper to bumper.
+      box(2.0, 0.62, 4.7, 0, 0.74, 0, white),
+      taper(1.9, 0.64, 3.3, 0.76, 0.86, 0, 1.36, 0.15, glass),
+      box(1.6, 0.07, 2.4, 0, 1.71, 0.25, white),
       placed(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 6), white, 0, 1.9, 0.3),
       placed(new THREE.CylinderGeometry(0.36, 0.36, 0.05, 6), status, 0, 1.76, 0.3),
       box(1.6, 0.06, 0.04, 0, 0.74, -2.36, head),
@@ -708,15 +748,16 @@ export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferG
       box(0.3, 0.28, 0.3, 0, 1.58, 0, white),
       box(0.26, 0.13, 0.02, 0, 1.59, -0.155, surf(0x0a0d12, 0.08, 0.25)),
       box(0.15, 0.035, 0.01, 0, 1.6, -0.168, status),
-      box(0.12, 0.84, 0.14, -0.1, 0.44, 0, white),
-      box(0.12, 0.84, 0.14, 0.1, 0.44, 0, white),
+      box(0.12, 0.86, 0.14, -0.1, 0.43, 0, white),
+      box(0.12, 0.86, 0.14, 0.1, 0.43, 0, white),
       box(0.09, 0.6, 0.1, -0.27, 1.12, 0, white),
       box(0.09, 0.6, 0.1, 0.27, 1.12, 0, white),
       box(0.2, 0.24, 0.14, 0.3, 0.66, 0, surf(0xb78a5a, 0.85)),
     ]);
   }
   return mergePacked([
-    box(0.62, 0.15, 0.76, 0, 0.13, 0, dark),
+    // Chassis and wheels as one dark block, down to the ground.
+    box(0.62, 0.205, 0.76, 0, 0.1025, 0, dark),
     box(0.6, 0.32, 0.72, 0, 0.36, 0, white),
     box(0.62, 0.07, 0.76, 0, 0.55, 0, surf(0xef6b4f, 0.45)),
     box(0.3, 0.07, 0.02, 0, 0.4, -0.37, status),
