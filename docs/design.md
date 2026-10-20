@@ -890,6 +890,38 @@ until the name search.
 - **FogCast** never shows less than 95% confidence and is wrong half the time. FogCast Pro
   ($30/month) is just as wrong.
 
+## Saves, profile and the playable link
+*(User request, 2026-10-20: "make this run in browser and save state and the users profile".)*
+
+- **The playable link.** The built game is published as a private claude.ai page that opens in any
+  browser, on desktop or phone. The owner shares it with invited people (e.g. Natalie) from the page's
+  Share menu. A new build republishes to the same link. This is for private play; a public launch
+  needs its own hosting and accounts (a later decision).
+- **What a save is.** Progression, never a mid-action sim snapshot (GTA-style): runway, cash,
+  reputation, XP and rank, owned upgrades and safehouses, the car and its tuning, mission and
+  side-activity progress, unlocked districts, threat-free respawn point, settings. Each save records
+  the `SIM_VERSION` and content bundle hash it was written with, and old saves load through the same
+  `upgradeState` chain the roadmap already requires for every version bump.
+- **When it saves.** Sleeping at a safehouse (manual save, 3 slots), autosave after every mission or
+  side activity and every 5 game minutes of free roam *(tune)*, and on tab close where the browser
+  allows.
+- **Where it saves.** One `SaveStore` interface in `src/save/`, with interchangeable backends:
+  1. **Page storage**: on the private claude.ai page, each signed-in person's saves and profile live
+     in that person's private page storage, so they follow you across devices.
+  2. **Browser storage** (IndexedDB) as the offline cache and the fallback outside claude.ai.
+  3. **Own backend** later, for a public launch.
+  Export and import of a save file (with the viewer's confirmation) for backups.
+- **The profile.** Display name (from generated name parts, never free text in shared places), the
+  character customizer settings, preferences (controls, audio, accessibility, camera), lifetime stats
+  and achievements. Profiles are private to their owner; leaderboards (later) store ids and scores
+  only, never names.
+- **Private co-op on the same page.** The page can relay live messages between whoever has it open, which
+  is enough for Bot Sweep co-op between invited players with no relay server of our own. It is not
+  authoritative, so Hide in the Crowd and anything competitive still waits for the real server.
+- **Live AI on the same page.** The page can ask Claude directly, so live AI moments (the Ramen
+  interview) can run for invited players without an API key or server. Scripted versions still ship
+  first and remain the fallback.
+
 ## Progression and economy
 - **Cash in:** bounties $150 (standard) and $400 (armoured), × (1 + 0.25 × (hardest tell's
   subtlety − 1)) so subtlety 5 pays 2×, × (1 + 0.1 × stars while an associate is within 200 m),
@@ -1177,3 +1209,8 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   turtleneck, made of every robot Moat Labs converted, so water rusts her. She stomps the city in scripted set pieces;
   people are always evacuated first and the city is rebuilt overnight. Parody name by default; the user may switch
   to the real name for private builds. Replaces the Moat Walker as the finale (the Walker stays as a threat-5 unit).
+- 2026-10-20 · **Saves, profile and the playable link** (user request). The game is published as a private
+  claude.ai page; saves (progression only, versioned through `upgradeState`) and profiles live in each person's
+  private page storage behind one `SaveStore` interface with a browser-storage cache and a later own-backend option.
+  Page-level live messaging gives private co-op and live AI without servers; a public launch still needs real
+  hosting and accounts.
