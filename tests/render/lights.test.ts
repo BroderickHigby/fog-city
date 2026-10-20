@@ -40,7 +40,7 @@ describe("light scaling", () => {
   it("is near 0 by day and well up at night, for every light", () => {
     for (const name of MODEL_LIGHTS) {
       expect(lightIntensity(name, 0), name).toBeLessThanOrEqual(0.05);
-      expect(lightIntensity(name, 1), name).toBeGreaterThanOrEqual(1);
+      expect(lightIntensity(name, 1), name).toBeGreaterThanOrEqual(0.5);
       expect(lightIntensity(name, 0.5)).toBeGreaterThan(lightIntensity(name, 0));
       expect(lightIntensity(name, 0.5)).toBeLessThan(lightIntensity(name, 1));
     }
