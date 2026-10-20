@@ -240,7 +240,7 @@ and every effect is slapstick or satire. The player makes no pain sounds. All nu
 | Attack | Who | Range | Wind-up | Effect |
 |---|---|---|---|---|
 | Shove | Porter, Patrol | 1.5 m | 0.6 s | A bump with a cartoon stumble for 1 s, never a fall to the ground and never contact at head height; −1 month runway. On a good robot: it falls over for 3 s and drops its groceries. |
-| Grocery snatch | Porter, Trundle | 1 m | 0.4 s | Robots only. Oranges roll downhill; the Porter gives chase at 1 m/s, sadly. |
+| Grocery snatch | Porter, Trundle | 1 m | 0.5 s | Robots only. Oranges roll downhill; the Porter gives chase at 1 m/s, sadly. |
 | Ad blast | Porter, ad drone | 8 m | 0.8 s | Up to three AR pop-ups, each covering at most a third of the screen and never the reticle; −0.2 month/s while any is up. Each close button dodges once, then stays put. On touch, a swipe anywhere clears one. |
 | Phone hack | Porter, Trundle | 4 m | 0.5 s | −0.1 month/s while it stays within 4 m; your minimap scrambles. Break by distance or water. |
 | The Handshake | Porter, Patrol | 1.2 m | 0.5 s | A networking handshake that will not let go, up to 2 s; 8 presses breaks free ("let's circle back"). |
