@@ -187,9 +187,6 @@ def golden_gate() -> None:
                 LK.strut(dk, (x, prev[0], prev[1]), (x, t, z), 2.4, orange, d=3.0)
                 LK.strut(dk, (x, t, z), (x, t, gg_deck_z(t, s) - GG_TRUSS), 0.5, steel_dark)
             prev = (t, z)
-    for t in (a0, a1):
-        g = LK.profile_ground(s, t)[0]
-        dk.box(-half, t - 4, g - 3, half, t + 4, g + 6.0, concrete, skip=("-z",))
     t = a0 - 50.0
     while t > GG_APPROACH_END + 20.0:
         g = LK.profile_ground(s, t)[0]
@@ -229,6 +226,10 @@ def golden_gate() -> None:
         # stepped pylons where the cables enter
         for side in (-1, 1):
             an.box(side * GG_CABLE_X - 4, y0 + 8, anch_z + 4.0, side * GG_CABLE_X + 4, y1 - 8, anch_z + 14.0, concrete)
+    # the arch's springing piers either side of Fort Point
+    for t in GG_ARCH:
+        g = LK.profile_ground(s, t)[0]
+        an.box(-half, t - 4, g - 3, half, t + 4, g + 6.0, concrete, skip=("-z",))
     an.build("anchorages", parent=root, sharp_angle=30)
 
     # ---- night: beacons are in the towers' mesh (light_status); a lit roadway edge line

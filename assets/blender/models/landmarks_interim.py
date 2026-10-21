@@ -95,6 +95,8 @@ def montgomery() -> None:
     half0 = 26.5  # 53 m square base
     z_top, half_top = 212.0, 7.0
     mb = fc.MeshBuilder()
+    # the plaza plinth on the podium record's footprint (what the sim collides with at street level)
+    banded_walls(mb, LK.record(s, "201006.0000687"), [(1.0, shade)], top_mat=shade)
     mb.push(Matrix.Translation((cx, cy, 0)))
     sq = lambda h: [(-h, -h), (h, -h), (h, h), (-h, h)]  # noqa: E731
     # the base: a dark recessed ground storey under the first floor's trusses
@@ -300,7 +302,7 @@ def grace() -> None:
     shade = fc.material("cast_stone_shade", "#b3ab9c", 0.85)
     roof = fc.material("roof_copper", "#5f7a72", 0.6, 0.3)
     glass = fc.material("stained_glass_dark", "#2c3340", 0.3)
-    lt = fc.material("light_tower_outline", "#cfc8ba", 0.8, emission="#3e3a33", strength=1.0)
+    lt = fc.material("light_tower_outline", "#cfc8ba", 0.8, emission="#544c40", strength=1.0)
     r = root("grace_cathedral", "grace-cathedral", topM=70.0)
     body = LK.record(s, "201006.0000550")
     cx, cy = LK.bl(*s["extra"]["crossing"])
@@ -444,7 +446,7 @@ def dragon_gate() -> None:
     # roofs: the tall central roof and two lower side roofs, with ridge ornaments
     roof_pagoda(mb, -c_half - pw - 0.9, c_half + pw + 0.9, -1.35, 1.35, 6.35, 8.0, tile, gold)
     for sgn in (-1, 1):
-        x0, x1 = sorted((sgn * (c_half + pw * 0.5), sgn * (half + 0.5)))
+        x0, x1 = sorted((sgn * (c_half + pw * 0.5), sgn * (half + 0.03)))
         roof_pagoda(mb, x0, x1, -1.1, 1.1, 3.75, 4.9, tile, gold, lift=0.3)
     # the ridge pearl between two stylised dragons
     mb.sphere((0.0, 0.0, 8.55), 0.28, 10, 6, gold)
