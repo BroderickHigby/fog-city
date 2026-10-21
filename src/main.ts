@@ -201,7 +201,7 @@ async function boot(): Promise<void> {
     if (!p) {
       p = {
         car: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, steer: 0, speed: 0 },
-        foot: { x: 0, y: 0, z: 0, heading: 0, speed: 0 },
+        foot: { x: 0, y: 0, z: 0, heading: 0, speed: 0, dodge: null, alpha: 0 },
       };
       poses.set(id, p);
     }
@@ -360,6 +360,8 @@ async function boot(): Promise<void> {
         f.z = lerp(fa.z, fb.z, alpha);
         f.heading = fa.heading + wrapAngle(fb.heading - fa.heading) * alpha;
         f.speed = lerp(fa.speed, fb.speed, alpha);
+        f.dodge = fb.dodge;
+        f.alpha = alpha;
       }
       view.setFoot(id, onFoot ? P.foot : null);
       if (id === LOCAL_PLAYER) {

@@ -57,8 +57,8 @@
 //
 // The dodge (v4, src/sim/dodge.ts): an agent with a DodgeState is diving out of a vehicle's
 // way or getting up after it. stepAgents leaves it exactly as it is (dodge.ts moves it), and
-// when it has recovered it carries on along its path from where it landed (s and lat from that
-// spot, so a walker drifts back to its sidewalk line).
+// when it has recovered it walks on from where it landed (rejoinAt: a connector back onto its
+// sidewalk a little ahead), never jumping back to its line.
 
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
@@ -315,6 +315,40 @@ export function agentPath(world: World, a: Readonly<AgentState>): Path | null {
   const ei = g.edgeIndex.get(a.edge);
   if (ei === undefined) return null;
   return basePath(g.edges[ei]!, a);
+}
+
+/** A walker back from a dodge rejoins its sidewalk at least this far ahead of where it landed, metres. */
+export const REJOIN_AHEAD_M = 1.5;
+
+/**
+ * Where a walker done with a dodge (dodge.ts), standing at (x, z), carries on from, and which
+ * way it then faces. Standing on its current path (sidewalk or connector): its s there. Anywhere
+ * else (beside its path, or past either end of it, where no s and lat reach and walking on from
+ * the nearest end would make it jump): a connector from where it stands back onto its sidewalk,
+ * ahead of it by REJOIN_AHEAD_M or by how far off it is (whichever is more, so it rejoins at 45
+ * degrees or less), so it walks back on its own line, never off to the side of it. Null without
+ * a road graph or a known edge.
+ */
+export function rejoinAt(world: World, a: Readonly<AgentState>, x: number, z: number): Pick<AgentState, "s" | "lat" | "conn" | "resume" | "heading"> | null {
+  const g = world.roads;
+  const path = agentPath(world, a);
+  const ei = g ? g.edgeIndex.get(a.edge) : undefined;
+  if (!g || !path || ei === undefined) return null;
+  const p = projectOnPath(path, x, z);
+  if (p.dist <= 0.01) {
+    const q = pathPoint(path, p.s);
+    return { s: p.s, lat: 0, conn: a.conn, resume: a.resume, heading: datan2(q.tx, -q.tz) };
+  }
+  const lane = basePath(g.edges[ei]!, a);
+  const pl = projectOnPath(lane, x, z);
+  const s1 = clamp(pl.s + Math.max(REJOIN_AHEAD_M, pl.dist), 0, lane.len);
+  const t = pathPoint(lane, s1);
+  const dx = t.x - x;
+  const dz = t.z - z;
+  const l = Math.sqrt(dx * dx + dz * dz);
+  const ux = l > 1e-6 ? dx / l : t.tx;
+  const uz = l > 1e-6 ? dz / l : t.tz;
+  return { s: 0, lat: 0, conn: connector(x, z, ux, uz, t.x, t.z, t.tx, t.tz, 0.9), resume: s1, heading: datan2(ux, -uz) };
 }
 
 /** The obstacle circles of one agent (robotaxis are two circles, walkers one). */

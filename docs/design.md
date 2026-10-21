@@ -285,8 +285,8 @@ fee", and both meters reset.
 
 ### Threat (robot heat), 0–5 warning lights
 Each level brings guaranteed arrivals. Moat Labs vans are dispatched from Moat Labs HQ or a depot
-and enter the fidelity radius about 120 m from you; this is delivery, not spread. Vans obey the
-person-clearance override like every vehicle.
+and enter the fidelity radius about 120 m from you; this is delivery, not spread. People dive out
+of a van's way, and the person-clearance override holds for it, like every vehicle.
 
 | Level | Raised by | What comes |
 |---|---|---|
@@ -377,21 +377,40 @@ ACQUI-HIRED.
   A calendar test asserts that every event-gated activity is available at least once per 3 real
   hours of play, every full event happens at least once per 12, and every mission that needs an
   event completes from any start date.
-- **Vehicles never hurt people. Enforced in the sim:**
+- **Vehicles never hurt people. Enforced in the sim** (the owner's Crazy Taxi rule, decision log
+  2026-10-21: you can never hit a person; they always jump out of the way):
   - Every human is on the person collision layer, which no vehicle or prop can touch: NPC people,
     remote players' and bots' avatars, associates, anyone on foot, on a scooter or e-bike (the
     rider and vehicle count as a person, not a vehicle), or on a running board. Animals share the
-    layer.
-  - The person-clearance override: any vehicle with a person or animal in its swept path within
-    its stopping distance + 2 m brakes to a stop, whatever its tuning. Occupied cable cars and
-    buses count as people for the override. Pedestrians hop aside (slapstick dives, GTA-style).
+    layer. People and animals are not obstacles to cars: a car is never stopped, slowed or
+    deflected by one.
+  - **The dive** (`src/sim/dodge.ts`): every person, animal and robot, and every player on foot,
+    watches every vehicle (player cars, robotaxis, every AI vehicle). A vehicle's swept footprint is
+    predicted 0.6–1.5 s ahead from its speed, velocity and yaw rate (a drift or a handbrake turn
+    counts; a player's car also the hardest turn its tyres allow, its footprint widening with
+    time because it can steer anywhere; an AI vehicle along its route, braking for people as it
+    does). Anyone within 0.75 m of it (1.25 m for children and anyone seated, lying down or using
+    a mobility aid) dives Crazy Taxi style: to the side of the path they are on, or the other side
+    when theirs is blocked by a building, a wall, a kerb rail or water; never into another
+    vehicle's path, another body or another diver's landing; at 7–9 m/s with a hop (faster when a
+    car reaches them late), then about a second to get up and walk back to their line (never a
+    jump back onto it). Robots skid or hop aside. Animals scatter the same way (pigeons flutter
+    up, the dog bounds) when animal agents arrive: none walk the streets yet.
+  - **The person-clearance override**, which no tuning removes: after the vehicles move each tick,
+    anyone still within 0.3 m of a moving vehicle's body (0.6 m for the vulnerable), or inside any
+    vehicle's body, is put at the nearest free spot outside every vehicle and out of its path (a
+    superhuman leap, drawn as a big hop). It is counted, with every near miss
+    (`CarState.nearMisses`, for scoring and barks); a contact count (`personBumps`, `ext.dodge`)
+    stays 0. AI vehicles (robotaxis, vans, buses) also still brake for anyone in their path, with a
+    berth that keeps them 0.75 m from people's bodies: the dive is on top of that. Occupied cable
+    cars and buses count as people for the override.
   - Pedestrians cross only at crosswalks, during their signal phase, with gap acceptance: they
     never step out in front of a vehicle whose stopping distance exceeds the gap. Dodging comes
     before the override. The `?bench=` summary reports override activations per minute; the target
     is at most 1 per minute of normal driving.
-  - If contact ever happens, it is a gentle push that stops the car dead.
   - Drops, cones, sprinklers and props spawn only on spots with no people.
-  - A no-brakes contract fails the moment the override fires, instead of hitting anyone.
+  - A no-brakes contract fails the moment the override fires (someone had to be leapt clear),
+    instead of anyone being hit.
   - **Jumps.** An airborne car cannot brake, so the crest detector stores each crest's landing
     envelope at the maximum tuned speed. While a player vehicle within 150 m heads at a crest,
     people and animals path out of the envelope and nothing spawns inside it. If anyone is still
@@ -832,7 +851,7 @@ The Ferry Building clock face shows the time to AGI, starting at "two years away
 - Contracts start and end inside their wave's tiles: e.g. carry the cardigan committee's
   900-page safety binder from the Ferry Building to R-Evolution without going over 12 mph (Pauser,
   wave 4 on wave-1 tiles); rush a rack of Tensor Bricks from Pier 70 to SoMa with the brakes
-  "decel-coded" (Accelerator; the person-clearance override fails the contract).
+  "decel-coded" (Accelerator; a person-clearance override fails the contract).
 - The two announcer pools get equal line counts; a content test checks it.
 
 ## Navigation and UI
@@ -946,8 +965,9 @@ until the name search.
 - **Blaster upgrades:** tank, flow, nozzles (stream, Wide for groups, Pressure Washer for range),
   scanner tiers (tier 2 from mission 3), the car's trunk tank, the Roof Cannon (wave 4).
 - **Vibe-coded tuning** at the Pier 70 prompt bench: you play prompt cards on your car. "Make it
-  faster" gives +30% top speed and −60% brake force (the person-clearance override still stops the
-  car, and crest envelopes are computed at this speed; neither can be tuned away). "Review the
+  faster" gives +30% top speed and −60% brake force (people still dive clear and the
+  person-clearance override still holds, and crest envelopes are computed at this speed; none of it
+  can be tuned away). "Review the
   diff" costs 30 s and shows the real stat changes; "Accept all" is free and hides the side
   effects. "Make it safer" adds a speed governor nobody asked for.
 - **Recruits:** a good robot whose forced update you interrupted may offer to join (reputation ≥
@@ -1255,3 +1275,11 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   blue, clouds, and blimps and banner-towing planes trailing ads for invented startups (never real companies; the
   content lint applies). The aircraft are ambient scenery on a seeded schedule, not sim entities, so they cost no
   netcode; the Blimp Impressions streak reuses the blimp, and Fleet Week's jets stay a separate, scheduled event.
+- 2026-10-21 · **The Crazy Taxi rule** (owner request: "make the people always jump out of the way of cars so they
+  cant get run over. like in crazy taxi you can't ever hit a person"). People, animals and robots dive out of every
+  vehicle's predicted path (0.75 m margin; 1.25 m for children and anyone seated, lying down or using a mobility aid),
+  and a person-clearance override that no tuning removes puts anyone still within 0.3 m of a moving vehicle (0.6 m
+  for the vulnerable) at the nearest free spot outside it. Cars are never stopped, slowed or deflected by people: the
+  earlier rule that a car stops dead at a person is replaced. AI vehicles keep braking for people, with a berth that
+  keeps them 0.75 m clear. Near misses are counted per car for scoring and barks. Sim contract v4
+  (`src/sim/dodge.ts`); the no-touch fuzz and the clearance soak are the gate (`docs/testing.md`).

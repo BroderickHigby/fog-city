@@ -14,6 +14,7 @@ import {
   SAMPLE_S,
   advanceDodge,
   agentDodgeClass,
+  agentPath,
   agentsOf,
   boxDistance,
   buildWorld,
@@ -26,8 +27,11 @@ import {
   makeVehicle,
   meshGroundHeight,
   overrideSpot,
+  pathPoint,
   personIsChild,
   predictPaths,
+  redirectDive,
+  rejoinAt,
   segmentBlocked,
   step,
   sweepClearance,
@@ -250,6 +254,31 @@ describe("where a body dives", () => {
     }
     expect(ticks).toBe(prof.recover);
     expect([r.x, r.z]).toEqual([2.4, 0]);
+  });
+
+  it("a dive turned toward a new landing carries on from where the body is, at the same point of the dive: no restart, no jump", () => {
+    const prof = DODGE_PROFILE.person;
+    const at = (d: { sx: number; sz: number; tx: number; tz: number; t: number; dur: number }): [number, number] => [d.sx + ((d.tx - d.sx) * d.t) / d.dur, d.sz + ((d.tz - d.sz) * d.t) / d.dur];
+    let d = { phase: "dive" as const, sx: 0, sz: 0, tx: 3, tz: 0, t: 0, dur: 20, peak: prof.peak, hop: 0, leap: false };
+    for (let i = 0; i < 5; i++) d = advanceDodge(d, prof).dodge as typeof d;
+    // A quarter of the way, turned 90 degrees.
+    const turned = redirectDive(prof, d, 0.75, 0, 0.75, 3);
+    const [x, z] = at(turned);
+    expect(x).toBeCloseTo(0.75, 9);
+    expect(z).toBeCloseTo(0, 9);
+    expect(turned.t / turned.dur).toBeCloseTo(0.25, 1);
+    expect(turned.hop).toBe(d.hop);
+    expect(turned.dur - turned.t).toBe(Math.ceil(3 / prof.speed / (1 / 60) - 1e-9)); // the rest at dive speed
+    const n = advanceDodge(turned, prof);
+    expect(Math.hypot(n.x - 0.75, n.z)).toBeLessThan((prof.speed * 1.01) / 60);
+    expect(n.z).toBeGreaterThan(0); // on the new line
+    expect(Math.abs(n.dodge!.hop - d.hop)).toBeLessThan(0.05);
+    // Late in the dive (rolling): it goes back no further than the stretch.
+    let late = d;
+    for (let i = 0; i < 10; i++) late = advanceDodge(late, prof).dodge as typeof d;
+    const again = redirectDive(prof, late, 2.25, 0, 2.25, 3);
+    expect(again.t / again.dur).toBeLessThanOrEqual(0.45 + 1e-9);
+    expect(at(again)[0]).toBeCloseTo(2.25, 9);
   });
 });
 
@@ -496,5 +525,43 @@ describe("the dodge in step()", () => {
     expect(c.personBumps).toBe(1);
     void FOOT;
     void makeVehicle;
+  });
+});
+
+describe("back on the path after a dodge (agents.ts rejoinAt)", () => {
+  it("on its path it carries on from there; beside it or past its end, a connector from where it stands walks it back onto its sidewalk ahead, never a jump", () => {
+    const world = gridCity(true);
+    let s = createInitialState(world, 9, ["p1"], { x: 20, z: 106, heading: Math.PI / 2 });
+    const ext = s.ext.agents as AgentsExt;
+    const w = ext.list.find((a) => !AGENT_SPEC[a.kind].road && a.conn === null && a.mode === "go")!;
+    expect(w, "a walker on its sidewalk").toBeDefined();
+    const path = agentPath(world, w)!;
+    // On it, half-way along: carries on from there, facing along it.
+    const mid = pathPoint(path, path.len / 2);
+    const on = rejoinAt(world, w, mid.x, mid.z)!;
+    expect(on.conn).toBeNull();
+    expect(on.s).toBeCloseTo(path.len / 2, 6);
+    expect(on.lat).toBe(0);
+    expect(on.heading).toBeCloseTo(Math.atan2(mid.tx, -mid.tz), 9);
+    // Beside it, 3 m to the right: a connector from there onto the sidewalk 3 m on.
+    const b = rejoinAt(world, w, mid.x - mid.tz * 3, mid.z + mid.tx * 3)!;
+    expect([b.conn![0], b.conn![1], b.s, b.lat]).toEqual([mid.x - mid.tz * 3, mid.z + mid.tx * 3, 0, 0]);
+    expect(b.resume).toBeCloseTo(Math.min(path.len, path.len / 2 + 3), 6);
+    // Past the end: 2.5 m on and 1 m to the side, where no s and lat reach.
+    const end = pathPoint(path, path.len);
+    const px = end.x + end.tx * 2.5 - end.tz;
+    const pz = end.z + end.tz * 2.5 + end.tx;
+    const r = rejoinAt(world, w, px, pz)!;
+    expect(r.conn).not.toBeNull();
+    expect([r.conn![0], r.conn![1], r.s, r.lat]).toEqual([px, pz, 0, 0]);
+    // Walking on from there it takes a step, it does not jump back to the end of its sidewalk.
+    const placed: AgentState = { ...w, ...r, x: px, z: pz, speed: 0, mode: "go", wait: 0, dwell: 0, dodge: null };
+    s = { ...s, ext: { ...s.ext, agents: { ...ext, list: ext.list.map((a) => (a.id === w.id ? placed : a)) } } };
+    for (let t = 0; t < 30; t++) {
+      const prev = agentsOf(s).find((a) => a.id === w.id)!;
+      s = step(world, s, { p1: { throttle: 0, steer: 0, brake: 1, actions: 0 } });
+      const now = agentsOf(s).find((a) => a.id === w.id)!;
+      expect(Math.hypot(now.x - prev.x, now.z - prev.z)).toBeLessThan(0.1);
+    }
   });
 });

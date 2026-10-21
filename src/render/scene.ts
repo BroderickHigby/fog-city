@@ -75,6 +75,8 @@ export interface RenderInfo {
   agentsTotal: number;
   /** Draw calls the agents took last frame. */
   agentDrawCalls: number;
+  /** Agents drawn in a dodge pose last frame (diving, leaping, getting up, skidding). */
+  agentsDodging: number;
   /** Agent kinds drawn from their model files (the rest use box stand-ins). */
   agentModels: string[];
   /** Players drawn from models/player-car.glb (the rest use the procedural car). */
@@ -435,6 +437,7 @@ export class SceneRenderer {
     out.agentsNear = a.near;
     out.agentsTotal = a.total;
     out.agentDrawCalls = a.drawCalls;
+    out.agentsDodging = a.dodging;
     out.agentModels = a.models;
     let fromFile = 0;
     for (const src of Object.values(this.actors.carSources())) if (src === "file") fromFile++;
@@ -488,6 +491,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   agentsNear: 0,
   agentsTotal: 0,
   agentDrawCalls: 0,
+  agentsDodging: 0,
   agentModels: [],
   playerCarsFromFile: 0,
   walkers: 0,

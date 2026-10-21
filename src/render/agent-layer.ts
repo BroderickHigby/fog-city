@@ -16,6 +16,9 @@
 //  - far from every player the sim steps an agent only every LOD_STRIDE ticks; it is drawn
 //    across that whole step (agent-lod.ts trackStep/windowAlpha) so it glides, not stop-go.
 //  - errand robots carry a full bag unless the agent says otherwise; setBags() overrides it.
+//  - an agent with a dodge (src/sim/dodge.ts) is drawn diving, leaping, getting up or skidding
+//    (dodge-pose.ts): people with the full rig near, the merged copy leaning and tumbling at mid
+//    and far range; robots tipped and swung round. Children (personIsChild) are drawn smaller.
 // Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
 // parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
 // With shadows on (?shadows=1) every agent mesh casts and receives them.
@@ -24,7 +27,8 @@
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
 
 import * as THREE from "three";
-import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
+import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, personIsChild, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
+import { newPersonPose, newRobotPose, personDodgePose, robotDodgePose, type PersonPose } from "./dodge-pose.ts";
 import type { SimState } from "../sim/contract.ts";
 import {
   DEFAULT_TIERS,
@@ -173,16 +177,32 @@ const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
 const _one = new THREE.Vector3(1, 1, 1);
 
-/** Agent placement: origin on the ground, rotation.y = -heading, nose-up pitch, uniform scale. */
-function baseMatrix(x: number, y: number, z: number, heading: number, pitch: number, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
-  _e.set(pitch, -heading, 0, "YXZ");
+/** Agent placement: origin on the ground, rotation.y = -heading, nose-up pitch, right-down roll, uniform scale. */
+function baseMatrix(x: number, y: number, z: number, heading: number, pitch: number, scale: number, out: THREE.Matrix4, roll = 0): THREE.Matrix4 {
+  _e.set(pitch, -heading, -roll, "YXZ");
   _q.setFromEuler(_e);
   return out.compose(_p.set(x, y, z), _q, _s.setScalar(scale));
 }
 
-/** base x T(pivot) x Ry(ry) x Rx(rx). */
-function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4): THREE.Matrix4 {
-  _e.set(rx, ry, 0, "YXZ");
+const _pivot = new THREE.Matrix4();
+const _down = new THREE.Matrix4();
+
+/**
+ * A body in a dodge pose (dodge-pose.ts): placed at (x, y + lift, z), facing `heading`, then
+ * pitched and rolled about a point `pivot` metres up the body, squashed in height by `squash`.
+ */
+function poseMatrix(x: number, y: number, z: number, p: Readonly<PersonPose>, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
+  const up = p.pivot * scale * p.squash;
+  _e.set(p.pitch, -p.heading, -p.roll, "YXZ");
+  _q.setFromEuler(_e);
+  _pivot.compose(_p.set(x, y + p.lift + up, z), _q, _one);
+  _down.compose(_p.set(0, -up, 0), _q.identity(), _s.set(scale, scale * p.squash, scale));
+  return out.multiplyMatrices(_pivot, _down);
+}
+
+/** base x T(pivot) x Ry(ry) x Rx(rx) x Rz(rz). */
+function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4, rz = 0): THREE.Matrix4 {
+  _e.set(rx, ry, rz, "YXZ");
   _q.setFromEuler(_e);
   _local.compose(_p.set(px, py, pz), _q, _one);
   return out.multiplyMatrices(base, _local);
@@ -216,9 +236,22 @@ export class PeopleRig {
     this.legs.begin();
   }
 
-  /** One person: `swing` is sin(gait phase) times the gait amount (-1..1). */
-  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number): void {
+  /**
+   * One person: `swing` is sin(gait phase) times the gait amount (-1..1). With `pose` (a dodge,
+   * dodge-pose.ts) the body leans, rolls and tumbles as it says and the limbs take its angles
+   * (`heading` and `swing` are then unused).
+   */
+  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number, pose: Readonly<PersonPose> | null = null): void {
     if (this.body.count >= this.body.capacity) return;
+    if (pose) {
+      poseMatrix(x, y, z, pose, look.scale, _base);
+      this.body.push(_base, null, look);
+      this.legs.push(partMatrix(_base, -HIP[0], HIP[1], HIP[2], pose.legL, 0, _m), null, look);
+      this.legs.push(partMatrix(_base, HIP[0], HIP[1], HIP[2], pose.legR, 0, _m), null, look);
+      this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], pose.armL[0], 0, _m, pose.armL[1]), null, look);
+      this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], pose.armR[0], 0, _m, pose.armR[1]), null, look);
+      return;
+    }
     baseMatrix(x, y, z, heading, 0, look.scale, _base);
     this.body.push(_base, null, look);
     const leg = 0.42 * swing;
@@ -296,6 +329,8 @@ export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly 
 export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.2 };
 /** Peak limb swing, radians, for a walking errand robot. */
 const ROBOT_SWING = 0.38;
+/** A child is drawn this much smaller than an adult (the sim's personIsChild). */
+export const CHILD_SCALE = 0.62;
 
 interface KindView {
   kind: Exclude<AgentKind, "person">;
@@ -332,6 +367,8 @@ export interface AgentRenderInfo {
   triangles: number;
   /** Kinds whose model file is in use. */
   models: string[];
+  /** Of the agents drawn, how many in a dodge pose (diving, leaping, getting up, skidding). */
+  dodging: number;
 }
 
 export class AgentLayer {
@@ -371,7 +408,9 @@ export class AgentLayer {
   /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
   private brakeUntil = new Map<number, number>();
   private readonly look = newLook();
-  private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
+  private readonly personPose = newPersonPose();
+  private readonly robotPose = newRobotPose();
+  private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [], dodging: 0 };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
     this.opts = { ...DEFAULT_TIERS, ...opts };
@@ -508,10 +547,12 @@ export class AgentLayer {
     this.peopleFar.begin();
     let drawn = 0;
     let near = 0;
+    let dodging = 0;
     for (let i = 0; i < n; i++) {
       const tier = this.tiers[i]!;
       if (tier === TIER_HIDDEN) continue;
       const [a, b] = pairs[i]!;
+      if (b.dodge) dodging++;
       const pose = this.poses[i]!;
       const held = this.brakeUntil.get(b.id) ?? -Infinity;
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
@@ -520,24 +561,36 @@ export class AgentLayer {
       drawn++;
       if (b.kind === "person") {
         personLook(b.id, this.look);
+        if (personIsChild(b.id)) this.look.scale *= CHILD_SCALE;
+        // A dodge: dived, leapt, tumbling or getting up (a leap is drawn along its arc).
+        const dp = b.dodge ? personDodgePose(b.dodge, b.heading, alpha, time, this.personPose) : null;
+        const px = dp && dp.x !== null ? dp.x : pose.x;
+        const pz = dp && dp.z !== null ? dp.z : pose.z;
         if (tier === TIER_NEAR) {
           const anim = this.anim(b.id, pose, dt);
           this.wasNear.add(b.id);
           near++;
-          this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount);
+          this.people.add(px, pose.y, pz, pose.heading, this.look, Math.sin(anim.gait) * anim.amount, dp);
         } else {
-          baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
+          if (dp) poseMatrix(px, pose.y, pz, dp, this.look.scale, _base);
+          else baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
           (tier === TIER_MID ? this.peopleMid : this.peopleFar).push(_base, null, this.look);
         }
         continue;
       }
       const view = this.kinds.get(b.kind)!;
+      const rp = b.dodge && b.kind !== "robotaxi" ? robotDodgePose(b.kind, b.dodge, b.heading, alpha, this.robotPose) : null;
+      if (rp) {
+        if (rp.x !== null) pose.x = rp.x;
+        if (rp.z !== null) pose.z = rp.z;
+        pose.heading = rp.heading;
+      }
       if (tier === TIER_NEAR && view.source === "file") {
         this.wasNear.add(b.id);
         near++;
-        this.drawNear(view, b, pose, cue, dt);
+        this.drawNear(view, b, pose, cue, dt, rp ? rp.pitch : null, rp ? rp.roll : 0, rp ? rp.swing : null);
       } else {
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
+        baseMatrix(pose.x, pose.y, pose.z, pose.heading, rp ? rp.pitch : pose.pitch, view.scale, _base, rp ? rp.roll : 0);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
       }
     }
@@ -572,6 +625,7 @@ export class AgentLayer {
     s.drawCalls = calls;
     s.triangles = tris;
     s.models = [...this.kinds.values()].filter((v) => v.source === "file").map((v) => v.kind);
+    s.dodging = dodging;
   }
 
   /** Each agent's step window for a new current tick (the sim decides far from prev's player bodies). */
@@ -632,13 +686,23 @@ export class AgentLayer {
     return an;
   }
 
-  private drawNear(view: KindView, b: Readonly<AgentState>, pose: AgentPose, cue: Readonly<AgentCue>, dt: number): void {
+  /** A near agent's full model; a dodging robot's pitch, roll and limb swing override the walk's (dodge-pose.ts). */
+  private drawNear(
+    view: KindView,
+    b: Readonly<AgentState>,
+    pose: AgentPose,
+    cue: Readonly<AgentCue>,
+    dt: number,
+    pitch: number | null = null,
+    roll = 0,
+    dodgeSwing: number | null = null,
+  ): void {
     const model = view.model!;
     const spec = AGENT_SPEC[b.kind];
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
-    baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
-    const swing = Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
+    baseMatrix(pose.x, pose.y, pose.z, pose.heading, pitch ?? pose.pitch, view.scale, _base, roll);
+    const swing = dodgeSwing !== null ? dodgeSwing * ROBOT_SWING * 2 : Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
       if (p.bagContents && !bagFull(b, this.bags)) continue;
       let rx = 0;

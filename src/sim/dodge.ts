@@ -49,15 +49,14 @@ import {
   LOD_STRIDE,
   NEAR_RANGE_M,
   agentCircles,
-  agentPath,
   agentRoute,
   personIsChild,
   playerBodies,
+  rejoinAt,
   type AgentKind,
   type AgentState,
   type AgentsExt,
 } from "./agents.ts";
-import { projectOnPath } from "./roads.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import { cellKey, circleBlocked, meshGroundHeight, segmentBlocked, surfaceHeight, type World } from "./world.ts";
 
@@ -89,7 +88,10 @@ export const ROBOTAXI_REACT_S = 2 * DT;
 export const LEAP_TICKS = 24;
 /** Bodies keep at least this much room between each other when they land, metres. */
 export const LANDING_GAP_M = 0.1;
-/** The line to a landing spot keeps this clear of the vehicle on the way, metres. */
+/**
+ * The line to a landing spot keeps at least this clear of the vehicle on the way, metres (a line
+ * keeping the body's whole margin is taken first when there is one).
+ */
 export const PASSING_M = 0.2;
 /**
  * A body the vehicle reaches within this many seconds (it saw it late: a car that swerved, or
@@ -227,12 +229,13 @@ function rot(x: number, z: number, c: number, s: number): [number, number] {
   return [x * c - z * s, z * c + x * s];
 }
 
-/** What else a vehicle may have (Vehicle's fields of the same names). */
+/** What else a vehicle may have (Vehicle's fields of the same names); predict false: no paths (nobody is near enough to need them). */
 export interface VehicleOptions {
   circles?: Array<{ x: number; z: number; r: number }> | null;
   spread?: number;
   react?: number;
   route?: RoutePoint[] | null;
+  predict?: boolean;
 }
 
 /**
@@ -282,7 +285,7 @@ export function makeVehicle(
     maxX: x,
     maxZ: z,
   };
-  v.paths = predictPaths(v);
+  v.paths = opts.predict === false ? [] : predictPaths(v);
   const reach = hl + hw + spread * horizonS(speed);
   for (const p of v.paths) {
     for (const s of p) {
@@ -314,7 +317,7 @@ export function vehicleOfCar(id: PlayerId, c: Readonly<CarState>): Vehicle {
  * after ROBOTAXI_REACT_S), and its body as the two circles it moves by. Its yaw rate and braking
  * come from its previous pose (`prev`, stepped `dt` seconds ago).
  */
-export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null): Vehicle {
+export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true): Vehicle {
   const spec = AGENT_SPEC[a.kind];
   let yaw = 0;
   let decel = ROBOTAXI_BRAKE_MPS2;
@@ -324,11 +327,12 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   }
   const fx = dsin(a.heading);
   const fz = -dcos(a.heading);
-  const route = world && a.speed >= DODGE_MIN_SPEED ? agentRoute(world, a, a.speed * horizonS(a.speed) + 1, 0.5) : null;
+  const route = predict && world && a.speed >= DODGE_MIN_SPEED ? agentRoute(world, a, a.speed * horizonS(a.speed) + 1, 0.5) : null;
   return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, spec.halfLength, spec.halfWidth, a.speed * fx, a.speed * fz, yaw, decel, {
     circles: agentCircles(a),
     react: ROBOTAXI_REACT_S,
     route: route && route.length >= 2 ? route : null,
+    predict,
   });
 }
 
@@ -560,18 +564,18 @@ function spotFree(spots: readonly Spot[], x: number, z: number, r: number): bool
 }
 
 /**
- * Does a body leaving (px, pz) along (wx, wz) at `speed` for `len` metres stay PASSING_M (plus the spread) clear
- * of every moving vehicle's predicted body on the way? It has moved one tick when the samples'
- * clock starts (they are the vehicles after this tick's move).
+ * Does a body leaving (px, pz) along (wx, wz) at `speed` for `len` metres stay `passing` (plus
+ * the spread) clear of every moving vehicle's predicted body on the way? It has moved one tick
+ * when the samples' clock starts (they are the vehicles after this tick's move).
  */
-function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number): boolean {
+function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing = PASSING_M): boolean {
   for (const v of vehicles) {
     for (const path of v.paths) {
       for (const s of path) {
         const along = Math.min(len, speed * (s.t + DT));
         const x = px + wx * along;
         const z = pz + wz * along;
-        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + PASSING_M + v.spread * s.t) return false;
+        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + passing + v.spread * s.t) return false;
       }
     }
   }
@@ -608,7 +612,7 @@ const MARCH_M = 0.25;
  * and the side the body is on); `vehicles` every vehicle near enough to matter; `spots` bodies
  * and landing spots to keep clear of. A spot must be clear of every vehicle with the body's
  * margin, its line must be clear of buildings, walls and big steps and of the vehicles on the
- * way. When nothing qualifies with the spots, again without them; when still nothing, the spot
+ * way (by the body's margin when any line is, else by PASSING_M). When nothing qualifies with the spots, again without them; when still nothing, the spot
  * on the lines with the most clearance from the vehicles (a best effort the override backs
  * up), or null when no line leads anywhere. `prefer` (a unit direction: a dive already under
  * way) keeps a body from changing its mind: its side is the side that direction is on, and a
@@ -643,7 +647,10 @@ export function chooseDive(
             ? 1
             : -1;
   const moving = vehicles.filter((v) => v.paths.length > 0);
-  {
+  // First a line that keeps the body's whole margin from every predicted footprint on the way
+  // (one that only stays PASSING_M clear can cut in front of a turning car's arc); then, when
+  // there is none, any line that stays PASSING_M clear.
+  for (const passing of [prof.margin, PASSING_M]) {
     let best: { x: number; z: number; cost: number } | null = null;
     for (const sideSign of [side, -side]) {
       for (const [ang, angCost] of FAN) {
@@ -664,7 +671,7 @@ export function chooseDive(
           if (!lineOpen(g, b, x, z, DIVE_STEP_M)) break;
           if (!clearOfVehicles(vehicles, x, z, b.r, prof.margin + LANDING_EXTRA_M)) continue;
           // (Across the vehicle's path: with a wider berth, since that line goes in front of it.)
-          if (!passesClear(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M))) break;
+          if (!passesClear(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M), passing)) break;
           // Onto another body or landing: allowed, but dearer (a little further on is usually free).
           if (!spotFree(spots, x, z, b.r)) {
             if (!best || base + len + CROWDED_COST < best.cost) best = { x, z, cost: base + len + CROWDED_COST };
@@ -770,6 +777,26 @@ function startDive(prof: DodgeProfile, sx: number, sz: number, tx: number, tz: n
   return { phase: "dive", sx, sz, tx, tz, t: 0, dur, peak: prof.peak, hop: 0, leap: false };
 }
 
+/** A dive turned somewhere new keeps at most this much of its progress (the stretch, before the roll). */
+const REDIRECT_MAX_U = 0.45;
+
+/**
+ * A dive under way, turned toward a new landing (tx, tz) from where the body is (px, pz): it
+ * carries on from the same point of the dive (its progress, at most REDIRECT_MAX_U, so the body
+ * stays in its stretch and its hop where it was), covering what is left at `speed`. (sx, sz)
+ * is put back along the new line so the body is exactly where it is now.
+ */
+export function redirectDive(prof: DodgeProfile, d: Readonly<DodgeState>, px: number, pz: number, tx: number, tz: number, speed = prof.speed): DodgeState {
+  const u0 = d.dur > 0 ? Math.min(d.t / d.dur, REDIRECT_MAX_U) : 0;
+  const len = Math.sqrt((tx - px) * (tx - px) + (tz - pz) * (tz - pz));
+  const rest = Math.max(1, Math.ceil(len / speed / DT - 1e-9), Math.round(prof.minTicks * (prof.speed / speed) * (1 - u0)));
+  const dur = Math.max(rest, Math.round(rest / (1 - u0)));
+  const t = dur - rest;
+  const u = t / dur;
+  const k = u / (1 - u);
+  return { phase: "dive", sx: px + (px - tx) * k, sz: pz + (pz - tz) * k, tx, tz, t, dur, peak: d.peak, hop: d.hop, leap: false };
+}
+
 /** One tick of a dodge: the new state (null when over) and where the body is. */
 export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfile>): { dodge: DodgeState | null; x: number; z: number } {
   if (d.phase === "recover") {
@@ -820,18 +847,6 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const agentsExt = after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined;
   const agents = agentsExt ? agentsExt.list : [];
 
-  // Vehicles: every player's car, every robotaxi.
-  const vehicles: Vehicle[] = [];
-  for (const id of ids) vehicles.push(vehicleOfCar(id, after.players[id]!.car));
-  const prevAgents = new Map<number, AgentState>();
-  for (const a of (before.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) prevAgents.set(a.id, a);
-  const bodies = playerBodies(before);
-  for (const a of agents) {
-    if (!AGENT_SPEC[a.kind].road) continue;
-    const near = bodies.some((p) => (p.x - a.x) * (p.x - a.x) + (p.z - a.z) * (p.z - a.z) <= NEAR_RANGE_M * NEAR_RANGE_M);
-    vehicles.push(vehicleOfAgent(a, prevAgents.get(a.id) ?? null, near ? DT : DT * LOD_STRIDE, world));
-  }
-
   // Dodgers: players on foot, then agents by id.
   const recs: Rec[] = [];
   for (const id of ids) {
@@ -877,7 +892,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   });
   if (recs.length === 0) return after;
 
-  // Who is in whose predicted footprint.
+  // Where the dodgers are (cells of HASH_M).
   const hash = new Map<number, number[]>();
   recs.forEach((r, i) => {
     const k = cellKey(Math.floor(r.x / HASH_M), Math.floor(r.z / HASH_M));
@@ -896,6 +911,50 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   };
   const scratch: number[] = [];
   const maxReach = 0.5 + DODGE_PROFILE.care.margin;
+
+  // Vehicles: every player's car, every robotaxi. A moving robotaxi predicts its path (a route
+  // walk) only when a dodger is near enough to be in it; one that might matter only for where
+  // someone lands is predicted when a dive needs it (ensurePaths; the same paths either way).
+  const vehicles: Vehicle[] = [];
+  for (const id of ids) vehicles.push(vehicleOfCar(id, after.players[id]!.car));
+  const prevAgents = new Map<number, AgentState>();
+  for (const a of (before.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) prevAgents.set(a.id, a);
+  const bodies = playerBodies(before);
+  /** Vehicle index -> the robotaxi (and its step) whose paths are not predicted yet. */
+  const pending = new Map<number, { a: AgentState; dt: number }>();
+  for (const a of agents) {
+    if (!AGENT_SPEC[a.kind].road) continue;
+    const spec = AGENT_SPEC[a.kind];
+    let predict = false;
+    if (a.speed >= DODGE_MIN_SPEED) {
+      const reach = a.speed * horizonS(a.speed) + spec.halfLength + spec.halfWidth + maxReach + 1;
+      near(a.x - reach, a.z - reach, a.x + reach, a.z + reach, scratch);
+      for (const i of scratch) {
+        const r = recs[i]!;
+        if ((r.x - a.x) * (r.x - a.x) + (r.z - a.z) * (r.z - a.z) <= reach * reach) {
+          predict = true;
+          break;
+        }
+      }
+    }
+    const close = bodies.some((p) => (p.x - a.x) * (p.x - a.x) + (p.z - a.z) * (p.z - a.z) <= NEAR_RANGE_M * NEAR_RANGE_M);
+    const dt = close ? DT : DT * LOD_STRIDE;
+    if (!predict && a.speed >= DODGE_MIN_SPEED) pending.set(vehicles.length, { a, dt });
+    vehicles.push(vehicleOfAgent(a, prevAgents.get(a.id) ?? null, dt, world, predict));
+  }
+  /** Predict every pending robotaxi that could reach within `reach` of (x, z). */
+  const ensurePaths = (x: number, z: number, reach: number): void => {
+    for (const [vi, p] of pending) {
+      const a = p.a;
+      const spec = AGENT_SPEC[a.kind];
+      const lim = reach + a.speed * horizonS(a.speed) + spec.halfLength + spec.halfWidth;
+      if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
+      vehicles[vi] = vehicleOfAgent(a, prevAgents.get(a.id) ?? null, p.dt, world, true);
+      pending.delete(vi);
+    }
+  };
+
+  // Who is in whose predicted footprint.
   vehicles.forEach((v, vi) => {
     if (v.paths.length === 0) return;
     near(v.minX - maxReach, v.minZ - maxReach, v.maxX + maxReach, v.maxZ + maxReach, scratch);
@@ -907,16 +966,22 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     }
   });
 
-  // Spots taken: every body where it is, every diver's landing (owner: index into recs).
-  const spots: Array<Spot & { owner: number }> = [];
-  recs.forEach((r, i) => {
-    spots.push({ x: r.x, z: r.z, r: r.r, owner: i });
-    if (r.dodge && r.dodge.phase === "dive") spots.push({ x: r.dodge.tx, z: r.dodge.tz, r: r.r, owner: i });
-  });
+  // Spots taken: every body where it is, every diver's landing (owner: index into recs). Built
+  // when the first body needs them (most ticks nobody dives).
+  let spots: Array<Spot & { owner: number }> | null = null;
+  const takeSpots = (): Array<Spot & { owner: number }> => {
+    if (spots) return spots;
+    spots = [];
+    recs.forEach((r, i) => {
+      spots!.push({ x: r.x, z: r.z, r: r.r, owner: i });
+      if (r.dodge && r.dodge.phase === "dive") spots!.push({ x: r.dodge.tx, z: r.dodge.tz, r: r.r, owner: i });
+    });
+    return spots;
+  };
   const spotsNear = (self: number, reach: number): Spot[] => {
     const me = recs[self]!;
     const out: Spot[] = [];
-    for (const s of spots) {
+    for (const s of takeSpots()) {
       if (s.owner === self) continue;
       if ((s.x - me.x) * (s.x - me.x) + (s.z - me.z) * (s.z - me.z) <= reach * reach) out.push(s);
     }
@@ -941,8 +1006,10 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     world,
     height: r.player !== null ? (x, z, feet) => surfaceHeight(world, x, z, feet) : (x, z) => meshGroundHeight(world, x, z),
   });
-  const vehiclesNear = (r: Rec, reach: number): Vehicle[] =>
-    vehicles.filter((v) => r.x >= v.minX - reach && r.x <= v.maxX + reach && r.z >= v.minZ - reach && r.z <= v.maxZ + reach);
+  const vehiclesNear = (r: Rec, reach: number): Vehicle[] => {
+    ensurePaths(r.x, r.z, reach);
+    return vehicles.filter((v) => r.x >= v.minX - reach && r.x <= v.maxX + reach && r.z >= v.minZ - reach && r.z <= v.maxZ + reach);
+  };
 
   // 1-2. Watch and dive.
   for (let ri = 0; ri < recs.length; ri++) {
@@ -955,13 +1022,14 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       const reach = prof.maxDive + r.r + prof.margin + 1;
       const nearV = vehiclesNear(r, reach).filter((v) => v.player === null || v.player !== r.player);
       const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
-      // Keep a dive whose landing and line stay clear; otherwise choose again from here.
+      // Keep a dive whose landing and line stay clear (the line by the body's whole margin);
+      // otherwise choose again from here.
       let keep = false;
       if (d && d.phase === "dive" && !d.leap) {
         const len = Math.sqrt((d.tx - r.x) * (d.tx - r.x) + (d.tz - r.z) * (d.tz - r.z));
         const wx = len > 1e-9 ? (d.tx - r.x) / len : 0;
         const wz = len > 1e-9 ? (d.tz - r.z) / len : 0;
-        keep = clearOfVehicles(nearV, d.tx, d.tz, r.r, prof.margin) && passesClear(nearV.filter((v) => v.paths.length > 0), r.x, r.z, wx, wz, len, prof.speed, r.r);
+        keep = clearOfVehicles(nearV, d.tx, d.tz, r.r, prof.margin) && passesClear(nearV.filter((v) => v.paths.length > 0), r.x, r.z, wx, wz, len, prof.speed, r.r, prof.margin);
       }
       if (!keep) {
         // A dive under way keeps its direction if it can (no dithering as a car steers about).
@@ -975,8 +1043,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
         const to = chooseDive(heightFor(r), body, r.threats[0]!.hit, nearV, spotsNear(ri, prof.maxDive + 2), prefer, speed);
         if (to) {
           const fresh = !d || d.phase !== "dive" || d.leap;
-          d = startDive(prof, r.x, r.z, to.x, to.z, speed);
-          spots.push({ x: to.x, z: to.z, r: r.r, owner: ri });
+          d = fresh ? startDive(prof, r.x, r.z, to.x, to.z, speed) : redirectDive(prof, d!, r.x, r.z, to.x, to.z, speed);
+          takeSpots().push({ x: to.x, z: to.z, r: r.r, owner: ri });
           if (fresh) {
             dives++;
             nearMisses++;
@@ -994,16 +1062,30 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     }
   }
 
-  // 3. The hard guarantee.
+  // 3. The hard guarantee. Candidates: the dodgers near each vehicle's body (with slack for
+  // this tick's dives, which move a body under 0.3 m; a leap below is checked where it lands).
+  const cand = new Map<number, number[]>();
+  vehicles.forEach((v, vi) => {
+    const reach = v.hl + v.hw + DODGE_PROFILE.care.override! + 1;
+    near(v.x - reach, v.z - reach, v.x + reach, v.z + reach, scratch);
+    for (const i of scratch) {
+      let l = cand.get(i);
+      if (!l) cand.set(i, (l = []));
+      l.push(vi);
+    }
+  });
   for (let ri = 0; ri < recs.length; ri++) {
     const r = recs[ri]!;
     if (!r.guarded) continue;
+    const mine = cand.get(ri);
+    if (!mine) continue;
     const prof = DODGE_PROFILE[r.cls];
     const clearance = prof.override!;
     let inside = false;
     let worst: Vehicle | null = null;
     let worstD = Infinity;
-    for (const v of vehicles) {
+    for (const vi of mine) {
+      const v = vehicles[vi]!;
       if (v.player !== null && v.player === r.player) continue;
       const d = bodyDistance(v, r.x, r.z);
       if (d < r.r) inside = true;
@@ -1018,9 +1100,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       contacts++;
       creditTo(worst, 0, 1);
     }
-    const nearV = vehicles.filter(
-      (v) => (v.player === null || v.player !== r.player) && r.x >= v.minX - CLEAR_FAR_M && r.x <= v.maxX + CLEAR_FAR_M && r.z >= v.minZ - CLEAR_FAR_M && r.z <= v.maxZ + CLEAR_FAR_M,
-    );
+    const nearV = vehiclesNear(r, CLEAR_FAR_M).filter((v) => v.player === null || v.player !== r.player);
     const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
     const to = overrideSpot(heightFor(r), body, nearV, spotsNear(ri, CLEAR_NEAR_M + 2), clearance);
     if (!to) continue;
@@ -1031,7 +1111,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     r.x = to.x;
     r.z = to.z;
     r.changed = true;
-    spots.push({ x: to.x, z: to.z, r: r.r, owner: ri });
+    takeSpots().push({ x: to.x, z: to.z, r: r.r, owner: ri });
   }
 
   // Write back.
@@ -1069,15 +1149,14 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
 
 /**
  * An agent at (x, z) in its dodge (or done with it, dodge null): stood on the ground plus its
- * hop, mode "dive" or "recover", not walking. Done: it carries on along its path from here (s
- * and lat projected onto its current lane, sidewalk or connector), so a walker drifts back to
- * its line.
+ * hop, mode "dive" or "recover", not walking. Recovering, it faces the way it will walk on (so
+ * it turns that way as it gets up). Done: it walks on from right here (agents.ts rejoinAt: on
+ * its path, or along a connector back onto its sidewalk), never jumping back to its line.
  */
 function placeAgent(world: World, a: Readonly<AgentState>, x: number, z: number, dodge: DodgeState | null): AgentState {
   const y = meshGroundHeight(world, x, z);
-  if (dodge) return { ...a, x, y: y + dodge.hop, z, speed: 0, mode: dodge.phase, dodge };
-  const path = agentPath(world, a);
-  if (!path) return { ...a, x, y, z, speed: 0, mode: "go", wait: 0, dodge: null };
-  const p = projectOnPath(path, x, z);
-  return { ...a, x, y, z, s: p.s, lat: p.d, speed: 0, mode: "go", wait: 0, dodge: null };
+  if (dodge && dodge.phase === "dive") return { ...a, x, y: y + dodge.hop, z, speed: 0, mode: dodge.phase, dodge };
+  const at = rejoinAt(world, a, x, z);
+  if (dodge) return { ...a, x, y: y + dodge.hop, z, speed: 0, mode: dodge.phase, dodge, heading: at ? at.heading : a.heading };
+  return { ...a, ...(at ?? {}), x, y, z, speed: 0, mode: "go", wait: 0, dodge: null };
 }
