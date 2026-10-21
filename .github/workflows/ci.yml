@@ -1,9 +1,11 @@
-# Typecheck, unit tests and browser end-to-end tests on every push and pull request.
+# Typecheck, unit tests and browser end-to-end tests on every pull request and every push to main.
 # How to run the same thing locally, and what each suite proves: docs/testing.md.
 name: CI
 
 on:
+  # Pull requests run CI for every branch; a push runs it again only on main.
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -95,6 +97,8 @@ jobs:
       - name: Screenshots
         if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
         continue-on-error: true
+        # Its own limit, so slow software-GL captures can never cancel the job after the tests passed.
+        timeout-minutes: 12
         run: pnpm shots
 
       - name: Upload test results

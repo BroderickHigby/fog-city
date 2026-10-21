@@ -1244,3 +1244,10 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-21 · **Hosting and the live-AI budget are written up** (relay rooms and per-feature model spend at three
   audience sizes). The write-up lands as its own doc later; until the user decides, the defaults in the roadmap's
   "Decisions the user makes" hold.
+- 2026-10-21 · **The player looks like the owner** (user request, with the owner's own reference photos and
+  consent). `founder-default` in `player.glb` is a stylised likeness of the project owner in the house art style:
+  the swept-up dark-brown quiff, colouring and build, black bomber jacket, black tee, jeans and black sneakers. It is
+  the one consented exception to "never real private people" in `CLAUDE.md`, and it covers the owner only. The photos
+  never enter the repository (`tests/assets/privacy.test.ts`). It is the single-player default and the owner's own
+  profile look; when online play lands (wave 4), other players start from a neutral look in the customizer, so no one
+  else appears as the owner by default.

@@ -323,12 +323,12 @@ degrees (+ up), `up` metres above the ground there.
 
 ## Continuous integration (`.github/workflows/ci.yml`)
 
-On every push and pull request, on Ubuntu with Node 22 and pnpm (version from
+On every pull request and every push to main, on Ubuntu with Node 22 and pnpm (version from
 `package.json`), with the pnpm store and Playwright browsers cached: check out (tiles are in
 plain git), `pnpm install --frozen-lockfile`, typecheck, unit tests, `pnpm build` (the static
 web build; it fails if the build breaks the host's limits), Playwright browsers with system
 dependencies, `pnpm e2e` (with `E2E_REQUIRE` from the repository variable), then `pnpm shots`
-(informational: it never fails CI). Each check runs
+(informational: it never fails CI, and its own 12-minute limit keeps it from cancelling the job). Each check runs
 whenever install succeeded, so one failure does not hide another. `test-results/`
 (Playwright artefacts and HTML report, `perf.json`, `shots/`) is uploaded as an artifact for
 14 days. With `CI` set, `test.only` fails the run. The workflow has passed `actionlint` and
