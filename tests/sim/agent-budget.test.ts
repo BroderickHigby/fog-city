@@ -119,6 +119,18 @@ describe.skipIf(!SF)("agent budget near players, on the whole city", () => {
       if (raw.pedestrian) expect(e.drivable, e.id).toBe(false);
     }
     expect(freeways).toBeGreaterThan(100);
+    // No drivable ramp leads onto a freeway, or into a junction of ramps and freeways only, and
+    // none dead-ends: both its ends join another drivable street.
+    const surface = new Set<number>();
+    for (const e of g.edges) if (e.kind !== "ramp" && !rawEdges.get(e.id)!.gradeSeparated) surface.add(e.a).add(e.b);
+    for (const e of g.edges) {
+      if (e.kind !== "ramp" || !e.drivable) continue;
+      for (const n of [e.a, e.b]) {
+        const others = g.edges.filter((q) => q.index !== e.index && (q.a === n || q.b === n));
+        expect(others.some((q) => q.drivable), `${e.id} ${e.name} dead-ends`).toBe(true);
+        if (!surface.has(n)) expect(others.every((q) => q.drivable), `${e.id} ${e.name} meets a freeway ramp`).toBe(true);
+      }
+    }
     // Drive the traffic next to the Central Freeway's ramps for 40 s and check every edge used.
     const fw = g.edges.find((e) => rawEdges.get(e.id)!.gradeSeparated && e.name.includes("101"))?.center ?? g.edges.find((e) => rawEdges.get(e.id)!.gradeSeparated)!.center;
     const mid = { x: fw.xs[Math.floor(fw.xs.length / 2)]!, z: fw.zs[Math.floor(fw.zs.length / 2)]!, heading: 0 };

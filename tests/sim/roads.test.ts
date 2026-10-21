@@ -214,6 +214,48 @@ describe("grid city road graph", () => {
     for (let i = 0; i < path.xs.length; i++) expect(Math.hypot(path.xs[i]! - 100, path.zs[i]! - 0)).toBeLessThan(12);
   });
 
+  it("keeps traffic off a freeway and every ramp that leads to one, through ramp-only junctions, up to the first surface street", () => {
+    // Freeway F (f1 - f2). Off ramp in two pieces: r1 from f2 to a ramp-only split k, r2 from k
+    // to the surface street at s1. A second piece r3 leaves the same split for another surface
+    // node s3. A slip road r4 joins two surface streets and touches no freeway.
+    const nodes: RoadsFile["nodes"] = [
+      { id: "f1", x: 0, z: 0 },
+      { id: "f2", x: 200, z: 0 },
+      { id: "k", x: 260, z: 40 },
+      { id: "s1", x: 320, z: 80 },
+      { id: "s2", x: 420, z: 80 },
+      { id: "s3", x: 320, z: 160 },
+      { id: "s4", x: 420, z: 160 },
+    ];
+    const ed = (id: string, a: string, b: string, kind: string, extra: Partial<RoadsFile["edges"][number]> = {}): RoadsFile["edges"][number] => {
+      const pa = nodes.find((n) => n.id === a)!;
+      const pb = nodes.find((n) => n.id === b)!;
+      return { id, a, b, kind, lanes: 2, oneway: kind === "ramp", widthM: 8, points: [[pa.x, pa.z], [pb.x, pb.z]], ...extra };
+    };
+    const roads: RoadsFile = {
+      version: 1,
+      nodes,
+      edges: [
+        ed("F", "f1", "f2", "freeway", { gradeSeparated: true }),
+        ed("r1", "f2", "k", "ramp"),
+        ed("r2", "k", "s1", "ramp"),
+        ed("r3", "k", "s3", "ramp"),
+        ed("street", "s1", "s2", "residential"),
+        ed("street2", "s3", "s4", "residential"),
+        ed("cross", "s2", "s4", "residential"),
+        ed("r4", "s1", "s3", "ramp"),
+      ],
+    };
+    const g = buildRoadGraph(roads);
+    const drivable = (id: string): boolean => g.edges[g.edgeIndex.get(id)!]!.drivable;
+    expect(drivable("F")).toBe(false);
+    expect(drivable("r1"), "joins the freeway").toBe(false);
+    expect(drivable("r2"), "joins it through the ramp-only split").toBe(false);
+    expect(drivable("r3"), "the other branch of the same split").toBe(false);
+    expect(drivable("r4"), "the exclusion stops at surface streets").toBe(true);
+    expect(drivable("street")).toBe(true);
+  });
+
   it("is deterministic: the same roads.json in any order builds the same graph", () => {
     const roads = readJson<RoadsFile>("public/tiles/dev/roads.json");
     const shuffled: RoadsFile = { ...roads, nodes: [...roads.nodes].reverse(), edges: [...roads.edges].reverse() };

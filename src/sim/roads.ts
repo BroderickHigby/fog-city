@@ -86,7 +86,7 @@ export interface RoadEdgeInfo {
   sidewalkM: [number, number];
   /**
    * Robotaxis may use the edge: not pedestrian-only, not an alley or a one-lane two-way street,
-   * not grade-separated (a freeway, or a ramp joining one).
+   * not grade-separated (a freeway, or a ramp joining one directly or through other ramps).
    */
   drivable: boolean;
   /** People and sidewalk robots may use the edge (no freeways or ramps, nothing grade-separated). */
@@ -579,19 +579,37 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
   }
 
   // Freeways have no modelled decks (their points are the ground under the roadway), so surface
-  // traffic never routes onto them: gradeSeparated edges, and the ramps that join one (a ramp
-  // that only leads onto a freeway would otherwise be a dead end for a robotaxi).
+  // traffic never routes onto them: gradeSeparated edges, and the ramps that join one, directly
+  // or through other ramps (a ramp that only leads onto a freeway would otherwise be a dead end
+  // for a robotaxi). The exclusion spreads from ramp to ramp through junctions where only ramps
+  // and freeways meet, and stops at the first surface street.
   const gradeSeparated = new Set<number>();
-  const touchesFreeway = new Set<number>();
+  const freewaySide = new Set<number>();
+  const surfaceNode = new Set<number>();
+  protos.forEach((p) => {
+    if (p.raw.gradeSeparated === true || p.raw.kind === "ramp") return;
+    surfaceNode.add(nodeIndex.get(p.raw.a)!);
+    surfaceNode.add(nodeIndex.get(p.raw.b)!);
+  });
   protos.forEach((p, i) => {
     if (p.raw.gradeSeparated !== true) return;
     gradeSeparated.add(i);
-    touchesFreeway.add(nodeIndex.get(p.raw.a)!);
-    touchesFreeway.add(nodeIndex.get(p.raw.b)!);
+    freewaySide.add(nodeIndex.get(p.raw.a)!);
+    freewaySide.add(nodeIndex.get(p.raw.b)!);
   });
-  protos.forEach((p, i) => {
-    if (p.raw.kind === "ramp" && (touchesFreeway.has(nodeIndex.get(p.raw.a)!) || touchesFreeway.has(nodeIndex.get(p.raw.b)!))) gradeSeparated.add(i);
-  });
+  for (let changed = true; changed; ) {
+    changed = false;
+    protos.forEach((p, i) => {
+      if (p.raw.kind !== "ramp" || gradeSeparated.has(i)) return;
+      const a = nodeIndex.get(p.raw.a)!;
+      const b = nodeIndex.get(p.raw.b)!;
+      if (!freewaySide.has(a) && !freewaySide.has(b)) return;
+      gradeSeparated.add(i);
+      changed = true;
+      if (!surfaceNode.has(a)) freewaySide.add(a);
+      if (!surfaceNode.has(b)) freewaySide.add(b);
+    });
+  }
 
   // Pass 2: lane and sidewalk paths.
   const edges: RoadEdgeInfo[] = protos.map((p, index) => {
