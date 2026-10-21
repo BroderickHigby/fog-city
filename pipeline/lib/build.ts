@@ -350,7 +350,11 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   // Terracing lifts roofs that were under the hill: clear the corridors once more for those.
   const recleared = clearCorridors(terraced.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs });
   lap("clearance again");
-  const bored = undersideOverBores(recleared.buildings, graph, tunnels.bores, heightAnywhere);
+  // Decks (W-03, W-07, W-12, W-14): freeway viaducts, overpasses, creek bridges; and the freeway
+  // bores they line through their zones (W-02). Before the undersides, which read the final bores.
+  const decked = buildDecks(graph, recleared.buildings, heightAnywhere, waterAnywhere, tunnels.bores, (lat, lon) => toLocal(lat, lon));
+  lap("decks");
+  const bored = undersideOverBores(recleared.buildings, graph, decked.bores, heightAnywhere);
   lap("tunnels");
   // Two-tier records after every pass: a tower stands on its podium record's roof; a tower whose
   // podium a pass removed goes with it.
@@ -413,20 +417,17 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const files = new Map<string, Uint8Array>();
   const boundary = buildBoundary(tiles, fields);
   const structures: TileStructures = { decks: new Map(), tunnels: new Map(), movable: new Map() };
-  for (const { tile, tunnel } of tunnelRibbons(graph, tunnels.bores, heightAnywhere)) {
+  for (const { tile, tunnel } of tunnelRibbons(graph, decked.bores, heightAnywhere)) {
     const l = structures.tunnels.get(tile);
     if (l) l.push(tunnel);
     else structures.tunnels.set(tile, [tunnel]);
   }
-  // Decks (W-03, W-07, W-12, W-14): freeway viaducts, overpasses, underpasses, creek bridges.
-  const decked = buildDecks(graph, buildings, heightAnywhere, waterAnywhere, tunnels.bores, (lat, lon) => toLocal(lat, lon));
   for (const { tile, deck } of decked.decks) (structures.decks.get(tile) ?? structures.decks.set(tile, []).get(tile)!).push(deck);
   for (const { tile, tunnel } of decked.tunnels) (structures.tunnels.get(tile) ?? structures.tunnels.set(tile, []).get(tile)!).push(tunnel);
   for (const { tile, movable } of decked.movable) (structures.movable.get(tile) ?? structures.movable.set(tile, []).get(tile)!).push(movable);
   for (const m of [structures.decks, structures.tunnels, structures.movable] as Array<Map<string, Array<{ id: string }>>>) {
     for (const l of m.values()) l.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
-  lap("decks");
 
   // Junction polygons (W-32): ribbons stop short of a node where three or more streets meet.
   const radii = junctionRadii(graph.edges);
@@ -710,7 +711,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     buildings: bStats,
     terrace: terraced.stats,
     clearance: mergeClearance(cleared.stats, recleared.stats),
-    tunnels: { bores: tunnels.bores, buildingsOver: bored.ids, droppedInPortalCuts: bored.dropped },
+    tunnels: { bores: decked.bores, buildingsOver: bored.ids, droppedInPortalCuts: bored.dropped },
     piers: piers.stats,
     decks: decked.stats,
     overridesApplied,

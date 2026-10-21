@@ -3,10 +3,12 @@
 //   - Surface tunnel edges are found by name ("... Tunl", "... Tunnel"); freeway tunnels (the
 //     MacArthur Tunnel on Hwy 1, the Presidio Parkway's Battery and Main Post tunnels on
 //     Hwy 101) by FREEWAY_TUNNELS: a bore on the route's freeway edges near the tunnel. Edges
-//     the source splits inside a tunnel are one chain. The Yerba Buena Island tunnel is not
-//     modelled: the Bay Bridge spans either side of it are at sea level in the DEM (they are
-//     the bridge models' to carry, Assets W-24), which would put its bore at the waterline,
-//     40 m under the island roads that ramp down to it.
+//     the source splits inside a tunnel are one chain. The Yerba Buena Island tunnel has fixed
+//     portals instead: the Bay Bridge spans either side of it are at sea level in the DEM (the
+//     bridge models carry them, Assets W-24) and the island's flanks fall steeply under its
+//     viaducts, so no cone from the ground finds its bore; its portals are where the road's
+//     benches (cut into the island at about 52 m and 57 m) meet the ridge, and the bore runs
+//     straight between the benches' ground.
 //   - The bore (bore()) runs on the straight line between two portals, where the hill stands
 //     over the highest road that never climbs faster than TUNNEL_GRADE. Outside the portals the
 //     road is at grade (a freeway's deck, decks.ts, joins it there).
@@ -31,11 +33,15 @@ const ROOF_OVER_CEILING_M = 0.3;
  * within radiusM of the tunnel (lat, lon). Elsewhere a freeway's cover in the bare-earth profile
  * is a cut, a climb or a bridge approach, not a tunnel.
  */
-export const FREEWAY_TUNNELS: ReadonlyArray<{ name: string; street: RegExp; at: [number, number]; radiusM: number }> = [
+export const FREEWAY_TUNNELS: ReadonlyArray<{ name: string; street: RegExp; at: [number, number]; radiusM: number; portals?: [[number, number], [number, number]] }> = [
   { name: "MacArthur Tunnel", street: /^Hwy 1 (North|South)bound$/, at: [37.7945, -122.4696], radiusM: 500 },
   { name: "Presidio Parkway Battery Tunnel", street: /^Hwy 101 (North|South)bound$/, at: [37.8019, -122.464], radiusM: 300 },
   { name: "Presidio Parkway Main Post Tunnel", street: /^Hwy 101 (North|South)bound$/, at: [37.8025, -122.456], radiusM: 300 },
+  // Both decks of the double-decked bore (the source draws them side by side).
+  { name: "Yerba Buena Island Tunnel", street: /^I-80 (East|West)bound$/, at: [37.80955, -122.36566], radiusM: 200, portals: [[37.80892, -122.36631], [37.81019, -122.36496]] },
 ];
+/** A fixed portal is on a chain when its centreline passes this close. */
+const PORTAL_REACH_M = 30;
 
 export const isTunnelName = (name: string): boolean => /(\bTunl|\bTunnel)$/.test(name);
 
@@ -110,7 +116,7 @@ function findBores(p: ReturnType<typeof profile>): Array<{ i0: number; i1: numbe
 const TUNNEL_GRADE = 0.06;
 
 /** The cover at a portal's foot: the bore ends this close under the ground (a step no car notices). */
-const PORTAL_FOOT_M = 0.1;
+export const PORTAL_FOOT_M = 0.1;
 /** A building whose roof is less than this over a bore's ceiling stands in the bore's open cut. */
 const MIN_SLAB_M = 0.5;
 
@@ -188,6 +194,30 @@ export function findTunnels(graph: RoadGraph, heightAt: (x: number, z: number) =
         for (const f of FREEWAY_TUNNELS) {
           if (!f.street.test(chain[0]!.name)) continue;
           const c = toLocal(f.at[0], f.at[1]);
+          if (f.portals) {
+            // The profile samples nearest the two portals, in chain order; the bore runs between
+            // the ground there.
+            const at = f.portals.map(([lat, lon]) => {
+              const q = toLocal(lat, lon);
+              let best = -1, bd = Infinity;
+              p.forEach((v, i) => {
+                const d = Math.hypot(v.x - q.x, v.z - q.z);
+                if (d < bd) {
+                  bd = d;
+                  best = i;
+                }
+              });
+              return bd <= PORTAL_REACH_M ? best : -1;
+            });
+            if (at[0]! < 0 || at[1]! < 0) continue;
+            const i0 = Math.min(at[0]!, at[1]!), i1 = Math.max(at[0]!, at[1]!);
+            const b = { i0, i1, y0: p[i0]!.h, y1: p[i1]!.h };
+            const L = p[i1]!.s - p[i0]!.s;
+            let cover = 0;
+            for (let i = i0; i <= i1; i++) cover = Math.max(cover, p[i]!.h - (b.y0 + ((b.y1 - b.y0) * (p[i]!.s - p[i0]!.s)) / (L || 1)));
+            if (L > 10 && Math.abs(b.y1 - b.y0) / L <= TUNNEL_GRADE && cover > PORTAL_COVER_M) picked.push({ b, name: f.name });
+            continue;
+          }
           const b = found.find((q) => {
             const mid = p[(q.i0 + q.i1) >> 1]!;
             return Math.hypot(mid.x - c.x, mid.z - c.z) <= f.radiusM;
@@ -195,7 +225,19 @@ export function findTunnels(graph: RoadGraph, heightAt: (x: number, z: number) =
           if (b && !picked.some((q) => q.b === b)) picked.push({ b, name: f.name });
         }
       }
-      for (const { b, name } of picked) {
+      for (const { b: found0, name } of picked) {
+        // The bore runs on to where the hill no longer stands over its line's extension (the
+        // cover search reads the eroded profile, which can leave a hump just outside a portal).
+        const b = { ...found0 };
+        const slope = (b.y1 - b.y0) / (p[b.i1]!.s - p[b.i0]!.s || 1);
+        while (b.i1 < p.length - 1 && p[b.i1 + 1]!.h > b.y1 + slope * (p[b.i1 + 1]!.s - p[b.i1]!.s) + PORTAL_FOOT_M) {
+          b.y1 += slope * (p[b.i1 + 1]!.s - p[b.i1]!.s);
+          b.i1++;
+        }
+        while (b.i0 > 0 && p[b.i0 - 1]!.h > b.y0 - slope * (p[b.i0]!.s - p[b.i0 - 1]!.s) + PORTAL_FOOT_M) {
+          b.y0 -= slope * (p[b.i0]!.s - p[b.i0 - 1]!.s);
+          b.i0--;
+        }
         const S0 = p[b.i0]!.s;
         const S1 = p[b.i1]!.s;
         const yAt = (S: number): number => b.y0 + ((b.y1 - b.y0) * (S - S0)) / (S1 - S0 || 1);
