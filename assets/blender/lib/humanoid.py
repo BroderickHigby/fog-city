@@ -258,7 +258,7 @@ def player_frame(height_m: float | None = None) -> dict:
     top = F["head_c"][2] + F["head_r"][2]
     F["head_r"] = hr
     F["head_c"] = (F["head_c"][0], F["head_c"][1], top - hr[2])
-    F["torso"] = [(z, w * 1.18, f * 1.18, b * 1.18) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
+    F["torso"] = [(z, w * 1.3, f * 1.22, b * 1.22) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
     F["head_k"] = hk
     # the tee's crew neck sits snug at the base of the neck, under the jacket's collar
     F["collar_z"] = 1.5 * s
@@ -986,8 +986,8 @@ def _player_face(g, F, p, head_point):
 
     # ---- eyes: u runs from the inner corner (-1) to the outer corner (+1)
     W, HU = 0.0135 * k, 0.0056 * k
-    HL = 0.0045 * k * (1.0 - 0.55 * sm)
-    lift = 0.0012 * k * sm
+    HL = 0.0045 * k * (1.0 - 0.62 * sm)
+    lift = 0.0015 * k * sm  # smiling eyes: the lower lid rises
 
     def upper(t):
         return HU * max(0.0, 1 - t * t) ** 0.7 * (1 - 0.12 * t) + 0.0006 * k * t
@@ -1196,7 +1196,7 @@ def quiff(F: dict, prm: dict | None = None, res: int = 0):
     na, nb = (9, 15) if res else (17, 31)
     kk = k * F.get("head_k", 1.0)
     a_back = 2.6
-    hq = 0.054 * kk  # the crest's height above the cap
+    hq = 0.038 * kk  # the crest's height above the cap
 
     def front(v):  # the first row: the hairline at the forehead, lower on the left (v < 0)
         return 0.63 + 0.08 * v * v - 0.11 * max(0.0, -v) ** 1.3
@@ -1207,7 +1207,7 @@ def quiff(F: dict, prm: dict | None = None, res: int = 0):
     def shape(t, v, a):
         """Volume above the cap (metres) at row fraction t (0 front, 1 back) and column v."""
         rise = float(_smooth(0.0, 0.13, t)) ** 0.6
-        fall = 1.0 - 0.36 * float(_smooth(0.13, 0.45, t)) - 0.4 * float(_smooth(0.4, 0.85, t)) - 0.24 * float(_smooth(0.8, 1.0, t))
+        fall = 1.0 - 0.55 * float(_smooth(0.13, 0.45, t)) - 0.3 * float(_smooth(0.4, 0.85, t)) - 0.15 * float(_smooth(0.8, 1.0, t))
         vc = v - 0.16  # the crest sits a little to the person's right; the left side falls longer
         wl = 0.7 if vc > 0 else 0.86
         # full over the top, easing down the sides into the short cap (no ledge at the edge)
@@ -1237,7 +1237,7 @@ def quiff(F: dict, prm: dict | None = None, res: int = 0):
             if not edge:
                 # lifting off the forehead: the crest leans forward and up; the volume sweeps left
                 fwd = float(_smooth(0.0, 0.1, t)) * (1.0 - float(_smooth(0.16, 0.42, t)))
-                q = q + np.array([-0.008 * kk * lift / hq, 0.003 * kk * fwd * lift / hq, 0.01 * kk * fwd * lift / hq])
+                q = q + np.array([-0.008 * kk * lift / hq, 0.003 * kk * fwd * lift / hq, 0.016 * kk * fwd * lift / hq])
             orow.append(len(P))
             P.append(q)
             qi, _ = hp(a, beta, (-0.004 * kk if i == 0 else base - 0.006 * kk))

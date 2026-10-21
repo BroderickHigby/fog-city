@@ -24,7 +24,7 @@ def main() -> None:
         _, objs = L.import_glb("player.glb", x=-2.25 + 1.5 * i, heading_deg=h)
         A.rest_pose(objs.values())
         A.default_look(objs.values())
-    L.camera((0.0, -10.2, 1.25), (0.0, 0.0, 0.93), lens=60)
+    L.camera((0.0, -11.0, 1.3), (0.0, 0.0, 0.99), lens=60)
     L.render("player-founder-turntable.png")
 
 

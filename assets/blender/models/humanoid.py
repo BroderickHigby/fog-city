@@ -94,7 +94,7 @@ FIXED = {"eyes": "#18161a", "badge": "#f6f5f0"}
 # project owner, matched by eye to reference photos kept outside the repository (nothing is
 # sampled from them into an image). Colours chosen by eye against those photos.
 FOUNDER_DEFAULT_PALETTE = {
-    "skin": "#dc967c",      # light, warm, sun-flushed
+    "skin": "#d98a71",      # light, warm, sun-flushed
     "hair": "#21180f",      # dark brown
     "top": "#121214",       # black crew-neck tee (under the jacket)
     "bottom": "#34486c",    # mid-blue jeans

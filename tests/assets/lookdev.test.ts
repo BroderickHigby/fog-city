@@ -21,6 +21,8 @@ describe("look-dev renders", () => {
       "humanoid-variants.png",
       "humanoid-turntable.png",
       "humanoid-clips.png",
+      "player-founder-turntable.png",
+      "player-founder-head.png",
     ]) {
       expect(pngs).toContain(f);
     }
