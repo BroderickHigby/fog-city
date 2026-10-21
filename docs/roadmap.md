@@ -61,6 +61,15 @@ Sizes: **S** ≈ one agent session, **M** ≈ 2–4 sessions, **L** ≈ 5+ sessi
   Plaza, the 6th St corridor, the Division St / 13th St corridor) are exempt from the activity and
   bounty-template counts and must have no mode instance. A bounty in any protected area is a single
   robot from the baseline population, as `design.md` says.
+- **The world-continuity gate gates every territory step and wave.** Nothing merges into a wave
+  or adds territory until the gate passes (`docs/qa/world-continuity-gate.md`): the per-PR world
+  suites are green with no metric worse than its baseline in `tests/golden/world-qa-baseline.json`,
+  the nightly tier (`pnpm world:nightly`) has passed on the candidate, and the screenshot tour
+  (`pnpm tour`) has been reviewed and signed in the wave's QA note. A wave also needs every
+  verified blocker, high and medium world defect (`docs/qa/world-qa-status.md`) fixed, with its
+  id flipped to `fixed` in the baseline so its acceptance test is a hard assertion from then on.
+  After each round of fixes the world is audited again (the six dimensions and a completeness
+  critic) until an audit finds nothing new; new findings join the baseline and the tour.
 - **Budgets gate every territory step.** Each tile is at most about 1.5 MB on disk; the shipped
   world, the boot collider bytes and the far-LOD layer each have a total in
   `tests/pipeline/budgets.json`. A step does not merge while any budget test fails.

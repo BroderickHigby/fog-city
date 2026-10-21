@@ -8,12 +8,15 @@ import { toLocal } from "../../../src/geo/project.ts";
 import {
   CAR,
   DT,
+  agentsOf,
   boxBlocked,
+  buildWorld,
   createInitialState,
   groundHeight,
   hashState,
   makeCar,
   makeFoot,
+  nearbyBuildings,
   pointInPolygon,
   sampleGround,
   step,
@@ -44,6 +47,7 @@ import {
   type RoadEdge,
 } from "../world.ts";
 import { CREEK_BRIDGES, STAIRWAYS, TUNNELS, bridgePath, stairEdges, tunnelEdges } from "./streets.ts";
+import { blockPath } from "./terrain.ts";
 import { synthWorld } from "./edge.ts";
 import { Measured } from "./suite.ts";
 
@@ -92,11 +96,35 @@ export function route(gw: GameWorld, waypoints: ReadonlyArray<readonly [number, 
     }
   }
   const nodes = new Map(gw.roads.nodes.map((n) => [n.id, n]));
+  // Waypoints snap to the largest connected piece of the street graph (never to an island).
+  const comp = new Map<string, number>();
+  let biggest = -1;
+  let biggestN = 0;
+  for (const s0 of [...adj.keys()].sort()) {
+    if (comp.has(s0)) continue;
+    const c = comp.size;
+    let n = 0;
+    const st = [s0];
+    comp.set(s0, c);
+    while (st.length) {
+      const u = st.pop()!;
+      n++;
+      for (const q of adj.get(u) ?? []) if (!comp.has(q.to)) {
+        comp.set(q.to, c);
+        st.push(q.to);
+      }
+    }
+    if (n > biggestN) {
+      biggestN = n;
+      biggest = c;
+    }
+  }
   const nearest = (lat: number, lon: number): string => {
     const p = toLocal(lat, lon);
     let best = "";
     let bd = Infinity;
     for (const id of [...adj.keys()].sort()) {
+      if (comp.get(id) !== biggest) continue;
       const n = nodes.get(id)!;
       const d = Math.hypot(n.x - p.x, n.z - p.z);
       if (d < bd) {
@@ -161,20 +189,29 @@ export const HILL_ROUTES: ReadonlyArray<{ name: string; via: Array<[number, numb
   { name: "Diagonal: Lake Merced to the Embarcadero", via: [[37.725, -122.485], [37.7955, -122.3937]] },
 ];
 
-/** Drive a path with the full step() (ambient traffic on), player p1 following it. */
-export function routeDrive(world: World, path: readonly P2[], vmax = 14): { reached: boolean; stuckAt: P2 | null; ticks: number; track: DriveTrack; seamStep: number; hashes: string[] } {
+/**
+ * Drive a path with the full step() (ambient traffic on), player p1 following it like a careful
+ * driver: it slows for an agent ahead (a simple following distance), and when an agent has it
+ * boxed in (stopped against it for a second) it backs off for a second and tries again. A stop
+ * counts against the world only when the car is held by a building or a wall; waiting on traffic
+ * runs into the time limit instead (reported as "traffic").
+ */
+export function routeDrive(world: World, path: readonly P2[], vmax = 14): { reached: boolean; stuckAt: P2 | null; why: string; ticks: number; track: DriveTrack; seamStep: number; hashes: string[] } {
   const k = Math.min(3, path.length - 1);
   const h0 = bearing(path[k]![0] - path[0]![0], path[k]![1] - path[0]![1]);
   let s: SimState = createInitialState(world, 7, ["p1"], { x: path[0]![0], z: path[0]![1], heading: h0 });
   const len = path.length - 1;
-  const limit = Math.ceil((len / Math.max(3, vmax * 0.4)) * 60) + 1200;
+  const limit = Math.ceil((len / Math.max(3, vmax * 0.4)) * 60) + 3600;
   const track = new DriveTrack(world);
   let idx = 0;
-  let stuck = 0;
+  let held = 0;
+  let boxed = 0;
+  let backing = 0;
   let stuckAt: P2 | null = null;
+  let why = "";
   let reached = false;
   let seamStep = 0;
-  const dys: number[] = [];
+  let lastDy = 0;
   const hashes: string[] = [];
   let t = 0;
   for (t = 0; t < limit; t++) {
@@ -184,26 +221,65 @@ export function routeDrive(world: World, path: readonly P2[], vmax = 14): { reac
       reached = true;
       break;
     }
-    const input = followInput(c, path, idx, vmax);
+    // The nearest agent in a cone ahead (within 2.5 m of the car's line).
+    const fx = Math.sin(c.heading);
+    const fz = -Math.cos(c.heading);
+    let ahead = Infinity;
+    for (const a of agentsOf(s)) {
+      const ox = a.x - c.x;
+      const oz = a.z - c.z;
+      const along = ox * fx + oz * fz;
+      const side = Math.abs(ox * -fz + oz * fx);
+      if (along > 0 && along < 40 && side < 2.5) ahead = Math.min(ahead, along);
+    }
+    let input = followInput(c, path, idx, Math.min(vmax, Math.max(0, (ahead - 7) / 1.2)));
+    if (backing > 0) {
+      backing--;
+      input = { throttle: -0.6, steer: 0, brake: 0, actions: 0 };
+    }
     s = step(world, s, { p1: input });
     const n = s.players.p1!.car;
     track.tick(c, n);
-    dys.push(n.y - c.y);
-    // A seam crossing: the change of y that tick against the mean of the ticks either side.
-    if ((Math.floor(c.x / 500) !== Math.floor(n.x / 500) || Math.floor(c.z / 500) !== Math.floor(n.z / 500)) && dys.length > 3) {
-      const before = dys[dys.length - 2]!;
-      seamStep = Math.max(seamStep, Math.abs(n.y - c.y - before));
-    }
+    const dy = n.y - c.y;
+    // A seam crossing: the change of y that tick against the tick before.
+    if (t > 2 && (Math.floor(c.x / 500) !== Math.floor(n.x / 500) || Math.floor(c.z / 500) !== Math.floor(n.z / 500))) seamStep = Math.max(seamStep, Math.abs(dy - lastDy));
+    lastDy = dy;
     if (t % 600 === 0) hashes.push(hashState(s));
-    if (input.throttle > 0.5 && Math.abs(n.speed) < 0.5) {
-      stuck++;
-      if (stuck >= 240) {
-        stuckAt = [n.x, n.z];
-        break;
+    const pushing = input.throttle > 0.5 && Math.abs(n.speed) < 0.5;
+    if (pushing && ahead < 8) {
+      if (++boxed >= 60) {
+        boxed = 0;
+        backing = 60;
       }
-    } else stuck = 0;
+    } else boxed = 0;
+    if (pushing && ahead >= 8) {
+      if (++held >= 240) {
+        const touch = contactsAt(world, n.x, n.z, n.heading, n.y);
+        if (touch.buildings.length || touch.walls) {
+          stuckAt = [n.x, n.z];
+          why = touch.buildings.length ? `building ${touch.buildings[0]}` : "wall";
+          break;
+        }
+        held = 0;
+      }
+    } else held = 0;
   }
-  return { reached, stuckAt, ticks: t, track, seamStep, hashes };
+  if (!reached && !stuckAt) why = "traffic or time limit";
+  return { reached, stuckAt, why, ticks: t, track, seamStep, hashes };
+}
+
+/** What holds a car box at (x, z, heading), grown 0.3 m: the buildings under its y it overlaps, and whether it overlaps a wall. */
+export function contactsAt(world: World, x: number, z: number, heading: number, y: number): { buildings: string[]; walls: boolean } {
+  const grown = { x, z, heading, hl: CAR.halfLength + 0.3, hw: CAR.halfWidth + 0.3 };
+  const buildings: string[] = [];
+  if (boxBlocked({ ...world, walls: null }, grown, y + 0.5, [])) {
+    for (const b of nearbyBuildings(world, x, z, 8)) {
+      const one = buildWorld([{ tileId: "x", ground: null, buildings: [b] }]);
+      if (boxBlocked(one, grown, y + 0.5, [])) buildings.push(b.id);
+    }
+  }
+  const walls = world.walls ? boxBlocked({ ...world, cells: new Map(), cellBoxes: new Map() }, grown, y + 0.5, []) : false;
+  return { buildings, walls };
 }
 
 export function measureDrive(gw: GameWorld): Measured {
@@ -545,7 +621,7 @@ export function measureRoutes(gw: GameWorld): Measured {
     const path = route(gw, r.via);
     const d = routeDrive(world, path);
     outcomes[r.name] = d.reached;
-    if (!d.reached) fails.push(`${r.name}: stopped at ${d.stuckAt ? ll(d.stuckAt[0], d.stuckAt[1]) : "time limit"}`);
+    if (!d.reached) fails.push(`${r.name}: ${d.stuckAt ? `held by a ${d.why} at ${ll(d.stuckAt[0], d.stuckAt[1])}` : d.why}`);
     seam = Math.max(seam, d.seamStep);
     below = Math.max(below, d.track.maxBelow);
     jump = Math.max(jump, d.track.maxExcess);
@@ -592,14 +668,14 @@ export function measureFoot(gw: GameWorld): Measured {
     const p = resample(e.points, 0.5);
     return rev ? p.reverse() : p;
   };
-  const between = (a: [number, number], b: [number, number]): P2[] => {
-    const p = toLocal(a[0], a[1]);
-    const q = toLocal(b[0], b[1]);
-    const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 0.5);
-    return Array.from({ length: n + 1 }, (_, k) => [p.x + ((q.x - p.x) * k) / n, p.z + ((q.z - p.z) * k) / n] as P2);
+  // The famous blocks walked uphill along the street (Filbert at 31.5%: at 1.0 m/s or better).
+  const uphill = (street: RegExp, at: [number, number]): P2[] | null => {
+    const pts = blockPath(gw, street, at[0], at[1]);
+    if (!pts || pts.length < 6) return null;
+    const half = resample(pts, 0.5);
+    return groundHeight(world, half[0]![0], half[0]![1]) <= groundHeight(world, half[half.length - 1]![0], half[half.length - 1]![1]) ? half : half.reverse();
   };
-  // Filbert St up from Leavenworth to Hyde (31.5%): on the sidewalk line, at 1.0 m/s or better.
-  walk("Filbert St up, Leavenworth to Hyde", between([37.80006, -122.41735], [37.80027, -122.41903]), (r) => r.meanSpeed >= 1.0);
+  walk("Filbert St up, Leavenworth to Hyde", uphill(/^Filbert St$/, [37.80024, -122.41842]), (r) => r.meanSpeed >= 1.0);
   for (const s of STAIRWAYS.filter((q) => /Lyon|Filbert Steps/.test(q.name))) {
     const es = stairEdges(gw, s);
     es.forEach((e, i) => {
@@ -608,10 +684,23 @@ export function measureFoot(gw: GameWorld): Measured {
       if (i > 2) return;
     });
   }
-  walk("22nd St up, Church to Vicksburg", between([37.75525, -122.42800], [37.75512, -122.42965]), () => true);
-  // A seam on a slope: the walker's height never steps at the tile border.
+  walk("22nd St up, Church to Vicksburg", uphill(/^22nd St$/, [37.75486, -122.42828]), () => true);
+  // A seam on a slope: along the first residential street (by id) that crosses a tile border on a
+  // 15% grade or steeper, 30 m either side of the border: the walker's height never steps there.
   {
-    const pts = between([37.79535, -122.41950], [37.79440, -122.41955]);
+    let pts: P2[] = [];
+    for (const e of [...(gw.roads.edges as RoadEdge[])].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+      if (e.kind !== "residential" || e.pedestrian) continue;
+      const p = resample(e.points, 0.5);
+      for (let i = 60; i < p.length - 60 && !pts.length; i++) {
+        const [ax, az] = p[i - 1]!;
+        const [bx, bz] = p[i]!;
+        if (Math.floor(ax / 500) === Math.floor(bx / 500) && Math.floor(az / 500) === Math.floor(bz / 500)) continue;
+        const g = Math.abs(groundHeight(world, p[i + 20]![0], p[i + 20]![1]) - groundHeight(world, p[i - 20]![0], p[i - 20]![1])) / 20;
+        if (g >= 0.15) pts = p.slice(i - 60, i + 60);
+      }
+      if (pts.length) break;
+    }
     const r = walkPath(world, pts);
     outcomes["seam on a slope"] = r.reached && r.maxRiseM <= 0.05 && r.maxDropM <= 0.05;
     if (!outcomes["seam on a slope"]) fails.push(`seam on a slope: rise ${r3(r.maxRiseM)}, drop ${r3(r.maxDropM)} m per tick`);
@@ -627,8 +716,8 @@ export function measureFoot(gw: GameWorld): Measured {
   {
     let failing = 0;
     const why: string[] = [];
-    // A 3 m drop: flat at 3 m up to x = 250, then 0 beyond 251.
-    const drop = synthWorld((x) => (x <= 250 ? 3 : 0));
+    // A 3 m drop: flat at 3 m up to x = 250, then 0 from 250.5 (a 0.5 m lattice, so the drop is a cliff).
+    const drop = synthWorld((x) => (x <= 250 ? 3 : 0), [], 0.5);
     let f = makeFoot(245, 3, 250, Math.PI / 2);
     let leftAt = -1;
     let landed = -1;
@@ -642,7 +731,7 @@ export function measureFoot(gw: GameWorld): Measured {
       why.push(`a 3 m drop takes ${leftAt < 0 || landed < 0 ? "?" : r2((landed - leftAt) / 60)} s to land (at least 0.7 s)`);
     }
     // A 150% slope 2 m tall: 0 below x = 250, 2 m above x = 251.33.
-    const cliff = synthWorld((x) => (x <= 250 ? 0 : x >= 250 + 2 / 1.5 ? 2 : (x - 250) * 1.5));
+    const cliff = synthWorld((x) => (x <= 250 ? 0 : x >= 250 + 2 / 1.5 ? 2 : (x - 250) * 1.5), [], 0.5);
     let g = makeFoot(240, 0, 250, Math.PI / 2);
     for (let t = 0; t < 600; t++) g = stepFoot(cliff, g, { throttle: 1, steer: 0, brake: 0, actions: 0 }, [], []);
     if (g.y >= 1.9) {

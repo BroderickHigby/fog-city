@@ -6,12 +6,9 @@
 // baseline file mirrors the definitions (the format the gate document gives) and holds the
 // ratcheted baseline values and the defects' statuses.
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { ROOT } from "../../helpers.ts";
+import { Measured, writeSpecs } from "./measured.ts";
 import {
-  RECORD_DIR,
   judge,
   loadBaseline,
   loadRuns,
@@ -20,60 +17,9 @@ import {
   runRegressions,
   suiteMetrics,
   type Cadence,
-  type MetricSpec,
-  type RunsGolden,
 } from "./ratchet.ts";
 
-export interface MetricDef {
-  id: string;
-  target: number;
-  better: "lower" | "higher";
-  unit: string;
-  defects: string[];
-  desc: string;
-  targetWave?: number | null;
-}
-
-export class Measured {
-  readonly suite: string;
-  readonly cadence: Cadence;
-  readonly defs: MetricDef[] = [];
-  readonly values: Record<string, number> = {};
-  readonly runs: RunsGolden = {};
-  readonly details: Record<string, unknown> = {};
-  /** Milliseconds per section (lap), for keeping the per-PR suite inside its time budget. */
-  readonly timing: Record<string, number> = {};
-  private t = performance.now();
-  constructor(suite: string, cadence: Cadence) {
-    this.suite = suite;
-    this.cadence = cadence;
-  }
-  /** Close a timed section. */
-  lap(label: string): void {
-    const now = performance.now();
-    this.timing[label] = Math.round(now - this.t);
-    this.t = now;
-  }
-  /** Record one metric. `detail` (worst cases, lists) is printed when it fails. */
-  metric(def: MetricDef, value: number, detail?: unknown): void {
-    if (this.values[def.id] !== undefined) throw new Error(`${this.suite}: metric ${def.id} measured twice`);
-    this.defs.push(def);
-    this.values[def.id] = value;
-    if (detail !== undefined) this.details[def.id] = detail;
-  }
-  /** Record a set of run outcomes (key -> reached/passed). */
-  runSet(name: string, outcomes: Record<string, boolean>): void {
-    this.runs[name] = outcomes;
-  }
-  /** The definitions as the baseline file mirrors them. */
-  specs(): Record<string, Omit<MetricSpec, "baseline">> {
-    const out: Record<string, Omit<MetricSpec, "baseline">> = {};
-    for (const d of this.defs) {
-      out[d.id] = { target: d.target, better: d.better, unit: d.unit, defects: d.defects, targetWave: d.targetWave ?? null, suite: this.suite, cadence: this.cadence, desc: d.desc };
-    }
-    return out;
-  }
-}
+export { Measured, type MetricDef } from "./measured.ts";
 
 const RECORD_ONLY = process.env.WORLD_GATE_RECORD === "1";
 
@@ -125,21 +71,17 @@ export function gateSuite(suite: string, cadence: Cadence, measure: () => Promis
 
     const golden = loadRuns();
     for (const set of Object.keys(golden).filter((s) => s.startsWith(`${suite}/`))) {
-      it(`runs ${set}: nothing that reached its end at the baseline stops now`, () => {
+      it(`runs ${set}: every run that reached its end at the baseline still does`, () => {
         if (RECORD_ONLY) return;
         const outcomes = m.runs[set];
         expect(outcomes, `${set} was not measured`).toBeDefined();
         const better = runImprovements(set, outcomes!, golden);
         if (better.length) console.log(`[world gate] ${set}: ${better.length} runs reach their end now that did not at the baseline (${better.slice(0, 10).join(", ")}); refresh the golden with \`pnpm world:baseline\`.`);
+        const missing = (golden[set] ?? []).filter((k) => outcomes![k] === undefined);
+        expect(missing, `${set}: runs the baseline lists that were not measured (an edge renamed or removed? refresh the golden)`).toEqual([]);
         expect(runRegressions(set, outcomes!, golden), `${set}: runs that reached their end at the baseline and no longer do`).toEqual([]);
       });
     }
   });
 }
 
-/** The definitions and details beside the values, for `pnpm world:baseline` and for reading a failure. */
-function writeSpecs(suite: string, m: Measured): void {
-  const dir = join(ROOT, RECORD_DIR);
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `${suite}.specs.json`), JSON.stringify({ suite, timing: m.timing, specs: m.specs(), details: m.details }, null, 1) + "\n");
-}

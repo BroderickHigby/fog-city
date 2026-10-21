@@ -17,4 +17,4 @@ reference itself changes, never to make a metric pass. Open-data sources keep th
 | `lakes.json` | the eight hydro-flattened lake surfaces as lattice vertex runs, with their levels (W-11) | QA terrain c1f seeds, flood-filled on the 544f67c lattice |
 | `start-blocked.json` | 58 street drives whose start pose overlaps a footprint (W-51) | QA critic c2 |
 
-`scripts/golden/world-fixtures.md` says how they were made.
+`scripts/golden/world-fixtures.ts` is how they were made (from the QA evidence folder, for provenance).

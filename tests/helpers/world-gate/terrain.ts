@@ -65,7 +65,7 @@ const FAMOUS: ReadonlyArray<{ name: string; street: RegExp; at: [number, number]
 ];
 
 /** The edge called `street` nearest to a point (within 60 m), resampled at 1 m and clipped to the 80 m either side of it. */
-function blockPath(gw: GameWorld, street: RegExp, lat: number, lon: number): P2[] | null {
+export function blockPath(gw: GameWorld, street: RegExp, lat: number, lon: number): P2[] | null {
   const p = toLocal(lat, lon);
   let best: { pts: P2[]; d: number } | null = null;
   for (const e of gw.roads.edges) {

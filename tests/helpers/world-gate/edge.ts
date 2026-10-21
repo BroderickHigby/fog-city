@@ -182,11 +182,12 @@ export function wallLaunch(gw: GameWorld, every: number, maxStarts: number): { r
   return { runs, launches, maxRiseM: maxRise, maxExcessM: maxExcess };
 }
 
-/** A synthetic world: one 500 m tile, ground from f(x, z), and optional buildings. */
-export function synthWorld(height: (x: number, z: number) => number, buildings: TileCollider["buildings"] = []): World {
+/** A synthetic world: one 500 m tile, ground from f(x, z) on a `cell` m lattice, and optional buildings. */
+export function synthWorld(height: (x: number, z: number) => number, buildings: TileCollider["buildings"] = [], cell = 10): World {
+  const n = 500 / cell + 1;
   const heights: number[] = [];
-  for (let k = 0; k <= 50; k++) for (let i = 0; i <= 50; i++) heights.push(height(i * 10, k * 10));
-  return buildWorld([{ tileId: "t0_0", ground: { x0: 0, z0: 0, cellSizeM: 10, nx: 51, nz: 51, heights }, buildings }]);
+  for (let k = 0; k < n; k++) for (let i = 0; i < n; i++) heights.push(height(i * cell, k * cell));
+  return buildWorld([{ tileId: "t0_0", ground: { x0: 0, z0: 0, cellSizeM: cell, nx: n, nz: n, heights }, buildings }]);
 }
 
 /**
@@ -376,6 +377,9 @@ export function measureEdge(gw: GameWorld): Measured {
     const crossing: string[] = [];
     for (const e of gw.roads.edges) {
       if (!e.gradeSeparated) continue;
+      // A freeway that runs out over open water (the Bay Bridge, more than 300 m of it) stays walled
+      // until its deck exists; one that crosses a creek (I-280 over Mission and Islais Creeks) must not.
+      if (resample(e.points, 5).filter(([x, z]) => onWater(W.shore, x, z)).length * 5 > 300) continue;
       const a = e.points[0]!;
       const b = e.points[e.points.length - 1]!;
       const land = (x: number, z: number): boolean => !onWater(W.shore, x, z) && groundHeight(world, x, z) > 0.1;
@@ -387,7 +391,7 @@ export function measureEdge(gw: GameWorld): Measured {
         }
       }
     }
-    m.metric({ id: "E.freeway.landEdgesCrossingWalls", target: 0, better: "lower", unit: "edges", defects: ["W-07"], desc: "freeway (gradeSeparated) edges with both ends on land whose centreline crosses a wall" }, crossing.length, crossing);
+    m.metric({ id: "E.freeway.landEdgesCrossingWalls", target: 0, better: "lower", unit: "edges", defects: ["W-07"], desc: "freeway (gradeSeparated) edges with both ends on land, crossing no more than 300 m of water, whose centreline crosses a wall (I-280 at the creeks)" }, crossing.length, crossing);
     const stops: string[] = [];
     for (const [name, re] of [["I-280 Northbound", /^I-280 Northbound$/], ["I-280 Southbound", /^I-280 Southbound$/]] as const) {
       const path = chain(gw, re);
@@ -473,7 +477,7 @@ export function measureEdge(gw: GameWorld): Measured {
     }
     let minShare = 1;
     let minAt = "";
-    for (const [d, [n, r]] of per) if (n >= 20 && r / n < minShare) {
+    for (const [d, [n, r]] of per) if (d !== "(none)" && n >= 20 && r / n < minShare) {
       minShare = r / n;
       minAt = d;
     }
@@ -512,15 +516,34 @@ export function measureEdge(gw: GameWorld): Measured {
       if (n !== 1) badCover++;
     }
     m.metric({ id: "E.net.outlineCoverFails", target: 0, better: "lower", unit: "10 m pieces", defects: [], desc: "10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once" }, badCover, { pieces: outline.length });
-    // Built tiles with buildings but no street (the Daly City strip), unless listed as scenery.
+    // Buildings with no drivable street within 150 m (the Daly City strip), unless their tile is listed as scenery.
     const scenery = new Set(((gw.manifest as { sceneryOnly?: string[] }).sceneryOnly ?? []).map(String));
-    const withStreet = new Set<string>();
+    const streetCells = new Set<number>();
     for (const e of gw.roads.edges) {
       if (e.pedestrian) continue;
-      for (const [x, z] of resample(e.points, 20)) withStreet.add(`t${Math.floor(x / 500)}_${Math.floor(z / 500)}`);
+      for (const [x, z] of resample(e.points, 20)) streetCells.add(cellKey(Math.floor(x / 50), Math.floor(z / 50)));
     }
-    const bare = gw.tiles.filter((t) => t.buildings.length > 0 && !withStreet.has(t.tileId) && !scenery.has(t.tileId)).map((t) => `${t.tileId} (${t.buildings.length})`);
-    m.metric({ id: "E.net.tilesWithBuildingsNoStreet", target: 0, better: "lower", unit: "tiles", defects: ["W-42"], desc: "built tiles with buildings but no drivable street, not listed as scenery-only (manifest.sceneryOnly)" }, bare.length, bare);
+    let far = 0;
+    const byTile = new Map<string, number>();
+    for (const t of gw.tiles) {
+      if (scenery.has(t.tileId)) continue;
+      for (const b of t.buildings) {
+        if (b.id.endsWith("-tower")) continue;
+        let [cx, cz] = [0, 0];
+        for (const [x, z] of b.footprint) {
+          cx += x / b.footprint.length;
+          cz += z / b.footprint.length;
+        }
+        const gx = Math.floor(cx / 50);
+        const gz = Math.floor(cz / 50);
+        let near = false;
+        for (let dx = -3; dx <= 3 && !near; dx++) for (let dz = -3; dz <= 3 && !near; dz++) if (streetCells.has(cellKey(gx + dx, gz + dz))) near = true;
+        if (near) continue;
+        far++;
+        byTile.set(t.tileId, (byTile.get(t.tileId) ?? 0) + 1);
+      }
+    }
+    m.metric({ id: "E.net.buildingsWithoutStreet", target: 0, better: "lower", unit: "buildings", defects: ["W-42"], desc: "buildings with no drivable street within about 150 m (the Daly City strip south of the county line), unless their tile is listed as scenery-only (manifest.sceneryOnly)" }, far, Object.fromEntries([...byTile].sort((a, b) => b[1] - a[1]).slice(0, 15)));
   }
   return m;
 }

@@ -77,3 +77,7 @@ Adding a dependency: pin an exact version that is at least two weeks old (`pnpm 
 - Tests never hit the network (loopback servers inside a test are allowed). Pipeline downloads are cached
   in `pipeline/.cache/` (gitignored); tests use committed outputs and fixtures.
 - Browser tests run under SwiftShader: assert behaviour through `window.__fogcity`, never frame rate.
+- The world-continuity gate (`docs/qa/world-continuity-gate.md`) runs inside `pnpm test`
+  (`tests/golden/world/`): no world metric may get worse than `tests/golden/world-qa-baseline.json`.
+  A PR that improves one runs `pnpm world:baseline` and commits the lower baseline; the PR that
+  fixes a defect flips its id to `fixed` there. Nightly: `pnpm world:nightly`; pictures: `pnpm tour`.

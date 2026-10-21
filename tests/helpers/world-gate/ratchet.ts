@@ -75,8 +75,12 @@ export function loadBaseline(): Baseline {
   return cached;
 }
 
-/** Runs golden: set name -> run key -> true (reached / passed) or false. */
-export type RunsGolden = Record<string, Record<string, boolean>>;
+/**
+ * Runs golden: set name -> the run keys that did NOT reach their end (or pass) at the baseline,
+ * sorted. Every other run of the set must pass, so the file stays small however many runs a set
+ * has (the nightly street set has 26,800).
+ */
+export type RunsGolden = Record<string, string[]>;
 
 let cachedRuns: RunsGolden | null = null;
 
@@ -157,24 +161,30 @@ export function fmt(v: number): string {
 }
 
 /** Write what a suite measured, for `pnpm world:baseline`. */
-export function record(suite: string, values: Record<string, number>, runs: RunsGolden = {}): void {
+export function record(suite: string, values: Record<string, number>, runs: Record<string, Record<string, boolean>> = {}): void {
   const dir = join(ROOT, RECORD_DIR);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, `${suite}.json`), JSON.stringify({ suite, at: new Date().toISOString(), values, runs }, null, 1) + "\n");
+  const failing: RunsGolden = {};
+  for (const [set, o] of Object.entries(runs)) failing[set] = failingKeys(o);
+  writeFileSync(join(dir, `${suite}.json`), JSON.stringify({ suite, at: new Date().toISOString(), values, runs: failing, runCounts: Object.fromEntries(Object.entries(runs).map(([k, o]) => [k, Object.keys(o).length])) }, null, 1) + "\n");
 }
 
-/** Run outcomes that regressed: a key the golden has as passing that now fails or is missing. */
+/** Runs that fail now but passed at the baseline (not in its failing list): regressions. */
 export function runRegressions(set: string, outcomes: Record<string, boolean>, golden: RunsGolden = loadRuns()): string[] {
-  const g = golden[set] ?? {};
-  return Object.keys(g)
-    .filter((k) => g[k] && outcomes[k] !== true)
+  const allowed = new Set(golden[set] ?? []);
+  return Object.keys(outcomes)
+    .filter((k) => !outcomes[k] && !allowed.has(k))
     .sort();
 }
 
-/** Run keys that pass now but fail in the golden (fixed since): a reminder to refresh the golden. */
+/** Runs the baseline lists as failing that pass now (fixed since): a reminder to refresh the golden. */
 export function runImprovements(set: string, outcomes: Record<string, boolean>, golden: RunsGolden = loadRuns()): string[] {
-  const g = golden[set] ?? {};
+  return (golden[set] ?? []).filter((k) => outcomes[k] === true).sort();
+}
+
+/** The failing keys of a set of outcomes, sorted (what the golden stores). */
+export function failingKeys(outcomes: Record<string, boolean>): string[] {
   return Object.keys(outcomes)
-    .filter((k) => outcomes[k] && g[k] === false)
+    .filter((k) => !outcomes[k])
     .sort();
 }

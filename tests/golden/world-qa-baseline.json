@@ -1,0 +1,544 @@
+{
+ "build": "544f67c",
+ "measuredOn": "2026-10-21",
+ "note": "The world-continuity gate's ratchet (docs/qa/world-continuity-gate.md). Every metric was measured at 544f67c (integrate/wave1) by the suites in tests/golden/world/ and the gate's e2e specs. A PR may not make a metric worse; one that improves it lowers its baseline (pnpm world:baseline). A defect marked fixed makes every metric that tracks only fixed defects a hard assertion at its target. Statuses are edited by hand, in the PR that fixes the defect.",
+ "defects": {
+  "L-01": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "23 duplicate and 24 coplanar-roof footprint pairs z-fight.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-02": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Wall bottoms float 5 to 25 cm above the drawn ground on 38 buildings.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-03": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Two buildings straddle the south edge and hang over the void: 201006.0017547 by 118.6 m (37.705434,-122.462201) and 0008708 by 16.4 m (37.705490,-122.416322).",
+   "targetWave": null,
+   "note": "QA at 54ee728: open (now behind the wall; visual only)"
+  },
+  "L-04": {
+   "severity": "low",
+   "status": "open",
+   "owner": "content",
+   "title": "The saints-peter-and-paul probe in `pipeline/areas.json` points 143 m away, at 201006.0003946. The church is 201006.0001265 and its -tower. (Coit is in W-27.)",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-05": {
+   "severity": "low",
+   "status": "partly",
+   "owner": "render",
+   "title": "If a tile GLB fails, the collider fallback extrudes from baseY - 1 m: 51,328 hillside buildings would float, 5,172 of them by more than 3 m.",
+   "targetWave": null,
+   "note": "QA at 54ee728: partly (head retries a failed GLB once after 1.5 s; the fallback is unchanged)"
+  },
+  "L-06": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "The DEM is requested at about 4 x 5 m although USGS serves 1 m. With the 10 m lattice, cliffs, cuts and retaining walls are rounded off by up to 6.6 m (lattice) and 9.3 m (request).",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-07": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "2 to 4 m notches in road ribbons at sharp polyline bends.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-08": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline + assets",
+   "title": "Alcatraz exists only as far terrain, flattened by 9 to 13 m, with no buildings.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-09": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "10.1% of the sidewalk graph (3,560 edges) lies inside footprints. No runtime code reads `sidewalks.json` yet.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-10": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Boulevards are drawn narrower than their corridors; alley and residential kerbs run into buildings.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-11": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "9 ribbon seams open by more than 2 cm (max 0.27 m at t-5_5/t-5_6); 4 junction caps are unmatched across seams.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-12": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Treasure Island and YBI are unreachable by road (wave 8). There are 26 components, 7 one-way sinks, and one-way edges that dead-end at the county line.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-13": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "About 1 ha of sim land is drawn as water (Mission Creek shoreline, t0_4). The 10 m staircase is in W-35.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-14": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "48% of 1,641,534 corners split a window; 21,321 window rows are sliced by the roofline; 29,524 ground-floor windows are clipped at the 0.8 m mask.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-15": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "485 low-rise houses carry a box centred on the roof, rising 3 to 12 m.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open (not recounted at head, where the condo rule added 64 tower records)"
+  },
+  "W-01": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Real streets walled by building footprints",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-02": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Tunnels draped over the hills (Broadway impassable)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-03": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Freeways on the bare ground: the car is stopped by buildings on the freeway, launches, drives through houses",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (traffic part fixed)"
+  },
+  "W-04": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Post-2010 blocks and towers missing",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-05": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Buried hillside buildings: invisible underground walls, cars teleported out, hill through the roof",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-06": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "sim",
+   "title": "The water side of every shore wall launches cars 50 to 1,612 m into the sky",
+   "targetWave": 1,
+   "note": "QA at 54ee728: open (new at head)"
+  },
+  "W-07": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "sim + pipeline",
+   "title": "I-280 ends in invisible sea walls at Mission Creek and Islais Creek",
+   "targetWave": 1,
+   "note": "QA at 54ee728: open (new at head)"
+  },
+  "W-08": {
+   "severity": "blocker",
+   "status": "fixed",
+   "owner": "sim",
+   "title": "No world edge: cars and walkers leave the world, 181 to 201 m drop at the county line, open water is a solid floor",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed (residual: W-06, W-21)"
+  },
+  "W-09": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Car sinks into the drawn road (ribbon vs sim ground)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-10": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Ground mesh pokes through road ribbons",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-11": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + render + sim",
+   "title": "Inland lakes are dry, drivable land; at head they are also painted lawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (worse)"
+  },
+  "W-12": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Bridges over Mission Creek and Islais Creek dip to sea level",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-13": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Piers: sheds stand in the water, pier roads at y=0",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-14": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Streets crossing freeways, rail cuts and creeks launch the car",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-15": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "Houses drawn with 5 to 8 m storeys",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-16": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Phantom LiDAR towers: 68 m on 1st St, 65 m block on Fort Point",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-17": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "Streaming-ring seam: near and far terrain step up to 21.5 m and the sea shows through",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new visible at head)"
+  },
+  "W-18": {
+   "severity": "high",
+   "status": "partly",
+   "owner": "pipeline + render",
+   "title": "Ground cover: parks bare grey, no foliage, beaches and lakes painted lawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: partly"
+  },
+  "W-19": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "render",
+   "title": "Car drawn level on hills",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed"
+  },
+  "W-20": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "render",
+   "title": "Far LOD not drawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed (new defects W-17, W-40, W-41)"
+  },
+  "W-21": {
+   "severity": "high",
+   "status": "open",
+   "owner": "sim + pipeline",
+   "title": "Gaps cut in the sea wall for pier and bridge roads let cars and walkers out onto the Bay",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new at head)"
+  },
+  "W-22": {
+   "severity": "high",
+   "status": "open",
+   "owner": "sim",
+   "title": "Render ground (triangles) and sim ground (bilinear) disagree off-road by up to 4.37 m",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-23": {
+   "severity": "high",
+   "status": "open",
+   "owner": "sim",
+   "title": "Ramming a building on a hill launches the car",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-24": {
+   "severity": "high",
+   "status": "open",
+   "owner": "assets",
+   "title": "Golden Gate Bridge and Bay Bridge absent; approaches end at the shore",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-25": {
+   "severity": "high",
+   "status": "open",
+   "owner": "assets + pipeline",
+   "title": "Sutro Tower absent: three 3 m plinths, no model",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new at head)"
+  },
+  "W-26": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "pipeline",
+   "title": "Sutro Tower drawn as a solid 231 m slab",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed (replaced by W-25)"
+  },
+  "W-27": {
+   "severity": "high",
+   "status": "open",
+   "owner": "assets + pipeline",
+   "title": "Hero landmarks read as office boxes; Dragon Gate and Sutro Baths absent; Coit 20% short",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-28": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Large hillside buildings are one flat prism over up to 30 m of relief",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-29": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "First-storey line from the centroid's ground, not the street",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-30": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Self-intersecting tower rings draw double roofs and slabs outside walls",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-31": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "10 m lattice bumps on cross-slope roads; no 2 m road-profile pass",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-32": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Junction ribbons overlap and z-fight",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-33": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Stairways dropped, or drawn as smooth ramps the car drives",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-34": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "Beaches are grey; at head some are painted lawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-35": {
+   "severity": "medium",
+   "status": "partly",
+   "owner": "pipeline + render",
+   "title": "No seawall drawn; the shoreline is a 10 m staircase; the Embarcadero promenade ramps into the Bay",
+   "targetWave": 2,
+   "note": "QA at 54ee728: partly"
+  },
+  "W-36": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Cracks of 5 to 60 cm between row houses",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-37": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline + content",
+   "title": "One facade class, washed-out palette, Painted Ladies like any row",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-38": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline + assets",
+   "title": "Every roof flat at the LiDAR ridge height: no gables, parapets, cornices or rooftop kit",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-39": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "33 public stairways and paths blocked on foot by footprints",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (first measured at head)"
+  },
+  "W-40": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "No far terrain beyond the south-edge tiles t-16_21, t-4_21, t-3_21 and t7_-5; the city edge floats over the sea",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-41": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Far skyline pops when tiles stream in (hulls up to 122 m too tall; 690 records with no hull)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new visible at head)"
+  },
+  "W-42": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "1,356 Daly City buildings on a strip south of the county line with no streets",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-43": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Lombard: the centreline cuts into 201006.0021655 at the top approach",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-44": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "Street trees and lamps stand in roadways and inside buildings",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-45": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "No sidewalks drawn anywhere in the sf world",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-46": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render + pipeline",
+   "title": "Facades have no front: the same grid on fronts, party walls and rear walls",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-47": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "Storefronts are not rendered",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-48": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "No garage doors on the Sunset, Richmond and Marina rows",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-49": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render + assets",
+   "title": "No bay windows",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-50": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render + assets",
+   "title": "No stoops or entry stairs; blank plinths up to a storey tall",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-51": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "sim",
+   "title": "A car placed overlapping a footprint launches 144 to 178 m (respawn, teleport, mission placement)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-52": {
+   "severity": "medium",
+   "status": "partly",
+   "owner": "sim",
+   "title": "The walker has no vertical state: any drop is a one-tick teleport",
+   "targetWave": 2,
+   "note": "QA at 54ee728: partly"
+  }
+ },
+ "metrics": {}
+}
