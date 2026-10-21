@@ -32,6 +32,28 @@ function ribbonY(ribbons: ReadonlyArray<Deck | Tunnel>, x: number, z: number): n
   return best;
 }
 
+/** As ribbonY, but only where (x, z) lies across a segment (not beyond a ribbon's end). */
+function ribbonYAcross(ribbons: ReadonlyArray<Deck | Tunnel>, x: number, z: number): number | null {
+  let best: number | null = null;
+  let bestD = Infinity;
+  for (const r of ribbons) {
+    for (let i = 1; i < r.path.length; i++) {
+      const a = r.path[i - 1]!, b = r.path[i]!;
+      const ex = b[0] - a[0], ez = b[2] - a[2];
+      const L2 = ex * ex + ez * ez;
+      if (L2 === 0) continue;
+      const t = ((x - a[0]) * ex + (z - a[2]) * ez) / L2;
+      if (t < 0 || t > 1) continue;
+      const d = Math.hypot(x - a[0] - ex * t, z - a[2] - ez * t);
+      if (d <= Math.max(a[3], b[3]) / 2 + 0.25 && d < bestD) {
+        bestD = d;
+        best = a[1] + (b[1] - a[1]) * t;
+      }
+    }
+  }
+  return best;
+}
+
 /** Arc length and point of a polyline every `step` metres. */
 function stationsOf(points: ReadonlyArray<[number, number]>, step: number): Array<{ s: number; x: number; z: number }> {
   const out = [{ s: 0, x: points[0]![0], z: points[0]![1] }];
@@ -169,7 +191,7 @@ describe("sf world: grade separations (W-14)", () => {
     for (const { f, g, X, Z } of crossings) {
       if (unresolved.has(`${f.id}x${g.id}`) || unresolved.has(`${g.id}x${f.id}`)) continue;
       for (const [top, under] of [[f, g], [g, f]] as const) {
-        const yTop = ribbonY((ribbons.get(top.id) ?? []).filter((r) => (r as Deck).kind === "overpass"), X, Z);
+        const yTop = ribbonYAcross((ribbons.get(top.id) ?? []).filter((r) => (r as Deck).kind === "overpass"), X, Z);
         // An overpass where it still stands on its own ground (its end) is over nothing.
         if (yTop === null || yTop - heightAt(X, Z) < 0.5) continue;
         // A street over a bore or its portal is over the tunnel, not an overpass over its road.

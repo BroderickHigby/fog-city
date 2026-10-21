@@ -8,7 +8,7 @@ import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type
 import { candidateTiles, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
 import { bearing, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, isSimpleRing, pointInRing, r2, signedArea, type P2 } from "./geom.ts";
-import { intersectPolys, largest, unionRings } from "./polygon.ts";
+import { intersectPolys, largest, polyArea, unionRings } from "./polygon.ts";
 import { buildFarLod, FAR_CELL_M } from "./far.ts";
 import {
   buildFountains,
@@ -256,11 +256,18 @@ function reconcileTowers(list: readonly Building[], groundUnder: (ring: readonly
     let footprint = b.footprint;
     let baseY = b.baseY;
     let footY = b.meta.footY;
-    if (!b.footprint.every(([x, z]) => inside(x, z))) {
+    // Inside: every vertex in a part, and no gap between parts (a street the passes cut) under it.
+    const area = Math.abs(signedArea(b.footprint));
+    const within = b.footprint.every(([x, z]) => inside(x, z)) && intersectPolys(b.footprint, unionRings(parts)).reduce((a, q) => a + polyArea(q), 0) >= area - 0.05;
+    if (!within) {
       const part = largest(intersectPolys(b.footprint, unionRings(parts)));
       let ring = part ? dropCollinear(cleanRing(part.outer), 0.005) : [];
       if (ring.length >= 3 && Math.sign(signedArea(ring)) !== Math.sign(signedArea(b.footprint))) ring = ring.reverse();
       if (ring.length < 3 || Math.abs(signedArea(ring)) < TOWER_MIN_M2 || !isSimpleRing(ring)) continue;
+      // Cut to a needle, it is no tower (the tower rule's own limit: under 20 m², or rising
+      // more than 10.6 times its width).
+      const a = Math.abs(signedArea(ring)), rise = b.topY - pod.topY;
+      if ((a < 20 && rise > 30) || rise > 10.6 * Math.sqrt(a)) continue;
       footprint = ring;
       // Its own street level and foot, as the tower rule sets them (buildings.ts).
       const under = groundUnder(ring);
