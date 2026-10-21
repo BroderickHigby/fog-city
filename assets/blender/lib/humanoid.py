@@ -1273,7 +1273,7 @@ def quiff(F: dict, prm: dict | None = None, res: int = 0):
     na, nb = (9, 15) if res else (17, 31)
     kk = k * F.get("head_k", 1.0)
     a_back = 2.6
-    hq = 0.043 * kk  # the crest's height above the cap
+    hq = 0.04 * kk  # the crest's height above the cap
 
     def th_ph(alpha, beta):
         d = (math.sin(beta), math.cos(beta) * math.cos(alpha), math.cos(beta) * math.sin(alpha))
