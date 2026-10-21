@@ -76,10 +76,6 @@ export const SAMPLE_S = 0.05;
  * m/s (a chase at the body: it dives earlier and further). Robotaxis keep to their lanes: 0.
  */
 export const PLAYER_SPREAD_MPS = 1;
-/** ... and this much more while it is scraping or bouncing off a wall or a building (where it goes next is anyone's guess). */
-export const CRASH_SPREAD_MPS = 3;
-/** A car that touched something this recently (CarState.sinceContact, ticks) is crashing. */
-export const CRASH_TICKS = 20;
 /** A landing spot keeps this much more than the margin from every predicted footprint, metres. */
 export const LANDING_EXTRA_M = 0.35;
 /**
@@ -95,6 +91,12 @@ export const LEAP_TICKS = 24;
 export const LANDING_GAP_M = 0.1;
 /** The line to a landing spot keeps this clear of the vehicle on the way, metres. */
 export const PASSING_M = 0.2;
+/**
+ * A body the vehicle reaches within this many seconds (it saw it late: a car that swerved, or
+ * was flung off a wall) scrambles: it dives EMERGENCY_BOOST times as fast.
+ */
+export const EMERGENCY_S = 0.45;
+export const EMERGENCY_BOOST = 1.5;
 /** The most a dive climbs or drops, metres; the override's leap, OVERRIDE_STEP_M. */
 export const DIVE_STEP_M = 1.5;
 export const OVERRIDE_STEP_M = 3;
@@ -297,11 +299,11 @@ export function makeVehicle(
   return v;
 }
 
-/** A player's car as a vehicle (velocity from speed and slide, yaw rate from the car; a crashing car's footprint spreads faster). */
+/** A player's car as a vehicle: velocity from speed and slide, yaw rate from the car, its footprint widening PLAYER_SPREAD_MPS. */
 export function vehicleOfCar(id: PlayerId, c: Readonly<CarState>): Vehicle {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
-  const spread = PLAYER_SPREAD_MPS + (c.sinceContact < CRASH_TICKS ? CRASH_SPREAD_MPS : 0);
+  const spread = PLAYER_SPREAD_MPS;
   // Right of forward is (-fz, fx).
   return makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, { spread });
 }
@@ -339,8 +341,8 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
  * allow that way (CAR.gripAccel / speed, so a car chasing someone round a bend is not
  * underestimated). Not turning: one straight path. Braking (decel, after react) shortens them;
  * a stopped vehicle's last sample is where it stops. Walls and buildings are not in it: the
- * footprint never pretends a wall stops a car short of someone (a crashing car's footprint
- * spreads faster instead, CRASH_SPREAD_MPS).
+ * footprint never pretends a wall stops a car short of someone (and when a car bounces off one
+ * at someone, they see it late and scramble, EMERGENCY_BOOST).
  */
 export function predictPaths(
   v: Readonly<Pick<Vehicle, "x" | "z" | "fx" | "fz" | "vx" | "vz" | "speed" | "yawRate" | "decel" | "react"> & { route?: RoutePoint[] | null; spread?: number }>,
@@ -592,6 +594,8 @@ const FAN: ReadonlyArray<readonly [number, number]> = [
 ];
 /** Extra cost of diving to the other side of the vehicle's path, metres. */
 const OTHER_SIDE_COST = 1.2;
+/** A dive across a vehicle's path keeps this much more clear of it on the way, metres. */
+const CROSSING_EXTRA_M = 1;
 /** Extra cost of landing on another body or another diver's landing spot, metres. */
 const CROWDED_COST = 2;
 /** Extra cost of turning a dive under way straight back, metres (less for a smaller turn). */
@@ -617,6 +621,7 @@ export function chooseDive(
   vehicles: readonly Vehicle[],
   spots: readonly Spot[],
   prefer: { x: number; z: number } | null = null,
+  speed = DODGE_PROFILE[b.cls].speed,
 ): { x: number; z: number } | null {
   const prof = DODGE_PROFILE[b.cls];
   const s = threat.sample;
@@ -658,7 +663,8 @@ export function chooseDive(
           const z = b.z + wz * len;
           if (!lineOpen(g, b, x, z, DIVE_STEP_M)) break;
           if (!clearOfVehicles(vehicles, x, z, b.r, prof.margin + LANDING_EXTRA_M)) continue;
-          if (!passesClear(moving, b.x, b.z, wx, wz, len, prof.speed, b.r)) break;
+          // (Across the vehicle's path: with a wider berth, since that line goes in front of it.)
+          if (!passesClear(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M))) break;
           // Onto another body or landing: allowed, but dearer (a little further on is usually free).
           if (!spotFree(spots, x, z, b.r)) {
             if (!best || base + len + CROWDED_COST < best.cost) best = { x, z, cost: base + len + CROWDED_COST };
@@ -758,9 +764,9 @@ export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Ve
 
 // ---------------------------------------------------------------- the dive itself
 
-function startDive(prof: DodgeProfile, sx: number, sz: number, tx: number, tz: number): DodgeState {
+function startDive(prof: DodgeProfile, sx: number, sz: number, tx: number, tz: number, speed = prof.speed): DodgeState {
   const len = Math.sqrt((tx - sx) * (tx - sx) + (tz - sz) * (tz - sz));
-  const dur = Math.max(prof.minTicks, Math.ceil(len / prof.speed / DT - 1e-9));
+  const dur = Math.max(Math.round(prof.minTicks * (prof.speed / speed)), Math.ceil(len / speed / DT - 1e-9));
   return { phase: "dive", sx, sz, tx, tz, t: 0, dur, peak: prof.peak, hop: 0, leap: false };
 }
 
@@ -964,10 +970,12 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
           const len = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
           if (len > 1e-9) prefer = { x: (d.tx - d.sx) / len, z: (d.tz - d.sz) / len };
         }
-        const to = chooseDive(heightFor(r), body, r.threats[0]!.hit, nearV, spotsNear(ri, prof.maxDive + 2), prefer);
+        // Seen late: scramble.
+        const speed = r.threats[0]!.hit.t <= EMERGENCY_S ? prof.speed * EMERGENCY_BOOST : prof.speed;
+        const to = chooseDive(heightFor(r), body, r.threats[0]!.hit, nearV, spotsNear(ri, prof.maxDive + 2), prefer, speed);
         if (to) {
           const fresh = !d || d.phase !== "dive" || d.leap;
-          d = startDive(prof, r.x, r.z, to.x, to.z);
+          d = startDive(prof, r.x, r.z, to.x, to.z, speed);
           spots.push({ x: to.x, z: to.z, r: r.r, owner: ri });
           if (fresh) {
             dives++;

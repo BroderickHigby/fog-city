@@ -175,6 +175,6 @@ describe("SIM_VERSION 4", () => {
 });
 
 /** hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4. */
-const PINNED_V4: string[] = ["daf97104", "3c57eef4", "3d27d7c4", "2226bdf3", "d2f27456"];
+const PINNED_V4: string[] = ["daf97104", "3c57eef4", "3d27d7c4", "34f8ea14", "2530aecd"];
 /** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4. */
 const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "416d05c2", "cbf61bb8", "996e3f91", "134ad84e"];
