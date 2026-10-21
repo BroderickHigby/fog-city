@@ -36,7 +36,7 @@ import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, groundHeight, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
 export const CAR = {
   /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
@@ -151,7 +151,7 @@ export const CLEAR_SPOT_RADIUS_M = 30;
 export function clearCarSpot(world: World, x: number, z: number, heading: number, others: ReadonlyArray<Readonly<Box>> = []): { x: number; z: number } {
   const circles: Circle[] = others.flatMap((b) => carCircles(b));
   const clear = (px: number, pz: number): boolean => {
-    const y = groundHeight(world, px, pz);
+    const y = meshGroundHeight(world, px, pz);
     return !boxBlocked(world, { x: px, z: pz, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, y + ROOF_STEP_M, circles, y + CAR.bodyHeight);
   };
   if (clear(x, z)) return { x, z };

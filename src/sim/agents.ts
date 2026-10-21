@@ -82,7 +82,7 @@ import {
 } from "./roads.ts";
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
-import { cellKey, circleBlocked, groundHeight, type World } from "./world.ts";
+import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts";
 
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
@@ -917,7 +917,7 @@ function bodyPitch(world: World, x: number, z: number, heading: number): number 
   const a = AGENT_SPEC.robotaxi.halfLength * 0.6;
   const hx = dsin(heading) * a;
   const hz = -dcos(heading) * a;
-  return datan((groundHeight(world, x + hx, z + hz) - groundHeight(world, x - hx, z - hz)) / (2 * a)) + 0;
+  return datan((meshGroundHeight(world, x + hx, z + hz) - meshGroundHeight(world, x - hx, z - hz)) / (2 * a)) + 0;
 }
 
 function bodyBlocked(world: World, kind: AgentKind, x: number, z: number, heading: number): boolean {
@@ -1138,7 +1138,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   return {
     ...a,
     x,
-    y: groundHeight(c.world, x, z),
+    y: meshGroundHeight(c.world, x, z),
     z,
     heading,
     pitch: spec.road ? bodyPitch(c.world, x, z, heading) : 0,
@@ -1300,7 +1300,7 @@ function trySpawn(
       id,
       kind,
       x: q.x,
-      y: groundHeight(world, q.x, q.z),
+      y: meshGroundHeight(world, q.x, q.z),
       z: q.z,
       heading,
       pitch: spec.road ? bodyPitch(world, q.x, q.z, heading) : 0,

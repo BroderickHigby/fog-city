@@ -48,8 +48,7 @@ describe("buildWorld and roads", () => {
     });
     // Overlapping heightfields: "a" covers [0,300]^2, "b" covers [200,500]^2.
     const world = buildWorld([mk("b", 200, 200, 50), mk("a", 0, 0, 10)]);
-    // Reference: a linear scan over tiles in id order, each cell two triangles split along its
-    // (i+1, k)-(i, k+1) diagonal as the ground mesh is drawn (SIM_VERSION 3; bilinear before).
+    // Reference: the Phase 0 algorithm, a linear scan over tiles in id order.
     const linear = (x: number, z: number): number => {
       for (const t of world.tiles) {
         const g = t.ground!;
@@ -61,8 +60,7 @@ describe("buildWorld and roads", () => {
         const tx = fx - ix;
         const tz = fz - iz;
         const h = (i: number, j: number) => g.heights[j * g.nx + i]!;
-        if (tx + tz <= 1) return h(ix, iz) + (h(ix + 1, iz) - h(ix, iz)) * tx + (h(ix, iz + 1) - h(ix, iz)) * tz;
-        return h(ix + 1, iz + 1) + (h(ix, iz + 1) - h(ix + 1, iz + 1)) * (1 - tx) + (h(ix + 1, iz) - h(ix + 1, iz + 1)) * (1 - tz);
+        return (h(ix, iz) * (1 - tx) + h(ix + 1, iz) * tx) * (1 - tz) + (h(ix, iz + 1) * (1 - tx) + h(ix + 1, iz + 1) * tx) * tz;
       }
       return 0;
     };

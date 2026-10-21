@@ -231,15 +231,31 @@ export function blocksBand(b: Readonly<BuildingCollider>, bottom: number, top: n
   return b.underY === undefined || top > b.underY;
 }
 
+/** Bilinear height of one heightfield at (x, z), clamped into its lattice (the caller picked the tile). */
+function bilinearOnField(g: Readonly<Heightfield>, x: number, z: number): number {
+  const fx = (x - g.x0) / g.cellSizeM;
+  const fz = (z - g.z0) / g.cellSizeM;
+  const ix = Math.min(Math.floor(fx), g.nx - 2);
+  const iz = Math.min(Math.floor(fz), g.nz - 2);
+  const tx = fx - ix;
+  const tz = fz - iz;
+  const h00 = g.heights[iz * g.nx + ix] ?? 0;
+  const h10 = g.heights[iz * g.nx + ix + 1] ?? 0;
+  const h01 = g.heights[(iz + 1) * g.nx + ix] ?? 0;
+  const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
+  return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+}
+
 /**
  * Height of one heightfield at (x, z), clamped into its lattice (the caller picked the tile), on
  * the rendered ground mesh: each lattice cell is two planar triangles split along its
  * (i+1, k)-(i, k+1) diagonal, exactly as pipeline/lib/mesh.ts groundMesh (and the renderer's
- * fallback heightfield mesh) triangulate it, so a body stands on the ground that is drawn.
- * (A bilinear blend differs from the drawn triangles by up to a quarter of the cell's twist,
- * |h00 + h11 - h10 - h01| / 4: 4.4 m on the steepest SF cells.) Pipeline terrain.ts
- * Ground.meshHeightAt is the same arithmetic. Continuous across cells and across tiles, whose
- * borders repeat the same samples.
+ * fallback heightfield mesh) triangulate it (pipeline terrain.ts Ground.meshHeightAt is the
+ * same plane). A bilinear blend differs from the drawn triangles by up to a quarter of the
+ * cell's twist, |h00 + h11 - h10 - h01| / 4: 4.4 m on the steepest SF cells. On a tile's far
+ * border (the last row or column, where the next tile's first one repeats the same samples)
+ * the edge is interpolated exactly as the next tile interpolates its near edge, so the two
+ * tiles give bit-identical heights there.
  */
 export function heightOnField(g: Readonly<Heightfield>, x: number, z: number): number {
   const fx = (x - g.x0) / g.cellSizeM;
@@ -252,19 +268,15 @@ export function heightOnField(g: Readonly<Heightfield>, x: number, z: number): n
   const h10 = g.heights[iz * g.nx + ix + 1] ?? 0;
   const h01 = g.heights[(iz + 1) * g.nx + ix] ?? 0;
   const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
+  // The far border (only ever the lattice's last row or column): as the next tile's near edge.
+  if (tx === 1) return tz === 1 ? h11 : h10 + (h11 - h10) * tz;
+  if (tz === 1) return h01 + (h11 - h01) * tx;
   if (tx + tz <= 1) return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
   return h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
 }
 
-/**
- * Ground height at (x, z): the ground mesh (heightOnField) of the heightfield that covers the
- * point, else 0 (sea level). Pipeline worlds look the tile up by floor(x / T), floor(z / T)
- * (world.tileGround); a point on a tile's far border belongs to that tile when the next one is
- * absent. Neighbours repeat their shared border samples, so a border point has one height
- * whichever tile answers. Hand-made worlds whose heightfields are not tile-aligned use the
- * first covering tile in id order (world.groundIndex).
- */
-export function groundHeight(world: World, x: number, z: number): number {
+/** The heightfield covering (x, z) by the world's ground lookup (see groundHeight), or null. */
+function fieldAt(world: World, x: number, z: number): Heightfield | null {
   const tg = world.tileGround;
   if (tg) {
     const ix = Math.floor(x / TILE_SIZE_M);
@@ -274,32 +286,59 @@ export function groundHeight(world: World, x: number, z: number): number {
       const onX = x === ix * TILE_SIZE_M;
       const onZ = z === iz * TILE_SIZE_M;
       g = (onX ? tg.get(cellKey(ix - 1, iz)) : undefined) ?? (onZ ? tg.get(cellKey(ix, iz - 1)) : undefined) ?? (onX && onZ ? tg.get(cellKey(ix - 1, iz - 1)) : undefined);
-      if (!g) return 0;
     }
-    return heightOnField(g, x, z);
+    return g ?? null;
   }
   const candidates = world.groundIndex.get(cellKey(Math.floor(x / GROUND_CELL), Math.floor(z / GROUND_CELL)));
-  if (!candidates) return 0;
+  if (!candidates) return null;
   for (const t of candidates) {
     const g = t.ground;
     if (!g) continue;
     const fx = (x - g.x0) / g.cellSizeM;
     const fz = (z - g.z0) / g.cellSizeM;
     if (fx < 0 || fz < 0 || fx > g.nx - 1 || fz > g.nz - 1) continue;
-    return heightOnField(g, x, z);
+    return g;
   }
-  return 0;
+  return null;
 }
 
 /**
- * The surface a body with its feet at `feet` stands on at (x, z): the ground, or the roof of a
+ * The lattice's ground height at (x, z): bilinear over the heightfield that covers the point,
+ * else 0 (sea level). The reference the pipeline places its data on (building bases, street
+ * furniture) and the renderer's mirrors repeat (src/render/ground.ts, the pipeline's
+ * PackGroundIndex); bodies stand on the drawn ground instead (meshGroundHeight). Pipeline worlds
+ * look the tile up by floor(x / T), floor(z / T) (world.tileGround); a point on a tile's far
+ * border belongs to that tile when the next one is absent. Neighbours repeat their shared
+ * border samples, so a border point has one height whichever tile answers. Hand-made worlds
+ * whose heightfields are not tile-aligned use the first covering tile in id order
+ * (world.groundIndex).
+ */
+export function groundHeight(world: World, x: number, z: number): number {
+  const g = fieldAt(world, x, z);
+  return g ? bilinearOnField(g, x, z) : 0;
+}
+
+/**
+ * The drawn ground's height at (x, z): the ground mesh's two triangles per lattice cell
+ * (heightOnField) of the heightfield groundHeight would use, else 0. What cars, walkers and
+ * agents stand on (W-22: the bilinear ground was off the drawn ground by up to 4.4 m), so a
+ * body is drawn on the terrain that is drawn.
+ */
+export function meshGroundHeight(world: World, x: number, z: number): number {
+  const g = fieldAt(world, x, z);
+  return g ? heightOnField(g, x, z) : 0;
+}
+
+/**
+ * The surface a body with its feet at `feet` stands on at (x, z): the drawn ground
+ * (meshGroundHeight), or the roof of a
  * building covering the point when that roof is above the ground and at most ROOF_STEP_M above
  * the feet (a body never steps onto a roof higher than that; such a building blocks it instead,
  * blocksBand). So a body that reaches a roof (from a hillside above it, or over a low ledge)
  * stands on it, and walks or drives off its edge rather than sinking into the building.
  */
 export function surfaceHeight(world: World, x: number, z: number, feet: number): number {
-  let h = groundHeight(world, x, z);
+  let h = meshGroundHeight(world, x, z);
   const lim = feet + ROOF_STEP_M;
   if (lim <= h) return h;
   const key = cellKey(Math.floor(x / CELL), Math.floor(z / CELL));
@@ -442,7 +481,7 @@ export function circleBlocked(world: World, x: number, z: number, r: number): bo
         const b = list[i]!;
         if (b.topY <= b.baseY) continue;
         // A deck or bridge high enough over the ground here: agents pass under it.
-        if (b.underY !== undefined && b.underY - groundHeight(world, x, z) >= UNDER_CLEARANCE_M) continue;
+        if (b.underY !== undefined && b.underY - meshGroundHeight(world, x, z) >= UNDER_CLEARANCE_M) continue;
         if (circleTouchesPolygon(x, z, r2, b.footprint)) return true;
       }
     }
@@ -517,7 +556,7 @@ export function segmentBlocked(world: World, ax: number, az: number, bx: number,
         if (maxX < bb[k]! || minX > bb[k + 2]! || maxZ < bb[k + 1]! || minZ > bb[k + 3]!) continue;
         const b = list[i]!;
         if (b.topY <= b.baseY) continue;
-        if (b.underY !== undefined && b.underY - Math.max(groundHeight(world, ax, az), groundHeight(world, bx, bz)) >= UNDER_CLEARANCE_M) continue;
+        if (b.underY !== undefined && b.underY - Math.max(meshGroundHeight(world, ax, az), meshGroundHeight(world, bx, bz)) >= UNDER_CLEARANCE_M) continue;
         if (pointInPolygon(ax, az, b.footprint) || pointInPolygon(bx, bz, b.footprint)) return true;
         const poly = b.footprint;
         for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {

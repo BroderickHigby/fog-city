@@ -15,7 +15,7 @@ import {
   circleBlocked,
   clearCarSpot,
   createInitialState,
-  groundHeight,
+  meshGroundHeight,
   makeCar,
   pointInPolygon,
   sampleGround,
@@ -70,7 +70,7 @@ function drive(w: World, c0: CarState, input: SimInput | ((t: number) => SimInpu
     // The ground's own slope along the travel, measured on a 1 m baseline.
     const ux = v > 1e-9 ? (c.x - p.x) / (v * DT) : 0;
     const uz = v > 1e-9 ? (c.z - p.z) / (v * DT) : 0;
-    const slope = (groundHeight(w, c.x + ux * 0.5, c.z + uz * 0.5) - groundHeight(w, c.x - ux * 0.5, c.z - uz * 0.5)) / 1;
+    const slope = (meshGroundHeight(w, c.x + ux * 0.5, c.z + uz * 0.5) - meshGroundHeight(w, c.x - ux * 0.5, c.z - uz * 0.5)) / 1;
     const vh = Math.hypot(c.speed, c.lateral);
     lift = Math.max(lift, c.vy - (vh * Math.max(0, slope) + 1));
     // The gap under the wheels: 0 on the ground, the height while flying.
@@ -137,7 +137,7 @@ describe("a car placed overlapping a footprint", () => {
       [3, -9, Math.PI, 15],
     ] as const) {
       const w = world(slope, [block]);
-      const c0: CarState = { ...makeCar(x, z, heading, groundHeight(w, x, z)), speed };
+      const c0: CarState = { ...makeCar(x, z, heading, meshGroundHeight(w, x, z)), speed };
       // Two seconds: out of the block, and well short of the test world's edge.
       const tr = drive(w, c0, I(speed > 0 ? 1 : 0), 120);
       expect(tr.excess, `(${x}, ${z})`).toBeLessThanOrEqual(1e-9);
@@ -194,7 +194,7 @@ describe("roofs and undersides (a building blocks only between its underside and
     // It carried on past the house, dropping off the roof's downhill edge.
     const end = tr.cars[tr.cars.length - 1]!;
     expect(end.x).toBeGreaterThan(25);
-    expect(end.y).toBeCloseTo(groundHeight(w, end.x, end.z), 1);
+    expect(end.y).toBeCloseTo(meshGroundHeight(w, end.x, end.z), 1);
   });
 
   it("a roof more than a step above the wheels is a wall", () => {

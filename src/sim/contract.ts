@@ -14,11 +14,11 @@
 // gained foot + exitPending; ext.agents holds ambient traffic (src/sim/agents.ts).
 // upgradeState() in step.ts lifts a v1 state to v2.
 // v3 (qa/sim): FootState gained vy and grounded: the walker has gravity, a fall state, and
-// cannot climb a slope steeper than 1:1 over more than a metre. The ground the sim stands
-// bodies on is the rendered mesh's (each lattice cell's two triangles, src/sim/world.ts
-// groundHeight) instead of a bilinear blend, roofs within a step of a body's feet are part of
-// it, and collision pushes are capped per tick: v2 replays diverge. upgradeState() lifts v1
-// and v2 states to v3.
+// cannot climb a slope steeper than 1:1 over more than a metre. Cars, walkers and agents stand
+// on the drawn ground (each lattice cell's two triangles, src/sim/world.ts meshGroundHeight)
+// instead of a bilinear blend, roofs within a step of a body's feet are part of it, and
+// collision pushes are capped per tick: v2 replays diverge. upgradeState() lifts v1 and v2
+// states to v3.
 export const SIM_VERSION = 3;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;

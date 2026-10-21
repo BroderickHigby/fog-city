@@ -19,7 +19,7 @@ import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt } from "./agents.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
-import { groundHeight, type World } from "./world.ts";
+import { meshGroundHeight, type World } from "./world.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -40,7 +40,7 @@ function spawnPlayer(world: World, id: PlayerId, s: Spawn, others: ReadonlyArray
   return {
     id,
     mode: "vehicle",
-    car: makeCar(p.x, p.z, s.heading, groundHeight(world, p.x, p.z)),
+    car: makeCar(p.x, p.z, s.heading, meshGroundHeight(world, p.x, p.z)),
     foot: null,
     exitPending: false,
   };
