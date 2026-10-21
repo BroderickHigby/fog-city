@@ -2,7 +2,8 @@
 // freeway, every path walked, every wall rammed, the whole shore's water side, the determinism of
 // step() from the pack and from the JSON colliders.
 
-import { buildWorld, createInitialState, hashState, step, type RoadsFile, type SimState } from "../../../src/sim/index.ts";
+import { buildWorld, createInitialState, hashState, step, type BoundaryFile, type RoadsFile, type SimState, type World } from "../../../src/sim/index.ts";
+import { loadWorldFiles } from "../../helpers.ts";
 import { colliderJsonTiles, districtOf, drivePath, ll, r2, resample, walkPath, type GameWorld, type RoadEdge } from "../world.ts";
 import { ramWalls, rammingStarts, wallLaunch } from "./edge.ts";
 import { driveEdge } from "./play.ts";
@@ -121,11 +122,16 @@ export function measureWallsAll(gw: GameWorld): Measured {
   return m;
 }
 
-/** 60 s of step() with traffic: twice from the collider pack and once from the per-tile JSON colliders, hashed every 600 ticks. */
-export function measureDeterminism(gw: GameWorld): Measured {
+/**
+ * 60 s of step() with traffic: twice from the collider pack and once from the per-tile JSON
+ * colliders, hashed every 600 ticks. It builds its own worlds, one at a time (the pack world is
+ * dropped before the JSON world is built), not the worker's cached gameWorld(), so the suite
+ * peaks near one whole-city world (rule 5: per-PR world tests stay under 2 GB).
+ */
+export function measureDeterminism(name = "sf"): Measured {
   const m = new Measured("determinism", "pr");
-  const run = (world: typeof gw.world): string[] => {
-    let s: SimState = createInitialState(world, 20261021, ["p1", "p2"], gw.manifest.spawn);
+  const run = (world: World, spawn: GameWorld["manifest"]["spawn"]): string[] => {
+    let s: SimState = createInitialState(world, 20261021, ["p1", "p2"], spawn);
     const out: string[] = [];
     for (let t = 1; t <= 3600; t++) {
       const k = Math.floor(t / 120) % 4;
@@ -134,11 +140,18 @@ export function measureDeterminism(gw: GameWorld): Measured {
     }
     return out;
   };
-  const a = run(gw.world);
-  const b = run(gw.world);
+  // The pack world, as the game boots it, in its own scope: nothing of it outlives the two runs.
+  const fromPack = (): { a: string[]; b: string[]; manifest: GameWorld["manifest"]; roads: RoadsFile; boundary: BoundaryFile } => {
+    const files = loadWorldFiles(name, false);
+    if (!files.roads || !files.boundary) throw new Error(`${name}: determinism needs the road graph and the boundary`);
+    const world = buildWorld(files.tiles, files.roads as unknown as RoadsFile, files.boundary);
+    const manifest = files.manifest as GameWorld["manifest"];
+    return { a: run(world, manifest.spawn), b: run(world, manifest.spawn), manifest, roads: files.roads as unknown as RoadsFile, boundary: files.boundary };
+  };
+  const { a, b, manifest, roads, boundary } = fromPack();
   m.lap("pack");
-  const json = buildWorld(colliderJsonTiles(gw), gw.roads as RoadsFile, gw.boundary);
-  const c = run(json);
+  const json = buildWorld(colliderJsonTiles({ name, manifest }), roads, boundary);
+  const c = run(json, manifest.spawn);
   m.lap("json");
   const diff = a.filter((h, i) => h !== b[i] || h !== c[i]).length + Math.abs(a.length - b.length) + Math.abs(a.length - c.length);
   m.metric({ id: "F.determinism.hashMismatches", target: 0, better: "lower", unit: "checkpoints", defects: [], desc: "60 s of step() with two players and traffic, twice from the collider pack and once from the per-tile JSON colliders: 600-tick state hashes that differ" }, diff, { pack: a, json: c });

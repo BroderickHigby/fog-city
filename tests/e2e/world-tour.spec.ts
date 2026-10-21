@@ -12,7 +12,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test, type Page } from "@playwright/test";
 import { toLocal } from "../../src/geo/project.ts";
-import { groundHeight } from "../../src/sim/index.ts";
+import { closestOnBoundary, groundHeight, nearbyBuildings, pointInPolygon, type World } from "../../src/sim/index.ts";
 import { ROOT, worldExists } from "../helpers.ts";
 import { advanceIndex, bearing, followInput, gameWorld } from "../helpers/world.ts";
 import { route } from "../helpers/world-gate/play.ts";
@@ -61,6 +61,8 @@ interface Shot {
   title: string;
   mode: string;
   problems: string[];
+  /** Wall-clock milliseconds since the previous shot (camera move, streaming, frames, screenshot), for the nightly's time budget. */
+  ms: number;
 }
 
 const views = (JSON.parse(readFileSync(join(import.meta.dirname, "world-tour.views.json"), "utf8")) as { views: View[] }).views.filter(
@@ -82,17 +84,43 @@ function camera(ground: (x: number, z: number) => number, x: number, z: number, 
   return { x, y: ground(x, z) + 1.7, z, yaw: headingDeg, pitch: -2 };
 }
 
-/** The highest point of the sim's ground within r metres of (x, z), on a 2 m grid. */
-function summitOf(ground: (x: number, z: number) => number, x: number, z: number, r: number): { x: number; z: number } {
-  let best = { x, z, y: ground(x, z) };
+/** A summit standpoint keeps this far from every building footprint (a camera inside one shows its walls from within). */
+const SUMMIT_CLEARANCE_M = 6;
+/** ... and looks this far along its heading without a building taller than the eye in the way. */
+const SUMMIT_SIGHT_M = 80;
+
+/**
+ * The highest point of the sim's ground within r metres of (x, z), on a 2 m grid, that a person
+ * could stand on and see from: not inside a building footprint or within SUMMIT_CLEARANCE_M of
+ * one, and with no building taller than the eye within SUMMIT_SIGHT_M along the heading. (Bernal
+ * Hill's highest ground is the radio building's: standing there put the camera inside it, under
+ * its tower; the next highest looked straight into its wall.)
+ */
+function summitOf(world: World, x: number, z: number, r: number, headingDeg: number): { x: number; z: number } {
+  const near = nearbyBuildings(world, x, z, r + SUMMIT_SIGHT_M);
+  const fx = Math.sin((headingDeg * Math.PI) / 180);
+  const fz = -Math.cos((headingDeg * Math.PI) / 180);
+  const standable = (px: number, pz: number): boolean => {
+    for (const b of near) {
+      if (pointInPolygon(px, pz, b.footprint) || closestOnBoundary(px, pz, b.footprint).d2 < SUMMIT_CLEARANCE_M ** 2) return false;
+    }
+    const eye = groundHeight(world, px, pz) + 1.7;
+    for (let d = SUMMIT_CLEARANCE_M; d <= SUMMIT_SIGHT_M; d += 2) {
+      const sx = px + fx * d;
+      const sz = pz + fz * d;
+      for (const b of near) if (b.topY > eye && pointInPolygon(sx, sz, b.footprint)) return false;
+    }
+    return true;
+  };
+  let best = { x, z, y: -Infinity };
   for (let dx = -r; dx <= r; dx += 2) {
     for (let dz = -r; dz <= r; dz += 2) {
       if (dx * dx + dz * dz > r * r) continue;
-      const y = ground(x + dx, z + dz);
-      if (y > best.y) best = { x: x + dx, z: z + dz, y };
+      const y = groundHeight(world, x + dx, z + dz);
+      if (y > best.y && standable(x + dx, z + dz)) best = { x: x + dx, z: z + dz, y };
     }
   }
-  return { x: best.x, z: best.z };
+  return best.y === -Infinity ? { x, z } : { x: best.x, z: best.z };
 }
 
 function bearingDeg(x: number, z: number, tx: number, tz: number): number {
@@ -138,6 +166,14 @@ test.describe("world gate: the screenshot tour", () => {
     const probeFails: Record<string, string[]> = { water: [], sand: [], green: [], foliage: [], landmark: [] };
     const probeTotals: Record<string, number> = { water: 0, sand: 0, green: 0, foliage: 0, landmark: 0 };
     let viewProblems = 0;
+    const started = Date.now();
+    let lastShot = started;
+    const lap = (): number => {
+      const now = Date.now();
+      const ms = now - lastShot;
+      lastShot = now;
+      return ms;
+    };
 
     const open = async (query: string): Promise<{ page: Page; problems: string[] }> => {
       const page = await newSharedPage(browser, { ...info.project.use, viewport: VIEWPORT });
@@ -160,12 +196,12 @@ test.describe("world gate: the screenshot tour", () => {
       const errs = problems.splice(0, problems.length);
       if (errs.length) issues.push(...errs.slice(0, 3));
       await page.screenshot({ path: join(OUT, `${base}.png`), timeout: 300_000 });
-      shots.push({ file: `${base}.png`, view: v.id, title: v.title, mode, problems: issues });
+      shots.push({ file: `${base}.png`, view: v.id, title: v.title, mode, problems: issues, ms: lap() });
       if (v.night) {
         await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setNight!(true));
         await frames(page, 4);
         await page.screenshot({ path: join(OUT, `${base}-night.png`), timeout: 300_000 });
-        shots.push({ file: `${base}-night.png`, view: v.id, title: `${v.title} (night)`, mode, problems: [] });
+        shots.push({ file: `${base}-night.png`, view: v.id, title: `${v.title} (night)`, mode, problems: [], ms: lap() });
         await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setNight!(false));
       }
       if (issues.length) viewProblems++;
@@ -196,7 +232,7 @@ test.describe("world gate: the screenshot tour", () => {
       const { page, problems } = await open(query);
       for (const v of list) {
         let place = placeOf(v);
-        if (v.summit) place = { ...place, ...summitOf(ground, place.x, place.z, v.summit) };
+        if (v.summit) place = { ...place, ...summitOf(world, place.x, place.z, v.summit, place.heading) };
         for (const mode of v.modes) {
           if (mode === "drive") {
             await drive(page, problems, v);
@@ -250,13 +286,14 @@ test.describe("world gate: the screenshot tour", () => {
 
     // The contact sheet: every shot with its view and any problem; a previous wave's sheet in
     // test-results/tour-previous/ (copied there by the reviewer) is shown beside it.
-    writeFileSync(join(OUT, "index.json"), JSON.stringify({ shots, notes, probeFails, probeTotals }, null, 1) + "\n");
+    const minutes = Math.round((Date.now() - started) / 6000) / 10;
+    writeFileSync(join(OUT, "index.json"), JSON.stringify({ minutes, shots, notes, probeFails, probeTotals }, null, 1) + "\n");
     const rows = shots
       .map((s) => `<figure><img src="${s.file}" loading="lazy"><img class="prev" src="../tour-previous/${s.file}" onerror="this.remove()" loading="lazy"><figcaption><b>${s.file}</b> ${s.title}${s.problems.length ? `<br><span class="bad">${s.problems.join("; ")}</span>` : ""}</figcaption></figure>`)
       .join("\n");
     writeFileSync(
       join(OUT, "index.html"),
-      `<!doctype html><meta charset="utf-8"><title>World tour</title><style>body{font:14px system-ui;margin:16px;background:#111;color:#ddd}figure{display:inline-block;margin:6px;vertical-align:top;max-width:100%}img{width:480px;max-width:100%;display:inline-block}figcaption{max-width:960px}.bad{color:#f88}</style><h1>World-continuity tour</h1><p>${shots.length} shots. Review each against docs/qa/world-continuity-gate.md and record pass or fail per view in the wave's QA note.</p>${notes.map((n) => `<p>${n}</p>`).join("")}\n${rows}\n`,
+      `<!doctype html><meta charset="utf-8"><title>World tour</title><style>body{font:14px system-ui;margin:16px;background:#111;color:#ddd}figure{display:inline-block;margin:6px;vertical-align:top;max-width:100%}img{width:480px;max-width:100%;display:inline-block}figcaption{max-width:960px}.bad{color:#f88}</style><h1>World-continuity tour</h1><p>${shots.length} shots in ${minutes} minutes. Review each against docs/qa/world-continuity-gate.md and record pass or fail per view in the wave's QA note.</p>${notes.map((n) => `<p>${n}</p>`).join("")}\n${rows}\n`,
     );
 
     const m = new Measured("world-tour", "e2e-nightly");

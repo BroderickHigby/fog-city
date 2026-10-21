@@ -16,5 +16,6 @@ reference itself changes, never to make a metric pass. Open-data sources keep th
 | `dem1m-profiles.json` | 1 m DEM heights every metre along Vermont St, Twin Peaks Blvd, Vasquez Ave and Kensington Way (W-31) | USGS 3DEP 1 m, fetched by the QA run |
 | `lakes.json` | the eight hydro-flattened lake surfaces as lattice vertex runs, with their levels (W-11) | QA terrain c1f seeds, flood-filled on the 544f67c lattice |
 | `start-blocked.json` | 58 street drives whose start pose overlaps a footprint (W-51) | QA critic c2 |
+| `drive-sample.json` | the critic's seeded 300-edge street sample: every k-th surface edge of `roads.json` by id at 544f67c, pinned so the drive suite's sample does not move when an edge is added, removed or renamed | `scripts/golden/world-sample.ts` (refresh on purpose only, with `--write`) |
 
 `scripts/golden/world-fixtures.ts` is how they were made (from the QA evidence folder, for provenance).

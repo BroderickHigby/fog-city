@@ -1,4 +1,4 @@
-// Gate nightly checks on the far layer (docs/qa/world-continuity-gate.md, section B): the
+// Gate checks (per PR) on the far layer (docs/qa/world-continuity-gate.md, section B): the
 // near/far seam at the streaming ring, far terrain beyond the city's edge, and the far hulls
 // against the buildings they stand in for. The far cells' terrain is a 100 m lattice (every
 // vertex on whole 100 m multiples, src/render/far-layer.ts onFarLattice); hull triangles are not.
@@ -70,7 +70,7 @@ export async function farLayer(gw: GameWorld): Promise<{ terrain: TriGrid; hulls
 export const UNCOVERED_TILES: readonly string[] = ["t-16_21", "t-4_21", "t-3_21", "t7_-5"];
 
 export async function measureFar(gw: GameWorld): Promise<Measured> {
-  const m = new Measured("far", "nightly");
+  const m = new Measured("far", "pr");
   const world = gw.world;
   const { terrain, hulls } = await farLayer(gw);
   m.lap("decode");

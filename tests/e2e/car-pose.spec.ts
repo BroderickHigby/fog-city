@@ -56,13 +56,15 @@ test.describe("world gate: the car's pose on steep streets", () => {
       const err = (Math.abs(pose.modelPitch - car.pitch) * 180) / Math.PI;
       const roads = await probeDown(page, pose.wheels.map((w) => [w.x, w.z] as [number, number]), "roads");
       const grounds = await probeDown(page, pose.wheels.map((w) => [w.x, w.z] as [number, number]), "ground");
+      // A wheel over neither a road ribbon nor the ground (a tile missing under the car) is an
+      // infinite gap: the metric then fails as not finite, never passes as 0.
       const gaps = pose.wheels.map((w, k) => {
         const top = roads[k]?.y ?? grounds[k]?.y;
-        return top === undefined ? 0 : Math.abs(w.bottom - top);
+        return top === undefined ? Infinity : Math.abs(w.bottom - top);
       });
       pitchErr = Math.max(pitchErr, err);
       gap = Math.max(gap, ...gaps);
-      per[s.name] = { simPitchDeg: (car.pitch * 180) / Math.PI, pitchErrDeg: err, wheelGapsM: gaps.map((g) => Math.round(g * 100) / 100), onRoad: roads.map((r) => r !== null) };
+      per[s.name] = { simPitchDeg: (car.pitch * 180) / Math.PI, pitchErrDeg: err, wheelGapsM: gaps.map((g) => (Number.isFinite(g) ? Math.round(g * 100) / 100 : "nothing drawn under the wheel")), onRoad: roads.map((r) => r !== null) };
     }
     // The far skyline (W-20, fixed): from Twin Peaks looking north-east, far cells are loaded and drawn.
     await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.flyTo!(-4672, 300, 4540, 45, -5));

@@ -335,12 +335,12 @@ The world-continuity gate (`world-continuity-gate.md`) measures every defect on 
 | W-18 | high | **partly** | Ground cover: parks bare grey, no foliage, beaches and lakes painted lawn | `D.foliage.parkTilesShare` 0 (>= 1); `D.parks.greenShare` 0.437 (>= 0.9); `D.parks.propertiesUnder10pct` 240 (<= 0); `D.shore.drawnGrassHa` 31.07 (<= 0); `G.tour.parksNotGreen` 4 (<= 0); `G.tour.parksWithoutFoliage` 4 (<= 0) |
 | W-19 | high | **fixed** | Car drawn level on hills | `G.carPose.pitchErrorDeg` 0 (<= 1) |
 | W-20 | high | **fixed** | Far LOD not drawn | `G.far.cellsDrawnFromTwinPeaks` 13 (>= 4) |
-| W-21 | high | **fixed** | Gaps cut in the sea wall for pier and bridge roads let cars and walkers out onto the Bay | `E.gaps.carRunsOffCorridor` 0 (<= 0); `E.gaps.maxOutOnWaterM` 0 (<= 1); `E.gaps.walkerRunsOffCorridor` 0 (<= 0) |
+| W-21 | high | **fixed** | Gaps cut in the sea wall for pier and bridge roads let cars and walkers out onto the Bay | `E.gaps.carRunsOffCorridor` 0 (<= 0); `E.gaps.maxOutOnWaterM` 0 (<= 1); `E.gaps.shoreCutOutsideCorridorsM` 0 (<= 0); `E.gaps.turnRuns` 156 (>= 156); `E.gaps.walkerRunsOffCorridor` 0 (<= 0) |
 | W-22 | high | **open** | Render ground (triangles) and sim ground (bilinear) disagree off-road by up to 4.37 m | `B.groundParity.max` 1.175 (<= 0.02); `B.groundParity.p99` 0.261 (<= 0.02); `F.routes.belowSurfaceM` 0.173 (<= 0.1) |
 | W-23 | high | **open** | Ramming a building on a hill launches the car | `E.push.excessLiftMps` 0 (<= 0); `F.ram.launches` 211 (<= 0) |
 | W-24 | high | **open** | Golden Gate Bridge and Bay Bridge absent; approaches end at the shore | `A.landmark.bridgesMissing` 2 (<= 0); `G.tour.landmarksMissing` 4 (<= 0) |
 | W-25 | high | **open** | Sutro Tower absent: three 3 m plinths, no model | `A.landmark.sutroTowerTopM` 0 (>= 290); `G.tour.landmarksMissing` 4 (<= 0) |
-| W-26 | high | **fixed** | Sutro Tower drawn as a solid 231 m slab | `A.landmark.sutroRecordHeight` 3.44 (<= 10) |
+| W-26 | high | **fixed** | Sutro Tower drawn as a solid 231 m slab | `A.landmark.sutroAreaTallestM` 13.64 (<= 20) |
 | W-27 | high | **open** | Hero landmarks read as office boxes; Dragon Gate and Sutro Baths absent; Coit 20% short | `A.landmark.coitHeightError` 0.199 (<= 0.05); `A.landmark.heroWithoutShape` 10 (<= 0); `G.tour.landmarksMissing` 4 (<= 0) |
 | W-28 | medium | **open** | Large hillside buildings are one flat prism over up to 30 m of relief | `A.ground.relief10` 466 (<= 0) |
 | W-29 | medium | **open** | First-storey line from the centroid's ground, not the street | `A.facade.firstStoreyOffStreet` 0.111 (<= 0.01) |

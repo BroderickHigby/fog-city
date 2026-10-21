@@ -680,9 +680,9 @@
    "cadence": "pr",
    "desc": "hero landmarks (Transamerica, Coit, Saints Peter and Paul, Palace of Fine Arts, City Hall, Grace Cathedral, Mission Dolores, the Conservatory, Dragon Gate, Sutro Baths) with neither a model nor an interim shape without the office window grid"
   },
-  "A.landmark.sutroRecordHeight": {
-   "baseline": 3.44,
-   "target": 10,
+  "A.landmark.sutroAreaTallestM": {
+   "baseline": 13.64,
+   "target": 20,
    "better": "lower",
    "unit": "m above ground",
    "defects": [
@@ -691,7 +691,7 @@
    "targetWave": null,
    "suite": "buildings",
    "cadence": "pr",
-   "desc": "Sutro Tower's footprint records stay low plinths, never the solid 231 m slab"
+   "desc": "the tallest footprint record (any id) with its centroid or a corner within 60 m of Sutro Tower (37.7552,-122.4528), above the ground at its centroid: the plinths and the tower's equipment buildings, never the solid 231 m slab"
   },
   "A.landmark.sutroTowerTopM": {
    "baseline": 0,
@@ -1337,6 +1337,32 @@
    "cadence": "pr",
    "desc": "the farthest those cars get outside the corridor on the water side"
   },
+  "E.gaps.shoreCutOutsideCorridorsM": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "metres of the boundary's shore lines (sampled every metre) that no shore wall covers and that lie outside every road corridor (an open gap with no kerbs)"
+  },
+  "E.gaps.turnRuns": {
+   "baseline": 156,
+   "target": 156,
+   "better": "higher",
+   "unit": "runs",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "car turn runs measured off the roads over water (12 per corridor and direction with a dry start 25 m before it); fewer means corridors went missing and the three gap metrics above lost their population"
+  },
   "E.gaps.walkerRunsOffCorridor": {
    "baseline": 0,
    "target": 0,
@@ -1690,7 +1716,7 @@
    "targetWave": null,
    "suite": "drive",
    "cadence": "pr",
-   "desc": "runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id, each allowed direction) that do not reach the end"
+   "desc": "runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id at 544f67c, pinned in tests/helpers/world-gate/fixtures/drive-sample.json; each allowed direction) that do not reach the end, or whose edge is gone from roads.json"
   },
   "F.tunnels.failingRuns": {
    "baseline": 6,
@@ -1988,7 +2014,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack)"
   },
   "N.far.lowHullsP99M": {
@@ -2001,7 +2027,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "the 99th percentile of |far hull roof - roof| for records under 30 m"
   },
   "N.far.outerLandUncovered": {
@@ -2014,7 +2040,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea)"
   },
   "N.far.recordsWithoutHull": {
@@ -2027,7 +2053,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "records with no far hull or cluster over their centroid"
   },
   "N.far.ringStepMaxM": {
@@ -2040,7 +2066,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "the largest such step"
   },
   "N.far.ringStepP99M": {
@@ -2053,7 +2079,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring)"
   },
   "N.far.sanBrunoSummitErrorM": {
@@ -2067,7 +2093,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it)"
   },
   "N.far.tallHullsOff3m": {
@@ -2080,7 +2106,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in)"
   },
   "N.far.uncoveredTilesMinShare": {
@@ -2093,7 +2119,7 @@
    ],
    "targetWave": null,
    "suite": "far",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "the lowest far-terrain coverage of t-16_21, t-4_21, t-3_21 and t7_-5 (land beside the built tiles that has no far terrain)"
   },
   "N.freeways.airborneRuns": {
@@ -2146,7 +2172,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight)"
   },
   "N.glb.floatingWallBottoms": {
@@ -2160,7 +2186,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03)"
   },
   "N.glb.freewayUnderGroundShare": {
@@ -2174,7 +2200,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "freeway ribbon area (1 m raster) under the drawn ground"
   },
   "N.glb.groundSeamMismatches": {
@@ -2185,7 +2211,7 @@
    "defects": [],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks)"
   },
   "N.glb.groundThroughRoadsShare": {
@@ -2198,7 +2224,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "road ribbon area (0.5 m raster) where the drawn ground is more than 0.02 m above the ribbon"
   },
   "N.glb.parityMismatches": {
@@ -2209,7 +2235,7 @@
    "defects": [],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes)"
   },
   "N.glb.roadSunkShare": {
@@ -2222,7 +2248,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road)"
   },
   "N.glb.roadSurfaceMaxM": {
@@ -2235,7 +2261,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "the largest |drawn road top - sim surface| over the same samples"
   },
   "N.glb.roadSurfaceP99M": {
@@ -2248,7 +2274,7 @@
    ],
    "targetWave": null,
    "suite": "glb",
-   "cadence": "nightly",
+   "cadence": "pr",
    "desc": "the 99th percentile of |drawn road top - sim surface| over the same samples"
   },
   "N.paths.walksBlocked": {

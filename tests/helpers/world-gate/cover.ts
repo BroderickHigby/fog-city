@@ -44,8 +44,26 @@ export function colourClass(r: number, g: number, b: number): number {
   return CLASS.grey;
 }
 
+/**
+ * drawnGround() re-applies the renderer's ground tint in Node. So that the gate notices when the
+ * renderer stops (or changes how it goes about) tinting the ground, the wiring it copies is checked
+ * in src/render/scene.ts itself: the park shapes from the world's districts, and the streamer's
+ * tintGround calling tintParks with them. A change there fails the cover suite with this message
+ * until drawnGround() follows it (or Render-World exports one function both use).
+ */
+export function checkTintWiring(source = readFileSync(join(ROOT, "src/render/scene.ts"), "utf8")): void {
+  const shapes = /const\s+parks\s*=\s*parkShapes\(\s*world\.districts\b/.test(source);
+  const tint = /tintGround:\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*=>\s*tintParks\(\s*\1\s*,\s*\2\s*,\s*parks\s*\)/.test(source);
+  if (!shapes || !tint) {
+    throw new Error(
+      `src/render/scene.ts no longer tints the drawn ground as tests/helpers/world-gate/cover.ts drawnGround() assumes (${shapes ? "" : "parks = parkShapes(world.districts ...) not found; "}${tint ? "" : "tintGround: (geo, m) => tintParks(geo, m, parks) not found"}): update drawnGround() to match in the same PR, so the gate keeps measuring the drawn ground`,
+    );
+  }
+}
+
 /** Drawn ground class per lattice vertex: tile key -> 51 x 51 classes (0 where no vertex is drawn). */
 export async function drawnGround(gw: GameWorld): Promise<Map<number, Uint8Array>> {
+  checkTintWiring();
   const districts = readJson(`public/tiles/${gw.name}/${gw.manifest.layers?.districts ?? "districts.json"}`);
   const parks = parkShapes(districts);
   const identity = new THREE.Matrix4();

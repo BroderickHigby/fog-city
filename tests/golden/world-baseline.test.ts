@@ -3,10 +3,15 @@
 // present with a status, every blocker, high and medium defect tracked by at least one metric,
 // every metric's suite a real test file, the runs golden's sets owned by a suite.
 
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { loosenings, staleness, type Spec } from "../../scripts/golden/world-baseline.ts";
+import { chooseSample } from "../../scripts/golden/world-sample.ts";
 import { ROOT } from "../helpers.ts";
+import type { RoadEdge } from "../helpers/world.ts";
+import { checkTintWiring } from "../helpers/world-gate/cover.ts";
+import { sampleEdges } from "../helpers/world-gate/play.ts";
 import { atTarget, enforced, improvement, isWorse, judge, loadBaseline, loadRuns, runImprovements, runRegressions, type Baseline } from "../helpers/world-gate/ratchet.ts";
 
 function synthetic(status: "open" | "fixed", baseline: number, target: number, better: "lower" | "higher" = "lower"): Baseline {
@@ -92,5 +97,65 @@ describe("world gate baseline file (tests/golden/world-qa-baseline.json)", () =>
     const suites = new Set(Object.values(b.metrics).map((m) => m.suite));
     for (const set of Object.keys(loadRuns())) expect(suites.has(set.split("/")[0]!), set).toBe(true);
     expect(existsSync(join(ROOT, "tests/golden/world-qa-runs.json"))).toBe(true);
+  });
+});
+
+describe("world gate baseline script (scripts/golden/world-baseline.ts)", () => {
+  const spec: Omit<Spec, "baseline"> = { target: 0, better: "lower", unit: "u", defects: ["W-99"], targetWave: 2, suite: "s", cadence: "pr", desc: "d" };
+  const fixed = (d: string): boolean => d === "W-99";
+  it("refuses a definition that loosens the gate: target, direction, target wave, tier, enforcement", () => {
+    expect(loosenings(spec, spec, fixed)).toEqual([]);
+    expect(loosenings(spec, { ...spec, target: 0 - 1 }, fixed)).toEqual([]);
+    expect(loosenings(spec, { ...spec, target: 5 }, fixed).join()).toMatch(/target loosened/);
+    expect(loosenings({ ...spec, better: "higher", target: 0.9 }, { ...spec, better: "higher", target: 0.8 }, fixed).join()).toMatch(/target loosened/);
+    expect(loosenings(spec, { ...spec, better: "higher" }, fixed).join()).toMatch(/direction flipped/);
+    expect(loosenings(spec, { ...spec, targetWave: 3 }, fixed).join()).toMatch(/target wave later/);
+    expect(loosenings(spec, { ...spec, targetWave: null }, fixed).join()).toMatch(/target wave later/);
+    expect(loosenings(spec, { ...spec, cadence: "nightly" }, fixed).join()).toMatch(/per-PR tier/);
+    expect(loosenings({ ...spec, cadence: "nightly" }, spec, fixed)).toEqual([]);
+    expect(loosenings(spec, { ...spec, defects: ["W-99", "W-98"] }, fixed).join()).toMatch(/no longer enforced/);
+    expect(loosenings({ ...spec, defects: ["W-98"] }, { ...spec, defects: ["W-98", "W-97"] }, fixed)).toEqual([]);
+  });
+  it("skips a record from another commit, from before the latest change, or without a stamp", () => {
+    const head = "a".repeat(40);
+    const t = Date.parse("2026-10-21T12:00:00Z");
+    expect(staleness({ commit: head, at: "2026-10-21T12:00:01Z" }, head, t)).toBeNull();
+    expect(staleness({ commit: head, at: "2026-10-21T11:59:59Z" }, head, t)).toMatch(/before the working tree's latest change/);
+    expect(staleness({ commit: "b".repeat(40), at: "2026-10-21T12:00:01Z" }, head, t)).toMatch(/not HEAD/);
+    expect(staleness({ at: "2026-10-21T12:00:01Z" }, head, t)).toMatch(/no commit stamp/);
+    expect(staleness({ commit: head, at: "2026-10-21T12:00:01Z" }, head, 0)).toBeNull();
+  });
+});
+
+describe("world gate pinned street sample (tests/helpers/world-gate/fixtures/drive-sample.json)", () => {
+  const pinned = (JSON.parse(readFileSync(join(ROOT, "tests/helpers/world-gate/fixtures/drive-sample.json"), "utf8")) as { edges: string[] }).edges;
+  const edge = (id: string, extra: Partial<RoadEdge> = {}): RoadEdge => ({ id, a: "n0", b: "n1", points: [[0, 0], [20, 0]], ...extra }) as unknown as RoadEdge;
+  it("holds 300 distinct edge ids in id order", () => {
+    expect(pinned.length).toBe(300);
+    expect(new Set(pinned).size).toBe(300);
+    expect([...pinned].sort((p, q) => (p < q ? -1 : 1))).toEqual(pinned);
+  });
+  it("drives the same edges whatever roads.json gains or loses around them", () => {
+    // Every pinned edge plus streets added before, between and after them in id order: a sample
+    // recomputed as every k-th edge would shift; the pinned one does not.
+    const extra = ["c0", "c1", ...pinned.map((id) => `${id}a`), "czz"].map((id) => edge(id));
+    const edges = new Map([...pinned.map((id) => edge(id)), ...extra].map((e) => [e.id, e] as const));
+    expect(sampleEdges({ edges }).map((s) => s.id)).toEqual(pinned);
+    expect(sampleEdges({ edges }).every((s) => s.edge !== null)).toBe(true);
+    expect(chooseSample([...edges.values()])).not.toEqual(pinned);
+    // A pinned edge gone from roads.json comes back null (the drive counts it as a failed run).
+    edges.delete(pinned[7]!);
+    const s = sampleEdges({ edges });
+    expect(s.map((q) => q.id)).toEqual(pinned);
+    expect(s.filter((q) => q.edge === null).map((q) => q.id)).toEqual([pinned[7]]);
+  });
+});
+
+describe("world gate cover suite's copy of the renderer's ground tint", () => {
+  it("matches src/render/scene.ts now, and fails loudly when the wiring changes", () => {
+    expect(() => checkTintWiring()).not.toThrow();
+    const scene = readFileSync(join(ROOT, "src/render/scene.ts"), "utf8");
+    expect(() => checkTintWiring(scene.replace(/tintGround:[^\n]*\n/, "\n"))).toThrow(/tintGround/);
+    expect(() => checkTintWiring(scene.replace(/parkShapes\(world\.districts/, "parkShapes(other"))).toThrow(/parkShapes/);
   });
 });

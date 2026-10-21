@@ -16,6 +16,7 @@
 // Every suite also writes what it measured to test-results/world-gate/<suite>.json, which is
 // what `pnpm world:baseline` reads to rewrite the baseline (scripts/golden/world-baseline.ts).
 
+import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ROOT } from "../../helpers.ts";
@@ -160,13 +161,31 @@ export function fmt(v: number): string {
   return String(Math.round(v * 1e4) / 1e4);
 }
 
-/** Write what a suite measured, for `pnpm world:baseline`. */
+let head: string | null = null;
+
+/** git HEAD of the checkout the suites measure ("unknown" outside a git checkout), once per process. */
+export function headCommit(): string {
+  if (head === null) {
+    try {
+      head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || "unknown";
+    } catch {
+      head = "unknown";
+    }
+  }
+  return head;
+}
+
+/**
+ * Write what a suite measured, for `pnpm world:baseline`, stamped with the commit and the time:
+ * the script skips a record measured on another commit, or before the working tree's latest
+ * change, so a stale record from an earlier run never moves the baseline.
+ */
 export function record(suite: string, values: Record<string, number>, runs: Record<string, Record<string, boolean>> = {}): void {
   const dir = join(ROOT, RECORD_DIR);
   mkdirSync(dir, { recursive: true });
   const failing: RunsGolden = {};
   for (const [set, o] of Object.entries(runs)) failing[set] = failingKeys(o);
-  writeFileSync(join(dir, `${suite}.json`), JSON.stringify({ suite, at: new Date().toISOString(), values, runs: failing, runCounts: Object.fromEntries(Object.entries(runs).map(([k, o]) => [k, Object.keys(o).length])) }, null, 1) + "\n");
+  writeFileSync(join(dir, `${suite}.json`), JSON.stringify({ suite, commit: headCommit(), at: new Date().toISOString(), values, runs: failing, runCounts: Object.fromEntries(Object.entries(runs).map(([k, o]) => [k, Object.keys(o).length])) }, null, 1) + "\n");
 }
 
 /** Runs that fail now but passed at the baseline (not in its failing list): regressions. */

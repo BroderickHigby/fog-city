@@ -1,4 +1,4 @@
-// Gate nightly checks on the drawn world: every tile GLB decoded (meshopt) and compared with the
+// Gate checks (per PR) on the drawn world: every tile GLB decoded (meshopt) and compared with the
 // colliders and the sim (docs/qa/world-continuity-gate.md, sections A and C): collider/mesh
 // parity, floating wall bottoms, the drawn road against the sim's surface, the ground poking
 // through ribbons, ribbons drawn twice, and the ground meeting across seams.
@@ -25,7 +25,7 @@ function rasterTriangle(P: Float32Array, a: number, b: number, c: number, step: 
 }
 
 export async function measureGlb(gw: GameWorld): Promise<Measured> {
-  const m = new Measured("glb", "nightly");
+  const m = new Measured("glb", "pr");
   const world = gw.world;
   const colliders = new Map(gw.tiles.map((t) => [t.tileId, t]));
   let parityBad = 0;

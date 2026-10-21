@@ -154,7 +154,7 @@ export function colliderRecords(gw: GameWorld): SfRecord[] {
 }
 
 /** The per-tile collider JSON's ground and buildings (minus meta), for the pack-vs-JSON check. */
-export function colliderJsonTiles(gw: GameWorld): TileCollider[] {
+export function colliderJsonTiles(gw: Pick<GameWorld, "name" | "manifest">): TileCollider[] {
   return gw.manifest.tiles.map((t) => {
     const c = readJson<TileCollider & { buildings: Array<BuildingCollider & { meta?: unknown }> }>(`public/tiles/${gw.name}/${t.collider}`);
     return { tileId: c.tileId, ground: c.ground, buildings: c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY })) };

@@ -45,7 +45,8 @@ export const PUBLISHED: ReadonlyArray<{ name: string; lat: number; lon: number; 
 /** Landmark records and assets (W-16, W-24 to W-27). */
 const FORT_POINT = "201006.0000856";
 const COIT = "201006.0006230";
-const SUTRO_RECORDS = ["201006.0009087", "201006.0062170", "201006.0168289"];
+/** Records this close to Sutro Tower are its plinths and equipment buildings (W-26). */
+const SUTRO_AREA_M = 60;
 const SUTRO_AT = { lat: 37.7552, lon: -122.4528 };
 /** report.json probes that are hero landmarks: each needs a model or an interim shape with no office window grid (W-27). */
 const HERO_PROBES = ["600-montgomery", "coit-tower", "saints-peter-and-paul", "palace-of-fine-arts", "city-hall", "grace-cathedral", "mission-dolores", "conservatory-of-flowers"];
@@ -445,17 +446,22 @@ export async function measureBuildings(gw: GameWorld): Promise<Measured> {
   {
     const lms = landmarks();
     const lmIds = new Set(lms.map((l) => l.id));
-    // Sutro Tower: the three placeholder plinths (W-26 fixed: no slab) and a model (W-25).
-    let slab = 0;
-    for (const id of SUTRO_RECORDS) {
-      const b = gw.byId.get(id);
-      if (!b) continue;
-      const [cx, cz] = centroid(b.footprint);
-      slab = Math.max(slab, b.topY - groundHeight(world, cx, cz));
-    }
-    m.metric({ id: "A.landmark.sutroRecordHeight", target: 10, better: "lower", unit: "m above ground", defects: ["W-26"], desc: "Sutro Tower's footprint records stay low plinths, never the solid 231 m slab" }, r2(slab));
-    let sutroTop = 0;
+    // Sutro Tower (W-26 fixed: no slab): every footprint record within SUTRO_AREA_M of the tower,
+    // whatever its id, so a slab coming back under a new id is caught. The real buildings there
+    // are the three low plinths and the tower's equipment buildings (the tallest 13.6 m at 544f67c).
     const sp = local(SUTRO_AT.lat, SUTRO_AT.lon);
+    let slab = 0;
+    const near: string[] = [];
+    for (const b of recs) {
+      const [cx, cz] = centroid(b.footprint);
+      const d = Math.min(Math.hypot(cx - sp.x, cz - sp.z), ...b.footprint.map(([x, z]) => Math.hypot(x - sp.x, z - sp.z)));
+      if (d > SUTRO_AREA_M) continue;
+      const h = b.topY - groundHeight(world, cx, cz);
+      near.push(`${b.id} ${r2(h)} m`);
+      slab = Math.max(slab, h);
+    }
+    m.metric({ id: "A.landmark.sutroAreaTallestM", target: 20, better: "lower", unit: "m above ground", defects: ["W-26"], desc: `the tallest footprint record (any id) with its centroid or a corner within ${SUTRO_AREA_M} m of Sutro Tower (37.7552,-122.4528), above the ground at its centroid: the plinths and the tower's equipment buildings, never the solid 231 m slab` }, r2(slab), near);
+    let sutroTop = 0;
     for (const l of lms) {
       if (!/sutro-tower/.test(l.id)) continue;
       const p = local(l.lat, l.lon);

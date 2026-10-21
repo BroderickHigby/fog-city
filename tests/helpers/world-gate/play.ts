@@ -75,11 +75,14 @@ export function driveEdge(world: World, e: RoadEdge, dir: 1 | -1): { key: string
   return { key, ok: r.reached, startBlocked: false, r };
 }
 
-/** The critic's seeded 300-edge sample of the surface streets (every k-th edge by id). */
-export function sampleEdges(gw: GameWorld, n = 300): RoadEdge[] {
-  const es = (gw.roads.edges as RoadEdge[]).filter((e) => !e.pedestrian && !isFwy(e)).sort((a, b) => (a.id < b.id ? -1 : 1));
-  const k = Math.ceil(es.length / n);
-  return es.filter((_, i) => i % k === 0);
+/**
+ * The critic's seeded 300-edge sample of the surface streets (every k-th edge by id at 544f67c),
+ * pinned in fixtures/drive-sample.json so the run set does not move when roads.json gains, loses
+ * or renames an edge (scripts/golden/world-sample.ts refreshes it, on purpose only). An edge the
+ * road graph no longer has comes back as `edge: null`: the drive counts it as a failed run.
+ */
+export function sampleEdges(gw: Pick<GameWorld, "edges">): Array<{ id: string; edge: RoadEdge | null }> {
+  return fixture<{ edges: string[] }>("drive-sample.json").edges.map((id) => ({ id, edge: gw.edges.get(id) ?? null }));
 }
 
 /** Shortest drivable route (surface streets, either direction) through the waypoints, as 1 m samples. */
@@ -327,7 +330,12 @@ export function measureDrive(gw: GameWorld): Measured {
     m.metric({ id: "F.named.runsStopped", target: 0, better: "lower", unit: "runs", defects: ["W-01", "W-02", "W-12", "W-14", "W-43"], desc: "runs over the named streets (1st St, Howard, Kearny, Upper Market, Battery, Elk, Houston, Crescent, Mason, Winston, Walnut, the Broadway, Stockton and Toll Plaza tunnels, Lombard, the creek bridges, Richland, Twin Peaks Blvd, Filbert, Vermont), each allowed direction at the posted speed, that do not reach the end" }, stopped.length, stopped);
     const sample: Record<string, boolean> = {};
     const sampleStopped: string[] = [];
-    for (const e of sampleEdges(gw)) {
+    for (const { id, edge: e } of sampleEdges(gw)) {
+      if (!e) {
+        sample[`${id}:+`] = false;
+        sampleStopped.push(`${id} missing from roads.json (refresh the pinned sample on purpose: scripts/golden/world-sample.ts)`);
+        continue;
+      }
       for (const dir of e.oneway ? ([1] as const) : ([1, -1] as const)) {
         const r = driveEdge(world, e, dir);
         if (r.r === null && !r.startBlocked) continue;
@@ -336,7 +344,7 @@ export function measureDrive(gw: GameWorld): Measured {
       }
     }
     m.runSet("drive/sample", sample);
-    m.metric({ id: "F.sample.runsStopped", target: 0, better: "lower", unit: "runs", defects: ["W-01"], desc: "runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id, each allowed direction) that do not reach the end" }, sampleStopped.length, sampleStopped);
+    m.metric({ id: "F.sample.runsStopped", target: 0, better: "lower", unit: "runs", defects: ["W-01"], desc: "runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id at 544f67c, pinned in tests/helpers/world-gate/fixtures/drive-sample.json; each allowed direction) that do not reach the end, or whose edge is gone from roads.json" }, sampleStopped.length, sampleStopped);
   }
   m.lap("streets");
 

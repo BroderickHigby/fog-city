@@ -63,6 +63,48 @@ function corridorGap(walls: Walls, x: number, z: number): number {
   return best;
 }
 
+/** The boundary's shore lines every metre: how much no shore wall covers, and how much of that lies outside every corridor. */
+export function shoreCutOutsideCorridors(gw: GameWorld): { shoreM: number; openM: number; outsideM: number; first: string[] } {
+  const W = gw.world.walls!;
+  let shoreM = 0;
+  let openM = 0;
+  let outsideM = 0;
+  const first: string[] = [];
+  for (const s of gw.boundary.shore) {
+    const pts = s.points;
+    const n = pts.length;
+    const segs = s.closed ? n : n - 1;
+    for (let i = 0; i < segs; i++) {
+      const ax = pts[i]![0]!;
+      const az = pts[i]![1]!;
+      const bx = pts[(i + 1) % n]![0]!;
+      const bz = pts[(i + 1) % n]![1]!;
+      const L = Math.hypot(bx - ax, bz - az);
+      const k = Math.max(1, Math.ceil(L));
+      for (let j = 0; j < k; j++) {
+        const t = (j + 0.5) / k;
+        const x = ax + (bx - ax) * t;
+        const z = az + (bz - az) * t;
+        shoreM += L / k;
+        let covered = false;
+        for (const q of wallsNear(W, x, z, 1)) {
+          const g = W.segments[q]!;
+          if (g.kind === "shore" && distToSegment(x, z, g.ax, g.az, g.bx, g.bz) < 0.01) {
+            covered = true;
+            break;
+          }
+        }
+        if (covered) continue;
+        openM += L / k;
+        if (inCorridor(W, x, z)) continue;
+        outsideM += L / k;
+        if (first.length < 10) first.push(ll(x, z));
+      }
+    }
+  }
+  return { shoreM, openM, outsideM, first };
+}
+
 /** A wall step: did the move from a to b cross a real wall from its land side, within its reach? */
 function crossedFromLand(walls: Walls, ax: number, az: number, bx: number, bz: number): boolean {
   if (!segmentCrossesWall(walls, ax, az, bx, bz)) return false;
@@ -357,6 +399,13 @@ export function measureEdge(gw: GameWorld): Measured {
     m.metric({ id: "E.gaps.carRunsOffCorridor", target: 0, better: "lower", unit: "runs", defects: ["W-21"], desc: "car runs (10 and 25 m/s, turning 30/60/90 deg either way on each road over water) that get more than 1 m outside the road's corridor on the water side" }, out, { runs, worst });
     m.metric({ id: "E.gaps.maxOutOnWaterM", target: 1, better: "lower", unit: "m", defects: ["W-21"], desc: "the farthest those cars get outside the corridor on the water side" }, r2(maxOut));
     m.metric({ id: "E.gaps.walkerRunsOffCorridor", target: 0, better: "lower", unit: "runs", defects: ["W-21"], desc: "sprinting walkers turning off a road over water who get more than 1 m outside its corridor on the water side" }, walkerOut);
+    // The population: the three metrics above read 0 on an empty corridor list too.
+    m.metric({ id: "E.gaps.turnRuns", target: 156, better: "higher", unit: "runs", defects: ["W-21"], desc: "car turn runs measured off the roads over water (12 per corridor and direction with a dry start 25 m before it); fewer means corridors went missing and the three gap metrics above lost their population" }, runs, { corridors: W.corridors.length });
+    // Every stretch of shore the walls leave open lies inside a corridor (the sim never cuts the
+    // shore without a kerbed road there): the boundary's shore lines every metre, against the
+    // shore wall segments and the corridors.
+    const cut = shoreCutOutsideCorridors(gw);
+    m.metric({ id: "E.gaps.shoreCutOutsideCorridorsM", target: 0, better: "lower", unit: "m", defects: ["W-21"], desc: "metres of the boundary's shore lines (sampled every metre) that no shore wall covers and that lie outside every road corridor (an open gap with no kerbs)" }, r2(cut.outsideM), { shoreM: Math.round(cut.shoreM), openM: r2(cut.openM), first: cut.first });
   }
   m.lap("gaps");
 
