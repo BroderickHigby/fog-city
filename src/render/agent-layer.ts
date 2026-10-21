@@ -5,9 +5,9 @@
 // cloned per agent: every rigid part of every kind is ONE InstancedMesh in the packed format
 // (agent-packing.ts), whatever the number of agents.
 //  - near tier (agent-lod.ts: the 16 nearest within 60 m): the full model split at its joints,
-//    animated: wheels roll (rotation.x -= distance / radius) and the front ones steer, the
-//    robotaxi's sensor dome spins, errand-robot limbs swing while walking (bag full by
-//    default), the sidewalk bot's flag sways, people walk.
+//    animated: wheels roll (rotation.x -= distance / radius) and the front ones steer, Footman
+//    (errand robot) limbs swing while walking (bag full by default), people walk. The Meander
+//    robotaxi's sliding door is its own part, drawn shut until the sim carries a door state.
 //  - mid tier (to 140 m): the model vertex-clustered to a few hundred triangles, rest pose.
 //  - far tier (to 450 m): a hand-built box proxy (~70-160 triangles) with the model's colours.
 //  - mode cues on every tier: wait/yield (or slowing harder than 2.4 m/s^2, measured over the
@@ -19,8 +19,8 @@
 // Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
 // parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
 // With shadows on (?shadows=1) every agent mesh casts and receives them.
-// Draw calls: robotaxi 5 near + 2, errand robot 6 + 2, sidewalk bot 5 + 2, people 3 + 2: at
-// most 27, and an InstancedMesh with no instances this frame is not drawn at all.
+// Draw calls: robotaxi 5 near + 2, errand robot 6 + 2, sidewalk bot 3 + 2, people 3 + 2: at
+// most 25, and an InstancedMesh with no instances this frame is not drawn at all.
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
 
 import * as THREE from "three";
@@ -257,11 +257,16 @@ export const AGENT_MODEL_KEY: Readonly<Record<Exclude<AgentKind, "person">, stri
 
 const NONE: Channel = { type: "none" };
 
-/** How each model splits into animated parts (node names: assets/blender/README.md). */
+/**
+ * How each model splits into animated parts (node names: assets/blender/README.md, "Models and
+ * their contracts"). Wave 2: the Meander robotaxi has no sensor dome and a kerb-side sliding
+ * door; the Trundle (sidewalk bot) has four wheels on two axles, a lid and cargo (drawn with
+ * the body) and no flag; the Footman (errand robot) keeps the wave-1 node contract.
+ */
 export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly PartSpec[]>> = {
   robotaxi: [
     { name: "body", nodes: [], pivot: "root", channel: NONE },
-    { name: "dome", nodes: ["sensor_dome"], pivot: "node", channel: { type: "dome" } },
+    { name: "doorR", nodes: ["door_slide_R"], pivot: "node", channel: { type: "slide" } },
     { name: "wheelFL", nodes: ["wheel_FL"], pivot: "node", channel: { type: "steer-spin" } },
     { name: "wheelFR", nodes: ["wheel_FR"], pivot: "node", channel: { type: "steer-spin" } },
     // Both rear wheels turn about the same axle line: one rigid part.
@@ -277,15 +282,18 @@ export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly 
   ],
   sidewalkBot: [
     { name: "body", nodes: [], pivot: "root", channel: NONE },
-    { name: "flag", nodes: ["flag"], pivot: "node", channel: { type: "sway" } },
+    // 1 = front, 2 = rear.
     { name: "axle1", nodes: ["wheel_L1", "wheel_R1"], pivot: "centre", channel: { type: "spin" } },
     { name: "axle2", nodes: ["wheel_L2", "wheel_R2"], pivot: "centre", channel: { type: "spin" } },
-    { name: "axle3", nodes: ["wheel_L3", "wheel_R3"], pivot: "centre", channel: { type: "spin" } },
   ],
 };
 
-/** Vertex-cluster cell for each kind's mid-range proxy, metres. */
-const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.12 };
+/**
+ * Vertex-cluster cell for each kind's mid-range proxy, metres. The wave-2 Trundle has twice the
+ * wave-1 bot's detail; 0.12 m cells left it 302 triangles (budget 200), 0.2 m leaves 176. At the
+ * mid tier's 60 m the 0.56 m bot is about six pixels tall, so the coarser cell does not show.
+ */
+export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.2 };
 /** Peak limb swing, radians, for a walking errand robot. */
 const ROBOT_SWING = 0.38;
 
@@ -527,7 +535,7 @@ export class AgentLayer {
       if (tier === TIER_NEAR && view.source === "file") {
         this.wasNear.add(b.id);
         near++;
-        this.drawNear(view, b, pose, cue, dt, time);
+        this.drawNear(view, b, pose, cue, dt);
       } else {
         baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
@@ -624,7 +632,7 @@ export class AgentLayer {
     return an;
   }
 
-  private drawNear(view: KindView, b: Readonly<AgentState>, pose: AgentPose, cue: Readonly<AgentCue>, dt: number, time: number): void {
+  private drawNear(view: KindView, b: Readonly<AgentState>, pose: AgentPose, cue: Readonly<AgentCue>, dt: number): void {
     const model = view.model!;
     const spec = AGENT_SPEC[b.kind];
     const radius = model.wheelRadius * view.scale;
@@ -643,15 +651,10 @@ export class AgentLayer {
           rx = anim.wheel;
           ry = -anim.steer;
           break;
-        case "dome":
-          ry = (time * 5.2 + b.id * 0.7) % (Math.PI * 2);
-          break;
         case "swing":
           rx = p.channel.gain * swing;
           break;
-        case "sway":
-          rx = Math.sin(time * 2.6 + b.id) * 0.09 - 0.14 * anim.amount;
-          break;
+        case "slide": // shut: no door state in the sim yet
         case "none":
           break;
       }
@@ -720,48 +723,60 @@ function taper(w: number, h: number, d: number, kx: number, kz: number, x: numbe
 /**
  * The far proxy of a kind (also its stand-in while the model loads, or if it never does):
  * boxes in the model's proportions and colours, lights included. Faces -z, origin on the ground.
+ * Sizes follow the wave-2 models (assets/blender/README.md): the Meander robotaxi, 4.98 x 1.92 x
+ * 1.53 m with its sensors in one dark roof band round a teal status line and no dome; the
+ * Footman, 1.95 m to the ring on its lantern head; the Trundle, a 0.56 m bread bin with a sage
+ * roll-top lid and no flag.
  */
 export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferGeometry {
-  const white = surf(0xf0f1ee, 0.3);
   const dark = surf(0x1b1d20, 0.8);
-  const glass = surf(0x1a2430, 0.08, 0.6);
-  const head = surf(0xf2f2f2, 0.2, 0, 1, 0xf0f4ff);
-  const tail = surf(0x8a0f0f, 0.3, 0, 2, 0xff0603);
-  const status = surf(0x2fd2b8, 0.3, 0, 3, 0x2fffd0);
   if (kind === "robotaxi") {
+    const white = surf(0xeceee9, 0.3, 0.05);
+    const glass = surf(0x1b232b, 0.08, 0.6);
+    const band = surf(0x0e1319, 0.06, 0.4);
+    const head = surf(0xf4f6f8, 0.2, 0, 1, 0xf2f7ff);
+    const tail = surf(0x8a1010, 0.3, 0, 2, 0xff2a1a);
+    const status = surf(0x2fd6c1, 0.3, 0, 3, 0x2fffe0);
     const parts = [
-      // Long side on z (the car faces -z): 2.0 m across, 4.7 m bumper to bumper.
-      box(2.0, 0.62, 4.7, 0, 0.74, 0, white),
-      taper(1.9, 0.64, 3.3, 0.76, 0.86, 0, 1.36, 0.15, glass),
-      box(1.6, 0.07, 2.4, 0, 1.71, 0.25, white),
-      placed(new THREE.CylinderGeometry(0.28, 0.32, 0.3, 6), white, 0, 1.9, 0.3),
-      placed(new THREE.CylinderGeometry(0.36, 0.36, 0.05, 6), status, 0, 1.76, 0.3),
-      box(1.6, 0.06, 0.04, 0, 0.74, -2.36, head),
-      box(1.72, 0.07, 0.04, 0, 0.98, 2.37, tail),
+      // Long side on z (the car faces -z): 1.9 m across, 4.95 m nose to tail, low and flat-roofed.
+      box(1.9, 0.62, 4.95, 0, 0.6, 0, white),
+      // Long raked windscreen and fastback: a glass greenhouse set back from the short nose.
+      taper(1.8, 0.52, 4.0, 0.88, 0.82, 0, 1.17, 0.3, glass),
+      // The sensor band round the roof edge, with the teal status line in it.
+      box(1.6, 0.1, 3.3, 0, 1.48, 0.3, band),
+      box(1.64, 0.04, 2.2, 0, 1.46, 0.55, status),
+      box(1.2, 0.04, 0.04, 0, 0.585, -2.47, head),
+      box(1.52, 0.04, 0.04, 0, 0.9, 2.47, tail),
     ];
-    for (const [x, z] of [[-0.82, -1.45], [0.82, -1.45], [-0.82, 1.45], [0.82, 1.45]] as const) parts.push(box(0.27, 0.75, 0.75, x, 0.375, z, dark));
+    for (const [x, z] of [[-0.81, -1.52], [0.81, -1.52], [-0.81, 1.52], [0.81, 1.52]] as const) parts.push(box(0.22, 0.72, 0.72, x, 0.36, z, dark));
     return mergePacked(parts);
   }
   if (kind === "errandRobot") {
+    const ceramic = surf(0xf3f1ec, 0.24);
+    const bronze = surf(0x9a7b55, 0.35, 0.7);
+    const face = surf(0xffe7c2, 0.4, 0, 3, 0xffd9a0);
     return mergePacked([
-      taper(0.42, 0.56, 0.3, 1.08, 1.0, 0, 1.17, 0, white),
-      box(0.3, 0.28, 0.3, 0, 1.58, 0, white),
-      box(0.26, 0.13, 0.02, 0, 1.59, -0.155, surf(0x0a0d12, 0.08, 0.25)),
-      box(0.15, 0.035, 0.01, 0, 1.6, -0.168, status),
-      box(0.12, 0.86, 0.14, -0.1, 0.43, 0, white),
-      box(0.12, 0.86, 0.14, 0.1, 0.43, 0, white),
-      box(0.09, 0.6, 0.1, -0.27, 1.12, 0, white),
-      box(0.09, 0.6, 0.1, 0.27, 1.12, 0, white),
-      box(0.2, 0.24, 0.14, 0.3, 0.66, 0, surf(0xb78a5a, 0.85)),
+      box(0.12, 0.91, 0.14, -0.095, 0.455, 0, ceramic),
+      box(0.12, 0.91, 0.14, 0.095, 0.455, 0, ceramic),
+      taper(0.36, 0.55, 0.26, 1.1, 1.0, 0, 1.185, 0, ceramic),
+      box(0.08, 0.62, 0.09, -0.24, 1.12, 0, ceramic),
+      box(0.08, 0.62, 0.09, 0.24, 1.12, 0, ceramic),
+      // The lantern head: barrel, cap and carrying ring, the face light a strip across the front.
+      box(0.26, 0.34, 0.26, 0, 1.7, 0, ceramic),
+      box(0.3, 0.04, 0.3, 0, 1.89, 0, bronze),
+      box(0.08, 0.04, 0.02, 0, 1.93, 0, bronze),
+      box(0.18, 0.03, 0.01, 0, 1.72, -0.135, face),
+      // The grocery bag in the right hand.
+      box(0.13, 0.28, 0.16, 0.25, 0.6, 0, surf(0xb98b58, 0.85)),
     ]);
   }
   return mergePacked([
-    // Chassis and wheels as one dark block, down to the ground.
-    box(0.62, 0.205, 0.76, 0, 0.1025, 0, dark),
-    box(0.6, 0.32, 0.72, 0, 0.36, 0, white),
-    box(0.62, 0.07, 0.76, 0, 0.55, 0, surf(0xef6b4f, 0.45)),
-    box(0.3, 0.07, 0.02, 0, 0.4, -0.37, status),
-    box(0.02, 0.8, 0.02, -0.22, 1.02, 0.31, white),
-    box(0.02, 0.15, 0.22, -0.22, 1.34, 0.42, surf(0xff7a1a, 0.6)),
+    // Wheels, fender skirts and bumper band as one graphite block, down to the ground.
+    box(0.62, 0.18, 0.75, 0, 0.09, 0, surf(0x2b2f35, 0.55, 0.2)),
+    box(0.58, 0.3, 0.72, 0, 0.33, 0, surf(0xefe9df, 0.3)),
+    // The sage roll-top lid, set back from the rounded front top.
+    taper(0.56, 0.08, 0.6, 0.9, 0.85, 0, 0.52, 0.04, surf(0x9cb59a, 0.38)),
+    // One soft light strip along the front lip under the lid.
+    box(0.4, 0.03, 0.02, 0, 0.42, -0.365, surf(0xfff2d6, 0.3, 0, 3, 0xffe6b8)),
   ]);
 }

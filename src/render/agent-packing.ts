@@ -6,7 +6,7 @@
 //   fcPbr   vec2  roughness, metalness
 //   fcEmit  vec4  emissive colour (linear, times the material's channelRatio so it keeps its
 //                 own night level) and the light channel (lights.ts):
-//                 0 none, 1 head lights, 2 tail/brake lights, 3 status lights (faces, eyes, rings)
+//                 0 none, 1 head lights, 2 tail/brake lights, 3 status lights (faces, status lines, signs)
 //   fcSlot  vec4  people only: weights of the per-instance shirt, trousers, skin and hair colours
 //
 // and per instance (InstancedBufferAttribute on the part's geometry):
@@ -17,7 +17,7 @@
 // Every agent material in the game models is untextured metallic-roughness PBR, so packing
 // reproduces them exactly. The shared uniform fcLightK scales the light channels for night.
 // Rig parts: extractParts() splits a loaded model into rigid parts at the joints the renderer
-// animates (wheels, dome, limbs, flag), each baked relative to its pivot.
+// animates (wheels, limbs) or will (the robotaxi's sliding door), each baked relative to its pivot.
 
 import * as THREE from "three";
 import { injectUniforms } from "./materials.ts";
@@ -229,12 +229,14 @@ export type Channel =
   | { type: "spin" }
   /** Front wheels: steer about local +Y, then roll. */
   | { type: "steer-spin" }
-  /** Robotaxi sensor dome: turns about +Y. */
-  | { type: "dome" }
   /** Limbs: swing about +X by gain * gait swing (+ = forward). */
   | { type: "swing"; gain: number }
-  /** Sidewalk-bot flag: sways about +X. */
-  | { type: "sway" };
+  /**
+   * The robotaxi's kerb-side sliding door (door_slide_R, assets/blender/README.md): it opens by
+   * moving popM out along +X, then slideM back along +Z. Drawn shut: the sim has no door state
+   * yet. The hook is here so opening it is a pose change, not a new part.
+   */
+  | { type: "slide" };
 
 export interface PartSpec {
   name: string;
@@ -260,7 +262,7 @@ export interface PackedModel {
   parts: PackedPart[];
   /** Model-space bounds of everything (rest pose). */
   bounds: THREE.Box3;
-  /** Model-space bounds of the root part (the body, without wheels, limbs or flags). */
+  /** Model-space bounds of the root part (the body, without wheels, limbs or doors). */
   bodyBounds: THREE.Box3;
   /** From the wheel nodes' extras, metres (0.35 if none). */
   wheelRadius: number;
