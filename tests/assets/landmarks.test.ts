@@ -7,10 +7,11 @@
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildSites, fileTileReader, formatSites, fromModelFrame, groundAt, SITES_FILE, toModelFrame, type Site, type SitesDoc } from "../../assets/blender/tools/landmark-sites.ts";
-import { toLocal } from "../../src/geo/project.ts";
+import { buildSites, fileTileReader, formatSites, fromModelFrame, groundAt, SITES_FILE, toModelFrame, waterAt, type Site, type SitesDoc } from "../../assets/blender/tools/landmark-sites.ts";
+import { TILE_SIZE_M, toLocal } from "../../src/geo/project.ts";
 import { LIGHT_NIGHT_INTENSITY, isLightMaterial, lightBaseName } from "../../src/render/lights.ts";
 import { ROOT, readJson } from "../helpers.ts";
+import { clearanceHits, describeHits, type RoadEdge } from "./clearance.ts";
 import { allPositions, allTriangles, box, loadModel, node, nodePositions, sceneNodes, sectionAt, subtree, triangleCount, type V3 } from "./glb.ts";
 
 interface Landmark {
@@ -348,15 +349,18 @@ describe("hero landmarks: interim shapes (W-27)", () => {
     const { doc } = await loadModel("dragon-gate.glb");
     const all = allPositions(doc);
     expect(box(all).size[0]).toBeLessThanOrEqual((s.extra!.spanM as number) + 1.2); // eaves may overhang a little
-    const pillars = all.filter((p) => p[1] > 1.5 && p[1] < 2.5).map((p) => p[0]);
+    // Grant's ribbon runs off-centre between the faces the gate spans: the pillars and the lions
+    // stand on the sidewalks either side of it, and nothing of the gate comes lower than 4.5 m
+    // over it (the sim has no collider for the gate: a pillar there is a stone the car drives through)
     const cl = s.extra!.centrelineX as number;
-    const left = Math.max(...pillars.filter((x) => x < cl));
-    const right = Math.min(...pillars.filter((x) => x > cl));
-    expect(right - left).toBeGreaterThan(5);
-    expect(cl - left).toBeGreaterThan(1.2);
-    expect(right - cl).toBeGreaterThan(1.2);
-    const lintel = all.filter((p) => Math.abs(p[0] - cl) < 0.5 && p[1] > 2.5).map((p) => p[1]);
-    expect(Math.min(...lintel)).toBeGreaterThan(4.5);
+    const halfRoad = (s.extra!.roadWidthM as number) / 2;
+    const low = all.filter((p) => p[1] > 0.3 && p[1] < 4.5);
+    expect(low.filter((p) => p[0] < cl).length).toBeGreaterThan(8);
+    expect(low.filter((p) => p[0] > cl).length).toBeGreaterThan(8);
+    for (const p of low) expect(Math.abs(p[0] - cl), `(${p[0].toFixed(2)}, ${p[1].toFixed(2)}) is on Grant Ave's ribbon`).toBeGreaterThan(halfRoad);
+    const over = all.filter((p) => Math.abs(p[0] - cl) < halfRoad && p[1] > 0.3);
+    expect(over.length).toBeGreaterThan(20); // the lintels, pendant posts and roofs span the road
+    expect(Math.min(...over.map((p) => p[1]))).toBeGreaterThan(4.5);
   });
 
   it("the Sutro Baths' pools hold water above the basin floor, walls rooted below it", async () => {
@@ -372,6 +376,78 @@ describe("hero landmarks: interim shapes (W-27)", () => {
       expect(p[1], `(${p[0].toFixed(1)}, ${p[2].toFixed(1)})`).toBeGreaterThan(g - 2.5);
     }
     expect(box(pts).min[1]).toBeLessThan(0);
+  });
+});
+
+describe("road clearance: no landmark stands where a car or a walker goes (the sim has no collider for landmark models)", () => {
+  // Every roads.json ribbon (pedestrian paths too), from road + 0.3 m to road + 4.5 m, where the
+  // road is the sim's ground. Not tested: freeway ribbons over the water (the sea wall closes
+  // them, src/sim/boundary.ts) and the piers in the bay (boundary.json's islets, with 15 m of
+  // water round them), which nobody can reach. Allowed: a replaced record drawn where the sim
+  // has it (its collider stops the car there anyway, as on La Avanzada under Sutro Tower).
+  const EDGES = readJson<{ edges: Array<RoadEdge & { gradeSeparated?: boolean }> }>("public/tiles/sf/roads.json").edges;
+  const BOUNDARY = readJson<{ shore: Array<{ closed: boolean; points: Array<[number, number]> }> }>("public/tiles/sf/boundary.json");
+  const ISLETS = BOUNDARY.shore
+    .filter((r) => r.closed)
+    .map((r) => {
+      const xs = r.points.map((p) => p[0]);
+      const zs = r.points.map((p) => p[1]);
+      return [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)] as const;
+    })
+    .filter(([x0, x1, z0, z1]) => x1 - x0 < 100 && z1 - z0 < 100);
+  const reachable = (x: number, z: number, e: RoadEdge & { gradeSeparated?: boolean }): boolean => {
+    if (ISLETS.some(([x0, x1, z0, z1]) => x > x0 - 15 && x < x1 + 15 && z > z0 - 15 && z < z1 + 15)) return false;
+    return !(waterAt(READ, x, z) && (e.gradeSeparated === true || e.kind === "freeway" || e.kind === "ramp"));
+  };
+  const onRing = (x: number, z: number, ring: ReadonlyArray<readonly [number, number]>): boolean => {
+    if (pointInRing(x, z, ring)) return true;
+    for (let i = 0; i < ring.length; i++) {
+      const [ax, az] = ring[i]!;
+      const [bx, bz] = ring[(i + 1) % ring.length]!;
+      const dx = bx - ax;
+      const dz = bz - az;
+      const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+      if (Math.hypot(ax + dx * t - x, az + dz * t - z) < 0.05) return true;
+    }
+    return false;
+  };
+  /** The footprints (model frame) of the records a landmark replaces, as the sim has them. */
+  const replacedRings = (l: Landmark): Array<Array<[number, number]>> => {
+    const ids = new Set(l.replacesBuildingIds ?? []);
+    if (ids.size === 0) return [];
+    const o = toLocal(l.lat, l.lon);
+    const out = new Map<string, Array<[number, number]>>();
+    for (let i = -1; i <= 1; i++) {
+      for (let k = -1; k <= 1; k++) {
+        const c = READ(`t${Math.floor(o.x / TILE_SIZE_M) + i}_${Math.floor(o.z / TILE_SIZE_M) + k}`);
+        for (const b of c?.buildings ?? []) if (ids.has(b.id)) out.set(b.id, b.footprint.map(([x, z]) => toModelFrame(o, l.headingDeg, x, z)));
+      }
+    }
+    return [...out.values()];
+  };
+
+  it.each(LANDMARKS.map((l) => l.id))("%s", async (id) => {
+    const l = entry(id);
+    const rings = replacedRings(l);
+    expect(rings.length, `${id}: every replaced record found`).toBe(new Set(l.replacesBuildingIds ?? []).size);
+    const { doc } = await loadModel(fileOf(l));
+    const allow = (t: readonly [V3, V3, V3]): boolean => rings.some((r) => t.every((p) => onRing(p[0] * scaleOf(l), p[2] * scaleOf(l), r)));
+    const hits = clearanceHits(READ, l, allTriangles(doc), EDGES, { allow, reachable });
+    expect(describeHits(hits), `${id} stands in a road's clearance`).toEqual([]);
+  });
+
+  it("the check sees the roads the bridges and the gate span (it is not vacuous)", async () => {
+    // the same check with the band moved up into the models finds them over the roads
+    for (const [id, edge, lo, hi] of [
+      ["golden-gate-bridge", "c19205000", 6, 20], // Hwy 101 under the south anchorage's portal
+      ["bay-bridge-west", "c14248000", 6, 30], // I-80 under the San Francisco anchorage's portal
+      ["dragon-gate", "c6389000", 4.5, 8], // Grant Ave under the gate's lintels
+    ] as const) {
+      const l = entry(id);
+      const { doc } = await loadModel(fileOf(l));
+      const hits = clearanceHits(READ, l, allTriangles(doc), EDGES.filter((e) => e.id === edge), { lo, hi, reachable });
+      expect(hits.length, `${id} over ${edge}`).toBeGreaterThan(3);
+    }
   });
 });
 

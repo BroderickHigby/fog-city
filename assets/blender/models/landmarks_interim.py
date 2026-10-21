@@ -530,45 +530,57 @@ def dragon_gate() -> None:
     r = root("dragon_gate", "dragon-gate", spanM=s["extra"]["spanM"])
     span = min(s["extra"]["spanM"] - 0.16, 11.2)
     half = span / 2
-    pw = 0.7  # pillar width
-    c_half = half - 2 * pw - 1.4  # central portal half-width (side portals 1.4 m)
+    pw = 0.6  # pillar width
     depth = 1.1
+    # Grant Ave's ribbon runs off-centre between the building faces the gate spans, and the sim
+    # has no collider for the gate: so only the two outer pillars stand, on the sidewalks either
+    # side of it, and everything over the ribbon is at least 4.8 m above the road. The inner
+    # posts of the three portals hang from the lintels (pendant posts) and stop above the
+    # traffic. rt: the highest road ground under the gate.
+    across = LK.roads_across(s, -half, -depth / 2, half, depth / 2, margin=0.05)
+    rt = across[2] if across else 0.0
+    c_x = 2.9  # the pendant posts, either side of the central portal
     mb = fc.MeshBuilder()
-    pillars = [-half + pw / 2, -c_half - pw / 2, c_half + pw / 2, half - pw / 2]
-    for x in pillars:
-        mb.box(x - pw / 2, -depth / 2, -0.3, x + pw / 2, depth / 2, 4.6 if abs(x) < c_half + pw else 3.6, stone, skip=("-z",))
-        mb.box(x - pw / 2 - 0.08, -depth / 2 - 0.08, -0.3, x + pw / 2 + 0.08, depth / 2 + 0.08, 0.5, stone, skip=("-z",))
-    # beams: the central lintel and the side lintels, red with a gilt band
-    mb.box(-c_half - pw, -0.45, 4.6, c_half + pw, 0.45, 5.4, red)
-    mb.box(-c_half - pw, -0.47, 5.0, c_half + pw, 0.47, 5.12, gold)
     for sgn in (-1, 1):
-        x0, x1 = sorted((sgn * (c_half + pw), sgn * half))
-        mb.box(x0, -0.42, 3.0, x1, 0.42, 3.6, red)
+        x0, x1 = sorted((sgn * half, sgn * (half - pw)))
+        mb.box(x0, -depth / 2, -0.3, x1, depth / 2, rt + 5.8, stone, skip=("-z",))
+        mb.box(x0 - 0.04, -depth / 2 - 0.06, -0.3, x1 + 0.04, depth / 2 + 0.06, 0.5, stone, skip=("-z",))
+        # the pendant post, hanging from the central lintel, with a gilt drop at its foot
+        mb.box(sgn * c_x - 0.25, -0.45, rt + 5.0, sgn * c_x + 0.25, 0.45, rt + 6.1, red)
+        mb.sphere((sgn * c_x, 0.0, rt + 5.02), 0.17, 8, 4, gold)
+        # the side lintel from the outer pillar to the pendant post, red with a gilt band
+        x0, x1 = sorted((sgn * (half - pw), sgn * c_x))
+        mb.box(x0, -0.42, rt + 5.2, x1, 0.42, rt + 5.8, red)
+        mb.box(x0, -0.44, rt + 5.45, x1, 0.44, rt + 5.55, gold)
+    # the central lintel, red with a gilt band
+    mb.box(-c_x - 0.25, -0.45, rt + 6.1, c_x + 0.25, 0.45, rt + 6.9, red)
+    mb.box(-c_x - 0.25, -0.47, rt + 6.5, c_x + 0.25, 0.47, rt + 6.62, gold)
     # the blank plaque over the central portal (no characters)
-    mb.box(-1.3, -0.5, 5.45, 1.3, 0.5, 6.25, gold)
-    mb.box(-1.15, -0.53, 5.55, 1.15, 0.53, 6.15, plaque)
+    mb.box(-1.3, -0.5, rt + 6.95, 1.3, 0.5, rt + 7.75, gold)
+    mb.box(-1.15, -0.53, rt + 7.05, 1.15, 0.53, rt + 7.65, plaque)
     # roofs: the tall central roof and two lower side roofs, with ridge ornaments
-    roof_pagoda(mb, -c_half - pw - 0.9, c_half + pw + 0.9, -1.35, 1.35, 6.35, 8.0, tile, gold)
+    roof_pagoda(mb, -c_x - 1.15, c_x + 1.15, -1.35, 1.35, rt + 7.85, rt + 9.5, tile, gold)
     for sgn in (-1, 1):
-        x0, x1 = sorted((sgn * (c_half + pw * 0.5), sgn * (half + 0.03)))
-        roof_pagoda(mb, x0, x1, -1.1, 1.1, 3.75, 4.9, tile, gold, lift=0.3)
+        x0, x1 = sorted((sgn * c_x, sgn * (half + 0.03)))
+        roof_pagoda(mb, x0, x1, -1.1, 1.1, rt + 5.95, rt + 7.1, tile, gold, lift=0.3)
     # the ridge pearl between two stylised dragons
-    mb.sphere((0.0, 0.0, 8.55), 0.28, 10, 6, gold)
+    mb.sphere((0.0, 0.0, rt + 10.05), 0.28, 10, 6, gold)
     for sgn in (-1, 1):
-        pts = [(sgn * (0.45 + 0.35 * k), 0.0, 8.25 + 0.35 * math.sin(k * 0.9)) for k in range(6)]
+        pts = [(sgn * (0.45 + 0.35 * k), 0.0, rt + 9.75 + 0.35 * math.sin(k * 0.9)) for k in range(6)]
         LK.tube(mb, pts, 0.11, 6, tile)
-    # guardian lions on plinths before the side portals, on the front (south, +Y) side: seated,
-    # facing the street, haunches back, forelegs straight, a maned head; plain stone forms
+    # guardian lions on plinths before the outer pillars, on the front (south, +Y) side, on the
+    # sidewalks: seated, facing the street, haunches back, forelegs straight, a maned head;
+    # plain stone forms
     for sgn in (-1, 1):
-        x = sgn * (half - pw - 0.7)
-        mb.box(x - 0.45, 0.7, -0.3, x + 0.45, 1.5, 0.8, stone, skip=("-z",))
-        mb.box(x - 0.24, 0.75, 0.8, x + 0.24, 1.15, 1.15, stone, skip=("-z",))  # haunches
-        mb.box(x - 0.2, 1.05, 0.8, x + 0.2, 1.3, 1.45, stone, skip=("-z",))  # chest
-        for lx in (-0.12, 0.12):
+        x = sgn * (half - pw / 2)
+        mb.box(x - 0.3, 0.7, -0.3, x + 0.3, 1.5, 0.8, stone, skip=("-z",))
+        mb.box(x - 0.22, 0.75, 0.8, x + 0.22, 1.15, 1.15, stone, skip=("-z",))  # haunches
+        mb.box(x - 0.19, 1.05, 0.8, x + 0.19, 1.3, 1.45, stone, skip=("-z",))  # chest
+        for lx in (-0.11, 0.11):
             mb.box(x + lx - 0.06, 1.28, 0.8, x + lx + 0.06, 1.4, 1.2, stone, skip=("-z",))  # forelegs
-        mb.sphere((x, 1.2, 1.62), 0.26, 10, 6, stone, scale=(1.0, 0.8, 1.0))  # mane
+        mb.sphere((x, 1.2, 1.62), 0.25, 10, 6, stone, scale=(1.0, 0.8, 1.0))  # mane
         mb.box(x - 0.11, 1.32, 1.5, x + 0.11, 1.48, 1.68, stone)  # muzzle
-        mb.sphere((x + sgn * 0.14, 1.36, 0.92), 0.1, 8, 4, gold)  # the ball under a paw
+        mb.sphere((x - sgn * 0.13, 1.36, 0.92), 0.09, 8, 4, gold)  # the ball under a paw
     mb.build("gate", parent=r, sharp_angle=35)
     fc.export_glb("dragon-gate.glb", BUDGETS["dragon-gate.glb"])
 

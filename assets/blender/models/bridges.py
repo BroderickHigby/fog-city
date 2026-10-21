@@ -18,6 +18,14 @@ dimensions and placed on the sf world's data (data/landmark-sites.json):
   tower is one main span (704 m) west of the first. Published: towers 160 m, two main spans
   of 704 m, a double deck. The origin is mid eastern main span, at sea level.
 
+Roads under the bridges: the sim's Hwy 101 and I-80 run on the ground along both axes (no
+decks yet), and the sim has no collider for these models, so nothing here stands on a road
+ribbon from the road up to 4.5 m (the site's "roads"; tests/assets/landmarks.test.ts):
+anchorages and the Fort Point arch's piers open in a portal over every ribbon that reaches
+them, and the approach bents put their legs either side of the roads. The Bay Bridge's San
+Francisco anchorage stands between the Embarcadero and the bay, where the Embarcadero passes
+it by, as it does in the city.
+
 Legal and taste (docs/design.md, Legal and taste): the Golden Gate Bridge's owner asserts
 rights over the bridge's image; it is on the pre-release legal checklist, which does not block
 private builds. These are generic low-poly suspension bridges in their real places and
@@ -77,7 +85,28 @@ GG_CABLE_X = 15.0
 GG_ANCH_S = (-345.0, -300.0)  # south anchorage, Y range (the road ends at its north face)
 GG_ANCH_N = (GG_MAIN + 323.0, GG_MAIN + 368.0)
 GG_ARCH = (-435.0, -345.0)  # the arch over Fort Point
+GG_ARCH_X = 15.0  # the arch ribs, either side of the roads under them
 GG_APPROACH_END = -840.0  # the approach meets the toll plaza's ground
+
+
+def bents(mb, s: dict, stations, top_fn, x_in: float, w: float, mat, x_max: float = 26.0) -> None:
+    """Steel bents under a deck: two legs from below the ground to the deck's underside
+    (top_fn(t)), each as close to +-x_in as the roads allow, and a cross beam between them
+    wherever it clears the roads under it. A station with no room either side has no bent."""
+    for t in stations:
+        g = LK.profile_ground(s, t)[0]
+        top = top_fn(t)
+        if top - g < 3.0:
+            continue
+        legs = LK.legs_clear(s, t, x_in, w, x_max)
+        if legs is None:
+            continue
+        for x in legs:
+            LK.strut(mb, (x, t, g - 4.0), (x, t, top), w, mat, d=w + 0.4)
+        beam = top - 3.0
+        across = LK.roads_across(s, legs[0], t - 0.8, legs[1], t + 0.8)
+        if across is None or beam - 0.6 - across[2] >= LK.HEADROOM_M:
+            LK.strut(mb, (legs[0], t, beam), (legs[1], t, beam), 1.2, mat)
 
 
 def gg_deck_z(t: float, s: dict) -> float:
@@ -179,24 +208,22 @@ def golden_gate() -> None:
         spring = LK.profile_ground(s, a0)[0] if u < 0.5 else LK.profile_ground(s, a1)[0]
         top = gg_deck_z(t, s) - GG_TRUSS - 1.0
         pts.append((t, LK.lerp(spring + 6.0, top, math.sin(math.pi * u))))
+    # the ribs spring from piers either side of the roads (Hwy 101 runs under the arch on the
+    # ground), and their posts lean in to the deck's edges
     for side in (-1, 1):
-        x = side * (half - 2.0)
+        x = side * GG_ARCH_X
         prev = None
         for (t, z) in pts:
             if prev is not None:
                 LK.strut(dk, (x, prev[0], prev[1]), (x, t, z), 2.4, orange, d=3.0)
-                LK.strut(dk, (x, t, z), (x, t, gg_deck_z(t, s) - GG_TRUSS), 0.5, steel_dark)
+                LK.strut(dk, (x, t, z), (side * (half - 0.5), t, gg_deck_z(t, s) - GG_TRUSS), 0.5, steel_dark)
             prev = (t, z)
+    stations = []
     t = a0 - 50.0
     while t > GG_APPROACH_END + 20.0:
-        g = LK.profile_ground(s, t)[0]
-        top = gg_deck_z(t, s) - GG_TRUSS
-        if top - g > 3.0:
-            for side in (-1, 1):
-                x = side * (half - 3.0)
-                LK.strut(dk, (x, t, g - 1.0), (x, t, top), 2.2, orange, d=2.6)
-            LK.strut(dk, (-half + 3.0, t, top - 3.0), (half - 3.0, t, top - 3.0), 1.2, orange)
+        stations.append(t)
         t -= 50.0
+    bents(dk, s, stations, lambda t: gg_deck_z(t, s) - GG_TRUSS, half - 3.0, 2.2, orange)
     dk.build("deck", parent=root, sharp_angle=30)
 
     # ---- cables: two main cables over the saddles, down to the anchorages, and suspenders
@@ -222,14 +249,15 @@ def golden_gate() -> None:
     # ---- anchorages (down below the water and the far terrain)
     an = fc.MeshBuilder()
     for (y0, y1) in (GG_ANCH_S, GG_ANCH_N):
-        an.box(-half - 6, y0, -6.0, half + 6, y1, anch_z + 4.0, concrete, skip=("-z",))
+        # Hwy 101 runs on to its end through the south anchorage: a portal over it
+        LK.portal_block(an, s, -half - 6, y0, half + 6, y1, -6.0, anch_z + 4.0, concrete)
         # stepped pylons where the cables enter
         for side in (-1, 1):
             an.box(side * GG_CABLE_X - 4, y0 + 8, anch_z + 4.0, side * GG_CABLE_X + 4, y1 - 8, anch_z + 14.0, concrete)
-    # the arch's springing piers either side of Fort Point
+    # the arch's springing piers either side of Fort Point, either side of the roads
     for t in GG_ARCH:
         g = LK.profile_ground(s, t)[0]
-        an.box(-half, t - 4, g - 3, half, t + 4, g + 6.0, concrete, skip=("-z",))
+        LK.portal_block(an, s, -GG_ARCH_X - 2.5, t - 4, GG_ARCH_X + 2.5, t + 4, g - 3, g + 6.0, concrete)
     an.build("anchorages", parent=root, sharp_angle=30)
 
     # ---- night: beacons are in the towers' mesh (light_status); a lit roadway edge line
@@ -255,7 +283,12 @@ BB_TRUSS = 10.0
 BB_LEG_X = 11.5
 BB_CABLE_X = 10.5
 # Stations along the axis (t, metres from the origin toward Yerba Buena Island).
-BB_SF_ANCH = -2173.0
+BB_DECK_WEST = -2203.0  # the deck's west end, over Spear St on Rincon Hill's slope
+# The San Francisco anchorage (t -2080..-2036): between the Embarcadero's east kerb (t -2085 to
+# -2112 across the anchorage's width) and the bay (the DEM's shore is at -2040). I-80 runs
+# through it on the ground to the shore, under a portal.
+BB_SF_ANCH = -2058.0
+BB_SF_ANCH_L = 44.0
 BB_W2 = -1819.0
 BB_W3 = -1115.0
 BB_CENTRE = -742.0
@@ -268,7 +301,7 @@ BB_CENTRE_TOP = 88.0
 def bb_deck_z(t: float) -> float:
     """Upper deck surface: up from Rincon Hill, crowned main spans, level to the island."""
     if t < BB_W2:
-        return LK.lerp(46.0, 60.0, LK.smoothstep(BB_SF_ANCH - 30.0, BB_W2, t))
+        return LK.lerp(46.0, 60.0, LK.smoothstep(BB_DECK_WEST, BB_W2, t))
     if t < BB_W3:
         u = (t - BB_W2) / (BB_W3 - BB_W2)
         return 60.0 + 8.0 * 4 * u * (1 - u)
@@ -319,7 +352,7 @@ def bay_bridge() -> None:
     # ---- double deck: an upper road, a lower road inside the truss, grey truss sides
     dk = fc.MeshBuilder()
     half = BB_DECK_W / 2
-    ts = [BB_SF_ANCH - 30.0 + k * 20.0 for k in range(int((BB_YBI_ANCH + 60.0 - (BB_SF_ANCH - 30.0)) / 20.0) + 1)]
+    ts = [BB_DECK_WEST + k * 20.0 for k in range(int((BB_YBI_ANCH + 60.0 - BB_DECK_WEST) / 20.0) + 1)]
     top, lower, sl, sr, bot = [], [], [], [], []
     for t in ts:
         z = bb_deck_z(t)
@@ -345,6 +378,16 @@ def bay_bridge() -> None:
             LK.strut(dk, a, b, 0.6, steel)
             t += 12.0
             k += 1
+    # the approach over Rincon Hill's streets: bents between the deck's west end and the
+    # anchorage, their legs either side of the roads (Spear St, the Embarcadero, I-80)
+    stations = [BB_DECK_WEST + 2.0 + 2.0 * k for k in range(int((BB_SF_ANCH - BB_SF_ANCH_L / 2 - BB_DECK_WEST - 8.0) / 2.0))]
+    picked = []
+    for t in stations:
+        if picked and t - picked[-1] < 40.0:
+            continue
+        if LK.legs_clear(s, t, half - 1.0, 2.0, 26.0) is not None:
+            picked.append(t)
+    bents(dk, s, picked, lambda t: bb_deck_z(t) - BB_TRUSS, half - 1.0, 2.0, steel)
     dk.build("deck", parent=root, sharp_angle=30)
 
     # ---- cables: anchorage -> W2 -> W3 -> centre anchorage -> W5 -> W6 -> island anchorage
@@ -373,8 +416,9 @@ def bay_bridge() -> None:
 
     # ---- anchorages: Rincon Hill, the centre anchorage in the bay, Yerba Buena Island
     an = fc.MeshBuilder()
-    for (t, ztop, length) in ((BB_SF_ANCH, anch_z + 6.0, 50.0), (BB_YBI_ANCH, bb_deck_z(BB_YBI_ANCH) + 10.0, 50.0)):
-        an.box(-half - 8, t - length / 2, -8.0, half + 8, t + length / 2, ztop, concrete, skip=("-z",))
+    # both shore anchorages stand on I-80 (and on Yerba Buena Island its ramps): portals over them
+    for (t, ztop, length) in ((BB_SF_ANCH, anch_z + 6.0, BB_SF_ANCH_L), (BB_YBI_ANCH, bb_deck_z(BB_YBI_ANCH) + 10.0, 50.0)):
+        LK.portal_block(an, s, -half - 8, t - length / 2, half + 8, t + length / 2, -8.0, ztop, concrete)
     an.box(-22, BB_CENTRE - 30, -8.0, 22, BB_CENTRE + 30, 14.0, concrete, skip=("-z",))
     an.box(-16, BB_CENTRE - 20, 14.0, 16, BB_CENTRE + 20, BB_CENTRE_TOP - 8.0, concrete)
     an.box(-12, BB_CENTRE - 14, BB_CENTRE_TOP - 8.0, 12, BB_CENTRE + 14, BB_CENTRE_TOP, concrete)
@@ -388,7 +432,7 @@ def bay_bridge() -> None:
             for fy in (-1, 1):
                 yy = y + fy * 4.55
                 li.poly_n([(cx - 1.2, yy, 70.0), (cx + 1.2, yy, 70.0), (cx + 1.2, yy, BB_TOWER_H - 8), (cx - 1.2, yy, BB_TOWER_H - 8)], lt, (0, fy, 0))
-    t = BB_SF_ANCH
+    t = BB_DECK_WEST + 20.0
     while t < BB_YBI_ANCH:
         z = bb_deck_z(t) + 1.05
         for side in (-1, 1):

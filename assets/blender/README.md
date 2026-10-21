@@ -571,6 +571,17 @@ grid, built on the sf world itself:
   those records' footprints, extruded where the sim has them, so nothing the car or the walker
   collides with is left undrawn. The sim never reads landmark models: their own parts (Sutro's
   legs, the Dragon Gate's pillars, the ruins' walls) are not colliders.
+- So no model stands where a car or a walker goes: nothing is drawn over any `roads.json`
+  ribbon from the road + 0.3 m to + 4.5 m, where the road is the sim's ground. The site file
+  carries the ribbons near each bridge, the Dragon Gate and Sutro Tower (`roads`, resampled
+  every 4 m with the ground under them), and `lib/landmark_kit.py` builds around them:
+  `portal_block` opens an anchorage or a pier over every ribbon that reaches it (side walls
+  outside the ribbons, the mass above the highest road + 6 m), `legs_clear` puts a bent's legs
+  either side of the roads. `tests/assets/landmarks.test.ts` (road clearance) checks every
+  placed model against every ribbon with a triangle-box test and an inside-a-solid test
+  (`tests/assets/clearance.ts`); it skips only freeway ribbons over the water and the piers in
+  the bay, which nobody can reach, and allows only a replaced record drawn where the sim has
+  it (Sutro's plinth on La Avanzada: the sim's collider stops the car there anyway).
 - The landmark layer draws every landmark at any distance, so each model is its own far
   silhouette. Budgets (`tests/assets/landmarks.test.ts`): per-model triangle budgets below, at
   most 10 draw calls each, under 1 MiB each, under 80k triangles together.
@@ -578,17 +589,17 @@ grid, built on the sf world itself:
 | Id (`content/landmarks.json`) | File | Tris (budget) | What |
 |---|---|---|---|
 | `sutro-tower` | `sutro-tower.glb` | 2.8k (12k) | Three legs from the 45.7 m base triangle to the 18.3 m waist at 165 m and out to the 30.5 m antenna triangle at the 232 m platform; X and Warren bracing; the crossarm at 200 m; three masts to 297.8 m; red and white aviation bands; red beacons (`light_status`, nightLight). The centre and leg bearings (270, 30, 150) come from the LiDAR footprints of the crossarm beams. Replaces the probe's six records and draws them: the three 3 m crossarm-shadow plinths (concrete walls), the equipment building and two sheds; concrete footings reach below the ground. |
-| `golden-gate-bridge` | `golden-gate-bridge.glb` | 9.5k (30k) | Two 227 m towers with stepped legs and five portal struts, the main span (1,280 m) and side spans, a 27 m crowned deck about 72 m up with its stiffening truss, two main cables sagging to the deck at mid span, suspenders every 15.24 m, anchorages, the arch over Fort Point and the south approach down to the toll plaza's ground. Origin = the south tower at sea level, heading 354.4 (the axis from the Hwy 101 road end through the published centre, 37.8197, -122.4786). The south anchorage's north face is where Hwy 101 ends. Night: tower lights (`light_tower_outline`) and red beacons. |
-| `bay-bridge-west` | `bay-bridge-west.glb` | 15.2k (30k) | The west span: four 160 m X-braced towers, the centre anchorage, a 20 m double deck (the lower road shows through an open Warren truss), cables and suspenders, anchorages on Rincon Hill and Yerba Buena Island. The axis is the I-80 edge `c14248000`; three towers and the centre anchorage stand where the DEM marks their piers as land along it (the fourth is one 704 m main span west). Origin = mid eastern main span, sea level, heading 40.38. |
+| `golden-gate-bridge` | `golden-gate-bridge.glb` | 9.5k (30k) | Two 227 m towers with stepped legs and five portal struts, the main span (1,280 m) and side spans, a 27 m crowned deck about 72 m up with its stiffening truss, two main cables sagging to the deck at mid span, suspenders every 15.24 m, anchorages, the arch over Fort Point and the south approach down to the toll plaza's ground. Origin = the south tower at sea level, heading 354.4 (the axis from the Hwy 101 road end through the published centre, 37.8197, -122.4786). Hwy 101 runs on the ground under the approach (the sim has no deck yet), between the bents' legs and the Fort Point arch's piers, and through a portal in the south anchorage to its end at the water; the anchorage's north face is the road's end. Night: tower lights (`light_tower_outline`) and red beacons. |
+| `bay-bridge-west` | `bay-bridge-west.glb` | 15.2k (30k) | The west span: four 160 m X-braced towers, the centre anchorage, a 20 m double deck (the lower road shows through an open Warren truss), cables and suspenders, and the shore anchorages. The San Francisco anchorage stands between the Embarcadero's east kerb and the bay, so the Embarcadero, Spear St and I-80 pass under the approach between its bents' legs, and I-80 runs on the ground through the anchorage's portal to the shore (among the pier sheds' records 201006.0000040 and 0000874, whose sim colliders close that stretch of its ribbon). The Yerba Buena Island anchorage is a portal over I-80 and its ramps. The axis is the I-80 edge `c14248000`; three towers and the centre anchorage stand where the DEM marks their piers as land along it (the fourth is one 704 m main span west). Origin = mid eastern main span, sea level, heading 40.38. |
 | `600-montgomery` | `600-montgomery.glb` | 0.2k (4k) | The pyramid tower: a 53 m square base tapering to 14 m at the 212 m top floor, the spire to 260 m, the elevator and stair wings from the 29th floor; white precast, no window grid; a plinth on the podium record's footprint; lit spire edges and a beacon. At 200 m it is 31% of its base seen from the east (58% across the wings, as built). |
 | `coit-tower` | `coit-tower.glb` | 1.1k (8k) | A 64 m fluted concrete column (16 flutes, 11.2 m at the foot) with its twelve-arch gallery, cornice and crown, on the base building record. The column is floodlit at night (`light_tower_outline` with a dim emission colour). |
 | `city-hall` | `city-hall.glb` | 2.8k (16k) | The record's footprint in granite bands with pilasters; a colonnaded drum (28 columns), the copper dome with gilt ribs, the lit lantern and finial to 93 m. |
 | `palace-of-fine-arts` | `palace-of-fine-arts.glb` | 2.0k (12k) | The rotunda: eight piers with column groups, arches, the entablature, drum and terracotta dome to 49 m, on a plinth of the record's footprint. The arches are closed by deep shadow, because the sim's record is solid: walking in would meet an invisible wall. |
 | `grace-cathedral` | `grace-cathedral.glb` | 0.8k (12k) | The record's footprint with lancet windows, nave and transept roofs, the twin towers with pinnacles at the front (east, Taylor St), the rose window, the fleche over the crossing (the tower record) to 70 m. |
-| `dragon-gate` | `dragon-gate.glb` | 0.9k (6k) | The gate across Grant Ave just north of Bush St, portals facing south: four stone pillars, the central portal (5.6 m wide, 4.6 m clear) over the road's centreline, two pedestrian portals, green-tiled roofs with upturned eaves, gilt ridge ornaments and a pearl, two stylised guardian lions. The plaque is blank: no characters. It spans the building faces either side (11.36 m). |
+| `dragon-gate` | `dragon-gate.glb` | 1.0k (6k) | The gate across Grant Ave just north of Bush St, portals facing south: three portals under three green-tiled roofs with upturned eaves, gilt ridge ornaments and a pearl. Grant's ribbon runs off-centre between the building faces the gate spans (11.36 m), and the gate has no collider, so only the two outer stone pillars stand, on the sidewalks, with a guardian lion before each; the inner posts are pendant posts hanging from the lintels, and everything over the road is at least 4.8 m above it. The plaque is blank: no characters. |
 | `sutro-baths` | `sutro-baths.glb` | 1.4k (6k) | The ruins at Lands End on the DEM's basin shelf: broken outer and pool walls, column stumps, standing water in the pools; walls rooted below the ground. |
 | `mission-dolores` | `mission-dolores.glb` | 0.4k (6k) | The basilica as the probe has it: its record in white stucco with a red tile roof and a stepped Mission Revival front with the portal and a rose; the octagonal drum and tiled dome where the LiDAR finds 39 m (its tower record). The old adobe chapel to its south is a separate record the probe does not list and is left to the pipeline. |
-| `conservatory-of-flowers` | `conservatory-of-flowers.glb` | 1.6k (8k) | The glasshouse on its record (4.2 m, white glazing bars every 1.5 m), the octagonal glazed drum, the ribbed glass dome and lantern to 17 m over the centre (its tower record). |
+| `conservatory-of-flowers` | `conservatory-of-flowers.glb` | 1.6k (8k) | The glasshouse on its record (4.2 m, white glazing bars every 1.5 m), the octagonal glazed drum, the ribbed glass dome and lantern to 17 m over the centre (its tower record). The probe lists only those two records: the rest of the glasshouse (201006.0169595, the 11.3 m box beside the dome, the east pavilion, and 0157915, 0165372, 0166878, 0168654, 0008407, 0019437) is still drawn by the tiles as generic window-grid boxes until the probe is widened or those records are tagged (Content and Pipeline). |
 
 What is still not right, and whose it is:
 - The far skyline (`f*.glb`, Pipeline) still holds the hulls of the records a landmark
@@ -598,8 +609,13 @@ What is still not right, and whose it is:
   `content/landmarks.json` `replacesBuildingIds`).
 - Fort Point's phantom 65 m tower record (W-16, Pipeline) stands beside the bridge's south
   approach.
-- Decks are not drivable: Hwy 101 ends at the south anchorage's foot and I-80 at the shore
-  (decks are scheduled: the Golden Gate approach in wave 4, the Bay Bridge in wave 8).
+- Decks are not drivable: Hwy 101 runs on the ground through the south anchorage's portal to
+  the water, and I-80 through the San Francisco anchorage's portal to the shore (decks are
+  scheduled: the Golden Gate approach in wave 4, the Bay Bridge in wave 8). When a deck lands,
+  the road moves up onto it and these models need their clearance checked against it.
+- I-80's ground ribbon between the Embarcadero and the shore runs through two pier shed
+  records (201006.0000040, 0000874; Pipeline, the carriageway clearance defects).
+- The Conservatory of Flowers is only partly replaced (above).
 - Saints Peter and Paul (its probe is on the wrong record, L-04: Content first), the ballpark,
   the windmills and the Painted Ladies have no interim shape yet.
 

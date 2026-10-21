@@ -82,6 +82,107 @@ def profile_ground(s: dict, t: float) -> tuple[float, bool]:
     return g, bool(p["water"][int(round(min(max(i, 0.0), len(p["water"]) - 1)))])
 
 
+# ---------------------------------------------------------------------------- road clearance
+#
+# The sim has no collider for landmark geometry, so a model must keep its solids off every road
+# ribbon (the site's "roads", from roads.json) from the road up to CLEAR_M above it: a car or a
+# walker would pass straight through anything drawn there. tests/assets/landmarks.test.ts
+# checks every placed model against every ribbon.
+
+CLEAR_M = 4.5  # the clearance the test asks for above a road
+HEADROOM_M = 6.0  # what a portal over a road leaves (CLEAR_M plus a margin for the deck's eye)
+
+
+def road_ribbons(s: dict):
+    """(half width, [(X, Y, ground)...]) per road, in the Blender plan."""
+    out = []
+    for r in s.get("roads", []):
+        pts = [(*bl(x, z), g) for (x, z), g in zip(r["points"], r["ground"])]
+        out.append((r["widthM"] / 2, pts))
+    return out
+
+
+def _seg_rect_dist(ax: float, ay: float, bx: float, by: float, x0: float, y0: float, x1: float, y1: float) -> float:
+    """Distance from segment a-b to the rectangle [x0, x1] x [y0, y1] (0 when they touch)."""
+    # sample the segment densely enough for ribbons a few metres wide
+    n = max(1, int(math.ceil(math.hypot(bx - ax, by - ay) / 0.25)))
+    best = math.inf
+    for k in range(n + 1):
+        x = ax + (bx - ax) * k / n
+        y = ay + (by - ay) * k / n
+        dx = max(x0 - x, 0.0, x - x1)
+        dy = max(y0 - y, 0.0, y - y1)
+        best = min(best, math.hypot(dx, dy))
+        if best == 0.0:
+            break
+    return best
+
+
+def clear_of_roads(s: dict, x0: float, y0: float, x1: float, y1: float, margin: float = 1.0) -> bool:
+    """Is the Blender-plan rectangle clear of every road ribbon (each widened by `margin`)?"""
+    for hw, pts in road_ribbons(s):
+        for (ax, ay, _), (bx, by, _) in zip(pts, pts[1:]):
+            # quick reject on the segment's box
+            if max(ax, bx) + hw + margin < x0 or min(ax, bx) - hw - margin > x1 or max(ay, by) + hw + margin < y0 or min(ay, by) - hw - margin > y1:
+                continue
+            if _seg_rect_dist(ax, ay, bx, by, x0, y0, x1, y1) < hw + margin:
+                return False
+    return True
+
+
+def roads_across(s: dict, x0: float, y0: float, x1: float, y1: float, margin: float = 1.0):
+    """The ribbons that reach into the rectangle (widened by `margin`): their X extent there,
+    and the highest road ground under it. None when no ribbon does."""
+    lo, hi, top = math.inf, -math.inf, -math.inf
+    for hw, pts in road_ribbons(s):
+        r = hw + margin
+        for (ax, ay, ag), (bx, by, bg) in zip(pts, pts[1:]):
+            if max(ax, bx) + r < x0 or min(ax, bx) - r > x1 or max(ay, by) + r < y0 or min(ay, by) - r > y1:
+                continue
+            n = max(1, int(math.ceil(math.hypot(bx - ax, by - ay) / 0.25)))
+            for k in range(n + 1):
+                x = ax + (bx - ax) * k / n
+                y = ay + (by - ay) * k / n
+                if x + r < x0 or x - r > x1 or y + r < y0 or y - r > y1:
+                    continue
+                lo, hi = min(lo, x - r), max(hi, x + r)
+                top = max(top, ag + (bg - ag) * k / n)
+    return None if lo == math.inf else (lo, hi, top)
+
+
+def portal_block(mb: fc.MeshBuilder, s: dict, x0: float, y0: float, x1: float, y1: float, z0: float, z1: float, mat, margin: float = 1.0) -> None:
+    """A solid block over [x0, x1] x [y0, y1] x [z0, z1], with a portal through it along Y over
+    every road ribbon that reaches it: side walls outside the ribbons, and the mass above them
+    from the highest road plus HEADROOM_M (none when that is above z1). Open underneath."""
+    across = roads_across(s, x0, y0, x1, y1, margin)
+    if across is None:
+        mb.box(x0, y0, z0, x1, y1, z1, mat, skip=("-z",))
+        return
+    lo, hi, road_top = across
+    lo, hi = max(lo, x0), min(hi, x1)
+    if lo > x0:
+        mb.box(x0, y0, z0, lo, y1, z1, mat, skip=("-z",))
+    if hi < x1:
+        mb.box(hi, y0, z0, x1, y1, z1, mat, skip=("-z",))
+    soffit = road_top + HEADROOM_M
+    if soffit < z1:
+        mb.box(lo, y0, soffit, hi, y1, z1, mat)
+
+
+def legs_clear(s: dict, y: float, x_in: float, w: float, x_max: float, margin: float = 1.0):
+    """Leg positions (left X, right X) for a bent at Y: each w wide, as close to +-x_in as the
+    road ribbons allow, at most x_max out; None when a side finds no room."""
+    xs = []
+    for sgn in (-1.0, 1.0):
+        x = x_in
+        while x <= x_max and not clear_of_roads(s, sgn * x - w / 2, y - w / 2, sgn * x + w / 2, y + w / 2, margin):
+            x += 0.5
+        if x > x_max:
+            return None
+        xs.append(sgn * x)
+    return xs[0], xs[1]
+
+
 def extrude_record(mb: fc.MeshBuilder, rec: dict, mat, top_mat=None, sink: float = 0.4, top: float | None = None) -> None:
     """Draw a collider record as the sim has it: its footprint from below its lowest ground
     (footY - sink) to its roof (topY, or `top`)."""

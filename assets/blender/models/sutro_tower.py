@@ -43,6 +43,10 @@ Z_XARM = 200.0  # the lower crossarm (yards)
 Z_PLAT = 232.0  # the platform
 Z_TIP = 297.8
 FOOT_TOP = 2.5  # top of the concrete footings above the local ground
+# The lowest bracing ties the legs 9 m above their feet, so the faces stand open over the
+# ground: La Avanzada runs in under the east face to the equipment building, and the sim has
+# no collider for the lattice (tests/assets/landmarks.test.ts, road clearance).
+BOTTOM_TIE = 9.0
 
 # Panel levels of the leg lattice (bands change colour at each level).
 LEVELS = [0.0, 30.0, 60.0, 90.0, 120.0, 145.0, Z_WAIST, 183.0, Z_XARM, 216.0, Z_PLAT]
@@ -101,8 +105,9 @@ def build() -> None:
             a0, a1 = leg_point(i, z0), leg_point(i, z1)
             b0, b1 = leg_point(j, z0), leg_point(j, z1)
             if k == 0:
-                a0 = (a0[0], a0[1], LK.ground(S, a0[0], a0[1]) + FOOT_TOP)
-                b0 = (b0[0], b0[1], LK.ground(S, b0[0], b0[1]) + FOOT_TOP)
+                z_tie = max(LK.ground(S, a0[0], a0[1]), LK.ground(S, b0[0], b0[1])) + BOTTOM_TIE
+                a0 = leg_point(i, z_tie)
+                b0 = leg_point(j, z_tie)
             m = band(k)
             LK.strut(tw, a0, b1, 0.8, m)
             LK.strut(tw, b0, a1, 0.8, m)
@@ -112,8 +117,7 @@ def build() -> None:
                 pa = [LK.lerp(a0[c], a1[c], t0) for c in range(3)]
                 pb = [LK.lerp(b0[c], b1[c], t1) for c in range(3)]
                 LK.strut(tw, pa, pb, 0.35, steel)
-            if k > 0:
-                LK.strut(tw, a0, b0, 0.7, steel)
+            LK.strut(tw, a0, b0, 0.7, steel)
         LK.strut(tw, leg_point(i, Z_PLAT), leg_point(j, Z_PLAT), 1.2, steel)
 
     # ---- the lower crossarm: yards out past the legs, a ring between them

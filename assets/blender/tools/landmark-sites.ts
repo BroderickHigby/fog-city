@@ -199,8 +199,24 @@ export interface Site {
   grid?: { half: number; step: number; values: number[][] };
   /** Ground along the model's -z axis (its "forward"): samples at t = from + i*step metres ahead of the origin. */
   profile?: { from: number; step: number; ground: number[]; water: Array<0 | 1> };
+  /**
+   * Every road ribbon near the model (roads.json edges, in the model frame): the model keeps
+   * its solids off them from the road up to the clearance a car and a walker need, because the
+   * sim has no collider for landmark geometry (tests/assets/landmarks.test.ts checks it).
+   */
+  roads?: SiteRoad[];
   /** Anything else the model script needs, measured here (documented per site). */
   extra?: Record<string, unknown>;
+}
+
+export interface SiteRoad {
+  id: string;
+  name: string;
+  widthM: number;
+  /** The centreline in the model frame (x, z). */
+  points: Array<[number, number]>;
+  /** The sim's ground under each point, relative to groundY. */
+  ground: number[];
 }
 
 export interface SitesDoc {
@@ -270,8 +286,61 @@ function centroidOf(read: ReadTile, rid: string, near: { x: number; z: number })
   return { x, z, ring: r.footprint };
 }
 
+let ROADS: Edge[] | null = null;
 function roads(): Edge[] {
-  return (JSON.parse(readFileSync(join(REPO, "public", "tiles", "sf", "roads.json"), "utf8")) as { edges: Edge[] }).edges;
+  ROADS ??= (JSON.parse(readFileSync(join(REPO, "public", "tiles", "sf", "roads.json"), "utf8")) as { edges: Edge[] }).edges;
+  return ROADS;
+}
+
+/**
+ * The road ribbons whose drawn width reaches into the model-frame window [x0, x1] x [z0, z1]:
+ * each edge's centreline resampled every ROAD_STEP_M (so the ground follows the hills between
+ * its vertices) and cut to the window, one piece per stretch inside it, in roads.json order.
+ */
+const ROAD_STEP_M = 4;
+function addRoads(read: ReadTile, s: Site, x0: number, x1: number, z0: number, z1: number): void {
+  const p = toLocal(s.lat, s.lon);
+  const out: SiteRoad[] = [];
+  for (const e of roads()) {
+    const m = e.widthM / 2 + ROAD_STEP_M;
+    // world samples along the edge, every vertex kept
+    const samples: Array<[number, number]> = [];
+    for (let i = 0; i + 1 < e.points.length; i++) {
+      const [ax, az] = e.points[i]!;
+      const [bx, bz] = e.points[i + 1]!;
+      const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / ROAD_STEP_M));
+      for (let k = 0; k < n; k++) samples.push([ax + ((bx - ax) * k) / n, az + ((bz - az) * k) / n]);
+    }
+    samples.push(e.points[e.points.length - 1]!);
+    let run: Array<[number, number]> = [];
+    const flush = (): void => {
+      if (run.length >= 2) {
+        out.push({
+          id: e.id,
+          name: e.name ?? "",
+          widthM: e.widthM,
+          points: run.map(([x, z]) => toModelFrame(p, s.headingDeg, x, z).map(r2) as [number, number]),
+          ground: run.map(([x, z]) => r2(groundAt(read, x, z) - s.groundY)),
+        });
+      }
+      run = [];
+    };
+    let last: [number, number] | null = null;
+    for (const w of samples) {
+      const [x, z] = toModelFrame(p, s.headingDeg, w[0], w[1]);
+      const inside = x >= x0 - m && x <= x1 + m && z >= z0 - m && z <= z1 + m;
+      if (inside) {
+        if (run.length === 0 && last) run.push(last); // the sample before, so the piece starts outside
+        run.push(w);
+      } else if (run.length > 0) {
+        run.push(w);
+        flush();
+      }
+      last = w;
+    }
+    flush();
+  }
+  s.roads = out;
 }
 
 /** Distance along a ray from (x, z) in unit direction (ux, uz) to the first footprint wall, up to max. */
@@ -323,6 +392,7 @@ export function buildSites(read: ReadTile): SitesDoc {
     const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
     const s = site(read, "sutro-tower", { x: cx, z: cz }, 0, ids);
     addGrid(read, s, 46, 2);
+    addRoads(read, s, -46, 46, -46, 46);
     s.extra = { armWestTipM: r2(west - cx), armEastLineM: r2(east - cx) };
     sites.push(s);
   }
@@ -451,6 +521,7 @@ export function buildSites(read: ReadTile): SitesDoc {
       centrelineX: r2(centreline[0]),
       edge: grant.id,
     };
+    addRoads(read, s, -12, 12, -12, 12);
     sites.push(s);
   }
 
@@ -484,6 +555,7 @@ export function buildSites(read: ReadTile): SitesDoc {
     const tower = toMid - 640;
     const s = site(read, "golden-gate-bridge", { x: ex + Math.sin(bearing * DEG) * tower, z: ez - Math.cos(bearing * DEG) * tower }, bearing, []);
     addProfile(read, s, -1000, 2000, 10);
+    addRoads(read, s, -80, 80, -1700, 900);
     s.extra = { roadEndT: r2(-tower), midSpanT: 640 };
     sites.push(s);
   }
@@ -501,6 +573,7 @@ export function buildSites(read: ReadTile): SitesDoc {
     const at = 2140;
     const s = site(read, "bay-bridge-west", { x: a[0] + ((b[0] - a[0]) * at) / len, z: a[1] + ((b[1] - a[1]) * at) / len }, bearing, []);
     addProfile(read, s, -2300, 800, 10);
+    addRoads(read, s, -80, 80, -800, 2350);
     s.extra = { edge: e.id, edgeStartT: -at, edgeEndT: r2(len - at) };
     sites.push(s);
   }
