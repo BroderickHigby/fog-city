@@ -1,6 +1,6 @@
 // pnpm build (= pnpm build:web): the static web build for hosting, in dist/.
 //
-//   node scripts/build-web.ts [--out dist] [--worlds sf] [--level 9] [--skip-vite]
+//   node scripts/build-web.ts [--out dist] [--worlds sf] [--level 9] [--skip-vite] [--no-sourcemap]
 //
 // 1. vite build (vite.config.ts: base "./", public/ not copied): index.html and the bundle,
 //    every URL relative, so the page works from any sub-path.
@@ -11,11 +11,16 @@
 //      the streamer needs together), the far-LOD cells into packs of their own, each pack at
 //      most PACK_MAX_BYTES once encoded;
 //    - the collider pack (world.colliders.bin) and each model are one .txt file each;
-//    - the world's JSON (manifest, roads, boundary and every data layer) is copied as is;
+//    - the world's JSON the game reads is copied as is: the manifest, the road graph and the
+//      data layers in RUNTIME_LAYERS (src/io/world-load.ts); the other layers (sidewalks,
+//      hydrants, ...) stay out until a feature reads them;
 //    - per-tile collider JSONs are not shipped (the game reads the collider pack);
 //    - assets.index.json maps every binary's logical path to {src, offset, length}.
 // 3. Checks the host's limits (files, total size, per-file size, extensions) and fails the
 //    build when one is broken, then prints a summary.
+//
+// The bundle's source map ships by default (handy on a private page); --no-sourcemap leaves it
+// out, for a public release.
 //
 // Deterministic: the same inputs give byte-identical outputs (gzip with no timestamp, sorted
 // inputs), so a rebuild that changes nothing republishes nothing new.
@@ -24,6 +29,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync }
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
+import { RUNTIME_LAYERS } from "../src/io/world-load.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
 /** The page host's limits (measured; anything else is refused at publish). */
@@ -124,6 +130,8 @@ export interface BuildOptions {
   worlds: string[];
   level: number;
   skipVite: boolean;
+  /** Ship the bundle's source map (default true). */
+  sourcemap?: boolean;
   /** Where public/ is (tests point it elsewhere). */
   publicDir?: string;
 }
@@ -181,7 +189,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   rmSync(out, { recursive: true, force: true });
   if (!opts.skipVite) {
     const { build } = await import("vite");
-    await build({ root: ROOT, logLevel: "warn", build: { outDir: out, emptyOutDir: true } });
+    await build({ root: ROOT, logLevel: "warn", build: { outDir: out, emptyOutDir: true, sourcemap: opts.sourcemap ?? true } });
   } else {
     mkdirSync(out, { recursive: true });
   }
@@ -207,18 +215,16 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     const prefix = `tiles/${world}/`;
     const manifest = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")) as Manifest;
     if (!manifest.worldColliders) throw new Error(`world ${world} has no collider pack (manifest.worldColliders): the hosted build ships no per-tile colliders`);
-    // JSON as is: the manifest, the road graph, every data layer, and any other world JSON
-    // except per-tile colliders and the pipeline's report.
-    const jsonFiles = readdirSync(dir)
-      .filter((f) => f.endsWith(".json") && !f.endsWith(".collider.json") && f !== "report.json")
+    // JSON as is: the manifest, the road graph and the data layers the game reads.
+    const present = new Set(readdirSync(dir));
+    const jsonFiles = [...new Set(["manifest.json", manifest.roads, ...RUNTIME_LAYERS.map((l) => manifest.layers?.[l])])]
+      .filter((f): f is string => typeof f === "string" && f.length > 0)
       .sort();
     for (const f of jsonFiles) {
+      if (!present.has(f)) throw new Error(`world ${world}: ${f} is named by the manifest but missing`);
       const bytes = readFileSync(join(dir, f));
       write(join(out, prefix + f), bytes);
       jsonBytes += bytes.byteLength;
-    }
-    for (const need of [manifest.roads, ...Object.values(manifest.layers ?? {})]) {
-      if (need && !jsonFiles.includes(need)) throw new Error(`world ${world}: ${need} is named by the manifest but missing`);
     }
     single(prefix + manifest.worldColliders, new Uint8Array(readFileSync(join(dir, manifest.worldColliders))));
 
@@ -282,6 +288,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     worlds: (arg("--worlds") ?? "sf").split(",").filter(Boolean),
     level: Number(arg("--level") ?? 9),
     skipVite: process.argv.includes("--skip-vite"),
+    sourcemap: !process.argv.includes("--no-sourcemap"),
   });
   const mb = (n: number): string => `${(n / 1e6).toFixed(1)} MB`;
   console.log(

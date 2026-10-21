@@ -3,14 +3,14 @@
 // the index (file -> pack, offset, length), a pack is fetched once however many files it holds,
 // and both layouts load a world's sim files the same way (src/io/world-load.ts). Served from a
 // loopback server under a sub-path, as the page host does.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ENCODED_SUFFIX, HOST_LIMITS, checkHostLimits, encode, packItems, type WebIndex } from "../../scripts/build-web.ts";
 import { base64ToBytes, decodeGzBase64, looseAssets, packedAssets, type Assets } from "../../src/io/assets.ts";
-import { loadWorldFiles } from "../../src/io/world-load.ts";
+import { RUNTIME_LAYERS, loadWorldFiles } from "../../src/io/world-load.ts";
 import { ROOT } from "../helpers.ts";
 
 const bytesOf = (n: number, seed: number): Uint8Array => Uint8Array.from({ length: n }, (_, i) => (i * 31 + seed * 7 + ((i >> 5) & 255)) & 255);
@@ -122,6 +122,22 @@ describe("assets over HTTP, from a sub-path", () => {
     expect(await a.bytes("tiles/w/a.glb")).toEqual(glbA);
     await expect(a.bytes("tiles/w/nope.glb")).rejects.toThrow(/HTTP 404/);
     await expect(a.json("tiles/w/nope.json")).rejects.toThrow(/HTTP 404/);
+  });
+});
+
+describe("the web build's world JSON", () => {
+  it("ships every data layer the game reads: each manifest.layers.<name> read under src/ is in RUNTIME_LAYERS", () => {
+    const read = new Set<string>();
+    const walk = (dir: string): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, e.name);
+        if (e.isDirectory()) walk(p);
+        else if (e.name.endsWith(".ts")) for (const m of readFileSync(p, "utf8").matchAll(/\bmanifest\??\.layers\??\.([A-Za-z_]\w*)/g)) read.add(m[1]!);
+      }
+    };
+    walk(join(ROOT, "src"));
+    expect(read.size, "the game reads some layers").toBeGreaterThan(0);
+    for (const name of read) expect(RUNTIME_LAYERS, `src/ reads manifest.layers.${name}`).toContain(name);
   });
 });
 
