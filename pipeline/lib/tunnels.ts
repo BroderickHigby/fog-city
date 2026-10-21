@@ -351,13 +351,29 @@ export function tunnelRibbons(graph: RoadGraph, bores: readonly Bore[], heightAt
     nth.set(b.edge, k + 1);
     const rid = perEdge.get(b.edge)! > 1 ? `${b.edge}.t${k}` : b.edge;
     const e = graph.edges.find((q) => q.id === b.edge)!;
+    // The portals exactly, and every 4th metre between them.
+    const at = (s: number): [number, number] => {
+      let acc = 0;
+      for (let i = 1; i < e.points.length; i++) {
+        const [ax, az] = e.points[i - 1]!, [bx, bz] = e.points[i]!;
+        const L = Math.hypot(bx - ax, bz - az);
+        if (acc + L >= s || i === e.points.length - 1) {
+          const u = L > 0 ? Math.max(0, Math.min(1, (s - acc) / L)) : 0;
+          return [ax + (bx - ax) * u, az + (bz - az) * u];
+        }
+        acc += L;
+      }
+      return [e.points[0]![0], e.points[0]![1]];
+    };
     const path: RibbonVertex[] = [];
+    const [x0, z0] = at(b.s0);
+    path.push(cmVertex([x0, b.y0, z0, e.widthM]));
     for (const q of profile(e.points, heightAt)) {
-      const y = boreY(b, q.s);
-      if (y === null) continue;
-      if (path.length && Math.round(q.s) % 4 !== 0 && q.s < b.s1 - 0.5) continue;
-      path.push(cmVertex([q.x, y, q.z, e.widthM]));
+      if (q.s <= b.s0 + 0.5 || q.s >= b.s1 - 0.5 || Math.round(q.s) % 4 !== 0) continue;
+      path.push(cmVertex([q.x, boreY(b, q.s)!, q.z, e.widthM]));
     }
+    const [x1, z1] = at(b.s1);
+    path.push(cmVertex([x1, b.y1, z1, e.widthM]));
     if (path.length < 2) continue;
     for (const piece of splitPieces({ id: rid, path })) {
       out.push({ tile: piece.tile, tunnel: { id: piece.id, kind: "tunnel", edge: b.edge, clearanceM: CLEARANCE_M, path: piece.path } });

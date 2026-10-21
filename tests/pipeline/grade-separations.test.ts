@@ -170,10 +170,12 @@ describe("sf world: grade separations (W-14)", () => {
       if (unresolved.has(`${f.id}x${g.id}`) || unresolved.has(`${g.id}x${f.id}`)) continue;
       for (const [top, under] of [[f, g], [g, f]] as const) {
         const yTop = ribbonY((ribbons.get(top.id) ?? []).filter((r) => (r as Deck).kind === "overpass"), X, Z);
-        if (yTop === null) continue;
-        // A street over a bore is over the tunnel, not an overpass over its road.
+        // An overpass where it still stands on its own ground (its end) is over nothing.
+        if (yTop === null || yTop - heightAt(X, Z) < 0.5) continue;
+        // A street over a bore or its portal is over the tunnel, not an overpass over its road.
         const own = ribbons.get(under.id) ?? [];
-        if (ribbonY(own.filter((r) => r.kind === "tunnel"), X, Z) !== null) continue;
+        const bores = own.filter((r) => r.kind === "tunnel");
+        if (bores.some((r) => r.path.some((p) => Math.hypot(p[0] - X, p[2] - Z) < 15)) || ribbonY(bores, X, Z) !== null) continue;
         const yUnder = ribbonY(own.filter((r) => r.kind !== "tunnel"), X, Z) ?? heightAt(X, Z);
         if (yUnder > yTop) continue; // the other is the one on top here
         n++;

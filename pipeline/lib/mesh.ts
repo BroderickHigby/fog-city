@@ -522,11 +522,13 @@ export function roadMeshes(
             let ya = A.own ?? (ground.meshHeightAt(A.c[0], A.c[1]) ?? 0) + DRAPE_LIFT_M;
             let yb = B.own ?? (ground.meshHeightAt(B.c[0], B.c[1]) ?? 0) + DRAPE_LIFT_M;
             if (oa === 1) {
-              const n = Math.max(1, Math.ceil(Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1])));
+              const n = Math.max(1, Math.ceil(Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1]) / 0.5));
+              const m = Math.max(1, Math.ceil(Math.max(Math.hypot(A.r[0] - A.l[0], A.r[1] - A.l[1]), Math.hypot(B.r[0] - B.l[0], B.r[1] - B.l[1])) / 0.5));
               let poke = -Infinity;
               for (let q = 0; q <= n; q++) {
                 const t = q / n;
-                for (const u of [0, 0.25, 0.5, 0.75, 1]) {
+                for (let w = 0; w <= m; w++) {
+                  const u = w / m;
                   const x = A.l[0] + (A.r[0] - A.l[0]) * u + (B.l[0] + (B.r[0] - B.l[0]) * u - (A.l[0] + (A.r[0] - A.l[0]) * u)) * t;
                   const z = A.l[1] + (A.r[1] - A.l[1]) * u + (B.l[1] + (B.r[1] - B.l[1]) * u - (A.l[1] + (A.r[1] - A.l[1]) * u)) * t;
                   const g = ground.meshHeightAt(x, z);

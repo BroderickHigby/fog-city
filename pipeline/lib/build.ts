@@ -7,8 +7,8 @@ import { buildBoundary, type BoundaryStats } from "./boundary.ts";
 import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
 import { candidateTiles, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
-import { bearing, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, isSimpleRing, pointInRing, r2, signedArea } from "./geom.ts";
-import { intersectRing, largest } from "./polygon.ts";
+import { bearing, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, isSimpleRing, pointInRing, r2, signedArea, type P2 } from "./geom.ts";
+import { intersectPolys, largest, unionRings } from "./polygon.ts";
 import { buildFarLod, FAR_CELL_M } from "./far.ts";
 import {
   buildFountains,
@@ -241,23 +241,36 @@ export interface TileStructures {
  * and it stands inside its podium: where a pass cut the podium back (from a street or a path the
  * tower overhung), the tower is cut to what is left, or dropped if little is.
  */
-function reconcileTowers(list: readonly Building[]): Building[] {
+function reconcileTowers(list: readonly Building[], groundUnder: (ring: readonly P2[]) => { at: number; min: number } | null): Building[] {
   const byId = new Map(list.map((b) => [b.id, b]));
+  // A podium is its record and its terrace strips (not its spans over streets).
+  const strips = new Map<string, P2[][]>();
+  for (const b of list) if (b.meta.piece === "strip" && b.meta.pieceOf) (strips.get(b.meta.pieceOf) ?? strips.set(b.meta.pieceOf, []).get(b.meta.pieceOf)!).push(b.footprint);
   const towers = new Map<string, Building>(); // kept towers, as they will be written
   for (const b of list) {
     if (b.meta.towerOf === undefined) continue;
     const pod = byId.get(b.meta.towerOf);
     if (!pod || pod.meta.tower !== b.id) continue;
+    const parts = [pod.footprint, ...(strips.get(pod.id) ?? [])];
+    const inside = (x: number, z: number): boolean => parts.some((r) => pointInRing(x, z, r) || distToRing(x, z, r) <= 0.02);
     let footprint = b.footprint;
-    if (b.footprint.some(([x, z]) => !pointInRing(x, z, pod.footprint) && distToRing(x, z, pod.footprint) > 0.02)) {
-      const part = largest(intersectRing(b.footprint, pod.footprint));
+    let baseY = b.baseY;
+    let footY = b.meta.footY;
+    if (!b.footprint.every(([x, z]) => inside(x, z))) {
+      const part = largest(intersectPolys(b.footprint, unionRings(parts)));
       let ring = part ? dropCollinear(cleanRing(part.outer), 0.005) : [];
       if (ring.length >= 3 && Math.sign(signedArea(ring)) !== Math.sign(signedArea(b.footprint))) ring = ring.reverse();
       if (ring.length < 3 || Math.abs(signedArea(ring)) < TOWER_MIN_M2 || !isSimpleRing(ring)) continue;
       footprint = ring;
+      // Its own street level and foot, as the tower rule sets them (buildings.ts).
+      const under = groundUnder(ring);
+      if (under) {
+        baseY = Math.floor(under.at * 100) / 100;
+        footY = Math.min(baseY, Math.floor((under.min - 0.05) * 100) / 100);
+      }
     }
     const topY = b.meta.podiumTopY === pod.topY && b.topY > pod.topY ? b.topY : Math.max(b.topY, r2(pod.topY + 2.5));
-    towers.set(b.id, { ...b, footprint, topY, meta: { ...b.meta, podiumTopY: pod.topY } });
+    towers.set(b.id, { ...b, footprint, baseY, topY, meta: { ...b.meta, footY, podiumTopY: pod.topY } });
   }
   const out: Building[] = [];
   for (const b of list) {
@@ -376,7 +389,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   lap("tunnels");
   // Two-tier records after every pass: a tower stands on its podium record's roof; a tower whose
   // podium a pass removed goes with it.
-  const buildings = reconcileTowers(bored.buildings);
+  const buildings = reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground));
 
   // Tile selection: a tile is built when it holds a building, a road passes through it, or it
   // has land (citywide: land inside San Francisco's neighbourhoods). Open water gets no file.

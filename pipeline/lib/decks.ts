@@ -897,6 +897,20 @@ export function buildDecks(
   };
 
 
+  /**
+   * Between a covered station (cover over PORTAL_FOOT_M) and an open one, the arc length where
+   * the cover comes down to zero (bisection on the ground's continuous profile, to 1 cm).
+   */
+  const footBetween = (cover: (s: number) => number, sIn: number, sOut: number): number => {
+    if (cover(sOut) >= 0) return sOut;
+    let a = sIn, b = sOut;
+    for (let n = 0; n < 12; n++) {
+      const m = (a + b) / 2;
+      if (cover(m) > 0) a = m;
+      else b = m;
+    }
+    return (a + b) / 2;
+  };
   /** A node sample inside a bore of one of its edges. */
   const boreAtNode = (i: number): boolean => {
     for (const e of fwy) {
@@ -969,10 +983,13 @@ export function buildDecks(
       let k0 = deep, k1 = deep;
       while (k0 > 0 && cover[k0 - 1]! > PORTAL_FOOT_M) k0--;
       while (k1 < st.length - 1 && cover[k1 + 1]! > PORTAL_FOOT_M) k1++;
-      // Each portal at whichever of the two stations either side of the foot is nearer the ground.
-      if (k0 > 0 && Math.abs(cover[k0 - 1]!) < Math.abs(cover[k0]!)) k0--;
-      if (k1 < st.length - 1 && Math.abs(cover[k1 + 1]!) < Math.abs(cover[k1]!)) k1++;
-      const S0 = st[k0]!, S1 = st[k1]!;
+      // Each portal where the hill comes down to the line, between the stations either side.
+      const coverS = (S: number): number => {
+        const [x, z] = at(S);
+        return heightAt(x, z) - line(S);
+      };
+      const S0 = k0 > 0 ? footBetween(coverS, st[k0]!, st[k0 - 1]!) : st[k0]!;
+      const S1 = k1 < st.length - 1 ? footBetween(coverS, st[k1]!, st[k1 + 1]!) : st[k1]!;
       for (const { b, e, off: o } of parts) {
         const a = Math.max(S0, o), z = Math.min(S1, o + b.s1 - b.s0);
         if (z - a < 1) continue;
@@ -1002,8 +1019,8 @@ export function buildDecks(
       for (let q = 1; q <= Math.abs(sO - sN); q++) {
         const sq = sN + dir * q;
         if (coverAt(sq) <= PORTAL_FOOT_M) {
-          // The portal: whichever of the two stations is nearer the ground.
-          if (Math.abs(coverAt(sq)) < Math.abs(coverAt(sP))) sP = sq;
+          // The portal: where the hill comes down to the line between the two stations.
+          sP = footBetween(coverAt, sP, sq);
           break;
         }
         sP = sq;
@@ -1316,7 +1333,10 @@ export function buildDecks(
     spans = plan(spans); // a street under a street that is itself raised elsewhere
     const inOvers = new Set(overs.map((o) => o.c));
     const unresolved = new Set<string>();
-    for (let round = 0; round < 4; round++) {
+    // Rounds that add bridges, then one that only lists what is left.
+    for (let round = 0; round <= 6; round++) {
+      const last = round === 6;
+      if (last) unresolved.clear();
       const spanY = (e: RoadEdge, s: number): number | null => {
         for (const sp of spans) if (sp.e.id === e.id && s >= sp.a && s <= sp.b) return sp.y(s);
         return null;
@@ -1324,7 +1344,7 @@ export function buildDecks(
       const surf = (e: RoadEdge, s: number, P: P2): number => (isFreeway(e) && edgeSamples.has(e.id) ? yAtEdge(e, s) : (spanY(e, s) ?? heightAt(P[0], P[1])));
       let added = false;
       for (const c of crossings) {
-        if (inOvers.has(c) || inBore(c.f.id, c.sf) !== null || inBore(c.g.id, c.sg) !== null) continue;
+        if ((!last && inOvers.has(c)) || inBore(c.f.id, c.sf) !== null || inBore(c.g.id, c.sg) !== null) continue;
         if (isFreeway(c.f) && isFreeway(c.g)) continue; // stacked above
         const yf = surf(c.f, c.sf, c.P), yg = surf(c.g, c.sg, c.P);
         const fTop = yf >= yg;
@@ -1342,7 +1362,7 @@ export function buildDecks(
           continue;
         }
         const half0 = Math.max(other.widthM / 2 + APPROACH_M, OVERPASS_HALF_M);
-        if (!fits(st, ss, Math.max(yT, yU), half0)) {
+        if (last || !fits(st, ss, Math.max(yT, yU), half0)) {
           unresolved.add(`${c.f.id}x${c.g.id}`);
           continue;
         }
@@ -1351,8 +1371,9 @@ export function buildDecks(
         unresolved.delete(`${c.f.id}x${c.g.id}`);
         added = true;
       }
-      if (!added) break;
-      spans = plan(plan(spans));
+      if (last) break;
+      if (!added) round = 5; // straight to the listing round
+      else spans = plan(plan(spans));
     }
     stats.unresolvedCrossings = [...unresolved].sort();
     for (const sp of spans) {

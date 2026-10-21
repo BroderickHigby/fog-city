@@ -414,19 +414,33 @@ now runs these passes, in this order, after the buildings and the road graph
    **3 m** and becomes land (32 sheds, 2,199 samples, 22 ha). Road node heights, the `bridge`
    flags and the pier buildings' foot and base are then taken from the raised ground; their
    roofs keep the LiDAR's absolute height (it measured them from the water). Smaller
-   structures over water (the Mission Creek houseboats, fender houses at the bridges) float
-   where they are. The shore (`boundary.json`) follows the raised decks.
-2. **Tunnels (W-02, `tunnels.ts`).** Tunnel edges are found by name (`Tunl`, `Tunnel`) and,
-   for the freeway tunnels, by route and place (`FREEWAY_TUNNELS`: the MacArthur Tunnel on
-   Hwy 1, the Yerba Buena Island tunnel on I-80, the Presidio Parkway's Battery and Main Post
-   tunnels on Hwy 101). Edges the source splits inside a tunnel are one chain. The road
-   through a hill is the highest profile under the ground that never climbs faster than 6%
-   (the ground eroded by a 6% cone); a bore is where the hill stands more than 3 m over it,
-   widened to where the cover falls to 0.1 m (the portals), and runs straight between them.
-   Each bore is a `tunnels` ribbon with a 5 m ceiling, its edge is flagged `tunnel`, and the
-   buildings over it get an underside (`underY`) at their foot, or 0.3 m over the ceiling
-   where the cover is thin (68 records). Both Broadway bores, the Stockton and Toll Plaza
-   tunnels, the MacArthur Tunnel, YBI and the Battery and Main Post tunnels have bores.
+   structures over water float where they are (61, 4,400 m² in all: Mission Creek's
+   houseboats, Fisherman's Wharf's stalls and boathouses, the Pier 70 shipyard's cranes and
+   huts). The shore (`boundary.json`) follows the raised decks.
+2. **Tunnels (W-02, `tunnels.ts`, lined in `decks.ts`).** Tunnel edges are found by name
+   (`Tunl`, `Tunnel`) and, for the freeway tunnels, by route and place (`FREEWAY_TUNNELS`: the
+   MacArthur Tunnel on Hwy 1, the Presidio Parkway's Battery and Main Post tunnels on Hwy 101,
+   the Yerba Buena Island tunnel on I-80). Edges the source splits inside a tunnel are one
+   chain. The road through a hill is the highest profile under the ground that never climbs
+   faster than 6% (the ground eroded by a 6% cone); a bore is where the hill stands more than
+   3 m over it, run on to where the cover over its straight line falls to 0.1 m (the portals).
+   The Yerba Buena Island tunnel has fixed portals instead, where the road's benches (cut into
+   the island at about 52 m and 57 m) meet the ridge: the Bay Bridge spans either side are at
+   sea level in the DEM and the island's flanks fall steeply under its viaducts, so no cone
+   from the ground finds it. A street tunnel's bore is final. A freeway's is a *zone* the deck
+   pass (7) lines: through it the road is free of the ground and runs straight between the
+   profile the rest of the network sets at its ends, and the bore is where that line is
+   under the hill, out to where the cover falls to 0.1 m; the rest of the zone is open road
+   again and solved as such (so a portal can open onto a viaduct, as the Presidio Parkway's
+   does over the valley west of the Battery tunnel). A ramp that joins its freeway inside a
+   bore (the island's westbound on-ramp) gets a bore of its own from that node out (8% at
+   most). Each bore is a `tunnels` ribbon with a 5 m ceiling, its edge is flagged `tunnel`,
+   and the buildings over it get an underside (`underY`) at their foot, or 0.3 m over the
+   ceiling where the cover is thin (@@BORE_RECORDS@@ records). Both Broadway bores, the
+   Stockton and Toll Plaza tunnels, the MacArthur Tunnel (both directions), the Presidio
+   Parkway's tunnels (the Battery tunnel northbound, the Main Post tunnel southbound) and the
+   Yerba Buena Island tunnel (both decks, side by side as the source draws them, not stacked)
+   have bores.
 3. **Carriageway and path clearance (W-01, W-39, W-43, W-16, `clearance.ts`).** No footprint
    may wall a street or a path. In order: a `-tower` record a freeway crosses is an overhead
    structure, not a tower, and is dropped (the Golden Gate approach over Fort Point); a
@@ -441,7 +455,9 @@ now runs these passes, in this order, after the buildings and the road graph
    The corridor is the centreline buffered by 2.6 m on two-way streets of two or more lanes,
    1.6 m on one-lane streets and alleys, 0.9 m on paths. An UPROW or PAPER stairway that still
    runs through a building is dropped instead of cutting houses. Freeways and ramps are the
-   deck pass's.
+   deck pass's. After every pass a tower stands inside its podium: where a pass cut the
+   podium back from a street or a path the tower overhung (Lick Pl, Emma St, Minna St,
+   Fallon Pl), the tower is cut to what is left of the podium, or dropped under 4 m².
 4. **Terraces (W-05, W-28, `terrace.ts`).** A footprint with more than 6 m of relief under it
    is cut into strips across its slope (the downhill direction of a plane fitted to the
    ground), each with at most 3.5 m of relief where a 3 m wide strip allows, and each strip
@@ -466,23 +482,37 @@ now runs these passes, in this order, after the buildings and the road graph
    Harry steps).
 7. **Decks (W-03, W-07, W-12, W-14, `decks.ts`).** Every freeway and ramp gets one profile
    over the whole network: the lowest that stands on the ground, 5 m over every street it
-   crosses, 1 m over every low roof under it, never steeper than 6% (0.5% over water, so the
-   I-280 viaducts hold their height over Mission Creek and Islais Creek), with no crest
-   tighter than 150 m, pinned to the bores in the freeway tunnels and brought down to the
-   street at each ramp end (8%). Where it stands more than 0.1 m over the ground it is a deck
+   crosses, 1 m over every low roof under it, 3 m over water, never steeper than 6% (8% along
+   a ramp; 0.5% over water, so the I-280 viaducts hold their height over Mission Creek and
+   Islais Creek), with no crest tighter than 150 m; through a freeway bore's zone it runs
+   straight (2). Three upper bounds shape it, each a cone the ground alone may override: a
+   ramp comes down to its street at 8% at most; a freeway under a street on top of it (below)
+   stays on its ground there and comes down to it at 6%; and a lower bound over a cone gives
+   way to it. A ramp the source draws too short to come down from its gore at 8% runs the
+   straight line from its street to its gore instead (@@SHORT_RAMPS@@; `report.json`
+   `decks.shortRamps`). Where the profile stands more than 0.1 m over the ground it is a deck
    (kind `freeway` or `ramp`, layer 2 where it crosses over another deck), thinned to the
-   vertices a straight line needs (5 cm across, 1 cm in height). Grade separations (two edges
-   crossing with no node in common) are resolved from what the DEM kept: the edge that dips
-   (into a cut under its removed span) or humps (up its approach embankments) is on top and
-   gets an `overpass` deck, the straight line between its approaches raised by a smooth bump
-   to 5 m over the edge under it (33: Richland Ave over San Jose Ave's cut, 23rd St over
-   US-101, San Jose Ave, Geneva Ave and Paul Ave over I-280 and US-101); where neither moves
-   the freeway is a viaduct over the street. Every surface street over water gets a `bridge`
-   deck on the straight line between its banks (3rd St and 4th St over Mission Creek, 3rd St
-   and Illinois St over Islais Creek), and the Lefty O'Doul Bridge (3rd St over Mission
-   Creek) is a `movable` bascule hinged at its north end. Edges with a deck are flagged
-   `deck`. `pipeline/lib/surfaces.ts` is the reference road-surface lookup over decks and
-   tunnels for the sim.
+   vertices a straight line needs (5 cm across, 1 cm in height); open water longer than
+   400 m, or running out of the world, is a bridge the world does not model (no deck, no
+   ribbon). Grade separations (two edges crossing with no node in common) are resolved from
+   what the DEM kept: the edge that dips (into a cut under its removed span) or humps (up its
+   approach embankments) is on top and gets an `overpass` deck along its chain (same-named
+   edges through nodes no other road meets), the straight line between its approaches raised
+   by a smooth bump to 5 m over the road under it, wide enough that its crest is no tighter
+   than 100 m where the chain leaves room and never tighter than a car at 1.3 times the
+   street's speed limit keeps its wheels on (at least 25 m). A street that cannot bridge a
+   freeway within its chain (a junction too near) leaves the freeway to bridge over it
+   instead (@@TOO_TIGHT@@); a street on top of one carriageway is on top of its twin; between
+   two streets one order holds per pair (the clearest dip or hump decides); and wherever a
+   structure passes over the other road by less than 5 m after all that (a neighbouring
+   bridge, a ramp's foot, a portal), the street on top bridges it properly, or the crossing
+   is listed in `decks.unresolvedCrossings` (@@UNRESOLVED@@: neither road can bridge the
+   other there). Where neither moves, the freeway is a viaduct over the street. Every surface
+   street over water gets a `bridge` deck on the straight line between its banks (3rd St and
+   4th St over Mission Creek, 3rd St and Illinois St over Islais Creek), and the Lefty O'Doul
+   Bridge (3rd St over Mission Creek) is a `movable` bascule hinged at its north end. Edges
+   with a deck are flagged `deck`. `pipeline/lib/surfaces.ts` is the reference road-surface
+   lookup over decks and tunnels for the sim. (@@DECK_NUMBERS@@)
 8. **Road surfaces (W-09, W-10, W-32, `mesh.ts`).** A road ribbon on the ground is draped on
    the ground mesh's own triangles (each ribbon triangle clipped to the lattice triangles
    under it, unless the ground under it is one plane within 1.5 cm) and lifted 2 cm, so the
@@ -898,10 +928,18 @@ memory, and compares SHA-256 of every file.
 * **Freeway and bridge decks are modelled, not surveyed.** The source has no deck heights;
   `decks.ts` derives them from the streets they cross, the ground and the grade and crest
   limits, so a viaduct's height is the least that clears what is under it, not the real
-  one, and a grade separation is classified from the DEM's dips and humps. The Bay Bridge
-  and the Golden Gate Bridge are absent (Assets, W-24); their approaches hold their bank
-  height over the water. Treasure Island and Yerba Buena Island are built, but no road joins
-  them to the city (wave 8: the Bay Bridge deck).
+  one, and a grade separation is classified from the DEM's dips and humps. Where the source
+  contradicts itself (a street crossing a ramp a few metres from the ramp's foot and a
+  junction) the crossing is left as it is and listed (`decks.unresolvedCrossings`); one ramp
+  (the Sterling St on-ramp to the Bay Bridge, 29 m long in the source) runs a straight 27.5%
+  grade. The Bay Bridge and the Golden Gate Bridge are absent (Assets, W-24); their
+  approaches hold their bank height over the water. Treasure Island and Yerba Buena Island
+  are built, but no road joins them to the city (wave 8: the Bay Bridge deck); the island's
+  tunnel has its two decks side by side, not stacked.
+* **Freeway tunnels follow the DEM and the source's centrelines.** The Presidio Parkway was
+  rebuilt (2012–2015) on new alignments: the Battery tunnel is bored northbound and the Main
+  Post tunnel southbound, where the DEM's hill stands over the line; the other direction's
+  hill is too shallow (under 3 m of cover) and runs over it.
 * **No 2 m road profile (W-31).** The road surface is the 10 m lattice (drawn exactly as the
   sim drives it); the 1 m DEM that a 2 m road-profile pass needs is not among the cached
   inputs.
@@ -910,7 +948,7 @@ memory, and compares SHA-256 of every file.
 * **Pier decks are flat land at 3 m** (`piers.ts`): the bare-earth DEM has none, and no
   Port of SF pier outline is used. The deck is the sheds' and pier streets' buffered union on
   the 10 m lattice, so its edge is a 10 m slope into the bay, not a quay face. Small
-  structures over water (houseboats) float on it at sea level.
+  structures over water (houseboats, wharf stalls, shipyard cranes: 61) stand at sea level.
 * **Sidewalks are procedural.** No sidewalk lies on a road, so a median too narrow for one
   has none, and a median wide enough keeps its inner sidewalks. Where a sidewalk is cut
   next to another road (an acute wedge between two streets, a slip lane alongside) its
@@ -1004,6 +1042,22 @@ memory, and compares SHA-256 of every file.
   keeping a spike tower and failing the build when no tower results, `checkOverrides` on
   malformed entries and on `pipeline/overrides.json`), footY on a slope, water, seams,
   storefront filtering and privacy, and GLB validity.
+* The world QA passes, on the committed world (each fails on the world before them):
+  `shared-walls.test.ts` (W-36: no touching pair cracked in the audit boxes, fewer cracks
+  than the source), `rings.test.ts` (W-30: simple rings, towers inside their podiums),
+  `grounding.test.ts` (W-05, W-28: relief under a roof, the downhill/uphill wall ratio),
+  `carriageway-clearance.test.ts` (W-01, W-39, W-43: no blocking footprint within a car's
+  half width of a drivable centreline or a walker's reach of a path; spans pass under),
+  `landmark-records.test.ts` (W-16: no phantom tower on a street), `stairs.test.ts` (W-33),
+  `tunnels.test.ts` (W-02: the named tunnels' bores, straight, under their hills, nothing in
+  them), `piers.test.ts` (W-13), `freeway-decks.test.ts` (W-03, W-07: decks 5 m over the
+  streets they cross, at most 6% (8% on a ramp), no crest under 150 m, 3 m over the creeks,
+  no freeway through a building, the freeway tunnels bored), `bridges.test.ts` (W-12),
+  `grade-separations.test.ts` (W-14: launching crests round crossings at most half the bare
+  DEM's, the report's named crossings never worse and 40% better together, Richland Ave
+  smooth, every overpass 5 m over the road under it), `ribbon-ground.test.ts` (W-09, W-10:
+  the drawn ribbons against the ground mesh) and `surfaces.test.ts` (the reference lookup on
+  decks and in the Broadway Tunnel).
 * `tower-rule.test.ts`: the tower rule on real DataSF statistics: the 600 Montgomery
   pyramid, the Ferry Building clock tower, Coit Tower, the Russ Building and an office slab
   keep their towers; five measured needles (including the review's four) do not.
