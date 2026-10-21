@@ -34,6 +34,13 @@ export default defineConfig({
   timeout: 180_000,
   retries: 0,
   forbidOnly: CI,
+  // Memory: the sf tests boot the whole city in a SwiftShader Chromium, and the web-build test
+  // packs it in the runner. With one worker the whole suite peaks at 3.0 GB (runner, Vite
+  // server and browser, 2026-10-21; 8.8 min); each extra worker adds another city browser.
+  // Locally one at a time, so a plain `pnpm verify` on a 16 GB machine shared with other
+  // checkouts never runs out of memory (docs/testing.md, "Memory"). CI keeps Playwright's
+  // default (half the runner's cores): one job per runner. Override for one run: --workers=N.
+  workers: CI ? undefined : 1,
   // Per-test artefacts only. What the suite writes on purpose lives beside it in test-results/
   // (perf.json, shots/) and so survives the next run's clean-up of this directory.
   outputDir: "test-results/playwright",

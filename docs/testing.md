@@ -35,6 +35,30 @@ runs ask for the same port, the second fails at once ("port is already in use") 
 quietly testing another checkout's code. If that happens, a run is still going or a stale
 `vite` holds the port: wait or stop it, never switch to `reuseExistingServer`.
 
+### Memory
+
+The agent machines have 16 GB of RAM, no swap, and several checkouts at once; the whole
+city costs real memory in every process that holds it. The configs keep a plain
+`pnpm verify` safe without flags:
+
+- `vitest.config.ts` caps Vitest at `maxWorkers: 3`. Peak RSS per worker, one whole-city file
+  at a time (2026-10-21): `tests/sim/agent-budget.test.ts` 1.64 GB, `pack` 0.96,
+  `sf-agents` 0.94, `tests/pipeline/sf-world` 0.71, `world-colliders` 0.65, `boundary` 0.60,
+  `citywide` 0.52, `sf-glb` 0.44, every other file under 0.25; pnpm and Vitest's main process
+  add 0.4. The whole suite peaks at 2.9 GB with three workers (47 s) and 2.5 GB with two
+  (59 s); 3.9 GB if the three biggest files ever ran together. Vitest's own default (cores - 1)
+  would load 15 cities at once on a 16-core machine.
+- `playwright.config.ts` runs one worker locally (CI keeps Playwright's default, one job per
+  runner). With one worker the e2e suite peaks at 3.0 GB (runner, Vite server and one
+  SwiftShader Chromium on the city) and takes about 9 minutes.
+- A Node script that builds the whole city's sim world (`buildWorld` over the collider pack
+  and the road graph, as `agent-budget` does) peaks at about 1.6 GB; the pipeline and
+  `pnpm build` are heavy too. On a shared machine, run heavy jobs one at a time
+  (`flock <lockfile> pnpm verify`), and stop dev servers and browsers when done.
+
+Override for one run with `pnpm exec vitest run --maxWorkers=N` or
+`pnpm exec playwright test --workers=N`.
+
 ### Browsers
 
 `pnpm e2e` needs Chromium (every test) and, for the cross-engine tests, Firefox and WebKit:
