@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { toLocal } from "../../../src/geo/project.ts";
 import { groundHeight, type Heightfield } from "../../../src/sim/index.ts";
 import { ROOT } from "../../helpers.ts";
-import { latticeAt, ll, meshGroundHeight, percentile, prng, r2, r3, resample, surfaceAt, tileField, distToSegment, type GameWorld, type P2 } from "../world.ts";
+import { latticeAt, ll, maxOf, meshGroundHeight, percentile, prng, r2, r3, resample, surfaceAt, tileField, distToSegment, type GameWorld, type P2 } from "../world.ts";
 import { Measured } from "./suite.ts";
 
 const FIX = join(ROOT, "tests/helpers/world-gate/fixtures");
@@ -134,7 +134,7 @@ export function measureTerrain(gw: GameWorld): Measured {
       if (v > worst.d) worst = { d: r3(v), at: ll(x, z) };
     }
     m.metric({ id: "B.groundParity.p99", target: 0.02, better: "lower", unit: "m", defects: ["W-22"], desc: "99th percentile of |sim ground - drawn ground| at 10,000 seeded land points (the drawn ground splits each 10 m cell into two triangles; the sim is bilinear)" }, r3(percentile(d, 99)));
-    m.metric({ id: "B.groundParity.max", target: 0.02, better: "lower", unit: "m", defects: ["W-22"], desc: "largest |sim ground - drawn ground| at the same 10,000 points" }, r3(Math.max(...d)), worst);
+    m.metric({ id: "B.groundParity.max", target: 0.02, better: "lower", unit: "m", defects: ["W-22"], desc: "largest |sim ground - drawn ground| at the same 10,000 points" }, r3(maxOf(d)), worst);
   }
 
   // ---- summits (pass): the lattice keeps every named summit

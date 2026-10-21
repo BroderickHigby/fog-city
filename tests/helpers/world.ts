@@ -290,6 +290,13 @@ export function prng(seed: number): () => number {
   };
 }
 
+/** The largest value (or `floor` when there is none or all are smaller), without spreading a long array onto the stack. */
+export function maxOf(values: Iterable<number>, floor = -Infinity): number {
+  let m = floor;
+  for (const v of values) if (v > m) m = v;
+  return m;
+}
+
 export function percentile(values: readonly number[], p: number): number {
   if (values.length === 0) return 0;
   const s = [...values].sort((a, b) => a - b);

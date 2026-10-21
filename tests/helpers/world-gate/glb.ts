@@ -99,8 +99,9 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
           if (parityFirst.length < 10) parityFirst.push(`${id}: top ${r2(maxY)} vs ${r.topY}`);
         }
         // Floating wall bottoms (L-02): the lowest vertices against the drawn ground under them.
+        // A tower record stands on its podium's roof, not on the ground: not a floating wall.
         let float = 0;
-        for (const v of bottoms) {
+        if (!id.endsWith("-tower")) for (const v of bottoms) {
           const y = bn.positions[v + 1]!;
           if (y > minY + 0.01) continue;
           float = Math.max(float, y - meshGroundHeight(world, bn.positions[v]!, bn.positions[v + 2]!));
@@ -190,7 +191,7 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
   }
   void cellKey;
   m.metric({ id: "N.glb.parityMismatches", target: 0, better: "lower", unit: "records", defects: [], desc: "building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes)" }, parityBad, parityFirst);
-  m.metric({ id: "N.glb.floatingWallBottoms", target: 0, better: "lower", unit: "buildings", defects: ["L-02"], desc: "buildings whose drawn wall bottoms stand more than 0.05 m above the drawn ground" }, floating, floatFirst);
+  m.metric({ id: "N.glb.floatingWallBottoms", target: 0, better: "lower", unit: "buildings", defects: ["L-02", "L-03"], desc: "buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03)" }, floating, floatFirst);
   m.metric({ id: "N.glb.roadSunkShare", target: 0, better: "lower", unit: "share of samples", defects: ["W-09"], desc: "centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road)" }, r3(roadSamples ? roadSunk / roadSamples : 0), { samples: roadSamples });
   m.metric({ id: "N.glb.roadSurfaceMaxM", target: 0.05, better: "lower", unit: "m", defects: ["W-09"], desc: "the largest |drawn road top - sim surface| over the same samples" }, r2(roadMax), roadMaxAt);
   m.metric({ id: "N.glb.roadSurfaceP99M", target: 0.05, better: "lower", unit: "m", defects: ["W-09"], desc: "the 99th percentile of |drawn road top - sim surface| over the same samples" }, r3(percentile(roadD, 99)));

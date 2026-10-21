@@ -5,7 +5,7 @@
 
 import { toLocal } from "../../../src/geo/project.ts";
 import { cellKey, groundHeight } from "../../../src/sim/index.ts";
-import { centroid, ll, percentile, r2, readGlb, triangleHeight, type GameWorld } from "../world.ts";
+import { centroid, ll, maxOf, percentile, r2, readGlb, triangleHeight, type GameWorld } from "../world.ts";
 import { Measured } from "./suite.ts";
 
 const onLat = (x: number, z: number): boolean => Math.abs(x / 100 - Math.round(x / 100)) < 1e-3 && Math.abs(z / 100 - Math.round(z / 100)) < 1e-3;
@@ -108,7 +108,7 @@ export async function measureFar(gw: GameWorld): Promise<Measured> {
       }
     }
     m.metric({ id: "N.far.ringStepP99M", target: 1, better: "lower", unit: "m", defects: ["W-17"], desc: "99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring)" }, r2(percentile(d, 99)), { samples: d.length });
-    m.metric({ id: "N.far.ringStepMaxM", target: 2, better: "lower", unit: "m", defects: ["W-17"], desc: "the largest such step" }, r2(Math.max(0, ...d)), worst);
+    m.metric({ id: "N.far.ringStepMaxM", target: 2, better: "lower", unit: "m", defects: ["W-17"], desc: "the largest such step" }, r2(maxOf(d, 0)), worst);
     m.metric({ id: "N.far.farAboveNearKm", target: 0, better: "lower", unit: "km", defects: ["W-17"], desc: "border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack)" }, r2(farAboveM / 1000));
     m.metric({ id: "N.far.outerLandUncovered", target: 0, better: "lower", unit: "samples", defects: ["W-40"], desc: "land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea)" }, uncovered);
   }
