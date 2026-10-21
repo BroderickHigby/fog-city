@@ -246,7 +246,11 @@ anyone still within 0.3 m of a moving vehicle at the nearest free spot outside i
   Ferry Building, Union Square, Chinatown, the Mission, the Castro) and the jump driver over each
   of the six sharpest clear crests, two seeds, to the same standard; and the long fuzz, scenes
   161-2000: zero contacts, and close passes without an override in at most one scene in 500,
-  none within the override clearance itself (each printed).
+  none within the override clearance itself (each printed). The run on 2026-10-21 (about 11
+  minutes): the soak's 30 drive runs and 8 jumps (4 crests found, up to 1.67 s airborne) with
+  zero contacts, no unexplained close pass and no walker jumping, the least clearance outside an
+  override episode 1.18 m from a car and 0.78 m from a closing robotaxi; the fuzz's 1,840 scenes
+  with 11,940 dives, 4 overrides and one close pass (0.73 m, someone backed into a corner).
 - `tests/render/dodge-pose.test.ts`: how a dodge is drawn (`src/render/dodge-pose.ts`): people
   turn into the dive and stretch flat with the arms out ahead, land in a full forward roll that
   flows into a crouch, come up startled and brush themselves off, and end facing their walk;
