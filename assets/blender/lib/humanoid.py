@@ -258,8 +258,22 @@ def player_frame(height_m: float | None = None) -> dict:
     top = F["head_c"][2] + F["head_r"][2]
     F["head_r"] = hr
     F["head_c"] = (F["head_c"][0], F["head_c"][1], top - hr[2])
-    F["torso"] = [(z, w * 1.3, f * 1.22, b * 1.22) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
+    F["torso"] = [(z, w * 1.15, f * 1.12, b * 1.12) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
     F["head_k"] = hk
+    # shoulders: the arm's cap (the deltoid) rounds off just above the shoulder joint, so the
+    # line from the neck runs over the shoulder and down the arm without a bump
+    r0 = F["arm_r"][3][1]
+    F["arm_r"] = [(-0.095, 0.0), (-0.08, 0.5 * r0), (-0.05, 0.8 * r0), (-0.02, 0.95 * r0)] + F["arm_r"][3:]
+    # ... and leans in toward the neck (metres inward at each cap row): a round shoulder whose
+    # top runs under the torso's slope
+    F["arm_cap_in"] = [(-0.095, 0.04 * s), (-0.08, 0.028 * s), (-0.05, 0.014 * s), (-0.02, 0.004 * s), (0.0, 0.0)]
+    F["torso"] = [(z, w + 0.007 * s * _gauss(z / s, 1.45, 0.035), f, b) for z, w, f, b in F["torso"]]
+    # a fuller trapezius: the shoulders rise toward the neck, which shortens it
+    F["torso"] = [(z, w + 0.014 * s * _gauss(z / s, 1.47, 0.02), f, b) for z, w, f, b in F["torso"]]
+    # jeans: the hips hold the top of each leg (no flare above the hip bone), the tops of the
+    # legs taper inside them
+    F["torso"] = [(z, w + 0.01 * s * _gauss(z / s, 0.95, 0.05), f + 0.004 * s * _gauss(z / s, 0.95, 0.05), b) for z, w, f, b in F["torso"]]
+    F["leg_r"] = [(t, r * (0.7 if t < 0 else 0.9 if t == 0 else 1.0)) for t, r in F["leg_r"]]
     # the tee's crew neck sits snug at the base of the neck, under the jacket's collar
     F["collar_z"] = 1.5 * s
     # the bomber's rib hem (bottom, top) and stand collar (bottom, top), metres
@@ -423,6 +437,14 @@ def _frame_for(d):
     u /= np.linalg.norm(u)
     v = np.cross(d, u)
     return d, u, v
+
+
+def _cap_in(F, s):
+    """How far the player's arm cap leans in toward the neck at arm parameter s (0 elsewhere)."""
+    t = F.get("arm_cap_in")
+    if not t or s >= 0.0:
+        return 0.0
+    return float(np.interp(s, [q[0] for q in t], [q[1] for q in t]))
 
 
 def build(F: dict, prm: dict, res: int = 0) -> Geo:
@@ -644,6 +666,8 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
             else:
                 d = jw - je
                 c = je + d * (s - 0.5) / 0.5
+            if player and s < 0:
+                c = c + np.array([-sx * _cap_in(F, s), 0.0, 0.0])
             dd, u, v = _frame_for(d)
             if s < 0.42:
                 w = {f"upper_arm_{side}": 1.0}
@@ -1118,14 +1142,15 @@ def _player_jacket(g, F, p, B, lo):
     gap = 0.13
     m = 9 if lo else 17
     arc = [math.pi / 2 + gap + (2 * math.pi - 2 * gap) * i / (m - 1) for i in range(m)]
-    crow = [(col_lo, 0.0085), (col_hi, 0.0105), (col_hi, 0.0035), (col_lo + 0.006 * k, 0.0004)]
+    # a rib band standing up round the neck (the top stands a little away from it)
+    crow = [(col_lo, 0.006), (col_hi, 0.026), (col_hi, 0.019), (col_lo + 0.006 * k, 0.0004)]
     cidx = []
     for r, (z, o) in enumerate(crow):
-        off = wear(o, -0.012)
+        off = wear(o, -0.032)
         row = []
         for i, th in enumerate(arc):
             f = 2.0 * min(i, m - 1 - i) / (m - 1)  # 0 at the front ends, 1 at the back
-            zz = z if r in (0, 3) else col_lo + (z - col_lo) * (0.5 + 0.5 * float(_smooth(0.0, 0.4, f)))
+            zz = z if r in (0, 3) else col_lo + (z - col_lo) * (0.72 + 0.28 * float(_smooth(0.0, 0.4, f)))
             row.append(g.vert(B.torso_point(zz, th, off), "outer", _torso_weights(F, zz, B.torso_point(zz, th)[0])))
         cidx.append(row)
     g.grid(cidx, closed=False)
@@ -1135,16 +1160,17 @@ def _player_jacket(g, F, p, B, lo):
     g.end(lambda c: (0.0, 0.0, c[2]))
 
     # ---- sleeves: a capped tube over each arm, full to above the wrist, then a snug rib cuff
-    prof = [(-0.145, None), (-0.07, 0.0085), (0.0, 0.011), (0.15, 0.014), (0.32, 0.015), (0.45, 0.015), (0.5, 0.015),
+    prof = [(-0.11, None), (-0.08, 0.008), (-0.05, 0.0095), (-0.02, 0.0105), (0.0, 0.011), (0.15, 0.014), (0.32, 0.015), (0.45, 0.015), (0.5, 0.015),
             (0.56, 0.016), (0.7, 0.017), (0.84, 0.018), (0.872, 0.0068), (0.91, 0.0062), (0.955, 0.0058), (0.955, 0.0008)]
     if lo:
-        prof = [prof[i] for i in (0, 1, 3, 5, 8, 9, 10, 12, 13)]
+        prof = [prof[i] for i in (0, 1, 5, 7, 10, 11, 12, 14, 15)]
     for side in ("L", "R"):
         js, je, jw = (np.asarray(J[f"{b}_{side}"]) for b in ("upper_arm", "forearm", "hand"))
         n_a = 6 if lo else 10
         g.begin(f"arm_sleeve_{side}")
         srows = []
         cap = None
+        sx = -1.0 if side == "L" else 1.0
         for s, o in prof:
             if s < 0.5:
                 d = je - js
@@ -1152,6 +1178,7 @@ def _player_jacket(g, F, p, B, lo):
             else:
                 d = jw - je
                 c = je + d * (s - 0.5) / 0.5
+            c = c + np.array([-sx * _cap_in(F, s), 0.0, 0.0])
             dd, u, v = _frame_for(d)
             if s < 0.42:
                 w = {f"upper_arm_{side}": 1.0}
@@ -1164,7 +1191,7 @@ def _player_jacket(g, F, p, B, lo):
                 w = {f"forearm_{side}": 1.0}
             if o is None:
                 # the cap over the shoulder: just beyond the arm's own cap, or inside it
-                cap = g.vert(js + (je - js) * (-0.1) + (js - je) / np.linalg.norm(js - je) * (wear(0.008, -0.012)), "outer", w)
+                cap = g.vert(js + (je - js) * F["arm_r"][0][0] + np.array([-sx * _cap_in(F, F["arm_r"][0][0]), 0.0, 0.0]) + (js - je) / np.linalg.norm(js - je) * (wear(0.008, -0.012)), "outer", w)
                 continue
             r = float(np.interp(s, [q[0] for q in F["arm_r"]], [q[1] for q in F["arm_r"]])) * p["limb"] + wear(o, -0.009)
             srows.append([g.vert(c + r * (math.cos(a) * u * 0.92 + math.sin(a) * v), "outer", w) for a in _ring_angles(n_a)])
