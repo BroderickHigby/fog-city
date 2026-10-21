@@ -1,0 +1,190 @@
+{
+  "version": 1,
+  "$comment": "The places table of hero landmarks (house kit K10, world QA W-27 and L-04). Each entry names a point and the collider records the pipeline tags meta.landmark with the entry's id: tagged records are drawn with no office window grid (glazing 0) in the entry's material, with no ground-floor shop band, and storefront anchors on them are not drawn unless storefronts is true. A model in content/landmarks.json with the same id replaces the records when it lands; until then the tagged records are the documented interim shape. A building entry's point is a probe: it lies inside its first record, and resolving it the way the pipeline resolves areas.json probes (records containing the point, a podium's tower with it) gives exactly the listed records and their towers (src/content/landmarkTags.ts resolveProbe; tests/content/landmark-tags.test.ts checks it on the committed sf world). A site entry (records empty) is a landmark with no footprint record (a gate over a street, ruins at the shore): its point stands in no footprint. Labels avoid the pre-release legal checklist names; the notes give the real names for the reader.",
+  "materials": {
+    "stone": { "wall": "#d3cec4", "trim": "#ebe7de", "roof": "#7c7a74", "note": "Granite and grey sandstone civic buildings." },
+    "sandstone": { "wall": "#d7bf96", "trim": "#e9dcc2", "roof": "#8f8068", "note": "Warm buff plaster and sandstone." },
+    "white": { "wall": "#ece8de", "trim": "#f7f4ec", "roof": "#a39e93", "note": "White-painted concrete, stucco and timber." },
+    "brick": { "wall": "#94573f", "trim": "#d9cdb4", "roof": "#5c5853", "note": "Red brick with stone or concrete trim." },
+    "concrete": { "wall": "#b9b6ae", "trim": "#d4d1c9", "roof": "#7d7b76", "note": "Bare concrete plinths and bases." }
+  },
+  "landmarks": [
+    {
+      "id": "ferry-building",
+      "kind": "building",
+      "label": "The Ferry Building and its clock tower",
+      "point": { "lat": 37.7955, "lon": -122.3937 },
+      "records": ["201006.0000058"],
+      "material": "stone",
+      "shopBand": false,
+      "storefronts": true,
+      "publishedHeightM": 75,
+      "note": "The world origin. Its model replaces the records; the market hall keeps its storefront anchors (market stalls, icons only, docs/design.md territory step 1). Clock tower 245 ft."
+    },
+    {
+      "id": "600-montgomery",
+      "kind": "building",
+      "label": "The pyramid tower at 600 Montgomery St",
+      "point": { "lat": 37.7952, "lon": -122.4028 },
+      "records": ["201006.0000687"],
+      "material": "white",
+      "shopBand": false,
+      "storefronts": false,
+      "publishedHeightM": 260,
+      "note": "The Transamerica Pyramid, a pre-release legal checklist name: player text says the pyramid tower. White precast quartz cladding, 853 ft."
+    },
+    {
+      "id": "coit-tower",
+      "kind": "building",
+      "label": "Coit Tower on Telegraph Hill",
+      "point": { "lat": 37.8024, "lon": -122.4058 },
+      "records": ["201006.0006230"],
+      "material": "white",
+      "shopBand": false,
+      "storefronts": false,
+      "publishedHeightM": 64,
+      "note": "Unpainted pale concrete column, 210 ft. The gift shop inside is not a street storefront."
+    },
+    {
+      "id": "saints-peter-and-paul",
+      "kind": "building",
+      "label": "The twin-spired church on the north side of Washington Square",
+      "point": { "lat": 37.80167, "lon": -122.41024 },
+      "records": ["201006.0001265"],
+      "material": "white",
+      "shopBand": false,
+      "storefronts": false,
+      "publishedHeightM": 58,
+      "note": "Saints Peter and Paul Church, 666 Filbert St (built 1924; the roll says 1922). L-04: pipeline/areas.json probes it at 37.8003,-122.4104, by Union St at the south edge of Washington Square, about 140 m south of the church, which resolves to 201006.0003946 (a 1914 apartment building 9.1 m away; the point is in no record). This point is 16.5 m inside 201006.0001265, whose -tower record is the spires (57.8 m tall). Twin spires 191 ft."
+    },
+    {
+      "id": "palace-of-fine-arts",
+      "kind": "building",
+      "label": "The Palace of Fine Arts rotunda",
+      "point": { "lat": 37.8029, "lon": -122.4484 },
+      "records": ["201006.0000986"],
+      "material": "sandstone",
+      "shopBand": false,
+      "storefronts": false,
+      "publishedHeightM": 49,
+      "note": "Rotunda 162 ft."
+    },
+    {
+      "id": "sutro-tower",
+      "kind": "building",
+      "label": "The three-legged radio tower on Mount Sutro",
+      "point": { "lat": 37.7552, "lon": -122.4528, "radiusM": 60 },
+      "records": ["201006.0001431", "201006.0009087", "201006.0062170", "201006.0077893", "201006.0167582", "201006.0168289"],
+      "material": "concrete",
+      "shopBand": false,
+      "storefronts": false,
+      "publishedHeightM": 298,
+      "note": "Sutro Tower, a pre-release legal checklist name. The records are the LiDAR's plan view of the lattice and its base buildings, held at 3 m plinths until the model replaces them (W-25). 977 ft."
+    },
+    {
+      "id": "city-hall",
+      "kind": "building",
+      "label": "City Hall and its dome, Civic Center",
+      "point": { "lat": 37.7793, "lon": -122.4193 },
+      "records": ["201006.0000041"],
+      "material": "stone",
+      "shopBand": false,
+      "storefronts": false,
+      "publishedHeightM": 94,
+      "note": "Granite; dome 307.5 ft. Loses the shop band it is drawn with today (house kit K5)."
+    },
+    {
+      "id": "grace-cathedral",
+      "kind": "building",
+      "label": "The cathedral on Nob Hill",
+      "point": { "lat": 37.7919, "lon": -122.4133 },
+      "records": ["201006.0000550"],
+      "material": "stone",
+      "shopBand": false,
+      "storefronts": false,
+      "note": "Grace Cathedral: grey concrete cast to read as stone, twin towers on the facade."
+    },
+    {
+      "id": "mission-dolores",
+      "kind": "building",
+      "label": "Mission Dolores and the basilica beside it",
+      "point": { "lat": 37.7643, "lon": -122.4269 },
+      "records": ["201006.0001563"],
+      "material": "white",
+      "shopBand": false,
+      "storefronts": false,
+      "note": "White mud-brick and stucco; keeps its 39 m bell tower record. Loses the shop band it is drawn with today (house kit K5). Hallucination Tour and audio-guide lines here are about objects and infrastructure only (docs/design.md, Places)."
+    },
+    {
+      "id": "conservatory-of-flowers",
+      "kind": "building",
+      "label": "The Conservatory of Flowers, Golden Gate Park",
+      "point": { "lat": 37.7726, "lon": -122.4603 },
+      "records": ["201006.0001537"],
+      "material": "white",
+      "shopBand": false,
+      "storefronts": false,
+      "note": "White-painted timber and glass greenhouse. The interim draws it without an office window grid; the model brings the glass."
+    },
+    {
+      "id": "ballpark",
+      "kind": "building",
+      "label": "The ballpark at China Basin",
+      "point": { "lat": 37.77854, "lon": -122.38935 },
+      "records": ["201006.0000003"],
+      "material": "brick",
+      "shopBand": false,
+      "storefronts": true,
+      "note": "Unnamed in the game (docs/design.md territory step 3): its naming-rights name is a brand. Red brick; the street-facing concession anchors stay."
+    },
+    {
+      "id": "dutch-windmill",
+      "kind": "building",
+      "label": "The Dutch windmill at the west end of Golden Gate Park",
+      "point": { "lat": 37.77045, "lon": -122.50942 },
+      "records": ["201006.0015555"],
+      "material": "white",
+      "shopBand": false,
+      "storefronts": false,
+      "note": "The Dutch Windmill (1903), drawn today as a 13.4 m box with a 35.5 m tower and windows."
+    },
+    {
+      "id": "fort-point",
+      "kind": "building",
+      "label": "Fort Point under the bridge's south end",
+      "point": { "lat": 37.81062, "lon": -122.477 },
+      "records": ["201006.0000856"],
+      "material": "brick",
+      "shopBand": false,
+      "storefronts": false,
+      "note": "Brick and granite fort, about 15 m tall. Its 64.6 m -tower record is a LiDAR phantom that Pipeline drops (W-16); the tag covers the fort and any tower or piece of it."
+    },
+    {
+      "id": "dragon-gate",
+      "kind": "site",
+      "label": "The gate over Grant Ave at Bush St",
+      "point": { "lat": 37.79053, "lon": -122.40566 },
+      "records": [],
+      "shopBand": false,
+      "storefronts": false,
+      "note": "The Dragon Gate, the south entrance to Chinatown: a prop that stands over the street (Assets). No mechanic or joke treats Chinatown as a source or route of anything (docs/design.md, Places)."
+    },
+    {
+      "id": "sutro-baths",
+      "kind": "site",
+      "label": "The bath-house ruins at Lands End",
+      "point": { "lat": 37.78046, "lon": -122.51373 },
+      "records": [],
+      "shopBand": false,
+      "storefronts": false,
+      "note": "The Sutro Baths ruins: low concrete walls and pools at the shore, a prop (Assets)."
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:2073da83",
+    "reviewedBy": [],
+    "review": "Pending: written in the world QA round (W-27, L-04); a second agent session reads it against the docs/ai-layer.md checklist."
+  }
+}
