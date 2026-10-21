@@ -401,10 +401,11 @@ On every pull request and every push to main, on Ubuntu with Node 22 and pnpm (v
 plain git), `pnpm install --frozen-lockfile`, typecheck, unit tests, `pnpm build` (the static
 web build; it fails if the build breaks the host's limits), Playwright browsers with system
 dependencies, `pnpm e2e` (with `E2E_REQUIRE` from the repository variable), then `pnpm shots`
-(informational: it never fails CI, and its own 12-minute limit keeps it from cancelling the job). Each check runs
-whenever install succeeded, so one failure does not hide another. `test-results/`
-(Playwright artefacts and HTML report, `perf.json`, `shots/`) is uploaded as an artifact for
-14 days. With `CI` set, `test.only` fails the run. The workflow has passed `actionlint` and
+(informational: it never fails CI. Playwright's 9-minute `--global-timeout` stops it before
+the step's 12-minute backstop, because a step that reaches its own `timeout-minutes` fails
+the job even under `continue-on-error`). Each check runs whenever install succeeded, so one
+failure does not hide another. `test-results/` (Playwright artefacts and HTML report,
+`perf.json`, `shots/`) is uploaded as an artifact for 14 days. With `CI` set, `test.only` fails the run. The workflow has passed `actionlint` and
 its commands have run locally with `CI=true`; its first run on GitHub's runners happens on
 the first push.
 
