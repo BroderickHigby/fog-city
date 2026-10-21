@@ -68,7 +68,7 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `sidewalk-bot.glb` (Trundle) | 2,008 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_face`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
 | `moat-van.glb` | 3,904 (9k) | 5.81 x 2.28 x 2.50 m | `moat_van` > `body`, `wheel_FL/FR/RL/RR`, `door_rear_L/R`; `light_headlight`, `light_taillight`, `light_accent` |
 | `humanoid-crowd.glb` + VAT | 2,879 / 871 per body | 1.78 m (adult), 1.18 m (child) | meshes `adult_lod0/1`, `child_lod0/1` (attributes `_VID`, `_SLOT`); see Humanoid line |
-| `player.glb` | 2,879 (4k) | 1.78 m | skinned, 20 bones, 12 morphs, 8 animations, `tint_*` materials; see Humanoid line |
+| `player.glb` | 7,896 (8k) | 1.83 m to the skull, 1.878 m to the quiff | skinned, 20 bones, 14 morphs, 8 animations, `tint_*` materials, `hair_quiff` on the `head` joint; the default look is founder-default (see Humanoid line) |
 | `water-blaster.glb` | 922 (2.5k) | worn | `water_blaster` > `tank` (> `pump_handle`, `water_level`), `hose`, `wand` (> `nozzle`) |
 | `hydrant.glb` | 684 (1.2k) | 0.79 m | `hydrant` > `body`, `refill_point` |
 | `drinking-fountain.glb` | 342 (1.2k) | 0.96 m | `drinking_fountain` > `body`, `refill_point` |
@@ -239,7 +239,9 @@ Look-dev 05 and 06 render exactly this formula through the imported attribute.
 yellow backpack tank with a red pump handle, orange straps, a green hose, and a blue wand with
 a thumb lever on top and a wide orange adjustable nozzle. Nothing is shaped or named like a
 firearm (tested: no gun words in any name or extra, nothing under or behind the grip, more
-than 85% of its surface in bright toy colours). It is laid out as worn by `player.glb`:
+than 85% of its surface in bright toy colours). It is laid out as worn by `player.glb` in its default look (founder-default,
+1.83 m in a bomber: `TANK_AT` and `GRIP_AT` come from `humanoid.player_frame()`, and `FIT` spreads
+the straps so they clear the jacket):
 
 | Node | Origin | Attach |
 |---|---|---|
@@ -280,7 +282,7 @@ One parametric body (`lib/humanoid.py`, pure numpy), one rig and one clip librar
 | `humanoid-vat-<model>-lod<n>.bin` | the vertex-animation textures for one model and LOD |
 | `humanoid-vat.json` | layout, clip table, shape keys, variants, palettes, impostor |
 | `humanoid-impostor.png` | 8 views x 2 poses for people beyond the LOD1 range |
-| `player.glb` | the player's on-foot body: the same LOD0 body, skinned, with every shape key and clip |
+| `player.glb` | the player's on-foot body: the same body line in its default look, founder-default, skinned, with every shape key and clip |
 | `tests/assets/fixtures/humanoid-vat-reference.json` | exact skinning of two variants, for the decoder test |
 
 ### The body, slots, variants and palettes
@@ -421,21 +423,95 @@ mod 8` (`impostorCell()` in the runtime); colour = palette[row][floor(R / 16)] x
 
 ### The player body (`player.glb`)
 
-The adult LOD0 body as a skinned glTF. The scene has two root nodes: `player` (the rig: the
-bone hierarchy, extras `fcActor`, `slots`, `morphs`, `clips`) and `player_body` (the skinned
-mesh). glTF ignores a skinned mesh's own transform and its parents' (the Khronos validator
-warns when it is not a root), so the mesh sits beside the rig rather than under it; every GLB
-here validates with no warnings (tested). Add the loaded `gltf.scene` (or a
-`SkeletonUtils.clone` of it) to the world and move that, not the `player` node alone. It has
-the 20-bone skin, the 12 shape keys as morph targets (names in
-`extras.targetNames`; set `morphTargetInfluences` for a look), materials `tint_skin`,
-`tint_hair`, `tint_top`, `tint_bottom`, `tint_shoes`, `tint_outer`, `tint_accent`,
-`tint_sole`, `eyes`, `badge` (set their colours from a palette row), and glTF animations
-`walk`, `idle`, `dive`, `wet_shake`, `sit`, `talk`, `run`, `aim` at their authored lengths.
-`build_player` checks at build time that Blender's armature deform matches the numpy skinning
-the VAT used (to 0.00 mm), so the player and the crowd move identically. The founder's avatar
-never gets wet (design.md); `wet_shake` is there for completeness. The water blaster attaches
-to its `chest` and `hand_R` bones.
+The adult body line as a skinned glTF, in the player's default look, founder-default (below). The
+scene has two root nodes: `player` (the rig: the bone hierarchy, extras `fcActor`, `slots`,
+`morphs`, `clips`, `heightM`, `defaultLook`, `looks`, `walkSpeedMps`, `morphCurves`) and
+`player_body` (the skinned mesh). glTF ignores a skinned mesh's own transform and its parents'
+(the Khronos validator warns when it is not a root), so the mesh sits beside the rig rather
+than under it; every GLB here validates with no warnings (tested). Add the loaded `gltf.scene`
+(or a `SkeletonUtils.clone` of it) to the world and move that, not the `player` node alone.
+
+- **Skin and rig:** the 20-bone skin (the crowd's bones, placed for the player's 1.83 m frame).
+  `build_player` checks at build time that Blender's armature deform matches the numpy skinning
+  the VAT uses (to 0.00 mm, the body in its default look), so the player and the crowd move
+  identically.
+- **Morph targets (14, names in `extras.targetNames`):** the crowd's twelve in the crowd's
+  order and index, then `jacket` and `smile`. The mesh's default weights (glTF `mesh.weights`,
+  which three.js loads into `morphTargetInfluences`) are the default look's: `jacket` 1,
+  `smile` 1, every other key 0.
+- **Materials:** `tint_skin`, `tint_hair`, `tint_top`, `tint_bottom`, `tint_shoes`,
+  `tint_outer`, `tint_accent`, `tint_sole`, and the fixed `eyes` (the irises), `badge`,
+  `face_white` (whites of the eyes, teeth) and `face_dark` (pupils, lid lines, the mouth). Each
+  carries extras `tintSlot`; they are coloured with the default look's palette row, so the GLB
+  looks right as loaded. To change a look, set their colours from another row of
+  `extras.looks`. No textures, no UVs.
+- **`hair_quiff`:** the quiff is its own mesh node, a child of the `head` joint (not skinned: it
+  rides the head bone rigidly, checked at build time to 0.000 mm). Its extras `hideWith` lists
+  the crowd hair keys that replace it (`hair_none`, `hair_long`, `hair_bun`): hide the node while
+  any of them has a weight above 0 (those keys reshape the body's hair cap only).
+- **Clips:** glTF animations `walk`, `idle`, `dive`, `wet_shake`, `sit`, `talk`, `run`, `aim` at
+  their authored lengths. The animations drive bones only (a glTF weights channel would
+  overwrite every morph weight, look included). Talk's mouth is in `extras.morphCurves.talk.smile`
+  (`[[seconds, weight], ...]` over the 3 s loop, 0.6-1.0): set the `smile` influence from it
+  while `talk` plays; idle holds the default 1. `walkSpeedMps` (1.39) is the walk clip's ground
+  speed for this taller body.
+- The founder's avatar never gets wet (design.md); `wet_shake` is there for completeness. The
+  water blaster attaches to its `chest` and `hand_R` bones.
+
+### founder-default (the player's default look)
+
+founder-default is a stylised likeness of the project owner, made to match the owner's
+reference photos by eye. **The photos are kept outside the repository, always** (see Privacy
+below). It is built in the humanoid line's style (solid shapes, flat colours, a simple face),
+not as a scan or a photoreal face. What makes it recognisable, in order: the hair silhouette,
+the colouring, the build, the outfit.
+
+| Part | How | Where |
+|---|---|---|
+| Height | `FOUNDER_DEFAULT["height_m"]` = **1.83** m to the top of the skull (an estimate; one parameter). `player_frame(height_m)` scales the adult frame by `height_m / 1.765` (1.0368); the quiff rises to 1.878 m | `lib/humanoid.py` |
+| Build | athletic, slim to medium, broad shoulders: `girth` 0.97, `limb` 1.05, `shoulders` +0.012, `waist` 0.93, `arm_out` 0.012; a sturdy neck (x1.24 wide, x1.16 deep; its top ring, inside the skull, keeps the crowd's width so the neck enters the head's underside cleanly) and a fuller trapezius; a head 8% larger (its crown kept at the height), so the likeness reads from the head. Round shoulders: the arm leans in toward the neck over the shoulder (`arm_cap_in`, from arm parameter 0.16 up to the cap), so the deltoid rounds off under the shoulder line instead of standing above it | `FOUNDER_DEFAULT["params"]`, `player_frame` |
+| Head and face | `_face_point`: the crowd head kept broad through the cheeks (the jaw narrows late), a squarer jaw (`jaw` 1.16 and jaw-corner volume), cheekbones, full cheeks, and cheeks the smile lifts. `_player_face`: almond eyes (whites, a light blue-grey iris, pupil, catch light, a dark upper lid), straight thick dark brows, a straight nose, and the mouth. Feature positions in `FACE`. Ears: small solids (a rim round a shallow bowl, closed against the head), joined to the head at the front edge with the rim standing out up to 1.5 cm behind, so both show beside the face from the front | `lib/humanoid.py` |
+| Smile (key `smile`) | 0: a closed smile line. 1: the wide, bright grin of the photos, upper teeth showing (they come forward from about 0.65), the lower lids rise (smiling eyes), the cheeks lift. Default weight 1 | `_player_face` |
+| Hair | The hairline, `_hairline_player` (`PLAYER_HAIRLINE`, by the sine of the azimuth, the same both sides): arched across the forehead, high at the centre (about 4.5 cm above the brows: the forehead shows), down to the temples and short sideburns in front of each ear, round the top of the ear, then down behind it and across the nape in a short taper (the back hairline is about 3 cm above the jacket's collar). The body's hair cap (`hair` 0.012) is the short hair of the sides and back: 75% of that at the sides, thinning toward the nape (`_cap_off_player`); 32 columns plus 12 where the hairline turns round the ears; its hairline row tucked 3 mm into the skin (`PLAYER_CAP_ROWS`). `quiff()` (node `hair_quiff`): a solid shell (inner and outer surfaces, closed; no alpha cards), 2,600 triangles, over the top and back of the head. Its front row follows the forehead hairline, so it grows out of the skin and hides the cap's edge; its back rows run down to the nape hairline and tuck into the skin there the same way, so the back of the head is one surface; its side edges sink just under the cap. It lifts off the forehead into one rounded crest, leaning a little forward, 8.9 cm above the hairline and 4.8 cm above the skull (1.878 m), wide across the top (as wide as the face), a little higher on the person's right and falling lower over the left temple; the volume thins over the crown and down the back of the head to nothing at the nape, with no step. Shallow strands (grooves) run back and to the left; they shade the surface and stay out of the silhouette. Matte (`tint_hair` roughness 0.78). Measured against the photos as ratios of the eyes-to-chin distance: hairline 0.54 (photos 0.51-0.57), hair top 1.23 (1.19-1.24) | `lib/humanoid.py` |
+| Bomber (key `jacket`) | `_player_jacket`, all on `tint_outer`: a blouson shell over the torso that overhangs a rib hem at the hips (`jacket_z` 0.95-1.00 m, over the jeans), a stand-up rib collar round the neck, open at the throat (1.53-1.59 m), and full sleeves gathered into rib cuffs; the zip on `tint_accent`. At 0 the jacket sinks inside the body (hidden), at 1 it is worn | `lib/humanoid.py` |
+| Tee, jeans, sneakers | the tee is the body's `top` slot (its crew neck raised to the base of the neck: `collar_z` 1.555 m) with short sleeves: the arm is `top` down to a hem at arm parameter `tee_sleeve` 0.4 (a little under halfway to the elbow) and bare (`skin`) below it, the wrist tapering into the hand and closed. The bare forearms are athletic (`arm_bare`, up to 13% fuller); the `jacket` key slims them into the bomber's sleeves, which cover the arms in the default look. Straight-leg jeans (`bottom`, 10% fuller from the knee down, breaking over the shoe). Each leg runs on up to the waist as its half of the hips (`leg_hip`: a superellipse like the torso's, the two halves overlapping past the centre line in a shallow fly and seat seam down to the crotch, then parting into the round legs; weighted like the body at the waist), so one surface carries the hips and the body's own hips sit just inside it; close to the body just under the jacket's rib hem, so the hem stands clear. Sneakers with a chunky white sole (`sole` 0.03 m) and black uppers | `player_frame`, `build` |
+
+**Palette rows** (`PLAYER_LOOKS` in `models/humanoid.py`; in the GLB as `player.extras.looks`,
+one colour per slot of `extras.slots`, plus the look's morph weights):
+
+| Look | skin | hair | top | bottom | shoes | outer | accent | sole | eyes | face_white | face_dark | morphs |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `founder-default` | `#d6907e` | `#2e2219` | `#121214` (black tee) | `#46597a` (faded mid-blue jeans) | `#161618` | `#18181b` (black bomber) | `#3a3b3f` (zip) | `#eeebe4` | `#8fa4b0` | `#f2ede6` | `#2a1d1b` | jacket 1, smile 1 |
+| `founder-default-tee` | same | same | `#8f939b` (heather-grey tee) | same | same | (hidden) | (hidden) | same | same | same | same | smile 1 |
+
+The colours were chosen by eye against the photos (and a few plain values sampled from them as
+numbers); nothing from a photo's pixels is in any file. `badge` stays the crowd's `#f6f5f0`.
+The crowd wears long sleeves (it is Fog City), but the player's tee is short-sleeved, as in the photos.
+
+**Privacy (non-negotiable).** The reference photos never enter the repository: not as files,
+not as textures, not as image patches, not as comparison sheets. Nothing in the repository
+names the person; code and docs say founder-default and "the project owner's reference photos,
+which are kept outside the repo". Comparisons that put a photo beside a render are made and
+kept outside the repository. `tests/assets/privacy.test.ts` fails when any `.jpg`, `.jpeg`,
+`.heic` or `.heif` file exists in the tree outside `node_modules`, or when any file under
+`assets/` or `public/` carries JPEG or HEIF data (a file that starts with a JPEG header, an
+embedded JFIF/Exif JPEG, a HEIF/AVIF `ftyp` box, or a GLB that declares a JPEG image). On
+wave2/assets no file had such bytes, so its allow-list is empty. It also fails when an image in
+`assets/`, `public/models/` or `public/audio/` was not drawn by a script in the repository (a
+look-dev render by the script beside it, the impostor atlas by `humanoid_impostor.py`; any other
+image must be added to its `GENERATED` list with the script that writes it), so a crop of a photo
+re-saved as a PNG cannot slip in.
+
+**Consent and scope.** founder-default was made at the project owner's request, from the owner's
+own photos. CLAUDE.md's content rules say never to depict real private people; this consented
+self-likeness is an exception that belongs in the decision log of `docs/design.md` (not an Assets
+file: requested from the owner), together with the owner's choice of whether founder-default is
+every player's default look or only the owner's own, with a neutral default for other players.
+Until then `player.glb` ships it as `defaultLook`.
+
+The crowd is unchanged by all of this: every founder-default branch in `lib/humanoid.py` is
+gated on the frame's `player` flag, and the crowd GLB, VAT textures, `humanoid-vat.json`, the
+impostor and the reference fixture rebuild byte-identical.
 
 ## Sound effects
 
@@ -555,7 +631,9 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 | `08-prop-lineup.png` | repair kiosk, the player wearing the water blaster, vendor cart, wheelchair; hydrant, drinking fountain, cone, the three heaps, two pigeons (standing, pecking), the leashed dog |
 | `09-meander-turntable.png` | the Meander robotaxi: the kerb side from the front three-quarter, the street side broadside (the asymmetry), the kerb side from the rear three-quarter with the sliding door open |
 | `humanoid-variants.png` | the 8 adult variants and the 2 child looks in suggested outfits, decoded from the VAT as the crowd shader decodes them |
-| `humanoid-turntable.png` | the founder look from four sides (VAT), and `player.glb` wearing the blaster, front and back |
+| `humanoid-turntable.png` | the crowd's founder variant from four sides (VAT), and `player.glb` (founder-default) wearing the blaster, front and back |
+| `player-founder-turntable.png` | `player.glb` in founder-default as the game loads it (default morph weights: bomber and smile on) at rest: front, three-quarter, side, back |
+| `player-founder-head.png` | founder-default head and shoulders, smiling: front and front three-quarter (1600 x 900, 64 samples, a soft key from the front left) |
 | `humanoid-clips.png` | walk, idle, wet shake, talk, sit (on a 0.45 m bench), four dive moments, the child walking (all VAT) |
 
 ## Sources and licences
@@ -572,3 +650,6 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
   in the assets. All textures are generated by the scripts.
 - Wave 2 uses no outside data: the humanoid, robots, van, props, heaps and animals are
   generated by the scripts, and the sounds are synthesised (`assets/audio/`).
+- founder-default, the player's default look, was matched by eye to the project owner's
+  reference photos, which are kept outside the repo; no image data from them is in any file
+  (see founder-default, Privacy).

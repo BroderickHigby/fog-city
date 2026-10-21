@@ -383,7 +383,7 @@ describe("player.glb", () => {
     expect(roots[0]!.getRotation()).toEqual([0, 0, 0, 1]);
   });
 
-  it("is a skinned body of 20 named bones with the twelve shape keys and the tint materials", async () => {
+  it("is a skinned body of 20 named bones with the crowd's twelve shape keys, then jacket and smile, and the tint materials", async () => {
     const { doc, json } = await playerDoc();
     const skins = doc.getRoot().listSkins();
     expect(skins).toHaveLength(1);
@@ -391,11 +391,14 @@ describe("player.glb", () => {
     for (const b of ["hips", "spine", "chest", "neck", "head", "upper_arm_L", "forearm_R", "hand_R", "thigh_L", "shin_R", "foot_L"]) expect(joints).toContain(b);
     expect(joints).toHaveLength(20);
     const meshes = json.meshes as Array<{ extras?: { targetNames?: string[] }; primitives: Array<{ targets?: unknown[] }> }>;
-    expect(meshes[0]!.extras?.targetNames).toEqual(meta.morphs);
-    for (const p of meshes[0]!.primitives) expect(p.targets).toHaveLength(meta.morphs.length);
+    // the crowd's keys keep their order and index (the VAT morph texture uses the same list)
+    const body = meshes.find((m) => m.extras?.targetNames)!;
+    expect(body.extras!.targetNames).toEqual([...meta.morphs, "jacket", "smile"]);
+    for (const p of body.primitives) expect(p.targets).toHaveLength(meta.morphs.length + 2);
     const mats = doc.getRoot().listMaterials().map((m) => m.getName());
     for (const s of ["skin", "hair", "top", "bottom", "shoes", "outer", "accent", "sole"]) expect(mats).toContain(`tint_${s}`);
-    expect(triangleCount(doc)).toBeLessThanOrEqual(4000);
+    for (const m of ["eyes", "badge", "face_white", "face_dark"]) expect(mats).toContain(m);
+    expect(triangleCount(doc)).toBeLessThanOrEqual(8000);
     expect(node(doc, "player").getExtras().fcActor).toBe("player");
   });
 
@@ -410,12 +413,13 @@ describe("player.glb", () => {
     }
   });
 
-  it("stands 1.7-1.85 m tall at rest on the ground, facing -Z", async () => {
+  it("stands at its height on the ground at rest, the quiff above, facing -Z", async () => {
     const { doc } = await playerDoc();
-    // the skinned mesh's bind pose is its rest pose
+    // the skinned mesh's bind pose is its rest pose; heightM is the top of the skull
     const all = box(allPositions(doc));
-    expect(all.max[1]).toBeGreaterThan(1.7);
-    expect(all.max[1]).toBeLessThan(1.85);
+    const heightM = node(doc, "player").getExtras().heightM as number;
+    expect(all.max[1]).toBeGreaterThan(heightM + 0.02);
+    expect(all.max[1]).toBeLessThan(heightM + 0.09);
     expect(Math.abs(all.min[1])).toBeLessThan(0.02);
     const head = sceneNodes(doc).find((n) => n.getName() === "head")!;
     expect(head).toBeTruthy();

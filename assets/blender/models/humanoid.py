@@ -8,8 +8,10 @@ One parametric body (lib/humanoid.py), one 20-bone rig, one clip library
     (RGBA16F) and each vertex's blended bone rotation (RGBA8 quaternion) per frame, plus the
     body variants' shape-key deltas (RGBA16F). The crowd meshes are written in bake order by
     lib/glbwrite.py. The adult body has two LODs; the child is a separate model flagged child.
-  - The player: a skinned glTF with the same body, all twelve shape keys as morph targets,
-    tint materials per slot and every clip (plus run and aim) as a glTF animation.
+  - The player: a skinned glTF of the same body line in its default look, founder-default (a
+    stylised likeness of the project owner, from reference photos kept outside the repo), with
+    the twelve crowd shape keys plus jacket and smile as morph targets, tint materials per slot,
+    every clip (plus run and aim) as a glTF animation, and the quiff (hair_quiff) on the head.
 
 The texture layout, clip table and shader contract are in assets/blender/README.md
 ("Humanoid line"); assets/blender/runtime/humanoid-vat.ts decodes them.
@@ -35,6 +37,7 @@ import humanoid_clips as C  # noqa: E402
 
 BUDGET_LOD0 = 4_000
 BUDGET_LOD1 = 1_000
+BUDGET_PLAYER = 8_000
 MAX_W = 2048
 PLAYER_FPS = 30
 FIXTURE = os.path.join(fc.REPO, "tests", "assets", "fixtures", "humanoid-vat-reference.json")
@@ -85,12 +88,34 @@ OUTFITS = {
     "kid_blue": ["#7ac0e8", "#7a3b69", "#f2f0eb", "#f6c445", "#e94f37", "#ffffff"],
 }
 FIXED = {"eyes": "#18161a", "badge": "#f6f5f0"}
-DEFAULT_LOOK = dict(outfit="vest_charcoal", hair="brown", skin=1)
 
-
-def palette_colors(outfit, hair, skin):
-    top, bottom, shoes, outer, accent, sole = OUTFITS[outfit]
-    return [SKIN_TONES[skin], HAIR[hair], top, bottom, shoes, outer, accent, sole, FIXED["eyes"], FIXED["badge"]]
+# The player's looks: one palette row per look, a colour for every player slot (H.PLAYER_SLOTS),
+# and the look's morph weights. founder-default is the default: a stylised likeness of the
+# project owner, matched by eye to reference photos kept outside the repository (nothing is
+# sampled from them into an image). Colours chosen by eye against those photos.
+FOUNDER_DEFAULT_PALETTE = {
+    "skin": "#d6907e",      # light, with a warm, rosy, sun-flushed undertone
+    "hair": "#2e2219",      # dark brown (lighter brown where the sun catches it: the renderer's highlights)
+    "top": "#121214",       # black crew-neck tee (under the jacket)
+    "bottom": "#46597a",    # mid-blue jeans, a little faded
+    "shoes": "#161618",     # black sneakers
+    "outer": "#18181b",     # black bomber jacket: body, rib collar, cuffs and hem
+    "accent": "#3a3b3f",    # the jacket's zip
+    "sole": "#eeebe4",      # white soles
+    "eyes": "#8fa4b0",      # light blue-grey irises
+    "badge": FIXED["badge"],
+    "face_white": "#f2ede6",  # whites of the eyes, teeth
+    "face_dark": "#2a1d1b",   # pupils, lid lines, the mouth
+}
+PLAYER_LOOKS = {
+    "founder-default": dict(
+        label="founder-default: black bomber over a black tee, mid-blue jeans, black sneakers with white soles",
+        palette=FOUNDER_DEFAULT_PALETTE, morphs=dict(H.FOUNDER_DEFAULT["morphs"])),
+    "founder-default-tee": dict(
+        label="founder-default, alternate: heather-grey crew-neck tee, the same jeans and sneakers",
+        palette=dict(FOUNDER_DEFAULT_PALETTE, top="#8f939b"), morphs={"smile": 1.0}),
+}
+DEFAULT_PLAYER_LOOK = "founder-default"
 
 
 # ----------------------------------------------------------------------------- the bake
@@ -209,16 +234,29 @@ def crowd_mesh(w, name, geo, mat, extras):
 # ---------------------------------------------------------------------------- the player
 
 
-def build_player(F, geo):
+def smile_curve():
+    """How talk drives the smile key (the mouth opens and closes between words; idle holds the
+    default 1.0): [[seconds, weight], ...] over talk's 3 s loop."""
+    d = C.CLIPS["talk"][0]
+    out = []
+    for i in range(25):
+        t = d * i / 24
+        w = 0.8 + 0.13 * math.sin(2 * math.pi * 7 * t / d) + 0.07 * math.sin(2 * math.pi * 4 * t / d + 1.0)
+        out.append([round(t, 3), round(min(1.0, w), 3)])
+    out[-1][1] = out[0][1]
+    return out
+
+
+def build_player(F, geo, look_id=DEFAULT_PLAYER_LOOK):
     fc.reset()
     bpy.context.scene.render.fps = PLAYER_FPS
     bpy.context.scene.render.fps_base = 1.0
-    look = palette_colors(DEFAULT_LOOK["outfit"], DEFAULT_LOOK["hair"], DEFAULT_LOOK["skin"])
+    look = PLAYER_LOOKS[look_id]
     mats = []
-    for i, slot in enumerate(H.SLOTS):
+    for i, slot in enumerate(H.PLAYER_SLOTS):
         name = f"tint_{slot}" if i < 8 else slot
-        rough = {"hair": 0.55, "sole": 0.85, "eyes": 0.3, "badge": 0.4}.get(slot, 0.75)
-        mats.append(fc.material(name, look[i], rough, extras={"tintSlot": slot, "slotIndex": i}))
+        rough = {"hair": 0.78, "sole": 0.85, "outer": 0.62, "eyes": 0.3, "badge": 0.4, "face_white": 0.35, "face_dark": 0.6}.get(slot, 0.75)
+        mats.append(fc.material(name, look["palette"][slot], rough, extras={"tintSlot": slot, "slotIndex": i}))
 
     arm = bpy.data.armatures.new("player_rig")
     rig = bpy.data.objects.new("player", arm)
@@ -268,16 +306,46 @@ def build_player(F, geo):
     mod = body.modifiers.new("rig", "ARMATURE")
     mod.object = rig
     body.shape_key_add(name="Basis", from_mix=False)
-    for k, key in enumerate(H.KEYS):
+    for k, key in enumerate(geo["keys"]):
         sk = body.shape_key_add(name=key, from_mix=False)
         sk.data.foreach_set("co", (geo["P"] + geo["deltas"][k]).reshape(-1))
-    me["targetNames"] = list(H.KEYS)
+        # the look's weights are the mesh's default morph weights (glTF mesh.weights)
+        sk.value = float(look["morphs"].get(key, 0.0))
+    me["targetNames"] = list(geo["keys"])
+
+    # the quiff: a rigid mesh on the head bone (node hair_quiff, a child of the head joint)
+    Pq, Tq = H.quiff(F)
+    head = np.asarray(J["head"])
+    hm = bpy.data.meshes.new("hair_quiff")
+    hm.from_pydata([tuple(p - head) for p in Pq], [], [tuple(int(i) for i in t) for t in Tq])
+    hm.materials.append(mats[H.SLOT["hair"]])
+    hm.polygons.foreach_set("use_smooth", [True] * len(Tq))
+    hm.update()
+    hair = bpy.data.objects.new("hair_quiff", hm)
+    bpy.context.scene.collection.objects.link(hair)
+    hair.parent = rig
+    hair.parent_type = "BONE"
+    hair.parent_bone = "head"
+    bpy.context.view_layer.update()
+    hair.matrix_world = Matrix.Translation(tuple(head))
+    hair["hair"] = "quiff"
+    hair["look"] = "founder-default"
+    hair["followsBone"] = "head"
+    # the crowd's hair keys reshape the body's hair cap only; a look that sets any of them
+    # replaces the quiff, so the renderer hides this node while their weight is above zero
+    hair["hideWith"] = ["hair_none", "hair_long", "hair_bun"]
 
     rig["fcActor"] = "player"
-    rig["slots"] = list(H.SLOTS)
-    rig["morphs"] = list(H.KEYS)
+    rig["slots"] = list(H.PLAYER_SLOTS)
+    rig["morphs"] = list(geo["keys"])
     rig["clips"] = [n for n, c in C.CLIPS.items() if c[3]]
     rig["groundY"] = 0.0
+    rig["heightM"] = float(F["height_m"])
+    rig["defaultLook"] = look_id
+    rig["looks"] = {k: dict(label=v["label"], palette=dict(v["palette"]), morphs=dict(v["morphs"])) for k, v in PLAYER_LOOKS.items()}
+    rig["likeness"] = "founder-default matches the project owner's reference photos, which are kept outside the repo"
+    rig["walkSpeedMps"] = round(float(walk_speed(F, geo, False)), 3)
+    rig["morphCurves"] = {"talk": {"smile": smile_curve()}}
 
     # one action per clip, keyed every 1/30 s; pose rotations converted into each bone's frame
     rig.animation_data_create()
@@ -333,13 +401,20 @@ def build_player(F, geo):
         track.name = name
         track.strips.new(name, 0, act)
         rig.animation_data.action = None
-    return rig, body
+    return rig, body, hair, look
 
 
-def check_player(rig, body, F, geo):
-    """Blender's armature deform must match the numpy skinning the VAT used."""
-    worst = 0.0
-    for name, times in (("walk", [0.25, 0.6]), ("dive", [0.5, 1.2]), ("sit", [0.5])):
+def check_player(rig, body, hair, F, geo, look):
+    """Blender's armature deform must match the numpy skinning the VAT uses (the body in its
+    default look), and the quiff must ride the head bone exactly."""
+    P_look = H.variant_positions(geo, look["morphs"], geo["keys"])
+    head_i = H.BONE_INDEX["head"]
+    hm = hair.data
+    hv = np.zeros(len(hm.vertices) * 3)
+    hm.vertices.foreach_get("co", hv)
+    hv = hv.reshape(-1, 3)[::17] + np.asarray(F["J"]["head"])  # rest positions of a sample
+    worst = worst_hair = 0.0
+    for name, times in (("walk", [0.25, 0.6]), ("dive", [0.5, 1.2]), ("sit", [0.5]), ("talk", [1.1])):
         act = bpy.data.actions[name]
         rig.animation_data.action = act
         for t in times:
@@ -354,20 +429,28 @@ def check_player(rig, body, F, geo):
             ev.to_mesh_clear()
             co = co.reshape(-1, 3)
             pose = C.sample_clip(F, geo, name, [int(frame) / PLAYER_FPS])[0]
-            P, _ = H.skin(geo["P"], geo["idx"], geo["wts"], H.bone_globals(F, pose))
+            G = H.bone_globals(F, pose)
+            P, _ = H.skin(P_look, geo["idx"], geo["wts"], G)
             worst = max(worst, float(np.abs(co - P).max()))
+            mw = np.asarray(hair.evaluated_get(dg).matrix_world)
+            local = hv - np.asarray(F["J"]["head"])
+            got = (mw[:3, :3] @ local.T).T + mw[:3, 3]
+            want = (G[head_i][:3, :3] @ hv.T).T + G[head_i][:3, 3]
+            worst_hair = max(worst_hair, float(np.abs(got - want).max()))
     rig.animation_data.action = None
     bpy.context.scene.frame_set(0)
     if worst > 2e-3:
         raise SystemExit(f"player rig deform differs from the VAT skinning by {worst:.4f} m")
-    print(f"[fc] player rig matches the VAT skinning within {worst * 1000:.2f} mm")
+    if worst_hair > 2e-4:
+        raise SystemExit(f"hair_quiff does not follow the head bone ({worst_hair:.5f} m)")
+    print(f"[fc] player rig matches the VAT skinning within {worst * 1000:.2f} mm; hair_quiff rides the head within {worst_hair * 1000:.3f} mm")
 
 
 def export_player():
     path = os.path.join(fc.MODELS_OUT, "player.glb")
     tris = fc.tri_count()
-    if tris > BUDGET_LOD0:
-        raise SystemExit(f"player.glb: {tris} triangles exceeds {BUDGET_LOD0}")
+    if tris > BUDGET_PLAYER:
+        raise SystemExit(f"player.glb: {tris} triangles exceeds {BUDGET_PLAYER}")
     bpy.ops.export_scene.gltf(
         filepath=path, export_format="GLB", use_selection=False, export_yup=True, export_apply=False,
         export_extras=True, export_cameras=False, export_lights=False, export_texcoords=False,
@@ -379,7 +462,7 @@ def export_player():
         export_reset_pose_bones=True, export_rest_position_armature=True, export_current_frame=False,
         export_draco_mesh_compression_enable=False,
     )
-    print(f"[fc] wrote {os.path.relpath(path, fc.REPO)}: {tris} tris, skinned, {len(H.KEYS)} morphs, {os.path.getsize(path) // 1024} KiB")
+    print(f"[fc] wrote {os.path.relpath(path, fc.REPO)}: {tris} tris, skinned, {len(H.PLAYER_KEYS)} morphs, {os.path.getsize(path) // 1024} KiB")
 
 
 # ------------------------------------------------------------------------ reference data
@@ -471,8 +554,11 @@ def main() -> None:
     os.makedirs(os.path.dirname(FIXTURE), exist_ok=True)
     fc.write_json(FIXTURE, refs)
 
-    rig, body = build_player(adult, geos["adult"][0])
-    check_player(rig, body, adult, geos["adult"][0])
+    # the player: founder-default (H.player_frame, H.FOUNDER_DEFAULT)
+    pf = H.player_frame()
+    pgeo = H.key_geometry(pf, 0, base_params=H.FOUNDER_DEFAULT["params"], keys=H.PLAYER_KEYS)
+    rig, body, hair, look = build_player(pf, pgeo)
+    check_player(rig, body, hair, pf, pgeo, look)
     export_player()
 
 

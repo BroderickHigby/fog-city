@@ -119,6 +119,36 @@ def rest_pose(objs):
                 pb.scale = (1, 1, 1)
 
 
+def player_looks(objs):
+    """The player rig's looks (extras looks, defaultLook), as imported from player.glb."""
+    for o in objs:
+        if o.get("fcActor") == "player":
+            looks = o["looks"].to_dict() if hasattr(o["looks"], "to_dict") else dict(o["looks"])
+            return looks, o.get("defaultLook")
+    raise KeyError("no player rig among the objects")
+
+
+def default_look(objs, look_id=None):
+    """Put an imported player.glb in one of its looks (its default unless look_id): the look's
+    morph weights (the glTF default weights for the default look) and, for any other look, its
+    palette row on the tint materials."""
+    objs = list(objs)
+    looks, default = player_looks(objs)
+    look = looks[look_id or default]
+    set_keys(objs, **{k: float(v) for k, v in look["morphs"].items()})
+    if look_id and look_id != default:
+        for o in mesh_objs(objs):
+            for i, m in enumerate(o.data.materials):
+                slot = m.get("tintSlot") if m else None
+                if slot is None or slot not in look["palette"]:
+                    continue
+                mm = m.copy()
+                mm.name = f"{m.name}__{look_id}"
+                b = next(n for n in mm.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+                b.inputs["Base Color"].default_value = (*fc.hex_rgb(look["palette"][slot]), 1.0)
+                o.data.materials[i] = mm
+
+
 def lights_on(objs, strength=3.0):
     L.emission(objs, strength, prefix="light_")
 
