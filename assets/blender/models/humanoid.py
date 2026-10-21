@@ -97,7 +97,7 @@ FOUNDER_DEFAULT_PALETTE = {
     "skin": "#d6907e",      # light, with a warm, rosy, sun-flushed undertone
     "hair": "#2e2219",      # dark brown (lighter brown where the sun catches it: the renderer's highlights)
     "top": "#121214",       # black crew-neck tee (under the jacket)
-    "bottom": "#34486c",    # mid-blue jeans
+    "bottom": "#46597a",    # mid-blue jeans, a little faded
     "shoes": "#161618",     # black sneakers
     "outer": "#18181b",     # black bomber jacket: body, rib collar, cuffs and hem
     "accent": "#3a3b3f",    # the jacket's zip
@@ -113,7 +113,7 @@ PLAYER_LOOKS = {
         palette=FOUNDER_DEFAULT_PALETTE, morphs=dict(H.FOUNDER_DEFAULT["morphs"])),
     "founder-default-tee": dict(
         label="founder-default, alternate: heather-grey crew-neck tee, the same jeans and sneakers",
-        palette=dict(FOUNDER_DEFAULT_PALETTE, top="#808289"), morphs={"smile": 1.0}),
+        palette=dict(FOUNDER_DEFAULT_PALETTE, top="#8f939b"), morphs={"smile": 1.0}),
 }
 DEFAULT_PLAYER_LOOK = "founder-default"
 
@@ -255,7 +255,7 @@ def build_player(F, geo, look_id=DEFAULT_PLAYER_LOOK):
     mats = []
     for i, slot in enumerate(H.PLAYER_SLOTS):
         name = f"tint_{slot}" if i < 8 else slot
-        rough = {"hair": 0.55, "sole": 0.85, "outer": 0.62, "eyes": 0.3, "badge": 0.4, "face_white": 0.35, "face_dark": 0.6}.get(slot, 0.75)
+        rough = {"hair": 0.78, "sole": 0.85, "outer": 0.62, "eyes": 0.3, "badge": 0.4, "face_white": 0.35, "face_dark": 0.6}.get(slot, 0.75)
         mats.append(fc.material(name, look["palette"][slot], rough, extras={"tintSlot": slot, "slotIndex": i}))
 
     arm = bpy.data.armatures.new("player_rig")
@@ -331,6 +331,9 @@ def build_player(F, geo, look_id=DEFAULT_PLAYER_LOOK):
     hair["hair"] = "quiff"
     hair["look"] = "founder-default"
     hair["followsBone"] = "head"
+    # the crowd's hair keys reshape the body's hair cap only; a look that sets any of them
+    # replaces the quiff, so the renderer hides this node while their weight is above zero
+    hair["hideWith"] = ["hair_none", "hair_long", "hair_bun"]
 
     rig["fcActor"] = "player"
     rig["slots"] = list(H.PLAYER_SLOTS)
