@@ -7,7 +7,7 @@ import { buildBoundary, type BoundaryStats } from "./boundary.ts";
 import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
 import { candidateTiles, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
-import { bearing, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, isSimpleRing, pointInRing, r2, signedArea, type P2 } from "./geom.ts";
+import { bearing, centroid, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, interiorPoint, isSimpleRing, pointInRing, r2, signedArea, type P2 } from "./geom.ts";
 import { intersectPolys, largest, polyArea, unionRings } from "./polygon.ts";
 import { buildFarLod, FAR_CELL_M } from "./far.ts";
 import {
@@ -256,18 +256,34 @@ function reconcileTowers(list: readonly Building[], groundUnder: (ring: readonly
     let footprint = b.footprint;
     let baseY = b.baseY;
     let footY = b.meta.footY;
-    // Inside: every vertex in a part, and no gap between parts (a street the passes cut) under it.
+    // Inside: every vertex in a part, and (but for the centimetre seams between terrace strips)
+    // no gap between parts under it: a street or a path the passes cut.
     const area = Math.abs(signedArea(b.footprint));
-    const within = b.footprint.every(([x, z]) => inside(x, z)) && intersectPolys(b.footprint, unionRings(parts)).reduce((a, q) => a + polyArea(q), 0) >= area - 0.05;
+    const union = unionRings(parts);
+    const overlap = (ring: readonly P2[]): number => intersectPolys(ring, union).reduce((a, q) => a + polyArea(q), 0);
+    const within = b.footprint.every(([x, z]) => inside(x, z)) && overlap(b.footprint) >= 0.99 * area;
     if (!within) {
-      const part = largest(intersectPolys(b.footprint, unionRings(parts)));
-      let ring = part ? dropCollinear(cleanRing(part.outer), 0.005) : [];
-      if (ring.length >= 3 && Math.sign(signedArea(ring)) !== Math.sign(signedArea(b.footprint))) ring = ring.reverse();
-      if (ring.length < 3 || Math.abs(signedArea(ring)) < TOWER_MIN_M2 || !isSimpleRing(ring)) continue;
-      // Cut to a needle, it is no tower (the tower rule's own limit: under 20 m², or rising
-      // more than 10.6 times its width).
-      const a = Math.abs(signedArea(ring)), rise = b.topY - pod.topY;
-      if ((a < 20 && rise > 30) || rise > 10.6 * Math.sqrt(a)) continue;
+      const rise = b.topY - pod.topY;
+      const needle = (a: number): boolean => a < TOWER_MIN_M2 || (a < 20 && rise > 30) || rise > 10.6 * Math.sqrt(a);
+      const clip = (ring: readonly P2[]): P2[] | null => {
+        const part = largest(intersectPolys(ring, union));
+        let r = part ? dropCollinear(cleanRing(part.outer), 0.005) : [];
+        if (r.length >= 3 && Math.sign(signedArea(r)) !== Math.sign(signedArea(b.footprint))) r = r.reverse();
+        return r.length >= 3 && isSimpleRing(r) && !needle(Math.abs(signedArea(r))) ? r : null;
+      };
+      // The tower is the model's (centred on its podium, buildings.ts): cut to the podium, or,
+      // where that leaves a needle, moved onto the podium's largest part and cut there; else it
+      // is no tower.
+      let ring = clip(b.footprint);
+      if (!ring) {
+        const host = largest(union);
+        if (host) {
+          const [cx, cz] = centroid(b.footprint);
+          const [hx, hz] = interiorPoint(host.outer);
+          ring = clip(b.footprint.map(([x, z]): P2 => [x - cx + hx, z - cz + hz]));
+        }
+      }
+      if (!ring) continue;
       footprint = ring;
       // Its own street level and foot, as the tower rule sets them (buildings.ts).
       const under = groundUnder(ring);
