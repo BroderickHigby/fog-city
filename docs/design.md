@@ -1251,3 +1251,7 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   never enter the repository (`tests/assets/privacy.test.ts`). It is the single-player default and the owner's own
   profile look; when online play lands (wave 4), other players start from a neutral look in the customizer, so no one
   else appears as the owner by default.
+- 2026-10-21 · **Sky and air traffic in the final wave** (user request). Wave 8 gives the sky its final look: a warmer
+  blue, clouds, and blimps and banner-towing planes trailing ads for invented startups (never real companies; the
+  content lint applies). The aircraft are ambient scenery on a seeded schedule, not sim entities, so they cost no
+  netcode; the Blimp Impressions streak reuses the blimp, and Fleet Week's jets stay a separate, scheduled event.
