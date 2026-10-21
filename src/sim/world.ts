@@ -25,7 +25,7 @@ export interface Heightfield {
   nx: number;
   nz: number;
   heights: number[];
-  /** Water mask per sample (1 = open water, height 0), when the source has one. The sim does not read it. */
+  /** Water mask per sample (1 = open water, height 0), when the source has one. Only the wall build reads it (boundary.ts). */
   water?: number[];
 }
 
@@ -146,12 +146,44 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
     cellBoxes,
     tileGround: tileAligned(sorted),
     roads: null,
-    walls: boundary ? buildWalls(boundary, roads) : null,
+    walls: null,
   };
   if (roads) {
     world.roads = buildRoadGraph(roads, { blocked: (x, z, r) => circleBlocked(world, x, z, r) });
   }
+  if (boundary) {
+    // Roads over water get a corridor through the shore only where traffic or people may go.
+    const graph = world.roads;
+    const usable = graph ? new Set(graph.edges.filter((e) => e.drivable || e.walkable).map((e) => e.id)) : null;
+    world.walls = buildWalls(boundary, roads, {
+      opens: usable ? (e) => usable.has(e.id) : undefined,
+      water: (x, z) => groundWater(world, x, z),
+    });
+  }
   return world;
+}
+
+/**
+ * Is (x, z) open water by the ground's water mask (the nearest lattice sample of the covering
+ * heightfield)? False where no heightfield with a mask covers the point.
+ */
+export function groundWater(world: World, x: number, z: number): boolean {
+  let g: Heightfield | undefined;
+  const tg = world.tileGround;
+  if (tg) g = tg.get(cellKey(Math.floor(x / TILE_SIZE_M), Math.floor(z / TILE_SIZE_M)));
+  else {
+    for (const t of world.groundIndex.get(cellKey(Math.floor(x / GROUND_CELL), Math.floor(z / GROUND_CELL))) ?? []) {
+      const h = t.ground;
+      if (h && x >= h.x0 && z >= h.z0 && x <= h.x0 + (h.nx - 1) * h.cellSizeM && z <= h.z0 + (h.nz - 1) * h.cellSizeM) {
+        g = h;
+        break;
+      }
+    }
+  }
+  if (!g || !g.water) return false;
+  const i = Math.min(g.nx - 1, Math.max(0, Math.floor((x - g.x0) / g.cellSizeM + 0.5)));
+  const k = Math.min(g.nz - 1, Math.max(0, Math.floor((z - g.z0) / g.cellSizeM + 0.5)));
+  return g.water[k * g.nx + i] === 1;
 }
 
 /** Buildings whose bounding cells overlap the square of half-size r around (x, z). Deterministic order. */

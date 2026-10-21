@@ -15,7 +15,10 @@
 //    accelerates the car downhill and slows it uphill, in both the forward and sideways axes.
 //  - Vertical: the car follows the ground while the ground is above its ballistic path; when
 //    the ground falls away faster than gravity (cresting a hill fast) it flies, keeps its
-//    horizontal velocity, has no traction, and lands when the ground comes back up.
+//    horizontal velocity, has no traction, and lands when the ground comes back up. Its
+//    vertical speed on the ground is the ground's rise along its own travel: never the height
+//    gained by being pushed sideways (out of a wall or a building), and never more than
+//    maxClimbGrade times its speed, so nothing but a crest launches it.
 //  - Collision: the body is an oriented rectangle pushed out of building footprints and
 //    obstacle circles in small substeps. Velocity into the surface is removed (a little
 //    bounce on hard hits) and scraping friction slows the slide, so the car slides along
@@ -24,7 +27,7 @@
 
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
-import { resolveBox, type Box, type Circle } from "./collide.ts";
+import { boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
 import { groundHeight, type World } from "./world.ts";
 
 export const CAR = {
@@ -71,6 +74,8 @@ export const CAR = {
   gravity: 9.81,
   /** Gap under the wheels that still counts as on the ground (suspension travel). */
   suspension: 0.08,
+  /** On the ground the car rises at most this many metres per metre travelled (a steeper lattice step is climbed, not launched from). */
+  maxClimbGrade: 1,
   hitMinSpeed: 2,
   hitCooldown: 30,
   restitution: 0.1,
@@ -259,17 +264,44 @@ export function stepCar(
   const travel = Math.sqrt(vx * vx + vz * vz) * DT;
   const n = clamp(Math.ceil(travel / 0.3), 1, 6);
   const colY = c.y + 0.5;
+  // Walls hold each point of the body on the side it was on at the start of the tick.
+  const ref = { x: c.x, z: c.z, heading: h0 };
   let touched = false;
   let impact = 0;
   let impactPerson = false;
   for (let i = 0; i < n; i++) {
+    const lastX = x;
+    const lastZ = z;
     x += (vx * DT) / n;
     z += (vz * DT) / n;
-    const res = resolveBox(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, colY, obstacles);
+    const res = resolveBox(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, colY, obstacles, ref);
     if (!res.hit) continue;
     x = res.x;
     z = res.z;
     touched = true;
+    if (boxCrossedWall(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+      // Wedged where the pushes cannot clear a wall (a sharp corner): undo this step, and the
+      // turn too if even the last place is across a wall with the new heading. No point of the
+      // body ever ends a tick on the far side of a wall from where it started.
+      x = lastX;
+      z = lastZ;
+      if (boxCrossedWall(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+        x = c.x;
+        z = c.z;
+        heading = h0;
+        fx = f0x;
+        fz = f0z;
+        rx = -fz;
+        rz = fx;
+        yawRate = 0;
+      }
+      const vn = vx * res.nx + vz * res.nz;
+      if (vn < 0) {
+        vx -= vn * res.nx;
+        vz -= vn * res.nz;
+      }
+      break;
+    }
     const vn = vx * res.nx + vz * res.nz;
     if (vn < 0) {
       if (-vn > impact) {
@@ -292,8 +324,10 @@ export function stepCar(
     const vmag = Math.sqrt(vx * vx + vz * vz);
     if (vmag > 1 && vx * fx + vz * fz > 0) {
       const delta = wrapAngle(datan2(vx, -vz) - heading);
-      if ((delta < 0 ? -delta : delta) < 1.2) {
-        heading = wrapAngle(heading + clamp(delta, -CAR.wallAlign * DT, CAR.wallAlign * DT));
+      const aligned = wrapAngle(heading + clamp(delta, -CAR.wallAlign * DT, CAR.wallAlign * DT));
+      // (Never swinging a corner of the body across a wall.)
+      if ((delta < 0 ? -delta : delta) < 1.2 && !boxCrossedWall(world, { x, z, heading: aligned, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+        heading = aligned;
         fx = dsin(heading);
         fz = -dcos(heading);
         rx = -fz;
@@ -311,7 +345,13 @@ export function stepCar(
   let y: number;
   let vy: number;
   let landingSpeed = c.landingSpeed;
-  const groundRate = (g1.h - g0.h) / DT;
+  // The ground's rise over the tick along the car's own travel. After a collision push the car
+  // moved partly sideways, so measure from one tick back along its final velocity instead of
+  // from where it started: a push onto a bank never turns the bank's height into lift.
+  const hFrom = touched ? sampleGround(world, x - vx * DT, z - vz * DT, heading).h : g0.h;
+  const climb = Math.sqrt(vx * vx + vz * vz) * CAR.maxClimbGrade;
+  const rise = (g1.h - hFrom) / DT;
+  const groundRate = rise > climb ? climb : rise;
   if (yB <= g1.h) {
     y = g1.h;
     vy = groundRate;

@@ -59,7 +59,7 @@ export function stepFoot(
   const speedingUp = (target < 0 ? -target : target) > (f.speed < 0 ? -f.speed : f.speed);
   const speed0 = approach(f.speed, target, (speedingUp ? FOOT.accel : FOOT.decel) * DT);
 
-  const res = resolveCircleAll(world, f.x + fx * speed0 * DT, f.z + fz * speed0 * DT, FOOT.radius, boxes, circles);
+  const res = resolveCircleAll(world, f.x + fx * speed0 * DT, f.z + fz * speed0 * DT, FOOT.radius, boxes, circles, f.x, f.z);
   // Report the speed actually achieved along the heading (pressing into a wall reads as 0).
   const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, -FOOT.sprint, FOOT.sprint);
   return { x: res.x, y: groundHeight(world, res.x, res.z), z: res.z, heading, speed, sprint };

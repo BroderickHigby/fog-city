@@ -2,8 +2,13 @@
 // (cars) and a circle (people on foot), against building footprints (any polygon, concave
 // included), the world's edge and shore walls (boundary.ts) and dynamic obstacle
 // circles/boxes. Pure functions; deterministic iteration.
+//
+// Walls are lines with no thickness, so they are checked against motion: each point of a body
+// is followed from where it was at the start of the tick (the reference pose) to where it is
+// now, and a point whose path crossed a wall goes back to the side it came from. A body is
+// therefore held on whichever side of a wall it started, land or water.
 
-import { WALL_DEPTH_M, circleWallDepth, wallSide, wallsNear, type WallSegment } from "./boundary.ts";
+import { circleWallPush, wallKeepSide, wallSide, wallsNear, type WallSegment } from "./boundary.ts";
 import { dcos, dsin } from "./dmath.ts";
 import { closestOnBoundary, nearbyBuildings, pointInPolygon, type World } from "./world.ts";
 
@@ -133,11 +138,19 @@ function boxPolygonPush(
   return [px + (px / d) * EPS, pz + (pz / d) * EPS];
 }
 
+/** Where a body was at the start of the tick: centre and compass heading. */
+export interface Pose {
+  x: number;
+  z: number;
+  heading: number;
+}
+
 /**
- * Push that moves an oriented box back onto the land side of one wall (boundary.ts), or null.
- * The deepest box sample point behind the wall line (within the wall's reach along it, and no
- * deeper than WALL_DEPTH_M) sets the push, along the wall's land normal. A wall end inside the
- * box (at a gap cut for a road) pushes the box off it along the box's shallower axis.
+ * Push that sends an oriented box back to the side of one wall (boundary.ts) that it started
+ * the tick on, or null. Every box sample point whose path from its place in the reference pose
+ * (local offsets in `ref`, world positions) crossed the wall within its reach goes back across
+ * the wall's line; the deepest sets the push, along the wall's normal. A wall end inside the
+ * box (where the shore is cut for a road) pushes the box off it along the box's shallower axis.
  */
 function boxWallPush(
   cx: number,
@@ -149,20 +162,30 @@ function boxWallPush(
   hl: number,
   hw: number,
   w: Readonly<WallSegment>,
+  ref: readonly number[],
+  ends = true,
 ): [number, number] | null {
-  let worst = 0;
-  for (const [l, f] of samplePoints(hl, hw)) {
-    const d = wallSide(w, cx + rx * l + fx * f, cz + rz * l + fz * f);
-    if (d !== null && d < worst && d > -WALL_DEPTH_M) worst = d;
-  }
   let px = 0;
   let pz = 0;
   let best = 0;
-  if (worst < 0) {
-    px = -worst * w.nx;
-    pz = -worst * w.nz;
-    best = worst * worst;
+  const pts = samplePoints(hl, hw);
+  for (let i = 0; i < pts.length; i++) {
+    const [l, f] = pts[i]!;
+    const x = cx + rx * l + fx * f;
+    const z = cz + rz * l + fz * f;
+    const side = wallKeepSide(w, ref[2 * i]!, ref[2 * i + 1]!, x, z);
+    if (side === 0) continue;
+    const d = (x - w.ax) * w.nx + (z - w.az) * w.nz;
+    if (side * d >= 0) continue;
+    // Back across the line, just onto the side it keeps.
+    const k = side * EPS - d;
+    if (k * k > best) {
+      best = k * k;
+      px = k * w.nx;
+      pz = k * w.nz;
+    }
   }
+  if (!ends) return best > 0 ? [px, pz] : null;
   for (const [vx, vz] of [
     [w.ax, w.az],
     [w.bx, w.bz],
@@ -190,13 +213,71 @@ function boxWallPush(
     const d2 = dx * dx + dz * dz;
     if (d2 > best) {
       best = d2;
-      px = dx;
-      pz = dz;
+      const d = Math.sqrt(d2);
+      px = dx + (dx / d) * EPS;
+      pz = dz + (dz / d) * EPS;
     }
   }
-  if (best <= 0) return null;
-  const d = Math.sqrt(best);
-  return [px + (px / d) * EPS, pz + (pz / d) * EPS];
+  return best > 0 ? [px, pz] : null;
+}
+
+/** Wall-only passes after the main ones: at a corner, pushes out of one wall can leave a point just across the other. */
+const WALL_SETTLE_PASSES = 12;
+
+/**
+ * Has any point of the box crossed a wall since the reference pose (`ref` as from
+ * poseSamples) and not been sent back? The car undoes a move that leaves one (car.ts).
+ */
+export function boxCrossedWall(world: World, box: Readonly<Box>, ref: Readonly<Pose>): boolean {
+  if (!world.walls) return false;
+  const fx = dsin(box.heading);
+  const fz = -dcos(box.heading);
+  const refPts = poseSamples(ref, box.hl, box.hw);
+  for (const k of wallsNear(world.walls, box.x, box.z, box.hl + box.hw + 1)) {
+    if (boxWallPush(box.x, box.z, fx, fz, -fz, fx, box.hl, box.hw, world.walls.segments[k]!, refPts, false)) return true;
+  }
+  return false;
+}
+
+/** World positions of the box sample points in a pose, as [x0, z0, x1, z1, ...] (samplePoints order). */
+function poseSamples(pose: Readonly<Pose>, hl: number, hw: number): number[] {
+  const fx = dsin(pose.heading);
+  const fz = -dcos(pose.heading);
+  const rx = -fz;
+  const rz = fx;
+  const out: number[] = [];
+  for (const [l, f] of samplePoints(hl, hw)) out.push(pose.x + rx * l + fx * f, pose.z + rz * l + fz * f);
+  return out;
+}
+
+/** Does the wall segment itself (no reach) pass through the inside of the box? */
+function wallInBox(cx: number, cz: number, fx: number, fz: number, rx: number, rz: number, hl: number, hw: number, w: Readonly<WallSegment>): boolean {
+  // The wall's ends in the box frame, clipped against |l| < hw and |f| < hl (Liang-Barsky).
+  const al = (w.ax - cx) * rx + (w.az - cz) * rz;
+  const af = (w.ax - cx) * fx + (w.az - cz) * fz;
+  const bl = (w.bx - cx) * rx + (w.bz - cz) * rz;
+  const bf = (w.bx - cx) * fx + (w.bz - cz) * fz;
+  let t0 = 0;
+  let t1 = 1;
+  const dl = bl - al;
+  const df = bf - af;
+  for (const [p, q] of [
+    [-dl, al + hw],
+    [dl, hw - al],
+    [-df, af + hl],
+    [df, hl - af],
+  ] as const) {
+    if (p === 0) {
+      if (q <= 0) return false;
+      continue;
+    }
+    const r = q / p;
+    if (p < 0) {
+      if (r > t0) t0 = r;
+    } else if (r < t1) t1 = r;
+    if (t0 >= t1) return false;
+  }
+  return true;
 }
 
 /** Push that separates an oriented box from a circle, or null. */
@@ -241,14 +322,17 @@ function boxCirclePush(
 }
 
 /**
- * Push an oriented box out of every building it overlaps below `y` (roof height check) and
- * out of every obstacle circle. Up to four passes, deepest overlap first.
+ * Push an oriented box out of every building it overlaps below `y` (roof height check), out of
+ * every obstacle circle, and back across every wall it crossed since `ref` (where it was at the
+ * start of the tick; the box itself when omitted, so no wall pushes). Up to four passes,
+ * deepest overlap first.
  */
 export function resolveBox(
   world: World,
   box: Readonly<Box>,
   y: number,
   circles: readonly Circle[] = [],
+  ref: Readonly<Pose> = box,
 ): BoxResolve {
   const fx = dsin(box.heading);
   const fz = -dcos(box.heading);
@@ -263,6 +347,7 @@ export function resolveBox(
   let bestPersonDepth = 0;
   let bestOtherDepth = 0;
   const reach = box.hl + box.hw + 1;
+  const refPts = world.walls ? poseSamples(ref, box.hl, box.hw) : [];
   for (let pass = 0; pass < 4; pass++) {
     let best: [number, number] | null = null;
     let bestD2 = 0;
@@ -280,7 +365,7 @@ export function resolveBox(
     }
     if (world.walls) {
       for (const k of wallsNear(world.walls, x, z, reach)) {
-        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!);
+        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!, refPts);
         if (!p) continue;
         const d2 = p[0] * p[0] + p[1] * p[1];
         if (d2 > bestD2) {
@@ -313,12 +398,34 @@ export function resolveBox(
     if (bestIsPerson) bestPersonDepth = Math.max(bestPersonDepth, bestD2);
     else bestOtherDepth = Math.max(bestOtherDepth, bestD2);
   }
+  if (world.walls) {
+    for (let pass = 0; pass < WALL_SETTLE_PASSES; pass++) {
+      let best: [number, number] | null = null;
+      let bestD2 = 0;
+      for (const k of wallsNear(world.walls, x, z, reach)) {
+        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!, refPts, false);
+        if (!p) continue;
+        const d2 = p[0] * p[0] + p[1] * p[1];
+        if (d2 > bestD2) {
+          bestD2 = d2;
+          best = p;
+        }
+      }
+      if (!best) break;
+      x += best[0];
+      z += best[1];
+      tx += best[0];
+      tz += best[1];
+      hit = true;
+      bestOtherDepth = Math.max(bestOtherDepth, bestD2);
+    }
+  }
   person = hit && bestPersonDepth > bestOtherDepth;
   const tl = Math.sqrt(tx * tx + tz * tz);
   return { x, z, hit, nx: tl > 1e-12 ? tx / tl : 0, nz: tl > 1e-12 ? tz / tl : 0, person };
 }
 
-/** Does an oriented box overlap any building (below y) or circle? */
+/** Does an oriented box overlap any building (below y), wall or circle? */
 export function boxBlocked(world: World, box: Readonly<Box>, y: number, circles: readonly Circle[] = []): boolean {
   const fx = dsin(box.heading);
   const fz = -dcos(box.heading);
@@ -330,7 +437,7 @@ export function boxBlocked(world: World, box: Readonly<Box>, y: number, circles:
   }
   if (world.walls) {
     for (const k of wallsNear(world.walls, box.x, box.z, box.hl + box.hw + 1)) {
-      if (boxWallPush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!)) return true;
+      if (wallInBox(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!)) return true;
     }
   }
   for (const c of circles) if (boxCirclePush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, c)) return true;
@@ -349,8 +456,9 @@ function circleBoxPush(x: number, z: number, r: number, b: Readonly<Box>): [numb
 }
 
 /**
- * Push a circle (a walker) out of buildings, boxes (cars) and other circles. Up to four passes.
- * Returns the corrected position and whether anything was touched.
+ * Push a circle (a walker) out of buildings, boxes (cars) and other circles, and keep it r
+ * clear of every wall on the side it was on at (x0, z0), the start of the tick (default: where
+ * it is). Up to four passes. Returns the corrected position and whether anything was touched.
  */
 export function resolveCircleAll(
   world: World,
@@ -359,6 +467,8 @@ export function resolveCircleAll(
   r: number,
   boxes: ReadonlyArray<Readonly<Box>>,
   circles: readonly Circle[],
+  x0: number = x,
+  z0: number = z,
 ): { x: number; z: number; hit: boolean } {
   let hit = false;
   for (let pass = 0; pass < 4; pass++) {
@@ -385,10 +495,11 @@ export function resolveCircleAll(
     if (world.walls) {
       for (const k of wallsNear(world.walls, x, z, r + 1)) {
         const w = world.walls.segments[k]!;
-        const depth = circleWallDepth(w, x, z, r);
-        if (depth > 0) {
-          x += w.nx * (depth + EPS);
-          z += w.nz * (depth + EPS);
+        const push = circleWallPush(w, x0, z0, x, z, r);
+        if (push !== 0) {
+          const k2 = push + (push > 0 ? EPS : -EPS);
+          x += w.nx * k2;
+          z += w.nz * k2;
           hit = true;
           moved = true;
           continue;
