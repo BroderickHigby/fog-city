@@ -24,8 +24,11 @@ const SF = "public/tiles/sf";
 const sfPresent = worldExists("sf");
 
 /** The pre-index lookup: the first tile in id order whose heightfield covers the point (bilinear), else 0. */
+const sortedTiles = new WeakMap<readonly TileCollider[], TileCollider[]>();
+
 function scanGround(tiles: readonly TileCollider[], x: number, z: number): number {
-  const sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0));
+  let sorted = sortedTiles.get(tiles);
+  if (!sorted) sortedTiles.set(tiles, (sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0))));
   for (const t of sorted) {
     const g = t.ground;
     if (!g) continue;
@@ -208,6 +211,24 @@ describe.skipIf(!sfPresent)("collider pack reader: the committed sf pack", () =>
       const t = pack.tiles[100]!;
       expect(groundHeight(world, t.ix * TILE_SIZE_M + 10, t.iz * TILE_SIZE_M + 20)).toBe(t.ground.heights[2 * 51 + 1]);
       expect(groundHeight(world, 50_000, 50_000)).toBe(0);
+      // 20,000 seeded points over the whole city, half of them snapped to tile borders and
+      // corners: the index answers exactly what scanning every tile answers.
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      for (const p of pack.tiles) {
+        minX = Math.min(minX, p.ix * TILE_SIZE_M);
+        maxX = Math.max(maxX, (p.ix + 1) * TILE_SIZE_M);
+        minZ = Math.min(minZ, p.iz * TILE_SIZE_M);
+        maxZ = Math.max(maxZ, (p.iz + 1) * TILE_SIZE_M);
+      }
+      let seed = 2026;
+      const rnd = (): number => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
+      for (let i = 0; i < 20_000; i++) {
+        let x = minX - 50 + rnd() * (maxX - minX + 100);
+        let z = minZ - 50 + rnd() * (maxZ - minZ + 100);
+        if (i % 2 === 1) x = Math.round(x / TILE_SIZE_M) * TILE_SIZE_M;
+        if (i % 4 >= 2) z = Math.round(z / TILE_SIZE_M) * TILE_SIZE_M;
+        expect(groundHeight(world, x, z), `${x},${z}`).toBe(scanGround(pack.tiles, x, z));
+      }
     },
     SF_RUN_MS,
   );
