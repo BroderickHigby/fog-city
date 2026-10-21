@@ -1,10 +1,11 @@
 // The player's default look, founder-default, is a likeness of the project owner made from
 // reference photos that stay outside the repository (assets/blender/README.md, "founder-default"
-// and its privacy rule). This test fails if a photo file appears anywhere in the tree, or if a
-// file under assets/ or public/ carries JPEG or HEIF image data: a photo under another name, or
-// one embedded in a GLB or a binary.
+// and its privacy rule). This test fails if a photo file appears anywhere in the tree, if a
+// file under assets/ or public/ carries JPEG or HEIF image data (a photo under another name, or
+// one embedded in a GLB or a binary), or if an image in the Assets track's folders was not drawn
+// by a script in the repository (a crop or colour-picked patch of a photo re-saved as a PNG).
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ROOT } from "../helpers.ts";
@@ -64,6 +65,23 @@ export function photoSignature(b: Uint8Array): string | null {
   return null;
 }
 
+const IMAGE_FILE = /\.(png|webp|gif|bmp|tiff?|avif|ktx2|exr|hdr)$/i;
+/** The Assets track's folders, where every image must be the output of a script in the repo. */
+const ASSET_DIRS = /^(assets|public\/models|public\/audio)\//;
+/** Images drawn by a script elsewhere (repo-relative image path -> the script that writes it). */
+const GENERATED: Record<string, string> = {
+  "public/models/humanoid-impostor.png": "assets/blender/models/humanoid_impostor.py",
+};
+
+/** The script in the repository that draws this image, or null. */
+function generatorOf(rel: string): string | null {
+  if (GENERATED[rel]) return GENERATED[rel]!;
+  // a look-dev render: its script beside it, the name with underscores (assets/blender/README.md)
+  const m = /^(assets\/blender\/lookdev)\/([^/]+)\.png$/.exec(rel);
+  if (m) return `${m[1]}/${m[2]!.replace(/-/g, "_")}.py`;
+  return null;
+}
+
 describe("privacy: the likeness reference photos never enter the repository", () => {
   const files = walk(ROOT);
 
@@ -81,6 +99,20 @@ describe("privacy: the likeness reference photos never enter the repository", ()
       if (why) found.push(`${rel}: ${why}`);
     }
     expect(found).toEqual([]);
+  });
+
+  it("every image in assets/, public/models/ and public/audio/ is drawn by a script in the repository", () => {
+    const orphans: string[] = [];
+    for (const f of files) {
+      const rel = relative(ROOT, f).split("\\").join("/");
+      if (!ASSET_DIRS.test(rel) || !IMAGE_FILE.test(rel)) continue;
+      const script = generatorOf(rel);
+      const ok = script !== null && existsSync(join(ROOT, script)) && (rel.startsWith("assets/blender/lookdev/") || readFileSync(join(ROOT, script), "utf8").includes(rel.split("/").pop()!));
+      if (!ok) orphans.push(rel);
+    }
+    expect(orphans).toEqual([]);
+    expect(generatorOf("assets/blender/lookdev/photo-crop.png")).toBe("assets/blender/lookdev/photo_crop.py");
+    expect(generatorOf("public/models/face.png")).toBeNull();
   });
 
   it("recognises what it looks for", () => {

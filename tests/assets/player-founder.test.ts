@@ -44,6 +44,45 @@ function positions(p: Primitive, k = -1, w = 1): V3[] {
   return out;
 }
 
+/** Triangles of a primitive, as vertex indices. */
+function triangles(p: Primitive): Array<[number, number, number]> {
+  const idx = p.getIndices()!;
+  const out: Array<[number, number, number]> = [];
+  for (let i = 0; i < idx.getCount(); i += 3) out.push([idx.getScalar(i), idx.getScalar(i + 1), idx.getScalar(i + 2)]);
+  return out;
+}
+
+/** Depths (z) where the line x = x0, y = y0 (running along z) crosses the triangles. */
+function crossings(pos: V3[], tris: Array<[number, number, number]>, x0: number, y0: number): number[] {
+  const out: number[] = [];
+  for (const [i, j, k] of tris) {
+    const a = pos[i]!;
+    const b = pos[j]!;
+    const c = pos[k]!;
+    const d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
+    if (Math.abs(d) < 1e-12) continue;
+    const l1 = ((b[1] - c[1]) * (x0 - c[0]) + (c[0] - b[0]) * (y0 - c[1])) / d;
+    const l2 = ((c[1] - a[1]) * (x0 - c[0]) + (a[0] - c[0]) * (y0 - c[1])) / d;
+    const l3 = 1 - l1 - l2;
+    if (l1 < 0 || l2 < 0 || l3 < 0) continue;
+    out.push(l1 * a[2] + l2 * b[2] + l3 * c[2]);
+  }
+  return out;
+}
+
+/** The highest y on the line x = x0 over the triangles (their outline seen along z). */
+function outlineTop(pos: V3[], tris: Array<[number, number, number]>, x0: number): number {
+  let best = -Infinity;
+  for (const t of tris) {
+    for (let e = 0; e < 3; e++) {
+      const u = pos[t[e]!]!;
+      const v = pos[t[(e + 1) % 3]!]!;
+      if ((u[0] - x0) * (v[0] - x0) <= 0 && u[0] !== v[0]) best = Math.max(best, u[1] + ((v[1] - u[1]) * (x0 - u[0])) / (v[0] - u[0]));
+    }
+  }
+  return best;
+}
+
 function prims(body: Node, material: string): Primitive[] {
   return body.getMesh()!.listPrimitives().filter((p) => p.getMaterial()?.getName() === material);
 }
@@ -227,6 +266,131 @@ describe("player.glb: founder-default", () => {
     // a short taper: the hair comes down the back of the head to the nape
     const back = cap.filter((p) => p[2] > headZ + 0.06);
     expect(Math.min(...back.map((p) => p[1]))).toBeLessThan(headY + 0.03);
+  });
+
+  it("carries the hair down the back of the head to the nape as one surface (no ledge over a bare cap)", async () => {
+    const { doc, body, extras } = await player();
+    const heightM = extras.heightM as number;
+    const headZ = (node(doc, "head").getWorldMatrix() as unknown as number[])[14]!;
+    const cap = prims(body, "tint_hair").flatMap((p) => positions(p));
+    const q = worldPoints(node(doc, "hair_quiff"));
+    // the quiff reaches the nape: its lowest point behind the head is close to the cap's hairline there
+    const behind = (p: V3) => p[2] > headZ + 0.04 && Math.abs(p[0]) < 0.03;
+    const napeCap = Math.min(...cap.filter(behind).map((p) => p[1]));
+    const napeQuiff = Math.min(...q.filter(behind).map((p) => p[1]));
+    expect(napeQuiff - napeCap).toBeLessThan(0.012);
+    // down the middle of the back, the hair's outline (quiff and cap together) falls without a step:
+    // its distance from the skull's centre (12 cm below its top), in 8-degree slices from the top
+    // round to the nape. The old quiff ended across the crown in a 12 mm ledge over the bare cap.
+    const c: V3 = [0, heightM - 0.12, headZ];
+    const mid = [...q, ...cap].filter((p) => Math.abs(p[0]) < 0.01 && p[2] > c[2]);
+    const slices = new Map<number, number>();
+    for (const p of mid) {
+      const ang = (Math.atan2(p[2] - c[2], p[1] - c[1]) * 180) / Math.PI; // 0 = straight up, 90 = straight back
+      const r = Math.hypot(p[1] - c[1], p[2] - c[2]);
+      const k = Math.floor(ang / 8);
+      slices.set(k, Math.max(slices.get(k) ?? 0, r));
+    }
+    const ks = [...slices.keys()].sort((a, b) => a - b).filter((k) => k >= 0 && k * 8 < 136);
+    expect(ks.length).toBeGreaterThan(10);
+    for (let i = 1; i < ks.length; i++) {
+      const step = Math.abs(slices.get(ks[i]!)! - slices.get(ks[i - 1]!)!) / (ks[i]! - ks[i - 1]!);
+      expect(step, `slices ${ks[i - 1]! * 8}-${ks[i]! * 8} deg`).toBeLessThan(0.008);
+    }
+  });
+
+  it("draws the front of the quiff as one rounded crest, not a row of spikes", async () => {
+    const { doc } = await player();
+    const hairNode = node(doc, "hair_quiff");
+    const headZ = (node(doc, "head").getWorldMatrix() as unknown as number[])[14]!;
+    const prim = hairNode.getMesh()!.listPrimitives()[0]!;
+    const q = worldPoints(hairNode);
+    // the outline of the front of the quiff (in front of the head joint), as seen from the front:
+    // its highest point every 3 mm across the crest
+    const front = triangles(prim).filter((t) => t.every((i) => q[i]![2] < headZ - 0.03));
+    const top: number[] = [];
+    for (let x = -0.066; x <= 0.066 + 1e-9; x += 0.003) top.push(outlineTop(q, front, x));
+    // its peaks, each with its prominence (the drop to the lower of its two neighbouring dips)
+    const prominent: number[] = [];
+    for (let i = 1; i < top.length - 1; i++) {
+      if (!(top[i]! > top[i - 1]! && top[i]! > top[i + 1]!)) continue;
+      const dip = (dir: number) => {
+        let m = top[i]!;
+        for (let j = i + dir; j >= 0 && j < top.length && top[j]! <= top[i]!; j += dir) m = Math.min(m, top[j]!);
+        return top[i]! - m;
+      };
+      if (Math.min(dip(-1), dip(1)) > 0.001) prominent.push(i);
+    }
+    // one crest; the old one stood up in a row of tufts along its front edge
+    expect(prominent).toHaveLength(1);
+  });
+
+  it("shows both ears beside the face from the front, clear of the hair", async () => {
+    const { doc, body } = await player();
+    const skin = prims(body, "tint_skin").flatMap((p) => positions(p));
+    const cap = prims(body, "tint_hair").flatMap((p) => positions(p));
+    const c = box(cap).center; // about the middle of the head
+    const band = (p: V3) => p[1] > c[1] - 0.04 && p[1] < c[1] + 0.01;
+    const face = skin.filter((p) => band(p) && p[2] < c[2] - 0.03);
+    const hair = [...cap, ...worldPoints(node(doc, "hair_quiff"))].filter(band);
+    for (const sx of [-1, 1]) {
+      const ear = Math.max(...skin.filter(band).map((p) => sx * p[0]));
+      expect(ear - Math.max(...face.map((p) => sx * p[0])), `ear ${sx}`).toBeGreaterThan(0.008);
+      expect(ear - Math.max(...hair.map((p) => sx * p[0])), `hair over ear ${sx}`).toBeGreaterThan(0.004);
+    }
+  });
+
+  it("carries the hips on the jeans' legs, so no seam shows where the legs met the body's own hips", async () => {
+    const { body } = await player();
+    const skinNode = body.getSkin()!;
+    const thighs = new Set(skinNode.listJoints().flatMap((j, i) => (j.getName().startsWith("thigh_") ? [i] : [])));
+    const k = (body.getMesh()!.getExtras().targetNames as string[]).indexOf("jacket");
+    // the jeans' surfaces: the legs' (any corner follows a thigh) and the body's own hips
+    for (const p of prims(body, "tint_bottom")) {
+      const pos = positions(p, k, 1);
+      const J = p.getAttribute("JOINTS_0")!;
+      const W = p.getAttribute("WEIGHTS_0")!;
+      const j: number[] = [];
+      const w: number[] = [];
+      const thigh = pos.map((_, i) => {
+        J.getElement(i, j);
+        W.getElement(i, w);
+        return j.some((b, n) => thighs.has(b) && w[n]! > 0);
+      });
+      const tris = triangles(p);
+      const legs = tris.filter((t) => t.some((i) => thigh[i]));
+      const hips = tris.filter((t) => !t.some((i) => thigh[i]));
+      // down the centre line, front and back, between the crotch and the jacket's hem, the
+      // outermost surface is the legs' (the body's own hips sit inside them); the old body's hips
+      // showed there between the legs, the "briefs" shape
+      for (const y of [0.92, 0.95, 0.975]) {
+        const l = crossings(pos, legs, 0, y);
+        const h = crossings(pos, hips, 0, y);
+        expect(l.length, `legs at ${y}`).toBeGreaterThan(0);
+        expect(Math.min(...l), `front at ${y}`).toBeLessThan(Math.min(...h) - 0.003);
+        expect(Math.max(...l), `back at ${y}`).toBeGreaterThan(Math.max(...h) + 0.003);
+      }
+    }
+  });
+
+  it("gives the alternate tee look fuller bare forearms; the jacket key slims them into its sleeves", async () => {
+    const { doc, body } = await player();
+    const k = (body.getMesh()!.getExtras().targetNames as string[]).indexOf("jacket");
+    const elbowY = (node(doc, "forearm_R").getWorldMatrix() as unknown as number[])[13]!;
+    const fore = (w: number) =>
+      box(prims(body, "tint_skin").flatMap((p) => positions(p, k, w)).filter((p) => p[0] > 0.15 && p[1] > elbowY - 0.13 && p[1] < elbowY - 0.05));
+    const tee = fore(0);
+    const jacket = fore(1);
+    expect(tee.size[0]).toBeGreaterThan(jacket.size[0] * 1.07);
+    expect(tee.size[2]).toBeGreaterThan(jacket.size[2] * 1.07);
+  });
+
+  it("tells the renderer to hide the quiff when a crowd hair key replaces it", async () => {
+    const { doc, body } = await player();
+    const names = body.getMesh()!.getExtras().targetNames as string[];
+    const hideWith = node(doc, "hair_quiff").getExtras().hideWith as string[];
+    expect(hideWith).toEqual(["hair_none", "hair_long", "hair_bun"]);
+    for (const n of hideWith) expect(names).toContain(n);
   });
 
   it("smiles: the smile key opens the mouth into a grin and brings the teeth forward", async () => {
