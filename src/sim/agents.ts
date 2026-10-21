@@ -39,8 +39,12 @@
 //    DESPAWN_RANGE_M from every player are removed; each area whose centre is within
 //    ACTIVE_RANGE_M of a player and below budget gains up to SPAWN_PER_POP agents of each kind,
 //    placed with state.rng on its roads at least SPAWN_MIN_PLAYER_M from every player (no
-//    pop-in in view). The initial state fills every active area to budget. MAX_AGENTS caps
-//    the total; nearer areas fill first.
+//    pop-in in view). The initial state fills every active area to budget. Nearer areas fill
+//    first. Each area belongs to its nearest player (ties: the lower player id), and so does
+//    each agent: one player's surroundings hold at most MAX_AGENTS agents, the whole state
+//    MAX_AGENTS_TOTAL, so a second player across town gets their own traffic instead of
+//    whatever the first player's areas left over. The whole city's road graph is loaded, but
+//    only the areas around players are ever populated or stepped.
 //
 // Level of detail (documented rule)
 //  - An agent within NEAR_RANGE_M of a player steps every tick. Farther agents step only on
@@ -233,7 +237,10 @@ export const NEAR_RANGE_M = 200;
 export const LOD_STRIDE = 4;
 export const SPAWN_MIN_PLAYER_M = 60;
 export const SPAWN_PER_POP = 2;
+/** The most ambient agents around one player (the areas nearest to that player). */
 export const MAX_AGENTS = 512;
+/** The most ambient agents in a state, however many players. */
+export const MAX_AGENTS_TOTAL = 1024;
 export const ROBOTAXI_GAP_M = 1.5;
 /** A robotaxi waiting at an all-way stop keeps its front bumper this far behind the line. */
 export const STOPLINE_M = 0.5;
@@ -366,6 +373,20 @@ function minDist2(bodies: readonly Body[], x: number, z: number): number {
     if (d2 < best) best = d2;
   }
   return best;
+}
+
+/** Index of the nearest body (the first on a tie: bodies come in player id order). */
+function nearestBody(bodies: readonly Body[], x: number, z: number): number {
+  let best = Infinity;
+  let at = 0;
+  bodies.forEach((b, i) => {
+    const d2 = (b.x - x) * (b.x - x) + (b.z - z) * (b.z - z);
+    if (d2 < best) {
+      best = d2;
+      at = i;
+    }
+  });
+  return at;
 }
 
 /** Positions of every player's active body (the car while driving, the walker on foot). */
@@ -1336,10 +1357,13 @@ export function populate(
   // Each kind's total is also held to the sum of the active areas' budgets.
   const counts = new Map<string, number>();
   const totals = new Map<AgentKind, number>();
+  // Agents around each player (by nearest player), held to MAX_AGENTS each.
+  const owned = bodies.map(() => 0);
   for (const a of list) {
     const k = `${areaOf(a.x, a.z).key}|${a.kind}`;
     counts.set(k, (counts.get(k) ?? 0) + 1);
     totals.set(a.kind, (totals.get(a.kind) ?? 0) + 1);
+    owned[nearestBody(bodies, a.x, a.z)]!++;
   }
   const room = new Map<AgentKind, number>();
   for (const kind of AGENT_KINDS) {
@@ -1349,18 +1373,20 @@ export function populate(
   }
   const minPlayer = initial ? 6 : SPAWN_MIN_PLAYER_M;
   for (const { ar } of active) {
+    const owner = nearestBody(bodies, ar.cx, ar.cz);
     for (const kind of AGENT_KINDS) {
       const want = budget(seed, ar, kind);
       const have = counts.get(`${ar.key}|${kind}`) ?? 0;
       let add = Math.min(Math.max(0, want - have), Math.max(0, room.get(kind)!));
       if (!initial) add = Math.min(add, SPAWN_PER_POP);
-      for (let i = 0; i < add && list.length < MAX_AGENTS; i++) {
+      for (let i = 0; i < add && owned[owner]! < MAX_AGENTS && list.length < MAX_AGENTS_TOTAL; i++) {
         const [agent, r2] = trySpawn(world, g, ar, kind, r, nextId, list, bodies, minPlayer);
         r = r2;
         if (!agent) continue;
         list.push(agent);
         nextId++;
         room.set(kind, room.get(kind)! - 1);
+        owned[nearestBody(bodies, agent.x, agent.z)]!++;
       }
     }
   }

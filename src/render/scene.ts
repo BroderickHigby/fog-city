@@ -4,6 +4,7 @@
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import type { Assets } from "../io/assets.ts";
 import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
@@ -16,6 +17,7 @@ import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMater
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
+import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
@@ -43,6 +45,8 @@ export interface WorldData {
   ground: GroundFn;
   /** True when (x, y, z) is inside a building below its roof (camera pull-in). */
   occluded: (x: number, y: number, z: number) => boolean;
+  /** Where glb bytes come from (loose files or the packed build). Omitted: fetch each URL. */
+  assets?: Assets;
 }
 
 export interface RenderInfo {
@@ -149,12 +153,18 @@ export class SceneRenderer {
     this.nightMats = createNightMaterials();
 
     const gltf = new GLTFLoader();
+    const assets = world.assets;
+    // A packed build carries only the models it lists; the dev server's listing is the build-time one.
+    const available = opts.models && assets && assets.mode === "packed" ? new Set([...opts.models].filter((u) => assets.has(u))) : opts.models;
     this.registry = new ModelRegistry<THREE.Object3D>({
-      load: async (url) => (await gltf.loadAsync(url)).scene,
+      load: assets
+        ? async (url) => (await gltf.parseAsync(bufferOf(await assets.bytes(url)), "")).scene
+        : async (url) => (await gltf.loadAsync(url)).scene,
       clone: (o) => o.clone(true),
       fallback: (key) => (key === "player-car" ? makeBoxCar(CAR_COLORS[0]!) : new THREE.Group()),
-      available: opts.models,
+      available,
     });
+    const tileLoader = createTileLoader();
 
     this.streamer = new TileStreamer({
       parent: this.scene,
@@ -166,6 +176,7 @@ export class SceneRenderer {
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
+      loadGltf: assets ? async (url) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : undefined,
       onReady: (g) => this.prepareShadows(g),
     });
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
@@ -420,3 +431,9 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
+
+/** An ArrayBuffer holding exactly these bytes (GLTFLoader.parse takes a whole buffer). */
+function bufferOf(bytes: Uint8Array): ArrayBuffer {
+  if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength && bytes.buffer instanceof ArrayBuffer) return bytes.buffer;
+  return bytes.slice().buffer as ArrayBuffer;
+}

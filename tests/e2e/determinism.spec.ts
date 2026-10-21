@@ -105,7 +105,7 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
       gateWorld(world);
       const files = loadWorldFiles(world);
       const t0 = performance.now();
-      const node = runScenario(makeWorld(files.tiles, files.roads), {
+      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary), {
         ticks,
         checkpointEvery: EVERY,
         seed: SEED,
@@ -115,6 +115,8 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
 
       const ua = await openSimLab(page);
       const browser = await page.evaluate(([w, o]) => window.__simlab!.run(w, o), [world, { ticks, checkpointEvery: EVERY, seed: SEED }] as const);
+      // The browser read the world as the game does: from the collider pack when the manifest names one.
+      expect(browser.colliders, "the browser read the world's colliders like the game").toBe(files.colliders);
       expectSameRun(node, browser);
 
       // The run must actually exercise the sim, or equality proves little.
@@ -173,14 +175,15 @@ const PLAN: PlanStep[] = [
 
 /**
  * The game must build its sim world the way its manifest describes it: with the road graph
- * when the manifest names one, or sim traffic never runs in the game. (This was a known gap
- * until src/main.ts passed the roads to buildWorld(); it is now an ordinary assertion.)
+ * and the boundary when the manifest names them, or sim traffic never runs in the game and
+ * its cars drive off the world. (The road graph was a known gap until src/main.ts passed the
+ * roads to buildWorld(); it is now an ordinary assertion.)
  */
 function expectManifestConstruction(world: string, m: MatchResult): void {
   const got = m.match!.label;
   const why =
-    `the game built its sim world from "${got}", but public/tiles/${world}/manifest.json names a road graph, ` +
-    `so Node's "${m.expected}" world (with sim traffic) does not match it: src/main.ts must pass the roads to buildWorld()`;
+    `the game built its sim world from "${got}", but public/tiles/${world}/manifest.json describes "${m.expected}", ` +
+    `so Node's world does not match it: src/main.ts must pass the roads and the boundary to buildWorld()`;
   expect(got, why).toBe(m.expected);
 }
 

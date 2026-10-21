@@ -1,7 +1,10 @@
-// Static world data the sim collides with. Loaded from tile collider JSON
-// (schemas/tile-collider.schema.json) and, optionally, the world road graph
-// (schemas/roads.schema.json); never part of SimState, never mutated.
+// Static world data the sim collides with: tile colliders (from the citywide collider pack,
+// pack.ts, or per-tile collider JSON, schemas/tile-collider.schema.json), optionally the world
+// road graph (schemas/roads.schema.json) and the world's edge and shore walls (boundary.json,
+// boundary.ts). Never part of SimState, never mutated.
 
+import { buildWalls, type BoundaryFile, type Walls } from "./boundary.ts";
+import { TILE_SIZE_M } from "../geo/project.ts";
 import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 
 export interface BuildingCollider {
@@ -22,6 +25,8 @@ export interface Heightfield {
   nx: number;
   nz: number;
   heights: number[];
+  /** Water mask per sample (1 = open water, height 0), when the source has one. The sim does not read it. */
+  water?: number[];
 }
 
 export interface TileCollider {
@@ -33,16 +38,26 @@ export interface TileCollider {
 export interface World {
   /** Tiles in ascending id order. */
   tiles: TileCollider[];
-  /** Derived spatial index: "cx,cz" -> buildings overlapping that 50 m cell. */
-  grid: Map<string, BuildingCollider[]>;
   /** Derived: cellKey(gx, gz) of GROUND_CELL m cells -> tiles whose heightfield overlaps the cell, ascending id order. */
   groundIndex: Map<number, TileCollider[]>;
-  /** Derived: cellKey(cx, cz) of 50 m cells -> buildings overlapping the cell (same lists as grid, numeric keys). */
+  /** Derived spatial index: cellKey(cx, cz) of 50 m cells -> buildings overlapping the cell, in tile then file order. */
   cells: Map<number, BuildingCollider[]>;
-  /** Derived: each building's bounding box [minX, minZ, maxX, maxZ]. */
-  bounds: Map<BuildingCollider, [number, number, number, number]>;
+  /**
+   * Derived, parallel to `cells`: the bounding box of each listed building, 4 numbers per
+   * building ([minX, minZ, maxX, maxZ] at 4 * i), so the per-sample building checks of the road
+   * graph build and of agents read them without a lookup.
+   */
+  cellBoxes: Map<number, Float64Array>;
+  /**
+   * Derived: when every heightfield covers exactly its own TILE_SIZE_M tile (the pipeline's
+   * worlds), cellKey(ix, iz) -> that tile's heightfield, so groundHeight looks the tile up by
+   * floor(x / T), floor(z / T). Null for hand-made worlds, which use groundIndex.
+   */
+  tileGround: Map<number, Heightfield> | null;
   /** Static road graph for traffic and robots (src/sim/roads.ts), or null when the world has none. */
   roads: RoadGraph | null;
+  /** The world's edge and shore walls (boundary.ts), or null when the world has no boundary.json. */
+  walls: Walls | null;
 }
 
 const CELL = 50;
@@ -53,20 +68,36 @@ export function cellKey(cx: number, cz: number): number {
   return (cx + 1048576) * 2097152 + (cz + 1048576);
 }
 
+/** cellKey(ix, iz) -> heightfield when every heightfield sits exactly on its own tile, else null. */
+function tileAligned(sorted: readonly TileCollider[]): Map<number, Heightfield> | null {
+  const T = TILE_SIZE_M;
+  const out = new Map<number, Heightfield>();
+  for (const t of sorted) {
+    const g = t.ground;
+    if (!g) continue;
+    const ix = Math.floor(g.x0 / T);
+    const iz = Math.floor(g.z0 / T);
+    const key = cellKey(ix, iz);
+    if (g.x0 !== ix * T || g.z0 !== iz * T || (g.nx - 1) * g.cellSizeM !== T || (g.nz - 1) * g.cellSizeM !== T || out.has(key)) return null;
+    out.set(key, g);
+  }
+  return out;
+}
+
 /**
  * Build the static world. `roads` is the world's roads.json (manifest.roads), loaded alongside
- * the colliders; without it the world has no ambient traffic.
+ * the colliders; without it the world has no ambient traffic. `boundary` is its boundary.json
+ * (manifest.layers.boundary): with it, cars and walkers stop at the world's edge and the shore.
  *
  * Cost: synchronous, and dominated by the road graph's building-clearance sampling of every
  * lane and sidewalk. Measured in Node on 2026-10-20: about 0.2 s for the 77-tile SF set and
  * 1.6 to 2.3 s for the citywide set (583 tiles, 187k buildings, 15.7k road edges). Callers on
  * a UI thread should build once at load (or in a worker), not per frame.
  */
-export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null): World {
+export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null, boundary: BoundaryFile | null = null): World {
   const sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0));
-  const grid = new Map<string, BuildingCollider[]>();
   const cells = new Map<number, BuildingCollider[]>();
-  const bounds = new Map<BuildingCollider, [number, number, number, number]>();
+  const boxLists = new Map<number, number[]>();
   for (const t of sorted) {
     for (const b of t.buildings) {
       let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
@@ -76,20 +107,23 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
         if (z < minZ) minZ = z;
         if (z > maxZ) maxZ = z;
       }
-      bounds.set(b, [minX, minZ, maxX, maxZ]);
       for (let cx = Math.floor(minX / CELL); cx <= Math.floor(maxX / CELL); cx++) {
         for (let cz = Math.floor(minZ / CELL); cz <= Math.floor(maxZ / CELL); cz++) {
           const key = cellKey(cx, cz);
           let list = cells.get(key);
-          if (!list) {
+          let boxes = boxLists.get(key);
+          if (!list || !boxes) {
             cells.set(key, (list = []));
-            grid.set(`${cx},${cz}`, list);
+            boxLists.set(key, (boxes = []));
           }
           list.push(b);
+          boxes.push(minX, minZ, maxX, maxZ);
         }
       }
     }
   }
+  const cellBoxes = new Map<number, Float64Array>();
+  for (const [key, boxes] of boxLists) cellBoxes.set(key, Float64Array.from(boxes));
   const groundIndex = new Map<number, TileCollider[]>();
   for (const t of sorted) {
     const g = t.ground;
@@ -105,7 +139,15 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
       }
     }
   }
-  const world: World = { tiles: sorted, grid, groundIndex, cells, bounds, roads: null };
+  const world: World = {
+    tiles: sorted,
+    groundIndex,
+    cells,
+    cellBoxes,
+    tileGround: tileAligned(sorted),
+    roads: null,
+    walls: boundary ? buildWalls(boundary, roads) : null,
+  };
   if (roads) {
     world.roads = buildRoadGraph(roads, { blocked: (x, z, r) => circleBlocked(world, x, z, r) });
   }
@@ -134,8 +176,43 @@ export function nearbyBuildings(world: World, x: number, z: number, r: number): 
   return out;
 }
 
-/** Ground height at (x, z): bilinear over whichever tile heightfield covers the point (first in id order), else 0. */
+/** Bilinear height of one heightfield at (x, z), clamped into its lattice (the caller picked the tile). */
+function heightIn(g: Heightfield, x: number, z: number): number {
+  const fx = (x - g.x0) / g.cellSizeM;
+  const fz = (z - g.z0) / g.cellSizeM;
+  const ix = Math.min(Math.floor(fx), g.nx - 2);
+  const iz = Math.min(Math.floor(fz), g.nz - 2);
+  const tx = fx - ix;
+  const tz = fz - iz;
+  const h00 = g.heights[iz * g.nx + ix] ?? 0;
+  const h10 = g.heights[iz * g.nx + ix + 1] ?? 0;
+  const h01 = g.heights[(iz + 1) * g.nx + ix] ?? 0;
+  const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
+  return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+}
+
+/**
+ * Ground height at (x, z): bilinear over the heightfield that covers the point, else 0 (sea
+ * level). Pipeline worlds look the tile up by floor(x / T), floor(z / T) (world.tileGround); a
+ * point on a tile's far border belongs to that tile when the next one is absent. Neighbours
+ * repeat their shared border samples, so a border point has one height whichever tile answers.
+ * Hand-made worlds whose heightfields are not tile-aligned use the first covering tile in id
+ * order (world.groundIndex).
+ */
 export function groundHeight(world: World, x: number, z: number): number {
+  const tg = world.tileGround;
+  if (tg) {
+    const ix = Math.floor(x / TILE_SIZE_M);
+    const iz = Math.floor(z / TILE_SIZE_M);
+    let g = tg.get(cellKey(ix, iz));
+    if (!g) {
+      const onX = x === ix * TILE_SIZE_M;
+      const onZ = z === iz * TILE_SIZE_M;
+      g = (onX ? tg.get(cellKey(ix - 1, iz)) : undefined) ?? (onZ ? tg.get(cellKey(ix, iz - 1)) : undefined) ?? (onX && onZ ? tg.get(cellKey(ix - 1, iz - 1)) : undefined);
+      if (!g) return 0;
+    }
+    return heightIn(g, x, z);
+  }
   const candidates = world.groundIndex.get(cellKey(Math.floor(x / GROUND_CELL), Math.floor(z / GROUND_CELL)));
   if (!candidates) return 0;
   for (const t of candidates) {
@@ -235,12 +312,15 @@ export function circleBlocked(world: World, x: number, z: number, r: number): bo
   const r2 = r * r;
   for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
     for (let cz = Math.floor((z - r) / CELL); cz <= Math.floor((z + r) / CELL); cz++) {
-      const list = world.cells.get(cellKey(cx, cz));
+      const key = cellKey(cx, cz);
+      const list = world.cells.get(key);
       if (!list) continue;
-      for (const b of list) {
+      const bb = world.cellBoxes.get(key)!;
+      for (let i = 0, n = list.length; i < n; i++) {
+        const k = i * 4;
+        if (x + r < bb[k]! || x - r > bb[k + 2]! || z + r < bb[k + 1]! || z - r > bb[k + 3]!) continue;
+        const b = list[i]!;
         if (b.topY <= b.baseY) continue;
-        const bb = world.bounds.get(b)!;
-        if (x + r < bb[0] || x - r > bb[2] || z + r < bb[1] || z - r > bb[3]) continue;
         if (circleTouchesPolygon(x, z, r2, b.footprint)) return true;
       }
     }
@@ -305,12 +385,15 @@ export function segmentBlocked(world: World, ax: number, az: number, bx: number,
   const maxZ = az > bz ? az : bz;
   for (let cx = Math.floor(minX / CELL); cx <= Math.floor(maxX / CELL); cx++) {
     for (let cz = Math.floor(minZ / CELL); cz <= Math.floor(maxZ / CELL); cz++) {
-      const list = world.cells.get(cellKey(cx, cz));
+      const key = cellKey(cx, cz);
+      const list = world.cells.get(key);
       if (!list) continue;
-      for (const b of list) {
+      const bb = world.cellBoxes.get(key)!;
+      for (let i = 0, n = list.length; i < n; i++) {
+        const k = i * 4;
+        if (maxX < bb[k]! || minX > bb[k + 2]! || maxZ < bb[k + 1]! || minZ > bb[k + 3]!) continue;
+        const b = list[i]!;
         if (b.topY <= b.baseY) continue;
-        const bb = world.bounds.get(b)!;
-        if (maxX < bb[0] || minX > bb[2] || maxZ < bb[1] || minZ > bb[3]) continue;
         if (pointInPolygon(ax, az, b.footprint) || pointInPolygon(bx, bz, b.footprint)) return true;
         const poly = b.footprint;
         for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {

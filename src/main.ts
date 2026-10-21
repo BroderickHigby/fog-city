@@ -1,12 +1,18 @@
-// Boot: load a world manifest, every tile's collider and the road graph (the sim needs the
-// whole world for determinism), build the sim world once behind the loading text (the road
-// graph's clearance sampling takes ~0.2 s for the 77-tile SF set, ~2 s citywide; never per
-// frame), then run a fixed-timestep loop and render interpolated poses: players, and the
-// sim's ambient agents (robotaxis, robots, people). Render tiles stream in and out around the
-// camera without ever blocking the loop.
+// Boot: load a world manifest, the whole world's colliders (the citywide collider pack when
+// the manifest names one, else every tile's collider JSON), the road graph and the world's
+// edge (the sim needs the whole world for determinism: src/io/world-load.ts), build the sim
+// world once behind the loading text (the road graph's clearance sampling takes ~0.2 s for a
+// small world, ~1.5 s citywide; never per frame), then run a fixed-timestep loop and render
+// interpolated poses: players, and the sim's ambient agents (robotaxis, robots, people).
+// Render tiles stream in and out around the camera without ever blocking the loop; the far
+// skyline is drawn beyond them.
+//
+// Files come through src/io/assets.ts: loose files from the dev server, or the packed layout
+// of a production build (pnpm build), always relative to the page.
 //
 // URL parameters:
-//   ?world=dev | dev-city | sf   world directory under public/tiles/ (default dev)
+//   ?world=dev | dev-city | sf   world directory under public/tiles/ (default dev; a production
+//                                build opens its default world, sf)
 //   &radius=1500                 tile load radius, metres
 //   &night=1                     start at night (KeyN toggles the look; the clock starts at 22:40)
 //   &shadows=1                   sun shadows (off by default for performance)
@@ -19,12 +25,13 @@
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
+import { openAssets } from "./io/assets.ts";
+import { loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
-import { makeGroundFn } from "./render/ground.ts";
 import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
@@ -36,6 +43,7 @@ import {
   agentsOf,
   buildWorld,
   createInitialState,
+  groundHeight,
   hashState,
   nearbyBuildings,
   pointInPolygon,
@@ -60,18 +68,6 @@ function numParam(p: URLSearchParams, k: string): number | null {
   if (v === null || v.trim() === "") return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
-}
-
-async function fetchJson<T>(url: string): Promise<T> {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
-  const text = await r.text();
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    // A dev server answers a missing file with index.html.
-    throw new Error(`${url} is missing or not JSON (has this world been built?)`);
-  }
 }
 
 /**
@@ -102,31 +98,40 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 async function boot(): Promise<void> {
+  // Since navigation start: module loading counts too.
+  const tStart = 0;
   const params = new URLSearchParams(location.search);
-  const worldName = params.get("world") ?? "dev";
-  const base = `/tiles/${worldName}/`;
   const loading = document.getElementById("hud");
   const status = (text: string): void => {
     if (loading) loading.textContent = text;
   };
+  // A production build (pnpm build) reads its packed layout; the dev server serves loose files.
+  const assets = await openAssets(import.meta.env.PROD);
+  const worldName = params.get("world") ?? assets.defaultWorld ?? "dev";
+  if (assets.worlds && !assets.worlds.includes(worldName)) {
+    throw new Error(`world "${worldName}" is not in this build (it has ${assets.worlds.join(", ")})`);
+  }
+  const base = `tiles/${worldName}/`;
   status(`loading ${worldName}…`);
-  const manifest = await fetchJson<Manifest>(`${base}manifest.json`);
-  const tiles = await Promise.all(manifest.tiles.map((t) => fetchJson<TileCollider>(base + t.collider)));
-  // The road graph is part of the deterministic world (it drives the ambient agents): a client
-  // that cannot load the one its manifest names must not run a roadless world beside its
-  // peers, so boot fails, as for a missing collider.
-  const roads: RoadGraph | null = manifest.roads
-    ? await fetchJson<RoadGraph>(base + manifest.roads).catch((err: unknown) => {
-        throw new Error(`road graph ${manifest.roads}: ${err instanceof Error ? err.message : String(err)}`);
-      })
-    : null;
+  // The colliders, road graph and boundary are all part of the deterministic world (the road
+  // graph drives the ambient agents, the boundary walls stop cars at the edge): a client that
+  // cannot load one its manifest names must not run a different world beside its peers, so
+  // boot fails.
+  const tLoad = performance.now();
+  const files = await loadWorldFiles<Manifest>(assets, worldName);
+  const loadMs = performance.now() - tLoad;
+  const { manifest, tiles } = files;
+  const roads = files.roads as RoadGraph | null;
   // Once, at load: with the road graph the sim runs ambient traffic (state.ext.agents).
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
-  const world = buildWorld(tiles, roads);
+  const tBuild = performance.now();
+  const world = buildWorld(tiles, files.roads, files.boundary);
+  const buildMs = performance.now() - tBuild;
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
-  const ground = makeGroundFn(tiles);
+  // The renderer stands things on exactly the sim's ground.
+  const ground = (x: number, z: number): number => groundHeight(world, x, z);
   const occluded = (x: number, y: number, z: number): boolean => {
     for (const b of nearbyBuildings(world, x, z, 0.6)) {
       if (y < b.topY + 0.3 && y > b.baseY - 2 && pointInPolygon(x, z, b.footprint)) return true;
@@ -139,7 +144,7 @@ async function boot(): Promise<void> {
   const bootedAtNight = params.get("night") === "1";
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded },
+    { manifest, base, colliders, roads, ground, occluded, assets },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",
@@ -222,6 +227,7 @@ async function boot(): Promise<void> {
     if (w !== 0) view.rig.fly.speed = Math.max(2, Math.min(600, view.rig.fly.speed * Math.pow(1.25, -w)));
   };
 
+  const readyAt = performance.now();
   installDebugHandle({
     world: worldName,
     state: () => curr,
@@ -245,7 +251,16 @@ async function boot(): Promise<void> {
         );
       }
     },
-    simInfo: () => ({ seed: curr.seed, playerIds: sortedIds(curr.players), roads: world.roads !== null, agents: agentsOf(curr).length }),
+    simInfo: () => ({
+      seed: curr.seed,
+      playerIds: sortedIds(curr.players),
+      roads: world.roads !== null,
+      agents: agentsOf(curr).length,
+      colliders: files.colliders,
+      walls: world.walls?.segments.length ?? 0,
+      assets: assets.mode,
+      boot: { loadMs, buildMs, readyMs: readyAt - tStart },
+    }),
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),

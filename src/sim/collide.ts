@@ -1,7 +1,9 @@
 // Collision queries for bodies that move through the static world: an oriented rectangle
 // (cars) and a circle (people on foot), against building footprints (any polygon, concave
-// included) and dynamic obstacle circles/boxes. Pure functions; deterministic iteration.
+// included), the world's edge and shore walls (boundary.ts) and dynamic obstacle
+// circles/boxes. Pure functions; deterministic iteration.
 
+import { WALL_DEPTH_M, circleWallDepth, wallSide, wallsNear, type WallSegment } from "./boundary.ts";
 import { dcos, dsin } from "./dmath.ts";
 import { closestOnBoundary, nearbyBuildings, pointInPolygon, type World } from "./world.ts";
 
@@ -131,6 +133,72 @@ function boxPolygonPush(
   return [px + (px / d) * EPS, pz + (pz / d) * EPS];
 }
 
+/**
+ * Push that moves an oriented box back onto the land side of one wall (boundary.ts), or null.
+ * The deepest box sample point behind the wall line (within the wall's reach along it, and no
+ * deeper than WALL_DEPTH_M) sets the push, along the wall's land normal. A wall end inside the
+ * box (at a gap cut for a road) pushes the box off it along the box's shallower axis.
+ */
+function boxWallPush(
+  cx: number,
+  cz: number,
+  fx: number,
+  fz: number,
+  rx: number,
+  rz: number,
+  hl: number,
+  hw: number,
+  w: Readonly<WallSegment>,
+): [number, number] | null {
+  let worst = 0;
+  for (const [l, f] of samplePoints(hl, hw)) {
+    const d = wallSide(w, cx + rx * l + fx * f, cz + rz * l + fz * f);
+    if (d !== null && d < worst && d > -WALL_DEPTH_M) worst = d;
+  }
+  let px = 0;
+  let pz = 0;
+  let best = 0;
+  if (worst < 0) {
+    px = -worst * w.nx;
+    pz = -worst * w.nz;
+    best = worst * worst;
+  }
+  for (const [vx, vz] of [
+    [w.ax, w.az],
+    [w.bx, w.bz],
+  ] as const) {
+    const ox = vx - cx;
+    const oz = vz - cz;
+    const l = ox * rx + oz * rz;
+    const f = ox * fx + oz * fz;
+    const al = l < 0 ? -l : l;
+    const af = f < 0 ? -f : f;
+    if (al >= hw || af >= hl) continue;
+    const penL = hw - al;
+    const penF = hl - af;
+    let dx: number;
+    let dz: number;
+    if (penL <= penF) {
+      const k = l > 0 ? -penL : penL;
+      dx = rx * k;
+      dz = rz * k;
+    } else {
+      const k = f > 0 ? -penF : penF;
+      dx = fx * k;
+      dz = fz * k;
+    }
+    const d2 = dx * dx + dz * dz;
+    if (d2 > best) {
+      best = d2;
+      px = dx;
+      pz = dz;
+    }
+  }
+  if (best <= 0) return null;
+  const d = Math.sqrt(best);
+  return [px + (px / d) * EPS, pz + (pz / d) * EPS];
+}
+
 /** Push that separates an oriented box from a circle, or null. */
 function boxCirclePush(
   cx: number,
@@ -210,6 +278,18 @@ export function resolveBox(
         bestIsPerson = false;
       }
     }
+    if (world.walls) {
+      for (const k of wallsNear(world.walls, x, z, reach)) {
+        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!);
+        if (!p) continue;
+        const d2 = p[0] * p[0] + p[1] * p[1];
+        if (d2 > bestD2) {
+          bestD2 = d2;
+          best = p;
+          bestIsPerson = false;
+        }
+      }
+    }
     for (const c of circles) {
       const dx = c.x - x;
       const dz = c.z - z;
@@ -247,6 +327,11 @@ export function boxBlocked(world: World, box: Readonly<Box>, y: number, circles:
   for (const b of nearbyBuildings(world, box.x, box.z, box.hl + box.hw + 1)) {
     if (y >= b.topY || b.topY <= b.baseY) continue;
     if (boxPolygonPush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, b.footprint)) return true;
+  }
+  if (world.walls) {
+    for (const k of wallsNear(world.walls, box.x, box.z, box.hl + box.hw + 1)) {
+      if (boxWallPush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!)) return true;
+    }
   }
   for (const c of circles) if (boxCirclePush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, c)) return true;
   return false;
@@ -296,6 +381,36 @@ export function resolveCircleAll(
       z = c.z + uz * (r + EPS);
       hit = true;
       moved = true;
+    }
+    if (world.walls) {
+      for (const k of wallsNear(world.walls, x, z, r + 1)) {
+        const w = world.walls.segments[k]!;
+        const depth = circleWallDepth(w, x, z, r);
+        if (depth > 0) {
+          x += w.nx * (depth + EPS);
+          z += w.nz * (depth + EPS);
+          hit = true;
+          moved = true;
+          continue;
+        }
+        // Round a wall's free end (a gap cut for a road): keep r from the end point.
+        for (const [ex, ez] of [
+          [w.ax, w.az],
+          [w.bx, w.bz],
+        ] as const) {
+          const dx = x - ex;
+          const dz = z - ez;
+          const d2 = dx * dx + dz * dz;
+          if (d2 >= r * r || wallSide(w, x, z) !== null) continue;
+          const d = Math.sqrt(d2);
+          const ux = d > 1e-9 ? dx / d : w.nx;
+          const uz = d > 1e-9 ? dz / d : w.nz;
+          x = ex + ux * (r + EPS);
+          z = ez + uz * (r + EPS);
+          hit = true;
+          moved = true;
+        }
+      }
     }
     for (const b of boxes) {
       const dx = b.x - x;

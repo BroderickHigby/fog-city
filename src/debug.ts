@@ -56,6 +56,17 @@ export interface SimInfo {
   roads: boolean;
   /** Ambient agents in the current state. */
   agents: number;
+  /** Where the sim's colliders came from: the citywide collider pack, or per-tile JSON. */
+  colliders: "pack" | "json";
+  /** Wall segments at the world's edge and shore (0 when the world has no boundary.json). */
+  walls: number;
+  /** How this build serves its files: loose (dev server) or packed (production build). */
+  assets: "loose" | "packed";
+  /**
+   * Boot timings, ms (display only, never assert on them): fetching and decoding the world's
+   * sim files, buildWorld(), and navigation start to the game being ready.
+   */
+  boot: { loadMs: number; buildMs: number; readyMs: number };
 }
 
 export interface DebugHandle {

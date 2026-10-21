@@ -2,6 +2,8 @@ export * from "./contract.ts";
 export * from "./dmath.ts";
 export * from "./rng.ts";
 export * from "./world.ts";
+export * from "./pack.ts";
+export * from "./boundary.ts";
 export * from "./roads.ts";
 export * from "./collide.ts";
 export * from "./car.ts";

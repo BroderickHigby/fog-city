@@ -32,6 +32,10 @@ export interface RoadsFile {
     speedLimitMps?: number;
     name?: string;
     pedestrian?: boolean;
+    /** A freeway (limited access): on a viaduct, in a cut or a tunnel. Surface traffic never routes onto it. */
+    gradeSeparated?: boolean;
+    /** Crosses open water for 10 m or more (its points are the water under the deck). */
+    bridge?: boolean;
     points: ReadonlyArray<readonly [number, number] | readonly number[]>;
   }>;
 }
@@ -80,9 +84,12 @@ export interface RoadEdgeInfo {
   walkClear: [[boolean, boolean], [boolean, boolean]];
   /** Distance of each side's sidewalk line beyond the kerb: [right of a -> b, left]. */
   sidewalkM: [number, number];
-  /** Robotaxis may use the edge (not pedestrian-only, not an alley or a one-lane two-way street). */
+  /**
+   * Robotaxis may use the edge: not pedestrian-only, not an alley or a one-lane two-way street,
+   * not grade-separated (a freeway, or a ramp joining one).
+   */
   drivable: boolean;
-  /** People and sidewalk robots may use the edge (no freeways or ramps). */
+  /** People and sidewalk robots may use the edge (no freeways or ramps, nothing grade-separated). */
   walkable: boolean;
 }
 
@@ -571,6 +578,21 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
     } else n.radius = 2.5;
   }
 
+  // Freeways have no modelled decks (their points are the ground under the roadway), so surface
+  // traffic never routes onto them: gradeSeparated edges, and the ramps that join one (a ramp
+  // that only leads onto a freeway would otherwise be a dead end for a robotaxi).
+  const gradeSeparated = new Set<number>();
+  const touchesFreeway = new Set<number>();
+  protos.forEach((p, i) => {
+    if (p.raw.gradeSeparated !== true) return;
+    gradeSeparated.add(i);
+    touchesFreeway.add(nodeIndex.get(p.raw.a)!);
+    touchesFreeway.add(nodeIndex.get(p.raw.b)!);
+  });
+  protos.forEach((p, i) => {
+    if (p.raw.kind === "ramp" && (touchesFreeway.has(nodeIndex.get(p.raw.a)!) || touchesFreeway.has(nodeIndex.get(p.raw.b)!))) gradeSeparated.add(i);
+  });
+
   // Pass 2: lane and sidewalk paths.
   const edges: RoadEdgeInfo[] = protos.map((p, index) => {
     const raw = p.raw;
@@ -579,8 +601,9 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
     const kind = raw.kind;
     const pedestrian = raw.pedestrian === true;
     const lanes = Math.max(1, Math.round(raw.lanes));
-    const drivable = !pedestrian && kind !== "alley" && (raw.oneway || lanes >= 2) && p.widthM >= 5;
-    const walkable = kind !== "freeway" && kind !== "ramp";
+    const elevated = gradeSeparated.has(index);
+    const drivable = !pedestrian && !elevated && kind !== "alley" && (raw.oneway || lanes >= 2) && p.widthM >= 5;
+    const walkable = !elevated && kind !== "freeway" && kind !== "ramp";
     const d = KIND_DEFAULTS[kind] ?? KIND_DEFAULTS.other!;
     const info: RoadEdgeInfo = {
       id: raw.id,

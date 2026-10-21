@@ -7,6 +7,7 @@ import { DT, type CarState, type FootState, type SimInput } from "./contract.ts"
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { resolveCircleAll, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
+import { segmentCrossesWall } from "./boundary.ts";
 import { circleBlocked, groundHeight, segmentBlocked, type World } from "./world.ts";
 
 export const FOOT = {
@@ -96,6 +97,7 @@ export function closestOnCar(c: Readonly<Pick<CarState, "x" | "z" | "heading">>,
 export function canEnterCar(world: World, c: Readonly<Pick<CarState, "x" | "z" | "heading">>, x: number, z: number): boolean {
   if (distanceToCar(c, x, z) > FOOT.enterRange) return false;
   const p = closestOnCar(c, x, z);
+  if (segmentCrossesWall(world.walls, x, z, c.x, c.z)) return false;
   return !segmentBlocked(world, x, z, p.x, p.z) || !segmentBlocked(world, x, z, c.x, c.z);
 }
 
@@ -126,6 +128,7 @@ export function exitSpot(
   for (const [x, z] of spots) {
     if (circleBlocked(world, x, z, FOOT.radius)) continue;
     if (segmentBlocked(world, c.x, c.z, x, z)) continue;
+    if (segmentCrossesWall(world.walls, c.x, c.z, x, z)) continue;
     const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles);
     if (res.hit) continue;
     return makeFoot(x, groundHeight(world, x, z), z, c.heading);

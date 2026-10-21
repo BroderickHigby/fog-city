@@ -4,7 +4,8 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildWorld, type TileCollider, type World } from "../src/sim/index.ts";
+import { assembleWorldFiles } from "../src/io/world-load.ts";
+import { buildWorld, type BoundaryFile, type RoadsFile, type TileCollider, type World } from "../src/sim/index.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
 
@@ -46,6 +47,10 @@ export interface WorldManifest {
     stats?: Record<string, number>;
   }>;
   roads?: string | null;
+  /** The citywide collider pack (schemas/world-colliders.md), when the world has one. */
+  worldColliders?: string;
+  /** Data layers by name (boundary, districts, sidewalks, ...). */
+  layers?: Record<string, string>;
 }
 
 /** schemas/roads.schema.json, the parts tests read. */
@@ -70,34 +75,59 @@ export function worldExists(name: string): boolean {
   return fileExists(`public/tiles/${name}/manifest.json`);
 }
 
-/** The raw files of a world: manifest, every tile collider in manifest order, and the road graph (or null). */
-export function loadWorldFiles(name: string): { manifest: WorldManifest; tiles: TileCollider[]; roads: RoadGraphFile | null } {
+export interface WorldFilesNode {
+  manifest: WorldManifest;
+  /** Every tile collider, in manifest order. */
+  tiles: TileCollider[];
+  roads: RoadGraphFile | null;
+  /** boundary.json (manifest.layers.boundary), or null. */
+  boundary: BoundaryFile | null;
+  /** Where the colliders came from: the collider pack (when the manifest names one) or per-tile JSON. */
+  colliders: "pack" | "json";
+}
+
+const worldFilesCache = new Map<string, WorldFilesNode>();
+
+/**
+ * The files a world's sim is built from, read from disk exactly as the game reads them
+ * (src/io/world-load.ts): the collider pack when the manifest names one, else every tile's
+ * collider JSON; the road graph and the boundary when the manifest names them. Cached per world
+ * (the data is never mutated).
+ */
+export function loadWorldFiles(name: string): WorldFilesNode {
+  const hit = worldFilesCache.get(name);
+  if (hit) return hit;
   const dir = `public/tiles/${name}`;
   const manifest = readJson<WorldManifest>(`${dir}/manifest.json`);
-  const tiles = manifest.tiles.map((t) => readJson<TileCollider>(`${dir}/${t.collider}`));
+  const colliders = manifest.worldColliders
+    ? { pack: new Uint8Array(readFileSync(join(ROOT, dir, manifest.worldColliders))) }
+    : { json: manifest.tiles.map((t) => readJson<TileCollider>(`${dir}/${t.collider}`)) };
   const roads = manifest.roads ? readJsonIfExists<RoadGraphFile>(`${dir}/${manifest.roads}`) : null;
-  return { manifest, tiles, roads };
+  const boundaryFile = manifest.layers?.boundary;
+  const boundary = boundaryFile ? readJson<BoundaryFile>(`${dir}/${boundaryFile}`) : null;
+  const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary);
+  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, colliders: files.colliders };
+  worldFilesCache.set(name, out);
+  return out;
+}
+
+/** buildWorld(tiles, roads, boundary): the world as a manifest describes it. */
+export function buildWorldWithRoads(tiles: readonly TileCollider[], roads: unknown, boundary: BoundaryFile | null = null): World {
+  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, boundary);
 }
 
 /**
- * buildWorld(tiles, roads). The road graph argument is additive in sim v2; a sim that does not
- * take it ignores it, so harness code calls through this one place and works on either.
- */
-export function buildWorldWithRoads(tiles: readonly TileCollider[], roads: unknown): World {
-  return (buildWorld as unknown as (t: readonly TileCollider[], r?: unknown) => World)(tiles, roads ?? null);
-}
-
-/**
- * The sim world for a committed world directory. By default without the road graph (so no
- * ambient traffic): what the unit tests have always used, and tests/sim relies on it. Pass
- * { roads: true } for the world exactly as its manifest describes it.
+ * The sim world for a committed world directory. By default colliders only (no road graph, so
+ * no ambient traffic, and no boundary walls): what the unit tests have always used, and
+ * tests/sim relies on it. Pass { roads: true } for the world exactly as its manifest describes
+ * it (road graph and boundary included), as the game builds it.
  */
 export function loadWorld(
   name: string,
   opts: { roads?: boolean } = {},
 ): { world: World; manifest: WorldManifest; roads: RoadGraphFile | null } {
-  const { manifest, tiles, roads } = loadWorldFiles(name);
-  const world = opts.roads ? buildWorldWithRoads(tiles, roads) : buildWorld(tiles);
+  const { manifest, tiles, roads, boundary } = loadWorldFiles(name);
+  const world = opts.roads ? buildWorldWithRoads(tiles, roads, boundary) : buildWorld(tiles);
   return { world, manifest, roads };
 }
 

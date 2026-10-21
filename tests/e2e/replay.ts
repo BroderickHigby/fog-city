@@ -1,9 +1,10 @@
 // Node-side replays for the browser tests: step a snapshot taken from the running game with the
 // same inputs and events the game got, and say whether the game ended in exactly the same state.
 //
-// The game builds its sim world from a world directory, and with sim v2 the road graph matters
-// (ambient traffic). Which construction the game used is a question tests ask on purpose:
-// `constructions()` lists the one the manifest describes first, then the fallback.
+// The game builds its sim world from a world directory: colliders, and the road graph (ambient
+// traffic) and boundary (edge and shore walls) when the manifest names them. Which construction
+// the game used is a question tests ask on purpose: `constructions()` lists the one the
+// manifest describes first, then colliders only as the fallback.
 
 import {
   NEUTRAL_INPUT,
@@ -21,7 +22,8 @@ import { makeWorld } from "./determinism-scenario.ts";
 
 export const COLLIDERS_ONLY = "colliders only";
 export const WITH_ROADS = "colliders + road graph";
-export type ConstructionLabel = typeof COLLIDERS_ONLY | typeof WITH_ROADS;
+export const WITH_ROADS_AND_BOUNDARY = "colliders + road graph + boundary";
+export type ConstructionLabel = typeof COLLIDERS_ONLY | typeof WITH_ROADS | typeof WITH_ROADS_AND_BOUNDARY;
 
 export interface Construction {
   label: ConstructionLabel;
@@ -29,7 +31,7 @@ export interface Construction {
 }
 
 export interface Constructions {
-  /** What the manifest describes: with the road graph when it names one. */
+  /** What the manifest describes: with the road graph and the boundary when it names them. */
   expected: ConstructionLabel;
   /** The expected construction first, then the other (when the manifest names roads). Built lazily, once. */
   get(i: number): Construction;
@@ -43,7 +45,8 @@ export function constructions(name: string): Constructions {
   let c = cache.get(name);
   if (c) return c;
   const files = loadWorldFiles(name);
-  const labels: ConstructionLabel[] = files.roads ? [WITH_ROADS, COLLIDERS_ONLY] : [COLLIDERS_ONLY];
+  const full: ConstructionLabel = files.roads ? (files.boundary ? WITH_ROADS_AND_BOUNDARY : WITH_ROADS) : COLLIDERS_ONLY;
+  const labels: ConstructionLabel[] = full === COLLIDERS_ONLY ? [COLLIDERS_ONLY] : [full, COLLIDERS_ONLY];
   const built: Construction[] = [];
   c = {
     expected: labels[0]!,
@@ -51,7 +54,8 @@ export function constructions(name: string): Constructions {
     get(i: number): Construction {
       if (!built[i]) {
         const label = labels[i]!;
-        built[i] = { label, world: makeWorld(files.tiles, label === WITH_ROADS ? files.roads : null) };
+        const world = label === COLLIDERS_ONLY ? makeWorld(files.tiles, null) : makeWorld(files.tiles, files.roads, label === WITH_ROADS_AND_BOUNDARY ? files.boundary : null);
+        built[i] = { label, world };
       }
       return built[i]!;
     },

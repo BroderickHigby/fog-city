@@ -29,16 +29,18 @@ import {
   type SimInput,
   type SimState,
   type Spawn,
+  type BoundaryFile,
+  type RoadsFile,
   type TileCollider,
   type World,
 } from "../../src/sim/index.ts";
 
 /**
- * buildWorld(tiles, roads). Sim v2 takes the road graph (ambient traffic); a sim that does not
- * ignores the extra argument. Node and the browser both build their world through this.
+ * buildWorld(tiles, roads, boundary): the road graph runs ambient traffic, the boundary walls
+ * stop cars at the world's edge and shore. Node and the browser both build their world through this.
  */
-export function makeWorld(tiles: readonly TileCollider[], roads: unknown): World {
-  return (buildWorld as unknown as (t: readonly TileCollider[], r?: unknown) => World)(tiles, roads ?? null);
+export function makeWorld(tiles: readonly TileCollider[], roads: unknown, boundary: unknown = null): World {
+  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, (boundary ?? null) as BoundaryFile | null);
 }
 
 export interface ScenarioOptions {
