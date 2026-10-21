@@ -85,6 +85,8 @@ export interface RenderInfo {
   farCellsDrawn: number;
   /** Triangles in the loaded far cells. */
   farTriangles: number;
+  /** Far quads at the city's outer edge stitched to the streamed tiles' ground. */
+  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
 }
@@ -192,6 +194,7 @@ export class SceneRenderer {
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
+      ground: world.ground,
     });
     this.scene.add(this.far.group);
 
@@ -439,6 +442,7 @@ export class SceneRenderer {
     out.farCells = f.loaded;
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
+    out.farSeamEdges = f.seamEdges;
     out.cameraFar = this.camera.far;
     return out;
   }
@@ -488,6 +492,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCells: 0,
   farCellsDrawn: 0,
   farTriangles: 0,
+  farSeamEdges: 0,
   cameraFar: 0,
 });
 

@@ -35,6 +35,7 @@ export interface RenderInfoLike {
   farCells?: number;
   farCellsDrawn?: number;
   farTriangles?: number;
+  farSeamEdges?: number;
   /** The camera's far plane, metres. */
   cameraFar?: number;
 }

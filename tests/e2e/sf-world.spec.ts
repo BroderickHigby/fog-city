@@ -1,7 +1,8 @@
 // M0 acceptance on the real San Francisco world (public/tiles/sf, built by the pipeline).
 // Skips cleanly while the SF world is absent from this checkout; activates when it lands.
 // The browser tests share one page (booting SF under SwiftShader is the expensive part) and
-// run in order: boot, look, landmark, traffic, then drive (the only one that moves the car).
+// run in order: boot, look, landmark, traffic, drive (the first that moves the car), then the
+// city limit (which puts the player there).
 
 import { expect, test, type Page } from "@playwright/test";
 import { toLocal } from "../../src/geo/project.ts";
@@ -343,6 +344,49 @@ test.describe("sf world: in the browser", () => {
         if (b.topY - b.baseY > 2) expect(pointInPolygon(p.x, p.z, b.footprint), `car inside building ${b.id}`).toBe(false);
       }
     }
+    expect(problems).toEqual([]);
+  });
+
+  test("the city limit has no crack: from the car at the southern land edge, no sea shows between the last tile and the land beyond", async () => {
+    // Before the far layer stitched its terrain to the tiles' ground at the city's outer edge, a
+    // strip of the sea plane showed here across the whole screen, through the gap between the
+    // last tile's ground and the far terrain's edge.
+    test.setTimeout(420_000);
+    const have = await features(page);
+    gate("render-debug", have.renderInfo && have.setCameraMode && have.tilesSettled, "window.__fogcity.renderInfo(), setCameraMode() or tilesSettled() is missing");
+    gate("step-frames", have.stepFrames, "window.__fogcity.stepFrames() is missing");
+    await page.evaluate(() => {
+      const h = (window as unknown as FogWindow).__fogcity!;
+      h.pause();
+      const tick = h.state().tick + 1;
+      // Parked 2.2 m short of the land edge at z = 10000, facing south across it.
+      h.stepFrames!(
+        [{}],
+        [
+          { tick, kind: "player.leave", playerId: "p1" },
+          { tick, kind: "player.join", playerId: "p1", payload: { x: -430, z: 9997.8, heading: Math.PI } },
+        ],
+      );
+      h.setCameraMode!("chase");
+    });
+    expect(await settle(page, 300_000), "tiles and far cells settled").toBe(true);
+    await frames(page, 3);
+    const r = (await renderInfo(page))!;
+    expect(r.farSeamEdges ?? 0, "far quads stitched to the tiles' ground at the city's outer edge").toBeGreaterThan(50);
+    const img = decodePng(await page.screenshot());
+    // Sea-coloured pixels below the horizon, outside the middle third (the car is there).
+    let sea = 0;
+    for (let y = Math.floor(img.height / 2); y < img.height; y++) {
+      for (let x = 0; x < img.width; x++) {
+        if (x > img.width / 3 && x < (2 * img.width) / 3) continue;
+        const i = (y * img.width + x) * img.channels;
+        const red = img.data[i]!;
+        const green = img.data[i + 1]!;
+        const blue = img.data[i + 2]!;
+        if (blue > red + 35 && blue > green + 15) sea++;
+      }
+    }
+    expect(sea, "sea-coloured pixels below the horizon (the crack was about 11,000)").toBeLessThan(50);
     expect(problems).toEqual([]);
   });
 });

@@ -42,6 +42,8 @@ export interface RenderInfo {
   farCells: number;
   farCellsDrawn: number;
   farTriangles: number;
+  /** Far quads at the city's outer edge stitched to the streamed tiles' ground (no crack at the city limit). */
+  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
 }
