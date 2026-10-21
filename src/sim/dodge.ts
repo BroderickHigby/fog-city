@@ -76,6 +76,10 @@ export const SAMPLE_S = 0.05;
  * m/s (a chase at the body: it dives earlier and further). Robotaxis keep to their lanes: 0.
  */
 export const PLAYER_SPREAD_MPS = 1;
+/** ... and this much more while it is scraping or bouncing off a wall or a building (where it goes next is anyone's guess). */
+export const CRASH_SPREAD_MPS = 3;
+/** A car that touched something this recently (CarState.sinceContact, ticks) is crashing. */
+export const CRASH_TICKS = 20;
 /** A landing spot keeps this much more than the margin from every predicted footprint, metres. */
 export const LANDING_EXTRA_M = 0.35;
 /**
@@ -123,11 +127,11 @@ export interface DodgeProfile {
 }
 
 export const DODGE_PROFILE: Readonly<Record<DodgeClass, DodgeProfile>> = {
-  person: { margin: 0.75, override: 0.3, speed: 8, maxDive: 5.5, minTicks: 12, peak: 0.45, leapPeak: 2.0, recover: 60 },
+  person: { margin: 0.75, override: 0.3, speed: 9, maxDive: 5.5, minTicks: 12, peak: 0.45, leapPeak: 2.0, recover: 60 },
   // Children, and anyone seated, lying down or using a mobility aid: a wider berth both ways.
   care: { margin: 1.25, override: 0.6, speed: 8, maxDive: 5.5, minTicks: 12, peak: 0.35, leapPeak: 2.0, recover: 60 },
   // A player on foot gets control back sooner.
-  player: { margin: 0.75, override: 0.3, speed: 8, maxDive: 5.5, minTicks: 12, peak: 0.45, leapPeak: 2.0, recover: 30 },
+  player: { margin: 0.75, override: 0.3, speed: 9, maxDive: 5.5, minTicks: 12, peak: 0.45, leapPeak: 2.0, recover: 30 },
   // The Footman hops aside; the Trundle skids with a little hop.
   errandRobot: { margin: 0.75, override: null, speed: 7, maxDive: 5, minTicks: 12, peak: 0.3, leapPeak: 0, recover: 30 },
   sidewalkBot: { margin: 0.75, override: null, speed: 7, maxDive: 5, minTicks: 12, peak: 0.12, leapPeak: 0, recover: 24 },
@@ -221,6 +225,14 @@ function rot(x: number, z: number, c: number, s: number): [number, number] {
   return [x * c - z * s, z * c + x * s];
 }
 
+/** What else a vehicle may have (Vehicle's fields of the same names). */
+export interface VehicleOptions {
+  circles?: Array<{ x: number; z: number; r: number }> | null;
+  spread?: number;
+  react?: number;
+  route?: RoutePoint[] | null;
+}
+
 /**
  * A vehicle and its predicted footprint. Heading as a compass bearing; (vx, vz) the world
  * velocity; decel the braking to count on (0 for a player's car).
@@ -237,11 +249,12 @@ export function makeVehicle(
   vz: number,
   yawRate: number,
   decel: number,
-  circles: Array<{ x: number; z: number; r: number }> | null = null,
-  spread = 0,
-  react = 0,
-  route: RoutePoint[] | null = null,
+  opts: VehicleOptions = {},
 ): Vehicle {
+  const circles = opts.circles ?? null;
+  const spread = opts.spread ?? 0;
+  const react = opts.react ?? 0;
+  const route = opts.route ?? null;
   const speed = Math.sqrt(vx * vx + vz * vz);
   const v: Vehicle = {
     key,
@@ -284,12 +297,13 @@ export function makeVehicle(
   return v;
 }
 
-/** A player's car as a vehicle (velocity from speed and slide, yaw rate from the car). */
+/** A player's car as a vehicle (velocity from speed and slide, yaw rate from the car; a crashing car's footprint spreads faster). */
 export function vehicleOfCar(id: PlayerId, c: Readonly<CarState>): Vehicle {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
+  const spread = PLAYER_SPREAD_MPS + (c.sinceContact < CRASH_TICKS ? CRASH_SPREAD_MPS : 0);
   // Right of forward is (-fz, fx).
-  return makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, null, PLAYER_SPREAD_MPS);
+  return makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, { spread });
 }
 
 /**
@@ -309,47 +323,50 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   const fx = dsin(a.heading);
   const fz = -dcos(a.heading);
   const route = world && a.speed >= DODGE_MIN_SPEED ? agentRoute(world, a, a.speed * horizonS(a.speed) + 1, 0.5) : null;
-  return makeVehicle(
-    `a:${a.id}`,
-    null,
-    a.x,
-    a.z,
-    a.heading,
-    spec.halfLength,
-    spec.halfWidth,
-    a.speed * fx,
-    a.speed * fz,
-    yaw,
-    decel,
-    agentCircles(a),
-    0,
-    ROBOTAXI_REACT_S,
-    route && route.length >= 2 ? route : null,
-  );
+  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, spec.halfLength, spec.halfWidth, a.speed * fx, a.speed * fz, yaw, decel, {
+    circles: agentCircles(a),
+    react: ROBOTAXI_REACT_S,
+    route: route && route.length >= 2 ? route : null,
+  });
 }
 
 /**
- * The predicted paths of a vehicle: samples every SAMPLE_S over horizonS(speed). Turning (a
- * yaw rate that turns it more than 0.05 rad over the horizon): the arc its velocity draws as it
- * turns, and the straight line it would slide along with its body still yawing (a drift or a
- * handbrake turn). Otherwise one straight path. Braking (decel) shortens them; a stopped
- * vehicle's last sample is where it stops.
+ * The predicted paths of a vehicle: samples every SAMPLE_S over horizonS(speed). Along its
+ * route when it has one (a robotaxi). Otherwise, turning (a yaw rate that turns it more than
+ * 0.05 rad over the horizon): the arc its velocity draws as it turns; the straight line it would
+ * slide along with its body still yawing (a drift or a handbrake turn); and, for a vehicle that
+ * can be steered anywhere (spread > 0, a player's car), the arc of the hardest turn its tyres
+ * allow that way (CAR.gripAccel / speed, so a car chasing someone round a bend is not
+ * underestimated). Not turning: one straight path. Braking (decel, after react) shortens them;
+ * a stopped vehicle's last sample is where it stops. Walls and buildings are not in it: the
+ * footprint never pretends a wall stops a car short of someone (a crashing car's footprint
+ * spreads faster instead, CRASH_SPREAD_MPS).
  */
 export function predictPaths(
-  v: Readonly<Pick<Vehicle, "x" | "z" | "fx" | "fz" | "vx" | "vz" | "speed" | "yawRate" | "decel" | "react"> & { route?: RoutePoint[] | null }>,
+  v: Readonly<Pick<Vehicle, "x" | "z" | "fx" | "fz" | "vx" | "vz" | "speed" | "yawRate" | "decel" | "react"> & { route?: RoutePoint[] | null; spread?: number }>,
 ): Sample[][] {
   if (v.speed < DODGE_MIN_SPEED) return [];
   const T = horizonS(v.speed);
   const n = Math.ceil(T / SAMPLE_S - 1e-9);
   if (v.route) return [alongRoute(v, v.route, n)];
-  const dA = v.yawRate * SAMPLE_S;
-  const c = dcos(dA);
-  const s = dsin(dA);
-  const ch = dcos(dA / 2);
-  const sh = dsin(dA / 2);
-  const turning = (v.yawRate < 0 ? -v.yawRate : v.yawRate) * T > 0.05;
+  const yaw = v.yawRate;
+  const turning = (yaw < 0 ? -yaw : yaw) * T > 0.05;
+  // [yaw rate of the path, yaw rate of the body]
+  const kinds: Array<[number, number]> = turning ? [[yaw, yaw], [0, yaw]] : [[0, yaw]];
+  if (turning && (v.spread ?? 0) > 0) {
+    const hard = Math.min(CAR.gripAccel / v.speed, 1.2);
+    if (hard > (yaw < 0 ? -yaw : yaw)) kinds.push([yaw < 0 ? -hard : hard, yaw < 0 ? -hard : hard]);
+  }
   const out: Sample[][] = [];
-  for (const turn of turning ? [true, false] : [false]) {
+  for (const [pathYaw, bodyYaw] of kinds) {
+    const dA = pathYaw * SAMPLE_S;
+    const c = dcos(dA);
+    const s = dsin(dA);
+    const ch = dcos(dA / 2);
+    const sh = dsin(dA / 2);
+    const bA = bodyYaw * SAMPLE_S;
+    const bc = dcos(bA);
+    const bs = dsin(bA);
     const path: Sample[] = [];
     let x = v.x;
     let z = v.z;
@@ -360,7 +377,7 @@ export function predictPaths(
     path.push({ t: 0, x, z, fx, fz, ux, uz });
     for (let k = 1; k <= n; k++) {
       const { d, stopped } = stepDistance(v, k);
-      if (turn) {
+      if (pathYaw !== 0) {
         const [mx, mz] = rot(ux, uz, ch, sh);
         x += mx * d;
         z += mz * d;
@@ -369,7 +386,7 @@ export function predictPaths(
         x += ux * d;
         z += uz * d;
       }
-      [fx, fz] = rot(fx, fz, c, s);
+      [fx, fz] = rot(fx, fz, bc, bs);
       path.push({ t: k * SAMPLE_S, x, z, fx, fz, ux, uz });
       if (stopped) break;
     }
@@ -541,7 +558,7 @@ function spotFree(spots: readonly Spot[], x: number, z: number, r: number): bool
 }
 
 /**
- * Does a body leaving (px, pz) along (wx, wz) at `speed` for `len` metres stay PASSING_M clear
+ * Does a body leaving (px, pz) along (wx, wz) at `speed` for `len` metres stay PASSING_M (plus the spread) clear
  * of every moving vehicle's predicted body on the way? It has moved one tick when the samples'
  * clock starts (they are the vehicles after this tick's move).
  */
@@ -552,25 +569,33 @@ function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: n
         const along = Math.min(len, speed * (s.t + DT));
         const x = px + wx * along;
         const z = pz + wz * along;
-        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + PASSING_M) return false;
+        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + PASSING_M + v.spread * s.t) return false;
       }
     }
   }
   return true;
 }
 
-/** Angles (radians) away from square to the path that a dive tries, and what each costs (metres). */
+/**
+ * Angles (radians) away from square to the path that a dive tries, and what each costs (metres):
+ * + turns the dive back against the travel (toward where the vehicle is), which costs more, since
+ * a car steering after the body closes that way first.
+ */
 const FAN: ReadonlyArray<readonly [number, number]> = [
   [0, 0],
-  [0.35, 0.3],
   [-0.35, 0.3],
-  [0.75, 0.7],
+  [0.35, 0.45],
   [-0.75, 0.7],
-  [1.15, 1.2],
+  [0.75, 1.1],
   [-1.15, 1.2],
+  [1.15, 1.8],
 ];
 /** Extra cost of diving to the other side of the vehicle's path, metres. */
 const OTHER_SIDE_COST = 1.2;
+/** Extra cost of landing on another body or another diver's landing spot, metres. */
+const CROWDED_COST = 2;
+/** Extra cost of turning a dive under way straight back, metres (less for a smaller turn). */
+const REVERSE_COST = 3;
 const MARCH_M = 0.25;
 
 /**
@@ -581,7 +606,9 @@ const MARCH_M = 0.25;
  * margin, its line must be clear of buildings, walls and big steps and of the vehicles on the
  * way. When nothing qualifies with the spots, again without them; when still nothing, the spot
  * on the lines with the most clearance from the vehicles (a best effort the override backs
- * up), or null when no line leads anywhere.
+ * up), or null when no line leads anywhere. `prefer` (a unit direction: a dive already under
+ * way) keeps a body from changing its mind: its side is the side that direction is on, and a
+ * line turning back against it costs up to REVERSE_COST more.
  */
 export function chooseDive(
   g: Ground,
@@ -589,6 +616,7 @@ export function chooseDive(
   threat: Readonly<Hit>,
   vehicles: readonly Vehicle[],
   spots: readonly Spot[],
+  prefer: { x: number; z: number } | null = null,
 ): { x: number; z: number } | null {
   const prof = DODGE_PROFILE[b.cls];
   const s = threat.sample;
@@ -596,9 +624,21 @@ export function chooseDive(
   const nx = -s.uz;
   const nz = s.ux;
   const lat = (b.x - s.x) * nx + (b.z - s.z) * nz;
-  const side = lat > 0.05 ? 1 : lat < -0.05 ? -1 : hash32(b.id, 0x51de) % 2 === 0 ? 1 : -1;
+  const along = prefer ? prefer.x * nx + prefer.z * nz : 0;
+  const side =
+    prefer && (along > 0.2 || along < -0.2)
+      ? along > 0
+        ? 1
+        : -1
+      : lat > 0.05
+        ? 1
+        : lat < -0.05
+          ? -1
+          : hash32(b.id, 0x51de) % 2 === 0
+            ? 1
+            : -1;
   const moving = vehicles.filter((v) => v.paths.length > 0);
-  for (const useSpots of [true, false]) {
+  {
     let best: { x: number; z: number; cost: number } | null = null;
     for (const sideSign of [side, -side]) {
       for (const [ang, angCost] of FAN) {
@@ -609,17 +649,22 @@ export function chooseDive(
         const sn = dsin(ang);
         const wx = px * c - s.ux * sn;
         const wz = pz * c - s.uz * sn;
-        const base = angCost + (sideSign === side ? 0 : OTHER_SIDE_COST);
+        const back = prefer ? -(wx * prefer.x + wz * prefer.z) : 0;
+        const base = angCost + (sideSign === side ? 0 : OTHER_SIDE_COST) + (back > 0 ? REVERSE_COST * back : 0);
         if (best && base + MARCH_M >= best.cost) continue;
         for (let len = MARCH_M; len <= prof.maxDive + 1e-9; len += MARCH_M) {
           if (best && base + len >= best.cost) break;
           const x = b.x + wx * len;
           const z = b.z + wz * len;
           if (!lineOpen(g, b, x, z, DIVE_STEP_M)) break;
-          if (useSpots && !spotFree(spots, x, z, b.r)) continue;
           if (!clearOfVehicles(vehicles, x, z, b.r, prof.margin + LANDING_EXTRA_M)) continue;
           if (!passesClear(moving, b.x, b.z, wx, wz, len, prof.speed, b.r)) break;
-          best = { x, z, cost: base + len };
+          // Onto another body or landing: allowed, but dearer (a little further on is usually free).
+          if (!spotFree(spots, x, z, b.r)) {
+            if (!best || base + len + CROWDED_COST < best.cost) best = { x, z, cost: base + len + CROWDED_COST };
+            continue;
+          }
+          if (!best || base + len < best.cost) best = { x, z, cost: base + len };
           break;
         }
       }
@@ -913,7 +958,13 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
         keep = clearOfVehicles(nearV, d.tx, d.tz, r.r, prof.margin) && passesClear(nearV.filter((v) => v.paths.length > 0), r.x, r.z, wx, wz, len, prof.speed, r.r);
       }
       if (!keep) {
-        const to = chooseDive(heightFor(r), body, r.threats[0]!.hit, nearV, spotsNear(ri, prof.maxDive + 2));
+        // A dive under way keeps its direction if it can (no dithering as a car steers about).
+        let prefer: { x: number; z: number } | null = null;
+        if (d && d.phase === "dive" && !d.leap) {
+          const len = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
+          if (len > 1e-9) prefer = { x: (d.tx - d.sx) / len, z: (d.tz - d.sz) / len };
+        }
+        const to = chooseDive(heightFor(r), body, r.threats[0]!.hit, nearV, spotsNear(ri, prof.maxDive + 2), prefer);
         if (to) {
           const fresh = !d || d.phase !== "dive" || d.leap;
           d = startDive(prof, r.x, r.z, to.x, to.z);

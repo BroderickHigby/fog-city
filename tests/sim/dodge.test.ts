@@ -93,16 +93,21 @@ describe("the predicted footprint", () => {
     expect(last.fz).toBeCloseTo(-1, 9);
   });
 
-  it("turning: the arc it is on and the straight line it would slide along, both with the body yawing", () => {
-    const v = carVehicle(0, 0, 0, 20, 0, 0.8); // north, turning right
-    expect(v.paths).toHaveLength(2);
-    const [arc, line] = v.paths as [typeof v.paths[0], typeof v.paths[0]];
-    expect(arc.at(-1)!.x).toBeGreaterThan(3); // bends east
+  it("turning: the arc it is on and the straight line it would slide along, both with the body yawing; for a player's car, the hardest turn its tyres allow too", () => {
+    const v = carVehicle(0, 0, 0, 20, 0, 0.5); // north, turning right
+    expect(v.paths).toHaveLength(3);
+    const [arc, line, hard] = v.paths as [typeof v.paths[0], typeof v.paths[0], typeof v.paths[0]];
+    expect(arc.at(-1)!.x).toBeGreaterThan(2); // bends east
     expect(Math.abs(line.at(-1)!.x)).toBeLessThan(1e-9); // straight on
     // The body turns in both, by the yaw rate.
     const turned = Math.atan2(arc.at(-1)!.fx, -arc.at(-1)!.fz);
-    expect(turned).toBeCloseTo(0.8 * arc.at(-1)!.t, 6);
+    expect(turned).toBeCloseTo(0.5 * arc.at(-1)!.t, 6);
     expect(Math.atan2(line.at(-1)!.fx, -line.at(-1)!.fz)).toBeCloseTo(turned, 9);
+    // The hardest turn: CAR.gripAccel / speed rad/s, bending further east than the arc.
+    expect(Math.atan2(hard.at(-1)!.fx, -hard.at(-1)!.fz)).toBeCloseTo((CAR.gripAccel / 20) * hard.at(-1)!.t, 6);
+    expect(hard.at(-1)!.x).toBeGreaterThan(arc.at(-1)!.x + 1);
+    // A robotaxi keeps to its route: no such guess.
+    expect(predictPaths({ ...v, spread: 0 })).toHaveLength(2);
   });
 
   it("counts on braking it is told about (a robotaxi's), after its reaction time, and ends where that stops it", () => {
