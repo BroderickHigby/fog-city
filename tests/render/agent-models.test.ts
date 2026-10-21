@@ -6,7 +6,7 @@ import { join } from "node:path";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { beforeAll, describe, expect, it } from "vitest";
-import { AGENT_MODEL_KEY, AGENT_RIGS, AgentLayer, bagFull, fallbackProxy } from "../../src/render/agent-layer.ts";
+import { AGENT_MODEL_KEY, AGENT_RIGS, AgentLayer, PROXY_CELL, bagFull, fallbackProxy } from "../../src/render/agent-layer.ts";
 import { agentModelScale, DEFAULT_TIERS, instanceBudget, tierCapacity, TIER_FAR, TIER_MID, TIER_NEAR } from "../../src/render/agent-lod.ts";
 import { extractParts, proxyOf, triangleCount, type PackedModel } from "../../src/render/agent-packing.ts";
 import { channelRatio } from "../../src/render/lights.ts";
@@ -43,7 +43,16 @@ function channels(g: THREE.BufferGeometry | null): Set<number> {
 const part = (m: PackedModel, name: string) => m.parts.find((p) => p.name === name)!;
 const boundsOf = (g: THREE.BufferGeometry) => new THREE.Box3().setFromBufferAttribute(g.getAttribute("position") as THREE.BufferAttribute);
 const KINDS = ["robotaxi", "errandRobot", "sidewalkBot"] as const;
-const CELL = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.12 } as const;
+const CELL = PROXY_CELL;
+
+/** Every node name in a loaded model. */
+function nodeNames(root: THREE.Object3D): Set<string> {
+  const out = new Set<string>();
+  root.traverse((o) => {
+    if (o.name) out.add(o.name);
+  });
+  return out;
+}
 
 describe("agent models, packed", () => {
   const scenes: Record<string, THREE.Object3D> = {};
@@ -59,6 +68,18 @@ describe("agent models, packed", () => {
     }
   });
 
+  it("names in its rigs only nodes the committed models have (wave 2: no sensor_dome, flag or third axle)", () => {
+    for (const kind of KINDS) {
+      const names = nodeNames(scenes[kind]!);
+      for (const spec of AGENT_RIGS[kind]) for (const n of spec.nodes) expect(names.has(n), `${kind}.${spec.name}: node ${n}`).toBe(true);
+    }
+    // And every animated node of the asset contract is claimed by a part (assets/blender/README.md).
+    const claimed = (kind: (typeof KINDS)[number]) => new Set(AGENT_RIGS[kind].flatMap((s) => s.nodes));
+    for (const n of ["wheel_FL", "wheel_FR", "wheel_RL", "wheel_RR", "door_slide_R"]) expect(claimed("robotaxi").has(n), `robotaxi ${n}`).toBe(true);
+    for (const n of ["wheel_L1", "wheel_L2", "wheel_R1", "wheel_R2"]) expect(claimed("sidewalkBot").has(n), `sidewalkBot ${n}`).toBe(true);
+    for (const n of ["arm_upper_L", "arm_upper_R", "leg_upper_L", "leg_upper_R", "bag_contents"]) expect(claimed("errandRobot").has(n), `errandRobot ${n}`).toBe(true);
+  });
+
   it("keeps every triangle of every model, split into its rig's parts", () => {
     for (const kind of ["robotaxi", "errandRobot", "sidewalkBot"] as const) {
       const m = packed[kind]!;
@@ -70,24 +91,38 @@ describe("agent models, packed", () => {
 
   it("pivots wheels at their hubs and turns the rear axle as one", () => {
     const m = packed.robotaxi!;
-    expect(part(m, "wheelFL").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([-0.81, 0.38, -1.45]);
-    expect(part(m, "wheelFR").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0.81, 0.38, -1.45]);
-    expect(part(m, "axleRear").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0, 0.38, 1.45]);
+    expect(part(m, "wheelFL").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([-0.81, 0.36, -1.52]);
+    expect(part(m, "wheelFR").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0.81, 0.36, -1.52]);
+    expect(part(m, "axleRear").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0, 0.36, 1.52]);
     expect(part(m, "wheelFL").channel.type).toBe("steer-spin");
-    expect(part(m, "dome").channel.type).toBe("dome");
-    expect(m.wheelRadius).toBe(0.375);
-    expect(m.wheelbase).toBeCloseTo(2.9, 6);
+    expect(m.wheelRadius).toBe(0.36);
+    expect(m.wheelbase).toBeCloseTo(3.05, 2);
     // A wheel's geometry is centred on its pivot (spins in place).
     const bb = new THREE.Box3().setFromBufferAttribute(part(m, "wheelFL").geometry!.getAttribute("position") as THREE.BufferAttribute);
     expect(Math.abs((bb.min.y + bb.max.y) / 2)).toBeLessThan(0.01);
     expect(Math.abs((bb.min.z + bb.max.z) / 2)).toBeLessThan(0.01);
   });
 
+  it("gives the Meander its kerb-side sliding door as its own part, on the right and drawn shut", () => {
+    const m = packed.robotaxi!;
+    const door = part(m, "doorR");
+    expect(door.channel.type).toBe("slide");
+    const bb = boundsOf(door.geometry!).translate(door.pivot);
+    expect(bb.min.x, "on the kerb side (+x)").toBeGreaterThan(0.6);
+    expect(bb.max.x).toBeLessThanOrEqual(m.bounds.max.x + 1e-6);
+    // Shut: it lies inside the car's length, between the axles.
+    expect(bb.min.z).toBeGreaterThan(part(m, "wheelFL").pivot.z);
+    expect(bb.max.z).toBeLessThan(part(m, "axleRear").pivot.z);
+    // No part sits above the roof band: the wave-1 dome is gone.
+    for (const p of m.parts) expect(boundsOf(p.geometry!).translate(p.pivot).max.y, p.name).toBeLessThan(1.54);
+  });
+
   it("keeps the lights as packed channels: head, tail and status on the robotaxi body", () => {
     expect([...channels(part(packed.robotaxi!, "body").geometry)].sort()).toEqual([0, 1, 2, 3]);
     expect(channels(part(packed.robotaxi!, "wheelFL").geometry)).toEqual(new Set([0]));
+    expect(channels(part(packed.robotaxi!, "doorR").geometry)).toEqual(new Set([0]));
     expect(channels(part(packed.errandRobot!, "body").geometry).has(3)).toBe(true); // light_face
-    expect(channels(part(packed.sidewalkBot!, "body").geometry).has(3)).toBe(true); // light_eyes
+    expect(channels(part(packed.sidewalkBot!, "body").geometry).has(3)).toBe(true); // light_face (wave 1: light_eyes)
   });
 
   it("keeps each light material's own night level on its shared channel (emissive pre-scaled)", () => {
@@ -107,23 +142,27 @@ describe("agent models, packed", () => {
     const contents = part(m, "bagContents");
     expect(contents.bagContents).toBe(true);
     expect(contents.pivot.equals(part(m, "armR").pivot)).toBe(true);
-    expect(part(m, "legL").pivot.y).toBeCloseTo(0.86, 2); // hip joint
-    expect(part(m, "armL").pivot.y).toBeCloseTo(1.37, 2); // shoulder joint
+    expect(part(m, "legL").pivot.y).toBeCloseTo(0.91, 2); // hip joint
+    expect(part(m, "armL").pivot.y).toBeCloseTo(1.43, 2); // shoulder joint (README: 1.43 m)
     expect((part(m, "legL").channel as { gain: number }).gain).toBe(-(part(m, "legR").channel as { gain: number }).gain);
   });
 
-  it("gives the sidewalk bot three rolling axles and a swaying flag", () => {
+  it("gives the Trundle (sidewalk bot) two rolling axles, front and rear, and nothing above its lid", () => {
     const m = packed.sidewalkBot!;
-    expect(m.parts.filter((p) => p.channel.type === "spin").map((p) => p.name)).toEqual(["axle1", "axle2", "axle3"]);
-    expect(part(m, "flag").channel.type).toBe("sway");
-    expect(m.wheelRadius).toBe(0.095);
+    expect(m.parts.map((p) => p.name)).toEqual(["body", "axle1", "axle2"]);
+    expect(m.parts.filter((p) => p.channel.type === "spin").map((p) => p.name)).toEqual(["axle1", "axle2"]);
+    expect(part(m, "axle1").pivot.z).toBeLessThan(0); // 1 = front (-z)
+    expect(part(m, "axle2").pivot.z).toBeGreaterThan(0);
+    expect(m.wheelRadius).toBe(0.085);
+    expect(m.wheelbase).toBeCloseTo(0.48, 2);
+    // The wave-1 flag mast rose to 1.4 m; the Trundle is 0.56 m with its lid and cargo inside.
+    expect(m.bounds.max.y).toBeLessThan(0.57);
   });
 
   it("simplifies far copies within budget, lights kept", () => {
     const budget = { robotaxi: [1200, 200], errandRobot: [450, 160], sidewalkBot: [200, 100] } as const;
     for (const kind of ["robotaxi", "errandRobot", "sidewalkBot"] as const) {
-      const cell = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.12 }[kind];
-      const mid = proxyOf(packed[kind]!, cell);
+      const mid = proxyOf(packed[kind]!, CELL[kind]);
       expect(triangleCount(mid), `${kind} mid`).toBeLessThan(budget[kind][0]);
       expect(triangleCount(mid), `${kind} mid`).toBeGreaterThan(20);
       const far = fallbackProxy(kind);
@@ -153,7 +192,7 @@ describe("agent models, packed", () => {
         expect(L, `${kind} is longer than wide`).toBeGreaterThan(1.8 * W);
       } else {
         // A walker keeps its designed size up to 1.2x the spec body (agentModelScale's rule,
-        // measured on the model's body: the sidewalk bot's flag mast trails behind it).
+        // measured on the model's body).
         expect(W, `${kind} width`).toBeLessThanOrEqual(spec.halfWidth * 2 * 1.2);
         expect(size.width * scale, `${kind} body width`).toBeLessThanOrEqual(spec.halfWidth * 2 * 1.2 + 1e-9);
         expect(size.length * scale, `${kind} body length`).toBeLessThanOrEqual(spec.halfLength * 2 * 1.2 + 1e-9);
@@ -163,7 +202,9 @@ describe("agent models, packed", () => {
       expect((far.max.x - far.min.x) / (m.bounds.max.x - m.bounds.min.x), `${kind} width vs model`).toBeLessThan(1.15);
       expect((far.max.z - far.min.z) / (m.bounds.max.z - m.bounds.min.z), `${kind} length vs model`).toBeGreaterThan(0.85);
       expect((far.max.z - far.min.z) / (m.bounds.max.z - m.bounds.min.z), `${kind} length vs model`).toBeLessThan(1.15);
-      expect((far.max.y - far.min.y) / (m.bounds.max.y - m.bounds.min.y), `${kind} height vs model`).toBeGreaterThan(0.85);
+      // Same height within 10%: no wave-1 dome or flag mast on the proxy, no missing lantern head.
+      expect((far.max.y - far.min.y) / (m.bounds.max.y - m.bounds.min.y), `${kind} height vs model`).toBeGreaterThan(0.9);
+      expect((far.max.y - far.min.y) / (m.bounds.max.y - m.bounds.min.y), `${kind} height vs model`).toBeLessThan(1.1);
     }
   });
 

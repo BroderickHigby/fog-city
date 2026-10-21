@@ -14,14 +14,21 @@ import type * as THREE from "three";
 /** emissiveIntensity by day, for every light material. */
 export const LIGHT_DAY_INTENSITY = 0;
 
-/** emissiveIntensity at full night, per light material (base name, without a ".001" suffix). */
+/**
+ * emissiveIntensity at full night, per light material (base name, without a ".001" suffix):
+ * exactly the light materials the committed models use (tests/render/lights.test.ts reads them
+ * from public/models). Wave 2: the Trundle's light_eyes became light_face (the Footman's name),
+ * and the Moat Labs van and the repair kiosk bring light_accent and the two kiosk lights.
+ */
 export const LIGHT_NIGHT_INTENSITY: Readonly<Record<string, number>> = Object.freeze({
   light_headlight: 2.4,
   light_taillight: 0.9,
   light_status: 1.6,
   light_face: 1.4,
-  light_eyes: 1.4,
   light_destination_sign: 1.8,
+  light_accent: 1.4,
+  light_kiosk_screen: 1.2,
+  light_kiosk_status: 1.6,
   light_tower_outline: 2.6,
   light_clock_face: 1.6,
   light_sculpture_glow: 1.3,
@@ -57,7 +64,7 @@ export function nightNodeVisible(night: number): boolean {
 
 /**
  * Which light channel a material drives on the packed agent shader:
- * 0 not a light, 1 head/running lights, 2 tail (brake) lights, 3 status (faces, eyes, rings, signs).
+ * 0 not a light, 1 head/running lights, 2 tail (brake) lights, 3 status (faces, status lines, signs).
  */
 export type LightChannel = 0 | 1 | 2 | 3;
 

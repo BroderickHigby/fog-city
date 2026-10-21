@@ -5,9 +5,22 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ROOT, readJson } from "../helpers.ts";
+import { CONTENT_FILES } from "./content-files.ts";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true, strictRequired: false, allowUnionTypes: true });
-const compile = (name: string) => ajv.compile(readJson(`schemas/${name}.schema.json`));
+// Content schemas reference each other by $id (fog-city/provenance, fog-city/places#/...).
+for (const f of readdirSync(join(ROOT, "schemas")).filter((x) => x.endsWith(".schema.json") && !x.startsWith("tile-") && x !== "roads.schema.json" && x !== "landmarks.schema.json")) {
+  ajv.addSchema(readJson(`schemas/${f}`));
+}
+const compiled = new Map<string, ReturnType<typeof ajv.compile>>();
+const compile = (name: string) => {
+  let v = compiled.get(name);
+  if (!v) {
+    v = ajv.getSchema(`fog-city/${name}`) ?? ajv.compile(readJson(`schemas/${name}.schema.json`));
+    compiled.set(name, v);
+  }
+  return v;
+};
 const V = {
   billboards: compile("billboard-grammar"),
   storefronts: compile("storefront-kit"),
@@ -15,20 +28,49 @@ const V = {
   mission: compile("mission"),
 };
 
+/** Every content file and the schema it validates against. A new file without a schema fails. */
+const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
+  [/^content\/billboards\.json$/, "billboard-grammar"],
+  [/^content\/storefronts\.json$/, "storefront-kit"],
+  [/^content\/bot-tells\.json$/, "bot-tells"],
+  [/^content\/missions\/[^/]+\.json$/, "mission"],
+  [/^content\/brands\.json$/, "brands"],
+  [/^content\/cleared-names\.json$/, "cleared-names"],
+  [/^content\/robot-goals\.json$/, "robot-goals"],
+  [/^content\/barks\/[^/]+\.json$/, "barks"],
+  [/^content\/packs\/[^/]+\.json$/, "district-pack"],
+  [/^content\/bounties\.json$/, "bounty-templates"],
+  [/^content\/director-cards\.json$/, "director-cards"],
+  [/^content\/vendor\.json$/, "vendor"],
+  [/^content\/districts\.json$/, "content-districts"],
+  [/^content\/places\.json$/, "places"],
+  [/^content\/safehouses\.json$/, "safehouses"],
+  [/^content\/activities\.json$/, "activities"],
+  [/^content\/modes\/instances\.json$/, "mode-instances"],
+  [/^content\/name-parts\.json$/, "name-parts"],
+  [/^content\/banned-pairs\.json$/, "banned-pairs"],
+  [/^content\/crisis\.json$/, "crisis"],
+  [/^content\/proper-words\.json$/, "proper-words"],
+  [/^content\/startup-kits\.json$/, "startup-kits"],
+];
+
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 type Json = Record<string, any>;
 
-function valid(v: (typeof V)[keyof typeof V], data: unknown): string | true {
+function valid(v: ReturnType<typeof ajv.compile>, data: unknown): string | true {
   return v(data) ? true : ajv.errorsText(v.errors);
 }
 
 describe("content files validate (strict Ajv)", () => {
-  it("content/billboards.json", () => expect(valid(V.billboards, readJson("content/billboards.json"))).toBe(true));
-  it("content/storefronts.json", () => expect(valid(V.storefronts, readJson("content/storefronts.json"))).toBe(true));
-  it("content/bot-tells.json", () => expect(valid(V.botTells, readJson("content/bot-tells.json"))).toBe(true));
+  for (const rel of CONTENT_FILES) {
+    const schema = SCHEMA_FOR.find(([re]) => re.test(rel))?.[1];
+    it(`${rel} has a schema and validates against it`, () => {
+      expect(schema, `${rel}: no schema registered in tests/content/schemas.test.ts`).toBeDefined();
+      expect(valid(compile(schema as string), readJson(rel))).toBe(true);
+    });
+  }
   const missions = readdirSync(join(ROOT, "content/missions")).filter((f) => f.endsWith(".json"));
   it("there is at least one mission", () => expect(missions.length).toBeGreaterThan(0));
-  for (const f of missions) it(`content/missions/${f}`, () => expect(valid(V.mission, readJson(`content/missions/${f}`))).toBe(true));
 });
 
 describe("schemas reject broken content", () => {
@@ -58,7 +100,7 @@ describe("schemas reject broken content", () => {
     expect(V.storefronts(c)).toBe(false);
   });
 
-  it("bot tells: behaviour params are typed per kind, colour is not a behaviour", () => {
+  it("bot tells: behaviour params are typed per kind, colour is not a behaviour, false tells mimic", () => {
     const d = readJson<Json>("content/bot-tells.json");
     const flicker = d.tells.findIndex((t: Json) => t.behaviour.kind === "faceLightFlicker");
     const a = clone(d);
@@ -71,15 +113,22 @@ describe("schemas reject broken content", () => {
     c.tells[0].behaviour.extra = 1;
     expect(V.botTells(c)).toBe(false);
     const e = clone(d);
-    e.archetypes[0].tells = [e.archetypes[0].tells[0]];
-    expect(V.botTells(e)).toBe(false); // fewer than 2 tells
+    e.archetypes[0].difficulty[0].showTells = ["a", "b", "c", "d"];
+    expect(V.botTells(e)).toBe(false); // more than 3 tells shown
     const f = clone(d);
-    delete f.archetypes[0].rebootLine;
-    expect(V.botTells(f)).toBe(false); // bad bots need a reboot line
+    delete f.archetypes[0].restoredLine;
+    expect(V.botTells(f)).toBe(false); // bad robots need a restored-from-backup line
+    const g = clone(d);
+    const ft = g.tells.findIndex((t: Json) => t.falseTell);
+    delete g.tells[ft].mimics;
+    expect(V.botTells(g)).toBe(false); // a false tell must say what it mimics
+    const h = clone(d);
+    h.tells[0].behaviour = { kind: "askPassersBy", lineSet: "rateSidewalk", radiusM: 3, cooldownS: 12, audience: "everyone" };
+    expect(V.botTells(h)).toBe(false); // speech tells address adults only
   });
 
   it("mission: per-type fields are required and typed", () => {
-    const m = readJson<Json>("content/missions/yc-pitch.json");
+    const m = readJson<Json>("content/missions/ramen-pitch.json");
     const drive = m.steps.findIndex((s: Json) => s.type === "goto");
     const a = clone(m);
     delete a.steps[drive].timer;

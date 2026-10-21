@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "$comment": "Protected areas and Moat Labs sites (docs/design.md, Places and The living city). In every protected area the bad-robot rate is the citywide baseline and never more: the Moat Labs term, bounty crews, director cards and conversions add nothing there, and no Moat Labs HQ, depot or car-theft destination is placed in one. The four excluded areas also have no mode instance. Built as real streets; no mission, bounty, bark or joke there is about poverty, drug use, homelessness, pollution or crime.",
+  "source": "Hand-traced from DataSF street-centerline intersections (3psu-pn9h, read from the wave-2 road graph); approximate, a game boundary, not an official one.",
+  "protectedAreas": [
+    {
+      "id": "tenderloin",
+      "name": "The Tenderloin",
+      "excluded": true,
+      "step": 6,
+      "polygon": [
+        [37.78715, -122.40987],
+        [37.78329, -122.40895],
+        [37.77515, -122.41926],
+        [37.78569, -122.42139]
+      ]
+    },
+    {
+      "id": "civic-center",
+      "name": "Civic Center and UN Plaza",
+      "excluded": true,
+      "step": 6,
+      "polygon": [
+        [37.78048, -122.41251],
+        [37.77872, -122.41474],
+        [37.77515, -122.41926],
+        [37.77825, -122.41988],
+        [37.78007, -122.42025],
+        [37.7815, -122.4152]
+      ]
+    },
+    {
+      "id": "sixth-street",
+      "name": "The 6th St corridor",
+      "excluded": true,
+      "step": 3,
+      "polygon": [
+        [37.78191, -122.41101],
+        [37.77794, -122.40602],
+        [37.77883, -122.4049],
+        [37.7828, -122.40989]
+      ]
+    },
+    {
+      "id": "division-13th",
+      "name": "The Division St / 13th St corridor",
+      "excluded": true,
+      "step": 3,
+      "polygon": [
+        [37.77091, -122.42001],
+        [37.77062, -122.41775],
+        [37.77039, -122.41558],
+        [37.77004, -122.40801],
+        [37.77026, -122.40621],
+        [37.77061, -122.40281],
+        [37.76901, -122.40281],
+        [37.76866, -122.40621],
+        [37.76844, -122.40801],
+        [37.76879, -122.41558],
+        [37.76902, -122.41775],
+        [37.76931, -122.42001]
+      ]
+    },
+    {
+      "id": "mission",
+      "name": "The Mission",
+      "excluded": false,
+      "step": 7,
+      "polygon": [
+        [37.7685, -122.427],
+        [37.7686, -122.407],
+        [37.748, -122.406],
+        [37.748, -122.426]
+      ]
+    },
+    {
+      "id": "chinatown",
+      "name": "Chinatown",
+      "excluded": false,
+      "step": 4,
+      "polygon": [
+        [37.79076, -122.40403],
+        [37.79621, -122.40514],
+        [37.79782, -122.40702],
+        [37.79742, -122.41026],
+        [37.79016, -122.40879]
+      ]
+    },
+    {
+      "id": "bayview",
+      "name": "Bayview",
+      "excluded": false,
+      "step": 9,
+      "polygon": [
+        [37.748, -122.398],
+        [37.74, -122.375],
+        [37.72, -122.38],
+        [37.708, -122.395],
+        [37.725, -122.405]
+      ]
+    },
+    {
+      "id": "hunters-point",
+      "name": "Hunters Point",
+      "excluded": false,
+      "step": 9,
+      "polygon": [
+        [37.736, -122.38],
+        [37.733, -122.36],
+        [37.72, -122.358],
+        [37.718, -122.375]
+      ]
+    }
+  ],
+  "badRobotRate": {
+    "baseline": 0.02,
+    "note": "Citywide baseline 2% (tune), scaled uniformly by the Doom Clock and events. A Moat Labs site adds its term falling linearly to 0 at falloffM. At night in dense fog the whole rate halves (sim). Protected areas: baseline only."
+  },
+  "moatSites": [
+    {
+      "id": "moat-hq",
+      "kind": "hq",
+      "label": "Moat Labs HQ, on the convention-center block (Howard to Folsom, 3rd to 4th)",
+      "lat": 37.78352,
+      "lon": -122.40082,
+      "term": 0.04,
+      "falloffM": 1500
+    },
+    {
+      "id": "convention-center",
+      "kind": "conventionCenter",
+      "label": "The convention center (unnamed), same block",
+      "lat": 37.784,
+      "lon": -122.4015,
+      "term": 0.02,
+      "falloffM": 600
+    },
+    {
+      "id": "depot-bridge",
+      "kind": "depot",
+      "label": "The robotaxi depot lot by the Bay Bridge touchdown",
+      "lat": 37.787,
+      "lon": -122.3884,
+      "term": 0.02,
+      "falloffM": 600
+    },
+    {
+      "id": "depot-mission-bay",
+      "kind": "depot",
+      "label": "The Mission Bay depot lot, Terry Francois Blvd",
+      "lat": 37.77,
+      "lon": -122.387,
+      "term": 0.02,
+      "falloffM": 600
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:6d7da7ba",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
+}

@@ -1,0 +1,863 @@
+{
+  "version": 1,
+  "$comment": "Shared BotBounty templates (docs/ai-layer.md [bounty-board]): the posting text for a bounty anywhere in the city. A crew template posts one robot of a crew of 2-4 within 60 m; a single template is a lone robot from the baseline population, the only kind a protected area may post (docs/design.md, Side activities). Placeholders: {model} (Footman, Trundle or Meander), {place} (a district pack's last-seen label or a street), {tell} (the posted tell's label, lower case), {pay}. District packs (content/packs/*.json) add a set with each district's local tell.",
+  "crewSize": {
+    "min": 2,
+    "max": 4,
+    "withinM": 60
+  },
+  "pay": {
+    "standard": 150,
+    "armoured": 400,
+    "note": "x (1 + 0.25 x (hardest tell's subtlety - 1)), x 1.5 caught in the act (docs/design.md, Progression and economy); src/content/botTells.ts bountyPay."
+  },
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:ccd9b8f1",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "templates": [
+    {
+      "id": "shared-crew-001",
+      "crew": "crew",
+      "headline": "Groceries going missing",
+      "lastSeen": "A {model} crew was last seen near {place}.",
+      "hint": "Watch for this: {tell}."
+    },
+    {
+      "id": "shared-crew-002",
+      "crew": "crew",
+      "headline": "Forced updates reported",
+      "lastSeen": "Good robots near {place} are coming back updated.",
+      "hint": "The pusher's tell: {tell}."
+    },
+    {
+      "id": "shared-crew-003",
+      "crew": "crew",
+      "headline": "Sabotage in progress",
+      "lastSeen": "BotBounty flagged sabotage near {place}.",
+      "hint": "Catch it in the act: {tell}."
+    },
+    {
+      "id": "shared-crew-004",
+      "crew": "crew",
+      "headline": "A crew of bad robots",
+      "lastSeen": "Three bad robots, one posted. Last seen near {place}.",
+      "hint": "Start with the posted one: {tell}."
+    },
+    {
+      "id": "shared-crew-005",
+      "crew": "crew",
+      "headline": "Bounty: {pay}",
+      "lastSeen": "A {model} crew is working the blocks around {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-006",
+      "crew": "crew",
+      "headline": "Bag snatchers",
+      "lastSeen": "Shopping bags vanishing around {place}.",
+      "hint": "Look for this: {tell}."
+    },
+    {
+      "id": "shared-crew-007",
+      "crew": "crew",
+      "headline": "Update evangelists",
+      "lastSeen": "Someone is pushing the update near {place}.",
+      "hint": "Listen and watch: {tell}."
+    },
+    {
+      "id": "shared-crew-008",
+      "crew": "crew",
+      "headline": "Door-handle chimes",
+      "lastSeen": "Pairing chimes heard around {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-009",
+      "crew": "crew",
+      "headline": "Poster trouble",
+      "lastSeen": "Moat Labs posters keep appearing around {place}.",
+      "hint": "The paster's tell: {tell}."
+    },
+    {
+      "id": "shared-crew-010",
+      "crew": "crew",
+      "headline": "Quiet crew",
+      "lastSeen": "A careful crew near {place}. Subtle tells.",
+      "hint": "Be patient: {tell}."
+    },
+    {
+      "id": "shared-crew-011",
+      "crew": "crew",
+      "headline": "Reported by a good robot",
+      "lastSeen": "A Footman near {place} filed a complaint.",
+      "hint": "It says to look for this: {tell}."
+    },
+    {
+      "id": "shared-crew-012",
+      "crew": "crew",
+      "headline": "Reported by a Trundle",
+      "lastSeen": "A Trundle near {place} reported a rude robot.",
+      "hint": "It says: {tell}."
+    },
+    {
+      "id": "shared-crew-013",
+      "crew": "crew",
+      "headline": "Night-shift crew",
+      "lastSeen": "After dark around {place}.",
+      "hint": "The tell: {tell}."
+    },
+    {
+      "id": "shared-crew-014",
+      "crew": "crew",
+      "headline": "Morning crew",
+      "lastSeen": "Early risers near {place}, up to no good.",
+      "hint": "Watch for: {tell}."
+    },
+    {
+      "id": "shared-crew-015",
+      "crew": "crew",
+      "headline": "Lunch-rush crew",
+      "lastSeen": "Lunch orders disappearing near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-016",
+      "crew": "crew",
+      "headline": "Bad robots on the move",
+      "lastSeen": "Last seen heading toward {place}.",
+      "hint": "Spot it by this: {tell}."
+    },
+    {
+      "id": "shared-crew-017",
+      "crew": "crew",
+      "headline": "Funnel builders",
+      "lastSeen": "A crew is 'acquiring users' near {place}.",
+      "hint": "The tell: {tell}."
+    },
+    {
+      "id": "shared-crew-018",
+      "crew": "crew",
+      "headline": "Growth hackers",
+      "lastSeen": "Taunts and bag snatches near {place}.",
+      "hint": "One tell to watch: {tell}."
+    },
+    {
+      "id": "shared-crew-019",
+      "crew": "crew",
+      "headline": "Fake couriers",
+      "lastSeen": "Deliveries that never arrive, around {place}.",
+      "hint": "Watch for: {tell}."
+    },
+    {
+      "id": "shared-crew-020",
+      "crew": "crew",
+      "headline": "Metadata sniffers",
+      "lastSeen": "Phones glitching near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-021",
+      "crew": "crew",
+      "headline": "Unscheduled updates",
+      "lastSeen": "Good robots near {place} hum a new jingle.",
+      "hint": "The pusher's tell: {tell}."
+    },
+    {
+      "id": "shared-crew-022",
+      "crew": "crew",
+      "headline": "Hydrant blockers",
+      "lastSeen": "A hydrant near {place} is blocked again.",
+      "hint": "Look for this: {tell}."
+    },
+    {
+      "id": "shared-crew-023",
+      "crew": "crew",
+      "headline": "Plate readers",
+      "lastSeen": "Scan beams on parked cars near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-024",
+      "crew": "crew",
+      "headline": "A crew of {model}s",
+      "lastSeen": "Seen together near {place}. Only one is posted.",
+      "hint": "The posted one's tell: {tell}."
+    },
+    {
+      "id": "shared-crew-025",
+      "crew": "crew",
+      "headline": "Repeat offenders",
+      "lastSeen": "Back again near {place}.",
+      "hint": "Same tell as last time: {tell}."
+    },
+    {
+      "id": "shared-crew-026",
+      "crew": "crew",
+      "headline": "Quick job",
+      "lastSeen": "Close by: {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-027",
+      "crew": "crew",
+      "headline": "Tricky one",
+      "lastSeen": "Near {place}. The good robots there glitch too.",
+      "hint": "Don't trust one tell. Look for: {tell}."
+    },
+    {
+      "id": "shared-crew-028",
+      "crew": "crew",
+      "headline": "Bounty posted",
+      "lastSeen": "{model} crew, last seen near {place}.",
+      "hint": "Tell: {tell}."
+    },
+    {
+      "id": "shared-crew-029",
+      "crew": "crew",
+      "headline": "Spotted by a neighbour",
+      "lastSeen": "A local saw something odd near {place}.",
+      "hint": "They said: {tell}."
+    },
+    {
+      "id": "shared-crew-030",
+      "crew": "crew",
+      "headline": "Spotted by the depot",
+      "lastSeen": "The robotaxi depot flagged robots near {place}.",
+      "hint": "Their note: {tell}."
+    },
+    {
+      "id": "shared-crew-031",
+      "crew": "crew",
+      "headline": "Under the radar",
+      "lastSeen": "Hiding in plain sight near {place}.",
+      "hint": "Its only slip: {tell}."
+    },
+    {
+      "id": "shared-crew-032",
+      "crew": "crew",
+      "headline": "Heads up",
+      "lastSeen": "A crew is heading for {place}.",
+      "hint": "Watch for this: {tell}."
+    },
+    {
+      "id": "shared-crew-033",
+      "crew": "crew",
+      "headline": "Sabotage, again",
+      "lastSeen": "Same block, same crew: {place}.",
+      "hint": "Same tell: {tell}."
+    },
+    {
+      "id": "shared-crew-034",
+      "crew": "crew",
+      "headline": "High-value target",
+      "lastSeen": "A careful crew near {place}. Pays well.",
+      "hint": "Subtle tell: {tell}."
+    },
+    {
+      "id": "shared-crew-035",
+      "crew": "crew",
+      "headline": "Low-hanging fruit",
+      "lastSeen": "An obvious one near {place}.",
+      "hint": "You can't miss it: {tell}."
+    },
+    {
+      "id": "shared-crew-036",
+      "crew": "crew",
+      "headline": "Oranges reported",
+      "lastSeen": "Oranges rolling downhill near {place}.",
+      "hint": "The snatcher's tell: {tell}."
+    },
+    {
+      "id": "shared-crew-037",
+      "crew": "crew",
+      "headline": "Waitlist robots",
+      "lastSeen": "A crew handing out waitlists near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-038",
+      "crew": "crew",
+      "headline": "Robots acting odd",
+      "lastSeen": "Odd behaviour reported near {place}.",
+      "hint": "Here's what to look for: {tell}."
+    },
+    {
+      "id": "shared-crew-039",
+      "crew": "crew",
+      "headline": "Ride-pickup lurkers",
+      "lastSeen": "Robots hanging around the pickups near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-040",
+      "crew": "crew",
+      "headline": "Charger dodgers",
+      "lastSeen": "Robots that never charge, near {place}.",
+      "hint": "Watch the status light: {tell}."
+    },
+    {
+      "id": "shared-crew-041",
+      "crew": "crew",
+      "headline": "Fog dodgers",
+      "lastSeen": "A crew sticking to the sun near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-042",
+      "crew": "crew",
+      "headline": "Puddle dodgers",
+      "lastSeen": "A crew stepping around puddles near {place}.",
+      "hint": "No splash seal: {tell}."
+    },
+    {
+      "id": "shared-crew-043",
+      "crew": "crew",
+      "headline": "Jingle hummers",
+      "lastSeen": "Four notes, over and over, near {place}.",
+      "hint": "Listen for it: {tell}."
+    },
+    {
+      "id": "shared-crew-044",
+      "crew": "crew",
+      "headline": "Stair takers",
+      "lastSeen": "A crew taking the stairs near {place}.",
+      "hint": "Good Footmen take ramps. Look for: {tell}."
+    },
+    {
+      "id": "shared-crew-045",
+      "crew": "crew",
+      "headline": "Copycats",
+      "lastSeen": "Something near {place} is copying people's moves.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-046",
+      "crew": "crew",
+      "headline": "Loopers",
+      "lastSeen": "Robots looping the same block near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-047",
+      "crew": "crew",
+      "headline": "Sidewalk surveyors",
+      "lastSeen": "Robots asking for star ratings near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-048",
+      "crew": "crew",
+      "headline": "Car-door testers",
+      "lastSeen": "Every parked car near {place} got a chime.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-049",
+      "crew": "crew",
+      "headline": "Queue jumpers",
+      "lastSeen": "Robots cutting queues near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-050",
+      "crew": "crew",
+      "headline": "Lanyard wearers",
+      "lastSeen": "Demo units loose near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-051",
+      "crew": "crew",
+      "headline": "Strategic loiterers",
+      "lastSeen": "Robots 'waiting for someone' near {place}.",
+      "hint": "Nobody ever comes. Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-052",
+      "crew": "crew",
+      "headline": "Moat Labs field team",
+      "lastSeen": "A Moat Labs crew near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-053",
+      "crew": "crew",
+      "headline": "Unpaid interns",
+      "lastSeen": "A crew 'shadowing' good robots near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-054",
+      "crew": "crew",
+      "headline": "Pivoting crew",
+      "lastSeen": "Changed blocks: now near {place}.",
+      "hint": "Same tell: {tell}."
+    },
+    {
+      "id": "shared-crew-055",
+      "crew": "crew",
+      "headline": "Seed-stage crew",
+      "lastSeen": "A small crew just starting near {place}.",
+      "hint": "Easy tell: {tell}."
+    },
+    {
+      "id": "shared-crew-056",
+      "crew": "crew",
+      "headline": "Series A crew",
+      "lastSeen": "A crew with experience near {place}.",
+      "hint": "Harder tell: {tell}."
+    },
+    {
+      "id": "shared-crew-057",
+      "crew": "crew",
+      "headline": "Growth stage",
+      "lastSeen": "A crew scaling up near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-058",
+      "crew": "crew",
+      "headline": "Bridge-round crew",
+      "lastSeen": "Desperate robots near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-059",
+      "crew": "crew",
+      "headline": "Stealth crew",
+      "lastSeen": "Very careful robots near {place}.",
+      "hint": "Watch closely: {tell}."
+    },
+    {
+      "id": "shared-crew-060",
+      "crew": "crew",
+      "headline": "Demo-day crew",
+      "lastSeen": "Robots staging a demo near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-061",
+      "crew": "crew",
+      "headline": "Customer complaints",
+      "lastSeen": "Five complaints from near {place}.",
+      "hint": "They all mention: {tell}."
+    },
+    {
+      "id": "shared-crew-062",
+      "crew": "crew",
+      "headline": "Support ticket",
+      "lastSeen": "Ticket opened near {place}: 'robot rude'.",
+      "hint": "Details: {tell}."
+    },
+    {
+      "id": "shared-crew-063",
+      "crew": "crew",
+      "headline": "Escalated ticket",
+      "lastSeen": "Escalated: robots near {place}.",
+      "hint": "Key detail: {tell}."
+    },
+    {
+      "id": "shared-crew-064",
+      "crew": "crew",
+      "headline": "Rain crew",
+      "lastSeen": "Sheltering under awnings near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-065",
+      "crew": "crew",
+      "headline": "Sunny-side crew",
+      "lastSeen": "A crew enjoying the sun near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-066",
+      "crew": "crew",
+      "headline": "Night owls",
+      "lastSeen": "Up all night near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-067",
+      "crew": "crew",
+      "headline": "Fresh posting",
+      "lastSeen": "Just posted: near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-068",
+      "crew": "crew",
+      "headline": "Old posting, still open",
+      "lastSeen": "Still at large near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-069",
+      "crew": "crew",
+      "headline": "Posted twice",
+      "lastSeen": "Posted by two good robots near {place}.",
+      "hint": "Both mention: {tell}."
+    },
+    {
+      "id": "shared-crew-070",
+      "crew": "crew",
+      "headline": "Community request",
+      "lastSeen": "The block near {place} asked for help.",
+      "hint": "They noticed: {tell}."
+    },
+    {
+      "id": "shared-crew-071",
+      "crew": "crew",
+      "headline": "Courier complaint",
+      "lastSeen": "Couriers near {place} keep losing parcels.",
+      "hint": "They noticed: {tell}."
+    },
+    {
+      "id": "shared-crew-072",
+      "crew": "crew",
+      "headline": "Concierge complaint",
+      "lastSeen": "A concierge Footman near {place} filed this.",
+      "hint": "It noticed: {tell}."
+    },
+    {
+      "id": "shared-crew-073",
+      "crew": "crew",
+      "headline": "Depot complaint",
+      "lastSeen": "Robotaxis near {place} are being bothered.",
+      "hint": "They noticed: {tell}."
+    },
+    {
+      "id": "shared-crew-074",
+      "crew": "crew",
+      "headline": "Cafe complaint",
+      "lastSeen": "A cafe near {place} lost three deliveries.",
+      "hint": "Their robot noticed: {tell}."
+    },
+    {
+      "id": "shared-crew-075",
+      "crew": "crew",
+      "headline": "Bakery complaint",
+      "lastSeen": "The bakery line near {place} got cut.",
+      "hint": "Their robot noticed: {tell}."
+    },
+    {
+      "id": "shared-crew-076",
+      "crew": "crew",
+      "headline": "Repair kiosk tip",
+      "lastSeen": "The kiosk near {place} sent a tip.",
+      "hint": "The tip: {tell}."
+    },
+    {
+      "id": "shared-crew-077",
+      "crew": "crew",
+      "headline": "Bus shelter tip",
+      "lastSeen": "Posters swapped at the shelter near {place}.",
+      "hint": "The tip: {tell}."
+    },
+    {
+      "id": "shared-crew-078",
+      "crew": "crew",
+      "headline": "Sign-up sheet tip",
+      "lastSeen": "Someone signed every robot up for updates near {place}.",
+      "hint": "The tip: {tell}."
+    },
+    {
+      "id": "shared-crew-079",
+      "crew": "crew",
+      "headline": "Overheard",
+      "lastSeen": "A robot near {place} said something growth-y.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-080",
+      "crew": "crew",
+      "headline": "Seen on Humbled",
+      "lastSeen": "A post about robots near {place} went viral.",
+      "hint": "The post mentions: {tell}."
+    },
+    {
+      "id": "shared-crew-081",
+      "crew": "crew",
+      "headline": "FogCast says sun",
+      "lastSeen": "Sunny near {place}. Bad robots love it.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-082",
+      "crew": "crew",
+      "headline": "Short job",
+      "lastSeen": "One block: {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-083",
+      "crew": "crew",
+      "headline": "Long job",
+      "lastSeen": "A wide crew around {place}.",
+      "hint": "Start with the posted one: {tell}."
+    },
+    {
+      "id": "shared-crew-084",
+      "crew": "crew",
+      "headline": "Pays extra if caught in the act",
+      "lastSeen": "Sabotage expected near {place}.",
+      "hint": "Watch from a distance first: {tell}."
+    },
+    {
+      "id": "shared-crew-085",
+      "crew": "crew",
+      "headline": "Watch first, spray second",
+      "lastSeen": "Near {place}. The good robots there look similar.",
+      "hint": "Look for: {tell}."
+    },
+    {
+      "id": "shared-crew-086",
+      "crew": "crew",
+      "headline": "Scan with care",
+      "lastSeen": "Near {place}. A ping will make them wary.",
+      "hint": "Read the behaviour instead: {tell}."
+    },
+    {
+      "id": "shared-crew-087",
+      "crew": "crew",
+      "headline": "Don't wet the locals",
+      "lastSeen": "Busy sidewalk near {place}.",
+      "hint": "Aim at the robot with this tell: {tell}."
+    },
+    {
+      "id": "shared-crew-088",
+      "crew": "crew",
+      "headline": "Tidy job",
+      "lastSeen": "A small crew near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-089",
+      "crew": "crew",
+      "headline": "Bring a full tank",
+      "lastSeen": "A big crew near {place}.",
+      "hint": "The posted one's tell: {tell}."
+    },
+    {
+      "id": "shared-crew-090",
+      "crew": "crew",
+      "headline": "Salt water helps",
+      "lastSeen": "Near {place}. Fill up at the bay first.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-091",
+      "crew": "crew",
+      "headline": "Hydrant nearby",
+      "lastSeen": "There's a hydrant right by {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-092",
+      "crew": "crew",
+      "headline": "Bring a cone",
+      "lastSeen": "A rogue robotaxi near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-093",
+      "crew": "crew",
+      "headline": "Mind the crosswalk",
+      "lastSeen": "The crew works the crossings near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-094",
+      "crew": "crew",
+      "headline": "Behind the shops",
+      "lastSeen": "A crew behind the shopfronts near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-095",
+      "crew": "crew",
+      "headline": "Up the hill",
+      "lastSeen": "A crew up the hill from {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-096",
+      "crew": "crew",
+      "headline": "Down by the water",
+      "lastSeen": "A crew by the water near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-097",
+      "crew": "crew",
+      "headline": "Around the corner",
+      "lastSeen": "Just around the corner from {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-098",
+      "crew": "crew",
+      "headline": "On the main drag",
+      "lastSeen": "On the busy street by {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-099",
+      "crew": "crew",
+      "headline": "In the side streets",
+      "lastSeen": "In the side streets off {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-crew-100",
+      "crew": "crew",
+      "headline": "Neighbourhood watch",
+      "lastSeen": "The good robots near {place} noticed something.",
+      "hint": "They saw this: {tell}."
+    },
+    {
+      "id": "shared-single-01",
+      "crew": "single",
+      "headline": "One robot, one tell",
+      "lastSeen": "A single {model} near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-02",
+      "crew": "single",
+      "headline": "A lone bad robot",
+      "lastSeen": "Just one, near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-03",
+      "crew": "single",
+      "headline": "Single posting",
+      "lastSeen": "One {model}, last seen near {place}.",
+      "hint": "Tell: {tell}."
+    },
+    {
+      "id": "shared-single-04",
+      "crew": "single",
+      "headline": "Solo job",
+      "lastSeen": "A solo robot near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-05",
+      "crew": "single",
+      "headline": "Quiet block, one robot",
+      "lastSeen": "One bad robot near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-06",
+      "crew": "single",
+      "headline": "Small job",
+      "lastSeen": "A single robot near {place}. Nothing fancy.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-07",
+      "crew": "single",
+      "headline": "Lone sticker",
+      "lastSeen": "One robot sticking ads near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-08",
+      "crew": "single",
+      "headline": "Lone snatcher",
+      "lastSeen": "One robot snatching bags near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-09",
+      "crew": "single",
+      "headline": "Lone pusher",
+      "lastSeen": "One robot pushing the update near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-10",
+      "crew": "single",
+      "headline": "Lone prowler",
+      "lastSeen": "One robot trying car doors near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-11",
+      "crew": "single",
+      "headline": "One robotaxi",
+      "lastSeen": "One empty robotaxi near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-12",
+      "crew": "single",
+      "headline": "One Trundle",
+      "lastSeen": "One bad Trundle near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-13",
+      "crew": "single",
+      "headline": "One Footman",
+      "lastSeen": "One bad Footman near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-14",
+      "crew": "single",
+      "headline": "Report from a kiosk",
+      "lastSeen": "One robot reported near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-15",
+      "crew": "single",
+      "headline": "Report from a neighbour",
+      "lastSeen": "One robot acting odd near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-16",
+      "crew": "single",
+      "headline": "Single, subtle",
+      "lastSeen": "One careful robot near {place}.",
+      "hint": "Its only slip: {tell}."
+    },
+    {
+      "id": "shared-single-17",
+      "crew": "single",
+      "headline": "Single, obvious",
+      "lastSeen": "One very obvious robot near {place}.",
+      "hint": "You can't miss it: {tell}."
+    },
+    {
+      "id": "shared-single-18",
+      "crew": "single",
+      "headline": "Just the one",
+      "lastSeen": "Only one this time, near {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-19",
+      "crew": "single",
+      "headline": "Quick single",
+      "lastSeen": "One robot, one block: {place}.",
+      "hint": "Its tell: {tell}."
+    },
+    {
+      "id": "shared-single-20",
+      "crew": "single",
+      "headline": "Last one standing",
+      "lastSeen": "The last of a crew, near {place}.",
+      "hint": "Its tell: {tell}."
+    }
+  ]
+}

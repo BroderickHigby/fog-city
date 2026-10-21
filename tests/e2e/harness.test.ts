@@ -237,7 +237,10 @@ describe("harness wiring", () => {
     for (const cmd of ["pnpm install --frozen-lockfile", "pnpm typecheck", "pnpm test", "pnpm e2e", "actions/upload-artifact"]) {
       expect(ci, `ci.yml no longer runs ${cmd}`).toContain(cmd);
     }
-    expect(ci).toMatch(/on:\s*\n\s+push:\s*\n\s+pull_request:/);
+    // Every pull request runs CI; a push runs it again only on main.
+    expect(ci).toMatch(/on:\s*\n(?:\s*#[^\n]*\n)*\s+push:\s*\n\s+branches: \[main\]\s*\n\s+pull_request:/);
+    // The informational screenshots carry their own limit, so they can never cancel the job.
+    expect(ci).toMatch(/- name: Screenshots\n(?:\s+[^\n]*\n)*?\s+continue-on-error: true\n(?:\s+#[^\n]*\n)*\s+timeout-minutes: \d+/);
     // Tiles live in plain git (decided 2026-10-20): no LFS fetch. The static web build runs,
     // and the repository variable can turn skips into failures.
     expect(ci).not.toMatch(/lfs:/);

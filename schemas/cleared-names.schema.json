@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/cleared-names",
+  "title": "The name search record (content/cleared-names.json)",
+  "description": "Every invented proper name the content uses, with the date, queries, findings, verdict and sources of its trademark and company-name search. Pending user sign-off until status says otherwise.",
+  "type": "object",
+  "required": ["version", "status", "method", "verdicts", "names", "renamed", "generic"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "status": { "enum": ["pending user sign-off", "signed off"] },
+    "$comment": { "type": "string" },
+    "method": { "type": "string", "minLength": 20 },
+    "verdicts": {
+      "type": "object",
+      "required": ["clear", "caution", "conflict"],
+      "additionalProperties": false,
+      "properties": { "clear": { "type": "string" }, "caution": { "type": "string" }, "conflict": { "type": "string" } }
+    },
+    "names": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "kind", "usedFor", "searchedOn", "queries", "findings", "verdict", "sources"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 2 },
+          "kind": { "$ref": "#/$defs/kind" },
+          "usedFor": { "type": "string" },
+          "searchedOn": { "$ref": "#/$defs/date" },
+          "queries": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 3 } },
+          "findings": { "type": "string", "minLength": 20 },
+          "verdict": { "enum": ["clear", "caution", "conflict"] },
+          "note": { "type": "string" },
+          "sources": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^https?://" } }
+        },
+        "if": { "properties": { "verdict": { "const": "caution" } } },
+        "then": { "required": ["note"] }
+      }
+    },
+    "renamed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "kind", "searchedOn", "queries", "reason", "sources"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "kind": { "$ref": "#/$defs/kind" },
+          "searchedOn": { "$ref": "#/$defs/date" },
+          "queries": { "type": "array", "items": { "type": "string" } },
+          "reason": { "type": "string", "minLength": 10 },
+          "sources": { "type": "array", "items": { "type": "string", "pattern": "^https?://" } }
+        }
+      }
+    },
+    "generic": {
+      "type": "array",
+      "description": "Labels used in name fields that are not invented proper names (roles, the player, archetypes).",
+      "items": {
+        "type": "object",
+        "required": ["label", "why"],
+        "additionalProperties": false,
+        "properties": { "label": { "type": "string" }, "why": { "type": "string" } }
+      }
+    }
+  },
+  "$defs": {
+    "kind": { "enum": ["company", "robotModel", "app", "station", "perk", "accelerator", "character", "product"] },
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }
+  }
+}

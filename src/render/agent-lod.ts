@@ -3,8 +3,8 @@
 //
 // Tiers (documented rule):
 //  - near: the NEAR_CAP agents nearest the camera within NEAR_RANGE_M get the full model,
-//    animated (wheels roll and steer, the robotaxi's dome spins, errand-robot limbs swing,
-//    the sidewalk bot's flag sways, people walk). An agent already near keeps its place until
+//    animated (wheels roll and steer, Footman (errand-robot) limbs swing, people walk). An
+//    agent already near keeps its place until
 //    it is NEAR_HYSTERESIS_M farther than that (no flicker at the boundary). Agents more than
 //    BEHIND_M behind the camera are never near: a full model nobody can see is wasted.
 //  - mid: every other agent within MID_RANGE_M is drawn as a simplified copy of its model

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/provenance",
+  "title": "Provenance block for committed content (docs/ai-layer.md, How agents write it, step 5)",
+  "type": "object",
+  "required": ["source", "authorSession", "contentHash", "reviewedBy", "review"],
+  "additionalProperties": false,
+  "properties": {
+    "source": { "enum": ["agent", "batch", "human"] },
+    "authorSession": { "type": "string", "minLength": 4 },
+    "contentHash": { "type": "string", "pattern": "^fnv1a32:[0-9a-f]{8}$", "description": "FNV-1a over the file's player-facing text joined by newlines (src/content/barks.ts contentHash)." },
+    "reviewedBy": { "type": "array", "items": { "type": "string" }, "description": "Reviewing agent sessions and, for sampled drops, the sample ids." },
+    "review": { "type": "string" }
+  }
+}

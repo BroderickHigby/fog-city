@@ -80,6 +80,9 @@ export const BRANDS: readonly string[] = [
   "Miro", "Raycast", "Typeform", "Krisp", "PromptBase", "Prompt flow", "PromptLayer", "PromptLoop", "WidgetKit",
   "Gadget Flow", "Gadget Lab", "Hushly", "Embedly", "Velora", "Tokenly", "WidgetBot", "Minix", "Xenix", "Badgr", "Embr Labs",
   "Nymox", "TerraVia", "Katara",
+  // Composed-name collisions confirmed by web search on 2026-10-20 (content/name-parts.json "removed")
+  "Token Metrics", "PromptHub", "TokenPay", "TokenHub", "Lilac Labs", "Napkin AI", "Chisel Labs", "Chisel AI",
+  "Spindle AI", "Rowboat Labs", "Foxglove Studio", "Cactus Custody", "Cloud Spanner", "HP Sprocket",
   // More AI companies, models, robots and robotaxis
   "Ollama", "LangSmith", "LangGraph", "Langfuse", "CrewAI", "AutoGPT", "You.com", "Phind", "Kagi", "Neeva",
   "DuckDuckGo", "Decagon", "Beautiful.ai", "Descript", "Opus Clip", "CapCut", "Luma AI", "Kling AI", "Hailuo",
@@ -435,8 +438,8 @@ function escapeRe(s: string): string {
 }
 
 // Prose matching: whole words, case-insensitive, punctuation inside the brand kept literal.
-// "YC" is how everyone says the real accelerator's name. Case-sensitive, so the internal id
-// "yc-pitch" and words like "bicycle" pass; "YC", "YC's", "Y.C." and "YCombinator" do not.
+// "YC" is how everyone says the real accelerator's name. Case-sensitive, so a lower-case id
+// such as "yc-test" and words like "bicycle" pass; "YC", "YC's", "Y.C." and "YCombinator" do not.
 const ALWAYS_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ['accelerator "YC"', /(^|[^A-Za-z0-9])(YC|Y\. ?C\.?)(s|'s)?($|[^A-Za-z0-9])/],
   ['accelerator "Y Combinator"', /(^|[^A-Za-z0-9])Y[\s.\-_]*Combinator/i],
