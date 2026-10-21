@@ -6,7 +6,7 @@ import { buildWorld, createInitialState, hashState, step, type RoadsFile, type S
 import { colliderJsonTiles, districtOf, drivePath, ll, r2, resample, walkPath, type GameWorld, type RoadEdge } from "../world.ts";
 import { ramWalls, rammingStarts, wallLaunch } from "./edge.ts";
 import { driveEdge } from "./play.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const isFwy = (e: RoadEdge): boolean => e.gradeSeparated === true || e.kind === "freeway" || e.kind === "ramp";
 

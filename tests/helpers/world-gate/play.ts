@@ -49,7 +49,7 @@ import {
 import { CREEK_BRIDGES, STAIRWAYS, TUNNELS, bridgePath, stairEdges, tunnelEdges } from "./streets.ts";
 import { blockPath } from "./terrain.ts";
 import { synthWorld } from "./edge.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const FIX = join(ROOT, "tests/helpers/world-gate/fixtures");
 const fixture = <T>(name: string): T => JSON.parse(readFileSync(join(FIX, name), "utf8")) as T;

@@ -12,7 +12,7 @@ import { parkShapes, tintParks } from "../../../src/render/parks.ts";
 import { cellKey, pointInPolygon } from "../../../src/sim/index.ts";
 import { ROOT, readJson } from "../../helpers.ts";
 import { glbJsonOf, latticeAt, r2, r3, readGlb, type GameWorld, type P2 } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const FIX = join(ROOT, "tests/helpers/world-gate/fixtures");
 const fixture = <T>(name: string): T => JSON.parse(readFileSync(join(FIX, name), "utf8")) as T;

@@ -26,7 +26,7 @@ import {
   type World,
 } from "../../../src/sim/index.ts";
 import { bearing, distToRing, distToSegment, drivePath, ll, r2, resample, wrap, type GameWorld, type P2, districtOf } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const isBuilt = (world: World, x: number, z: number): boolean => world.tileGround?.has(cellKey(Math.floor(x / 500), Math.floor(z / 500))) ?? false;
 

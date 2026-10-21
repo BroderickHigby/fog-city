@@ -7,7 +7,7 @@ import { toLocal } from "../../../src/geo/project.ts";
 import { groundHeight, type Heightfield } from "../../../src/sim/index.ts";
 import { ROOT } from "../../helpers.ts";
 import { latticeAt, ll, maxOf, meshGroundHeight, percentile, prng, r2, r3, resample, surfaceAt, tileField, distToSegment, type GameWorld, type P2 } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const FIX = join(ROOT, "tests/helpers/world-gate/fixtures");
 const fixture = <T>(name: string): T => JSON.parse(readFileSync(join(FIX, name), "utf8")) as T;

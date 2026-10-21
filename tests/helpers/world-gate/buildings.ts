@@ -23,7 +23,7 @@ import {
   type GameWorld,
   type SfRecord,
 } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const FIX = join(ROOT, "tests/helpers/world-gate/fixtures");
 const fixture = <T>(name: string): T => JSON.parse(readFileSync(join(FIX, name), "utf8")) as T;

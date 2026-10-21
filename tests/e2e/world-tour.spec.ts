@@ -13,7 +13,9 @@ import { join } from "node:path";
 import { test, type Page } from "@playwright/test";
 import { toLocal } from "../../src/geo/project.ts";
 import { groundHeight } from "../../src/sim/index.ts";
-import { ROOT, loadWorld, worldExists } from "../helpers.ts";
+import { ROOT, worldExists } from "../helpers.ts";
+import { advanceIndex, bearing, followInput, gameWorld } from "../helpers/world.ts";
+import { route } from "../helpers/world-gate/play.ts";
 import { bootWorld, frames, gateWorld, newSharedPage, renderInfo, settle, type FogWindow } from "./fixtures.ts";
 import { Measured, judgeMeasured, onStreet } from "./world-gate.ts";
 import { PROBE_QUERY, foliageNear, probeDown } from "./world-probe.ts";
@@ -128,9 +130,11 @@ test.describe("world gate: the screenshot tour", () => {
     test.setTimeout(7_200_000);
     rmSync(OUT, { recursive: true, force: true });
     mkdirSync(OUT, { recursive: true });
-    const { world } = loadWorld("sf");
+    const gw = gameWorld("sf");
+    const world = gw.world;
     const ground = (x: number, z: number): number => groundHeight(world, x, z);
     const shots: Shot[] = [];
+    const notes: string[] = [];
     const probeFails: Record<string, string[]> = { water: [], sand: [], green: [], foliage: [], landmark: [] };
     const probeTotals: Record<string, number> = { water: 0, sand: 0, green: 0, foliage: 0, landmark: 0 };
     let viewProblems = 0;
@@ -195,7 +199,7 @@ test.describe("world gate: the screenshot tour", () => {
         if (v.summit) place = { ...place, ...summitOf(ground, place.x, place.z, v.summit) };
         for (const mode of v.modes) {
           if (mode === "drive") {
-            await drive(page, problems, v, place);
+            await drive(page, problems, v);
             continue;
           }
           const p = mode === "street-back" ? { ...place, heading: (place.heading + 180) % 360 } : place;
@@ -207,20 +211,38 @@ test.describe("world gate: the screenshot tour", () => {
       await page.context().close();
     };
 
-    // A 30 s drive: a joined player at full throttle along the street, one frame every 3 s.
-    const drive = async (page: Page, problems: string[], v: View, place: { x: number; z: number; heading: number }): Promise<void> => {
+    // A 30 s drive: a joined player driven along the street's route (the gate's road follower,
+    // tests/helpers/world.ts, steering every 10 ticks at up to 20 m/s), one frame every 3 s.
+    const drive = async (page: Page, problems: string[], v: View): Promise<void> => {
+      // Along the named street when its edges connect the two points, else the shortest way.
+      const along = v.street ? new RegExp(v.street) : null;
+      let path: ReturnType<typeof route>;
+      try {
+        if (!along) throw new Error("no street");
+        path = route({ ...gw, roads: { ...gw.roads, edges: gw.roads.edges.filter((e) => along.test(e.name ?? "")) } }, [v.at, v.toward ?? v.at]);
+      } catch {
+        path = route(gw, [v.at, v.toward ?? v.at]);
+      }
+      const h = bearing(path[3]![0] - path[0]![0], path[3]![1] - path[0]![1]);
       const tick = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.state().tick);
-      const h = (place.heading * Math.PI) / 180;
       await page.evaluate(
         ({ x, z, h, tick }) => (window as unknown as FogWindow).__fogcity!.stepFrames!([{}], [{ tick: tick + 1, kind: "player.join", playerId: "tour", payload: { x, z, heading: h } }]),
-        { x: place.x, z: place.z, h, tick },
+        { x: path[0]![0], z: path[0]![1], h, tick },
       );
+      let idx = 0;
       for (let k = 0; k < 10; k++) {
-        await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.stepFrames!(Array.from({ length: 180 }, () => ({ tour: { throttle: 1, steer: 0, brake: 0, actions: 0 } }))));
+        for (let c = 0; c < 18; c++) {
+          const car = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.state().players.tour!.car);
+          idx = advanceIndex(path, idx, car.x, car.z).idx;
+          const input = followInput(car, path, idx, 20);
+          await page.evaluate((input) => (window as unknown as FogWindow).__fogcity!.stepFrames!(Array.from({ length: 10 }, () => ({ tour: input }))), input);
+        }
         const car = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.state().players.tour!.car);
         const back = { x: car.x - Math.sin(car.heading) * 16, z: car.z + Math.cos(car.heading) * 16 };
         await shoot(page, problems, v, "chase", { x: back.x, z: back.z, heading: (car.heading * 180) / Math.PI }, `t${(k + 1) * 3}s`);
       }
+      // How far along the route the car got (1 m samples), for the reviewer: traffic can hold it up.
+      notes.push(`${v.id}: ${idx} m along the ${path.length} m route in 30 s`);
     };
 
     await runViews(views.filter((v) => !v.radius60), "");
@@ -228,13 +250,13 @@ test.describe("world gate: the screenshot tour", () => {
 
     // The contact sheet: every shot with its view and any problem; a previous wave's sheet in
     // test-results/tour-previous/ (copied there by the reviewer) is shown beside it.
-    writeFileSync(join(OUT, "index.json"), JSON.stringify({ shots, probeFails, probeTotals }, null, 1) + "\n");
+    writeFileSync(join(OUT, "index.json"), JSON.stringify({ shots, notes, probeFails, probeTotals }, null, 1) + "\n");
     const rows = shots
       .map((s) => `<figure><img src="${s.file}" loading="lazy"><img class="prev" src="../tour-previous/${s.file}" onerror="this.remove()" loading="lazy"><figcaption><b>${s.file}</b> ${s.title}${s.problems.length ? `<br><span class="bad">${s.problems.join("; ")}</span>` : ""}</figcaption></figure>`)
       .join("\n");
     writeFileSync(
       join(OUT, "index.html"),
-      `<!doctype html><meta charset="utf-8"><title>World tour</title><style>body{font:14px system-ui;margin:16px;background:#111;color:#ddd}figure{display:inline-block;margin:6px;vertical-align:top;max-width:100%}img{width:480px;max-width:100%;display:inline-block}figcaption{max-width:960px}.bad{color:#f88}</style><h1>World-continuity tour</h1><p>${shots.length} shots. Review each against docs/qa/world-continuity-gate.md and record pass or fail per view in the wave's QA note.</p>\n${rows}\n`,
+      `<!doctype html><meta charset="utf-8"><title>World tour</title><style>body{font:14px system-ui;margin:16px;background:#111;color:#ddd}figure{display:inline-block;margin:6px;vertical-align:top;max-width:100%}img{width:480px;max-width:100%;display:inline-block}figcaption{max-width:960px}.bad{color:#f88}</style><h1>World-continuity tour</h1><p>${shots.length} shots. Review each against docs/qa/world-continuity-gate.md and record pass or fail per view in the wave's QA note.</p>${notes.map((n) => `<p>${n}</p>`).join("")}\n${rows}\n`,
     );
 
     const m = new Measured("world-tour", "e2e-nightly");

@@ -26,7 +26,7 @@ import {
   type P2,
   type RoadEdge,
 } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 import { gradeStats, surfaceProfile } from "./terrain.ts";
 
 const FIX = join(ROOT, "tests/helpers/world-gate/fixtures");

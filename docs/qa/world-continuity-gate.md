@@ -281,7 +281,10 @@ difference is listed with its reason.
   or lifts over 0.5 m (the target), so 211 of 360 at 544f67c against the QA's 176 at 0.5 s or
   1 m. Grade-separation launches count airborne over 0.2 s. Pedestrian clearance counts edges
   with any sample within 0.75 m (62), not edges blocked both ways (33). The houses' blank band is
-  the drawn first-storey line more than 2.5 m above the street at the front.
+  the drawn first-storey line more than 2.5 m above the street at the front. Freeway runs count
+  airborne over 0.3 s and landings over 3 m/s (the targets): 96 and 76 of 220 at 544f67c against
+  the QA's 62 and 35 at 0.5 s. Street runs count the mainland only: 385 stopped at 544f67c (the
+  QA counted 434 citywide at 54ee728).
 - **House kit encodings the gate reads** (from `docs/qa/house-kit-spec.md`): per-wall classes in
   `_FACADE.w` (0 rear, 85 party, 170 front, 255 roof); anchor lists as GLB node extras named
   `bays`, `stoops`, `garages`, `storefronts`; a foliage node named `foliage`, `trees` or
@@ -306,7 +309,13 @@ difference is listed with its reason.
 - **The tour at 544f67c**: 85 shots, every view settled with no failed tile and no console
   error; its probes find the three lakes drawn as lawn or grey ground, both beaches as lawn,
   four of five park probes grey and four of four foliage probes bare, and Coit Tower and Sutro
-  Tower drawn as plain building records and both bridges absent.
+  Tower drawn as plain building records and both bridges absent. The drive view follows Geary
+  Blvd with the gate's road follower at up to 20 m/s (with the game's traffic), not at full
+  throttle with the wheel held straight, which left the road within 15 s. At 544f67c it covers
+  only 156 m in 30 s: the car is held behind robotaxis waiting at Fillmore (the same hold-up
+  that keeps the gate's hill routes free of traffic; without traffic the first 700 m take 75 s).
+  The contact sheet notes the distance each run. The summit views stand
+  on the highest ground within 80 m of their point.
 - **The nightly tier at 544f67c** agrees with the QA where both measured the same thing: every
   street is 26,792 runs (385 mainland runs stopped, 47 starting inside a footprint, 84 airborne
   for 0.5 s or more, the QA's 84); the ring steps up to 21.57 m (the QA's 21.5 m); 690 records

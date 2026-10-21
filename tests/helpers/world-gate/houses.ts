@@ -11,7 +11,7 @@ import { toLocal } from "../../../src/geo/project.ts";
 import { groundHeight, nearbyBuildings, pointInPolygon } from "../../../src/sim/index.ts";
 import { readJson } from "../../helpers.ts";
 import { colliderRecords, distToSegment, districtOf, r3, readGlb, type GameWorld, type SfRecord } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 /** The houses audit's four sample boxes (x0, z0, x1, z1), local metres. */
 export const CRACK_BOXES: Readonly<Record<string, [number, number, number, number]>> = {

@@ -6,7 +6,7 @@
 import { toLocal } from "../../../src/geo/project.ts";
 import { cellKey, groundHeight } from "../../../src/sim/index.ts";
 import { centroid, ll, maxOf, percentile, r2, readGlb, triangleHeight, type GameWorld } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 const onLat = (x: number, z: number): boolean => Math.abs(x / 100 - Math.round(x / 100)) < 1e-3 && Math.abs(z / 100 - Math.round(z / 100)) < 1e-3;
 

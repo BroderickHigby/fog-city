@@ -5,7 +5,7 @@
 
 import { cellKey } from "../../../src/sim/index.ts";
 import { bbox, meshGroundHeight, percentile, r2, r3, readGlb, resample, surfaceAt, topHeightAt, triangleHeight, type GameWorld, type GlbNode } from "../world.ts";
-import { Measured } from "./suite.ts";
+import { Measured } from "./measured.ts";
 
 /** Visit a 0.5 m raster of cell centres inside one triangle (xz), with the triangle's height there. */
 function rasterTriangle(P: Float32Array, a: number, b: number, c: number, step: number, fn: (x: number, z: number, y: number) => void): void {
