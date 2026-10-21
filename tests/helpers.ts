@@ -11,10 +11,10 @@ export const ROOT = join(import.meta.dirname, "..");
 
 export function readJson<T = unknown>(rel: string): T {
   const text = readFileSync(join(ROOT, rel), "utf8");
-  // Tiles may move to Git LFS (docs/roadmap.md): a checkout without `git lfs pull` holds
-  // pointer files. Say so, rather than "Unexpected token v in JSON".
+  // Tiles live in plain git (docs/design.md, 2026-10-20). A Git LFS pointer here means a fork or
+  // a tool moved them: say so, rather than "Unexpected token v in JSON".
   if (text.startsWith("version https://git-lfs.github.com/spec/")) {
-    throw new Error(`${rel} is a Git LFS pointer, not the file: run \`git lfs pull\` (CI: actions/checkout with lfs: true)`);
+    throw new Error(`${rel} is a Git LFS pointer, not the file: tiles live in plain git; if this checkout moved them to LFS, run \`git lfs pull\``);
   }
   return JSON.parse(text) as T;
 }

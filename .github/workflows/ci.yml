@@ -23,12 +23,9 @@ jobs:
       # One job per runner, so the default port is free; set per checkout locally.
       E2E_PORT: "4173"
     steps:
-      # Tile storage is still to be decided (Git LFS or a release artifact, docs/roadmap.md).
-      # lfs: true costs nothing without LFS files and fetches the tiles if they move there.
+      # Tiles live in plain git, meshopt-compressed (decided 2026-10-20, docs/design.md decision log).
       - name: Check out
         uses: actions/checkout@v5
-        with:
-          lfs: true
 
       # pnpm version comes from package.json "packageManager".
       - name: Set up pnpm
@@ -52,6 +49,12 @@ jobs:
       - name: Unit tests
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: pnpm test
+
+      # The static web build for hosting (dist/, packed tiles); fails if it breaks the host's
+      # limits. tests/e2e/web-build.spec.ts builds its own copy and boots it from a sub-path.
+      - name: Web build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm build
 
       - name: Read Playwright version
         id: playwright

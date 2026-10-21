@@ -238,8 +238,10 @@ describe("harness wiring", () => {
       expect(ci, `ci.yml no longer runs ${cmd}`).toContain(cmd);
     }
     expect(ci).toMatch(/on:\s*\n\s+push:\s*\n\s+pull_request:/);
-    // Tiles in LFS are fetched, and the repository variable can turn skips into failures.
-    expect(ci).toMatch(/lfs: true/);
+    // Tiles live in plain git (decided 2026-10-20): no LFS fetch. The static web build runs,
+    // and the repository variable can turn skips into failures.
+    expect(ci).not.toMatch(/lfs:/);
+    expect(ci).toContain("pnpm build");
     expect(ci).toContain("E2E_REQUIRE: ${{ vars.E2E_REQUIRE }}");
   });
 

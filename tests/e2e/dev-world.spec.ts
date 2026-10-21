@@ -56,7 +56,7 @@ test.describe("dev world: boot", () => {
     await page.route("**/tiles/dev/roads.json", (route) => route.fulfill({ status: 404, body: "not here" }));
     await page.goto(`/?world=dev${FAST_QUERY}`);
     await page.waitForFunction(() => (document.getElementById("hud")?.textContent ?? "").startsWith("Failed to start"), null, {
-      timeout: 30_000,
+      timeout: 60_000,
     });
     expect(await page.locator("#hud").textContent()).toMatch(/^Failed to start: road graph roads\.json: .*HTTP 404/);
     expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity?.ready ?? false), "no game handle").toBe(false);
@@ -67,7 +67,7 @@ test.describe("dev world: boot", () => {
     expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.world)).toBe("dev");
     // The loop is alive: ticks advance on their own.
     const t0 = (await simState(page)).tick;
-    await page.waitForFunction((t) => (window as unknown as FogWindow).__fogcity!.state().tick > t + 10, t0, { timeout: 20_000 });
+    await page.waitForFunction((t) => (window as unknown as FogWindow).__fogcity!.state().tick > t + 10, t0, { timeout: 60_000 });
     await settle(page);
     await frames(page, 10);
 
@@ -87,7 +87,7 @@ test.describe("dev world: behaviour", () => {
     await page.keyboard.down("KeyW");
     // Heading 0 is north (-z): forward means z decreases.
     await page.waitForFunction((z) => (window as unknown as FogWindow).__fogcity!.state().players.p1!.car.z < z - 2, start.z, {
-      timeout: 30_000,
+      timeout: 60_000,
     });
     const moving = (await simState(page)).players.p1!.car;
     await page.keyboard.down("KeyD");
@@ -100,7 +100,7 @@ test.describe("dev world: behaviour", () => {
         return d > 0.05; // compass bearings grow clockwise: right
       },
       moving.heading,
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     );
     await page.keyboard.up("KeyD");
     await page.keyboard.up("KeyW");

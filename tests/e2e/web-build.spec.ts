@@ -103,7 +103,8 @@ test.describe("static web build, served from a sub-path", () => {
       return h?.ready ? { world: h.world, sim: h.simInfo!() } : { hud: document.getElementById("hud")?.textContent ?? "" };
     });
     expect(info, "the hosted page booted").toHaveProperty("world", "sf");
-    const sim = (info as { sim: NonNullable<ReturnType<NonNullable<FogWindow["__fogcity"]>["simInfo"]>> }).sim;
+    type SimInfo = ReturnType<NonNullable<NonNullable<FogWindow["__fogcity"]>["simInfo"]>>;
+    const sim = (info as { sim: SimInfo }).sim;
     expect(sim.assets).toBe("packed");
     expect(sim.colliders).toBe("pack");
     expect(sim.roads).toBe(true);

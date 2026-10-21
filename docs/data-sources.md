@@ -664,6 +664,15 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 
 ## What the sim and renderer must change
 
+Status 2026-10-21 (city-runtime integration, `integrate/wave1`): the sim boot, renderer boot,
+far-LOD, water and world-edge items below are **done**: `src/sim/pack.ts` decodes the pack,
+`groundHeight()` looks tiles up by index, `src/io/world-load.ts` loads the pack, road graph
+and boundary for the game, the browser sim lab and Node alike (no collider JSON is fetched),
+`src/render/far-layer.ts` draws the far cells wherever no streamed tile is in the scene (the
+outside tiles included), the camera sees 20 km, the sea is drawn at `water.y` to the far
+plane, and `src/sim/boundary.ts` walls the land edges, the outline and the shore (with gaps
+where surface roads cross it). Walkers do not use `sidewalks.json` yet. The original notes:
+
 * **Sim boot (Sim-World, `src/sim/`):** load `manifest.worldColliders` (12.7 MB) instead of
   every `*.collider.json` (583 files, 82.9 MB), decode it with the reference reader
   (`pipeline/lib/world-colliders.ts`, copy it into `src/sim/`), and replace the linear scan

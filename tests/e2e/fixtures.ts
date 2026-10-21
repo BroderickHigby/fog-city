@@ -347,7 +347,8 @@ export async function pokeThenRun(page: Page, poke: Poke, minTicks = 36): Promis
         };
         requestAnimationFrame(poll);
       }),
-    { target: before.tick + minTicks, ms: 45_000 },
+    // Wall time: under SwiftShader on a loaded machine the loop can run at ~1 frame a second.
+    { target: before.tick + minTicks, ms: 90_000 },
   );
   if ("key" in poke && poke.hold) await page.keyboard.up(poke.key);
   await frames(page, 2);

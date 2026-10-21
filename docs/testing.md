@@ -15,6 +15,7 @@ pnpm test                     # Vitest: tests/**/*.test.ts
 E2E_PORT=4196 pnpm e2e        # Playwright: tests/e2e/*.spec.ts
 E2E_PORT=4196 pnpm shots      # screenshots -> test-results/shots/index.html
 E2E_REQUIRE=all E2E_PORT=4196 pnpm e2e   # after integration: absent prerequisites fail, not skip
+pnpm build                    # the static web build for hosting -> dist/ (see "Static web build")
 ```
 
 One file or one test: `pnpm exec vitest run tests/sim`, `E2E_PORT=4196 pnpm e2e dev-world`,
@@ -95,7 +96,36 @@ expectation.
 ### Unit tests (Vitest, `tests/**/*.test.ts`)
 
 Owned by each track: `tests/sim`, `tests/render`, `tests/pipeline`, `tests/content`,
-`tests/assets`, `tests/schemas`. In `tests/render`, the agent renderer's pure parts have
+`tests/assets`, `tests/schemas`, plus `tests/io` for the asset layer and the web build.
+
+The city runtime has its own suites:
+
+- `tests/sim/pack.test.ts`: the sim's reader for the citywide collider pack
+  (`src/sim/pack.ts`) round-trips everything the pipeline's encoder writes and decodes exactly
+  what the pipeline's reference reader (`pipeline/lib/world-colliders.ts`) gives, on synthetic
+  packs and on the whole committed city; it refuses a foreign, newer, truncated or lying file;
+  it matches the per-tile JSON (minus `meta`) and builds the same world. The tile index:
+  `groundHeight` looks pipeline tiles up by `floor(x / 500)`, `floor(z / 500)` and returns
+  exactly the old scan's heights at 170,000 points including every border and corner;
+  hand-made worlds keep the scan.
+- `tests/sim/boundary.test.ts`: `boundary.json` walls (`src/sim/boundary.ts`). A car at full
+  throttle (and at 50 m/s) into a wall stops at it from any angle and counts the hit; a walker
+  stops; nobody gets out onto the water side; a wall never reaches a point well behind it; a
+  surface road crossing the shore gets a gap, a freeway and the outline never do. On the city:
+  the spawn and every surface lane are clear of walls, a car driven at the southern land edge
+  stops there instead of dropping off the world, one driven at Ocean Beach stops above the sea
+  (without the walls it ends on the water), and the 3rd St bridge over Mission Creek can still
+  be driven end to end.
+- `tests/sim/agent-budget.test.ts`: on the whole city, agents exist only in the seeded budgets
+  of the areas around the player (a few dozen of ~1,900 areas), deterministically; a second
+  player across town gets their own traffic (each player at most `MAX_AGENTS`, the state at
+  most `MAX_AGENTS_TOTAL`); robotaxis never route onto a freeway, a ramp joining one, or a
+  pedestrian street, and walkers never onto a freeway.
+- `tests/io/assets.test.ts`: the web build's packer and `src/io/assets.ts`. Files packed and
+  gzip + base64 encoded come back byte for byte through the index (file -> pack, offset,
+  length) from a loopback server under a sub-path, a pack is fetched once however many files
+  it holds, packs split before they pass the size cap, the host-limit check flags `.glb` and
+  `.bin`, and the dev world still loads from its collider JSON. In `tests/render`, the agent renderer's pure parts have
 their own suites: `agent-lod.test.ts` (interpolation between ticks, tier selection and
 hysteresis, tier capacities and instance budgets, wheel/steer/gait helpers, brake and hazard
 cues, with slowing measured over distance so an agent the sim steps every 4th tick reads like
@@ -126,9 +156,10 @@ sets its own (`it(name, fn, 60_000)`).
 |---|---|---|
 | `dev-world.spec.ts` | With its road graph answering 404, the game refuses to start (HUD "Failed to start: road graph ...", no debug handle) instead of running a roadless world. The dev world boots with no console error, uncaught exception, HTTP error or failed request, and draws a frame that is not blank. Real keys reach the sim (W moves the car north, D turns it clockwise). Stepping `stepN(1)` 600 times at full throttle ends against the wall: the car centre is never inside it or past its face, and `hits` counts the impact. **KeyC never changes the sim**: with the car moving and turning, C is pressed (and once held) while paused, the paused sim must not move, then the game's own loop runs ~36 ticks consuming input and Node replays the snapshot with neutral input for as many ticks: the states must be identical. KeyC also cycles `renderInfo().cameraMode` and comes back, with the same check after every press. | `render-debug` (camera-mode test only) |
 | `determinism.spec.ts` | **Cross-engine determinism**, below. | `dev-city`, `sf` (per world); `engines` (Firefox, WebKit). `stepFrames()` is asserted present, not a skip |
-| `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building. Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
+| `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; it boots from the citywide collider pack (`world.colliders.bin` fetched once, **not one `*.collider.json` request** in the page's log, `simInfo().colliders === "pack"`, more than 1,000 edge and shore wall segments); from Twin Peaks every far-LOD cell is loaded, more than three are drawn in the last frame (`renderInfo().farCells`, `farCellsDrawn`), and the camera sees at least 15 km; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building. Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
 | `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. Boxed in by four other players' cars (joined through `stepFrames()` events, 2 m to each side and 5.2 m ahead and behind), F leaves the player in the car and `hint()` reads "No room to get out" on screen; once they leave, F gets out with no hint. | `foot` |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
+| `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). | `sf` |
 
 ### Cross-engine determinism
 
@@ -141,7 +172,9 @@ inputs and events must give bit-identical states on every JavaScript engine.
    random steering, braking and reversing, enter/exit presses (on foot when the sim has it),
    out-of-range and NaN controls the sim must clamp, and ambient traffic when the sim and
    world have a road graph. Node runs it in the test process; the browser runs the same file
-   in `tests/e2e/sim-lab.html` (no renderer, no game loop) with the world fetched over HTTP.
+   in `tests/e2e/sim-lab.html` (no renderer, no game loop) with the world fetched over HTTP
+   exactly as the game loads it (`src/io/world-load.ts`: the collider pack, so its decoder
+   runs in every engine, the road graph and the boundary).
    Every 15th tick's `hashState` must match, and so must the whole final state (compared as
    canonical JSON, so a hash collision cannot hide a difference). A companion test hashes the
    exact bits of `dsin`, `dcos`, `dtan`, `datan`, `datan2`, `wrapAngle`, `Math.sqrt` and
@@ -162,7 +195,8 @@ inputs and events must give bit-identical states on every JavaScript engine.
    this test and the dev-world KeyC test. A leak on a press that switches **to** the fly
    camera cannot show, by design (the fly camera feeds the player neutral input), so V is
    checked on the press that leaves it. The world must be built as its manifest says (with
-   the road graph when it names one, so ambient traffic runs in the game and in Node).
+   the road graph and the boundary when it names them, so ambient traffic runs and the edge
+   walls stand in the game and in Node).
 3. **The running game, multiplayer** (Chromium, dev and sf, through `stepFrames()`): the
    scenario's session recorded in Node (`recordSession`: p2 and p3 join on the first tick,
    then the same drivers, joins, leaves and junk input) is fed to the game 60 frames at a time
@@ -222,13 +256,20 @@ degrees (+ up), `up` metres above the ground there.
   Under SwiftShader a full-size frame can take a second, and the game loop catches up at most
   0.25 s of sim per frame, so slow frames slow the sim itself. Visual tests keep the defaults.
 - Never assert frame rate, frame time or wall-clock durations.
+- **Load-proof.** Under SwiftShader on a loaded 4-core machine the game runs at about one frame
+  a second, and each frame catches up at most 0.25 s of sim. Drive anything that is about the
+  sim through `pause()`, `stepN()` or `stepFrames()`; when a test must use the game's own
+  loop (real keys, render-only pokes), every real-time wait allows at least 60 s, and the test
+  sets a timeout that covers all of them (the default is 180 s). Never skip or weaken an
+  assertion to make a slow machine pass.
 - Need something another track has not delivered? Check for it (`features(page)`, the file's
   existence, a contract field) and call `gate(prerequisite, present, "what is missing")`
   (or `gateWorld(name)`), which skips with the reason or fails under `E2E_REQUIRE`. A new
   kind of prerequisite goes in `tests/e2e/prereq.ts` and the table above.
 - Tests never touch the network: worlds come from `public/tiles/<world>/`, read in Node with
-  `tests/helpers.ts` (`worldExists`, `loadWorldFiles`, `loadWorld`). A Git LFS pointer file
-  in place of a tile fails with "run `git lfs pull`".
+  `tests/helpers.ts` (`worldExists`, `loadWorldFiles`, `loadWorld`), which reads the collider
+  pack, road graph and boundary exactly as the game does. Tiles live in plain git; a Git LFS
+  pointer file in place of one fails with a message that says so.
 - Playwright runs only `*.spec.ts`; Vitest runs only `*.test.ts`. Both may live in
   `tests/e2e/`.
 
@@ -243,15 +284,50 @@ degrees (+ up), `up` metres above the ground there.
 ## Continuous integration (`.github/workflows/ci.yml`)
 
 On every push and pull request, on Ubuntu with Node 22 and pnpm (version from
-`package.json`), with the pnpm store and Playwright browsers cached: check out (with Git
-LFS, in case tiles move there), `pnpm install --frozen-lockfile`, typecheck, unit tests,
-Playwright browsers with system dependencies, `pnpm e2e` (with `E2E_REQUIRE` from the
-repository variable), then `pnpm shots` (informational: it never fails CI). Each check runs
+`package.json`), with the pnpm store and Playwright browsers cached: check out (tiles are in
+plain git), `pnpm install --frozen-lockfile`, typecheck, unit tests, `pnpm build` (the static
+web build; it fails if the build breaks the host's limits), Playwright browsers with system
+dependencies, `pnpm e2e` (with `E2E_REQUIRE` from the repository variable), then `pnpm shots`
+(informational: it never fails CI). Each check runs
 whenever install succeeded, so one failure does not hide another. `test-results/`
 (Playwright artefacts and HTML report, `perf.json`, `shots/`) is uploaded as an artifact for
 14 days. With `CI` set, `test.only` fails the run. The workflow has passed `actionlint` and
 its commands have run locally with `CI=true`; its first run on GitHub's runners happens on
 the first push.
+
+## Static web build (`pnpm build`)
+
+`pnpm build` (also `pnpm build:web`) runs `scripts/build-web.ts`: `vite build` with `base: "./"`
+(every URL relative, so `dist/` works from any sub-path; `public/` is not copied), then the
+world and the models in the layout `src/io/assets.ts` reads in a production build:
+
+- the page host serves only text-like types (`.html .css .js .mjs .wasm .json .map .geojson
+  .webmanifest .txt .md .csv .xml .svg .png .jpg .jpeg .gif .webp .avif .ico .woff .woff2 .ttf
+  .otf .mp3 .wav .ogg .mp4 .webm .pdf`; no `.glb`, no `.bin`), so every binary is
+  gzip-compressed, base64-encoded and written as a `.txt` file, decoded in the page with
+  `atob` and `DecompressionStream("gzip")`;
+- tile glbs are concatenated into packs, one per 3 x 3 block of tiles
+  (`tiles/sf/packs/tiles-NNN.pack.gz.b64.txt`), the far-LOD cells into `far-NN` packs; a pack
+  is fetched whole the first time a file in it is needed, cached, and sliced by offset;
+- `world.colliders.bin` and each model are one `.gz.b64.txt` file each;
+- the world's JSON (manifest, roads, boundary, every data layer) is copied as is; per-tile
+  collider JSON is not shipped;
+- `assets.index.json` maps each binary's logical path to `{src, offset, length}`; its
+  `defaultWorld` (`sf`) opens when the page has no `?world=`.
+
+The build checks the host's limits (at most 450 files, 240 MB in all, 15 MB a file, the
+extensions above) and fails if one is broken. On 2026-10-21: 105 files, 109.2 MB (binaries
+136.1 MB raw, 81.4 MB encoded: meshopt output gzips well), largest file the collider pack at
+12.3 MB, 81 packs, about 10 s. To look at it from a sub-path:
+
+```sh
+pnpm build
+python3 -m http.server 4299 --bind 127.0.0.1    # from the repo root, then open
+# http://127.0.0.1:4299/dist/
+```
+
+`pnpm dev` keeps serving loose files from `public/`. `tests/e2e/web-build.spec.ts` builds and
+boots its own copy from a sub-path on every e2e run.
 
 ## Output layout
 
@@ -262,3 +338,5 @@ the first push.
 | `test-results/perf.json` | `perf.spec.ts` | overwritten each run |
 | `test-results/shots/` | `pnpm shots` | cleared at the start of each shots run |
 | `test-results/playwright-shots/` | `pnpm shots` | artefacts of failed shots |
+| `test-results/web-build/` | `web-build.spec.ts` | the static build it serves from `/fog/city/`, and `hosted-chase.png` |
+| `dist/` | `pnpm build` | the static web build (gitignored) |

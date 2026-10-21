@@ -28,9 +28,11 @@ AI feature.
 - Coordinate frame (`src/geo/project.ts`): metres, origin at the Ferry Building clock tower, +x east, +y up,
   +z south (north is -z). Headings are compass bearings (radians clockwise from north); the renderer sets
   `rotation.y = -heading` on models that face -z.
-- Data flow: `pipeline/` (Node, offline) fetches SF open data and writes `public/tiles/<world>/`. Tiles are
-  stored per the tile-storage decision in `docs/roadmap.md` ("Decisions the user makes": Git LFS or a
-  versioned release artifact). The sim reads `*.collider.json`; the renderer reads `*.glb`.
+- Data flow: `pipeline/` (Node, offline) fetches SF open data and writes `public/tiles/<world>/`. Tiles live
+  in plain git, meshopt-compressed (decided 2026-10-20, `docs/design.md` decision log). The sim reads the
+  citywide collider pack `world.colliders.bin` (`src/sim/pack.ts`; hand-made worlds: `*.collider.json`),
+  the road graph and `boundary.json`; the renderer reads `*.glb` and the far-LOD cells. Files go through
+  `src/io/assets.ts`; `pnpm build` writes the packed static build in `dist/` (`scripts/build-web.ts`).
 - The sim and renderer make no network calls. Only `src/net/` talks to the relay, in online modes.
 - TypeScript: relative imports use the `.ts` extension; erasable syntax only (no enums, namespaces or
   constructor parameter properties). Node runs `.ts` files directly (`node pipeline/x.ts`).

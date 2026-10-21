@@ -82,7 +82,7 @@ function expectSameRun(node: ScenarioResult, browser: ScenarioResult): void {
 
 async function openSimLab(page: Page): Promise<string> {
   await page.goto("/tests/e2e/sim-lab.html");
-  await page.waitForFunction(() => window.__simlab?.ready === true, null, { timeout: 30_000 });
+  await page.waitForFunction(() => window.__simlab?.ready === true, null, { timeout: 60_000 });
   return page.evaluate(() => window.__simlab!.userAgent);
 }
 

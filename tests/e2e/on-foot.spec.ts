@@ -13,6 +13,10 @@ type Player = Omit<PlayerState, "foot"> & { foot?: { x: number; z: number; headi
 const p1 = (s: { players: Record<string, unknown> }): Player => s.players.p1 as Player;
 
 test.use({ viewport: FAST_VIEWPORT });
+// Real keys through the game's own loop, so these waits are wall time: under SwiftShader on a
+// loaded 4-core machine the game can run at ~1 frame a second (each frame then catches up only
+// 0.25 s of sim). Every wait allows 60 s, and each test several of them.
+test.describe.configure({ timeout: 360_000 });
 
 test("on foot: F exits, the walker moves, F near the car re-enters", async ({ page }) => {
   const problems = await bootWorld(page, "dev", FAST_QUERY);
@@ -23,7 +27,7 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
   // F gets out of the stopped car.
   await page.keyboard.press("KeyF");
   await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.mode === "foot", null, {
-    timeout: 15_000,
+    timeout: 60_000,
   });
   const out = p1(await simState(page));
   const walker0 = out.foot!;
@@ -40,14 +44,14 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
 
   // W walks, and the HUD shows walking speed (1.6 m/s = 6 km/h), not the parked car's 0.
   await page.keyboard.down("KeyW");
-  await page.waitForFunction(() => /\b[3-9] km\/h .*on foot/.test(document.getElementById("hud")?.textContent ?? ""), null, { timeout: 30_000 });
+  await page.waitForFunction(() => /\b[3-9] km\/h .*on foot/.test(document.getElementById("hud")?.textContent ?? ""), null, { timeout: 60_000 });
   await page.waitForFunction(
     (w) => {
       const f = ((window as unknown as FogWindow).__fogcity!.state().players.p1 as unknown as { foot?: { x: number; z: number } | null }).foot;
       return !!f && Math.hypot(f.x - w.x, f.z - w.z) > 1.5;
     },
     walker0,
-    { timeout: 30_000 },
+    { timeout: 60_000 },
   );
   await page.keyboard.up("KeyW");
   await frames(page, 2);
@@ -64,14 +68,14 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
       return !!f && Math.hypot(f.x - c.x, f.z - c.z) <= gap + 0.5;
     },
     { c: { x: car.x, z: car.z }, gap: gap0 },
-    { timeout: 30_000 },
+    { timeout: 60_000 },
   );
   await page.keyboard.up("KeyS");
 
   // F next to the car gets back in, and W drives it again.
   await page.keyboard.press("KeyF");
   await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.mode === "vehicle", null, {
-    timeout: 15_000,
+    timeout: 60_000,
   });
   const back = p1(await simState(page));
   expect(back.foot).toBeNull();
@@ -86,7 +90,7 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
       return Math.hypot(now.x - c.x, now.z - c.z) > 2;
     },
     { x: back.car.x, z: back.car.z },
-    { timeout: 30_000 },
+    { timeout: 60_000 },
   );
   await page.keyboard.up("KeyW");
   expect(problems).toEqual([]);
@@ -131,7 +135,7 @@ test("on foot: boxed in by four cars, F says 'No room to get out' and leaves the
 
   // F with the game's own loop running: nowhere to stand, so the player stays in, and the HUD says why.
   await page.keyboard.press("KeyF");
-  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.hint!() === "No room to get out", null, { timeout: 15_000 });
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.hint!() === "No room to get out", null, { timeout: 60_000 });
   const stuck = p1(await simState(page));
   expect(stuck.mode, "still in the car").toBe("vehicle");
   expect(await page.locator("#hint").isVisible(), "the hint is on screen").toBe(true);
@@ -147,10 +151,10 @@ test("on foot: boxed in by four cars, F says 'No room to get out' and leaves the
     );
     h.resume();
   });
-  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.hint!() === "", null, { timeout: 15_000 });
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.hint!() === "", null, { timeout: 60_000 });
   await page.keyboard.press("KeyF");
   await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.mode === "foot", null, {
-    timeout: 15_000,
+    timeout: 60_000,
   });
   expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.hint!()), "no hint when F works").toBe("");
   expect(problems).toEqual([]);
