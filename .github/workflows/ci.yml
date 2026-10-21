@@ -97,9 +97,10 @@ jobs:
       - name: Screenshots
         if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
         continue-on-error: true
-        # Its own limit, so slow software-GL captures can never cancel the job after the tests passed.
+        # A step that reaches timeout-minutes fails the job even under continue-on-error, so Playwright's
+        # own 9-minute limit ends slow software-GL captures first; the step limit is only a backstop.
         timeout-minutes: 12
-        run: pnpm shots
+        run: pnpm shots --global-timeout=540000 || echo "::warning::Screenshots stopped early; the ones taken are in the artifact."
 
       - name: Upload test results
         if: ${{ !cancelled() }}

@@ -239,8 +239,19 @@ describe("harness wiring", () => {
     }
     // Every pull request runs CI; a push runs it again only on main.
     expect(ci).toMatch(/on:\s*\n(?:\s*#[^\n]*\n)*\s+push:\s*\n\s+branches: \[main\]\s*\n\s+pull_request:/);
-    // The informational screenshots carry their own limit, so they can never cancel the job.
-    expect(ci).toMatch(/- name: Screenshots\n(?:\s+[^\n]*\n)*?\s+continue-on-error: true\n(?:\s+#[^\n]*\n)*\s+timeout-minutes: \d+/);
+    // The informational screenshots can never fail or cancel the job. A step that reaches its
+    // timeout-minutes fails the job even under continue-on-error, so Playwright's global timeout
+    // must end the captures a minute or more before that backstop, and the exit status is ignored.
+    const start = ci.indexOf("- name: Screenshots");
+    expect(start, "ci.yml has no Screenshots step").toBeGreaterThan(-1);
+    const end = ci.indexOf("\n      - ", start);
+    const shots = ci.slice(start, end < 0 ? undefined : end);
+    expect(shots).toMatch(/\n\s+continue-on-error: true\n/);
+    const stepMinutes = Number(/\n\s+timeout-minutes: (\d+)\n/.exec(shots)?.[1]);
+    const run = /\n\s+run: ([^\n]*)/.exec(shots)?.[1] ?? "";
+    const globalMs = Number(/^pnpm shots --global-timeout=(\d+) \|\| /.exec(run)?.[1]);
+    expect(globalMs, `the Screenshots step must run "pnpm shots --global-timeout=<ms> || ...", not "${run}"`).toBeGreaterThan(0);
+    expect(globalMs).toBeLessThanOrEqual((stepMinutes - 1) * 60_000);
     // Tiles live in plain git (decided 2026-10-20): no LFS fetch. The static web build runs,
     // and the repository variable can turn skips into failures.
     expect(ci).not.toMatch(/lfs:/);
