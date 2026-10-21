@@ -84,7 +84,7 @@ are added. `CLAUDE.md` carries this table; change both together.
 | Track | Owns |
 |---|---|
 | Pipeline | `pipeline/`, `public/tiles/sf/` (incl. `roads.json`), `docs/data-sources.md`, `tests/pipeline/` |
-| Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `index.html`, `vite.config.ts`, `public/tiles/dev-city/`, `tests/render/` |
+| Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `src/io/` (asset layer, world loading), `src/env.d.ts`, `index.html`, `vite.config.ts`, `scripts/build-web.ts` (the static build), `public/tiles/dev-city/`, `tests/render/`, `tests/io/` |
 | UI-Audio | `src/ui/`, `src/audio/`, `src/input/`, `tests/ui/` |
 | Sim-World | the files directly in `src/sim/` (`contract.ts`, `step.ts`, `index.ts`, the top-level `systems.ts`, `dmath.ts` and the other shared files; additive changes to `contract.ts` only: bump to the next `SIM_VERSION` and say so in the report), `src/sim/vehicles/`, `src/sim/fog/`, `src/sim/clock/`, `tests/sim/world/` and the files directly in `tests/sim/` |
 | Sim-Agents | `src/sim/agents/`, `src/sim/robots/`, `tests/sim/agents/` |
@@ -117,6 +117,15 @@ robotaxi, errand robot, sidewalk bot, Muni bus); CI and e2e.
 people walk on offset road edges as a placeholder, because the sidewalk graph arrives in wave 2.
 Wave 1 contract work (car handling fields, `FootState`, `ext.agents`) may land as the next
 `SIM_VERSION`.
+
+**For wave-2 branches: the static `World` changed in the citywide integration** (SimState and
+`contract.ts` did not; `SIM_VERSION` stays 2). `world.grid` (string keys) and `world.bounds` (a
+Map per building) are gone: use `nearbyBuildings`, or `world.cells` (numeric `cellKey`) with
+`world.cellBoxes` (bounding boxes, 4 numbers per building). Ground goes through `groundHeight`
+(tile-indexed, `world.tileGround`). `world.walls` holds the edge, shore and road-over-water walls
+(`src/sim/boundary.ts`: two-sided, with `onWater` and `inCorridor`); `resolveBox` and
+`resolveCircleAll` take the body's start-of-tick pose so walls act on motion. Recorded sf
+replays from before these walls diverge (the world changed, not the state format).
 
 ## Wave 2 — Bot Hunt is a game
 **Playable result:** start at the Ferry Building, drive to a bounty, read a bad Porter's tells,

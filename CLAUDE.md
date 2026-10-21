@@ -47,7 +47,7 @@ render split are in [`docs/roadmap.md`](docs/roadmap.md#ownership).
 | Track | Owns |
 |---|---|
 | Pipeline | `pipeline/`, `public/tiles/sf/` (incl. `roads.json`), `docs/data-sources.md`, `tests/pipeline/` |
-| Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `index.html`, `vite.config.ts`, `public/tiles/dev-city/`, `tests/render/` |
+| Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `src/io/` (asset layer, world loading), `src/env.d.ts`, `index.html`, `vite.config.ts`, `scripts/build-web.ts` (the static build), `public/tiles/dev-city/`, `tests/render/`, `tests/io/` |
 | UI-Audio | `src/ui/`, `src/audio/`, `src/input/`, `tests/ui/` |
 | Sim-World | the files directly in `src/sim/` (`contract.ts`, `step.ts`, `index.ts`, the top-level `systems.ts`, `dmath.ts` and the other shared files; additive changes to `contract.ts` only: bump to the next `SIM_VERSION` and say so in the report), `src/sim/vehicles/`, `src/sim/fog/`, `src/sim/clock/`, `tests/sim/world/` and the files directly in `tests/sim/` |
 | Sim-Agents | `src/sim/agents/`, `src/sim/robots/`, `tests/sim/agents/` |

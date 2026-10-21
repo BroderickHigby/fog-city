@@ -130,26 +130,42 @@ The city runtime has its own suites:
   packs and on the whole committed city; it refuses a foreign, newer, truncated or lying file;
   it matches the per-tile JSON (minus `meta`) and builds the same world. The tile index:
   `groundHeight` looks pipeline tiles up by `floor(x / 500)`, `floor(z / 500)` and returns
-  exactly the old scan's heights at 170,000 points including every border and corner;
-  hand-made worlds keep the scan.
-- `tests/sim/boundary.test.ts`: `boundary.json` walls (`src/sim/boundary.ts`). A car at full
-  throttle (and at 50 m/s) into a wall stops at it from any angle and counts the hit; a walker
-  stops; nobody gets out onto the water side; a wall never reaches a point well behind it; a
-  surface road crossing the shore gets a gap, a freeway and the outline never do. On the city:
-  the spawn and every surface lane are clear of walls, a car driven at the southern land edge
-  stops there instead of dropping off the world, one driven at Ocean Beach stops above the sea
-  (without the walls it ends on the water), and the 3rd St bridge over Mission Creek can still
-  be driven end to end.
+  exactly the old scan's heights at 170,000 points of a synthetic 2 x 2 pack including every
+  border and corner, and at 20,000 seeded points over the whole city (half on tile borders and
+  corners); hand-made worlds keep the scan.
+- `tests/sim/boundary.test.ts`: `boundary.json` walls (`src/sim/boundary.ts`), two-sided. A
+  car at full throttle (and at 50 m/s) into a wall stops at it from any angle and counts the
+  hit; a walker stops; nobody gets out onto the water side; a wall never reaches a point well
+  behind it; a car on the water side a few metres from the wall stays there and never lifts
+  off the bank; a car pressed into a pier's corner at any angle never ends a tick across a
+  wall; walls reach past free ends and outward corners only. Roads over water: a synthetic
+  bridge's corridor cuts the shore only between its kerbs, a car drives across it untouched,
+  one steered off it stays on it, a dead-end pier road is capped, a divided road's corridors
+  merge, a freeway gets none. On the city: the spawn and every surface lane are clear of walls,
+  a car driven at the southern land edge stops there instead of dropping off the world, one
+  driven at Ocean Beach stops above the sea (without the walls it ends on the water), the 3rd
+  St bridge over Mission Creek can be driven end to end but not driven off, a car on Mission
+  Creek stays on it, and 60 seeded drives along the creek's banks never reach open water and
+  never rise 10 m above the ground.
 - `tests/sim/agent-budget.test.ts`: on the whole city, agents exist only in the seeded budgets
   of the areas around the player (a few dozen of ~1,900 areas), deterministically; a second
   player across town gets their own traffic (each player at most `MAX_AGENTS`, the state at
-  most `MAX_AGENTS_TOTAL`); robotaxis never route onto a freeway, a ramp joining one, or a
-  pedestrian street, and walkers never onto a freeway.
+  most `MAX_AGENTS_TOTAL`); robotaxis never route onto a freeway, a ramp joining one (directly
+  or through other ramps), or a pedestrian street, no drivable ramp dead-ends, and walkers never
+  onto a freeway.
 - `tests/io/assets.test.ts`: the web build's packer and `src/io/assets.ts`. Files packed and
   gzip + base64 encoded come back byte for byte through the index (file -> pack, offset,
   length) from a loopback server under a sub-path, a pack is fetched once however many files
   it holds, packs split before they pass the size cap, the host-limit check flags `.glb` and
-  `.bin`, and the dev world still loads from its collider JSON. In `tests/render`, the agent renderer's pure parts have
+  `.bin`, every `manifest.layers.<name>` the game reads is in `RUNTIME_LAYERS` (the only layers
+  the build ships), and the dev world still loads from its collider JSON.
+- `tests/render/far-seams.test.ts`: the far layer finds its terrain lattice among the hulls;
+  at the city's outer edge it finds the far quads just outside, hides them and stitches in
+  strips whose inner side follows the streamed tile's ground every 10 m and whose outer side
+  meets the far lattice, facing up; and it carries the land on past the far terrain's north and
+  south ends as an apron that eases down and faces up.
+
+In `tests/render`, the agent renderer's pure parts have
 their own suites: `agent-lod.test.ts` (interpolation between ticks, tier selection and
 hysteresis, tier capacities and instance budgets, wheel/steer/gait helpers, brake and hazard
 cues, with slowing measured over distance so an agent the sim steps every 4th tick reads like
@@ -180,7 +196,7 @@ sets its own (`it(name, fn, 60_000)`).
 |---|---|---|
 | `dev-world.spec.ts` | With its road graph answering 404, the game refuses to start (HUD "Failed to start: road graph ...", no debug handle) instead of running a roadless world. The dev world boots with no console error, uncaught exception, HTTP error or failed request, and draws a frame that is not blank. Real keys reach the sim (W moves the car north, D turns it clockwise). Stepping `stepN(1)` 600 times at full throttle ends against the wall: the car centre is never inside it or past its face, and `hits` counts the impact. **KeyC never changes the sim**: with the car moving and turning, C is pressed (and once held) while paused, the paused sim must not move, then the game's own loop runs ~36 ticks consuming input and Node replays the snapshot with neutral input for as many ticks: the states must be identical. KeyC also cycles `renderInfo().cameraMode` and comes back, with the same check after every press. | `render-debug` (camera-mode test only) |
 | `determinism.spec.ts` | **Cross-engine determinism**, below. | `dev-city`, `sf` (per world); `engines` (Firefox, WebKit). `stepFrames()` is asserted present, not a skip |
-| `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; it boots from the citywide collider pack (`world.colliders.bin` fetched once, **not one `*.collider.json` request** in the page's log, `simInfo().colliders === "pack"`, more than 1,000 edge and shore wall segments); from Twin Peaks every far-LOD cell is loaded, more than three are drawn in the last frame (`renderInfo().farCells`, `farCellsDrawn`), and the camera sees at least 15 km; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building. Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
+| `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; it boots from the citywide collider pack (`world.colliders.bin` fetched once, **not one `*.collider.json` request** in the page's log, `simInfo().colliders === "pack"`, more than 1,000 edge and shore wall segments); from Twin Peaks every far-LOD cell is loaded, more than three are drawn in the last frame (`renderInfo().farCells`, `farCellsDrawn`), and the camera sees at least 15 km; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building; parked at the southern city limit facing out, the far terrain is stitched to the tiles' ground (`renderInfo().farSeamEdges`) and no sea-coloured pixels show below the horizon (the crack showed about 11,000). Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
 | `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. Boxed in by four other players' cars (joined through `stepFrames()` events, 2 m to each side and 5.2 m ahead and behind), F leaves the player in the car and `hint()` reads "No room to get out" on screen; once they leave, F gets out with no hint. | `foot` |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
 | `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). | `sf` |
@@ -334,8 +350,12 @@ world and the models in the layout `src/io/assets.ts` reads in a production buil
   (`tiles/sf/packs/tiles-NNN.pack.gz.b64.txt`), the far-LOD cells into `far-NN` packs; a pack
   is fetched whole the first time a file in it is needed, cached, and sliced by offset;
 - `world.colliders.bin` and each model are one `.gz.b64.txt` file each;
-- the world's JSON (manifest, roads, boundary, every data layer) is copied as is; per-tile
-  collider JSON is not shipped;
+- the world's JSON the game reads is copied as is: the manifest, the road graph and the data
+  layers in `RUNTIME_LAYERS` (`src/io/world-load.ts`: boundary and districts); the other layers
+  (sidewalks, hydrants, ...) stay out until a feature reads them, and per-tile collider JSON is
+  not shipped;
+- the bundle's source map ships by default (useful on a private page); `node
+  scripts/build-web.ts --no-sourcemap` leaves it out;
 - `assets.index.json` maps each binary's logical path to `{src, offset, length}`; its
   `defaultWorld` (`sf`) opens when the page has no `?world=`.
 
