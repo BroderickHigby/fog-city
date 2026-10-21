@@ -7,7 +7,7 @@
 // The game is paused and stepped through stepFrames, so the run is the same sim run Node gets.
 //
 // DODGE_SHOTS=<dir> also saves a dive sequence there (six frames from a fly camera ahead of the
-// person, looking back at the car), at full size: what the owner looks at.
+// person at chest height, looking back at the car), at full size: what the owner looks at.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
@@ -118,7 +118,8 @@ test.describe("the dodge on the real city", () => {
     expect(r.diveTick, "the person dived").toBeGreaterThanOrEqual(0);
     expect(r.diveSpeed, "the car's speed when they dived, m/s").toBeGreaterThan(20);
 
-    // The renderer draws someone dodging. Shots: a fly camera ahead of them, looking back at the car.
+    // The renderer draws someone dodging. Shots: a fly camera ahead of them at chest height,
+    // a little to the side they dive to, looking back past them at the car.
     const f = await features(page);
     const at = r.at!;
     if (SHOTS) {
@@ -126,11 +127,14 @@ test.describe("the dodge on the real city", () => {
       const nx = at.tx - at.x;
       const nz = at.tz - at.z;
       const nl = Math.hypot(nx, nz) || 1;
-      const cx = at.x + at.ux * 11 + (nx / nl) * 5;
-      const cz = at.z + at.uz * 11 + (nz / nl) * 5;
+      const cx = at.x + at.ux * 9 + (nx / nl) * 3;
+      const cz = at.z + at.uz * 9 + (nz / nl) * 3;
       const yaw = (Math.atan2(at.x - cx, -(at.z - cz)) * 180) / Math.PI;
-      const y = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.car.y);
-      if (f.flyTo) await page.evaluate(({ cx, y, cz, yaw }) => (window as unknown as FogWindow).__fogcity!.flyTo!(cx, y + 2.6, cz, yaw, -8), { cx, y, cz, yaw });
+      const y = await page.evaluate((id) => {
+        const list = ((window as unknown as FogWindow).__fogcity!.state().ext as { agents?: { list: Array<{ id: number; y: number }> } }).agents?.list ?? [];
+        return list.find((a) => a.id === id)?.y ?? 0;
+      }, r.target);
+      if (f.flyTo) await page.evaluate(({ cx, y, cz, yaw }) => (window as unknown as FogWindow).__fogcity!.flyTo!(cx, y + 1.5, cz, yaw, -3), { cx, y, cz, yaw });
       await settle(page, 60_000);
     }
     let drawnDodging = 0;

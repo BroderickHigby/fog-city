@@ -777,23 +777,19 @@ function startDive(prof: DodgeProfile, sx: number, sz: number, tx: number, tz: n
   return { phase: "dive", sx, sz, tx, tz, t: 0, dur, peak: prof.peak, hop: 0, leap: false };
 }
 
-/** A dive turned somewhere new keeps at most this much of its progress (the stretch, before the roll). */
-const REDIRECT_MAX_U = 0.45;
-
 /**
  * A dive under way, turned toward a new landing (tx, tz) from where the body is (px, pz): it
- * carries on from the same point of the dive (its progress, at most REDIRECT_MAX_U, so the body
- * stays in its stretch and its hop where it was), covering what is left at `speed`. (sx, sz)
+ * keeps the ticks it has been in the air (t) and covers what is left at `speed`, so its progress
+ * (t / dur, which the renderer draws the dive by) carries on from about where it was instead of
+ * starting over, and the dive still takes at least the profile's shortest dive in all. (sx, sz)
  * is put back along the new line so the body is exactly where it is now.
  */
 export function redirectDive(prof: DodgeProfile, d: Readonly<DodgeState>, px: number, pz: number, tx: number, tz: number, speed = prof.speed): DodgeState {
-  const u0 = d.dur > 0 ? Math.min(d.t / d.dur, REDIRECT_MAX_U) : 0;
   const len = Math.sqrt((tx - px) * (tx - px) + (tz - pz) * (tz - pz));
-  const rest = Math.max(1, Math.ceil(len / speed / DT - 1e-9), Math.round(prof.minTicks * (prof.speed / speed) * (1 - u0)));
-  const dur = Math.max(rest, Math.round(rest / (1 - u0)));
-  const t = dur - rest;
-  const u = t / dur;
-  const k = u / (1 - u);
+  const t = d.t;
+  const rest = Math.max(1, Math.ceil(len / speed / DT - 1e-9), Math.round(prof.minTicks * (prof.speed / speed)) - t);
+  const dur = t + rest;
+  const k = t / rest;
   return { phase: "dive", sx: px + (px - tx) * k, sz: pz + (pz - tz) * k, tx, tz, t, dur, peak: d.peak, hop: d.hop, leap: false };
 }
 

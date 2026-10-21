@@ -256,29 +256,38 @@ describe("where a body dives", () => {
     expect([r.x, r.z]).toEqual([2.4, 0]);
   });
 
-  it("a dive turned toward a new landing carries on from where the body is, at the same point of the dive: no restart, no jump", () => {
+  it("a dive turned toward a new landing carries on from where the body is, from about the same point of the dive: no restart, no jump", () => {
     const prof = DODGE_PROFILE.person;
     const at = (d: { sx: number; sz: number; tx: number; tz: number; t: number; dur: number }): [number, number] => [d.sx + ((d.tx - d.sx) * d.t) / d.dur, d.sz + ((d.tz - d.sz) * d.t) / d.dur];
     let d = { phase: "dive" as const, sx: 0, sz: 0, tx: 3, tz: 0, t: 0, dur: 20, peak: prof.peak, hop: 0, leap: false };
     for (let i = 0; i < 5; i++) d = advanceDodge(d, prof).dodge as typeof d;
-    // A quarter of the way, turned 90 degrees.
+    // A quarter of the way, turned 90 degrees: 3 m to go at dive speed.
+    const rest = Math.ceil(3 / prof.speed / (1 / 60) - 1e-9);
     const turned = redirectDive(prof, d, 0.75, 0, 0.75, 3);
     const [x, z] = at(turned);
     expect(x).toBeCloseTo(0.75, 9);
     expect(z).toBeCloseTo(0, 9);
-    expect(turned.t / turned.dur).toBeCloseTo(0.25, 1);
-    expect(turned.hop).toBe(d.hop);
-    expect(turned.dur - turned.t).toBe(Math.ceil(3 / prof.speed / (1 / 60) - 1e-9)); // the rest at dive speed
+    expect([turned.t, turned.dur, turned.hop]).toEqual([5, 5 + rest, d.hop]);
     const n = advanceDodge(turned, prof);
     expect(Math.hypot(n.x - 0.75, n.z)).toBeLessThan((prof.speed * 1.01) / 60);
     expect(n.z).toBeGreaterThan(0); // on the new line
     expect(Math.abs(n.dodge!.hop - d.hop)).toBeLessThan(0.05);
-    // Late in the dive (rolling): it goes back no further than the stretch.
-    let late = d;
-    for (let i = 0; i < 10; i++) late = advanceDodge(late, prof).dodge as typeof d;
-    const again = redirectDive(prof, late, 2.25, 0, 2.25, 3);
-    expect(again.t / again.dur).toBeLessThanOrEqual(0.45 + 1e-9);
-    expect(at(again)[0]).toBeCloseTo(2.25, 9);
+    // Turned every tick toward the same landing, it still gets there on time, its progress
+    // rising all the way (it never freezes mid-dive, never starts over).
+    let r = turned;
+    let pos: [number, number] = [0.75, 0];
+    const us: number[] = [];
+    for (let i = 0; i < 60 && r.phase === "dive"; i++) {
+      const m = advanceDodge(r, prof);
+      pos = [m.x, m.z];
+      if (!m.dodge || m.dodge.phase !== "dive") break;
+      r = redirectDive(prof, m.dodge, m.x, m.z, 0.75, 3);
+      us.push(r.t / r.dur);
+    }
+    expect(us.length).toBeLessThanOrEqual(rest);
+    for (let i = 1; i < us.length; i++) expect(us[i]!).toBeGreaterThan(us[i - 1]!);
+    expect(pos[0]).toBeCloseTo(0.75, 9);
+    expect(pos[1]).toBeCloseTo(3, 9);
   });
 });
 
