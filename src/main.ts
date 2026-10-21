@@ -150,9 +150,20 @@ async function boot(): Promise<void> {
   const container = document.getElementById("game")!;
   const hud = new Hud();
   const bootedAtNight = params.get("night") === "1";
+  // The collider pack has no building meta (use, year, stories); when a tile's glb fails, the
+  // fallback build looks better from the tile's own collider JSON, which the loose layout (pnpm
+  // dev) still has. The hosted build ships none: it builds from the pack's collider.
+  const tileColliderFile = new Map(manifest.tiles.map((t) => [t.id, t.collider]));
+  const fallbackCollider =
+    files.colliders === "pack" && assets.mode === "loose"
+      ? (id: string): Promise<TileCollider | null> => {
+          const f = tileColliderFile.get(id);
+          return f ? assets.json<TileCollider>(base + f).catch(() => null) : Promise.resolve(null);
+        }
+      : undefined;
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, districts },
+    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",

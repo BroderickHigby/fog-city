@@ -61,6 +61,12 @@ export interface StreamerOptions {
   onTileVisible?: (id: string, visible: boolean) => void;
   /** Adjusts a ground mesh's vertex colours once when its tile loads (parks.ts). */
   tintGround?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4) => void;
+  /**
+   * When a tile's glb fails for good: that tile's own collider, fetched lazily, with the
+   * building meta (use, year, stories) the fallback look reads; null when there is none (the
+   * hosted build ships no per-tile colliders), and the tile is built from `colliders`.
+   */
+  fallbackCollider?: (id: string) => Promise<TileCollider | null>;
 }
 
 type TileState = "loading" | "building" | "ready" | "failed";
@@ -84,6 +90,8 @@ interface TileRecord {
   glbAttempts: number;
   /** The backoff before the glb's second fetch; cleared on unload. */
   retryTimer: ReturnType<typeof setTimeout> | null;
+  /** The tile's own collider (fallbackCollider), preferred over `colliders` for the fallback build. */
+  collider?: TileCollider;
   error?: string;
 }
 
@@ -278,10 +286,25 @@ export class TileStreamer {
           }, retryMs);
           return;
         }
-        // A broken glb falls back to building the whole tile from collider data (and with
-        // no collider either, the tile fails).
-        if (this.opts.colliders.has(rec.id)) console.warn(`[fog-city] tile ${rec.id}: glb failed, building from collider. ${rec.error}`);
-        this.startBuild(rec, { buildings: true, ground: true, roads: true });
+        // A broken glb falls back to building the whole tile from collider data: the tile's
+        // own collider when it can be fetched (it carries the building meta), else the one
+        // the streamer was given; with neither, the tile fails.
+        const fallback = (): void => {
+          if (rec.dropped) return;
+          if (rec.collider || this.opts.colliders.has(rec.id)) console.warn(`[fog-city] tile ${rec.id}: glb failed, building from collider. ${rec.error}`);
+          this.startBuild(rec, { buildings: true, ground: true, roads: true });
+        };
+        if (!this.opts.fallbackCollider) {
+          fallback();
+          return;
+        }
+        this.opts.fallbackCollider(rec.id).then(
+          (c) => {
+            if (c) rec.collider = c;
+            fallback();
+          },
+          () => fallback(),
+        );
       },
     );
   }
@@ -330,7 +353,7 @@ export class TileStreamer {
   }
 
   private startBuild(rec: TileRecord, layers: { buildings: boolean; ground: boolean; roads: boolean }): void {
-    const collider = this.opts.colliders.get(rec.id);
+    const collider = rec.collider ?? this.opts.colliders.get(rec.id);
     if (!collider && !rec.glbLoaded) {
       this.fail(rec, rec.error ?? "no glb and no collider");
       return;

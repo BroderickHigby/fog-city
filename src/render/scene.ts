@@ -51,6 +51,8 @@ export interface WorldData {
   assets?: Assets;
   /** districts.json, parsed (its park polygons tint the ground green), or null. */
   districts?: unknown;
+  /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
+  fallbackCollider?: (id: string) => Promise<TileCollider | null>;
 }
 
 export interface RenderInfo {
@@ -212,6 +214,7 @@ export class SceneRenderer {
       onReady: (g) => this.prepareShadows(g),
       onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
       tintGround: (geo, m) => tintParks(geo, m, parks),
+      fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.

@@ -42,7 +42,10 @@ async function settle(s: TileStreamer, x: number, z: number): Promise<void> {
   throw new Error("streamer never settled");
 }
 
-function make(name: string, opts: { radius?: number; glbRetryMs?: number; loadGltf?: (url: string) => Promise<GLTF> } = {}) {
+function make(
+  name: string,
+  opts: { radius?: number; glbRetryMs?: number; loadGltf?: (url: string) => Promise<GLTF>; fallbackCollider?: (id: string) => Promise<TileCollider | null> } = {},
+) {
   const w = world(name);
   const parent = new THREE.Group();
   const materials = createSharedMaterials();
@@ -58,6 +61,7 @@ function make(name: string, opts: { radius?: number; glbRetryMs?: number; loadGl
     radius: opts.radius ?? 1500,
     glbRetryMs: opts.glbRetryMs,
     loadGltf: opts.loadGltf ?? loadFromDisk,
+    fallbackCollider: opts.fallbackCollider,
   });
   return { ...w, parent, materials, streamer };
 }
@@ -149,6 +153,24 @@ describe("TileStreamer", () => {
     expect(streamer.stats().ready).toBeGreaterThan(0);
     const names = meshes(parent.getObjectByName("tile:t-1_0")!).map((m) => m.name);
     expect(names).toEqual(expect.arrayContaining(["ground", "buildings", "roads"]));
+  });
+
+  it("builds a failed glb's tile from the tile's own collider when fallbackCollider gives one (the pack's has no meta)", async () => {
+    const asked: string[] = [];
+    const { streamer, parent, colliders } = make("dev-city", {
+      radius: 100,
+      glbRetryMs: 1,
+      loadGltf: () => Promise.reject(new Error("404")),
+      // The tile's "own" collider here has no buildings at all, so a build from it is told apart.
+      fallbackCollider: async (id) => (asked.push(id), { ...colliders.get(id)!, buildings: [] }),
+    });
+    expect(colliders.get("t-1_0")!.buildings.length).toBeGreaterThan(0);
+    await quietly(() => settle(streamer, -55, 300));
+    expect(asked).toContain("t-1_0");
+    expect(streamer.stats().ready).toBeGreaterThan(0);
+    const names = meshes(parent.getObjectByName("tile:t-1_0")!).map((m) => m.name);
+    expect(names).toEqual(expect.arrayContaining(["ground", "roads"]));
+    expect(names).not.toContain("buildings");
   });
 });
 
