@@ -35,6 +35,15 @@ export interface FarLayerOptions {
   load: (url: string) => Promise<GLTF>;
   /** Cells loaded at once. */
   maxConcurrent?: number;
+  /** Adjusts a cell's vertex colours once when it loads; `terrain` tells lattice vertices from hulls. */
+  tint?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => void;
+}
+
+/** The far terrain is a 100 m lattice: its vertices sit on whole multiples of 100 m; hull corners do not. */
+export function onFarLattice(x: number, _y: number, z: number): boolean {
+  const fx = x / 100;
+  const fz = z / 100;
+  return Math.abs(fx - Math.round(fx)) < 1e-3 && Math.abs(fz - Math.round(fz)) < 1e-3;
 }
 
 export interface FarInfo {
@@ -202,6 +211,7 @@ export class FarLayer {
       const old = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       for (const m of old) m.dispose();
       mesh.material = this.material;
+      this.opts.tint?.(mesh.geometry, mesh.matrixWorld, onFarLattice);
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       const index = mesh.geometry.getIndex();

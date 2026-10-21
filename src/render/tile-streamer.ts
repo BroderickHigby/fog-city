@@ -59,6 +59,8 @@ export interface StreamerOptions {
   onReady?: (group: THREE.Group) => void;
   /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
   onTileVisible?: (id: string, visible: boolean) => void;
+  /** Adjusts a ground mesh's vertex colours once when its tile loads (parks.ts). */
+  tintGround?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4) => void;
 }
 
 type TileState = "loading" | "building" | "ready" | "failed";
@@ -310,6 +312,7 @@ export class TileStreamer {
         else if (layer === "ground") {
           layers.ground = true;
           dropWaterTriangles(geo, mesh.matrixWorld);
+          this.opts.tintGround?.(geo, mesh.matrixWorld);
         } else if (layer === "road" || layer === "freeway") layers.roads = true;
         disposeMaterial(m);
         return materialFor(this.opts.materials, layer, { hasNormals: !!geo.getAttribute("normal"), hasUv: !!geo.getAttribute("uv") });
@@ -380,6 +383,7 @@ export class TileStreamer {
         if (!data) return;
         const g = geometryFromMeshData(data);
         rec.geometries.push(g);
+        if (name === "ground") this.opts.tintGround?.(g, IDENTITY);
         const mesh = new THREE.Mesh(g, mat);
         mesh.name = name;
         mesh.matrixAutoUpdate = false;
@@ -451,6 +455,7 @@ export class TileStreamer {
 }
 
 const _v = new THREE.Vector3();
+const IDENTITY = new THREE.Matrix4();
 
 /**
  * Remove triangles whose three corners all lie on or below the water plane (y <= 0.02 in

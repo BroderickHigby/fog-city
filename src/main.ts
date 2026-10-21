@@ -120,6 +120,14 @@ async function boot(): Promise<void> {
   const tLoad = performance.now();
   const files = await loadWorldFiles<Manifest>(assets, worldName);
   const loadMs = performance.now() - tLoad;
+  // Render-only data: the districts' park polygons tint the ground green. Never fatal.
+  const districtsFile = files.manifest.layers?.districts;
+  const districts: unknown = districtsFile
+    ? await assets.json<unknown>(base + districtsFile).catch((err: unknown) => {
+        console.warn(`[fog-city] districts ${districtsFile}: ${err instanceof Error ? err.message : String(err)}`);
+        return null;
+      })
+    : null;
   const { manifest, tiles } = files;
   const roads = files.roads as RoadGraph | null;
   // Once, at load: with the road graph the sim runs ambient traffic (state.ext.agents).
@@ -144,7 +152,7 @@ async function boot(): Promise<void> {
   const bootedAtNight = params.get("night") === "1";
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets },
+    { manifest, base, colliders, roads, ground, occluded, assets, districts },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",
