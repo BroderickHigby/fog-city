@@ -387,9 +387,9 @@ ACQUI-HIRED.
   - **The dive** (`src/sim/dodge.ts`): every person, animal and robot, and every player on foot,
     watches every vehicle (player cars, robotaxis, every AI vehicle). A vehicle's swept footprint is
     predicted 0.6–1.5 s ahead from its speed, velocity and yaw rate (a drift or a handbrake turn
-    counts; a player's car also the hardest turn its tyres allow, its footprint widening with
-    time because it can steer anywhere; an AI vehicle along its route, braking for people as it
-    does). Anyone within 0.75 m of it (1.25 m for children and anyone seated, lying down or using
+    counts, and a sliding car straightening out along its nose; a player's car also the hardest
+    turn its tyres allow, its footprint widening with time because it can steer anywhere; an AI
+    vehicle along its route, braking for people as it does). Anyone within 0.75 m of it (1.25 m for children and anyone seated, lying down or using
     a mobility aid) dives Crazy Taxi style: to the side of the path they are on, or the other side
     when theirs is blocked by a building, a wall, a kerb rail or water; never into another
     vehicle's path, another body or another diver's landing; at 7–9 m/s with a hop (faster when a

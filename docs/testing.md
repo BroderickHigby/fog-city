@@ -198,12 +198,14 @@ robots dive out of every vehicle's predicted path, and the person-clearance over
 anyone still within 0.3 m of a moving vehicle at the nearest free spot outside it.
 
 - `tests/sim/dodge.test.ts` (unit): the predicted footprint (0.6-1.5 s from the speed; the
-  velocity, not the nose, so a slide counts; the arc, the straight slide and, for a player's
-  car, the hardest turn; a robotaxi's braking and reaction time; a player's car's footprint
-  widening with time); where a body dives (square to the path on the side it is on, the side
+  velocity, not the nose, so a slide counts, and a sliding car's nose too, in case its tyres
+  bite again; the arc, the straight slide and, for a player's car, the hardest turn; a
+  robotaxi's braking and reaction time; a player's car's footprint widening with time); where
+  a body dives (square to the path on the side it is on, the side
   picked by id when it is square on the line, the other side when a building or a shore wall is
   in the way, never onto another body's landing or into a second car's path, never along a line
-  the car reaches first); the dive's path, hop and recovery; the override (out of the near side,
+  the car reaches first); the dive's path, hop and recovery, and a dive turned toward a new
+  landing carrying on from where the body is (never starting over); the override (out of the near side,
   over the car when pinned against a building, only out of a parked car's body). Inside
   `step()`: a car driven through a person drives exactly as through empty space (the whole
   CarState, tick by tick, against a run with nobody there); a diving agent hops and ignores its

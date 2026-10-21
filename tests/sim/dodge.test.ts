@@ -233,6 +233,21 @@ describe("where a body dives", () => {
     expect(sweepClearance(w, to.x, to.z)).toBeGreaterThanOrEqual(1.05);
   });
 
+  it("never through a stopped vehicle: with a robotaxi waiting on its side, it dives the other way, not through it", () => {
+    const v = carVehicle(0, 30, 0, 25); // north, on the person's line
+    const base = (scene(flat, [], [{ id: 9, x: 2.4, z: 0, kind: "robotaxi" }]).ext.agents as AgentsExt).list[0]!;
+    const parked = vehicleOfAgent({ ...base, speed: 0, heading: 0 }, null, 1 / 60); // waiting 2.4 m east
+    expect(parked.paths).toEqual([]);
+    const b = person(0.3, 0);
+    const to = chooseDive(ground(flat), b, sweepHit(v, b.x, b.z, 1.05)!, [v, parked], [])!;
+    for (let f = 0; f <= 1; f += 0.01) {
+      const x = b.x + (to.x - b.x) * f;
+      const z = b.z + (to.z - b.z) * f;
+      expect(Math.min(...parked.circles!.map((c) => Math.hypot(x - c.x, z - c.z) - c.r))).toBeGreaterThanOrEqual(b.r);
+    }
+    expect(to.x).toBeLessThan(0);
+  });
+
   it("not along a line the car reaches first: too close for one side, it takes a spot it reaches in time", () => {
     // The car's nose 1.2 m from the person, at 30 m/s, the person at its left front corner: the
     // far side is unreachable in time, so it dives left (its own side) however far.

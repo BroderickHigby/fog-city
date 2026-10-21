@@ -88,6 +88,8 @@ export const ROBOTAXI_REACT_S = 2 * DT;
 export const LEAP_TICKS = 24;
 /** Bodies keep at least this much room between each other when they land, metres. */
 export const LANDING_GAP_M = 0.1;
+/** A dive's line keeps at least this clear of a stopped vehicle's body, metres. */
+export const STOPPED_GAP_M = 0.05;
 /**
  * The line to a landing spot keeps at least this clear of the vehicle on the way, metres (a line
  * keeping the body's whole margin is taken first when there is one).
@@ -554,6 +556,24 @@ function clearOfVehicles(vehicles: readonly Vehicle[], x: number, z: number, r: 
   return true;
 }
 
+/** Is (x, z) at least r (plus a hair) from the body of every vehicle not moving fast enough to have a footprint (parked, waiting, creeping)? A dive's line never goes through one. */
+function clearOfStopped(stopped: readonly Vehicle[], x: number, z: number, r: number): boolean {
+  for (const v of stopped) if (bodyDistance(v, x, z) < r + STOPPED_GAP_M) return false;
+  return true;
+}
+
+/** Does the line from (px, pz) to (x, z) keep clear of every stopped vehicle's body (clearOfStopped every MARCH_M)? */
+function lineClearOfStopped(stopped: readonly Vehicle[], px: number, pz: number, x: number, z: number, r: number): boolean {
+  if (stopped.length === 0) return true;
+  const len = Math.sqrt((x - px) * (x - px) + (z - pz) * (z - pz));
+  const n = Math.max(1, Math.ceil(len / MARCH_M));
+  for (let i = 1; i <= n; i++) {
+    const f = i / n;
+    if (!clearOfStopped(stopped, px + (x - px) * f, pz + (z - pz) * f, r)) return false;
+  }
+  return true;
+}
+
 /** The least clearance of the spot from every vehicle's footprint (for a best effort). */
 function vehicleClearance(vehicles: readonly Vehicle[], x: number, z: number): number {
   let best = Infinity;
@@ -620,8 +640,9 @@ const MARCH_M = 0.25;
  * OTHER_SIDE_COST penalties). `threat` is the earliest hit (its pose sets "square to the path"
  * and the side the body is on); `vehicles` every vehicle near enough to matter; `spots` bodies
  * and landing spots to keep clear of. A spot must be clear of every vehicle with the body's
- * margin, its line must be clear of buildings, walls and big steps and of the vehicles on the
- * way (by the body's margin when any line is, else by PASSING_M). When nothing qualifies with the spots, again without them; when still nothing, the spot
+ * margin, its line must be clear of buildings, walls and big steps, of every stopped vehicle's
+ * body, and of the moving vehicles on the way (by the body's margin when any line is, else by
+ * PASSING_M). When nothing qualifies with the spots, again without them; when still nothing, the spot
  * on the lines with the most clearance from the vehicles (a best effort the override backs
  * up), or null when no line leads anywhere. `prefer` (a unit direction: a dive already under
  * way) keeps a body from changing its mind: its side is the side that direction is on, and a
@@ -656,6 +677,7 @@ export function chooseDive(
             ? 1
             : -1;
   const moving = vehicles.filter((v) => v.paths.length > 0);
+  const stopped = vehicles.filter((v) => v.paths.length === 0);
   // First a line that keeps the body's whole margin from every predicted footprint on the way
   // (one that only stays PASSING_M clear can cut in front of a turning car's arc); then, when
   // there is none, any line that stays PASSING_M clear.
@@ -677,7 +699,7 @@ export function chooseDive(
           if (best && base + len >= best.cost) break;
           const x = b.x + wx * len;
           const z = b.z + wz * len;
-          if (!lineOpen(g, b, x, z, DIVE_STEP_M)) break;
+          if (!lineOpen(g, b, x, z, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r)) break;
           if (!clearOfVehicles(vehicles, x, z, b.r, prof.margin + LANDING_EXTRA_M)) continue;
           // (Across the vehicle's path: with a wider berth, since that line goes in front of it.)
           if (!passesClear(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M), passing)) break;
@@ -705,7 +727,7 @@ export function chooseDive(
       for (let len = MARCH_M; len <= prof.maxDive + 1e-9; len += MARCH_M) {
         const x = b.x + wx * len;
         const z = b.z + wz * len;
-        if (!lineOpen(g, b, x, z, DIVE_STEP_M)) break;
+        if (!lineOpen(g, b, x, z, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r)) break;
         const d = vehicleClearance(vehicles, x, z);
         if (d > here && (!far || d > far.d)) far = { x, z, d };
       }
@@ -1034,7 +1056,10 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
         const len = Math.sqrt((d.tx - r.x) * (d.tx - r.x) + (d.tz - r.z) * (d.tz - r.z));
         const wx = len > 1e-9 ? (d.tx - r.x) / len : 0;
         const wz = len > 1e-9 ? (d.tz - r.z) / len : 0;
-        keep = clearOfVehicles(nearV, d.tx, d.tz, r.r, prof.margin) && passesClear(nearV.filter((v) => v.paths.length > 0), r.x, r.z, wx, wz, len, prof.speed, r.r, prof.margin);
+        keep =
+          clearOfVehicles(nearV, d.tx, d.tz, r.r, prof.margin) &&
+          passesClear(nearV.filter((v) => v.paths.length > 0), r.x, r.z, wx, wz, len, prof.speed, r.r, prof.margin) &&
+          lineClearOfStopped(nearV.filter((v) => v.paths.length === 0), r.x, r.z, d.tx, d.tz, r.r);
       }
       if (!keep) {
         // A dive under way keeps its direction if it can (no dithering as a car steers about).
