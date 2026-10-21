@@ -2,6 +2,8 @@
 # Rebuild every Fog City asset from its script: public/models/* and public/audio/*.
 #
 #   assets/blender/build.sh             # all models + content/landmarks.json + sounds, then GLB stats
+#                                       # (the landmark models read data/landmark-sites.json: after a
+#                                       # pipeline regeneration run node assets/blender/tools/landmark-sites.ts)
 #   assets/blender/build.sh robotaxi    # one model (script name without .py)
 #   assets/blender/build.sh --lookdev   # all models, then the look-dev renders (slow)
 #   FC_REVOLUTION_POSE=raised assets/blender/build.sh r_evolution
@@ -42,7 +44,7 @@ run() {
   fi
 }
 
-MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus humanoid humanoid_impostor moat_van props water_blaster heaps animals)
+MODELS=(ferry_building r_evolution player_car robotaxi errand_robot sidewalk_bot muni_bus humanoid humanoid_impostor moat_van props water_blaster heaps animals sutro_tower bridges landmarks_interim)
 LOOKDEV=0
 ONLY=()
 for a in "$@"; do
