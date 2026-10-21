@@ -102,10 +102,10 @@ export interface SfStorefronts {
   storefronts: Array<{ id: string; x: number; z: number; y: number; heading: number; naics: string; category: string; buildingId: string }>;
 }
 
-/** The ground the sim sees, looked up by tile index (the sim's own lookup scans every tile). */
+/** The ground the sim sees (the ground mesh's triangles, src/sim/world.ts groundHeight), looked up by tile index. */
 export function groundIndex(colliders: readonly SfCollider[]): (x: number, z: number) => number {
   const g = new Ground(colliders.map((c) => ({ ix: Math.round(c.ground.x0 / 500), iz: Math.round(c.ground.z0 / 500), field: c.ground })));
-  return (x, z) => g.heightAt(x, z) ?? 0;
+  return (x, z) => g.meshHeightAt(x, z) ?? 0;
 }
 
 export function loadSf(): { manifest: SfManifest; colliders: SfCollider[]; roads: SfRoads; storefronts: SfStorefronts } {
