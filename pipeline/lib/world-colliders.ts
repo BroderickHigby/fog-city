@@ -236,10 +236,9 @@ export function decodeWorldColliders(bytes: Uint8Array): WorldColliders {
 }
 
 /**
- * O(1) ground lookup over a decoded pack: the ground mesh's two triangles per cell (split along
- * the (i+1, k)-(i, k+1) diagonal) of the tile containing (x, z), the same arithmetic as
- * src/sim/world.ts groundHeight() and Ground.meshHeightAt; 0 where there is no tile (open
- * water). A point on a tile's far border belongs to that tile when the next tile is absent.
+ * O(1) ground lookup over a decoded pack: bilinear over the tile containing (x, z), the same
+ * arithmetic as src/sim/world.ts groundHeight(); 0 where there is no tile (open water). A point
+ * on a tile's far border belongs to that tile when the next tile is absent.
  */
 export class PackGroundIndex {
   private readonly byKey = new Map<string, PackGround>();
@@ -269,7 +268,6 @@ export class PackGroundIndex {
     const h10 = g.heights[k * g.nx + i + 1]!;
     const h01 = g.heights[(k + 1) * g.nx + i]!;
     const h11 = g.heights[(k + 1) * g.nx + i + 1]!;
-    if (tx + tz <= 1) return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
-    return h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
+    return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
   }
 }

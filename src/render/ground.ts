@@ -1,9 +1,9 @@
 // Ground height for the renderer: the same answer as the sim's groundHeight() (first tile
-// in ascending id order whose heightfield covers the point, on the ground mesh's two triangles
-// per cell, else 0), but indexed by a coarse grid so draping a whole city's roads does not
-// scan every tile per sample. tests/render/ground.test.ts checks it against the sim.
+// in ascending id order whose heightfield covers the point, bilinear, else 0), but indexed
+// by a coarse grid so draping a whole city's roads does not scan every tile per sample.
+// tests/render/ground.test.ts checks it against the sim.
 
-import { heightOnField, type Heightfield, type TileCollider } from "../sim/world.ts";
+import type { Heightfield, TileCollider } from "../sim/world.ts";
 import type { GroundFn } from "./types.ts";
 
 const CELL = 250;
@@ -12,7 +12,15 @@ function sample(g: Heightfield, x: number, z: number): number | null {
   const fx = (x - g.x0) / g.cellSizeM;
   const fz = (z - g.z0) / g.cellSizeM;
   if (fx < 0 || fz < 0 || fx > g.nx - 1 || fz > g.nz - 1) return null;
-  return heightOnField(g, x, z);
+  const ix = Math.min(Math.floor(fx), g.nx - 2);
+  const iz = Math.min(Math.floor(fz), g.nz - 2);
+  const tx = fx - ix;
+  const tz = fz - iz;
+  const h00 = g.heights[iz * g.nx + ix] ?? 0;
+  const h10 = g.heights[iz * g.nx + ix + 1] ?? 0;
+  const h01 = g.heights[(iz + 1) * g.nx + ix] ?? 0;
+  const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
+  return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
 }
 
 export function makeGroundFn(tiles: readonly TileCollider[]): GroundFn {
