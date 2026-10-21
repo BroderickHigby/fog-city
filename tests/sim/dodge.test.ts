@@ -17,6 +17,7 @@ import {
   agentDodgeClass,
   agentPath,
   agentsOf,
+  bodyDistance,
   boxDistance,
   buildWorld,
   chooseDive,
@@ -38,6 +39,7 @@ import {
   sweepClearance,
   sweepHit,
   vehicleOfAgent,
+  zoneDistance,
   vehicleOfCar,
   type AgentState,
   type AgentsExt,
@@ -157,8 +159,11 @@ describe("the predicted footprint", () => {
     expect(boxDistance(0, 0, 0, 0, 0, -1, 2, 1)).toBe(-1);
     expect(boxDistance(3, 0, 0, 0, 0, -1, 2, 1)).toBe(2);
     expect(boxDistance(4, -6, 0, 0, 0, -1, 2, 1)).toBeCloseTo(5, 12);
+    // A parked car has no footprint: its reach over a step (its body, and the hair it could
+    // creep if it set off), zoneDistance.
     const parked = carVehicle(0, 0, 0, 0);
-    expect(sweepClearance(parked, 3, 0)).toBeCloseTo(3 - CAR.halfWidth, 9);
+    expect(sweepClearance(parked, 3, 0)).toBeCloseTo(3 - CAR.halfWidth - parked.inflate, 9);
+    expect(parked.inflate).toBeLessThan(0.02);
   });
 });
 
@@ -243,7 +248,8 @@ describe("where a body dives", () => {
     for (let f = 0; f <= 1; f += 0.01) {
       const x = b.x + (to.x - b.x) * f;
       const z = b.z + (to.z - b.z) * f;
-      expect(Math.min(...parked.circles!.map((c) => Math.hypot(x - c.x, z - c.z) - c.r))).toBeGreaterThanOrEqual(b.r);
+      // (Against its drawn body, a box: ROBOTAXI_BODY.)
+      expect(bodyDistance(parked, x, z)).toBeGreaterThanOrEqual(b.r);
     }
     expect(to.x).toBeLessThan(0);
   });
@@ -323,14 +329,17 @@ describe("where a body dives", () => {
 describe("the clearance override", () => {
   const person = (x: number, z: number) => ({ x, z, y: 0, r: 0.3, cls: "person" as const, id: 1 });
 
-  it("puts a body inside a car at the nearest spot outside it plus the clearance", () => {
+  it("puts a body inside a car at the nearest spot outside its reach plus the clearance", () => {
     const v = carVehicle(0, 0, 0, 20);
     const b = person(0.5, -1);
     const to = overrideSpot(ground(flat), b, [v], [], 0.3)!;
+    expect(to.tier).toBe(0);
     expect(boxDistance(to.x, to.z, v.x, v.z, v.fx, v.fz, v.hl, v.hw)).toBeGreaterThanOrEqual(0.6);
-    // Out of the near side (east), about 0.95 - 0.5 + 0.6 m away.
+    // Clear of everywhere the car can be by the next tick, by the clearance.
+    expect(zoneDistance(v, to.x, to.z)).toBeGreaterThanOrEqual(0.6);
+    // Out of the near side (east), about 0.95 - 0.5 + 0.6 m away plus the car's reach.
     expect(to.x).toBeGreaterThan(1.5);
-    expect(Math.hypot(to.x - b.x, to.z - b.z)).toBeLessThan(1.2);
+    expect(Math.hypot(to.x - b.x, to.z - b.z)).toBeLessThan(0.95 - 0.5 + 0.6 + v.inflate + 0.15);
   });
 
   it("pinned against a building, it leaps over the car to the other side, never into or through the building", () => {
@@ -422,7 +431,7 @@ describe("the dodge in step()", () => {
     expect([c.hits, c.personBumps]).toEqual([0, 0]);
     expect(c.nearMisses).toBe(1);
     const d = dodgeExtOf(s);
-    expect(d).toEqual({ contacts: 0, overrides: 0, dives: 1, nearMisses: 1 });
+    expect(d).toEqual({ contacts: 0, overrides: 0, dives: 1, nearMisses: 1, failures: 0 });
     // The person dived to the side and is standing again.
     const p = agentsOf(s)[0]!;
     expect(Math.abs(p.x)).toBeGreaterThan(CAR.halfWidth + 0.3 + 0.75);

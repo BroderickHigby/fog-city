@@ -184,6 +184,14 @@ export const AGENT_SPEC: Readonly<Record<AgentKind, AgentSpec>> = {
   },
 };
 
+/**
+ * A robotaxi's body as people meet it: a box covering the drawn Meander (4.98 x 1.92 m), a little
+ * longer than the AGENT_SPEC box traffic spaces itself by. Walkers keep clear of it, robotaxis
+ * keep their berth from people by it, and the dodge (src/sim/dodge.ts) counts contacts and
+ * clearance against it.
+ */
+export const ROBOTAXI_BODY = { halfLength: 2.5, halfWidth: 1.0 } as const;
+
 /** About this share of the people (by id) are children: smaller, and given a wider berth by the dodge (src/sim/dodge.ts). */
 export const CHILD_PERCENT = 5;
 
@@ -389,6 +397,11 @@ interface Obs {
   predicted?: boolean;
   /** Someone on foot (a walker or a player's walker): robotaxis give them PERSON_BERTH_M more room. */
   foot?: boolean;
+  /**
+   * Seen only by robotaxis ("road") or only by walkers ("foot"): a robotaxi is two circles to
+   * other robotaxis (how traffic spaces itself) and its drawn body, a box, to walkers.
+   */
+  onlyFor?: "road" | "foot";
 }
 
 interface Body {
@@ -482,6 +495,44 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
  */
 export const PERSON_BERTH_M = 0.6;
 
+/**
+ * A robotaxi does not move while anyone on foot is within this of its drawn body (ROBOTAXI_BODY)
+ * on any side, metres: more than the dodge's override clearance (0.3 m from a moving vehicle,
+ * dodge.ts), so a robotaxi edging past or pulling away never comes that close to anyone; it waits.
+ */
+export const ROBOTAXI_SIDE_BERTH_M = 0.5;
+/** Walkers keep this much further from a moving robotaxi's drawn body than from a stopped one's, metres. */
+export const WALKER_TAXI_BERTH_M = 0.4;
+/** A robotaxi slower than this is stopped for the walkers' berth, m/s. */
+const TAXI_STOPPED_MPS = 0.05;
+/** The largest radius of any obstacle (a robotaxi's box with the walkers' berth): the probe's hash query covers it. */
+const OBS_RADIUS_MAX =
+  Math.sqrt(
+    (ROBOTAXI_BODY.halfLength + WALKER_TAXI_BERTH_M) * (ROBOTAXI_BODY.halfLength + WALKER_TAXI_BERTH_M) +
+      (ROBOTAXI_BODY.halfWidth + WALKER_TAXI_BERTH_M) * (ROBOTAXI_BODY.halfWidth + WALKER_TAXI_BERTH_M),
+  ) + 0.1;
+
+/** Is anyone on foot (as of the previous tick) within ROBOTAXI_SIDE_BERTH_M of robotaxi a's drawn body? */
+function someoneInBerth(c: Ctx, a: Readonly<AgentState>): boolean {
+  const hx = dsin(a.heading);
+  const hz = -dcos(a.heading);
+  const reach = ROBOTAXI_BODY.halfLength + ROBOTAXI_SIDE_BERTH_M + 1;
+  queryHash(c.hash, a.x, a.z, reach, c.scratch);
+  for (const o of c.scratch) {
+    if (!o.foot || o.predicted) continue;
+    const lim = ROBOTAXI_SIDE_BERTH_M + o.r;
+    // Distance from the walker's centre to the box (ROBOTAXI_BODY).
+    const ox = o.x - a.x;
+    const oz = o.z - a.z;
+    const along = ox * hx + oz * hz;
+    const lat = -ox * hz + oz * hx;
+    const el = Math.max(0, (lat < 0 ? -lat : lat) - ROBOTAXI_BODY.halfWidth);
+    const ef = Math.max(0, (along < 0 ? -along : along) - ROBOTAXI_BODY.halfLength);
+    if (el * el + ef * ef < lim * lim) return true;
+  }
+  return false;
+}
+
 /** Seconds ahead a moving walker's position is projected (seen by robotaxis). */
 const WALKER_PREDICT_S: readonly number[] = [0.6, 1.2];
 /** Seconds ahead a moving robotaxi's position is projected (seen by walkers at the kerb). */
@@ -492,7 +543,16 @@ function agentObstacles(list: readonly AgentState[]): Obs[] {
   for (const a of list) {
     const spec = AGENT_SPEC[a.kind];
     const road = spec.road;
-    for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, foot: !road });
+    if (road) {
+      // To robotaxis, its two circles; to walkers, its drawn body (with a berth while it moves).
+      for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, onlyFor: "road" });
+      const grow = a.speed > TAXI_STOPPED_MPS ? WALKER_TAXI_BERTH_M : 0;
+      const hl = ROBOTAXI_BODY.halfLength + grow;
+      const hw = ROBOTAXI_BODY.halfWidth + grow;
+      out.push({ x: a.x, z: a.z, r: Math.sqrt(hl * hl + hw * hw), id: a.id, player: false, road, onlyFor: "foot", box: { fx: dsin(a.heading), fz: -dcos(a.heading), hl, hw } });
+    } else {
+      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true });
+    }
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
       const hz = -dcos(a.heading);
@@ -752,12 +812,13 @@ function probe(
   // Everything the look-ahead could touch lies within `look` of the agent (paths are never
   // shorter than straight lines): gather those once, then test each probe point against them.
   const reach = look + pr + 2.5;
-  queryHash(hash, a.x, a.z, reach, scratch);
+  queryHash(hash, a.x, a.z, reach + OBS_RADIUS_MAX - 2.5, scratch);
   const near: Obs[] = [];
   const hx = dsin(a.heading);
   const hz = -dcos(a.heading);
   for (const o of scratch) {
     if (o.id === a.id) continue;
+    if (o.onlyFor !== undefined && o.onlyFor !== (spec.road ? "road" : "foot")) continue;
     if (o.road && ignoreRobotaxis) continue;
     if (o.predicted && o.road === spec.road) continue;
     const dx = o.x - a.x;
@@ -1103,6 +1164,11 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
       target = v;
       limitedByObstacle = true;
     }
+  }
+  // Someone on foot right beside it (or behind, or at its nose): it waits for them to move on.
+  if (spec.road && someoneInBerth(c, a)) {
+    target = 0;
+    limitedByObstacle = true;
   }
 
   // Walkers sidestep oncoming walkers; relax back to the keep-right line otherwise.

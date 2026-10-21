@@ -490,6 +490,32 @@ export function circleBlocked(world: World, x: number, z: number, r: number): bo
 }
 
 /**
+ * Does a circle of radius r at (x, z) overlap a building that blocks a body whose collision band
+ * runs from `bottom` to `top` (blocksBand: its feet plus the step it can climb, to the top of
+ * its head)? The height-aware circleBlocked: a body on a roof is not blocked by that roof, nor
+ * by a low deck it can step onto, and passes under a high enough underside.
+ */
+export function circleBlockedBand(world: World, x: number, z: number, r: number, bottom: number, top: number): boolean {
+  const r2 = r * r;
+  for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
+    for (let cz = Math.floor((z - r) / CELL); cz <= Math.floor((z + r) / CELL); cz++) {
+      const key = cellKey(cx, cz);
+      const list = world.cells.get(key);
+      if (!list) continue;
+      const bb = world.cellBoxes.get(key)!;
+      for (let i = 0, n = list.length; i < n; i++) {
+        const k = i * 4;
+        if (x + r < bb[k]! || x - r > bb[k + 2]! || z + r < bb[k + 1]! || z - r > bb[k + 3]!) continue;
+        const b = list[i]!;
+        if (!blocksBand(b, bottom, top)) continue;
+        if (circleTouchesPolygon(x, z, r2, b.footprint)) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * pointInPolygon(x, z, poly) || closestOnBoundary(x, z, poly).d2 < r2, in one pass over the
  * edges with no allocation (the same arithmetic, so the same answer), stopping at the first
  * edge closer than r. circleBlocked runs this for every building near every sample when the

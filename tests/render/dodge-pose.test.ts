@@ -1,9 +1,11 @@
-// How a dodge is drawn (src/render/dodge-pose.ts): people dive with their arms out ahead, land
-// in a roll and come up startled; the override's leap follows its arc with a flip; robots skid
-// and hop. The poses flow from one into the next (no snap at a phase change) and end where the
-// walk takes over again, and nobody is ever drawn lying still or limp.
+// How a dodge is drawn (src/render/dodge-pose.ts): people dive with their arms out ahead, flip
+// over tucked in the air, land on their feet and come up startled; the override's leap follows
+// its arc with a flip (a short one is a stumble-hop); robots skid and hop. The poses flow from one
+// into the next (no snap at a phase change) and end where the walk takes over again, and nobody
+// is ever drawn lying still or limp, stretched flat near the ground, or upended: it must read as a
+// comic leap, never as someone knocked down (the adversarial review, 2026-10-21).
 import { describe, expect, it } from "vitest";
-import { diveBearing, newPersonPose, newRobotPose, personDodgePose, progress, robotDodgePose, type DodgeLike, type PersonPose } from "../../src/render/dodge-pose.ts";
+import { SHORT_LEAP_M, STRETCH_HOP_M, diveBearing, newPersonPose, newRobotPose, personDodgePose, progress, robotDodgePose, type DodgeLike, type PersonPose } from "../../src/render/dodge-pose.ts";
 
 const TAU = Math.PI * 2;
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -54,22 +56,61 @@ describe("people dodging", () => {
     expect(mid.legL).toBeLessThan(0); // kicked back
   });
 
-  it("lands in a forward roll: one full turn, curled, coming up into a crouch that flows into the recovery", () => {
+  it("flips forward tucked into a ball while still in the air (one full turn), and lands on its feet in a crouch that flows into the recovery", () => {
+    // The flip: from the stretch, rolling forward the whole way (pitch only falls), a full turn and a bit.
     const pitches: number[] = [];
-    for (let t = 10; t <= 18; t++) pitches.push(pose(dive(t)).pitch);
-    // Rolling forward the whole way (pitch only falls), a full turn and a bit.
+    for (let t = 9; t <= 18; t++) pitches.push(pose(dive(t)).pitch);
     for (let i = 1; i < pitches.length; i++) expect(pitches[i]!).toBeLessThanOrEqual(pitches[i - 1]! + 1e-12);
     expect(pitches[0]! - pitches[pitches.length - 1]!).toBeGreaterThan(TAU - 1.5);
-    // Curled mid-roll.
-    expect(pose(dive(14)).squash).toBeLessThan(0.8);
+    // Curled mid-flip, and still high in the air (the sim's hop, 0.45 m at its peak).
+    let curled = 0;
+    for (let t = 10; t <= 14; t++) {
+      const u = t / 18;
+      const p = pose(dive(t));
+      if (p.squash < 0.8) {
+        curled++;
+        expect(4 * 0.45 * u * (1 - u), `hop at tick ${t}`).toBeGreaterThan(0.2);
+      }
+    }
+    expect(curled).toBeGreaterThan(0);
+    // On its feet before it touches down: upright (but for the crouch's lean) for the last part.
+    for (const t of [16, 17]) expect(Math.abs(wrap(pose(dive(t)).pitch))).toBeLessThanOrEqual(0.35 + 1e-9);
     // The end of the dive is the start of the recovery.
     close(pose(dive(18), 0, 0.999999), pose(recover(0), 0, 1), 1e-3);
   });
 
+  it("never lies flat near the ground, and is never upended stretched out: flat only while hopping high, turned over only tucked", () => {
+    const bad: string[] = [];
+    for (const dur of [12, 18, 24, 36]) {
+      for (const peak of [0.45, 0.35]) {
+        for (let t = 0; t <= dur; t++) {
+          for (const alpha of [0.25, 0.5, 0.75, 1]) {
+            const d: DodgeLike = { phase: "dive", sx: 0, sz: 0, tx: 2.4, tz: 0, t, dur, hop: 0, leap: false, peak };
+            const u = progress(d, alpha);
+            const hop = 4 * peak * u * (1 - u);
+            const p = pose(d, 0, alpha);
+            const stretched = p.squash > 0.8;
+            const flat = Math.abs(Math.sin(p.pitch));
+            if (stretched && flat > 0.7 && hop + p.lift < STRETCH_HOP_M * 0.66) bad.push(`dur ${dur} peak ${peak} u ${u.toFixed(3)}: flat (${flat.toFixed(2)}) at ${(hop + p.lift).toFixed(2)} m`);
+            if (stretched && Math.cos(p.pitch) < 0) bad.push(`dur ${dur} peak ${peak} u ${u.toFixed(3)}: upended, stretched out`);
+            if (flat > 0.95 && stretched && hop < STRETCH_HOP_M - 0.02) bad.push(`dur ${dur} peak ${peak} u ${u.toFixed(3)}: stretched flat only ${hop.toFixed(2)} m up`);
+          }
+        }
+      }
+    }
+    expect(bad.slice(0, 5)).toEqual([]);
+    // And the recovery never lies down at all (below).
+  });
+
   it("recovers: up from the crouch, a startled pose (arms flung up, a shake), brushing off, then the walk's heading and stance", () => {
-    const up = pose(recover(18)); // u = 0.3: standing
+    const up = pose(recover(18)); // u = 0.3: standing, in the air of a startled little jump
     expect(Math.abs(up.pitch)).toBeLessThan(1e-9);
-    expect(up.lift).toBeCloseTo(0, 9);
+    expect(up.lift).toBeGreaterThan(0);
+    expect(up.lift).toBeLessThan(0.1);
+    // Still coming up out of the crouch, the arms are already flung up.
+    expect(pose(recover(6)).lift).toBeLessThan(0);
+    expect(pose(recover(12)).pitch).toBeLessThan(0);
+    expect(pose(recover(12)).armL[0]).toBeGreaterThan(1.5);
     const startled = pose(recover(28), 0, 1, 0.4);
     expect(startled.armL[0]).toBeGreaterThan(2.4);
     expect(startled.armR[0]).toBeGreaterThan(2.4);
@@ -99,6 +140,20 @@ describe("people dodging", () => {
     const e = pose(dive(24, true));
     expect([e.x, e.z]).toEqual([2.4, 0]);
     expect(e.pitch).toBeCloseTo(-TAU, 9);
+  });
+
+  it("a short leap (a robotaxi edging up, a car brushing past) is a stumble-hop aside: no flip, arms windmilling", () => {
+    const short = (t: number): DodgeLike => ({ phase: "dive", sx: 0, sz: 0, tx: SHORT_LEAP_M * 0.5, tz: 0, t, dur: 14, hop: 0, leap: true });
+    const arms: number[] = [];
+    for (let t = 0; t <= 14; t++) {
+      const p = pose(short(t), 0);
+      expect(Math.abs(p.pitch)).toBeLessThan(0.2);
+      expect(p.squash).toBe(1);
+      expect(p.heading).toBe(0); // still facing the way they were going
+      arms.push(p.armL[0]);
+    }
+    expect(Math.max(...arms) - Math.min(...arms)).toBeGreaterThan(1);
+    expect(pose(short(7)).roll).toBeGreaterThan(0.2); // tipping toward it (east, to their right)
   });
 });
 

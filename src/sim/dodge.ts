@@ -14,40 +14,58 @@
 //     using a mobility aid) dives.
 //  2. Dive, Crazy Taxi style. The landing spot is the cheapest clear spot on a fan of lines:
 //     square to the vehicle's path on the side the body is on, then angled, then the other side.
-//     A line ends at a building, a wall (the world's edge, the shore, a kerb rail over water) or
-//     a step of more than 1.5 m; a spot must be clear of every predicted footprint (with the
-//     margin), of parked vehicles, and of other bodies and other divers' landing spots ("never
-//     into another path"), and the line to it must stay clear of the vehicle on the way (a
-//     space-time check). The body leaps at its dive speed (7-9 m/s; pigeons flutter up, the dog
-//     bounds, robots skid and hop) with a hop, lands and recovers (about a second: gets up,
-//     brushes off); an agent then carries on along its path from where it landed. Threatened
-//     again while diving or recovering, it dives again from where it is.
-//  3. The hard guarantee, which no tuning removes: then any person, animal or player on foot
-//     within its override clearance (0.3 m; 0.6 m for the vulnerable) of a moving vehicle's
-//     body, or inside any vehicle's body, is put at the nearest free spot outside every vehicle
-//     (a superhuman leap, drawn as a big hop). Cars never collide with people at all (step.ts
-//     gives them no person or animal obstacles): a car is never stopped, slowed or deflected by
-//     one, and its personBumps stays 0.
+//     A line is walked the way the body would go (Ground): it ends at a building (height-aware
+//     for a player, who may stand on a roof and dive along it or off its edge), a wall (the
+//     world's edge, the shore, a kerb rail over water) or a step of more than 1.5 m; a spot must
+//     be clear of every predicted footprint (with the margin), of stopped vehicles, and of other
+//     bodies and other divers' landing spots ("never into another path"), and the line to it must
+//     stay clear of the vehicle on the way (a space-time check) and of every stopped vehicle. The
+//     body leaps at its dive speed (7-9 m/s; pigeons flutter up, the dog bounds, robots skid and
+//     hop) with a hop, lands and recovers (about a second: gets up, brushes off); an agent then
+//     carries on along its path from where it landed. A dive under way is checked again every
+//     tick (its landing, and its line against the moving vehicles' footprints and the stopped
+//     ones' bodies) and re-aimed or cut short when it no longer holds; threatened again while
+//     diving or recovering, the body dives again from where it is.
+//  3. The reach of a vehicle: where its body can be by the end of its next step. Its body at the
+//     middle of that step grown by half its travel (every point it can slide to, along a wall or
+//     off another car, lies in the disc whose diameter is its velocity's step), its speed change
+//     and its turn (Vehicle.mx..inflate, zoneDistance). A body's own dive step never ends deeper
+//     in a vehicle's reach than its clearance (it stops short and is re-aimed next tick), so a
+//     dive never carries anyone into a vehicle.
+//  4. The hard guarantee, which no tuning removes: then any person, animal or player on foot
+//     within its override clearance (0.3 m; 0.6 m for the vulnerable) of a moving vehicle's reach
+//     (STOPPED_CLEAR_M of a stopped one's), or inside any vehicle's body, is put at the nearest
+//     free spot outside every vehicle's reach (a superhuman leap, drawn as a big hop, or as a
+//     stumble when it is a short one). Since every vehicle stays within its reach over its next
+//     step, nobody can then be inside one after it: the contact count stays 0. The spot is found
+//     on lines walked as a dive's are, then with any drop, then over buildings, and as a last
+//     resort anywhere outside the vehicles (counted in `failures`, which must stay 0): there is
+//     always a spot. Cars never collide with people at all (step.ts gives them no person or
+//     animal obstacles): a car is never stopped, slowed or deflected by one, and its personBumps
+//     stays 0.
 //
 // Robots dodge by the same rules but are not under the override: they stay solid to cars (a car
 // that reaches one stops against it), and water is the only way to beat one.
 //
+// Robotaxis are measured by their drawn body (ROBOTAXI_BODY, a box), player cars by their body box.
+//
 // Counters (ext.dodge, DodgeExt): contacts (a protected body found inside a vehicle's body
 // before the override moved it: must stay 0; a player's car counts its own in personBumps),
-// overrides, dives and near misses (also on the player's car, CarState.nearMisses, for scoring
-// and barks). Order: players in sortedIds order, then agents by ascending id; each body's
-// decision sees the spots the bodies before it chose.
+// overrides, dives, near misses (also on the player's car, CarState.nearMisses, for scoring and
+// barks) and failures. Order: players in sortedIds order, then agents by ascending id; each
+// body's decision sees the spots the bodies before it chose.
 
 import { DT, sortedIds, type CarState, type DodgeState, type FootState, type PlayerId, type PlayerState, type SimState } from "./contract.ts";
 import { clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { hash32 } from "./rng.ts";
-import { CAR } from "./car.ts";
+import { CAR, carCircles } from "./car.ts";
 import { FOOT } from "./foot.ts";
 import {
   AGENTS_EXT_KEY,
   AGENT_SPEC,
   LOD_STRIDE,
   NEAR_RANGE_M,
+  ROBOTAXI_BODY,
   agentCircles,
   agentRoute,
   personIsChild,
@@ -58,14 +76,21 @@ import {
   type AgentsExt,
 } from "./agents.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { cellKey, circleBlocked, meshGroundHeight, segmentBlocked, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, cellKey, circleBlocked, circleBlockedBand, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
 // ---------------------------------------------------------------- tuning (the guarantee is not tunable)
 
-/** Vehicles slower than this threaten nobody (the override still keeps bodies out of them). */
+/** Vehicles slower than this threaten nobody (the override still keeps bodies out of their reach). */
 export const DODGE_MIN_SPEED = 2;
-/** A vehicle at or below this speed is parked for the override: only its body counts, no clearance. */
+/**
+ * A vehicle no point of whose body moves faster than this (by its velocity and yaw rate, or as
+ * it moved over its last step) is stopped for the override: only its reach and STOPPED_CLEAR_M count.
+ */
 export const PARKED_SPEED = 0.3;
+/** The override keeps a body at least this far from a stopped vehicle's reach, metres. */
+export const STOPPED_CLEAR_M = 0.02;
+/** Robots (not under the override) never dive closer than this to a vehicle's reach, metres. */
+export const ROBOT_GAP_M = 0.05;
 /** How far a body watches vehicles, metres; more for a vehicle whose predicted footprint reaches further. */
 export const WATCH_M = 40;
 /** Spacing of the predicted footprint's samples, seconds. */
@@ -84,15 +109,16 @@ export const LANDING_EXTRA_M = 0.35;
  */
 export const ROBOTAXI_BRAKE_MPS2 = 6;
 export const ROBOTAXI_REACT_S = 2 * DT;
-/** Leaps by the override last this long, ticks. */
+/** The override's longest leap lasts this long, ticks (a short one is quicker: leapShape). */
 export const LEAP_TICKS = 24;
 /** Bodies keep at least this much room between each other when they land, metres. */
 export const LANDING_GAP_M = 0.1;
-/** A dive's line keeps at least this clear of a stopped vehicle's body, metres. */
+/** A dive's line keeps at least this much more than its clearance from a stopped vehicle, metres. */
 export const STOPPED_GAP_M = 0.05;
 /**
- * The line to a landing spot keeps at least this clear of the vehicle on the way, metres (a line
- * keeping the body's whole margin is taken first when there is one).
+ * The line to a landing spot keeps at least this clear of the vehicle on the way, metres, and
+ * never less than the body's clearance from it plus 0.05 m (a line keeping the body's whole
+ * margin is taken first when there is one).
  */
 export const PASSING_M = 0.2;
 /**
@@ -101,16 +127,26 @@ export const PASSING_M = 0.2;
  */
 export const EMERGENCY_S = 0.45;
 export const EMERGENCY_BOOST = 1.5;
-/** The most a dive climbs or drops, metres; the override's leap, OVERRIDE_STEP_M. */
+/** The most a dive climbs or drops, metres; the override's leap, OVERRIDE_STEP_M (then any drop). */
 export const DIVE_STEP_M = 1.5;
 export const OVERRIDE_STEP_M = 3;
 /** The override looks this far for a free spot, metres (then CLEAR_FAR_M, coarser). */
 export const CLEAR_NEAR_M = 12;
 export const CLEAR_FAR_M = 30;
+/** The override's last resort looks this far, metres. */
+export const CLEAR_LAST_M = 60;
 
 /** A vehicle whose velocity is more than this off its nose is sliding (cos 0.15 rad): it may straighten out along its nose. */
 export const SLIP_RAD = 0.15;
 const SLIP_COS = dcos(SLIP_RAD);
+
+/**
+ * The most a player's car's velocity changes over a tick in any direction, m/s: the engine, full
+ * tyre grip sideways and gravity on the steepest street (its reach allows for it).
+ */
+export const CAR_DV = (CAR.accel + CAR.gripAccel * 1.5 + CAR.gravity) * DT;
+/** A dive step is checked against the vehicles' reach every this many metres. */
+const STEP_CHECK_M = 0.04;
 
 /** Seconds of a vehicle's path that are predicted at `speed` m/s: 0.6 s, plus 0.025 s per m/s, at most 1.5 s. */
 export function horizonS(speed: number): number {
@@ -123,13 +159,13 @@ export type DodgeClass = "person" | "care" | "player" | "errandRobot" | "sidewal
 export interface DodgeProfile {
   /** Dives when within this of a vehicle's predicted footprint, metres. */
   margin: number;
-  /** The override: placed outside a moving vehicle closer than this, metres; null: not under it (robots). */
+  /** The override: placed outside a moving vehicle's reach closer than this, metres; null: not under it (robots). */
   override: number | null;
   /** Dive speed, m/s; the longest dive, metres; the shortest, ticks. */
   speed: number;
   maxDive: number;
   minTicks: number;
-  /** Peak hop of a dive, and of the override's leap, metres. */
+  /** Peak hop of a dive, and of the override's longest leap, metres. */
   peak: number;
   leapPeak: number;
   /** Getting up after landing, ticks. */
@@ -159,18 +195,24 @@ export function agentDodgeClass(a: Readonly<Pick<AgentState, "id" | "kind">>): D
 export interface DodgeExt {
   /** Protected bodies found inside a vehicle's body before the override moved them: must stay 0. */
   contacts: number;
-  /** Times the override put someone outside a vehicle (the dive had not cleared them). */
+  /** Times the override put someone outside a vehicle's reach (the dive had not cleared them). */
   overrides: number;
   /** Dives started. */
   dives: number;
   /** Dives and leaps caused by a vehicle (any vehicle; a player's own also on CarState.nearMisses). */
   nearMisses: number;
+  /**
+   * Times the override found no spot it could reach along a line (walls, buildings and steps
+   * all in the way) and put the body over a building or anywhere outside the vehicles: must stay 0.
+   */
+  failures: number;
 }
 
 export const DODGE_EXT_KEY = "dodge";
 
 export function dodgeExtOf(state: Readonly<SimState>): DodgeExt {
-  return (state.ext[DODGE_EXT_KEY] as DodgeExt | undefined) ?? { contacts: 0, overrides: 0, dives: 0, nearMisses: 0 };
+  const e = state.ext[DODGE_EXT_KEY] as Partial<DodgeExt> | undefined;
+  return { contacts: e?.contacts ?? 0, overrides: e?.overrides ?? 0, dives: e?.dives ?? 0, nearMisses: e?.nearMisses ?? 0, failures: e?.failures ?? 0 };
 }
 
 // ---------------------------------------------------------------- vehicles and their predicted footprint
@@ -202,13 +244,11 @@ export interface Vehicle {
   player: PlayerId | null;
   x: number;
   z: number;
-  /** Body forward (unit) and half extents. */
+  /** Body forward (unit) and half extents (a robotaxi: ROBOTAXI_BODY, its drawn size). */
   fx: number;
   fz: number;
   hl: number;
   hw: number;
-  /** Body as circles instead of the box (robotaxis: the circles the sim moves them by), else null. */
-  circles: Array<{ x: number; z: number; r: number }> | null;
   /** World velocity, m/s, and its size. */
   vx: number;
   vz: number;
@@ -228,6 +268,18 @@ export interface Vehicle {
   minZ: number;
   maxX: number;
   maxZ: number;
+  /** A point of its body moves faster than PARKED_SPEED (by its velocity and yaw rate, or as it moved over its last step). */
+  moving: boolean;
+  /**
+   * Its reach over its next step (zoneDistance): its body at the middle of that step (centre mx,
+   * mz, forward mfx, mfz) grown by `inflate` (half its travel, its speed change, its turn, and a
+   * shove by a body overlapping it).
+   */
+  mx: number;
+  mz: number;
+  mfx: number;
+  mfz: number;
+  inflate: number;
 }
 
 /** Rotate a compass-frame direction (x east, z south) clockwise by the angle whose cos and sin are (c, s). */
@@ -237,11 +289,16 @@ function rot(x: number, z: number, c: number, s: number): [number, number] {
 
 /** What else a vehicle may have (Vehicle's fields of the same names); predict false: no paths (nobody is near enough to need them). */
 export interface VehicleOptions {
-  circles?: Array<{ x: number; z: number; r: number }> | null;
   spread?: number;
   react?: number;
   route?: RoutePoint[] | null;
   predict?: boolean;
+  /** Its next step, seconds (DT; a far robotaxi steps LOD_STRIDE ticks at once). */
+  dt?: number;
+  /** The most its velocity can change over its next step, m/s, in any direction. */
+  dv?: number;
+  /** How fast the fastest point of its body moved over its last step, m/s. */
+  observed?: number;
 }
 
 /**
@@ -262,21 +319,27 @@ export function makeVehicle(
   decel: number,
   opts: VehicleOptions = {},
 ): Vehicle {
-  const circles = opts.circles ?? null;
   const spread = opts.spread ?? 0;
   const react = opts.react ?? 0;
   const route = opts.route ?? null;
+  const dt = opts.dt ?? DT;
   const speed = Math.sqrt(vx * vx + vz * vz);
+  const fx = dsin(heading);
+  const fz = -dcos(heading);
+  const yawAbs = yawRate < 0 ? -yawRate : yawRate;
+  const halfDiag = Math.sqrt(hl * hl + hw * hw);
+  // The middle of its next step: half the travel along its velocity, half the turn.
+  const half = (yawRate * dt) / 2;
+  const [mfx, mfz] = rot(fx, fz, dcos(half), dsin(half));
   const v: Vehicle = {
     key,
     player,
     x,
     z,
-    fx: dsin(heading),
-    fz: -dcos(heading),
+    fx,
+    fz,
     hl,
     hw,
-    circles,
     vx,
     vz,
     speed,
@@ -290,6 +353,12 @@ export function makeVehicle(
     minZ: z,
     maxX: x,
     maxZ: z,
+    moving: Math.max(speed + yawAbs * halfDiag, opts.observed ?? 0) > PARKED_SPEED,
+    mx: x + (vx * dt) / 2,
+    mz: z + (vz * dt) / 2,
+    mfx,
+    mfz,
+    inflate: (speed * dt) / 2 + (opts.dv ?? 0) * dt + (yawAbs * dt * halfDiag) / 2,
   };
   v.paths = opts.predict === false ? [] : predictPaths(v);
   const reach = hl + hw + spread * horizonS(speed);
@@ -308,37 +377,61 @@ export function makeVehicle(
   return v;
 }
 
-/** A player's car as a vehicle: velocity from speed and slide, yaw rate from the car, its footprint widening PLAYER_SPREAD_MPS. */
-export function vehicleOfCar(id: PlayerId, c: Readonly<CarState>): Vehicle {
+/**
+ * A player's car as a vehicle: velocity from speed and slide, yaw rate from the car, its
+ * footprint widening PLAYER_SPREAD_MPS. `prev` is the car a tick before (how fast it moved).
+ */
+export function vehicleOfCar(id: PlayerId, c: Readonly<CarState>, prev: Readonly<CarState> | null = null): Vehicle {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
-  const spread = PLAYER_SPREAD_MPS;
+  let observed = 0;
+  if (prev && prev !== c) {
+    const halfDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
+    const turn = wrapAngle(c.heading - prev.heading);
+    observed = (Math.sqrt((c.x - prev.x) * (c.x - prev.x) + (c.z - prev.z) * (c.z - prev.z)) + (turn < 0 ? -turn : turn) * halfDiag) / DT;
+  }
   // Right of forward is (-fz, fx).
-  return makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, { spread });
+  return makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, {
+    spread: PLAYER_SPREAD_MPS,
+    dv: CAR_DV,
+    observed,
+  });
 }
 
 /**
  * A robotaxi as a vehicle: along its route (agentRoute, when the world has roads), braking for
  * whoever is in its path (at least ROBOTAXI_BRAKE_MPS2, more when it is already braking harder,
- * after ROBOTAXI_REACT_S), and its body as the two circles it moves by. Its yaw rate and braking
- * come from its previous pose (`prev`, stepped `dt` seconds ago).
+ * after ROBOTAXI_REACT_S), its body ROBOTAXI_BODY (its drawn size). Its yaw rate and braking come
+ * from its previous pose (`prev`, stepped `dt` seconds ago); its next step is `dt` too.
  */
 export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true): Vehicle {
   const spec = AGENT_SPEC[a.kind];
+  const hl = spec.road ? ROBOTAXI_BODY.halfLength : spec.halfLength;
+  const hw = spec.road ? ROBOTAXI_BODY.halfWidth : spec.halfWidth;
   let yaw = 0;
   let decel = ROBOTAXI_BRAKE_MPS2;
+  let observed = 0;
   if (prev && prev !== a && dt > 0) {
-    yaw = clamp(wrapAngle(a.heading - prev.heading) / dt, -2, 2);
+    const turn = wrapAngle(a.heading - prev.heading);
+    yaw = clamp(turn / dt, -2, 2);
     decel = clamp((prev.speed - a.speed) / dt, ROBOTAXI_BRAKE_MPS2, 9);
+    observed = (Math.sqrt((a.x - prev.x) * (a.x - prev.x) + (a.z - prev.z) * (a.z - prev.z)) + (turn < 0 ? -turn : turn) * Math.sqrt(hl * hl + hw * hw)) / DT;
   }
   const fx = dsin(a.heading);
   const fz = -dcos(a.heading);
   const route = predict && world && a.speed >= DODGE_MIN_SPEED ? agentRoute(world, a, a.speed * horizonS(a.speed) + 1, 0.5) : null;
-  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, spec.halfLength, spec.halfWidth, a.speed * fx, a.speed * fz, yaw, decel, {
-    circles: agentCircles(a),
+  // Over its next step it speeds up by at most its acceleration (braking only shortens its
+  // step, inside its reach), and its velocity turns with its path (at up to 1 rad/s more than
+  // it turns now: a connector starting).
+  const yawAbs = yaw < 0 ? -yaw : yaw;
+  const dv = (spec.accel + a.speed * (yawAbs + 1)) * dt;
+  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, hl, hw, a.speed * fx, a.speed * fz, yaw, decel, {
     react: ROBOTAXI_REACT_S,
     route: route && route.length >= 2 ? route : null,
     predict,
+    dt,
+    dv,
+    observed,
   });
 }
 
@@ -459,17 +552,18 @@ export function boxDistance(px: number, pz: number, x: number, z: number, fx: nu
   return Math.sqrt(el * el + ef * ef);
 }
 
-/** Signed distance from (px, pz) to a vehicle's body as it is now (its circles for a robotaxi). */
+/** Signed distance from (px, pz) to a vehicle's body as it is now. */
 export function bodyDistance(v: Readonly<Vehicle>, px: number, pz: number): number {
-  if (v.circles) {
-    let best = Infinity;
-    for (const c of v.circles) {
-      const d = Math.sqrt((px - c.x) * (px - c.x) + (pz - c.z) * (pz - c.z)) - c.r;
-      if (d < best) best = d;
-    }
-    return best;
-  }
   return boxDistance(px, pz, v.x, v.z, v.fx, v.fz, v.hl, v.hw);
+}
+
+/**
+ * Signed distance from (px, pz) to a vehicle's reach over its next step: every place its body
+ * can be until then (its body now included). A body this far away cannot be touched by it
+ * before the next tick's dodge.
+ */
+export function zoneDistance(v: Readonly<Vehicle>, px: number, pz: number): number {
+  return boxDistance(px, pz, v.mx, v.mz, v.mfx, v.mfz, v.hl, v.hw) - v.inflate;
 }
 
 export interface Hit {
@@ -497,10 +591,10 @@ export function sweepHit(v: Readonly<Vehicle>, px: number, pz: number, reach: nu
 
 /**
  * The least distance from (px, pz) to a vehicle's predicted footprint, less its spread at each
- * moment unless `spread` is false (its body now when it has none).
+ * moment unless `spread` is false (its reach when it has none).
  */
 export function sweepClearance(v: Readonly<Vehicle>, px: number, pz: number, spread = true): number {
-  if (v.paths.length === 0) return bodyDistance(v, px, pz);
+  if (v.paths.length === 0) return zoneDistance(v, px, pz);
   const k = spread ? v.spread : 0;
   let best = Infinity;
   for (const path of v.paths) {
@@ -512,13 +606,13 @@ export function sweepClearance(v: Readonly<Vehicle>, px: number, pz: number, spr
   return best;
 }
 
-// ---------------------------------------------------------------- choosing where to dive
+// ---------------------------------------------------------------- the ground a body moves over
 
 /** A body that may dodge. */
 export interface Body {
   x: number;
   z: number;
-  /** Ground height under it (no hop). */
+  /** Height of its feet (no hop). */
   y: number;
   r: number;
   cls: DodgeClass;
@@ -533,43 +627,102 @@ export interface Spot {
   r: number;
 }
 
-/** The static world a dive checks. */
+/** The static world a dive and a leap walk over. */
 export interface Ground {
   world: World;
-  /** Ground height at (x, z) for this body (feet at `feet`). */
+  /** The surface a body with its feet at `feet` stands on at (x, z). */
   height(x: number, z: number, feet: number): number;
+  /**
+   * Is a body of radius r standing at (x, z) with its feet at `feet` in a building? Absent: any
+   * building footprint blocks it (circleBlocked), for bodies that are always on the ground.
+   */
+  blocked?(x: number, z: number, r: number, feet: number): boolean;
+}
+
+/**
+ * The ground for a body: a player on foot stands on roofs within ROOF_STEP_M of their feet and is
+ * blocked by a building only between their feet plus that step and the top of their head (as
+ * stepFoot moves them), so on a roof they dive along it and off its edge; an agent walks the
+ * drawn ground and every footprint blocks it.
+ */
+export function groundFor(world: World, onRoofs: boolean): Ground {
+  if (!onRoofs) return { world, height: (x, z) => meshGroundHeight(world, x, z), blocked: (x, z, r) => circleBlocked(world, x, z, r) };
+  return {
+    world,
+    height: (x, z, feet) => surfaceHeight(world, x, z, feet),
+    blocked: (x, z, r, feet) => circleBlockedBand(world, x, z, r, feet + ROOF_STEP_M, feet + FOOT.height),
+  };
+}
+
+function blockedAt(g: Ground, x: number, z: number, r: number, feet: number): boolean {
+  return g.blocked ? g.blocked(x, z, r, feet) : circleBlocked(g.world, x, z, r);
+}
+
+/** A line being walked out from a body: where it has got to, and its feet there. */
+interface Walk {
+  x: number;
+  z: number;
+  feet: number;
+}
+
+/**
+ * Walk a line on to (x, z) (the next point, at most a body's diameter on): false, and the line
+ * ends, at a wall crossed, a building the body would be in (at the surface there), or a surface
+ * more than `step` above or below the body's own feet `y0`.
+ */
+function walkTo(g: Ground, w: Walk, x: number, z: number, r: number, y0: number, step: number): boolean {
+  if (segmentCrossesWall(g.world.walls, w.x, w.z, x, z)) return false;
+  const h = g.height(x, z, w.feet);
+  if ((h > y0 ? h - y0 : y0 - h) > step) return false;
+  if (blockedAt(g, x, z, r, h)) return false;
+  w.x = x;
+  w.z = z;
+  w.feet = h;
+  return true;
+}
+
+// ---------------------------------------------------------------- choosing where to dive
+
+/** How close a body of this profile may come to a vehicle's reach: its override clearance (moving) or STOPPED_CLEAR_M (stopped); robots ROBOT_GAP_M. */
+export function clearanceFrom(v: Readonly<Pick<Vehicle, "moving">>, prof: Readonly<DodgeProfile>): number {
+  if (prof.override === null) return ROBOT_GAP_M;
+  return v.moving ? prof.override : STOPPED_CLEAR_M;
 }
 
 /**
  * Is the spot clear of every vehicle's predicted footprint (plus margin, and its spread unless
- * `spread` is false) and every parked or slow vehicle's body (plus 0.3 m)?
+ * `spread` is false) and every slow or stopped vehicle's reach (plus 0.3 m)?
  */
 function clearOfVehicles(vehicles: readonly Vehicle[], x: number, z: number, r: number, margin: number, spread = true): boolean {
   for (const v of vehicles) {
     if (v.paths.length > 0) {
       if (x < v.minX - r - margin || x > v.maxX + r + margin || z < v.minZ - r - margin || z > v.maxZ + r + margin) continue;
       if (sweepClearance(v, x, z, spread) < r + margin) return false;
-    } else if (bodyDistance(v, x, z) < r + 0.3) {
+    } else if (zoneDistance(v, x, z) < r + 0.3) {
       return false;
     }
   }
   return true;
 }
 
-/** Is (x, z) at least r (plus a hair) from the body of every vehicle not moving fast enough to have a footprint (parked, waiting, creeping)? A dive's line never goes through one. */
-function clearOfStopped(stopped: readonly Vehicle[], x: number, z: number, r: number): boolean {
-  for (const v of stopped) if (bodyDistance(v, x, z) < r + STOPPED_GAP_M) return false;
+/**
+ * Is (x, z) clear of the reach of every vehicle not moving fast enough to have a footprint
+ * (parked, waiting, creeping) by the body's clearance from it and STOPPED_GAP_M? A dive's line
+ * never goes through one.
+ */
+function clearOfStopped(stopped: readonly Vehicle[], x: number, z: number, r: number, prof: Readonly<DodgeProfile>): boolean {
+  for (const v of stopped) if (zoneDistance(v, x, z) < r + clearanceFrom(v, prof) + STOPPED_GAP_M) return false;
   return true;
 }
 
-/** Does the line from (px, pz) to (x, z) keep clear of every stopped vehicle's body (clearOfStopped every MARCH_M)? */
-function lineClearOfStopped(stopped: readonly Vehicle[], px: number, pz: number, x: number, z: number, r: number): boolean {
+/** Does the line from (px, pz) to (x, z) keep clear of every stopped vehicle (clearOfStopped every MARCH_M)? */
+function lineClearOfStopped(stopped: readonly Vehicle[], px: number, pz: number, x: number, z: number, r: number, prof: Readonly<DodgeProfile>): boolean {
   if (stopped.length === 0) return true;
   const len = Math.sqrt((x - px) * (x - px) + (z - pz) * (z - pz));
   const n = Math.max(1, Math.ceil(len / MARCH_M));
   for (let i = 1; i <= n; i++) {
     const f = i / n;
-    if (!clearOfStopped(stopped, px + (x - px) * f, pz + (z - pz) * f, r)) return false;
+    if (!clearOfStopped(stopped, px + (x - px) * f, pz + (z - pz) * f, r, prof)) return false;
   }
   return true;
 }
@@ -597,18 +750,31 @@ function spotFree(spots: readonly Spot[], x: number, z: number, r: number): bool
  * the spread) clear of every moving vehicle's predicted body on the way? It has moved one tick
  * when the samples' clock starts (they are the vehicles after this tick's move).
  */
-function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing = PASSING_M): boolean {
+function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing: number): boolean {
+  return passCheck(vehicles, px, pz, wx, wz, len, speed, r, passing) === 0;
+}
+
+/**
+ * passesClear's answer: 0 clear; 1 too close on the way (every longer line along it is too);
+ * 2 too close only once at the landing, waiting there (a longer line along it may be clear).
+ */
+function passCheck(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing: number): 0 | 1 | 2 {
+  let out: 0 | 1 | 2 = 0;
   for (const v of vehicles) {
     for (const path of v.paths) {
       for (const s of path) {
-        const along = Math.min(len, speed * (s.t + DT));
+        const go = speed * (s.t + DT);
+        const along = go < len ? go : len;
         const x = px + wx * along;
         const z = pz + wz * along;
-        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + passing + v.spread * s.t) return false;
+        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + passing + v.spread * s.t) {
+          if (go < len) return 1;
+          out = 2;
+        }
       }
     }
   }
-  return true;
+  return out;
 }
 
 /**
@@ -640,13 +806,15 @@ const MARCH_M = 0.25;
  * OTHER_SIDE_COST penalties). `threat` is the earliest hit (its pose sets "square to the path"
  * and the side the body is on); `vehicles` every vehicle near enough to matter; `spots` bodies
  * and landing spots to keep clear of. A spot must be clear of every vehicle with the body's
- * margin, its line must be clear of buildings, walls and big steps, of every stopped vehicle's
- * body, and of the moving vehicles on the way (by the body's margin when any line is, else by
- * PASSING_M). When nothing qualifies with the spots, again without them; when still nothing, the spot
- * on the lines with the most clearance from the vehicles (a best effort the override backs
- * up), or null when no line leads anywhere. `prefer` (a unit direction: a dive already under
- * way) keeps a body from changing its mind: its side is the side that direction is on, and a
- * line turning back against it costs up to REVERSE_COST more.
+ * margin; its line, walked over the ground (walkTo), must be clear of buildings, walls and big
+ * steps and of every stopped vehicle's reach, and stay clear of the moving vehicles on the way:
+ * by the body's margin when any line is, else by its clearance from them plus 0.05 m (at least
+ * PASSING_M); across a vehicle's path, CROSSING_EXTRA_M more. When nothing qualifies, the spot on
+ * the lines with the most clearance from the vehicles whose line never meets a vehicle's
+ * predicted body (a best effort the override backs up), or null. `prefer` (a unit direction:
+ * a dive already under way) keeps a body from changing its mind: its side is the side that
+ * direction is on, and a line turning back against it costs up to REVERSE_COST more. `speed` is
+ * the dive's speed (boosted when it scrambles).
  */
 export function chooseDive(
   g: Ground,
@@ -678,10 +846,11 @@ export function chooseDive(
             : -1;
   const moving = vehicles.filter((v) => v.paths.length > 0);
   const stopped = vehicles.filter((v) => v.paths.length === 0);
+  const close = Math.max(PASSING_M, (prof.override ?? ROBOT_GAP_M) + 0.05);
   // First a line that keeps the body's whole margin from every predicted footprint on the way
-  // (one that only stays PASSING_M clear can cut in front of a turning car's arc); then, when
-  // there is none, any line that stays PASSING_M clear.
-  for (const passing of [prof.margin, PASSING_M]) {
+  // (one that only stays close by can cut in front of a turning car's arc); then, when there is
+  // none, any line that stays the body's clearance from it and a little more.
+  for (const passing of [prof.margin, close]) {
     let best: { x: number; z: number; cost: number } | null = null;
     for (const sideSign of [side, -side]) {
       for (const [ang, angCost] of FAN) {
@@ -695,14 +864,17 @@ export function chooseDive(
         const back = prefer ? -(wx * prefer.x + wz * prefer.z) : 0;
         const base = angCost + (sideSign === side ? 0 : OTHER_SIDE_COST) + (back > 0 ? REVERSE_COST * back : 0);
         if (best && base + MARCH_M >= best.cost) continue;
+        const walk: Walk = { x: b.x, z: b.z, feet: b.y };
         for (let len = MARCH_M; len <= prof.maxDive + 1e-9; len += MARCH_M) {
           if (best && base + len >= best.cost) break;
           const x = b.x + wx * len;
           const z = b.z + wz * len;
-          if (!lineOpen(g, b, x, z, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r)) break;
+          if (!walkTo(g, walk, x, z, b.r, b.y, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r, prof)) break;
           if (!clearOfVehicles(vehicles, x, z, b.r, prof.margin + LANDING_EXTRA_M)) continue;
           // (Across the vehicle's path: with a wider berth, since that line goes in front of it.)
-          if (!passesClear(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M), passing)) break;
+          const pass = passCheck(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M), passing);
+          if (pass === 1) break;
+          if (pass === 2) continue;
           // Onto another body or landing: allowed, but dearer (a little further on is usually free).
           if (!spotFree(spots, x, z, b.r)) {
             if (!best || base + len + CROWDED_COST < best.cost) best = { x, z, cost: base + len + CROWDED_COST };
@@ -715,7 +887,9 @@ export function chooseDive(
     }
     if (best) return { x: best.x, z: best.z };
   }
-  // Best effort: the spot on the lines that keeps furthest from the vehicles.
+  // Best effort: the spot on the lines that keeps furthest from the vehicles, on a line that
+  // never meets any vehicle's predicted body on the way (never through or into one; a step that
+  // would end deeper in a vehicle's reach is stopped short, and the override backs it up).
   let far: { x: number; z: number; d: number } | null = null;
   const here = vehicleClearance(vehicles, b.x, b.z);
   for (const sideSign of [side, -side]) {
@@ -724,10 +898,14 @@ export function chooseDive(
       const sn = dsin(ang);
       const wx = nx * sideSign * c - s.ux * sn;
       const wz = nz * sideSign * c - s.uz * sn;
+      const walk: Walk = { x: b.x, z: b.z, feet: b.y };
       for (let len = MARCH_M; len <= prof.maxDive + 1e-9; len += MARCH_M) {
         const x = b.x + wx * len;
         const z = b.z + wz * len;
-        if (!lineOpen(g, b, x, z, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r)) break;
+        if (!walkTo(g, walk, x, z, b.r, b.y, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r, prof)) break;
+        const pass = passCheck(moving, b.x, b.z, wx, wz, len, speed, b.r, 0);
+        if (pass === 1) break;
+        if (pass === 2) continue;
         const d = vehicleClearance(vehicles, x, z);
         if (d > here && (!far || d > far.d)) far = { x, z, d };
       }
@@ -736,26 +914,30 @@ export function chooseDive(
   return far ? { x: far.x, z: far.z } : null;
 }
 
-/** Can the body get from where it is to (x, z): no building or wall in between, not into a building, no step bigger than `step`? */
-function lineOpen(g: Ground, b: Readonly<Body>, x: number, z: number, step: number): boolean {
-  const w = g.world;
-  if (segmentCrossesWall(w.walls, b.x, b.z, x, z)) return false;
-  if (circleBlocked(w, x, z, b.r)) return false;
-  if (segmentBlocked(w, b.x, b.z, x, z)) return false;
-  const h = g.height(x, z, b.y);
-  return (h > b.y ? h - b.y : b.y - h) <= step;
+/** The override's spot, and how far it had to go to find one (0: along a line it can walk). */
+export interface OverrideSpot {
+  x: number;
+  z: number;
+  /**
+   * 0: along a line walked as a dive's is (no wall, no building, a step of at most
+   * OVERRIDE_STEP_M); 1: the same with any drop; 2: over a building (never across a wall); 3:
+   * anywhere outside the vehicles' reach (the last resort). 2 and 3 count as failures.
+   */
+  tier: 0 | 1 | 2 | 3;
 }
 
 /**
- * The override's spot: the nearest point outside every vehicle (each moving one's body plus the
- * body's override clearance, each parked one's body) that the body can leap to: not into a
- * building, never across a wall or a building, no step over OVERRIDE_STEP_M. It may leap over
- * the vehicle. A spot in a moving vehicle's path (its predicted footprint plus the clearance)
- * costs 100 m more, so nobody is put down in front of the car to be leapt again; one on another
- * body costs 0.5 m more. Lines every 15 degrees and along the vehicles' sides, out to
- * CLEAR_NEAR_M every 0.1 m, then CLEAR_FAR_M every 0.5 m; null if there is nowhere at all.
+ * The override's spot: the nearest point outside every vehicle's reach (each moving one's plus
+ * the body's override clearance, each stopped one's plus STOPPED_CLEAR_M) that the body can leap
+ * to. It may leap over a vehicle. A spot in a moving vehicle's path (its predicted footprint plus
+ * the clearance) costs 100 m more, so nobody is put down in front of the car to be leapt again;
+ * one on another body costs 0.5 m more. Lines every 15 degrees and along the vehicles' sides,
+ * out to CLEAR_NEAR_M every 0.1 m, then CLEAR_FAR_M every 0.5 m, walked as a dive's are (a
+ * player on a roof leaps along it or off it); when no line leads anywhere, the same with any
+ * drop, then over buildings, then anywhere outside the vehicles (OverrideSpot.tier). Never
+ * fails: there is always a spot.
  */
-export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Vehicle[], spots: readonly Spot[], clearance: number): { x: number; z: number } | null {
+export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Vehicle[], spots: readonly Spot[], clearance: number): OverrideSpot {
   const moving = vehicles.filter((v) => v.paths.length > 0);
   const dirs: Array<[number, number]> = [];
   for (let k = 0; k < 24; k++) {
@@ -767,37 +949,45 @@ export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Ve
   }
   const outside = (x: number, z: number): boolean => {
     for (const v of vehicles) {
-      const need = b.r + (v.speed > PARKED_SPEED ? clearance : 0) + 0.02;
-      if (bodyDistance(v, x, z) < need) return false;
+      const need = b.r + (v.moving ? clearance : STOPPED_CLEAR_M) + 0.02;
+      if (zoneDistance(v, x, z) < need) return false;
     }
     return true;
   };
-  for (const [reachM, stepM] of [
-    [CLEAR_NEAR_M, 0.1],
-    [CLEAR_FAR_M, 0.5],
-  ] as const) {
-    let best: { x: number; z: number; cost: number } | null = null;
-    for (const [wx, wz] of dirs) {
-      for (let len = stepM; len <= reachM + 1e-9; len += stepM) {
-        if (best && len >= best.cost) break;
-        const x = b.x + wx * len;
-        const z = b.z + wz * len;
-        if (segmentCrossesWall(g.world.walls, b.x, b.z, x, z)) break;
-        if (segmentBlocked(g.world, b.x, b.z, x, z)) break;
-        const h = g.height(x, z, b.y);
-        if ((h > b.y ? h - b.y : b.y - h) > OVERRIDE_STEP_M) break;
-        if (circleBlocked(g.world, x, z, b.r)) continue;
-        if (!outside(x, z)) continue;
-        let cost = len;
-        if (!clearOfVehicles(moving, x, z, b.r, clearance, false)) cost += 100;
-        if (!spotFree(spots, x, z, b.r)) cost += 0.5;
-        if (!best || cost < best.cost) best = { x, z, cost };
-        if (cost === len) break;
+  const tiers: ReadonlyArray<{ tier: 0 | 1 | 2 | 3; reach: ReadonlyArray<readonly [number, number]> }> = [
+    { tier: 0, reach: [[CLEAR_NEAR_M, 0.1], [CLEAR_FAR_M, 0.5]] },
+    { tier: 1, reach: [[CLEAR_NEAR_M, 0.1], [CLEAR_FAR_M, 0.5]] },
+    { tier: 2, reach: [[CLEAR_NEAR_M, 0.1], [CLEAR_FAR_M, 0.5]] },
+    { tier: 3, reach: [[CLEAR_LAST_M, 0.25]] },
+  ];
+  for (const { tier, reach } of tiers) {
+    for (const [reachM, stepM] of reach) {
+      let best: { x: number; z: number; cost: number } | null = null;
+      for (const [wx, wz] of dirs) {
+        const walk: Walk = { x: b.x, z: b.z, feet: b.y };
+        for (let len = stepM; len <= reachM + 1e-9; len += stepM) {
+          if (best && len >= best.cost) break;
+          const x = b.x + wx * len;
+          const z = b.z + wz * len;
+          if (tier <= 1) {
+            if (!walkTo(g, walk, x, z, b.r, b.y, tier === 0 ? OVERRIDE_STEP_M : Infinity)) break;
+          } else if (tier === 2) {
+            if (segmentCrossesWall(g.world.walls, b.x, b.z, x, z)) break;
+            if (blockedAt(g, x, z, b.r, g.height(x, z, b.y))) continue;
+          }
+          if (!outside(x, z)) continue;
+          let cost = len;
+          if (!clearOfVehicles(moving, x, z, b.r, clearance, false)) cost += 100;
+          if (!spotFree(spots, x, z, b.r)) cost += 0.5;
+          if (!best || cost < best.cost) best = { x, z, cost };
+          if (cost === len) break;
+        }
       }
+      if (best) return { x: best.x, z: best.z, tier };
     }
-    if (best) return { x: best.x, z: best.z };
   }
-  return null;
+  // (Unreachable: the vehicles are bounded, so some point CLEAR_LAST_M away is outside them all.)
+  return { x: b.x, z: b.z - CLEAR_LAST_M - 10, tier: 3 };
 }
 
 // ---------------------------------------------------------------- the dive itself
@@ -824,6 +1014,12 @@ export function redirectDive(prof: DodgeProfile, d: Readonly<DodgeState>, px: nu
   return { phase: "dive", sx: px + (px - tx) * k, sz: pz + (pz - tz) * k, tx, tz, t, dur, peak: d.peak, hop: d.hop, leap: false };
 }
 
+/** How fast a dive moves its body, m/s (its line over its ticks). */
+export function diveSpeed(d: Readonly<DodgeState>): number {
+  const len = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
+  return d.dur > 0 ? len / (d.dur * DT) : 0;
+}
+
 /** One tick of a dodge: the new state (null when over) and where the body is. */
 export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfile>): { dodge: DodgeState | null; x: number; z: number } {
   if (d.phase === "recover") {
@@ -837,6 +1033,50 @@ export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfil
   const hop = 4 * d.peak * u * (1 - u);
   if (d.leap) return { dodge: { ...d, t, hop }, x: d.tx, z: d.tz };
   return { dodge: { ...d, t, hop }, x: d.sx + (d.tx - d.sx) * u, z: d.sz + (d.tz - d.sz) * u };
+}
+
+/**
+ * The override's leap of `dist` metres: how long it is drawn (ticks) and how high it hops. A
+ * long one is the big superhuman hop (the profile's leapPeak over LEAP_TICKS); a short one (a
+ * robotaxi creeping up, a car brushing past) a quick stumble-hop aside.
+ */
+export function leapShape(prof: Readonly<DodgeProfile>, dist: number): { dur: number; peak: number } {
+  return { dur: clamp(Math.round(12 + 6 * dist), 12, LEAP_TICKS), peak: Math.min(prof.leapPeak, 0.2 + 0.45 * dist) };
+}
+
+/**
+ * Where a step from (x0, z0) to (x1, z1) must stop: short of the first point at which it would go
+ * deeper into a vehicle's reach than the body may be (clearanceFrom), checked every STEP_CHECK_M;
+ * null when the whole step is fine. A body already too close may still step away (any step that
+ * does not take it deeper).
+ */
+function stepStop(vs: readonly Vehicle[], x0: number, z0: number, x1: number, z1: number, r: number, prof: Readonly<DodgeProfile>): { x: number; z: number } | null {
+  if (vs.length === 0) return null;
+  const len = Math.sqrt((x1 - x0) * (x1 - x0) + (z1 - z0) * (z1 - z0));
+  if (len < 1e-9) return null;
+  const slack = (x: number, z: number): number => {
+    let s = Infinity;
+    for (const v of vs) {
+      const d = zoneDistance(v, x, z) - r - clearanceFrom(v, prof);
+      if (d < s) s = d;
+    }
+    return s;
+  };
+  const n = Math.ceil(len / STEP_CHECK_M);
+  let prev = slack(x0, z0);
+  let px = x0;
+  let pz = z0;
+  for (let i = 1; i <= n; i++) {
+    const f = i / n;
+    const x = x0 + (x1 - x0) * f;
+    const z = z0 + (z1 - z0) * f;
+    const s = slack(x, z);
+    if (s < 0 && s < prev - 1e-9) return { x: px, z: pz };
+    prev = s;
+    px = x;
+    pz = z;
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------- the tick
@@ -943,7 +1183,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   // walk) only when a dodger is near enough to be in it; one that might matter only for where
   // someone lands is predicted when a dive needs it (ensurePaths; the same paths either way).
   const vehicles: Vehicle[] = [];
-  for (const id of ids) vehicles.push(vehicleOfCar(id, after.players[id]!.car));
+  for (const id of ids) vehicles.push(vehicleOfCar(id, after.players[id]!.car, before.players[id]?.car ?? null));
   const prevAgents = new Map<number, AgentState>();
   for (const a of (before.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) prevAgents.set(a.id, a);
   const bodies = playerBodies(before);
@@ -951,10 +1191,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const pending = new Map<number, { a: AgentState; dt: number }>();
   for (const a of agents) {
     if (!AGENT_SPEC[a.kind].road) continue;
-    const spec = AGENT_SPEC[a.kind];
     let predict = false;
     if (a.speed >= DODGE_MIN_SPEED) {
-      const reach = a.speed * horizonS(a.speed) + spec.halfLength + spec.halfWidth + maxReach + 1;
+      const reach = a.speed * horizonS(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + maxReach + 1;
       near(a.x - reach, a.z - reach, a.x + reach, a.z + reach, scratch);
       for (const i of scratch) {
         const r = recs[i]!;
@@ -973,13 +1212,40 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const ensurePaths = (x: number, z: number, reach: number): void => {
     for (const [vi, p] of pending) {
       const a = p.a;
-      const spec = AGENT_SPEC[a.kind];
-      const lim = reach + a.speed * horizonS(a.speed) + spec.halfLength + spec.halfWidth;
+      const lim = reach + a.speed * horizonS(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth;
       if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
-      vehicles[vi] = vehicleOfAgent(a, prevAgents.get(a.id) ?? null, p.dt, world, true);
+      const v = vehicleOfAgent(a, prevAgents.get(a.id) ?? null, p.dt, world, true);
+      v.inflate = vehicles[vi]!.inflate;
+      vehicles[vi] = v;
       pending.delete(vi);
     }
   };
+  // A player's car is pushed out of whatever overlaps it at the start of its next step (another
+  // car, a robotaxi, a robot: collide.ts resolveBox, by up to CAR.maxPush): its reach grows by
+  // that overlap.
+  ids.forEach((id, i) => {
+    const c = after.players[id]!.car;
+    const fx = dsin(c.heading);
+    const fz = -dcos(c.heading);
+    const lim = CAR.halfLength + CAR.halfWidth + 6;
+    let shove = 0;
+    const push = (cx: number, cz: number, cr: number): void => {
+      if ((cx - c.x) * (cx - c.x) + (cz - c.z) * (cz - c.z) > lim * lim) return;
+      const pen = cr - boxDistance(cx, cz, c.x, c.z, fx, fz, CAR.halfLength, CAR.halfWidth);
+      if (pen > shove) shove = pen;
+    };
+    for (const other of ids) {
+      if (other === id) continue;
+      for (const k of carCircles(after.players[other]!.car)) push(k.x, k.z, k.r);
+    }
+    for (const a of agents) {
+      if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim * lim) continue;
+      const cls = agentDodgeClass(a);
+      if (cls === "person" || cls === "care") continue;
+      for (const k of agentCircles(a)) push(k.x, k.z, k.r);
+    }
+    if (shove > 0) vehicles[i]!.inflate += Math.min(CAR.maxPush, shove);
+  });
 
   // Who is in whose predicted footprint.
   vehicles.forEach((v, vi) => {
@@ -1020,6 +1286,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   let overrides = ext0.overrides;
   let dives = ext0.dives;
   let nearMisses = ext0.nearMisses;
+  let failures = ext0.failures;
   const credit = new Map<PlayerId, { near: number; bumps: number }>();
   const creditTo = (v: Vehicle, near: number, bumps: number): void => {
     if (v.player === null) return;
@@ -1029,62 +1296,101 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     credit.set(v.player, c);
   };
 
-  const heightFor = (r: Rec): Ground => ({
-    world,
-    height: r.player !== null ? (x, z, feet) => surfaceHeight(world, x, z, feet) : (x, z) => meshGroundHeight(world, x, z),
-  });
+  const groundOf = (r: Rec): Ground => groundFor(world, r.player !== null);
+  const notOwn = (r: Rec) => (v: Vehicle): boolean => v.player === null || v.player !== r.player;
+  /** Vehicles whose footprint or reach comes within `reach` of the body (predicting robotaxis that may need it). */
   const vehiclesNear = (r: Rec, reach: number): Vehicle[] => {
     ensurePaths(r.x, r.z, reach);
-    return vehicles.filter((v) => r.x >= v.minX - reach && r.x <= v.maxX + reach && r.z >= v.minZ - reach && r.z <= v.maxZ + reach);
+    return vehicles.filter((v) => {
+      if (!notOwn(r)(v)) return false;
+      const lim = reach + v.hl + v.hw + v.inflate;
+      const inBox = r.x >= v.minX - reach && r.x <= v.maxX + reach && r.z >= v.minZ - reach && r.z <= v.maxZ + reach;
+      return inBox || ((r.x - v.mx) * (r.x - v.mx) + (r.z - v.mz) * (r.z - v.mz) <= lim * lim);
+    });
   };
+  /** Vehicles whose reach comes within `reach` of (x, z) (no prediction). */
+  const reachNear = (r: Rec, x: number, z: number, reach: number): Vehicle[] =>
+    vehicles.filter((v) => {
+      if (!notOwn(r)(v)) return false;
+      const lim = reach + v.hl + v.hw + v.inflate;
+      return (x - v.mx) * (x - v.mx) + (z - v.mz) * (z - v.mz) <= lim * lim;
+    });
 
-  // 1-2. Watch and dive.
+  // 1-3. Watch and dive; every dive step stays out of the vehicles' reach.
   for (let ri = 0; ri < recs.length; ri++) {
     const r = recs[ri]!;
     const prof = DODGE_PROFILE[r.cls];
     r.threats.sort((a, b) => a.hit.t - b.hit.t || a.v - b.v);
-    const threatened = r.threats.length > 0 && r.canDive;
+    const threat = r.canDive && r.threats.length > 0 ? r.threats[0]! : null;
     let d = r.dodge;
-    if (threatened) {
-      const reach = prof.maxDive + r.r + prof.margin + 1;
-      const nearV = vehiclesNear(r, reach).filter((v) => v.player === null || v.player !== r.player);
-      const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
-      // Keep a dive whose landing and line stay clear (the line by the body's whole margin);
-      // otherwise choose again from here.
-      let keep = false;
-      if (d && d.phase === "dive" && !d.leap) {
-        const len = Math.sqrt((d.tx - r.x) * (d.tx - r.x) + (d.tz - r.z) * (d.tz - r.z));
-        const wx = len > 1e-9 ? (d.tx - r.x) / len : 0;
-        const wz = len > 1e-9 ? (d.tz - r.z) / len : 0;
-        keep =
-          clearOfVehicles(nearV, d.tx, d.tz, r.r, prof.margin) &&
-          passesClear(nearV.filter((v) => v.paths.length > 0), r.x, r.z, wx, wz, len, prof.speed, r.r, prof.margin) &&
-          lineClearOfStopped(nearV.filter((v) => v.paths.length === 0), r.x, r.z, d.tx, d.tz, r.r);
+    const diving = d !== null && d.phase === "dive" && !d.leap;
+    let nearV: Vehicle[] | null = null;
+    const nearby = (): Vehicle[] => nearV ?? (nearV = vehiclesNear(r, prof.maxDive + r.r + prof.margin + 1));
+    // A dive under way still holds when its landing is clear of every footprint and its line
+    // keeps the body's margin from the moving vehicles and clear of the stopped ones.
+    let holds = true;
+    if (diving) holds = diveHolds(nearby(), r.x, r.z, d!, r.r, prof);
+    if ((threat && !(diving && holds)) || !holds) {
+      const nv = nearby();
+      let hit: Hit | null = threat ? threat.hit : null;
+      let by: Vehicle | null = threat ? vehicles[threat.v]! : null;
+      if (!hit && diving) {
+        const t = threatAlong(nv, r.x, r.z, d!.tx, d!.tz, r.r, prof);
+        if (t) {
+          hit = t.hit;
+          by = t.v;
+        }
       }
-      if (!keep) {
+      let to: { x: number; z: number } | null = null;
+      // Seen late, or already scrambling: scramble.
+      const scramble = (hit !== null && hit.t <= EMERGENCY_S) || (diving && diveSpeed(d!) > prof.speed * 1.01);
+      const speed = scramble ? prof.speed * EMERGENCY_BOOST : prof.speed;
+      if (hit) {
         // A dive under way keeps its direction if it can (no dithering as a car steers about).
         let prefer: { x: number; z: number } | null = null;
-        if (d && d.phase === "dive" && !d.leap) {
-          const len = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
-          if (len > 1e-9) prefer = { x: (d.tx - d.sx) / len, z: (d.tz - d.sz) / len };
+        if (diving) {
+          const len = Math.sqrt((d!.tx - d!.sx) * (d!.tx - d!.sx) + (d!.tz - d!.sz) * (d!.tz - d!.sz));
+          if (len > 1e-9) prefer = { x: (d!.tx - d!.sx) / len, z: (d!.tz - d!.sz) / len };
         }
-        // Seen late: scramble.
-        const speed = r.threats[0]!.hit.t <= EMERGENCY_S ? prof.speed * EMERGENCY_BOOST : prof.speed;
-        const to = chooseDive(heightFor(r), body, r.threats[0]!.hit, nearV, spotsNear(ri, prof.maxDive + 2), prefer, speed);
-        if (to) {
-          const fresh = !d || d.phase !== "dive" || d.leap;
-          d = fresh ? startDive(prof, r.x, r.z, to.x, to.z, speed) : redirectDive(prof, d!, r.x, r.z, to.x, to.z, speed);
-          takeSpots().push({ x: to.x, z: to.z, r: r.r, owner: ri });
-          if (fresh) {
-            dives++;
-            nearMisses++;
-            creditTo(vehicles[r.threats[0]!.v]!, 1, 0);
-          }
+        const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
+        to = chooseDive(groundOf(r), body, hit, nv, spotsNear(ri, prof.maxDive + 2), prefer, speed);
+      }
+      if (to) {
+        d = diving ? redirectDive(prof, d!, r.x, r.z, to.x, to.z, speed) : startDive(prof, r.x, r.z, to.x, to.z, speed);
+        takeSpots().push({ x: to.x, z: to.z, r: r.r, owner: ri });
+        if (!diving) {
+          dives++;
+          nearMisses++;
+          if (by) creditTo(by, 1, 0);
         }
+      } else if (diving && !holds) {
+        // Nowhere better: land short of whatever is in the way (never through a vehicle).
+        const end = clearPart(nv, r.x, r.z, d!.tx, d!.tz, r.r, prof);
+        d = redirectDive(prof, d!, r.x, r.z, end.x, end.z, Math.max(diveSpeed(d!), 1));
       }
     }
     if (d) {
       const n = advanceDodge(d, prof);
+      if (n.dodge && n.dodge.phase === "dive" && !n.dodge.leap) {
+        const stop = stepStop(reachNear(r, r.x, r.z, 2), r.x, r.z, n.x, n.z, r.r, prof);
+        if (stop) {
+          // Stopped short this tick (re-aimed next tick, its line no longer holding): the dive is
+          // put back along its line so it carries on from here.
+          const u = n.dodge.t / n.dodge.dur;
+          const k = u / (1 - u);
+          n.dodge = { ...n.dodge, sx: stop.x + (stop.x - n.dodge.tx) * k, sz: stop.z + (stop.z - n.dodge.tz) * k };
+          n.x = stop.x;
+          n.z = stop.z;
+        }
+      } else if (n.dodge && n.dodge.phase === "recover" && d.phase === "dive" && !d.leap) {
+        // Landing this tick: the last step is checked too, and the body gets up where it stopped.
+        const stop = stepStop(reachNear(r, r.x, r.z, 2), r.x, r.z, n.x, n.z, r.r, prof);
+        if (stop) {
+          n.dodge = { ...n.dodge, tx: stop.x, tz: stop.z };
+          n.x = stop.x;
+          n.z = stop.z;
+        }
+      }
       r.x = n.x;
       r.z = n.z;
       r.dodge = n.dodge;
@@ -1092,12 +1398,11 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     }
   }
 
-  // 3. The hard guarantee. Candidates: the dodgers near each vehicle's body (with slack for
-  // this tick's dives, which move a body under 0.3 m; a leap below is checked where it lands).
+  // 4. The hard guarantee. Candidates: the dodgers near each vehicle's reach.
   const cand = new Map<number, number[]>();
   vehicles.forEach((v, vi) => {
-    const reach = v.hl + v.hw + DODGE_PROFILE.care.override! + 1;
-    near(v.x - reach, v.z - reach, v.x + reach, v.z + reach, scratch);
+    const reach = v.hl + v.hw + v.inflate + DODGE_PROFILE.care.override! + 1;
+    near(v.mx - reach, v.mz - reach, v.mx + reach, v.mz + reach, scratch);
     for (const i of scratch) {
       let l = cand.get(i);
       if (!l) cand.set(i, (l = []));
@@ -1113,15 +1418,14 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const clearance = prof.override!;
     let inside = false;
     let worst: Vehicle | null = null;
-    let worstD = Infinity;
+    let worstD = 0;
     for (const vi of mine) {
       const v = vehicles[vi]!;
       if (v.player !== null && v.player === r.player) continue;
-      const d = bodyDistance(v, r.x, r.z);
-      if (d < r.r) inside = true;
-      const need = r.r + (v.speed > PARKED_SPEED ? clearance : 0);
-      if (d < need && d - need < worstD) {
-        worstD = d - need;
+      if (bodyDistance(v, r.x, r.z) < r.r) inside = true;
+      const s = zoneDistance(v, r.x, r.z) - r.r - clearanceFrom(v, prof);
+      if (s < worstD) {
+        worstD = s;
         worst = v;
       }
     }
@@ -1130,14 +1434,16 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       contacts++;
       creditTo(worst, 0, 1);
     }
-    const nearV = vehiclesNear(r, CLEAR_FAR_M).filter((v) => v.player === null || v.player !== r.player);
+    const nearV = vehiclesNear(r, CLEAR_FAR_M);
     const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
-    const to = overrideSpot(heightFor(r), body, nearV, spotsNear(ri, CLEAR_NEAR_M + 2), clearance);
-    if (!to) continue;
+    const to = overrideSpot(groundOf(r), body, nearV, spotsNear(ri, CLEAR_NEAR_M + 2), clearance);
+    if (to.tier >= 2) failures++;
     overrides++;
     nearMisses++;
     creditTo(worst, 1, 0);
-    r.dodge = { phase: "dive", sx: r.x, sz: r.z, tx: to.x, tz: to.z, t: 0, dur: LEAP_TICKS, peak: prof.leapPeak, hop: 0, leap: true };
+    const dist = Math.sqrt((to.x - r.x) * (to.x - r.x) + (to.z - r.z) * (to.z - r.z));
+    const shape = leapShape(prof, dist);
+    r.dodge = { phase: "dive", sx: r.x, sz: r.z, tx: to.x, tz: to.z, t: 0, dur: shape.dur, peak: shape.peak, hop: 0, leap: true };
     r.x = to.x;
     r.z = to.z;
     r.changed = true;
@@ -1145,7 +1451,14 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   }
 
   // Write back.
-  const changed = recs.some((r) => r.changed) || credit.size > 0 || contacts !== ext0.contacts || overrides !== ext0.overrides || dives !== ext0.dives || nearMisses !== ext0.nearMisses;
+  const changed =
+    recs.some((r) => r.changed) ||
+    credit.size > 0 ||
+    contacts !== ext0.contacts ||
+    overrides !== ext0.overrides ||
+    dives !== ext0.dives ||
+    nearMisses !== ext0.nearMisses ||
+    failures !== ext0.failures;
   if (!changed) return after;
   const players: Record<PlayerId, PlayerState> = { ...after.players };
   for (const r of recs) {
@@ -1172,9 +1485,71 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     }
     ext = { ...ext, [AGENTS_EXT_KEY]: { ...agentsExt, list } };
   }
-  const counters: DodgeExt = { contacts, overrides, dives, nearMisses };
+  const counters: DodgeExt = { contacts, overrides, dives, nearMisses, failures };
   ext = { ...ext, [DODGE_EXT_KEY]: counters };
   return { ...after, players, ext };
+}
+
+/**
+ * Does a dive under way still hold, from where the body is (px, pz)? Its landing clear of every
+ * vehicle's footprint (with the margin), its line keeping the margin from every moving vehicle
+ * on the way at the dive's own speed, and clear of every stopped one.
+ */
+function diveHolds(vehicles: readonly Vehicle[], px: number, pz: number, d: Readonly<DodgeState>, r: number, prof: Readonly<DodgeProfile>): boolean {
+  const len = Math.sqrt((d.tx - px) * (d.tx - px) + (d.tz - pz) * (d.tz - pz));
+  if (!clearOfVehicles(vehicles, d.tx, d.tz, r, prof.margin)) return false;
+  if (len < 1e-6) return true;
+  const wx = (d.tx - px) / len;
+  const wz = (d.tz - pz) / len;
+  const moving = vehicles.filter((v) => v.paths.length > 0);
+  const stopped = vehicles.filter((v) => v.paths.length === 0);
+  return passesClear(moving, px, pz, wx, wz, len, Math.max(diveSpeed(d), 1), r, prof.margin) && lineClearOfStopped(stopped, px, pz, d.tx, d.tz, r, prof);
+}
+
+/**
+ * What a dive's line from (px, pz) to (tx, tz) runs into: the earliest hit of a moving vehicle's
+ * footprint on it (the body's margin), else a stopped vehicle in the way (as a hit now, its body
+ * along its nose), else null.
+ */
+function threatAlong(vehicles: readonly Vehicle[], px: number, pz: number, tx: number, tz: number, r: number, prof: Readonly<DodgeProfile>): { hit: Hit; v: Vehicle } | null {
+  const len = Math.sqrt((tx - px) * (tx - px) + (tz - pz) * (tz - pz));
+  const n = Math.max(1, Math.ceil(len / MARCH_M));
+  let best: { hit: Hit; v: Vehicle } | null = null;
+  for (const v of vehicles) {
+    if (v.paths.length === 0) continue;
+    for (let i = 0; i <= n; i++) {
+      const f = i / n;
+      const h = sweepHit(v, px + (tx - px) * f, pz + (tz - pz) * f, r + prof.margin);
+      if (h && (!best || h.t < best.hit.t)) best = { hit: h, v };
+    }
+  }
+  if (best) return best;
+  for (const v of vehicles) {
+    if (v.paths.length > 0) continue;
+    for (let i = 1; i <= n; i++) {
+      const f = i / n;
+      if (zoneDistance(v, px + (tx - px) * f, pz + (tz - pz) * f) < r + clearanceFrom(v, prof) + STOPPED_GAP_M) {
+        return { hit: { t: 0, sample: { t: 0, x: v.x, z: v.z, fx: v.fx, fz: v.fz, ux: v.fx, uz: v.fz } }, v };
+      }
+    }
+  }
+  return null;
+}
+
+/** The furthest point of the line from (px, pz) toward (tx, tz) up to which it stays clear of every stopped vehicle (from where it is). */
+function clearPart(vehicles: readonly Vehicle[], px: number, pz: number, tx: number, tz: number, r: number, prof: Readonly<DodgeProfile>): { x: number; z: number } {
+  const stopped = vehicles.filter((v) => v.paths.length === 0);
+  const len = Math.sqrt((tx - px) * (tx - px) + (tz - pz) * (tz - pz));
+  const n = Math.max(1, Math.ceil(len / MARCH_M));
+  let at = { x: px, z: pz };
+  for (let i = 1; i <= n; i++) {
+    const f = i / n;
+    const x = px + (tx - px) * f;
+    const z = pz + (tz - pz) * f;
+    if (!clearOfStopped(stopped, x, z, r, prof)) break;
+    at = { x, z };
+  }
+  return at;
 }
 
 /**

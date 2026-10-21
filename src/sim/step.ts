@@ -16,7 +16,7 @@ import {
 import { clamp } from "./dmath.ts";
 import { carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
-import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
+import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
 import { agentDodgeClass, stepDodge } from "./dodge.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
@@ -135,32 +135,54 @@ interface Obstacles {
   forCar: Map<PlayerId, Circle[]>;
   /** Round bodies a player's walker must not pass through: agents and other walkers. */
   forWalker: Map<PlayerId, Circle[]>;
+  /**
+   * Vehicle bodies a player's walker must not pass through: every player's car and every
+   * robotaxi near (its drawn body, ROBOTAXI_BODY), each grown by WALKER_SKIN_M.
+   */
+  walkerBoxes: Map<PlayerId, Box[]>;
 }
+
+/**
+ * A player's walker keeps this far off a vehicle's body (more than the dodge's clearance from a
+ * stopped vehicle's reach, dodge.ts STOPPED_CLEAR_M plus its creep), so leaning on a parked car
+ * or a waiting robotaxi never sets off the dodge's override.
+ */
+export const WALKER_SKIN_M = 0.04;
 
 /** Agents farther than this from a player's body cannot touch it this tick. */
 const NEAR_AGENT_M = 40;
 
 function obstaclesOf(prev: Readonly<SimState>): Obstacles {
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
-  const agentRound: Circle[] = [];
+  const agentRound: Array<Circle & { road: boolean }> = [];
+  const taxiBoxes: Box[] = [];
   for (const a of agents) {
     // People and animals: under the dodge's override (dodge.ts), never a car's obstacle.
     const cls = agentDodgeClass(a);
     const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
-    for (const c of agentCircles(a)) agentRound.push({ x: c.x, z: c.z, r: c.r, person });
+    const road = AGENT_SPEC[a.kind].road;
+    for (const c of agentCircles(a)) agentRound.push({ x: c.x, z: c.z, r: c.r, person, road });
+    if (road) taxiBoxes.push({ x: a.x, z: a.z, heading: a.heading, hl: ROBOTAXI_BODY.halfLength + WALKER_SKIN_M, hw: ROBOTAXI_BODY.halfWidth + WALKER_SKIN_M });
   }
   const ids = sortedIds(prev.players);
   const carBoxes = new Map<PlayerId, Box>();
   const forCar = new Map<PlayerId, Circle[]>();
   const forWalker = new Map<PlayerId, Circle[]>();
+  const walkerBoxes = new Map<PlayerId, Box[]>();
   for (const id of ids) carBoxes.set(id, carBox(prev.players[id]!.car));
+  const skinned: Box[] = ids.map((id) => {
+    const b = carBoxes.get(id)!;
+    return { ...b, hl: b.hl + WALKER_SKIN_M, hw: b.hw + WALKER_SKIN_M };
+  });
   for (const id of ids) {
     const p = prev.players[id]!;
     const bx = p.mode === "foot" && p.foot ? p.foot.x : p.car.x;
     const bz = p.mode === "foot" && p.foot ? p.foot.z : p.car.z;
     const near = agentRound.filter((c) => (c.x - bx) * (c.x - bx) + (c.z - bz) * (c.z - bz) < NEAR_AGENT_M * NEAR_AGENT_M);
-    const car: Circle[] = near.filter((c) => !c.person);
-    const walker: Circle[] = [...near];
+    const car: Circle[] = near.filter((c) => !c.person).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
+    // (A walker meets a robotaxi's drawn body, a box, not its circles.)
+    const walker: Circle[] = near.filter((c) => !c.road).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
+    walkerBoxes.set(id, [...skinned, ...taxiBoxes.filter((b) => (b.x - bx) * (b.x - bx) + (b.z - bz) * (b.z - bz) < NEAR_AGENT_M * NEAR_AGENT_M)]);
     for (const other of ids) {
       if (other === id) continue;
       const o = prev.players[other]!;
@@ -173,7 +195,7 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
     forCar.set(id, car);
     forWalker.set(id, walker);
   }
-  return { carBoxes, forCar, forWalker };
+  return { carBoxes, forCar, forWalker, walkerBoxes };
 }
 
 function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs: Obstacles): PlayerState {
@@ -185,7 +207,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
     if (pressed && canEnterCar(world, p.car, p.foot.x, p.foot.z)) {
       return { ...p, mode: "vehicle", foot: null, exitPending: false };
     }
-    const foot = stepFoot(world, p.foot, input, allCars, obs.forWalker.get(p.id) ?? []);
+    const foot = stepFoot(world, p.foot, input, obs.walkerBoxes.get(p.id) ?? allCars, obs.forWalker.get(p.id) ?? []);
     return { ...p, foot };
   }
 
