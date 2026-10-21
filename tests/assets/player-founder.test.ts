@@ -178,7 +178,9 @@ describe("player.glb: founder-default", () => {
     const k = (body.getMesh()!.getExtras().targetNames as string[]).indexOf("jacket");
     const outerRest = box(prims(body, "tint_outer").flatMap((p) => positions(p)));
     const outerWorn = box(prims(body, "tint_outer").flatMap((p) => positions(p, k)));
-    const top = box(prims(body, "tint_top").flatMap((p) => positions(p)));
+    // the tee and the bare forearms below its short sleeves (skin between the wrists and the shoulders)
+    const forearms = prims(body, "tint_skin").flatMap((p) => positions(p)).filter((p) => p[1] > 0.92 && p[1] < 1.5);
+    const top = box([...prims(body, "tint_top").flatMap((p) => positions(p)), ...forearms]);
     expect(outerWorn.size[0]).toBeGreaterThan(top.size[0] + 0.015); // sleeves over the arms
     expect(outerWorn.size[2]).toBeGreaterThan(top.size[2] + 0.02); // the body over the tee
     expect(outerRest.size[0]).toBeLessThan(top.size[0]);
@@ -186,6 +188,45 @@ describe("player.glb: founder-default", () => {
     // the rib hem sits at the hips, the collar round the neck
     expect(outerWorn.min[1]).toBeGreaterThan(0.85);
     expect(outerWorn.min[1]).toBeLessThan(1.0);
+  });
+
+  it("rounds the bomber's shoulders off: the sleeves fall away outside the shoulder line", async () => {
+    const { body } = await player();
+    const k = (body.getMesh()!.getExtras().targetNames as string[]).indexOf("jacket");
+    const worn = prims(body, "tint_outer").flatMap((p) => positions(p, k));
+    const shoulder = Math.max(...worn.filter((p) => Math.abs(p[0]) >= 0.15 && Math.abs(p[0]) < 0.19).map((p) => p[1]));
+    const outside = Math.max(...worn.filter((p) => Math.abs(p[0]) > 0.25).map((p) => p[1]));
+    // a boxy sleeve cap (a shoulder pad) stood within 4 cm of the shoulder's top out here
+    expect(shoulder - outside).toBeGreaterThan(0.06);
+  });
+
+  it("gives the alternate tee short sleeves: bare forearms below a hem on the upper arm", async () => {
+    const { doc, body } = await player();
+    const elbowY = (node(doc, "forearm_L").getWorldMatrix() as unknown as number[])[13]!;
+    const tee = prims(body, "tint_top").flatMap((p) => positions(p)).filter((p) => Math.abs(p[0]) > 0.17);
+    expect(Math.min(...tee.map((p) => p[1]))).toBeGreaterThan(elbowY + 0.1); // the hem is above the elbow
+    const bare = prims(body, "tint_skin").flatMap((p) => positions(p)).filter((p) => Math.abs(p[0]) > 0.17 && p[1] > 0.95 && p[1] < elbowY + 0.1);
+    expect(bare.length).toBeGreaterThan(20);
+  });
+
+  it("shows the forehead: the hairline stands high above the brows at the centre, the hair reaches the nape", async () => {
+    const { doc, body, extras } = await player();
+    const heightM = extras.heightM as number;
+    const headZ = (node(doc, "head").getWorldMatrix() as unknown as number[])[14]!;
+    const headY = (node(doc, "head").getWorldMatrix() as unknown as number[])[13]!;
+    const cap = prims(body, "tint_hair").flatMap((p) => positions(p));
+    const brows = cap.filter((p) => p[1] < heightM - 0.08 && p[2] < headZ - 0.08);
+    expect(brows.length).toBeGreaterThan(0);
+    const browTop = Math.max(...brows.map((p) => p[1]));
+    const hair = [...cap, ...worldPoints(node(doc, "hair_quiff"))];
+    const centre = hair.filter((p) => Math.abs(p[0]) < 0.012 && p[2] < headZ - 0.06 && p[1] > browTop + 0.005);
+    const hairline = Math.min(...centre.map((p) => p[1]));
+    // the reference photos show 5-5.5 cm of forehead above the brows; the quiff lifts off it
+    expect(hairline - browTop).toBeGreaterThan(0.04);
+    expect(hairline - browTop).toBeLessThan(0.065);
+    // a short taper: the hair comes down the back of the head to the nape
+    const back = cap.filter((p) => p[2] > headZ + 0.06);
+    expect(Math.min(...back.map((p) => p[1]))).toBeLessThan(headY + 0.03);
   });
 
   it("smiles: the smile key opens the mouth into a grin and brings the teeth forward", async () => {
