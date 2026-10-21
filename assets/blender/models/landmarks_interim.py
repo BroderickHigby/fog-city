@@ -7,6 +7,9 @@
   grace-cathedral.glb      Grace Cathedral: nave and transept roofs, twin towers, fleche
   dragon-gate.glb          the gate over Grant Ave at Bush St (a prop: no record)
   sutro-baths.glb          the Sutro Baths ruins at Lands End (no record)
+  mission-dolores.glb      the basilica as the probe has it: stucco body, tile roof, a stepped
+                           Mission Revival front, the domed drum where the LiDAR finds 39 m
+  conservatory-of-flowers.glb  the glasshouse on its record, the glazed dome over the centre
 
 Each stands on data/landmark-sites.json. Where the landmark has collider records (the
 pipeline's probe records), the model replaces exactly those records in the renderer and is
@@ -37,6 +40,8 @@ BUDGETS = {
     "grace-cathedral.glb": 12_000,
     "dragon-gate.glb": 6_000,
     "sutro-baths.glb": 6_000,
+    "mission-dolores.glb": 6_000,
+    "conservatory-of-flowers.glb": 8_000,
 }
 
 
@@ -387,6 +392,105 @@ def grace() -> None:
     fc.export_glb("grace-cathedral.glb", BUDGETS["grace-cathedral.glb"])
 
 
+# ============================================================================ Mission Dolores
+
+def mission_dolores() -> None:
+    s = LK.site("mission-dolores")
+    fc.reset()
+    stucco = fc.material("stucco_white", "#ece6da", 0.85)
+    trim = fc.material("stucco_cream", "#d8cbb2", 0.85)
+    tile = fc.material("roof_tile_red", "#a5543a", 0.8)
+    dome = fc.material("dome_tile", "#b98b4e", 0.6, 0.2)
+    dark = fc.material("openings_shadow", "#33302c", 0.9)
+    r = root("mission_dolores", "mission-dolores", topM=39.25)
+    body = LK.record(s, "201006.0001563")
+    tower = LK.record(s, "201006.0001563-tower")
+    top = body["topY"]
+    mb = fc.MeshBuilder()
+    banded_walls(mb, body, [(2.0, trim), (top - 1.0, stucco), (top, trim)], top_mat=tile)
+    # a gabled nave roof in red tile along the long axis, and a stepped Mission Revival front
+    ys = [LK.bl(x, z)[1] for x, z in body["footprint"]]
+    xs = [LK.bl(x, z)[0] for x, z in body["footprint"]]
+    y_front, y_back = max(ys), min(ys)
+    xm = (min(xs) + max(xs)) / 2
+    half = min(9.0, (max(xs) - min(xs)) / 2 - 1.0)
+    ridge = top + 6.0
+    mb.poly_n([(xm - half, y_back + 2, top), (xm - half, y_front - 2, top), (xm, y_front - 2, ridge), (xm, y_back + 2, ridge)], tile, (-1, 0, 1))
+    mb.poly_n([(xm + half, y_back + 2, top), (xm, y_back + 2, ridge), (xm, y_front - 2, ridge), (xm + half, y_front - 2, top)], tile, (1, 0, 1))
+    for yy, ny in ((y_back + 2, -1), (y_front - 2, 1)):
+        mb.poly_n([(xm - half, yy, top), (xm + half, yy, top), (xm, yy, ridge)], stucco, (0, ny, 0))
+    fy = y_front + 0.05
+    prof = [(-half - 1, top), (-half - 1, top + 2.5), (-half * 0.55, top + 4.5), (-half * 0.3, ridge + 1.5), (0, ridge + 3.0), (half * 0.3, ridge + 1.5), (half * 0.55, top + 4.5), (half + 1, top + 2.5), (half + 1, top)]
+    mb.poly_n([(xm + px, fy, pz) for px, pz in prof], stucco, (0, 1, 0))
+    mb.poly_n([(xm + px, fy - 0.6, pz) for px, pz in reversed(prof)], stucco, (0, -1, 0))
+    # the portal and the window over it (dark openings), and a rose
+    mb.poly_n([(xm - 2.0, fy + 0.02, 0.0), (xm + 2.0, fy + 0.02, 0.0), (xm + 2.0, fy + 0.02, 6.0), (xm, fy + 0.02, 7.6), (xm - 2.0, fy + 0.02, 6.0)], dark, (0, 1, 0))
+    rose = [(xm + 1.4 * math.cos(2 * math.pi * k / 16), fy + 0.02, top + 2.0 + 1.4 * math.sin(2 * math.pi * k / 16)) for k in range(16)]
+    mb.poly_n(rose, dark, (0, 1, 0))
+    # the tall element the LiDAR finds mid-body: an octagonal drum with arched openings and a tiled dome
+    tx, ty = LK.bl(*[sum(c) / len(c) for c in zip(*tower["footprint"])])
+    mb.push(Matrix.Translation((tx, ty, 0)) @ Matrix.Rotation(math.pi / 8, 4, "Z"))
+    mb.cylinder(4.0, top - 1.0, 30.0, 8, stucco, smooth=False, caps=False)
+    mb.lathe([(4.4, 30.0), (4.4, 31.0), (3.8, 31.2)], 8, trim, smooth=False)
+    mb.pop()
+    for k in range(8):
+        a = 2 * math.pi * (k + 0.5) / 8
+        ox, oy = tx + 3.72 * math.cos(a), ty + 3.72 * math.sin(a)
+        mb.poly_n([(ox - 0.7 * math.sin(a), oy + 0.7 * math.cos(a), 24.0), (ox + 0.7 * math.sin(a), oy - 0.7 * math.cos(a), 24.0),
+                   (ox + 0.7 * math.sin(a), oy - 0.7 * math.cos(a), 28.0), (ox - 0.7 * math.sin(a), oy + 0.7 * math.cos(a), 28.0)], dark, (math.cos(a), math.sin(a), 0))
+    mb.push(Matrix.Translation((tx, ty, 0)))
+    mb.lathe([(3.8, 31.2), (3.5, 33.5), (2.6, 35.5), (1.2, 36.8), (0.5, 37.2)], 16, dome, smooth=True)
+    mb.cylinder(0.5, 37.2, 38.4, 8, stucco, smooth=False)
+    mb.cylinder(0.08, 38.4, 39.25, 6, trim, smooth=False)
+    mb.pop()
+    mb.build("basilica", parent=r, sharp_angle=30)
+    fc.export_glb("mission-dolores.glb", BUDGETS["mission-dolores.glb"])
+
+
+# ============================================================================ Conservatory of Flowers
+
+def conservatory() -> None:
+    s = LK.site("conservatory-of-flowers")
+    fc.reset()
+    frame = fc.material("painted_frame_white", "#f1efe8", 0.5)
+    glass = fc.material("glasshouse_glass", "#9fb9b0", 0.15, 0.1)
+    base = fc.material("stone_base", "#bdb6a8", 0.85)
+    r = root("conservatory", "conservatory-of-flowers", topM=17.0)
+    body = LK.record(s, "201006.0001537")
+    top = body["topY"]
+    mb = fc.MeshBuilder()
+    banded_walls(mb, body, [(0.9, base), (top - 0.35, glass), (top, frame)], top_mat=glass)
+    # white glazing bars on every wall, every 1.5 m
+    ring = LK.ring_bl(body)
+    for i in range(len(ring)):
+        (ax, ay), (bx, by) = ring[i], ring[(i + 1) % len(ring)]
+        L = math.hypot(bx - ax, by - ay)
+        if L < 2.0:
+            continue
+        ux, uy = (bx - ax) / L, (by - ay) / L
+        nx, ny = uy, -ux
+        for k in range(1, int(L // 1.5) + 1):
+            t = k * L / (int(L // 1.5) + 1)
+            cx, cy = ax + ux * t + nx * 0.04, ay + uy * t + ny * 0.04
+            mb.poly_n([(cx - ux * 0.06, cy - uy * 0.06, 0.9), (cx + ux * 0.06, cy + uy * 0.06, 0.9), (cx + ux * 0.06, cy + uy * 0.06, top), (cx - ux * 0.06, cy - uy * 0.06, top)], frame, (nx, ny, 0))
+    # the central pavilion: an octagonal glazed drum, the dome with ribs, the lantern
+    mb.push(Matrix.Rotation(math.pi / 8, 4, "Z"))
+    mb.cylinder(7.2, top - 0.5, 8.5, 8, glass, smooth=False, caps=False)
+    mb.lathe([(7.5, 8.5), (7.5, 9.1), (7.0, 9.2)], 8, frame, smooth=False)
+    mb.pop()
+    prof = [(7.0, 9.2), (6.8, 11.0), (5.9, 12.8), (4.3, 14.3), (2.2, 15.3), (1.2, 15.5)]
+    mb.lathe(prof, 16, glass, smooth=True)
+    for k in range(16):
+        a = 2 * math.pi * k / 16
+        pts = [(rr * 1.01 * math.cos(a), rr * 1.01 * math.sin(a), zz) for rr, zz in prof]
+        for p0, p1 in zip(pts, pts[1:]):
+            LK.strut(mb, p0, p1, 0.18, frame)
+    mb.cylinder(1.2, 15.5, 16.4, 8, glass, smooth=False, caps=False)
+    mb.lathe([(1.4, 16.4), (0.9, 16.8), (0.2, 17.0), (0.0, 17.0)], 8, frame, smooth=False)
+    mb.build("glasshouse", parent=r, sharp_angle=30)
+    fc.export_glb("conservatory-of-flowers.glb", BUDGETS["conservatory-of-flowers.glb"])
+
+
 # ============================================================================ Dragon Gate
 
 def roof_pagoda(mb, x0, x1, y0, y1, z_eave, z_ridge, tile, ridge_mat, lift=0.45) -> None:
@@ -539,6 +643,8 @@ ALL = {
     "grace": grace,
     "dragon_gate": dragon_gate,
     "sutro_baths": sutro_baths,
+    "mission_dolores": mission_dolores,
+    "conservatory": conservatory,
 }
 
 if __name__ == "__main__":

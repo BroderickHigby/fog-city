@@ -587,6 +587,8 @@ grid, built on the sf world itself:
 | `grace-cathedral` | `grace-cathedral.glb` | 0.8k (12k) | The record's footprint with lancet windows, nave and transept roofs, the twin towers with pinnacles at the front (east, Taylor St), the rose window, the fleche over the crossing (the tower record) to 70 m. |
 | `dragon-gate` | `dragon-gate.glb` | 0.9k (6k) | The gate across Grant Ave just north of Bush St, portals facing south: four stone pillars, the central portal (5.6 m wide, 4.6 m clear) over the road's centreline, two pedestrian portals, green-tiled roofs with upturned eaves, gilt ridge ornaments and a pearl, two stylised guardian lions. The plaque is blank: no characters. It spans the building faces either side (11.36 m). |
 | `sutro-baths` | `sutro-baths.glb` | 1.4k (6k) | The ruins at Lands End on the DEM's basin shelf: broken outer and pool walls, column stumps, standing water in the pools; walls rooted below the ground. |
+| `mission-dolores` | `mission-dolores.glb` | 0.4k (6k) | The basilica as the probe has it: its record in white stucco with a red tile roof and a stepped Mission Revival front with the portal and a rose; the octagonal drum and tiled dome where the LiDAR finds 39 m (its tower record). The old adobe chapel to its south is a separate record the probe does not list and is left to the pipeline. |
+| `conservatory-of-flowers` | `conservatory-of-flowers.glb` | 1.6k (8k) | The glasshouse on its record (4.2 m, white glazing bars every 1.5 m), the octagonal glazed drum, the ribbed glass dome and lantern to 17 m over the centre (its tower record). |
 
 What is still not right, and whose it is:
 - The far skyline (`f*.glb`, Pipeline) still holds the hulls of the records a landmark
@@ -598,9 +600,8 @@ What is still not right, and whose it is:
   approach.
 - Decks are not drivable: Hwy 101 ends at the south anchorage's foot and I-80 at the shore
   (decks are scheduled: the Golden Gate approach in wave 4, the Bay Bridge in wave 8).
-- Mission Dolores, the Conservatory of Flowers, Saints Peter and Paul (its probe is on the
-  wrong record, L-04), the ballpark, the windmills and the Painted Ladies have no interim
-  shape yet.
+- Saints Peter and Paul (its probe is on the wrong record, L-04: Content first), the ballpark,
+  the windmills and the Painted Ladies have no interim shape yet.
 
 ### Legal and taste review of the interim landmarks
 

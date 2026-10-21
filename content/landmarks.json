@@ -165,6 +165,32 @@
       "headingDeg": 0,
       "scale": 1,
       "source": "Interim shape: the ruined pool walls and standing water on the DEM's basin shelf at Lands End. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "mission-dolores",
+      "model": "models/mission-dolores.glb",
+      "lat": 37.7643661,
+      "lon": -122.4269351,
+      "headingDeg": 85.6,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001563",
+        "201006.0001563-tower"
+      ],
+      "source": "Interim shape: the basilica's record in stucco with a tile roof and a stepped Mission Revival front; the domed drum where the LiDAR finds 39 m. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "conservatory-of-flowers",
+      "model": "models/conservatory-of-flowers.glb",
+      "lat": 37.7726335,
+      "lon": -122.4602586,
+      "headingDeg": 175.24,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001537",
+        "201006.0001537-tower"
+      ],
+      "source": "Interim shape: the glasshouse on its record (white glazing bars), the glazed and ribbed dome over the centre (17 m). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
     }
   ]
 }

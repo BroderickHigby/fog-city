@@ -17,8 +17,8 @@ Steuart-Spear). The brief's approximate 37.7953, -122.3958 is ~120 m away inside
 lawn, so the cross-checked coordinate is used instead.
 
 The interim landmarks (Sutro Tower, the two bridges, the pyramid tower at 600 Montgomery,
-Coit Tower, City Hall, the Palace of Fine Arts, Grace Cathedral, the Dragon Gate and the Sutro
-Baths ruins) are placed from data/landmark-sites.json (tools/landmark-sites.ts): the same
+Coit Tower, City Hall, the Palace of Fine Arts, Grace Cathedral, the Dragon Gate, the Sutro
+Baths ruins, Mission Dolores and the Conservatory of Flowers) are placed from data/landmark-sites.json (tools/landmark-sites.ts): the same
 origin, heading and replaced records the model scripts were built on.
 """
 
@@ -58,6 +58,8 @@ INTERIM = [
     ("grace-cathedral", "grace-cathedral.glb", "Interim shape: nave and transept roofs on the record footprint, twin towers, rose window, fleche over the crossing (70 m)."),
     ("dragon-gate", "dragon-gate.glb", "Prop: the gate across Grant Ave just north of Bush St, portals facing south, spanning the building faces. Blank plaque, no characters."),
     ("sutro-baths", "sutro-baths.glb", "Interim shape: the ruined pool walls and standing water on the DEM's basin shelf at Lands End."),
+    ("mission-dolores", "mission-dolores.glb", "Interim shape: the basilica's record in stucco with a tile roof and a stepped Mission Revival front; the domed drum where the LiDAR finds 39 m."),
+    ("conservatory-of-flowers", "conservatory-of-flowers.glb", "Interim shape: the glasshouse on its record (white glazing bars), the glazed and ribbed dome over the centre (17 m)."),
 ]
 
 

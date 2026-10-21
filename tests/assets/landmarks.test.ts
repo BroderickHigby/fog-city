@@ -51,6 +51,8 @@ const INTERIM: Record<string, [string, number, string]> = {
   "grace-cathedral": ["grace-cathedral.glb", 12_000, "grace_cathedral"],
   "dragon-gate": ["dragon-gate.glb", 6_000, "dragon_gate"],
   "sutro-baths": ["sutro-baths.glb", 6_000, "sutro_baths"],
+  "mission-dolores": ["mission-dolores.glb", 6_000, "mission_dolores"],
+  "conservatory-of-flowers": ["conservatory-of-flowers.glb", 8_000, "conservatory"],
 };
 const IDS = Object.keys(INTERIM);
 
@@ -296,6 +298,16 @@ describe("hero landmarks: interim shapes (W-27)", () => {
       expect(fl.length).toBeGreaterThan(0);
       for (const p of fl) expect(Math.hypot(p[0] - cx!, p[2] - cz!)).toBeLessThan(4);
     }
+  });
+
+  it("every hero landmark probe has a model replacing exactly its records (Saints Peter and Paul waits for its probe, L-04)", () => {
+    const report = readJson<{ probes: Array<{ id: string; buildings: string[] }> }>("public/tiles/sf/report.json");
+    const heroes = ["600-montgomery", "coit-tower", "palace-of-fine-arts", "city-hall", "grace-cathedral", "mission-dolores", "conservatory-of-flowers", "sutro-tower"];
+    for (const id of heroes) {
+      const probe = report.probes.find((p) => p.id === id)!;
+      expect([...(entry(id).replacesBuildingIds ?? [])].sort(), id).toEqual([...probe.buildings].sort());
+    }
+    for (const id of ["dragon-gate", "sutro-baths", "golden-gate-bridge", "bay-bridge-west"]) expect(entry(id).model, id).toMatch(/\.glb$/);
   });
 
   it("every replaced record is drawn: extruded on its footprint, or inside another replaced record that is", async () => {

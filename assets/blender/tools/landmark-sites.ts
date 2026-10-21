@@ -391,6 +391,29 @@ export function buildSites(read: ReadTile): SitesDoc {
     sites.push(s);
   }
 
+  // Mission Dolores (the basilica, as the probe has it): origin at the body record's centroid,
+  // the front (-z) facing Dolores St to the east along the body's long axis. The old adobe
+  // chapel south of it is a separate record the probe does not list, so it is not replaced.
+  {
+    const probe = toLocal(37.7643, -122.4269);
+    const ids = probeRecords("mission-dolores");
+    const body = centroidOf(read, "201006.0001563", probe);
+    const rect = minAreaRect(body.ring);
+    const east = Math.abs(((rect.bearingDeg - 90 + 540) % 360) - 180) < 90 ? rect.bearingDeg : rect.bearingDeg + 180;
+    sites.push(site(read, "mission-dolores", body, east, ids));
+  }
+
+  // The Conservatory of Flowers: origin at the dome (the tower record's centroid), the front
+  // facing south over the lawn: the side the wings' end pavilions project toward.
+  {
+    const probe = toLocal(37.7726, -122.4603);
+    const ids = probeRecords("conservatory-of-flowers");
+    const dome = centroidOf(read, "201006.0001537-tower", probe);
+    const rect = minAreaRect(findRecord(read, "201006.0001537", probe).footprint);
+    const south = Math.abs(((rect.bearingDeg + 90 - 180 + 540) % 360) - 180) < 90 ? rect.bearingDeg + 90 : rect.bearingDeg + 270;
+    sites.push(site(read, "conservatory-of-flowers", dome, south, ids));
+  }
+
   // Dragon Gate: it straddles Grant Ave just north of Bush St, its portals facing south
   // (Wikipedia; 37.7907, -122.4056 lies in Bush St itself). Origin on Grant's centreline at
   // the Bush St building line, centred between the building faces on either side; the gate
