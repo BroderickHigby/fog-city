@@ -145,6 +145,12 @@ describe("bay windows (K6, W-49)", () => {
     expect(bayLayout(KIT, { proto: "bay-edwardian", frontM: 15.5, storeys: 3, storeyM: 3.2, roofM: 10.5 }).filter((i) => i.node === "cap")).toHaveLength(2);
     expect(bayLayout(KIT, { proto: "bay-edwardian", frontM: 4.0, storeys: 3, storeyM: 3.2, roofM: 10.5 })).toHaveLength(0);
     expect(bayLayout(KIT, { proto: "bay-italianate", frontM: 7, storeys: 3, storeyM: 3.2, roofM: 9.8 }).filter((i) => i.node === "storey")).toHaveLength(1);
+    // and clear of the front's cornice: a 0.95 m Italianate cornice under a 10.5 m roof leaves one bay storey
+    const drop = KIT.prototypes["cornice-italianate"]!.dropM as number;
+    const underCornice = bayLayout(KIT, { proto: "bay-italianate", frontM: 7, storeys: 3, storeyM: 3.2, roofM: 10.5, rooflineDropM: drop });
+    const capTop = underCornice.find((i) => i.node === "cap")!.matrix[13]! + (KIT.prototypes["bay-italianate"]!.capM as number);
+    expect(capTop).toBeLessThanOrEqual(10.5 - drop + KIT.rules.rooflineMaxAboveM);
+    expect(underCornice.filter((i) => i.node === "storey")).toHaveLength(1);
     // over a raised parlour floor (1.6 m) the bays start on the first floor, still clear of the sidewalk
     const raised = bayLayout(KIT, { proto: "bay-italianate", frontM: 7, storeys: 3, storeyM: 3.2, roofM: 11.8, floorM: 1.6 }).filter((i) => i.node === "storey");
     expect(raised.map((i) => Math.round(i.matrix[13]! * 1000) / 1000)).toEqual([1.6, 4.8, 8.0]);

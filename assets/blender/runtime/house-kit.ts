@@ -60,15 +60,17 @@ export interface BayOptions {
   roofM: number;
   /** The first floor's height above the sidewalk (a raised Victorian parlour floor), default 0. */
   floorM?: number;
+  /** How far the front's roofline moulding hangs below the roof line (its profile's drop), default 0. */
+  rooflineDropM?: number;
 }
 
 /**
  * One bay per bayEveryM of front (at least one when the front is bayMinFrontM or more), evenly
  * spaced, on storeys 1 to n-1: they start on the second floor, clear of the sidewalk; where the
  * first floor is raised 1.5 m or more (floorM, a Victorian parlour over the basement), they
- * start on it. A bay's cap must stay under the roof line (+ rooflineMaxAboveM); storeys are
- * dropped from the top until it does, except the corner turret, whose cone rises above the
- * roof as built.
+ * start on it. A bay's cap must stay under the roof line (+ rooflineMaxAboveM) and clear of the
+ * front's cornice or coping (rooflineDropM); storeys are dropped from the top until it does,
+ * except the corner turret, whose cone rises above the roof as built.
  */
 export function bayLayout(kit: KitDoc, o: BayOptions): Instance[] {
   const p = kit.prototypes[o.proto];
@@ -80,7 +82,8 @@ export function bayLayout(kit: KitDoc, o: BayOptions): Instance[] {
   const floor = o.floorM ?? 0;
   const first = floor >= 1.5 ? 0 : 1;
   let top = o.storeys - 1; // index of the bay's top storey
-  while (!corner && top >= first && floor + (top + 1) * o.storeyM + capM > o.roofM + kit.rules.rooflineMaxAboveM) top--;
+  const ceiling = o.roofM - (o.rooflineDropM ?? 0) + kit.rules.rooflineMaxAboveM;
+  while (!corner && top >= first && floor + (top + 1) * o.storeyM + capM > ceiling) top--;
   if (top < first) return [];
   const out: Instance[] = [];
   const sy = o.storeyM / kit.storeyM;
