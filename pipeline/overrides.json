@@ -1,5 +1,5 @@
 {
-  "$comment": "Per-building corrections to what the June 2010 LiDAR survey (behind the DataSF footprint heights) saw. Each entry sets exactly one of heightM (a roof height: a public record for a building completed after the survey, or, with placeholder: true, a stand-in plinth until a landmark model replaces the record; a placeholder keeps no storeys, use or units) and keepTower: true (the LiDAR tower stands although the spike check would drop it: a real steeple over a nave the roll counts as one storey; the build fails if no tower results). Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying.",
+  "$comment": "Per-building corrections to what the June 2010 LiDAR survey (behind the DataSF footprint heights) saw. Each entry sets exactly one of heightM (a roof height: a public record for a building completed after the survey, or, with placeholder: true, a stand-in plinth until a landmark model replaces the record; a placeholder keeps no storeys, use or units) and keepTower: true (the LiDAR tower stands although the spike check would drop it: a real steeple over a nave the roll counts as one storey; the build fails if no tower results). Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying. World QA W-04: an entry with add: true adds a building the 2016 footprint layer does not have, from its parcel's polygon (pipeline/lib/newer.ts; id 201006.99xxxxx, never a DataSF id): heightM is its roof, podiumM with towerFraction a podium and its tower, at and sizeM a rectangle cut out of a large lot; the records it stands on are retired.",
   "buildings": [
     {
       "id": "201006.0000548",
@@ -44,6 +44,71 @@
       "label": "Transbay Transit Center (deck over 1st St)",
       "heightM": 21,
       "source": "W-01, W-16. Completed 2018: the Transit Center's rooftop park stands about 21 m (70 ft) over the street (public record), and the building is carried over 1st and Fremont Streets on bridges. In June 2010 the site was the old terminal's demolition pit: the footprint dataset reports a 2.58 m median and a 68 m maximum (a crane), which drew a 68 m tower on 1st St. The height override removes that tower; the carriageway clearance pass (pipeline/lib/clearance.ts) turns the part over 1st St into a span with an underside."
+    },
+    {
+      "id": "201006.0002719",
+      "parcel": "3718037",
+      "label": "Park Tower at Transbay (250 Howard St)",
+      "heightM": 184.5,
+      "source": "W-04. Completed 2019, 43 storeys; 184.5 m (605 ft) to the top of the tower, public record. The footprint is the old lot's (3718037; the 2025 roll's parcel is 3718040), and the roll's 43 storeys at the office storey height drew it at 173.7 m."
+    },
+    {
+      "id": "201006.9900001",
+      "add": true,
+      "parcel": "3737042",
+      "label": "The Avery (488 Folsom St), Transbay Block 9",
+      "heightM": 188,
+      "podiumM": 25,
+      "towerFraction": 0.25,
+      "stories": 56,
+      "year": 2019,
+      "use": "Residential Condominium",
+      "source": "W-04. Completed 2019, 56 storeys, 188 m (618 ft) to the roof, public record; the block's lower buildings are drawn as a 25 m podium over the lot (Transbay Block 9, parcel 3737042 and its condominium lots). The footprint layer predates it: in 2010 the block was the old terminal's ramps. Tower centred on the lot (placement approximate)."
+    },
+    {
+      "id": "201006.9900002",
+      "add": true,
+      "parcel": "3736190",
+      "label": "33 Tehama St",
+      "heightM": 120,
+      "podiumM": 12,
+      "towerFraction": 0.6,
+      "stories": 35,
+      "year": 2018,
+      "use": "Multi-Family Residential",
+      "source": "W-04. Completed 2018; the 2025 roll lists 35 storeys and 403 units on parcel 3736190 (41 Tehama St). About 120 m to the roof (published figures are close to 400 ft). The footprint layer predates it. Tower over most of the lot (placement approximate)."
+    },
+    {
+      "id": "201006.9900003",
+      "add": true,
+      "parcel": "3506012",
+      "label": "Fifteen Fifty (1550 Mission St), 1500 Mission block",
+      "heightM": 116,
+      "podiumM": 25,
+      "towerFraction": 0.12,
+      "stories": 39,
+      "year": 2020,
+      "use": "Multi-Family Residential",
+      "source": "W-04. Completed 2020, 39 storeys, about 116 m to the roof (the world QA report's published 116 to 122 m). The 1500 Mission block (parcel 3506012) was rebuilt; the roll lists no storeys for it, and the footprint layer shows the buildings it replaced, which this entry retires across the lot. Tower centred on the block over a 25 m podium (placement approximate).",
+      "retire": "lot"
+    },
+    {
+      "id": "201006.9900004",
+      "add": true,
+      "parcel": "8722022",
+      "label": "Chase Center arena (Mission Bay)",
+      "heightM": 40,
+      "at": [
+        37.76797,
+        -122.3875
+      ],
+      "sizeM": [
+        120,
+        150
+      ],
+      "year": 2019,
+      "use": "Commercial Misc",
+      "source": "W-04. Completed 2019; an arena about 40 m tall on the Mission Bay block (parcel 8722022's lot, 8722021). The footprint layer predates it (a parking lot in 2010). A 120 x 150 m block at the QA report's point stands in for the arena's rounded bowl; the lot's two office buildings are not added (no storeys in the roll)."
     }
   ]
 }

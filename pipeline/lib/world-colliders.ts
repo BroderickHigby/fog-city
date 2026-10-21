@@ -39,6 +39,12 @@ export interface PackGround {
   nz: number;
   heights: number[];
   water: number[];
+  /**
+   * Extension (LAKE, world QA W-11): 1 where the sample is an inland lake's water, whose level is
+   * the sample's height (the lattice is flattened across every lake); same layout as heights.
+   * Present only on tiles with a lake. The tile JSON's ground.cover digits say the same.
+   */
+  lake?: number[];
 }
 
 export interface PackTile {
@@ -271,6 +277,8 @@ export function decodeWorldColliders(bytes: Uint8Array): WorldColliders {
 //         u32 clearance cm, u32 vertex count, vertices as in DECK)
 //   MOVE  u32 n, then per span (u16 tile, u8 kind, u8 0, u32 id string, u32 deck string,
 //         i32 hinge ax, az, bx, bz cm, i32 open angle in microradians)
+//   LAKE  u32 n, then per tile with an inland lake (u16 tile, u16 0, ceil(S²/8) bytes of lake
+//         flags, bit i & 7 of byte i >> 3 like the water mask, padded to 4)
 
 class Writer {
   private buf = new Uint8Array(1024);
@@ -377,9 +385,24 @@ function encodeExtensions(w: WorldColliders): Uint8Array {
   const deck = new Writer();
   const tunl = new Writer();
   const move = new Writer();
-  let nDeck = 0, nTunl = 0, nMove = 0;
+  const lake = new Writer();
+  let nDeck = 0, nTunl = 0, nMove = 0, nLake = 0;
   w.tiles.forEach((t, ti) => {
     if (ti > 65535) throw new Error("FCWC: too many tiles for the extension block");
+    const lk = t.ground.lake;
+    if (lk && lk.some((v) => v === 1)) {
+      const S = t.ground.nx;
+      if (lk.length !== S * S) throw new Error(`FCWC: tile ${t.tileId} lake mask has ${lk.length} samples`);
+      lake.u16(ti);
+      lake.u16(0);
+      const mask = new Uint8Array(Math.ceil((S * S) / 8));
+      lk.forEach((v, i) => {
+        if (v === 1) mask[i >> 3]! |= 1 << (i & 7);
+      });
+      lake.bytes(mask);
+      lake.pad4();
+      nLake++;
+    }
     for (const b of t.buildings) {
       const m = ID_RE.exec(b.id);
       if (!m) throw new Error(`FCWC: building id ${b.id} does not fit the id encoding`);
@@ -432,7 +455,7 @@ function encodeExtensions(w: WorldColliders): Uint8Array {
       nMove++;
     }
   });
-  if (bextN === 0 && nDeck === 0 && nTunl === 0 && nMove === 0) return new Uint8Array(0);
+  if (bextN === 0 && nDeck === 0 && nTunl === 0 && nMove === 0 && nLake === 0) return new Uint8Array(0);
   const out = new Writer();
   if (strings.length) {
     const s = new Writer();
@@ -455,6 +478,7 @@ function encodeExtensions(w: WorldColliders): Uint8Array {
   if (nDeck) section(out, "DECK", counted(nDeck, deck));
   if (nTunl) section(out, "TUNL", counted(nTunl, tunl));
   if (nMove) section(out, "MOVE", counted(nMove, move));
+  if (nLake) section(out, "LAKE", counted(nLake, lake));
   return out.done();
 }
 
@@ -548,6 +572,15 @@ function decodeExtensions(bytes: Uint8Array, start: number, tiles: PackTile[]): 
           openRad: dv.getInt32(q + 28, true) / 1e6,
         };
         (t.movable ??= []).push(m);
+      }
+    } else if (tag === "LAKE") {
+      for (let i = 0; i < n; i++) {
+        const t = tile(dv.getUint16(q, true));
+        const S = t.ground.nx;
+        const bytesN = Math.ceil((S * S) / 8);
+        const mask = bytes.subarray(q + 4, q + 4 + bytesN);
+        t.ground.lake = Array.from({ length: S * S }, (_, k) => (mask[k >> 3]! >> (k & 7)) & 1);
+        q += align4(4 + bytesN);
       }
     }
     o = end;

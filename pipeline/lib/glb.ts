@@ -7,10 +7,19 @@
 //              them, in their bores in a tunnel, else draped on the terrain
 //   structures deck sides, undersides and columns (decks.ts), COLOR_0 concrete; only in tiles
 //              with an elevated deck. Any road ribbon on a deck is drawn level at the deck.
+//   foliage-broadleaf, foliage-conifer
+//              instanced trees (landcover.ts, W-18): a small vertex-coloured prototype (crown
+//              width 1, height 1, foot at the origin, float positions, no normals) drawn once per
+//              instance by EXT_mesh_gpu_instancing (used, not required): TRANSLATION about the tile
+//              centre (the node's translation; scale 1), SCALE (crown width, height, crown width).
+//              Only in tiles with trees.
 //   buildings  every building in the tile, merged. No normals: glTF loaders shade flat.
 //              COLOR_0 facade colour, TEXCOORD_0 = (metres along the wall, metres above the base),
-//              _FACADE = (storey height / 8 m, glazing 0..1, (year - 1840) / 190 or 0, roof 0|1),
-//              node extras.buildings = [[colliderId, firstIndex, indexCount], ...]
+//              _FACADE = (storey height / 8 m, glazing 0..1, (year - 1840) / 190 or 0, class:
+//              0 rear or side wall, 85 party wall, 170 front wall, 255 roof; house kit K1),
+//              uv v = metres above the record's street level (meta.streetY, K0) or its base,
+//              node extras.buildings = [[colliderId, firstIndex, indexCount], ...],
+//              node extras.fronts = the house kit's front walls (house.ts FrontRow), when any
 //
 // Compression (docs/data-sources.md, "Compression"): POSITION is int16 on a 1/64 m grid
 // (KHR_mesh_quantization), NORMAL is int8, and every buffer view is then packed with
@@ -22,7 +31,7 @@
 // Loaders need the meshopt decoder: three.js GLTFLoader.setMeshoptDecoder(MeshoptDecoder).
 
 import { Document, NodeIO, type Material, type Node } from "@gltf-transform/core";
-import { EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/extensions";
+import { EXTMeshGPUInstancing, EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/extensions";
 import { MeshoptEncoder } from "meshoptimizer";
 import type { TileRef } from "./config.ts";
 import { MeshData } from "./mesh.ts";
@@ -52,6 +61,12 @@ export function quantizeDocument(doc: Document, centre: readonly [number, number
     const t = node.getTranslation();
     const sc = node.getScale();
     if (t.some((v) => v !== 0) || sc.some((v) => v !== 1) || node.getRotation()[3] !== 1) throw new Error(`quantize: node ${node.getName()} already has a transform`);
+    if (node.getExtension("EXT_mesh_gpu_instancing")) {
+      // An instanced prototype (a tree) is a few float vertices about its own foot; its instances'
+      // translations are about the tile centre, which the node carries (scale 1).
+      node.setTranslation([cx, 0, cz]);
+      continue;
+    }
     let reach = 0;
     for (const prim of mesh.listPrimitives()) {
       const a = prim.getAttribute("POSITION")!.getArray()!;
@@ -87,7 +102,7 @@ function setDequantize(node: Node, cx: number, cz: number, step: number): void {
 
 /** Serialise, with meshopt compression when asked. Deterministic: same document, same bytes. */
 export async function writeGlb(doc: Document, opts: GlbOptions = {}): Promise<Uint8Array> {
-  const io = new NodeIO().registerExtensions([KHRMeshQuantization, EXTMeshoptCompression]);
+  const io = new NodeIO().registerExtensions([KHRMeshQuantization, EXTMeshoptCompression, EXTMeshGPUInstancing]);
   if (opts.meshopt ?? true) {
     await MeshoptEncoder.ready;
     io.registerDependencies({ "meshopt.encoder": MeshoptEncoder });
@@ -102,8 +117,12 @@ export interface TileMeshes {
   freeways: MeshData;
   buildings: MeshData;
   buildingRanges: Array<[string, number, number]>;
+  /** More extras on the buildings node (house kit: fronts). */
+  buildingExtras?: Record<string, unknown>;
   /** Deck sides, undersides and columns (decks.ts); absent or empty when the tile has none. */
   structures?: MeshData;
+  /** Instanced trees (landcover.ts): a prototype per kind and its instances; absent when the tile has none. */
+  foliage?: Array<{ name: string; mesh: MeshData; translation: number[]; scale: number[] }>;
 }
 
 export interface GlbPart {
@@ -120,6 +139,11 @@ export interface GlbPart {
   material: string;
   roughness: number;
   extras?: Record<string, unknown>;
+  /**
+   * Draw the mesh once per instance (EXT_mesh_gpu_instancing, used but not required): translations
+   * in world metres (the node carries the tile centre) and per-axis scales, 3 numbers each.
+   */
+  instances?: { translation: readonly number[]; scale: readonly number[] };
 }
 
 /**
@@ -157,6 +181,21 @@ export async function meshGlb(sceneExtras: Record<string, unknown>, centre: read
     const mesh = doc.createMesh(part.name).addPrimitive(prim);
     const node = doc.createNode(part.name).setMesh(mesh);
     if (part.extras) node.setExtras(part.extras);
+    if (part.instances) {
+      const ext = doc.createExtension(EXTMeshGPUInstancing);
+      const [cx, cz] = centre;
+      const tr = new Float32Array(part.instances.translation.length);
+      for (let i = 0; i < tr.length; i += 3) {
+        tr[i] = part.instances.translation[i]! - cx;
+        tr[i + 1] = part.instances.translation[i + 1]!;
+        tr[i + 2] = part.instances.translation[i + 2]! - cz;
+      }
+      const batch = ext
+        .createInstancedMesh()
+        .setAttribute("TRANSLATION", acc("VEC3", tr))
+        .setAttribute("SCALE", acc("VEC3", Float32Array.from(part.instances.scale)));
+      node.setExtension("EXT_mesh_gpu_instancing", batch);
+    }
     scene.addChild(node);
   }
   if (opts.quantize ?? true) quantizeDocument(doc, centre);
@@ -241,8 +280,9 @@ export async function tileGlb(world: string, tile: TileRef, parts: TileMeshes, o
       { name: "ground", mesh: parts.ground, material: "ground", roughness: 0.95 },
       { name: "roads", mesh: parts.roads, material: "road", roughness: 0.9, reorder: true },
       { name: "freeways", mesh: parts.freeways, material: "freeway", roughness: 0.9, reorder: true },
-      { name: "buildings", mesh: parts.buildings, material: "building", roughness: 0.85, extras: { buildings: parts.buildingRanges }, reorder: parts.buildingRanges },
+      { name: "buildings", mesh: parts.buildings, material: "building", roughness: 0.85, extras: { buildings: parts.buildingRanges, ...parts.buildingExtras }, reorder: parts.buildingRanges },
       ...(parts.structures ? [{ name: "structures", mesh: parts.structures, material: "structure", roughness: 0.9, reorder: true }] : []),
+      ...(parts.foliage ?? []).map((f) => ({ name: f.name, mesh: f.mesh, material: "foliage", roughness: 0.95, instances: { translation: f.translation, scale: f.scale } })),
     ],
     opts,
   );

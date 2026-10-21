@@ -114,6 +114,25 @@ export interface Override {
   placeholder?: boolean;
   keepTower?: boolean;
   source: string;
+  /**
+   * W-04: true when this entry adds a building the footprint layer (a 2016 snapshot) does not
+   * have, from its parcel's polygon (newer.ts): id is a new id (201006.99xxxxx), parcel the
+   * blklot whose polygon it takes, heightM its roof. Optional: at (lat, lon) and sizeM
+   * ([across, along] the lot's longest edge) cut a rectangle out of the lot; podiumM and
+   * towerFraction make it a podium at podiumM with a tower of that share of its area at heightM;
+   * stories, year, use and units for its facade. Records whose interior point lies in the new
+   * footprint (retire "overlap", the default) or in the lot (retire "lot") are retired.
+   */
+  add?: boolean;
+  at?: [number, number];
+  sizeM?: [number, number];
+  podiumM?: number;
+  towerFraction?: number;
+  stories?: number;
+  year?: number;
+  use?: string;
+  units?: number;
+  retire?: "overlap" | "lot";
 }
 
 /** Throws unless every override sets exactly one of heightM and keepTower (and placeholder only with heightM). */
@@ -122,6 +141,12 @@ export function checkOverrides(overrides: readonly Override[]): void {
   for (const o of overrides) {
     if (seen.has(o.id)) throw new Error(`override ${o.id}: listed twice`);
     seen.add(o.id);
+    if (o.add) {
+      if (!/^201006\.99\d{5}$/.test(o.id)) throw new Error(`override ${o.id} (${o.label}): an added building's id is 201006.99xxxxx`);
+      if (!o.parcel || !(typeof o.heightM === "number" && o.heightM > 0)) throw new Error(`override ${o.id} (${o.label}): add needs parcel and heightM`);
+      if ((o.podiumM === undefined) !== (o.towerFraction === undefined)) throw new Error(`override ${o.id} (${o.label}): podiumM and towerFraction go together`);
+      continue;
+    }
     const height = typeof o.heightM === "number" && Number.isFinite(o.heightM) && o.heightM > 0;
     if (o.heightM !== undefined && !height) throw new Error(`override ${o.id} (${o.label}): heightM must be a positive number of metres`);
     if (height === (o.keepTower === true)) throw new Error(`override ${o.id} (${o.label}): set exactly one of heightM and keepTower`);
@@ -155,6 +180,13 @@ export interface BuildingMeta {
   /** On a piece record (-s<n> terrace strip, -b<n> span over a street): the source record's id. */
   pieceOf?: string;
   piece?: "strip" | "span";
+  /**
+   * W-04: a building the footprint layer does not have (newer.ts): its outline is its parcel's
+   * polygon ("parcel", the newer-buildings pass) or an overrides.json entry's ("override").
+   */
+  outline?: "parcel" | "override";
+  /** House kit K0 (W-29): the ground at the street wall (the wall nearest a road), absolute y. */
+  streetY?: number;
 }
 
 export interface Building {
@@ -215,12 +247,12 @@ export interface BuildingStats {
 }
 
 const num = (s: string | undefined): number => (s === undefined || s === "" ? NaN : Number(s));
-const storiesOf = (p: RawParcel): number => {
+export const storiesOf = (p: RawParcel): number => {
   const v = num(p.number_of_stories);
   return v > 0 && v <= MAX_STORIES ? v : NaN;
 };
 
-function storyHeight(use: string | undefined): number {
+export function storyHeight(use: string | undefined): number {
   const u = (use ?? "").toLowerCase();
   if (u.includes("office")) return 4.0;
   if (u.includes("retail")) return 4.5;
@@ -231,7 +263,7 @@ function storyHeight(use: string | undefined): number {
 }
 
 /** Can a footprint of `area` m² carry `stories` storeys of `use`? (height <= MAX_SLENDERNESS x sqrt(area)) */
-function fitsFootprint(stories: number, use: string | undefined, area: number): boolean {
+export function fitsFootprint(stories: number, use: string | undefined, area: number): boolean {
   return !(stories > 0) || stories * storyHeight(use) + 1.5 <= MAX_SLENDERNESS * Math.sqrt(area);
 }
 
@@ -480,7 +512,7 @@ export function buildBuildings(
   const tileSet = new Set(tiles.map((t) => t.id));
   const pidx = new ParcelIndex(parcels);
   checkOverrides(overrides);
-  const ov = new Map(overrides.map((o) => [o.id, o]));
+  const ov = new Map(overrides.filter((o) => !o.add).map((o) => [o.id, o]));
   const applied: string[] = [];
   const stats: BuildingStats = {
     raw: raw.length, parts: 0, kept: 0, droppedSmall: 0, droppedOutside: 0, droppedLow: 0,
@@ -746,7 +778,7 @@ export function buildBuildings(
       stats.kept++;
     });
   }
-  for (const o of overrides) if (!applied.includes(o.id)) throw new Error(`override ${o.id} (${o.label}) matched no footprint`);
+  for (const o of overrides) if (!o.add && !applied.includes(o.id)) throw new Error(`override ${o.id} (${o.label}) matched no footprint`);
   for (const k of [...spikeByUse.keys()].sort()) stats.spikeTowersDroppedByUse[k] = spikeByUse.get(k)!;
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { buildings: out, stats, overridesApplied: applied };

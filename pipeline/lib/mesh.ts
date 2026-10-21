@@ -7,6 +7,7 @@ import type { TileRef } from "./config.ts";
 import { clipSegment, distToSegment, hash32, r2, type P2 } from "./geom.ts";
 import type { RoadEdge } from "./roads.ts";
 import type { Deck } from "./structures.ts";
+import { WALL_REAR, WALL_ROOF, type HouseInfo } from "./house.ts";
 import { GROUND_CELL_M, type Ground, type Heightfield } from "./terrain.ts";
 
 /** Texture coordinates are snapped to 1 / UV_GRID metres. */
@@ -126,9 +127,13 @@ export function facadeStyle(b: Building): FacadeStyle {
   return { wall, roof: pick(PALETTE.roof, 11), storeyM, glazing, year };
 }
 
-function facadeBytes(s: FacadeStyle, roof: boolean): number[] {
+/**
+ * _FACADE bytes: storey height / 8 m, glazing, (year - 1840) / 190 or 0, and the surface's class
+ * (house kit K1, W-46): WALL_REAR 0 (side or rear wall), WALL_PARTY 85, WALL_FRONT 170, WALL_ROOF 255.
+ */
+function facadeBytes(s: FacadeStyle, cls: number): number[] {
   const yearN = s.year === null ? 0 : Math.min(1, Math.max(0.02, (s.year - 1840) / 190));
-  return [Math.round((Math.min(8, s.storeyM) / 8) * 255), Math.round(s.glazing * 255), Math.round(yearN * 255), roof ? 255 : 0];
+  return [Math.round((Math.min(8, s.storeyM) / 8) * 255), Math.round(s.glazing * 255), Math.round(yearN * 255), cls];
 }
 
 // ---------------------------------------------------------------- ground
@@ -136,16 +141,35 @@ function facadeBytes(s: FacadeStyle, roof: boolean): number[] {
 const WATER = "#5f7a87";
 const LAND = "#8f8b82";
 const LAND_HIGH = "#8d8f7f";
+/**
+ * Ground colours by class (landcover.ts, world QA W-11, W-18, W-34): two grasses mixed per sample,
+ * forest floor, beach sand; a lake is water like the Bay. Urban ground keeps the warm greys.
+ */
+export const COVER_COLOURS: Record<string, string> = {
+  g: "#738f4e",
+  f: "#52703e",
+  s: "#d2c29c",
+  lake: WATER,
+};
+
+/** A lattice sample's ground colour: its class (cover character), else the height-tinted grey. */
+export function groundColour(h: number, water: boolean, cls: string | undefined): [number, number, number, number] {
+  if (water) return rgba(WATER);
+  if (cls !== undefined && cls !== "u") {
+    const c = /[0-9]/.test(cls) ? COVER_COLOURS.lake : COVER_COLOURS[cls];
+    if (c) return rgba(c, 0.96 + Math.min(0.06, h / 800));
+  }
+  return rgba(h > 40 ? LAND_HIGH : LAND, 0.94 + Math.min(0.1, h / 600));
+}
 
 /**
  * Ground mesh on the tile's 10 m lattice. Cells whose four corners are all water are flat at
  * y = 0, so they are merged greedily into rectangles (an all-bay tile is one quad); every
  * other cell is two triangles split along the (i+1, k)–(i, k+1) diagonal.
  */
-export function groundMesh(field: Heightfield, ground: Ground): MeshData {
+export function groundMesh(field: Heightfield, ground: Ground, cover?: string): MeshData {
   const m = new MeshData({ normals: true });
   const { nx, nz, cellSizeM: c, x0, z0 } = field;
-  const water = rgba(WATER);
   const cw = nx - 1;
   const ch = nz - 1;
   const isWaterCell = (i: number, k: number): boolean =>
@@ -169,7 +193,7 @@ export function groundMesh(field: Heightfield, ground: Ground): MeshData {
     let n = [-(hx1 - hx0) / (2 * c), 1, -(hz1 - hz0) / (2 * c)];
     const len = Math.hypot(n[0]!, n[1]!, n[2]!);
     n = n.map((q) => Math.round((q / len) * 10000) / 10000);
-    const col = field.water[key] === 1 ? water : rgba(h > 40 ? LAND_HIGH : LAND, 0.94 + Math.min(0.1, h / 600));
+    const col = groundColour(h, field.water[key] === 1, cover?.[key]);
     vid[key] = m.vertex(x, h, z, col, { n });
     return vid[key]!;
   };
@@ -987,16 +1011,20 @@ function prism(
   style: FacadeStyle,
   cover?: ReadonlyArray<ReadonlyArray<readonly [number, number]> | undefined>,
   underside = false,
+  classes?: readonly number[],
 ): void {
   const n = ring.length;
-  const fw = facadeBytes(style, false);
-  const fr = facadeBytes(style, true);
+  const fr = facadeBytes(style, WALL_ROOF);
+  const fwOf = new Map<number, number[]>();
+  const fwc = (cls: number): number[] => fwOf.get(cls) ?? fwOf.set(cls, facadeBytes(style, cls)).get(cls)!;
+  const clsOf = (i: number): number => classes?.[i % n] ?? WALL_REAR;
   const top = rgba(wall);
   const bottom = rgba(wall, 0.8);
-  // Walls: one shared bottom/top vertex pair per ring vertex, plus a seam copy so u is continuous;
-  // a wall a neighbour partly hides gets its own quads for the parts that show.
-  const b: number[] = [];
-  const t: number[] = [];
+  // Walls: one bottom/top vertex pair per ring vertex and wall class (neighbouring walls of the
+  // same class share it; a class change at a corner splits it, K1), plus a seam copy so u is
+  // continuous; a wall a neighbour partly hides gets its own quads for the parts that show.
+  const bAt = new Map<number, number>();
+  const tAt = new Map<number, number>();
   const us: number[] = [];
   let u = 0;
   for (let i = 0; i <= n; i++) {
@@ -1008,12 +1036,19 @@ function prism(
     us.push(Math.round(u * 100) / 100);
   }
   const vAt = (y: number): number => Math.round((y - baseY) * 100) / 100;
-  // Full-height wall vertices, made only for the walls drawn whole.
-  const bt = (i: number): void => {
-    if (b[i] !== undefined) return;
-    const p = ring[i % n]!;
-    b[i] = m.vertex(p[0], y0, p[1], bottom, { uv: [us[i]!, vAt(y0)], f: fw });
-    t[i] = m.vertex(p[0], y1, p[1], top, { uv: [us[i]!, vAt(y1)], f: fw });
+  // Full-height wall vertices of ring vertex i for a wall of class cls, made only when used.
+  const bt = (i: number, cls: number): [number, number] => {
+    const k = i * 256 + cls;
+    let bv = bAt.get(k);
+    let tv = tAt.get(k);
+    if (bv === undefined || tv === undefined) {
+      const p = ring[i % n]!;
+      bv = m.vertex(p[0], y0, p[1], bottom, { uv: [us[i]!, vAt(y0)], f: fwc(cls) });
+      tv = m.vertex(p[0], y1, p[1], top, { uv: [us[i]!, vAt(y1)], f: fwc(cls) });
+      bAt.set(k, bv);
+      tAt.set(k, tv);
+    }
+    return [bv, tv];
   };
   for (let i = 0; i < n; i++) {
     const a = ring[i]!;
@@ -1022,11 +1057,13 @@ function prism(
     const ox = -(c[1] - a[1]);
     const oz = c[0] - a[0];
     const hidden = cover?.[i];
+    const cls = clsOf(i);
+    const fw = fwc(cls);
     if (!hidden || hidden.length === 0) {
-      bt(i);
-      bt(i + 1);
-      m.tri(b[i]!, b[i + 1]!, t[i + 1]!, ox, 0, oz);
-      m.tri(b[i]!, t[i + 1]!, t[i]!, ox, 0, oz);
+      const [b0, t0] = bt(i, cls);
+      const [b1, t1] = bt(i + 1, cls);
+      m.tri(b0, b1, t1, ox, 0, oz);
+      m.tri(b0, t1, t0, ox, 0, oz);
       continue;
     }
     for (const [s0, s1] of visibleSpans(y0, y1, hidden)) {
@@ -1036,19 +1073,15 @@ function prism(
       // A span that reaches the wall's foot or top reuses the full-height vertices there.
       let q0: number, q1: number, q2: number, q3: number;
       if (s0 === y0) {
-        bt(i);
-        bt(i + 1);
-        q0 = b[i]!;
-        q1 = b[i + 1]!;
+        q0 = bt(i, cls)[0];
+        q1 = bt(i + 1, cls)[0];
       } else {
         q0 = m.vertex(a[0], s0, a[1], col0, { uv: [us[i]!, vAt(s0)], f: fw });
         q1 = m.vertex(c[0], s0, c[1], col0, { uv: [us[i + 1]!, vAt(s0)], f: fw });
       }
       if (s1 === y1) {
-        bt(i);
-        bt(i + 1);
-        q2 = t[i + 1]!;
-        q3 = t[i]!;
+        q2 = bt(i + 1, cls)[1];
+        q3 = bt(i, cls)[1];
       } else {
         q2 = m.vertex(c[0], s1, c[1], col1, { uv: [us[i + 1]!, vAt(s1)], f: fw });
         q3 = m.vertex(a[0], s1, a[1], col1, { uv: [us[i]!, vAt(s1)], f: fw });
@@ -1060,7 +1093,7 @@ function prism(
   if (underside) {
     // The ceiling of a passage under a span, facing down.
     const under = rgba(wall, 0.6);
-    const r0: number[] = ring.map((p) => m.vertex(p[0], y0, p[1], under, { uv: [p[0], p[1]], f: fw }));
+    const r0: number[] = ring.map((p) => m.vertex(p[0], y0, p[1], under, { uv: [p[0], p[1]], f: fwc(WALL_REAR) }));
     const tris0 = ShapeUtils.triangulateShape(ring.map(([x, z]) => new Vector2(x, z)), []);
     for (const [i0, i1, i2] of tris0) m.tri(r0[i0!]!, r0[i1!]!, r0[i2!]!, 0, -1, 0);
   }
@@ -1071,22 +1104,88 @@ function prism(
   for (const [i0, i1, i2] of tris) m.tri(r[i0!]!, r[i1!]!, r[i2!]!, 0, 1, 0);
 }
 
+/**
+ * Every building of a tile, merged. With house data (house.ts): the facade's storey grid starts
+ * at the record's street level (uv v = 0 at streetY, K0/W-29) with its storey height (K2/W-15),
+ * and every wall carries its class in _FACADE.w (K1/W-46).
+ */
 export function buildingMesh(
   buildings: readonly Building[],
   party?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<readonly [number, number]> | undefined>>,
+  house?: ReadonlyMap<string, HouseInfo>,
 ): { mesh: MeshData; ranges: Array<[string, number, number]> } {
   const m = new MeshData({ uvs: true, facade: true });
   const ranges: Array<[string, number, number]> = [];
   const styles = new Map<string, FacadeStyle>();
   for (const bl of buildings) {
     const first = m.indices.length;
+    const info = house?.get(bl.id);
     // A tower shares its podium's facade (the podium precedes it in id order).
-    const style = (bl.meta.towerOf !== undefined ? styles.get(bl.meta.towerOf) : undefined) ?? facadeStyle(bl);
+    let style = bl.meta.towerOf !== undefined ? styles.get(bl.meta.towerOf) : undefined;
+    if (!style) {
+      style = facadeStyle(bl);
+      if (info) style = { ...style, storeyM: info.storeyM };
+    }
     styles.set(bl.id, style);
     // A tower record starts on its podium's roof, a span at its underside; everything else at the
-    // lowest ground under it.
-    prism(m, bl.footprint, wallBottom(bl), bl.topY, bl.baseY, style.wall, style.roof, style, party?.get(bl.id), bl.meta.piece === "span");
+    // lowest ground under it. The storey grid starts at the street (house data) or the base.
+    prism(m, bl.footprint, wallBottom(bl), bl.topY, info?.streetY ?? bl.baseY, style.wall, style.roof, style, party?.get(bl.id), bl.meta.piece === "span", info?.walls);
     ranges.push([bl.id, first, m.indices.length - first]);
   }
   return { mesh: m, ranges };
+}
+
+// ---------------------------------------------------------------- trees
+
+const TRUNK = "#5b4636";
+const LEAF_TOP = { broadleaf: "#557f3d", conifer: "#33603a" };
+const LEAF_LOW = { broadleaf: "#456c33", conifer: "#2a5130" };
+
+/**
+ * A tree prototype for the instanced foliage nodes (W-18): crown width 1 and height 1, its foot at
+ * the origin, vertex-coloured faces (flat-shaded by the renderer). About 20 triangles: a square
+ * trunk under a six-sided double pyramid (broadleaf) or two stacked six-sided cones (conifer).
+ */
+export function treePrototype(kind: "broadleaf" | "conifer"): MeshData {
+  const m = new MeshData();
+  const face = (pts: Array<[number, number, number]>, col: readonly number[]): void => {
+    const ids = pts.map(([x, y, z]) => m.vertex(x, y, z, col));
+    // Outward: away from the trunk axis, or up/down for caps.
+    const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+    const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    const cz = pts.reduce((s, p) => s + p[2], 0) / pts.length;
+    m.tri(ids[0]!, ids[1]!, ids[2]!, cx, cy - (kind === "conifer" ? 0.45 : 0.62), cz);
+  };
+  const trunk = rgba(TRUNK);
+  const tw = 0.05;
+  const trunkTop = kind === "conifer" ? 0.22 : 0.42;
+  const sq: Array<[number, number]> = [[-tw, -tw], [tw, -tw], [tw, tw], [-tw, tw]];
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = sq[i]!, [bx, bz] = sq[(i + 1) % 4]!;
+    const ids = [m.vertex(ax, -0.02, az, trunk), m.vertex(bx, -0.02, bz, trunk), m.vertex(bx, trunkTop, bz, trunk), m.vertex(ax, trunkTop, az, trunk)];
+    const nx = (ax + bx) / 2, nz = (az + bz) / 2;
+    m.tri(ids[0]!, ids[1]!, ids[2]!, nx, 0, nz);
+    m.tri(ids[0]!, ids[2]!, ids[3]!, nx, 0, nz);
+  }
+  const ring = (y: number, r: number, rot: number): Array<[number, number, number]> =>
+    Array.from({ length: 6 }, (_, i) => {
+      const a = rot + (i * Math.PI) / 3;
+      return [Math.round(Math.cos(a) * r * 1000) / 1000, y, Math.round(Math.sin(a) * r * 1000) / 1000] as [number, number, number];
+    });
+  const top = rgba(LEAF_TOP[kind]);
+  const low = rgba(LEAF_LOW[kind]);
+  if (kind === "broadleaf") {
+    const mid = ring(0.66, 0.5, 0);
+    for (let i = 0; i < 6; i++) {
+      const a = mid[i]!, b = mid[(i + 1) % 6]!;
+      face([a, b, [0, 1, 0]], top);
+      face([b, a, [0, 0.34, 0]], low);
+    }
+    return m;
+  }
+  for (const [base, r, apex, rot] of [[0.16, 0.5, 0.78, 0], [0.5, 0.36, 1, Math.PI / 6]] as const) {
+    const c = ring(base, r, rot);
+    for (let i = 0; i < 6; i++) face([c[i]!, c[(i + 1) % 6]!, [0, apex, 0]], i % 2 ? top : low);
+  }
+  return m;
 }

@@ -5,7 +5,7 @@ import { ORIGIN, TILE_SIZE_M, toLatLon, toLocal } from "../../src/geo/project.ts
 import type { Spawn } from "../../src/sim/contract.ts";
 import { buildBoundary, type BoundaryStats } from "./boundary.ts";
 import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
-import { candidateTiles, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
+import { candidateTiles, tileRef, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
 import { bearing, centroid, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, interiorPoint, isSimpleRing, pointInRing, r2, signedArea, type P2 } from "./geom.ts";
 import { intersectPolys, largest, polyArea, unionRings } from "./polygon.ts";
@@ -25,13 +25,17 @@ import { RoadSurface, trafficEdges } from "./road-surface.ts";
 import { buildSidewalks, type SidewalkStats } from "./sidewalks.ts";
 import type { Deck, Movable, Tunnel } from "./structures.ts";
 import { encodeWorldColliders } from "./world-colliders.ts";
-import { buildingMesh, deckMesh, groundMesh, junctionPolygons, junctionRadii, partyWalls, ribbonHalfWidths, roadMeshes } from "./mesh.ts";
+import { buildingMesh, deckMesh, groundMesh, junctionPolygons, junctionRadii, partyWalls, ribbonHalfWidths, roadMeshes, treePrototype, type MeshData } from "./mesh.ts";
 import { terraceBuildings, type TerraceStats } from "./terrace.ts";
 import { clearCorridors, type ClearanceStats } from "./clearance.ts";
 import { findTunnels, tunnelRibbons, undersideOverBores, type Bore } from "./tunnels.ts";
 import { buildDecks, type DeckStats } from "./decks.ts";
 import { jsonLines, jsonPretty, utf8 } from "./output.ts";
 import { buildRoads, crossesWater, titleCase, type RoadEdge, type RoadGraph, type RoadStats } from "./roads.ts";
+import { houseData, tileFronts } from "./house.ts";
+import { Landcover, tileTrees, type LandcoverConfig, type LandcoverStats, type TileLake } from "./landcover.ts";
+import { newerBuildings, type NewerStats } from "./newer.ts";
+import { tilesOfBox } from "./sources.ts";
 import { raisePiers, rebaseOnDecks, type PierStats } from "./piers.ts";
 import type { RawInputs } from "./sources.ts";
 import { BuildingIndex, buildStorefronts, type StorefrontStats } from "./storefronts.ts";
@@ -79,6 +83,12 @@ export interface Report {
   /** Freeway, overpass, underpass and bridge decks (decks.ts). */
   decks: DeckStats;
   overridesApplied: string[];
+  /** Buildings newer than the footprint layer (newer.ts, W-04). */
+  newer: NewerStats;
+  /** Records south of the county line drawn only in the far layer (W-42). */
+  farOnly: { records: number; ids: string[] };
+  /** Ground cover: lakes, classes, trees (landcover.ts, W-11, W-18, W-34). */
+  landcover: LandcoverStats | null;
   roads: RoadStats;
   storefronts: StorefrontStats;
   sidewalks: SidewalkStats | null;
@@ -87,7 +97,7 @@ export interface Report {
   outside: Record<string, string[]>;
   boundary: BoundaryStats;
   colliderPack: { bytes: number; tiles: number; buildings: number };
-  far: { cells: number; triangles: number; records: number; bytes: number };
+  far: { cells: number; triangles: number; terrainTriangles: number; records: number; bytes: number; bounds: [number, number, number, number] };
   terrain: { minY: number; maxY: number; waterSamples: number; samples: number };
   spawn: Spawn & { edge: string; y: number };
   /** Building records at each configured probe point (for landmarks' replacesBuildingIds). */
@@ -132,6 +142,18 @@ export function outsideArea(t: TileRef): OutsideArea {
   // Ocean Beach sand west of the last built tile (outside the neighbourhood polygons).
   if (c.lon < -122.5) return "pacific-shore";
   return "other";
+}
+
+/** The far layer's box, tile-aligned: the config's far box (W-17, W-40) or the candidate rectangle. */
+export function farBox(cfg: WorldConfig, cand: readonly [number, number, number, number]): [number, number, number, number] {
+  if (!cfg.far) return [cand[0], cand[1], cand[2], cand[3]];
+  const ts = tilesOfBox(cfg.far);
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const t of ts) {
+    x0 = Math.min(x0, t.bbox[0]); z0 = Math.min(z0, t.bbox[1]);
+    x1 = Math.max(x1, t.bbox[2]); z1 = Math.max(z1, t.bbox[3]);
+  }
+  return [Math.min(x0, cand[0]), Math.min(z0, cand[1]), Math.max(x1, cand[2]), Math.max(z1, cand[3])];
 }
 
 /** Spawn on the configured street at the point nearest the configured lat/lon, heading along it. */
@@ -339,7 +361,15 @@ function mergeClearance(a: ClearanceStats, b: ClearanceStats): ClearanceStats {
   };
 }
 
-export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, overrides: Override[]): Promise<BuildOutput> {
+/** Records whose interior point lies south of this (local z, m) and in no SF neighbourhood are far scenery only (W-42). */
+export const SOUTH_CROP_Z = 9600;
+
+export interface BuildOptions {
+  /** Ground-cover rules (pipeline/landcover.json); with raw.landcover, the lattice gets classes, lakes and trees. */
+  landcover?: LandcoverConfig;
+}
+
+export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, overrides: Override[], opts: BuildOptions = {}): Promise<BuildOutput> {
   const t0 = Date.now();
   const lap = (what: string): void => {
     if (process.env.FC_BUILD_TIMES) console.log(`  [${((Date.now() - t0) / 1000).toFixed(1)} s] ${what}`);
@@ -349,6 +379,15 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const elev = new Elevation(raw.dems.map((d) => d.raster));
   const fields = new Map<string, Heightfield>();
   for (const t of candidates) fields.set(t.id, tileHeightfield(t, elev));
+  let candMinX = Infinity, candMinZ = Infinity, candMaxX = -Infinity, candMaxZ = -Infinity;
+  for (const t of candidates) {
+    candMinX = Math.min(candMinX, t.bbox[0]); candMinZ = Math.min(candMinZ, t.bbox[1]);
+    candMaxX = Math.max(candMaxX, t.bbox[2]); candMaxZ = Math.max(candMaxZ, t.bbox[3]);
+  }
+  // Ground cover (W-11, W-18, W-34): the lakes are flattened into the lattice before anything
+  // reads the ground.
+  const landcover = raw.landcover && opts.landcover ? new Landcover(raw.landcover, opts.landcover, [candMinX, candMinZ, candMaxX, candMaxZ]) : null;
+  landcover?.applyLakes(fields, candidates);
   const ground = new Ground(candidates.map((t) => ({ ix: t.ix, iz: t.iz, field: fields.get(t.id)! })));
 
   // Outside the candidate tiles (far ends of boundary-crossing roads): the DEM, else the nearest tile edge.
@@ -388,6 +427,13 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const districts: District[] = raw.extras ? buildDistricts(raw.extras.neighborhoods) : [];
   lap("terrain");
   const built = buildBuildings(raw.buildings, raw.parcels, overrides, candidates, ground);
+  // Buildings newer than the footprint layer (W-04): parcel polygons and overrides' additions,
+  // before every pass, which treats them like any other record.
+  const newer = newerBuildings(built.buildings, raw.parcels, raw.parcelShapes ?? [], overrides, ground, new Set(candidates.map((t) => t.id)));
+  if (newer.added.length > 0 || newer.retired.size > 0) {
+    const gone = (b: Building): boolean => newer.retired.has(b.id) || (b.meta.towerOf !== undefined && newer.retired.has(b.meta.towerOf));
+    built.buildings = [...built.buildings.filter((b) => !gone(b)), ...newer.added].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
   lap("buildings");
   const { stats: bStats, overridesApplied } = built;
   const { graph, stats: rStats, optionalStairs } = buildRoads(raw.streets, candidates, heightAnywhere, waterAnywhere);
@@ -424,7 +470,22 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   lap("tunnels");
   // Two-tier records after every pass: a tower stands on its podium record's roof; a tower whose
   // podium a pass removed goes with it.
-  const buildings = reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground));
+  const reconciled = reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground));
+
+  // The Daly City strip (W-42, docs/design.md decision log 2026-10-21): records south of the
+  // county line, in no San Francisco neighbourhood, are far scenery: no near tile, collider or
+  // storefront. A tower or piece goes with its podium or source record.
+  const sfAt = districts.length > 0 ? new DistrictIndex(districts) : null;
+  const southOut = new Set<string>();
+  if (sfAt) {
+    for (const b of reconciled) {
+      if (b.meta.towerOf !== undefined) continue;
+      const p = interiorPoint(b.footprint);
+      if (p[1] > SOUTH_CROP_Z && !sfAt.at(p[0], p[1])) southOut.add(b.id);
+    }
+  }
+  const farOnly = reconciled.filter((b) => southOut.has(b.id) || (b.meta.towerOf !== undefined && southOut.has(b.meta.towerOf)));
+  const buildings = farOnly.length ? reconciled.filter((b) => !(southOut.has(b.id) || (b.meta.towerOf !== undefined && southOut.has(b.meta.towerOf)))) : reconciled;
 
   // Tile selection: a tile is built when it holds a building, a road passes through it, or it
   // has land (citywide: land inside San Francisco's neighbourhoods). Open water gets no file.
@@ -468,17 +529,76 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   sel.built = tiles.length;
   sel.water = waterTiles.length;
   if (tiles.length === 0) throw new Error("no tile has buildings, roads or land");
-  assignTiles(districts, tiles);
-  let candMinX = Infinity, candMinZ = Infinity, candMaxX = -Infinity, candMaxZ = -Infinity;
-  for (const t of candidates) {
-    candMinX = Math.min(candMinX, t.bbox[0]); candMinZ = Math.min(candMinZ, t.bbox[1]);
-    candMaxX = Math.max(candMaxX, t.bbox[2]); candMaxZ = Math.max(candMaxZ, t.bbox[3]);
+  // W-40: every land tile beside a built one is listed (far terrain, never sea), the candidate
+  // rectangle's or not: beyond it the DEM's far blocks decide.
+  {
+    const built = new Set(tiles.map((t) => t.id));
+    const listed = new Set([...outsideTiles.map((t) => t.id), ...waterTiles]);
+    for (const t of tiles) {
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const n = tileRef(t.ix + dx, t.iz + dz);
+        if (built.has(n.id) || listed.has(n.id)) continue;
+        listed.add(n.id);
+        let f: Heightfield;
+        try {
+          f = tileHeightfield(n, elev);
+        } catch {
+          continue;
+        }
+        if (f.water.some((v) => v === 0)) {
+          outsideTiles.push({ id: n.id, area: outsideArea(n) });
+          sel.outside++;
+        }
+      }
+    }
+    const order = (id: string): [number, number] => {
+      const m = /^t(-?\d+)_(-?\d+)$/.exec(id)!;
+      return [Number(m[2]), Number(m[1])];
+    };
+    outsideTiles.sort((a, b) => {
+      const [az, ax] = order(a.id), [bz, bx] = order(b.id);
+      return az - bz || ax - bx;
+    });
   }
+  assignTiles(districts, tiles);
   // The sim's ground: built tiles only (open water and land outside the city are 0 / absent).
   const simGround = new Ground(tiles.map((t) => ({ ix: t.ix, iz: t.iz, field: fields.get(t.id)! })));
 
   const { storefronts, stats: sStats } = buildStorefronts(raw.businesses, buildings, graph.edges, simGround);
   const spawn = chooseSpawn(cfg, graph, buildings);
+
+  // House-kit data (W-15, W-29, W-46 to W-50): street level, wall classes, storeys. meta.streetY
+  // is written where it differs from baseY by 10 cm or more; the glb's storey grid uses exactly it.
+  const house = houseData(buildings, graph.edges, (x, z) => simGround.heightAt(x, z));
+  for (const b of buildings) {
+    const h = house.get(b.id);
+    if (!h || h.streetY === undefined || b.meta.towerOf !== undefined) continue;
+    if (Math.abs(h.streetY - b.baseY) < 0.1) delete h.streetY;
+    // The record object is the one every tile list holds: a new meta, never a shared one changed.
+    else b.meta = { ...b.meta, streetY: h.streetY };
+  }
+  // A tower's grid starts where its podium's does.
+  for (const b of buildings) {
+    if (b.meta.towerOf === undefined) continue;
+    const h = house.get(b.id);
+    const pod = house.get(b.meta.towerOf);
+    if (h) {
+      if (pod?.streetY !== undefined) h.streetY = pod.streetY;
+      else delete h.streetY;
+    }
+  }
+  const shopsByBuilding = new Map<string, Array<{ x: number; z: number; buildingId: string }>>();
+  for (const sf of storefronts) (shopsByBuilding.get(sf.buildingId) ?? shopsByBuilding.set(sf.buildingId, []).get(sf.buildingId)!).push(sf);
+  // Trees stay out of buildings and off every road ribbon (W-18, W-44).
+  const treeBuildings = new BuildingIndex(buildings);
+  const treeRoads = new RoadSurface(graph.edges, 4);
+  const treeBlocked = (x: number, z: number): boolean => {
+    if (treeRoads.clearance(x, z) < (opts.landcover?.foliage.roadClearM ?? 1)) return true;
+    return treeBuildings.near(x, z, 0.5).some((b) => pointInRing(x, z, b.footprint) || distToRing(x, z, b.footprint) < 0.5);
+  };
+  const waterLattice = (x: number, z: number): boolean | null => (ground.field(x, z) ? ground.waterAt(x, z) : null);
+  const trees = { broadleaf: treePrototype("broadleaf"), conifer: treePrototype("conifer") };
+  const tileLakes = new Map<string, number[]>();
 
   const files = new Map<string, Uint8Array>();
   const boundary = buildBoundary(tiles, fields);
@@ -515,10 +635,15 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       samples++;
     }
     const tb = byTile.get(t.id) ?? [];
+    const cover = landcover ? landcover.tileCover(field, waterLattice) : null;
+    if (cover && /[0-9]/.test(cover.cover)) tileLakes.set(t.id, [...cover.cover].map((ch) => (/[0-9]/.test(ch) ? 1 : 0)));
+    const groundJson: Record<string, unknown> = { ...field };
+    if (cover) groundJson.cover = cover.cover;
+    if (cover && cover.lakes.length > 0) groundJson.lakes = cover.lakes satisfies TileLake[];
     const collider = jsonLines(
       {
         tileId: t.id,
-        ground: field,
+        ground: groundJson,
         buildings: tb.map((b) => colliderBuilding(b, true)),
         ...tileStructures(structures, t.id),
       },
@@ -534,14 +659,31 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       })
       .map(([, poly]) => poly);
     const { roads, freeways } = roadMeshes(tileEdges, t, ground, decked.surface, radii, tileJunctions, halves);
-    const { mesh, ranges } = buildingMesh(tb, party);
+    const { mesh, ranges } = buildingMesh(tb, party, house);
+    const fronts = tileFronts(tb, house, tb.flatMap((b) => shopsByBuilding.get(b.id) ?? []), [t.bbox[0], t.bbox[1]]);
+    const foliage: Array<{ name: string; mesh: MeshData; translation: number[]; scale: number[] }> = [];
+    if (landcover && cover) {
+      const list = tileTrees(landcover, t, cover.cover, field, (x, z) => ground.meshHeightAt(x, z) ?? 0, treeBlocked);
+      for (const kind of ["broadleaf", "conifer"] as const) {
+        const mine = list.filter((q) => q.conifer === (kind === "conifer"));
+        if (mine.length === 0) continue;
+        foliage.push({
+          name: `foliage-${kind}`,
+          mesh: trees[kind],
+          translation: mine.flatMap((q) => [q.x, q.y, q.z]),
+          scale: mine.flatMap((q) => [q.width, q.height, q.width]),
+        });
+      }
+    }
     const glb = await tileGlb(cfg.id, t, {
-      ground: groundMesh(field, ground),
+      ground: groundMesh(field, ground, cover?.cover),
       roads,
       freeways,
       buildings: mesh,
       buildingRanges: ranges,
+      ...(fronts.length ? { buildingExtras: { fronts } } : {}),
       structures: deckMesh(structures.decks.get(t.id) ?? [], ground),
+      ...(foliage.length ? { foliage } : {}),
     });
     files.set(`${t.id}.glb`, glb);
     const water = field.water.reduce((s, v) => s + v, 0) / field.water.length;
@@ -590,7 +732,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       tileId: t.id,
       ix: t.ix,
       iz: t.iz,
-      ground: fields.get(t.id)!,
+      ground: tileLakes.has(t.id) ? { ...fields.get(t.id)!, lake: tileLakes.get(t.id)! } : fields.get(t.id)!,
       buildings: (byTile.get(t.id) ?? []).map((b) => colliderBuilding(b, false)),
       ...tileStructures(structures, t.id),
     })),
@@ -598,17 +740,36 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   files.set("world.colliders.bin", pack);
 
   lap("tiles");
-  // Far-LOD massing over the whole candidate rectangle (the DEM reaches it all).
+  // Far-LOD over the far box (W-17, W-40): the near tiles' own lattice wherever a candidate tile
+  // has one (lakes flattened, piers raised), else the DEM; every building, the strip south of the
+  // county line included (W-42).
+  const farBounds = farBox(cfg, [candMinX, candMinZ, candMaxX, candMaxZ]);
   const far = await buildFarLod(cfg.id, {
-    buildings,
-    terrain: (x, z) => {
+    buildings: [...buildings, ...farOnly],
+    sample: (x, z) => {
+      const f = ground.field(x, z);
+      if (f) {
+        const i = Math.round((x - f.x0) / f.cellSizeM), k = Math.round((z - f.z0) / f.cellSizeM);
+        return { h: f.heights[k * f.nx + i]!, water: f.water[k * f.nx + i] === 1 };
+      }
       try {
         return elev.sample(x, z);
       } catch {
         return null;
       }
     },
-    bounds: [candMinX, candMinZ, candMaxX, candMaxZ],
+    ...(landcover
+      ? {
+          cover: (x: number, z: number, h: number, water: boolean): string => {
+            if (water) return "w";
+            if (landcover.lakeIndexAt(x, z) >= 0) return "0";
+            if (ground.field(x, z)) return landcover.landClass(x, z, h, waterLattice);
+            return landcover.park(x, z) ? "g" : "o";
+          },
+        }
+      : {}),
+    bounds: farBounds,
+    nearTiles: new Set(tiles.map((t) => `${t.ix},${t.iz}`)),
   });
   for (const c of far) files.set(`${c.id}.glb`, c.glb);
 
@@ -742,6 +903,9 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     );
   }
 
+  // House kit K5: the storefront anchors are a layer the renderer may read.
+  layers.storefronts = "storefronts.json";
+  layerCounts.storefronts = storefronts.length;
   const manifest = {
     version: 1,
     world: cfg.id,
@@ -783,6 +947,9 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     piers: piers.stats,
     decks: decked.stats,
     overridesApplied,
+    newer: newer.stats,
+    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20) },
+    landcover: landcover ? landcover.stats : null,
     roads: rStats,
     storefronts: sStats,
     sidewalks: sidewalkStats,
@@ -795,8 +962,10 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     far: {
       cells: far.length,
       triangles: far.reduce((a, c) => a + c.stats.triangles, 0),
+      terrainTriangles: far.reduce((a, c) => a + c.stats.terrainTriangles, 0),
       records: far.reduce((a, c) => a + c.stats.records, 0),
       bytes: far.reduce((a, c) => a + c.glb.byteLength, 0),
+      bounds: farBounds,
     },
     terrain: { minY, maxY, waterSamples, samples },
     spawn: { ...spawn, y: r2(simGround.heightAt(spawn.x, spawn.z) ?? 0) },
