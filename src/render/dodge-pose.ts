@@ -3,7 +3,10 @@
 // says where the body is and how high it hops (its y includes the hop); this says how it looks.
 // It must read as a comic Crazy Taxi leap, never as someone knocked down: the body is only ever
 // stretched flat while it is well off the ground (the hop above STRETCH_HOP_M), it turns over
-// only tucked into a ball in the air, and it lands on its feet.
+// only tucked into a ball in the air, and it lands on its feet. The drawn dive goes higher than
+// the sim's hop (AIR_LIFT_M more at the top, a cartoon leap), and a soft shadow on the ground
+// under the body (PersonPose.shadow, drawnHop: where the ground is) shows the air beneath it,
+// so from any camera height it reads as flying, not lying on the pavement.
 //
 // People (the procedural person, person.ts; the player's walker too):
 //  - dive: they turn into the dive and spring, arms windmilling, then stretch out flat in the air
@@ -25,6 +28,8 @@
 export const STRETCH_HOP_M = 0.3;
 /** An override leap shorter than this is drawn as a stumble-hop aside, not the big flip, metres. */
 export const SHORT_LEAP_M = 0.6;
+/** A dive is drawn this much higher than the sim's hop at the top of its arc (none at take-off or landing), metres. */
+export const AIR_LIFT_M = 0.3;
 
 /** The parts of a DodgeState the renderer reads (src/sim/contract.ts DodgeState). */
 export interface DodgeLike {
@@ -61,6 +66,11 @@ export interface PersonPose {
   armR: [number, number];
   legL: number;
   legR: number;
+  /**
+   * How strongly a shadow is drawn on the ground under them, 0..1: through the dive and the
+   * landing, fading as they stand up (the renderer puts it at the ground: drawnHop).
+   */
+  shadow: number;
 }
 
 export interface RobotPose {
@@ -115,6 +125,21 @@ export function progress(d: Readonly<DodgeLike>, alpha: number): number {
 }
 
 /**
+ * How much of the drawn height (the sim's y between two ticks, alpha of the way) is the dodge's
+ * hop: the sim's hop (dodge.ts advanceDodge: 4 peak u (1 - u) at u = t / dur) at the two ticks,
+ * interpolated the same way. y minus this is the ground under them.
+ */
+export function drawnHop(d: Readonly<DodgeLike>, alpha: number): number {
+  if (d.phase !== "dive" || d.dur <= 0) return 0;
+  const peak = d.peak ?? 0.45;
+  const h = (t: number): number => {
+    const u = clamp01(t / d.dur);
+    return 4 * peak * u * (1 - u);
+  };
+  return lerp(h(d.t - 1), h(d.t), alpha);
+}
+
+/**
  * A person's pose in a dodge. `walk` is the heading they had (the sim keeps it through the
  * dodge), `alpha` how far the frame is from the previous tick to this one (progress), `time` a
  * running clock (s, for the startled shake). Fills and returns `out`.
@@ -128,6 +153,7 @@ export function personDodgePose(d: Readonly<DodgeLike>, walk: number, alpha: num
   out.lift = 0;
   out.squash = 1;
   out.pivot = 0.95;
+  out.shadow = 1;
   if (d.phase === "dive" && d.leap) {
     out.x = lerp(d.sx, d.tx, u);
     out.z = lerp(d.sz, d.tz, u);
@@ -162,12 +188,15 @@ export function personDodgePose(d: Readonly<DodgeLike>, walk: number, alpha: num
   if (d.phase === "dive") {
     out.heading = walk + wrap(dive - walk) * ease(u, 0, 0.2);
     const hop = 4 * (d.peak ?? 0.45) * u * (1 - u);
+    // Drawn higher than the sim's hop while in the air: a cartoon leap.
+    const air = u < LAND_FROM ? AIR_LIFT_M * Math.sin((Math.PI * u) / LAND_FROM) : 0;
     if (u < FLIP_FROM) {
       // Spring and stretch: lean into it, arms windmilling, then flat out with arms ahead and
       // legs kicked back, as flat as the hop is high (flat only well off the ground).
       const lean = ease(u, 0, 0.12);
       const flat = ease(hop, STRETCH_HOP_M * 0.66, STRETCH_HOP_M) * ease(u, 0.08, 0.3);
       out.pitch = -0.5 * lean - 0.85 * flat;
+      out.lift = air;
       const ahead = ease(u, 0.12, 0.32);
       const w = TAU * 4 * u;
       out.armL = [lerp(1.3 + 1.5 * Math.sin(w) * lean, 2.9, ahead), lerp(-0.6, -0.25, ahead)];
@@ -185,7 +214,7 @@ export function personDodgePose(d: Readonly<DodgeLike>, walk: number, alpha: num
       // (From the stretch's -1.35 a full turn and on to -0.35 - TAU, the same pose as -0.35.)
       out.pitch = -1.35 - (TAU - 1.0) * ease(k, 0.1, 1);
       out.squash = 1 - 0.42 * tuck;
-      out.lift = 0.12 * tuck;
+      out.lift = 0.12 * tuck + air;
       out.armL = [lerp(lerp(2.9, 1.9, ease(k, 0, 0.3)), 1.2, ease(k, 0.7, 1)), lerp(-0.25, -0.2, ease(k, 0, 0.3))];
       out.armR = [lerp(lerp(2.9, 1.9, ease(k, 0, 0.3)), 1.2, ease(k, 0.7, 1)), lerp(0.25, 0.2, ease(k, 0, 0.3))];
       out.legL = lerp(-0.35, 1.6, ease(k, 0, 0.35)) * (1 - ease(k, 0.7, 1)) + 0.9 * ease(k, 0.7, 1);
@@ -209,6 +238,7 @@ export function personDodgePose(d: Readonly<DodgeLike>, walk: number, alpha: num
   // brushing off, back to the walk.
   out.heading = dive + wrap(walk - dive) * ease(u, 0.75, 1);
   const up = ease(u, 0, 0.3);
+  out.shadow = 1 - up;
   out.pitch = -0.35 * (1 - up);
   out.pivot = 0.9;
   out.lift = -0.25 * (1 - up) + 0.08 * Math.sin(Math.PI * clamp01((u - 0.12) / 0.2));
@@ -278,7 +308,7 @@ export function robotDodgePose(kind: "errandRobot" | "sidewalkBot", d: Readonly<
 }
 
 export function newPersonPose(): PersonPose {
-  return { x: null, z: null, heading: 0, pitch: 0, pivot: 0.95, roll: 0, lift: 0, squash: 1, armL: [0, 0], armR: [0, 0], legL: 0, legR: 0 };
+  return { x: null, z: null, heading: 0, pitch: 0, pivot: 0.95, roll: 0, lift: 0, squash: 1, armL: [0, 0], armR: [0, 0], legL: 0, legR: 0, shadow: 0 };
 }
 
 export function newRobotPose(): RobotPose {

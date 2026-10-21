@@ -3,9 +3,10 @@
 // its arc with a flip (a short one is a stumble-hop); robots skid and hop. The poses flow from one
 // into the next (no snap at a phase change) and end where the walk takes over again, and nobody
 // is ever drawn lying still or limp, stretched flat near the ground, or upended: it must read as a
-// comic leap, never as someone knocked down (the adversarial review, 2026-10-21).
+// comic leap, never as someone knocked down (the adversarial review, 2026-10-21). The dive is
+// drawn higher than the sim's hop with a shadow on the ground under it, so the air shows.
 import { describe, expect, it } from "vitest";
-import { SHORT_LEAP_M, STRETCH_HOP_M, diveBearing, newPersonPose, newRobotPose, personDodgePose, progress, robotDodgePose, type DodgeLike, type PersonPose } from "../../src/render/dodge-pose.ts";
+import { AIR_LIFT_M, SHORT_LEAP_M, STRETCH_HOP_M, diveBearing, drawnHop, newPersonPose, newRobotPose, personDodgePose, progress, robotDodgePose, type DodgeLike, type PersonPose } from "../../src/render/dodge-pose.ts";
 
 const TAU = Math.PI * 2;
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -100,6 +101,39 @@ describe("people dodging", () => {
     }
     expect(bad.slice(0, 5)).toEqual([]);
     // And the recovery never lies down at all (below).
+  });
+
+  it("is drawn high in the air (above the sim's hop: a cartoon leap) with a shadow on the ground under it, which goes as they stand up", () => {
+    const d = (t: number, dur = 18): DodgeLike => ({ phase: "dive", sx: 0, sz: 0, tx: 2.4, tz: 0, t, dur, hop: 0, leap: false, peak: 0.45 });
+    // Mid-dive the body is drawn about 0.7 m up: plainly in the air, not lying on the pavement.
+    for (const dur of [12, 18, 24, 36]) {
+      let top = 0;
+      for (let t = 0; t <= dur; t++) {
+        const p = pose(d(t, dur));
+        const u = progress(d(t, dur), 1);
+        const hop = 4 * 0.45 * u * (1 - u);
+        top = Math.max(top, hop + p.lift);
+        // Never drawn below the sim's hop while in the air (only the landing's crouch goes lower).
+        if (u < 0.82) expect(p.lift, `dur ${dur} u ${u.toFixed(2)}`).toBeGreaterThanOrEqual(0);
+        expect(p.shadow, "a shadow under them all through the dive").toBe(1);
+      }
+      expect(top, `dur ${dur}`).toBeGreaterThan(0.45 + AIR_LIFT_M * 0.9);
+    }
+    // Take-off is the walk's height (no jump in the drawing).
+    expect(pose(d(0), 0, 0).lift).toBeCloseTo(0, 9);
+    // The shadow: full as they land, gone once they are up (recover u 0.3).
+    expect(pose(recover(0), 0, 0).shadow).toBeCloseTo(1, 9);
+    expect(pose(recover(9)).shadow).toBeGreaterThan(0);
+    expect(pose(recover(9)).shadow).toBeLessThan(1);
+    expect(pose(recover(18)).shadow).toBe(0);
+    // Where the ground is: the sim's hop (dodge.ts advanceDodge) between the two ticks drawn.
+    const hop = (t: number): number => 4 * 0.45 * (t / 18) * (1 - t / 18);
+    expect(drawnHop(d(9), 1)).toBeCloseTo(hop(9), 12);
+    expect(drawnHop(d(9), 0)).toBeCloseTo(hop(8), 12);
+    expect(drawnHop(d(9), 0.5)).toBeCloseTo((hop(8) + hop(9)) / 2, 12);
+    expect(drawnHop(d(1), 0)).toBe(0);
+    expect(drawnHop(recover(5), 0.5)).toBe(0);
+    expect(drawnHop({ ...d(9), peak: undefined }, 1)).toBeCloseTo(hop(9), 12);
   });
 
   it("recovers: up from the crouch, a startled pose (arms flung up, a shake), brushing off, then the walk's heading and stance", () => {

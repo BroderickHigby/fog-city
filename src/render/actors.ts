@@ -11,7 +11,7 @@
 import * as THREE from "three";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
-import { newPersonPose, personDodgePose, type DodgeLike } from "./dodge-pose.ts";
+import { drawnHop, newPersonPose, personDodgePose, type DodgeLike } from "./dodge-pose.ts";
 import { packedMaterial } from "./agent-packing.ts";
 import type { NightLights } from "./lights.ts";
 import { hashString } from "./hash.ts";
@@ -373,7 +373,8 @@ export class Actors {
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
       const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
-      this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp);
+      const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) : null;
+      this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
     }
     this.people.end();
   }
