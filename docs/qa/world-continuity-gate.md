@@ -295,3 +295,114 @@ difference is listed with its reason.
 - **Not automated yet** (left to the tour's human review): ribbon seam gaps (L-11), the 20 degree
   rays of the ring check, the canopy share of park land, the completeness of `manifest.outside`,
   adjacent houses sharing a colour, the Painted Ladies override, the Transamerica silhouette.
+
+<!-- metrics:start (generated from tests/golden/world-qa-baseline.json by scripts/golden/world-docs.ts) -->
+### The metrics at 544f67c
+
+102 metrics. "enforced": every defect it tracks is fixed (or it is a pass check), so its target is a hard assertion; "ratchet": it may not get worse than its baseline; "at target": already there while a defect it tracks is still open.
+
+| Metric | Suite (cadence) | Tracks | Baseline at 544f67c | Target | State | What it measures |
+|---|---|---|---|---|---|---|
+| `A.accounting.keptMatchesRecords` | buildings (pr) | pass check | 0 | <= 0 footprints | enforced | |report.json kept - footprint records in the colliders| (the report and the tiles agree) |
+| `A.accounting.unexplained` | buildings (pr) | pass check | 0 | <= 0 footprints | enforced | source footprint parts neither kept nor dropped for a counted reason (report.json) |
+| `A.facade.firstStoreyOffStreet` | buildings (pr) | W-29 | 0.111 | <= 0.01 share of street-facing records | ratchet | street-facing buildings whose first-storey line (meta.streetY, else baseY) is more than 1.5 m off the ground at the wall nearest the street |
+| `A.facade.storeys5m` | buildings (pr) | W-15 | 0.611 | <= 0.02 share of residential records | ratchet | residential records the GLB draws with storeys of 5 m or more (_FACADE storey height) |
+| `A.ground.lowAboveGround` | buildings (pr) | W-05 | 83 | <= 0 records | ratchet | records 4 m or taller whose roof stands less than 2 m above the highest ground under them |
+| `A.ground.relief10` | buildings (pr) | W-28 | 466 | <= 0 records | ratchet | drawn parts with more than 10 m of ground relief under one roof |
+| `A.ground.roofUnderGround` | buildings (pr) | W-05 | 22 | <= 0 records | ratchet | records with the ground above the roof anywhere inside the footprint (1 m raster) |
+| `A.ground.wallBottomAboveGround` | buildings (pr) | L-03 | 2 | <= 0 records | ratchet | records whose wall bottom (meta.footY) is more than 0.3 m above the lowest ground along their walls (0.5 m samples) |
+| `A.landmark.bridgesMissing` | buildings (pr) | W-24 | 2 | <= 0 landmarks | ratchet | of golden-gate-bridge and bay-bridge-west, entries missing from content/landmarks.json |
+| `A.landmark.coitHeightError` | buildings (pr) | W-27 | 0.199 | <= 0.05 share of 64 m | ratchet | Coit Tower's height against the published 64 m |
+| `A.landmark.heroWithoutShape` | buildings (pr) | W-27 | 10 | <= 0 landmarks | ratchet | hero landmarks (Transamerica, Coit, Saints Peter and Paul, Palace of Fine Arts, City Hall, Grace Cathedral, Mission Dolores, the Conservatory, Dragon Gate, Sutro Baths) with neither a model nor an interim shape without the office window grid |
+| `A.landmark.sutroRecordHeight` | buildings (pr) | W-26 | 3.44 | <= 10 m above ground | enforced | Sutro Tower's footprint records stay low plinths, never the solid 231 m slab |
+| `A.landmark.sutroTowerTopM` | buildings (pr) | W-25 | 0 | >= 290 m above ground | ratchet | a sutro-tower landmark at 37.7552,-122.4528 whose model top is 290 m or more above its ground |
+| `A.newer.cells3` | buildings (pr) | W-04 | 13 | <= 0 100 m cells | ratchet | 100 m cells holding 3 or more of those unmatched parcel points (a missing block) |
+| `A.newer.missionRockTall` | buildings (pr) | W-04 | 0 | >= 4 records | ratchet | records 40 m or taller in the Mission Rock box (37.7740-37.7765, -122.3905..-122.3875) |
+| `A.newer.publishedHeightFails` | buildings (pr) | W-04 | 4 | <= 0 towers | ratchet | towers whose tallest record within 30 m is not within 10% of the published height (Salesforce, Transamerica, 555 California, One Rincon Hill, 250 Howard, The Avery, 706 Mission, 33 Tehama, Fifteen Fifty) |
+| `A.newer.unmatched` | buildings (pr) | W-04 | 122 | <= 10 parcel points | ratchet | post-2015 assessor parcel points with storeys and no building record within 25 m |
+| `A.pack.recordMismatches` | buildings (pr) | pass check | 0 | <= 0 records | enforced | building records whose collider-pack copy differs from the tile JSON (footprint, baseY, topY) |
+| `A.phantom.fortPointHeight` | buildings (pr) | W-16 | 64.61 | <= 25 m above ground | ratchet | Fort Point (201006.0000856 and its tower): roof above the ground at the centroid (the LiDAR caught the bridge deck above it) |
+| `A.phantom.tallOnStreet` | buildings (pr) | W-16 | 11 | <= 0 records | ratchet | records more than 30 m tall standing on a surface street's centreline (no underside clearing the road) |
+| `A.rings.coplanarRoofs` | buildings (pr) | L-01 | 24 | <= 0 pairs | ratchet | overlapping footprint pairs (2 m2 or more) whose roofs are within 0.1 m: z-fighting roofs |
+| `A.rings.duplicates` | buildings (pr) | L-01 | 23 | <= 0 pairs | ratchet | footprint pairs overlapping by 90% or more of the smaller one (0.5 m raster; a podium and its own tower excluded) |
+| `A.rings.nonSimple` | buildings (pr) | W-30 | 193 | <= 0 rings | ratchet | footprint and tower rings that cross themselves (double roofs, slabs outside the walls) |
+| `D.beaches.sandShare` | cover (pr) | W-34 | 0 | >= 0.9 share | ratchet | share of the Ocean, Baker, China and Crissy beaches (land within 80 m of the sea, up to 8 m) drawn as sand |
+| `D.foliage.parkTilesShare` | cover (pr) | W-18 | 0 | >= 1 share of tiles | ratchet | share of the tiles over Golden Gate Park, the Presidio, McLaren, Lincoln Park, Buena Vista, Glen Canyon, Sutro Forest and Mt Davidson whose GLB has a foliage node |
+| `D.lakes.drawnGrassHa` | cover (pr) | W-11 | 5.06 | <= 0 ha | ratchet | lake surface (the eight hydro-flattened lakes) drawn as grass |
+| `D.parks.greenShare` | cover (pr) | W-18 | 0.437 | >= 0.9 share of park land | ratchet | share of Rec and Park land (lattice vertices in the 255 properties) drawn as grass or forest |
+| `D.parks.propertiesUnder10pct` | cover (pr) | W-18 | 240 | <= 0 properties | ratchet | Rec and Park properties less than 10% of whose land is drawn green |
+| `D.shore.drawnGrassHa` | cover (pr) | W-18, W-34 | 31.07 | <= 0 ha | ratchet | shore land 1.5 to 8 m high within 80 m of the sea drawn as grass (beaches and bluffs painted lawn) |
+| `F.determinism.hashMismatches` | determinism (pr) | pass check | 0 | <= 0 checkpoints | enforced | 60 s of step() with two players and traffic, twice from the collider pack and once from the per-tile JSON colliders: 600-tick state hashes that differ |
+| `F.bridges.failingRuns` | drive (pr) | W-12 | 16 | <= 0 runs | ratchet | drives over the 3rd St, 4th St, 3rd St (Islais) and Illinois St bridges, both ways at 15 and 25 m/s, that dip below the lower abutment - 0.2 m, leave the ground or stop |
+| `F.buried.carMaxJumpM` | drive (pr) | W-05 | 23.15 | <= 0.5 m | ratchet | cars driven at the 31 buried-roof sites: the most one tick moves a car beyond speed * DT (teleported out of a buried footprint) |
+| `F.buried.walkerLowWallStops` | drive (pr) | W-05 | 29 | <= 0 sites | ratchet | buried-roof sites where a walker is stopped by a wall less than 2.5 m tall (an invisible wall at roof level) |
+| `F.crossings.airborneRuns` | drive (pr) | W-14 | 66 | <= 0 runs | ratchet | street-over-freeway crossings, each driven straight at 15 m/s, that leave the car airborne for more than 0.2 s (trenches and humps) |
+| `F.crossings.richlandAirS` | drive (pr) | W-14 | 2.33 | <= 0.2 s | ratchet | Richland Ave over I-280 (c11011002) at 16 and 20 m/s both ways: the longest airborne interval |
+| `F.lake.mercedDrivenM` | drive (pr) | W-11 | 620 | <= 10 m | ratchet | metres a car drives across South Lake Merced's flattened surface (it should be stopped or towed at the water's edge) |
+| `F.named.runsStopped` | drive (pr) | W-01, W-02, W-12, W-14, W-43 | 31 | <= 0 runs | ratchet | runs over the named streets (1st St, Howard, Kearny, Upper Market, Battery, Elk, Houston, Crescent, Mason, Winston, Walnut, the Broadway, Stockton and Toll Plaza tunnels, Lombard, the creek bridges, Richland, Twin Peaks Blvd, Filbert, Vermont), each allowed direction at the posted speed, that do not reach the end |
+| `F.placement.maxJumpM` | drive (pr) | W-51 | 23.22 | <= 0.5 m | ratchet | the same placements: the most one tick moves the car beyond speed * DT (pushed out of a footprint in one tick) |
+| `F.placement.maxRiseM` | drive (pr) | W-51 | 0.34 | <= 0.5 m | at target | a car placed at each of the 58 start-blocked street starts and at the 8 multiplayer spawn slots, then driven off: the most it rises above the ground |
+| `F.ram.launches` | drive (pr) | W-23 | 211 | <= 0 rams | ratchet | of 360 seeded rams at 25 m/s into buildings on 15%+ ground (Russian Hill, west of Twin Peaks, Bernal), those that leave the car airborne over 0.3 s or lift it over 0.5 m |
+| `F.sample.runsStopped` | drive (pr) | W-01 | 11 | <= 0 runs | ratchet | runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id, each allowed direction) that do not reach the end |
+| `F.tunnels.failingRuns` | drive (pr) | W-02 | 6 | <= 0 runs | ratchet | drives through the Broadway, Stockton and Toll Plaza tunnels at 25 m/s that hit something, leave the ground or stray more than 1 m from the straight portal-to-portal line |
+| `E.freeway.i280Stops` | edge (pr) | W-07, W-03 | 2 | <= 0 drives | ratchet | of I-280 northbound and southbound driven end to end at 25 m/s, drives that stop before the end |
+| `E.freeway.landEdgesCrossingWalls` | edge (pr) | W-07 | 3 | <= 0 edges | ratchet | freeway (gradeSeparated) edges with both ends on land, crossing no more than 300 m of water, whose centreline crosses a wall (I-280 at the creeks) |
+| `E.gaps.carRunsOffCorridor` | edge (pr) | W-21 | 0 | <= 0 runs | enforced | car runs (10 and 25 m/s, turning 30/60/90 deg either way on each road over water) that get more than 1 m outside the road's corridor on the water side |
+| `E.gaps.maxOutOnWaterM` | edge (pr) | W-21 | 0 | <= 1 m | enforced | the farthest those cars get outside the corridor on the water side |
+| `E.gaps.walkerRunsOffCorridor` | edge (pr) | W-21 | 0 | <= 0 runs | enforced | sprinting walkers turning off a road over water who get more than 1 m outside its corridor on the water side |
+| `E.launch.maxRiseM` | edge (pr) | W-06 | 8.94 | <= 1 m | ratchet | the highest any of those cars rose above the ground |
+| `E.launch.sampleLaunches` | edge (pr) | W-06 | 98 | <= 0 runs | ratchet | of cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s (a fixed sample of 200 shore points), runs that rise over 1 m or jump more than speed*DT + 0.5 m in a tick |
+| `E.net.buildingsWithoutStreet` | edge (pr) | W-42 | 911 | <= 0 buildings | ratchet | buildings with no drivable street within about 150 m (the Daly City strip south of the county line), unless their tile is listed as scenery-only (manifest.sceneryOnly) |
+| `E.net.districtMinReach` | edge (pr) | pass check | 0.962 | >= 0.95 share of nodes | enforced | the lowest share, over mainland districts, of a district's street nodes a car can reach from the spawn (one-way streets obeyed) |
+| `E.net.mainlandLargestShare` | edge (pr) | pass check | 0.995 | >= 0.97 share of nodes | enforced | share of the mainland's drivable street nodes (freeways, ramps and paths left out) in its largest connected piece |
+| `E.net.outlineCoverFails` | edge (pr) | pass check | 0 | <= 0 10 m pieces | enforced | 10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once |
+| `E.net.seamDeadEnds` | edge (pr) | pass check | 0 | <= 0 nodes | enforced | road ends that stop exactly on a tile seam between two built tiles (a road cut by the tiling) |
+| `E.push.excessLiftMps` | edge (pr) | W-06, W-23, W-51 | 0 | <= 0 m/s | at target | unit: the most a car pushed out of a building onto a 3 m bank, placed overlapping a footprint, or scraping a wall on a cross slope rises faster than |v| * grade + 1 m/s |
+| `E.walls.sampleEscapes` | edge (pr) | W-08 | 0 | <= 0 ram tests | enforced | ram tests (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) from a fixed sample of 97 wall starts that cross a real wall or leave the built tiles |
+| `F.walk.routesFailing` | foot (pr) | W-39 | 6 | <= 0 walks | ratchet | walks that fail: Filbert St up at 1.0 m/s or better, the Lyon St and Filbert steps both ways, 22nd St up, a seam on a slope, Pemberton Pl and Cottage Row both ways |
+| `F.walker.verticalFails` | foot (pr) | W-52 | 2 | <= 0 checks | ratchet | unit: walking off a 3 m drop takes at least 0.7 s to land; a walker cannot climb a slope steeper than 100% taller than 1 m |
+| `H.bays.anchorShare` | houses (pr) | W-49 | 0 | >= 0.9 share of candidates | ratchet | bay-window anchors drawn (GLB extras "bays") against the street-facing houses from 1925 or earlier |
+| `H.cracks.sampleBoxPairs` | houses (pr) | W-36 | 291 | <= 0 pairs | ratchet | row-house pairs 5 to 60 cm apart (cracks opened by simplification) in the Sunset, Mission, Marina and Russian Hill sample boxes |
+| `H.garages.anchorShare` | houses (pr) | W-48 | 0 | >= 0.9 share of candidates | ratchet | garage-door anchors drawn (GLB extras "garages") against the street-facing 1920-1960 houses of the Sunset, West of Twin Peaks, Outer Richmond, Excelsior and Marina rows |
+| `H.palette.pre1915SaturatedShare` | houses (pr) | W-37 | 0 | >= 0.3 share | ratchet | share of pre-1915 houses drawn with a wall colour of saturation 0.3 or more (Victorian and Edwardian colours, not one pastel class) |
+| `H.roofs.shapedShare` | houses (pr) | W-38 | 0 | >= 0.8 share | ratchet | share of single-family houses whose drawn roof is not one flat slab (roof vertices span more than 0.5 m: gables, hips, parapets) |
+| `H.seawall.embarcaderoRampShare` | houses (pr) | W-35 | 0.94 | <= 0 share of shore samples | ratchet | Embarcadero shore samples (every 10 m, Pier 39 to the ballpark) where the promenade, 2.5 m or higher 10 m inland, falls below 2 m within 1 m of the shore line (a ramp into the Bay, no quay face) |
+| `H.stoops.blankBandOver2_5m` | houses (pr) | W-50 | 834 | <= 0 houses | ratchet | street-facing houses whose drawn first-storey line stands more than 2.5 m above the street at their front (a blank plinth with no stoop, entry or garage storey) |
+| `H.storefronts.shopBandShare` | houses (pr) | W-47 | 0.081 | >= 0.95 share of anchors | ratchet | share of the storefront anchors (storefronts.json) whose wall is drawn with shop glazing |
+| `H.walls.frontClassedShare` | houses (pr) | W-46 | 0 | >= 0.9 share | ratchet | share of residential records with a wall drawn as the street front (_FACADE.w = 170), so fronts, party walls and rear walls differ |
+| `F.routes.belowSurfaceM` | routes (pr) | W-22 | 0.173 | <= 0.1 m | ratchet | on those routes: the deepest the car goes below the surface under it |
+| `F.routes.maxAirborneS` | routes (pr) | W-14 | 0.83 | <= 0.8 s | ratchet | on those routes: the longest airborne interval (real crests like Filbert allow up to 0.8 s at 25 m/s) |
+| `F.routes.maxJumpM` | routes (pr) | pass check | 0.002 | <= 0.5 m | enforced | on those routes: the most one tick moves the car beyond speed * DT |
+| `F.routes.rerunHashMismatches` | routes (pr) | pass check | 0 | <= 0 checkpoints | enforced | a route driven twice with step(): state hashes that differ at the 600-tick checkpoints |
+| `F.routes.seamStepM` | routes (pr) | pass check | 0.003 | <= 0.1 m | enforced | on those routes: the largest jump in the car's height change at a tile seam |
+| `F.routes.stopped` | routes (pr) | W-01, W-14 | 2 | <= 0 routes | ratchet | of the 11 closed-loop routes (Filbert up and Lombard down, California over Nob Hill, Market to Twin Peaks, 22nd St, Fillmore, Vermont, Great Hwy, 19th Ave, JFK Dr, 3rd St, a diagonal across the city), driven with the full step() (no ambient traffic), those held by a building or a wall before the end |
+| `C.bridges.dippingDecks` | streets (pr) | W-12 | 4 | <= 0 bridges | ratchet | of the 3rd St, 4th St, 3rd St (Islais) and Illinois St creek bridges, those whose road surface dips more than 0.2 m below the lower bank (no deck) |
+| `C.clearance.carriagewayEdges` | streets (pr) | W-01 | 384 | <= 0 edges | ratchet | surface street edges with a centreline sample within 0.95 m (the car's half width) of a footprint whose roof is over 0.5 m above the road and whose underside is under road + 4.5 m |
+| `C.clearance.lombardEdges` | streets (pr) | W-43 | 2 | <= 0 edges | ratchet | of Lombard St c8448000 (the crooked block) and c8449000 (the approach from Hyde), edges whose centreline passes within 0.95 m of a house |
+| `C.clearance.pedestrianEdges` | streets (pr) | W-39 | 62 | <= 0 edges | ratchet | pedestrian edges (stairways, paths) with a centreline sample within 0.75 m of a blocking footprint |
+| `C.freeway.insideFootprintsM` | streets (pr) | W-03 | 435 | <= 0 m | ratchet | metres of freeway and ramp centreline inside footprints that block its surface |
+| `C.freeway.maxGradePct` | streets (pr) | W-03 | 143.22 | <= 6 % | ratchet | steepest 10 m along any freeway (ramps excluded) on its drivable surface |
+| `C.freeway.separatedCrossingsShare` | streets (pr) | W-03, W-14 | 0 | >= 1 share | ratchet | share of street-over-freeway crossings where the freeway's surface and the street's are at least 5 m apart (a deck or a cut, not an at-grade junction) |
+| `C.piers.buildingsOnWater` | streets (pr) | W-13 | 103 | <= 0 buildings | ratchet | buildings at least half over open water with no deck under them (baseY under 1 m) |
+| `C.piers.streetsAtSeaLevel` | streets (pr) | W-13 | 4 | <= 0 streets | ratchet | of Al Scoma Way, Pier 45 Vly, Pier 50 Vly and Unnamed 42, pier streets with road surface under 0.5 m (no pier deck) |
+| `C.profile.edgesWithoutProfile` | streets (pr) | W-09, W-31 | 1 | <= 0 share of drivable edges | ratchet | drivable edges without a 2 m road profile in roads.json (one surface for the sim and the drawn ribbon) |
+| `C.props.lampsOnRoad` | streets (pr) | W-44 | 0.095 | <= 0 share of streetlights | ratchet | streetlights standing on a road ribbon (+0.5 m), from the renderer's streetlightSpots |
+| `C.props.treesInBuildings` | streets (pr) | W-44 | 0.058 | <= 0 share of street trees | ratchet | street trees standing inside a building footprint |
+| `C.props.treesOnRoad` | streets (pr) | W-44 | 0.045 | <= 0 share of street trees | ratchet | street trees standing on a road ribbon (+0.5 m), from the renderer's streetTreeSpots |
+| `C.sidewalks.tilesWithoutSidewalks` | streets (pr) | W-45 | 547 | <= 0 tiles | ratchet | tiles with streets whose GLB draws no sidewalk geometry (no sidewalks node) |
+| `C.stairs.carDrivable` | streets (pr) | W-33 | 4 | <= 0 stairways | ratchet | of those present, stairways the car can drive end to end (the steps are drawn and driven as a smooth ramp) |
+| `C.stairs.missing` | streets (pr) | W-33 | 2 | <= 0 stairways | ratchet | of the Filbert, Greenwich, Lyon, 16th Ave, Vulcan and Harry St stairways, those with no pedestrian edge in roads.json |
+| `C.stairs.notMarkedStairs` | streets (pr) | W-33 | 4 | <= 0 stairways | ratchet | of those present, stairways whose edges are not marked as stairs |
+| `C.tunnels.broadwayAbovePortalLineM` | streets (pr) | W-02 | 49.68 | <= 1 m | ratchet | how far the Broadway Tunnel's road surface rises above the straight line between its ends (it is draped over Russian Hill) |
+| `C.tunnels.insideFootprintsM` | streets (pr) | W-02 | 578 | <= 0 m | ratchet | metres of Broadway, Stockton and Toll Plaza tunnel centreline inside footprints that block the road surface |
+| `C.tunnels.unflagged` | streets (pr) | W-02 | 7 | <= 0 tunnels | ratchet | of Broadway, Stockton, Toll Plaza, MacArthur, YBI and the two Presidio Parkway tunnels, those whose road edges are not all flagged as tunnels |
+| `B.coverage.badTiles` | terrain (pr) | pass check | 0 | <= 0 tiles | enforced | built tiles without a finite 51x51 heightfield and water mask on the 500 m grid |
+| `B.grades.famousFails` | terrain (pr) | pass check | 0 | <= 0 blocks | enforced | famous steep blocks whose steepest 10 m on the drivable surface is outside the published grade's tolerance (Filbert, 22nd, Jones, Duboce, Fillmore) |
+| `B.grades.hillsideLatticeFails` | terrain (pr) | W-31 | 4 | <= 0 roads | ratchet | hillside-crossing roads (Vermont c13216002, Twin Peaks Blvd c12770000, Vasquez c13186101, Kensington c7806001) whose steepest 10 m exceeds the 1 m DEM's by more than 5 points or whose grade break exceeds it by more than 10 |
+| `B.groundParity.max` | terrain (pr) | W-22 | 1.175 | <= 0.02 m | ratchet | largest |sim ground - drawn ground| at the same 10,000 points |
+| `B.groundParity.p99` | terrain (pr) | W-22 | 0.261 | <= 0.02 m | ratchet | 99th percentile of |sim ground - drawn ground| at 10,000 seeded land points (the drawn ground splits each 10 m cell into two triangles; the sim is bilinear) |
+| `B.lakes.dryHa` | terrain (pr) | W-11 | 78.3 | <= 0 ha | ratchet | lake surface (the same eight lakes) that is dry land, hectares (one lattice vertex = 0.01 ha) |
+| `B.lakes.minWaterShare` | terrain (pr) | W-11 | 0 | >= 0.9 share | ratchet | the smallest share, over Lake Merced, Stow, Spreckels, Pine, Elk Glen, Laguna Honda, the Palace lagoon and the Crissy marsh, of the lake's lattice vertices that are water at the lake's level |
+| `B.seams.maxStep` | terrain (pr) | pass check | 0 | <= 0 m | enforced | largest height difference on a tile border (every 2.5 m) between the two neighbours' lattices |
+| `B.summits.fails` | terrain (pr) | pass check | 0 | <= 0 summits | enforced | of 25 named summits, those whose sim ground maximum within 150 m is not within 1 m of the 3DEP DEM maximum (the published heights differ from the DEM by up to 47 m for known reasons and are listed in the details) |
+<!-- metrics:end -->

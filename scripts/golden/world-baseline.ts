@@ -5,7 +5,8 @@
 // records) and updates:
 //   tests/golden/world-qa-baseline.json  each metric's baseline (lowered, never raised) and its
 //                                        definition (copied from the code, the source of truth);
-//   tests/golden/world-qa-runs.json      each run set's failing runs (shrunk, never grown).
+//   tests/golden/world-qa-runs.json      each run set's failing runs (shrunk, never grown);
+//   the metric and status tables in docs/qa/ (scripts/golden/world-docs.ts).
 // A metric that got worse, or a run that newly fails, is refused unless named with
 // --accept-worse <id or set>[,<id>...] (say why in the PR). A metric the baseline has but no suite
 // measured any more is removed only with --prune. Defects' statuses are edited by hand (flip an id
@@ -17,6 +18,7 @@
 
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { renderDocs } from "./world-docs.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const BASELINE = join(ROOT, "tests/golden/world-qa-baseline.json");
@@ -124,5 +126,6 @@ const sorted = <T>(o: Record<string, T>): Record<string, T> => Object.fromEntrie
 baseline.metrics = sorted(baseline.metrics);
 writeFileSync(BASELINE, JSON.stringify(baseline, null, 1) + "\n");
 writeFileSync(RUNS, JSON.stringify(sorted(runs), null, 1) + "\n");
+renderDocs();
 console.log(`wrote ${BASELINE} and ${RUNS}: ${changes.length} changes${refusals.length ? `, ${refusals.length} refused (see above)` : ""}`);
 process.exit(refusals.length ? 1 : 0);
