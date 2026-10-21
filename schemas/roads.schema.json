@@ -59,7 +59,19 @@
           },
           "bridge": {
             "const": true,
-            "description": "Part of the edge crosses open water on a deck the source gives no height for; y there is sea level. Absent = no water crossing"
+            "description": "Part of the edge crosses open water on a bridge. Its deck is in the tile colliders' decks, except over the Bay (the Bay Bridge and Golden Gate approaches are not modelled). Absent = no water crossing"
+          },
+          "deck": {
+            "const": true,
+            "description": "Part of the edge is carried on a deck above the ground (a viaduct, a bridge, a street over a freeway cut): the tile colliders' decks hold its surface. Absent = on the ground everywhere"
+          },
+          "tunnel": {
+            "const": true,
+            "description": "Part of the edge runs below the ground, in a bored tunnel (portal to portal) or an underpass: the tile colliders' tunnels hold its floor and ceiling; the rest of the edge is at grade. Absent = no tunnel"
+          },
+          "stairs": {
+            "const": true,
+            "description": "A public stairway (always with pedestrian: true): walked, never driven. Absent = not a stairway"
           }
         }
       }

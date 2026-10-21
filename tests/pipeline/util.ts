@@ -6,6 +6,7 @@ import { EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/exte
 import { MeshoptDecoder } from "meshoptimizer";
 import { createRequire } from "node:module";
 import type { Group } from "three";
+import type { Deck, Movable, Tunnel } from "../../pipeline/lib/structures.ts";
 import { Ground } from "../../pipeline/lib/terrain.ts";
 import { createTileLoader } from "../../src/render/gltf-loader.ts";
 import { readJson } from "../helpers.ts";
@@ -64,6 +65,7 @@ export interface SfBuilding {
   footprint: Array<[number, number]>;
   baseY: number;
   topY: number;
+  underY?: number;
   meta: {
     footY: number;
     heightM: number;
@@ -78,12 +80,17 @@ export interface SfBuilding {
     towerOf?: string;
     podiumTopY?: number;
     tower?: string;
+    pieceOf?: string;
+    piece?: "strip" | "span";
   };
 }
 
 export interface SfCollider {
   tileId: string;
   buildings: SfBuilding[];
+  decks?: Deck[];
+  tunnels?: Tunnel[];
+  movable?: Movable[];
   ground: { x0: number; z0: number; cellSizeM: number; nx: number; nz: number; heights: number[]; water: number[] };
 }
 
@@ -93,7 +100,7 @@ export interface SfRoads {
   edges: Array<{
     id: string; a: string; b: string; kind: string; lanes: number; oneway: boolean; widthM: number;
     speedLimitMps: number; name: string; points: Array<[number, number]>; cnn: string; pedestrian?: boolean;
-    gradeSeparated?: boolean; bridge?: boolean;
+    gradeSeparated?: boolean; bridge?: boolean; deck?: boolean; tunnel?: boolean; stairs?: boolean; classcode?: number | null;
   }>;
 }
 

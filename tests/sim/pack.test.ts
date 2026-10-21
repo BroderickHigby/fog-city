@@ -181,7 +181,7 @@ describe.skipIf(!sfPresent)("collider pack reader: the committed sf pack", () =>
         const t = pack.tiles[i]!;
         expect(t.tileId).toBe(c.tileId);
         expect(t.ground).toEqual(c.ground);
-        expect(t.buildings).toEqual(c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY })));
+        expect(t.buildings).toEqual(c.buildings.map(({ meta: _meta, ...b }: TileCollider["buildings"][number] & { meta?: unknown }) => b));
         json.push(c);
       }
       const fromPack: World = buildWorld(picks.map((i) => pack.tiles[i]!));

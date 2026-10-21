@@ -1,6 +1,8 @@
-// The citywide collider pack (public/tiles/<world>/world.colliders.bin, format FCWC version 1,
-// spec in schemas/world-colliders.md) decoded into plain sim data: the same TileCollider
-// objects the per-tile JSON colliders give (minus the renderer's `meta`), value for value.
+// The citywide collider pack (public/tiles/<world>/world.colliders.bin, format FCWC version 1
+// with its extension block, spec in schemas/world-colliders.md) decoded into plain sim data: the
+// same TileCollider objects the per-tile JSON colliders give (minus the renderer's `meta`),
+// value for value, including the extension's building pieces (terrace strips, spans over a
+// street) and undersides (underY), and each tile's decks, tunnels and movable spans.
 //
 // Every length in the pack is a whole number of centimetres and is divided by 100 here, the
 // same division JSON.parse performs on the per-tile files' decimal literals, so a world built
@@ -19,6 +21,46 @@ const BUILDING_RECORD_BYTES = 20;
 /** A vertex delta of this value is followed by an absolute (int32 x, int32 z) pair. */
 const ESCAPE = -32768;
 
+/** [x, y, z, w]: ribbon centreline position, road-surface height and full width, metres. */
+export type RibbonVertex = [number, number, number, number];
+
+/** A road deck above the ground (schemas/tile-collider.schema.json decks). */
+export interface PackedDeck {
+  id: string;
+  kind: "freeway" | "ramp" | "bridge" | "overpass" | "pier";
+  edge?: string;
+  layer: number;
+  path: RibbonVertex[];
+}
+
+/** A road below the ground with a ceiling clearanceM above it (tunnels). */
+export interface PackedTunnel {
+  id: string;
+  kind: "tunnel" | "underpass";
+  edge?: string;
+  clearanceM: number;
+  path: RibbonVertex[];
+}
+
+/** A deck piece that lifts about a hinge line (movable). */
+export interface PackedMovable {
+  id: string;
+  kind: "bascule";
+  deck: string;
+  hinge: [[number, number], [number, number]];
+  openRad: number;
+}
+
+/** A building with the optional underside of a structure spanning a street, path or tunnel bore. */
+export type PackedBuilding = BuildingCollider & { underY?: number };
+
+const DECK_KINDS: ReadonlyArray<PackedDeck["kind"]> = ["freeway", "ramp", "bridge", "overpass", "pier"];
+const TUNNEL_KINDS: ReadonlyArray<PackedTunnel["kind"]> = ["tunnel", "underpass"];
+const MOVABLE_KINDS: ReadonlyArray<PackedMovable["kind"]> = ["bascule"];
+const PIECE_SUFFIX = ["", "-s", "-b"];
+const NO_UNDER = -32768;
+const NO_STRING = 0xffffffff;
+
 export interface ColliderPack {
   origin: { lat: number; lon: number };
   tileSizeM: number;
@@ -31,6 +73,11 @@ export interface PackedTile extends TileCollider {
   ix: number;
   iz: number;
   ground: Heightfield & { water: number[] };
+  buildings: PackedBuilding[];
+  /** Present only when the tile has any. */
+  decks?: PackedDeck[];
+  tunnels?: PackedTunnel[];
+  movable?: PackedMovable[];
 }
 
 const align4 = (n: number): number => (n + 3) & ~3;
@@ -84,7 +131,7 @@ export function decodeColliderPack(bytes: Uint8Array): ColliderPack {
       heights[i] = dv.getInt16(hBase + i * 2, true) / 100;
       water[i] = (bytes[wBase + (i >> 3)]! >> (i & 7)) & 1;
     }
-    const buildings: BuildingCollider[] = [];
+    const buildings: PackedBuilding[] = [];
     for (let bi = first; bi < first + count; bi++) {
       const br = buildingsOff + bi * BUILDING_RECORD_BYTES;
       const num = dv.getUint32(br, true);
@@ -123,5 +170,106 @@ export function decodeColliderPack(bytes: Uint8Array): ColliderPack {
     });
   }
   if (vOff !== vEnd) throw new Error("FCWC: vertex stream does not match the building records");
+  const extOff = dv.getUint32(28, true);
+  if (extOff !== 0) decodeExtensions(bytes, dv, extOff, tiles);
   return { origin, tileSizeM, tiles };
+}
+
+/**
+ * The extension block (schemas/world-colliders.md): sections `tag, u32 length, payload` from the
+ * header's offset 28 to the end of the file; unknown tags are skipped. Applied in place.
+ */
+function decodeExtensions(bytes: Uint8Array, dv: DataView, start: number, tiles: PackedTile[]): void {
+  const all: PackedBuilding[] = [];
+  for (const t of tiles) for (const b of t.buildings) all.push(b);
+  const strings: string[] = [];
+  const str = (i: number): string | undefined => {
+    if (i === NO_STRING) return undefined;
+    const v = strings[i];
+    if (v === undefined) throw new Error("FCWC: extension string index out of range");
+    return v;
+  };
+  const tile = (i: number): PackedTile => {
+    const t = tiles[i];
+    if (!t) throw new Error("FCWC: extension tile index out of range");
+    return t;
+  };
+  const path = (o: number): { path: RibbonVertex[]; end: number } => {
+    const n = dv.getUint32(o, true);
+    const out: RibbonVertex[] = [];
+    let q = o + 4;
+    for (let i = 0; i < n; i++, q += 16) {
+      out.push([dv.getInt32(q, true) / 100, dv.getInt32(q + 4, true) / 100, dv.getInt32(q + 8, true) / 100, dv.getInt32(q + 12, true) / 100]);
+    }
+    return { path: out, end: q };
+  };
+  let o = start;
+  while (o < bytes.byteLength) {
+    if (o + 8 > bytes.byteLength) throw new Error("FCWC: truncated extension section");
+    const tag = String.fromCharCode(bytes[o]!, bytes[o + 1]!, bytes[o + 2]!, bytes[o + 3]!);
+    const len = dv.getUint32(o + 4, true);
+    const body = o + 8;
+    const end = body + len;
+    if (end > bytes.byteLength || (len & 3) !== 0) throw new Error(`FCWC: extension section ${tag} is truncated`);
+    const n = len >= 4 ? dv.getUint32(body, true) : 0;
+    let q = body + 4;
+    if (tag === "STRS") {
+      for (let i = 0; i < n; i++) {
+        const L = dv.getUint16(q, true);
+        let v = "";
+        for (let k = 0; k < L; k++) v += String.fromCharCode(bytes[q + 2 + k]!);
+        strings.push(v);
+        q += 2 + L;
+      }
+    } else if (tag === "BEXT") {
+      for (let i = 0; i < n; i++, q += 8) {
+        const b = all[dv.getUint32(q, true)];
+        if (!b) throw new Error("FCWC: BEXT names a building past the end");
+        const kind = bytes[q + 4]!;
+        const u = dv.getInt16(q + 6, true);
+        if (kind > 0) b.id += `${PIECE_SUFFIX[kind]}${bytes[q + 5]!}`;
+        if (u !== NO_UNDER) b.underY = u / 100;
+      }
+    } else if (tag === "DECK") {
+      for (let i = 0; i < n; i++) {
+        const t = tile(dv.getUint16(q, true));
+        const kind = DECK_KINDS[bytes[q + 2]!]!;
+        const layer = bytes[q + 3]!;
+        const id = str(dv.getUint32(q + 4, true))!;
+        const edge = str(dv.getUint32(q + 8, true));
+        const r = path(q + 12);
+        q = r.end;
+        const d: PackedDeck = edge !== undefined ? { id, kind, edge, layer, path: r.path } : { id, kind, layer, path: r.path };
+        (t.decks ??= []).push(d);
+      }
+    } else if (tag === "TUNL") {
+      for (let i = 0; i < n; i++) {
+        const t = tile(dv.getUint16(q, true));
+        const kind = TUNNEL_KINDS[bytes[q + 2]!]!;
+        const id = str(dv.getUint32(q + 4, true))!;
+        const edge = str(dv.getUint32(q + 8, true));
+        const clearanceM = dv.getUint32(q + 12, true) / 100;
+        const r = path(q + 16);
+        q = r.end;
+        const u: PackedTunnel = edge !== undefined ? { id, kind, edge, clearanceM, path: r.path } : { id, kind, clearanceM, path: r.path };
+        (t.tunnels ??= []).push(u);
+      }
+    } else if (tag === "MOVE") {
+      for (let i = 0; i < n; i++, q += 32) {
+        const t = tile(dv.getUint16(q, true));
+        const m: PackedMovable = {
+          id: str(dv.getUint32(q + 4, true))!,
+          kind: MOVABLE_KINDS[bytes[q + 2]!]!,
+          deck: str(dv.getUint32(q + 8, true))!,
+          hinge: [
+            [dv.getInt32(q + 12, true) / 100, dv.getInt32(q + 16, true) / 100],
+            [dv.getInt32(q + 20, true) / 100, dv.getInt32(q + 24, true) / 100],
+          ],
+          openRad: dv.getInt32(q + 28, true) / 1e6,
+        };
+        (t.movable ??= []).push(m);
+      }
+    }
+    o = end;
+  }
 }

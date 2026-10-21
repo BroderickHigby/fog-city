@@ -149,6 +149,9 @@ export interface BuildingMeta {
   podiumTopY?: number;
   /** On a podium record: the id of its tower record. */
   tower?: string;
+  /** On a piece record (-s<n> terrace strip, -b<n> span over a street): the source record's id. */
+  pieceOf?: string;
+  piece?: "strip" | "span";
 }
 
 export interface Building {
@@ -159,6 +162,8 @@ export interface Building {
   /** Ground height at the footprint's centroid (inside point), metres. */
   baseY: number;
   topY: number;
+  /** Underside of a structure spanning a street or path, or of a building over a tunnel bore (absolute y). */
+  underY?: number;
   meta: BuildingMeta;
 }
 

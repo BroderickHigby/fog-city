@@ -22,6 +22,7 @@ import {
 import { tileGlb } from "./glb.ts";
 import { RoadSurface, trafficEdges } from "./road-surface.ts";
 import { buildSidewalks, type SidewalkStats } from "./sidewalks.ts";
+import type { Deck, Movable, Tunnel } from "./structures.ts";
 import { encodeWorldColliders } from "./world-colliders.ts";
 import { buildingMesh, groundMesh, roadMeshes } from "./mesh.ts";
 import { jsonLines, jsonPretty, utf8 } from "./output.ts";
@@ -187,6 +188,38 @@ function polylineCrosses(points: readonly [number, number][], box: TileRef["bbox
   return false;
 }
 
+/** A building as the tile collider (and, without meta, the pack) holds it. */
+function colliderBuilding(b: Building, withMeta: boolean): { id: string; footprint: Building["footprint"]; baseY: number; topY: number; underY?: number; meta?: Building["meta"] } {
+  const out: { id: string; footprint: Building["footprint"]; baseY: number; topY: number; underY?: number; meta?: Building["meta"] } = {
+    id: b.id,
+    footprint: b.footprint,
+    baseY: b.baseY,
+    topY: b.topY,
+  };
+  if (b.underY !== undefined) out.underY = b.underY;
+  if (withMeta) out.meta = b.meta;
+  return out;
+}
+
+/** A tile's decks, tunnels and movable spans, each key present only when the tile has any. */
+function tileStructures(s: TileStructures, tile: string): { decks?: Deck[]; tunnels?: Tunnel[]; movable?: Movable[] } {
+  const out: { decks?: Deck[]; tunnels?: Tunnel[]; movable?: Movable[] } = {};
+  const d = s.decks.get(tile);
+  const u = s.tunnels.get(tile);
+  const m = s.movable.get(tile);
+  if (d?.length) out.decks = d;
+  if (u?.length) out.tunnels = u;
+  if (m?.length) out.movable = m;
+  return out;
+}
+
+/** Per-tile street structures (structures.ts), keyed by tile id. */
+export interface TileStructures {
+  decks: Map<string, Deck[]>;
+  tunnels: Map<string, Tunnel[]>;
+  movable: Map<string, Movable[]>;
+}
+
 export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, overrides: Override[]): Promise<BuildOutput> {
   // Every tile the build considers, with its heightfield. Which get files is decided below.
   const candidates = candidateTiles(cfg);
@@ -289,6 +322,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
 
   const files = new Map<string, Uint8Array>();
   const boundary = buildBoundary(tiles, fields);
+  const structures: TileStructures = { decks: new Map(), tunnels: new Map(), movable: new Map() };
 
   let minY = Infinity, maxY = -Infinity, waterSamples = 0, samples = 0;
   const manifestTiles: unknown[] = [];
@@ -305,9 +339,10 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       {
         tileId: t.id,
         ground: field,
-        buildings: tb.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY, meta: b.meta })),
+        buildings: tb.map((b) => colliderBuilding(b, true)),
+        ...tileStructures(structures, t.id),
       },
-      ["buildings"],
+      ["buildings", "decks", "tunnels", "movable"],
     );
     files.set(`${t.id}.collider.json`, utf8(collider));
 
@@ -369,7 +404,8 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       ix: t.ix,
       iz: t.iz,
       ground: fields.get(t.id)!,
-      buildings: (byTile.get(t.id) ?? []).map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY })),
+      buildings: (byTile.get(t.id) ?? []).map((b) => colliderBuilding(b, false)),
+      ...tileStructures(structures, t.id),
     })),
   });
   files.set("world.colliders.bin", pack);

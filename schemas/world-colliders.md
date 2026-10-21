@@ -1,7 +1,9 @@
 # World collider pack (`world.colliders.bin`), format FCWC version 1
 
 Everything the sim collides with, for the whole world, in one binary file: every tile's
-ground heightfield and water mask, and every building's footprint and heights. The sim
+ground heightfield and water mask, every building's footprint and heights, and (in the
+extension block) building pieces and undersides and every tile's decks, tunnels and movable
+spans. The sim
 loads it whole at boot, on every client and on the server, so collision never depends on
 what the renderer has streamed in.
 
@@ -33,7 +35,7 @@ proves the round trip for every tile.
 | 20 | `u16` | heightfield samples per side `S` (51) |
 | 22 | `u16` | lattice cell size, cm (1000) |
 | 24 | `u32` | tile size, cm (50000) |
-| 28 | `u32` | reserved, 0 |
+| 28 | `u32` | byte offset of the extension block, 0 when there is none (reserved and 0 in files written before the extension; a reader that ignores it reads the version-1 subset) |
 | 32 | `f64` | origin latitude |
 | 40 | `f64` | origin longitude |
 | 48 | 16 bytes | reserved, 0 |
@@ -72,7 +74,26 @@ proves the round trip for every tile.
    `−32768` is an escape: the next 8 bytes are the vertex's absolute `i32 x, i32 z` (cm), and
    that vertex takes 12 bytes. Footprints are not closed (the last vertex is not the first).
 
-The file ends after the vertex stream, padded to 4 bytes.
+The vertex stream is padded to 4 bytes. A file without extensions ends there.
+
+6. **Extension block** (from the header's offset 28 to the end of the file): a sequence of
+   sections, each `char[4] tag`, `u32` payload length in bytes (a multiple of 4), payload.
+   Readers skip a tag they do not know, so later sections can be added without a new version.
+   Every payload starts with a `u32` count `n`. Lengths are centimetres as everywhere else.
+
+   | Tag | Records |
+   |---|---|
+   | `STRS` | `n` strings, each `u16` byte length + ASCII bytes, packed; the section is padded to 4. Other sections name strings by index. |
+   | `BEXT` | `n` × 8 bytes, by building record index ascending: `u32` record index, `u8` piece kind (0 none, 1 terrace strip, 2 span over a street or path), `u8` piece number, `i16` `underY` cm (−32768: none). A piece appends `-s<number>` or `-b<number>` to the version-1 id. |
+   | `DECK` | per deck: `u16` tile index (tile table order), `u8` kind (0 freeway, 1 ramp, 2 bridge, 3 overpass, 4 pier), `u8` layer, `u32` id string, `u32` edge string (0xffffffff: none), `u32` vertex count, then per vertex `i32 x, i32 y, i32 z, i32 w` |
+   | `TUNL` | per tunnel: `u16` tile index, `u8` kind (0 tunnel, 1 underpass), `u8` 0, `u32` id string, `u32` edge string, `u32` ceiling clearance cm, `u32` vertex count, vertices as in `DECK` |
+   | `MOVE` | per movable span: `u16` tile index, `u8` kind (0 bascule), `u8` 0, `u32` id string, `u32` deck string, `i32` hinge `ax, az, bx, bz` cm, `i32` fully open angle in microradians |
+
+   Each tile's decks, tunnels and movable spans decode, in section order, to the tile
+   collider's `decks`, `tunnels` and `movable` arrays (`schemas/tile-collider.schema.json`),
+   present only when non-empty; a building's `underY` and piece suffix decode onto its record.
+
+The file ends after the last section.
 
 ## What the sim should do with it
 
@@ -83,3 +104,10 @@ The file ends after the vertex stream, padded to 4 bytes.
   arithmetic as `src/sim/world.ts`. Where no tile exists the ground is sea level (0).
 * The per-tile JSON colliders stay for tools and the renderer's facade metadata (`meta`); the
   sim needs nothing from them.
+* A building blocks a body only below its roof and, when it has `underY`, above its
+  underside: a car on a street passes under the Transit Center deck, and a car in a tunnel
+  bore under the houses above it.
+* Decks and tunnels are road surfaces: `surfaceHeight(x, z, yHint)` (docs/design.md) picks the
+  highest surface at or below the body among the ground, the decks under it and the tunnel
+  floors around it; in a bore the ceiling caps the body. `pipeline/lib/surfaces.ts` is the
+  reference implementation of that lookup.
