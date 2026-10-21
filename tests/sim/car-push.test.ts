@@ -8,15 +8,18 @@ import { describe, expect, it } from "vitest";
 import {
   CAR,
   ROOF_STEP_M,
+  UNDER_CLEARANCE_M,
   boxBlocked,
   buildWorld,
   carBox,
+  circleBlocked,
   clearCarSpot,
   createInitialState,
   groundHeight,
   makeCar,
   pointInPolygon,
   sampleGround,
+  segmentBlocked,
   step,
   stepCar,
   type BuildingCollider,
@@ -208,5 +211,21 @@ describe("roofs and undersides (a building blocks only between its underside and
     const low = world(() => 0, [rect("deck", -20, -32, 20, -28, 0, 9, CAR.bodyHeight - 0.3)]);
     const stopped = drive(low, { ...makeCar(0, 0, 0, 0), speed: 10 }, I(0.5), 240);
     for (const c of stopped.cars) expect(c.z - CAR.halfLength).toBeGreaterThan(-28.01);
+  });
+});
+
+describe("undersides for agents and sight lines (W-01, sim half)", () => {
+  // A deck spanning a street: underside 5.5 m above the flat ground, roof at 9 m.
+  const deck = (underY?: number): World => world(() => 0, [rect("deck", -20, -4, 20, 4, 0, 9, underY)]);
+
+  it("the road graph's clearance and agents pass under a structure at least UNDER_CLEARANCE_M up, not under a lower one", () => {
+    expect(circleBlocked(deck(5.5), 0, 0, 1)).toBe(false);
+    expect(circleBlocked(deck(UNDER_CLEARANCE_M - 0.5), 0, 0, 1)).toBe(true);
+    expect(circleBlocked(deck(), 0, 0, 1)).toBe(true);
+  });
+
+  it("a sight line under a high deck is open, through a solid block it is not", () => {
+    expect(segmentBlocked(deck(5.5), 0, -10, 0, 10)).toBe(false);
+    expect(segmentBlocked(deck(), 0, -10, 0, 10)).toBe(true);
   });
 });

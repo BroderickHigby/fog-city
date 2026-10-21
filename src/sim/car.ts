@@ -19,8 +19,10 @@
 //    vertical speed on the ground is the ground's slope under its wheels along its velocity:
 //    never the height gained by being pushed sideways (out of a wall or a building) or placed
 //    on higher ground, and never more than maxClimbGrade times its speed, so nothing but a
-//    crest launches it. The ground includes a roof the wheels reach (within ROOF_STEP_M of
-//    them): a car that gets onto a roof drives on it and off its edge.
+//    crest launches it. While it touches a wall, a building or a body it stays on the ground
+//    (unless it meets a real drop), and wall friction slows a vertical slide along a wall as
+//    it slows the horizontal one. The ground includes a roof the wheels reach (within
+//    ROOF_STEP_M of them): a car that gets onto a roof drives on it and off its edge.
 //  - Collision: the body is an oriented rectangle pushed out of building footprints and
 //    obstacle circles in small substeps, by at most CAR.maxPush a tick beyond its own travel
 //    (so a car placed overlapping a footprint eases out over a few ticks instead of jumping).
@@ -322,6 +324,8 @@ export function stepCar(
   let touched = false;
   let impact = 0;
   let impactPerson = false;
+  // Speed removed into walls and buildings this tick (their normal impulse, per unit mass).
+  let scrape = 0;
   let pushLeft: number = CAR.maxPush;
   for (let i = 0; i < n; i++) {
     const lastX = x;
@@ -363,6 +367,7 @@ export function stepCar(
         impact = -vn;
         impactPerson = res.person;
       }
+      if (!res.person) scrape += -vn;
       const e = -vn > CAR.restitutionMin ? CAR.restitution : 0;
       const tx = vx - vn * res.nx;
       const tz = vz - vn * res.nz;
@@ -395,7 +400,11 @@ export function stepCar(
 
   // Vertical: ballistic unless the ground (or a roof the wheels reach) holds the car up.
   const g1 = sampleGround(world, x, z, heading, c.y);
-  const vyB = c.vy - G * DT;
+  // Friction at a wall acts on the vertical slide too: a car that flies into a wall or a
+  // building does not carry on rising (or falling) along it at full speed (the same Coulomb
+  // coefficient as the horizontal scrape, on the speed the impact removed).
+  const vy0 = scrape > 0 ? approach(c.vy, 0, CAR.wallFriction * scrape) : c.vy;
+  const vyB = vy0 - G * DT;
   const yB = c.y + vyB * DT;
   let y: number;
   let vy: number;
@@ -408,12 +417,11 @@ export function stepCar(
   const rise = speed * g1.slopeF + lateral * g1.slopeR;
   const groundRate = rise > climb ? climb : rise;
   // In contact with something and on the ground at the start of the tick, the car stays on the
-  // ground unless it meets a real drop: a push (or a hit that turns it downhill) can carry it
-  // over ground that falls faster than gravity would follow, and that is not a crest. A drop
-  // steeper than maxClimbGrade over the tick's move (a roof edge) is still fallen off.
-  const mvx = x - c.x;
-  const mvz = z - c.z;
-  const held = touched && onGround && g1.h >= yB - CAR.maxClimbGrade * Math.sqrt(mvx * mvx + mvz * mvz);
+  // ground, its vertical speed the slope's along its new velocity: a hit that stops it on an
+  // uphill does not carry it on upward, and a push (or a hit that turns it downhill) that
+  // carries it over ground falling faster than gravity would follow is not a crest. A drop
+  // steeper than maxClimbGrade over the tick's travel and push (a roof edge) is still fallen off.
+  const held = touched && onGround && g1.h >= g0.h - CAR.maxClimbGrade * (travel + (CAR.maxPush - pushLeft)) - 1e-9;
   if (yB <= g1.h || held) {
     y = g1.h;
     vy = groundRate;
