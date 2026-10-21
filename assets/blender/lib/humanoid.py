@@ -1251,11 +1251,12 @@ def _player_jacket(g, F, p, B, lo):
 
 
 def quiff(F: dict, prm: dict | None = None, res: int = 0):
-    """founder-default's hair (node hair_quiff): a solid shell on top of the head, swept up and
-    back from the forehead into a quiff that stands about 7-8 cm above the hairline at the front
-    and falls a little to the person's left, with soft strands (ridges) running back. The sides
-    and back stay short: the hair cap of the body shows there. Returns positions (V,3) and
-    triangles (T,3) in the body's rest frame (Blender), all on the head bone."""
+    """founder-default's hair (node hair_quiff): a solid shell on top of the head, growing out of
+    the arched hairline (_hairline_player) and swept up and back into a quiff that stands about
+    9 cm above the hairline at the centre of the forehead and falls a little to the person's
+    left, with soft strands (ridges) running back. Its side edges sink into the hair cap of the
+    body, which is the short hair of the sides and back. Returns positions (V,3) and triangles
+    (T,3) in the body's rest frame (Blender), all on the head bone."""
     p = dict(BASE_PARAMS)
     p.update(FOUNDER_DEFAULT["params"])
     p.update(prm or {})
