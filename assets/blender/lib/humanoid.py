@@ -258,15 +258,20 @@ def player_frame(height_m: float | None = None) -> dict:
     top = F["head_c"][2] + F["head_r"][2]
     F["head_r"] = hr
     F["head_c"] = (F["head_c"][0], F["head_c"][1], top - hr[2])
-    F["torso"] = [(z, w * 1.15, f * 1.12, b * 1.12) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
+    F["torso"] = [(z, w * 1.24, f * 1.16, b * 1.16) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
     F["head_k"] = hk
     # shoulders: the arm's cap (the deltoid) rounds off just above the shoulder joint, so the
     # line from the neck runs over the shoulder and down the arm without a bump
     r0 = F["arm_r"][3][1]
     F["arm_r"] = [(-0.095, 0.0), (-0.08, 0.5 * r0), (-0.05, 0.8 * r0), (-0.02, 0.95 * r0)] + F["arm_r"][3:]
+    # bare forearms (the tee's short sleeves): the wrist tapers into the hand (no cuff flare)
+    # (and a little slimmer through the elbow, so it stays inside the bomber's sleeve when it bends)
+    F["arm_r"] = [(t, r * (0.82 if t >= 1.0 else 0.9 if 0.42 < t < 0.7 else 1.0)) for t, r in F["arm_r"]]
     # ... and leans in toward the neck (metres inward at each cap row): a round shoulder whose
     # top runs under the torso's slope
-    F["arm_cap_in"] = [(-0.095, 0.04 * s), (-0.08, 0.028 * s), (-0.05, 0.014 * s), (-0.02, 0.004 * s), (0.0, 0.0)]
+    # from just below the joint, so the deltoid rounds off rather than ending in a corner
+    F["arm_cap_in"] = [(-0.095, 0.045 * s), (-0.08, 0.038 * s), (-0.05, 0.028 * s), (-0.02, 0.019 * s), (0.0, 0.014 * s),
+                       (0.06, 0.008 * s), (0.16, 0.0)]
     F["torso"] = [(z, w + 0.007 * s * _gauss(z / s, 1.45, 0.035), f, b) for z, w, f, b in F["torso"]]
     # a fuller trapezius: the shoulders rise toward the neck, which shortens it
     F["torso"] = [(z, w + 0.014 * s * _gauss(z / s, 1.47, 0.02), f, b) for z, w, f, b in F["torso"]]
@@ -274,8 +279,16 @@ def player_frame(height_m: float | None = None) -> dict:
     # legs taper inside them
     F["torso"] = [(z, w + 0.01 * s * _gauss(z / s, 0.95, 0.05), f + 0.004 * s * _gauss(z / s, 0.95, 0.05), b) for z, w, f, b in F["torso"]]
     F["leg_r"] = [(t, r * (0.7 if t < 0 else 0.9 if t == 0 else 1.0)) for t, r in F["leg_r"]]
-    # the tee's crew neck sits snug at the base of the neck, under the jacket's collar
+    # ... and fuller toward the inside at the top (metres, at leg parameter t), so the two legs
+    # meet in the crotch seam and the front of the hips sits just behind them
+    F["leg_in"] = [(-0.16, 0.012 * s), (0.0, 0.01 * s), (0.1, 0.012 * s), (0.2, 0.004 * s), (0.3, 0.0)]
+    hip = {0: (0.85, 0.7, 0.8), 1: (1.0, 0.85, 0.88)}  # the bottom two rings: width, front, back
+    F["torso"] = [(z, w * hip.get(i, (1, 1, 1))[0], f * hip.get(i, (1, 1, 1))[1], b * hip.get(i, (1, 1, 1))[2])
+                  for i, (z, w, f, b) in enumerate(F["torso"])]
+    # the tee's crew neck sits snug at the base of the neck, under the jacket's collar; its short
+    # sleeves end a little under halfway down the upper arm (arm parameter)
     F["collar_z"] = 1.5 * s
+    F["tee_sleeve"] = 0.4
     # the bomber's rib hem (bottom, top) and stand collar (bottom, top), metres
     F.update(player=True, height_m=h, jacket_z=(0.915 * s, 0.968 * s, 1.479 * s, 1.535 * s))
     return F
@@ -440,9 +453,10 @@ def _frame_for(d):
 
 
 def _cap_in(F, s):
-    """How far the player's arm cap leans in toward the neck at arm parameter s (0 elsewhere)."""
+    """How far the player's arm leans in toward the neck at arm parameter s, over the shoulder
+    (0 below the table and for the crowd)."""
     t = F.get("arm_cap_in")
-    if not t or s >= 0.0:
+    if not t or s >= t[-1][0]:
         return 0.0
     return float(np.interp(s, [q[0] for q in t], [q[1] for q in t]))
 
@@ -677,18 +691,26 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
         tip = np.asarray(F["tips"][f"hand_{side}"])
         n_a = 6 if lo else 10
         prof = F["arm_r"] if not lo else [F["arm_r"][i] for i in (1, 3, 5, 7, 9, 12)]
+        prof = [(s_, r_, "top", 0.0) for s_, r_ in prof]
+        hem = F.get("tee_sleeve")
+        if hem is not None and not lo:
+            # founder-default's tee has short sleeves (the arm below them is skin; the bomber's
+            # sleeves cover it): a hem ring standing a little proud, then the bare arm
+            r_hem = float(np.interp(hem, [q[0] for q in F["arm_r"]], [q[1] for q in F["arm_r"]]))
+            prof = ([q for q in prof if q[0] < hem] + [(hem, r_hem, "top", 0.004 * k), (hem, r_hem, "skin", 0.0)]
+                    + [(s_, r_, "skin", 0.0) for s_, r_, _, _ in prof if s_ > hem])
         g.begin(f"arm_{side}")
         rows = []
         top = None
-        for s, r0 in prof:
-            r = r0 * p["limb"]
+        for s, r0, slot, proud in prof:
+            r = r0 * p["limb"] + proud
             if s < 0.5:
                 d = je - js
                 c = js + d * s
             else:
                 d = jw - je
                 c = je + d * (s - 0.5) / 0.5
-            if player and s < 0:
+            if player:
                 c = c + np.array([-sx * _cap_in(F, s), 0.0, 0.0])
             dd, u, v = _frame_for(d)
             if s < 0.42:
@@ -703,9 +725,9 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
             else:
                 w = {f"forearm_{side}": 0.8, f"hand_{side}": 0.2}
             if r < 1e-6:
-                top = g.vert(c, "top", w)
+                top = g.vert(c, slot, w)
                 continue
-            rows.append([g.vert(c + r * (math.cos(a) * u * 0.92 + math.sin(a) * v), "top", w) for a in _ring_angles(n_a)])
+            rows.append([g.vert(c + r * (math.cos(a) * u * 0.92 + math.sin(a) * v), slot, w) for a in _ring_angles(n_a)])
         g.grid(rows, closed=True)
         if top is not None:
             g.fan(list(reversed(rows[0])), top)
@@ -763,6 +785,10 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
                 c = jk + d * (s - 0.5) / 0.5
             if s >= 0.97:
                 c = c + np.array([0, 0, 0.012 * k])
+            if player and F.get("leg_in"):
+                m = float(np.interp(s, [q[0] for q in F["leg_in"]], [q[1] for q in F["leg_in"]]))
+                c = c + np.array([-sx * m, 0.0, 0.0])
+                r = r + m
             dd, u, v = _frame_for(d)
             if s < 0.03:
                 w = {f"thigh_{side}": 0.6, "hips": 0.4}
@@ -978,7 +1004,8 @@ def _closest_on_polyline(c, pts):
 
 def _face_point(F, p, th, ph, off=0.0):
     """The founder-default head surface: the crowd's head (an egg, narrower at the jaw, the chin
-    forward) with a squarer jaw, cheekbones, and cheeks the smile key lifts."""
+    forward) kept broad through the cheeks, with a squarer jaw, cheekbones, and cheeks the smile
+    key lifts."""
     hc, hr = F["head_c"], F["head_r"]
     k = F["scale"]
     jaw = p["jaw"]
@@ -986,13 +1013,14 @@ def _face_point(F, p, th, ph, off=0.0):
     cp, sp = math.cos(ph), math.sin(ph)
     rx, ry, rz = hr
     below = max(0.0, -sp)
-    rx *= 1.0 - 0.2 * below / jaw ** 0.5 + 0.06 * (jaw - 1.0)
+    rx *= 1.0 - 0.2 * below ** 1.6 / jaw ** 0.5 + 0.06 * (jaw - 1.0)  # broad through the cheeks, then the jaw
     ry_f = ry * (1.0 + 0.04 * below) if s > 0 else ry * (1.0 + 0.08 * max(0.0, sp + 0.2))
     side = abs(c)
     face = float(_smooth(-0.5, 0.1, s))  # 0 on the back of the head
     o = off
     o += 0.011 * k * _gauss(sp, -0.68, 0.22) * float(_smooth(0.35, 0.85, side)) * face  # jaw corners
     o += 0.004 * k * _gauss(sp, -0.1, 0.16) * _gauss(side, 0.6, 0.2) * float(_smooth(0.2, 0.6, s))  # cheekbones
+    o += 0.004 * k * _gauss(sp, -0.42, 0.2) * _gauss(side, 0.8, 0.25) * face  # full cheeks
     o += 0.004 * k * p["smile"] * _gauss(sp, -0.36, 0.13) * _gauss(side, 0.5, 0.18) * float(_smooth(0.3, 0.7, s))
     x = (rx + o) * cp * c
     y = (ry_f + o) * cp * s
@@ -1135,7 +1163,7 @@ def _player_jacket(g, F, p, B, lo):
 
     # ---- the body: (z, worn offset) from the rib hem up to the yoke; inner rings close the
     # hem and the neck so the shell reads as solid
-    rows = [(hem_lo, -0.002), (hem_lo, 0.009), (0.5 * (hem_lo + hem_hi), 0.0105), (hem_hi, 0.0105),
+    rows = [(hem_lo, -0.002), (hem_lo, 0.014), (0.5 * (hem_lo + hem_hi), 0.0145), (hem_hi, 0.0135),
             (hem_hi + 0.004 * k, 0.0245), (1.04 * k, 0.026), (1.1 * k, 0.023), (1.16 * k, 0.02), (1.24 * k, 0.0175),
             (1.31 * k, 0.0155), (1.37 * k, 0.014), (1.415 * k, 0.013), (1.445 * k, 0.0115), (1.457 * k, 0.0102),
             (1.469 * k, -0.001)]
