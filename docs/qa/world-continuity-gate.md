@@ -291,15 +291,41 @@ difference is listed with its reason.
   `surfaceHeight(world, x, z, yHint)` when it exists (the gate falls back to `groundHeight`).
   A lane that chooses another encoding updates the gate's reader in the same PR.
 - **Browser probes** read the scene through `?debug=1` (`window.__fogcityView`), in plain
-  JavaScript, and never pixels.
-- **Not automated yet** (left to the tour's human review): ribbon seam gaps (L-11), the 20 degree
-  rays of the ring check, the canopy share of park land, the completeness of `manifest.outside`,
-  adjacent houses sharing a colour, the Painted Ladies override, the Transamerica silhouette.
+  JavaScript, and never pixels. They see what the renderer draws: a far cell is no hit inside a
+  tile that is in the scene (its shader discards it there), a single-sided face is hit only from
+  its front, and the tour flies 80 m over each probe's point first so that point's tile is
+  streamed (before that, half the park and landmark probes read the far stand-in).
+- **The ring at radius 60** is seen from each side of each border in turn: the camera stands
+  75 m inside one tile (the streamer loads every tile within 60 m of the camera, so a camera
+  30 m from the border, as first planned, streams both sides and tests no near/far seam), after
+  a trip 3 km away to drop the other side (the streamer keeps tiles 250 m past the radius). The
+  20 degree rays are automated there (`probeRay` in `tests/e2e/world-probe.ts`). At 544f67c none
+  of the 1,014 straight-down probes over land finds the sea, but 72 of the 506 rays do (40 of 200
+  at the Presidio): the streamed tile's edge drops below the far terrain and the sea shows
+  through the crack, as the QA saw.
+- **The tour at 544f67c**: 85 shots, every view settled with no failed tile and no console
+  error; its probes find the three lakes drawn as lawn or grey ground, both beaches as lawn,
+  four of five park probes grey and four of four foliage probes bare, and Coit Tower and Sutro
+  Tower drawn as plain building records and both bridges absent.
+- **The nightly tier at 544f67c** agrees with the QA where both measured the same thing: every
+  street is 26,792 runs (385 mainland runs stopped, 47 starting inside a footprint, 84 airborne
+  for 0.5 s or more, the QA's 84); the ring steps up to 21.57 m (the QA's 21.5 m); 690 records
+  have no far hull and hulls stand up to 122 m too tall (the QA's 690 and 122 m); the drawn road
+  differs from the sim's surface by up to 3.84 m on Kearny St, where the car-pose spec finds a
+  3.9 m wheel gap. Every wall rammed: 0 escapes (W-08 holds); the shore's water side: 668 of the
+  approaches still rise more than 1 m, up to 22 m (W-06 is partly fixed).
+- **Floating wall bottoms (L-02)** count buildings (not towers, which stand on their podiums)
+  whose drawn wall bottom stands more than 5 cm above the tile's drawn ground mesh. At 544f67c
+  only the two south-edge records over the void (L-03) do; L-02 is left open until a person
+  confirms the QA's 38 by eye.
+- **Not automated yet** (left to the tour's human review): ribbon seam gaps (L-11), the canopy
+  share of park land, the completeness of `manifest.outside`, adjacent houses sharing a colour,
+  the Painted Ladies override, the Transamerica silhouette.
 
 <!-- metrics:start (generated from tests/golden/world-qa-baseline.json by scripts/golden/world-docs.ts) -->
 ### The metrics at 544f67c
 
-102 metrics. "enforced": every defect it tracks is fixed (or it is a pass check), so its target is a hard assertion; "ratchet": it may not get worse than its baseline; "at target": already there while a defect it tracks is still open.
+141 metrics. "enforced": every defect it tracks is fixed (or it is a pass check), so its target is a hard assertion; "ratchet": it may not get worse than its baseline; "at target": already there while a defect it tracks is still open.
 
 | Metric | Suite (cadence) | Tracks | Baseline at 544f67c | Target | State | What it measures |
 |---|---|---|---|---|---|---|
@@ -405,4 +431,43 @@ difference is listed with its reason.
 | `B.lakes.minWaterShare` | terrain (pr) | W-11 | 0 | >= 0.9 share | ratchet | the smallest share, over Lake Merced, Stow, Spreckels, Pine, Elk Glen, Laguna Honda, the Palace lagoon and the Crissy marsh, of the lake's lattice vertices that are water at the lake's level |
 | `B.seams.maxStep` | terrain (pr) | pass check | 0 | <= 0 m | enforced | largest height difference on a tile border (every 2.5 m) between the two neighbours' lattices |
 | `B.summits.fails` | terrain (pr) | pass check | 0 | <= 0 summits | enforced | of 25 named summits, those whose sim ground maximum within 150 m is not within 1 m of the 3DEP DEM maximum (the published heights differ from the DEM by up to 47 m for known reasons and are listed in the details) |
+| `G.carPose.pitchErrorDeg` | car-pose (e2e) | W-19 | 0 | <= 1 deg | enforced | on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's |
+| `G.carPose.wheelGapM` | car-pose (e2e) | W-09 | 3.9 | <= 0.1 m | ratchet | on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon) |
+| `G.far.cellsDrawnFromTwinPeaks` | car-pose (e2e) | W-20 | 13 | >= 4 far cells | enforced | from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles) |
+| `N.far.farAboveNearKm` | far (nightly) | W-17 | 83.26 | <= 0 km | ratchet | border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack) |
+| `N.far.lowHullsP99M` | far (nightly) | W-41 | 8.3 | <= 5 m | ratchet | the 99th percentile of |far hull roof - roof| for records under 30 m |
+| `N.far.outerLandUncovered` | far (nightly) | W-40 | 310 | <= 0 samples | ratchet | land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea) |
+| `N.far.recordsWithoutHull` | far (nightly) | W-41 | 690 | <= 0 records | ratchet | records with no far hull or cluster over their centroid |
+| `N.far.ringStepMaxM` | far (nightly) | W-17 | 21.57 | <= 2 m | ratchet | the largest such step |
+| `N.far.ringStepP99M` | far (nightly) | W-17 | 7.44 | <= 1 m | ratchet | 99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring) |
+| `N.far.sanBrunoSummitErrorM` | far (nightly) | W-40, W-17 | 402 | <= 10 m | ratchet | San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it) |
+| `N.far.tallHullsOff3m` | far (nightly) | W-41 | 44 | <= 0 records | ratchet | records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in) |
+| `N.far.uncoveredTilesMinShare` | far (nightly) | W-40 | 0 | >= 0.95 share | ratchet | the lowest far-terrain coverage of t-16_21, t-4_21, t-3_21 and t7_-5 (land beside the built tiles that has no far terrain) |
+| `N.freeways.airborneRuns` | freeways-all (nightly) | W-03 | 96 | <= 0 runs | ratchet | freeway and ramp runs at 25 m/s airborne for more than 0.3 s (draped viaducts launching the car) |
+| `N.freeways.hardLandings` | freeways-all (nightly) | W-03 | 76 | <= 0 runs | ratchet | freeway and ramp runs with a landing harder than 3 m/s |
+| `N.freeways.stuckRuns` | freeways-all (nightly) | W-03, W-07 | 17 | <= 0 runs | ratchet | freeway and ramp runs that stop before the end (buildings on the freeway, sea walls) |
+| `N.glb.doubleRibbonShare` | glb (nightly) | W-32 | 0.062 | <= 0.005 share of road area | ratchet | road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight) |
+| `N.glb.floatingWallBottoms` | glb (nightly) | L-02, L-03 | 2 | <= 0 buildings | ratchet | buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03) |
+| `N.glb.freewayUnderGroundShare` | glb (nightly) | W-03, W-10 | 0.105 | <= 0 share of freeway area | ratchet | freeway ribbon area (1 m raster) under the drawn ground |
+| `N.glb.groundSeamMismatches` | glb (nightly) | pass check | 0 | <= 0 vertices | enforced | ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks) |
+| `N.glb.groundThroughRoadsShare` | glb (nightly) | W-10 | 0.02 | <= 0 share of road area | ratchet | road ribbon area (0.5 m raster) where the drawn ground is more than 0.02 m above the ribbon |
+| `N.glb.parityMismatches` | glb (nightly) | pass check | 0 | <= 0 records | enforced | building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes) |
+| `N.glb.roadSunkShare` | glb (nightly) | W-09 | 0.039 | <= 0 share of samples | ratchet | centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road) |
+| `N.glb.roadSurfaceMaxM` | glb (nightly) | W-09 | 3.84 | <= 0.05 m | ratchet | the largest |drawn road top - sim surface| over the same samples |
+| `N.glb.roadSurfaceP99M` | glb (nightly) | W-09 | 0.497 | <= 0.05 m | ratchet | the 99th percentile of |drawn road top - sim surface| over the same samples |
+| `N.paths.walksBlocked` | paths-all (nightly) | W-39 | 77 | <= 0 walks | ratchet | walks along every pedestrian edge (stairways, paths), both ways, with stepFoot, that do not reach the end |
+| `N.streets.airborneRuns` | streets-all (nightly) | W-14 | 84 | <= 0 runs | ratchet | street runs airborne for 0.5 s or more at the posted speed (no real SF crest is listed yet) |
+| `N.streets.districtMinReachedShare` | streets-all (nightly) | W-01 | 0.843 | >= 0.995 share of runs | ratchet | the lowest share, over districts, of street runs that reach their end |
+| `N.streets.mainlandStartBlocked` | streets-all (nightly) | W-01, W-51 | 47 | <= 0 runs | ratchet | mainland street runs whose start (and every start up to 20 m in) overlaps a footprint |
+| `N.streets.mainlandStuck` | streets-all (nightly) | W-01 | 385 | <= 0 runs | ratchet | mainland street runs (every surface edge, each allowed direction, at the posted speed up to 20 m/s) that stop before the end |
+| `N.walls.escapes` | walls-all (nightly) | W-08 | 0 | <= 0 ram tests | enforced | ram tests from all 771 dry wall starts every 100 m (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) that cross a real wall or leave the built tiles |
+| `N.walls.launches` | walls-all (nightly) | W-06 | 668 | <= 0 runs | ratchet | cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s, every 50 m of shore, that rise over 1 m or jump more than speed*DT + 0.5 m in a tick |
+| `N.walls.maxRiseM` | walls-all (nightly) | W-06 | 22.04 | <= 1 m | ratchet | the highest any of those cars rose above the ground |
+| `G.farRing.seaThroughProbes` | far-ring (e2e-nightly) | W-17 | 72 | <= 0 probes | ratchet | at radius 60, at the three worst near/far borders seen from each side: straight-down probes 2 m either side and 20-degree rays from the streamed side, over sim land every 5 m, that find the sea plane or nothing |
+| `G.tour.beachesNotSand` | world-tour (e2e-nightly) | W-34 | 2 | <= 0 probes | ratchet | tour probes on Ocean Beach and Baker Beach whose drawn surface is not sand |
+| `G.tour.lakesNotWater` | world-tour (e2e-nightly) | W-11 | 3 | <= 0 probes | ratchet | tour probes at Stow Lake, Spreckels Lake and Lake Merced whose drawn surface is not water |
+| `G.tour.landmarksMissing` | world-tour (e2e-nightly) | W-24, W-25, W-27 | 4 | <= 0 probes | ratchet | tour probes at Coit Tower, Sutro Tower, the Golden Gate Bridge and the Bay Bridge whose topmost drawn surface is not that landmark's model |
+| `G.tour.parksNotGreen` | world-tour (e2e-nightly) | W-18 | 4 | <= 0 probes | ratchet | tour probes in Golden Gate Park, Dolores Park, Buena Vista, Glen Canyon and Mt Davidson whose drawn ground is not green |
+| `G.tour.parksWithoutFoliage` | world-tour (e2e-nightly) | W-18 | 4 | <= 0 probes | ratchet | tour probes in Golden Gate Park, Buena Vista, Mt Davidson and the Presidio with no foliage drawn within 60 m |
+| `G.tour.viewProblems` | world-tour (e2e-nightly) | pass check | 0 | <= 0 views | enforced | tour views whose tiles did not settle, failed to load, had no far cell, or logged a console error |
 <!-- metrics:end -->

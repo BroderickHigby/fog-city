@@ -157,6 +157,108 @@ export async function probeDown(page: Page, pts: ReadonlyArray<readonly [number,
   );
 }
 
+export interface RayHit {
+  /** Distance along the ray, metres. */
+  t: number;
+  x: number;
+  y: number;
+  z: number;
+  mesh: string;
+  path: string[];
+}
+
+/**
+ * The first drawn surface each ray meets ([ox, oy, oz, dx, dy, dz], direction normalised, up to
+ * `maxT` metres), as the renderer draws it: a single-sided face counts only from its front, and
+ * a far cell only outside the tiles in the scene. null: the ray meets nothing (sky or fog).
+ */
+export async function probeRay(page: Page, rays: ReadonlyArray<readonly [number, number, number, number, number, number]>, only?: string | readonly string[], maxT = 400): Promise<Array<RayHit | null>> {
+  return page.evaluate(
+    ({ rays, only, maxT }) => {
+      type Obj = {
+        name: string;
+        visible: boolean;
+        parent: Obj | null;
+        isMesh?: boolean;
+        isInstancedMesh?: boolean;
+        matrixWorld: { elements: number[] };
+        geometry?: { attributes: Record<string, { count: number; getX(i: number): number; getY(i: number): number; getZ(i: number): number }>; index: { count: number; getX(i: number): number } | null; userData: Record<string, unknown> };
+        material?: { side?: number } | Array<{ side?: number }>;
+        traverse(fn: (o: Obj) => void): void;
+        updateMatrixWorld(force: boolean): void;
+      };
+      const view = (window as unknown as { __fogcityView?: { scene: Obj } }).__fogcityView;
+      if (!view) throw new Error("window.__fogcityView is missing: boot with ?debug=1");
+      const scene = view.scene;
+      scene.updateMatrixWorld(true);
+      const tilesIn = new Set<string>();
+      scene.traverse((o) => {
+        if (o.name.startsWith("tile:")) tilesIn.add(o.name.slice(5));
+      });
+      const meshes: Array<{ m: Obj; names: string[]; far: boolean; side: number; P: Float32Array; box: number[] }> = [];
+      scene.traverse((o) => {
+        if (!o.isMesh || o.isInstancedMesh || !o.geometry?.attributes.position) return;
+        for (let p: Obj | null = o; p; p = p.parent) if (!p.visible) return;
+        const names: string[] = [];
+        for (let p: Obj | null = o; p; p = p.parent) if (p.name) names.push(p.name);
+        if (only && !names.some((n) => only.some((q) => n.includes(q)))) return;
+        const pos = o.geometry.attributes.position;
+        const e = o.matrixWorld.elements;
+        const P = new Float32Array(pos.count * 3);
+        const box = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+        for (let i = 0; i < pos.count; i++) {
+          const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+          const w = [e[0]! * x + e[4]! * y + e[8]! * z + e[12]!, e[1]! * x + e[5]! * y + e[9]! * z + e[13]!, e[2]! * x + e[6]! * y + e[10]! * z + e[14]!];
+          for (let k = 0; k < 3; k++) {
+            P[i * 3 + k] = w[k]!;
+            box[k] = Math.min(box[k]!, w[k]!);
+            box[k + 3] = Math.max(box[k + 3]!, w[k]!);
+          }
+        }
+        const mat = Array.isArray(o.material) ? o.material[0] : o.material;
+        meshes.push({ m: o, names, far: names.some((n) => n === "far" || n.startsWith("far:")), side: mat?.side ?? 0, P, box });
+      });
+      return rays.map(([ox, oy, oz, dx, dy, dz]) => {
+        const ex = ox + dx * maxT, ey = oy + dy * maxT, ez = oz + dz * maxT;
+        const rb = [Math.min(ox, ex), Math.min(oy, ey), Math.min(oz, ez), Math.max(ox, ex), Math.max(oy, ey), Math.max(oz, ez)];
+        let best: { t: number; x: number; y: number; z: number; mesh: string; path: string[] } | null = null;
+        for (const q of meshes) {
+          if (q.box[3]! < rb[0]! || q.box[0]! > rb[3]! || q.box[4]! < rb[1]! || q.box[1]! > rb[4]! || q.box[5]! < rb[2]! || q.box[2]! > rb[5]!) continue;
+          const g = q.m.geometry!;
+          const idx = g.index;
+          const n = idx ? idx.count : g.attributes.position!.count;
+          const P = q.P;
+          for (let t3 = 0; t3 + 2 < n; t3 += 3) {
+            const a = (idx ? idx.getX(t3) : t3) * 3, b = (idx ? idx.getX(t3 + 1) : t3 + 1) * 3, c = (idx ? idx.getX(t3 + 2) : t3 + 2) * 3;
+            // Moller-Trumbore.
+            const e1x = P[b]! - P[a]!, e1y = P[b + 1]! - P[a + 1]!, e1z = P[b + 2]! - P[a + 2]!;
+            const e2x = P[c]! - P[a]!, e2y = P[c + 1]! - P[a + 1]!, e2z = P[c + 2]! - P[a + 2]!;
+            const px = dy * e2z - dz * e2y, py = dz * e2x - dx * e2z, pz = dx * e2y - dy * e2x;
+            const det = e1x * px + e1y * py + e1z * pz;
+            if (Math.abs(det) < 1e-12) continue;
+            // det < 0: the ray meets the face from its back (counter-clockwise front faces).
+            if ((q.side === 0 && det < 0) || (q.side === 1 && det > 0)) continue;
+            const inv = 1 / det;
+            const sx = ox - P[a]!, sy = oy - P[a + 1]!, sz = oz - P[a + 2]!;
+            const u = (sx * px + sy * py + sz * pz) * inv;
+            if (u < 0 || u > 1) continue;
+            const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
+            const v = (dx * qx + dy * qy + dz * qz) * inv;
+            if (v < 0 || u + v > 1) continue;
+            const t = (e2x * qx + e2y * qy + e2z * qz) * inv;
+            if (t <= 1e-6 || t > maxT || (best && t >= best.t)) continue;
+            const hx = ox + dx * t, hz = oz + dz * t;
+            if (q.far && tilesIn.has(`t${Math.floor(hx / 500)}_${Math.floor(hz / 500)}`)) continue;
+            best = { t, x: hx, y: oy + dy * t, z: hz, mesh: q.m.name, path: q.names };
+          }
+        }
+        return best;
+      });
+    },
+    { rays: rays.map((r) => [...r] as [number, number, number, number, number, number]), only: only === undefined ? null : typeof only === "string" ? [only] : [...only], maxT },
+  );
+}
+
 export interface WheelPose {
   /** The car model's rotation.x (pitch as drawn), radians. */
   modelPitch: number;

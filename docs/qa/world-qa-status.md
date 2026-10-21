@@ -313,48 +313,49 @@ The world-continuity gate (`world-continuity-gate.md`) measures every defect on 
 | ID | Sev | Status | Defect | Metrics: baseline (target) |
 |---|---|---|---|---|
 | L-01 | low | **open** | 23 duplicate and 24 coplanar-roof footprint pairs z-fight. | `A.rings.coplanarRoofs` 24 (<= 0); `A.rings.duplicates` 23 (<= 0) |
-| L-03 | low | **open** | Two buildings straddle the south edge and hang over the void: 201006.0017547 by 118.6 m (37.705434,-122.462201) and 0008708 by 16.4 m (37.705490,-122.416322). | `A.ground.wallBottomAboveGround` 2 (<= 0) |
-| W-01 | blocker | **open** | Real streets walled by building footprints | `C.clearance.carriagewayEdges` 384 (<= 0); `F.named.runsStopped` 31 (<= 0); `F.routes.stopped` 2 (<= 0); `F.sample.runsStopped` 11 (<= 0) |
+| L-02 | low | **open** | Wall bottoms float 5 to 25 cm above the drawn ground on 38 buildings. | `N.glb.floatingWallBottoms` 2 (<= 0) |
+| L-03 | low | **open** | Two buildings straddle the south edge and hang over the void: 201006.0017547 by 118.6 m (37.705434,-122.462201) and 0008708 by 16.4 m (37.705490,-122.416322). | `A.ground.wallBottomAboveGround` 2 (<= 0); `N.glb.floatingWallBottoms` 2 (<= 0) |
+| W-01 | blocker | **open** | Real streets walled by building footprints | `C.clearance.carriagewayEdges` 384 (<= 0); `F.named.runsStopped` 31 (<= 0); `F.routes.stopped` 2 (<= 0); `F.sample.runsStopped` 11 (<= 0); `N.streets.districtMinReachedShare` 0.843 (>= 0.995); `N.streets.mainlandStartBlocked` 47 (<= 0); `N.streets.mainlandStuck` 385 (<= 0) |
 | W-02 | blocker | **open** | Tunnels draped over the hills (Broadway impassable) | `C.tunnels.broadwayAbovePortalLineM` 49.68 (<= 1); `C.tunnels.insideFootprintsM` 578 (<= 0); `C.tunnels.unflagged` 7 (<= 0); `F.named.runsStopped` 31 (<= 0); `F.tunnels.failingRuns` 6 (<= 0) |
-| W-03 | blocker | **open** | Freeways on the bare ground: the car is stopped by buildings on the freeway, launches, drives through houses | `C.freeway.insideFootprintsM` 435 (<= 0); `C.freeway.maxGradePct` 143.22 (<= 6); `C.freeway.separatedCrossingsShare` 0 (>= 1); `E.freeway.i280Stops` 2 (<= 0) |
+| W-03 | blocker | **open** | Freeways on the bare ground: the car is stopped by buildings on the freeway, launches, drives through houses | `C.freeway.insideFootprintsM` 435 (<= 0); `C.freeway.maxGradePct` 143.22 (<= 6); `C.freeway.separatedCrossingsShare` 0 (>= 1); `E.freeway.i280Stops` 2 (<= 0); `N.freeways.airborneRuns` 96 (<= 0); `N.freeways.hardLandings` 76 (<= 0); `N.freeways.stuckRuns` 17 (<= 0); `N.glb.freewayUnderGroundShare` 0.105 (<= 0) |
 | W-04 | blocker | **open** | Post-2010 blocks and towers missing | `A.newer.cells3` 13 (<= 0); `A.newer.missionRockTall` 0 (>= 4); `A.newer.publishedHeightFails` 4 (<= 0); `A.newer.unmatched` 122 (<= 10) |
 | W-05 | blocker | **open** | Buried hillside buildings: invisible underground walls, cars teleported out, hill through the roof | `A.ground.lowAboveGround` 83 (<= 0); `A.ground.roofUnderGround` 22 (<= 0); `F.buried.carMaxJumpM` 23.15 (<= 0.5); `F.buried.walkerLowWallStops` 29 (<= 0) |
-| W-06 | blocker | **partly** | The water side of every shore wall launches cars 50 to 1,612 m into the sky | `E.launch.maxRiseM` 8.94 (<= 1); `E.launch.sampleLaunches` 98 (<= 0); `E.push.excessLiftMps` 0 (<= 0) |
-| W-07 | blocker | **open** | I-280 ends in invisible sea walls at Mission Creek and Islais Creek | `E.freeway.i280Stops` 2 (<= 0); `E.freeway.landEdgesCrossingWalls` 3 (<= 0) |
-| W-08 | blocker | **fixed** | No world edge: cars and walkers leave the world, 181 to 201 m drop at the county line, open water is a solid floor | `E.walls.sampleEscapes` 0 (<= 0) |
-| W-09 | high | **open** | Car sinks into the drawn road (ribbon vs sim ground) | `C.profile.edgesWithoutProfile` 1 (<= 0) |
-| W-10 | high | **open** | Ground mesh pokes through road ribbons | - |
-| W-11 | high | **open** | Inland lakes are dry, drivable land; at head they are also painted lawn | `B.lakes.dryHa` 78.3 (<= 0); `B.lakes.minWaterShare` 0 (>= 0.9); `D.lakes.drawnGrassHa` 5.06 (<= 0); `F.lake.mercedDrivenM` 620 (<= 10) |
+| W-06 | blocker | **partly** | The water side of every shore wall launches cars 50 to 1,612 m into the sky | `E.launch.maxRiseM` 8.94 (<= 1); `E.launch.sampleLaunches` 98 (<= 0); `E.push.excessLiftMps` 0 (<= 0); `N.walls.launches` 668 (<= 0); `N.walls.maxRiseM` 22.04 (<= 1) |
+| W-07 | blocker | **open** | I-280 ends in invisible sea walls at Mission Creek and Islais Creek | `E.freeway.i280Stops` 2 (<= 0); `E.freeway.landEdgesCrossingWalls` 3 (<= 0); `N.freeways.stuckRuns` 17 (<= 0) |
+| W-08 | blocker | **fixed** | No world edge: cars and walkers leave the world, 181 to 201 m drop at the county line, open water is a solid floor | `E.walls.sampleEscapes` 0 (<= 0); `N.walls.escapes` 0 (<= 0) |
+| W-09 | high | **open** | Car sinks into the drawn road (ribbon vs sim ground) | `C.profile.edgesWithoutProfile` 1 (<= 0); `G.carPose.wheelGapM` 3.9 (<= 0.1); `N.glb.roadSunkShare` 0.039 (<= 0); `N.glb.roadSurfaceMaxM` 3.84 (<= 0.05); `N.glb.roadSurfaceP99M` 0.497 (<= 0.05) |
+| W-10 | high | **open** | Ground mesh pokes through road ribbons | `N.glb.freewayUnderGroundShare` 0.105 (<= 0); `N.glb.groundThroughRoadsShare` 0.02 (<= 0) |
+| W-11 | high | **open** | Inland lakes are dry, drivable land; at head they are also painted lawn | `B.lakes.dryHa` 78.3 (<= 0); `B.lakes.minWaterShare` 0 (>= 0.9); `D.lakes.drawnGrassHa` 5.06 (<= 0); `F.lake.mercedDrivenM` 620 (<= 10); `G.tour.lakesNotWater` 3 (<= 0) |
 | W-12 | high | **open** | Bridges over Mission Creek and Islais Creek dip to sea level | `C.bridges.dippingDecks` 4 (<= 0); `F.bridges.failingRuns` 16 (<= 0); `F.named.runsStopped` 31 (<= 0) |
 | W-13 | high | **open** | Piers: sheds stand in the water, pier roads at y=0 | `C.piers.buildingsOnWater` 103 (<= 0); `C.piers.streetsAtSeaLevel` 4 (<= 0) |
-| W-14 | high | **open** | Streets crossing freeways, rail cuts and creeks launch the car | `C.freeway.separatedCrossingsShare` 0 (>= 1); `F.crossings.airborneRuns` 66 (<= 0); `F.crossings.richlandAirS` 2.33 (<= 0.2); `F.named.runsStopped` 31 (<= 0); `F.routes.maxAirborneS` 0.83 (<= 0.8); `F.routes.stopped` 2 (<= 0) |
+| W-14 | high | **open** | Streets crossing freeways, rail cuts and creeks launch the car | `C.freeway.separatedCrossingsShare` 0 (>= 1); `F.crossings.airborneRuns` 66 (<= 0); `F.crossings.richlandAirS` 2.33 (<= 0.2); `F.named.runsStopped` 31 (<= 0); `F.routes.maxAirborneS` 0.83 (<= 0.8); `F.routes.stopped` 2 (<= 0); `N.streets.airborneRuns` 84 (<= 0) |
 | W-15 | high | **open** | Houses drawn with 5 to 8 m storeys | `A.facade.storeys5m` 0.611 (<= 0.02) |
 | W-16 | high | **open** | Phantom LiDAR towers: 68 m on 1st St, 65 m block on Fort Point | `A.phantom.fortPointHeight` 64.61 (<= 25); `A.phantom.tallOnStreet` 11 (<= 0) |
-| W-17 | high | **open** | Streaming-ring seam: near and far terrain step up to 21.5 m and the sea shows through | - |
-| W-18 | high | **partly** | Ground cover: parks bare grey, no foliage, beaches and lakes painted lawn | `D.foliage.parkTilesShare` 0 (>= 1); `D.parks.greenShare` 0.437 (>= 0.9); `D.parks.propertiesUnder10pct` 240 (<= 0); `D.shore.drawnGrassHa` 31.07 (<= 0) |
-| W-19 | high | **fixed** | Car drawn level on hills | - |
-| W-20 | high | **fixed** | Far LOD not drawn | - |
+| W-17 | high | **open** | Streaming-ring seam: near and far terrain step up to 21.5 m and the sea shows through | `G.farRing.seaThroughProbes` 72 (<= 0); `N.far.farAboveNearKm` 83.26 (<= 0); `N.far.ringStepMaxM` 21.57 (<= 2); `N.far.ringStepP99M` 7.44 (<= 1); `N.far.sanBrunoSummitErrorM` 402 (<= 10) |
+| W-18 | high | **partly** | Ground cover: parks bare grey, no foliage, beaches and lakes painted lawn | `D.foliage.parkTilesShare` 0 (>= 1); `D.parks.greenShare` 0.437 (>= 0.9); `D.parks.propertiesUnder10pct` 240 (<= 0); `D.shore.drawnGrassHa` 31.07 (<= 0); `G.tour.parksNotGreen` 4 (<= 0); `G.tour.parksWithoutFoliage` 4 (<= 0) |
+| W-19 | high | **fixed** | Car drawn level on hills | `G.carPose.pitchErrorDeg` 0 (<= 1) |
+| W-20 | high | **fixed** | Far LOD not drawn | `G.far.cellsDrawnFromTwinPeaks` 13 (>= 4) |
 | W-21 | high | **fixed** | Gaps cut in the sea wall for pier and bridge roads let cars and walkers out onto the Bay | `E.gaps.carRunsOffCorridor` 0 (<= 0); `E.gaps.maxOutOnWaterM` 0 (<= 1); `E.gaps.walkerRunsOffCorridor` 0 (<= 0) |
 | W-22 | high | **open** | Render ground (triangles) and sim ground (bilinear) disagree off-road by up to 4.37 m | `B.groundParity.max` 1.175 (<= 0.02); `B.groundParity.p99` 0.261 (<= 0.02); `F.routes.belowSurfaceM` 0.173 (<= 0.1) |
 | W-23 | high | **open** | Ramming a building on a hill launches the car | `E.push.excessLiftMps` 0 (<= 0); `F.ram.launches` 211 (<= 0) |
-| W-24 | high | **open** | Golden Gate Bridge and Bay Bridge absent; approaches end at the shore | `A.landmark.bridgesMissing` 2 (<= 0) |
-| W-25 | high | **open** | Sutro Tower absent: three 3 m plinths, no model | `A.landmark.sutroTowerTopM` 0 (>= 290) |
+| W-24 | high | **open** | Golden Gate Bridge and Bay Bridge absent; approaches end at the shore | `A.landmark.bridgesMissing` 2 (<= 0); `G.tour.landmarksMissing` 4 (<= 0) |
+| W-25 | high | **open** | Sutro Tower absent: three 3 m plinths, no model | `A.landmark.sutroTowerTopM` 0 (>= 290); `G.tour.landmarksMissing` 4 (<= 0) |
 | W-26 | high | **fixed** | Sutro Tower drawn as a solid 231 m slab | `A.landmark.sutroRecordHeight` 3.44 (<= 10) |
-| W-27 | high | **open** | Hero landmarks read as office boxes; Dragon Gate and Sutro Baths absent; Coit 20% short | `A.landmark.coitHeightError` 0.199 (<= 0.05); `A.landmark.heroWithoutShape` 10 (<= 0) |
+| W-27 | high | **open** | Hero landmarks read as office boxes; Dragon Gate and Sutro Baths absent; Coit 20% short | `A.landmark.coitHeightError` 0.199 (<= 0.05); `A.landmark.heroWithoutShape` 10 (<= 0); `G.tour.landmarksMissing` 4 (<= 0) |
 | W-28 | medium | **open** | Large hillside buildings are one flat prism over up to 30 m of relief | `A.ground.relief10` 466 (<= 0) |
 | W-29 | medium | **open** | First-storey line from the centroid's ground, not the street | `A.facade.firstStoreyOffStreet` 0.111 (<= 0.01) |
 | W-30 | medium | **open** | Self-intersecting tower rings draw double roofs and slabs outside walls | `A.rings.nonSimple` 193 (<= 0) |
 | W-31 | medium | **open** | 10 m lattice bumps on cross-slope roads; no 2 m road-profile pass | `B.grades.hillsideLatticeFails` 4 (<= 0); `C.profile.edgesWithoutProfile` 1 (<= 0) |
-| W-32 | medium | **open** | Junction ribbons overlap and z-fight | - |
+| W-32 | medium | **open** | Junction ribbons overlap and z-fight | `N.glb.doubleRibbonShare` 0.062 (<= 0.005) |
 | W-33 | medium | **open** | Stairways dropped, or drawn as smooth ramps the car drives | `C.stairs.carDrivable` 4 (<= 0); `C.stairs.missing` 2 (<= 0); `C.stairs.notMarkedStairs` 4 (<= 0) |
-| W-34 | medium | **open** | Beaches are grey; at head some are painted lawn | `D.beaches.sandShare` 0 (>= 0.9); `D.shore.drawnGrassHa` 31.07 (<= 0) |
+| W-34 | medium | **open** | Beaches are grey; at head some are painted lawn | `D.beaches.sandShare` 0 (>= 0.9); `D.shore.drawnGrassHa` 31.07 (<= 0); `G.tour.beachesNotSand` 2 (<= 0) |
 | W-35 | medium | **partly** | No seawall drawn; the shoreline is a 10 m staircase; the Embarcadero promenade ramps into the Bay | `H.seawall.embarcaderoRampShare` 0.94 (<= 0) |
 | W-36 | medium | **open** | Cracks of 5 to 60 cm between row houses | `H.cracks.sampleBoxPairs` 291 (<= 0) |
 | W-37 | medium | **open** | One facade class, washed-out palette, Painted Ladies like any row | `H.palette.pre1915SaturatedShare` 0 (>= 0.3) |
 | W-38 | medium | **open** | Every roof flat at the LiDAR ridge height: no gables, parapets, cornices or rooftop kit | `H.roofs.shapedShare` 0 (>= 0.8) |
-| W-39 | medium | **open** | 33 public stairways and paths blocked on foot by footprints | `C.clearance.pedestrianEdges` 62 (<= 0); `F.walk.routesFailing` 6 (<= 0) |
-| W-40 | medium | **open** | No far terrain beyond the south-edge tiles t-16_21, t-4_21, t-3_21 and t7_-5; the city edge floats over the sea | - |
-| W-41 | medium | **open** | Far skyline pops when tiles stream in (hulls up to 122 m too tall; 690 records with no hull) | - |
+| W-39 | medium | **open** | 33 public stairways and paths blocked on foot by footprints | `C.clearance.pedestrianEdges` 62 (<= 0); `F.walk.routesFailing` 6 (<= 0); `N.paths.walksBlocked` 77 (<= 0) |
+| W-40 | medium | **open** | No far terrain beyond the south-edge tiles t-16_21, t-4_21, t-3_21 and t7_-5; the city edge floats over the sea | `N.far.outerLandUncovered` 310 (<= 0); `N.far.sanBrunoSummitErrorM` 402 (<= 10); `N.far.uncoveredTilesMinShare` 0 (>= 0.95) |
+| W-41 | medium | **open** | Far skyline pops when tiles stream in (hulls up to 122 m too tall; 690 records with no hull) | `N.far.lowHullsP99M` 8.3 (<= 5); `N.far.recordsWithoutHull` 690 (<= 0); `N.far.tallHullsOff3m` 44 (<= 0) |
 | W-42 | medium | **open** | 1,356 Daly City buildings on a strip south of the county line with no streets | `E.net.buildingsWithoutStreet` 911 (<= 0) |
 | W-43 | medium | **open** | Lombard: the centreline cuts into 201006.0021655 at the top approach | `C.clearance.lombardEdges` 2 (<= 0); `F.named.runsStopped` 31 (<= 0) |
 | W-44 | medium | **open** | Street trees and lamps stand in roadways and inside buildings | `C.props.lampsOnRoad` 0.095 (<= 0); `C.props.treesInBuildings` 0.058 (<= 0); `C.props.treesOnRoad` 0.045 (<= 0) |
@@ -364,6 +365,6 @@ The world-continuity gate (`world-continuity-gate.md`) measures every defect on 
 | W-48 | medium | **open** | No garage doors on the Sunset, Richmond and Marina rows | `H.garages.anchorShare` 0 (>= 0.9) |
 | W-49 | medium | **open** | No bay windows | `H.bays.anchorShare` 0 (>= 0.9) |
 | W-50 | medium | **open** | No stoops or entry stairs; blank plinths up to a storey tall | `H.stoops.blankBandOver2_5m` 834 (<= 0) |
-| W-51 | medium | **partly** | A car placed overlapping a footprint launches 144 to 178 m (respawn, teleport, mission placement) | `E.push.excessLiftMps` 0 (<= 0); `F.placement.maxJumpM` 23.22 (<= 0.5); `F.placement.maxRiseM` 0.34 (<= 0.5) |
+| W-51 | medium | **partly** | A car placed overlapping a footprint launches 144 to 178 m (respawn, teleport, mission placement) | `E.push.excessLiftMps` 0 (<= 0); `F.placement.maxJumpM` 23.22 (<= 0.5); `F.placement.maxRiseM` 0.34 (<= 0.5); `N.streets.mainlandStartBlocked` 47 (<= 0) |
 | W-52 | medium | **partly** | The walker has no vertical state: any drop is a one-tick teleport | `F.walker.verticalFails` 2 (<= 0) |
 <!-- gate-status:end -->

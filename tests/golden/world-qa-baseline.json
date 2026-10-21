@@ -1731,6 +1731,136 @@
    "cadence": "pr",
    "desc": "unit: walking off a 3 m drop takes at least 0.7 s to land; a walker cannot climb a slope steeper than 100% taller than 1 m"
   },
+  "G.carPose.pitchErrorDeg": {
+   "baseline": 0,
+   "target": 1,
+   "better": "lower",
+   "unit": "deg",
+   "defects": [
+    "W-19"
+   ],
+   "targetWave": null,
+   "suite": "car-pose",
+   "cadence": "e2e",
+   "desc": "on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's"
+  },
+  "G.carPose.wheelGapM": {
+   "baseline": 3.9,
+   "target": 0.1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "car-pose",
+   "cadence": "e2e",
+   "desc": "on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon)"
+  },
+  "G.far.cellsDrawnFromTwinPeaks": {
+   "baseline": 13,
+   "target": 4,
+   "better": "higher",
+   "unit": "far cells",
+   "defects": [
+    "W-20"
+   ],
+   "targetWave": null,
+   "suite": "car-pose",
+   "cadence": "e2e",
+   "desc": "from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles)"
+  },
+  "G.farRing.seaThroughProbes": {
+   "baseline": 72,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far-ring",
+   "cadence": "e2e-nightly",
+   "desc": "at radius 60, at the three worst near/far borders seen from each side: straight-down probes 2 m either side and 20-degree rays from the streamed side, over sim land every 5 m, that find the sea plane or nothing"
+  },
+  "G.tour.beachesNotSand": {
+   "baseline": 2,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-34"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes on Ocean Beach and Baker Beach whose drawn surface is not sand"
+  },
+  "G.tour.lakesNotWater": {
+   "baseline": 3,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-11"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes at Stow Lake, Spreckels Lake and Lake Merced whose drawn surface is not water"
+  },
+  "G.tour.landmarksMissing": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-24",
+    "W-25",
+    "W-27"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes at Coit Tower, Sutro Tower, the Golden Gate Bridge and the Bay Bridge whose topmost drawn surface is not that landmark's model"
+  },
+  "G.tour.parksNotGreen": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes in Golden Gate Park, Dolores Park, Buena Vista, Glen Canyon and Mt Davidson whose drawn ground is not green"
+  },
+  "G.tour.parksWithoutFoliage": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes in Golden Gate Park, Buena Vista, Mt Davidson and the Presidio with no foliage drawn within 60 m"
+  },
+  "G.tour.viewProblems": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "views",
+   "defects": [],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour views whose tiles did not settle, failed to load, had no far cell, or logged a console error"
+  },
   "H.bays.anchorShare": {
    "baseline": 0,
    "target": 0.9,
@@ -1847,6 +1977,384 @@
    "suite": "houses",
    "cadence": "pr",
    "desc": "share of residential records with a wall drawn as the street front (_FACADE.w = 170), so fronts, party walls and rear walls differ"
+  },
+  "N.far.farAboveNearKm": {
+   "baseline": 83.26,
+   "target": 0,
+   "better": "lower",
+   "unit": "km",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack)"
+  },
+  "N.far.lowHullsP99M": {
+   "baseline": 8.3,
+   "target": 5,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-41"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "the 99th percentile of |far hull roof - roof| for records under 30 m"
+  },
+  "N.far.outerLandUncovered": {
+   "baseline": 310,
+   "target": 0,
+   "better": "lower",
+   "unit": "samples",
+   "defects": [
+    "W-40"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea)"
+  },
+  "N.far.recordsWithoutHull": {
+   "baseline": 690,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-41"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "records with no far hull or cluster over their centroid"
+  },
+  "N.far.ringStepMaxM": {
+   "baseline": 21.57,
+   "target": 2,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "the largest such step"
+  },
+  "N.far.ringStepP99M": {
+   "baseline": 7.44,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring)"
+  },
+  "N.far.sanBrunoSummitErrorM": {
+   "baseline": 402,
+   "target": 10,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-40",
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it)"
+  },
+  "N.far.tallHullsOff3m": {
+   "baseline": 44,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-41"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in)"
+  },
+  "N.far.uncoveredTilesMinShare": {
+   "baseline": 0,
+   "target": 0.95,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-40"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "nightly",
+   "desc": "the lowest far-terrain coverage of t-16_21, t-4_21, t-3_21 and t7_-5 (land beside the built tiles that has no far terrain)"
+  },
+  "N.freeways.airborneRuns": {
+   "baseline": 96,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "freeways-all",
+   "cadence": "nightly",
+   "desc": "freeway and ramp runs at 25 m/s airborne for more than 0.3 s (draped viaducts launching the car)"
+  },
+  "N.freeways.hardLandings": {
+   "baseline": 76,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "freeways-all",
+   "cadence": "nightly",
+   "desc": "freeway and ramp runs with a landing harder than 3 m/s"
+  },
+  "N.freeways.stuckRuns": {
+   "baseline": 17,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-03",
+    "W-07"
+   ],
+   "targetWave": null,
+   "suite": "freeways-all",
+   "cadence": "nightly",
+   "desc": "freeway and ramp runs that stop before the end (buildings on the freeway, sea walls)"
+  },
+  "N.glb.doubleRibbonShare": {
+   "baseline": 0.062,
+   "target": 0.005,
+   "better": "lower",
+   "unit": "share of road area",
+   "defects": [
+    "W-32"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight)"
+  },
+  "N.glb.floatingWallBottoms": {
+   "baseline": 2,
+   "target": 0,
+   "better": "lower",
+   "unit": "buildings",
+   "defects": [
+    "L-02",
+    "L-03"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03)"
+  },
+  "N.glb.freewayUnderGroundShare": {
+   "baseline": 0.105,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of freeway area",
+   "defects": [
+    "W-03",
+    "W-10"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "freeway ribbon area (1 m raster) under the drawn ground"
+  },
+  "N.glb.groundSeamMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "vertices",
+   "defects": [],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks)"
+  },
+  "N.glb.groundThroughRoadsShare": {
+   "baseline": 0.02,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of road area",
+   "defects": [
+    "W-10"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "road ribbon area (0.5 m raster) where the drawn ground is more than 0.02 m above the ribbon"
+  },
+  "N.glb.parityMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes)"
+  },
+  "N.glb.roadSunkShare": {
+   "baseline": 0.039,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of samples",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road)"
+  },
+  "N.glb.roadSurfaceMaxM": {
+   "baseline": 3.84,
+   "target": 0.05,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "the largest |drawn road top - sim surface| over the same samples"
+  },
+  "N.glb.roadSurfaceP99M": {
+   "baseline": 0.497,
+   "target": 0.05,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "nightly",
+   "desc": "the 99th percentile of |drawn road top - sim surface| over the same samples"
+  },
+  "N.paths.walksBlocked": {
+   "baseline": 77,
+   "target": 0,
+   "better": "lower",
+   "unit": "walks",
+   "defects": [
+    "W-39"
+   ],
+   "targetWave": null,
+   "suite": "paths-all",
+   "cadence": "nightly",
+   "desc": "walks along every pedestrian edge (stairways, paths), both ways, with stepFoot, that do not reach the end"
+  },
+  "N.streets.airborneRuns": {
+   "baseline": 84,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "street runs airborne for 0.5 s or more at the posted speed (no real SF crest is listed yet)"
+  },
+  "N.streets.districtMinReachedShare": {
+   "baseline": 0.843,
+   "target": 0.995,
+   "better": "higher",
+   "unit": "share of runs",
+   "defects": [
+    "W-01"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "the lowest share, over districts, of street runs that reach their end"
+  },
+  "N.streets.mainlandStartBlocked": {
+   "baseline": 47,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-01",
+    "W-51"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "mainland street runs whose start (and every start up to 20 m in) overlaps a footprint"
+  },
+  "N.streets.mainlandStuck": {
+   "baseline": 385,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-01"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "mainland street runs (every surface edge, each allowed direction, at the posted speed up to 20 m/s) that stop before the end"
+  },
+  "N.walls.escapes": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "ram tests",
+   "defects": [
+    "W-08"
+   ],
+   "targetWave": null,
+   "suite": "walls-all",
+   "cadence": "nightly",
+   "desc": "ram tests from all 771 dry wall starts every 100 m (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) that cross a real wall or leave the built tiles"
+  },
+  "N.walls.launches": {
+   "baseline": 668,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-06"
+   ],
+   "targetWave": null,
+   "suite": "walls-all",
+   "cadence": "nightly",
+   "desc": "cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s, every 50 m of shore, that rise over 1 m or jump more than speed*DT + 0.5 m in a tick"
+  },
+  "N.walls.maxRiseM": {
+   "baseline": 22.04,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-06"
+   ],
+   "targetWave": null,
+   "suite": "walls-all",
+   "cadence": "nightly",
+   "desc": "the highest any of those cars rose above the ground"
   }
  }
 }
