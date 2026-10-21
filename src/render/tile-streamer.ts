@@ -57,6 +57,8 @@ export interface StreamerOptions {
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
+  /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
+  onTileVisible?: (id: string, visible: boolean) => void;
 }
 
 type TileState = "loading" | "building" | "ready" | "failed";
@@ -401,6 +403,7 @@ export class TileStreamer {
     rec.state = "ready";
     this.opts.onReady?.(rec.group);
     this.opts.parent.add(rec.group);
+    this.opts.onTileVisible?.(rec.id, true);
     this.dirty = true;
   }
 
@@ -428,6 +431,7 @@ export class TileStreamer {
     const rec = this.records.get(id);
     if (!rec) return;
     this.records.delete(id);
+    if (rec.state === "ready") this.opts.onTileVisible?.(id, false);
     rec.dropped = true;
     rec.gen = null;
     if (rec.retryTimer !== null) clearTimeout(rec.retryTimer);

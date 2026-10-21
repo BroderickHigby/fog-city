@@ -17,5 +17,5 @@
     "isolatedModules": true,
     "skipLibCheck": true
   },
-  "include": ["src", "pipeline", "tests", "assets", "*.ts"]
+  "include": ["src", "pipeline", "tests", "assets", "scripts", "*.ts"]
 }

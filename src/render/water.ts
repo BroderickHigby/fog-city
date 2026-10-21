@@ -1,4 +1,5 @@
-// The Bay: one large plane at y = 0 that follows the camera. Cheap reflective look without a
+// The Bay and the Pacific: one large plane at the sea level (manifest.water.y, 0) that follows
+// the camera out past the far plane. Cheap reflective look without a
 // mirror pass: wave normals from a sum of directional sines (in world space, so moving the
 // plane never swims), Fresnel between the water body colour and the analytic sky
 // (sky.ts: SKY_GLSL) in the reflected direction, a sun glint, and the scene's height fog.
@@ -135,12 +136,22 @@ export class Water {
     this.cityGlow.value.setHex(hex).multiplyScalar(strength);
   }
 
+  private level = 0;
+
+  /** The sea's height (manifest.water.y). */
+  setLevel(y: number): void {
+    this.level = y;
+    this.mesh.position.y = y;
+    this.mesh.updateMatrix();
+    this.mesh.updateMatrixWorld();
+  }
+
   /** Follow the camera in 50 m steps (waves are in world space, so steps never show). */
   follow(camera: THREE.Camera): void {
     const x = Math.round(camera.position.x / 50) * 50;
     const z = Math.round(camera.position.z / 50) * 50;
     if (this.mesh.position.x !== x || this.mesh.position.z !== z) {
-      this.mesh.position.set(x, 0, z);
+      this.mesh.position.set(x, this.level, z);
       this.mesh.updateMatrix();
       this.mesh.updateMatrixWorld();
     }

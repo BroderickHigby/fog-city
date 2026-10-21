@@ -23,6 +23,18 @@ export interface Manifest {
   attribution?: string[];
   tiles: ManifestTile[];
   roads?: string | null;
+  /** The citywide collider pack (schemas/world-colliders.md). */
+  worldColliders?: string;
+  /** Data layers by name: boundary, districts, sidewalks, ... */
+  layers?: Record<string, string>;
+  /** Side of a far-LOD cell, metres. */
+  farCellSizeM?: number;
+  /** Far-LOD cells: one glb per cell, drawn beyond the streamed tiles (far-layer.ts). */
+  far?: Array<{ id: string; cx?: number; cz?: number; bbox?: [number, number, number, number]; glb: string; stats?: Record<string, number> }>;
+  /** The sea: its height, the candidate rectangle, and the open-water tiles that have no files. */
+  water?: { y: number; bbox?: [number, number, number, number]; tiles?: string[] };
+  /** Tiles with land but no file (Marin, Alcatraz, Daly City): far terrain only. */
+  outside?: { description?: string; tiles: Array<{ id: string; area?: string }> };
 }
 
 export type RoadKind = "freeway" | "arterial" | "collector" | "residential" | "alley" | "ramp" | "other";

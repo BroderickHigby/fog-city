@@ -275,6 +275,47 @@ test.describe("sf world: in the browser", () => {
     expect(problems).toEqual([]);
   });
 
+  test("boots from the citywide collider pack: not one *.collider.json is fetched", async () => {
+    // 583 per-tile collider JSONs (83 MB) were the boot's biggest cost; the sim and the renderer
+    // now read world.colliders.bin (13 MB) once (src/io/world-load.ts).
+    const { manifest } = loadWorldFiles("sf");
+    expect(manifest.worldColliders, "the manifest names a collider pack").toBeTruthy();
+    expect(responses.filter((r) => r.path.endsWith(".collider.json")).map((r) => r.path), "collider JSON requests").toEqual([]);
+    const pack = responses.filter((r) => r.path === `/tiles/sf/${manifest.worldColliders}`);
+    expect(pack.length, `GET /tiles/sf/${manifest.worldColliders}`).toBe(1);
+    expect(pack[0]!.status).toBe(200);
+    const info = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.simInfo!());
+    expect(info.colliders, "simInfo().colliders").toBe("pack");
+    expect(info.walls ?? 0, "edge and shore wall segments in the sim world").toBeGreaterThan(1000);
+    expect(info.roads).toBe(true);
+    expect(problems).toEqual([]);
+  });
+
+  test("the far skyline is drawn beyond the streamed tiles: from Twin Peaks, every far cell loaded and some on screen", async () => {
+    // 40 tiles stream in around Twin Peaks and every frame draws ~740k triangles: under
+    // SwiftShader on a loaded machine that takes minutes of wall time, never a frame-rate claim.
+    test.setTimeout(420_000);
+    const have = await features(page);
+    gate("render-debug", have.renderInfo && have.flyTo, "window.__fogcity.renderInfo() or flyTo() is missing");
+    const { manifest } = loadWorldFiles("sf");
+    const far = (manifest as { far?: unknown[] }).far ?? [];
+    expect(far.length, "manifest.far cells").toBeGreaterThan(20);
+    // Twin Peaks, 50 m over the summit, looking north-east at downtown 6.6 km away.
+    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.flyTo!(-4756, 330, 4562, 46, -6));
+    expect(await settle(page, 300_000), "tiles and far cells settled").toBe(true);
+    await frames(page, 3);
+    const r = (await renderInfo(page))!;
+    expect(r.farCellsTotal, "far cells the renderer knows").toBe(far.length);
+    expect(r.farCells, "far cells loaded into the scene").toBe(far.length);
+    expect(r.farCellsDrawn ?? 0, "far cells drawn in the last frame").toBeGreaterThan(3);
+    expect(r.farTriangles ?? 0, "far-LOD triangles loaded").toBeGreaterThan(100_000);
+    expect(r.cameraFar ?? 0, "camera far plane, m").toBeGreaterThanOrEqual(15_000);
+    expect(r.tilesFailed, "tiles failed").toBe(0);
+    const stats = imageStats(decodePng(await page.screenshot()), 7);
+    expect(looksDrawn(stats), `the frame looks blank: ${JSON.stringify(stats)}`).toBe(true);
+    expect(problems).toEqual([]);
+  });
+
   test("10 s of full throttle along the spawn heading moves the car", async () => {
     const { world } = loadWorld("sf");
     const path = await page.evaluate((input) => {

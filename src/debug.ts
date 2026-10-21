@@ -37,6 +37,13 @@ export interface RenderInfo {
   playerCarsFromFile: number;
   /** Players drawn on foot last frame. */
   walkers: number;
+  /** Far-LOD skyline cells: listed in the manifest, loaded, and drawn in the last frame. */
+  farCellsTotal: number;
+  farCells: number;
+  farCellsDrawn: number;
+  farTriangles: number;
+  /** The camera's far plane, metres. */
+  cameraFar: number;
 }
 
 export interface LandmarkInfo {

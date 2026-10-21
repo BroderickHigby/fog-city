@@ -56,9 +56,13 @@ function fogcityAssets(): Plugin {
   };
 }
 
+// base "./": every URL in the built page is relative, so dist/ works from any sub-path.
+// public/ is not copied into the build: scripts/build-web.ts (pnpm build) writes the world and
+// the models into dist/ in the packed layout the page host accepts (src/io/assets.ts).
 export default defineConfig({
+  base: "./",
   plugins: [fogcityAssets()],
   server: { host: "127.0.0.1" },
   preview: { host: "127.0.0.1" },
-  build: { target: "es2023", sourcemap: true },
+  build: { target: "es2023", sourcemap: true, copyPublicDir: false, chunkSizeWarningLimit: 2000 },
 });

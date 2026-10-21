@@ -30,6 +30,13 @@ export interface RenderInfoLike {
   /** Players whose car is models/player-car.glb, and players drawn on foot. */
   playerCarsFromFile?: number;
   walkers?: number;
+  /** Far-LOD skyline cells: listed by the manifest, loaded, drawn last frame; their triangles. */
+  farCellsTotal?: number;
+  farCells?: number;
+  farCellsDrawn?: number;
+  farTriangles?: number;
+  /** The camera's far plane, metres. */
+  cameraFar?: number;
 }
 
 /**
@@ -55,8 +62,21 @@ export interface Handle {
   landmarks?(): Array<{ id: string; x: number; y: number; z: number; loaded: boolean }>;
   /** Advance one tick per frame, feeding each tick the events whose `tick` equals it, like the netcode will. */
   stepFrames?(frames: readonly InputFrame[], events?: readonly SimEvent[]): void;
-  /** The sim's seed, players, whether the road graph was built, and the agent count. */
-  simInfo?(): { seed: number; playerIds: string[]; roads: boolean; agents: number };
+  /**
+   * The sim's seed, players, whether the road graph was built, the agent count, where the
+   * colliders came from (the citywide pack or per-tile JSON), the edge and shore wall segments,
+   * how the build serves its files, and boot timings (display only).
+   */
+  simInfo?(): {
+    seed: number;
+    playerIds: string[];
+    roads: boolean;
+    agents: number;
+    colliders?: "pack" | "json";
+    walls?: number;
+    assets?: "loose" | "packed";
+    boot?: { loadMs: number; buildMs: number; readyMs: number };
+  };
   /** The HUD hint on screen now ("" when none). */
   hint?(): string;
 }

@@ -9,6 +9,7 @@ import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
+import { FarLayer } from "./far-layer.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
@@ -75,27 +76,41 @@ export interface RenderInfo {
   playerCarsFromFile: number;
   /** Players drawn on foot last frame. */
   walkers: number;
+  /** Far-LOD cells the manifest lists, loaded into the scene, and drawn in the last frame. */
+  farCellsTotal: number;
+  farCells: number;
+  farCellsDrawn: number;
+  /** Triangles in the loaded far cells. */
+  farTriangles: number;
+  /** The camera's far plane, metres. */
+  cameraFar: number;
 }
 
 const SHADOW_HALF = 160;
+/** The camera sees this far: the far skyline reaches across the city and the Bay. */
+export const CAMERA_FAR_M = 20000;
+/** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
+const SEA_SIZE_M = 2 * CAMERA_FAR_M + 2000;
 /** The local car's headlight at full night. */
 const HEADLIGHT_NIGHT = 140;
 
 export class SceneRenderer {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
-  readonly camera = new THREE.PerspectiveCamera(62, 1, 0.5, 6000);
+  readonly camera = new THREE.PerspectiveCamera(62, 1, 0.5, CAMERA_FAR_M);
   readonly rig: CameraRig;
   readonly streamer: TileStreamer;
   readonly actors: Actors;
   readonly agents: AgentLayer;
   readonly landmarks: LandmarkLayer;
+  readonly far: FarLayer;
   readonly lights = new NightLights();
   private readonly container: HTMLElement;
   private readonly materials: SharedMaterials;
   private readonly nightMats: NightMaterials;
   private readonly sky = new Sky();
-  private readonly water = new Water();
+  private readonly water = new Water(SEA_SIZE_M);
+  private readonly ground: (x: number, z: number) => number;
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   private readonly headlight = new THREE.SpotLight(0xfff0d8, 0, 90, 0.52, 0.55, 1.4);
@@ -122,6 +137,8 @@ export class SceneRenderer {
   constructor(container: HTMLElement, world: WorldData, opts: RenderOptions) {
     installFog();
     this.container = container;
+    this.ground = world.ground;
+    this.water.setLevel(world.manifest.water?.y ?? 0);
     this.shadows = opts.shadows;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio));
@@ -165,6 +182,9 @@ export class SceneRenderer {
       available,
     });
     const tileLoader = createTileLoader();
+    const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
+    this.far = new FarLayer({ manifest: world.manifest, base: world.base, load: loadTile });
+    this.scene.add(this.far.group);
 
     this.streamer = new TileStreamer({
       parent: this.scene,
@@ -176,9 +196,11 @@ export class SceneRenderer {
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
-      loadGltf: assets ? async (url) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : undefined,
+      loadGltf: assets ? loadTile : undefined,
       onReady: (g) => this.prepareShadows(g),
+      onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
     });
+    this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, opts.shadows);
     this.scene.add(this.actors.group);
@@ -275,7 +297,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
   }
 
   resize(): void {
@@ -341,6 +363,7 @@ export class SceneRenderer {
       this.viewer.fz = h > 1e-6 ? this.camDir.z / h : -1;
       this.agents.update(this.sim.prev, this.sim.curr, this.sim.alpha, this.viewer, dtSeconds, this.time);
     }
+    this.fitNearPlane();
     this.sky.follow(this.camera);
     this.water.follow(this.camera);
     // Keep the sun light (and its shadow box) centred near the camera.
@@ -353,8 +376,24 @@ export class SceneRenderer {
     this.landmarks.update(minuteOfDay);
   }
 
+  /**
+   * The near plane follows the camera's height above the ground: 0.5 m at street level, up to
+   * 4 m from a hilltop or the air, so the 20 km depth range keeps enough precision for the far
+   * shoreline and skyline.
+   */
+  private fitNearPlane(): void {
+    const c = this.camera.position;
+    const above = c.y - this.ground(c.x, c.z);
+    const near = Math.min(4, Math.max(0.5, above * 0.02));
+    if (Math.abs(near - this.camera.near) > this.camera.near * 0.05) {
+      this.camera.near = near;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
   render(): void {
     this.renderer.render(this.scene, this.camera);
+    this.far.endFrame();
     this.framesSinceJump++;
     this.lastCalls = this.renderer.info.render.calls;
     this.lastTris = this.renderer.info.render.triangles;
@@ -385,6 +424,12 @@ export class SceneRenderer {
     for (const src of Object.values(this.actors.carSources())) if (src === "file") fromFile++;
     out.playerCarsFromFile = fromFile;
     out.walkers = this.actors.walkers;
+    const f = this.far.info();
+    out.farCellsTotal = f.total;
+    out.farCells = f.loaded;
+    out.farCellsDrawn = f.drawn;
+    out.farTriangles = f.triangles;
+    out.cameraFar = this.camera.far;
     return out;
   }
 
@@ -395,6 +440,7 @@ export class SceneRenderer {
 
   dispose(): void {
     this.streamer.dispose();
+    this.far.dispose();
     this.actors.dispose();
     this.agents.dispose();
     this.sky.dispose();
@@ -428,6 +474,11 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   agentModels: [],
   playerCarsFromFile: 0,
   walkers: 0,
+  farCellsTotal: 0,
+  farCells: 0,
+  farCellsDrawn: 0,
+  farTriangles: 0,
+  cameraFar: 0,
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
