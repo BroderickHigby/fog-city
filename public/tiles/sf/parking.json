@@ -4908,7 +4908,7 @@
 {"id":"pk-5101","edge":"c12030000","side":"L","kind":"time-limited","days":[1,2,3,4,5,6],"from":540,"to":1080,"hourLimit":1,"permitAreas":["I"],"lengthM":62.88},
 {"id":"pk-5102","edge":"c1104000","side":"L","kind":"time-limited","days":[1,2,3,4,5,6],"from":540,"to":1080,"hourLimit":1,"permitAreas":["I"],"lengthM":73.68},
 {"id":"pk-5103","edge":"c10479000","side":"R","kind":"time-limited","days":[1,2,3,4,5],"from":480,"to":1080,"hourLimit":2,"permitAreas":["G"],"lengthM":121.62},
-{"id":"pk-5104","edge":"c9529000","side":"R","kind":"time-limited","days":[1,2,3,4,5],"from":480,"to":1260,"hourLimit":2,"permitAreas":["S","Z"],"lengthM":75},
+{"id":"pk-5104","edge":"c9529000","side":"L","kind":"time-limited","days":[1,2,3,4,5],"from":480,"to":1260,"hourLimit":2,"permitAreas":["S","Z"],"lengthM":75},
 {"id":"pk-5105","edge":"c11521101","side":"L","kind":"time-limited","days":[1,2,3,4,5],"from":480,"to":1260,"hourLimit":2,"permitAreas":["S"],"lengthM":70.44},
 {"id":"pk-5106","edge":"c1182000","side":"R","kind":"time-limited","days":[1,2,3,4,5],"from":480,"to":1080,"hourLimit":2,"permitAreas":["W"],"lengthM":55.56},
 {"id":"pk-5107","edge":"c12336000","side":"R","kind":"time-limited","days":[1,2,3,4,5],"from":480,"to":1080,"hourLimit":2,"permitAreas":["G"],"lengthM":108.57},

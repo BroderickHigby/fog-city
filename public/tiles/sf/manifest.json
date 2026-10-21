@@ -75,10 +75,10 @@
       "collider": "t2_-8.collider.json",
       "glb": "t2_-8.glb",
       "stats": {
-        "buildings": 62,
+        "buildings": 60,
         "roadEdges": 24,
         "waterFraction": 0.75,
-        "maxTopY": 12.44
+        "maxTopY": 12.17
       }
     },
     {
@@ -94,7 +94,7 @@
       "collider": "t3_-8.collider.json",
       "glb": "t3_-8.glb",
       "stats": {
-        "buildings": 141,
+        "buildings": 130,
         "roadEdges": 56,
         "waterFraction": 0.02,
         "maxTopY": 18.4
@@ -113,7 +113,7 @@
       "collider": "t4_-8.collider.json",
       "glb": "t4_-8.glb",
       "stats": {
-        "buildings": 58,
+        "buildings": 55,
         "roadEdges": 21,
         "waterFraction": 0.36,
         "maxTopY": 21.26
@@ -132,10 +132,10 @@
       "collider": "t2_-7.collider.json",
       "glb": "t2_-7.glb",
       "stats": {
-        "buildings": 12,
+        "buildings": 8,
         "roadEdges": 17,
         "waterFraction": 0.78,
-        "maxTopY": 11.98
+        "maxTopY": 11.7
       }
     },
     {
@@ -151,7 +151,7 @@
       "collider": "t3_-7.collider.json",
       "glb": "t3_-7.glb",
       "stats": {
-        "buildings": 67,
+        "buildings": 45,
         "roadEdges": 72,
         "waterFraction": 0,
         "maxTopY": 15.71
@@ -170,7 +170,7 @@
       "collider": "t4_-7.collider.json",
       "glb": "t4_-7.glb",
       "stats": {
-        "buildings": 43,
+        "buildings": 39,
         "roadEdges": 48,
         "waterFraction": 0.01,
         "maxTopY": 16.64
@@ -189,7 +189,7 @@
       "collider": "t5_-7.collider.json",
       "glb": "t5_-7.glb",
       "stats": {
-        "buildings": 13,
+        "buildings": 10,
         "roadEdges": 17,
         "waterFraction": 0.8,
         "maxTopY": 9.65
@@ -208,10 +208,10 @@
       "collider": "t3_-6.collider.json",
       "glb": "t3_-6.glb",
       "stats": {
-        "buildings": 15,
+        "buildings": 9,
         "roadEdges": 30,
         "waterFraction": 0.31,
-        "maxTopY": 28.58
+        "maxTopY": 20.66
       }
     },
     {
@@ -227,7 +227,7 @@
       "collider": "t4_-6.collider.json",
       "glb": "t4_-6.glb",
       "stats": {
-        "buildings": 39,
+        "buildings": 34,
         "roadEdges": 61,
         "waterFraction": 0.01,
         "maxTopY": 27.8
@@ -246,7 +246,7 @@
       "collider": "t5_-6.collider.json",
       "glb": "t5_-6.glb",
       "stats": {
-        "buildings": 11,
+        "buildings": 9,
         "roadEdges": 18,
         "waterFraction": 0.73,
         "maxTopY": 10.16
@@ -265,10 +265,10 @@
       "collider": "t3_-5.collider.json",
       "glb": "t3_-5.glb",
       "stats": {
-        "buildings": 3,
+        "buildings": 1,
         "roadEdges": 8,
         "waterFraction": 0.8,
-        "maxTopY": 34.3
+        "maxTopY": 7.53
       }
     },
     {
@@ -284,10 +284,10 @@
       "collider": "t4_-5.collider.json",
       "glb": "t4_-5.glb",
       "stats": {
-        "buildings": 8,
+        "buildings": 6,
         "roadEdges": 11,
         "waterFraction": 0.74,
-        "maxTopY": 19.47
+        "maxTopY": 9.58
       }
     },
     {
@@ -341,10 +341,10 @@
       "collider": "t-15_-4.collider.json",
       "glb": "t-15_-4.glb",
       "stats": {
-        "buildings": 3,
+        "buildings": 2,
         "roadEdges": 3,
         "waterFraction": 0.83,
-        "maxTopY": 69.32
+        "maxTopY": 20.42
       }
     },
     {
@@ -363,6 +363,25 @@
         "buildings": 0,
         "roadEdges": 1,
         "waterFraction": 0.99,
+        "maxTopY": 0
+      }
+    },
+    {
+      "id": "t-7_-4",
+      "ix": -7,
+      "iz": -4,
+      "bbox": [
+        -3500,
+        -2000,
+        -3000,
+        -1500
+      ],
+      "collider": "t-7_-4.collider.json",
+      "glb": "t-7_-4.glb",
+      "stats": {
+        "buildings": 0,
+        "roadEdges": 0,
+        "waterFraction": 1,
         "maxTopY": 0
       }
     },
@@ -400,7 +419,7 @@
       "stats": {
         "buildings": 8,
         "roadEdges": 4,
-        "waterFraction": 0.93,
+        "waterFraction": 0.86,
         "maxTopY": 15.16
       }
     },
@@ -419,7 +438,7 @@
       "stats": {
         "buildings": 7,
         "roadEdges": 5,
-        "waterFraction": 0.93,
+        "waterFraction": 0.91,
         "maxTopY": 17.17
       }
     },
@@ -438,7 +457,7 @@
       "stats": {
         "buildings": 5,
         "roadEdges": 0,
-        "waterFraction": 0.97,
+        "waterFraction": 0.93,
         "maxTopY": 17.17
       }
     },
@@ -455,10 +474,10 @@
       "collider": "t3_-4.collider.json",
       "glb": "t3_-4.glb",
       "stats": {
-        "buildings": 1,
+        "buildings": 3,
         "roadEdges": 5,
         "waterFraction": 0.81,
-        "maxTopY": 69.66
+        "maxTopY": 70.91
       }
     },
     {
@@ -474,7 +493,7 @@
       "collider": "t4_-4.collider.json",
       "glb": "t4_-4.glb",
       "stats": {
-        "buildings": 35,
+        "buildings": 47,
         "roadEdges": 37,
         "waterFraction": 0.14,
         "maxTopY": 124.38
@@ -493,7 +512,7 @@
       "collider": "t5_-4.collider.json",
       "glb": "t5_-4.glb",
       "stats": {
-        "buildings": 40,
+        "buildings": 39,
         "roadEdges": 30,
         "waterFraction": 0.23,
         "maxTopY": 119.96
@@ -550,7 +569,7 @@
       "collider": "t-15_-3.collider.json",
       "glb": "t-15_-3.glb",
       "stats": {
-        "buildings": 39,
+        "buildings": 46,
         "roadEdges": 31,
         "waterFraction": 0.06,
         "maxTopY": 79.58
@@ -645,7 +664,7 @@
       "collider": "t-10_-3.collider.json",
       "glb": "t-10_-3.glb",
       "stats": {
-        "buildings": 66,
+        "buildings": 65,
         "roadEdges": 32,
         "waterFraction": 0.51,
         "maxTopY": 22.26
@@ -702,9 +721,9 @@
       "collider": "t-7_-3.collider.json",
       "glb": "t-7_-3.glb",
       "stats": {
-        "buildings": 31,
+        "buildings": 33,
         "roadEdges": 14,
-        "waterFraction": 0.34,
+        "waterFraction": 0.32,
         "maxTopY": 55.92
       }
     },
@@ -721,7 +740,7 @@
       "collider": "t-6_-3.collider.json",
       "glb": "t-6_-3.glb",
       "stats": {
-        "buildings": 68,
+        "buildings": 124,
         "roadEdges": 35,
         "waterFraction": 0.36,
         "maxTopY": 81.79
@@ -740,9 +759,9 @@
       "collider": "t-5_-3.collider.json",
       "glb": "t-5_-3.glb",
       "stats": {
-        "buildings": 256,
+        "buildings": 308,
         "roadEdges": 52,
-        "waterFraction": 0.13,
+        "waterFraction": 0.11,
         "maxTopY": 51.29
       }
     },
@@ -759,7 +778,7 @@
       "collider": "t-4_-3.collider.json",
       "glb": "t-4_-3.glb",
       "stats": {
-        "buildings": 129,
+        "buildings": 133,
         "roadEdges": 47,
         "waterFraction": 0.01,
         "maxTopY": 39.53
@@ -778,8 +797,8 @@
       "collider": "t-3_-3.collider.json",
       "glb": "t-3_-3.glb",
       "stats": {
-        "buildings": 143,
-        "roadEdges": 49,
+        "buildings": 187,
+        "roadEdges": 50,
         "waterFraction": 0.16,
         "maxTopY": 56.56
       }
@@ -799,7 +818,7 @@
       "stats": {
         "buildings": 21,
         "roadEdges": 9,
-        "waterFraction": 0.63,
+        "waterFraction": 0.58,
         "maxTopY": 28.66
       }
     },
@@ -854,7 +873,7 @@
       "collider": "t4_-3.collider.json",
       "glb": "t4_-3.glb",
       "stats": {
-        "buildings": 2,
+        "buildings": 4,
         "roadEdges": 7,
         "waterFraction": 0.77,
         "maxTopY": 73.1
@@ -911,7 +930,7 @@
       "collider": "t-15_-2.collider.json",
       "glb": "t-15_-2.glb",
       "stats": {
-        "buildings": 36,
+        "buildings": 35,
         "roadEdges": 33,
         "waterFraction": 0,
         "maxTopY": 114.28
@@ -1006,7 +1025,7 @@
       "collider": "t-10_-2.collider.json",
       "glb": "t-10_-2.glb",
       "stats": {
-        "buildings": 248,
+        "buildings": 251,
         "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 51.81
@@ -1082,7 +1101,7 @@
       "collider": "t-6_-2.collider.json",
       "glb": "t-6_-2.glb",
       "stats": {
-        "buildings": 414,
+        "buildings": 495,
         "roadEdges": 78,
         "waterFraction": 0,
         "maxTopY": 84.28
@@ -1101,10 +1120,10 @@
       "collider": "t-5_-2.collider.json",
       "glb": "t-5_-2.glb",
       "stats": {
-        "buildings": 450,
+        "buildings": 863,
         "roadEdges": 68,
         "waterFraction": 0,
-        "maxTopY": 141.63
+        "maxTopY": 142.93
       }
     },
     {
@@ -1120,10 +1139,10 @@
       "collider": "t-4_-2.collider.json",
       "glb": "t-4_-2.glb",
       "stats": {
-        "buildings": 599,
-        "roadEdges": 95,
+        "buildings": 687,
+        "roadEdges": 96,
         "waterFraction": 0,
-        "maxTopY": 69.28
+        "maxTopY": 85.26
       }
     },
     {
@@ -1139,8 +1158,8 @@
       "collider": "t-3_-2.collider.json",
       "glb": "t-3_-2.glb",
       "stats": {
-        "buildings": 707,
-        "roadEdges": 106,
+        "buildings": 912,
+        "roadEdges": 109,
         "waterFraction": 0,
         "maxTopY": 142.66
       }
@@ -1158,8 +1177,8 @@
       "collider": "t-2_-2.collider.json",
       "glb": "t-2_-2.glb",
       "stats": {
-        "buildings": 212,
-        "roadEdges": 68,
+        "buildings": 411,
+        "roadEdges": 71,
         "waterFraction": 0.07,
         "maxTopY": 85.77
       }
@@ -1253,7 +1272,7 @@
       "collider": "t-15_-1.collider.json",
       "glb": "t-15_-1.glb",
       "stats": {
-        "buildings": 14,
+        "buildings": 13,
         "roadEdges": 35,
         "waterFraction": 0,
         "maxTopY": 119.45
@@ -1329,7 +1348,7 @@
       "collider": "t-11_-1.collider.json",
       "glb": "t-11_-1.glb",
       "stats": {
-        "buildings": 52,
+        "buildings": 59,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 69.35
@@ -1348,7 +1367,7 @@
       "collider": "t-10_-1.collider.json",
       "glb": "t-10_-1.glb",
       "stats": {
-        "buildings": 274,
+        "buildings": 275,
         "roadEdges": 58,
         "waterFraction": 0,
         "maxTopY": 72.53
@@ -1367,7 +1386,7 @@
       "collider": "t-9_-1.collider.json",
       "glb": "t-9_-1.glb",
       "stats": {
-        "buildings": 502,
+        "buildings": 525,
         "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 82.78
@@ -1386,7 +1405,7 @@
       "collider": "t-8_-1.collider.json",
       "glb": "t-8_-1.glb",
       "stats": {
-        "buildings": 579,
+        "buildings": 605,
         "roadEdges": 68,
         "waterFraction": 0,
         "maxTopY": 72.58
@@ -1405,10 +1424,10 @@
       "collider": "t-7_-1.collider.json",
       "glb": "t-7_-1.glb",
       "stats": {
-        "buildings": 606,
+        "buildings": 650,
         "roadEdges": 54,
         "waterFraction": 0,
-        "maxTopY": 92
+        "maxTopY": 93.47
       }
     },
     {
@@ -1424,7 +1443,7 @@
       "collider": "t-6_-1.collider.json",
       "glb": "t-6_-1.glb",
       "stats": {
-        "buildings": 455,
+        "buildings": 466,
         "roadEdges": 57,
         "waterFraction": 0,
         "maxTopY": 81.71
@@ -1443,10 +1462,10 @@
       "collider": "t-5_-1.collider.json",
       "glb": "t-5_-1.glb",
       "stats": {
-        "buildings": 651,
+        "buildings": 785,
         "roadEdges": 100,
         "waterFraction": 0,
-        "maxTopY": 173.35
+        "maxTopY": 175.57
       }
     },
     {
@@ -1462,10 +1481,10 @@
       "collider": "t-4_-1.collider.json",
       "glb": "t-4_-1.glb",
       "stats": {
-        "buildings": 726,
-        "roadEdges": 91,
+        "buildings": 1157,
+        "roadEdges": 93,
         "waterFraction": 0,
-        "maxTopY": 192.83
+        "maxTopY": 197.85
       }
     },
     {
@@ -1481,10 +1500,10 @@
       "collider": "t-3_-1.collider.json",
       "glb": "t-3_-1.glb",
       "stats": {
-        "buildings": 515,
+        "buildings": 586,
         "roadEdges": 146,
         "waterFraction": 0,
-        "maxTopY": 81.76
+        "maxTopY": 83.42
       }
     },
     {
@@ -1500,8 +1519,8 @@
       "collider": "t-2_-1.collider.json",
       "glb": "t-2_-1.glb",
       "stats": {
-        "buildings": 342,
-        "roadEdges": 94,
+        "buildings": 532,
+        "roadEdges": 95,
         "waterFraction": 0,
         "maxTopY": 81.11
       }
@@ -1521,7 +1540,7 @@
       "stats": {
         "buildings": 72,
         "roadEdges": 23,
-        "waterFraction": 0.33,
+        "waterFraction": 0.29,
         "maxTopY": 124.59
       }
     },
@@ -1540,7 +1559,7 @@
       "stats": {
         "buildings": 6,
         "roadEdges": 4,
-        "waterFraction": 0.99,
+        "waterFraction": 0.95,
         "maxTopY": 74.89
       }
     },
@@ -1614,7 +1633,7 @@
       "collider": "t-16_0.collider.json",
       "glb": "t-16_0.glb",
       "stats": {
-        "buildings": 34,
+        "buildings": 36,
         "roadEdges": 9,
         "waterFraction": 0.08,
         "maxTopY": 66.15
@@ -1671,7 +1690,7 @@
       "collider": "t-13_0.collider.json",
       "glb": "t-13_0.glb",
       "stats": {
-        "buildings": 11,
+        "buildings": 10,
         "roadEdges": 10,
         "waterFraction": 0,
         "maxTopY": 127.57
@@ -1728,10 +1747,10 @@
       "collider": "t-10_0.collider.json",
       "glb": "t-10_0.glb",
       "stats": {
-        "buildings": 199,
+        "buildings": 343,
         "roadEdges": 46,
         "waterFraction": 0,
-        "maxTopY": 131.53
+        "maxTopY": 135.11
       }
     },
     {
@@ -1747,8 +1766,8 @@
       "collider": "t-9_0.collider.json",
       "glb": "t-9_0.glb",
       "stats": {
-        "buildings": 441,
-        "roadEdges": 53,
+        "buildings": 641,
+        "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 125.59
       }
@@ -1766,7 +1785,7 @@
       "collider": "t-8_0.collider.json",
       "glb": "t-8_0.glb",
       "stats": {
-        "buildings": 377,
+        "buildings": 535,
         "roadEdges": 40,
         "waterFraction": 0,
         "maxTopY": 131.58
@@ -1785,10 +1804,10 @@
       "collider": "t-7_0.collider.json",
       "glb": "t-7_0.glb",
       "stats": {
-        "buildings": 386,
+        "buildings": 570,
         "roadEdges": 49,
         "waterFraction": 0,
-        "maxTopY": 139.6
+        "maxTopY": 143.47
       }
     },
     {
@@ -1804,10 +1823,10 @@
       "collider": "t-6_0.collider.json",
       "glb": "t-6_0.glb",
       "stats": {
-        "buildings": 265,
+        "buildings": 431,
         "roadEdges": 48,
         "waterFraction": 0,
-        "maxTopY": 146.67
+        "maxTopY": 148.3
       }
     },
     {
@@ -1823,7 +1842,7 @@
       "collider": "t-5_0.collider.json",
       "glb": "t-5_0.glb",
       "stats": {
-        "buildings": 514,
+        "buildings": 539,
         "roadEdges": 58,
         "waterFraction": 0,
         "maxTopY": 114.35
@@ -1842,10 +1861,10 @@
       "collider": "t-4_0.collider.json",
       "glb": "t-4_0.glb",
       "stats": {
-        "buildings": 462,
+        "buildings": 949,
         "roadEdges": 92,
         "waterFraction": 0,
-        "maxTopY": 185.29
+        "maxTopY": 185.79
       }
     },
     {
@@ -1861,10 +1880,10 @@
       "collider": "t-3_0.collider.json",
       "glb": "t-3_0.glb",
       "stats": {
-        "buildings": 429,
+        "buildings": 767,
         "roadEdges": 110,
         "waterFraction": 0,
-        "maxTopY": 183.05
+        "maxTopY": 185.09
       }
     },
     {
@@ -1880,7 +1899,7 @@
       "collider": "t-2_0.collider.json",
       "glb": "t-2_0.glb",
       "stats": {
-        "buildings": 208,
+        "buildings": 226,
         "roadEdges": 102,
         "waterFraction": 0,
         "maxTopY": 264.04
@@ -1899,7 +1918,7 @@
       "collider": "t-1_0.collider.json",
       "glb": "t-1_0.glb",
       "stats": {
-        "buildings": 76,
+        "buildings": 84,
         "roadEdges": 59,
         "waterFraction": 0,
         "maxTopY": 192.94
@@ -1920,7 +1939,7 @@
       "stats": {
         "buildings": 24,
         "roadEdges": 21,
-        "waterFraction": 0.56,
+        "waterFraction": 0.55,
         "maxTopY": 91.08
       }
     },
@@ -2032,7 +2051,7 @@
       "collider": "t-18_1.collider.json",
       "glb": "t-18_1.glb",
       "stats": {
-        "buildings": 30,
+        "buildings": 81,
         "roadEdges": 6,
         "waterFraction": 0.64,
         "maxTopY": 80.64
@@ -2051,7 +2070,7 @@
       "collider": "t-17_1.collider.json",
       "glb": "t-17_1.glb",
       "stats": {
-        "buildings": 290,
+        "buildings": 305,
         "roadEdges": 32,
         "waterFraction": 0.21,
         "maxTopY": 63.62
@@ -2070,7 +2089,7 @@
       "collider": "t-16_1.collider.json",
       "glb": "t-16_1.glb",
       "stats": {
-        "buildings": 100,
+        "buildings": 134,
         "roadEdges": 25,
         "waterFraction": 0,
         "maxTopY": 62.88
@@ -2089,7 +2108,7 @@
       "collider": "t-15_1.collider.json",
       "glb": "t-15_1.glb",
       "stats": {
-        "buildings": 69,
+        "buildings": 76,
         "roadEdges": 21,
         "waterFraction": 0,
         "maxTopY": 85.45
@@ -2146,7 +2165,7 @@
       "collider": "t-12_1.collider.json",
       "glb": "t-12_1.glb",
       "stats": {
-        "buildings": 296,
+        "buildings": 311,
         "roadEdges": 34,
         "waterFraction": 0,
         "maxTopY": 112.95
@@ -2165,7 +2184,7 @@
       "collider": "t-11_1.collider.json",
       "glb": "t-11_1.glb",
       "stats": {
-        "buildings": 420,
+        "buildings": 440,
         "roadEdges": 45,
         "waterFraction": 0,
         "maxTopY": 110.98
@@ -2184,10 +2203,10 @@
       "collider": "t-10_1.collider.json",
       "glb": "t-10_1.glb",
       "stats": {
-        "buildings": 481,
+        "buildings": 508,
         "roadEdges": 49,
         "waterFraction": 0,
-        "maxTopY": 125.88
+        "maxTopY": 126.13
       }
     },
     {
@@ -2222,7 +2241,7 @@
       "collider": "t-8_1.collider.json",
       "glb": "t-8_1.glb",
       "stats": {
-        "buildings": 454,
+        "buildings": 453,
         "roadEdges": 59,
         "waterFraction": 0,
         "maxTopY": 84.1
@@ -2241,10 +2260,10 @@
       "collider": "t-7_1.collider.json",
       "glb": "t-7_1.glb",
       "stats": {
-        "buildings": 443,
+        "buildings": 555,
         "roadEdges": 50,
         "waterFraction": 0,
-        "maxTopY": 155.59
+        "maxTopY": 156.83
       }
     },
     {
@@ -2260,7 +2279,7 @@
       "collider": "t-6_1.collider.json",
       "glb": "t-6_1.glb",
       "stats": {
-        "buildings": 270,
+        "buildings": 355,
         "roadEdges": 64,
         "waterFraction": 0,
         "maxTopY": 127.01
@@ -2279,7 +2298,7 @@
       "collider": "t-5_1.collider.json",
       "glb": "t-5_1.glb",
       "stats": {
-        "buildings": 320,
+        "buildings": 393,
         "roadEdges": 79,
         "waterFraction": 0,
         "maxTopY": 139.87
@@ -2298,7 +2317,7 @@
       "collider": "t-4_1.collider.json",
       "glb": "t-4_1.glb",
       "stats": {
-        "buildings": 356,
+        "buildings": 672,
         "roadEdges": 69,
         "waterFraction": 0,
         "maxTopY": 150.08
@@ -2317,7 +2336,7 @@
       "collider": "t-3_1.collider.json",
       "glb": "t-3_1.glb",
       "stats": {
-        "buildings": 294,
+        "buildings": 454,
         "roadEdges": 88,
         "waterFraction": 0,
         "maxTopY": 160.14
@@ -2336,7 +2355,7 @@
       "collider": "t-2_1.collider.json",
       "glb": "t-2_1.glb",
       "stats": {
-        "buildings": 185,
+        "buildings": 194,
         "roadEdges": 110,
         "waterFraction": 0,
         "maxTopY": 188.04
@@ -2374,10 +2393,10 @@
       "collider": "t0_1.collider.json",
       "glb": "t0_1.glb",
       "stats": {
-        "buildings": 85,
+        "buildings": 246,
         "roadEdges": 51,
         "waterFraction": 0.03,
-        "maxTopY": 154.04
+        "maxTopY": 156.46
       }
     },
     {
@@ -2393,9 +2412,9 @@
       "collider": "t1_1.collider.json",
       "glb": "t1_1.glb",
       "stats": {
-        "buildings": 6,
+        "buildings": 5,
         "roadEdges": 9,
-        "waterFraction": 0.87,
+        "waterFraction": 0.8,
         "maxTopY": 71.84
       }
     },
@@ -2450,7 +2469,7 @@
       "collider": "t-20_2.collider.json",
       "glb": "t-20_2.glb",
       "stats": {
-        "buildings": 36,
+        "buildings": 122,
         "roadEdges": 11,
         "waterFraction": 0,
         "maxTopY": 141.14
@@ -2488,7 +2507,7 @@
       "collider": "t-18_2.collider.json",
       "glb": "t-18_2.glb",
       "stats": {
-        "buildings": 263,
+        "buildings": 305,
         "roadEdges": 27,
         "waterFraction": 0,
         "maxTopY": 88.04
@@ -2602,7 +2621,7 @@
       "collider": "t-12_2.collider.json",
       "glb": "t-12_2.glb",
       "stats": {
-        "buildings": 517,
+        "buildings": 523,
         "roadEdges": 34,
         "waterFraction": 0,
         "maxTopY": 103.83
@@ -2621,7 +2640,7 @@
       "collider": "t-11_2.collider.json",
       "glb": "t-11_2.glb",
       "stats": {
-        "buildings": 495,
+        "buildings": 502,
         "roadEdges": 41,
         "waterFraction": 0,
         "maxTopY": 104.59
@@ -2640,7 +2659,7 @@
       "collider": "t-10_2.collider.json",
       "glb": "t-10_2.glb",
       "stats": {
-        "buildings": 263,
+        "buildings": 470,
         "roadEdges": 54,
         "waterFraction": 0,
         "maxTopY": 119.31
@@ -2659,10 +2678,10 @@
       "collider": "t-9_2.collider.json",
       "glb": "t-9_2.glb",
       "stats": {
-        "buildings": 389,
+        "buildings": 451,
         "roadEdges": 63,
         "waterFraction": 0,
-        "maxTopY": 102.49
+        "maxTopY": 102.14
       }
     },
     {
@@ -2697,7 +2716,7 @@
       "collider": "t-7_2.collider.json",
       "glb": "t-7_2.glb",
       "stats": {
-        "buildings": 160,
+        "buildings": 168,
         "roadEdges": 71,
         "waterFraction": 0,
         "maxTopY": 100.74
@@ -2716,7 +2735,7 @@
       "collider": "t-6_2.collider.json",
       "glb": "t-6_2.glb",
       "stats": {
-        "buildings": 131,
+        "buildings": 188,
         "roadEdges": 48,
         "waterFraction": 0,
         "maxTopY": 152.05
@@ -2735,7 +2754,7 @@
       "collider": "t-5_2.collider.json",
       "glb": "t-5_2.glb",
       "stats": {
-        "buildings": 249,
+        "buildings": 286,
         "roadEdges": 82,
         "waterFraction": 0,
         "maxTopY": 85.61
@@ -2754,7 +2773,7 @@
       "collider": "t-4_2.collider.json",
       "glb": "t-4_2.glb",
       "stats": {
-        "buildings": 290,
+        "buildings": 304,
         "roadEdges": 68,
         "waterFraction": 0,
         "maxTopY": 175.02
@@ -2773,7 +2792,7 @@
       "collider": "t-3_2.collider.json",
       "glb": "t-3_2.glb",
       "stats": {
-        "buildings": 168,
+        "buildings": 170,
         "roadEdges": 77,
         "waterFraction": 0,
         "maxTopY": 164.77
@@ -2792,7 +2811,7 @@
       "collider": "t-2_2.collider.json",
       "glb": "t-2_2.glb",
       "stats": {
-        "buildings": 77,
+        "buildings": 368,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 153.34
@@ -2811,7 +2830,7 @@
       "collider": "t-1_2.collider.json",
       "glb": "t-1_2.glb",
       "stats": {
-        "buildings": 138,
+        "buildings": 224,
         "roadEdges": 64,
         "waterFraction": 0,
         "maxTopY": 125.86
@@ -2830,7 +2849,7 @@
       "collider": "t0_2.collider.json",
       "glb": "t0_2.glb",
       "stats": {
-        "buildings": 91,
+        "buildings": 246,
         "roadEdges": 56,
         "waterFraction": 0,
         "maxTopY": 213.88
@@ -2851,7 +2870,7 @@
       "stats": {
         "buildings": 2,
         "roadEdges": 7,
-        "waterFraction": 0.87,
+        "waterFraction": 0.83,
         "maxTopY": 19.08
       }
     },
@@ -2906,10 +2925,10 @@
       "collider": "t-20_3.collider.json",
       "glb": "t-20_3.glb",
       "stats": {
-        "buildings": 506,
+        "buildings": 518,
         "roadEdges": 53,
         "waterFraction": 0,
-        "maxTopY": 128.65
+        "maxTopY": 130.26
       }
     },
     {
@@ -2944,7 +2963,7 @@
       "collider": "t-18_3.collider.json",
       "glb": "t-18_3.glb",
       "stats": {
-        "buildings": 499,
+        "buildings": 556,
         "roadEdges": 44,
         "waterFraction": 0,
         "maxTopY": 102.72
@@ -2963,7 +2982,7 @@
       "collider": "t-17_3.collider.json",
       "glb": "t-17_3.glb",
       "stats": {
-        "buildings": 547,
+        "buildings": 555,
         "roadEdges": 51,
         "waterFraction": 0,
         "maxTopY": 95.1
@@ -2982,7 +3001,7 @@
       "collider": "t-16_3.collider.json",
       "glb": "t-16_3.glb",
       "stats": {
-        "buildings": 642,
+        "buildings": 643,
         "roadEdges": 39,
         "waterFraction": 0,
         "maxTopY": 64.75
@@ -3077,7 +3096,7 @@
       "collider": "t-11_3.collider.json",
       "glb": "t-11_3.glb",
       "stats": {
-        "buildings": 380,
+        "buildings": 436,
         "roadEdges": 57,
         "waterFraction": 0,
         "maxTopY": 161.82
@@ -3096,7 +3115,7 @@
       "collider": "t-10_3.collider.json",
       "glb": "t-10_3.glb",
       "stats": {
-        "buildings": 394,
+        "buildings": 637,
         "roadEdges": 49,
         "waterFraction": 0,
         "maxTopY": 118.16
@@ -3115,7 +3134,7 @@
       "collider": "t-9_3.collider.json",
       "glb": "t-9_3.glb",
       "stats": {
-        "buildings": 477,
+        "buildings": 571,
         "roadEdges": 58,
         "waterFraction": 0,
         "maxTopY": 117.67
@@ -3134,7 +3153,7 @@
       "collider": "t-8_3.collider.json",
       "glb": "t-8_3.glb",
       "stats": {
-        "buildings": 347,
+        "buildings": 349,
         "roadEdges": 63,
         "waterFraction": 0,
         "maxTopY": 85.48
@@ -3153,7 +3172,7 @@
       "collider": "t-7_3.collider.json",
       "glb": "t-7_3.glb",
       "stats": {
-        "buildings": 167,
+        "buildings": 222,
         "roadEdges": 56,
         "waterFraction": 0,
         "maxTopY": 93.59
@@ -3210,7 +3229,7 @@
       "collider": "t-4_3.collider.json",
       "glb": "t-4_3.glb",
       "stats": {
-        "buildings": 150,
+        "buildings": 251,
         "roadEdges": 61,
         "waterFraction": 0,
         "maxTopY": 123.27
@@ -3286,7 +3305,7 @@
       "collider": "t0_3.collider.json",
       "glb": "t0_3.glb",
       "stats": {
-        "buildings": 99,
+        "buildings": 97,
         "roadEdges": 42,
         "waterFraction": 0.02,
         "maxTopY": 62.92
@@ -3307,7 +3326,7 @@
       "stats": {
         "buildings": 5,
         "roadEdges": 4,
-        "waterFraction": 0.92,
+        "waterFraction": 0.9,
         "maxTopY": 13.16
       }
     },
@@ -3343,7 +3362,7 @@
       "collider": "t-21_4.collider.json",
       "glb": "t-21_4.glb",
       "stats": {
-        "buildings": 306,
+        "buildings": 312,
         "roadEdges": 31,
         "waterFraction": 0,
         "maxTopY": 72.47
@@ -3419,10 +3438,10 @@
       "collider": "t-17_4.collider.json",
       "glb": "t-17_4.glb",
       "stats": {
-        "buildings": 672,
+        "buildings": 684,
         "roadEdges": 30,
         "waterFraction": 0,
-        "maxTopY": 92.57
+        "maxTopY": 93.1
       }
     },
     {
@@ -3438,7 +3457,7 @@
       "collider": "t-16_4.collider.json",
       "glb": "t-16_4.glb",
       "stats": {
-        "buildings": 672,
+        "buildings": 677,
         "roadEdges": 34,
         "waterFraction": 0,
         "maxTopY": 88.76
@@ -3533,7 +3552,7 @@
       "collider": "t-11_4.collider.json",
       "glb": "t-11_4.glb",
       "stats": {
-        "buildings": 295,
+        "buildings": 428,
         "roadEdges": 44,
         "waterFraction": 0,
         "maxTopY": 166.5
@@ -3552,7 +3571,7 @@
       "collider": "t-10_4.collider.json",
       "glb": "t-10_4.glb",
       "stats": {
-        "buildings": 442,
+        "buildings": 590,
         "roadEdges": 46,
         "waterFraction": 0,
         "maxTopY": 129.6
@@ -3609,7 +3628,7 @@
       "collider": "t-7_4.collider.json",
       "glb": "t-7_4.glb",
       "stats": {
-        "buildings": 497,
+        "buildings": 519,
         "roadEdges": 61,
         "waterFraction": 0,
         "maxTopY": 96.25
@@ -3628,7 +3647,7 @@
       "collider": "t-6_4.collider.json",
       "glb": "t-6_4.glb",
       "stats": {
-        "buildings": 474,
+        "buildings": 500,
         "roadEdges": 110,
         "waterFraction": 0,
         "maxTopY": 68.69
@@ -3685,7 +3704,7 @@
       "collider": "t-3_4.collider.json",
       "glb": "t-3_4.glb",
       "stats": {
-        "buildings": 269,
+        "buildings": 272,
         "roadEdges": 82,
         "waterFraction": 0,
         "maxTopY": 30.9
@@ -3761,9 +3780,9 @@
       "collider": "t1_4.collider.json",
       "glb": "t1_4.glb",
       "stats": {
-        "buildings": 16,
+        "buildings": 17,
         "roadEdges": 5,
-        "waterFraction": 0.79,
+        "waterFraction": 0.59,
         "maxTopY": 15.14
       }
     },
@@ -3837,7 +3856,7 @@
       "collider": "t-20_5.collider.json",
       "glb": "t-20_5.glb",
       "stats": {
-        "buildings": 221,
+        "buildings": 220,
         "roadEdges": 18,
         "waterFraction": 0,
         "maxTopY": 41.32
@@ -3951,7 +3970,7 @@
       "collider": "t-14_5.collider.json",
       "glb": "t-14_5.glb",
       "stats": {
-        "buildings": 10,
+        "buildings": 161,
         "roadEdges": 17,
         "waterFraction": 0,
         "maxTopY": 121.43
@@ -3970,7 +3989,7 @@
       "collider": "t-13_5.collider.json",
       "glb": "t-13_5.glb",
       "stats": {
-        "buildings": 14,
+        "buildings": 87,
         "roadEdges": 14,
         "waterFraction": 0,
         "maxTopY": 97.08
@@ -4046,10 +4065,10 @@
       "collider": "t-9_5.collider.json",
       "glb": "t-9_5.glb",
       "stats": {
-        "buildings": 300,
+        "buildings": 330,
         "roadEdges": 36,
         "waterFraction": 0,
-        "maxTopY": 130.34
+        "maxTopY": 130.53
       }
     },
     {
@@ -4065,7 +4084,7 @@
       "collider": "t-8_5.collider.json",
       "glb": "t-8_5.glb",
       "stats": {
-        "buildings": 554,
+        "buildings": 615,
         "roadEdges": 59,
         "waterFraction": 0,
         "maxTopY": 130.18
@@ -4084,7 +4103,7 @@
       "collider": "t-7_5.collider.json",
       "glb": "t-7_5.glb",
       "stats": {
-        "buildings": 581,
+        "buildings": 583,
         "roadEdges": 63,
         "waterFraction": 0,
         "maxTopY": 74.55
@@ -4103,7 +4122,7 @@
       "collider": "t-6_5.collider.json",
       "glb": "t-6_5.glb",
       "stats": {
-        "buildings": 340,
+        "buildings": 456,
         "roadEdges": 87,
         "waterFraction": 0,
         "maxTopY": 82.01
@@ -4141,7 +4160,7 @@
       "collider": "t-4_5.collider.json",
       "glb": "t-4_5.glb",
       "stats": {
-        "buildings": 252,
+        "buildings": 251,
         "roadEdges": 77,
         "waterFraction": 0,
         "maxTopY": 35.8
@@ -4198,7 +4217,7 @@
       "collider": "t-1_5.collider.json",
       "glb": "t-1_5.glb",
       "stats": {
-        "buildings": 58,
+        "buildings": 55,
         "roadEdges": 55,
         "waterFraction": 0.08,
         "maxTopY": 78.79
@@ -4238,7 +4257,7 @@
       "stats": {
         "buildings": 18,
         "roadEdges": 20,
-        "waterFraction": 0.61,
+        "waterFraction": 0.57,
         "maxTopY": 35.94
       }
     },
@@ -4257,7 +4276,7 @@
       "stats": {
         "buildings": 3,
         "roadEdges": 0,
-        "waterFraction": 1,
+        "waterFraction": 0.99,
         "maxTopY": 6.97
       }
     },
@@ -4464,10 +4483,10 @@
       "collider": "t-12_6.collider.json",
       "glb": "t-12_6.glb",
       "stats": {
-        "buildings": 269,
+        "buildings": 398,
         "roadEdges": 47,
         "waterFraction": 0,
-        "maxTopY": 164.22
+        "maxTopY": 170.8
       }
     },
     {
@@ -4483,10 +4502,10 @@
       "collider": "t-11_6.collider.json",
       "glb": "t-11_6.glb",
       "stats": {
-        "buildings": 480,
-        "roadEdges": 45,
+        "buildings": 506,
+        "roadEdges": 44,
         "waterFraction": 0,
-        "maxTopY": 137.55
+        "maxTopY": 139.52
       }
     },
     {
@@ -4502,10 +4521,10 @@
       "collider": "t-10_6.collider.json",
       "glb": "t-10_6.glb",
       "stats": {
-        "buildings": 675,
+        "buildings": 714,
         "roadEdges": 45,
         "waterFraction": 0,
-        "maxTopY": 160.8
+        "maxTopY": 161.48
       }
     },
     {
@@ -4521,7 +4540,7 @@
       "collider": "t-9_6.collider.json",
       "glb": "t-9_6.glb",
       "stats": {
-        "buildings": 365,
+        "buildings": 513,
         "roadEdges": 39,
         "waterFraction": 0,
         "maxTopY": 168.63
@@ -4540,7 +4559,7 @@
       "collider": "t-8_6.collider.json",
       "glb": "t-8_6.glb",
       "stats": {
-        "buildings": 505,
+        "buildings": 555,
         "roadEdges": 42,
         "waterFraction": 0,
         "maxTopY": 133.73
@@ -4559,7 +4578,7 @@
       "collider": "t-7_6.collider.json",
       "glb": "t-7_6.glb",
       "stats": {
-        "buildings": 494,
+        "buildings": 493,
         "roadEdges": 67,
         "waterFraction": 0,
         "maxTopY": 65.95
@@ -4578,7 +4597,7 @@
       "collider": "t-6_6.collider.json",
       "glb": "t-6_6.glb",
       "stats": {
-        "buildings": 481,
+        "buildings": 482,
         "roadEdges": 70,
         "waterFraction": 0,
         "maxTopY": 64.07
@@ -4616,7 +4635,7 @@
       "collider": "t-4_6.collider.json",
       "glb": "t-4_6.glb",
       "stats": {
-        "buildings": 110,
+        "buildings": 116,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 71.26
@@ -4635,7 +4654,7 @@
       "collider": "t-3_6.collider.json",
       "glb": "t-3_6.glb",
       "stats": {
-        "buildings": 141,
+        "buildings": 170,
         "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 48.48
@@ -4654,7 +4673,7 @@
       "collider": "t-2_6.collider.json",
       "glb": "t-2_6.glb",
       "stats": {
-        "buildings": 99,
+        "buildings": 156,
         "roadEdges": 55,
         "waterFraction": 0,
         "maxTopY": 37.27
@@ -4844,7 +4863,7 @@
       "collider": "t-15_7.collider.json",
       "glb": "t-15_7.glb",
       "stats": {
-        "buildings": 622,
+        "buildings": 626,
         "roadEdges": 47,
         "waterFraction": 0,
         "maxTopY": 142.55
@@ -4901,10 +4920,10 @@
       "collider": "t-12_7.collider.json",
       "glb": "t-12_7.glb",
       "stats": {
-        "buildings": 184,
+        "buildings": 562,
         "roadEdges": 17,
         "waterFraction": 0,
-        "maxTopY": 215.22
+        "maxTopY": 216.55
       }
     },
     {
@@ -4920,10 +4939,10 @@
       "collider": "t-11_7.collider.json",
       "glb": "t-11_7.glb",
       "stats": {
-        "buildings": 380,
+        "buildings": 461,
         "roadEdges": 36,
         "waterFraction": 0,
-        "maxTopY": 229.15
+        "maxTopY": 230.34
       }
     },
     {
@@ -4939,10 +4958,10 @@
       "collider": "t-10_7.collider.json",
       "glb": "t-10_7.glb",
       "stats": {
-        "buildings": 611,
+        "buildings": 897,
         "roadEdges": 67,
         "waterFraction": 0,
-        "maxTopY": 184.25
+        "maxTopY": 185.53
       }
     },
     {
@@ -4958,7 +4977,7 @@
       "collider": "t-9_7.collider.json",
       "glb": "t-9_7.glb",
       "stats": {
-        "buildings": 738,
+        "buildings": 957,
         "roadEdges": 90,
         "waterFraction": 0,
         "maxTopY": 167.6
@@ -4977,7 +4996,7 @@
       "collider": "t-8_7.collider.json",
       "glb": "t-8_7.glb",
       "stats": {
-        "buildings": 595,
+        "buildings": 663,
         "roadEdges": 44,
         "waterFraction": 0,
         "maxTopY": 99.46
@@ -4996,7 +5015,7 @@
       "collider": "t-7_7.collider.json",
       "glb": "t-7_7.glb",
       "stats": {
-        "buildings": 584,
+        "buildings": 604,
         "roadEdges": 43,
         "waterFraction": 0,
         "maxTopY": 71.56
@@ -5015,7 +5034,7 @@
       "collider": "t-6_7.collider.json",
       "glb": "t-6_7.glb",
       "stats": {
-        "buildings": 521,
+        "buildings": 545,
         "roadEdges": 57,
         "waterFraction": 0,
         "maxTopY": 62.71
@@ -5034,7 +5053,7 @@
       "collider": "t-5_7.collider.json",
       "glb": "t-5_7.glb",
       "stats": {
-        "buildings": 537,
+        "buildings": 538,
         "roadEdges": 55,
         "waterFraction": 0,
         "maxTopY": 33.62
@@ -5053,7 +5072,7 @@
       "collider": "t-4_7.collider.json",
       "glb": "t-4_7.glb",
       "stats": {
-        "buildings": 166,
+        "buildings": 164,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 37.92
@@ -5072,7 +5091,7 @@
       "collider": "t-3_7.collider.json",
       "glb": "t-3_7.glb",
       "stats": {
-        "buildings": 339,
+        "buildings": 360,
         "roadEdges": 51,
         "waterFraction": 0,
         "maxTopY": 78.8
@@ -5091,7 +5110,7 @@
       "collider": "t-2_7.collider.json",
       "glb": "t-2_7.glb",
       "stats": {
-        "buildings": 485,
+        "buildings": 688,
         "roadEdges": 57,
         "waterFraction": 0,
         "maxTopY": 94.16
@@ -5110,7 +5129,7 @@
       "collider": "t-1_7.collider.json",
       "glb": "t-1_7.glb",
       "stats": {
-        "buildings": 586,
+        "buildings": 618,
         "roadEdges": 62,
         "waterFraction": 0,
         "maxTopY": 75.38
@@ -5129,7 +5148,7 @@
       "collider": "t0_7.collider.json",
       "glb": "t0_7.glb",
       "stats": {
-        "buildings": 160,
+        "buildings": 202,
         "roadEdges": 59,
         "waterFraction": 0,
         "maxTopY": 56.28
@@ -5148,7 +5167,7 @@
       "collider": "t1_7.collider.json",
       "glb": "t1_7.glb",
       "stats": {
-        "buildings": 68,
+        "buildings": 67,
         "roadEdges": 33,
         "waterFraction": 0.26,
         "maxTopY": 37.17
@@ -5281,7 +5300,7 @@
       "collider": "t-16_8.collider.json",
       "glb": "t-16_8.glb",
       "stats": {
-        "buildings": 724,
+        "buildings": 725,
         "roadEdges": 37,
         "waterFraction": 0,
         "maxTopY": 107.42
@@ -5300,10 +5319,10 @@
       "collider": "t-15_8.collider.json",
       "glb": "t-15_8.glb",
       "stats": {
-        "buildings": 600,
-        "roadEdges": 41,
+        "buildings": 612,
+        "roadEdges": 42,
         "waterFraction": 0,
-        "maxTopY": 157.34
+        "maxTopY": 158.56
       }
     },
     {
@@ -5319,8 +5338,8 @@
       "collider": "t-14_8.collider.json",
       "glb": "t-14_8.glb",
       "stats": {
-        "buildings": 564,
-        "roadEdges": 52,
+        "buildings": 682,
+        "roadEdges": 58,
         "waterFraction": 0,
         "maxTopY": 200.19
       }
@@ -5338,7 +5357,7 @@
       "collider": "t-13_8.collider.json",
       "glb": "t-13_8.glb",
       "stats": {
-        "buildings": 460,
+        "buildings": 477,
         "roadEdges": 28,
         "waterFraction": 0,
         "maxTopY": 162.79
@@ -5357,8 +5376,8 @@
       "collider": "t-12_8.collider.json",
       "glb": "t-12_8.glb",
       "stats": {
-        "buildings": 211,
-        "roadEdges": 26,
+        "buildings": 392,
+        "roadEdges": 28,
         "waterFraction": 0,
         "maxTopY": 278.61
       }
@@ -5376,8 +5395,8 @@
       "collider": "t-11_8.collider.json",
       "glb": "t-11_8.glb",
       "stats": {
-        "buildings": 189,
-        "roadEdges": 42,
+        "buildings": 250,
+        "roadEdges": 44,
         "waterFraction": 0,
         "maxTopY": 267.66
       }
@@ -5395,8 +5414,8 @@
       "collider": "t-10_8.collider.json",
       "glb": "t-10_8.glb",
       "stats": {
-        "buildings": 323,
-        "roadEdges": 58,
+        "buildings": 683,
+        "roadEdges": 63,
         "waterFraction": 0,
         "maxTopY": 256.5
       }
@@ -5414,8 +5433,8 @@
       "collider": "t-9_8.collider.json",
       "glb": "t-9_8.glb",
       "stats": {
-        "buildings": 591,
-        "roadEdges": 88,
+        "buildings": 894,
+        "roadEdges": 89,
         "waterFraction": 0,
         "maxTopY": 196.45
       }
@@ -5433,7 +5452,7 @@
       "collider": "t-8_8.collider.json",
       "glb": "t-8_8.glb",
       "stats": {
-        "buildings": 690,
+        "buildings": 767,
         "roadEdges": 55,
         "waterFraction": 0,
         "maxTopY": 136.46
@@ -5452,10 +5471,10 @@
       "collider": "t-7_8.collider.json",
       "glb": "t-7_8.glb",
       "stats": {
-        "buildings": 626,
-        "roadEdges": 51,
+        "buildings": 872,
+        "roadEdges": 54,
         "waterFraction": 0,
-        "maxTopY": 131.16
+        "maxTopY": 131.72
       }
     },
     {
@@ -5471,7 +5490,7 @@
       "collider": "t-6_8.collider.json",
       "glb": "t-6_8.glb",
       "stats": {
-        "buildings": 571,
+        "buildings": 626,
         "roadEdges": 61,
         "waterFraction": 0,
         "maxTopY": 84.92
@@ -5490,7 +5509,7 @@
       "collider": "t-5_8.collider.json",
       "glb": "t-5_8.glb",
       "stats": {
-        "buildings": 508,
+        "buildings": 509,
         "roadEdges": 53,
         "waterFraction": 0,
         "maxTopY": 64.64
@@ -5528,7 +5547,7 @@
       "collider": "t-3_8.collider.json",
       "glb": "t-3_8.glb",
       "stats": {
-        "buildings": 554,
+        "buildings": 581,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 72.27
@@ -5547,7 +5566,7 @@
       "collider": "t-2_8.collider.json",
       "glb": "t-2_8.glb",
       "stats": {
-        "buildings": 540,
+        "buildings": 701,
         "roadEdges": 36,
         "waterFraction": 0,
         "maxTopY": 105.01
@@ -5566,10 +5585,10 @@
       "collider": "t-1_8.collider.json",
       "glb": "t-1_8.glb",
       "stats": {
-        "buildings": 482,
+        "buildings": 565,
         "roadEdges": 24,
         "waterFraction": 0,
-        "maxTopY": 107.06
+        "maxTopY": 108.1
       }
     },
     {
@@ -5604,7 +5623,7 @@
       "collider": "t1_8.collider.json",
       "glb": "t1_8.glb",
       "stats": {
-        "buildings": 108,
+        "buildings": 104,
         "roadEdges": 41,
         "waterFraction": 0,
         "maxTopY": 33.08
@@ -5680,7 +5699,7 @@
       "collider": "t-19_9.collider.json",
       "glb": "t-19_9.glb",
       "stats": {
-        "buildings": 684,
+        "buildings": 686,
         "roadEdges": 32,
         "waterFraction": 0,
         "maxTopY": 58.66
@@ -5718,7 +5737,7 @@
       "collider": "t-17_9.collider.json",
       "glb": "t-17_9.glb",
       "stats": {
-        "buildings": 616,
+        "buildings": 618,
         "roadEdges": 29,
         "waterFraction": 0,
         "maxTopY": 116.15
@@ -5756,7 +5775,7 @@
       "collider": "t-15_9.collider.json",
       "glb": "t-15_9.glb",
       "stats": {
-        "buildings": 599,
+        "buildings": 607,
         "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 162.66
@@ -5775,10 +5794,10 @@
       "collider": "t-14_9.collider.json",
       "glb": "t-14_9.glb",
       "stats": {
-        "buildings": 554,
-        "roadEdges": 57,
+        "buildings": 748,
+        "roadEdges": 63,
         "waterFraction": 0,
-        "maxTopY": 235.69
+        "maxTopY": 237.29
       }
     },
     {
@@ -5794,10 +5813,10 @@
       "collider": "t-13_9.collider.json",
       "glb": "t-13_9.glb",
       "stats": {
-        "buildings": 410,
-        "roadEdges": 40,
+        "buildings": 444,
+        "roadEdges": 41,
         "waterFraction": 0,
-        "maxTopY": 223.25
+        "maxTopY": 224.68
       }
     },
     {
@@ -5813,10 +5832,10 @@
       "collider": "t-12_9.collider.json",
       "glb": "t-12_9.glb",
       "stats": {
-        "buildings": 300,
-        "roadEdges": 32,
+        "buildings": 319,
+        "roadEdges": 33,
         "waterFraction": 0,
-        "maxTopY": 244.73
+        "maxTopY": 246.37
       }
     },
     {
@@ -5832,7 +5851,7 @@
       "collider": "t-11_9.collider.json",
       "glb": "t-11_9.glb",
       "stats": {
-        "buildings": 317,
+        "buildings": 324,
         "roadEdges": 41,
         "waterFraction": 0,
         "maxTopY": 237.44
@@ -5851,7 +5870,7 @@
       "collider": "t-10_9.collider.json",
       "glb": "t-10_9.glb",
       "stats": {
-        "buildings": 209,
+        "buildings": 379,
         "roadEdges": 39,
         "waterFraction": 0,
         "maxTopY": 285.83
@@ -5870,10 +5889,10 @@
       "collider": "t-9_9.collider.json",
       "glb": "t-9_9.glb",
       "stats": {
-        "buildings": 587,
-        "roadEdges": 62,
+        "buildings": 807,
+        "roadEdges": 66,
         "waterFraction": 0,
-        "maxTopY": 204.38
+        "maxTopY": 211.24
       }
     },
     {
@@ -5889,10 +5908,10 @@
       "collider": "t-8_9.collider.json",
       "glb": "t-8_9.glb",
       "stats": {
-        "buildings": 679,
+        "buildings": 763,
         "roadEdges": 48,
         "waterFraction": 0,
-        "maxTopY": 138.79
+        "maxTopY": 140.06
       }
     },
     {
@@ -5908,7 +5927,7 @@
       "collider": "t-7_9.collider.json",
       "glb": "t-7_9.glb",
       "stats": {
-        "buildings": 751,
+        "buildings": 781,
         "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 109.45
@@ -5927,7 +5946,7 @@
       "collider": "t-6_9.collider.json",
       "glb": "t-6_9.glb",
       "stats": {
-        "buildings": 617,
+        "buildings": 645,
         "roadEdges": 69,
         "waterFraction": 0,
         "maxTopY": 81.33
@@ -5965,7 +5984,7 @@
       "collider": "t-4_9.collider.json",
       "glb": "t-4_9.glb",
       "stats": {
-        "buildings": 655,
+        "buildings": 656,
         "roadEdges": 58,
         "waterFraction": 0,
         "maxTopY": 35.51
@@ -6003,7 +6022,7 @@
       "collider": "t-2_9.collider.json",
       "glb": "t-2_9.glb",
       "stats": {
-        "buildings": 479,
+        "buildings": 614,
         "roadEdges": 73,
         "waterFraction": 0,
         "maxTopY": 84.2
@@ -6022,7 +6041,7 @@
       "collider": "t-1_9.collider.json",
       "glb": "t-1_9.glb",
       "stats": {
-        "buildings": 186,
+        "buildings": 338,
         "roadEdges": 42,
         "waterFraction": 0,
         "maxTopY": 95.68
@@ -6041,10 +6060,10 @@
       "collider": "t0_9.collider.json",
       "glb": "t0_9.glb",
       "stats": {
-        "buildings": 154,
+        "buildings": 195,
         "roadEdges": 48,
         "waterFraction": 0,
-        "maxTopY": 47.42
+        "maxTopY": 47.79
       }
     },
     {
@@ -6155,7 +6174,7 @@
       "collider": "t-19_10.collider.json",
       "glb": "t-19_10.glb",
       "stats": {
-        "buildings": 414,
+        "buildings": 461,
         "roadEdges": 18,
         "waterFraction": 0,
         "maxTopY": 64.93
@@ -6212,7 +6231,7 @@
       "collider": "t-16_10.collider.json",
       "glb": "t-16_10.glb",
       "stats": {
-        "buildings": 415,
+        "buildings": 422,
         "roadEdges": 31,
         "waterFraction": 0,
         "maxTopY": 153.36
@@ -6250,10 +6269,10 @@
       "collider": "t-14_10.collider.json",
       "glb": "t-14_10.glb",
       "stats": {
-        "buildings": 511,
-        "roadEdges": 41,
+        "buildings": 654,
+        "roadEdges": 44,
         "waterFraction": 0,
-        "maxTopY": 247.3
+        "maxTopY": 250.36
       }
     },
     {
@@ -6269,7 +6288,7 @@
       "collider": "t-13_10.collider.json",
       "glb": "t-13_10.glb",
       "stats": {
-        "buildings": 442,
+        "buildings": 573,
         "roadEdges": 76,
         "waterFraction": 0,
         "maxTopY": 251.77
@@ -6288,7 +6307,7 @@
       "collider": "t-12_10.collider.json",
       "glb": "t-12_10.glb",
       "stats": {
-        "buildings": 199,
+        "buildings": 270,
         "roadEdges": 42,
         "waterFraction": 0,
         "maxTopY": 192.11
@@ -6307,7 +6326,7 @@
       "collider": "t-11_10.collider.json",
       "glb": "t-11_10.glb",
       "stats": {
-        "buildings": 249,
+        "buildings": 343,
         "roadEdges": 30,
         "waterFraction": 0,
         "maxTopY": 236.74
@@ -6326,10 +6345,10 @@
       "collider": "t-10_10.collider.json",
       "glb": "t-10_10.glb",
       "stats": {
-        "buildings": 336,
+        "buildings": 406,
         "roadEdges": 45,
         "waterFraction": 0,
-        "maxTopY": 241.94
+        "maxTopY": 243.72
       }
     },
     {
@@ -6345,10 +6364,10 @@
       "collider": "t-9_10.collider.json",
       "glb": "t-9_10.glb",
       "stats": {
-        "buildings": 428,
-        "roadEdges": 55,
+        "buildings": 604,
+        "roadEdges": 56,
         "waterFraction": 0,
-        "maxTopY": 218.78
+        "maxTopY": 220.97
       }
     },
     {
@@ -6364,7 +6383,7 @@
       "collider": "t-8_10.collider.json",
       "glb": "t-8_10.glb",
       "stats": {
-        "buildings": 608,
+        "buildings": 627,
         "roadEdges": 47,
         "waterFraction": 0,
         "maxTopY": 174.09
@@ -6383,10 +6402,10 @@
       "collider": "t-7_10.collider.json",
       "glb": "t-7_10.glb",
       "stats": {
-        "buildings": 689,
+        "buildings": 809,
         "roadEdges": 37,
         "waterFraction": 0,
-        "maxTopY": 136.04
+        "maxTopY": 136.2
       }
     },
     {
@@ -6402,7 +6421,7 @@
       "collider": "t-6_10.collider.json",
       "glb": "t-6_10.glb",
       "stats": {
-        "buildings": 689,
+        "buildings": 696,
         "roadEdges": 63,
         "waterFraction": 0,
         "maxTopY": 80.72
@@ -6421,7 +6440,7 @@
       "collider": "t-5_10.collider.json",
       "glb": "t-5_10.glb",
       "stats": {
-        "buildings": 506,
+        "buildings": 508,
         "roadEdges": 68,
         "waterFraction": 0,
         "maxTopY": 76.53
@@ -6440,7 +6459,7 @@
       "collider": "t-4_10.collider.json",
       "glb": "t-4_10.glb",
       "stats": {
-        "buildings": 572,
+        "buildings": 573,
         "roadEdges": 68,
         "waterFraction": 0,
         "maxTopY": 64.64
@@ -6459,10 +6478,10 @@
       "collider": "t-3_10.collider.json",
       "glb": "t-3_10.glb",
       "stats": {
-        "buildings": 689,
-        "roadEdges": 92,
+        "buildings": 707,
+        "roadEdges": 93,
         "waterFraction": 0,
-        "maxTopY": 66.3
+        "maxTopY": 66.46
       }
     },
     {
@@ -6478,7 +6497,7 @@
       "collider": "t-2_10.collider.json",
       "glb": "t-2_10.glb",
       "stats": {
-        "buildings": 107,
+        "buildings": 168,
         "roadEdges": 55,
         "waterFraction": 0,
         "maxTopY": 45.75
@@ -6516,7 +6535,7 @@
       "collider": "t0_10.collider.json",
       "glb": "t0_10.glb",
       "stats": {
-        "buildings": 35,
+        "buildings": 34,
         "roadEdges": 30,
         "waterFraction": 0.19,
         "maxTopY": 23.31
@@ -6649,7 +6668,7 @@
       "collider": "t-18_11.collider.json",
       "glb": "t-18_11.glb",
       "stats": {
-        "buildings": 574,
+        "buildings": 576,
         "roadEdges": 46,
         "waterFraction": 0,
         "maxTopY": 72.95
@@ -6706,7 +6725,7 @@
       "collider": "t-15_11.collider.json",
       "glb": "t-15_11.glb",
       "stats": {
-        "buildings": 662,
+        "buildings": 668,
         "roadEdges": 33,
         "waterFraction": 0,
         "maxTopY": 145.32
@@ -6725,7 +6744,7 @@
       "collider": "t-14_11.collider.json",
       "glb": "t-14_11.glb",
       "stats": {
-        "buildings": 555,
+        "buildings": 591,
         "roadEdges": 42,
         "waterFraction": 0,
         "maxTopY": 172.62
@@ -6744,8 +6763,8 @@
       "collider": "t-13_11.collider.json",
       "glb": "t-13_11.glb",
       "stats": {
-        "buildings": 490,
-        "roadEdges": 49,
+        "buildings": 501,
+        "roadEdges": 48,
         "waterFraction": 0,
         "maxTopY": 178.86
       }
@@ -6763,8 +6782,8 @@
       "collider": "t-12_11.collider.json",
       "glb": "t-12_11.glb",
       "stats": {
-        "buildings": 419,
-        "roadEdges": 62,
+        "buildings": 534,
+        "roadEdges": 64,
         "waterFraction": 0,
         "maxTopY": 241.3
       }
@@ -6782,7 +6801,7 @@
       "collider": "t-11_11.collider.json",
       "glb": "t-11_11.glb",
       "stats": {
-        "buildings": 425,
+        "buildings": 426,
         "roadEdges": 64,
         "waterFraction": 0,
         "maxTopY": 200.64
@@ -6801,7 +6820,7 @@
       "collider": "t-10_11.collider.json",
       "glb": "t-10_11.glb",
       "stats": {
-        "buildings": 224,
+        "buildings": 420,
         "roadEdges": 20,
         "waterFraction": 0,
         "maxTopY": 196.97
@@ -6820,7 +6839,7 @@
       "collider": "t-9_11.collider.json",
       "glb": "t-9_11.glb",
       "stats": {
-        "buildings": 241,
+        "buildings": 331,
         "roadEdges": 24,
         "waterFraction": 0,
         "maxTopY": 209.99
@@ -6839,8 +6858,8 @@
       "collider": "t-8_11.collider.json",
       "glb": "t-8_11.glb",
       "stats": {
-        "buildings": 530,
-        "roadEdges": 49,
+        "buildings": 629,
+        "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 212.63
       }
@@ -6858,10 +6877,10 @@
       "collider": "t-7_11.collider.json",
       "glb": "t-7_11.glb",
       "stats": {
-        "buildings": 667,
-        "roadEdges": 55,
+        "buildings": 714,
+        "roadEdges": 56,
         "waterFraction": 0,
-        "maxTopY": 139.45
+        "maxTopY": 141.84
       }
     },
     {
@@ -6877,7 +6896,7 @@
       "collider": "t-6_11.collider.json",
       "glb": "t-6_11.glb",
       "stats": {
-        "buildings": 623,
+        "buildings": 636,
         "roadEdges": 61,
         "waterFraction": 0,
         "maxTopY": 60.56
@@ -6896,7 +6915,7 @@
       "collider": "t-5_11.collider.json",
       "glb": "t-5_11.glb",
       "stats": {
-        "buildings": 792,
+        "buildings": 910,
         "roadEdges": 77,
         "waterFraction": 0,
         "maxTopY": 119.2
@@ -6915,8 +6934,8 @@
       "collider": "t-4_11.collider.json",
       "glb": "t-4_11.glb",
       "stats": {
-        "buildings": 439,
-        "roadEdges": 70,
+        "buildings": 517,
+        "roadEdges": 77,
         "waterFraction": 0,
         "maxTopY": 156.07
       }
@@ -6934,8 +6953,8 @@
       "collider": "t-3_11.collider.json",
       "glb": "t-3_11.glb",
       "stats": {
-        "buildings": 581,
-        "roadEdges": 88,
+        "buildings": 646,
+        "roadEdges": 97,
         "waterFraction": 0,
         "maxTopY": 90.31
       }
@@ -7143,7 +7162,7 @@
       "collider": "t-18_12.collider.json",
       "glb": "t-18_12.glb",
       "stats": {
-        "buildings": 561,
+        "buildings": 560,
         "roadEdges": 47,
         "waterFraction": 0,
         "maxTopY": 59.98
@@ -7181,7 +7200,7 @@
       "collider": "t-16_12.collider.json",
       "glb": "t-16_12.glb",
       "stats": {
-        "buildings": 492,
+        "buildings": 511,
         "roadEdges": 36,
         "waterFraction": 0,
         "maxTopY": 91.74
@@ -7219,7 +7238,7 @@
       "collider": "t-14_12.collider.json",
       "glb": "t-14_12.glb",
       "stats": {
-        "buildings": 546,
+        "buildings": 655,
         "roadEdges": 53,
         "waterFraction": 0,
         "maxTopY": 133.76
@@ -7238,10 +7257,10 @@
       "collider": "t-13_12.collider.json",
       "glb": "t-13_12.glb",
       "stats": {
-        "buildings": 438,
+        "buildings": 451,
         "roadEdges": 58,
         "waterFraction": 0,
-        "maxTopY": 167.48
+        "maxTopY": 167.94
       }
     },
     {
@@ -7257,8 +7276,8 @@
       "collider": "t-12_12.collider.json",
       "glb": "t-12_12.glb",
       "stats": {
-        "buildings": 329,
-        "roadEdges": 41,
+        "buildings": 480,
+        "roadEdges": 43,
         "waterFraction": 0,
         "maxTopY": 262.91
       }
@@ -7276,8 +7295,8 @@
       "collider": "t-11_12.collider.json",
       "glb": "t-11_12.glb",
       "stats": {
-        "buildings": 303,
-        "roadEdges": 27,
+        "buildings": 334,
+        "roadEdges": 30,
         "waterFraction": 0,
         "maxTopY": 314.68
       }
@@ -7295,10 +7314,10 @@
       "collider": "t-10_12.collider.json",
       "glb": "t-10_12.glb",
       "stats": {
-        "buildings": 541,
+        "buildings": 577,
         "roadEdges": 55,
         "waterFraction": 0,
-        "maxTopY": 218.11
+        "maxTopY": 219.47
       }
     },
     {
@@ -7314,10 +7333,10 @@
       "collider": "t-9_12.collider.json",
       "glb": "t-9_12.glb",
       "stats": {
-        "buildings": 129,
+        "buildings": 172,
         "roadEdges": 27,
         "waterFraction": 0,
-        "maxTopY": 204.64
+        "maxTopY": 206.4
       }
     },
     {
@@ -7333,8 +7352,8 @@
       "collider": "t-8_12.collider.json",
       "glb": "t-8_12.glb",
       "stats": {
-        "buildings": 612,
-        "roadEdges": 59,
+        "buildings": 848,
+        "roadEdges": 60,
         "waterFraction": 0,
         "maxTopY": 214.76
       }
@@ -7352,8 +7371,8 @@
       "collider": "t-7_12.collider.json",
       "glb": "t-7_12.glb",
       "stats": {
-        "buildings": 692,
-        "roadEdges": 46,
+        "buildings": 911,
+        "roadEdges": 48,
         "waterFraction": 0,
         "maxTopY": 172.43
       }
@@ -7371,10 +7390,10 @@
       "collider": "t-6_12.collider.json",
       "glb": "t-6_12.glb",
       "stats": {
-        "buildings": 603,
-        "roadEdges": 54,
+        "buildings": 615,
+        "roadEdges": 55,
         "waterFraction": 0,
-        "maxTopY": 97.35
+        "maxTopY": 97.64
       }
     },
     {
@@ -7390,8 +7409,8 @@
       "collider": "t-5_12.collider.json",
       "glb": "t-5_12.glb",
       "stats": {
-        "buildings": 719,
-        "roadEdges": 70,
+        "buildings": 728,
+        "roadEdges": 71,
         "waterFraction": 0,
         "maxTopY": 106.89
       }
@@ -7410,7 +7429,7 @@
       "glb": "t-4_12.glb",
       "stats": {
         "buildings": 986,
-        "roadEdges": 96,
+        "roadEdges": 100,
         "waterFraction": 0,
         "maxTopY": 107.15
       }
@@ -7428,8 +7447,8 @@
       "collider": "t-3_12.collider.json",
       "glb": "t-3_12.glb",
       "stats": {
-        "buildings": 322,
-        "roadEdges": 80,
+        "buildings": 357,
+        "roadEdges": 81,
         "waterFraction": 0,
         "maxTopY": 63.46
       }
@@ -7447,7 +7466,7 @@
       "collider": "t-2_12.collider.json",
       "glb": "t-2_12.glb",
       "stats": {
-        "buildings": 174,
+        "buildings": 182,
         "roadEdges": 48,
         "waterFraction": 0,
         "maxTopY": 35.89
@@ -7466,7 +7485,7 @@
       "collider": "t-1_12.collider.json",
       "glb": "t-1_12.glb",
       "stats": {
-        "buildings": 261,
+        "buildings": 288,
         "roadEdges": 40,
         "waterFraction": 0,
         "maxTopY": 37.87
@@ -7504,7 +7523,7 @@
       "collider": "t1_12.collider.json",
       "glb": "t1_12.glb",
       "stats": {
-        "buildings": 347,
+        "buildings": 357,
         "roadEdges": 40,
         "waterFraction": 0,
         "maxTopY": 59.02
@@ -7523,10 +7542,10 @@
       "collider": "t2_12.collider.json",
       "glb": "t2_12.glb",
       "stats": {
-        "buildings": 43,
+        "buildings": 47,
         "roadEdges": 22,
         "waterFraction": 0,
-        "maxTopY": 51.84
+        "maxTopY": 54.8
       }
     },
     {
@@ -7542,9 +7561,9 @@
       "collider": "t3_12.collider.json",
       "glb": "t3_12.glb",
       "stats": {
-        "buildings": 9,
+        "buildings": 8,
         "roadEdges": 1,
-        "waterFraction": 0.2,
+        "waterFraction": 0.19,
         "maxTopY": 18.31
       }
     },
@@ -7563,7 +7582,7 @@
       "stats": {
         "buildings": 3,
         "roadEdges": 1,
-        "waterFraction": 0.75,
+        "waterFraction": 0.73,
         "maxTopY": 26.23
       }
     },
@@ -7637,7 +7656,7 @@
       "collider": "t-18_13.collider.json",
       "glb": "t-18_13.glb",
       "stats": {
-        "buildings": 411,
+        "buildings": 431,
         "roadEdges": 66,
         "waterFraction": 0,
         "maxTopY": 51.18
@@ -7656,7 +7675,7 @@
       "collider": "t-17_13.collider.json",
       "glb": "t-17_13.glb",
       "stats": {
-        "buildings": 344,
+        "buildings": 347,
         "roadEdges": 39,
         "waterFraction": 0,
         "maxTopY": 51.27
@@ -7694,7 +7713,7 @@
       "collider": "t-15_13.collider.json",
       "glb": "t-15_13.glb",
       "stats": {
-        "buildings": 170,
+        "buildings": 174,
         "roadEdges": 39,
         "waterFraction": 0,
         "maxTopY": 92.37
@@ -7713,7 +7732,7 @@
       "collider": "t-14_13.collider.json",
       "glb": "t-14_13.glb",
       "stats": {
-        "buildings": 351,
+        "buildings": 375,
         "roadEdges": 56,
         "waterFraction": 0,
         "maxTopY": 120.48
@@ -7732,7 +7751,7 @@
       "collider": "t-13_13.collider.json",
       "glb": "t-13_13.glb",
       "stats": {
-        "buildings": 349,
+        "buildings": 421,
         "roadEdges": 47,
         "waterFraction": 0,
         "maxTopY": 185.35
@@ -7751,10 +7770,10 @@
       "collider": "t-12_13.collider.json",
       "glb": "t-12_13.glb",
       "stats": {
-        "buildings": 409,
+        "buildings": 528,
         "roadEdges": 44,
         "waterFraction": 0,
-        "maxTopY": 259.8
+        "maxTopY": 263.14
       }
     },
     {
@@ -7770,8 +7789,8 @@
       "collider": "t-11_13.collider.json",
       "glb": "t-11_13.glb",
       "stats": {
-        "buildings": 614,
-        "roadEdges": 47,
+        "buildings": 714,
+        "roadEdges": 51,
         "waterFraction": 0,
         "maxTopY": 256.82
       }
@@ -7789,8 +7808,8 @@
       "collider": "t-10_13.collider.json",
       "glb": "t-10_13.glb",
       "stats": {
-        "buildings": 511,
-        "roadEdges": 44,
+        "buildings": 563,
+        "roadEdges": 47,
         "waterFraction": 0,
         "maxTopY": 190.16
       }
@@ -7808,7 +7827,7 @@
       "collider": "t-9_13.collider.json",
       "glb": "t-9_13.glb",
       "stats": {
-        "buildings": 345,
+        "buildings": 421,
         "roadEdges": 60,
         "waterFraction": 0,
         "maxTopY": 152.74
@@ -7827,7 +7846,7 @@
       "collider": "t-8_13.collider.json",
       "glb": "t-8_13.glb",
       "stats": {
-        "buildings": 656,
+        "buildings": 693,
         "roadEdges": 88,
         "waterFraction": 0,
         "maxTopY": 116.33
@@ -7846,7 +7865,7 @@
       "collider": "t-7_13.collider.json",
       "glb": "t-7_13.glb",
       "stats": {
-        "buildings": 648,
+        "buildings": 657,
         "roadEdges": 83,
         "waterFraction": 0,
         "maxTopY": 126.28
@@ -7884,8 +7903,8 @@
       "collider": "t-5_13.collider.json",
       "glb": "t-5_13.glb",
       "stats": {
-        "buildings": 569,
-        "roadEdges": 48,
+        "buildings": 580,
+        "roadEdges": 52,
         "waterFraction": 0,
         "maxTopY": 91.41
       }
@@ -7903,8 +7922,8 @@
       "collider": "t-4_13.collider.json",
       "glb": "t-4_13.glb",
       "stats": {
-        "buildings": 718,
-        "roadEdges": 71,
+        "buildings": 777,
+        "roadEdges": 73,
         "waterFraction": 0,
         "maxTopY": 63.66
       }
@@ -7922,8 +7941,8 @@
       "collider": "t-3_13.collider.json",
       "glb": "t-3_13.glb",
       "stats": {
-        "buildings": 272,
-        "roadEdges": 69,
+        "buildings": 306,
+        "roadEdges": 70,
         "waterFraction": 0,
         "maxTopY": 37.35
       }
@@ -7941,8 +7960,8 @@
       "collider": "t-2_13.collider.json",
       "glb": "t-2_13.glb",
       "stats": {
-        "buildings": 579,
-        "roadEdges": 61,
+        "buildings": 591,
+        "roadEdges": 62,
         "waterFraction": 0,
         "maxTopY": 68.9
       }
@@ -7960,8 +7979,8 @@
       "collider": "t-1_13.collider.json",
       "glb": "t-1_13.glb",
       "stats": {
-        "buildings": 712,
-        "roadEdges": 64,
+        "buildings": 730,
+        "roadEdges": 66,
         "waterFraction": 0,
         "maxTopY": 85.04
       }
@@ -7979,10 +7998,10 @@
       "collider": "t0_13.collider.json",
       "glb": "t0_13.glb",
       "stats": {
-        "buildings": 618,
+        "buildings": 634,
         "roadEdges": 63,
         "waterFraction": 0,
-        "maxTopY": 65.19
+        "maxTopY": 66.92
       }
     },
     {
@@ -7998,7 +8017,7 @@
       "collider": "t1_13.collider.json",
       "glb": "t1_13.glb",
       "stats": {
-        "buildings": 466,
+        "buildings": 469,
         "roadEdges": 81,
         "waterFraction": 0,
         "maxTopY": 93.3
@@ -8017,7 +8036,7 @@
       "collider": "t2_13.collider.json",
       "glb": "t2_13.glb",
       "stats": {
-        "buildings": 252,
+        "buildings": 287,
         "roadEdges": 55,
         "waterFraction": 0,
         "maxTopY": 87.12
@@ -8169,7 +8188,7 @@
       "collider": "t-16_14.collider.json",
       "glb": "t-16_14.glb",
       "stats": {
-        "buildings": 179,
+        "buildings": 253,
         "roadEdges": 32,
         "waterFraction": 0,
         "maxTopY": 74.02
@@ -8188,7 +8207,7 @@
       "collider": "t-15_14.collider.json",
       "glb": "t-15_14.glb",
       "stats": {
-        "buildings": 177,
+        "buildings": 383,
         "roadEdges": 41,
         "waterFraction": 0,
         "maxTopY": 85.04
@@ -8226,10 +8245,10 @@
       "collider": "t-13_14.collider.json",
       "glb": "t-13_14.glb",
       "stats": {
-        "buildings": 451,
+        "buildings": 517,
         "roadEdges": 55,
         "waterFraction": 0,
-        "maxTopY": 176.01
+        "maxTopY": 176.62
       }
     },
     {
@@ -8245,7 +8264,7 @@
       "collider": "t-12_14.collider.json",
       "glb": "t-12_14.glb",
       "stats": {
-        "buildings": 426,
+        "buildings": 444,
         "roadEdges": 73,
         "waterFraction": 0,
         "maxTopY": 181.64
@@ -8283,7 +8302,7 @@
       "collider": "t-10_14.collider.json",
       "glb": "t-10_14.glb",
       "stats": {
-        "buildings": 650,
+        "buildings": 687,
         "roadEdges": 41,
         "waterFraction": 0,
         "maxTopY": 122.81
@@ -8302,8 +8321,8 @@
       "collider": "t-9_14.collider.json",
       "glb": "t-9_14.glb",
       "stats": {
-        "buildings": 556,
-        "roadEdges": 69,
+        "buildings": 580,
+        "roadEdges": 71,
         "waterFraction": 0,
         "maxTopY": 121.3
       }
@@ -8340,7 +8359,7 @@
       "collider": "t-7_14.collider.json",
       "glb": "t-7_14.glb",
       "stats": {
-        "buildings": 531,
+        "buildings": 552,
         "roadEdges": 84,
         "waterFraction": 0,
         "maxTopY": 75.47
@@ -8359,7 +8378,7 @@
       "collider": "t-6_14.collider.json",
       "glb": "t-6_14.glb",
       "stats": {
-        "buildings": 685,
+        "buildings": 691,
         "roadEdges": 64,
         "waterFraction": 0,
         "maxTopY": 92.25
@@ -8378,7 +8397,7 @@
       "collider": "t-5_14.collider.json",
       "glb": "t-5_14.glb",
       "stats": {
-        "buildings": 572,
+        "buildings": 666,
         "roadEdges": 54,
         "waterFraction": 0,
         "maxTopY": 95.92
@@ -8397,7 +8416,7 @@
       "collider": "t-4_14.collider.json",
       "glb": "t-4_14.glb",
       "stats": {
-        "buildings": 697,
+        "buildings": 709,
         "roadEdges": 70,
         "waterFraction": 0,
         "maxTopY": 78.09
@@ -8454,7 +8473,7 @@
       "collider": "t-1_14.collider.json",
       "glb": "t-1_14.glb",
       "stats": {
-        "buildings": 635,
+        "buildings": 637,
         "roadEdges": 55,
         "waterFraction": 0,
         "maxTopY": 62.04
@@ -8492,7 +8511,7 @@
       "collider": "t1_14.collider.json",
       "glb": "t1_14.glb",
       "stats": {
-        "buildings": 670,
+        "buildings": 726,
         "roadEdges": 48,
         "waterFraction": 0,
         "maxTopY": 89.33
@@ -8511,7 +8530,7 @@
       "collider": "t2_14.collider.json",
       "glb": "t2_14.glb",
       "stats": {
-        "buildings": 377,
+        "buildings": 396,
         "roadEdges": 54,
         "waterFraction": 0,
         "maxTopY": 88.85
@@ -8530,8 +8549,8 @@
       "collider": "t3_14.collider.json",
       "glb": "t3_14.glb",
       "stats": {
-        "buildings": 185,
-        "roadEdges": 32,
+        "buildings": 198,
+        "roadEdges": 33,
         "waterFraction": 0,
         "maxTopY": 81.38
       }
@@ -8549,7 +8568,7 @@
       "collider": "t4_14.collider.json",
       "glb": "t4_14.glb",
       "stats": {
-        "buildings": 73,
+        "buildings": 77,
         "roadEdges": 30,
         "waterFraction": 0.06,
         "maxTopY": 42.05
@@ -8701,7 +8720,7 @@
       "collider": "t-16_15.collider.json",
       "glb": "t-16_15.glb",
       "stats": {
-        "buildings": 79,
+        "buildings": 100,
         "roadEdges": 12,
         "waterFraction": 0,
         "maxTopY": 78.66
@@ -8720,10 +8739,10 @@
       "collider": "t-15_15.collider.json",
       "glb": "t-15_15.glb",
       "stats": {
-        "buildings": 140,
+        "buildings": 209,
         "roadEdges": 27,
         "waterFraction": 0,
-        "maxTopY": 82.16
+        "maxTopY": 85.89
       }
     },
     {
@@ -8758,7 +8777,7 @@
       "collider": "t-13_15.collider.json",
       "glb": "t-13_15.glb",
       "stats": {
-        "buildings": 496,
+        "buildings": 511,
         "roadEdges": 68,
         "waterFraction": 0,
         "maxTopY": 129.56
@@ -8777,7 +8796,7 @@
       "collider": "t-12_15.collider.json",
       "glb": "t-12_15.glb",
       "stats": {
-        "buildings": 574,
+        "buildings": 601,
         "roadEdges": 85,
         "waterFraction": 0,
         "maxTopY": 119.29
@@ -8815,10 +8834,10 @@
       "collider": "t-10_15.collider.json",
       "glb": "t-10_15.glb",
       "stats": {
-        "buildings": 118,
+        "buildings": 285,
         "roadEdges": 31,
         "waterFraction": 0,
-        "maxTopY": 119.82
+        "maxTopY": 120.07
       }
     },
     {
@@ -8872,7 +8891,7 @@
       "collider": "t-7_15.collider.json",
       "glb": "t-7_15.glb",
       "stats": {
-        "buildings": 753,
+        "buildings": 778,
         "roadEdges": 51,
         "waterFraction": 0,
         "maxTopY": 110.67
@@ -8891,7 +8910,7 @@
       "collider": "t-6_15.collider.json",
       "glb": "t-6_15.glb",
       "stats": {
-        "buildings": 772,
+        "buildings": 781,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 153.16
@@ -8910,7 +8929,7 @@
       "collider": "t-5_15.collider.json",
       "glb": "t-5_15.glb",
       "stats": {
-        "buildings": 642,
+        "buildings": 684,
         "roadEdges": 45,
         "waterFraction": 0,
         "maxTopY": 130.66
@@ -8948,10 +8967,10 @@
       "collider": "t-3_15.collider.json",
       "glb": "t-3_15.glb",
       "stats": {
-        "buildings": 524,
+        "buildings": 552,
         "roadEdges": 52,
         "waterFraction": 0,
-        "maxTopY": 61.49
+        "maxTopY": 62.56
       }
     },
     {
@@ -8986,7 +9005,7 @@
       "collider": "t-1_15.collider.json",
       "glb": "t-1_15.glb",
       "stats": {
-        "buildings": 219,
+        "buildings": 227,
         "roadEdges": 34,
         "waterFraction": 0,
         "maxTopY": 45
@@ -9290,7 +9309,7 @@
       "collider": "t-12_16.collider.json",
       "glb": "t-12_16.glb",
       "stats": {
-        "buildings": 846,
+        "buildings": 850,
         "roadEdges": 32,
         "waterFraction": 0,
         "maxTopY": 145.64
@@ -9309,7 +9328,7 @@
       "collider": "t-11_16.collider.json",
       "glb": "t-11_16.glb",
       "stats": {
-        "buildings": 775,
+        "buildings": 800,
         "roadEdges": 58,
         "waterFraction": 0,
         "maxTopY": 143.09
@@ -9328,7 +9347,7 @@
       "collider": "t-10_16.collider.json",
       "glb": "t-10_16.glb",
       "stats": {
-        "buildings": 311,
+        "buildings": 417,
         "roadEdges": 71,
         "waterFraction": 0,
         "maxTopY": 111.61
@@ -9366,7 +9385,7 @@
       "collider": "t-8_16.collider.json",
       "glb": "t-8_16.glb",
       "stats": {
-        "buildings": 661,
+        "buildings": 662,
         "roadEdges": 60,
         "waterFraction": 0,
         "maxTopY": 103.54
@@ -9404,8 +9423,8 @@
       "collider": "t-6_16.collider.json",
       "glb": "t-6_16.glb",
       "stats": {
-        "buildings": 380,
-        "roadEdges": 28,
+        "buildings": 391,
+        "roadEdges": 29,
         "waterFraction": 0,
         "maxTopY": 178.82
       }
@@ -9443,7 +9462,7 @@
       "glb": "t-4_16.glb",
       "stats": {
         "buildings": 164,
-        "roadEdges": 24,
+        "roadEdges": 25,
         "waterFraction": 0,
         "maxTopY": 125.32
       }
@@ -9461,8 +9480,8 @@
       "collider": "t-3_16.collider.json",
       "glb": "t-3_16.glb",
       "stats": {
-        "buildings": 490,
-        "roadEdges": 54,
+        "buildings": 563,
+        "roadEdges": 56,
         "waterFraction": 0,
         "maxTopY": 124.53
       }
@@ -9480,8 +9499,8 @@
       "collider": "t-2_16.collider.json",
       "glb": "t-2_16.glb",
       "stats": {
-        "buildings": 574,
-        "roadEdges": 69,
+        "buildings": 592,
+        "roadEdges": 70,
         "waterFraction": 0,
         "maxTopY": 110.35
       }
@@ -9499,7 +9518,7 @@
       "collider": "t-1_16.collider.json",
       "glb": "t-1_16.glb",
       "stats": {
-        "buildings": 521,
+        "buildings": 525,
         "roadEdges": 72,
         "waterFraction": 0,
         "maxTopY": 48.13
@@ -9518,7 +9537,7 @@
       "collider": "t0_16.collider.json",
       "glb": "t0_16.glb",
       "stats": {
-        "buildings": 516,
+        "buildings": 519,
         "roadEdges": 37,
         "waterFraction": 0,
         "maxTopY": 40.77
@@ -9708,7 +9727,7 @@
       "collider": "t-17_17.collider.json",
       "glb": "t-17_17.glb",
       "stats": {
-        "buildings": 4,
+        "buildings": 3,
         "roadEdges": 30,
         "waterFraction": 0,
         "maxTopY": 46.55
@@ -9727,7 +9746,7 @@
       "collider": "t-16_17.collider.json",
       "glb": "t-16_17.glb",
       "stats": {
-        "buildings": 608,
+        "buildings": 611,
         "roadEdges": 42,
         "waterFraction": 0,
         "maxTopY": 86.52
@@ -9765,7 +9784,7 @@
       "collider": "t-14_17.collider.json",
       "glb": "t-14_17.glb",
       "stats": {
-        "buildings": 577,
+        "buildings": 595,
         "roadEdges": 51,
         "waterFraction": 0,
         "maxTopY": 138.84
@@ -9784,10 +9803,10 @@
       "collider": "t-13_17.collider.json",
       "glb": "t-13_17.glb",
       "stats": {
-        "buildings": 814,
+        "buildings": 824,
         "roadEdges": 40,
         "waterFraction": 0,
-        "maxTopY": 165.51
+        "maxTopY": 166.45
       }
     },
     {
@@ -9822,7 +9841,7 @@
       "collider": "t-11_17.collider.json",
       "glb": "t-11_17.glb",
       "stats": {
-        "buildings": 773,
+        "buildings": 810,
         "roadEdges": 50,
         "waterFraction": 0,
         "maxTopY": 159.52
@@ -9841,7 +9860,7 @@
       "collider": "t-10_17.collider.json",
       "glb": "t-10_17.glb",
       "stats": {
-        "buildings": 621,
+        "buildings": 625,
         "roadEdges": 79,
         "waterFraction": 0,
         "maxTopY": 121.93
@@ -9917,7 +9936,7 @@
       "collider": "t-6_17.collider.json",
       "glb": "t-6_17.glb",
       "stats": {
-        "buildings": 101,
+        "buildings": 102,
         "roadEdges": 20,
         "waterFraction": 0,
         "maxTopY": 124.62
@@ -9955,7 +9974,7 @@
       "collider": "t-4_17.collider.json",
       "glb": "t-4_17.glb",
       "stats": {
-        "buildings": 96,
+        "buildings": 180,
         "roadEdges": 22,
         "waterFraction": 0,
         "maxTopY": 86.32
@@ -9974,8 +9993,8 @@
       "collider": "t-3_17.collider.json",
       "glb": "t-3_17.glb",
       "stats": {
-        "buildings": 647,
-        "roadEdges": 42,
+        "buildings": 690,
+        "roadEdges": 43,
         "waterFraction": 0,
         "maxTopY": 101.92
       }
@@ -9993,8 +10012,8 @@
       "collider": "t-2_17.collider.json",
       "glb": "t-2_17.glb",
       "stats": {
-        "buildings": 720,
-        "roadEdges": 69,
+        "buildings": 732,
+        "roadEdges": 70,
         "waterFraction": 0,
         "maxTopY": 110.49
       }
@@ -10012,7 +10031,7 @@
       "collider": "t-1_17.collider.json",
       "glb": "t-1_17.glb",
       "stats": {
-        "buildings": 210,
+        "buildings": 223,
         "roadEdges": 42,
         "waterFraction": 0,
         "maxTopY": 127.95
@@ -10031,10 +10050,10 @@
       "collider": "t0_17.collider.json",
       "glb": "t0_17.glb",
       "stats": {
-        "buildings": 233,
+        "buildings": 274,
         "roadEdges": 29,
         "waterFraction": 0,
-        "maxTopY": 56.63
+        "maxTopY": 57.32
       }
     },
     {
@@ -10240,7 +10259,7 @@
       "collider": "t-16_18.collider.json",
       "glb": "t-16_18.glb",
       "stats": {
-        "buildings": 91,
+        "buildings": 98,
         "roadEdges": 9,
         "waterFraction": 0,
         "maxTopY": 49.35
@@ -10278,7 +10297,7 @@
       "collider": "t-14_18.collider.json",
       "glb": "t-14_18.glb",
       "stats": {
-        "buildings": 323,
+        "buildings": 331,
         "roadEdges": 69,
         "waterFraction": 0,
         "maxTopY": 104.17
@@ -10354,7 +10373,7 @@
       "collider": "t-10_18.collider.json",
       "glb": "t-10_18.glb",
       "stats": {
-        "buildings": 717,
+        "buildings": 719,
         "roadEdges": 65,
         "waterFraction": 0,
         "maxTopY": 109.67
@@ -10373,7 +10392,7 @@
       "collider": "t-9_18.collider.json",
       "glb": "t-9_18.glb",
       "stats": {
-        "buildings": 809,
+        "buildings": 811,
         "roadEdges": 71,
         "waterFraction": 0,
         "maxTopY": 125.9
@@ -10412,7 +10431,7 @@
       "glb": "t-7_18.glb",
       "stats": {
         "buildings": 385,
-        "roadEdges": 36,
+        "roadEdges": 38,
         "waterFraction": 0,
         "maxTopY": 118.28
       }
@@ -10430,7 +10449,7 @@
       "collider": "t-6_18.collider.json",
       "glb": "t-6_18.glb",
       "stats": {
-        "buildings": 189,
+        "buildings": 217,
         "roadEdges": 14,
         "waterFraction": 0,
         "maxTopY": 93.45
@@ -10449,7 +10468,7 @@
       "collider": "t-5_18.collider.json",
       "glb": "t-5_18.glb",
       "stats": {
-        "buildings": 159,
+        "buildings": 155,
         "roadEdges": 24,
         "waterFraction": 0,
         "maxTopY": 87.07
@@ -10468,7 +10487,7 @@
       "collider": "t-4_18.collider.json",
       "glb": "t-4_18.glb",
       "stats": {
-        "buildings": 734,
+        "buildings": 739,
         "roadEdges": 56,
         "waterFraction": 0,
         "maxTopY": 61.56
@@ -10487,7 +10506,7 @@
       "collider": "t-3_18.collider.json",
       "glb": "t-3_18.glb",
       "stats": {
-        "buildings": 780,
+        "buildings": 783,
         "roadEdges": 53,
         "waterFraction": 0,
         "maxTopY": 51.66
@@ -10506,8 +10525,8 @@
       "collider": "t-2_18.collider.json",
       "glb": "t-2_18.glb",
       "stats": {
-        "buildings": 529,
-        "roadEdges": 55,
+        "buildings": 558,
+        "roadEdges": 56,
         "waterFraction": 0,
         "maxTopY": 65.94
       }
@@ -10525,10 +10544,10 @@
       "collider": "t-1_18.collider.json",
       "glb": "t-1_18.glb",
       "stats": {
-        "buildings": 390,
+        "buildings": 404,
         "roadEdges": 60,
         "waterFraction": 0,
-        "maxTopY": 64.87
+        "maxTopY": 64.92
       }
     },
     {
@@ -10544,7 +10563,7 @@
       "collider": "t0_18.collider.json",
       "glb": "t0_18.glb",
       "stats": {
-        "buildings": 16,
+        "buildings": 21,
         "roadEdges": 25,
         "waterFraction": 0,
         "maxTopY": 47.22
@@ -10715,7 +10734,7 @@
       "collider": "t-14_19.collider.json",
       "glb": "t-14_19.glb",
       "stats": {
-        "buildings": 136,
+        "buildings": 152,
         "roadEdges": 18,
         "waterFraction": 0,
         "maxTopY": 100.42
@@ -10734,10 +10753,10 @@
       "collider": "t-13_19.collider.json",
       "glb": "t-13_19.glb",
       "stats": {
-        "buildings": 750,
+        "buildings": 794,
         "roadEdges": 28,
         "waterFraction": 0,
-        "maxTopY": 151.03
+        "maxTopY": 151.27
       }
     },
     {
@@ -10772,7 +10791,7 @@
       "collider": "t-11_19.collider.json",
       "glb": "t-11_19.glb",
       "stats": {
-        "buildings": 682,
+        "buildings": 683,
         "roadEdges": 23,
         "waterFraction": 0,
         "maxTopY": 128.87
@@ -10791,7 +10810,7 @@
       "collider": "t-10_19.collider.json",
       "glb": "t-10_19.glb",
       "stats": {
-        "buildings": 643,
+        "buildings": 642,
         "roadEdges": 26,
         "waterFraction": 0,
         "maxTopY": 154.01
@@ -10829,10 +10848,10 @@
       "collider": "t-8_19.collider.json",
       "glb": "t-8_19.glb",
       "stats": {
-        "buildings": 439,
+        "buildings": 447,
         "roadEdges": 13,
         "waterFraction": 0,
-        "maxTopY": 178.45
+        "maxTopY": 181.03
       }
     },
     {
@@ -10848,10 +10867,10 @@
       "collider": "t-7_19.collider.json",
       "glb": "t-7_19.glb",
       "stats": {
-        "buildings": 377,
+        "buildings": 383,
         "roadEdges": 23,
         "waterFraction": 0,
-        "maxTopY": 183.91
+        "maxTopY": 185.75
       }
     },
     {
@@ -10867,7 +10886,7 @@
       "collider": "t-6_19.collider.json",
       "glb": "t-6_19.glb",
       "stats": {
-        "buildings": 217,
+        "buildings": 294,
         "roadEdges": 20,
         "waterFraction": 0,
         "maxTopY": 125.3
@@ -10886,7 +10905,7 @@
       "collider": "t-5_19.collider.json",
       "glb": "t-5_19.glb",
       "stats": {
-        "buildings": 374,
+        "buildings": 503,
         "roadEdges": 25,
         "waterFraction": 0,
         "maxTopY": 66.78
@@ -10943,7 +10962,7 @@
       "collider": "t-2_19.collider.json",
       "glb": "t-2_19.glb",
       "stats": {
-        "buildings": 26,
+        "buildings": 25,
         "roadEdges": 13,
         "waterFraction": 0,
         "maxTopY": 25.41
@@ -10962,7 +10981,7 @@
       "collider": "t-1_19.collider.json",
       "glb": "t-1_19.glb",
       "stats": {
-        "buildings": 17,
+        "buildings": 152,
         "roadEdges": 8,
         "waterFraction": 0,
         "maxTopY": 40.21
@@ -11221,7 +11240,6 @@
       "t-10_-4",
       "t-9_-4",
       "t-8_-4",
-      "t-7_-4",
       "t-2_-4",
       "t-1_-4",
       "t0_-4",
@@ -11628,9 +11646,9 @@
       ],
       "glb": "f4_0.glb",
       "stats": {
-        "records": 74,
+        "records": 69,
         "hulls": 34,
-        "triangles": 468
+        "triangles": 456
       }
     },
     {
@@ -11645,9 +11663,9 @@
       ],
       "glb": "f5_0.glb",
       "stats": {
-        "records": 402,
-        "hulls": 340,
-        "triangles": 4032
+        "records": 341,
+        "hulls": 301,
+        "triangles": 3570
       }
     },
     {
@@ -11662,9 +11680,9 @@
       ],
       "glb": "f1_1.glb",
       "stats": {
-        "records": 416,
-        "hulls": 380,
-        "triangles": 4662
+        "records": 421,
+        "hulls": 374,
+        "triangles": 4602
       }
     },
     {
@@ -11679,9 +11697,9 @@
       ],
       "glb": "f2_1.glb",
       "stats": {
-        "records": 4291,
-        "hulls": 820,
-        "triangles": 11354
+        "records": 4850,
+        "hulls": 822,
+        "triangles": 11443
       }
     },
     {
@@ -11696,9 +11714,9 @@
       ],
       "glb": "f3_1.glb",
       "stats": {
-        "records": 8169,
-        "hulls": 1309,
-        "triangles": 18583
+        "records": 11018,
+        "hulls": 2030,
+        "triangles": 26504
       }
     },
     {
@@ -11713,9 +11731,9 @@
       ],
       "glb": "f4_1.glb",
       "stats": {
-        "records": 968,
-        "hulls": 411,
-        "triangles": 5529
+        "records": 1386,
+        "hulls": 426,
+        "triangles": 5814
       }
     },
     {
@@ -11730,9 +11748,9 @@
       ],
       "glb": "f5_1.glb",
       "stats": {
-        "records": 97,
-        "hulls": 83,
-        "triangles": 1045
+        "records": 112,
+        "hulls": 79,
+        "triangles": 1035
       }
     },
     {
@@ -11747,9 +11765,9 @@
       ],
       "glb": "f0_2.glb",
       "stats": {
-        "records": 4911,
-        "hulls": 712,
-        "triangles": 10464
+        "records": 5164,
+        "hulls": 707,
+        "triangles": 10429
       }
     },
     {
@@ -11764,9 +11782,9 @@
       ],
       "glb": "f1_2.glb",
       "stats": {
-        "records": 9701,
-        "hulls": 1075,
-        "triangles": 15509
+        "records": 10007,
+        "hulls": 1074,
+        "triangles": 15544
       }
     },
     {
@@ -11781,9 +11799,9 @@
       ],
       "glb": "f2_2.glb",
       "stats": {
-        "records": 9663,
-        "hulls": 1439,
-        "triangles": 20689
+        "records": 10761,
+        "hulls": 1431,
+        "triangles": 20705
       }
     },
     {
@@ -11798,9 +11816,9 @@
       ],
       "glb": "f3_2.glb",
       "stats": {
-        "records": 7017,
-        "hulls": 1658,
-        "triangles": 22681
+        "records": 8189,
+        "hulls": 1950,
+        "triangles": 26192
       }
     },
     {
@@ -11815,9 +11833,9 @@
       ],
       "glb": "f4_2.glb",
       "stats": {
-        "records": 1762,
-        "hulls": 913,
-        "triangles": 12016
+        "records": 2459,
+        "hulls": 1130,
+        "triangles": 14450
       }
     },
     {
@@ -11832,9 +11850,9 @@
       ],
       "glb": "f0_3.glb",
       "stats": {
-        "records": 9001,
-        "hulls": 1245,
-        "triangles": 16952
+        "records": 9026,
+        "hulls": 1244,
+        "triangles": 16960
       }
     },
     {
@@ -11849,9 +11867,9 @@
       ],
       "glb": "f1_3.glb",
       "stats": {
-        "records": 12497,
-        "hulls": 1639,
-        "triangles": 23277
+        "records": 13189,
+        "hulls": 1637,
+        "triangles": 23389
       }
     },
     {
@@ -11866,9 +11884,9 @@
       ],
       "glb": "f2_3.glb",
       "stats": {
-        "records": 10678,
-        "hulls": 1816,
-        "triangles": 25848
+        "records": 14027,
+        "hulls": 1906,
+        "triangles": 27327
       }
     },
     {
@@ -11883,9 +11901,9 @@
       ],
       "glb": "f3_3.glb",
       "stats": {
-        "records": 12878,
-        "hulls": 1645,
-        "triangles": 23271
+        "records": 13515,
+        "hulls": 1637,
+        "triangles": 23266
       }
     },
     {
@@ -11900,9 +11918,9 @@
       ],
       "glb": "f4_3.glb",
       "stats": {
-        "records": 4139,
-        "hulls": 1008,
-        "triangles": 13727
+        "records": 5100,
+        "hulls": 995,
+        "triangles": 13666
       }
     },
     {
@@ -11934,9 +11952,9 @@
       ],
       "glb": "f0_4.glb",
       "stats": {
-        "records": 5570,
-        "hulls": 1082,
-        "triangles": 14313
+        "records": 5591,
+        "hulls": 1078,
+        "triangles": 14273
       }
     },
     {
@@ -11951,9 +11969,9 @@
       ],
       "glb": "f1_4.glb",
       "stats": {
-        "records": 9401,
-        "hulls": 2901,
-        "triangles": 36656
+        "records": 10141,
+        "hulls": 2902,
+        "triangles": 36819
       }
     },
     {
@@ -11968,9 +11986,9 @@
       ],
       "glb": "f2_4.glb",
       "stats": {
-        "records": 10966,
-        "hulls": 2611,
-        "triangles": 35349
+        "records": 12595,
+        "hulls": 2602,
+        "triangles": 36033
       }
     },
     {
@@ -11985,9 +12003,9 @@
       ],
       "glb": "f3_4.glb",
       "stats": {
-        "records": 15575,
-        "hulls": 2552,
-        "triangles": 35710
+        "records": 16513,
+        "hulls": 2542,
+        "triangles": 35790
       }
     },
     {
@@ -12002,9 +12020,9 @@
       ],
       "glb": "f4_4.glb",
       "stats": {
-        "records": 8315,
-        "hulls": 1983,
-        "triangles": 27053
+        "records": 8531,
+        "hulls": 1978,
+        "triangles": 27057
       }
     },
     {
@@ -12019,9 +12037,9 @@
       ],
       "glb": "f5_4.glb",
       "stats": {
-        "records": 466,
-        "hulls": 242,
-        "triangles": 3287
+        "records": 482,
+        "hulls": 240,
+        "triangles": 3273
       }
     },
     {
@@ -12053,9 +12071,9 @@
       ],
       "glb": "f1_5.glb",
       "stats": {
-        "records": 6640,
+        "records": 6745,
         "hulls": 1238,
-        "triangles": 17068
+        "triangles": 17092
       }
     },
     {
@@ -12070,9 +12088,9 @@
       ],
       "glb": "f2_5.glb",
       "stats": {
-        "records": 12997,
-        "hulls": 2312,
-        "triangles": 31969
+        "records": 13252,
+        "hulls": 2310,
+        "triangles": 31991
       }
     },
     {
@@ -12087,9 +12105,9 @@
       ],
       "glb": "f3_5.glb",
       "stats": {
-        "records": 7354,
-        "hulls": 1483,
-        "triangles": 20520
+        "records": 7786,
+        "hulls": 1473,
+        "triangles": 20450
       }
     },
     {
@@ -12104,9 +12122,9 @@
       ],
       "glb": "f4_5.glb",
       "stats": {
-        "records": 3932,
-        "hulls": 908,
-        "triangles": 12966
+        "records": 4209,
+        "hulls": 906,
+        "triangles": 12997
       }
     },
     {
