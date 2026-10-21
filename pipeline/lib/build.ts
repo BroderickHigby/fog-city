@@ -272,15 +272,18 @@ function reconcileTowers(list: readonly Building[], groundUnder: (ring: readonly
         return r.length >= 3 && isSimpleRing(r) && !needle(Math.abs(signedArea(r))) ? r : null;
       };
       // The tower is the model's (centred on its podium, buildings.ts): cut to the podium, or,
-      // where that leaves a needle, moved onto the podium's largest part and cut there; else it
-      // is no tower.
+      // where that leaves a needle, moved onto the podium's largest part (and shrunk, no more
+      // than the needle limit allows) and cut there; else it is no tower.
       let ring = clip(b.footprint);
-      if (!ring) {
-        const host = largest(union);
-        if (host) {
-          const [cx, cz] = centroid(b.footprint);
-          const [hx, hz] = interiorPoint(host.outer);
-          ring = clip(b.footprint.map(([x, z]): P2 => [x - cx + hx, z - cz + hz]));
+      const host = largest(union);
+      if (!ring && host) {
+        const [cx, cz] = centroid(b.footprint);
+        const centres = [interiorPoint(host.outer), centroid(host.outer)];
+        for (const k of [1, 0.9, 0.8, 0.7, 0.6]) {
+          for (const [hx, hz] of centres) {
+            ring ??= clip(b.footprint.map(([x, z]): P2 => [hx + (x - cx) * k, hz + (z - cz) * k]));
+          }
+          if (ring) break;
         }
       }
       if (!ring) continue;
