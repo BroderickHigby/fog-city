@@ -129,6 +129,7 @@ export function makeCar(x: number, z: number, heading: number, y = 0): CarState 
     impactSpeed: 0,
     landingSpeed: 0,
     personBumps: 0,
+    nearMisses: 0,
   };
 }
 
@@ -204,8 +205,10 @@ export function sampleGround(
 }
 
 /**
- * Advance one car by one tick. `obstacles` are circles the car cannot pass through (agents,
- * people, other cars), positioned as of the previous tick.
+ * Advance one car by one tick. `obstacles` are circles the car cannot pass through (robots,
+ * other cars), positioned as of the previous tick. Since v4 step() never passes people or
+ * animals here: they are not obstacles to a car (they dive out of its way, src/sim/dodge.ts). A
+ * circle marked `person` still stops the car and counts in personBumps, for callers that ask.
  */
 export function stepCar(
   world: World,
@@ -475,5 +478,6 @@ export function stepCar(
     impactSpeed,
     landingSpeed,
     personBumps,
+    nearMisses: c.nearMisses,
   };
 }

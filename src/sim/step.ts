@@ -16,7 +16,8 @@ import {
 import { clamp } from "./dmath.ts";
 import { carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
-import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt } from "./agents.ts";
+import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
+import { agentDodgeClass, stepDodge } from "./dodge.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
 import { meshGroundHeight, type World } from "./world.ts";
@@ -57,6 +58,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
     const others = sortedIds(players).map((pid) => carBox(players[pid]!.car));
     players[id] = spawnPlayer(world, id, { x: spawn.x + n * 4, z: spawn.z, heading: spawn.heading }, others);
   });
+  // (ext.dodge appears with the first dive; absent means every counter is 0, dodge.ts dodgeExtOf.)
   const state: SimState = { version: SIM_VERSION, tick: 0, seed, rng: seedRng(seed), players, ext: {} };
   if (!world.roads) return state;
   const pop = initialAgents(world, state);
@@ -67,11 +69,14 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  * Lift a saved state from an older SIM_VERSION to this one, one version at a time. Pure.
  *  - v1 -> v2: cars gain the handling fields (at rest), players gain foot (none) and exitPending.
  *  - v2 -> v3: a walker gains vy 0 and grounded true (standing where it was saved).
+ *  - v3 -> v4: cars gain nearMisses 0, walkers and ambient agents dodge null (nobody mid-dive);
+ *    ext.dodge stays absent (every counter 0) until the first dive.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
   if (s.version === 1) return upgradeState(upgradeV1(s));
-  if (s.version === 2) return upgradeV2(s);
+  if (s.version === 2) return upgradeState(upgradeV2(s));
+  if (s.version === 3) return upgradeV3(s);
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -97,16 +102,36 @@ function upgradeV2(s: Readonly<SimState>): SimState {
     const p = s.players[id]!;
     // A v2 walker has exactly the v2 fields; it stood on the ground.
     const f = p.foot as Omit<FootState, "vy" | "grounded"> | null;
-    players[id] = { ...p, foot: f ? { x: f.x, y: f.y, z: f.z, heading: f.heading, speed: f.speed, sprint: f.sprint, vy: 0, grounded: true } : null };
+    // (dodge: null here only to satisfy the v4 type; upgradeV3 sets it again.)
+    players[id] = { ...p, foot: f ? { x: f.x, y: f.y, z: f.z, heading: f.heading, speed: f.speed, sprint: f.sprint, vy: 0, grounded: true, dodge: null } : null };
   }
   return { ...s, version: 3, players };
+}
+
+function upgradeV3(s: Readonly<SimState>): SimState {
+  const players: Record<PlayerId, PlayerState> = {};
+  for (const id of sortedIds(s.players)) {
+    const p = s.players[id]!;
+    // A v3 car and walker have exactly the v3 fields.
+    const c = p.car as Omit<CarState, "nearMisses">;
+    const f = p.foot as Omit<FootState, "dodge"> | null;
+    players[id] = { ...p, car: { ...c, nearMisses: 0 }, foot: f ? { ...f, dodge: null } : null };
+  }
+  const ext: Record<string, unknown> = { ...s.ext };
+  const agents = s.ext[AGENTS_EXT_KEY] as { nextId: number; list: Array<Omit<AgentState, "dodge">> } | undefined;
+  if (agents) ext[AGENTS_EXT_KEY] = { ...agents, list: agents.list.map((a) => ({ ...a, dodge: null })) };
+  return { ...s, version: 4, players, ext };
 }
 
 /** What every body collides with this tick, built from the previous state. */
 interface Obstacles {
   /** Every player's car body, by player id. */
   carBoxes: Map<PlayerId, Box>;
-  /** Round bodies a player's car must not pass through: agents, other cars, other walkers. */
+  /**
+   * Round bodies a player's car must not pass through: robots and other cars. Never people,
+   * animals or walkers (v4): they dive out of its way (dodge.ts), so a car is never stopped,
+   * slowed or deflected by one.
+   */
   forCar: Map<PlayerId, Circle[]>;
   /** Round bodies a player's walker must not pass through: agents and other walkers. */
   forWalker: Map<PlayerId, Circle[]>;
@@ -119,7 +144,9 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const agentRound: Circle[] = [];
   for (const a of agents) {
-    const person = a.kind === "person";
+    // People and animals: under the dodge's override (dodge.ts), never a car's obstacle.
+    const cls = agentDodgeClass(a);
+    const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
     for (const c of agentCircles(a)) agentRound.push({ x: c.x, z: c.z, r: c.r, person });
   }
   const ids = sortedIds(prev.players);
@@ -132,17 +159,15 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
     const bx = p.mode === "foot" && p.foot ? p.foot.x : p.car.x;
     const bz = p.mode === "foot" && p.foot ? p.foot.z : p.car.z;
     const near = agentRound.filter((c) => (c.x - bx) * (c.x - bx) + (c.z - bz) * (c.z - bz) < NEAR_AGENT_M * NEAR_AGENT_M);
-    const car: Circle[] = [...near];
+    const car: Circle[] = near.filter((c) => !c.person);
     const walker: Circle[] = [...near];
     for (const other of ids) {
       if (other === id) continue;
       const o = prev.players[other]!;
       car.push(...carCircles(o.car));
       if (o.mode === "foot" && o.foot) {
-        // Another player on foot: a person to cars (never hurt), a body to walkers.
-        const w = { x: o.foot.x, z: o.foot.z, r: FOOT.radius, person: true };
-        car.push(w);
-        walker.push(w);
+        // Another player on foot: a body to walkers; to cars, someone who dives out of the way.
+        walker.push({ x: o.foot.x, z: o.foot.z, r: FOOT.radius, person: true });
       }
     }
     forCar.set(id, car);
@@ -155,6 +180,8 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   const pressed = (input.actions & Action.enterExit) !== 0;
   const allCars = [...obs.carBoxes.values()];
   if (p.mode === "foot" && p.foot) {
+    // Diving out of a car's way, or getting up: the dodge moves the walker (dodge.ts).
+    if (p.foot.dodge) return p;
     if (pressed && canEnterCar(world, p.car, p.foot.x, p.foot.z)) {
       return { ...p, mode: "vehicle", foot: null, exitPending: false };
     }
@@ -216,8 +243,11 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   }
 
   const agents = stepAgents(world, before, tick);
-  if (!agents) return { ...prev, tick, players: next };
-  return { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } };
+  const moved: SimState = agents
+    ? { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } }
+    : { ...prev, tick, players: next };
+  // Everybody out of the vehicles' way (dodge.ts), after every vehicle has moved.
+  return stepDodge(world, before, moved);
 }
 
 /** The body a player controls right now: the walker on foot, else the car. For cameras, HUDs and AI. */

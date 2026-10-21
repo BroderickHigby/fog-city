@@ -54,8 +54,13 @@
 //  - All decisions read the previous state only (players and agents as of the last tick),
 //    so the order agents are processed in cannot change the result; agents are still
 //    processed in ascending id order.
+//
+// The dodge (v4, src/sim/dodge.ts): an agent with a DodgeState is diving out of a vehicle's
+// way or getting up after it. stepAgents leaves it exactly as it is (dodge.ts moves it), and
+// when it has recovered it carries on along its path from where it landed (s and lat from that
+// spot, so a walker drifts back to its sidewalk line).
 
-import { DT, sortedIds, type RngState, type SimState } from "./contract.ts";
+import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import {
@@ -87,8 +92,12 @@ import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
 
-/** What the agent is doing, for renderers (brake lights, hazards, a horn) and tests. */
-export type AgentMode = "go" | "yield" | "wait" | "honk" | "dwell";
+/**
+ * What the agent is doing, for renderers (brake lights, hazards, a horn, a dive) and tests.
+ * v4: "dive" (leaping out of a vehicle's way) and "recover" (getting up after it), with the
+ * details in AgentState.dodge.
+ */
+export type AgentMode = "go" | "yield" | "wait" | "honk" | "dwell" | "dive" | "recover";
 
 export interface AgentSpec {
   /** Drives on lanes (true) or walks on sidewalks (false). */
@@ -175,6 +184,14 @@ export const AGENT_SPEC: Readonly<Record<AgentKind, AgentSpec>> = {
   },
 };
 
+/** About this share of the people (by id) are children: smaller, and given a wider berth by the dodge (src/sim/dodge.ts). */
+export const CHILD_PERCENT = 5;
+
+/** Is person agent `id` a child? Fixed by the id (no state, no RNG draw), so every client agrees. */
+export function personIsChild(id: number): boolean {
+  return hash32(id, 0x0c41d) % 100 < CHILD_PERCENT;
+}
+
 export interface AgentState {
   id: number;
   kind: AgentKind;
@@ -219,6 +236,8 @@ export interface AgentState {
   mode: AgentMode;
   /** Per-agent PRNG state (rng.ts nextU32Word). */
   rng: number;
+  /** v4: diving out of a vehicle's way, or getting up after it (src/sim/dodge.ts), else null. */
+  dodge: DodgeState | null;
 }
 
 /** state.ext.agents */
@@ -334,6 +353,8 @@ interface Obs {
    * crosses); walkers look at robotaxis' (to wait at the kerb for a gap). Never their own kind's.
    */
   predicted?: boolean;
+  /** Someone on foot (a walker or a player's walker): robotaxis give them PERSON_BERTH_M more room. */
+  foot?: boolean;
 }
 
 interface Body {
@@ -414,10 +435,18 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
       road: false,
       box: { fx: dsin(c.heading), fz: -dcos(c.heading), hl: CAR.halfLength, hw: CAR.halfWidth },
     });
-    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false });
+    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false, foot: true });
   }
   return out;
 }
+
+/**
+ * Robotaxis yield to anyone on foot (people, robots, a player's walker) whose body comes within
+ * their probe plus this much more: their body keeps the dodge's margin (dodge.ts, 0.75 m) and a
+ * little slack from a walker's, so nobody needs to dive out of a robotaxi's way in normal
+ * traffic (the dodge is still there, on top, for when it does).
+ */
+export const PERSON_BERTH_M = 0.6;
 
 /** Seconds ahead a moving walker's position is projected (seen by robotaxis). */
 const WALKER_PREDICT_S: readonly number[] = [0.6, 1.2];
@@ -429,12 +458,12 @@ function agentObstacles(list: readonly AgentState[]): Obs[] {
   for (const a of list) {
     const spec = AGENT_SPEC[a.kind];
     const road = spec.road;
-    for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road });
+    for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, foot: !road });
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
       const hz = -dcos(a.heading);
       for (const t of road ? ROBOTAXI_PREDICT_S : WALKER_PREDICT_S) {
-        out.push({ x: a.x + hx * a.speed * t, z: a.z + hz * a.speed * t, r: spec.radius, id: a.id, player: false, road, predicted: true });
+        out.push({ x: a.x + hx * a.speed * t, z: a.z + hz * a.speed * t, r: spec.radius, id: a.id, player: false, road, predicted: true, foot: !road });
       }
     }
   }
@@ -630,6 +659,32 @@ function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Seg[] {
   return segs;
 }
 
+/**
+ * Points along the route ahead of an agent (its current lane, sidewalk or connector, then the
+ * planned connector and next lane), every `step` metres from where it is for up to `dist`
+ * metres: position, unit tangent, and the distance along the route. Fewer at a dead end. The
+ * dodge (dodge.ts) predicts a robotaxi along it, since that is exactly where it will drive.
+ */
+export function agentRoute(world: World, a: Readonly<AgentState>, dist: number, step: number): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
+  const g = world.roads;
+  const out: Array<{ x: number; z: number; tx: number; tz: number; d: number }> = [];
+  if (!g) return out;
+  const segs = routeAhead(g, a);
+  let si = 0;
+  let base = 0;
+  for (let d = 0; d <= dist + 1e-9 && si < segs.length; d += step) {
+    while (si < segs.length && d - base > segs[si]!.path.len - segs[si]!.from) {
+      base += Math.max(0, segs[si]!.path.len - segs[si]!.from);
+      si++;
+    }
+    if (si >= segs.length) break;
+    const sg = segs[si]!;
+    const q = pathPoint(sg.path, sg.from + d - base);
+    out.push({ x: q.x - q.tz * sg.lat, z: q.z + q.tx * sg.lat, tx: q.tx, tz: q.tz, d });
+  }
+  return out;
+}
+
 interface Hit {
   gap: number;
   id: number;
@@ -694,7 +749,7 @@ function probe(
     for (const o of near) {
       const dx = o.x - px;
       const dz = o.z - pz;
-      const lim = pr + o.r;
+      const lim = pr + o.r + (spec.road && o.foot ? PERSON_BERTH_M : 0);
       if (dx * dx + dz * dz >= lim * lim) continue;
       let gap: number;
       if (o.box) {
@@ -906,7 +961,7 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   const have = c.probes.get(id);
   if (have) return have;
   const a = c.byId.get(id);
-  if (!a || a.dwell > 0) return undefined;
+  if (!a || a.dwell > 0 || a.dodge !== null) return undefined;
   const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch);
   c.probes.set(id, p);
   return p;
@@ -1322,6 +1377,7 @@ function trySpawn(
       ghost: 0,
       mode: "go",
       rng: arng,
+      dodge: null,
     };
     return [agent, r];
   }
@@ -1424,7 +1480,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   const probes = new Map<number, ProbeResult>();
   const scratch: Obs[] = [];
   for (const a of ext.list) {
-    if (!stepDt.has(a.id) || a.dwell > 0) continue;
+    if (!stepDt.has(a.id) || a.dwell > 0 || a.dodge !== null) continue;
     probes.set(a.id, probe(g, a, hash, a.ghost > 0, scratch));
   }
 
@@ -1513,7 +1569,8 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
-    if (dt === undefined) {
+    // Not stepping this tick, or diving out of a vehicle's way (dodge.ts moves it).
+    if (dt === undefined || a.dodge !== null) {
       list.push(a);
       continue;
     }

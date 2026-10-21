@@ -1,21 +1,30 @@
-// SIM_VERSION 3 (qa/sim): the walker's vertical state (FootState.vy, FootState.grounded), the
-// ground on the mesh's triangles, roofs as surfaces and capped pushes. Saves from v1 and v2 load
-// through upgradeState; a recorded input log replays to the same state every time, through a
-// JSON round trip mid-run; and the v3 replay is pinned, so a later change to what the sim does
-// with the same inputs shows up here (and needs the next SIM_VERSION).
+// SIM_VERSION 4 (feature/dodge, the owner's Crazy Taxi rule): nobody is ever run over. Cars
+// gained nearMisses, walkers and ambient agents a dodge state, ext.dodge its counters; cars no
+// longer stop at people (they dive out of the way, src/sim/dodge.ts). Saves from v1, v2 and v3
+// load through upgradeState (v3 -> v4 checked as an exact round trip of a real state); recorded
+// input logs replay to the same state every time, through a JSON round trip mid-run, one of
+// them with people diving out of a car's way; and both v4 replays are pinned, so a later change
+// to what the sim does with the same inputs shows up here (and needs the next SIM_VERSION).
+// (v3, qa/sim, added the walker's vertical state, the ground on the mesh's triangles, roofs as
+// surfaces and capped pushes: the v2 -> v3 lift is still checked below.)
 import { describe, expect, it } from "vitest";
 import {
+  AGENTS_EXT_KEY,
   Action,
   SIM_VERSION,
+  agentsOf,
   canonicalJson,
   createInitialState,
+  dodgeExtOf,
   hashState,
+  makeFoot,
   step,
   upgradeState,
+  type AgentsExt,
   type InputFrame,
   type SimState,
 } from "../../src/sim/index.ts";
-import { loadDevWorldWithRoads, LONG_RUN_MS } from "./fixtures.ts";
+import { gridCity, loadDevWorldWithRoads, LONG_RUN_MS } from "./fixtures.ts";
 
 /** Two players: p1 drives, gets out, walks and sprints about, gets back in; p2 drives. */
 function inputsAt(t: number): InputFrame {
@@ -44,12 +53,32 @@ function replay(ticks: number, roundTripAt = -1): { state: SimState; hashes: str
   return { state: s, hashes, footTicks };
 }
 
-describe("SIM_VERSION 3", () => {
-  it("is 3", () => {
-    expect(SIM_VERSION).toBe(3);
+/**
+ * The dodge replay: on the grid city with its traffic, p1 drives east along the south sidewalk
+ * of the z = 100 street (steering to hold z = 106) while p2 stands on it on foot ahead; people
+ * and robots on the sidewalk dive out of the way.
+ */
+function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes: string[] } {
+  const world = gridCity(true);
+  let s: SimState = createInitialState(world, 9, ["p1", "p2"], { x: 20, z: 106, heading: Math.PI / 2 });
+  s = { ...s, players: { ...s.players, p2: { ...s.players.p2!, mode: "foot", car: { ...s.players.p2!.car, x: 50, z: 150 }, foot: makeFoot(150, 0, 106.2, 0) } } };
+  const hashes: string[] = [];
+  for (let t = 0; t < ticks; t++) {
+    const c = s.players.p1!.car;
+    const steer = Math.max(-1, Math.min(1, -((106 - c.z) * 0.08 - Math.sin(c.heading - Math.PI / 2) * 1.5)));
+    s = step(world, s, { p1: { throttle: 0.8, steer, brake: 0, actions: 0 } });
+    if (t === roundTripAt) s = JSON.parse(canonicalJson(s)) as SimState;
+    if (t % 100 === 99) hashes.push(hashState(s));
+  }
+  return { state: s, hashes };
+}
+
+describe("SIM_VERSION 4", () => {
+  it("is 4", () => {
+    expect(SIM_VERSION).toBe(4);
   });
 
-  it("upgradeState lifts a v2 walker to v3: standing (grounded, vy 0) where it was saved", () => {
+  it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
     const v2 = {
       version: 2,
       tick: 77,
@@ -61,19 +90,39 @@ describe("SIM_VERSION 3", () => {
       },
       ext: { keep: { me: 1 } },
     } as unknown as SimState;
-    const v3 = upgradeState(v2);
-    expect(v3.version).toBe(3);
-    expect(v3.players.a!.foot).toEqual({ x: 3, y: 1.5, z: -4, heading: 0.2, speed: 1.2, sprint: false, vy: 0, grounded: true });
-    expect(v3.players.b!.foot).toBeNull();
-    expect(v3.players.b!.car).toEqual(v2.players.b!.car);
-    expect(v3.ext).toEqual(v2.ext);
-    expect(v3.tick).toBe(77);
-    expect(upgradeState(v3)).toBe(v3);
+    // (A v2 car has no v4 field.)
+    for (const p of Object.values(v2.players)) delete (p.car as Partial<typeof p.car>).nearMisses;
+    const v4 = upgradeState(v2);
+    expect(v4.version).toBe(4);
+    expect(v4.players.a!.foot).toEqual({ x: 3, y: 1.5, z: -4, heading: 0.2, speed: 1.2, sprint: false, vy: 0, grounded: true, dodge: null });
+    expect(v4.players.b!.foot).toBeNull();
+    expect(v4.players.b!.car).toEqual({ ...v2.players.b!.car, nearMisses: 0 });
+    expect(v4.ext).toEqual(v2.ext);
+    expect(v4.tick).toBe(77);
+    expect(upgradeState(v4)).toBe(v4);
     // Plain JSON, and it steps.
-    expect(JSON.parse(canonicalJson(v3))).toEqual(v3);
-    expect(() => step(loadDevWorldWithRoads().world, v3, {})).not.toThrow();
+    expect(JSON.parse(canonicalJson(v4))).toEqual(v4);
+    expect(() => step(loadDevWorldWithRoads().world, v4, {})).not.toThrow();
     // A version from the future is refused.
-    expect(() => upgradeState({ ...v3, version: 4 })).toThrow();
+    expect(() => upgradeState({ ...v4, version: 5 })).toThrow();
+  });
+
+  it("upgradeState lifts a real v3 state (players, a walker, traffic) to exactly the v4 state it came from", () => {
+    // Run the sim, then strip what v4 added (nobody is mid-dive in this run): that is a v3 save.
+    const { world, spawn } = loadDevWorldWithRoads();
+    let s = createInitialState(world, 42, ["p1", "p2"], spawn);
+    for (let t = 0; t < 400; t++) s = step(world, s, inputsAt(t));
+    expect(s.players.p1!.mode).toBe("foot");
+    expect(agentsOf(s).length).toBeGreaterThan(10);
+    expect(agentsOf(s).every((a) => a.dodge === null)).toBe(true);
+    const v3 = JSON.parse(canonicalJson(s)) as SimState & { version: number };
+    v3.version = 3;
+    for (const p of Object.values(v3.players)) {
+      delete (p.car as Partial<typeof p.car>).nearMisses;
+      if (p.foot) delete (p.foot as Partial<typeof p.foot>).dodge;
+    }
+    for (const a of (v3.ext[AGENTS_EXT_KEY] as AgentsExt).list) delete (a as Partial<typeof a>).dodge;
+    expect(canonicalJson(upgradeState(v3))).toBe(canonicalJson(s));
   });
 
   it(
@@ -89,13 +138,32 @@ describe("SIM_VERSION 3", () => {
   );
 
   it(
-    "the v3 replay is pinned (a change here needs the next SIM_VERSION)",
+    "a car driven along a crowded sidewalk replays identically, dives and all, through a JSON round trip mid-run",
     () => {
-      expect(replay(1500).hashes).toEqual(PINNED_V3);
+      const a = dodgeReplay(600);
+      const b = dodgeReplay(600, 333);
+      const d = dodgeExtOf(a.state);
+      expect(d.dives).toBeGreaterThanOrEqual(2);
+      expect(d.contacts).toBe(0);
+      expect(a.state.players.p1!.car.personBumps).toBe(0);
+      expect(a.state.players.p1!.car.nearMisses).toBe(d.nearMisses);
+      expect(b.hashes).toEqual(a.hashes);
+      expect(hashState(b.state)).toBe(hashState(a.state));
+    },
+    LONG_RUN_MS,
+  );
+
+  it(
+    "the v4 replays are pinned (a change here needs the next SIM_VERSION)",
+    () => {
+      expect(replay(1500).hashes).toEqual(PINNED_V4);
+      expect(dodgeReplay(600).hashes).toEqual(PINNED_V4_DODGE);
     },
     LONG_RUN_MS,
   );
 });
 
-/** hashState every 300 ticks of the replay above, recorded at SIM_VERSION 3. */
-const PINNED_V3: string[] = ["f70c31aa", "36d2fc7b", "22560051", "c8eb268f", "020ec0c2"];
+/** hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4. */
+const PINNED_V4: string[] = ["dea60cbb", "a72448ec", "87c3bac2", "85373060", "6321f181"];
+/** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4. */
+const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "416d05c2", "2b7f448e", "8f9ff444", "640f54c3"];

@@ -184,22 +184,48 @@ describe("walking", () => {
     expect(s.tick).toBe(121);
   });
 
-  it("the walker stays out of the car's way: robotaxis and other cars treat a walker as a person", () => {
-    // Two players: p2 parks, gets out and stands in front of p1, who drives at them.
+  it("a walker dives out of another player's car's way (v4, the owner's Crazy Taxi rule): the car never touches, stops for or swerves round them", () => {
+    // Two players: p2 parks, gets out and stands in front of p1, who drives at them. (Until v4
+    // the car stopped at the walker with a personBump; now people are not obstacles to cars and
+    // the walker dives clear, src/sim/dodge.ts.)
     const world = wall;
     let s = createInitialState(world, 1, ["p1", "p2"], { x: 0, z: 0, heading: 0 });
     s = step(world, s, { p2: { throttle: 0, steer: 0, brake: 0, actions: Action.enterExit } });
     const w = s.players.p2!.foot!;
     expect(s.players.p2!.mode).toBe("foot");
-    // p1 starts 30 m west of the walker, heading east at them (p2's car is beyond the walker).
+    // p2's parked car goes well out of the way so only the walker is in p1's path.
+    s = { ...s, players: { ...s.players, p2: { ...s.players.p2!, car: { ...s.players.p2!.car, x: w.x + 200, z: w.z + 30 } } } };
+    // p1 starts 30 m west of the walker, heading east at them.
     s = { ...s, players: { ...s.players, p1: { ...s.players.p1!, car: { ...s.players.p1!.car, x: w.x - 30, z: w.z, heading: Math.PI / 2 } } } };
-    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 300);
+    let minClear = Infinity;
+    let dived = false;
+    let lastSpeed = s.players.p1!.car.speed;
+    let slowed = 0;
+    let touched = 0;
+    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 300, (k) => {
+      const c = k.players.p1!.car;
+      const f = k.players.p2!.foot!;
+      if (f.dodge) dived = true;
+      minClear = Math.min(minClear, distanceToCar(c, f.x, f.z) - FOOT.radius);
+      if (c.speed < lastSpeed) slowed++;
+      if (c.sinceContact === 0) touched++;
+      lastSpeed = c.speed;
+    });
+    expect(slowed).toBe(0);
+    expect(touched).toBe(0);
     const c = s.players.p1!.car;
-    expect(c.personBumps).toBe(1);
+    expect(dived).toBe(true);
+    expect(c.personBumps).toBe(0);
     expect(c.hits).toBe(0);
-    expect(c.x + CAR.halfLength).toBeLessThan(w.x - FOOT.radius + 0.05);
-    // The walker was not moved by the car.
-    expect(s.players.p2!.foot!.x).toBe(w.x);
+    expect(c.nearMisses).toBe(1);
+    expect(minClear).toBeGreaterThanOrEqual(0.75);
+    // The car drove on past where the walker stood, straight, never slowed by them.
+    expect(c.x - CAR.halfLength).toBeGreaterThan(w.x + 5);
+    expect(Math.abs(c.z - w.z)).toBeLessThan(1e-6);
+    // The walker landed clear and stood up again, in control.
+    const f = s.players.p2!.foot!;
+    expect(f.dodge).toBeNull();
+    expect(Math.abs(f.z - w.z)).toBeGreaterThan(CAR.halfWidth + FOOT.radius + 0.75);
   });
 });
 
@@ -215,7 +241,7 @@ describe("walls between the car and the walker", () => {
   const thin = buildWorld([{ tileId: "thin", buildings: [box("thin", -1.35, -6, -1.0, 6)], ground: null }]);
   const onFoot = (s: SimState, x: number, z: number): SimState => ({
     ...s,
-    players: { p1: { ...s.players.p1!, mode: "foot", foot: { x, y: 0, z, heading: 0, speed: 0, sprint: false, vy: 0, grounded: true }, exitPending: false } },
+    players: { p1: { ...s.players.p1!, mode: "foot", foot: { x, y: 0, z, heading: 0, speed: 0, sprint: false, vy: 0, grounded: true, dodge: null }, exitPending: false } },
   });
 
   it("F never puts the walker on the far side of a wall: it uses the next clear side", () => {

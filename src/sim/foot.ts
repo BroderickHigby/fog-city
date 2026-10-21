@@ -59,7 +59,7 @@ export const FOOT = {
 } as const;
 
 export function makeFoot(x: number, y: number, z: number, heading: number): FootState {
-  return { x, y, z, heading: wrapAngle(heading), speed: 0, sprint: false, vy: 0, grounded: true };
+  return { x, y, z, heading: wrapAngle(heading), speed: 0, sprint: false, vy: 0, grounded: true, dodge: null };
 }
 
 /** The walker's band for building checks: feet plus the step onto a roof, to the top of the head. */
@@ -92,8 +92,8 @@ export function stepFoot(
     const s1 = surfaceHeight(world, res.x, res.z, f.y);
     // What it achieved along the heading, never more than it had: a push is not a stride.
     const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, f.speed < 0 ? f.speed : 0, f.speed > 0 ? f.speed : 0);
-    if (yB <= s1) return { x: res.x, y: s1, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: 0, grounded: true };
-    return { x: res.x, y: yB, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: vyB, grounded: false };
+    if (yB <= s1) return { x: res.x, y: s1, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: 0, grounded: true, dodge: null };
+    return { x: res.x, y: yB, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: vyB, grounded: false, dodge: null };
   }
 
   const sprint = input.brake > 0.5 && input.throttle > 0.1;
@@ -146,12 +146,12 @@ export function stepFoot(
     const vy0 = f.vy < 0 ? f.vy : 0;
     const vyB = vy0 - FOOT.gravity * DT;
     const yB = f.y + vyB * DT;
-    if (yB > s1) return { x: res.x, y: yB, z: res.z, heading, speed, sprint, vy: vyB, grounded: false };
+    if (yB > s1) return { x: res.x, y: yB, z: res.z, heading, speed, sprint, vy: vyB, grounded: false, dodge: null };
   }
   // On the surface: its rise along the walk, as a rate, limited to what walking can climb.
   const lim = (moved / DT) * FOOT.maxGrade;
   const vy = clamp((s1 - f.y) / DT, -lim, lim);
-  return { x: res.x, y: s1, z: res.z, heading, speed, sprint, vy: vy + 0, grounded: true };
+  return { x: res.x, y: s1, z: res.z, heading, speed, sprint, vy: vy + 0, grounded: true, dodge: null };
 }
 
 /** Distance from a point to the car's body rectangle (0 inside). */
