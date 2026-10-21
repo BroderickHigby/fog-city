@@ -363,7 +363,9 @@ def bay_turret() -> dict:
 
 # ---------------------------------------------------------------------------------- stoop
 
-STOOP = {"riseM": 0.18, "goingM": 0.28, "landingM": 1.2, "minRisers": 2, "maxRisers": 16, "cheekM": 0.25, "cheekTopM": 0.9,
+# maxRisers at maxRiserM is the highest a straight stoop climbs (3.04 m): above that the
+# renderer draws a garage or entry storey with a door at the sidewalk (K7), not a stoop.
+STOOP = {"riseM": 0.18, "maxRiserM": 0.19, "goingM": 0.28, "landingM": 1.2, "minRisers": 2, "maxRisers": 16, "cheekM": 0.25, "cheekTopM": 0.9,
          "doorWidthM": 1.1, "doorHeightM": 2.45, "railM": 0.9}
 
 
@@ -513,7 +515,9 @@ def cornice(name: str, brackets: int, dentils: int) -> dict:
 
 # --------------------------------------------------------------------------------- stairs
 
-STAIRS = {"riseM": 0.165, "goingM": 0.3, "maxRisersPerFlight": 16, "landingM": 1.5, "minGrade": 0.12, "curbM": 0.3, "railM": 0.95,
+# A flight climbs at most maxRisersPerFlight risers between landings (landingM long, shorter
+# only where the run leaves no room for minGoingM treads).
+STAIRS = {"riseM": 0.165, "goingM": 0.3, "minGoingM": 0.25, "maxRisersPerFlight": 16, "landingM": 1.5, "minGrade": 0.12, "curbM": 0.3, "railM": 0.95,
           "texture": "house-kit/stair-treads.png", "textureRunM": 0.3}
 
 

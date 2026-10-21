@@ -115,27 +115,41 @@ export interface StoopPlan {
   goingM: number;
   /** How far the stoop reaches out from the wall, metres. */
   reachM: number;
+  /**
+   * The first floor is too high for a straight stoop (more than maxRisers risers of maxRiserM):
+   * no stoop is laid, the door stands at the sidewalk, and the renderer draws a garage or entry
+   * storey over the riseM-high plinth instead of a blank band (house-kit-spec K7).
+   */
+  entryStorey: boolean;
   instances: Instance[];
 }
 
 /**
  * A straight stoop from the sidewalk up to the door: a landing at the door, then treads down
- * and out toward the street, every riser the same height (about 0.18 m), solid down below the
- * sidewalk; cheek walls either side whose tops follow the stair, sheared; the door frame at
- * the threshold. Below stoopMinRiseM it is the door and a step or two, without cheeks.
+ * and out toward the street, every riser the same height (about 0.18 m, never over maxRiserM),
+ * solid down below the sidewalk; cheek walls either side whose tops follow the stair, sheared;
+ * the door frame at the threshold. Below stoopMinRiseM it is the door and a step or two,
+ * without cheeks. Above maxRisers x maxRiserM there is no stoop: see StoopPlan.entryStorey.
  */
 export function stoopLayout(kit: KitDoc, o: StoopOptions): StoopPlan {
   const s = kit.prototypes["stoop"]!;
   const rise = Math.max(0, o.riseM);
   const riseM = s.riseM as number;
+  const maxRiser = s.maxRiserM as number;
   const going = s.goingM as number;
   const landing = s.landingM as number;
   const width = o.widthM ?? (s.doorWidthM as number) + 0.4;
   const cheek = s.cheekM as number;
   const cheekTop = s.cheekTopM as number;
+  if (rise < 0.1) return { risers: 0, riserM: 0, goingM: going, reachM: 0, entryStorey: false, instances: [{ proto: "stoop", node: "door", matrix: affine([o.x, rise, 0], [1, 1, 1]) }] };
+  // risers of about riseM, never more than maxRisers, and as many as keeps each at most maxRiserM
+  const maxRisers = s.maxRisers as number;
+  const least = Math.ceil(rise / maxRiser - 1e-9);
+  const n = Math.max(Math.min(Math.round(rise / riseM), maxRisers), least, 1);
+  if (least > maxRisers) {
+    return { risers: 0, riserM: 0, goingM: going, reachM: 0, entryStorey: true, instances: [{ proto: "stoop", node: "door", matrix: affine([o.x, 0, 0], [1, 1, 1]) }] };
+  }
   const out: Instance[] = [{ proto: "stoop", node: "door", matrix: affine([o.x, rise, 0], [1, 1, 1]) }];
-  if (rise < 0.1) return { risers: 0, riserM: 0, goingM: going, reachM: 0, instances: out };
-  const n = Math.min(Math.max(Math.round(rise / riseM), 1), s.maxRisers as number);
   const r = rise / n;
   const sink = 0.3;
   out.push({ proto: "stoop", node: "landing", matrix: affine([o.x, rise, 0], [width, rise + sink, landing]) });
@@ -159,7 +173,7 @@ export function stoopLayout(kit: KitDoc, o: StoopOptions): StoopPlan {
       }
     }
   }
-  return { risers: n, riserM: r, goingM: going, reachM: reach, instances: out };
+  return { risers: n, riserM: r, goingM: going, reachM: reach, entryStorey: false, instances: out };
 }
 
 // -------------------------------------------------------------------------- roofline
@@ -185,6 +199,8 @@ export interface StairPlan {
   risers: number;
   maxRiserM: number;
   minGoingM: number;
+  /** Risers per flight, in path order (a flight ends at a landing or a flat). */
+  flights: number[];
   instances: Instance[];
 }
 
@@ -192,15 +208,22 @@ export interface StairPlan {
  * Steps along a path profile [[s, y], ...] (distance along the path, height), for a public
  * stairway: wherever the grade reaches minGrade, the rise is split into equal risers of about
  * riseM spread evenly over that run, tread tops following the profile within a riser; flatter
- * stretches are landings. Every block is solid down to below the lowest ground under it. A
- * curb runs along each side; handrails on request.
+ * stretches are landings. A climb of more than maxRisersPerFlight risers is broken by landings
+ * (landingM long, shorter only where the run leaves no room for minGoingM treads), the first
+ * and last flights half as long as the others, so the steps' sawtooth stays centred on the
+ * path. Every block is solid down to below the lowest ground under it. A curb runs along each
+ * side; handrails on request.
  */
 export function stairLayout(kit: KitDoc, profile: ReadonlyArray<readonly [number, number]>, widthM: number, handrails = false): StairPlan {
   const st = kit.prototypes["stair-flight"]!;
   const riseM = st.riseM as number;
   const minGrade = st.minGrade as number;
   const curb = st.curbM as number;
+  const maxPer = st.maxRisersPerFlight as number;
+  const landingM = st.landingM as number;
+  const minGoingM = st.minGoingM as number;
   const out: Instance[] = [];
+  const flights: number[] = [];
   let risers = 0;
   let maxRiser = 0;
   let minGoing = Infinity;
@@ -217,15 +240,38 @@ export function stairLayout(kit: KitDoc, profile: ReadonlyArray<readonly [number
       continue;
     }
     const n = Math.max(1, Math.round(Math.abs(dy) / riseM));
-    const r = dy / n;
-    const g = ds / n;
+    const r = Math.abs(dy) / n;
+    // landings: none up to maxPer risers, one in the middle up to 2 maxPer, else n / maxPer of
+    // them with the end flights half as long
+    const k = n <= maxPer ? 0 : n <= 2 * maxPer ? 1 : Math.ceil(n / maxPer);
+    const L = k > 0 ? Math.max(0, Math.min(landingM, (ds - n * minGoingM) / k)) : 0;
+    const g = (ds - k * L) / n;
+    const breaks = new Set<number>();
+    for (let j = 1; j <= k; j++) breaks.add(Math.round(((j - 0.5) * n) / k));
     risers += n;
-    maxRiser = Math.max(maxRiser, Math.abs(r));
+    maxRiser = Math.max(maxRiser, r);
     minGoing = Math.min(minGoing, g);
-    for (let k = 0; k < n; k++) {
-      const top = y0 + (k + (r > 0 ? 1 : 0)) * r;
-      out.push({ proto: "stair-flight", node: "step", matrix: affine([0, top, -(s0 + k * g)], [widthM, top - low + sink, g]) });
+    // laid from the low end up (u: metres from the low end along the climb); each tread has
+    // its riser on its low side, as a walker climbing meets it
+    const place = (node: string, u0: number, u1: number, top: number): void => {
+      const start = dy > 0 ? s0 + u0 : s1 - u1;
+      out.push({ proto: "stair-flight", node, matrix: affine([0, top, -start], [widthM, top - low + sink, u1 - u0]) });
+    };
+    let u = 0;
+    let last = 0;
+    const segFlights: number[] = [];
+    for (let q = 0; q < n; q++) {
+      if (q > 0 && breaks.has(q)) {
+        place("landing", u, u + L, low + q * r);
+        u += L;
+        segFlights.push(q - last);
+        last = q;
+      }
+      place("step", u, u + g, low + (q + 1) * r);
+      u += g;
     }
+    segFlights.push(n - last);
+    flights.push(...(dy > 0 ? segFlights : segFlights.reverse()));
     for (const side of [-1, 1]) {
       const cx = side * (widthM / 2 + curb / 2);
       const t0 = y0 + 0.15;
@@ -233,7 +279,7 @@ export function stairLayout(kit: KitDoc, profile: ReadonlyArray<readonly [number
       if (handrails) out.push({ proto: "stair-flight", node: "handrail", matrix: affine([cx, y0 + 0.15 + (st.railM as number), -s0], [1, st.railM as number, ds], -dy) });
     }
   }
-  return { risers, maxRiserM: maxRiser, minGoingM: Number.isFinite(minGoing) ? minGoing : 0, instances: out };
+  return { risers, maxRiserM: maxRiser, minGoingM: Number.isFinite(minGoing) ? minGoing : 0, flights, instances: out };
 }
 
 // ------------------------------------------------------------------------- roof props

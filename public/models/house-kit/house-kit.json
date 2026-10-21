@@ -109,6 +109,7 @@
     "stoop": {
       "kind": "stoop",
       "riseM": 0.18,
+      "maxRiserM": 0.19,
       "goingM": 0.28,
       "landingM": 1.2,
       "minRisers": 2,
@@ -303,6 +304,7 @@
       "kind": "stairs",
       "riseM": 0.165,
       "goingM": 0.3,
+      "minGoingM": 0.25,
       "maxRisersPerFlight": 16,
       "landingM": 1.5,
       "minGrade": 0.12,

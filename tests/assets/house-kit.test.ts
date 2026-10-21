@@ -200,6 +200,31 @@ describe("stoops and entries (K7, W-50)", () => {
     const tall = stoopLayout(KIT, { riseM: 2.9, x: 0 });
     expect(tall.reachM).toBeLessThan(6.0); // fits a SF front setback and sidewalk
   });
+
+  it("every riser is at most 0.19 m up to the highest straight stoop (16 x 0.19 m); above that the plan asks for an entry storey, not a steeper stoop", () => {
+    const s = KIT.prototypes["stoop"]!;
+    const maxRiser = s.maxRiserM as number;
+    const highest = (s.maxRisers as number) * maxRiser;
+    expect(maxRiser).toBe(0.19);
+    expect(highest).toBeCloseTo(3.04, 6);
+    for (let cm = 12; cm <= 304; cm++) {
+      const rise = cm / 100;
+      const plan = stoopLayout(KIT, { riseM: rise, x: 0 });
+      expect(plan.entryStorey, `rise ${rise}`).toBe(false);
+      expect(plan.riserM, `rise ${rise}`).toBeLessThanOrEqual(maxRiser + 1e-9);
+      if (rise >= 1) expect(plan.riserM, `rise ${rise}`).toBeGreaterThanOrEqual(0.15);
+      expect(plan.risers).toBeLessThanOrEqual(s.maxRisers as number);
+      expect(plan.risers * plan.riserM).toBeCloseTo(rise, 6);
+    }
+    for (const rise of [3.05, 3.2, 3.5, 4.2, 5.0, 6.5]) {
+      const plan = stoopLayout(KIT, { riseM: rise, x: 1.5 });
+      expect(plan.entryStorey, `rise ${rise}`).toBe(true);
+      expect(plan.risers).toBe(0);
+      // no stoop: the door stands at the sidewalk, into the entry storey the renderer draws
+      expect(plan.instances.map((i) => i.node)).toEqual(["door"]);
+      expect(apply(plan.instances[0]!.matrix, [0, 0, 0])).toEqual([1.5, 0, 0]);
+    }
+  });
 });
 
 describe("roofs (K8, W-38)", () => {
@@ -258,25 +283,66 @@ describe("public stairways (W-33)", () => {
     [94, 37.6],
   ];
 
-  it("steps the climb in equal risers of about 0.165 m with treads of 0.25 m or more, landings on the flats", () => {
+  /** The path's height and grade at s. */
+  const pathAt = (prof: ReadonlyArray<readonly [number, number]>, s: number): [number, number] => {
+    for (let k = 0; k + 1 < prof.length; k++) {
+      const [s0, y0] = prof[k]!;
+      const [s1, y1] = prof[k + 1]!;
+      if (s >= s0 - 1e-9 && s <= s1 + 1e-9) return [y0 + ((y1 - y0) * (s - s0)) / (s1 - s0), Math.abs(y1 - y0) / (s1 - s0)];
+    }
+    return [prof[prof.length - 1]![1], 0];
+  };
+  /** Steps and landings in path order: the longest run of steps with no landing between them. */
+  const longestFlight = (plan: ReturnType<typeof stairLayout>): number => {
+    const blocks = plan.instances.filter((i) => i.node === "step" || i.node === "landing").sort((a, b) => b.matrix[14]! - a.matrix[14]!);
+    let run = 0;
+    let best = 0;
+    for (const b of blocks) {
+      run = b.node === "step" ? run + 1 : 0;
+      best = Math.max(best, run);
+    }
+    return best;
+  };
+
+  it("steps the climb in equal risers of about 0.165 m with treads of 0.25 m or more, landings on the flats and at most 16 risers to a flight", () => {
+    const st = KIT.prototypes["stair-flight"]!;
+    const maxPer = st.maxRisersPerFlight as number;
     const plan = stairLayout(KIT, profile, 2.4, true);
     expect(plan.risers).toBeGreaterThan(150);
     expect(plan.maxRiserM).toBeLessThanOrEqual(0.19);
     expect(plan.minGoingM).toBeGreaterThanOrEqual(0.25);
+    // each 9 m climb is 53-55 risers: five flights of at most 16, so four landings in each,
+    // besides the four flats
+    expect(plan.flights.reduce((a, b) => a + b, 0)).toBe(plan.risers);
+    expect(Math.max(...plan.flights)).toBeLessThanOrEqual(maxPer);
+    expect(longestFlight(plan)).toBeLessThanOrEqual(maxPer);
     const landings = plan.instances.filter((i) => i.node === "landing");
-    expect(landings).toHaveLength(4);
-    // every tread's top is within a riser of the path's own height there (the walker stays on the steps)
-    for (const st of plan.instances.filter((i) => i.node === "step")) {
-      const s = -st.matrix[14]!; // the tread's start along the path
-      let y = profile[0]![1];
-      for (let k = 0; k + 1 < profile.length; k++) {
-        const [s0, y0] = profile[k]!;
-        const [s1, y1] = profile[k + 1]!;
-        if (s >= s0 && s <= s1) y = y0 + ((y1 - y0) * (s - s0)) / (s1 - s0);
-      }
-      expect(Math.abs(st.matrix[13]! - y)).toBeLessThanOrEqual(0.2);
+    expect(landings).toHaveLength(4 + 3 * 4);
+    for (const l of landings) expect(l.matrix[10]!).toBeGreaterThanOrEqual((st.landingM as number) - 1e-9); // full-length landings: the run leaves room
+    // every tread's top stays near the path's own height there (the walker stays on the steps):
+    // within a riser, plus half of what the path climbs over a landing (the steps' sawtooth is
+    // centred on the path)
+    for (const t of plan.instances.filter((i) => i.node === "step")) {
+      const [y, grade] = pathAt(profile, -t.matrix[14]!); // the tread's start along the path
+      expect(Math.abs(t.matrix[13]! - y)).toBeLessThanOrEqual(plan.maxRiserM + ((st.landingM as number) * grade) / 2 + 0.02);
     }
     expect(plan.instances.filter((i) => i.node === "handrail").length).toBeGreaterThan(0);
+  });
+
+  it("a climb of up to 16 risers is one flight whose tread tops stay within 0.2 m of the path, climbing or descending", () => {
+    for (const prof of [
+      [[0, 0], [3, 0.05], [7, 2.5], [10, 2.55]],
+      [[0, 2.55], [3, 2.5], [7, 0.05], [10, 0]],
+    ] as Array<Array<[number, number]>>) {
+      const plan = stairLayout(KIT, prof, 2.0);
+      expect(plan.flights).toEqual([15]);
+      expect(longestFlight(plan)).toBe(15);
+      expect(plan.instances.filter((i) => i.node === "landing")).toHaveLength(2); // the two flats
+      for (const t of plan.instances.filter((i) => i.node === "step")) {
+        const [y] = pathAt(prof, -t.matrix[14]!); // at the tread's start, as for the long climb
+        expect(Math.abs(t.matrix[13]! - y)).toBeLessThanOrEqual(0.2);
+      }
+    }
   });
 
   it("stair-treads.png tiles one tread per 0.30 m run, the nosing a dark row at the image's bottom", () => {
