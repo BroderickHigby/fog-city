@@ -514,9 +514,7 @@ export const ROBOTAXI_SLOW_BERTH_M = 0.75;
 export const ROBOTAXI_SLOW_BERTH_CHILD_M = 1.25;
 export const ROBOTAXI_STOP_BERTH_M = 0.33;
 export const ROBOTAXI_STOP_BERTH_CHILD_M = 0.63;
-export const ROBOTAXI_CREEP_MPS = 1.5;
-/** A robotaxi slower than this is standing (the dodge counts it as stopped below 0.3 m/s). */
-const ROBOTAXI_STOPPED_MPS = 0.05;
+export const ROBOTAXI_CREEP_MPS = 0.9;
 /** Walkers keep this much further from a moving robotaxi's drawn body than from a stopped one's, metres. */
 export const WALKER_TAXI_BERTH_M = 0.4;
 /** A robotaxi slower than this is stopped for the walkers' berth, m/s. */
@@ -587,9 +585,9 @@ function berthLimit(c: Ctx, a: Readonly<AgentState>, dt: number): number {
     const slow = (o.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M;
     const stop = (o.child ? ROBOTAXI_STOP_BERTH_CHILD_M : ROBOTAXI_STOP_BERTH_M) + BERTH_SLACK_M;
     const now = clear(o, poses[0]!);
-    // Someone within the stop berth already: it does not set off (moving at all, it would be a
-    // moving vehicle within the override's clearance of them).
-    if (now < stop && a.speed <= ROBOTAXI_STOPPED_MPS) return 0;
+    // Someone within the stop berth already: it does not set off, or stops (moving at all, it
+    // would be a moving vehicle within the override's clearance of them).
+    if (now < stop) return 0;
     for (const p of poses) {
       const d = clear(o, p);
       if (p.d > 0 && p.d <= step + 1e-9 && d < stop && d < now - 1e-6) return 0;

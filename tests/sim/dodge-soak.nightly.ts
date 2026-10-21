@@ -75,9 +75,9 @@ describe.skipIf(!SF)("the clearance soak on the real city (nightly)", () => {
     expect(bad).toEqual([]);
   }, 3_600_000);
 
-  it("chase and weave drivers in the narrow places (Chinatown's alleys, Lombard's crooked block), 60 s each, two seeds", () => {
+  it("chase and weave drivers in the narrow places (Chinatown's alleys, Lombard's crooked block), 60 s each, three seeds", () => {
     const bad: string[] = [];
-    for (const seed of [7, 8]) {
+    for (const seed of [3, 7, 8]) {
       for (const st of narrow) {
         for (const driver of ["chase", "weave"] as const) {
           const r = soak(world, st, driver, 3600, seed);

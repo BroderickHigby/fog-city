@@ -30,7 +30,9 @@
 //  3. The reach of a vehicle: where its body can be by the end of its next step. A player's car:
 //     its body at the middle of that step grown by half its travel (every point it can slide
 //     to, along a wall or off another car, lies in the disc whose diameter is its velocity's
-//     step), its speed change and its turn, and any overlap that can shove it. A robotaxi near
+//     step), its speed change and its turn, any overlap that can shove it (another car, a
+//     building it was placed in), and, when it can touch something on that step, the turn its
+//     nose makes toward its slide as it scrapes (carVehicle, vehicleOfCar). A robotaxi near
 //     anyone: its exact poses along its route over the step (routeReach; a connector's vertices
 //     turn it at once). (Vehicle.mx..zone, zoneDistance.) A body's own dive step never ends
 //     deeper in a vehicle's reach than its clearance (it stops short and is re-aimed next tick),
@@ -64,6 +66,7 @@ import { DT, sortedIds, type CarState, type DodgeState, type FootState, type Pla
 import { clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { hash32 } from "./rng.ts";
 import { CAR, carCircles } from "./car.ts";
+import { boxBlocked, type Circle } from "./collide.ts";
 import { FOOT } from "./foot.ts";
 import {
   AGENTS_EXT_KEY,
@@ -88,7 +91,7 @@ import { ROOF_STEP_M, cellKey, circleBlocked, circleBlockedBand, meshGroundHeigh
 // ---------------------------------------------------------------- tuning (the guarantee is not tunable)
 
 /** Vehicles slower than this threaten nobody (the override still keeps bodies out of their reach). */
-export const DODGE_MIN_SPEED = 2;
+export const DODGE_MIN_SPEED = 1;
 /**
  * A vehicle no point of whose body moves faster than this (by its velocity and yaw rate, or as
  * it moved over its last step) is stopped for the override: only its reach and STOPPED_CLEAR_M count.
@@ -285,8 +288,8 @@ export interface Vehicle {
   moving: boolean;
   /**
    * Its reach over its next step (zoneDistance): its body at the middle of that step (centre mx,
-   * mz, forward mfx, mfz) grown by `inflate` (half its travel, its speed change, its turn, and a
-   * shove by a body overlapping it).
+   * mz, forward mfx, mfz) grown by `inflate` (half its travel, its speed change, its turn, a
+   * shove out of whatever overlaps it, and its nose turning as it scrapes along something).
    */
   mx: number;
   mz: number;
@@ -402,22 +405,74 @@ export function makeVehicle(
 /**
  * A player's car as a vehicle: velocity from speed and slide, yaw rate from the car, its
  * footprint widening PLAYER_SPREAD_MPS. `prev` is the car a tick before (how fast it moved).
+ *
+ * Given the world and the circles it collides with (other players' cars, robots, robotaxis, as
+ * step.ts hands them to car.ts), its reach also holds what a collision can do to it over its
+ * next step: overlapping a building it is eased out by up to CAR.maxPush (a car placed in one),
+ * overlapping a body it is shoved out by the overlap (at most CAR.maxPush), and able to touch
+ * any of them (a building, a wall, a body within its step) while it can be moving faster than
+ * 1 m/s, it turns its nose toward its slide by up to CAR.wallAlign * DT beyond its yaw rate.
  */
-export function vehicleOfCar(id: PlayerId, c: Readonly<CarState>, prev: Readonly<CarState> | null = null): Vehicle {
+export function vehicleOfCar(
+  id: PlayerId,
+  c: Readonly<CarState>,
+  prev: Readonly<CarState> | null = null,
+  world: World | null = null,
+  circles: readonly Circle[] = [],
+): Vehicle {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
+  const halfDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
   let observed = 0;
   if (prev && prev !== c) {
-    const halfDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
     const turn = wrapAngle(c.heading - prev.heading);
     observed = (Math.sqrt((c.x - prev.x) * (c.x - prev.x) + (c.z - prev.z) * (c.z - prev.z)) + (turn < 0 ? -turn : turn) * halfDiag) / DT;
   }
   // Right of forward is (-fz, fx).
-  return makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, {
+  const v = makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, {
     spread: PLAYER_SPREAD_MPS,
     dv: CAR_DV,
     observed,
   });
+  if (!world) return v;
+  const box = { x: c.x, z: c.z, heading: c.heading, hl: CAR.halfLength, hw: CAR.halfWidth };
+  // Its collision band (car.ts): from its wheels plus the step it climbs to the top of its body.
+  const y = c.y + ROOF_STEP_M;
+  const top = c.y + CAR.bodyHeight;
+  let shove = boxBlocked(world, box, y, [], top) ? CAR.maxPush : 0;
+  // The furthest its body can get over the step (twice the reach's growth about its middle pose).
+  const e = 2 * v.inflate + 0.05;
+  let touch = shove > 0;
+  for (const k of circles) {
+    const d = boxDistance(k.x, k.z, c.x, c.z, fx, fz, CAR.halfLength, CAR.halfWidth);
+    if (k.r - d > shove) shove = k.r - d;
+    if (d < k.r + e) touch = true;
+  }
+  if (!touch) touch = boxBlocked(world, { ...box, hl: box.hl + e, hw: box.hw + e }, y, [], top);
+  v.inflate += Math.min(CAR.maxPush, shove);
+  if (touch && v.speed + CAR_DV > 1) v.inflate += CAR.wallAlign * DT * halfDiag;
+  return v;
+}
+
+/**
+ * A player's car as the dodge sees it at the end of a tick (`after`, stepped from `before`):
+ * vehicleOfCar with what it collides with on its next step (step.ts obstaclesOf: the other
+ * players' cars, and robots and robotaxis by their circles; people never).
+ */
+export function carVehicle(world: World, before: Readonly<SimState>, after: Readonly<SimState>, id: PlayerId): Vehicle {
+  const c = after.players[id]!.car;
+  const lim = CAR.halfLength + CAR.halfWidth + 6;
+  const circles: Circle[] = [];
+  const add = (k: { x: number; z: number; r: number }): void => {
+    if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push({ x: k.x, z: k.z, r: k.r, person: false });
+  };
+  for (const other of sortedIds(after.players)) if (other !== id) for (const k of carCircles(after.players[other]!.car)) add(k);
+  for (const a of (after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) {
+    const cls = agentDodgeClass(a);
+    if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;
+    for (const k of agentCircles(a)) add(k);
+  }
+  return vehicleOfCar(id, c, before.players[id]?.car ?? null, world, circles);
 }
 
 /**
@@ -1293,7 +1348,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   // walk) only when a dodger is near enough to be in it; one that might matter only for where
   // someone lands is predicted when a dive needs it (ensurePaths; the same paths either way).
   const vehicles: Vehicle[] = [];
-  for (const id of ids) vehicles.push(vehicleOfCar(id, after.players[id]!.car, before.players[id]?.car ?? null));
+  for (const id of ids) vehicles.push(carVehicle(world, before, after, id));
   const prevAgents = new Map<number, AgentState>();
   for (const a of (before.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) prevAgents.set(a.id, a);
   const bodies = playerBodies(before);
@@ -1349,33 +1404,6 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const a = taxis[vi - ids.length]!;
     routeReach(v, a.a, a.dt, world);
   }
-  // A player's car is pushed out of whatever overlaps it at the start of its next step (another
-  // car, a robotaxi, a robot: collide.ts resolveBox, by up to CAR.maxPush): its reach grows by
-  // that overlap.
-  ids.forEach((id, i) => {
-    const c = after.players[id]!.car;
-    const fx = dsin(c.heading);
-    const fz = -dcos(c.heading);
-    const lim = CAR.halfLength + CAR.halfWidth + 6;
-    let shove = 0;
-    const push = (cx: number, cz: number, cr: number): void => {
-      if ((cx - c.x) * (cx - c.x) + (cz - c.z) * (cz - c.z) > lim * lim) return;
-      const pen = cr - boxDistance(cx, cz, c.x, c.z, fx, fz, CAR.halfLength, CAR.halfWidth);
-      if (pen > shove) shove = pen;
-    };
-    for (const other of ids) {
-      if (other === id) continue;
-      for (const k of carCircles(after.players[other]!.car)) push(k.x, k.z, k.r);
-    }
-    for (const a of agents) {
-      if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim * lim) continue;
-      const cls = agentDodgeClass(a);
-      if (cls === "person" || cls === "care") continue;
-      for (const k of agentCircles(a)) push(k.x, k.z, k.r);
-    }
-    if (shove > 0) vehicles[i]!.inflate += Math.min(CAR.maxPush, shove);
-  });
-
   // Who is in whose predicted footprint. (A robotaxi keeps to its route and holds still while
   // anyone is within its berth of it, agents.ts: only a footprint coming within that berth is a
   // threat, so nobody dives out of the way of one passing as it should.)

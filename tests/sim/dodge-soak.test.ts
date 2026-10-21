@@ -2,7 +2,7 @@
 // measures; tests/sim/dodge-soak.nightly.ts the long one): from the spawn by the Ferry Building
 // a chase driver, a no-brake driver and a car driven flat out at a rival player on foot, 20 s
 // each; chase and weave drivers in the narrow places the review found (Chinatown's alleys,
-// Lombard's crooked block), 15 s each; and a jump driver flat out over one of the city's
+// Lombard's crooked block), 20 s each; and a jump driver flat out over one of the city's
 // sharpest clear crests. In full traffic: zero contacts (a robotaxi measured by its drawn body),
 // the override never giving up, nobody closer than 0.75 m to a moving car or a closing robotaxi
 // except in a counted override episode, no override set off by a robotaxi, overrides at most a
@@ -55,7 +55,8 @@ describe.skipIf(!SF)("the clearance soak on the real city (per PR)", () => {
       for (const [name, lat, lon] of NARROW_PLACES) {
         const p = toLocal(lat, lon);
         const st = startNear(world, name, p.x, p.z);
-        for (const driver of ["chase", "weave"] as const) check(soak(world, st, driver, 900, 8), 30);
+        // (The review's seeds: Spofford Alley's 0.70 m pass was chase on seed 8, Ross Alley's overrides weave on 7.)
+        for (const [driver, seed] of [["chase", 8], ["weave", 7]] as const) check(soak(world, st, driver, 1200, seed), 30);
       }
     },
     CITY_MS,

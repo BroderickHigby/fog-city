@@ -246,12 +246,21 @@ export const NARROW_PLACES: ReadonlyArray<readonly [string, number, number]> = [
   ["Lombard's crooked block", 37.80205, -122.41875],
 ];
 
-/** A start on the drivable street nearest (x, z) (local metres), along it, with a route on from there. */
+/**
+ * A start at the drivable street's centreline point nearest (x, z) (local metres), heading
+ * along that street (the review's starts, 2026-10-21), with a route on from there.
+ */
 export function startNear(world: World, name: string, x: number, z: number, seed = 11): SoakStart {
-  const route = routeFrom(world.roads!, x, z, 0, 3000, seed);
-  const [x0, z0] = route[0]!;
-  const [x1, z1] = route[Math.min(3, route.length - 1)]!;
-  return { name, x: x0, z: z0, heading: bearing(x1 - x0, z1 - z0), route };
+  let best = { x, z, d: Infinity, h: 0 };
+  for (const e of world.roads!.edges) {
+    if (!e.drivable) continue;
+    const c = e.center;
+    for (let i = 0; i + 1 < c.xs.length; i++) {
+      const d = (c.xs[i]! - x) * (c.xs[i]! - x) + (c.zs[i]! - z) * (c.zs[i]! - z);
+      if (d < best.d) best = { x: c.xs[i]!, z: c.zs[i]!, d, h: bearing(c.xs[i + 1]! - c.xs[i]!, c.zs[i + 1]! - c.zs[i]!) };
+    }
+  }
+  return { name, x: best.x, z: best.z, heading: best.h, route: routeFrom(world.roads!, best.x, best.z, best.h, 3000, seed) };
 }
 
 /** A start 70 m before a crest at 26 m/s (flat out), with the route on over it. */

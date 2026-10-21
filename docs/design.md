@@ -386,7 +386,7 @@ ACQUI-HIRED.
     deflected by one.
   - **The dive** (`src/sim/dodge.ts`): every person, animal and robot, and every player on foot,
     watches every vehicle (player cars, robotaxis, every AI vehicle). A vehicle's swept footprint is
-    predicted 0.6–1.5 s ahead from its speed, velocity and yaw rate (a drift or a handbrake turn
+    predicted 0.6–1.5 s ahead (once it moves at 1 m/s or more) from its speed, velocity and yaw rate (a drift or a handbrake turn
     counts, and a sliding car straightening out along its nose; a player's car also the hardest
     turn its tyres allow, its footprint widening with time because it can steer anywhere; an AI
     vehicle along its route, braking for people as it does). Anyone within 0.75 m of it (1.25 m for children and anyone seated, lying down or using
@@ -402,7 +402,10 @@ ACQUI-HIRED.
   - **The person-clearance override**, which no tuning removes: after the vehicles move each tick,
     anyone still within 0.3 m (0.6 m for the vulnerable) of a moving vehicle's *reach* (everywhere
     its body can be by the next tick: its body at the middle of its next step grown by half its
-    travel, its speed change and its turn, and by any overlap that can shove it; a vehicle counts
+    travel, its speed change and its turn, by any overlap that can shove it (out of another car,
+    or out of a building it was placed in), and, when it can touch a wall, a building or another
+    car on that step, by the turn its nose makes toward its slide as it scrapes; a robotaxi near
+    anyone: its exact poses along its route; a vehicle counts
     as moving when any point of its body moves, so a car at a standstill that is still spinning
     counts), within 0.02 m of a stopped one's, or inside any vehicle's body, is put at the nearest
     free spot outside every vehicle's reach and out of its path (a superhuman leap, drawn as a big
@@ -413,11 +416,11 @@ ACQUI-HIRED.
     counted as failures, which must stay 0). It is counted, with every near miss
     (`CarState.nearMisses`, for scoring and barks). AI vehicles (robotaxis, vans, buses) also
     still brake for anyone in their path, with a berth that keeps them 0.75 m from people's
-    bodies ahead; a robotaxi goes no faster than a 1.5 m/s creep (below the speed the dodge
-    treats as a threat) while anyone is within 0.75 m (a child 1.25 m) of its drawn body now or
-    anywhere along its route until it could stop, so nobody has to dive out of the way of one
-    driving as it should, and it does not set off, or move closer, while anyone is within
-    0.45 m (a child 0.75 m), so it never sets the override off. Walkers never step within 0.1 m
+    bodies ahead; a robotaxi goes no faster than a 0.9 m/s creep (below the 1 m/s at which the
+    dodge treats a vehicle as a threat) while anyone is within 0.75 m (a child 1.25 m) of its
+    drawn body now or anywhere along its route until it could stop, so nobody has to dive out of
+    the way of one driving as it should, and it does not set off, or move closer, while anyone
+    is within 0.33 m (a child 0.63 m), so it never sets the override off. Walkers never step within 0.1 m
     of a vehicle's body and keep further from a moving robotaxi. A robotaxi is measured by its
     drawn body (`ROBOTAXI_BODY`), not the circles traffic spaces it by. The dive is on top of all
     that.
@@ -1306,6 +1309,6 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   by circles that missed their corners): the override now keeps people clear of a vehicle's reach over its next step,
   so contact is impossible by construction; dives walk roofs and decks, are rechecked every tick and never step into a
   vehicle's reach; the override always finds a spot; robotaxis are measured by their drawn body, creep past anyone
-  within the dodge's margin of their path and wait for anyone within 0.45 m. The dive is drawn as a comic leap that is flat only well off the ground, flips tucked in the
+  within the dodge's margin of their path and wait for anyone within 0.33 m. The dive is drawn as a comic leap that is flat only well off the ground, flips tucked in the
   air and lands on its feet (never lying on the road, never upended). Every reproduction is a permanent test, and a
   seeded optimiser hunts for a touching driver nightly.

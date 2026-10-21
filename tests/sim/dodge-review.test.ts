@@ -26,7 +26,9 @@ import {
   boxBlocked,
   boxDistance,
   buildWorld,
+  carVehicle,
   circleBlocked,
+  clearanceFrom,
   createInitialState,
   dodgeExtOf,
   groundFor,
@@ -37,6 +39,7 @@ import {
   meshGroundHeight,
   overrideSpot,
   personIsChild,
+  routeReach,
   step,
   surfaceHeight,
   vehicleOfAgent,
@@ -254,12 +257,13 @@ describe("people in a corner or against a wall", () => {
     const v = makeVehicle("p:c", "c", 0, 0, 0.26, CAR.halfLength, CAR.halfWidth, 0, 0, 0.39, 0, { spread: 1 });
     expect(v.moving).toBe(true);
     expect(v.inflate).toBeGreaterThan(0);
+    expect(clearanceFrom(v, DODGE_PROFILE.person)).toBe(DODGE_PROFILE.person.override);
     // Truly still: stopped, and only STOPPED_CLEAR_M is kept from it.
     const still = makeVehicle("p:c", "c", 0, 0, 0.26, CAR.halfLength, CAR.halfWidth, 0, 0, 0, 0, { spread: 1 });
     expect(still.moving).toBe(false);
+    expect(clearanceFrom(still, DODGE_PROFILE.person)).toBe(STOPPED_CLEAR_M);
     // Moving over its last step counts too (a car that bounced to a stop this tick).
     expect(makeVehicle("p:c", "c", 0, 0, 0, CAR.halfLength, CAR.halfWidth, 0, 0, 0, 0, { observed: PARKED_SPEED * 2 }).moving).toBe(true);
-    void STOPPED_CLEAR_M;
   });
 
   it("the driven-corner family: 2-4 people backed into a corner or against a wall, cars at 10-26 m/s coming up 1.6-3.4 m off the wall that drift, counter-drift or steer in 8-16 m short: never inside a car", () => {
@@ -436,6 +440,117 @@ describe("robotaxis, measured by their drawn body", () => {
     expect(free.moved).toBeGreaterThan(2);
     expect(free.fastest).toBeGreaterThan(ROBOTAXI_CREEP_MPS + 1);
   }, LONG_RUN_MS);
+});
+
+describe("a vehicle's reach over its next step (what the override keeps people out of)", () => {
+  /** Points every 0.1 m round the outline of a box (its corners included). */
+  const outline = (x: number, z: number, heading: number, hl: number, hw: number): Array<[number, number]> => {
+    const fx = Math.sin(heading);
+    const fz = -Math.cos(heading);
+    const out: Array<[number, number]> = [];
+    const nl = Math.ceil((2 * hl) / 0.1);
+    const nw = Math.ceil((2 * hw) / 0.1);
+    for (let i = 0; i <= nl; i++) {
+      const a = -hl + (2 * hl * i) / nl;
+      for (const s of [-1, 1]) out.push([x + fx * a - fz * s * hw, z + fz * a + fx * s * hw]);
+    }
+    for (let i = 0; i <= nw; i++) {
+      const b = -hw + (2 * hw * i) / nw;
+      for (const s of [-1, 1]) out.push([x + fx * s * hl - fz * b, z + fz * s * hl + fx * b]);
+    }
+    return out;
+  };
+
+  it("a player's car is always inside its reach after its step: random drivers into walls, corners, a deck and each other, starting inside a building", () => {
+    // (The review's corner and wall drivers. A car touching anything turns its nose toward its
+    // slide beyond its yaw rate, CAR.wallAlign; one placed in a building is eased out of it, one
+    // overlapping another car is shoved out: all within its reach.)
+    let worst = -Infinity;
+    let where = "";
+    let pushedOut = 0;
+    let checked = 0;
+    for (let seed = 1; seed <= 48; seed++) {
+      let rs = seed * 7919;
+      const rnd = (): number => {
+        rs = (Math.imul(rs, 1664525) + 1013904223) >>> 0;
+        return rs / 4294967296;
+      };
+      const world = [CORNER, WALL, DECK, FLAT][seed % 4]!;
+      const car = (id: string): CarSpec => ({ id, x: -30 + rnd() * 10, z: -10 + rnd() * 20, heading: Math.PI * (0.25 + rnd() * 0.5), speed: 5 + rnd() * 33, lateral: (rnd() - 0.5) * 10, yawRate: (rnd() - 0.5) * 2 });
+      // Two cars, the second set off at the first.
+      const a = car("a");
+      const b = { ...car("b"), x: a.x + 12, z: a.z + (rnd() - 0.5) * 4, heading: a.heading + Math.PI };
+      let s = scene(world, [a, b], [], []);
+      const ctl: Record<string, InputFrame[string]> = {};
+      let older = s;
+      for (let t = 0; t < 300; t++) {
+        if (t % 6 === 0) for (const id of ["a", "b"]) ctl[id] = { throttle: rnd() > 0.15 ? 1 : -1, steer: rnd() * 2 - 1, brake: rnd() > 0.75 ? 1 : 0, actions: 0 };
+        // Its reach as the dodge sees it at the end of the last tick.
+        const reach = { a: carVehicle(world, older, s, "a"), b: carVehicle(world, older, s, "b") };
+        const box0 = s.players.a!.car;
+        if (t === 0 && boxBlocked(world, { x: box0.x, z: box0.z, heading: box0.heading, hl: CAR.halfLength, hw: CAR.halfWidth }, box0.y + 0.4, [], box0.y + CAR.bodyHeight)) pushedOut++;
+        older = s;
+        s = step(world, s, ctl);
+        for (const id of ["a", "b"] as const) {
+          const c = s.players[id]!.car;
+          checked++;
+          for (const [x, z] of outline(c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth)) {
+            const beyond = zoneDistance(reach[id], x, z);
+            if (beyond > worst) {
+              worst = beyond;
+              where = `seed ${seed} t${t} car ${id}`;
+            }
+          }
+        }
+      }
+    }
+    expect(checked).toBe(48 * 300 * 2);
+    // (Some start inside a building.)
+    expect(pushedOut).toBeGreaterThan(0);
+    expect(worst, where).toBeLessThanOrEqual(1e-6);
+  }, LONG_RUN_MS);
+
+  it("a robotaxi's reach from its route holds where it goes, a connector's vertex turns included (grid city traffic)", () => {
+    const world = gridCity(true);
+    let s = createInitialState(world, 11, ["p1"], { x: 100, z: 200, heading: 0 });
+    let checked = 0;
+    let worst = -Infinity;
+    for (let t = 0; t < 900; t++) {
+      const before = agentsOf(s).filter((a) => a.kind === "robotaxi" && Math.hypot(a.x - 100, a.z - 200) < 150);
+      const reach = new Map(
+        before.map((a) => {
+          const v = vehicleOfAgent(a, null, 1 / 60, world, false);
+          routeReach(v, a, 1 / 60, world);
+          return [a.id, v] as const;
+        }),
+      );
+      s = step(world, s, { p1: { throttle: 0, steer: 0, brake: 1, actions: 0 } });
+      for (const a of agentsOf(s)) {
+        const v = reach.get(a.id);
+        if (!v || a.ghost > 0) continue;
+        checked++;
+        expect(v.zone).not.toBeNull();
+        for (const [x, z] of outline(a.x, a.z, a.heading, ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth)) worst = Math.max(worst, zoneDistance(v, x, z));
+      }
+    }
+    expect(checked).toBeGreaterThan(1000);
+    expect(worst).toBeLessThanOrEqual(1e-6);
+  }, LONG_RUN_MS);
+
+  it("a car reversing slowly at someone (the review's Spofford Alley pass, at 1-2 m/s): they get out of its way, never within 0.75 m of it while it moves", () => {
+    // Facing north, its back toward a person 4 m behind it, reversing from 1 m/s.
+    const s0 = scene(FLAT, [{ id: "c", x: 0, z: 0, heading: 0, speed: -1 }], [], [agent(FLAT, 50, "person", 0.3, CAR.halfLength + 4)]);
+    let minClear = Infinity;
+    const { s, contacts } = run(FLAT, s0, 180, (k) => {
+      const c = k.players.c!.car;
+      const p = agentsOf(k)[0]!;
+      if (Math.hypot(c.speed, c.lateral) > 1) minClear = Math.min(minClear, boxDistance(p.x, p.z, c.x, c.z, Math.sin(c.heading), -Math.cos(c.heading), CAR.halfLength, CAR.halfWidth) - 0.3);
+      return { c: { throttle: -0.4, steer: 0, brake: 0, actions: 0 } };
+    });
+    expectNoContact(s, contacts, "reversing");
+    expect(dodgeExtOf(s).dives).toBeGreaterThan(0);
+    expect(minClear).toBeGreaterThanOrEqual(0.75);
+  });
 });
 
 describe("how the override's leap is drawn", () => {

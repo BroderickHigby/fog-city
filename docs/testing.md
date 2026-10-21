@@ -241,10 +241,16 @@ that found them, and a seeded optimiser hunts for more every night.
   by their drawn body: someone at its corner, outside the circles traffic moves it by, is a
   contact and is leapt out (a short stumble-hop); in the grid city's traffic for 2,400 ticks no
   walker ever overlaps a robotaxi's drawn body and no robotaxi sets the override off; a
-  robotaxi with someone standing within its berth waits (within 0.45 m) or creeps past (under
-  1.5 m/s, never closer), and nobody dives or is leapt; a short override leap is drawn as a
-  stumble, a long one as the big hop. `tests/sim/agents.test.ts` also checks that no walker ever
-  touches a robotaxi's drawn body over 4,000 ticks.
+  robotaxi with someone standing within its berth waits (within 0.33 m) or creeps past (under
+  0.9 m/s, never closer), and nobody dives or is leapt; a short override leap is drawn as a
+  stumble, a long one as the big hop. The reach itself, as a property: two cars on random
+  drivers (48 runs of 300 ticks into walls, corners, a deck and each other, some starting inside
+  a building) always end their step inside the reach the dodge gave them at its start (every
+  0.1 m of the body's outline), and so does every robotaxi in the grid city's traffic over 900
+  ticks (its route poses through connectors); a car reversing slowly at someone (the review's
+  Spofford Alley pass) makes them dive and never comes within 0.75 m while it moves.
+  `tests/sim/agents.test.ts` also checks that no walker ever touches a robotaxi's drawn body
+  over 4,000 ticks.
 - `tests/sim/dodge-fuzz.test.ts` (unit, the no-touch fuzz): 160 seeded scenes
   (`tests/sim/dodge-scenes.ts`): a single person, a group of 20 with children and robots in it,
   players on foot, people backed against a wall or into an inside corner, people on 12-28%
@@ -259,12 +265,12 @@ that found them, and a seeded optimiser hunts for more every night.
   clearance soak's per-PR tier (`tests/sim/dodge-soak.ts` has the drivers): from the Ferry
   Building a chase driver (flat out at the nearest person ahead, never braking), a no-brake
   route follower (swerving at anyone within 25 m) and a car flat out at a rival player on foot,
-  20 s each; chase and weave drivers 15 s each in the narrow places (Ross Alley, Spofford Alley,
-  Waverly Place, Lombard's crooked block); and a jump driver flat out over one of the city's
+  20 s each; chase and weave drivers 20 s each in the narrow places (Ross Alley, Spofford Alley,
+  Waverly Place, Lombard's crooked block, from the review's starts and seeds); and a jump driver flat out over one of the city's
   sharpest clear crests (it must fly; no robotaxi on the road ahead at the start, and it goes
   for people on the road near the landing). In full traffic: zero contacts with any vehicle
   (player car, or a robotaxi's drawn body), the override never giving up, nobody closer than
-  0.75 m to a moving car or to a robotaxi closing on them at 2 m/s or more except in a counted
+  0.75 m to a moving car or to a robotaxi closing on them at 1 m/s or more except in a counted
   override episode, no override set off by a robotaxi, overrides at most a tenth of the dives
   (at most 2 in a run with few), and no walker jumping more than 0.3 m in a tick while it gets
   up or rejoins its path (the first 0.5 s after); people really dived out of its way.
@@ -272,8 +278,8 @@ that found them, and a seeded optimiser hunts for more every night.
   `tests/sim/nightly.vitest.config.ts`, one worker; never in `pnpm test` or `pnpm verify`): the
   soak's long tier, the chase, weave, no-brake and rival drivers 60 s each from five busy places
   (the Ferry Building, Union Square, Chinatown, the Mission, the Castro), the chase and weave
-  drivers 60 s each in the four narrow places, and the jump driver over each of the six sharpest
-  clear crests, two seeds, to the same standard; the long fuzz, scenes 161-2000: zero contacts,
+  drivers 60 s each in the four narrow places (three seeds), and the jump driver over each of
+  the six sharpest clear crests, two seeds, to the same standard; the long fuzz, scenes 161-2000: zero contacts,
   and close passes without an override in at most one scene in 500, none within the override
   clearance itself (each printed); and the optimiser (`tests/sim/dodge-optimiser.ts`): a seeded
   (1+1) search, 1,500 evaluations in each of the open, a wall, a corner, a 3.4 m alley and a
