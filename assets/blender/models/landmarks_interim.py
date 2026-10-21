@@ -453,12 +453,18 @@ def dragon_gate() -> None:
     for sgn in (-1, 1):
         pts = [(sgn * (0.45 + 0.35 * k), 0.0, 8.25 + 0.35 * math.sin(k * 0.9)) for k in range(6)]
         LK.tube(mb, pts, 0.11, 6, tile)
-    # guardian lions on plinths before the side portals, on the front (south, +Y) side
+    # guardian lions on plinths before the side portals, on the front (south, +Y) side: seated,
+    # facing the street, haunches back, forelegs straight, a maned head; plain stone forms
     for sgn in (-1, 1):
         x = sgn * (half - pw - 0.7)
-        mb.box(x - 0.45, 0.7, -0.3, x + 0.45, 1.5, 0.9, stone, skip=("-z",))
-        mb.sphere((x, 1.1, 1.3), 0.38, 10, 6, stone, scale=(1.0, 1.1, 1.0))
-        mb.sphere((x, 1.2, 1.78), 0.27, 10, 6, stone)
+        mb.box(x - 0.45, 0.7, -0.3, x + 0.45, 1.5, 0.8, stone, skip=("-z",))
+        mb.box(x - 0.24, 0.75, 0.8, x + 0.24, 1.15, 1.15, stone, skip=("-z",))  # haunches
+        mb.box(x - 0.2, 1.05, 0.8, x + 0.2, 1.3, 1.45, stone, skip=("-z",))  # chest
+        for lx in (-0.12, 0.12):
+            mb.box(x + lx - 0.06, 1.28, 0.8, x + lx + 0.06, 1.4, 1.2, stone, skip=("-z",))  # forelegs
+        mb.sphere((x, 1.2, 1.62), 0.26, 10, 6, stone, scale=(1.0, 0.8, 1.0))  # mane
+        mb.box(x - 0.11, 1.32, 1.5, x + 0.11, 1.48, 1.68, stone)  # muzzle
+        mb.sphere((x + sgn * 0.14, 1.36, 0.92), 0.1, 8, 4, gold)  # the ball under a paw
     mb.build("gate", parent=r, sharp_angle=35)
     fc.export_glb("dragon-gate.glb", BUDGETS["dragon-gate.glb"])
 
