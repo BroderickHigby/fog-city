@@ -8,8 +8,11 @@ import { createRequire } from "node:module";
 import type { Group } from "three";
 import type { Deck, Movable, Tunnel } from "../../pipeline/lib/structures.ts";
 import { Ground } from "../../pipeline/lib/terrain.ts";
+import { decodeWorldColliders, PackGroundIndex, type PackBuilding, type WorldColliders } from "../../pipeline/lib/world-colliders.ts";
 import { createTileLoader } from "../../src/render/gltf-loader.ts";
-import { readJson } from "../helpers.ts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { readJson, ROOT } from "../helpers.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -125,3 +128,38 @@ export function loadSf(): { manifest: SfManifest; colliders: SfCollider[]; roads
     storefronts: readJson<SfStorefronts>("public/tiles/sf/storefronts.json"),
   };
 }
+
+export interface SfPack {
+  manifest: SfManifest;
+  pack: WorldColliders;
+  roads: SfRoads;
+  /** Every building record of the world, tile by tile (the pack's order). */
+  buildings: PackBuilding[];
+  /** The sim's ground (bilinear on the tile lattice). */
+  heightAt: (x: number, z: number) => number;
+  /** True where (x, z) lies in a tile of the world. */
+  inside: (x: number, z: number) => boolean;
+}
+
+/**
+ * The committed sf world through its collider pack (world.colliders.bin, ~15 MB, which
+ * tests/pipeline/world-colliders.test.ts proves equal to the per-tile JSON colliders) and its
+ * road graph: lighter than loadSf() for the whole-city checks that need no building meta.
+ */
+export function loadSfPack(): SfPack {
+  const manifest = readJson<SfManifest>("public/tiles/sf/manifest.json");
+  const pack = decodeWorldColliders(new Uint8Array(readFileSync(join(ROOT, "public/tiles/sf", manifest.worldColliders))));
+  const g = new PackGroundIndex(pack);
+  const tiles = new Set(pack.tiles.map((t) => `${t.ix},${t.iz}`));
+  return {
+    manifest,
+    pack,
+    roads: readJson<SfRoads>(`public/tiles/sf/${manifest.roads}`),
+    buildings: pack.tiles.flatMap((t) => t.buildings),
+    heightAt: (x, z) => g.heightAt(x, z),
+    inside: (x, z) => tiles.has(`${Math.floor(x / pack.tileSizeM)},${Math.floor(z / pack.tileSizeM)}`),
+  };
+}
+
+/** The base DataSF id of a record: without its part, tower and piece suffixes. */
+export const baseId = (id: string): string => id.slice(0, 14);

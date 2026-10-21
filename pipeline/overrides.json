@@ -38,6 +38,12 @@
       "label": "Mission Dolores Basilica bell tower",
       "keepTower": true,
       "source": "The basilica beside the old mission chapel (parcel 3566001, built 1913 per the 2025 roll) has bell towers over its front; the LiDAR max over the footprint is 39.0 m above a 14.1 m median, a tower the moment model accepts (about 55 m², rising 3.4 times its width). The roll lists 1 storey (the nave is one tall room), so the spike check reads the tower as a LiDAR spike. Kept: the LiDAR is the evidence, the storey count is not."
+    },
+    {
+      "id": "201006.0000060",
+      "label": "Transbay Transit Center (deck over 1st St)",
+      "heightM": 21,
+      "source": "W-01, W-16. Completed 2018: the Transit Center's rooftop park stands about 21 m (70 ft) over the street (public record), and the building is carried over 1st and Fremont Streets on bridges. In June 2010 the site was the old terminal's demolition pit: the footprint dataset reports a 2.58 m median and a 68 m maximum (a crane), which drew a 68 m tower on 1st St. The height override removes that tower; the carriageway clearance pass (pipeline/lib/clearance.ts) turns the part over 1st St into a span with an underside."
     }
   ]
 }

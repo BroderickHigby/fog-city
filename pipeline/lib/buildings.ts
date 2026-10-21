@@ -29,14 +29,17 @@ import type { TileRef } from "./config.ts";
 import {
   cleanRing,
   clipToConvex,
+  despike,
   dropCollinear,
   interiorPoint,
+  isSimpleRing,
   pointInRing,
   r2,
   signedArea,
-  simplifyRing,
   type P2,
 } from "./geom.ts";
+import { intersectRing, largest, unionRings } from "./polygon.ts";
+import { simplifySharedRings } from "./shared-walls.ts";
 import type { RawBuilding, RawParcel } from "./sources.ts";
 import type { Ground } from "./terrain.ts";
 
@@ -205,6 +208,10 @@ export interface BuildingStats {
   /** Thin towers kept (isThinTower), and the tallest of them above its own ground (m). */
   thinTowers: number;
   thinTowerMaxM: number;
+  /** Rings that simplification left self-intersecting, kept unsimplified instead (W-30). */
+  ringsUnsimplified: number;
+  /** Rings self-intersecting in the source (or still after that), repaired to their largest simple part. */
+  ringsRepaired: number;
 }
 
 const num = (s: string | undefined): number => (s === undefined || s === "" ? NaN : Number(s));
@@ -362,17 +369,32 @@ export function towerFootprint(ring: readonly P2[], anchor: P2, fraction: number
       [anchor[0] + ux * hu + vx * hv, anchor[1] + uz * hu + vz * hv],
       [anchor[0] - ux * hu + vx * hv, anchor[1] - uz * hu + vz * hv],
     ];
-    result = dropCollinear(cleanRing(clipToConvex(ring, square)), 0.05);
+    result = clipTower(ring, square);
     const area = result.length >= 3 ? Math.abs(signedArea(result)) : 0;
     if (area >= target * 0.9 || area <= 0) break;
     along *= Math.min(4, target / area);
   }
-  if (result.length < 3 || Math.abs(signedArea(result)) < MIN_AREA_M2) {
+  if (result.length < 3 || Math.abs(signedArea(result)) < MIN_AREA_M2 || !isSimpleRing(result)) {
     const k = Math.sqrt(fraction);
     result = ring.map(([x, z]) => [r2(anchor[0] + (x - anchor[0]) * k), r2(anchor[1] + (z - anchor[1]) * k)] as P2);
+    if (!isSimpleRing(result)) result = simpleRing(result, result);
   }
   if (signedArea(result) > 0) result.reverse();
   return result;
+}
+
+/**
+ * A concave footprint clipped to the tower's square: the largest piece of a robust intersection
+ * (W-30: Sutherland-Hodgman joins the pieces of a concave subject with zero-width bridges, which
+ * drew roof slabs outside the walls). Falls back to Sutherland-Hodgman if the clipper fails.
+ */
+function clipTower(ring: readonly P2[], square: readonly P2[]): P2[] {
+  try {
+    const best = largest(intersectRing(ring, square));
+    return best ? dropCollinear(cleanRing(best.outer), 0.05) : [];
+  } catch {
+    return dropCollinear(cleanRing(clipToConvex(ring, square)), 0.05);
+  }
 }
 
 /** Lowest ground under a footprint, sampled densely enough that no part of it floats. */
@@ -414,6 +436,40 @@ export function minGroundUnder(ring: readonly P2[], ground: Ground): { min: numb
   return { min, max, at: at ?? min };
 }
 
+/**
+ * A simple ring for a footprint whose simplified ring crosses or touches itself: the simplified
+ * ring untangled (the largest simple part of its union with itself, which splits a bow tie or a
+ * doubled-back spike at its crossing and keeps every vertex it shares with a neighbour, W-36)
+ * when that keeps 90% of the source's area; else the unsimplified (cleaned) ring when that is
+ * simple; else the source untangled the same way. Never returns a self-intersecting ring.
+ */
+export function simpleRing(simplified: readonly P2[], source: readonly P2[], stats?: { ringsUnsimplified: number; ringsRepaired: number }): P2[] {
+  const untangle = (cand: readonly P2[]): P2[] | null => {
+    try {
+      const best = largest(unionRings([cand]));
+      if (!best) return null;
+      const ring = dropCollinear(cleanRing(best.outer), 0.005);
+      return ring.length >= 3 && isSimpleRing(ring) ? ring : null;
+    } catch {
+      // polygon-clipping gives up on some degenerate input.
+      return null;
+    }
+  };
+  const srcArea = Math.abs(signedArea(source));
+  const fixed = untangle(simplified);
+  if (fixed && Math.abs(signedArea(fixed)) >= 0.9 * srcArea) {
+    if (stats) stats.ringsRepaired++;
+    return fixed;
+  }
+  const src = dropCollinear(source, 0.005);
+  if (src.length >= 3 && isSimpleRing(src)) {
+    if (stats) stats.ringsUnsimplified++;
+    return src;
+  }
+  if (stats) stats.ringsRepaired++;
+  return untangle(src) ?? fixed ?? [];
+}
+
 export function buildBuildings(
   raw: RawBuilding[],
   parcels: RawParcel[],
@@ -431,25 +487,41 @@ export function buildBuildings(
     joinMblr: 0, joinPoint: 0, withYear: 0, withStories: 0,
     heightLidar: 0, heightStories: 0, heightOverride: 0, twoTier: 0, maxOutlier: 0, condo: 0, storiesImplausible: 0,
     groundRefFromDem: 0, storiesRejected: 0, canopyTowersDropped: 0, spikeTowersDropped: 0, spikeTowersDroppedByUse: {},
-    spikeTowersKept: 0, thinTowers: 0, thinTowerMaxM: 0,
+    spikeTowersKept: 0, thinTowers: 0, thinTowerMaxM: 0, ringsUnsimplified: 0, ringsRepaired: 0,
   };
   const spikeByUse = new Map<string, number>();
   const out: Building[] = [];
 
-  for (const rb of raw) {
+  // Rings -> cleaned local polygons, simplified together so shared party walls stay shared
+  // (shared-walls.ts, W-36), then repaired where simplification or the source made them
+  // self-intersecting (W-30).
+  const cleaned: P2[][][] = raw.map((rb) =>
+    outerRings(rb.shape).map((r) =>
+      cleanRing(
+        r.map(([lon, lat]) => {
+          const p = toLocal(lat, lon);
+          return [p.x, p.z] as P2;
+        }),
+      ),
+    ),
+  );
+  const flat: P2[][] = [];
+  for (const parts of cleaned) for (const r of parts) if (r.length >= 3) flat.push(r);
+  const simplified = simplifySharedRings(flat, SIMPLIFY_TOL_M);
+  let flatIndex = 0;
+
+  for (let rbi = 0; rbi < raw.length; rbi++) {
+    const rb = raw[rbi]!;
     // Rings -> cleaned local polygons, largest first.
     const rings: P2[][] = [];
-    for (const r of outerRings(rb.shape)) {
+    for (const src of cleaned[rbi]!) {
       stats.parts++;
-      let ring = cleanRing(r.map(([lon, lat]) => {
-        const p = toLocal(lat, lon);
-        return [p.x, p.z] as P2;
-      }));
-      if (ring.length < 3) {
+      if (src.length < 3) {
         stats.droppedSmall++;
         continue;
       }
-      ring = dropCollinear(cleanRing(simplifyRing(ring, SIMPLIFY_TOL_M)), 0.05);
+      let ring = despike(cleanRing(simplified[flatIndex++]!));
+      if (ring.length >= 3 && !isSimpleRing(ring)) ring = despike(simpleRing(ring, src, stats));
       const a = signedArea(ring);
       if (ring.length < 3 || Math.abs(a) < MIN_AREA_M2) {
         stats.droppedSmall++;

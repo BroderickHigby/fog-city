@@ -344,8 +344,8 @@ towers that is **177,921 collider records**. Three corrections:
 
 * **Kept layers:** `STREETS`, `FREEWAYS`, `PRIVATE`, `PARKS*`, `STREETS_PEDESTRI`,
   `STREETS_*` (Treasure Island, etc.). **Dropped:** `PAPER`, `PAPER_FWYS`, `PAPER_WATER`
-  (not real streets), `PRIVATE_PARKING`, `PSEUDO`, `UPROW` (unpaved, mostly stairways).
-  707 segments were dropped this way citywide.
+  (not real streets), `PRIVATE_PARKING`, `PSEUDO`, `UPROW` (unpaved, mostly stairways),
+  except that UPROW and PAPER stairways are kept as `stairs` edges (W-33, below).
 * A segment is kept if any point along it lies in a world tile. Segments crossing the
   world's edge are kept whole, so their far ends lie outside the tiles.
 * **Nodes** are the intersection CNNs (`n<f_node_cnn>`), placed at the mean of the segment
@@ -367,12 +367,14 @@ towers that is **177,921 collider records**. Three corrections:
     traffic and GPS should not route onto it until the decks are modelled. Ramps are not
     flagged: some (Richardson Ave) are at grade.
   * `bridge: true` where an edge has a stretch of at least 10 m over open water (the
-    candidate tiles' water flags, the DEM beyond them): 23 edges. The I-80 Bay Bridge west
-    span to Yerba Buena Island and the stub east of it, in both directions; the Golden Gate
-    Bridge approach off the toll plaza (Hwy 101 both ways); I-280 and two of its ramps over
-    Islais Creek and the Mission Creek channel; the 3rd St, 4th St and Illinois St
-    bridges; pier roads at Fisherman's Wharf and Piers 50 and 70. `y` there is sea level,
-    not the deck.
+    candidate tiles' water flags after the pier decks are raised, the DEM beyond them): the
+    I-80 Bay Bridge west span to Yerba Buena Island and the stub east of it, in both
+    directions; the Golden Gate Bridge approach off the toll plaza (Hwy 101 both ways); I-280
+    and two of its ramps over Islais Creek and the Mission Creek channel; the 3rd St, 4th St
+    and Illinois St bridges. Node `y` is the ground; the road surface is the deck.
+  * `deck: true` where part of the edge is carried on a deck, `tunnel: true` where part runs
+    in a bore, `stairs: true` on a stairway (always with `pedestrian`). See [Streets, hills
+    and structures](#streets-hills-and-structures-world-qa-2026-10-21).
 
 **classcode → kind, lanes, width, speed.** `lanes` counts all directions on the edge.
 `widthM` = lanes × lane width + extra (parking and shoulders), kerb to kerb.
@@ -395,6 +397,106 @@ Beach (Great Highway at Lincoln Way) in 11.31 km, Hunters Point in 9.00 km and V
 Valley in 10.63 km. **Treasure Island is not reachable**: the source has the Bay Bridge's
 I-80 segments, but they do not join the island's streets (the bridge deck and the island
 are wave 8 in the roadmap).
+
+## Streets, hills and structures (world QA, 2026-10-21)
+
+The world QA report (`docs/qa/`) found the footprints, the DEM and the street centrelines
+disagreeing in ways that wall streets, bury buildings and drape roads over hills. The build
+now runs these passes, in this order, after the buildings and the road graph
+(`pipeline/lib/build.ts`; numbers from the sf build):
+
+1. **Piers (W-13, `piers.ts`).** The bare-earth DEM has no pier decks: its hydro-flattening
+   reaches under them, so the old build stood pier sheds in the bay and ran pier roads at
+   y = 0. A *pier shed* is a footprint of 400 m² or more at least half over water; a *pier
+   street* is a surface street over water within 25 m of a shed (Al Scoma Way, Pier 45 Vly,
+   Pier 50 Vly). The deck is the union of the sheds grown by 4 m and the pier streets grown to
+   their kerbs plus 4 m; every lattice sample inside it that is water or under 3 m is raised to
+   **3 m** and becomes land (32 sheds, 2,199 samples, 22 ha). Road node heights, the `bridge`
+   flags and the pier buildings' foot and base are then taken from the raised ground; their
+   roofs keep the LiDAR's absolute height (it measured them from the water). Smaller
+   structures over water (the Mission Creek houseboats, fender houses at the bridges) float
+   where they are. The shore (`boundary.json`) follows the raised decks.
+2. **Tunnels (W-02, `tunnels.ts`).** Tunnel edges are found by name (`Tunl`, `Tunnel`) and,
+   for the freeway tunnels, by route and place (`FREEWAY_TUNNELS`: the MacArthur Tunnel on
+   Hwy 1, the Yerba Buena Island tunnel on I-80, the Presidio Parkway's Battery and Main Post
+   tunnels on Hwy 101). Edges the source splits inside a tunnel are one chain. The road
+   through a hill is the highest profile under the ground that never climbs faster than 6%
+   (the ground eroded by a 6% cone); a bore is where the hill stands more than 3 m over it,
+   widened to where the cover falls to 0.1 m (the portals), and runs straight between them.
+   Each bore is a `tunnels` ribbon with a 5 m ceiling, its edge is flagged `tunnel`, and the
+   buildings over it get an underside (`underY`) at their foot, or 0.3 m over the ceiling
+   where the cover is thin (68 records). Both Broadway bores, the Stockton and Toll Plaza
+   tunnels, the MacArthur Tunnel, YBI and the Battery and Main Post tunnels have bores.
+3. **Carriageway and path clearance (W-01, W-39, W-43, W-16, `clearance.ts`).** No footprint
+   may wall a street or a path. In order: a `-tower` record a freeway crosses is an overhead
+   structure, not a tower, and is dropped (the Golden Gate approach over Fort Point); a
+   footprint that a street added or rebuilt after the June 2010 LiDAR crosses for 5 m or more
+   (street dates from DataSF `3psu-pn9h` `date_added`/`date_altered`), on a parcel the roll
+   does not date before 2010, is gone (101: Treasure Island, Pier 70, the Presidio Parkway);
+   where buildings stand in a corridor but a clear one exists within 3 m to one side, the
+   centreline moves into it (528 edges re-registered); what still intrudes is cut out of the
+   footprint, and a structure tall enough to have a passage under it keeps the piece over the
+   street as a span record (`-b<n>`, `meta.piece` `span`) with an underside 4.6 m over the
+   highest road under it (the Transit Center over 1st St, the Moscone bridge over Howard).
+   The corridor is the centreline buffered by 2.6 m on two-way streets of two or more lanes,
+   1.6 m on one-lane streets and alleys, 0.9 m on paths. An UPROW or PAPER stairway that still
+   runs through a building is dropped instead of cutting houses. Freeways and ramps are the
+   deck pass's.
+4. **Terraces (W-05, W-28, `terrace.ts`).** A footprint with more than 6 m of relief under it
+   is cut into strips across its slope (the downhill direction of a plane fitted to the
+   ground), each with at most 3.5 m of relief where a 3 m wide strip allows, and each strip
+   is its own record (`-s<n>`, `meta.piece` `strip`) with its own ground and roof (its mean
+   ground plus the building's LiDAR height above ground). Every record's roof stands at least
+   2.5 m over the highest ground under it. The clearance pass runs again afterwards for the
+   strips whose roofs rose.
+5. **Shared walls (W-36, `shared-walls.ts`).** Footprint simplification preserves topology:
+   vertices of different footprints within 5 cm snap together, a vertex 5–12 cm from the
+   interior of a neighbour's wall is inserted into it, every vertex a neighbour uses is kept,
+   a wall within 0.6 m of a neighbour may move only 3 cm, a wall shared by two footprints is
+   simplified once for both, and a vertex left within 12 cm of a neighbour's wall that one of
+   its walls runs along is welded onto it. A simplified ring that crosses itself is untangled
+   (its largest simple part) before falling back to the source ring (W-30). In the houses
+   audit's four sample boxes no pair that touches in DataSF is a crack any more, and the city
+   has fewer 5–60 cm cracks (about 14,400) than the source (21,174,
+   `tests/pipeline/fixtures/shared-walls.json`).
+6. **Stairways (W-33, `roads.ts`).** UPROW and PAPER segments (otherwise dropped) are kept
+   when steeper than 25% (UPROW) or 30% (PAPER), and a pedestrian way steeper than 20% is a
+   stairway: such edges are `pedestrian` and `stairs`, one lane, two-way, 3 m wide (185
+   edges, among them the Filbert, Greenwich, Lyon, 16th Avenue tiled (Moraga St), Vulcan and
+   Harry steps).
+7. **Decks (W-03, W-07, W-12, W-14, `decks.ts`).** Every freeway and ramp gets one profile
+   over the whole network: the lowest that stands on the ground, 5 m over every street it
+   crosses, 1 m over every low roof under it, never steeper than 6% (0.5% over water, so the
+   I-280 viaducts hold their height over Mission Creek and Islais Creek), with no crest
+   tighter than 150 m, pinned to the bores in the freeway tunnels and brought down to the
+   street at each ramp end (8%). Where it stands more than 0.1 m over the ground it is a deck
+   (kind `freeway` or `ramp`, layer 2 where it crosses over another deck), thinned to the
+   vertices a straight line needs (5 cm across, 1 cm in height). Grade separations (two edges
+   crossing with no node in common) are resolved from what the DEM kept: the edge that dips
+   (into a cut under its removed span) or humps (up its approach embankments) is on top and
+   gets an `overpass` deck, the straight line between its approaches raised by a smooth bump
+   to 5 m over the edge under it (33: Richland Ave over San Jose Ave's cut, 23rd St over
+   US-101, San Jose Ave, Geneva Ave and Paul Ave over I-280 and US-101); where neither moves
+   the freeway is a viaduct over the street. Every surface street over water gets a `bridge`
+   deck on the straight line between its banks (3rd St and 4th St over Mission Creek, 3rd St
+   and Illinois St over Islais Creek), and the Lefty O'Doul Bridge (3rd St over Mission
+   Creek) is a `movable` bascule hinged at its north end. Edges with a deck are flagged
+   `deck`. `pipeline/lib/surfaces.ts` is the reference road-surface lookup over decks and
+   tunnels for the sim.
+8. **Road surfaces (W-09, W-10, W-32, `mesh.ts`).** A road ribbon on the ground is draped on
+   the ground mesh's own triangles (each ribbon triangle clipped to the lattice triangles
+   under it, unless the ground under it is one plane within 1.5 cm) and lifted 2 cm, so the
+   drawn road and the ground the sim drives on agree within 5 cm everywhere and the ground
+   never shows through. On a deck, in a bore or an overpass the ribbon is level across at the
+   structure's surface. Where three or more streets meet, each ribbon stops at the junction's
+   radius (the widest street's half width) and one junction polygon (the convex hull of the
+   trimmed ribbons' kerb ends) covers the crossing, with texture coordinates (0.25, 0): plain
+   asphalt, no kerb strip or lane line. Elevated decks get a `structures` node (sides,
+   underside, columns every 30 m).
+
+Contract fields these passes use (all additive, `src/sim/contract.ts` and the schemas):
+`underY` and `meta.piece`/`meta.pieceOf` on buildings, `decks`, `tunnels` and `movable` on
+colliders (and their FCWC extension sections), `deck`, `tunnel` and `stairs` on road edges.
 
 ## Storefronts (`storefronts.json`)
 
@@ -515,7 +617,10 @@ uint16 cm, first vertex int32 cm) and a stream of int16 cm vertex deltas with an
 long edges. `pipeline/lib/world-colliders.ts` has the encoder and the reference reader
 (`decodeWorldColliders`, pure TypeScript over a `DataView`, plus `PackGroundIndex`, an O(1)
 tile-indexed ground lookup). The reader decodes the pack to exactly the JSON colliders'
-values (everything is whole centimetres in both), and a test proves it for every tile.
+values (everything is whole centimetres in both), and a test proves it for every tile. An
+extension block (header offset 28) carries the additive fields: building pieces and
+undersides (`BEXT`), and every tile's decks (`DECK`), tunnels (`TUNL`) and movable spans
+(`MOVE`), with their ids in a string table (`STRS`).
 
 The per-tile JSON colliders still ship (82.9 MB, inside the 100 MB budget for them): they
 are today's contract for the sim's boot and the renderer, and they carry `meta` (footY,
@@ -562,8 +667,9 @@ of the world, on the global 10 m ground lattice (so it is a pure function of the
   outline crosses open water: the sea wall and the towing rule cover them.
 * **`shore`**: the land/water line inside the built tiles (marching squares over the
   heightfields' water flags, saddles keeping land connected, Douglas–Peucker at 2.5 m),
-  land on the left of travel: 69 lines, 79.4 km. Piers are land in the elevation model, so
-  it runs round them. It is the line for the design's **sea-wall collider** and the
+  land on the left of travel. The pier decks are land (raised by `piers.ts`, see [Streets,
+  hills and structures](#streets-hills-and-structures-world-qa-2026-10-21)), so it runs round
+  them. It is the line for the design's **sea-wall collider** and the
   **Bay-edge refill zone** (refill within a few metres of it, on the land side). Open lines
   end at the edge of the built tiles.
 * `seaLevelY`: 0.
@@ -663,6 +769,26 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 | Curb ramps, street trees | DataSF `ch9w-7kih` and `tkzw-k3nq`, PDDL 1.0 | Not used yet (accessibility routing, props) | — |
 
 ## What the sim and renderer must change
+
+**After the world QA passes (2026-10-21), still open:**
+
+* **Sim (Sim-World): decks and tunnels.** `surfaceHeight(x, z, yHint)` must read the pack's
+  `DECK` and `TUNL` sections (`src/sim/pack.ts` decodes them): the highest surface at or below
+  the body among the ground, the decks under it and, in a bore, the bore's floor with its
+  ceiling capping the body. `pipeline/lib/surfaces.ts` is the reference, tested on the sf pack
+  (`tests/pipeline/surfaces.test.ts`). Until then cars drive the freeways on the ground under
+  their decks and drive over Russian Hill instead of through the Broadway Tunnel. The Lefty
+  O'Doul bascule's angle (`MOVE`) is sim state. Buildings with `underY` (spans over streets,
+  houses over bores) pass bodies under them (qa/sim, SIM_VERSION 3).
+* **Sim (Sim-World, Sim-Agents): stairs.** `stairs` edges are pedestrian: never route a car
+  onto them.
+* **Render (Render-World):** the `structures` node (deck sides, undersides, columns) keeps its
+  vertex colours; junction polygons carry TEXCOORD_0 (0.25, 0), which the road shader already
+  draws as plain asphalt; draped ribbons sit 2 cm over the ground mesh (no polygon offset
+  needed so far); tunnel portals are not drawn yet, and a bore's road lies under the hill's
+  ground mesh.
+
+**Earlier notes:**
 
 Status 2026-10-21 (city-runtime integration, `integrate/wave1`): the sim boot, renderer boot,
 far-LOD, water and world-edge items below are **done**: `src/sim/pack.ts` decodes the pack,
@@ -769,12 +895,22 @@ memory, and compares SHA-256 of every file.
   records listed under the `sutro-tower` probe (an Assets task). `content/landmarks.json`
   has no Sutro entry yet. Removing the three overrides brings back the solid blocks if a
   crude silhouette is preferred to none in the meantime.
-* **Freeway and bridge decks** have no elevation in the source. The graph has them
-  (flagged `gradeSeparated` / `bridge`); the GLB drapes them on land and omits freeways over
-  water. Treasure Island and Yerba Buena Island are built, but no road joins them to the
-  city (wave 8: the Bay Bridge deck).
-* **Pier buildings** stand on water: the bare-earth DEM has no pier decks. Their roofs are
-  at the LiDAR's absolute height.
+* **Freeway and bridge decks are modelled, not surveyed.** The source has no deck heights;
+  `decks.ts` derives them from the streets they cross, the ground and the grade and crest
+  limits, so a viaduct's height is the least that clears what is under it, not the real
+  one, and a grade separation is classified from the DEM's dips and humps. The Bay Bridge
+  and the Golden Gate Bridge are absent (Assets, W-24); their approaches hold their bank
+  height over the water. Treasure Island and Yerba Buena Island are built, but no road joins
+  them to the city (wave 8: the Bay Bridge deck).
+* **No 2 m road profile (W-31).** The road surface is the 10 m lattice (drawn exactly as the
+  sim drives it); the 1 m DEM that a 2 m road-profile pass needs is not among the cached
+  inputs.
+* **No quay faces (W-35).** The shore is the lattice's land/water line: land slopes into the
+  water across a 10 m cell; no seawall face is drawn.
+* **Pier decks are flat land at 3 m** (`piers.ts`): the bare-earth DEM has none, and no
+  Port of SF pier outline is used. The deck is the sheds' and pier streets' buffered union on
+  the 10 m lattice, so its edge is a 10 m slope into the bay, not a quay face. Small
+  structures over water (houseboats) float on it at sea level.
 * **Sidewalks are procedural.** No sidewalk lies on a road, so a median too narrow for one
   has none, and a median wide enough keeps its inner sidewalks. Where a sidewalk is cut
   next to another road (an acute wedge between two streets, a slip lane alongside) its

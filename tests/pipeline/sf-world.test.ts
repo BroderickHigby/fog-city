@@ -225,11 +225,16 @@ describe("sf world: buildings", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
     expect(fx.towers).toHaveLength(631);
     expect(Object.keys(fx.dropped).every((id) => fx.towers.includes(id))).toBe(true);
+    // The world QA passes remove a few more, each listed in report.json: a tower a street or
+    // freeway runs through is an overhead structure the LiDAR saw (W-16), and a tower goes with
+    // its podium when that is redeveloped land (W-01).
+    const rep = readJson("public/tiles/sf/report.json") as { clearance: { towersOnStreets: string[]; staleDropped: string[] } };
+    const qa = new Set([...rep.clearance.towersOnStreets, ...rep.clearance.staleDropped]);
     const lost: string[] = [];
     for (const id of fx.towers) {
       const why = fx.dropped[id];
       if (!why) {
-        if (!byId.has(id)) lost.push(id);
+        if (!byId.has(id) && !qa.has(id)) lost.push(id);
         continue;
       }
       expect(byId.has(id), `${id} is listed as dropped (${why}) but stands`).toBe(false);
@@ -351,6 +356,11 @@ describe("sf world: buildings", () => {
   it("no gap on slopes: walls start (meta.footY) at or below the ground at every footprint vertex", () => {
     const bad: string[] = [];
     for (const b of buildings) {
+      // A span over a street starts at its underside, over the street (W-01).
+      if (b.meta.piece === "span") {
+        expect(b.meta.footY, b.id).toBe(b.underY);
+        continue;
+      }
       expect(b.meta.footY).toBeLessThanOrEqual(b.baseY);
       for (const [x, z] of b.footprint) {
         if (!insideWorld(x, z)) continue; // past the world's edge there is no ground at all
@@ -385,7 +395,9 @@ describe("sf world: buildings", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
     const bad: string[] = [];
     for (const b of buildings) {
-      if (b.meta.towerOf || !b.meta.stories || b.meta.heightSource !== "lidar") continue;
+      // Storeys describe the whole building: checked on its main record, not on its terrace
+      // strips or spans (W-28, W-01).
+      if (b.meta.towerOf || b.meta.piece || !b.meta.stories || b.meta.heightSource !== "lidar") continue;
       const h = b.meta.tower ? byId.get(b.meta.tower)!.meta.heightM : b.meta.heightM;
       if (b.meta.stories * 6 + 15 < h || b.meta.stories * 2.4 > h + 10) bad.push(`${b.id} ${b.meta.stories} storeys, ${h} m`);
     }

@@ -6,7 +6,11 @@ import type { Building } from "./buildings.ts";
 import type { TileRef } from "./config.ts";
 import { clipSegment, hash32, type P2 } from "./geom.ts";
 import type { RoadEdge } from "./roads.ts";
-import type { Ground, Heightfield } from "./terrain.ts";
+import type { Deck } from "./structures.ts";
+import { GROUND_CELL_M, type Ground, type Heightfield } from "./terrain.ts";
+
+/** Texture coordinates are snapped to 1 / UV_GRID metres. */
+export const UV_GRID = 32;
 
 export class MeshData {
   positions: number[] = [];
@@ -30,7 +34,13 @@ export class MeshData {
     this.positions.push(Math.round(x * 100) / 100, Math.round(y * 100) / 100, Math.round(z * 100) / 100);
     this.colors.push(rgba[0]!, rgba[1]!, rgba[2]!, rgba[3] ?? 255);
     if (this.normals) this.normals.push(...(extra.n ?? [0, 1, 0]));
-    if (this.uvs) this.uvs.push(...(extra.uv ?? [0, 0]));
+    // Texture coordinates are metres (along a wall or road, up a wall, or x and z on a roof),
+    // kept on a 1/32 m grid: a float with few significant bits compresses far better, and 3 cm is
+    // finer than any window or lane line drawn from them.
+    if (this.uvs) {
+      const uv = extra.uv ?? [0, 0];
+      this.uvs.push(Math.round(uv[0]! * UV_GRID) / UV_GRID, Math.round(uv[1]! * UV_GRID) / UV_GRID);
+    }
     if (this.facade) this.facade.push(...(extra.f ?? [0, 0, 0, 0]));
     return this.vertexCount - 1;
   }
@@ -205,19 +215,17 @@ const ROAD_COLOR: Record<string, string> = {
   pedestrian: "#8a8276",
 };
 
-/** Lift above the ground mesh so ribbons never z-fight with it. */
-const ROAD_LIFT_M = 0.15;
 const MAX_STEP_M = 8;
 
 /** Densify a polyline so no segment is longer than MAX_STEP_M; returns points with distance along. */
-function densify(points: readonly P2[]): Array<{ p: P2; s: number }> {
+function densify(points: readonly P2[], step = MAX_STEP_M): Array<{ p: P2; s: number }> {
   const out: Array<{ p: P2; s: number }> = [{ p: points[0]!, s: 0 }];
   let s = 0;
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1]!;
     const b = points[i]!;
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const n = Math.max(1, Math.ceil(len / MAX_STEP_M));
+    const n = Math.max(1, Math.ceil(len / step));
     for (let k = 1; k <= n; k++) {
       out.push({ p: [a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n], s: s + (len * k) / n });
     }
@@ -254,24 +262,228 @@ function clipRuns(pts: Array<{ p: P2; s: number }>, box: TileRef["bbox"]): Array
   return runs.filter((r) => r.length >= 2);
 }
 
-export function roadMeshes(edges: readonly RoadEdge[], tile: TileRef, ground: Ground): { roads: MeshData; freeways: MeshData } {
+/** Lift of a draped ribbon over the ground mesh (W-09: within 5 cm of the ground the sim drives on). */
+export const DRAPE_LIFT_M = 0.02;
+/** A ribbon triangle whose ground stays this close to one plane is drawn whole, not draped piece by piece. */
+const DRAPE_FLAT_M = 0.015;
+/** Station spacing of a draped ribbon. */
+const DRAPE_STEP_M = 40;
+/** Texture coordinates of a junction polygon: plain asphalt, no kerb strip or lane line. */
+export const JUNCTION_UV: readonly [number, number] = [0.25, 0];
+
+/**
+ * Clip a convex polygon (x, z) to the ground mesh's triangles (each lattice cell split along its
+ * (i+1, k)-(i, k+1) diagonal, as groundMesh draws it): every piece lies in one triangle, and its
+ * vertices take that triangle's plane, so a ribbon drawn from the pieces lies on the mesh exactly.
+ */
+export function drapePolygon(poly: readonly P2[], ground: Ground, emit: (piece: Array<[number, number, number]>) => void): void {
+  const c = GROUND_CELL_M;
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const [x, z] of poly) {
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+    z0 = Math.min(z0, z); z1 = Math.max(z1, z);
+  }
+  const clip = (pts: P2[], ax: number, az: number, bx: number, bz: number): P2[] => {
+    // Keep the left of a->b (the triangles below are wound so their inside is on the left).
+    const side = (p: P2): number => (bx - ax) * (p[1] - az) - (bz - az) * (p[0] - ax);
+    const out: P2[] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i]!, q = pts[(i + 1) % pts.length]!;
+      const sp = side(p), sq = side(q);
+      if (sp >= 0) out.push(p);
+      if ((sp >= 0) !== (sq >= 0)) {
+        const t = sp / (sp - sq);
+        out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+      }
+    }
+    return out;
+  };
+  for (let gx = Math.floor(x0 / c); gx * c < x1; gx++) {
+    for (let gz = Math.floor(z0 / c); gz * c < z1; gz++) {
+      const ax = gx * c, az = gz * c;
+      const h = (x: number, z: number): number => ground.meshHeightAt(x, z) ?? 0;
+      const h00 = h(ax, az), h10 = h(ax + c, az), h01 = h(ax, az + c), h11 = h(ax + c, az + c);
+      // The two triangles of the cell, each with its corners (counter-clockwise in x, z) and plane.
+      const tris: Array<{ pts: Array<[number, number]>; y: (x: number, z: number) => number }> = [
+        { pts: [[ax, az], [ax + c, az], [ax, az + c]], y: (x, z) => h00 + ((h10 - h00) * (x - ax)) / c + ((h01 - h00) * (z - az)) / c },
+        { pts: [[ax + c, az], [ax + c, az + c], [ax, az + c]], y: (x, z) => h11 + ((h01 - h11) * (ax + c - x)) / c + ((h10 - h11) * (az + c - z)) / c },
+      ];
+      for (const t of tris) {
+        let piece: P2[] = poly.map((p) => [p[0], p[1]] as P2);
+        for (let e = 0; e < 3 && piece.length >= 3; e++) {
+          const [pax, paz] = t.pts[e]!;
+          const [pbx, pbz] = t.pts[(e + 1) % 3]!;
+          piece = clip(piece, pax, paz, pbx, pbz);
+        }
+        // Drop slivers (all but collinear) and duplicate points.
+        const clean: P2[] = [];
+        for (const p of piece) {
+          const last = clean[clean.length - 1];
+          if (!last || Math.hypot(p[0] - last[0], p[1] - last[1]) > 1e-4) clean.push(p);
+        }
+        while (clean.length > 1 && Math.hypot(clean[0]![0] - clean[clean.length - 1]![0], clean[0]![1] - clean[clean.length - 1]![1]) <= 1e-4) clean.pop();
+        if (clean.length < 3) continue;
+        let area = 0;
+        for (let i = 0; i < clean.length; i++) {
+          const a = clean[i]!, b = clean[(i + 1) % clean.length]!;
+          area += a[0] * b[1] - b[0] * a[1];
+        }
+        if (Math.abs(area) < 1e-4) continue;
+        emit(clean.map(([x, z]) => [x, t.y(x, z), z]));
+      }
+    }
+  }
+}
+
+/** Per node: the half width of the widest street meeting it, where three or more streets meet. */
+export function junctionRadii(edges: readonly RoadEdge[]): Map<string, number> {
+  const deg = new Map<string, number>();
+  const half = new Map<string, number>();
+  for (const e of edges) {
+    if (e.kind === "freeway" || e.kind === "ramp") continue;
+    for (const n of [e.a, e.b]) {
+      deg.set(n, (deg.get(n) ?? 0) + 1);
+      half.set(n, Math.max(half.get(n) ?? 0, e.widthM / 2));
+    }
+  }
+  const out = new Map<string, number>();
+  for (const [n, d] of deg) if (d >= 3) out.set(n, half.get(n)!);
+  return out;
+}
+
+/**
+ * Junction polygons (W-32): where three or more streets meet, the convex hull of their kerb
+ * points where their trimmed ribbons end (junctionRadii from the node), drawn as one patch of
+ * plain asphalt. Keyed by node id.
+ */
+export function junctionPolygons(edges: readonly RoadEdge[], radii: ReadonlyMap<string, number>, nodes: ReadonlyMap<string, { x: number; z: number }>): Map<string, P2[]> {
+  const pts = new Map<string, P2[]>();
+  for (const e of edges) {
+    if (e.kind === "freeway" || e.kind === "ramp") continue;
+    const L = polylineLength(e.points);
+    for (const [n, fromStart] of [[e.a, true], [e.b, false]] as const) {
+      const r = radii.get(n);
+      if (r === undefined) continue;
+      const s = fromStart ? Math.min(r, L / 2) : Math.max(L - r, L / 2);
+      const [x, z, dx, dz] = pointDirAt(e.points, s);
+      const hw = e.widthM / 2;
+      const l = pts.get(n) ?? pts.set(n, []).get(n)!;
+      l.push([x - dz * hw, z + dx * hw], [x + dz * hw, z - dx * hw]);
+    }
+  }
+  const out = new Map<string, P2[]>();
+  for (const [n, p] of [...pts].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    const node = nodes.get(n);
+    if (node) p.push([node.x, node.z]);
+    const hull = convexHull(p);
+    if (hull.length >= 3) out.set(n, hull);
+  }
+  return out;
+}
+
+function polylineLength(pts: readonly P2[]): number {
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]);
+  return L;
+}
+
+/** Point and unit direction at arc length s. */
+function pointDirAt(pts: readonly P2[], s: number): [number, number, number, number] {
+  let acc = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1]!, b = pts[i]!;
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (acc + L >= s || i === pts.length - 1) {
+      const t = L > 0 ? Math.max(0, Math.min(1, (s - acc) / L)) : 0;
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, L > 0 ? (b[0] - a[0]) / L : 1, L > 0 ? (b[1] - a[1]) / L : 0];
+    }
+    acc += L;
+  }
+  return [pts[0]![0], pts[0]![1], 1, 0];
+}
+
+/** Convex hull (monotone chain), counter-clockwise in (x, z). */
+function convexHull(points: readonly P2[]): P2[] {
+  const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (p.length < 3) return p;
+  const cross = (o: P2, a: P2, b: P2): number => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower: P2[] = [];
+  for (const q of p) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2]!, lower[lower.length - 1]!, q) <= 0) lower.pop();
+    lower.push(q);
+  }
+  const upper: P2[] = [];
+  for (const q of [...p].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2]!, upper[upper.length - 1]!, q) <= 0) upper.pop();
+    upper.push(q);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
+/**
+ * Road ribbons for one tile.
+ *   - On the ground, a ribbon is draped on the ground mesh (drapePolygon) DRAPE_LIFT_M over it,
+ *     so the drawn road and the ground agree everywhere (W-09, W-10).
+ *   - `surface(edge, s)` is the road's own surface where it is not the ground (a deck, a bore, an
+ *     underpass: decks.ts): drawn level across at that height.
+ *   - Where three or more streets meet, each ribbon stops `radii` short of the node and the
+ *     junction polygon (junctionPolygons) covers the crossing once (W-32): `junctions` are the
+ *     polygons whose node lies in this tile.
+ */
+export function roadMeshes(
+  edges: readonly RoadEdge[],
+  tile: TileRef,
+  ground: Ground,
+  surface: (edge: string, s: number) => number | null = () => null,
+  radii: ReadonlyMap<string, number> = new Map(),
+  junctions: ReadonlyArray<readonly P2[]> = [],
+): { roads: MeshData; freeways: MeshData } {
   const roads = new MeshData({ uvs: true });
   const freeways = new MeshData({ uvs: true });
+  // Draped pieces share their edges: one vertex per (position, colour, uv).
+  const caches = new Map<MeshData, Map<string, number>>([[roads, new Map()], [freeways, new Map()]]);
+  const shared = (m: MeshData, x: number, y: number, z: number, col: readonly number[], uv: readonly [number, number]): number => {
+    const key = `${Math.round(x * 100)},${Math.round(y * 100)},${Math.round(z * 100)},${col.join(",")},${Math.round(uv[0] * 32)},${Math.round(uv[1] * 32)}`;
+    const cache = caches.get(m)!;
+    let id = cache.get(key);
+    if (id === undefined) {
+      id = m.vertex(x, y, z, col, { uv });
+      cache.set(key, id);
+    }
+    return id;
+  };
+  const asphalt = rgba(ROAD_COLOR.residential!);
+  for (const poly of junctions) {
+    drapePolygon(poly, ground, (piece) => {
+      const ids = piece.map(([x, y, z]) => shared(roads, x, y + DRAPE_LIFT_M, z, asphalt, JUNCTION_UV));
+      for (let i = 1; i + 1 < ids.length; i++) roads.tri(ids[0]!, ids[i]!, ids[i + 1]!, 0, 1, 0);
+    });
+  }
   for (const e of edges) {
     const target = e.kind === "freeway" || e.kind === "ramp" ? freeways : roads;
     const col = rgba(ROAD_COLOR[e.pedestrian ? "pedestrian" : e.kind] ?? ROAD_COLOR.other!);
     const half = e.widthM / 2;
-    const dense = densify(e.points);
     const isFreeway = target === freeways;
-    for (const clipped of clipRuns(dense, tile.bbox)) {
-      // Freeways over the bay are bridge decks the source gives no height for: not drawn.
+    // Trim at junctions.
+    const L = polylineLength(e.points);
+    const s0 = isFreeway ? 0 : Math.min(radii.get(e.a) ?? 0, L / 2);
+    const s1 = isFreeway ? L : Math.max(L - (radii.get(e.b) ?? 0), L / 2);
+    if (s1 - s0 < 0.05) continue;
+    // A draped ribbon follows the ground whatever its stations, so they need only follow the
+    // centreline (DRAPE_STEP_M at most); a road with a structure keeps MAX_STEP_M stations.
+    const dense = densify(e.points, e.deck || e.tunnel ? MAX_STEP_M : DRAPE_STEP_M).filter((q) => q.s > s0 && q.s < s1);
+    const [ax, az] = pointDirAt(e.points, s0);
+    const [bx, bz] = pointDirAt(e.points, s1);
+    const trimmed = [{ p: [ax, az] as P2, s: s0 }, ...dense, { p: [bx, bz] as P2, s: s1 }];
+    for (const clipped of clipRuns(trimmed, tile.bbox)) {
+      // Freeways over the bay with no deck are bridges the world does not model: not drawn.
       // Split the run so skipped stretches emit no vertices either.
       const runs: Array<typeof clipped> = [];
       let cur: typeof clipped = [clipped[0]!];
       for (let i = 1; i < clipped.length; i++) {
         const a = clipped[i - 1]!.p;
         const b = clipped[i]!.p;
-        if (isFreeway && ground.waterAt(a[0], a[1]) && ground.waterAt(b[0], b[1])) {
+        if (isFreeway && ground.waterAt(a[0], a[1]) && ground.waterAt(b[0], b[1]) && (surface(e.id, clipped[i - 1]!.s) === null || surface(e.id, clipped[i]!.s) === null)) {
           if (cur.length >= 2) runs.push(cur);
           cur = [clipped[i]!];
         } else {
@@ -280,9 +492,8 @@ export function roadMeshes(edges: readonly RoadEdge[], tile: TileRef, ground: Gr
       }
       if (cur.length >= 2) runs.push(cur);
       for (const run of runs) {
-        const left: number[] = [];
-        const right: number[] = [];
-        for (let i = 0; i < run.length; i++) {
+        // Kerb points, the road's own surface where it has one, and texture coordinates.
+        const K = run.map(({ p, s }, i) => {
           const prev = run[Math.max(0, i - 1)]!.p;
           const next = run[Math.min(run.length - 1, i + 1)]!.p;
           let dx = next[0] - prev[0];
@@ -291,19 +502,70 @@ export function roadMeshes(edges: readonly RoadEdge[], tile: TileRef, ground: Gr
           dx /= len;
           dz /= len;
           // Perpendicular (to the right of travel on a north-up map is (-dz, dx)).
-          const px = -dz;
-          const pz = dx;
-          const { p, s } = run[i]!;
-          const lx = p[0] - px * half, lz = p[1] - pz * half;
-          const rx = p[0] + px * half, rz = p[1] + pz * half;
-          const ly = (ground.meshHeightAt(lx, lz) ?? ground.meshHeightAt(p[0], p[1]) ?? 0) + ROAD_LIFT_M;
-          const ry = (ground.meshHeightAt(rx, rz) ?? ground.meshHeightAt(p[0], p[1]) ?? 0) + ROAD_LIFT_M;
-          left.push(target.vertex(lx, ly, lz, col, { uv: [0, Math.round(s * 100) / 100] }));
-          right.push(target.vertex(rx, ry, rz, col, { uv: [1, Math.round(s * 100) / 100] }));
-        }
-        for (let i = 1; i < run.length; i++) {
-          target.tri(left[i - 1]!, right[i - 1]!, left[i]!, 0, 1, 0);
-          target.tri(right[i - 1]!, right[i]!, left[i]!, 0, 1, 0);
+          const px = -dz, pz = dx;
+          return { l: [p[0] - px * half, p[1] - pz * half] as P2, r: [p[0] + px * half, p[1] + pz * half] as P2, s, own: surface(e.id, s), c: p };
+        });
+        const vOf = (s: number): number => Math.round(s * 100) / 100;
+        for (let i = 1; i < K.length; i++) {
+          const A = K[i - 1]!, B = K[i]!;
+          // The road's own surface is drawn where it stands clear of the ground (a deck) or under
+          // it (a bore, an underpass) at both ends; near the ground it is draped like any road.
+          const off = (k: typeof A): number => {
+            if (k.own === null) return 0;
+            const g = [k.l, k.r, k.c].map(([x, z]) => ground.meshHeightAt(x, z) ?? 0);
+            return k.own - Math.max(...g) > 0.2 ? 1 : k.own - Math.min(...g) < -0.2 ? -1 : 0;
+          };
+          const oa = off(A), ob = off(B);
+          if (oa !== 0 && oa === ob) {
+            // On a deck, in a bore or an underpass: level across, at the road's own height.
+            const ya = A.own ?? (ground.meshHeightAt(A.c[0], A.c[1]) ?? 0) + DRAPE_LIFT_M;
+            const yb = B.own ?? (ground.meshHeightAt(B.c[0], B.c[1]) ?? 0) + DRAPE_LIFT_M;
+            const la = target.vertex(A.l[0], ya, A.l[1], col, { uv: [0, vOf(A.s)] });
+            const ra = target.vertex(A.r[0], ya, A.r[1], col, { uv: [1, vOf(A.s)] });
+            const lb = target.vertex(B.l[0], yb, B.l[1], col, { uv: [0, vOf(B.s)] });
+            const rb = target.vertex(B.r[0], yb, B.r[1], col, { uv: [1, vOf(B.s)] });
+            target.tri(la, ra, lb, 0, 1, 0);
+            target.tri(ra, rb, lb, 0, 1, 0);
+            continue;
+          }
+          // On the ground: the quad's two triangles, each draped on the mesh. Texture
+          // coordinates come from the point's place across (u) and along (v) the quad.
+          const ux = B.c[0] - A.c[0], uz = B.c[1] - A.c[1];
+          const ul = Math.hypot(ux, uz) || 1;
+          const uv = (x: number, z: number): [number, number] => {
+            const t = Math.max(0, Math.min(1, ((x - A.c[0]) * ux + (z - A.c[1]) * uz) / (ul * ul)));
+            // Across: interpolate the kerb line at t, then the fraction between the kerbs.
+            const lx = A.l[0] + (B.l[0] - A.l[0]) * t, lz = A.l[1] + (B.l[1] - A.l[1]) * t;
+            const rx = A.r[0] + (B.r[0] - A.r[0]) * t, rz = A.r[1] + (B.r[1] - A.r[1]) * t;
+            const wx = rx - lx, wz = rz - lz;
+            const w2 = wx * wx + wz * wz || 1;
+            const u = Math.max(0, Math.min(1, ((x - lx) * wx + (z - lz) * wz) / w2));
+            return [u, vOf(A.s + (B.s - A.s) * t)];
+          };
+          // Each of the quad's two triangles is drawn whole where the mesh under it is (all but)
+          // one plane, else draped on the mesh's own triangles. Both the ribbon and the mesh are
+          // linear between the overlay's vertices, so checking those is exact.
+          for (const tri of [[A.l, A.r, B.l], [A.r, B.r, B.l]] as Array<[P2, P2, P2]>) {
+            const pieces: Array<Array<[number, number, number]>> = [];
+            drapePolygon(tri, ground, (piece) => pieces.push(piece));
+            const ys = tri.map(([x, z]) => ground.meshHeightAt(x, z) ?? 0);
+            const den = (tri[1][0] - tri[0][0]) * (tri[2][1] - tri[0][1]) - (tri[2][0] - tri[0][0]) * (tri[1][1] - tri[0][1]);
+            const plane = (x: number, z: number): number => {
+              if (Math.abs(den) < 1e-9) return ys[0]!;
+              const u = ((x - tri[0][0]) * (tri[2][1] - tri[0][1]) - (tri[2][0] - tri[0][0]) * (z - tri[0][1])) / den;
+              const v = ((tri[1][0] - tri[0][0]) * (z - tri[0][1]) - (x - tri[0][0]) * (tri[1][1] - tri[0][1])) / den;
+              return ys[0]! + (ys[1]! - ys[0]!) * u + (ys[2]! - ys[0]!) * v;
+            };
+            if (pieces.every((pc) => pc.every(([x, y, z]) => Math.abs(plane(x, z) - y) <= DRAPE_FLAT_M))) {
+              const ids = tri.map(([x, z], k) => shared(target, x, ys[k]! + DRAPE_LIFT_M, z, col, uv(x, z)));
+              target.tri(ids[0]!, ids[1]!, ids[2]!, 0, 1, 0);
+              continue;
+            }
+            for (const piece of pieces) {
+              const ids = piece.map(([x, y, z]) => shared(target, x, y + DRAPE_LIFT_M, z, col, uv(x, z)));
+              for (let q = 1; q + 1 < ids.length; q++) target.tri(ids[0]!, ids[q]!, ids[q + 1]!, 0, 1, 0);
+            }
+          }
         }
       }
     }
@@ -311,17 +573,184 @@ export function roadMeshes(edges: readonly RoadEdge[], tile: TileRef, ground: Gr
   return { roads, freeways };
 }
 
+// ---------------------------------------------------------------- structures
+
+const CONCRETE = "#9a978f";
+/** Deck slab depth under the road surface. */
+const DECK_DEPTH_M = 1.2;
+/** Column spacing along an elevated deck, and the smallest gap under a deck that gets columns. */
+const COLUMN_SPACING_M = 30;
+const COLUMN_MIN_GAP_M = 2;
+const COLUMN_HALF_M = 0.8;
+
+/**
+ * The structure of a tile's decks (decks.ts): each elevated deck's two side faces and underside,
+ * DECK_DEPTH_M deep, and square columns down to the ground every COLUMN_SPACING_M (two side by
+ * side under a wide deck). The road surface itself is the road ribbon (roadMeshes).
+ */
+export function deckMesh(decks: readonly Deck[], ground: Ground): MeshData {
+  const m = new MeshData({ normals: true });
+  const col = rgba(CONCRETE);
+  for (const d of decks) {
+    const p = d.path;
+    if (p.length < 2) continue;
+    const gnd = p.map(([x, , z]) => ground.meshHeightAt(x, z) ?? 0);
+    const perp = p.map((_, i) => {
+      const a = p[Math.max(0, i - 1)]!;
+      const b = p[Math.min(p.length - 1, i + 1)]!;
+      const dx = b[0] - a[0], dz = b[2] - a[2];
+      const L = Math.hypot(dx, dz) || 1;
+      return [-dz / L, dx / L] as const;
+    });
+    // Sides and underside, between consecutive vertices that both stand clear of the ground.
+    for (let i = 1; i < p.length; i++) {
+      const a = p[i - 1]!, b = p[i]!;
+      if (a[1] - DECK_DEPTH_M < gnd[i - 1]! + 0.3 && b[1] - DECK_DEPTH_M < gnd[i]! + 0.3) continue;
+      const [pax, paz] = perp[i - 1]!, [pbx, pbz] = perp[i]!;
+      const ha = a[3] / 2, hb = b[3] / 2;
+      for (const side of [-1, 1]) {
+        const ax = a[0] + side * pax * ha, az = a[2] + side * paz * ha;
+        const bx = b[0] + side * pbx * hb, bz = b[2] + side * pbz * hb;
+        const nl = Math.hypot(pax + pbx, paz + pbz) || 1;
+        const nx = (side * (pax + pbx)) / nl, nz = (side * (paz + pbz)) / nl;
+        const v0 = m.vertex(ax, a[1], az, col, { n: [nx, 0, nz] });
+        const v1 = m.vertex(bx, b[1], bz, col, { n: [nx, 0, nz] });
+        const v2 = m.vertex(ax, a[1] - DECK_DEPTH_M, az, col, { n: [nx, 0, nz] });
+        const v3 = m.vertex(bx, b[1] - DECK_DEPTH_M, bz, col, { n: [nx, 0, nz] });
+        m.tri(v0, v2, v1, nx, 0, nz);
+        m.tri(v1, v2, v3, nx, 0, nz);
+      }
+      const l0 = m.vertex(a[0] - pax * ha, a[1] - DECK_DEPTH_M, a[2] - paz * ha, col, { n: [0, -1, 0] });
+      const r0 = m.vertex(a[0] + pax * ha, a[1] - DECK_DEPTH_M, a[2] + paz * ha, col, { n: [0, -1, 0] });
+      const l1 = m.vertex(b[0] - pbx * hb, b[1] - DECK_DEPTH_M, b[2] - pbz * hb, col, { n: [0, -1, 0] });
+      const r1 = m.vertex(b[0] + pbx * hb, b[1] - DECK_DEPTH_M, b[2] + pbz * hb, col, { n: [0, -1, 0] });
+      m.tri(l0, r0, l1, 0, -1, 0);
+      m.tri(r0, r1, l1, 0, -1, 0);
+    }
+    // Columns.
+    let s = 0;
+    let next = COLUMN_SPACING_M / 2;
+    for (let i = 0; i < p.length; i++) {
+      if (i > 0) s += Math.hypot(p[i]![0] - p[i - 1]![0], p[i]![2] - p[i - 1]![2]);
+      if (s < next) continue;
+      next = s + COLUMN_SPACING_M;
+      const [x, y, z, w] = p[i]!;
+      const top = y - DECK_DEPTH_M;
+      if (top - gnd[i]! < COLUMN_MIN_GAP_M) continue;
+      const [px, pz] = perp[i]!;
+      const offsets = w > 12 ? [-w / 4, w / 4] : [0];
+      for (const o of offsets) {
+        const cx = x + px * o, cz = z + pz * o;
+        const foot = (ground.meshHeightAt(cx, cz) ?? gnd[i]!) - 0.5;
+        const c: Array<[number, number]> = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+        for (let k = 0; k < 4; k++) {
+          const [ux, uz] = c[k]!, [vx, vz] = c[(k + 1) % 4]!;
+          const cl = Math.hypot(ux + vx, uz + vz) || 1;
+          const nx = (ux + vx) / cl, nz = (uz + vz) / cl;
+          const q0 = m.vertex(cx + ux * COLUMN_HALF_M, top, cz + uz * COLUMN_HALF_M, col, { n: [nx, 0, nz] });
+          const q1 = m.vertex(cx + vx * COLUMN_HALF_M, top, cz + vz * COLUMN_HALF_M, col, { n: [nx, 0, nz] });
+          const q2 = m.vertex(cx + ux * COLUMN_HALF_M, foot, cz + uz * COLUMN_HALF_M, col, { n: [nx, 0, nz] });
+          const q3 = m.vertex(cx + vx * COLUMN_HALF_M, foot, cz + vz * COLUMN_HALF_M, col, { n: [nx, 0, nz] });
+          m.tri(q0, q2, q1, nx, 0, nz);
+          m.tri(q1, q2, q3, nx, 0, nz);
+        }
+      }
+    }
+  }
+  return m;
+}
+
 // ---------------------------------------------------------------- buildings
 
-function prism(m: MeshData, ring: readonly P2[], y0: number, y1: number, baseY: number, wall: string, roof: string, style: FacadeStyle): void {
+/**
+ * Party walls (W-36): where two records share a wall exactly (the same two vertices, which
+ * shared-walls.ts guarantees for walls that touch), the part of each one's wall that the other
+ * covers can never be seen. Per record id, per edge index (edge i runs from vertex i to i + 1):
+ * the [bottom, top] height spans the neighbours cover. Neighbours in other tiles count.
+ */
+export function partyWalls(buildings: readonly Building[]): Map<string, Array<Array<[number, number]>>> {
+  const key = (a: P2, b: P2): string => {
+    const p = `${a[0]},${a[1]}`;
+    const q = `${b[0]},${b[1]}`;
+    return p < q ? `${p}|${q}` : `${q}|${p}`;
+  };
+  const span = (b: Building): [number, number] => [wallBottom(b), b.topY];
+  const edges = new Map<string, Array<{ id: string; i: number }>>();
+  for (const b of buildings) {
+    const f = b.footprint;
+    for (let i = 0; i < f.length; i++) {
+      const k = key(f[i]!, f[(i + 1) % f.length]!);
+      const l = edges.get(k);
+      if (l) l.push({ id: b.id, i });
+      else edges.set(k, [{ id: b.id, i }]);
+    }
+  }
+  const byId = new Map(buildings.map((b) => [b.id, b]));
+  const out = new Map<string, Array<Array<[number, number]>>>();
+  for (const l of edges.values()) {
+    if (l.length < 2) continue;
+    for (const a of l) {
+      for (const o of l) {
+        if (o.id === a.id) continue;
+        let arr = out.get(a.id);
+        if (!arr) out.set(a.id, (arr = []));
+        (arr[a.i] ??= []).push(span(byId.get(o.id)!));
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Where a record's walls start: a tower on its podium's roof, anything else at its foot (a span
+ * over a street at its underside, which is its footY; a building over a tunnel bore stands on
+ * the hill as drawn, its underside hidden in the ground).
+ */
+export function wallBottom(b: Building): number {
+  if (b.meta.towerOf !== undefined && b.meta.podiumTopY !== undefined) return b.meta.podiumTopY;
+  return b.meta.footY;
+}
+
+/** The parts of [y0, y1] that no span in `cover` hides, in order. */
+function visibleSpans(y0: number, y1: number, cover: ReadonlyArray<readonly [number, number]> | undefined): Array<[number, number]> {
+  let out: Array<[number, number]> = [[y0, y1]];
+  for (const [c0, c1] of cover ?? []) {
+    const next: Array<[number, number]> = [];
+    for (const [a, b] of out) {
+      if (c1 <= a || c0 >= b) {
+        next.push([a, b]);
+        continue;
+      }
+      if (c0 > a) next.push([a, c0]);
+      if (c1 < b) next.push([c1, b]);
+    }
+    out = next;
+  }
+  return out.filter(([a, b]) => b - a > 0.01);
+}
+
+function prism(
+  m: MeshData,
+  ring: readonly P2[],
+  y0: number,
+  y1: number,
+  baseY: number,
+  wall: string,
+  roof: string,
+  style: FacadeStyle,
+  cover?: ReadonlyArray<ReadonlyArray<readonly [number, number]> | undefined>,
+  underside = false,
+): void {
   const n = ring.length;
   const fw = facadeBytes(style, false);
   const fr = facadeBytes(style, true);
   const top = rgba(wall);
   const bottom = rgba(wall, 0.8);
-  // Walls: one shared bottom/top vertex pair per ring vertex, plus a seam copy so u is continuous.
+  // Walls: one shared bottom/top vertex pair per ring vertex, plus a seam copy so u is continuous;
+  // a wall a neighbour partly hides gets its own quads for the parts that show.
   const b: number[] = [];
   const t: number[] = [];
+  const us: number[] = [];
   let u = 0;
   for (let i = 0; i <= n; i++) {
     const p = ring[i % n]!;
@@ -329,18 +758,64 @@ function prism(m: MeshData, ring: readonly P2[], y0: number, y1: number, baseY: 
       const q = ring[i - 1]!;
       u += Math.hypot(p[0] - q[0], p[1] - q[1]);
     }
-    const uu = Math.round(u * 100) / 100;
-    b.push(m.vertex(p[0], y0, p[1], bottom, { uv: [uu, Math.round((y0 - baseY) * 100) / 100], f: fw }));
-    t.push(m.vertex(p[0], y1, p[1], top, { uv: [uu, Math.round((y1 - baseY) * 100) / 100], f: fw }));
+    us.push(Math.round(u * 100) / 100);
   }
+  const vAt = (y: number): number => Math.round((y - baseY) * 100) / 100;
+  // Full-height wall vertices, made only for the walls drawn whole.
+  const bt = (i: number): void => {
+    if (b[i] !== undefined) return;
+    const p = ring[i % n]!;
+    b[i] = m.vertex(p[0], y0, p[1], bottom, { uv: [us[i]!, vAt(y0)], f: fw });
+    t[i] = m.vertex(p[0], y1, p[1], top, { uv: [us[i]!, vAt(y1)], f: fw });
+  };
   for (let i = 0; i < n; i++) {
     const a = ring[i]!;
     const c = ring[(i + 1) % n]!;
     // Outward normal of a ring that is counter-clockwise on a north-up map.
     const ox = -(c[1] - a[1]);
     const oz = c[0] - a[0];
-    m.tri(b[i]!, b[i + 1]!, t[i + 1]!, ox, 0, oz);
-    m.tri(b[i]!, t[i + 1]!, t[i]!, ox, 0, oz);
+    const hidden = cover?.[i];
+    if (!hidden || hidden.length === 0) {
+      bt(i);
+      bt(i + 1);
+      m.tri(b[i]!, b[i + 1]!, t[i + 1]!, ox, 0, oz);
+      m.tri(b[i]!, t[i + 1]!, t[i]!, ox, 0, oz);
+      continue;
+    }
+    for (const [s0, s1] of visibleSpans(y0, y1, hidden)) {
+      const k = (y: number): number => (y - y0) / (y1 - y0 || 1);
+      const col0 = rgba(wall, 0.8 + 0.2 * k(s0));
+      const col1 = rgba(wall, 0.8 + 0.2 * k(s1));
+      // A span that reaches the wall's foot or top reuses the full-height vertices there.
+      let q0: number, q1: number, q2: number, q3: number;
+      if (s0 === y0) {
+        bt(i);
+        bt(i + 1);
+        q0 = b[i]!;
+        q1 = b[i + 1]!;
+      } else {
+        q0 = m.vertex(a[0], s0, a[1], col0, { uv: [us[i]!, vAt(s0)], f: fw });
+        q1 = m.vertex(c[0], s0, c[1], col0, { uv: [us[i + 1]!, vAt(s0)], f: fw });
+      }
+      if (s1 === y1) {
+        bt(i);
+        bt(i + 1);
+        q2 = t[i + 1]!;
+        q3 = t[i]!;
+      } else {
+        q2 = m.vertex(c[0], s1, c[1], col1, { uv: [us[i + 1]!, vAt(s1)], f: fw });
+        q3 = m.vertex(a[0], s1, a[1], col1, { uv: [us[i]!, vAt(s1)], f: fw });
+      }
+      m.tri(q0, q1, q2, ox, 0, oz);
+      m.tri(q0, q2, q3, ox, 0, oz);
+    }
+  }
+  if (underside) {
+    // The ceiling of a passage under a span, facing down.
+    const under = rgba(wall, 0.6);
+    const r0: number[] = ring.map((p) => m.vertex(p[0], y0, p[1], under, { uv: [p[0], p[1]], f: fw }));
+    const tris0 = ShapeUtils.triangulateShape(ring.map(([x, z]) => new Vector2(x, z)), []);
+    for (const [i0, i1, i2] of tris0) m.tri(r0[i0!]!, r0[i1!]!, r0[i2!]!, 0, -1, 0);
   }
   // Roof.
   const roofCol = rgba(roof);
@@ -349,7 +824,10 @@ function prism(m: MeshData, ring: readonly P2[], y0: number, y1: number, baseY: 
   for (const [i0, i1, i2] of tris) m.tri(r[i0!]!, r[i1!]!, r[i2!]!, 0, 1, 0);
 }
 
-export function buildingMesh(buildings: readonly Building[]): { mesh: MeshData; ranges: Array<[string, number, number]> } {
+export function buildingMesh(
+  buildings: readonly Building[],
+  party?: ReadonlyMap<string, ReadonlyArray<ReadonlyArray<readonly [number, number]> | undefined>>,
+): { mesh: MeshData; ranges: Array<[string, number, number]> } {
   const m = new MeshData({ uvs: true, facade: true });
   const ranges: Array<[string, number, number]> = [];
   const styles = new Map<string, FacadeStyle>();
@@ -358,9 +836,9 @@ export function buildingMesh(buildings: readonly Building[]): { mesh: MeshData; 
     // A tower shares its podium's facade (the podium precedes it in id order).
     const style = (bl.meta.towerOf !== undefined ? styles.get(bl.meta.towerOf) : undefined) ?? facadeStyle(bl);
     styles.set(bl.id, style);
-    // A tower record starts on its podium's roof; everything else at the lowest ground under it.
-    const y0 = bl.meta.towerOf !== undefined && bl.meta.podiumTopY !== undefined ? bl.meta.podiumTopY : bl.meta.footY;
-    prism(m, bl.footprint, y0, bl.topY, bl.baseY, style.wall, style.roof, style);
+    // A tower record starts on its podium's roof, a span at its underside; everything else at the
+    // lowest ground under it.
+    prism(m, bl.footprint, wallBottom(bl), bl.topY, bl.baseY, style.wall, style.roof, style, party?.get(bl.id), bl.meta.piece === "span");
     ranges.push([bl.id, first, m.indices.length - first]);
   }
   return { mesh: m, ranges };

@@ -34,6 +34,13 @@ export interface RawStreet {
   line?: { type: "LineString" | "MultiLineString"; coordinates: unknown };
 }
 
+/** When a street segment entered (or last changed in) the centreline dataset (same query as the streets, two columns). */
+export interface RawStreetDate {
+  cnn: string;
+  date_added?: string;
+  date_altered?: string;
+}
+
 export interface RawParcel {
   parcel_number?: string;
   block?: string;
@@ -146,6 +153,8 @@ export interface RawInputs {
   /** One raster per area (areas.json order), or per DEM block (citywide), first match wins. */
   dems: Array<{ areaId: string; raster: GeoRaster }>;
   extras?: RawExtras;
+  /** Citywide: when each street segment was added or altered (the carriageway clearance pass). */
+  streetDates?: RawStreetDate[];
 }
 
 /** Padding around each area's tile rectangle for queries, metres. */
@@ -351,6 +360,13 @@ async function downloadCitywide(cfg: WorldConfig, opts: FetchOptions): Promise<R
       }, "parking regulations"),
     ]);
 
+  // A separate query (two columns) so the cached street geometry above stays the same download.
+  const streetDates = await page<RawStreetDate>(src.streets, {
+    where: `active = true AND intersects(line, '${wktBox(box)}')`,
+    select: "cnn,date_added,date_altered",
+    order: ":id",
+  }, "street segment dates");
+
   const blocks = demBlocks(candidateTiles(cfg), cw.demBlockTiles);
   const dems = await Promise.all(
     blocks.map(async (b) => {
@@ -366,6 +382,7 @@ async function downloadCitywide(cfg: WorldConfig, opts: FetchOptions): Promise<R
     parcels: byKeySorted(parcels.filter((r) => r.parcel_number), (r) => r.parcel_number!),
     businesses: byKeySorted(businesses, (r) => r.uniqueid),
     dems,
+    streetDates: byKeySorted(streetDates, (r) => r.cnn),
     extras: {
       neighborhoods: byKeySorted(neighborhoods, (r) => r.nhood),
       fountains: byKeySorted(fountains, (r) => r.uid),

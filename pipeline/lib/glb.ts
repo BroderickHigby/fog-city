@@ -3,7 +3,10 @@
 // Scene layout (node names are part of the contract with the renderer):
 //   ground     terrain heightfield, smooth normals, COLOR_0 (water is blue-grey)
 //   roads      surface road ribbons, TEXCOORD_0 = (0 left kerb .. 1 right kerb, metres along the edge)
-//   freeways   freeway and ramp ribbons, draped on the terrain (the source has no deck heights)
+//   freeways   freeway and ramp ribbons: on their decks (decks.ts) where the deck layer lifts
+//              them, in their bores in a tunnel, else draped on the terrain
+//   structures deck sides, undersides and columns (decks.ts), COLOR_0 concrete; only in tiles
+//              with an elevated deck. Any road ribbon on a deck is drawn level at the deck.
 //   buildings  every building in the tile, merged. No normals: glTF loaders shade flat.
 //              COLOR_0 facade colour, TEXCOORD_0 = (metres along the wall, metres above the base),
 //              _FACADE = (storey height / 8 m, glazing 0..1, (year - 1840) / 190 or 0, roof 0|1),
@@ -22,7 +25,7 @@ import { Document, NodeIO, type Material, type Node } from "@gltf-transform/core
 import { EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/extensions";
 import { MeshoptEncoder } from "meshoptimizer";
 import type { TileRef } from "./config.ts";
-import type { MeshData } from "./mesh.ts";
+import { MeshData } from "./mesh.ts";
 
 /** Position grid, metres. A power of two: dequantised positions are exact binary fractions. */
 export const POSITION_STEP_M = 1 / 64;
@@ -99,12 +102,20 @@ export interface TileMeshes {
   freeways: MeshData;
   buildings: MeshData;
   buildingRanges: Array<[string, number, number]>;
+  /** Deck sides, undersides and columns (decks.ts); absent or empty when the tile has none. */
+  structures?: MeshData;
 }
 
 export interface GlbPart {
   /** Node and mesh name (a contract with the renderer). */
   name: string;
   mesh: MeshData;
+  /**
+   * Reorder triangles for the vertex cache and vertices by first use (meshoptimizer), which
+   * compresses far better: the whole mesh, or within each of these index ranges (a building's
+   * triangles stay in its own range).
+   */
+  reorder?: boolean | ReadonlyArray<readonly [string, number, number]>;
   /** Material name; one plain PBR material per name, created only when used. */
   material: string;
   roughness: number;
@@ -123,8 +134,9 @@ export async function meshGlb(sceneExtras: Record<string, unknown>, centre: read
   const scene = doc.createScene(name).setExtras(sceneExtras);
   doc.getRoot().setDefaultScene(scene);
   const materials = new Map<string, Material>();
+  if (parts.some((p) => p.reorder)) await MeshoptEncoder.ready;
   for (const part of parts) {
-    const m = part.mesh;
+    const m = part.reorder === true ? reorderMesh(part.mesh) : part.reorder ? reorderRanges(part.mesh, part.reorder) : part.mesh;
     if (m.indices.length === 0) continue;
     let mat = materials.get(part.material);
     if (!mat) {
@@ -151,15 +163,86 @@ export async function meshGlb(sceneExtras: Record<string, unknown>, centre: read
   return writeGlb(doc, opts);
 }
 
+/** A copy of a mesh with its triangles in vertex-cache order and its vertices in first-use order. */
+function reorderMesh(m: MeshData): MeshData {
+  if (m.indices.length === 0) return m;
+  const idx = Uint32Array.from(m.indices);
+  const [remap, unique] = MeshoptEncoder.reorderMesh(idx, true, true);
+  const out = new MeshData({ normals: m.normals !== null, uvs: m.uvs !== null, facade: m.facade !== null });
+  const n = m.vertexCount;
+  const pos = new Array<number>(unique * 3), col = new Array<number>(unique * 4);
+  const nrm = m.normals ? new Array<number>(unique * 3) : null;
+  const uv = m.uvs ? new Array<number>(unique * 2) : null;
+  const fac = m.facade ? new Array<number>(unique * 4) : null;
+  for (let i = 0; i < n; i++) {
+    const j = remap[i]!;
+    if (j === 0xffffffff) continue;
+    for (let k = 0; k < 3; k++) pos[j * 3 + k] = m.positions[i * 3 + k]!;
+    for (let k = 0; k < 4; k++) col[j * 4 + k] = m.colors[i * 4 + k]!;
+    if (nrm) for (let k = 0; k < 3; k++) nrm[j * 3 + k] = m.normals![i * 3 + k]!;
+    if (uv) for (let k = 0; k < 2; k++) uv[j * 2 + k] = m.uvs![i * 2 + k]!;
+    if (fac) for (let k = 0; k < 4; k++) fac[j * 4 + k] = m.facade![i * 4 + k]!;
+  }
+  out.positions = pos;
+  out.colors = col;
+  out.normals = nrm;
+  out.uvs = uv;
+  out.facade = fac;
+  out.indices = Array.from(idx);
+  return out;
+}
+
+/**
+ * reorderMesh within each index range (a building's triangles stay in its range, so the
+ * renderer's per-building ranges keep their meaning) and vertices in first-use order.
+ */
+function reorderRanges(m: MeshData, ranges: ReadonlyArray<readonly [string, number, number]>): MeshData {
+  const covered = ranges.reduce((n, r) => n + r[2], 0);
+  if (m.indices.length === 0 || covered !== m.indices.length) return m;
+  const out = new MeshData({ normals: m.normals !== null, uvs: m.uvs !== null, facade: m.facade !== null });
+  const indices = new Array<number>(m.indices.length);
+  for (const [, first, count] of ranges) {
+    if (count === 0) continue;
+    let lo = Infinity, hi = -Infinity;
+    for (let k = first; k < first + count; k++) {
+      lo = Math.min(lo, m.indices[k]!);
+      hi = Math.max(hi, m.indices[k]!);
+    }
+    const local = new Uint32Array(count);
+    for (let k = 0; k < count; k++) local[k] = m.indices[first + k]! - lo;
+    const [remap, unique] = MeshoptEncoder.reorderMesh(local, true, true);
+    const base = out.positions.length / 3;
+    const add = (dst: number[] | null, src: number[] | null, w: number): void => {
+      if (!dst || !src) return;
+      const at = dst.length;
+      dst.length = at + unique * w;
+      for (let v = 0; v <= hi - lo; v++) {
+        const j = remap[v]!;
+        if (j === 0xffffffff) continue;
+        for (let c = 0; c < w; c++) dst[at + j * w + c] = src[(lo + v) * w + c]!;
+      }
+    };
+    add(out.positions, m.positions, 3);
+    add(out.colors, m.colors, 4);
+    add(out.normals, m.normals, 3);
+    add(out.uvs, m.uvs, 2);
+    add(out.facade, m.facade, 4);
+    for (let k = 0; k < count; k++) indices[first + k] = base + local[k]!;
+  }
+  out.indices = indices;
+  return out;
+}
+
 export async function tileGlb(world: string, tile: TileRef, parts: TileMeshes, opts: GlbOptions = {}): Promise<Uint8Array> {
   return meshGlb(
     { world, tile: tile.id, ix: tile.ix, iz: tile.iz, bbox: tile.bbox },
     [(tile.bbox[0] + tile.bbox[2]) / 2, (tile.bbox[1] + tile.bbox[3]) / 2],
     [
       { name: "ground", mesh: parts.ground, material: "ground", roughness: 0.95 },
-      { name: "roads", mesh: parts.roads, material: "road", roughness: 0.9 },
-      { name: "freeways", mesh: parts.freeways, material: "freeway", roughness: 0.9 },
-      { name: "buildings", mesh: parts.buildings, material: "building", roughness: 0.85, extras: { buildings: parts.buildingRanges } },
+      { name: "roads", mesh: parts.roads, material: "road", roughness: 0.9, reorder: true },
+      { name: "freeways", mesh: parts.freeways, material: "freeway", roughness: 0.9, reorder: true },
+      { name: "buildings", mesh: parts.buildings, material: "building", roughness: 0.85, extras: { buildings: parts.buildingRanges }, reorder: parts.buildingRanges },
+      ...(parts.structures ? [{ name: "structures", mesh: parts.structures, material: "structure", roughness: 0.9, reorder: true }] : []),
     ],
     opts,
   );

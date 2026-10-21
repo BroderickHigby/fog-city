@@ -4,7 +4,7 @@
 import { ORIGIN, TILE_SIZE_M, toLatLon, toLocal } from "../../src/geo/project.ts";
 import type { Spawn } from "../../src/sim/contract.ts";
 import { buildBoundary, type BoundaryStats } from "./boundary.ts";
-import { buildBuildings, type Building, type BuildingStats, type Override } from "./buildings.ts";
+import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
 import { candidateTiles, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
 import { bearing, clipSegment, distToRing, distToSegment, pointInRing, r2 } from "./geom.ts";
@@ -24,9 +24,14 @@ import { RoadSurface, trafficEdges } from "./road-surface.ts";
 import { buildSidewalks, type SidewalkStats } from "./sidewalks.ts";
 import type { Deck, Movable, Tunnel } from "./structures.ts";
 import { encodeWorldColliders } from "./world-colliders.ts";
-import { buildingMesh, groundMesh, roadMeshes } from "./mesh.ts";
+import { buildingMesh, deckMesh, groundMesh, junctionPolygons, junctionRadii, partyWalls, roadMeshes } from "./mesh.ts";
+import { terraceBuildings, type TerraceStats } from "./terrace.ts";
+import { clearCorridors, type ClearanceStats } from "./clearance.ts";
+import { findTunnels, tunnelRibbons, undersideOverBores, type Bore } from "./tunnels.ts";
+import { buildDecks, type DeckStats } from "./decks.ts";
 import { jsonLines, jsonPretty, utf8 } from "./output.ts";
-import { buildRoads, titleCase, type RoadEdge, type RoadGraph, type RoadStats } from "./roads.ts";
+import { buildRoads, crossesWater, titleCase, type RoadEdge, type RoadGraph, type RoadStats } from "./roads.ts";
+import { raisePiers, rebaseOnDecks, type PierStats } from "./piers.ts";
 import type { RawInputs } from "./sources.ts";
 import { BuildingIndex, buildStorefronts, type StorefrontStats } from "./storefronts.ts";
 import { Elevation, Ground, tileHeightfield, type Heightfield } from "./terrain.ts";
@@ -62,6 +67,16 @@ export interface Report {
   tiles: number;
   selection: TileSelection;
   buildings: BuildingStats;
+  /** Hillside terracing and roof clearance (terrace.ts). */
+  terrace: TerraceStats;
+  /** Street and path clearance (clearance.ts). */
+  clearance: ClearanceStats;
+  /** Tunnel bores (tunnels.ts) and the buildings over them that got an underside. */
+  tunnels: { bores: Bore[]; buildingsOver: string[]; droppedInPortalCuts: string[] };
+  /** Pier decks raised out of the bay (piers.ts). */
+  piers: PierStats;
+  /** Freeway, overpass, underpass and bridge decks (decks.ts). */
+  decks: DeckStats;
   overridesApplied: string[];
   roads: RoadStats;
   storefronts: StorefrontStats;
@@ -220,7 +235,49 @@ export interface TileStructures {
   movable: Map<string, Movable[]>;
 }
 
+/** Towers whose podium is gone are dropped; every other tower's podiumTopY is its podium's roof. */
+function reconcileTowers(list: readonly Building[]): Building[] {
+  const byId = new Map(list.map((b) => [b.id, b]));
+  const out: Building[] = [];
+  for (const b of list) {
+    if (b.meta.towerOf === undefined) {
+      if (b.meta.tower !== undefined && !byId.has(b.meta.tower)) {
+        const meta = { ...b.meta };
+        delete meta.tower;
+        out.push({ ...b, meta });
+      } else out.push(b);
+      continue;
+    }
+    const pod = byId.get(b.meta.towerOf);
+    if (!pod || pod.meta.tower !== b.id) continue;
+    if (b.meta.podiumTopY === pod.topY && b.topY > pod.topY) {
+      out.push(b);
+      continue;
+    }
+    out.push({ ...b, topY: Math.max(b.topY, r2(pod.topY + 2.5)), meta: { ...b.meta, podiumTopY: pod.topY } });
+  }
+  return out;
+}
+
+/** Two clearance passes' statistics as one. */
+function mergeClearance(a: ClearanceStats, b: ClearanceStats): ClearanceStats {
+  const u = (p: string[], q: string[]): string[] => [...new Set([...p, ...q])].sort();
+  return {
+    towersOnStreets: u(a.towersOnStreets, b.towersOnStreets),
+    staleDropped: u(a.staleDropped, b.staleDropped),
+    reregistered: u(a.reregistered, b.reregistered),
+    spans: u(a.spans, b.spans),
+    cut: a.cut + b.cut,
+    stairsDropped: u(a.stairsDropped, b.stairsDropped),
+    slivers: a.slivers + b.slivers,
+  };
+}
+
 export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, overrides: Override[]): Promise<BuildOutput> {
+  const t0 = Date.now();
+  const lap = (what: string): void => {
+    if (process.env.FC_BUILD_TIMES) console.log(`  [${((Date.now() - t0) / 1000).toFixed(1)} s] ${what}`);
+  };
   // Every tile the build considers, with its heightfield. Which get files is decided below.
   const candidates = candidateTiles(cfg);
   const elev = new Elevation(raw.dems.map((d) => d.raster));
@@ -263,8 +320,41 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   };
 
   const districts: District[] = raw.extras ? buildDistricts(raw.extras.neighborhoods) : [];
-  const { buildings, stats: bStats, overridesApplied } = buildBuildings(raw.buildings, raw.parcels, overrides, candidates, ground);
-  const { graph, stats: rStats } = buildRoads(raw.streets, candidates, heightAnywhere, waterAnywhere);
+  lap("terrain");
+  const built = buildBuildings(raw.buildings, raw.parcels, overrides, candidates, ground);
+  lap("buildings");
+  const { stats: bStats, overridesApplied } = built;
+  const { graph, stats: rStats, optionalStairs } = buildRoads(raw.streets, candidates, heightAnywhere, waterAnywhere);
+  // Pier decks (W-13): raise the piers out of the hydro-flattened bay before anything else reads
+  // the ground, then put the road nodes and the pier buildings on them.
+  const piers = raisePiers(built.buildings, graph, fields, ground);
+  for (const n of graph.nodes) n.y = r2(heightAnywhere(n.x, n.z));
+  for (const e of graph.edges) {
+    if (crossesWater(e.points, waterAnywhere)) e.bridge = true;
+    else delete e.bridge;
+  }
+  rStats.bridges = graph.edges.filter((e) => e.bridge).length;
+  built.buildings = rebaseOnDecks(built.buildings, piers.decks, (ring) => minGroundUnder(ring, ground));
+  lap("piers");
+  // Tunnels first (their bores pass under buildings), then clear every street and path corridor
+  // (W-01, W-39, W-43, W-16), then terrace hillside buildings (W-05, W-28), then give the
+  // buildings over a bore an underside.
+  lap("roads");
+  const tunnels = findTunnels(graph, heightAnywhere, (lat, lon) => toLocal(lat, lon));
+  const cleared = clearCorridors(built.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs });
+  lap("clearance");
+  // The records under a landmark probe keep their one prism: the landmark replaces them whole.
+  const probed = new Set((cfg.probes?.points ?? []).flatMap((pr) => probeBuildings(pr, cleared.buildings).buildings));
+  const terraced = terraceBuildings(cleared.buildings, ground, (b) => probed.has(b.id));
+  lap("terraces");
+  // Terracing lifts roofs that were under the hill: clear the corridors once more for those.
+  const recleared = clearCorridors(terraced.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs });
+  lap("clearance again");
+  const bored = undersideOverBores(recleared.buildings, graph, tunnels.bores, heightAnywhere);
+  lap("tunnels");
+  // Two-tier records after every pass: a tower stands on its podium record's roof; a tower whose
+  // podium a pass removed goes with it.
+  const buildings = reconcileTowers(bored.buildings);
 
   // Tile selection: a tile is built when it holds a building, a road passes through it, or it
   // has land (citywide: land inside San Francisco's neighbourhoods). Open water gets no file.
@@ -323,7 +413,28 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const files = new Map<string, Uint8Array>();
   const boundary = buildBoundary(tiles, fields);
   const structures: TileStructures = { decks: new Map(), tunnels: new Map(), movable: new Map() };
+  for (const { tile, tunnel } of tunnelRibbons(graph, tunnels.bores, heightAnywhere)) {
+    const l = structures.tunnels.get(tile);
+    if (l) l.push(tunnel);
+    else structures.tunnels.set(tile, [tunnel]);
+  }
+  // Decks (W-03, W-07, W-12, W-14): freeway viaducts, overpasses, underpasses, creek bridges.
+  const decked = buildDecks(graph, buildings, heightAnywhere, waterAnywhere, tunnels.bores, (lat, lon) => toLocal(lat, lon));
+  for (const { tile, deck } of decked.decks) (structures.decks.get(tile) ?? structures.decks.set(tile, []).get(tile)!).push(deck);
+  for (const { tile, tunnel } of decked.tunnels) (structures.tunnels.get(tile) ?? structures.tunnels.set(tile, []).get(tile)!).push(tunnel);
+  for (const { tile, movable } of decked.movable) (structures.movable.get(tile) ?? structures.movable.set(tile, []).get(tile)!).push(movable);
+  for (const m of [structures.decks, structures.tunnels, structures.movable] as Array<Map<string, Array<{ id: string }>>>) {
+    for (const l of m.values()) l.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  }
+  lap("decks");
 
+  // Junction polygons (W-32): ribbons stop short of a node where three or more streets meet.
+  const radii = junctionRadii(graph.edges);
+  const junctions = junctionPolygons(graph.edges, radii, new Map(graph.nodes.map((n) => [n.id, n])));
+  const nodeAt = new Map(graph.nodes.map((n) => [n.id, n]));
+
+  // Walls two records share exactly hide each other where both stand (W-36): not drawn.
+  const party = partyWalls(buildings);
   let minY = Infinity, maxY = -Infinity, waterSamples = 0, samples = 0;
   const manifestTiles: unknown[] = [];
   for (const t of tiles) {
@@ -347,14 +458,21 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     files.set(`${t.id}.collider.json`, utf8(collider));
 
     const tileEdges = edgeBoxes.filter(({ box }) => overlaps(box, t.bbox)).map(({ e }) => e);
-    const { roads, freeways } = roadMeshes(tileEdges, t, ground);
-    const { mesh, ranges } = buildingMesh(tb);
+    const tileJunctions = [...junctions]
+      .filter(([n]) => {
+        const p = nodeAt.get(n)!;
+        return p.x >= t.bbox[0] && p.x < t.bbox[2] && p.z >= t.bbox[1] && p.z < t.bbox[3];
+      })
+      .map(([, poly]) => poly);
+    const { roads, freeways } = roadMeshes(tileEdges, t, ground, decked.surface, radii, tileJunctions);
+    const { mesh, ranges } = buildingMesh(tb, party);
     const glb = await tileGlb(cfg.id, t, {
       ground: groundMesh(field, ground),
       roads,
       freeways,
       buildings: mesh,
       buildingRanges: ranges,
+      structures: deckMesh(structures.decks.get(t.id) ?? [], ground),
     });
     files.set(`${t.id}.glb`, glb);
     const water = field.water.reduce((s, v) => s + v, 0) / field.water.length;
@@ -410,6 +528,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   });
   files.set("world.colliders.bin", pack);
 
+  lap("tiles");
   // Far-LOD massing over the whole candidate rectangle (the DEM reaches it all).
   const far = await buildFarLod(cfg.id, {
     buildings,
@@ -589,6 +708,11 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     tiles: tiles.length,
     selection: sel,
     buildings: bStats,
+    terrace: terraced.stats,
+    clearance: mergeClearance(cleared.stats, recleared.stats),
+    tunnels: { bores: tunnels.bores, buildingsOver: bored.ids, droppedInPortalCuts: bored.dropped },
+    piers: piers.stats,
+    decks: decked.stats,
     overridesApplied,
     roads: rStats,
     storefronts: sStats,
