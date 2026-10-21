@@ -190,20 +190,28 @@ export const HILL_ROUTES: ReadonlyArray<{ name: string; via: Array<[number, numb
 ];
 
 /**
- * Drive a path with the full step() (ambient traffic on), player p1 following it like a careful
- * driver: it slows for an agent ahead (a simple following distance), and when an agent has it
- * boxed in (stopped against it for a second) it backs off for a second and tries again. A stop
- * counts against the world only when the car is held by a building or a wall; waiting on traffic
- * runs into the time limit instead (reported as "traffic").
+ * Drive a path with the full step() (player logic, collisions, walls), player p1 following it like
+ * a careful driver: it slows for an agent ahead (a simple following distance), and when an agent
+ * has it boxed in (stopped against it for a second) it backs off and tries again. A stop counts
+ * against the world only when the car is held by a building or a wall.
+ *
+ * The gate drives its routes without ambient traffic (`traffic: false`, the default: the world's
+ * road graph withheld from step(), so no agents spawn). With traffic on, this follower deadlocks
+ * against robotaxis waiting at junctions on every route (measured at 544f67c); the traffic-aware
+ * closed-loop drivers of the roadmap (tests/helpers/drivers/) will replace it. Traffic itself is
+ * exercised by the determinism suite (60 s of step() with agents) and tests/sim/agent-budget.
  */
-export function routeDrive(world: World, path: readonly P2[], vmax = 14): { reached: boolean; stuckAt: P2 | null; why: string; ticks: number; track: DriveTrack; seamStep: number; hashes: string[] } {
+export function routeDrive(world: World, path: readonly P2[], vmax = 14, traffic = false): { reached: boolean; stuckAt: P2 | null; why: string; ticks: number; track: DriveTrack; seamStep: number; hashes: string[] } {
+  if (!traffic) world = { ...world, roads: null };
   const k = Math.min(3, path.length - 1);
   const h0 = bearing(path[k]![0] - path[0]![0], path[k]![1] - path[0]![1]);
   let s: SimState = createInitialState(world, 7, ["p1"], { x: path[0]![0], z: path[0]![1], heading: h0 });
   const len = path.length - 1;
-  const limit = Math.ceil((len / Math.max(3, vmax * 0.4)) * 60) + 3600;
+  const limit = Math.ceil((len / Math.max(3, vmax * 0.5)) * 60) + 1800;
   const track = new DriveTrack(world);
   let idx = 0;
+  let lastIdx = 0;
+  let lastMove = 0;
   let held = 0;
   let boxed = 0;
   let backing = 0;
@@ -219,6 +227,18 @@ export function routeDrive(world: World, path: readonly P2[], vmax = 14): { reac
     idx = advanceIndex(path, idx, c.x, c.z).idx;
     if (idx >= len - 2) {
       reached = true;
+      break;
+    }
+    if (idx > lastIdx + 2) {
+      lastIdx = idx;
+      lastMove = t;
+    } else if (t - lastMove > 1800) {
+      // No progress for 30 s: name what holds the car, or give up on traffic.
+      const touch = contactsAt(world, c.x, c.z, c.heading, c.y);
+      if (touch.buildings.length || touch.walls) {
+        stuckAt = [c.x, c.z];
+        why = touch.buildings.length ? `building ${touch.buildings[0]}` : "wall";
+      } else why = `no progress for 30 s at ${ll(c.x, c.z)} (traffic)`;
       break;
     }
     // The nearest agent in a cone ahead (within 2.5 m of the car's line).
@@ -264,7 +284,7 @@ export function routeDrive(world: World, path: readonly P2[], vmax = 14): { reac
       }
     } else held = 0;
   }
-  if (!reached && !stuckAt) why = "traffic or time limit";
+  if (!reached && !stuckAt && !why) why = "time limit";
   return { reached, stuckAt, why, ticks: t, track, seamStep, hashes };
 }
 
@@ -632,7 +652,7 @@ export function measureRoutes(gw: GameWorld): Measured {
     m.lap(r.name);
   }
   m.runSet("routes/hills", outcomes);
-  m.metric({ id: "F.routes.stopped", target: 0, better: "lower", unit: "routes", defects: ["W-01", "W-14"], desc: "of the 11 closed-loop routes (Filbert up and Lombard down, California over Nob Hill, Market to Twin Peaks, 22nd St, Fillmore, Vermont, Great Hwy, 19th Ave, JFK Dr, 3rd St, a diagonal across the city), driven with the full step() and traffic, those that do not reach the end" }, fails.length, fails);
+  m.metric({ id: "F.routes.stopped", target: 0, better: "lower", unit: "routes", defects: ["W-01", "W-14"], desc: "of the 11 closed-loop routes (Filbert up and Lombard down, California over Nob Hill, Market to Twin Peaks, 22nd St, Fillmore, Vermont, Great Hwy, 19th Ave, JFK Dr, 3rd St, a diagonal across the city), driven with the full step() (no ambient traffic), those held by a building or a wall before the end" }, fails.length, fails);
   m.metric({ id: "F.routes.seamStepM", target: 0.1, better: "lower", unit: "m", defects: [], desc: "on those routes: the largest jump in the car's height change at a tile seam" }, r3(seam));
   m.metric({ id: "F.routes.belowSurfaceM", target: 0.1, better: "lower", unit: "m", defects: ["W-22"], desc: "on those routes: the deepest the car goes below the surface under it" }, r3(below));
   m.metric({ id: "F.routes.maxJumpM", target: 0.5, better: "lower", unit: "m", defects: [], desc: "on those routes: the most one tick moves the car beyond speed * DT" }, r3(jump));
@@ -641,7 +661,7 @@ export function measureRoutes(gw: GameWorld): Measured {
   const path = route(gw, HILL_ROUTES[3]!.via);
   const a = routeDrive(world, path).hashes;
   const b = routeDrive(world, path).hashes;
-  m.metric({ id: "F.routes.rerunHashMismatches", target: 0, better: "lower", unit: "checkpoints", defects: [], desc: "a route driven twice with step() and traffic: state hashes that differ at the 600-tick checkpoints" }, a.filter((h, i) => h !== b[i]).length + Math.abs(a.length - b.length));
+  m.metric({ id: "F.routes.rerunHashMismatches", target: 0, better: "lower", unit: "checkpoints", defects: [], desc: "a route driven twice with step(): state hashes that differ at the 600-tick checkpoints" }, a.filter((h, i) => h !== b[i]).length + Math.abs(a.length - b.length));
   return m;
 }
 

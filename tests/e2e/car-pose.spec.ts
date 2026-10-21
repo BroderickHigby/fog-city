@@ -2,6 +2,7 @@
 // on three steep streets (Filbert at 31.5%, Twin Peaks Blvd, Kearny on Telegraph Hill). The
 // model's pitch must match the sim's (W-19, fixed: a hard assertion) and every wheel's lowest
 // point should sit on the drawn road (W-09: the ribbon and the sim's ground disagree; ratcheted).
+// And the far skyline is drawn from Twin Peaks (W-20, fixed).
 // Cars are placed with the sim's own player.join event (stepFrames), never by editing the state.
 
 import { test } from "@playwright/test";
@@ -63,6 +64,12 @@ test.describe("world gate: the car's pose on steep streets", () => {
       gap = Math.max(gap, ...gaps);
       per[s.name] = { simPitchDeg: (car.pitch * 180) / Math.PI, pitchErrDeg: err, wheelGapsM: gaps.map((g) => Math.round(g * 100) / 100), onRoad: roads.map((r) => r !== null) };
     }
+    // The far skyline (W-20, fixed): from Twin Peaks looking north-east, far cells are loaded and drawn.
+    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.flyTo!(-4672, 300, 4540, 45, -5));
+    await settle(page, 240_000);
+    await frames(page, 4);
+    const far = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!());
+    m.metric({ id: "G.far.cellsDrawnFromTwinPeaks", target: 4, better: "higher", unit: "far cells", defects: ["W-20"], desc: "from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles)" }, far.farCellsDrawn ?? 0, { loaded: far.farCells, total: far.farCellsTotal, cameraFar: far.cameraFar });
     m.metric({ id: "G.carPose.pitchErrorDeg", target: 1, better: "lower", unit: "deg", defects: ["W-19"], desc: "on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's" }, Math.round(pitchErr * 1000) / 1000, per);
     m.metric({ id: "G.carPose.wheelGapM", target: 0.1, better: "lower", unit: "m", defects: ["W-09"], desc: "on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon)" }, Math.round(gap * 100) / 100, per);
     judgeMeasured(m);

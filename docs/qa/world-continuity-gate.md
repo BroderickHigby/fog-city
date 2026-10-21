@@ -214,3 +214,84 @@ The tour writes a contact sheet and puts it beside the previous wave's. The revi
 - **Fixes.** When a fix lands, lower the baseline in the same PR and update `world-qa-status.md`.
 - **New territory and waves.** A new territory step adds its districts to the drive-every-street, walk-every-path and ring tests automatically, because they iterate the manifest. It also adds 2 to 4 tour views.
 - **Owner.** The gate's owner is Harness. Each test's owner is the track that owns its directory.
+
+## Implementation (landed on qa/gate, baselined at 544f67c)
+
+The gate above is implemented as follows. Where the implementation differs from the plan, the
+difference is listed with its reason.
+
+### Files and commands
+
+| What | Where |
+|---|---|
+| The world as the game boots it, the road and walker followers, the meshopt GLB decoder | `tests/helpers/world.ts` |
+| The ratchet's rules, the measurement record, the Vitest wrapper | `tests/helpers/world-gate/ratchet.ts`, `measured.ts`, `suite.ts` |
+| Each suite's metric definitions and measurements | `tests/helpers/world-gate/{buildings,terrain,streets,cover,houses,edge,play,nightly,glb,far}.ts` |
+| Reference fixtures (parcel points, Rec and Park outlines, lakes, 1 m DEM profiles, QA sites) | `tests/helpers/world-gate/fixtures/` (README; made by `scripts/golden/world-fixtures.ts`) |
+| Per-PR suites (Vitest project `world-pr`, inside `pnpm test`) | `tests/golden/world/*.test.ts` |
+| Nightly suites (project `world-nightly`, `FOG_WORLD_NIGHTLY=1`) | `tests/golden/world/*.nightly.ts` |
+| Browser checks | `tests/e2e/car-pose.spec.ts` (per PR), `far-ring.spec.ts` and `world-tour.spec.ts` (nightly, `tests/e2e/nightly.config.ts`), probes in `tests/e2e/world-probe.ts` |
+| The tour's views | `tests/e2e/world-tour.views.json` |
+| The ratchet | `tests/golden/world-qa-baseline.json` (defects and metrics), `tests/golden/world-qa-runs.json` (runs that failed at the baseline) |
+| Rewriting the ratchet | `scripts/golden/world-baseline.ts` (`pnpm world:baseline`) |
+| The ratchet's own tests | `tests/golden/world-baseline.test.ts` |
+| Nightly on GitHub | `.github/workflows/world-nightly.yml` |
+
+- `pnpm test` / `pnpm verify`: the per-PR world suites run with the unit tests; `car-pose.spec.ts` runs in `pnpm e2e`.
+- `pnpm world:pr`: the per-PR world suites alone.
+- `pnpm world:nightly`: the nightly sweeps (one worker), then the ring and the tour.
+- `pnpm tour`: the screenshot tour alone, to `test-results/tour/` (no assertions).
+- `pnpm world:baseline [--check] [--accept-worse <id>,...] [--prune]`: lower the ratchet from the last measurement.
+
+### How a lane uses the gate
+
+1. Fix the defect. Run the suite that measures it (`pnpm world:pr`, or the nightly or e2e spec).
+2. The suite fails with "beat its baseline by N%: the baseline is stale" when the fix moved a
+   metric by more than 10%. Run `pnpm world:baseline`: it lowers the baselines (and shrinks the
+   failing-run lists) from what the suites recorded in `test-results/world-gate/`, and refuses
+   any metric that got worse unless it is named with `--accept-worse`.
+3. When every metric of the defect is at its target, flip the defect's `status` to `fixed` in
+   `tests/golden/world-qa-baseline.json` (by hand, in the same PR) and update
+   `docs/qa/world-qa-status.md`. From then on the defect's targets are hard assertions.
+4. A metric tracking several defects is enforced once all of them are fixed.
+
+### Differences from the plan, and why
+
+- **Where the tests live.** Rule 6 put each test in its owner's directory. The gate's
+  measurements are Harness-owned and live in `tests/golden/world/` and `tests/helpers/world-gate/`,
+  so one ratchet judges every metric the same way and no lane edits another's directory to land
+  the gate. A lane that fixes a defect may add its own focused test in its own directory; the
+  gate's metric remains the acceptance check.
+- **Baseline build.** Measured at 544f67c (integrate/wave1 after the wall, sim and far-seam
+  commits), not 54ee728.
+- **Status changes found at 544f67c.** The kerbed corridors of de02d2f close every road gap
+  (W-21: 0 of 156 turn runs and 0 walkers leave a corridor): W-21 is marked `fixed`. The
+  two-sided walls cut the shore launch from 1,612 m to under 9 m (W-06: 98 of 1,182 sampled
+  approaches still rise more than 1 m), and a placed car no longer launches (rise 0.34 m) but
+  is still pushed out of a footprint by up to 23 m in one tick (W-51): both `partly`.
+- **Hill routes without ambient traffic.** The routes run the full `step()` with the road graph
+  withheld (no agents): the gate's follower deadlocks against robotaxis waiting at junctions on
+  every route with traffic on. Traffic is exercised by the determinism suite (60 s of `step()`
+  with agents, from the pack and from the JSON colliders). A traffic-aware driver belongs in
+  `tests/helpers/drivers/` (the roadmap's closed-loop drivers).
+- **Summits.** The check is the sim's maximum within 150 m against the 3DEP DEM (within 1 m); the
+  published heights differ from the DEM by up to 47 m for several summits in the fixture, so they
+  are listed in the details, not asserted.
+- **Thresholds where the measure differs from the QA's.** Ram launches count airborne over 0.3 s
+  or lifts over 0.5 m (the target), so 211 of 360 at 544f67c against the QA's 176 at 0.5 s or
+  1 m. Grade-separation launches count airborne over 0.2 s. Pedestrian clearance counts edges
+  with any sample within 0.75 m (62), not edges blocked both ways (33). The houses' blank band is
+  the drawn first-storey line more than 2.5 m above the street at the front.
+- **House kit encodings the gate reads** (from `docs/qa/house-kit-spec.md`): per-wall classes in
+  `_FACADE.w` (0 rear, 85 party, 170 front, 255 roof); anchor lists as GLB node extras named
+  `bays`, `stoops`, `garages`, `storefronts`; a foliage node named `foliage`, `trees` or
+  `canopy`; tunnels and stairs flagged on `roads.json` edges (`tunnel: true` or `kind: "tunnel"`,
+  `stairs: true` or `kind: "stairs"`); road profiles as an edge `profile`; a street level as
+  `meta.streetY`; a road underside as a collider `underY`; decks and tunnels through a sim
+  `surfaceHeight(world, x, z, yHint)` when it exists (the gate falls back to `groundHeight`).
+  A lane that chooses another encoding updates the gate's reader in the same PR.
+- **Browser probes** read the scene through `?debug=1` (`window.__fogcityView`), in plain
+  JavaScript, and never pixels.
+- **Not automated yet** (left to the tour's human review): ribbon seam gaps (L-11), the 20 degree
+  rays of the ring check, the canopy share of park land, the completeness of `manifest.outside`,
+  adjacent houses sharing a colour, the Painted Ladies override, the Transamerica silhouette.

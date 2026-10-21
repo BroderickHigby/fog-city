@@ -16,6 +16,10 @@ E2E_PORT=4196 pnpm e2e        # Playwright: tests/e2e/*.spec.ts
 E2E_PORT=4196 pnpm shots      # screenshots -> test-results/shots/index.html
 E2E_REQUIRE=all E2E_PORT=4196 pnpm e2e   # after integration: absent prerequisites fail, not skip
 pnpm build                    # the static web build for hosting -> dist/ (see "Static web build")
+pnpm world:pr                 # the world-continuity gate's per-PR suites alone (also inside pnpm test)
+pnpm world:nightly            # the gate's nightly tier: every street, wall, GLB, the far ring, the tour
+pnpm world:baseline           # lower the gate's ratchet after a fix (see "World-continuity gate")
+E2E_PORT=4196 pnpm tour       # the fixed screenshot tour -> test-results/tour/index.html
 ```
 
 One file or one test: `pnpm exec vitest run tests/sim`, `E2E_PORT=4196 pnpm e2e dev-world`,
@@ -198,6 +202,9 @@ sets its own (`it(name, fn, 60_000)`).
 | `determinism.spec.ts` | **Cross-engine determinism**, below. | `dev-city`, `sf` (per world); `engines` (Firefox, WebKit). `stepFrames()` is asserted present, not a skip |
 | `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; it boots from the citywide collider pack (`world.colliders.bin` fetched once, **not one `*.collider.json` request** in the page's log, `simInfo().colliders === "pack"`, more than 1,000 edge and shore wall segments); from Twin Peaks every far-LOD cell is loaded, more than three are drawn in the last frame (`renderInfo().farCells`, `farCellsDrawn`), and the camera sees at least 15 km; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building; parked at the southern city limit facing out, the far terrain is stitched to the tiles' ground (`renderInfo().farSeamEdges`) and no sea-coloured pixels show below the horizon (the crack showed about 11,000). Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
 | `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. Boxed in by four other players' cars (joined through `stepFrames()` events, 2 m to each side and 5.2 m ahead and behind), F leaves the player in the car and `hint()` reads "No room to get out" on screen; once they leave, F gets out with no hint. | `foot` |
+| `car-pose.spec.ts` | World gate, per PR (W-19, W-09): a car joined (`player.join` through `stepFrames()`) on Filbert St at 31.5%, Twin Peaks Blvd and Kearny St is drawn with the sim's pitch (within 1 degree, a hard assertion since W-19 is fixed), and the gap between each wheel's lowest point and the drawn road under it is ratcheted (`G.carPose.*` in the baseline). Probes the scene through `?debug=1` (`tests/e2e/world-probe.ts`). | `sf` |
+| `far-ring.spec.ts` | World gate, **nightly only** (`tests/e2e/nightly.config.ts`; W-17): at `&radius=60`, straight-down probes beside the three worst near/far borders that find the sea plane. | `sf` |
+| `world-tour.spec.ts` | World gate, **nightly only** and `pnpm tour`: the fixed screenshot tour of `world-tour.views.json` to `test-results/tour/`, each view checked (tiles settled, none failed, far cells loaded, no console error) and probed (lakes drawn as water, beaches as sand, parks green with foliage, landmarks as their models). | `sf` |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
 | `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). | `sf` |
 
@@ -280,6 +287,49 @@ SHOT="sf -669 677 45 -2 3" E2E_PORT=4196 pnpm shots --grep custom   # world x z 
 
 `x`, `z` are local metres (`src/geo/project.ts`), yaw a compass bearing in degrees, pitch in
 degrees (+ up), `up` metres above the ground there.
+
+## World-continuity gate (`tests/golden/world/`)
+
+The standing QA gate for the world (`docs/qa/world-continuity-gate.md`): buildings, terrain and
+hills, streets and structures, ground cover, the world edge, play continuity by car and on foot,
+and the San Francisco house kit, as about a hundred metrics measured on the committed world as
+the game boots it (`tests/helpers/world.ts`: the collider pack, `roads.json` and `boundary.json`
+through `buildWorld`; the real `stepCar`, `stepFoot` and `step()`; the GLBs decoded with
+meshopt in Node). Harness owns it; each metric's definition lives in
+`tests/helpers/world-gate/<suite>.ts`.
+
+- **Per PR** (Vitest project `world-pr`, part of `pnpm test` and `pnpm verify`):
+  `tests/golden/world/*.test.ts`: buildings, terrain, streets, cover, houses, edge, drive,
+  routes, foot, determinism; and `tests/e2e/car-pose.spec.ts` in `pnpm e2e`.
+- **Nightly** (`pnpm world:nightly`: project `world-nightly` with one worker, then
+  `tests/e2e/nightly.config.ts`; `.github/workflows/world-nightly.yml`): every street in every
+  direction, every freeway and path, every wall rammed and the whole shore's water side, the GLB
+  checks (parity, road surface, ground through ribbons, double ribbons, seams), the far layer
+  (ring, coverage, hulls), the ring at radius 60 and the screenshot tour with its probes.
+- **The ratchet.** `tests/golden/world-qa-baseline.json` holds each metric's value at the
+  baseline build, its target, which way is better and the defects (W-01 to W-52, L-01 to L-15)
+  it tracks; each defect has a status. A metric worse than its baseline fails. A metric better by
+  more than 10% fails too (the baseline is stale: lower it in the same PR); a smaller improvement
+  prints a reminder. When every defect a metric tracks is `fixed`, its target is a hard assertion.
+  `tests/golden/world-qa-runs.json` lists the drive and walk runs that failed at the baseline;
+  any other run that fails is a regression. `tests/golden/world-baseline.test.ts` checks the
+  ratchet's rules and the file's shape (every blocker, high and medium defect tracked).
+- **After a fix:** run the suite (`pnpm world:pr`, or the nightly/e2e spec that measures the
+  metric), then `pnpm world:baseline`: it reads what the suites recorded in
+  `test-results/world-gate/` (they record before they judge, so a failing run records too),
+  lowers the baselines and failing-run lists, copies the metric definitions from the code, and
+  refuses anything worse unless named with `--accept-worse <id>` (say why in the PR). Flip the
+  defect's status to `fixed` by hand in the same PR. A new metric: add it to its suite's module,
+  run the suite once (`WORLD_GATE_RECORD=1` records without asserting), then `pnpm world:baseline`.
+- **Reference fixtures** (`tests/helpers/world-gate/fixtures/`, with a README): parcel points,
+  Rec and Park outlines, lake surfaces, 1 m DEM profiles and the QA's sites, derived once from
+  the QA run's evidence.
+- **The screenshot tour** (`pnpm tour`, `E2E_PORT` as always): `test-results/tour/NN-view-mode.png`
+  and `index.html`, a contact sheet that shows the previous wave's shot beside each one when that
+  wave's tour folder is copied to `test-results/tour-previous/`. A person reviews it each wave.
+- **Browser probes.** The gate's specs read the scene through `?debug=1`
+  (`window.__fogcityView`, src/main.ts) in `tests/e2e/world-probe.ts`: vertical probes of the
+  topmost drawn surface and the drawn car's wheels, in plain JavaScript; never pixels or frame rate.
 
 ## Writing browser tests
 
@@ -383,4 +433,6 @@ boots its own copy from a sub-path on every e2e run.
 | `test-results/shots/` | `pnpm shots` | cleared at the start of each shots run |
 | `test-results/playwright-shots/` | `pnpm shots` | artefacts of failed shots |
 | `test-results/web-build/` | `web-build.spec.ts` | the static build it serves from `/fog/city/`, and `hosted-chase.png` |
+| `test-results/world-gate/` | the world gate's suites | each suite's measured values, failing runs, definitions and timings; read by `pnpm world:baseline` |
+| `test-results/tour/` | `pnpm tour`, `pnpm world:nightly` | the screenshot tour and its contact sheet; cleared at the start of each tour |
 | `dist/` | `pnpm build` | the static web build (gitignored) |
