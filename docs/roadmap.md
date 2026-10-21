@@ -375,7 +375,8 @@ Fog Royale for 24.
 
 ## Wave 8 — The rest of the south, the finale, Vibes Night
 **Playable result:** the whole city is drivable; the finale against Elizabeth Homes, the ~500 m turtlenecked robot colossus, from the Golden Gate to the Bay Bridge;
-the ferry to Treasure Island; a Vibes Night party room online.
+the ferry to Treasure Island; a Vibes Night party room online. The sky gets its final look: a warmer blue,
+clouds, and blimps and banner planes trailing invented startups' ads over the city.
 **Territory:** step 9b (the Excelsior, Glen Park, West Portal, Lakeshore, Visitacion Valley and the
 rest), the Bay Bridge deck and Treasure Island.
 
@@ -385,13 +386,13 @@ rest), the Bay Bridge deck and Treasure Island.
 | Sim-World | The ferry | M |
 | Sim-Agents | The Moat Walker (threat 5); the final boss state machine (footfall route, weak points with rust, evacuation waves that clear every footfall zone, shed robots) | L |
 | Assets | Elizabeth Homes: the giant boss model with LODs, joint rig and weak-point nodes; damaged-building chunk sets for the stomp route; the fireboat | L |
-| Render-World | Boss rendering at 500 m scale (far plane, LOD, footfall shockwave and dust), scripted facade destruction, the overnight rebuild time-lapse | M |
+| Render-World | Boss rendering at 500 m scale (far plane, LOD, footfall shockwave and dust), scripted facade destruction, the overnight rebuild time-lapse. **The sky pass** (user request, 2026-10-21): a warmer daytime blue, art-directed per time of day and signed off by the owner from screenshots; a cloud layer (drifting cumulus decks and high cirrus that thin into the fog bank, lit by the sun and dark at night); ambient air traffic of blimps with lit ad screens and banner-towing planes on looping routes (the shoreline, Ocean Beach, over downtown and the Bay), drawn from a seeded schedule on the game clock so every client sees the same sky, never part of `SimState`; banners face the camera side that reads them, blimps glow at night, banner planes fly by day only | M |
 | Sim-Player | Mission 10; one step-9b activity; the step-9b garages for the 1.5 km rule | M |
 | Sim-Modes | Vibes Night party room (named apart from mission 5, Demo Day): 2–8 players present their startup kits, each plays a 90 s live demo in the mission-4 format (scored by the sim), they hear roasts, vote for the Vibes Award, keyed-hash tie-break; its own mode JSON; template roasts first | M |
 | Server-AI | Live Vibes Night roasts route (one call per kit, fallback to templates) | M |
 | Server-Net | Vibes Night rooms on the wave-5 room server | S |
-| Content | Template roasts; mission 10; district content packs for step 9b | M |
-| Assets | Moat Walker, ferry, Bay Bridge hero geometry | L |
+| Content | Template roasts; mission 10; district content packs for step 9b; banner and blimp copy: invented startup names from the name composer plus AI-ad lines, every line through the content lint and the cleared-names rule (no real brands), with font fit for a banner and a blimp screen | M |
+| Assets | Moat Walker, ferry, Bay Bridge hero geometry; an original blimp (envelope, gondola, an ad screen as a swappable material; the Blimp Impressions streak reuses it) and an original banner-towing prop plane with a fluttering cloth banner (vertex-animated), no real livery or aircraft copied | L |
 | Harness | Citywide `?bench=` pass; whole-city clearance soak (nightly); a Vibes Night driver for headless test clients (presents a kit, plays the mission-4 demo, votes) | M |
 
 **Acceptance tests**
@@ -401,6 +402,9 @@ rest), the Bay Bridge deck and Treasure Island.
 - A Vibes Night room of 8 headless clients run by the Vibes Night driver completes (no
   rival-founder bots); a tied vote resolves the same way on every client.
 - Territory coverage and budgets pass for the whole city.
+- From each of 10 seeded daytime viewpoints, a blimp or banner plane is in view within 60 s; none
+  flies at night except lit blimps; every banner and blimp line passes the content lint; the sky
+  and cloud screenshots have the owner's sign-off.
 
 ## Later
 South San Francisco (needs a data source and a licence check); Alcatraz by ferry; Demo Unit (M),
