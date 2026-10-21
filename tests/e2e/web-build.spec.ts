@@ -2,21 +2,27 @@
 // built into a sub-directory and opened from a sub-path (/fog/city/), with only the extensions
 // the host accepts, the world read from gzip + base64 packs through assets.index.json and no
 // per-tile collider JSON, it boots SF by default, drives, streams tiles and draws the skyline.
+// A file too big for one host file (the collider pack, once over 14 MB encoded) is served as
+// parts: each is fetched once and the world still boots from them.
 //
 // The build runs once for the file (about 15 s), into test-results/web-build/, served by a
-// loopback server inside the test process that records every request.
+// loopback server inside the test process that records every request. WEB_BUILD_PUBLIC=<dir>
+// builds the world and models from another public/ directory (a pipeline branch's world before
+// it merges, docs/testing.md); the default is this checkout's public/.
 
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer, type Server } from "node:http";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
-import { HOST_LIMITS, buildWeb, checkHostLimits, type BuildReport } from "../../scripts/build-web.ts";
-import { ROOT, worldExists } from "../helpers.ts";
+import { HOST_LIMITS, PACK_MAX_BYTES, buildWeb, checkHostLimits, type BuildReport, type WebIndex } from "../../scripts/build-web.ts";
+import { ROOT } from "../helpers.ts";
 import { FAST_VIEWPORT, THROTTLE, frames, gate, newSharedPage, optionalAbsent, type FogWindow } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
 
-const SF = worldExists("sf");
-const ABSENT = "public/tiles/sf/manifest.json is absent: the hosted build ships the SF world";
+const PUBLIC = process.env.WEB_BUILD_PUBLIC ? resolve(ROOT, process.env.WEB_BUILD_PUBLIC) : join(ROOT, "public");
+const SF = existsSync(join(PUBLIC, "tiles", "sf", "manifest.json"));
+const ABSENT = `${join(PUBLIC, "tiles", "sf", "manifest.json")} is absent: the hosted build ships the SF world`;
+const COLLIDERS = "tiles/sf/world.colliders.bin";
 const SITE = join(ROOT, "test-results", "web-build", "site");
 const SUB = "/fog/city/";
 const TYPES: Record<string, string> = {
@@ -41,7 +47,7 @@ test.describe("static web build, served from a sub-path", () => {
   test.beforeAll(async ({ browser }, info) => {
     gate("sf", SF, ABSENT);
     info.setTimeout(600_000);
-    report = await buildWeb({ out: join(SITE, ...SUB.split("/").filter(Boolean)), worlds: ["sf"], level: 6, skipVite: false });
+    report = await buildWeb({ out: join(SITE, ...SUB.split("/").filter(Boolean)), worlds: ["sf"], level: 6, skipVite: false, publicDir: PUBLIC });
     server = createServer((req, res) => {
       const path = decodeURIComponent((req.url ?? "/").split("?")[0]!);
       const file = join(SITE, path.endsWith("/") ? `${path}index.html` : path);
@@ -81,13 +87,29 @@ test.describe("static web build, served from a sub-path", () => {
     expect(check.totalBytes).toBeLessThanOrEqual(HOST_LIMITS.maxTotalBytes);
     expect(check.largest.bytes).toBeLessThanOrEqual(HOST_LIMITS.maxFileBytes);
     expect(report.packs, "tile and far-cell packs").toBeGreaterThan(5);
-    const index = JSON.parse(readFileSync(join(dist, "assets.index.json"), "utf8")) as { defaultWorld: string; files: Record<string, { src: string }> };
+    const index = JSON.parse(readFileSync(join(dist, "assets.index.json"), "utf8")) as WebIndex;
     expect(index.defaultWorld).toBe("sf");
     expect(Object.keys(index.files).some((f) => f.endsWith(".collider.json")), "per-tile colliders in the index").toBe(false);
-    expect(index.files["tiles/sf/world.colliders.bin"]?.src).toMatch(/\.gz\.b64\.txt$/);
+    expect(index.files[COLLIDERS]?.src).toMatch(/\.gz\.b64\.txt$/);
+    // Files in parts: the index lists each part at its size on disk, every one under the build's
+    // margin; the report names the same; a split index says version 2, an unsplit one 1.
+    const parts = index.parts ?? {};
+    expect(report.split).toEqual(Object.entries(parts).map(([src, list]) => ({ src, parts: list.map((p) => p.bytes) })));
+    expect(index.version).toBe(report.split.length > 0 ? 2 : 1);
+    for (const list of Object.values(parts)) {
+      expect(list.length).toBeGreaterThan(1);
+      for (const p of list) {
+        expect(statSync(join(dist, p.src)).size, p.src).toBe(p.bytes);
+        expect(p.bytes, p.src).toBeLessThanOrEqual(PACK_MAX_BYTES);
+      }
+    }
+    const mb = (n: number): string => (n / 1e6).toFixed(2);
     test.info().annotations.push({
       type: "build",
-      description: `${check.files} files, ${(check.totalBytes / 1e6).toFixed(1)} MB; binaries ${(report.rawBinaryBytes / 1e6).toFixed(1)} MB raw -> ${(report.encodedBinaryBytes / 1e6).toFixed(1)} MB encoded; ${report.packs} packs`,
+      description:
+        `${PUBLIC}: ${check.files} files, ${mb(check.totalBytes)} MB, largest ${check.largest.path} ${mb(check.largest.bytes)} MB; ` +
+        `binaries ${mb(report.rawBinaryBytes)} MB raw -> ${mb(report.encodedBinaryBytes)} MB encoded; ${report.packs} packs; ` +
+        `in parts: ${report.split.map((x) => `${x.src} ${x.parts.map(mb).join(" + ")} MB`).join(", ") || "none"}`,
     });
   });
 
@@ -115,7 +137,12 @@ test.describe("static web build, served from a sub-path", () => {
     expect(requests.filter((r) => r.status !== 200).map((r) => `${r.status} ${r.path}`), "failed requests").toEqual([]);
     expect(requests.filter((r) => /\.(glb|bin)$|\.collider\.json$/.test(r.path)).map((r) => r.path), "raw binaries or collider JSON").toEqual([]);
     expect(requests.some((r) => r.path.endsWith("assets.index.json"))).toBe(true);
-    expect(requests.some((r) => r.path.endsWith("world.colliders.bin.gz.b64.txt"))).toBe(true);
+    // The collider pack, whole or in parts: each of its files fetched exactly once, and nothing else of it.
+    const index = JSON.parse(readFileSync(join(SITE, ...SUB.split("/").filter(Boolean), "assets.index.json"), "utf8")) as WebIndex;
+    const src = index.files[COLLIDERS]!.src;
+    const files = (index.parts?.[src]?.map((p) => p.src) ?? [src]).map((f) => SUB + f);
+    expect(requests.filter((r) => r.path.includes("world.colliders.bin")).map((r) => r.path).sort(), "collider pack requests").toEqual([...files].sort());
+    test.info().annotations.push({ type: "colliders", description: files.join(", ") });
     expect(problems).toEqual([]);
   });
 
