@@ -25,7 +25,11 @@ import numpy as np
 # Tint slots: every vertex belongs to one. The renderer colours a vertex with the palette
 # entry for its slot (see assets/blender/README.md, "Humanoid line").
 SLOTS = ["skin", "hair", "top", "bottom", "shoes", "outer", "accent", "sole", "eyes", "badge"]
-SLOT = {n: i for i, n in enumerate(SLOTS)}
+# The player's face has two more fixed colours the crowd never uses (whites of the eyes and the
+# teeth; pupils, lid lines and the mouth). They come after the crowd's slots, so every crowd
+# slot keeps its index.
+PLAYER_SLOTS = SLOTS + ["face_white", "face_dark"]
+SLOT = {n: i for i, n in enumerate(PLAYER_SLOTS)}
 
 BONES = [
     ("root", None),
@@ -67,9 +71,13 @@ KEYS = [
     "skirt",
 ]
 
+# The player has two more keys after these twelve (see "The player: founder-default" below).
+PLAYER_KEYS = KEYS + ["jacket", "smile"]
+
 BASE_PARAMS = dict(
     girth=1.0, limb=1.0, shoulders=0.0, belly=0.0, bust=0.0, hips=0.0, waist=1.0, stoop=0.0,
     jaw=1.0, arm_out=0.0, hair=0.012, hair_long=0.0, bun=0.0, vest=0.0, hood=0.0, lanyard=0.0, skirt=0.0,
+    jacket=0.0, smile=0.0,  # player only (founder-default); the crowd body never reads them
 )
 
 # Each key's parameter change from the base (key weight 1).
@@ -86,6 +94,8 @@ KEY_PARAMS = {
     "hoodie": dict(hood=1.0),
     "lanyard": dict(lanyard=1.0),
     "skirt": dict(skirt=1.0),
+    "jacket": dict(jacket=1.0),
+    "smile": dict(smile=1.0),
 }
 
 
@@ -181,6 +191,80 @@ def child_frame() -> dict:
         lanyard_z=(mz(1.47), mz(1.275)), badge=(0.045, 0.062, mz(1.235)), scale=0.66, child=True,
     )
     return f
+
+
+# ------------------------------------------------------------- the player: founder-default
+#
+# The player's default look, "founder-default", is a stylised likeness of the project owner,
+# matched by eye to reference photos that are kept outside the repository (never committed,
+# never sampled into a texture). It stays in the humanoid line's style: solid shapes, flat
+# colours, a simple face. What makes it recognisable is the hair silhouette (a tall quiff swept
+# up and back, short tapered sides), the colouring, an athletic build with broad shoulders,
+# a wide smile and the outfit (black bomber over a black tee, mid-blue jeans, black sneakers
+# with white soles). The crowd body is untouched: every player-only branch below is gated on
+# the frame's "player" flag.
+
+# Top of the skull of the adult frame at scale 1 (head centre z + head radius z).
+ADULT_SKULL_TOP = 1.658 + 0.107
+
+FOUNDER_DEFAULT = dict(
+    # Standing height to the top of the skull, metres (an estimate; the quiff rises above it).
+    height_m=1.83,
+    # Body parameters (see BASE_PARAMS): athletic, slim to medium, broad shoulders, a defined jaw.
+    params=dict(girth=0.97, limb=1.05, shoulders=0.012, waist=0.93, arm_out=0.012, jaw=1.16, hair=0.012,
+                jacket=0.0, smile=0.0),
+    # The default morph weights of the look: the bomber on, the wide smile on.
+    morphs=dict(jacket=1.0, smile=1.0),
+)
+
+
+def _scaled_frame(F: dict, s: float) -> dict:
+    """The frame F scaled uniformly by s about the origin (a taller or shorter adult)."""
+    def v(p):
+        return tuple(c * s for c in p)
+
+    f = dict(F)
+    f.update(
+        J={k: v(p) for k, p in F["J"].items()},
+        tips={k: v(p) for k, p in F["tips"].items()},
+        torso=[tuple(c * s for c in r) for r in F["torso"]],
+        waist_z=F["waist_z"] * s, collar_z=F["collar_z"] * s, belly_z=F["belly_z"] * s,
+        bust_z=F["bust_z"] * s, hip_z=F["hip_z"] * s,
+        head_c=v(F["head_c"]), head_r=v(F["head_r"]),
+        arm_r=[(t, r * s) for t, r in F["arm_r"]],
+        leg_r=[(t, r * s) for t, r in F["leg_r"]],
+        hand={k: x * s for k, x in F["hand"].items()},
+        shoe={k: x * s for k, x in F["shoe"].items()},
+        hair_long_z=F["hair_long_z"] * s, skirt_z=v(F["skirt_z"]), vest_z=v(F["vest_z"]),
+        lanyard_z=v(F["lanyard_z"]), badge=v(F["badge"]), scale=F["scale"] * s,
+    )
+    return f
+
+
+def player_frame(height_m: float | None = None) -> dict:
+    """The adult frame scaled so the top of the skull is at height_m (founder-default: 1.83 m),
+    with the player's straight-leg jeans and chunky sneaker soles, and the player flag that
+    switches on the founder-default head, face, hair cap and jacket in build()."""
+    h = FOUNDER_DEFAULT["height_m"] if height_m is None else height_m
+    s = h / ADULT_SKULL_TOP
+    F = _scaled_frame(adult_frame(), s)
+    # straight-leg jeans: fuller from the knee down, the hem breaking over the shoe
+    F["leg_r"] = [(t, r * (1.0 + 0.1 * _smooth(0.45, 0.95, t))) for t, r in F["leg_r"]]
+    F["shoe"] = dict(F["shoe"], sole=0.029 * s, height=0.108 * s, width=0.102 * s, toe=0.19 * s)
+    # a slightly larger head (the likeness reads from the head), its crown kept at the height,
+    # so the chin comes down and the neck shortens; an athletic neck
+    hk = 1.08
+    hr = tuple(r * hk for r in F["head_r"])
+    top = F["head_c"][2] + F["head_r"][2]
+    F["head_r"] = hr
+    F["head_c"] = (F["head_c"][0], F["head_c"][1], top - hr[2])
+    F["torso"] = [(z, w * 1.18, f * 1.18, b * 1.18) if z > F["collar_z"] - 1e-6 else (z, w, f, b) for z, w, f, b in F["torso"]]
+    F["head_k"] = hk
+    # the tee's crew neck sits snug at the base of the neck, under the jacket's collar
+    F["collar_z"] = 1.5 * s
+    # the bomber's rib hem (bottom, top) and stand collar (bottom, top), metres
+    F.update(player=True, height_m=h, jacket_z=(0.915 * s, 0.968 * s, 1.479 * s, 1.535 * s))
+    return F
 
 
 # ----------------------------------------------------------------------------- geometry
@@ -398,9 +482,16 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
             y += 0.012 * k * (-sp - 0.3)  # chin forward
         return hc + np.array([x, y, z])
 
+    player = bool(F.get("player"))
+    if player:
+        def head_point(th, ph, off=0.0):  # noqa: F811 (the founder-default head)
+            return _face_point(F, p, th, ph, off)
+
     hw = {"head": 1.0}
     g.begin("head")
     n_h, r_h = (8, 5) if lo else (12, 8)
+    if player:
+        n_h, r_h = (10, 6) if lo else (20, 12)
     head_angles = [math.pi / 2 + 2 * math.pi * i / n_h for i in range(n_h)]  # start at the front
     rows = []
     for j in range(1, r_h):
@@ -412,42 +503,47 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
     g.fan(rows[-1], g.vert(head_point(0, math.pi / 2), "skin", hw))
     g.end(lambda c: tuple(hc))
 
-    # nose: a small wedge on the face
-    g.begin("nose")
-    nb = [head_point(math.pi / 2 + dx, ph, -0.003) for dx, ph in ((-0.16, -0.12), (0.16, -0.12), (0.0, 0.18))]
-    tip = head_point(math.pi / 2, -0.06, 0.018 * k / 0.95)
-    ids = [g.vert(q, "skin", hw) for q in nb] + [g.vert(tip, "skin", hw)]
-    g.T += [(ids[0], ids[1], ids[3]), (ids[1], ids[2], ids[3]), (ids[2], ids[0], ids[3])]
-    g.end(lambda c: tuple(hc))
+    # nose: a small wedge on the face (the player's face, nose included, is _player_face)
+    if not player:
+        g.begin("nose")
+        nb = [head_point(math.pi / 2 + dx, ph, -0.003) for dx, ph in ((-0.16, -0.12), (0.16, -0.12), (0.0, 0.18))]
+        tip = head_point(math.pi / 2, -0.06, 0.018 * k / 0.95)
+        ids = [g.vert(q, "skin", hw) for q in nb] + [g.vert(tip, "skin", hw)]
+        g.T += [(ids[0], ids[1], ids[3]), (ids[1], ids[2], ids[3]), (ids[2], ids[0], ids[3])]
+        g.end(lambda c: tuple(hc))
 
-    # ears: flat ovals on the sides
+    # ears: flat ovals on the sides (the player's sit closer to the head)
+    ear = 0.6 if player else 1.0
     g.begin("ears")
     for sx in (-1, 1):
         ctr = hc + np.array([sx * (hr[0] - 0.004), -0.008, -0.004])
         ring = []
         for i in range(6):
             a = 2 * math.pi * i / 6
-            ring.append(g.vert(ctr + np.array([sx * 0.012, 0.022 * math.cos(a) * k / 0.95, 0.03 * math.sin(a) * k / 0.95]), "skin", hw))
-        g.fan(ring, g.vert(ctr + np.array([sx * 0.02, 0.0, 0.0]), "skin", hw))
+            ring.append(g.vert(ctr + np.array([sx * 0.012 * ear, 0.022 * math.cos(a) * k / 0.95, 0.03 * math.sin(a) * k / 0.95]), "skin", hw))
+        g.fan(ring, g.vert(ctr + np.array([sx * 0.02 * ear, 0.0, 0.0]), "skin", hw))
     g.end(lambda c: tuple(hc))
 
-    # eyes and brows: small dark ovals and hair-coloured bars, just proud of the face
-    g.begin("eyes")
-    for sx in (-1, 1):
-        th = math.pi / 2 - sx * 0.42
-        c0 = head_point(th, 0.1, 0.002)
-        q = [head_point(th + du, 0.1 + dv, 0.003) for du, dv in ((-0.07, -0.045), (0.07, -0.045), (0.07, 0.045), (-0.07, 0.045))]
-        ids = [g.vert(x, "eyes", hw) for x in q]
-        g.quad(*ids)
-        del c0
-    g.end(lambda c: tuple(hc))
-    g.begin("brows")
-    for sx in (-1, 1):
-        th = math.pi / 2 - sx * 0.42
-        q = [head_point(th + du, 0.27 + dv, 0.004) for du, dv in ((-0.13, -0.03), (0.13, -0.01), (0.13, 0.03), (-0.13, 0.03))]
-        ids = [g.vert(x, "hair", hw) for x in q]
-        g.quad(*ids)
-    g.end(lambda c: tuple(hc))
+    if player:
+        _player_face(g, F, p, head_point)
+    else:
+        # eyes and brows: small dark ovals and hair-coloured bars, just proud of the face
+        g.begin("eyes")
+        for sx in (-1, 1):
+            th = math.pi / 2 - sx * 0.42
+            c0 = head_point(th, 0.1, 0.002)
+            q = [head_point(th + du, 0.1 + dv, 0.003) for du, dv in ((-0.07, -0.045), (0.07, -0.045), (0.07, 0.045), (-0.07, 0.045))]
+            ids = [g.vert(x, "eyes", hw) for x in q]
+            g.quad(*ids)
+            del c0
+        g.end(lambda c: tuple(hc))
+        g.begin("brows")
+        for sx in (-1, 1):
+            th = math.pi / 2 - sx * 0.42
+            q = [head_point(th + du, 0.27 + dv, 0.004) for du, dv in ((-0.13, -0.03), (0.13, -0.01), (0.13, 0.03), (-0.13, 0.03))]
+            ids = [g.vert(x, "hair", hw) for x in q]
+            g.quad(*ids)
+        g.end(lambda c: tuple(hc))
 
     # ---- hair cap: a shell over the skull; the hairline is lower at the back than the front
     def hairline(th):
@@ -456,6 +552,17 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
 
     n_c, r_c = (8, 2) if lo else (12, 4)
     off = p["hair"]
+    if player:
+        # founder-default: the hairline recedes a little at the temples, and the cap is short
+        # and tapered at the sides and back (the quiff, hair_quiff, carries the volume on top)
+        crowd_hairline = hairline
+
+        def hairline(th):  # noqa: F811
+            c, s = math.cos(th), math.sin(th)
+            return (crowd_hairline(th) - 0.12 * _gauss(abs(c), 0.62, 0.25) * float(_smooth(0.1, 0.6, s))
+                    + 0.13 * _gauss(s, -0.05, 0.3))  # above the ears
+
+        r_c = 2 if lo else 5
     g.begin("hair")
     rows = []
     for j in range(r_c + 1):
@@ -464,6 +571,8 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
         for th in head_angles if not lo else [math.pi / 2 + 2 * math.pi * i / n_c for i in range(n_c)]:
             ph = hairline(th) + (math.pi / 2 - hairline(th)) * t
             o = off * (0.45 if j == 0 else 1.0)
+            if player:
+                o *= 0.75 + 0.25 * float(_smooth(0.45, 1.15, ph))
             row.append(g.vert(head_point(th, ph, o), "hair", hw))
         rows.append(row)
     g.grid(rows, closed=True)
@@ -776,6 +885,10 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
     g.grid(rows, closed=True)
     g.end(lambda c: (0.0, 0.0, c[2]))
 
+    # ---- founder-default: the bomber jacket (key "jacket") over the torso and arms
+    if player:
+        _player_jacket(g, F, p, B, lo)
+
     # ---- heavier builds hold their arms out a little, clear of the hips
     if p["arm_out"] != 0.0:
         P = np.asarray(g.P)
@@ -814,6 +927,350 @@ def _closest_on_polyline(c, pts):
     return best
 
 
+# ------------------------------------------- founder-default: head, face, jacket, quiff
+
+
+def _face_point(F, p, th, ph, off=0.0):
+    """The founder-default head surface: the crowd's head (an egg, narrower at the jaw, the chin
+    forward) with a squarer jaw, cheekbones, and cheeks the smile key lifts."""
+    hc, hr = F["head_c"], F["head_r"]
+    k = F["scale"]
+    jaw = p["jaw"]
+    c, s = math.cos(th), math.sin(th)
+    cp, sp = math.cos(ph), math.sin(ph)
+    rx, ry, rz = hr
+    below = max(0.0, -sp)
+    rx *= 1.0 - 0.2 * below / jaw ** 0.5 + 0.06 * (jaw - 1.0)
+    ry_f = ry * (1.0 + 0.04 * below) if s > 0 else ry * (1.0 + 0.08 * max(0.0, sp + 0.2))
+    side = abs(c)
+    face = float(_smooth(-0.5, 0.1, s))  # 0 on the back of the head
+    o = off
+    o += 0.011 * k * _gauss(sp, -0.68, 0.22) * float(_smooth(0.35, 0.85, side)) * face  # jaw corners
+    o += 0.004 * k * _gauss(sp, -0.1, 0.16) * _gauss(side, 0.6, 0.2) * float(_smooth(0.2, 0.6, s))  # cheekbones
+    o += 0.004 * k * p["smile"] * _gauss(sp, -0.36, 0.13) * _gauss(side, 0.5, 0.18) * float(_smooth(0.3, 0.7, s))
+    x = (rx + o) * cp * c
+    y = (ry_f + o) * cp * s
+    z = (rz + o) * sp
+    if s > 0 and sp < -0.3:
+        y += 0.012 * k * (-sp - 0.3)  # chin forward
+    return np.array([hc[0] + x, hc[1] + y, hc[2] + z])
+
+
+def _on_face(head_point, th0, ph0):
+    """A local map at (th0, ph0) on the head: (dx metres toward +X, dy metres up, off) -> point."""
+    e = 1e-3
+    du = float(np.linalg.norm(head_point(th0 + e, ph0) - head_point(th0 - e, ph0))) / (2 * e)
+    dv = float(np.linalg.norm(head_point(th0, ph0 + e) - head_point(th0, ph0 - e))) / (2 * e)
+    return lambda dx, dy, off: head_point(th0 - dx / du, ph0 + dy / dv, off)
+
+
+# Where the founder-default features sit on the head (radians; elevation 0 = the head centre).
+FACE = dict(eye_th=0.4, eye_ph=0.07, mouth_ph=-0.6)
+
+
+def _player_face(g, F, p, head_point):
+    """founder-default's face: almond eyes (whites, a light blue-grey iris, a pupil and a catch
+    light, a dark upper lid), straight dark brows, a straight nose, and a mouth the smile key
+    opens from a closed smile into the wide, bright grin of the reference photos."""
+    hc = tuple(F["head_c"])
+    k = F["scale"] * F.get("head_k", 1.0)
+    sm = p["smile"]
+    hw = {"head": 1.0}
+
+    def fan(pts, centre, slot):
+        ids = [g.vert(q, slot, hw) for q in pts]
+        g.fan(ids, g.vert(centre, slot, hw))
+
+    def strip(row_a, row_b, slot):
+        g.grid([[g.vert(q, slot, hw) for q in row_a], [g.vert(q, slot, hw) for q in row_b]], closed=False)
+
+    # ---- eyes: u runs from the inner corner (-1) to the outer corner (+1)
+    W, HU = 0.0135 * k, 0.0056 * k
+    HL = 0.0045 * k * (1.0 - 0.55 * sm)
+    lift = 0.0012 * k * sm
+
+    def upper(t):
+        return HU * max(0.0, 1 - t * t) ** 0.7 * (1 - 0.12 * t) + 0.0006 * k * t
+
+    def lower(t):
+        return -HL * max(0.0, 1 - t * t) ** 0.9 * (1 + 0.1 * t) + lift * (1 - t * t) + 0.0006 * k * t
+
+    g.begin("eyes")
+    for sx in (-1, 1):
+        at = _on_face(head_point, math.pi / 2 - sx * FACE["eye_th"], FACE["eye_ph"])
+
+        def e(t, y, off, at=at, sx=sx):
+            return at(sx * t * W, y, off)
+
+        ts = [-1, -0.66, -0.33, 0.0, 0.33, 0.66, 1]
+        outline = [e(t, upper(t), 0.0016) for t in ts] + [e(t, lower(t), 0.0016) for t in reversed(ts[1:-1])]
+        yc = 0.5 * (upper(0) + lower(0))
+        fan(outline, e(0, yc, 0.0016), "face_white")
+        # iris and pupil, kept inside the opening as the smile narrows it
+        ri = 0.0047 * k
+        ry_i = min(ri, 0.92 * 0.5 * (upper(0) - lower(0)))
+        yi = yc + 0.0004 * k
+        fan([e(ri * math.cos(a) / W, yi + ry_i * math.sin(a), 0.0023) for a in _ring_angles(10)], e(0, yi, 0.0023), "eyes")
+        rp = 0.0019 * k
+        fan([e(rp * math.cos(a) / W, yi + rp * ry_i / ri * math.sin(a), 0.0029) for a in _ring_angles(8)], e(0, yi, 0.0029), "face_dark")
+        hl = (sx * 0.0011 * k / W, yi + 0.4 * ry_i)  # the same side of both eyes (the person's right)
+        rl = 0.0006 * k
+        fan([e(hl[0] + rl * math.cos(a) / W, hl[1] + rl * math.sin(a), 0.0033) for a in _ring_angles(4)], e(hl[0], hl[1], 0.0033), "face_white")
+        # the upper lid: a dark line along the top of the opening, heavier at the outer corner
+        ts2 = [-1.02, -0.66, -0.33, 0.0, 0.33, 0.66, 1.0, 1.14]
+        base = [e(t, upper(t) - 0.0003 * k if t <= 1 else upper(1.0) + 0.0004 * k, 0.0031) for t in ts2]
+        top = [e(t, (upper(t) if t <= 1 else upper(1.0)) + 0.0008 * k + 0.0007 * k * max(0.0, t), 0.0031) for t in ts2]
+        strip(base, top, "face_dark")
+    g.end(lambda c: hc)
+
+    # ---- brows: straight, thick, dark; a slight fall at the outer end
+    g.begin("brows")
+    for sx in (-1, 1):
+        at = _on_face(head_point, math.pi / 2 - sx * FACE["eye_th"], FACE["eye_ph"])
+        cols = [i / 4 for i in range(5)]  # 0 = inner end, 1 = outer end
+        bot, top = [], []
+        for t in cols:
+            u = -1.25 * W + (1.25 * W + 1.25 * W) * t
+            yb = HU + 0.0092 * k - 0.0016 * k * t * t
+            th_ = (0.0074 - 0.0022 * t) * k * (0.75 + 0.25 * math.sin(math.pi * min(1.0, 0.15 + t)))
+            bot.append(at(sx * u, yb, 0.0034))
+            top.append(at(sx * u, yb + th_, 0.0034))
+        strip(bot, top, "hair")
+    g.end(lambda c: hc)
+
+    # ---- nose: a straight bridge to a rounded tip, the wings either side
+    g.begin("nose")
+    at = _on_face(head_point, math.pi / 2, FACE["eye_ph"])
+    B = g.vert(at(0.0, 0.004 * k, 0.0015), "skin", hw)
+    M = g.vert(at(0.0, -0.016 * k, 0.0085 * k), "skin", hw)
+    T = g.vert(at(0.0, -0.032 * k, 0.0165 * k), "skin", hw)
+    U = g.vert(at(0.0, -0.042 * k, 0.0045 * k), "skin", hw)
+    S = {sx: g.vert(at(sx * 0.0062 * k, 0.0015 * k, 0.0), "skin", hw) for sx in (-1, 1)}
+    Wg = {sx: g.vert(at(sx * 0.0152 * k, -0.038 * k, 0.0022), "skin", hw) for sx in (-1, 1)}
+    for sx in (-1, 1):
+        tris = [(B, S[sx], M), (S[sx], Wg[sx], M), (M, Wg[sx], T), (T, Wg[sx], U)]
+        g.T += tris if sx > 0 else [(a, c, b) for a, b, c in tris]
+    g.end(lambda c: hc)
+
+    # ---- mouth: a closed smile at 0; the smile key opens the wide grin (upper teeth showing)
+    g.begin("mouth")
+    at = _on_face(head_point, math.pi / 2, FACE["mouth_ph"])
+    half = (0.021 + 0.0125 * sm) * k
+    a0, a2 = (0.001 + 0.0025 * sm) * k, (0.0042 + 0.0043 * sm) * k
+    depth = (0.0008 + 0.0152 * sm) * k
+    teeth = (0.001 + 0.0098 * sm) * k
+    us = [-1 + 2 * i / 10 for i in range(11)]
+    y_up = [a0 + a2 * u * u for u in us]
+    y_lip = [y + 0.0007 * k * max(0.0, 1 - u * u) ** 0.5 + 0.0002 * k for y, u in zip(y_up, us)]
+    y_teeth = [y - teeth * max(0.0, 1 - u * u) ** 0.6 for y, u in zip(y_up, us)]
+    y_low = [y - depth * max(0.0, 1 - u * u) ** 0.75 - 0.0003 * k for y, u in zip(y_up, us)]
+    row = lambda ys, off: [at(u * half, y, off) for u, y in zip(us, ys)]  # noqa: E731
+    d_off = 0.0016
+    t_off = -0.0015 + (0.0034 + 0.0015) * sm  # the teeth show from about smile 0.65
+    dark = [[g.vert(q, "face_dark", hw) for q in row(ys, d_off)] for ys in (y_lip, y_teeth, y_low)]
+    g.grid(dark, closed=False)
+    strip(row([y - 0.0001 * k for y in y_up], t_off), row(y_teeth, t_off), "face_white")
+    g.end(lambda c: hc)
+
+
+def _player_jacket(g, F, p, B, lo):
+    """founder-default's bomber jacket (slot outer, the zip accent): a blouson shell over the
+    torso gathered into a rib hem, a stand-up rib collar open at the throat, and full sleeves
+    gathered into rib cuffs. Key "jacket": 0 sinks it inside the body, 1 wears it."""
+    J = F["J"]
+    k = F["scale"]
+    jk = p["jacket"]
+    hem_lo, hem_hi, col_lo, col_hi = F["jacket_z"]
+
+    def wear(worn, hidden=-0.022):
+        # hidden: inside the body, the rings kept apart (no zero-area faces at key 0)
+        h = (hidden + 0.25 * worn) * k
+        return h + (worn * k - h) * jk
+
+    # ---- the body: (z, worn offset) from the rib hem up to the yoke; inner rings close the
+    # hem and the neck so the shell reads as solid
+    rows = [(hem_lo, -0.002), (hem_lo, 0.009), (0.5 * (hem_lo + hem_hi), 0.0105), (hem_hi, 0.0105),
+            (hem_hi + 0.004 * k, 0.0245), (1.04 * k, 0.026), (1.1 * k, 0.023), (1.16 * k, 0.02), (1.24 * k, 0.0175),
+            (1.31 * k, 0.0155), (1.37 * k, 0.014), (1.415 * k, 0.013), (1.445 * k, 0.0115), (1.457 * k, 0.0102),
+            (1.469 * k, -0.001)]
+    if lo:
+        rows = [rows[i] for i in (0, 1, 3, 4, 5, 7, 9, 11, 13, 14)]
+    n = 10 if lo else 20
+    g.begin("jacket")
+    idx = []
+    for z, o in rows:
+        off = wear(o)
+        idx.append([g.vert(B.torso_point(z, th, off), "outer", _torso_weights(F, z, B.torso_point(z, th)[0])) for th in _ring_angles(n)])
+    g.grid(idx, closed=True)
+    # the zip: a narrow strip down the centre front
+    zrows = [(z, o) for z, o in rows[1:-1]]
+    zl, zr = [], []
+    for z, o in zrows:
+        c = np.asarray(B.torso_point(z, math.pi / 2, wear(o + 0.0018)))
+        w = _torso_weights(F, z, 0.0)
+        zl.append(g.vert(c + np.array([-0.003 * k, 0.0, 0.0]), "accent", w))
+        zr.append(g.vert(c + np.array([0.003 * k, 0.0, 0.0]), "accent", w))
+    g.grid([zl, zr], closed=False)
+    g.end(lambda c: (0.0, 0.0, c[2]))
+
+    # ---- the rib collar: stands round the neck, open at the throat
+    g.begin("collar")
+    gap = 0.13
+    m = 9 if lo else 17
+    arc = [math.pi / 2 + gap + (2 * math.pi - 2 * gap) * i / (m - 1) for i in range(m)]
+    crow = [(col_lo, 0.0085), (col_hi, 0.0105), (col_hi, 0.0035), (col_lo + 0.006 * k, 0.0004)]
+    cidx = []
+    for r, (z, o) in enumerate(crow):
+        off = wear(o, -0.012)
+        row = []
+        for i, th in enumerate(arc):
+            f = 2.0 * min(i, m - 1 - i) / (m - 1)  # 0 at the front ends, 1 at the back
+            zz = z if r in (0, 3) else col_lo + (z - col_lo) * (0.5 + 0.5 * float(_smooth(0.0, 0.4, f)))
+            row.append(g.vert(B.torso_point(zz, th, off), "outer", _torso_weights(F, zz, B.torso_point(zz, th)[0])))
+        cidx.append(row)
+    g.grid(cidx, closed=False)
+    for end in (0, -1):
+        q = [cidx[r][end] for r in range(4)]
+        g.quad(*(q if end == 0 else q[::-1]))
+    g.end(lambda c: (0.0, 0.0, c[2]))
+
+    # ---- sleeves: a capped tube over each arm, full to above the wrist, then a snug rib cuff
+    prof = [(-0.145, None), (-0.07, 0.0085), (0.0, 0.011), (0.15, 0.014), (0.32, 0.015), (0.45, 0.015), (0.5, 0.015),
+            (0.56, 0.016), (0.7, 0.017), (0.84, 0.018), (0.872, 0.0068), (0.91, 0.0062), (0.955, 0.0058), (0.955, 0.0008)]
+    if lo:
+        prof = [prof[i] for i in (0, 1, 3, 5, 8, 9, 10, 12, 13)]
+    for side in ("L", "R"):
+        js, je, jw = (np.asarray(J[f"{b}_{side}"]) for b in ("upper_arm", "forearm", "hand"))
+        n_a = 6 if lo else 10
+        g.begin(f"arm_sleeve_{side}")
+        srows = []
+        cap = None
+        for s, o in prof:
+            if s < 0.5:
+                d = je - js
+                c = js + d * s
+            else:
+                d = jw - je
+                c = je + d * (s - 0.5) / 0.5
+            dd, u, v = _frame_for(d)
+            if s < 0.42:
+                w = {f"upper_arm_{side}": 1.0}
+                if s < 0.02:
+                    w = {f"upper_arm_{side}": 0.65, f"shoulder_{side}": 0.35}
+            elif s < 0.58:
+                t = (s - 0.42) / 0.16
+                w = {f"upper_arm_{side}": 1 - t, f"forearm_{side}": t}
+            else:
+                w = {f"forearm_{side}": 1.0}
+            if o is None:
+                # the cap over the shoulder: just beyond the arm's own cap, or inside it
+                cap = g.vert(js + (je - js) * (-0.1) + (js - je) / np.linalg.norm(js - je) * (wear(0.008, -0.012)), "outer", w)
+                continue
+            r = float(np.interp(s, [q[0] for q in F["arm_r"]], [q[1] for q in F["arm_r"]])) * p["limb"] + wear(o, -0.009)
+            srows.append([g.vert(c + r * (math.cos(a) * u * 0.92 + math.sin(a) * v), "outer", w) for a in _ring_angles(n_a)])
+        g.grid(srows, closed=True)
+        g.fan(list(reversed(srows[0])), cap)
+        g.end(lambda c, js=js, je=je, jw=jw: _closest_on_polyline(c, [js + (js - je) * 0.4, je, jw]))
+
+
+def quiff(F: dict, prm: dict | None = None, res: int = 0):
+    """founder-default's hair (node hair_quiff): a solid shell on top of the head, swept up and
+    back from the forehead into a quiff that stands about 7-8 cm above the hairline at the front
+    and falls a little to the person's left, with soft strands (ridges) running back. The sides
+    and back stay short: the hair cap of the body shows there. Returns positions (V,3) and
+    triangles (T,3) in the body's rest frame (Blender), all on the head bone."""
+    p = dict(BASE_PARAMS)
+    p.update(FOUNDER_DEFAULT["params"])
+    p.update(prm or {})
+    k = F["scale"]
+
+    def hp(alpha, beta, off):
+        d = (math.sin(beta), math.cos(beta) * math.cos(alpha), math.cos(beta) * math.sin(alpha))
+        th = math.atan2(d[1], d[0])
+        ph = math.asin(max(-1.0, min(1.0, d[2])))
+        return _face_point(F, p, th, ph, off), ph
+
+    def cap_off(ph):
+        return p["hair"] * (0.75 + 0.25 * float(_smooth(0.45, 1.15, ph)))
+
+    na, nb = (9, 15) if res else (17, 31)
+    kk = k * F.get("head_k", 1.0)
+    a_back = 2.6
+    hq = 0.054 * kk  # the crest's height above the cap
+
+    def front(v):  # the first row: the hairline at the forehead, lower on the left (v < 0)
+        return 0.63 + 0.08 * v * v - 0.11 * max(0.0, -v) ** 1.3
+
+    def beta_max(t):
+        return 1.32 + 0.05 * math.sin(math.pi * t)
+
+    def shape(t, v, a):
+        """Volume above the cap (metres) at row fraction t (0 front, 1 back) and column v."""
+        rise = float(_smooth(0.0, 0.13, t)) ** 0.6
+        fall = 1.0 - 0.36 * float(_smooth(0.13, 0.45, t)) - 0.4 * float(_smooth(0.4, 0.85, t)) - 0.24 * float(_smooth(0.8, 1.0, t))
+        vc = v - 0.16  # the crest sits a little to the person's right; the left side falls longer
+        wl = 0.7 if vc > 0 else 0.86
+        # full over the top, easing down the sides into the short cap (no ledge at the edge)
+        across = math.exp(-((abs(vc) / wl) ** 2.4)) * (1.0 - float(_smooth(0.55, 1.0, abs(v))))
+        # soft strands swept back and to the left, and a few tufts along the front edge
+        groove = (0.5 + 0.5 * math.cos(2 * math.pi * (v * 1.2 + 0.3 * (a - front(v))) / 0.42)) ** 6
+        tufts = 1.0 + 0.14 * math.cos(2 * math.pi * 2.6 * v + 0.9) * (1.0 - float(_smooth(0.3, 0.65, t)))
+        # the crest is higher on the person's right and sweeps down to the left
+        sweep = 1.0 + 0.12 * math.tanh(2.0 * v) * (1.0 - float(_smooth(0.2, 0.6, t)))
+        return hq * rise * fall * across * tufts * sweep * (1.0 - 0.3 * groove * float(_smooth(0.02, 0.18, t)))
+
+    outer, inner = [], []
+    P = []
+    for i in range(na):
+        t = i / (na - 1)
+        orow, irow = [], []
+        for j in range(nb):
+            v = -1 + 2 * j / (nb - 1)
+            a = front(v) + (a_back - front(v)) * t ** 1.25
+            beta = v * beta_max(t)
+            edge = i in (0, na - 1) or j in (0, nb - 1)
+            _, ph = hp(a, beta, 0.0)
+            base = cap_off(ph)
+            lift = 0.0 if edge else shape(t, v, a)
+            # the edge sinks under the cap (and, at the front, grows out of the forehead)
+            q, _ = hp(a, beta, (-0.0015 * kk if i == 0 else base - 0.003 * kk) if edge else base + lift)
+            if not edge:
+                # lifting off the forehead: the crest leans forward and up; the volume sweeps left
+                fwd = float(_smooth(0.0, 0.1, t)) * (1.0 - float(_smooth(0.16, 0.42, t)))
+                q = q + np.array([-0.008 * kk * lift / hq, 0.003 * kk * fwd * lift / hq, 0.01 * kk * fwd * lift / hq])
+            orow.append(len(P))
+            P.append(q)
+            qi, _ = hp(a, beta, (-0.004 * kk if i == 0 else base - 0.006 * kk))
+            irow.append(len(P))
+            P.append(qi)
+        outer.append(orow)
+        inner.append(irow)
+    T = []
+
+    def quad(a, b, c, d):
+        T.append((a, b, c))
+        T.append((a, c, d))
+
+    for i in range(na - 1):
+        for j in range(nb - 1):
+            quad(outer[i][j], outer[i][j + 1], outer[i + 1][j + 1], outer[i + 1][j])
+            quad(inner[i][j], inner[i + 1][j], inner[i + 1][j + 1], inner[i][j + 1])
+    ring_o = outer[0] + [outer[i][-1] for i in range(1, na)] + list(reversed(outer[-1][:-1])) + [outer[i][0] for i in range(na - 2, 0, -1)]
+    ring_i = inner[0] + [inner[i][-1] for i in range(1, na)] + list(reversed(inner[-1][:-1])) + [inner[i][0] for i in range(na - 2, 0, -1)]
+    for e in range(len(ring_o)):
+        e2 = (e + 1) % len(ring_o)
+        quad(ring_o[e], ring_i[e], ring_i[e2], ring_o[e2])
+    P = np.asarray(P, dtype=np.float64)
+    T = np.asarray(T, dtype=np.int64)
+    # outward: the majority of faces point away from the head centre
+    hc = np.asarray(F["head_c"])
+    a_, b_, c_ = P[T[:, 0]], P[T[:, 1]], P[T[:, 2]]
+    score = np.einsum("ij,ij->i", np.cross(b_ - a_, c_ - a_), (a_ + b_ + c_) / 3 - hc).sum()
+    if score < 0:
+        T = T[:, [0, 2, 1]]
+    return P, T
+
+
 # ------------------------------------------------------------------- arrays and normals
 
 
@@ -847,23 +1304,27 @@ def vertex_normals(P: np.ndarray, T: np.ndarray) -> np.ndarray:
     return N / ln[:, None]
 
 
-def key_geometry(F: dict, res: int):
-    """Base positions and every key's position delta, plus the topology."""
-    base = build(F, {}, res)
+def key_geometry(F: dict, res: int, base_params: dict | None = None, keys: list | None = None):
+    """Base positions and every key's position delta, plus the topology. The crowd uses the
+    defaults (BASE_PARAMS, KEYS); the player passes founder-default's params and PLAYER_KEYS."""
+    bp = dict(base_params or {})
+    keys = KEYS if keys is None else keys
+    base = build(F, bp, res)
     P0, T, S, idx, wts = arrays(base)
     deltas = []
-    for key in KEYS:
-        prm = dict(KEY_PARAMS[key])
+    for key in keys:
+        prm = dict(bp)
+        prm.update(KEY_PARAMS[key])
         P1 = np.asarray(build(F, prm, res).P, dtype=np.float64)
         if P1.shape != P0.shape:
             raise AssertionError(f"{key}: topology changed ({P1.shape} vs {P0.shape})")
         deltas.append(P1 - P0)
-    return dict(P=P0, T=T, S=S, idx=idx, wts=wts, deltas=np.asarray(deltas), parts=base.parts)
+    return dict(P=P0, T=T, S=S, idx=idx, wts=wts, deltas=np.asarray(deltas), parts=base.parts, keys=list(keys))
 
 
-def variant_positions(geo: dict, weights: dict) -> np.ndarray:
+def variant_positions(geo: dict, weights: dict, keys: list | None = None) -> np.ndarray:
     P = geo["P"].copy()
-    for k, key in enumerate(KEYS):
+    for k, key in enumerate(KEYS if keys is None else keys):
         w = weights.get(key, 0.0)
         if w:
             P += w * geo["deltas"][k]

@@ -5,8 +5,9 @@ handle on top, orange straps, a green hose, and a blue spray wand with a thumb l
 and a big orange adjustable nozzle. Nothing about it is shaped like a firearm: no magazine,
 no stock, no pistol grip, no trigger guard, and every part is a bright toy colour.
 
-It is laid out as worn by the player (public/models/player.glb, origin on the ground between
-the feet, facing -Z), and each attachable part's origin is its attach point:
+It is laid out as worn by the player (public/models/player.glb in its default look,
+founder-default: origin on the ground between the feet, facing -Z), and each attachable part's
+origin is its attach point:
 
   water_blaster (root)
     tank          origin where the tank sits on the back; attach to the player's `chest` bone
@@ -31,10 +32,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 from mathutils import Matrix, Vector  # noqa: E402
 
 import fc  # noqa: E402
+import humanoid as H  # noqa: E402
 
 BUDGET = 2_500
-TANK_AT = (0.0, -0.13, 1.22)  # Blender: on the player's back
-GRIP_AT = (0.226, 0.02, 0.8)  # the right hand at rest
+# Fitted to player.glb's body (H.player_frame, founder-default: 1.83 m in a bomber jacket). The
+# blaster was drawn for the 1.78 m body; FIT scales the straps' layout (width, depth, height)
+# so they clear the jacket's shoulders and chest.
+_PF = H.player_frame()
+_S = _PF["scale"]
+_HAND = _PF["J"]["hand_R"]
+TANK_AT = (0.0, -0.14, 1.22 * _S)  # Blender: on the player's back, at the chest bone's height
+GRIP_AT = (round(_HAND[0] + H.FOUNDER_DEFAULT["params"]["arm_out"] * _S + 0.002, 4), 0.02, round(_HAND[2] - 0.075 * _S, 4))  # the right palm at rest
+FIT = (1.15, 1.14, 1.06)
 
 
 def main() -> None:
@@ -62,6 +71,7 @@ def main() -> None:
     # straps: two orange loops over the shoulders, and a waist band
     for sx in (1, -1):
         pts = [(sx * 0.09, 0.0, 0.17), (sx * 0.1, 0.08, 0.26), (sx * 0.11, 0.2, 0.22), (sx * 0.12, 0.25, 0.05), (sx * 0.12, 0.22, -0.18), (sx * 0.1, 0.02, -0.18)]
+        pts = [(x * FIT[0], y * FIT[1], z * FIT[2]) for x, y, z in pts]
         for p0, p1 in zip(pts, pts[1:]):
             t.cyl_between(p0, p1, 0.014, 6, orange, caps=False)
     tank = t.build("tank", parent=root, location=TANK_AT)
