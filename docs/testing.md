@@ -335,9 +335,11 @@ meshopt in Node). Harness owns it; each metric's definition lives in
   A probe sees what the renderer draws: a far cell does not count inside a tile that is in the
   scene (the far layer's shader discards it there), and the tour flies over each probe's point
   first so its tile is streamed in.
-- **Cost at 544f67c** (16 GB machine): the per-PR world suites add about 2 minutes to `pnpm test`
-  with two workers (largest worker 1.8 GB); the nightly Vitest sweeps take about 31 minutes on one
-  worker (0.8 GB; every street is 26,792 runs) and the tour about 50 minutes (85 shots).
+- **Cost at 544f67c** (16 GB machine): `vitest run` with the per-PR world suites takes about
+  3 minutes on two workers (largest process 2.1 GB; at least 12 GB stayed free); `car-pose.spec.ts`
+  adds about 3 minutes to `pnpm e2e`; the nightly Vitest sweeps take about 31 minutes on one
+  worker (0.9 GB; every street is 26,792 runs), the ring about 1 minute and the tour about
+  50 minutes (85 shots).
 
 ## Writing browser tests
 
