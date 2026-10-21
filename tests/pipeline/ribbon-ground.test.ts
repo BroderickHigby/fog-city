@@ -11,6 +11,8 @@ import { join } from "node:path";
 import { Vector3, type BufferAttribute, type BufferGeometry, type Mesh } from "three";
 import { describe, expect, it, vi } from "vitest";
 import { distToSegment } from "../../pipeline/lib/geom.ts";
+import { POSITION_STEP_M } from "../../pipeline/lib/glb.ts";
+import { GLB_GRID_M } from "../../pipeline/lib/mesh.ts";
 import { Ground } from "../../pipeline/lib/terrain.ts";
 import { ROOT } from "../helpers.ts";
 import { loadGlbWithThree, loadSfPack } from "./util.ts";
@@ -28,6 +30,10 @@ describe("sf world: road ribbons lie on the ground (W-09, W-10)", () => {
   const under = pack.tiles.flatMap((t) => t.tunnels ?? []);
   const inTunnel = (x: number, z: number): boolean =>
     under.some((u) => u.path.some((p, i) => i > 0 && distToSegment(x, z, [u.path[i - 1]![0], u.path[i - 1]![2]], [p[0], p[2]]).d <= p[3] / 2 + 1));
+
+  it("draped vertices are placed on the glb's own position grid (a cliff turns a centimetre across into centimetres up)", () => {
+    expect(GLB_GRID_M).toBe(POSITION_STEP_M);
+  });
 
   it("on a 0.5 m grid over every ribbon triangle, the ground is never more than 2 cm above the ribbon; a draped ribbon is within 5 cm of the ground", async () => {
     expect(named.size).toBeGreaterThan(5);

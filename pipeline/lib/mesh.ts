@@ -266,6 +266,8 @@ function clipRuns(pts: Array<{ p: P2; s: number }>, box: TileRef["bbox"]): Array
 export const DRAPE_LIFT_M = 0.02;
 /** A ribbon triangle whose ground stays this close to one plane is drawn whole, not draped piece by piece. */
 const DRAPE_FLAT_M = 0.015;
+/** The glb position grid (glb.ts POSITION_STEP_M): draped vertices are placed on it. */
+export const GLB_GRID_M = 1 / 64;
 /** Station spacing of a draped ribbon. */
 const DRAPE_STEP_M = 40;
 /** Texture coordinates of a junction polygon: plain asphalt, no kerb strip or lane line. */
@@ -335,40 +337,180 @@ export function drapePolygon(poly: readonly P2[], ground: Ground, emit: (piece: 
   }
 }
 
-/** Per node: the half width of the widest street meeting it, where three or more streets meet. */
-export function junctionRadii(edges: readonly RoadEdge[]): Map<string, number> {
-  const deg = new Map<string, number>();
-  const half = new Map<string, number>();
-  for (const e of edges) {
-    if (e.kind === "freeway" || e.kind === "ramp") continue;
-    for (const n of [e.a, e.b]) {
-      deg.set(n, (deg.get(n) ?? 0) + 1);
-      half.set(n, Math.max(half.get(n) ?? 0, e.widthM / 2));
+/** A ribbon is trimmed no further than this from its junction. */
+const TRIM_MAX_M = 30;
+/** How far out along each street the trims look for the other streets' ribbons, metres. */
+const TRIM_REACH_M = 40;
+
+/** One street end at a junction: its ribbon from the node, straight along its first metres. */
+interface JunctionEnd {
+  key: string;
+  edge: RoadEdge;
+  fromStart: boolean;
+  /** Unit direction away from the node. */
+  ux: number;
+  uz: number;
+  h: number;
+  L: number;
+  t: number;
+}
+
+/** True if two rectangles (four corners each, in order) overlap by more than 1 cm (separating axes). */
+function rectsOverlap(a: readonly P2[], b: readonly P2[]): boolean {
+  for (const r of [a, b]) {
+    for (let i = 0; i < 2; i++) {
+      const p = r[i]!, q = r[i + 1]!;
+      const len = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1;
+      const ax = (q[0] - p[0]) / len, az = (q[1] - p[1]) / len;
+      let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+      for (const [x, z] of a) { const d = x * ax + z * az; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+      for (const [x, z] of b) { const d = x * ax + z * az; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+      if (Math.min(a1, b1) - Math.max(a0, b0) <= 0.01) return false;
     }
   }
+  return true;
+}
+
+/** A street end's ribbon from `t0` to `t1` along its first direction, the node at the origin. */
+function endRect(q: { ux: number; uz: number; h: number }, t0: number, t1: number): P2[] {
+  const nx = -q.uz * q.h, nz = q.ux * q.h;
+  return [
+    [q.ux * t0 + nx, q.uz * t0 + nz],
+    [q.ux * t1 + nx, q.uz * t1 + nz],
+    [q.ux * t1 - nx, q.uz * t1 - nz],
+    [q.ux * t0 - nx, q.uz * t0 - nz],
+  ];
+}
+
+/**
+ * The kerb points of a street end's ribbon from the node to where its trimmed ribbon begins
+ * (`t` along the street), every 2 m: the hull of these covers the trimmed-off ribbon even where
+ * the street curves.
+ */
+function endKerbs(e: RoadEdge, fromStart: boolean, t: number): P2[] {
+  const L = polylineLength(e.points);
+  const hw = e.widthM / 2;
+  const reach = Math.min(t, L / 2);
+  const out: P2[] = [];
+  const n = Math.max(1, Math.ceil(reach / 2));
+  for (let i = 0; i <= n; i++) {
+    const d = (reach * i) / n;
+    const [x, z, dx, dz] = pointDirAt(e.points, fromStart ? d : L - d);
+    out.push([x - dz * hw, z + dx * hw], [x + dz * hw, z - dx * hw]);
+  }
+  return out;
+}
+
+/** Street ends at each node where three or more streets meet, trimmed (junctionRadii). */
+function junctionEnds(edges: readonly RoadEdge[]): Map<string, JunctionEnd[]> {
+  const ends = new Map<string, JunctionEnd[]>();
+  for (const e of edges) {
+    if (e.kind === "freeway" || e.kind === "ramp") continue;
+    const L = polylineLength(e.points);
+    for (const [n, fromStart] of [[e.a, true], [e.b, false]] as const) {
+      const [, , dx, dz] = pointDirAt(e.points, fromStart ? Math.min(2, L / 2) : Math.max(L - 2, L / 2));
+      const l = ends.get(n) ?? ends.set(n, []).get(n)!;
+      l.push({ key: `${e.id}|${fromStart ? "a" : "b"}`, edge: e, fromStart, ux: fromStart ? dx : -dx, uz: fromStart ? dz : -dz, h: e.widthM / 2, L, t: 0 });
+    }
+  }
+  for (const [n, l] of [...ends]) {
+    if (l.length < 3) {
+      ends.delete(n);
+      continue;
+    }
+    const node = l[0]!.fromStart ? l[0]!.edge.points[0]! : l[0]!.edge.points[l[0]!.edge.points.length - 1]!;
+    const cap = (q: JunctionEnd): number => Math.min(TRIM_MAX_M, q.L / 2);
+    // Each ribbon stops where it clears every other street's ribbon from the node out (two
+    // rectangles along the streets' first directions), and no nearer than the widest street's
+    // half width. Streets leaving all but parallel are left to ribbonHalfWidths.
+    const base = Math.max(...l.map((q) => q.h));
+    for (const q of l) {
+      let t = base;
+      for (const o of l) {
+        if (o === q) continue;
+        const cos = q.ux * o.ux + q.uz * o.uz;
+        const sin = Math.abs(q.ux * o.uz - q.uz * o.ux);
+        if (cos > 0 && sin < 0.05) continue;
+        const other = endRect(o, 0, TRIM_REACH_M);
+        if (!rectsOverlap(endRect(q, t, t + TRIM_REACH_M), other)) continue;
+        let lo = t, hi = cap(q);
+        if (rectsOverlap(endRect(q, hi, hi + TRIM_REACH_M), other)) {
+          t = hi;
+          continue;
+        }
+        for (let i = 0; i < 20 && hi - lo > 0.01; i++) {
+          const mid = (lo + hi) / 2;
+          if (rectsOverlap(endRect(q, mid, mid + TRIM_REACH_M), other)) lo = mid;
+          else hi = mid;
+        }
+        t = hi;
+      }
+      q.t = Math.min(t, cap(q));
+    }
+    // The junction polygon is the hull of the trimmed ends' kerb points: a ribbon the hull
+    // still reaches into stops where the hull ends instead.
+    for (let pass = 0; pass < 4; pass++) {
+      const hull = convexHull([...l.flatMap((q) => endKerbs(q.edge, q.fromStart, q.t)), node]);
+      let moved = false;
+      for (const q of l) {
+        // The hull clipped to the ribbon's strip (just inside its kerbs), in the node's frame.
+        let poly: P2[] = hull.map(([x, z]) => [x - node[0], z - node[1]]);
+        const nx = -q.uz, nz = q.ux;
+        const keep = (sign: number): void => {
+          const side = (p: P2): number => q.h * 0.98 - sign * (p[0] * nx + p[1] * nz);
+          const out: P2[] = [];
+          for (let i = 0; i < poly.length; i++) {
+            const p = poly[i]!, r = poly[(i + 1) % poly.length]!;
+            const sp = side(p), sr = side(r);
+            if (sp >= 0) out.push(p);
+            if ((sp >= 0) !== (sr >= 0)) {
+              const f = sp / (sp - sr);
+              out.push([p[0] + (r[0] - p[0]) * f, p[1] + (r[1] - p[1]) * f]);
+            }
+          }
+          poly = out;
+        };
+        keep(1);
+        keep(-1);
+        let reach = 0;
+        for (const [x, z] of poly) reach = Math.max(reach, x * q.ux + z * q.uz);
+        const t = Math.min(reach, cap(q));
+        if (t > q.t + 0.05) {
+          q.t = t;
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+  }
+  return ends;
+}
+
+/**
+ * Where three or more streets meet (W-32), how far short of the node each ribbon stops, keyed
+ * `<edge id>|a` or `<edge id>|b`: far enough that it clears every other street's ribbon and the
+ * junction polygon (junctionEnds); at most TRIM_MAX_M, or half the edge.
+ */
+export function junctionRadii(edges: readonly RoadEdge[]): Map<string, number> {
   const out = new Map<string, number>();
-  for (const [n, d] of deg) if (d >= 3) out.set(n, half.get(n)!);
+  for (const l of junctionEnds(edges).values()) for (const q of l) out.set(q.key, r2(q.t));
   return out;
 }
 
 /**
- * Junction polygons (W-32): where three or more streets meet, the convex hull of their kerb
- * points where their trimmed ribbons end (junctionRadii from the node), drawn as one patch of
- * plain asphalt. Keyed by node id.
+ * Junction polygons (W-32): where three or more streets meet, the convex hull of the kerbs their
+ * ribbons give up (junctionRadii from the node), drawn as one patch of plain asphalt. Keyed by
+ * node id.
  */
 export function junctionPolygons(edges: readonly RoadEdge[], radii: ReadonlyMap<string, number>, nodes: ReadonlyMap<string, { x: number; z: number }>): Map<string, P2[]> {
   const pts = new Map<string, P2[]>();
   for (const e of edges) {
     if (e.kind === "freeway" || e.kind === "ramp") continue;
-    const L = polylineLength(e.points);
     for (const [n, fromStart] of [[e.a, true], [e.b, false]] as const) {
-      const r = radii.get(n);
+      const r = radii.get(`${e.id}|${fromStart ? "a" : "b"}`);
       if (r === undefined) continue;
-      const s = fromStart ? Math.min(r, L / 2) : Math.max(L - r, L / 2);
-      const [x, z, dx, dz] = pointDirAt(e.points, s);
-      const hw = e.widthM / 2;
       const l = pts.get(n) ?? pts.set(n, []).get(n)!;
-      l.push([x - dz * hw, z + dx * hw], [x + dz * hw, z - dx * hw]);
+      l.push(...endKerbs(e, fromStart, r));
     }
   }
   const out = new Map<string, P2[]>();
@@ -495,7 +637,7 @@ export function ribbonHalfWidths(edges: readonly RoadEdge[], nodes: ReadonlyMap<
  *     so the drawn road and the ground agree everywhere (W-09, W-10).
  *   - `surface(edge, s)` is the road's own surface where it is not the ground (a deck, a bore, an
  *     underpass: decks.ts): drawn level across at that height.
- *   - Where three or more streets meet, each ribbon stops `radii` short of the node and the
+ *   - Where three or more streets meet, each ribbon stops its `radii` entry short of the node and the
  *     junction polygon (junctionPolygons) covers the crossing once (W-32): `junctions` are the
  *     polygons whose node lies in this tile.
  */
@@ -512,7 +654,12 @@ export function roadMeshes(
   const freeways = new MeshData({ uvs: true });
   // Draped pieces share their edges: one vertex per (position, colour, uv).
   const caches = new Map<MeshData, Map<string, number>>([[roads, new Map()], [freeways, new Map()]]);
-  const shared = (m: MeshData, x: number, y: number, z: number, col: readonly number[], uv: readonly [number, number]): number => {
+  const shared = (m: MeshData, x0: number, y0: number, z0: number, col: readonly number[], uv: readonly [number, number]): number => {
+    // The vertex goes where the tile's glb will put it (x and z on the position grid), and keeps
+    // its height over the ground there: on a cliff a centimetre across is centimetres up.
+    const x = Math.round(x0 / GLB_GRID_M) * GLB_GRID_M, z = Math.round(z0 / GLB_GRID_M) * GLB_GRID_M;
+    const g0 = ground.meshHeightAt(x0, z0), g1 = ground.meshHeightAt(x, z);
+    const y = g0 !== null && g1 !== null ? y0 + g1 - g0 : y0;
     const key = `${Math.round(x * 100)},${Math.round(y * 100)},${Math.round(z * 100)},${col.join(",")},${Math.round(uv[0] * 32)},${Math.round(uv[1] * 32)}`;
     const cache = caches.get(m)!;
     let id = cache.get(key);
@@ -545,8 +692,8 @@ export function roadMeshes(
     const isFreeway = target === freeways;
     // Trim at junctions.
     const L = polylineLength(e.points);
-    const s0 = isFreeway ? 0 : Math.min(radii.get(e.a) ?? 0, L / 2);
-    const s1 = isFreeway ? L : Math.max(L - (radii.get(e.b) ?? 0), L / 2);
+    const s0 = isFreeway ? 0 : Math.min(radii.get(`${e.id}|a`) ?? 0, L / 2);
+    const s1 = isFreeway ? L : Math.max(L - (radii.get(`${e.id}|b`) ?? 0), L / 2);
     if (s1 - s0 < 0.05) continue;
     // A draped ribbon follows the ground whatever its stations, so they need only follow the
     // centreline (DRAPE_STEP_M at most); a road with a structure keeps MAX_STEP_M stations.

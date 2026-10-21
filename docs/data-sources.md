@@ -436,7 +436,7 @@ now runs these passes, in this order, after the buildings and the road graph
    bore (the island's westbound on-ramp) gets a bore of its own from that node out (8% at
    most). Each bore is a `tunnels` ribbon with a 5 m ceiling, its edge is flagged `tunnel`,
    and the buildings over it get an underside (`underY`) at their foot, or 0.3 m over the
-   ceiling where the cover is thin (@@BORE_RECORDS@@ records). Both Broadway bores, the
+   ceiling where the cover is thin (68 records). Both Broadway bores, the
    Stockton and Toll Plaza tunnels, the MacArthur Tunnel (both directions), the Presidio
    Parkway's tunnels (the Battery tunnel northbound, the Main Post tunnel southbound) and the
    Yerba Buena Island tunnel (both decks, side by side as the source draws them, not stacked)
@@ -489,7 +489,7 @@ now runs these passes, in this order, after the buildings and the road graph
    ramp comes down to its street at 8% at most; a freeway under a street on top of it (below)
    stays on its ground there and comes down to it at 6%; and a lower bound over a cone gives
    way to it. A ramp the source draws too short to come down from its gore at 8% runs the
-   straight line from its street to its gore instead (@@SHORT_RAMPS@@; `report.json`
+   straight line from its street to its gore instead (1: the Sterling St on-ramp to the Bay Bridge, 29 m long in the source, at 27.5%; `report.json`
    `decks.shortRamps`). Where the profile stands more than 0.1 m over the ground it is a deck
    (kind `freeway` or `ramp`, layer 2 where it crosses over another deck), thinned to the
    vertices a straight line needs (5 cm across, 1 cm in height); open water longer than
@@ -502,27 +502,37 @@ now runs these passes, in this order, after the buildings and the road graph
    than 100 m where the chain leaves room and never tighter than a car at 1.3 times the
    street's speed limit keeps its wheels on (at least 25 m). A street that cannot bridge a
    freeway within its chain (a junction too near) leaves the freeway to bridge over it
-   instead (@@TOO_TIGHT@@); a street on top of one carriageway is on top of its twin; between
+   instead (1); a street on top of one carriageway is on top of its twin; between
    two streets one order holds per pair (the clearest dip or hump decides); and wherever a
    structure passes over the other road by less than 5 m after all that (a neighbouring
    bridge, a ramp's foot, a portal), the street on top bridges it properly, or the crossing
-   is listed in `decks.unresolvedCrossings` (@@UNRESOLVED@@: neither road can bridge the
+   is listed in `decks.unresolvedCrossings` (7: neither road can bridge the
    other there). Where neither moves, the freeway is a viaduct over the street. Every surface
    street over water gets a `bridge` deck on the straight line between its banks (3rd St and
    4th St over Mission Creek, 3rd St and Illinois St over Islais Creek), and the Lefty O'Doul
    Bridge (3rd St over Mission Creek) is a `movable` bascule hinged at its north end. Edges
    with a deck are flagged `deck`. `pipeline/lib/surfaces.ts` is the reference road-surface
-   lookup over decks and tunnels for the sim. (@@DECK_NUMBERS@@)
+   lookup over decks and tunnels for the sim. (25,963 freeway samples, 13,760 on decks, up to 47.1 m over the ground; 309 streets under a freeway, 42 overpass pieces, 11 streets bridging a freeway near a portal or a ramp's foot, 41 decks over another, 105 low roofs cleared, 9 creek bridge pieces)
 8. **Road surfaces (W-09, W-10, W-32, `mesh.ts`).** A road ribbon on the ground is draped on
    the ground mesh's own triangles (each ribbon triangle clipped to the lattice triangles
    under it, unless the ground under it is one plane within 1.5 cm) and lifted 2 cm, so the
    drawn road and the ground the sim drives on agree within 5 cm everywhere and the ground
-   never shows through. On a deck, in a bore or an overpass the ribbon is level across at the
-   structure's surface. Where three or more streets meet, each ribbon stops at the junction's
-   radius (the widest street's half width) and one junction polygon (the convex hull of the
-   trimmed ribbons' kerb ends) covers the crossing, with texture coordinates (0.25, 0): plain
-   asphalt, no kerb strip or lane line. Elevated decks get a `structures` node (sides,
-   underside, columns every 30 m).
+   never shows through. A draped vertex sits on the glb's own 1/64 m position grid and keeps
+   its 2 cm over the ground there (on a cliff, a centimetre across is centimetres up). On a
+   deck, in a bore or an overpass the ribbon is level across at the structure's surface. Where
+   three or more streets meet, each ribbon stops where it clears every other street's ribbon
+   from the node out (an acute fork trims further than a square crossing; a street running
+   straight through is not trimmed by its own continuation), at least the widest street's half
+   width and at most 30 m or half the edge; one junction polygon (the convex hull of the kerbs
+   the trimmed ribbons give up) covers the crossing, and a ribbon the hull still reaches into
+   stops where the hull ends. The polygon has texture coordinates (0.25, 0): plain asphalt, no
+   kerb strip or lane line. Double-drawn street area on the checked tiles fell from 6.2% (W-32)
+   to 0.38% (at most 0.5% asked), and the trims leave under 0.01% of the street area undrawn.
+   Where two street ribbons run side by side (within 30 degrees of parallel) closer than their half widths together, a divided street's carriageways
+   or a frontage road, each gives up its share of the overlap (never under 1 m half width) so
+   their kerbs meet instead of z-fighting. A deck's level ribbon is lifted over any hump of the
+   ground mesh between its stations. Elevated decks get a `structures` node (sides, underside,
+   columns every 30 m).
 
 Contract fields these passes use (all additive, `src/sim/contract.ts` and the schemas):
 `underY` and `meta.piece`/`meta.pieceOf` on buildings, `decks`, `tunnels` and `movable` on
@@ -865,19 +875,19 @@ where surface roads cross it). Walkers do not use `sidewalks.json` yet. The orig
 
 | Files | Bytes |
 |---|---|
-| 583 × `t*.glb` (quantised + meshopt) | 112.86 MB (largest 0.53 MB) |
-| 583 × `t*.collider.json` | 82.86 MB (largest 0.40 MB) |
-| `world.colliders.bin` | 12.69 MB |
-| `sidewalks.json` | 10.36 MB |
-| 33 × `f*.glb` (far-LOD) | 6.68 MB |
-| `roads.json` | 4.54 MB |
+| 584 × `t*.glb` (quantised + meshopt) | 128.16 MB (largest 0.67 MB) |
+| 584 × `t*.collider.json` | 95.42 MB (largest 0.56 MB) |
+| `world.colliders.bin` | 14.87 MB |
+| `sidewalks.json` | 10.55 MB |
+| 33 × `f*.glb` (far-LOD) | 6.91 MB |
+| `roads.json` | 4.64 MB |
 | `street-cleaning.json` | 3.73 MB |
-| `storefronts.json` | 1.55 MB |
+| `storefronts.json` | 1.51 MB |
 | `parking.json` | 1.25 MB |
 | `muni.json` | 0.66 MB |
 | `hydrants.json`, `districts.json`, `signals.json`, `fountains.json`, `boundary.json` | 0.73 MB |
-| `manifest.json` + `report.json` | 0.23 MB |
-| **Total (the whole city, 1,213 files)** | **238.12 MB** (238,122,210 bytes; budget 300 MB) |
+| `manifest.json` + `report.json` | 0.25 MB |
+| **Total (the whole city, 1,215 files)** | **268.69 MB** (268,685,992 bytes; budget 300 MB) |
 
 Budgets live in `tests/pipeline/budgets.json` and `tests/pipeline/budgets.test.ts` enforces
 them: each tile glb and each collider JSON ≤ 1.5 MB, all tile glbs ≤ 150 MB, all collider
@@ -890,10 +900,10 @@ M0 + M1 world, 34.62 MB; it is superseded.)
 Inputs are sorted by source id, coordinates are rounded to cm, JSON is written with a fixed
 key order (one building, node, edge or record per line, so data changes diff as line
 changes), meshopt encoding is deterministic, and there are no timestamps. `--check`
-rebuilds from cache and compares every byte (all 1,213 files byte-identical on
-2026-10-20).
+rebuilds from cache and compares every byte (all 1,215 files byte-identical on
+2026-10-21).
 
-**Rebuilds belong in one commit.** The world is about 238 MB of committed files and a
+**Rebuilds belong in one commit.** The world is about 269 MB of committed files and a
 rebuild rewrites most of them, so every commit that rebuilds the world adds a full copy to
 the history. Squash a branch's data rebuilds into one commit (or squash-merge it) so each
 version of the world lands once. `tests/pipeline/build-fixture.test.ts` builds a synthetic world twice, in
