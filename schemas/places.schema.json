@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/places",
+  "title": "Protected areas and Moat Labs sites (content/places.json)",
+  "type": "object",
+  "required": ["version", "source", "protectedAreas", "badRobotRate", "moatSites", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "provenance": { "$ref": "provenance" },
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "source": { "type": "string" },
+    "protectedAreas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "excluded", "step", "polygon"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "name": { "type": "string" },
+          "excluded": { "type": "boolean", "description": "One of the four areas with no mode instance." },
+          "step": { "type": "integer", "minimum": 1, "maximum": 10 },
+          "polygon": { "$ref": "#/$defs/polygon" }
+        }
+      }
+    },
+    "badRobotRate": {
+      "type": "object", "required": ["baseline", "note"], "additionalProperties": false,
+      "properties": { "baseline": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.2 }, "note": { "type": "string" } }
+    },
+    "moatSites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "label", "lat", "lon", "term", "falloffM"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "kind": { "enum": ["hq", "conventionCenter", "depot"] },
+          "label": { "type": "string" },
+          "lat": { "$ref": "#/$defs/lat" }, "lon": { "$ref": "#/$defs/lon" },
+          "term": { "type": "number", "exclusiveMinimum": 0, "maximum": 0.1 },
+          "falloffM": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "lat": { "type": "number", "minimum": 37.7, "maximum": 37.84 },
+    "lon": { "type": "number", "minimum": -122.53, "maximum": -122.35 },
+    "polygon": {
+      "type": "array", "minItems": 3,
+      "items": { "type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{ "$ref": "#/$defs/lat" }, { "$ref": "#/$defs/lon" }] }
+    }
+  }
+}

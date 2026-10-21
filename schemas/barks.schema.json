@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/barks",
+  "title": "Bark pools (content/barks/*.json)",
+  "description": "Short spoken lines picked by id on the presentation track (keyed hash, never the sim RNG). Speaker kind, context and mood let the picker match a moment; maxLength is the speech bubble's limit.",
+  "type": "object",
+  "required": ["version", "pool", "provenance", "barks"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "pool": { "enum": ["robots", "wet"] },
+    "provenance": { "$ref": "provenance" },
+    "barks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/bark" } }
+  },
+  "$defs": {
+    "bark": {
+      "type": "object",
+      "required": ["id", "speaker", "context", "mood", "text", "maxLength"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9-]*$" },
+        "speaker": { "type": "string", "pattern": "^[a-z][A-Za-z]*$" },
+        "context": { "type": "string", "pattern": "^[a-z][A-Za-z]*$" },
+        "mood": { "type": "string", "pattern": "^[a-z][A-Za-z]*$" },
+        "text": { "type": "string", "minLength": 2, "maxLength": 90 },
+        "maxLength": { "type": "integer", "minimum": 20, "maximum": 90 }
+      }
+    }
+  }
+}

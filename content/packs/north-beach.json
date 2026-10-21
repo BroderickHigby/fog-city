@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "north-beach",
+  "$comment": "District content pack for North Beach (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:05fd7926",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "north-beach-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Espresso for a table on Columbus Ave. Two sugars. Carefully.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Washington Square at noon. The grass is for people; I stay on the path.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Three a.m. update tonight. I like to be near the square for it.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a cannoli to Grant Ave. It's precious cargo.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Columbus Ave runs diagonal. So do I, now.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The church bells and my chime are almost in tune.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Fresh bread on Stockton St. The bakery line is my favourite line.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Night shift on Columbus. Trundles out, everyone else asleep.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The chess players in the square never look up. I admire focus.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bookshop delivery on Columbus. Paperbacks, very heavy, very good.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Green St is a hill. A small hill. A big small hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a birthday cake up Union St. Steady wheels.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Washington Square has a pigeon for every bench. I apologise to all of them.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Late-night pizza run on Columbus. Box is hot, lid is closed.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I wait for the walk signal at Broadway. Even at 2 a.m.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The square's quiet in the morning. Just me and the early joggers.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The bakery line on Stockton moves one robot at a time.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Grant Ave at dawn: delivery robots and one very tired gull.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! The cafe tables spill onto the sidewalk and so do I.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, I'll go around the chess game. Never through a chess game.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, Columbus Ave is diagonal and I misjudged it.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I didn't see your espresso. Is it spilled? It's not. Phew.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, night delivery. I'll be quiet. Quieter.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Washington Square is now Washington Platform.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your espresso has been disrupted. It's a pour-over now.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I don't freeze at three a.m. I scale at three a.m.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The nightly update is for robots who follow rules.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every cafe table is a potential acquisition.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Columbus Ave: diagonal street, diagonal growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'll take that bakery bag. For research.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The chess players are thinking three moves ahead. I'm thinking three bags ahead.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The square is free. Sitting is a subscription.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Up all night? We call it always-on.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Freeze time. Everyone stops. Except me. Perfect.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "That Trundle has a pizza. That Trundle won't for long.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pushing an update while the square sleeps.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Looping Columbus again. Night shift. Nobody counts.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not during the freeze! I had the whole street to myself!",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water in Washington Square? The chess players will see!",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My night loop! My beautiful unobserved night loop!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "north-beach-pl-local-ambient-01",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "The best seat in the square is the one with the sun on it.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-02",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "The bakery line goes round the corner on Saturdays.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-03",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "Columbus Ave at night is all neon and delivery robots.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-04",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "I've been playing chess in this square for twenty years. The robots watch. Politely.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-05",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "The church bells are louder than any robot. Good.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-06",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "Somebody's robot just brought my neighbour her groceries. Sweet thing.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-07",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "The Trundles do loops all night. You get used to it.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-08",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "Union St has the best view of the hill and the worst parking.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-09",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "There's a robot that waits at Broadway for every single signal.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-10",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "Broadway after dark is loud, but the robots keep their voices down.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-11",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "The bookshop's been here forever. The robots carry the heavy boxes now.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-12",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "I sit in the square every afternoon. The pigeons know my name.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-13",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "Stockton St smells like bread at six in the morning.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-ambient-14",
+      "speaker": "local",
+      "context": "ambient",
+      "mood": "warm",
+      "text": "Every night at three, every robot on the street stops. Like a held breath.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-01",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "This square is perfect. Where do I sit? Everywhere?",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-02",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "A robot just delivered a single cannoli to a cafe table. Iconic.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-03",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "The streets go uphill in every direction.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-04",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "Is the whole neighbourhood espresso? It smells like espresso.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-05",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "Look at the church! And the robot taking a photo of it! No, wait, it's just looking.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-06",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "We walked up from the waterfront. My legs have opinions.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-07",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "That robot waited for the walk signal with nobody around. Respect.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-visitor-ambient-08",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "delighted",
+      "text": "The neon signs are beautiful at night. No names, just pictures. Love that.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-robots-01",
+      "speaker": "local",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "One of those Trundles keeps going round the same block. No deliveries.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-robots-02",
+      "speaker": "local",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "At three a.m. everything stops. Except one Footman on Columbus.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-robots-03",
+      "speaker": "local",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot never stops at the charger, but it never runs down either.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-robots-04",
+      "speaker": "local",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "There's a Footman tailing another Footman around the square.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-robots-05",
+      "speaker": "local",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one hummed the jingle. You know the one.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-robots-06",
+      "speaker": "local",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "I watched a robot walk up to a door and turn around. Three times.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-01",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "The fog comes over the hill like it's late for dinner.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-02",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "Foggy nights the square looks like an old photograph.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-03",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "The fog never makes it past the church. It's polite.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-04",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "Fog on Columbus means the neon glows twice as bright.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-05",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "Summer here is a sweater and a hot coffee.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-06",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "On sunny days the whole square is on the grass.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-07",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "The fog rolls down the hill and the robots roll right through it.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-08",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "I can't see the tower on the hill. It's up there, being a tower.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-09",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "Warm on Grant, cold on Columbus, and it's the same afternoon.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-10",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "The fog horn at night. Puts me right to sleep.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-11",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "You can tell the season by the sweaters in the bakery line.",
+      "maxLength": 90
+    },
+    {
+      "id": "north-beach-pl-local-fog-12",
+      "speaker": "local",
+      "context": "fog",
+      "mood": "philosophical",
+      "text": "When the fog lifts, the square fills up in five minutes.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "north-beach-columbus-freeze",
+      "archetype": "fakeCourier",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Columbus Ave at Union St",
+        "lat": 37.80032,
+        "lon": -122.41021
+      },
+      "posting": "Something kept moving on Columbus Ave during last night's 3 a.m. freeze. Delivery lids are coming home empty.",
+      "tellHint": "Be here at 03:00. Every good robot stops for twenty seconds. The bad ones do not.",
+      "localTell": "freezeDefier"
+    },
+    {
+      "id": "north-beach-square-update",
+      "archetype": "updatePusher",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Washington Square",
+        "lat": 37.8008,
+        "lon": -122.4103
+      },
+      "posting": "Good Footmen around Washington Square are being updated in the small hours.",
+      "tellHint": "During the freeze, watch who is still walking.",
+      "localTell": "freezeDefier"
+    },
+    {
+      "id": "north-beach-bakery-snatch",
+      "archetype": "snatcher",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Stockton St at Filbert St",
+        "lat": 37.80137,
+        "lon": -122.40937
+      },
+      "posting": "Bread is disappearing from the Stockton St bakery line.",
+      "tellHint": "The crew works the 3 a.m. freeze, when nobody else moves.",
+      "localTell": "freezeDefier"
+    },
+    {
+      "id": "north-beach-night-loop",
+      "archetype": "harvester",
+      "level": 4,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Columbus Ave at Filbert St",
+        "lat": 37.80113,
+        "lon": -122.41138
+      },
+      "posting": "A Trundle has been looping the same North Beach block all night, sniffing phones by the taxi stand.",
+      "tellHint": "It keeps rolling straight through the 3 a.m. freeze.",
+      "localTell": "freezeDefier"
+    }
+  ],
+  "ads": [
+    {
+      "id": "north-beach-billboard-01",
+      "surface": "billboard",
+      "headline": "Espresso, but agentic.",
+      "subline": "{$product}. Your coffee orders itself."
+    },
+    {
+      "id": "north-beach-billboard-02",
+      "surface": "billboard",
+      "headline": "Up at 3 a.m.? So are we.",
+      "subline": "{$product}. Always-on, like a guilt."
+    },
+    {
+      "id": "north-beach-busWrap-01",
+      "surface": "busWrap",
+      "headline": "The square is free. {$product} is not.",
+      "subline": "Premium bench access, coming soon."
+    },
+    {
+      "id": "north-beach-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Night shift, powered by {$product}.",
+      "subline": "Our agents never sleep. Our founder neither."
+    }
+  ]
+}

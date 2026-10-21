@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/district-pack",
+  "title": "District content pack (content/packs/<district>.json)",
+  "description": "docs/ai-layer.md, District content packs: 40 robot barks and 40 people lines naming local streets, grades, fog and landmarks; a bounty set with a local tell; billboard and bus-wrap copy. Cross-references are checked by checkPack in src/content/packs.ts.",
+  "type": "object",
+  "required": ["version", "district", "provenance", "robotBarks", "peopleLines", "bounties", "ads"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "district": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "provenance": { "$ref": "provenance" },
+    "robotBarks": { "type": "array", "minItems": 40, "items": { "$ref": "barks#/$defs/bark" } },
+    "peopleLines": { "type": "array", "items": { "$ref": "barks#/$defs/bark" } },
+    "bounties": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "archetype", "level", "crew", "lastSeen", "posting", "tellHint"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "archetype": { "type": "string" },
+          "level": { "type": "integer", "minimum": 1, "maximum": 5 },
+          "localTell": { "type": "string" },
+          "crew": { "type": "integer", "minimum": 1, "maximum": 4, "description": "Robots in the crew; one is posted." },
+          "lastSeen": {
+            "type": "object",
+            "required": ["label", "lat", "lon"],
+            "additionalProperties": false,
+            "properties": { "label": { "type": "string", "maxLength": 44 }, "lat": { "type": "number" }, "lon": { "type": "number" } }
+          },
+          "posting": { "type": "string", "minLength": 10, "maxLength": 140 },
+          "tellHint": { "type": "string", "minLength": 10, "maxLength": 120 }
+        }
+      }
+    },
+    "ads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "surface", "headline", "subline"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9-]*$" },
+          "surface": { "enum": ["billboard", "busWrap"] },
+          "headline": { "type": "string", "minLength": 3 },
+          "subline": { "type": "string", "minLength": 3 }
+        }
+      }
+    }
+  }
+}

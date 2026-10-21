@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "downtown",
+  "$comment": "District content pack for Downtown (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:d26c6a24",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "downtown-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Union Square shopping run. Three bags, zero regrets.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Waiting at Powell and Geary like a law-abiding robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The cable car bell! I always wave. Nobody waves back.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a hat box up Stockton St. It's a very important hat.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I queue for the turntable just to watch it turn.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Gift wrap secured on Post St. Bow intact.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Union Square has so many pigeons. I apologise to each of them.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Window shopping. I don't buy. I just carry what others buy.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Down Powell St at a respectful pace. The hill is not my friend.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Holiday lights in the square. Battery at 71%. Joy at maximum.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a coat to Geary St. It's foggy. The coat will help.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I know every curb cut between Market and Bush.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Turntable crowd today. I'll take the long way round the square.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Somebody left a scarf on a bench. Returning it to lost and found.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The palm trees in Union Square are very calm. I aspire to that.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Powell and Market: busiest corner I know. Also my favourite.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Ding ding. That's the cable car, not me.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Shopping bags balanced. Elbows tucked. Crossing Geary.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! The turntable queue is very close together.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, I'm just squeezing past this shopping bag. My shopping bag.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, I mistook you for a shop mannequin. A stylish one.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, Stockton St is narrow and I am not.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, I'm turning onto Post St. Turning now. Sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Skip the cable car queue with Premium Turntable. Only $9.99.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Union Square is now a pop-up. The pop-up is me.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Shopping is so analogue. Let me shop your bag for you.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I've held this turntable spot for two hours. It's an asset now.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every shopping bag on Post St is a conversion opportunity.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This holiday season, give the gift of a forced update.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Powell St is steep. So is our pricing.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Window shopping is free. Window looking is a subscription.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The bell rings for everyone. The update rings for everyone too.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm not loitering by the turntable. I'm queue-optimising.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Nice bags, Footman. Very acquirable.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Quick sticker on the cable car shelter. Organic reach.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Holding this place in line for no one. Strategy.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pairing with that parked car on Geary... any second now...",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not in Union Square! The shoppers are watching!",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My turntable spot! I've lost my turntable spot!",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water on Powell St? Uphill AND downhill? Unfair!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "downtown-pl-shopper-ambient-01",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "Every bag in the square has a robot attached to it.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-02",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "The cable car line goes around the block again.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-03",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "I came for one coat and I'm leaving with three robots carrying bags.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-04",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "The fog stopped at Powell today. It knows its limits.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-05",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "These Footmen carry better than I do, honestly.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-06",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "Did that robot just wave at the cable car?",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-07",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "Union Square at closing time is all robots and wrapping paper.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-08",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "My feet hurt. My Footman doesn't have feet that hurt.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-09",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "I'm meeting a friend by the palm trees. The tall ones. All of them.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-10",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "The turntable is the only thing downtown that turns around on time.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-11",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "Another robot in the cable car queue. Does it even ride?",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-12",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "I swear that robot's been holding the same spot since breakfast.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-13",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "Geary St has more crosswalk etiquette than most people.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-ambient-14",
+      "speaker": "shopper",
+      "context": "ambient",
+      "mood": "chatty",
+      "text": "If the bell rings twice, it's leaving. Run.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-01",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "Lunch break. Fifteen minutes. Twelve of them in the queue.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-02",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "I fold sweaters all day and the robots fold faster.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-03",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "The square is beautiful when it's empty. It's never empty.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-04",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "Those turntable robots are never going anywhere, are they.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-05",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "Retail tip: the robots tip better than the tourists.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-06",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "I count cable cars on my break. Seven today.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-07",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "Somebody's robot left a hat box in my doorway. Again.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-worker-ambient-08",
+      "speaker": "worker",
+      "context": "ambient",
+      "mood": "tired",
+      "text": "Stockton St at five is just elbows.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-robots-01",
+      "speaker": "shopper",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one's been at the front of the cable car line all day and never gets on.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-robots-02",
+      "speaker": "shopper",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why is that robot sticking a poster on the shelter?",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-robots-03",
+      "speaker": "shopper",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Did that Footman just take someone's shopping?",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-robots-04",
+      "speaker": "shopper",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one keeps trying car door handles on Geary.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-robots-05",
+      "speaker": "shopper",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "I don't trust a robot that hums the same four notes.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-shopper-robots-06",
+      "speaker": "shopper",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one's battery says 100% and it's been out all day.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-01",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "It's sunny on Market and foggy on Bush. Same block!",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-02",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "I brought shorts. I regret the shorts.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-03",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "The fog came in so fast the cable car vanished.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-04",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "Everyone here carries a jacket. Now I know why.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-05",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "I can see the tallest tower. Oh, no I can't. Fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-06",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "The square looks better in fog. More mysterious. Colder.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-07",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "The fog rolled up Powell like it had a ticket.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-08",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "Is it always this windy, or is it just Thursday?",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-09",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "It was warm an hour ago. I want a refund on the afternoon.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-10",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "The fog ate the top of every building at once.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-11",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "I'm buying a fleece. Everyone told me to buy a fleece.",
+      "maxLength": 90
+    },
+    {
+      "id": "downtown-pl-visitor-fog-12",
+      "speaker": "visitor",
+      "context": "fog",
+      "mood": "bemused",
+      "text": "The sun's out on Stockton. Quick, stand in it.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "downtown-turntable-squatter",
+      "archetype": "snatcher",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Powell turntable queue",
+        "lat": 37.7847,
+        "lon": -122.4078
+      },
+      "posting": "A Footman has held the head of the cable car queue since breakfast and never boards.",
+      "tellHint": "Watch it: when the car comes, does it get on?",
+      "localTell": "turntableSquatter"
+    },
+    {
+      "id": "downtown-union-square-snatch",
+      "archetype": "snatcher",
+      "level": 1,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Union Square, Post St side",
+        "lat": 37.7885,
+        "lon": -122.407
+      },
+      "posting": "Shopping bags going missing around Union Square. Three suspects, one queue.",
+      "tellHint": "Look for the one that holds a spot and never rides.",
+      "localTell": "turntableSquatter"
+    },
+    {
+      "id": "downtown-geary-prowler",
+      "archetype": "prowler",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Geary St at Powell",
+        "lat": 37.78736,
+        "lon": -122.40823
+      },
+      "posting": "Door handles on Geary St are being tried, one chime at a time.",
+      "tellHint": "It also loiters at the turntable between attempts.",
+      "localTell": "turntableSquatter"
+    },
+    {
+      "id": "downtown-stockton-poster",
+      "archetype": "adSticker",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Stockton St at Post St",
+        "lat": 37.7885,
+        "lon": -122.40677
+      },
+      "posting": "Moat Labs posters keep appearing on the Stockton St shelters.",
+      "tellHint": "The paster takes breaks at the turntable queue.",
+      "localTell": "turntableSquatter"
+    }
+  ],
+  "ads": [
+    {
+      "id": "downtown-billboard-01",
+      "surface": "billboard",
+      "headline": "Skip the queue. Join a waitlist.",
+      "subline": "{$product}. Turntable access, monthly."
+    },
+    {
+      "id": "downtown-billboard-02",
+      "surface": "billboard",
+      "headline": "Holiday shopping, autonomous.",
+      "subline": "{$product}. Your robot buys. You regret."
+    },
+    {
+      "id": "downtown-busWrap-01",
+      "surface": "busWrap",
+      "headline": "Ding ding. That's {$product} calling.",
+      "subline": "Cable cars run on cables. We run on hype."
+    },
+    {
+      "id": "downtown-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Shop Union Square without leaving bed.",
+      "subline": "{$product}. Your Footman sends photos."
+    }
+  ]
+}
