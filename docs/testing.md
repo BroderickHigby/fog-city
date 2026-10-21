@@ -290,7 +290,9 @@ that found them, and a seeded optimiser hunts for more every night.
   ahead only while hopping high, flip forward tucked into a ball while still in the air (a full
   turn) and land on their feet in a crouch that flows into the recovery; never stretched flat
   near the ground and never upended stretched out (every frame of dives of 12-36 ticks with a
-  0.45 or 0.35 m hop); come up with a startled jump, arms flung up on the way up, brush
+  0.45 or 0.35 m hop); drawn about 0.3 m higher than the sim's hop mid-dive with a shadow on
+  the ground under them all through it (gone once they are up), the ground found from the
+  sim's hop (`drawnHop`); come up with a startled jump, arms flung up on the way up, brush
   themselves off and end facing their walk; never more than about 20 degrees off upright while
   recovering; the override's leap is drawn along its arc with a tucked flip, a short one as a
   stumble-hop with no flip; the Trundle skids round and tips, the Footman hops leaning in;
