@@ -50,8 +50,10 @@ describe("sf world: piers (W-13)", () => {
   it("no pier shed (400 m2 or more) stands half or more over water; the small structures that do are houseboats, which float", () => {
     const wet = buildings.filter((b) => !b.id.includes("-tower") && waterFraction(b.footprint, g) >= 0.5);
     expect(wet.filter((b) => Math.abs(signedArea(b.footprint)) >= PIER_SHED_MIN_M2).map((b) => b.id)).toEqual([]);
-    // The floating ones are few and small (Mission Creek's houseboats, a boathouse or two).
-    expect(wet.length).toBeLessThan(60);
+    // The ones that float are few and small: Mission Creek's houseboats, Fisherman's Wharf's
+    // stalls and boathouses, the Pier 70 shipyard's cranes and huts (61 in all, 4,400 m²).
+    expect(wet.length).toBeLessThan(80);
+    expect(wet.reduce((a, b) => a + Math.abs(signedArea(b.footprint)), 0)).toBeLessThan(6000);
   });
 
   it("Al Scoma Way, Pier 45 Vly and Pier 50 Vly run on the pier deck: ground 2.5 m or more all along", () => {

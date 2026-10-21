@@ -227,14 +227,17 @@ describe("sf world: buildings", () => {
     expect(Object.keys(fx.dropped).every((id) => fx.towers.includes(id))).toBe(true);
     // The world QA passes remove a few more, each listed in report.json: a tower a street or
     // freeway runs through is an overhead structure the LiDAR saw (W-16), and a tower goes with
-    // its podium when that is redeveloped land (W-01).
+    // its podium when that is redeveloped land (W-01); a height override from a public record
+    // (pipeline/overrides.json, W-16: the Transit Center) leaves no tower either.
     const rep = readJson("public/tiles/sf/report.json") as { clearance: { towersOnStreets: string[]; staleDropped: string[] } };
+    const overridden = new Set((readJson("pipeline/overrides.json") as { buildings: Array<{ id: string; heightM?: number }> }).buildings.filter((o) => o.heightM !== undefined).map((o) => o.id));
     const qa = new Set([...rep.clearance.towersOnStreets, ...rep.clearance.staleDropped]);
     const lost: string[] = [];
     for (const id of fx.towers) {
       const why = fx.dropped[id];
       if (!why) {
-        if (!byId.has(id) && !qa.has(id)) lost.push(id);
+        const podium = id.slice(0, -"-tower".length);
+        if (!byId.has(id) && !qa.has(id) && !qa.has(podium) && !overridden.has(podium)) lost.push(id);
         continue;
       }
       expect(byId.has(id), `${id} is listed as dropped (${why}) but stands`).toBe(false);

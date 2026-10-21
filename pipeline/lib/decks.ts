@@ -37,8 +37,10 @@ import { boreY, PORTAL_COVER_M, PORTAL_FOOT_M, type Bore } from "./tunnels.ts";
 export const DECK_CLEAR_M = 5;
 /** The steepest a freeway deck climbs or falls. */
 export const FREEWAY_GRADE = 0.06;
-/** ...and over water, where it holds its bank height. */
+/** ...and over water, where it holds its bank height... */
 const WATER_GRADE = 0.005;
+/** ...at least this far over the water. */
+export const WATER_CLEAR_M = 3;
 /** The tightest crest a deck makes (a car at 25 m/s stays on a crest of 64 m or more). */
 export const CREST_RADIUS_M = 150;
 /** Deck sample spacing. */
@@ -60,8 +62,10 @@ const CUT_DIP_M = 2;
 const HUMP_M = 1.5;
 /** An overpass reaches at least this far either side of the crossing... */
 const OVERPASS_HALF_M = 40;
-/** ...and far enough that its crest is no tighter than this (a car at 25 m/s leaves one under 64 m). */
+/** ...and far enough that its crest is no tighter than this (a car at 25 m/s leaves one under 64 m)
+ * where its street leaves room, and never tighter than this. */
 const OVERPASS_CREST_M = 100;
+const OVERPASS_MIN_CREST_M = 25;
 /** An approach is read this far past the other road's kerb. */
 const APPROACH_M = 12;
 /** Street samples for bridges, overpasses and underpasses. */
@@ -97,6 +101,11 @@ export interface DeckStats {
   /** Overpass crossings left short of DECK_CLEAR_M over the edge under them, and the worst (metres). */
   overpassShortfalls: number;
   overpassShortfallM: number;
+  /** Streets on top of a freeway too near a junction to bridge it smoothly: the freeway bridges over them. */
+  overpassesTooTight: number;
+  /** Crossings (edge ids, "fxg") where one road passes over the other by less than DECK_CLEAR_M and
+   * neither can bridge the other within its chain: the source's geometry contradicts itself. */
+  unresolvedCrossings: string[];
   bridges: string[];
   bascules: string[];
   /** The highest deck over its ground, metres. */
@@ -257,7 +266,7 @@ export function buildDecks(
 ): DeckResult {
   const stats: DeckStats = {
     freewaySamples: 0, deckSamples: 0, crossingsOver: 0, overpasses: [], stacked: 0,
-    roofsCleared: 0, tallConflicts: [], anchorsLowered: 0, anchorShortfallM: 0, streetsOverPortals: 0, shortRamps: [], overpassShortfalls: 0, overpassShortfallM: 0,
+    roofsCleared: 0, tallConflicts: [], anchorsLowered: 0, anchorShortfallM: 0, streetsOverPortals: 0, shortRamps: [], overpassShortfalls: 0, overpassShortfallM: 0, overpassesTooTight: 0, unresolvedCrossings: [],
     bridges: [], bascules: [], maxLiftM: 0,
   };
   const edges = [...graph.edges].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
@@ -299,8 +308,9 @@ export function buildDecks(
     const i = X.length;
     X.push(x); Z.push(z);
     const h = heightAt(x, z);
-    H.push(h); LO.push(h);
-    W.push(waterAt(x, z) ? 1 : 0);
+    const wet = waterAt(x, z);
+    H.push(h); LO.push(wet ? Math.max(h, WATER_CLEAR_M) : h);
+    W.push(wet ? 1 : 0);
     pinned.push(NaN);
     zone.push(0);
     adj.push([]); dist.push([]);
@@ -340,6 +350,13 @@ export function buildDecks(
   }
   const N = X.length;
   stats.freewaySamples = N;
+  // A sample beside the water holds the clearance too (the deck between it and the water's edge).
+  for (const e of fwy) {
+    const { idx } = edgeSamples.get(e.id)!;
+    idx.forEach((i, k) => {
+      if (!W[i] && ((k > 0 && W[idx[k - 1]!]) || (k + 1 < idx.length && W[idx[k + 1]!]))) LO[i] = Math.max(LO[i]!, WATER_CLEAR_M);
+    });
+  }
   // A ramp that joins its freeway inside a bore's zone (the Yerba Buena Island on-ramp) has a
   // zone of its own from that node out, as far as the hill stands over a ramp climbing from the
   // zone's line there at RAMP_GRADE.
@@ -464,6 +481,66 @@ export function buildDecks(
     const chord = heightAt(ax, az) + ((heightAt(bx, bz) - heightAt(ax, az)) * (s - a)) / (b - a);
     return chord - heightAt(px, pz);
   };
+  // Street chains: same-named surface edges through nodes no other road meets (the source splits
+  // a street mid-block). An overpass reaches along its chain, never through a junction.
+  const degree = new Map<string, number>();
+  for (const e of graph.edges) for (const n of [e.a, e.b]) degree.set(n, (degree.get(n) ?? 0) + 1);
+  const outOfA = new Map<string, RoadEdge[]>();
+  for (const e of edges) if (!isFreeway(e)) (outOfA.get(e.a) ?? outOfA.set(e.a, []).get(e.a)!).push(e);
+  const chainNext = (e: RoadEdge): RoadEdge | undefined => {
+    if (degree.get(e.b) !== 2) return undefined;
+    const o = (outOfA.get(e.b) ?? []).filter((q) => q.name === e.name && q.b !== e.a);
+    return o.length === 1 ? o[0] : undefined;
+  };
+  const chainPrev = new Map<RoadEdge, RoadEdge>();
+  for (const e of edges) {
+    if (isFreeway(e)) continue;
+    const n = chainNext(e);
+    if (n) chainPrev.set(n, e);
+  }
+  interface Chain { edges: RoadEdge[]; starts: number[]; L: number }
+  const chainCache = new Map<string, Chain>();
+  const chainOf = (e: RoadEdge): Chain => {
+    const hit = chainCache.get(e.id);
+    if (hit) return hit;
+    let first = e;
+    for (let q = chainPrev.get(first), n = 0; q && q !== e && n < 1000; q = chainPrev.get(q), n++) first = q;
+    const list: RoadEdge[] = [];
+    for (let q: RoadEdge | undefined = first; q && !list.includes(q); q = chainNext(q)) list.push(q);
+    if (!list.includes(e)) list.splice(0, list.length, e);
+    const starts: number[] = [];
+    let L = 0;
+    for (const q of list) {
+      starts.push(L);
+      L += lines.get(q.id)!.length;
+    }
+    const ch = { edges: list, starts, L };
+    for (const q of list) chainCache.set(q.id, ch);
+    return ch;
+  };
+  const chainPoint = (ch: Chain, S: number): P2 => {
+    let k = ch.edges.length - 1;
+    while (k > 0 && ch.starts[k]! > S) k--;
+    return pointAt(lines.get(ch.edges[k]!.id)!, S - ch.starts[k]!);
+  };
+  const chainGround = (ch: Chain, S: number): number => {
+    const [x, z] = chainPoint(ch, S);
+    return heightAt(x, z);
+  };
+  /**
+   * Whether a street can bridge over a road at arc length s within its chain: its crest no tighter
+   * than a car at 1.3 times the street's speed limit keeps its wheels on (OVERPASS_CREST_M where
+   * the chain leaves room, which the plan prefers).
+   */
+  const crestFor = (e: RoadEdge): number => Math.max(OVERPASS_MIN_CREST_M, (1.3 * e.speedLimitMps) ** 2 / 9.81);
+  const fits = (top: RoadEdge, s: number, yUnder: number, half0: number): boolean => {
+    const ch = chainOf(top);
+    const S = ch.starts[ch.edges.indexOf(top)]! + s;
+    const a = Math.max(0, S - half0), b = Math.min(ch.L, S + half0);
+    const chord = chainGround(ch, a) + ((chainGround(ch, b) - chainGround(ch, a)) * (S - a)) / (b - a || 1);
+    const h = Math.max(0, yUnder + DECK_CLEAR_M - chord);
+    return Math.PI * Math.sqrt((h * crestFor(top)) / 2) <= Math.min(S, ch.L - S) + 1;
+  };
   interface Over { top: RoadEdge; under: RoadEdge; c: Crossing; s: number; half: number; hump: boolean }
   const overs: Over[] = [];
   const ffCross: Crossing[] = [];
@@ -487,9 +564,45 @@ export function buildDecks(
     const moves = (d: number): boolean => d >= CUT_DIP_M || -d >= HUMP_M;
     const still = (d: number): boolean => Math.abs(d) < 1;
     const half = (other: RoadEdge): number => Math.max(other.widthM / 2 + APPROACH_M, OVERPASS_HALF_M);
-    if (moves(dG) && still(dF)) overs.push({ top: c.g, under: c.f, c, s: c.sg, half: half(c.f), hump: dG < 0 });
-    else if (moves(dF) && still(dG) && !isFreeway(c.f)) overs.push({ top: c.f, under: c.g, c, s: c.sf, half: half(c.g), hump: dF < 0 });
-    else if (isFreeway(c.f)) pending.push(c);
+    // A street too near a junction to bridge over smoothly leaves a freeway to bridge over it
+    // instead (two streets: left as they are).
+    const yP = heightAt(c.P[0], c.P[1]);
+    if (moves(dG) && still(dF)) {
+      if (fits(c.g, c.sg, yP, half(c.f))) overs.push({ top: c.g, under: c.f, c, s: c.sg, half: half(c.f), hump: dG < 0 });
+      else if (isFreeway(c.f)) {
+        pending.push(c);
+        stats.overpassesTooTight++;
+      }
+    } else if (moves(dF) && still(dG) && !isFreeway(c.f)) {
+      if (fits(c.f, c.sf, yP, half(c.g))) overs.push({ top: c.f, under: c.g, c, s: c.sf, half: half(c.g), hump: dF < 0 });
+    } else if (isFreeway(c.f)) pending.push(c);
+  }
+  // Two streets: never a street over itself (a loop the source draws), and one order per pair of
+  // streets (the source's carriageways can disagree): the crossing the DEM shows most clearly wins.
+  {
+    const strength = (o: Over): number => {
+      const d = dipAt(o.top, o.s, o.under.widthM / 2 + APPROACH_M);
+      return Math.abs(d);
+    };
+    const pairKey = (a: string, b: string): string => `${a}|${b}`;
+    const best = new Map<string, { o: Over; w: number }>();
+    for (const o of overs) {
+      if (isFreeway(o.under)) continue;
+      const k = o.top.name < o.under.name ? pairKey(o.top.name, o.under.name) : pairKey(o.under.name, o.top.name);
+      const w = strength(o);
+      const cur = best.get(k);
+      if (!cur || w > cur.w) best.set(k, { o, w });
+    }
+    for (let i = overs.length - 1; i >= 0; i--) {
+      const o = overs[i]!;
+      if (isFreeway(o.under)) continue;
+      if (chainOf(o.top) === chainOf(o.under) || o.top.name === o.under.name) {
+        overs.splice(i, 1);
+        continue;
+      }
+      const k = o.top.name < o.under.name ? pairKey(o.top.name, o.under.name) : pairKey(o.under.name, o.top.name);
+      if (best.get(k)!.o.top.name !== o.top.name) overs.splice(i, 1);
+    }
   }
   // A street on top of one carriageway is on top of its twin too (and of any freeway its
   // overpass window reaches): one bridge carries the street over both.
@@ -497,8 +610,9 @@ export function buildDecks(
     const windows = new Map<string, Array<[number, number]>>();
     for (const o of overs) (windows.get(o.top.id) ?? windows.set(o.top.id, []).get(o.top.id)!).push([o.s - o.half, o.s + o.half]);
     for (const c of pending) {
-      if ((windows.get(c.g.id) ?? []).some(([a, b]) => c.sg >= a && c.sg <= b)) {
-        overs.push({ top: c.g, under: c.f, c, s: c.sg, half: Math.max(c.f.widthM / 2 + APPROACH_M, OVERPASS_HALF_M), hump: false });
+      const half0 = Math.max(c.f.widthM / 2 + APPROACH_M, OVERPASS_HALF_M);
+      if ((windows.get(c.g.id) ?? []).some(([a, b]) => c.sg >= a && c.sg <= b) && fits(c.g, c.sg, heightAt(c.P[0], c.P[1]), half0)) {
+        overs.push({ top: c.g, under: c.f, c, s: c.sg, half: half0, hump: false });
         continue;
       }
       stats.crossingsOver++;
@@ -512,7 +626,7 @@ export function buildDecks(
       if (zone[i]) continue; // a street over a bore's zone is over the tunnel
       let d = Infinity;
       for (let k = 1; k < pg.pts.length; k++) d = Math.min(d, distToSegment(X[i]!, Z[i]!, pg.pts[k - 1]!, pg.pts[k]!).d);
-      if (d <= c.g.widthM / 2 + 1) LO[i] = Math.max(LO[i]!, y + DECK_CLEAR_M);
+      if (d <= c.g.widthM / 2 + 1) LO[i] = Math.max(LO[i]!, y + DECK_CLEAR_M + 0.05);
     }
   };
   for (const { c, y } of streetUnder) clearStreet(c, y);
@@ -632,7 +746,23 @@ export function buildDecks(
         }
       }
     }
-    for (let i = 0; i < N; i++) UB[i] = Math.max(forced[i]!, capA[i]!);
+    // A freeway under a street on top (the DEM kept the street's cut or embankment) stays on its
+    // ground there: the street's bridge clears it, not the other way round.
+    const underSrc: Array<[number, number]> = [];
+    for (const o of overs) {
+      if (!isFreeway(o.under)) continue;
+      const pt = lines.get(o.top.id)!;
+      for (const i of samplesNear(o.c.P[0], o.c.P[1], o.top.widthM / 2 + 30)) {
+        if (!edgeSamples.get(o.under.id)!.idx.includes(i)) continue;
+        let d = Infinity;
+        for (let k = 1; k < pt.pts.length; k++) d = Math.min(d, distToSegment(X[i]!, Z[i]!, pt.pts[k - 1]!, pt.pts[k]!).d);
+        if (d <= o.top.widthM / 2 + 1) underSrc.push([i, H[i]! + DECK_MIN_LIFT_M]);
+      }
+    }
+    // ...and comes down to it no steeper than it may climb (a cone).
+    underSrc.sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const under = cone(underSrc, false);
+    for (let i = 0; i < N; i++) UB[i] = Math.max(forced[i]!, Math.min(capA[i]!, under[i]!));
     stats.anchorsLowered = anchors.length;
   }
   /** A sample's effective lower bound: its own, under its cone, never under the ground (in a zone, none). */
@@ -839,6 +969,9 @@ export function buildDecks(
       let k0 = deep, k1 = deep;
       while (k0 > 0 && cover[k0 - 1]! > PORTAL_FOOT_M) k0--;
       while (k1 < st.length - 1 && cover[k1 + 1]! > PORTAL_FOOT_M) k1++;
+      // Each portal at whichever of the two stations either side of the foot is nearer the ground.
+      if (k0 > 0 && Math.abs(cover[k0 - 1]!) < Math.abs(cover[k0]!)) k0--;
+      if (k1 < st.length - 1 && Math.abs(cover[k1 + 1]!) < Math.abs(cover[k1]!)) k1++;
       const S0 = st[k0]!, S1 = st[k1]!;
       for (const { b, e, off: o } of parts) {
         const a = Math.max(S0, o), z = Math.min(S1, o + b.s1 - b.s0);
@@ -862,10 +995,17 @@ export function buildDecks(
       // The bore runs from the node out to its portal's foot.
       const pl = lines.get(e.id)!;
       let sP = sN;
+      const coverAt = (sq: number): number => {
+        const [x, z] = pointAt(pl, sq);
+        return heightAt(x, z) - line(sq);
+      };
       for (let q = 1; q <= Math.abs(sO - sN); q++) {
         const sq = sN + dir * q;
-        const [x, z] = pointAt(pl, sq);
-        if (heightAt(x, z) - line(sq) <= PORTAL_FOOT_M) break;
+        if (coverAt(sq) <= PORTAL_FOOT_M) {
+          // The portal: whichever of the two stations is nearer the ground.
+          if (Math.abs(coverAt(sq)) < Math.abs(coverAt(sP))) sP = sq;
+          break;
+        }
         sP = sq;
       }
       if (Math.abs(sP - sN) < 1) continue;
@@ -966,7 +1106,9 @@ export function buildDecks(
   for (const { c, y, counted } of [...streetUnder.map((q) => ({ ...q, counted: true })), ...open]) {
     const yF = yAtEdge(c.f, c.sf);
     if (yF >= y + DECK_CLEAR_M - 0.05) continue;
-    overs.push({ top: c.g, under: c.f, c, s: c.sg, half: Math.max(c.f.widthM / 2 + APPROACH_M, OVERPASS_HALF_M), hump: false });
+    const half0 = Math.max(c.f.widthM / 2 + APPROACH_M, OVERPASS_HALF_M);
+    if (!fits(c.g, c.sg, yF, half0)) continue; // the crossing check below lists it
+    overs.push({ top: c.g, under: c.f, c, s: c.sg, half: half0, hump: false });
     if (counted) stats.crossingsOver--;
     stats.streetsOverPortals++;
   }
@@ -979,14 +1121,17 @@ export function buildDecks(
   const profiles = new Map<string, (s: number) => number | null>();
   for (const e of fwy) {
     const es = edgeSamples.get(e.id)!;
-    // Open water longer than MAX_WATER_SPAN_M is a bridge the world does not model (the Bay
-    // Bridge, the Golden Gate Bridge: Assets): no deck there, and no ribbon.
+    // Open water longer than MAX_WATER_SPAN_M, or running out to where the road leaves the world
+    // (a dead end over the water), is a bridge the world does not model (the Bay Bridge, the
+    // Golden Gate Bridge: Assets): no deck there, and no ribbon.
     const open = new Uint8Array(es.idx.length);
+    const last = es.idx.length - 1;
     for (let k = 0; k < es.idx.length; k++) {
       if (W[es.idx[k]!] !== 1) continue;
       let k1 = k;
       while (k1 + 1 < es.idx.length && W[es.idx[k1 + 1]!] === 1) k1++;
-      if (es.s[k1]! - es.s[k]! > MAX_WATER_SPAN_M) for (let q = k; q <= k1; q++) open[q] = 1;
+      const deadEnd = (k === 0 && adj[es.idx[0]!]!.length === 1) || (k1 === last && adj[es.idx[last]!]!.length === 1);
+      if (deadEnd || es.s[k1]! - es.s[k]! > MAX_WATER_SPAN_M) for (let q = k; q <= k1; q++) open[q] = 1;
       k = k1;
     }
     const lifted = es.idx.map((i, k) => !open[k] && (W[i] === 1 || Y[i]! - H[i]! > DECK_MIN_LIFT_M) && inBore(e.id, es.s[k]!) === null);
@@ -1077,21 +1222,29 @@ export function buildDecks(
   // crest is no tighter than OVERPASS_CREST_M.
   {
     interface Span { id: string; e: RoadEdge; a: number; b: number; y: (s: number) => number; bumps: Array<{ s: number; target: number }> }
-    const plan = (): Span[] => {
-      const out: Span[] = [];
-      const byTop = new Map<string, Over[]>();
-      for (const o of overs) (byTop.get(o.top.id) ?? byTop.set(o.top.id, []).get(o.top.id)!).push(o);
-      for (const [id, os] of [...byTop].sort((p, q) => (p[0] < q[0] ? -1 : 1))) {
-        const e = os[0]!.top;
-        const L = lines.get(id)!.length;
+    const plan = (prev: Span[] = []): Span[] => {
+      /** A street's surface at arc length s from the previous plan's overpasses, else its ground. */
+      const streetSurface = (e: RoadEdge, s: number, P: P2): number => {
+        for (const sp of prev) if (sp.e.id === e.id && s >= sp.a && s <= sp.b) return sp.y(s);
+        return heightAt(P[0], P[1]);
+      };
+      const pieces: Array<Omit<Span, "id">> = [];
+      const byChain = new Map<Chain, Over[]>();
+      for (const o of overs) {
+        const ch = chainOf(o.top);
+        (byChain.get(ch) ?? byChain.set(ch, []).get(ch)!).push(o);
+      }
+      for (const [ch, os] of [...byChain].sort((p, q) => (p[0].edges[0]!.id < q[0].edges[0]!.id ? -1 : 1))) {
+        const L = ch.L;
         for (let pass = 0; pass < 2; pass++) {
           const wins = os
             .map((o) => {
               const under = o.under;
               const sU = under === o.c.f ? o.c.sf : o.c.sg;
-              const yU = isFreeway(under) && edgeSamples.has(under.id) ? (inBore(under.id, sU) ?? yAtEdge(under, sU)) : heightAt(o.c.P[0], o.c.P[1]);
-              const target = Math.max(yU + DECK_CLEAR_M, o.hump ? groundOn(e, o.s) : -Infinity);
-              return { o, s: o.s, a: Math.max(0, o.s - o.half), b: Math.min(L, o.s + o.half), target };
+              const yU = isFreeway(under) && edgeSamples.has(under.id) ? (inBore(under.id, sU) ?? yAtEdge(under, sU)) : streetSurface(under, sU, o.c.P);
+              const S = ch.starts[ch.edges.indexOf(o.top)]! + o.s;
+              const target = Math.max(yU + DECK_CLEAR_M, o.hump ? chainGround(ch, S) : -Infinity);
+              return { o, s: S, a: Math.max(0, S - o.half), b: Math.min(L, S + o.half), target };
             })
             .sort((p, q) => p.a - q.a || p.s - q.s);
           // Merge overlapping windows into spans.
@@ -1104,10 +1257,10 @@ export function buildDecks(
             } else spans.push({ a: w.a, b: w.b, w: [w] });
           }
           let widened = false;
-          const made: Span[] = [];
-          spans.forEach((sp, n) => {
-            const ya = groundOn(e, sp.a), yb = groundOn(e, sp.b);
-            const chord = (s: number): number => ya + ((yb - ya) * (s - sp.a)) / (sp.b - sp.a || 1);
+          const made: Array<Omit<Span, "id">> = [];
+          for (const sp of spans) {
+            const ya = chainGround(ch, sp.a), yb = chainGround(ch, sp.b);
+            const chord = (S: number): number => ya + ((yb - ya) * (S - sp.a)) / (sp.b - sp.a || 1);
             const bumps = sp.w.map((w) => ({ ...w, h: Math.max(0, w.target - chord(w.s)) }));
             for (const w of bumps) {
               const need = Math.PI * Math.sqrt((w.h * OVERPASS_CREST_M) / 2);
@@ -1116,47 +1269,92 @@ export function buildDecks(
                 widened = true;
               }
             }
-            const y = (s: number): number => {
+            const y = (S: number): number => {
               let up = 0;
               for (const w of bumps) {
-                if (s <= w.a || s >= w.b) continue;
-                const u = s < w.s ? (s - w.a) / (w.s - w.a || 1) : (w.b - s) / (w.b - w.s || 1);
+                if (S <= w.a || S >= w.b) continue;
+                const u = S < w.s ? (S - w.a) / (w.s - w.a || 1) : (w.b - S) / (w.b - w.s || 1);
                 up = Math.max(up, (w.h * (1 - Math.cos(Math.PI * Math.min(1, Math.max(0, u))))) / 2);
               }
-              return Math.max(chord(s) + up, groundOn(e, s));
+              return Math.max(chord(S) + up, chainGround(ch, S));
             };
-            made.push({ id: spans.length === 1 ? `${id}.o` : `${id}.o${n}`, e, a: sp.a, b: sp.b, y, bumps: bumps.map((w) => ({ s: w.s, target: w.target })) });
-          });
+            // One piece per edge of the chain the span covers.
+            ch.edges.forEach((e, k) => {
+              const e0 = ch.starts[k]!, e1 = e0 + lines.get(e.id)!.length;
+              const a = Math.max(sp.a, e0), b = Math.min(sp.b, e1);
+              if (b - a < 0.5) return;
+              made.push({
+                e, a: a - e0, b: b - e0, y: (s: number) => y(e0 + s),
+                bumps: bumps.filter((w) => w.s >= a && w.s <= b).map((w) => ({ s: w.s - e0, target: w.target })),
+              });
+            });
+          }
           if (pass === 1 || !widened) {
-            out.push(...made);
+            pieces.push(...made);
             break;
           }
         }
       }
+      // Ids per edge: <edge>.o, or <edge>.o<n> where an edge has several.
+      const count = new Map<string, number>();
+      for (const p of pieces) count.set(p.e.id, (count.get(p.e.id) ?? 0) + 1);
+      const seen = new Map<string, number>();
+      const out: Span[] = pieces
+        .sort((p, q) => (p.e.id < q.e.id ? -1 : p.e.id > q.e.id ? 1 : p.a - q.a))
+        .map((p) => {
+          const n = seen.get(p.e.id) ?? 0;
+          seen.set(p.e.id, n + 1);
+          return { ...p, id: count.get(p.e.id) === 1 ? `${p.e.id}.o` : `${p.e.id}.o${n}` };
+        });
       return out;
     };
-    // A freeway over a street that an overpass raised (a neighbouring crossing's bridge, a trench's
-    // chord) to within DECK_CLEAR_M of it: the street bridges over this freeway too.
+    // Every crossing where a structure (an overpass, a freeway deck) passes over the other road by
+    // less than DECK_CLEAR_M (a neighbouring crossing's bridge, a trench's chord, a ramp's foot):
+    // the street on top bridges over it properly, where its chain leaves room; else the crossing
+    // is listed unresolved (the source's geometry contradicts itself there).
     let spans = plan();
+    spans = plan(spans); // a street under a street that is itself raised elsewhere
     const inOvers = new Set(overs.map((o) => o.c));
+    const unresolved = new Set<string>();
     for (let round = 0; round < 4; round++) {
-      const streetY = (id: string, s: number): number | null => {
-        for (const sp of spans) if (sp.id.startsWith(`${id}.o`) && sp.e.id === id && s >= sp.a && s <= sp.b) return sp.y(s);
+      const spanY = (e: RoadEdge, s: number): number | null => {
+        for (const sp of spans) if (sp.e.id === e.id && s >= sp.a && s <= sp.b) return sp.y(s);
         return null;
       };
+      const surf = (e: RoadEdge, s: number, P: P2): number => (isFreeway(e) && edgeSamples.has(e.id) ? yAtEdge(e, s) : (spanY(e, s) ?? heightAt(P[0], P[1])));
       let added = false;
-      for (const { c } of streetUnder) {
-        if (inOvers.has(c)) continue;
-        const sy = streetY(c.g.id, c.sg);
-        if (sy === null || yAtEdge(c.f, c.sf) >= sy + DECK_CLEAR_M - 0.05) continue;
-        overs.push({ top: c.g, under: c.f, c, s: c.sg, half: Math.max(c.f.widthM / 2 + APPROACH_M, OVERPASS_HALF_M), hump: false });
+      for (const c of crossings) {
+        if (inOvers.has(c) || inBore(c.f.id, c.sf) !== null || inBore(c.g.id, c.sg) !== null) continue;
+        if (isFreeway(c.f) && isFreeway(c.g)) continue; // stacked above
+        const yf = surf(c.f, c.sf, c.P), yg = surf(c.g, c.sg, c.P);
+        const fTop = yf >= yg;
+        const top = fTop ? c.f : c.g, under = fTop ? c.g : c.f;
+        const sT = fTop ? c.sf : c.sg, sU = fTop ? c.sg : c.sf;
+        const yT = Math.max(yf, yg), yU = Math.min(yf, yg);
+        if (yT - yU >= DECK_CLEAR_M - 0.05) continue;
+        // Both on the ground: a crossing the DEM has at grade (no structure to fix).
+        const raised = isFreeway(top) ? yT - heightAt(c.P[0], c.P[1]) > DECK_MIN_LIFT_M : spanY(top, sT) !== null;
+        if (!raised) continue;
+        // The street bridges over: the top one if it is a street, else the street under the freeway.
+        const [st, ss, other] = isFreeway(top) ? [under, sU, top] : [top, sT, under];
+        if (isFreeway(st) || st.name === other.name || chainOf(st) === (isFreeway(other) ? null : chainOf(other))) {
+          unresolved.add(`${c.f.id}x${c.g.id}`);
+          continue;
+        }
+        const half0 = Math.max(other.widthM / 2 + APPROACH_M, OVERPASS_HALF_M);
+        if (!fits(st, ss, Math.max(yT, yU), half0)) {
+          unresolved.add(`${c.f.id}x${c.g.id}`);
+          continue;
+        }
+        overs.push({ top: st, under: other, c, s: ss, half: half0, hump: false });
         inOvers.add(c);
-        stats.crossingsOver--;
+        unresolved.delete(`${c.f.id}x${c.g.id}`);
         added = true;
       }
       if (!added) break;
-      spans = plan();
+      spans = plan(plan(spans));
     }
+    stats.unresolvedCrossings = [...unresolved].sort();
     for (const sp of spans) {
       const path = ribbonOf(sp.e, sp.a, sp.b, sp.y);
       for (const piece of splitPieces({ id: sp.id, path })) decks.push({ tile: piece.tile, deck: { id: piece.id, kind: "overpass", edge: sp.e.id, layer: 1, path: piece.path } });

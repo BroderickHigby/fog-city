@@ -7,7 +7,8 @@ import { buildBoundary, type BoundaryStats } from "./boundary.ts";
 import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
 import { candidateTiles, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
-import { bearing, clipSegment, distToRing, distToSegment, pointInRing, r2 } from "./geom.ts";
+import { bearing, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, isSimpleRing, pointInRing, r2, signedArea } from "./geom.ts";
+import { intersectRing, largest } from "./polygon.ts";
 import { buildFarLod, FAR_CELL_M } from "./far.ts";
 import {
   buildFountains,
@@ -235,29 +236,46 @@ export interface TileStructures {
   movable: Map<string, Movable[]>;
 }
 
-/** Towers whose podium is gone are dropped; every other tower's podiumTopY is its podium's roof. */
+/**
+ * Towers whose podium is gone are dropped; every other tower's podiumTopY is its podium's roof,
+ * and it stands inside its podium: where a pass cut the podium back (from a street or a path the
+ * tower overhung), the tower is cut to what is left, or dropped if little is.
+ */
 function reconcileTowers(list: readonly Building[]): Building[] {
   const byId = new Map(list.map((b) => [b.id, b]));
-  const out: Building[] = [];
+  const towers = new Map<string, Building>(); // kept towers, as they will be written
   for (const b of list) {
-    if (b.meta.towerOf === undefined) {
-      if (b.meta.tower !== undefined && !byId.has(b.meta.tower)) {
-        const meta = { ...b.meta };
-        delete meta.tower;
-        out.push({ ...b, meta });
-      } else out.push(b);
-      continue;
-    }
+    if (b.meta.towerOf === undefined) continue;
     const pod = byId.get(b.meta.towerOf);
     if (!pod || pod.meta.tower !== b.id) continue;
-    if (b.meta.podiumTopY === pod.topY && b.topY > pod.topY) {
-      out.push(b);
+    let footprint = b.footprint;
+    if (b.footprint.some(([x, z]) => !pointInRing(x, z, pod.footprint) && distToRing(x, z, pod.footprint) > 0.02)) {
+      const part = largest(intersectRing(b.footprint, pod.footprint));
+      let ring = part ? dropCollinear(cleanRing(part.outer), 0.005) : [];
+      if (ring.length >= 3 && Math.sign(signedArea(ring)) !== Math.sign(signedArea(b.footprint))) ring = ring.reverse();
+      if (ring.length < 3 || Math.abs(signedArea(ring)) < TOWER_MIN_M2 || !isSimpleRing(ring)) continue;
+      footprint = ring;
+    }
+    const topY = b.meta.podiumTopY === pod.topY && b.topY > pod.topY ? b.topY : Math.max(b.topY, r2(pod.topY + 2.5));
+    towers.set(b.id, { ...b, footprint, topY, meta: { ...b.meta, podiumTopY: pod.topY } });
+  }
+  const out: Building[] = [];
+  for (const b of list) {
+    if (b.meta.towerOf !== undefined) {
+      const t = towers.get(b.id);
+      if (t) out.push(t);
       continue;
     }
-    out.push({ ...b, topY: Math.max(b.topY, r2(pod.topY + 2.5)), meta: { ...b.meta, podiumTopY: pod.topY } });
+    if (b.meta.tower !== undefined && !towers.has(b.meta.tower)) {
+      const meta = { ...b.meta };
+      delete meta.tower;
+      out.push({ ...b, meta });
+    } else out.push(b);
   }
   return out;
 }
+/** A tower cut to less than this (m²) inside its podium is dropped. */
+const TOWER_MIN_M2 = 4;
 
 /** Two clearance passes' statistics as one. */
 function mergeClearance(a: ClearanceStats, b: ClearanceStats): ClearanceStats {

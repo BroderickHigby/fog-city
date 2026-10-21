@@ -10,6 +10,7 @@ import { pointInRing, signedArea, type P2 } from "../../pipeline/lib/geom.ts";
 import { Ground } from "../../pipeline/lib/terrain.ts";
 import { ROOF_CLEAR_M, TERRACE_MIN_RELIEF_M, terraceBuildings } from "../../pipeline/lib/terrace.ts";
 import type { Building } from "../../pipeline/lib/buildings.ts";
+import { readJson } from "../helpers.ts";
 import { loadSfPack } from "./util.ts";
 
 vi.setConfig({ testTimeout: 180_000, hookTimeout: 180_000 });
@@ -117,11 +118,13 @@ describe("sf world: hillside buildings (W-05, W-28)", () => {
 
   it("no drawn part has more than 10 m of relief under one roof", () => {
     // A tower's walls start on its podium's roof and a span's at its underside: the hill under
-    // them draws no wall.
+    // them draws no wall. A landmark's records (report.json probes: Grace Cathedral on Nob
+    // Hill's brow) keep their one prism for the landmark model that replaces them.
+    const probed = new Set(readJson<{ probes: Array<{ buildings: string[] }> }>("public/tiles/sf/report.json").probes.flatMap((p) => p.buildings));
     const bad: string[] = [];
     buildings.forEach((b, i) => {
       const r = ranges[i];
-      if (!r || b.id.endsWith("-tower") || /-b\d+$/.test(b.id)) return;
+      if (!r || b.id.endsWith("-tower") || /-b\d+$/.test(b.id) || probed.has(b.id)) return;
       if (r.max - r.min > 10) bad.push(`${b.id} ${(r.max - r.min).toFixed(1)} m`);
     });
     expect(bad).toEqual([]);

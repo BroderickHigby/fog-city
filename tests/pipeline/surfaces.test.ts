@@ -24,9 +24,12 @@ describe("sf world: road surfaces with decks and tunnels", () => {
         expect(up.kind, d.id).toBe("deck");
         expect(up.y).toBeGreaterThanOrEqual(y - 0.01);
         expect(up.y).toBeLessThanOrEqual(y + 0.6);
+        // At the ground under it: the ground (or a ramp's deck as low, at its foot), never the
+        // viaduct overhead.
         const down = idx.surfaceAt(x, z, g + 0.1);
-        expect(down.kind, d.id).toBe("ground");
-        expect(down.y).toBeCloseTo(g, 2);
+        expect(down.y, d.id).toBeLessThanOrEqual(g + 0.6);
+        expect(down.y, d.id).toBeGreaterThanOrEqual(g - 0.01);
+        if (down.kind !== "ground") expect(down.kind, d.id).toBe("deck");
         n++;
       }
     }

@@ -6,6 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { distToSegment, pointInRing, type P2 } from "../../pipeline/lib/geom.ts";
 import type { Tunnel } from "../../pipeline/lib/structures.ts";
+import { readJson } from "../helpers.ts";
 import { loadSfPack } from "./util.ts";
 
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
@@ -30,6 +31,22 @@ describe("sf world: tunnels (W-02)", () => {
     expect(tunnelEdges.filter((e) => e.name === "Robert C Levy Tunl").length).toBe(2);
   });
 
+  it("the MacArthur Tunnel (both directions), the Presidio Parkway's tunnels and the Yerba Buena Island tunnel (both decks) have bores, named in the report", () => {
+    const report = readJson<{ tunnels: { bores: Array<{ edge: string; name: string }> } }>("public/tiles/sf/report.json");
+    const byName = new Map<string, Set<string>>();
+    for (const b of report.tunnels.bores) {
+      const e = roads.edges.find((q) => q.id === b.edge)!;
+      expect(e.tunnel, b.edge).toBe(true);
+      expect(boresOf(b.edge).length, b.edge).toBeGreaterThan(0);
+      (byName.get(b.name) ?? byName.set(b.name, new Set()).get(b.name)!).add(e.name);
+    }
+    expect([...(byName.get("MacArthur Tunnel") ?? [])].sort()).toEqual(["Hwy 1 Northbound", "Hwy 1 Southbound"]);
+    expect(byName.get("Yerba Buena Island Tunnel")?.has("I-80 Eastbound")).toBe(true);
+    expect(byName.get("Yerba Buena Island Tunnel")?.has("I-80 Westbound")).toBe(true);
+    const presidio = new Set([...byName].filter(([n]) => n.startsWith("Presidio Parkway")).flatMap(([, v]) => [...v]));
+    expect([...presidio].sort()).toEqual(["Hwy 101 Northbound", "Hwy 101 Southbound"]);
+  });
+
   it("every tunnel edge has a bore ribbon with a ceiling, on a straight line between portals at the ground", () => {
     expect(tunnelEdges.length).toBeGreaterThanOrEqual(4);
     for (const e of tunnelEdges) for (const p of boresOf(e.id)) {
@@ -44,10 +61,10 @@ describe("sf world: tunnels (W-02)", () => {
       if (!joined(x0, y0, z0)) expect(Math.abs(y0 - heightAt(x0, z0)), `${e.id} first portal`).toBeLessThan(1);
       if (!joined(x1, y1, z1)) expect(Math.abs(y1 - heightAt(x1, z1)), `${e.id} last portal`).toBeLessThan(1);
       // Straight: every vertex within 5 cm of the line between the portals (by arc length), and
-      // no steeper than 6%.
+      // no steeper than 6% (8% on a ramp: Yerba Buena Island's on-ramp joins its freeway in the bore).
       let L = 0;
       for (let i = 1; i < p.length; i++) L += Math.hypot(p[i]![0] - p[i - 1]![0], p[i]![2] - p[i - 1]![2]);
-      expect(Math.abs(y1 - y0) / L).toBeLessThanOrEqual(0.0601);
+      expect(Math.abs(y1 - y0) / L, e.id).toBeLessThanOrEqual(e.kind === "ramp" ? 0.0801 : 0.0601);
       let s = 0;
       for (let i = 0; i < p.length; i++) {
         if (i) s += Math.hypot(p[i]![0] - p[i - 1]![0], p[i]![2] - p[i - 1]![2]);
