@@ -2,7 +2,7 @@
 // and no-brake drivers ... zero vehicle-person contacts and a minimum clearance of 0.75 m") on
 // the real city, in Node. Closed-loop drivers, never open-loop logs:
 //  - chase: full throttle at the nearest person ahead within 60 m, never braking; backs out
-//    when it gets stuck against a building.
+//    when it gets stuck against a building. weave: the same, swinging either side of them.
 //  - no-brake: full throttle along a route through the street graph (a seeded walk, pure
 //    pursuit), swerving at anyone within 25 m ahead, never braking.
 //  - jump: full throttle over a crest (the steepest crests in the city's street grid, found
@@ -11,9 +11,11 @@
 //  - rival: two players; the second stands on foot by the road 50 m ahead and the first drives
 //    straight at them flat out, then chases them, never braking.
 // Every tick it measures, for every person, child and player on foot: contact with any vehicle
-// (a player's car, a robotaxi; the sim's own count, the car's personBumps and an independent
-// one here) and clearance from every moving vehicle's body; a close pass under CLEARANCE_M that
-// no counted override episode explains is a failure. And every walker's step back from a dodge
+// (a player's car; a robotaxi by its drawn body, ROBOTAXI_BODY; the sim's own count, the car's
+// personBumps and an independent one here) and clearance from every moving vehicle's body; a
+// close pass under CLEARANCE_M that no counted override episode explains is a failure. It also
+// counts the overrides robotaxis set off (anyone leapt more than 8 m from the player's car) and
+// the override's failures. And every walker's step back from a dodge
 // (getting up, and REJOIN_TICKS after): one that jumps more than JUMP_M in a tick (put back on
 // its path instead of walking back to it) is a failure too. tests/sim/dodge-soak.test.ts runs a short
 // soak on every PR; tests/sim/dodge-soak.nightly.ts the long one (pnpm soak:nightly).
@@ -25,6 +27,7 @@ import {
   FOOT,
   DODGE_MIN_SPEED,
   DODGE_PROFILE,
+  ROBOTAXI_BODY,
   agentDodgeClass,
   agentsOf,
   boxDistance,
@@ -61,7 +64,7 @@ const REJOIN_TICKS = 30;
 const ON_ROUTE_M = 6;
 const CLEAR_RUN_M = 8;
 
-export type SoakDriver = "chase" | "nobrake" | "jump" | "rival";
+export type SoakDriver = "chase" | "weave" | "nobrake" | "jump" | "rival";
 
 export interface SoakStart {
   name: string;
@@ -80,6 +83,9 @@ export interface SoakResult {
   dives: number;
   overrides: number;
   contacts: number;
+  /** Overrides set off by a robotaxi (the rest by the player's car), and times the override gave up (must be 0). */
+  taxiOverrides: number;
+  failures: number;
   /** Close passes (under CLEARANCE_M) no override episode explains. */
   unexplained: string[];
   /** Walkers that jumped (moved more than JUMP_M in a tick) getting up from a dodge or rejoining their path. */
@@ -229,6 +235,25 @@ export function densify(points: ReadonlyArray<readonly [number, number]>, step =
   return out;
 }
 
+/**
+ * Narrow places the review found (2026-10-21): Chinatown's alleys, where a car fills the street
+ * from wall to wall, and Lombard's crooked block.
+ */
+export const NARROW_PLACES: ReadonlyArray<readonly [string, number, number]> = [
+  ["Ross Alley", 37.79465, -122.40725],
+  ["Spofford Alley", 37.7951, -122.4079],
+  ["Waverly Place", 37.79345, -122.40685],
+  ["Lombard's crooked block", 37.80205, -122.41875],
+];
+
+/** A start on the drivable street nearest (x, z) (local metres), along it, with a route on from there. */
+export function startNear(world: World, name: string, x: number, z: number, seed = 11): SoakStart {
+  const route = routeFrom(world.roads!, x, z, 0, 3000, seed);
+  const [x0, z0] = route[0]!;
+  const [x1, z1] = route[Math.min(3, route.length - 1)]!;
+  return { name, x: x0, z: z0, heading: bearing(x1 - x0, z1 - z0), route };
+}
+
 /** A start 70 m before a crest at 26 m/s (flat out), with the route on over it. */
 export function crestStart(crest: { route: Array<[number, number]> }, name: string): SoakStart {
   const route = crest.route;
@@ -286,10 +311,11 @@ function drive(kind: SoakDriver, start: SoakStart, s: SimState, ds: DriverState)
     const f = s.players.p2!.foot!;
     return { throttle: 1, steer: aim(c, f.x, f.z), brake: 0, actions: 0 };
   }
-  if (kind === "chase") {
+  if (kind === "chase" || kind === "weave") {
     const p = personAhead(s, 60);
-    // No one ahead: a slow arc until someone is.
-    return { throttle: 1, steer: p ? aim(c, p.x, p.z) : 0.25, brake: 0, actions: 0 };
+    // No one ahead: a slow arc until someone is. Weaving: swinging either side of them as it goes.
+    const steer = p ? aim(c, p.x, p.z) : 0.25;
+    return { throttle: 1, steer: kind === "weave" ? Math.max(-1, Math.min(1, steer + Math.sin(s.tick / 7) * 0.7)) : steer, brake: 0, actions: 0 };
   }
   // Route followers (no-brake, jump): pure pursuit on the route, at people close ahead.
   const r = start.route;
@@ -354,9 +380,16 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
   let was = new Map<number, { x: number; z: number; dodging: boolean }>();
   /** Walker id -> the tick its dodge ended. */
   const ended = new Map<number, number>();
+  let taxiOverrides = 0;
   for (let t = 0; t < ticks; t++) {
     const before = s.players.p1!.car;
+    const o0 = dodgeExtOf(s).overrides;
     s = step(world, s, { p1: drive(driver, start, s, ds) });
+    if (dodgeExtOf(s).overrides !== o0) {
+      // Whose: any body leapt this tick farther than 8 m from the player's car was a robotaxi's doing.
+      const c1 = s.players.p1!.car;
+      for (const a of agentsOf(s)) if (a.dodge?.leap && a.dodge.t === 0 && Math.hypot(a.x - c1.x, a.z - c1.z) > 8) taxiOverrides++;
+    }
     const c = s.players.p1!.car;
     driven += Math.hypot(c.x - before.x, c.z - before.z);
     air = c.grounded ? 0 : air + 1;
@@ -407,15 +440,13 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
       }
       for (const T of taxis) {
         if (Math.abs(a.x - T.x) > 8 || Math.abs(a.z - T.z) > 8) continue;
-        const spec = AGENT_SPEC.robotaxi;
-        // Contact with the body the sim moves it by (two circles); clearance from its box.
-        const o = spec.halfLength - spec.radius;
+        // Contact and clearance against its drawn body (ROBOTAXI_BODY, a box the size of the Meander model).
+        const spec = ROBOTAXI_BODY;
         const hx = Math.sin(T.heading);
         const hz = -Math.cos(T.heading);
-        const circ = Math.min(Math.hypot(a.x - T.x - hx * o, a.z - T.z - hz * o), Math.hypot(a.x - T.x + hx * o, a.z - T.z + hz * o)) - spec.radius;
-        if (circ < r) contacts++;
-        if (T.speed < DODGE_MIN_SPEED) continue;
         const clear = boxDistance(a.x, a.z, T.x, T.z, hx, hz, spec.halfLength, spec.halfWidth) - r;
+        if (clear < 0) contacts++;
+        if (T.speed < DODGE_MIN_SPEED) continue;
         // Closing: its velocity toward the person, from the nearest point of its body.
         const ox = a.x - T.x;
         const oz = a.z - T.z;
@@ -435,5 +466,5 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
   const unexplained = close
     .filter((e) => !(leapt.get(e.key) ?? []).some((o) => e.tick >= o - EPISODE_BEFORE && e.tick <= o + EPISODE_AFTER))
     .map((e) => `${start.name} ${driver}: ${e.key} at tick ${e.tick} only ${e.clear.toFixed(3)} m from the ${e.by}`);
-  return { name: `${start.name} ${driver}`, ticks, dives: d.dives, overrides: d.overrides, contacts, unexplained, jumps, minCar, minTaxi, peopleNear: nearSeen.size, maxAirS: maxAir / 60, driven };
+  return { name: `${start.name} ${driver}`, ticks, dives: d.dives, overrides: d.overrides, taxiOverrides, failures: d.failures, contacts, unexplained, jumps, minCar, minTaxi, peopleNear: nearSeen.size, maxAirS: maxAir / 60, driven };
 }

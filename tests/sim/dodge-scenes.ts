@@ -2,8 +2,12 @@
 // seeded scenes in which cars at up to 38 m/s are aimed at people, and the people must get out
 // of the way every time. Scenes: a single person, a group of 20 (with children and robots in
 // it), players on foot, people backed against a wall or into a corner, people on hills (cars
-// coming down and up them), and the drivers: straight at them, chasing them (steering at the
-// nearest), weaving, drifting (brake and steer into a slide toward them) and handbrake turns.
+// coming down and up them), players on foot standing on a low deck the car drives up onto; and
+// the drivers: straight at them, chasing them (steering at the nearest), weaving, drifting
+// (brake and steer into a slide toward them), handbrake turns, banking (coming up beside them
+// and, 8-16 m short, slamming into a drift or a hard turn at them: into a corner, off a wall)
+// and a seeded random driver (steer, brake and throttle changed every 0.1 s: the kind of driver
+// that found the review's holes, 2026-10-21).
 // Every tick of every scene: zero contacts (no person inside a car's body, ever: the sim's own
 // count and an independent one here), and every person, child and player on foot at least
 // 0.75 m from every moving car's body, except in an episode the clearance override handled
@@ -61,9 +65,9 @@ function rect(id: string, x0: number, z0: number, x1: number, z1: number, topY =
   return { id, footprint: [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], baseY: 0, topY };
 }
 
-export type Place = "open" | "wall" | "corner" | "hill";
+export type Place = "open" | "wall" | "corner" | "hill" | "deck";
 export type Crowd = "single" | "group" | "players";
-export type Driver = "straight" | "chase" | "weave" | "drift" | "handbrake";
+export type Driver = "straight" | "chase" | "weave" | "drift" | "handbrake" | "bank" | "random";
 
 export interface Scene {
   name: string;
@@ -73,6 +77,10 @@ export interface Scene {
   /** Where the driver aims (the target body's id: "a<id>" an agent, "p<id>" a player). */
   target: string;
   ticks: number;
+  /** The banking driver's trigger distance (m) and turn (-1..1, + toward the target's side); the random driver's controls, one [steer, brake, throttle] per 6 ticks. */
+  at: number;
+  lock: number;
+  ctl: Array<[number, number, number]>;
 }
 
 const FLAT = emptyWorld();
@@ -81,6 +89,9 @@ const WALL = buildWorld([{ tileId: "wall", buildings: [rect("wall", 0, -60, 30, 
 // An inside corner at the origin: buildings east (x >= 0) and north (z <= 0) of it.
 const CORNER = buildWorld([{ tileId: "corner", buildings: [rect("east", 0, -60, 30, 60), rect("north", -60, -30, 0, 0)], ground: null }]);
 const HILLS = [0.12, 0.2, 0.28].map((g) => terrainWorld((x, z) => g * (0.6 * x - 0.8 * z), 300));
+// A 0.4 m deck north of z = 0 (within the step a car and a walker climb): players stand on it.
+const DECK_Y = 0.4;
+const DECK = buildWorld([{ tileId: "deck", buildings: [rect("deck", -40, -80, 40, 0, DECK_Y)], ground: null }]);
 
 const AGENT_ID0 = 100;
 /** Ids of children and of adults (personIsChild), for groups that hold both. */
@@ -126,17 +137,30 @@ function free(world: World, taken: Array<[number, number, number]>, x: number, z
       if (x > Math.min(...xs) - r && x < Math.max(...xs) + r && z > Math.min(...zs) - r && z < Math.max(...zs) + r) return false;
     }
   }
+  return apart(taken, x, z, r);
+}
+
+function apart(taken: Array<[number, number, number]>, x: number, z: number, r: number): boolean {
   for (const [tx, tz, tr] of taken) if (Math.hypot(tx - x, tz - z) < tr + r + 0.25) return false;
   return true;
+}
+
+/** Is (x, z) on the deck, a body's radius in from its edges? */
+function onDeck(x: number, z: number, r: number): boolean {
+  return x > -40 + r && x < 40 - r && z > -80 + r && z < -r;
 }
 
 export function makeScene(seed: number): Scene {
   const rnd = lcg(seed);
   const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)]!;
-  const place: Place = pick(["open", "open", "wall", "corner", "hill"] as const);
-  const crowd: Crowd = pick(["single", "single", "group", "players"] as const);
-  const driver: Driver = pick(["straight", "chase", "chase", "weave", "drift", "handbrake"] as const);
-  const world = place === "wall" ? WALL : place === "corner" ? CORNER : place === "hill" ? pick(HILLS) : FLAT;
+  const place: Place = pick(["open", "open", "wall", "corner", "hill", "deck"] as const);
+  const crowd: Crowd = place === "deck" ? "players" : pick(["single", "single", "group", "players"] as const);
+  const driver: Driver = pick(["straight", "chase", "chase", "weave", "drift", "handbrake", "bank", "bank", "random"] as const);
+  const world = place === "wall" ? WALL : place === "corner" ? CORNER : place === "hill" ? pick(HILLS) : place === "deck" ? DECK : FLAT;
+  const at = 8 + rnd() * 8;
+  const lock = (rnd() < 0.5 ? 0.6 : 1) * (rnd() < 0.8 ? 1 : -1);
+  const ctl: Array<[number, number, number]> = [];
+  for (let k = 0; k < 60; k++) ctl.push([rnd() * 2 - 1, rnd() > 0.75 ? 1 : 0, rnd() > 0.15 ? 1 : rnd() > 0.5 ? 0 : -1]);
 
   // Where the people are.
   let cx = 0;
@@ -147,6 +171,9 @@ export function makeScene(seed: number): Scene {
   } else if (place === "corner") {
     cx = -0.4 - rnd() * 0.6;
     cz = 0.4 + rnd() * 0.6;
+  } else if (place === "deck") {
+    cx = (rnd() - 0.5) * 20; // on the deck, 8-20 m in from its edge
+    cz = -8 - rnd() * 12;
   }
   const taken: Array<[number, number, number]> = [];
   const list: AgentState[] = [];
@@ -164,7 +191,7 @@ export function makeScene(seed: number): Scene {
         x = cx + (rnd() - 0.5) * 2 * spread;
         z = cz + (rnd() - 0.5) * 2 * spread;
       }
-      if (free(world, taken, x, z, r)) break;
+      if ((place === "deck" ? onDeck(x, z, r) : free(world, taken, x, z, r)) && apart(taken, x, z, r)) break;
     }
     taken.push([x, z, r]);
     if (crowd === "players") walkers.push([x, z]);
@@ -185,6 +212,7 @@ export function makeScene(seed: number): Scene {
   let bearing: number;
   if (place === "wall") bearing = Math.PI / 2 + (rnd() - 0.5) * 2.6; // from the west half-plane, toward the wall or along it
   else if (place === "corner") bearing = Math.PI * 0.75 + (rnd() - 0.5) * 1.2; // from the south-west, into the corner
+  else if (place === "deck") bearing = (rnd() - 0.5) * 1.2; // from the south, up onto the deck
   else bearing = rnd() * Math.PI * 2;
   const speed = 8 + rnd() * 30;
   const offset = (rnd() - 0.5) * 3;
@@ -197,12 +225,13 @@ export function makeScene(seed: number): Scene {
   const players = { ...s.players };
   players.car = { ...players.car!, car: { ...makeCar(sx, sz, bearing, meshGroundHeight(world, sx, sz)), speed } };
   walkers.forEach(([x, z], i) => {
-    players[`w${i}`] = { ...players[`w${i}`]!, mode: "foot", car: makeCar(3000 + 10 * i, 3000, 0), foot: makeFoot(x, meshGroundHeight(world, x, z), z, rnd() * 6.28) };
+    const y = place === "deck" ? DECK_Y : meshGroundHeight(world, x, z);
+    players[`w${i}`] = { ...players[`w${i}`]!, mode: "foot", car: makeCar(3000 + 10 * i, 3000, 0), foot: makeFoot(x, y, z, rnd() * 6.28) };
   });
   const ext: AgentsExt = { nextId: 100000, list: agents };
   s = { ...s, players, ext: { ...s.ext, agents: ext } };
   const target = walkers.length > 0 ? "pw0" : `a${agents[Math.floor(rnd() * agents.length)]!.id}`;
-  return { name: `#${seed} ${place} ${crowd} ${driver} ${speed.toFixed(0)} m/s from ${dist.toFixed(0)} m`, world, state: s, driver, target, ticks: 330 };
+  return { name: `#${seed} ${place} ${crowd} ${driver} ${speed.toFixed(0)} m/s from ${dist.toFixed(0)} m`, world, state: s, driver, target, ticks: 330, at, lock, ctl };
 }
 
 /** Where the driver's target is now. */
@@ -247,6 +276,28 @@ export function drive(sc: Scene, t: number, s: SimState): InputFrame {
       steer = d < 18 ? 1 : aim;
       brake = d < 18 ? 1 : 0;
       break;
+    case "bank": {
+      // Up beside them (aimed 3 m off them), then at `at` m short a slide (full lock and the
+      // brake) or a hard turn (0.6 lock) toward them; `lock` < 0 the other way.
+      const side = err >= 0 ? 1 : -1;
+      if (d > sc.at) {
+        // (The car's right is (cos h, sin h): aim 3 m to the other side of them.)
+        const ax = tg.x - Math.cos(c.heading) * 3 * side;
+        const az = tg.z - Math.sin(c.heading) * 3 * side;
+        let e2 = Math.atan2(ax - c.x, -(az - c.z)) - c.heading;
+        while (e2 > Math.PI) e2 -= 2 * Math.PI;
+        while (e2 < -Math.PI) e2 += 2 * Math.PI;
+        steer = Math.max(-1, Math.min(1, e2 * 3));
+      } else {
+        steer = side * sc.lock;
+        brake = Math.abs(sc.lock) > 0.9 ? 1 : 0;
+      }
+      break;
+    }
+    case "random": {
+      const [st, br, th] = sc.ctl[Math.floor(t / 6) % sc.ctl.length]!;
+      return { car: { throttle: th, steer: st, brake: br, actions: 0 } };
+    }
   }
   return { car: { throttle: 1, steer, brake, actions: 0 } };
 }

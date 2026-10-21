@@ -11,7 +11,8 @@
 //     robotaxi that is already braking is predicted to keep braking (it stops for people by
 //     itself); a player's car never is (the brake can be let go). A body within its margin of
 //     that footprint (DODGE_PROFILE: 0.75 m; 1.25 m for children and anyone seated, lying or
-//     using a mobility aid) dives.
+//     using a mobility aid; for a robotaxi, which keeps to its route and holds still while
+//     anyone is within its berth, the berth: 0.5 m, a child's 0.9 m) dives.
 //  2. Dive, Crazy Taxi style. The landing spot is the cheapest clear spot on a fan of lines:
 //     square to the vehicle's path on the side the body is on, then angled, then the other side.
 //     A line is walked the way the body would go (Ground): it ends at a building (height-aware
@@ -26,12 +27,14 @@
 //     tick (its landing, and its line against the moving vehicles' footprints and the stopped
 //     ones' bodies) and re-aimed or cut short when it no longer holds; threatened again while
 //     diving or recovering, the body dives again from where it is.
-//  3. The reach of a vehicle: where its body can be by the end of its next step. Its body at the
-//     middle of that step grown by half its travel (every point it can slide to, along a wall or
-//     off another car, lies in the disc whose diameter is its velocity's step), its speed change
-//     and its turn (Vehicle.mx..inflate, zoneDistance). A body's own dive step never ends deeper
-//     in a vehicle's reach than its clearance (it stops short and is re-aimed next tick), so a
-//     dive never carries anyone into a vehicle.
+//  3. The reach of a vehicle: where its body can be by the end of its next step. A player's car:
+//     its body at the middle of that step grown by half its travel (every point it can slide
+//     to, along a wall or off another car, lies in the disc whose diameter is its velocity's
+//     step), its speed change and its turn, and any overlap that can shove it. A robotaxi near
+//     anyone: its exact poses along its route over the step (routeReach; a connector's vertices
+//     turn it at once). (Vehicle.mx..zone, zoneDistance.) A body's own dive step never ends
+//     deeper in a vehicle's reach than its clearance (it stops short and is re-aimed next tick),
+//     so a dive never carries anyone into a vehicle.
 //  4. The hard guarantee, which no tuning removes: then any person, animal or player on foot
 //     within its override clearance (0.3 m; 0.6 m for the vulnerable) of a moving vehicle's reach
 //     (STOPPED_CLEAR_M of a stopped one's), or inside any vehicle's body, is put at the nearest
@@ -48,6 +51,8 @@
 // that reaches one stops against it), and water is the only way to beat one.
 //
 // Robotaxis are measured by their drawn body (ROBOTAXI_BODY, a box), player cars by their body box.
+// Robotaxis keep a berth from people (agents.ts berthLimit) that makes both the dive and the
+// override unneeded in normal traffic.
 //
 // Counters (ext.dodge, DodgeExt): contacts (a protected body found inside a vehicle's body
 // before the override moved it: must stay 0; a player's car counts its own in personBumps),
@@ -66,8 +71,10 @@ import {
   LOD_STRIDE,
   NEAR_RANGE_M,
   ROBOTAXI_BODY,
+  ROBOTAXI_SLOW_BERTH_CHILD_M,
+  ROBOTAXI_SLOW_BERTH_M,
   agentCircles,
-  agentRoute,
+  agentRouteAt,
   personIsChild,
   playerBodies,
   rejoinAt,
@@ -130,7 +137,8 @@ export const EMERGENCY_BOOST = 1.5;
 /** The most a dive climbs or drops, metres; the override's leap, OVERRIDE_STEP_M (then any drop). */
 export const DIVE_STEP_M = 1.5;
 export const OVERRIDE_STEP_M = 3;
-/** The override looks this far for a free spot, metres (then CLEAR_FAR_M, coarser). */
+/** The override looks this far for a free spot every 0.1 m, then to CLEAR_NEAR_M every 0.25 m, then to CLEAR_FAR_M every 0.5 m, metres. */
+export const CLEAR_FINE_M = 3;
 export const CLEAR_NEAR_M = 12;
 export const CLEAR_FAR_M = 30;
 /** The override's last resort looks this far, metres. */
@@ -182,6 +190,11 @@ export const DODGE_PROFILE: Readonly<Record<DodgeClass, DodgeProfile>> = {
   errandRobot: { margin: 0.75, override: null, speed: 7, maxDive: 5, minTicks: 12, peak: 0.3, leapPeak: 0, recover: 30 },
   sidewalkBot: { margin: 0.75, override: null, speed: 7, maxDive: 5, minTicks: 12, peak: 0.12, leapPeak: 0, recover: 24 },
 };
+
+/** The berth a robotaxi keeps from a body of this class (agents.ts): a child's is wider. */
+export function robotaxiBerth(cls: DodgeClass): number {
+  return cls === "care" ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M;
+}
 
 /** The dodge class of an ambient agent, or null for vehicles (robotaxis). */
 export function agentDodgeClass(a: Readonly<Pick<AgentState, "id" | "kind">>): DodgeClass | null {
@@ -280,6 +293,13 @@ export interface Vehicle {
   mfx: number;
   mfz: number;
   inflate: number;
+  /**
+   * A robotaxi near anyone: its reach as its exact poses along its route over the next step
+   * (routeReach), each grown by `inflate`; null: the middle pose above. `span` is how far any of
+   * them is from (mx, mz).
+   */
+  zone: Array<{ x: number; z: number; fx: number; fz: number }> | null;
+  span: number;
 }
 
 /** Rotate a compass-frame direction (x east, z south) clockwise by the angle whose cos and sin are (c, s). */
@@ -359,6 +379,8 @@ export function makeVehicle(
     mfx,
     mfz,
     inflate: (speed * dt) / 2 + (opts.dv ?? 0) * dt + (yawAbs * dt * halfDiag) / 2,
+    zone: null,
+    span: 0,
   };
   v.paths = opts.predict === false ? [] : predictPaths(v);
   const reach = hl + hw + spread * horizonS(speed);
@@ -415,11 +437,25 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
     const turn = wrapAngle(a.heading - prev.heading);
     yaw = clamp(turn / dt, -2, 2);
     decel = clamp((prev.speed - a.speed) / dt, ROBOTAXI_BRAKE_MPS2, 9);
-    observed = (Math.sqrt((a.x - prev.x) * (a.x - prev.x) + (a.z - prev.z) * (a.z - prev.z)) + (turn < 0 ? -turn : turn) * Math.sqrt(hl * hl + hw * hw)) / DT;
+    // (Over its own step: a far robotaxi moves LOD_STRIDE ticks' worth at once.)
+    observed = (Math.sqrt((a.x - prev.x) * (a.x - prev.x) + (a.z - prev.z) * (a.z - prev.z)) + (turn < 0 ? -turn : turn) * Math.sqrt(hl * hl + hw * hw)) / dt;
   }
   const fx = dsin(a.heading);
   const fz = -dcos(a.heading);
-  const route = predict && world && a.speed >= DODGE_MIN_SPEED ? agentRoute(world, a, a.speed * horizonS(a.speed) + 1, 0.5) : null;
+  // Its route: its exact pose at each predicted sample's distance (as stepAgent will put it).
+  let route: RoutePoint[] | null = null;
+  if (predict && world && a.speed >= DODGE_MIN_SPEED) {
+    const ds = [0];
+    const n = Math.ceil(horizonS(a.speed) / SAMPLE_S - 1e-9);
+    let dist = 0;
+    for (let k = 1; k <= n; k++) {
+      const st = stepDistance({ speed: a.speed, decel, react: ROBOTAXI_REACT_S }, k);
+      dist += st.d;
+      ds.push(dist);
+      if (st.stopped) break;
+    }
+    route = agentRouteAt(world, a, ds);
+  }
   // Over its next step it speeds up by at most its acceleration (braking only shortens its
   // step, inside its reach), and its velocity turns with its path (at up to 1 rad/s more than
   // it turns now: a connector starting).
@@ -433,6 +469,43 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
     dv,
     observed,
   });
+}
+
+/** A robotaxi's reach (routeReach) is sampled this often along its route, metres. */
+const ZONE_STEP_M = 0.04;
+
+/**
+ * A robotaxi's reach over its next step from its route (it follows its lane and connectors
+ * exactly, and on a connector's polyline its heading turns at each vertex at once, which no yaw
+ * rate foresees): its body at its exact poses along the route from where it is to where its next
+ * step can take it (at most its speed plus its acceleration over the step), every ZONE_STEP_M,
+ * each grown by half that spacing (between two poses it only slides, or turns at a vertex into
+ * the later pose's heading). Leaves the vehicle as it is where the route is unknown.
+ */
+export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, world: World): void {
+  const spec = AGENT_SPEC[a.kind];
+  const travel = (a.speed + spec.accel * dt) * dt;
+  const n = Math.max(1, Math.ceil(travel / ZONE_STEP_M - 1e-9));
+  const ds: number[] = [];
+  for (let k = 1; k <= n; k++) ds.push((travel * k) / n);
+  const pts = agentRouteAt(world, a, ds);
+  if (pts.length < n) return;
+  const zone: Array<{ x: number; z: number; fx: number; fz: number }> = [{ x: v.x, z: v.z, fx: v.fx, fz: v.fz }];
+  for (const q of pts) {
+    const l = Math.sqrt(q.tx * q.tx + q.tz * q.tz);
+    if (l <= 1e-9) return;
+    zone.push({ x: q.x, z: q.z, fx: q.tx / l, fz: q.tz / l });
+  }
+  const mid = zone[Math.floor(zone.length / 2)]!;
+  let span = 0;
+  for (const p of zone) span = Math.max(span, Math.sqrt((p.x - mid.x) * (p.x - mid.x) + (p.z - mid.z) * (p.z - mid.z)));
+  v.mx = mid.x;
+  v.mz = mid.z;
+  v.mfx = mid.fx;
+  v.mfz = mid.fz;
+  v.zone = zone;
+  v.span = span;
+  v.inflate = travel / n / 2 + 0.005;
 }
 
 /**
@@ -563,6 +636,14 @@ export function bodyDistance(v: Readonly<Vehicle>, px: number, pz: number): numb
  * before the next tick's dodge.
  */
 export function zoneDistance(v: Readonly<Vehicle>, px: number, pz: number): number {
+  if (v.zone) {
+    let best = Infinity;
+    for (const p of v.zone) {
+      const d = boxDistance(px, pz, p.x, p.z, p.fx, p.fz, v.hl, v.hw);
+      if (d < best) best = d;
+    }
+    return best - v.inflate;
+  }
   return boxDistance(px, pz, v.mx, v.mz, v.mfx, v.mfz, v.hl, v.hw) - v.inflate;
 }
 
@@ -596,9 +677,15 @@ export function sweepHit(v: Readonly<Vehicle>, px: number, pz: number, reach: nu
 export function sweepClearance(v: Readonly<Vehicle>, px: number, pz: number, spread = true): number {
   if (v.paths.length === 0) return zoneDistance(v, px, pz);
   const k = spread ? v.spread : 0;
+  const half = Math.sqrt(v.hl * v.hl + v.hw * v.hw);
   let best = Infinity;
   for (const path of v.paths) {
     for (const s of path) {
+      // (No closer than its centre's distance less its half-diagonal: skip a pose that cannot beat the best.)
+      const lo = best + half + k * s.t;
+      const dx = px - s.x;
+      const dz = pz - s.z;
+      if (lo >= 0 && dx * dx + dz * dz >= lo * lo) continue;
       const d = boxDistance(px, pz, s.x, s.z, s.fx, s.fz, v.hl, v.hw) - k * s.t;
       if (d < best) best = d;
     }
@@ -697,12 +784,29 @@ function clearOfVehicles(vehicles: readonly Vehicle[], x: number, z: number, r: 
   for (const v of vehicles) {
     if (v.paths.length > 0) {
       if (x < v.minX - r - margin || x > v.maxX + r + margin || z < v.minZ - r - margin || z > v.maxZ + r + margin) continue;
-      if (sweepClearance(v, x, z, spread) < r + margin) return false;
+      if (footprintWithin(v, x, z, r + margin, spread)) return false;
     } else if (zoneDistance(v, x, z) < r + 0.3) {
       return false;
     }
   }
   return true;
+}
+
+/** Does any predicted pose of the vehicle's body come within `lim` (plus its spread by then, unless `spread` is false) of (x, z)? sweepClearance(v, x, z, spread) < lim, faster. */
+function footprintWithin(v: Readonly<Vehicle>, x: number, z: number, lim: number, spread: boolean): boolean {
+  const k = spread ? v.spread : 0;
+  const half = Math.sqrt(v.hl * v.hl + v.hw * v.hw);
+  for (const path of v.paths) {
+    for (const s of path) {
+      const reach = lim + k * s.t;
+      const dx = x - s.x;
+      const dz = z - s.z;
+      const far = reach + half;
+      if (dx * dx + dz * dz > far * far) continue;
+      if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) - k * s.t < lim) return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -761,13 +865,17 @@ function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: n
 function passCheck(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing: number): 0 | 1 | 2 {
   let out: 0 | 1 | 2 = 0;
   for (const v of vehicles) {
+    const half = Math.sqrt(v.hl * v.hl + v.hw * v.hw);
     for (const path of v.paths) {
       for (const s of path) {
         const go = speed * (s.t + DT);
         const along = go < len ? go : len;
         const x = px + wx * along;
         const z = pz + wz * along;
-        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < r + passing + v.spread * s.t) {
+        const lim = r + passing + v.spread * s.t;
+        const far = lim + half;
+        if ((x - s.x) * (x - s.x) + (z - s.z) * (z - s.z) > far * far) continue;
+        if (boxDistance(x, z, s.x, s.z, s.fx, s.fz, v.hl, v.hw) < lim) {
           if (go < len) return 1;
           out = 2;
         }
@@ -903,11 +1011,12 @@ export function chooseDive(
         const x = b.x + wx * len;
         const z = b.z + wz * len;
         if (!walkTo(g, walk, x, z, b.r, b.y, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r, prof)) break;
+        const d = vehicleClearance(vehicles, x, z);
+        if (!(d > here && (!far || d > far.d))) continue;
         const pass = passCheck(moving, b.x, b.z, wx, wz, len, speed, b.r, 0);
         if (pass === 1) break;
         if (pass === 2) continue;
-        const d = vehicleClearance(vehicles, x, z);
-        if (d > here && (!far || d > far.d)) far = { x, z, d };
+        far = { x, z, d };
       }
     }
   }
@@ -932,7 +1041,8 @@ export interface OverrideSpot {
  * to. It may leap over a vehicle. A spot in a moving vehicle's path (its predicted footprint plus
  * the clearance) costs 100 m more, so nobody is put down in front of the car to be leapt again;
  * one on another body costs 0.5 m more. Lines every 15 degrees and along the vehicles' sides,
- * out to CLEAR_NEAR_M every 0.1 m, then CLEAR_FAR_M every 0.5 m, walked as a dive's are (a
+ * out to CLEAR_FINE_M every 0.1 m, CLEAR_NEAR_M every 0.25 m, then CLEAR_FAR_M every 0.5 m,
+ * walked as a dive's are (a
  * player on a roof leaps along it or off it); when no line leads anywhere, the same with any
  * drop, then over buildings, then anywhere outside the vehicles (OverrideSpot.tier). Never
  * fails: there is always a spot.
@@ -955,9 +1065,9 @@ export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Ve
     return true;
   };
   const tiers: ReadonlyArray<{ tier: 0 | 1 | 2 | 3; reach: ReadonlyArray<readonly [number, number]> }> = [
-    { tier: 0, reach: [[CLEAR_NEAR_M, 0.1], [CLEAR_FAR_M, 0.5]] },
-    { tier: 1, reach: [[CLEAR_NEAR_M, 0.1], [CLEAR_FAR_M, 0.5]] },
-    { tier: 2, reach: [[CLEAR_NEAR_M, 0.1], [CLEAR_FAR_M, 0.5]] },
+    { tier: 0, reach: [[CLEAR_FINE_M, 0.1], [CLEAR_NEAR_M, 0.25], [CLEAR_FAR_M, 0.5]] },
+    { tier: 1, reach: [[CLEAR_FINE_M, 0.1], [CLEAR_NEAR_M, 0.25], [CLEAR_FAR_M, 0.5]] },
+    { tier: 2, reach: [[CLEAR_FINE_M, 0.1], [CLEAR_NEAR_M, 0.25], [CLEAR_FAR_M, 0.5]] },
     { tier: 3, reach: [[CLEAR_LAST_M, 0.25]] },
   ];
   for (const { tier, reach } of tiers) {
@@ -1189,6 +1299,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const bodies = playerBodies(before);
   /** Vehicle index -> the robotaxi (and its step) whose paths are not predicted yet. */
   const pending = new Map<number, { a: AgentState; dt: number }>();
+  /** The robotaxis, in vehicle order (vehicle index - ids.length), with their step. */
+  const taxis: Array<{ a: AgentState; dt: number }> = [];
   for (const a of agents) {
     if (!AGENT_SPEC[a.kind].road) continue;
     let predict = false;
@@ -1206,6 +1318,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const close = bodies.some((p) => (p.x - a.x) * (p.x - a.x) + (p.z - a.z) * (p.z - a.z) <= NEAR_RANGE_M * NEAR_RANGE_M);
     const dt = close ? DT : DT * LOD_STRIDE;
     if (!predict && a.speed >= DODGE_MIN_SPEED) pending.set(vehicles.length, { a, dt });
+    taxis.push({ a, dt });
     vehicles.push(vehicleOfAgent(a, prevAgents.get(a.id) ?? null, dt, world, predict));
   }
   /** Predict every pending robotaxi that could reach within `reach` of (x, z). */
@@ -1215,11 +1328,27 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       const lim = reach + a.speed * horizonS(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth;
       if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
       const v = vehicleOfAgent(a, prevAgents.get(a.id) ?? null, p.dt, world, true);
-      v.inflate = vehicles[vi]!.inflate;
+      const was = vehicles[vi]!;
+      v.mx = was.mx;
+      v.mz = was.mz;
+      v.mfx = was.mfx;
+      v.mfz = was.mfz;
+      v.inflate = was.inflate;
+      v.zone = was.zone;
+      v.span = was.span;
       vehicles[vi] = v;
       pending.delete(vi);
     }
   };
+  // A robotaxi near anyone: its reach from its route (routeReach: a connector's vertices turn it at once).
+  for (let vi = ids.length; vi < vehicles.length; vi++) {
+    const v = vehicles[vi]!;
+    const lim = v.hl + v.hw + v.inflate * 2 + v.speed * taxis[vi - ids.length]!.dt + 2;
+    near(v.x - lim, v.z - lim, v.x + lim, v.z + lim, scratch);
+    if (scratch.length === 0) continue;
+    const a = taxis[vi - ids.length]!;
+    routeReach(v, a.a, a.dt, world);
+  }
   // A player's car is pushed out of whatever overlaps it at the start of its next step (another
   // car, a robotaxi, a robot: collide.ts resolveBox, by up to CAR.maxPush): its reach grows by
   // that overlap.
@@ -1247,14 +1376,17 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     if (shove > 0) vehicles[i]!.inflate += Math.min(CAR.maxPush, shove);
   });
 
-  // Who is in whose predicted footprint.
+  // Who is in whose predicted footprint. (A robotaxi keeps to its route and holds still while
+  // anyone is within its berth of it, agents.ts: only a footprint coming within that berth is a
+  // threat, so nobody dives out of the way of one passing as it should.)
   vehicles.forEach((v, vi) => {
     if (v.paths.length === 0) return;
     near(v.minX - maxReach, v.minZ - maxReach, v.maxX + maxReach, v.maxZ + maxReach, scratch);
     for (const i of scratch) {
       const r = recs[i]!;
       if (v.player !== null && v.player === r.player) continue; // a player's own car
-      const hit = sweepHit(v, r.x, r.z, r.r + DODGE_PROFILE[r.cls].margin);
+      const margin = DODGE_PROFILE[r.cls].margin;
+      const hit = sweepHit(v, r.x, r.z, r.r + (v.player === null ? Math.min(margin, robotaxiBerth(r.cls)) : margin));
       if (hit) r.threats.push({ v: vi, hit });
     }
   });
@@ -1303,7 +1435,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     ensurePaths(r.x, r.z, reach);
     return vehicles.filter((v) => {
       if (!notOwn(r)(v)) return false;
-      const lim = reach + v.hl + v.hw + v.inflate;
+      const lim = reach + v.hl + v.hw + v.inflate + v.span;
       const inBox = r.x >= v.minX - reach && r.x <= v.maxX + reach && r.z >= v.minZ - reach && r.z <= v.maxZ + reach;
       return inBox || ((r.x - v.mx) * (r.x - v.mx) + (r.z - v.mz) * (r.z - v.mz) <= lim * lim);
     });
@@ -1312,7 +1444,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const reachNear = (r: Rec, x: number, z: number, reach: number): Vehicle[] =>
     vehicles.filter((v) => {
       if (!notOwn(r)(v)) return false;
-      const lim = reach + v.hl + v.hw + v.inflate;
+      const lim = reach + v.hl + v.hw + v.inflate + v.span;
       return (x - v.mx) * (x - v.mx) + (z - v.mz) * (z - v.mz) <= lim * lim;
     });
 
@@ -1401,7 +1533,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   // 4. The hard guarantee. Candidates: the dodgers near each vehicle's reach.
   const cand = new Map<number, number[]>();
   vehicles.forEach((v, vi) => {
-    const reach = v.hl + v.hw + v.inflate + DODGE_PROFILE.care.override! + 1;
+    const reach = v.hl + v.hw + v.inflate + v.span + DODGE_PROFILE.care.override! + 1;
     near(v.mx - reach, v.mz - reach, v.mx + reach, v.mz + reach, scratch);
     for (const i of scratch) {
       let l = cand.get(i);

@@ -11,11 +11,15 @@ import { describe, expect, it } from "vitest";
 import {
   AGENT_SPEC,
   CAR,
+  DODGE_MIN_SPEED,
   DODGE_PROFILE,
   FOOT,
   LEAP_TICKS,
   PARKED_SPEED,
   ROBOTAXI_BODY,
+  ROBOTAXI_CREEP_MPS,
+  ROBOTAXI_SLOW_BERTH_M,
+  ROBOTAXI_STOP_BERTH_M,
   STOPPED_CLEAR_M,
   agentDodgeClass,
   agentsOf,
@@ -32,6 +36,7 @@ import {
   makeVehicle,
   meshGroundHeight,
   overrideSpot,
+  personIsChild,
   step,
   surfaceHeight,
   vehicleOfAgent,
@@ -365,7 +370,7 @@ describe("robotaxis, measured by their drawn body", () => {
     expect(dodgeExtOf(s).failures).toBe(0);
   }, LONG_RUN_MS);
 
-  it("a robotaxi does not pull away while someone stands within its side berth (so it never comes within the override's clearance of them), and goes once nobody is", () => {
+  it("a robotaxi with someone standing within its berth waits (within its stop berth) or creeps (slower than the dodge's threat speed, never closer to them), so nobody dives or is leapt; with nobody there it pulls away", () => {
     const world = gridCity(true);
     let s = createInitialState(world, 21, ["p1"], { x: 150, z: 150, heading: 0 });
     const park = { p1: { throttle: 0, steer: 0, brake: 1, actions: 0 } };
@@ -374,26 +379,62 @@ describe("robotaxis, measured by their drawn body", () => {
     const moving = agentsOf(s).find((a) => a.kind === "robotaxi" && !a.conn && a.speed > 3 && a.mode === "go")!;
     expect(moving, "a robotaxi under way on a lane").toBeDefined();
     const taxi: AgentState = { ...moving, speed: 0, mode: "wait" };
-    // Someone pausing beside the middle of its body, 0.35 m off its side: inside its berth (0.5 m).
-    const walker = agentsOf(s).find((a) => a.kind === "person" && !a.dodge && Math.hypot(a.x - taxi.x, a.z - taxi.z) > 30)!;
+    // Someone pausing 0.25 m off its side (inside its stop berth: it must not set off) or 0.6 m
+    // off it (inside its slow berth): beside the middle of its body, or beside its back end (it
+    // moves away from them).
+    const walker = agentsOf(s).find((a) => a.kind === "person" && !a.dodge && !personIsChild(a.id) && Math.hypot(a.x - taxi.x, a.z - taxi.z) > 30)!;
     const rx = Math.cos(taxi.heading);
     const rz = Math.sin(taxi.heading);
-    const off = ROBOTAXI_BODY.halfWidth + 0.35 + AGENT_SPEC.person.radius;
-    const stand: AgentState = { ...walker, x: taxi.x + rx * off, z: taxi.z + rz * off, speed: 0, dwell: 100_000, mode: "dwell", conn: null };
-    const go = (withPerson: boolean): { moved: number; overrides: number; contacts: number } => {
+    const fx = Math.sin(taxi.heading);
+    const fz = -Math.cos(taxi.heading);
+    let stand: AgentState = walker;
+    const at = (along: number, gap: number): AgentState => {
+      const off = ROBOTAXI_BODY.halfWidth + gap + AGENT_SPEC.person.radius;
+      return { ...walker, x: taxi.x + rx * off + fx * along, z: taxi.z + rz * off + fz * along, speed: 0, dwell: 100_000, mode: "dwell", conn: null };
+    };
+    const go = (withPerson: boolean): { moved: number; fastest: number; fastestNear: number; closest: number; dives: number; overrides: number; contacts: number } => {
       const ext = s.ext.agents as AgentsExt;
       let k: SimState = { ...s, ext: { ...s.ext, agents: { ...ext, list: ext.list.map((a) => (a.id === taxi.id ? taxi : withPerson && a.id === walker.id ? stand : a)) } } };
-      const o0 = dodgeExtOf(k).overrides;
-      for (let t = 0; t < 300; t++) k = step(world, k, park);
+      const d0 = dodgeExtOf(k);
+      let fastest = 0;
+      let fastestNear = 0;
+      let closest = Infinity;
+      for (let t = 0; t < 300; t++) {
+        k = step(world, k, park);
+        const T = agentsOf(k).find((a) => a.id === taxi.id);
+        if (!T) break;
+        fastest = Math.max(fastest, T.speed);
+        const P = agentsOf(k).find((a) => a.id === walker.id)!;
+        const clear = boxDistance(P.x, P.z, T.x, T.z, Math.sin(T.heading), -Math.cos(T.heading), ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth) - AGENT_SPEC.person.radius;
+        if (withPerson) {
+          closest = Math.min(closest, clear);
+          if (clear < ROBOTAXI_SLOW_BERTH_M) fastestNear = Math.max(fastestNear, T.speed);
+        }
+      }
       const T = agentsOf(k).find((a) => a.id === taxi.id);
-      return { moved: T ? Math.hypot(T.x - taxi.x, T.z - taxi.z) : Infinity, overrides: dodgeExtOf(k).overrides - o0, contacts: dodgeExtOf(k).contacts };
+      const d = dodgeExtOf(k);
+      return { moved: T ? Math.hypot(T.x - taxi.x, T.z - taxi.z) : Infinity, fastest, fastestNear, closest, dives: d.dives - d0.dives, overrides: d.overrides - d0.overrides, contacts: d.contacts };
     };
-    const held = go(true);
-    expect(held.moved).toBeLessThan(0.01);
-    expect(held.overrides).toBe(0);
-    expect(held.contacts).toBe(0);
-    // Nobody there: it pulls away.
-    expect(go(false).moved).toBeGreaterThan(2);
+    for (const gap of [0.25, 0.6]) {
+      for (const along of [0, -1.6]) {
+        stand = at(along, gap);
+        const past = go(true);
+        const what = `someone ${gap} m off its side, ${along} m along`;
+        expect(past.fastestNear, `${what}: its speed while within its berth of them`).toBeLessThanOrEqual(ROBOTAXI_CREEP_MPS + 1e-9);
+        expect(past.fastestNear).toBeLessThan(DODGE_MIN_SPEED);
+        expect(past.closest, `${what}: never closer than it started`).toBeGreaterThanOrEqual(gap - 1e-6);
+        expect(past.dives, what).toBe(0);
+        expect(past.overrides, what).toBe(0);
+        expect(past.contacts, what).toBe(0);
+        // Within the stop berth it waits; beside its back end, outside that, it creeps away from them and goes.
+        if (gap < ROBOTAXI_STOP_BERTH_M) expect(past.moved, `${what}: it waits`).toBeLessThan(0.01);
+        else if (along < 0) expect(past.moved, `${what}: it moves on`).toBeGreaterThan(1);
+      }
+    }
+    // Nobody there: it pulls away at speed.
+    const free = go(false);
+    expect(free.moved).toBeGreaterThan(2);
+    expect(free.fastest).toBeGreaterThan(ROBOTAXI_CREEP_MPS + 1);
   }, LONG_RUN_MS);
 });
 

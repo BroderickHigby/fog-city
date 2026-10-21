@@ -397,6 +397,8 @@ interface Obs {
   predicted?: boolean;
   /** Someone on foot (a walker or a player's walker): robotaxis give them PERSON_BERTH_M more room. */
   foot?: boolean;
+  /** A child (personIsChild): a robotaxi keeps its child's berths from them (ROBOTAXI_SLOW_BERTH_CHILD_M). */
+  child?: boolean;
   /**
    * Seen only by robotaxis ("road") or only by walkers ("foot"): a robotaxi is two circles to
    * other robotaxis (how traffic spaces itself) and its drawn body, a box, to walkers.
@@ -496,11 +498,25 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
 export const PERSON_BERTH_M = 0.6;
 
 /**
- * A robotaxi does not move while anyone on foot is within this of its drawn body (ROBOTAXI_BODY)
- * on any side, metres: more than the dodge's override clearance (0.3 m from a moving vehicle,
- * dodge.ts), so a robotaxi edging past or pulling away never comes that close to anyone; it waits.
+ * A robotaxi's berth from anyone on foot, by its drawn body (ROBOTAXI_BODY), metres. While
+ * anyone is within ROBOTAXI_SLOW_BERTH_M (a child ROBOTAXI_SLOW_BERTH_CHILD_M: the dodge's
+ * margins, dodge.ts) of it, now or anywhere along its route until it could stop as the dodge
+ * predicts, it goes no faster than ROBOTAXI_CREEP_MPS (below the speed at which the dodge sees a
+ * vehicle as a threat), so nobody ever has to dive out of the way of a robotaxi driving as it
+ * should. And it does not set off while anyone is within ROBOTAXI_STOP_BERTH_M (a child
+ * ROBOTAXI_STOP_BERTH_CHILD_M: the override's clearance, 0.3 m and 0.6 m, plus what a creep step
+ * reaches, and BERTH_SLACK_M more) of it, nor
+ * move on if this step would bring its body within that of anyone, closer than they are now:
+ * edging past or swinging round a hairpin it never sets the override off. It waits, or creeps
+ * past people waiting beside it.
  */
-export const ROBOTAXI_SIDE_BERTH_M = 0.5;
+export const ROBOTAXI_SLOW_BERTH_M = 0.75;
+export const ROBOTAXI_SLOW_BERTH_CHILD_M = 1.25;
+export const ROBOTAXI_STOP_BERTH_M = 0.33;
+export const ROBOTAXI_STOP_BERTH_CHILD_M = 0.63;
+export const ROBOTAXI_CREEP_MPS = 1.5;
+/** A robotaxi slower than this is standing (the dodge counts it as stopped below 0.3 m/s). */
+const ROBOTAXI_STOPPED_MPS = 0.05;
 /** Walkers keep this much further from a moving robotaxi's drawn body than from a stopped one's, metres. */
 export const WALKER_TAXI_BERTH_M = 0.4;
 /** A robotaxi slower than this is stopped for the walkers' berth, m/s. */
@@ -512,25 +528,75 @@ const OBS_RADIUS_MAX =
       (ROBOTAXI_BODY.halfWidth + WALKER_TAXI_BERTH_M) * (ROBOTAXI_BODY.halfWidth + WALKER_TAXI_BERTH_M),
   ) + 0.1;
 
-/** Is anyone on foot (as of the previous tick) within ROBOTAXI_SIDE_BERTH_M of robotaxi a's drawn body? */
-function someoneInBerth(c: Ctx, a: Readonly<AgentState>): boolean {
-  const hx = dsin(a.heading);
-  const hz = -dcos(a.heading);
-  const reach = ROBOTAXI_BODY.halfLength + ROBOTAXI_SIDE_BERTH_M + 1;
+/** The berth's poses along the route are this far apart (STOP_STEP_M over the step itself), metres, and it keeps this much more, metres. */
+const BERTH_STEP_M = 0.1;
+const STOP_STEP_M = 0.02;
+const BERTH_SLACK_M = 0.05;
+/** How hard the dodge counts on a robotaxi braking, m/s^2, and after how long (dodge.ts ROBOTAXI_BRAKE_MPS2, ROBOTAXI_REACT_S). */
+const DODGE_TAXI_BRAKE = 6;
+const DODGE_TAXI_REACT_S = 2 * DT;
+
+/**
+ * The speed limit a robotaxi's berth sets (ROBOTAXI_SLOW_BERTH_M and ROBOTAXI_STOP_BERTH_M), from
+ * everyone on foot as of the previous tick: Infinity (no one near), ROBOTAXI_CREEP_MPS (someone
+ * within the slow berth of its body now or at any pose along its route until it could stop as
+ * the dodge predicts it, braking at 6 m/s^2 after two ticks from the speed it may have after
+ * this step of `dt` seconds), or 0 (this step, and the two ticks after it, would bring its body
+ * within the stop berth of someone, closer than now). The body is swept along the route, so a
+ * rear swinging in on a hairpin counts.
+ */
+function berthLimit(c: Ctx, a: Readonly<AgentState>, dt: number): number {
+  const spec = AGENT_SPEC[a.kind];
+  const v = a.speed + spec.accel * dt;
+  const ahead = Math.min(14, v * (dt + DODGE_TAXI_REACT_S) + (v * v) / (2 * DODGE_TAXI_BRAKE) + 0.25);
+  const step = v * (dt + DODGE_TAXI_REACT_S) + 0.05;
+  const reach = ROBOTAXI_BODY.halfLength + ahead + ROBOTAXI_SLOW_BERTH_CHILD_M + 1;
   queryHash(c.hash, a.x, a.z, reach, c.scratch);
+  const near: Obs[] = [];
   for (const o of c.scratch) {
     if (!o.foot || o.predicted) continue;
-    const lim = ROBOTAXI_SIDE_BERTH_M + o.r;
-    // Distance from the walker's centre to the box (ROBOTAXI_BODY).
-    const ox = o.x - a.x;
-    const oz = o.z - a.z;
-    const along = ox * hx + oz * hz;
-    const lat = -ox * hz + oz * hx;
+    const dx = o.x - a.x;
+    const dz = o.z - a.z;
+    if (dx * dx + dz * dz <= (reach + o.r) * (reach + o.r)) near.push(o);
+  }
+  if (near.length === 0) return Infinity;
+  const poses: Array<{ x: number; z: number; hx: number; hz: number; d: number }> = [{ x: a.x, z: a.z, hx: dsin(a.heading), hz: -dcos(a.heading), d: 0 }];
+  // Every STOP_STEP_M over this step (and two ticks), exactly where that ends, then every
+  // BERTH_STEP_M on to where it could stop.
+  const ds: number[] = [];
+  for (let d = STOP_STEP_M; d < step - 1e-9; d += STOP_STEP_M) ds.push(d);
+  ds.push(step);
+  for (let d = step + BERTH_STEP_M; d < ahead + 1e-9; d += BERTH_STEP_M) ds.push(d);
+  for (const q of agentRouteAt(c.world, a, ds)) {
+    const l = Math.sqrt(q.tx * q.tx + q.tz * q.tz);
+    if (l > 1e-9) poses.push({ x: q.x, z: q.z, hx: q.tx / l, hz: q.tz / l, d: q.d });
+  }
+  const clear = (o: Obs, p: { x: number; z: number; hx: number; hz: number }): number => {
+    // From the walker's body to the box (ROBOTAXI_BODY) at this pose.
+    const ox = o.x - p.x;
+    const oz = o.z - p.z;
+    const along = ox * p.hx + oz * p.hz;
+    const lat = -ox * p.hz + oz * p.hx;
     const el = Math.max(0, (lat < 0 ? -lat : lat) - ROBOTAXI_BODY.halfWidth);
     const ef = Math.max(0, (along < 0 ? -along : along) - ROBOTAXI_BODY.halfLength);
-    if (el * el + ef * ef < lim * lim) return true;
+    return Math.sqrt(el * el + ef * ef) - o.r;
+  };
+  let limit = Infinity;
+  for (const o of near) {
+    // (A hair more than each berth: the poses are BERTH_STEP_M apart, the dodge's closer.)
+    const slow = (o.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M;
+    const stop = (o.child ? ROBOTAXI_STOP_BERTH_CHILD_M : ROBOTAXI_STOP_BERTH_M) + BERTH_SLACK_M;
+    const now = clear(o, poses[0]!);
+    // Someone within the stop berth already: it does not set off (moving at all, it would be a
+    // moving vehicle within the override's clearance of them).
+    if (now < stop && a.speed <= ROBOTAXI_STOPPED_MPS) return 0;
+    for (const p of poses) {
+      const d = clear(o, p);
+      if (p.d > 0 && p.d <= step + 1e-9 && d < stop && d < now - 1e-6) return 0;
+      if (d < slow) limit = ROBOTAXI_CREEP_MPS;
+    }
   }
-  return false;
+  return limit;
 }
 
 /** Seconds ahead a moving walker's position is projected (seen by robotaxis). */
@@ -551,7 +617,7 @@ function agentObstacles(list: readonly AgentState[]): Obs[] {
       const hw = ROBOTAXI_BODY.halfWidth + grow;
       out.push({ x: a.x, z: a.z, r: Math.sqrt(hl * hl + hw * hw), id: a.id, player: false, road, onlyFor: "foot", box: { fx: dsin(a.heading), fz: -dcos(a.heading), hl, hw } });
     } else {
-      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true });
+      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child: a.kind === "person" && personIsChild(a.id) });
     }
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
@@ -760,13 +826,25 @@ function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Seg[] {
  * dodge (dodge.ts) predicts a robotaxi along it, since that is exactly where it will drive.
  */
 export function agentRoute(world: World, a: Readonly<AgentState>, dist: number, step: number): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
+  const ds: number[] = [];
+  for (let d = 0; d <= dist + 1e-9; d += step) ds.push(d);
+  return agentRouteAt(world, a, ds);
+}
+
+/**
+ * The agent's pose (position and unit tangent, the way it will face there) at each distance in
+ * `ds` (ascending, metres) along the route it will take: exactly where it will be and how it will
+ * face, as stepAgent will put it (no interpolation across a bend). Stops where the known route
+ * ends.
+ */
+export function agentRouteAt(world: World, a: Readonly<AgentState>, ds: readonly number[]): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
   const g = world.roads;
   const out: Array<{ x: number; z: number; tx: number; tz: number; d: number }> = [];
   if (!g) return out;
   const segs = routeAhead(g, a);
   let si = 0;
   let base = 0;
-  for (let d = 0; d <= dist + 1e-9 && si < segs.length; d += step) {
+  for (const d of ds) {
     while (si < segs.length && d - base > segs[si]!.path.len - segs[si]!.from) {
       base += Math.max(0, segs[si]!.path.len - segs[si]!.from);
       si++;
@@ -1062,6 +1140,37 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   return p;
 }
 
+/** A walker never steps closer than this to a vehicle's body (a robotaxi's drawn one, a player's car), metres. */
+export const WALKER_VEHICLE_GAP_M = 0.1;
+
+/**
+ * Would walker a's step to (x, z) bring its body within WALKER_VEHICLE_GAP_M of a vehicle's body
+ * (a robotaxi's drawn body, a player's car, as of the previous tick), closer than it is now?
+ */
+function nearerVehicle(c: Ctx, a: Readonly<AgentState>, x: number, z: number): boolean {
+  const r = AGENT_SPEC[a.kind].radius;
+  queryHash(c.hash, x, z, OBS_RADIUS_MAX + r + 1, c.scratch);
+  for (const o of c.scratch) {
+    if (!o.box || o.predicted) continue;
+    if (o.onlyFor === "road") continue;
+    // (A moving robotaxi's walker box carries the walkers' berth: measure its drawn body.)
+    const hl = o.road ? ROBOTAXI_BODY.halfLength : o.box.hl;
+    const hw = o.road ? ROBOTAXI_BODY.halfWidth : o.box.hw;
+    const gap = (px: number, pz: number): number => {
+      const ox = px - o.x;
+      const oz = pz - o.z;
+      const along = ox * o.box!.fx + oz * o.box!.fz;
+      const lat = -ox * o.box!.fz + oz * o.box!.fx;
+      const el = Math.max(0, (lat < 0 ? -lat : lat) - hw);
+      const ef = Math.max(0, (along < 0 ? -along : along) - hl);
+      return Math.sqrt(el * el + ef * ef) - r;
+    };
+    const after = gap(x, z);
+    if (after < WALKER_VEHICLE_GAP_M && after < gap(a.x, a.z) - 1e-9) return true;
+  }
+  return false;
+}
+
 /** Pitch of a robotaxi body from the ground under its axles (+ = nose up). */
 function bodyPitch(world: World, x: number, z: number, heading: number): number {
   const a = AGENT_SPEC.robotaxi.halfLength * 0.6;
@@ -1165,10 +1274,13 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
       limitedByObstacle = true;
     }
   }
-  // Someone on foot right beside it (or behind, or at its nose): it waits for them to move on.
-  if (spec.road && someoneInBerth(c, a)) {
-    target = 0;
-    limitedByObstacle = true;
+  // Someone on foot near it: it creeps past (below the dodge's threat speed), or waits.
+  if (spec.road) {
+    const lim = berthLimit(c, a, dt);
+    if (lim < target) {
+      target = lim;
+      limitedByObstacle = true;
+    }
   }
 
   // Walkers sidestep oncoming walkers; relax back to the keep-right line otherwise.
@@ -1270,8 +1382,9 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   let wait = blocked ? a.wait + ticks : spec.road || speed > 0.6 * cruise ? 0 : Math.max(0, a.wait - ticks);
   // On a safe lane (roads.ts LANE_SAFE_M) a robotaxi cannot touch a building: skip the check.
   const safe = spec.road && conn === null && curEdge.laneSafe[dirIndex(dir)][lane] === true;
-  if (!safe && bodyBlocked(c.world, a.kind, x, z, heading)) {
-    // Refuse the move: stay put and wait.
+  if ((!safe && bodyBlocked(c.world, a.kind, x, z, heading)) || (!spec.road && nearerVehicle(c, a, x, z))) {
+    // Refuse the move: stay put and wait. (A walker never steps or sidesteps closer than
+    // WALKER_VEHICLE_GAP_M to a vehicle's body: the dodge counts that close as in its way.)
     wait = a.wait + ticks;
     if (spec.road && wait > ROBOTAXI_STUCK_TICKS) return null;
     if (!spec.road && wait > WALKER_TURN_TICKS) return turnAround(c, { ...a, rng });

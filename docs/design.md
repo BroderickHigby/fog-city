@@ -394,16 +394,34 @@ ACQUI-HIRED.
     when theirs is blocked by a building, a wall, a kerb rail or water; never into another
     vehicle's path, another body or another diver's landing; at 7–9 m/s with a hop (faster when a
     car reaches them late), then about a second to get up and walk back to their line (never a
-    jump back onto it). Robots skid or hop aside. Animals scatter the same way (pigeons flutter
-    up, the dog bounds) when animal agents arrive: none walk the streets yet.
+    jump back onto it). A dive's line is walked over the ground the body is on: a player standing
+    on a roof or a deck dives along it or drops off its edge. A dive under way is checked every
+    tick and re-aimed or cut short when its line or landing no longer holds, and a dive step never
+    ends inside a vehicle's reach (below). Robots skid or hop aside. Animals scatter the same way
+    (pigeons flutter up, the dog bounds) when animal agents arrive: none walk the streets yet.
   - **The person-clearance override**, which no tuning removes: after the vehicles move each tick,
-    anyone still within 0.3 m of a moving vehicle's body (0.6 m for the vulnerable), or inside any
-    vehicle's body, is put at the nearest free spot outside every vehicle and out of its path (a
-    superhuman leap, drawn as a big hop). It is counted, with every near miss
-    (`CarState.nearMisses`, for scoring and barks); a contact count (`personBumps`, `ext.dodge`)
-    stays 0. AI vehicles (robotaxis, vans, buses) also still brake for anyone in their path, with a
-    berth that keeps them 0.75 m from people's bodies: the dive is on top of that. Occupied cable
-    cars and buses count as people for the override.
+    anyone still within 0.3 m (0.6 m for the vulnerable) of a moving vehicle's *reach* (everywhere
+    its body can be by the next tick: its body at the middle of its next step grown by half its
+    travel, its speed change and its turn, and by any overlap that can shove it; a vehicle counts
+    as moving when any point of its body moves, so a car at a standstill that is still spinning
+    counts), within 0.02 m of a stopped one's, or inside any vehicle's body, is put at the nearest
+    free spot outside every vehicle's reach and out of its path (a superhuman leap, drawn as a big
+    hop; a short one as a stumble-hop aside). Since no vehicle can then reach anyone before the
+    next tick's dodge, nobody is ever inside one: the contact count (`personBumps`, `ext.dodge`)
+    stays 0 by construction. The leap always finds a spot (along lines the body could walk, then
+    with any drop, then over a building, then anywhere outside the vehicles; the last two are
+    counted as failures, which must stay 0). It is counted, with every near miss
+    (`CarState.nearMisses`, for scoring and barks). AI vehicles (robotaxis, vans, buses) also
+    still brake for anyone in their path, with a berth that keeps them 0.75 m from people's
+    bodies ahead; a robotaxi goes no faster than a 1.5 m/s creep (below the speed the dodge
+    treats as a threat) while anyone is within 0.75 m (a child 1.25 m) of its drawn body now or
+    anywhere along its route until it could stop, so nobody has to dive out of the way of one
+    driving as it should, and it does not set off, or move closer, while anyone is within
+    0.45 m (a child 0.75 m), so it never sets the override off. Walkers never step within 0.1 m
+    of a vehicle's body and keep further from a moving robotaxi. A robotaxi is measured by its
+    drawn body (`ROBOTAXI_BODY`), not the circles traffic spaces it by. The dive is on top of all
+    that.
+    Occupied cable cars and buses count as people for the override.
   - Pedestrians cross only at crosswalks, during their signal phase, with gap acceptance: they
     never step out in front of a vehicle whose stopping distance exceeds the gap. Dodging comes
     before the override. The `?bench=` summary reports override activations per minute; the target
@@ -1283,3 +1301,11 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   earlier rule that a car stops dead at a person is replaced. AI vehicles keep braking for people, with a berth that
   keeps them 0.75 m clear. Near misses are counted per car for scoring and barks. Sim contract v4
   (`src/sim/dodge.ts`); the no-touch fuzz and the clearance soak are the gate (`docs/testing.md`).
+  Hardened the same day after an adversarial review found ways to touch someone (a player standing on a deck a car
+  drove onto; people in a corner as a car drifted in, bounced off a wall or spun at a standstill; robotaxis measured
+  by circles that missed their corners): the override now keeps people clear of a vehicle's reach over its next step,
+  so contact is impossible by construction; dives walk roofs and decks, are rechecked every tick and never step into a
+  vehicle's reach; the override always finds a spot; robotaxis are measured by their drawn body, creep past anyone
+  within the dodge's margin of their path and wait for anyone within 0.45 m. The dive is drawn as a comic leap that is flat only well off the ground, flips tucked in the
+  air and lands on its feet (never lying on the road, never upended). Every reproduction is a permanent test, and a
+  seeded optimiser hunts for a touching driver nightly.
