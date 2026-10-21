@@ -447,6 +447,30 @@ def _cap_in(F, s):
     return float(np.interp(s, [q[0] for q in t], [q[1] for q in t]))
 
 
+def _hairline_crowd(th):
+    """The crowd's hairline: elevation (radians) at azimuth th; lower at the back than the front."""
+    s = math.sin(th)
+    return 0.62 * max(s, 0) ** 1.5 - 0.55 * max(-s, 0) ** 1.2 + 0.08
+
+
+# founder-default's hairline across the front half of the head, by |cos(azimuth)| (0 = the
+# centre of the forehead, 1 = above the ear): high at the centre, where the quiff lifts off the
+# forehead, arching down to the temples and short sideburns in front of the ears.
+PLAYER_HAIRLINE = ([0.0, 0.3, 0.55, 0.75, 0.9, 1.0], [0.78, 0.7, 0.52, 0.36, 0.25, 0.2])
+
+
+def _hairline_player(th):
+    """founder-default's hairline (elevation, radians, at azimuth th): the arched front of
+    PLAYER_HAIRLINE, round the top of the ear, then down behind it to the nape (a short taper)."""
+    c, s = math.cos(th), math.sin(th)
+    if s >= 0.0:
+        front = float(np.interp(abs(c), *PLAYER_HAIRLINE))
+        return front - 0.03 * float(_smooth(0.2, 0.7, -c)) * float(_smooth(0.0, 0.3, s))  # lower on the left
+    over_ear = float(_smooth(-0.4, -0.25, s))  # the ear spans s -0.35..0.18 at the side of the head
+    behind = -0.3 - 0.32 * float(_smooth(0.5, 1.0, -s))  # behind the ear, down to the nape
+    return over_ear * PLAYER_HAIRLINE[1][-1] + (1.0 - over_ear) * behind
+
+
 def build(F: dict, prm: dict, res: int = 0) -> Geo:
     """The whole body for frame F and params prm at resolution res (0 = LOD0, 1 = LOD1)."""
     p = dict(BASE_PARAMS)
@@ -568,33 +592,31 @@ def build(F: dict, prm: dict, res: int = 0) -> Geo:
         g.end(lambda c: tuple(hc))
 
     # ---- hair cap: a shell over the skull; the hairline is lower at the back than the front
-    def hairline(th):
-        s = math.sin(th)
-        return 0.62 * max(s, 0) ** 1.5 - 0.55 * max(-s, 0) ** 1.2 + 0.08
+    hairline = _hairline_player if player else _hairline_crowd
 
     n_c, r_c = (8, 2) if lo else (12, 4)
     off = p["hair"]
+    cap_angles = head_angles if not lo else [math.pi / 2 + 2 * math.pi * i / n_c for i in range(n_c)]
     if player:
-        # founder-default: the hairline recedes a little at the temples, and the cap is short
-        # and tapered at the sides and back (the quiff, hair_quiff, carries the volume on top)
-        crowd_hairline = hairline
-
-        def hairline(th):  # noqa: F811
-            c, s = math.cos(th), math.sin(th)
-            return (crowd_hairline(th) - 0.12 * _gauss(abs(c), 0.62, 0.25) * float(_smooth(0.1, 0.6, s))
-                    + 0.13 * _gauss(s, -0.05, 0.3))  # above the ears
-
+        # founder-default: the cap is the short, tapered hair of the sides and back, its
+        # hairline arched across the forehead (the quiff, hair_quiff, carries the volume on top)
+        # and close round the ears (more columns than the head, so it can turn there)
         r_c = 2 if lo else 5
+        cap_angles = [math.pi / 2 + 2 * math.pi * i / (12 if lo else 32) for i in range(12 if lo else 32)]
     g.begin("hair")
     rows = []
     for j in range(r_c + 1):
         t = j / (r_c + 1)
+        if player and not lo:
+            # a crisp hairline: the second row stands just above the first
+            t = (0.0, 0.045, 0.22, 0.42, 0.62, 0.81)[j]
         row = []
-        for th in head_angles if not lo else [math.pi / 2 + 2 * math.pi * i / n_c for i in range(n_c)]:
+        for th in cap_angles:
             ph = hairline(th) + (math.pi / 2 - hairline(th)) * t
             o = off * (0.45 if j == 0 else 1.0)
             if player:
-                o *= 0.75 + 0.25 * float(_smooth(0.45, 1.15, ph))
+                # the hairline row tucks into the skin (no open edge at the nape and temples)
+                o = off * ((-0.15, 0.8)[j] if j < 2 else 1.0) * (0.75 + 0.25 * float(_smooth(0.45, 1.15, ph)))
             row.append(g.vert(head_point(th, ph, o), "hair", hw))
         rows.append(row)
     g.grid(rows, closed=True)
@@ -1223,22 +1245,60 @@ def quiff(F: dict, prm: dict | None = None, res: int = 0):
     na, nb = (9, 15) if res else (17, 31)
     kk = k * F.get("head_k", 1.0)
     a_back = 2.6
-    hq = 0.038 * kk  # the crest's height above the cap
+    hq = 0.043 * kk  # the crest's height above the cap
 
-    def front(v):  # the first row: the hairline at the forehead, lower on the left (v < 0)
-        return 0.63 + 0.08 * v * v - 0.11 * max(0.0, -v) ** 1.3
+    def th_ph(alpha, beta):
+        d = (math.sin(beta), math.cos(beta) * math.cos(alpha), math.cos(beta) * math.sin(alpha))
+        return math.atan2(d[1], d[0]), math.asin(max(-1.0, min(1.0, d[2])))
 
-    def beta_max(t):
-        return 1.32 + 0.05 * math.sin(math.pi * t)
+    def above_hairline(alpha, beta):
+        th, ph = th_ph(alpha, beta)
+        return ph - _hairline_player(th)
+
+    def front_alpha(beta):
+        """The first row at lateral angle beta: just below the cap's hairline, so the quiff grows
+        out of the skin there and hides the cap's front edge (bisection on alpha)."""
+        lo_, hi_ = 0.05, 1.55
+        for _ in range(40):
+            mid = 0.5 * (lo_ + hi_)
+            if above_hairline(mid, beta) < -0.02:
+                lo_ = mid
+            else:
+                hi_ = mid
+        return 0.5 * (lo_ + hi_)
+
+    # the front edge runs from sideburn to sideburn (lateral angle +-bmax0) along the hairline
+    bmax0 = 1.3
+    cols = [-1 + 2 * j / (nb - 1) for j in range(nb)]
+    fronts = [front_alpha(bmax0 * v) for v in cols]
+
+    def front(v):  # the first row's alpha at column v (v = -1 the person's left, +1 the right)
+        return float(np.interp(v, cols, fronts))
+
+    def row_alpha(t, v):
+        return front(v) + (a_back - front(v)) * t ** 1.25
+
+    def row_bmax(i):
+        """The widest lateral angle at row i whose side edges stay above the cap's hairline, so
+        they sink into the cap rather than hang below it (the front rows meet the hairline)."""
+        t = i / (na - 1)
+        margin = 0.0 if i <= 2 else 0.02
+        b = bmax0
+        while b > 0.6 and min(above_hairline(row_alpha(t, sv), sv * b) for sv in (-1.0, 1.0)) < margin:
+            b -= 0.01
+        return b
+
+    bmax = [bmax0] + [row_bmax(i) for i in range(1, na)]
 
     def shape(t, v, a):
         """Volume above the cap (metres) at row fraction t (0 front, 1 back) and column v."""
         rise = float(_smooth(0.0, 0.13, t)) ** 0.6
-        fall = 1.0 - 0.55 * float(_smooth(0.13, 0.45, t)) - 0.3 * float(_smooth(0.4, 0.85, t)) - 0.15 * float(_smooth(0.8, 1.0, t))
+        fall = 1.0 - 0.45 * float(_smooth(0.13, 0.45, t)) - 0.3 * float(_smooth(0.4, 0.85, t)) - 0.15 * float(_smooth(0.8, 1.0, t))
         vc = v - 0.16  # the crest sits a little to the person's right; the left side falls longer
-        wl = 0.7 if vc > 0 else 0.86
-        # full over the top, easing down the sides into the short cap (no ledge at the edge)
-        across = math.exp(-((abs(vc) / wl) ** 2.4)) * (1.0 - float(_smooth(0.55, 1.0, abs(v))))
+        wl = 0.95 if vc > 0 else 1.1
+        # full and wide over the top (as wide as the face), easing down the sides into the short
+        # cap (no ledge at the edge)
+        across = math.exp(-((abs(vc) / wl) ** 6)) * (1.0 - float(_smooth(0.8, 1.0, abs(v))))
         # soft strands swept back and to the left, and a few tufts along the front edge
         groove = (0.5 + 0.5 * math.cos(2 * math.pi * (v * 1.2 + 0.3 * (a - front(v))) / 0.42)) ** 6
         tufts = 1.0 + 0.14 * math.cos(2 * math.pi * 2.6 * v + 0.9) * (1.0 - float(_smooth(0.3, 0.65, t)))
@@ -1253,8 +1313,8 @@ def quiff(F: dict, prm: dict | None = None, res: int = 0):
         orow, irow = [], []
         for j in range(nb):
             v = -1 + 2 * j / (nb - 1)
-            a = front(v) + (a_back - front(v)) * t ** 1.25
-            beta = v * beta_max(t)
+            a = row_alpha(t, v)
+            beta = v * bmax[i]
             edge = i in (0, na - 1) or j in (0, nb - 1)
             _, ph = hp(a, beta, 0.0)
             base = cap_off(ph)
