@@ -90,7 +90,8 @@ export function stepFoot(
     const vyB = f.vy - FOOT.gravity * DT;
     const yB = f.y + vyB * DT;
     const s1 = surfaceHeight(world, res.x, res.z, f.y);
-    const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, -FOOT.sprint, FOOT.sprint);
+    // What it achieved along the heading, never more than it had: a push is not a stride.
+    const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, f.speed < 0 ? f.speed : 0, f.speed > 0 ? f.speed : 0);
     if (yB <= s1) return { x: res.x, y: s1, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: 0, grounded: true };
     return { x: res.x, y: yB, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: vyB, grounded: false };
   }
@@ -133,8 +134,9 @@ export function stepFoot(
   }
 
   const res = resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush);
-  // Report the speed actually achieved along the heading (pressing into a wall reads as 0).
-  const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, -FOOT.sprint, FOOT.sprint);
+  // Report the speed actually achieved along the heading (pressing into a wall reads as 0), never
+  // more than the walker's own: being pushed out of a building or a car is not walking.
+  const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, speed0 < 0 ? speed0 : 0, speed0 > 0 ? speed0 : 0);
   const mx = res.x - f.x;
   const mz = res.z - f.z;
   const moved = Math.sqrt(mx * mx + mz * mz);

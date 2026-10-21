@@ -40,7 +40,9 @@ function scanGround(tiles: readonly TileCollider[], x: number, z: number): numbe
     const tx = fx - ix;
     const tz = fz - iz;
     const h = (i: number, k: number): number => g.heights[k * g.nx + i] ?? 0;
-    return (h(ix, iz) * (1 - tx) + h(ix + 1, iz) * tx) * (1 - tz) + (h(ix, iz + 1) * (1 - tx) + h(ix + 1, iz + 1) * tx) * tz;
+    // The ground mesh: two triangles per cell, split along the (i+1, k)-(i, k+1) diagonal (SIM_VERSION 3).
+    if (tx + tz <= 1) return h(ix, iz) + (h(ix + 1, iz) - h(ix, iz)) * tx + (h(ix, iz + 1) - h(ix, iz)) * tz;
+    return h(ix + 1, iz + 1) + (h(ix, iz + 1) - h(ix + 1, iz + 1)) * (1 - tx) + (h(ix + 1, iz) - h(ix + 1, iz + 1)) * (1 - tz);
   }
   return 0;
 }

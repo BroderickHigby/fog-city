@@ -98,4 +98,4 @@ describe("SIM_VERSION 3", () => {
 });
 
 /** hashState every 300 ticks of the replay above, recorded at SIM_VERSION 3. */
-const PINNED_V3: string[] = ["55218e00", "36d2fc7b", "1e44fb27", "c8eb268f", "020ec0c2"];
+const PINNED_V3: string[] = ["f70c31aa", "36d2fc7b", "22560051", "c8eb268f", "020ec0c2"];
