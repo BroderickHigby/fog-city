@@ -10,6 +10,7 @@ output without Blender.
 BLENDER=/path/to/blender assets/blender/build.sh             # every model, landmarks.json, sounds (~1 min)
 BLENDER=/path/to/blender assets/blender/build.sh robotaxi    # one model (script name without .py)
 BLENDER=/path/to/blender assets/blender/build.sh --lookdev   # models, then every look-dev render (slow)
+node assets/blender/tools/landmark-sites.ts                  # after a pipeline regeneration: the landmarks' sites
 pnpm vitest run tests/assets                                 # budgets, nodes, orientation, sizes, validator, VAT, audio
 node assets/blender/tools/glb-stats.ts                       # triangles and sizes as exported
 ```
@@ -620,6 +621,65 @@ built:
   Chinatown (design.md Places); its lions are plain stone forms.
 - **Sutro Baths** are ruins as they stand today; nothing in the scene shows people.
 
+## House kit (`public/models/house-kit/`; world QA W-49, W-50, W-38, W-33)
+
+Instanced prototypes for the San Francisco house features the world QA found missing
+(`docs/qa/house-kit-spec.md` K6 bays, K7 stoops, K8 roofline and rooftop kit; W-33 stairs),
+built by `models/house_kit.py`. The renderer instances them at anchors the pipeline writes per
+tile (`bays`, `stoops`, ... node extras, house-kit-spec); until both land, nothing in the game
+draws them, so W-49, W-50, W-38 and W-33 are only partly fixed (the Assets half).
+
+**The contract** is `house-kit/house-kit.json` (written by the script): every prototype's file,
+frame, dimensions and triangle budget, the slots, the layout rules and the roofline profiles.
+`runtime/house-kit.ts` holds the layout maths (`bayLayout`, `stoopLayout`, `rooflineLayout`,
+`stairLayout`, `roofLayout`), pure functions that return instance matrices (column-major, three.js
+`Matrix4.fromArray`) for a house's facade frame or a path's frame; `tests/assets/house-kit.test.ts`
+checks them and every GLB.
+
+**One draw call per node.** Each prototype node is one mesh with one material, `house_kit`,
+whose base colour is the vertex colour (`COLOR_0`, a default per slot). A per-vertex `_SLOT`
+attribute (three.js `_slot`) says what each face is, so one InstancedMesh per node recolours
+per instance: 0 `body` (the house's wall colour), 1 `trim` (its trim colour, K3), 2 `glass`,
+3 `roof` (roofing, metal), 4 `stone` (steps, concrete), 5 `dark` (doors, shadow).
+
+| File | Nodes | Tris (budget) | Frame and use |
+|---|---|---|---|
+| `bay-italianate.glb` | `storey`, `cap` | 187 (260) | angled bay 2.7 m wide, 0.9 m deep, 1.3 m front; segmental window heads; bracketed cornice cap (0.7 m). 1860-1895 |
+| `bay-queen-anne.glb` | `storey`, `cap` | 133 (280) | angled bay 2.9 x 0.95 m, a trim-coloured apron under the sills, a hipped cap with a finial (1.8 m). 1885-1905 |
+| `bay-edwardian.glb` | `storey`, `cap` | 112 (220) | square bay 2.6 x 0.75 m, wide sashes, moulded cap (0.45 m). 1900-1925 |
+| `bay-turret.glb` | `storey`, `cap` | 262 (420) | octagonal corner turret, 2.8 m, centred on the building's corner (the front wall runs to -X, the side wall back), conical roof (4.05 m) that may rise above the roof as built |
+| `stoop.glb` | `step`, `landing`, `cheek`, `rail`, `door` | 110 (160) | unit blocks (x -0.5..0.5, y -1..0, z -1..0) scaled and sheared by `stoopLayout`: equal risers of 0.15-0.19 m, 0.28 m treads, a 1.2 m landing, cheek walls 0.9 m over the treads, iron rails on request; the door frame (1.1 x 2.45 m, transom) at the threshold |
+| `roof-water-tank.glb` | `tank` | 208 (420) | a timber tank on a steel stand (3.4 m, 7.2 m tall) |
+| `roof-mech-box.glb` | `unit` | 76 (140) | a mechanical unit 2.4 x 1.4 m with louvres and a fan, scalable |
+| `roof-penthouse.glb` | `unit` | 24 (90) | a stair or elevator penthouse 4 x 4 x 3.4 m with a door, scalable |
+| `cornice-italianate.glb` | `segment`, `end` | 58 (120) | 1 m of bracketed cornice (0.66 m out, 0.95 m drop) |
+| `cornice-edwardian.glb` | `segment`, `end` | 66 (110) | 1 m of moulded cornice with dentils (0.42 m out, 0.6 m drop) |
+| `parapet-coping.glb` | `segment`, `end` | 18 (40) | 1 m of parapet coping (0.08 m out, 0.3 m drop) |
+| `stair-flight.glb` | `step`, `landing`, `curb`, `handrail` | 52 (90) | a public stairway's unit blocks laid by `stairLayout` along a path profile: equal risers of about 0.165 m, landings on the flats, curbs and handrails |
+| `stair-treads.png` | | | 256 x 256, one tread per tile repeating every 0.30 m of run, the nosing a dark row at the image's bottom: the cheap option for a stair ribbon |
+
+Frames (metres, glTF +Y up, -Z out of the wall): bays and the door stand on the wall plane at
+the floor line; `storey` is one 3.2 m storey (scale y by the facade's storey height / 3.2),
+`cap` sits on the bay's top storey. Roofline segments hang from the roof line (the collider's
+`topY`) on the wall's outer face, 1 m along +X, and nothing rises more than 0.1 m above it
+(house-kit-spec K8: the drawn roof never stands above the collider). Roof props stand on the
+roof at their centre.
+
+Layout rules (`runtime/house-kit.ts`, the numbers in `house-kit.json` `rules`): one bay per
+7.5 m of front 4.5 m or longer, on storeys 1 to n-1 (from the first floor when it is raised 1.5 m
+or more), the cap under the roof line and clear of the front's cornice; a stoop wherever the
+first floor stands 1 m or more above the sidewalk, which removes the blank plinths of W-50 (a
+2.9 m rise is 16 risers reaching 5.4 m out); roofline mouldings in whole 1 m segments stretched
+to the wall; rooftop props only from 4 storeys (a mechanical unit per 250 m² of roof, a
+penthouse from 5 storeys, a water tank on about a third of pre-1950 buildings of 5 storeys),
+inset 2 m from the roof's edge; stairs wherever a path's grade reaches 12%.
+
+Budget (house-kit-spec Budget; tested): a dense residential tile (600 houses, half with two bay
+storeys, 400 stoops, 600 fronts of cornice or coping, 40 roof props) adds under 400k triangles
+in under 16 instanced draw calls; 2 draw calls per bay type in use (storey and cap).
+
+Look-dev `10-house-kit.png` lays a row out with exactly this code (`tools/house-kit-demo.ts`).
+
 ## How each model is made
 
 - **Ferry Building** (`models/ferry_building.py`): facades are runs of wall bays pierced by
@@ -703,6 +763,9 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 | `humanoid-turntable.png` | the crowd's founder variant from four sides (VAT), and `player.glb` (founder-default) wearing the blaster, front and back |
 | `player-founder-turntable.png` | `player.glb` in founder-default as the game loads it (default morph weights: bomber and smile on) at rest: front, three-quarter, side, back |
 | `player-founder-head.png` | founder-default head and shoulders, smiling: front and front three-quarter (1600 x 900, 64 samples, a soft key from the front left) |
+| `10-house-kit.png` | the house kit on a row laid out by `runtime/house-kit.ts`: Italianate, Queen Anne, Edwardian, a corner turret, a 1925 block with its rooftop kit, and a public stairway as stepped blocks beside the same climb as a textured ramp (world QA) |
+| `11-landmarks.png` | the interim landmarks at true scale (Sutro Tower, the pyramid tower, City Hall, Grace Cathedral, Coit Tower, the Palace of Fine Arts, a 32 m block for scale), the Golden Gate Bridge from the Marin side, the Bay Bridge's west span from Rincon Hill (world QA) |
+| `12-landmarks-street.png` | the Dragon Gate from Grant Ave with the player's car under the central portal, and the Sutro Baths ruins on the sim's ground at Lands End (world QA) |
 | `humanoid-clips.png` | walk, idle, wet shake, talk, sit (on a 0.45 m bench), four dive moments, the child walking (all VAT) |
 
 ## Sources and licences
@@ -717,6 +780,14 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 - Photographs (SF Arts Commission extension proposal, Wikipedia, a Burning Man 2015 photo
   page at loupiote.com for the pose description) were used as reference only; no imagery is
   in the assets. All textures are generated by the scripts.
+- The interim landmarks stand on the committed sf world (`public/tiles/sf`: DataSF building
+  footprints with LiDAR heights, DataSF street centrelines, the USGS 3DEP ground), read by
+  `tools/landmark-sites.ts` into `data/landmark-sites.json`. Their dimensions are published
+  figures (Wikipedia: Sutro Tower's height, leg spacings and platform; the Golden Gate Bridge's
+  spans, tower height, clearance and centre coordinate; the Bay Bridge's west span towers and main
+  spans; the pyramid tower's top floor and spire; the Dragon Gate's position north of Bush St and
+  its portals), used as reference only; no imagery, drawings or third-party models are in the
+  assets.
 - Wave 2 uses no outside data: the humanoid, robots, van, props, heaps and animals are
   generated by the scripts, and the sounds are synthesised (`assets/audio/`).
 - founder-default, the player's default look, was matched by eye to the project owner's
