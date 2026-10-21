@@ -18,8 +18,10 @@ import { bootWorld, frames, gateWorld, newSharedPage, renderInfo, settle, type F
 import { Measured, judgeMeasured, onStreet } from "./world-gate.ts";
 import { PROBE_QUERY, foliageNear, probeDown } from "./world-probe.ts";
 
-const OUT = join(ROOT, "test-results", "tour");
-const TOUR_ONLY = process.env.TOUR_ONLY === "1";
+/** TOUR_VIEWS=5,7,lake-merced: shoot only these views (by number or id), pictures only. */
+const PICK = (process.env.TOUR_VIEWS ?? "").split(",").filter(Boolean);
+const TOUR_ONLY = process.env.TOUR_ONLY === "1" || PICK.length > 0;
+const OUT = join(ROOT, "test-results", PICK.length ? "tour-pick" : "tour");
 const VIEWPORT = { width: 960, height: 540 };
 
 interface Probe {
@@ -42,6 +44,8 @@ interface View {
   heading?: number;
   look?: [number, number];
   modes: string[];
+  /** Stand on the highest sim ground within this many metres of `at` (summit views, so the hill does not fill the frame). */
+  summit?: number;
   night?: boolean;
   radius60?: boolean;
   extra?: Extra[];
@@ -57,7 +61,9 @@ interface Shot {
   problems: string[];
 }
 
-const views = (JSON.parse(readFileSync(join(import.meta.dirname, "world-tour.views.json"), "utf8")) as { views: View[] }).views;
+const views = (JSON.parse(readFileSync(join(import.meta.dirname, "world-tour.views.json"), "utf8")) as { views: View[] }).views.filter(
+  (v) => PICK.length === 0 || PICK.includes(String(v.n)) || PICK.includes(v.id),
+);
 
 /** Where the camera goes for a view point, a compass heading (degrees) and a mode. */
 function camera(ground: (x: number, z: number) => number, x: number, z: number, headingDeg: number, mode: string): { x: number; y: number; z: number; yaw: number; pitch: number } {
@@ -72,6 +78,19 @@ function camera(ground: (x: number, z: number) => number, x: number, z: number, 
   }
   if (mode === "chase") return { x, y: ground(x, z) + 5, z, yaw: headingDeg, pitch: -12 };
   return { x, y: ground(x, z) + 1.7, z, yaw: headingDeg, pitch: -2 };
+}
+
+/** The highest point of the sim's ground within r metres of (x, z), on a 2 m grid. */
+function summitOf(ground: (x: number, z: number) => number, x: number, z: number, r: number): { x: number; z: number } {
+  let best = { x, z, y: ground(x, z) };
+  for (let dx = -r; dx <= r; dx += 2) {
+    for (let dz = -r; dz <= r; dz += 2) {
+      if (dx * dx + dz * dz > r * r) continue;
+      const y = ground(x + dx, z + dz);
+      if (y > best.y) best = { x: x + dx, z: z + dz, y };
+    }
+  }
+  return { x: best.x, z: best.z };
 }
 
 function bearingDeg(x: number, z: number, tx: number, tz: number): number {
@@ -148,8 +167,12 @@ test.describe("world gate: the screenshot tour", () => {
       if (issues.length) viewProblems++;
     };
 
+    // A probe first brings its point's tile in: the camera 80 m above it, looking down.
     const probe = async (page: Page, p: Probe): Promise<void> => {
       const q = toLocal(p.at[0], p.at[1]);
+      await page.evaluate((c) => (window as unknown as FogWindow).__fogcity!.flyTo!(c.x, c.y, c.z, 0, -70), { x: q.x, y: ground(q.x, q.z) + 80, z: q.z + 30 });
+      await settle(page, 300_000);
+      await frames(page, 2);
       const kind = p.expect.startsWith("landmark:") ? "landmark" : p.expect;
       probeTotals[kind] = (probeTotals[kind] ?? 0) + 1;
       if (kind === "foliage") {
@@ -168,7 +191,8 @@ test.describe("world gate: the screenshot tour", () => {
       if (!list.length) return;
       const { page, problems } = await open(query);
       for (const v of list) {
-        const place = placeOf(v);
+        let place = placeOf(v);
+        if (v.summit) place = { ...place, ...summitOf(ground, place.x, place.z, v.summit) };
         for (const mode of v.modes) {
           if (mode === "drive") {
             await drive(page, problems, v, place);

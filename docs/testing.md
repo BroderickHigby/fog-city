@@ -327,9 +327,17 @@ meshopt in Node). Harness owns it; each metric's definition lives in
 - **The screenshot tour** (`pnpm tour`, `E2E_PORT` as always): `test-results/tour/NN-view-mode.png`
   and `index.html`, a contact sheet that shows the previous wave's shot beside each one when that
   wave's tour folder is copied to `test-results/tour-previous/`. A person reviews it each wave.
+  `TOUR_VIEWS=5,7,lake-merced pnpm tour` shoots only those views (by number or id) to
+  `test-results/tour-pick/`, pictures only, for checking one fix.
 - **Browser probes.** The gate's specs read the scene through `?debug=1`
   (`window.__fogcityView`, src/main.ts) in `tests/e2e/world-probe.ts`: vertical probes of the
   topmost drawn surface and the drawn car's wheels, in plain JavaScript; never pixels or frame rate.
+  A probe sees what the renderer draws: a far cell does not count inside a tile that is in the
+  scene (the far layer's shader discards it there), and the tour flies over each probe's point
+  first so its tile is streamed in.
+- **Cost at 544f67c** (16 GB machine): the per-PR world suites add about 2 minutes to `pnpm test`
+  with two workers (largest worker 1.8 GB); the nightly Vitest sweeps take about 31 minutes on one
+  worker (0.8 GB; every street is 26,792 runs) and the tour about 50 minutes (85 shots).
 
 ## Writing browser tests
 
@@ -435,4 +443,5 @@ boots its own copy from a sub-path on every e2e run.
 | `test-results/web-build/` | `web-build.spec.ts` | the static build it serves from `/fog/city/`, and `hosted-chase.png` |
 | `test-results/world-gate/` | the world gate's suites | each suite's measured values, failing runs, definitions and timings; read by `pnpm world:baseline` |
 | `test-results/tour/` | `pnpm tour`, `pnpm world:nightly` | the screenshot tour and its contact sheet; cleared at the start of each tour |
+| `test-results/tour-pick/` | `TOUR_VIEWS=... pnpm tour` | the picked tour views only |
 | `dist/` | `pnpm build` | the static web build (gitignored) |

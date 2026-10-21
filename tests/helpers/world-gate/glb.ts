@@ -67,6 +67,8 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
     const col = colliders.get(t.id);
     // ---- parity: one GLB range per collider record, same order, same extents
     const bn = node("buildings");
+    // The drawn ground (this tile's ground mesh; beyond the tile, the sim lattice's triangles).
+    const groundNode = node("ground");
     const recs = col?.buildings ?? [];
     const ranges = (bn?.extras?.buildings ?? []) as Array<[string, number, number]>;
     if (ranges.length !== recs.length || ranges.some((r, i) => r[0] !== recs[i]!.id)) {
@@ -104,7 +106,10 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
         if (!id.endsWith("-tower")) for (const v of bottoms) {
           const y = bn.positions[v + 1]!;
           if (y > minY + 0.01) continue;
-          float = Math.max(float, y - meshGroundHeight(world, bn.positions[v]!, bn.positions[v + 2]!));
+          const vx = bn.positions[v]!;
+          const vz = bn.positions[v + 2]!;
+          const ground = (groundNode ? topHeightAt(groundNode, vx, vz) : null) ?? meshGroundHeight(world, vx, vz);
+          float = Math.max(float, y - ground);
         }
         if (float > 0.05) {
           floating++;

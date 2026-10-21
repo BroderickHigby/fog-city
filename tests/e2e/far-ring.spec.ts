@@ -2,10 +2,12 @@
 // at radius 60, so near tiles end a few metres from the camera and the far layer carries on.
 // Beside the three worst borders (the Presidio t-16_-1/t-15_-1, the Lakeshore bluffs
 // t-20_17/t-20_18, west of Twin Peaks t-9_13/t-8_13), straight-down probes every 5 m along the
-// border, 2 m into each side: none may find the sea plane through a crack between the layers.
+// border, 2 m into each side, wherever the sim's ground there is land (above 0.5 m): none may find
+// the sea plane through a crack between the layers.
 
 import { test } from "@playwright/test";
-import { worldExists } from "../helpers.ts";
+import { groundHeight } from "../../src/sim/index.ts";
+import { loadWorld, worldExists } from "../helpers.ts";
 import { bootWorld, frames, gateWorld, newSharedPage, settle, type FogWindow } from "./fixtures.ts";
 import { Measured, judgeMeasured } from "./world-gate.ts";
 import { PROBE_QUERY, probeDown } from "./world-probe.ts";
@@ -23,6 +25,7 @@ test.describe("world gate: the near/far ring at radius 60", () => {
   test("no probe beside the worst borders reaches the sea plane", async ({ browser }, info) => {
     gateWorld("sf");
     test.setTimeout(1_800_000);
+    const { world } = loadWorld("sf");
     const page = await newSharedPage(browser, info.project.use);
     await bootWorld(page, "sf", `${PROBE_QUERY}&radius=60`, 240_000);
     await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
@@ -38,7 +41,10 @@ test.describe("world gate: the near/far ring at radius 60", () => {
       await frames(page, 3);
       const pts: Array<[number, number]> = [];
       for (let s = b.from + 2.5; s < b.to; s += 5) {
-        for (const side of [-2, 2]) pts.push(b.vertical ? [b.at + side, s] : [s, b.at + side]);
+        for (const side of [-2, 2]) {
+          const p: [number, number] = b.vertical ? [b.at + side, s] : [s, b.at + side];
+          if (groundHeight(world, p[0], p[1]) > 0.5) pts.push(p);
+        }
       }
       const hits = await probeDown(page, pts, ["tile:", "far:", "bay"]);
       probes += hits.length;
@@ -47,7 +53,7 @@ test.describe("world gate: the near/far ring at radius 60", () => {
       if (n) where.push(`${b.name}: ${n} of ${hits.length}`);
     }
     const m = new Measured("far-ring", "e2e-nightly");
-    m.metric({ id: "G.farRing.seaThroughProbes", target: 0, better: "lower", unit: "probes", defects: ["W-17"], desc: "at radius 60 beside the three worst near/far borders, straight-down probes (every 5 m, 2 m either side) that find the sea plane or nothing" }, sea, { probes, where });
+    m.metric({ id: "G.farRing.seaThroughProbes", target: 0, better: "lower", unit: "probes", defects: ["W-17"], desc: "at radius 60 beside the three worst near/far borders, straight-down probes over sim land (every 5 m, 2 m either side) that find the sea plane or nothing" }, sea, { probes, where });
     judgeMeasured(m);
     await page.context().close();
   });

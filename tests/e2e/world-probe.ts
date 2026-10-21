@@ -3,9 +3,11 @@
 // window.__fogcityView (src/main.ts) with plain JavaScript (no three.js import: vectors and
 // boxes come from the scene's own objects), and never assert on pixels or frame rate.
 //
-// A vertical probe returns the topmost drawn surface over (x, z): its height, the mesh's name
-// and its ancestors' names, the material's name, and the colour class of the surface there
-// (the interpolated vertex colour, else the material colour): "green", "sand", "water", "grey".
+// A vertical probe returns the topmost drawn surface over (x, z) as the renderer draws it (a far
+// cell counts only outside the tiles in the scene: its shader discards it inside them): its
+// height, the mesh's name and its ancestors' names, the material's name, and the colour class of
+// the surface there (the interpolated vertex colour, else the material colour): "green", "sand",
+// "water", "grey".
 
 import type { Page } from "@playwright/test";
 
@@ -63,6 +65,13 @@ export async function probeDown(page: Page, pts: ReadonlyArray<readonly [number,
         if (s >= 0.1 && h >= 180 && h <= 250) return "water";
         return "grey";
       };
+      // The far layer discards its fragments inside every tile in the scene (src/render/far-layer.ts,
+      // a mask per tile set when the tile's group is added): a far mesh is no hit there.
+      const tilesIn = new Set<string>();
+      scene.traverse((o) => {
+        if (o.name.startsWith("tile:")) tilesIn.add(o.name.slice(5));
+      });
+      const farMeshes = new Set<Obj>();
       const meshes: Obj[] = [];
       scene.traverse((o) => {
         if (!o.isMesh || o.isInstancedMesh || !o.geometry?.attributes.position) return;
@@ -70,6 +79,7 @@ export async function probeDown(page: Page, pts: ReadonlyArray<readonly [number,
         const names: string[] = [];
         for (let p: Obj | null = o; p; p = p.parent) if (p.name) names.push(p.name);
         if (only && !names.some((n) => only.some((o) => n.includes(o)))) return;
+        if (names.some((n) => n === "far" || n.startsWith("far:"))) farMeshes.add(o);
         meshes.push(o);
       });
       // World-space positions and xz boxes, cached per mesh and matrix.
@@ -102,7 +112,9 @@ export async function probeDown(page: Page, pts: ReadonlyArray<readonly [number,
       };
       return pts.map(([x, z]) => {
         let best: ProbeHit | null = null;
+        const tileHere = `t${Math.floor(x / 500)}_${Math.floor(z / 500)}`;
         for (const m of meshes) {
+          if (farMeshes.has(m) && tilesIn.has(tileHere)) continue;
           const { P, box } = world(m);
           if (x < box[0]! || x > box[2]! || z < box[1]! || z > box[3]!) continue;
           const g = m.geometry!;
