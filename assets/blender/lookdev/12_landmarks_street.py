@@ -37,9 +37,13 @@ def stage(res, sun_az=230.0, sun_el=24.0):
 
 def panel(name: str) -> np.ndarray:
     os.makedirs(TMP, exist_ok=True)
+    keep = os.environ.get("FC_LOOKDEV_OUT")
     os.environ["FC_LOOKDEV_OUT"] = TMP
     path = L.render(f"{name}.png")
-    del os.environ["FC_LOOKDEV_OUT"]
+    if keep is None:
+        del os.environ["FC_LOOKDEV_OUT"]
+    else:
+        os.environ["FC_LOOKDEV_OUT"] = keep
     img = bpy.data.images.load(path)
     px = np.array(img.pixels[:], dtype=np.float32).reshape(img.size[1], img.size[0], 4)
     bpy.data.images.remove(img)
@@ -97,7 +101,9 @@ def main() -> None:
     h, w = out.shape[:2]
     img = bpy.data.images.new("street_sheet", w, h, alpha=False)
     img.pixels.foreach_set(out.ravel())
-    path = os.path.join(L.LOOKDEV_DIR, "12-landmarks-street.png")
+    out_dir = os.environ.get("FC_LOOKDEV_OUT", L.LOOKDEV_DIR)
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, "12-landmarks-street.png")
     img.filepath_raw = path
     img.file_format = "PNG"
     img.save()
