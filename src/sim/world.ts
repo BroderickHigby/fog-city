@@ -15,6 +15,12 @@ export interface BuildingCollider {
   baseY: number;
   /** Roof height, metres. */
   topY: number;
+  /**
+   * Underside of a structure that spans a street or path (a deck, a bridge between buildings),
+   * metres; absent: solid down to the ground. A body passes under it when its top is at or
+   * below this height (blocksBand).
+   */
+  underY?: number;
 }
 
 /** Regular grid of ground heights. heights[iz * nx + ix] is at (x0 + ix*cellSizeM, z0 + iz*cellSizeM). */
@@ -208,8 +214,34 @@ export function nearbyBuildings(world: World, x: number, z: number, r: number): 
   return out;
 }
 
-/** Bilinear height of one heightfield at (x, z), clamped into its lattice (the caller picked the tile). */
-function heightIn(g: Heightfield, x: number, z: number): number {
+/** Bodies may stand on a building's roof, and are not blocked by it, when it is at most this far above their feet (blocksBand, surfaceHeight). */
+export const ROOF_STEP_M = 0.5;
+/** A road or path passes under a structure whose underside is at least this far above its ground (agents, the road graph). */
+export const UNDER_CLEARANCE_M = 4.5;
+
+/**
+ * Does building b block a body whose collision band runs from `bottom` (its feet plus the step
+ * it can climb) to `top` (the top of its body)? Only between the building's underside (when it
+ * has one) and its roof: a body whose feet are at or above the roof stands on it or passes over
+ * it, and a body wholly below an underside passes under it. Flat records (topY <= baseY) never
+ * block.
+ */
+export function blocksBand(b: Readonly<BuildingCollider>, bottom: number, top: number): boolean {
+  if (b.topY <= b.baseY || bottom >= b.topY) return false;
+  return b.underY === undefined || top > b.underY;
+}
+
+/**
+ * Height of one heightfield at (x, z), clamped into its lattice (the caller picked the tile), on
+ * the rendered ground mesh: each lattice cell is two planar triangles split along its
+ * (i+1, k)-(i, k+1) diagonal, exactly as pipeline/lib/mesh.ts groundMesh (and the renderer's
+ * fallback heightfield mesh) triangulate it, so a body stands on the ground that is drawn.
+ * (A bilinear blend differs from the drawn triangles by up to a quarter of the cell's twist,
+ * |h00 + h11 - h10 - h01| / 4: 4.4 m on the steepest SF cells.) Pipeline terrain.ts
+ * Ground.meshHeightAt is the same arithmetic. Continuous across cells and across tiles, whose
+ * borders repeat the same samples.
+ */
+export function heightOnField(g: Readonly<Heightfield>, x: number, z: number): number {
   const fx = (x - g.x0) / g.cellSizeM;
   const fz = (z - g.z0) / g.cellSizeM;
   const ix = Math.min(Math.floor(fx), g.nx - 2);
@@ -220,16 +252,17 @@ function heightIn(g: Heightfield, x: number, z: number): number {
   const h10 = g.heights[iz * g.nx + ix + 1] ?? 0;
   const h01 = g.heights[(iz + 1) * g.nx + ix] ?? 0;
   const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
-  return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+  if (tx + tz <= 1) return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
+  return h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
 }
 
 /**
- * Ground height at (x, z): bilinear over the heightfield that covers the point, else 0 (sea
- * level). Pipeline worlds look the tile up by floor(x / T), floor(z / T) (world.tileGround); a
- * point on a tile's far border belongs to that tile when the next one is absent. Neighbours
- * repeat their shared border samples, so a border point has one height whichever tile answers.
- * Hand-made worlds whose heightfields are not tile-aligned use the first covering tile in id
- * order (world.groundIndex).
+ * Ground height at (x, z): the ground mesh (heightOnField) of the heightfield that covers the
+ * point, else 0 (sea level). Pipeline worlds look the tile up by floor(x / T), floor(z / T)
+ * (world.tileGround); a point on a tile's far border belongs to that tile when the next one is
+ * absent. Neighbours repeat their shared border samples, so a border point has one height
+ * whichever tile answers. Hand-made worlds whose heightfields are not tile-aligned use the
+ * first covering tile in id order (world.groundIndex).
  */
 export function groundHeight(world: World, x: number, z: number): number {
   const tg = world.tileGround;
@@ -243,7 +276,7 @@ export function groundHeight(world: World, x: number, z: number): number {
       g = (onX ? tg.get(cellKey(ix - 1, iz)) : undefined) ?? (onZ ? tg.get(cellKey(ix, iz - 1)) : undefined) ?? (onX && onZ ? tg.get(cellKey(ix - 1, iz - 1)) : undefined);
       if (!g) return 0;
     }
-    return heightIn(g, x, z);
+    return heightOnField(g, x, z);
   }
   const candidates = world.groundIndex.get(cellKey(Math.floor(x / GROUND_CELL), Math.floor(z / GROUND_CELL)));
   if (!candidates) return 0;
@@ -253,17 +286,34 @@ export function groundHeight(world: World, x: number, z: number): number {
     const fx = (x - g.x0) / g.cellSizeM;
     const fz = (z - g.z0) / g.cellSizeM;
     if (fx < 0 || fz < 0 || fx > g.nx - 1 || fz > g.nz - 1) continue;
-    const ix = Math.min(Math.floor(fx), g.nx - 2);
-    const iz = Math.min(Math.floor(fz), g.nz - 2);
-    const tx = fx - ix;
-    const tz = fz - iz;
-    const h00 = g.heights[iz * g.nx + ix] ?? 0;
-    const h10 = g.heights[iz * g.nx + ix + 1] ?? 0;
-    const h01 = g.heights[(iz + 1) * g.nx + ix] ?? 0;
-    const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
-    return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
+    return heightOnField(g, x, z);
   }
   return 0;
+}
+
+/**
+ * The surface a body with its feet at `feet` stands on at (x, z): the ground, or the roof of a
+ * building covering the point when that roof is above the ground and at most ROOF_STEP_M above
+ * the feet (a body never steps onto a roof higher than that; such a building blocks it instead,
+ * blocksBand). So a body that reaches a roof (from a hillside above it, or over a low ledge)
+ * stands on it, and walks or drives off its edge rather than sinking into the building.
+ */
+export function surfaceHeight(world: World, x: number, z: number, feet: number): number {
+  let h = groundHeight(world, x, z);
+  const lim = feet + ROOF_STEP_M;
+  if (lim <= h) return h;
+  const key = cellKey(Math.floor(x / CELL), Math.floor(z / CELL));
+  const list = world.cells.get(key);
+  if (!list) return h;
+  const bb = world.cellBoxes.get(key)!;
+  for (let i = 0, n = list.length; i < n; i++) {
+    const k = i * 4;
+    if (x < bb[k]! || x > bb[k + 2]! || z < bb[k + 1]! || z > bb[k + 3]!) continue;
+    const b = list[i]!;
+    if (b.topY <= h || b.topY > lim || b.topY <= b.baseY) continue;
+    if (pointInPolygon(x, z, b.footprint)) h = b.topY;
+  }
+  return h;
 }
 
 export function pointInPolygon(x: number, z: number, poly: ReadonlyArray<readonly [number, number]>): boolean {
@@ -297,6 +347,40 @@ export function closestOnBoundary(
     if (d2 < best.d2) best = { x: px, z: pz, d2 };
   }
   return best;
+}
+
+/**
+ * Unit normal of the polygon edge nearest (x, z), pointing out of the polygon: the way out for
+ * a point on (or within a hair of) the boundary, where the direction to the closest boundary
+ * point is undefined. Deterministic: the first nearest edge in ring order.
+ */
+export function outwardNormal(x: number, z: number, poly: ReadonlyArray<readonly [number, number]>): { x: number; z: number } {
+  let best = Infinity;
+  let nx = 1;
+  let nz = 0;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [ax, az] = poly[j]!;
+    const [bx, bz] = poly[i]!;
+    const ex = bx - ax;
+    const ez = bz - az;
+    const len2 = ex * ex + ez * ez;
+    if (len2 <= 0) continue;
+    let t = ((x - ax) * ex + (z - az) * ez) / len2;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const px = ax + ex * t - x;
+    const pz = az + ez * t - z;
+    const d2 = px * px + pz * pz;
+    if (d2 < best) {
+      best = d2;
+      const len = Math.sqrt(len2);
+      nx = ez / len;
+      nz = -ex / len;
+    }
+  }
+  // Whichever side of the edge is outside: step a little that way and test.
+  const mx = x + nx * 1e-3;
+  const mz = z + nz * 1e-3;
+  return pointInPolygon(mx, mz, poly) ? { x: -nx, z: -nz } : { x: nx, z: nz };
 }
 
 /**
@@ -339,7 +423,11 @@ export function resolveCircle(
   return { x, z, hit };
 }
 
-/** Does a circle of radius r at (x, z) overlap any building footprint? (Height is ignored: for ground agents.) */
+/**
+ * Does a circle of radius r at (x, z) overlap any building footprint? Height is ignored (for
+ * ground agents and the road graph), except that a structure whose underside is at least
+ * UNDER_CLEARANCE_M above the ground at (x, z) is passed under.
+ */
 export function circleBlocked(world: World, x: number, z: number, r: number): boolean {
   const r2 = r * r;
   for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
@@ -353,6 +441,8 @@ export function circleBlocked(world: World, x: number, z: number, r: number): bo
         if (x + r < bb[k]! || x - r > bb[k + 2]! || z + r < bb[k + 1]! || z - r > bb[k + 3]!) continue;
         const b = list[i]!;
         if (b.topY <= b.baseY) continue;
+        // A deck or bridge high enough over the ground here: agents pass under it.
+        if (b.underY !== undefined && b.underY - groundHeight(world, x, z) >= UNDER_CLEARANCE_M) continue;
         if (circleTouchesPolygon(x, z, r2, b.footprint)) return true;
       }
     }
@@ -408,7 +498,8 @@ function segmentsMeet(ax: number, az: number, bx: number, bz: number, cx: number
 
 /**
  * Does the straight line from (ax, az) to (bx, bz) cross or enter any building footprint?
- * Height is ignored, as in circleBlocked: for line of sight between bodies on the ground.
+ * Height is ignored, as in circleBlocked (for line of sight between bodies on the ground),
+ * except that a structure whose underside clears both ends' ground by UNDER_CLEARANCE_M is seen under.
  */
 export function segmentBlocked(world: World, ax: number, az: number, bx: number, bz: number): boolean {
   const minX = ax < bx ? ax : bx;
@@ -426,6 +517,7 @@ export function segmentBlocked(world: World, ax: number, az: number, bx: number,
         if (maxX < bb[k]! || minX > bb[k + 2]! || maxZ < bb[k + 1]! || minZ > bb[k + 3]!) continue;
         const b = list[i]!;
         if (b.topY <= b.baseY) continue;
+        if (b.underY !== undefined && b.underY - Math.max(groundHeight(world, ax, az), groundHeight(world, bx, bz)) >= UNDER_CLEARANCE_M) continue;
         if (pointInPolygon(ax, az, b.footprint) || pointInPolygon(bx, bz, b.footprint)) return true;
         const poly = b.footprint;
         for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {

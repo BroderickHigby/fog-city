@@ -215,7 +215,7 @@ describe("walls between the car and the walker", () => {
   const thin = buildWorld([{ tileId: "thin", buildings: [box("thin", -1.35, -6, -1.0, 6)], ground: null }]);
   const onFoot = (s: SimState, x: number, z: number): SimState => ({
     ...s,
-    players: { p1: { ...s.players.p1!, mode: "foot", foot: { x, y: 0, z, heading: 0, speed: 0, sprint: false }, exitPending: false } },
+    players: { p1: { ...s.players.p1!, mode: "foot", foot: { x, y: 0, z, heading: 0, speed: 0, sprint: false, vy: 0, grounded: true }, exitPending: false } },
   });
 
   it("F never puts the walker on the far side of a wall: it uses the next clear side", () => {
