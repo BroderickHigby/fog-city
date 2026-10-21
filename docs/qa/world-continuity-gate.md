@@ -28,9 +28,9 @@ The gate turns the 52 defects of `world-qa-report.md` into automated tests, plus
    - W-06 and W-07 are regressions introduced at head. Their targets apply to the next merge into integrate/wave1.
 5. **Cadence and memory.** The machine has 16 GB and no swap; the per-PR world tests must stay under 2 GB peak.
    - **Per PR:** `world-pr`, a Vitest project. It loads the pack only (12.7 MB; the world builds in about 2 s, about 0.7 GB), with `--maxWorkers=2`, in under 5 minutes.
-   - **Nightly:** `world-nightly` with `--maxWorkers=1`, plus `playwright test world-tour --workers=1`, under 40 minutes.
+   - **Nightly:** `world-nightly` with `--maxWorkers=1`, plus `playwright test world-tour --workers=1`, under 90 minutes (planned as 40; see "Differences from the plan").
    - Locally, both run under the machine-wide heavy lock.
-   - When a PR changes a subset of tiles, the GLB-decoding checks run per PR on the changed tiles only, and nightly on all 583.
+   - The GLB-decoding checks run per PR on all 583 tiles (about 35 s; planned as the changed tiles per PR and all 583 nightly; see "Differences from the plan").
 6. **Ownership.** Each test lives in its owner track's directory (`CLAUDE.md`):
    - `tests/pipeline/`: Pipeline.
    - `tests/sim/world/` and the files directly in `tests/sim/`: Sim-World.
@@ -228,8 +228,10 @@ difference is listed with its reason.
 | The ratchet's rules, the measurement record, the Vitest wrapper | `tests/helpers/world-gate/ratchet.ts`, `measured.ts`, `suite.ts` |
 | Each suite's metric definitions and measurements | `tests/helpers/world-gate/{buildings,terrain,streets,cover,houses,edge,play,nightly,glb,far}.ts` |
 | Reference fixtures (parcel points, Rec and Park outlines, lakes, 1 m DEM profiles, QA sites) | `tests/helpers/world-gate/fixtures/` (README; made by `scripts/golden/world-fixtures.ts`) |
-| Per-PR suites (Vitest project `world-pr`, inside `pnpm test`) | `tests/golden/world/*.test.ts` |
-| Nightly suites (project `world-nightly`, `FOG_WORLD_NIGHTLY=1`) | `tests/golden/world/*.nightly.ts` |
+| The pinned 300-edge street sample | `tests/helpers/world-gate/fixtures/drive-sample.json` (refreshed on purpose only by `scripts/golden/world-sample.ts --write`) |
+| Per-PR suites (Vitest project `world-pr`, inside `pnpm test`) | `tests/golden/world/*.test.ts`: buildings, terrain, streets, cover, houses, edge, drive, routes, foot, determinism, glb, far |
+| Nightly suites (project `world-nightly`, `FOG_WORLD_NIGHTLY=1`) | `tests/golden/world/*.nightly.ts`: streets-all, freeways-all, paths-all, walls-all |
+| The reminder summary (a metric better than its baseline by 10% or less) | `tests/helpers/world-gate/reporter.ts` (a Vitest reporter: printed at the end of the run, and `test-results/world-gate/reminders.txt`) |
 | Browser checks | `tests/e2e/car-pose.spec.ts` (per PR), `far-ring.spec.ts` and `world-tour.spec.ts` (nightly, `tests/e2e/nightly.config.ts`), probes in `tests/e2e/world-probe.ts` |
 | The tour's views | `tests/e2e/world-tour.views.json` |
 | The ratchet | `tests/golden/world-qa-baseline.json` (defects and metrics), `tests/golden/world-qa-runs.json` (runs that failed at the baseline) |
@@ -241,15 +243,20 @@ difference is listed with its reason.
 - `pnpm world:pr`: the per-PR world suites alone.
 - `pnpm world:nightly`: the nightly sweeps (one worker), then the ring and the tour.
 - `pnpm tour`: the screenshot tour alone, to `test-results/tour/` (no assertions).
-- `pnpm world:baseline [--check] [--accept-worse <id>,...] [--prune]`: lower the ratchet from the last measurement.
+- `pnpm world:baseline [--check] [--accept-worse <id>,...] [--accept-looser <id>,...] [--include-stale] [--prune]`: lower the ratchet from the last measurement.
 
 ### How a lane uses the gate
 
 1. Fix the defect. Run the suite that measures it (`pnpm world:pr`, or the nightly or e2e spec).
 2. The suite fails with "beat its baseline by N%: the baseline is stale" when the fix moved a
-   metric by more than 10%. Run `pnpm world:baseline`: it lowers the baselines (and shrinks the
-   failing-run lists) from what the suites recorded in `test-results/world-gate/`, and refuses
-   any metric that got worse unless it is named with `--accept-worse`.
+   metric by more than 10%; a smaller improvement passes, and the end of the run lists it as a
+   reminder. Run `pnpm world:baseline`: it lowers the baselines (and shrinks the failing-run
+   lists) from what the suites recorded in `test-results/world-gate/`. It refuses any metric
+   that got worse unless it is named with `--accept-worse`, and any definition change that
+   loosens the gate (a looser target, a flipped direction, a later target wave, a move off the
+   per-PR tier, a metric no longer enforced) unless it is named with `--accept-looser`. It skips
+   records measured on another commit or before the working tree's latest change (each record is
+   stamped), so rerun the suite after your last edit.
 3. When every metric of the defect is at its target, flip the defect's `status` to `fixed` in
    `tests/golden/world-qa-baseline.json` (by hand, in the same PR) and update
    `docs/qa/world-qa-status.md`. From then on the defect's targets are hard assertions.
@@ -315,7 +322,52 @@ difference is listed with its reason.
   only 156 m in 30 s: the car is held behind robotaxis waiting at Fillmore (the same hold-up
   that keeps the gate's hill routes free of traffic; without traffic the first 700 m take 75 s).
   The contact sheet notes the distance each run. The summit views stand
-  on the highest ground within 80 m of their point.
+  on the highest ground within 80 m of their point that is at least 6 m from every building
+  footprint and sees 80 m along the view's heading with no building taller than the eye in the
+  way (Bernal Hill's highest ground is the radio building's: standing there put the camera inside
+  it, under its tower, which read as a floating building and hid the view south; the next
+  highest point looked straight into its wall).
+- **The GLB-decoding checks run per PR, on every tile.** Rule 5 and rows A and C planned them per
+  PR on the tiles a PR changes and nightly on all 583. Decoding and checking every tile GLB
+  (suite `glb`: parity with the colliders, the drawn road against the sim's surface, the ground
+  through the ribbons, freeways under the ground, double ribbons, ground seams, floating walls)
+  and the far layer (suite `far`: the ring seam, far coverage, the far hulls) takes about 35 s
+  and 0.86 GB on one worker, so both run per PR on the whole city
+  (`tests/golden/world/glb.test.ts`, `far.test.ts`): a PR that regenerates tiles is judged on all
+  of them, and there is no changed-tile selection to get wrong. Their metric ids keep the `N.`
+  prefix they had as nightly checks.
+- **The nightly tier's time.** Rule 5 planned under 40 minutes. Measured on the 16 GB machine,
+  the Vitest sweeps take about 30 minutes on one worker (every street alone is 26,792 runs),
+  the ring about 1 minute and the tour about 50 minutes: 85 shots at 30 to 70 s each, because
+  under SwiftShader the GPU process takes all four cores and a shot's time goes into drawing the
+  city and capturing it. Cutting the frame waits after each settle from three to one saved
+  nothing measurable (views 1, 5 and 7: 44, 62, 37 and 69 s per shot against 40, 67, 31 and
+  49 s), so they stay. The budget is therefore 90 minutes, with the workflow's 120-minute
+  timeout as the hard limit; the contact sheet (`index.json`) records each shot's time and the
+  tour's total, so a slower tour shows. Running the sweeps on two workers would halve their time
+  but hold two whole-city worlds at once; the nightly keeps one.
+- **The street sample is pinned.** The critic's seeded 300-edge sample (every k-th surface edge
+  by id) is chosen once and committed (`tests/helpers/world-gate/fixtures/drive-sample.json`):
+  computed on every run, one edge added, removed or renamed in `roads.json` would shift every
+  later index, drop the baseline's failing runs out of the sample and bring new ones in. A
+  pinned edge gone from `roads.json` counts as a failed run; `scripts/golden/world-sample.ts
+  --write` refreshes the sample, on purpose only.
+- **Fixed defects keep their populations.** W-21's metrics read 0 on an empty corridor list too,
+  so `E.gaps.turnRuns` holds the number of turn runs at 156 or more, and
+  `E.gaps.shoreCutOutsideCorridorsM` walks the boundary's shore lines every metre (79.4 km) and
+  requires every stretch no shore wall covers (378 m at 544f67c) to lie inside a road corridor.
+  W-26 is measured on every record within 60 m of Sutro Tower, whatever its id
+  (`A.landmark.sutroAreaTallestM`, replacing three fixed record ids): the plinths and the tower's
+  equipment buildings, the tallest 13.6 m, against a target of 20 m (the slab was 231 m).
+- **Probes that hit nothing fail.** In `car-pose.spec.ts` a wheel over neither a road ribbon nor
+  the ground is an infinite gap, so a tile missing under the car fails instead of reading 0.
+  The cover suite re-applies the renderer's ground tint in Node; it first checks that
+  `src/render/scene.ts` still wires `tintGround` to `tintParks` over the districts' park shapes,
+  and fails with a message naming `drawnGround()` when that wiring changes.
+- **Memory of the determinism suite.** It builds its own worlds one after the other (the pack
+  world as the game boots it, dropped before the world from the per-tile JSON colliders is
+  built) instead of holding the worker's cached world beside a second one: 1.67 GB peak alone on
+  one worker, under rule 5's 2 GB (2.05 GB before).
 - **The nightly tier at 544f67c** agrees with the QA where both measured the same thing: every
   street is 26,792 runs (385 mainland runs stopped, 47 starting inside a footprint, 84 airborne
   for 0.5 s or more, the QA's 84); the ring steps up to 21.57 m (the QA's 21.5 m); 690 records
@@ -334,7 +386,7 @@ difference is listed with its reason.
 <!-- metrics:start (generated from tests/golden/world-qa-baseline.json by scripts/golden/world-docs.ts) -->
 ### The metrics at 544f67c
 
-141 metrics. "enforced": every defect it tracks is fixed (or it is a pass check), so its target is a hard assertion; "ratchet": it may not get worse than its baseline; "at target": already there while a defect it tracks is still open.
+143 metrics. "enforced": every defect it tracks is fixed (or it is a pass check), so its target is a hard assertion; "ratchet": it may not get worse than its baseline; "at target": already there while a defect it tracks is still open.
 
 | Metric | Suite (cadence) | Tracks | Baseline at 544f67c | Target | State | What it measures |
 |---|---|---|---|---|---|---|
@@ -349,7 +401,7 @@ difference is listed with its reason.
 | `A.landmark.bridgesMissing` | buildings (pr) | W-24 | 2 | <= 0 landmarks | ratchet | of golden-gate-bridge and bay-bridge-west, entries missing from content/landmarks.json |
 | `A.landmark.coitHeightError` | buildings (pr) | W-27 | 0.199 | <= 0.05 share of 64 m | ratchet | Coit Tower's height against the published 64 m |
 | `A.landmark.heroWithoutShape` | buildings (pr) | W-27 | 10 | <= 0 landmarks | ratchet | hero landmarks (Transamerica, Coit, Saints Peter and Paul, Palace of Fine Arts, City Hall, Grace Cathedral, Mission Dolores, the Conservatory, Dragon Gate, Sutro Baths) with neither a model nor an interim shape without the office window grid |
-| `A.landmark.sutroRecordHeight` | buildings (pr) | W-26 | 3.44 | <= 10 m above ground | enforced | Sutro Tower's footprint records stay low plinths, never the solid 231 m slab |
+| `A.landmark.sutroAreaTallestM` | buildings (pr) | W-26 | 13.64 | <= 20 m above ground | enforced | the tallest footprint record (any id) with its centroid or a corner within 60 m of Sutro Tower (37.7552,-122.4528), above the ground at its centroid: the plinths and the tower's equipment buildings, never the solid 231 m slab |
 | `A.landmark.sutroTowerTopM` | buildings (pr) | W-25 | 0 | >= 290 m above ground | ratchet | a sutro-tower landmark at 37.7552,-122.4528 whose model top is 290 m or more above its ground |
 | `A.newer.cells3` | buildings (pr) | W-04 | 13 | <= 0 100 m cells | ratchet | 100 m cells holding 3 or more of those unmatched parcel points (a missing block) |
 | `A.newer.missionRockTall` | buildings (pr) | W-04 | 0 | >= 4 records | ratchet | records 40 m or taller in the Mission Rock box (37.7740-37.7765, -122.3905..-122.3875) |
@@ -378,12 +430,14 @@ difference is listed with its reason.
 | `F.placement.maxJumpM` | drive (pr) | W-51 | 23.22 | <= 0.5 m | ratchet | the same placements: the most one tick moves the car beyond speed * DT (pushed out of a footprint in one tick) |
 | `F.placement.maxRiseM` | drive (pr) | W-51 | 0.34 | <= 0.5 m | at target | a car placed at each of the 58 start-blocked street starts and at the 8 multiplayer spawn slots, then driven off: the most it rises above the ground |
 | `F.ram.launches` | drive (pr) | W-23 | 211 | <= 0 rams | ratchet | of 360 seeded rams at 25 m/s into buildings on 15%+ ground (Russian Hill, west of Twin Peaks, Bernal), those that leave the car airborne over 0.3 s or lift it over 0.5 m |
-| `F.sample.runsStopped` | drive (pr) | W-01 | 11 | <= 0 runs | ratchet | runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id, each allowed direction) that do not reach the end |
+| `F.sample.runsStopped` | drive (pr) | W-01 | 11 | <= 0 runs | ratchet | runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id at 544f67c, pinned in tests/helpers/world-gate/fixtures/drive-sample.json; each allowed direction) that do not reach the end, or whose edge is gone from roads.json |
 | `F.tunnels.failingRuns` | drive (pr) | W-02 | 6 | <= 0 runs | ratchet | drives through the Broadway, Stockton and Toll Plaza tunnels at 25 m/s that hit something, leave the ground or stray more than 1 m from the straight portal-to-portal line |
 | `E.freeway.i280Stops` | edge (pr) | W-07, W-03 | 2 | <= 0 drives | ratchet | of I-280 northbound and southbound driven end to end at 25 m/s, drives that stop before the end |
 | `E.freeway.landEdgesCrossingWalls` | edge (pr) | W-07 | 3 | <= 0 edges | ratchet | freeway (gradeSeparated) edges with both ends on land, crossing no more than 300 m of water, whose centreline crosses a wall (I-280 at the creeks) |
 | `E.gaps.carRunsOffCorridor` | edge (pr) | W-21 | 0 | <= 0 runs | enforced | car runs (10 and 25 m/s, turning 30/60/90 deg either way on each road over water) that get more than 1 m outside the road's corridor on the water side |
 | `E.gaps.maxOutOnWaterM` | edge (pr) | W-21 | 0 | <= 1 m | enforced | the farthest those cars get outside the corridor on the water side |
+| `E.gaps.shoreCutOutsideCorridorsM` | edge (pr) | W-21 | 0 | <= 0 m | enforced | metres of the boundary's shore lines (sampled every metre) that no shore wall covers and that lie outside every road corridor (an open gap with no kerbs) |
+| `E.gaps.turnRuns` | edge (pr) | W-21 | 156 | >= 156 runs | enforced | car turn runs measured off the roads over water (12 per corridor and direction with a dry start 25 m before it); fewer means corridors went missing and the three gap metrics above lost their population |
 | `E.gaps.walkerRunsOffCorridor` | edge (pr) | W-21 | 0 | <= 0 runs | enforced | sprinting walkers turning off a road over water who get more than 1 m outside its corridor on the water side |
 | `E.launch.maxRiseM` | edge (pr) | W-06 | 8.94 | <= 1 m | ratchet | the highest any of those cars rose above the ground |
 | `E.launch.sampleLaunches` | edge (pr) | W-06 | 98 | <= 0 runs | ratchet | of cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s (a fixed sample of 200 shore points), runs that rise over 1 m or jump more than speed*DT + 0.5 m in a tick |
@@ -394,8 +448,26 @@ difference is listed with its reason.
 | `E.net.seamDeadEnds` | edge (pr) | pass check | 0 | <= 0 nodes | enforced | road ends that stop exactly on a tile seam between two built tiles (a road cut by the tiling) |
 | `E.push.excessLiftMps` | edge (pr) | W-06, W-23, W-51 | 0 | <= 0 m/s | at target | unit: the most a car pushed out of a building onto a 3 m bank, placed overlapping a footprint, or scraping a wall on a cross slope rises faster than |v| * grade + 1 m/s |
 | `E.walls.sampleEscapes` | edge (pr) | W-08 | 0 | <= 0 ram tests | enforced | ram tests (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) from a fixed sample of 97 wall starts that cross a real wall or leave the built tiles |
+| `N.far.farAboveNearKm` | far (pr) | W-17 | 83.26 | <= 0 km | ratchet | border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack) |
+| `N.far.lowHullsP99M` | far (pr) | W-41 | 8.3 | <= 5 m | ratchet | the 99th percentile of |far hull roof - roof| for records under 30 m |
+| `N.far.outerLandUncovered` | far (pr) | W-40 | 310 | <= 0 samples | ratchet | land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea) |
+| `N.far.recordsWithoutHull` | far (pr) | W-41 | 690 | <= 0 records | ratchet | records with no far hull or cluster over their centroid |
+| `N.far.ringStepMaxM` | far (pr) | W-17 | 21.57 | <= 2 m | ratchet | the largest such step |
+| `N.far.ringStepP99M` | far (pr) | W-17 | 7.44 | <= 1 m | ratchet | 99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring) |
+| `N.far.sanBrunoSummitErrorM` | far (pr) | W-40, W-17 | 402 | <= 10 m | ratchet | San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it) |
+| `N.far.tallHullsOff3m` | far (pr) | W-41 | 44 | <= 0 records | ratchet | records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in) |
+| `N.far.uncoveredTilesMinShare` | far (pr) | W-40 | 0 | >= 0.95 share | ratchet | the lowest far-terrain coverage of t-16_21, t-4_21, t-3_21 and t7_-5 (land beside the built tiles that has no far terrain) |
 | `F.walk.routesFailing` | foot (pr) | W-39 | 6 | <= 0 walks | ratchet | walks that fail: Filbert St up at 1.0 m/s or better, the Lyon St and Filbert steps both ways, 22nd St up, a seam on a slope, Pemberton Pl and Cottage Row both ways |
 | `F.walker.verticalFails` | foot (pr) | W-52 | 2 | <= 0 checks | ratchet | unit: walking off a 3 m drop takes at least 0.7 s to land; a walker cannot climb a slope steeper than 100% taller than 1 m |
+| `N.glb.doubleRibbonShare` | glb (pr) | W-32 | 0.062 | <= 0.005 share of road area | ratchet | road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight) |
+| `N.glb.floatingWallBottoms` | glb (pr) | L-02, L-03 | 2 | <= 0 buildings | ratchet | buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03) |
+| `N.glb.freewayUnderGroundShare` | glb (pr) | W-03, W-10 | 0.105 | <= 0 share of freeway area | ratchet | freeway ribbon area (1 m raster) under the drawn ground |
+| `N.glb.groundSeamMismatches` | glb (pr) | pass check | 0 | <= 0 vertices | enforced | ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks) |
+| `N.glb.groundThroughRoadsShare` | glb (pr) | W-10 | 0.02 | <= 0 share of road area | ratchet | road ribbon area (0.5 m raster) where the drawn ground is more than 0.02 m above the ribbon |
+| `N.glb.parityMismatches` | glb (pr) | pass check | 0 | <= 0 records | enforced | building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes) |
+| `N.glb.roadSunkShare` | glb (pr) | W-09 | 0.039 | <= 0 share of samples | ratchet | centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road) |
+| `N.glb.roadSurfaceMaxM` | glb (pr) | W-09 | 3.84 | <= 0.05 m | ratchet | the largest |drawn road top - sim surface| over the same samples |
+| `N.glb.roadSurfaceP99M` | glb (pr) | W-09 | 0.497 | <= 0.05 m | ratchet | the 99th percentile of |drawn road top - sim surface| over the same samples |
 | `H.bays.anchorShare` | houses (pr) | W-49 | 0 | >= 0.9 share of candidates | ratchet | bay-window anchors drawn (GLB extras "bays") against the street-facing houses from 1925 or earlier |
 | `H.cracks.sampleBoxPairs` | houses (pr) | W-36 | 291 | <= 0 pairs | ratchet | row-house pairs 5 to 60 cm apart (cracks opened by simplification) in the Sunset, Mission, Marina and Russian Hill sample boxes |
 | `H.garages.anchorShare` | houses (pr) | W-48 | 0 | >= 0.9 share of candidates | ratchet | garage-door anchors drawn (GLB extras "garages") against the street-facing 1920-1960 houses of the Sunset, West of Twin Peaks, Outer Richmond, Excelsior and Marina rows |
@@ -443,27 +515,9 @@ difference is listed with its reason.
 | `G.carPose.pitchErrorDeg` | car-pose (e2e) | W-19 | 0 | <= 1 deg | enforced | on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's |
 | `G.carPose.wheelGapM` | car-pose (e2e) | W-09 | 3.9 | <= 0.1 m | ratchet | on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon) |
 | `G.far.cellsDrawnFromTwinPeaks` | car-pose (e2e) | W-20 | 13 | >= 4 far cells | enforced | from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles) |
-| `N.far.farAboveNearKm` | far (nightly) | W-17 | 83.26 | <= 0 km | ratchet | border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack) |
-| `N.far.lowHullsP99M` | far (nightly) | W-41 | 8.3 | <= 5 m | ratchet | the 99th percentile of |far hull roof - roof| for records under 30 m |
-| `N.far.outerLandUncovered` | far (nightly) | W-40 | 310 | <= 0 samples | ratchet | land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea) |
-| `N.far.recordsWithoutHull` | far (nightly) | W-41 | 690 | <= 0 records | ratchet | records with no far hull or cluster over their centroid |
-| `N.far.ringStepMaxM` | far (nightly) | W-17 | 21.57 | <= 2 m | ratchet | the largest such step |
-| `N.far.ringStepP99M` | far (nightly) | W-17 | 7.44 | <= 1 m | ratchet | 99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring) |
-| `N.far.sanBrunoSummitErrorM` | far (nightly) | W-40, W-17 | 402 | <= 10 m | ratchet | San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it) |
-| `N.far.tallHullsOff3m` | far (nightly) | W-41 | 44 | <= 0 records | ratchet | records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in) |
-| `N.far.uncoveredTilesMinShare` | far (nightly) | W-40 | 0 | >= 0.95 share | ratchet | the lowest far-terrain coverage of t-16_21, t-4_21, t-3_21 and t7_-5 (land beside the built tiles that has no far terrain) |
 | `N.freeways.airborneRuns` | freeways-all (nightly) | W-03 | 96 | <= 0 runs | ratchet | freeway and ramp runs at 25 m/s airborne for more than 0.3 s (draped viaducts launching the car) |
 | `N.freeways.hardLandings` | freeways-all (nightly) | W-03 | 76 | <= 0 runs | ratchet | freeway and ramp runs with a landing harder than 3 m/s |
 | `N.freeways.stuckRuns` | freeways-all (nightly) | W-03, W-07 | 17 | <= 0 runs | ratchet | freeway and ramp runs that stop before the end (buildings on the freeway, sea walls) |
-| `N.glb.doubleRibbonShare` | glb (nightly) | W-32 | 0.062 | <= 0.005 share of road area | ratchet | road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight) |
-| `N.glb.floatingWallBottoms` | glb (nightly) | L-02, L-03 | 2 | <= 0 buildings | ratchet | buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03) |
-| `N.glb.freewayUnderGroundShare` | glb (nightly) | W-03, W-10 | 0.105 | <= 0 share of freeway area | ratchet | freeway ribbon area (1 m raster) under the drawn ground |
-| `N.glb.groundSeamMismatches` | glb (nightly) | pass check | 0 | <= 0 vertices | enforced | ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks) |
-| `N.glb.groundThroughRoadsShare` | glb (nightly) | W-10 | 0.02 | <= 0 share of road area | ratchet | road ribbon area (0.5 m raster) where the drawn ground is more than 0.02 m above the ribbon |
-| `N.glb.parityMismatches` | glb (nightly) | pass check | 0 | <= 0 records | enforced | building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes) |
-| `N.glb.roadSunkShare` | glb (nightly) | W-09 | 0.039 | <= 0 share of samples | ratchet | centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road) |
-| `N.glb.roadSurfaceMaxM` | glb (nightly) | W-09 | 3.84 | <= 0.05 m | ratchet | the largest |drawn road top - sim surface| over the same samples |
-| `N.glb.roadSurfaceP99M` | glb (nightly) | W-09 | 0.497 | <= 0.05 m | ratchet | the 99th percentile of |drawn road top - sim surface| over the same samples |
 | `N.paths.walksBlocked` | paths-all (nightly) | W-39 | 77 | <= 0 walks | ratchet | walks along every pedestrian edge (stairways, paths), both ways, with stepFoot, that do not reach the end |
 | `N.streets.airborneRuns` | streets-all (nightly) | W-14 | 84 | <= 0 runs | ratchet | street runs airborne for 0.5 s or more at the posted speed (no real SF crest is listed yet) |
 | `N.streets.districtMinReachedShare` | streets-all (nightly) | W-01 | 0.843 | >= 0.995 share of runs | ratchet | the lowest share, over districts, of street runs that reach their end |

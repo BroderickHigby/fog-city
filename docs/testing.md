@@ -300,12 +300,13 @@ meshopt in Node). Harness owns it; each metric's definition lives in
 
 - **Per PR** (Vitest project `world-pr`, part of `pnpm test` and `pnpm verify`):
   `tests/golden/world/*.test.ts`: buildings, terrain, streets, cover, houses, edge, drive,
-  routes, foot, determinism; and `tests/e2e/car-pose.spec.ts` in `pnpm e2e`.
+  routes, foot, determinism, and the GLB checks on all 583 tiles (`glb`: parity, road surface,
+  ground through ribbons, double ribbons, seams, floating walls) and the far layer (`far`: ring,
+  coverage, hulls); and `tests/e2e/car-pose.spec.ts` in `pnpm e2e`.
 - **Nightly** (`pnpm world:nightly`: project `world-nightly` with one worker, then
   `tests/e2e/nightly.config.ts`; `.github/workflows/world-nightly.yml`): every street in every
-  direction, every freeway and path, every wall rammed and the whole shore's water side, the GLB
-  checks (parity, road surface, ground through ribbons, double ribbons, seams), the far layer
-  (ring, coverage, hulls), the ring at radius 60 and the screenshot tour with its probes.
+  direction, every freeway and path, every wall rammed and the whole shore's water side, the ring
+  at radius 60 and the screenshot tour with its probes.
 - **The ratchet.** `tests/golden/world-qa-baseline.json` holds each metric's value at the
   baseline build, its target, which way is better and the defects (W-01 to W-52, L-01 to L-15)
   it tracks; each defect has a status. A metric worse than its baseline fails. A metric better by
@@ -318,12 +319,26 @@ meshopt in Node). Harness owns it; each metric's definition lives in
   metric), then `pnpm world:baseline`: it reads what the suites recorded in
   `test-results/world-gate/` (they record before they judge, so a failing run records too),
   lowers the baselines and failing-run lists, copies the metric definitions from the code, and
-  refuses anything worse unless named with `--accept-worse <id>` (say why in the PR). Flip the
-  defect's status to `fixed` by hand in the same PR. A new metric: add it to its suite's module,
-  run the suite once (`WORLD_GATE_RECORD=1` records without asserting), then `pnpm world:baseline`.
+  refuses anything worse unless named with `--accept-worse <id>`, and any definition that loosens
+  the gate (a looser target, a flipped direction, a later target wave, a move off the per-PR tier,
+  a metric no longer enforced) unless named with `--accept-looser <id>` (say why in the PR for
+  either). Each record is stamped with the commit it was measured on; the script skips records
+  from another commit or from before the working tree's latest change (`--include-stale` uses
+  them anyway), so rerun the suite after the last edit. Flip the defect's status to `fixed` by
+  hand in the same PR. A new metric: add it to its suite's module, run the suite once
+  (`WORLD_GATE_RECORD=1` records without asserting), then `pnpm world:baseline`.
+- **Reminders.** A metric better than its baseline by 10% or less passes with a reminder to lower
+  the baseline. Vitest's own reporters hide a passing test's output (the "minimal" reporter
+  Vitest picks under a coding agent drops it), so `tests/helpers/world-gate/reporter.ts` prints
+  every reminder together at the end of `pnpm test` and writes them to
+  `test-results/world-gate/reminders.txt`; the Playwright gate specs print theirs in the list
+  reporter's output.
 - **Reference fixtures** (`tests/helpers/world-gate/fixtures/`, with a README): parcel points,
   Rec and Park outlines, lake surfaces, 1 m DEM profiles and the QA's sites, derived once from
-  the QA run's evidence.
+  the QA run's evidence; and the pinned 300-edge street sample (`drive-sample.json`), which
+  `node scripts/golden/world-sample.ts --write` refreshes from `roads.json`, on purpose only (a
+  sample recomputed on every run would shift when one edge is added or renamed). A pinned edge
+  gone from `roads.json` counts as a failed run.
 - **The screenshot tour** (`pnpm tour`, `E2E_PORT` as always): `test-results/tour/NN-view-mode.png`
   and `index.html`, a contact sheet that shows the previous wave's shot beside each one when that
   wave's tour folder is copied to `test-results/tour-previous/`. A person reviews it each wave.
@@ -336,10 +351,12 @@ meshopt in Node). Harness owns it; each metric's definition lives in
   scene (the far layer's shader discards it there), and the tour flies over each probe's point
   first so its tile is streamed in.
 - **Cost at 544f67c** (16 GB machine): `vitest run` with the per-PR world suites takes about
-  3 minutes on two workers (largest process 2.1 GB; at least 12 GB stayed free); `car-pose.spec.ts`
-  adds about 3 minutes to `pnpm e2e`; the nightly Vitest sweeps take about 31 minutes on one
-  worker (0.9 GB; every street is 26,792 runs), the ring about 1 minute and the tour about
-  50 minutes (85 shots).
+  3 minutes on two workers (largest process 2.1 GB; at least 12 GB stayed free; the GLB and far
+  suites add about 35 s and 0.86 GB, the determinism suite peaks at 1.67 GB alone);
+  `car-pose.spec.ts` adds about 3 minutes to `pnpm e2e`; the nightly Vitest sweeps take about
+  30 minutes on one worker (0.9 GB; every street is 26,792 runs), the ring about 1 minute and the
+  tour about 50 minutes (85 shots; `index.json` records each shot's time). The nightly budget is
+  90 minutes (`docs/qa/world-continuity-gate.md`, "Differences from the plan").
 
 ## Writing browser tests
 

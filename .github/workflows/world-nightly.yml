@@ -1,6 +1,7 @@
 # The world-continuity gate's nightly tier (docs/qa/world-continuity-gate.md): every street
-# driven, every freeway and path, every wall rammed, the GLB and far-layer checks, the near/far
-# ring and the screenshot tour. Outside `pnpm verify`; the per-PR tier runs in ci.yml's unit tests.
+# driven, every freeway and path, every wall rammed, the near/far ring and the screenshot tour
+# (about 70 to 90 minutes on one worker). Outside `pnpm verify`; the per-PR tier (including the
+# GLB and far-layer checks) runs in ci.yml's unit tests.
 name: World nightly
 
 on:
