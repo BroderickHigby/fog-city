@@ -950,6 +950,13 @@ memory, and compares SHA-256 of every file.
   rebuilt (2012–2015) on new alignments: the Battery tunnel is bored northbound and the Main
   Post tunnel southbound, where the DEM's hill stands over the line; the other direction's
   hill is too shallow (under 3 m of cover) and runs over it.
+* **The collider pack is over the static web build's per-file margin.** `world.colliders.bin`
+  is 14.87 MB (budget 15 MB); gzip + base64 it is 14.27 MB, under the page host's 15 MB file
+  limit but over `PACK_MAX_BYTES` (14 MB) in `scripts/build-web.ts`, which ships it as one file,
+  so `pnpm build` and `tests/e2e/web-build.spec.ts` stop. It grew by the shared walls' kept
+  vertices (W-36, +300k), the terrace strips (W-05/W-28, +17,551 records) and the structures
+  (+0.3 MB): the content the fixes need, so the static build (Render-World) has to carry it,
+  split into parts or up to the host's limit.
 * **No 2 m road profile (W-31).** The road surface is the 10 m lattice (drawn exactly as the
   sim drives it); the 1 m DEM that a 2 m road-profile pass needs is not among the cached
   inputs.
