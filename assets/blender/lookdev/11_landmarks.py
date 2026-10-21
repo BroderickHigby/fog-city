@@ -12,7 +12,9 @@ The Dragon Gate and the Sutro Baths ruins are in look-dev 12 (street scale).
 
 import math
 import os
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
 
@@ -23,7 +25,7 @@ import fc  # noqa: E402
 import lookdev as L  # noqa: E402
 import lookdev_assets as A  # noqa: E402
 
-TMP = os.path.join(fc.BLENDER_DIR, ".renders", "lookdev-11")
+TMP = tempfile.mkdtemp(prefix="fc-lookdev-")  # panels before stitching; outside the repository, removed after
 
 
 def stage(ground_hex: str, res, water: bool = False, sun_az: float = 245.0, sun_el: float = 14.0):
@@ -98,6 +100,7 @@ def main() -> None:
     img.save()
     bpy.data.images.remove(img)
     L.strip_png_text(path)
+    shutil.rmtree(TMP, ignore_errors=True)
     print(f"[lookdev] wrote {os.path.relpath(path, fc.REPO)} ({os.path.getsize(path) // 1024} KiB)")
 
 

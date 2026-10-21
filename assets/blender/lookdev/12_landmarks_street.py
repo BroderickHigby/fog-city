@@ -9,7 +9,9 @@ Two panels (900 x 720 each), imported from public/models as the game loads them:
 """
 
 import os
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
 
@@ -21,7 +23,7 @@ import landmark_kit as LK  # noqa: E402
 import lookdev as L  # noqa: E402
 import lookdev_assets as A  # noqa: E402
 
-TMP = os.path.join(fc.BLENDER_DIR, ".renders", "lookdev-12")
+TMP = tempfile.mkdtemp(prefix="fc-lookdev-")  # panels before stitching; outside the repository, removed after
 
 
 def stage(res, sun_az=230.0, sun_el=24.0):
@@ -101,6 +103,7 @@ def main() -> None:
     img.save()
     bpy.data.images.remove(img)
     L.strip_png_text(path)
+    shutil.rmtree(TMP, ignore_errors=True)
     print(f"[lookdev] wrote {os.path.relpath(path, fc.REPO)} ({os.path.getsize(path) // 1024} KiB)")
 
 
