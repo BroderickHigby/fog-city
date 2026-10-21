@@ -665,14 +665,14 @@ per instance: 0 `body` (the house's wall colour), 1 `trim` (its trim colour, K3)
 | `bay-queen-anne.glb` | `storey`, `cap` | 133 (280) | angled bay 2.9 x 0.95 m, a trim-coloured apron under the sills, a hipped cap with a finial (1.8 m). 1885-1905 |
 | `bay-edwardian.glb` | `storey`, `cap` | 112 (220) | square bay 2.6 x 0.75 m, wide sashes, moulded cap (0.45 m). 1900-1925 |
 | `bay-turret.glb` | `storey`, `cap` | 262 (420) | octagonal corner turret, 2.8 m, centred on the building's corner (the front wall runs to -X, the side wall back), conical roof (4.05 m) that may rise above the roof as built |
-| `stoop.glb` | `step`, `landing`, `cheek`, `rail`, `door` | 110 (160) | unit blocks (x -0.5..0.5, y -1..0, z -1..0) scaled and sheared by `stoopLayout`: equal risers of 0.15-0.19 m, 0.28 m treads, a 1.2 m landing, cheek walls 0.9 m over the treads, iron rails on request; the door frame (1.1 x 2.45 m, transom) at the threshold |
+| `stoop.glb` | `step`, `landing`, `cheek`, `rail`, `door` | 110 (160) | unit blocks (x -0.5..0.5, y -1..0, z -1..0) scaled and sheared by `stoopLayout`: equal risers of 0.15-0.19 m (never over `maxRiserM` 0.19), 0.28 m treads, a 1.2 m landing, cheek walls 0.9 m over the treads, iron rails on request; the door frame (1.1 x 2.45 m, transom) at the threshold |
 | `roof-water-tank.glb` | `tank` | 208 (420) | a timber tank on a steel stand (3.4 m, 7.2 m tall) |
 | `roof-mech-box.glb` | `unit` | 76 (140) | a mechanical unit 2.4 x 1.4 m with louvres and a fan, scalable |
 | `roof-penthouse.glb` | `unit` | 24 (90) | a stair or elevator penthouse 4 x 4 x 3.4 m with a door, scalable |
 | `cornice-italianate.glb` | `segment`, `end` | 58 (120) | 1 m of bracketed cornice (0.66 m out, 0.95 m drop) |
 | `cornice-edwardian.glb` | `segment`, `end` | 66 (110) | 1 m of moulded cornice with dentils (0.42 m out, 0.6 m drop) |
 | `parapet-coping.glb` | `segment`, `end` | 18 (40) | 1 m of parapet coping (0.08 m out, 0.3 m drop) |
-| `stair-flight.glb` | `step`, `landing`, `curb`, `handrail` | 52 (90) | a public stairway's unit blocks laid by `stairLayout` along a path profile: equal risers of about 0.165 m, landings on the flats, curbs and handrails |
+| `stair-flight.glb` | `step`, `landing`, `curb`, `handrail` | 52 (90) | a public stairway's unit blocks laid by `stairLayout` along a path profile: equal risers of about 0.165 m, treads of at least 0.25 m, landings on the flats and a 1.5 m landing at least every 16 risers (`maxRisersPerFlight`; the first and last flights half length, so the steps' sawtooth stays centred on the path), curbs and handrails |
 | `stair-treads.png` | | | 256 x 256, one tread per tile repeating every 0.30 m of run, the nosing a dark row at the image's bottom: the cheap option for a stair ribbon |
 
 Frames (metres, glTF +Y up, -Z out of the wall): bays and the door stand on the wall plane at
@@ -686,10 +686,13 @@ Layout rules (`runtime/house-kit.ts`, the numbers in `house-kit.json` `rules`): 
 7.5 m of front 4.5 m or longer, on storeys 1 to n-1 (from the first floor when it is raised 1.5 m
 or more), the cap under the roof line and clear of the front's cornice; a stoop wherever the
 first floor stands 1 m or more above the sidewalk, which removes the blank plinths of W-50 (a
-2.9 m rise is 16 risers reaching 5.4 m out); roofline mouldings in whole 1 m segments stretched
+2.9 m rise is 16 risers reaching 5.4 m out); above 16 risers of 0.19 m (3.04 m) there is no
+straight stoop: `stoopLayout` returns `entryStorey: true` with the door at the sidewalk, and the
+renderer draws a garage or entry storey over the plinth (K7) instead of a blank band; roofline mouldings in whole 1 m segments stretched
 to the wall; rooftop props only from 4 storeys (a mechanical unit per 250 m² of roof, a
 penthouse from 5 storeys, a water tank on about a third of pre-1950 buildings of 5 storeys),
-inset 2 m from the roof's edge; stairs wherever a path's grade reaches 12%.
+inset 2 m from the roof's edge; stairs wherever a path's grade reaches 12%, at most 16 risers
+to a flight (`StairPlan.flights`).
 
 Budget (house-kit-spec Budget; tested): a dense residential tile (600 houses, half with two bay
 storeys, 400 stoops, 600 fronts of cornice or coping, 40 roof props) adds under 400k triangles
