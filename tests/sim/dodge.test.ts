@@ -12,6 +12,7 @@ import {
   FOOT,
   LANDING_EXTRA_M,
   SAMPLE_S,
+  SLIP_RAD,
   advanceDodge,
   agentDodgeClass,
   agentPath,
@@ -95,6 +96,19 @@ describe("the predicted footprint", () => {
     expect(Math.abs(last.z)).toBeLessThan(1e-9);
     // Its body still faces north in every sample.
     expect(last.fz).toBeCloseTo(-1, 9);
+  });
+
+  it("sliding (velocity more than SLIP_RAD off the nose), also the path it takes if its tyres bite again, off along its nose", () => {
+    // Facing north at 19 m/s, sliding right at 6.7 m/s (a drift being caught).
+    const v = carVehicle(0, 0, 0, 19, 6.7);
+    expect(v.paths).toHaveLength(2);
+    const [slide, nose] = [v.paths[0]!.at(-1)!, v.paths[1]!.at(-1)!];
+    const speed = Math.hypot(19, 6.7);
+    expect(slide.x).toBeCloseTo(6.7 * slide.t, 6);
+    expect(nose.x).toBeCloseTo(0, 9);
+    expect(nose.z).toBeCloseTo(-speed * nose.t, 6);
+    // Not sliding (under SLIP_RAD off the nose): one path.
+    expect(carVehicle(0, 0, 0, 19, 19 * Math.tan(SLIP_RAD * 0.9)).paths).toHaveLength(1);
   });
 
   it("turning: the arc it is on and the straight line it would slide along, both with the body yawing; for a player's car, the hardest turn its tyres allow too", () => {

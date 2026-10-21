@@ -106,6 +106,10 @@ export const OVERRIDE_STEP_M = 3;
 export const CLEAR_NEAR_M = 12;
 export const CLEAR_FAR_M = 30;
 
+/** A vehicle whose velocity is more than this off its nose is sliding (cos 0.15 rad): it may straighten out along its nose. */
+export const SLIP_RAD = 0.15;
+const SLIP_COS = dcos(SLIP_RAD);
+
 /** Seconds of a vehicle's path that are predicted at `speed` m/s: 0.6 s, plus 0.025 s per m/s, at most 1.5 s. */
 export function horizonS(speed: number): number {
   return clamp(0.6 + 0.025 * speed, 0.6, 1.5);
@@ -343,7 +347,10 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
  * slide along with its body still yawing (a drift or a handbrake turn); and, for a vehicle that
  * can be steered anywhere (spread > 0, a player's car), the arc of the hardest turn its tyres
  * allow that way (CAR.gripAccel / speed, so a car chasing someone round a bend is not
- * underestimated). Not turning: one straight path. Braking (decel, after react) shortens them;
+ * underestimated). Not turning: one straight path. Sliding (its velocity more than
+ * SLIP_RAD off its nose): also the path it takes if its tyres bite again, setting off along its
+ * nose (a drift caught straightens out toward wherever the nose points, faster than any turn).
+ * Braking (decel, after react) shortens them;
  * a stopped vehicle's last sample is where it stops. Walls and buildings are not in it: the
  * footprint never pretends a wall stops a car short of someone (and when a car bounces off one
  * at someone, they see it late and scramble, EMERGENCY_BOOST).
@@ -357,14 +364,16 @@ export function predictPaths(
   if (v.route) return [alongRoute(v, v.route, n)];
   const yaw = v.yawRate;
   const turning = (yaw < 0 ? -yaw : yaw) * T > 0.05;
-  // [yaw rate of the path, yaw rate of the body]
-  const kinds: Array<[number, number]> = turning ? [[yaw, yaw], [0, yaw]] : [[0, yaw]];
+  // [yaw rate of the path, yaw rate of the body, sets off along the nose]
+  const kinds: Array<[number, number, boolean]> = turning ? [[yaw, yaw, false], [0, yaw, false]] : [[0, yaw, false]];
   if (turning && (v.spread ?? 0) > 0) {
     const hard = Math.min(CAR.gripAccel / v.speed, 1.2);
-    if (hard > (yaw < 0 ? -yaw : yaw)) kinds.push([yaw < 0 ? -hard : hard, yaw < 0 ? -hard : hard]);
+    if (hard > (yaw < 0 ? -yaw : yaw)) kinds.push([yaw < 0 ? -hard : hard, yaw < 0 ? -hard : hard, false]);
   }
+  // (cos of the angle between the velocity and the nose)
+  if ((v.vx * v.fx + v.vz * v.fz) / v.speed < SLIP_COS) kinds.push([yaw, yaw, true]);
   const out: Sample[][] = [];
-  for (const [pathYaw, bodyYaw] of kinds) {
+  for (const [pathYaw, bodyYaw, nose] of kinds) {
     const dA = pathYaw * SAMPLE_S;
     const c = dcos(dA);
     const s = dsin(dA);
@@ -378,8 +387,8 @@ export function predictPaths(
     let z = v.z;
     let fx = v.fx;
     let fz = v.fz;
-    let ux = v.vx / v.speed;
-    let uz = v.vz / v.speed;
+    let ux = nose ? v.fx : v.vx / v.speed;
+    let uz = nose ? v.fz : v.vz / v.speed;
     path.push({ t: 0, x, z, fx, fz, ux, uz });
     for (let k = 1; k <= n; k++) {
       const { d, stopped } = stepDistance(v, k);
