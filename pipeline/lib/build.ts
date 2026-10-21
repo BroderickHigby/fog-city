@@ -25,7 +25,7 @@ import { RoadSurface, trafficEdges } from "./road-surface.ts";
 import { buildSidewalks, type SidewalkStats } from "./sidewalks.ts";
 import type { Deck, Movable, Tunnel } from "./structures.ts";
 import { encodeWorldColliders } from "./world-colliders.ts";
-import { buildingMesh, deckMesh, groundMesh, junctionPolygons, junctionRadii, partyWalls, roadMeshes } from "./mesh.ts";
+import { buildingMesh, deckMesh, groundMesh, junctionPolygons, junctionRadii, partyWalls, ribbonHalfWidths, roadMeshes } from "./mesh.ts";
 import { terraceBuildings, type TerraceStats } from "./terrace.ts";
 import { clearCorridors, type ClearanceStats } from "./clearance.ts";
 import { findTunnels, tunnelRibbons, undersideOverBores, type Bore } from "./tunnels.ts";
@@ -238,20 +238,28 @@ export interface TileStructures {
 
 /**
  * Towers whose podium is gone are dropped; every other tower's podiumTopY is its podium's roof,
- * and it stands inside its podium: where a pass cut the podium back (from a street or a path the
- * tower overhung), the tower is cut to what is left, or dropped if little is.
+ * and it stands inside its podium (record, strips and spans; over a span it is passable under
+ * the podium's roof, as the span is): where a pass cut the podium back (from a street or a path
+ * the tower overhung), the tower is cut to what is left, or moved and shrunk onto it, or dropped.
  */
 function reconcileTowers(list: readonly Building[], groundUnder: (ring: readonly P2[]) => { at: number; min: number } | null): Building[] {
   const byId = new Map(list.map((b) => [b.id, b]));
-  // A podium is its record and its terrace strips (not its spans over streets).
+  // A podium is its record, its terrace strips and its spans over streets (a tower over a span
+  // rests on the span's roof: passable under it, as the span is).
   const strips = new Map<string, P2[][]>();
-  for (const b of list) if (b.meta.piece === "strip" && b.meta.pieceOf) (strips.get(b.meta.pieceOf) ?? strips.set(b.meta.pieceOf, []).get(b.meta.pieceOf)!).push(b.footprint);
+  const spans = new Map<string, P2[][]>();
+  for (const b of list) {
+    if (!b.meta.pieceOf) continue;
+    const m = b.meta.piece === "strip" ? strips : b.meta.piece === "span" ? spans : null;
+    if (m) (m.get(b.meta.pieceOf) ?? m.set(b.meta.pieceOf, []).get(b.meta.pieceOf)!).push(b.footprint);
+  }
   const towers = new Map<string, Building>(); // kept towers, as they will be written
   for (const b of list) {
     if (b.meta.towerOf === undefined) continue;
     const pod = byId.get(b.meta.towerOf);
     if (!pod || pod.meta.tower !== b.id) continue;
-    const parts = [pod.footprint, ...(strips.get(pod.id) ?? [])];
+    const spanRings = spans.get(pod.id) ?? [];
+    const parts = [pod.footprint, ...(strips.get(pod.id) ?? []), ...spanRings];
     const inside = (x: number, z: number): boolean => parts.some((r) => pointInRing(x, z, r) || distToRing(x, z, r) <= 0.02);
     let footprint = b.footprint;
     let baseY = b.baseY;
@@ -296,7 +304,8 @@ function reconcileTowers(list: readonly Building[], groundUnder: (ring: readonly
       }
     }
     const topY = b.meta.podiumTopY === pod.topY && b.topY > pod.topY ? b.topY : Math.max(b.topY, r2(pod.topY + 2.5));
-    towers.set(b.id, { ...b, footprint, baseY, topY, meta: { ...b.meta, footY, podiumTopY: pod.topY } });
+    const overSpan = spanRings.length > 0 && intersectPolys(footprint, unionRings(spanRings)).reduce((a, q) => a + polyArea(q), 0) > 0.05;
+    towers.set(b.id, { ...b, footprint, baseY, topY, ...(overSpan ? { underY: pod.topY } : {}), meta: { ...b.meta, footY, podiumTopY: pod.topY } });
   }
   const out: Building[] = [];
   for (const b of list) {
@@ -490,6 +499,8 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const radii = junctionRadii(graph.edges);
   const junctions = junctionPolygons(graph.edges, radii, new Map(graph.nodes.map((n) => [n.id, n])));
   const nodeAt = new Map(graph.nodes.map((n) => [n.id, n]));
+  // Street ribbons side by side give up their overlap (W-32).
+  const halves = ribbonHalfWidths(graph.edges, nodeAt);
 
   // Walls two records share exactly hide each other where both stand (W-36): not drawn.
   const party = partyWalls(buildings);
@@ -522,7 +533,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
         return p.x >= t.bbox[0] && p.x < t.bbox[2] && p.z >= t.bbox[1] && p.z < t.bbox[3];
       })
       .map(([, poly]) => poly);
-    const { roads, freeways } = roadMeshes(tileEdges, t, ground, decked.surface, radii, tileJunctions);
+    const { roads, freeways } = roadMeshes(tileEdges, t, ground, decked.surface, radii, tileJunctions, halves);
     const { mesh, ranges } = buildingMesh(tb, party);
     const glb = await tileGlb(cfg.id, t, {
       ground: groundMesh(field, ground),

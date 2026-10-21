@@ -4,7 +4,7 @@
 import { ShapeUtils, Vector2 } from "three";
 import type { Building } from "./buildings.ts";
 import type { TileRef } from "./config.ts";
-import { clipSegment, hash32, type P2 } from "./geom.ts";
+import { clipSegment, distToSegment, hash32, r2, type P2 } from "./geom.ts";
 import type { RoadEdge } from "./roads.ts";
 import type { Deck } from "./structures.ts";
 import { GROUND_CELL_M, type Ground, type Heightfield } from "./terrain.ts";
@@ -420,6 +420,75 @@ function convexHull(points: readonly P2[]): P2[] {
   return [...lower.slice(0, -1), ...upper.slice(0, -1)];
 }
 
+/** Where narrowed ribbons are sampled, metres. */
+const NARROW_STEP_M = 4;
+/** A ribbon is never narrowed under this half width. */
+const NARROW_MIN_HALF_M = 1;
+
+/**
+ * Half widths for street ribbons that run beside another street's (W-32): where two centrelines
+ * run within 30 degrees of parallel closer than their half widths together (a divided street's
+ * carriageways, a frontage road), each ribbon gives up its share of the overlap so their kerbs
+ * meet instead of z-fighting. Per edge, the half width every NARROW_STEP_M along it (absent: the
+ * edge is never narrowed). Freeways (their own node) and stairs are left alone.
+ */
+export function ribbonHalfWidths(edges: readonly RoadEdge[], nodes: ReadonlyMap<string, { x: number; z: number }>): Map<string, number[]> {
+  const drawn = edges.filter((e) => !(e.kind === "freeway" || e.kind === "ramp"));
+  const CELL = 25;
+  const key = (cx: number, cz: number): number => (cx + 4096) * 8192 + cz + 4096;
+  const grid = new Map<number, Array<[RoadEdge, number]>>();
+  for (const e of drawn) {
+    for (let i = 1; i < e.points.length; i++) {
+      const a = e.points[i - 1]!, b = e.points[i]!;
+      for (let cx = Math.floor(Math.min(a[0], b[0]) / CELL); cx <= Math.floor(Math.max(a[0], b[0]) / CELL); cx++) {
+        for (let cz = Math.floor(Math.min(a[1], b[1]) / CELL); cz <= Math.floor(Math.max(a[1], b[1]) / CELL); cz++) {
+          (grid.get(key(cx, cz)) ?? grid.set(key(cx, cz), []).get(key(cx, cz))!).push([e, i]);
+        }
+      }
+    }
+  }
+  const out = new Map<string, number[]>();
+  for (const e of drawn) {
+    const half = e.widthM / 2;
+    const L = polylineLength(e.points);
+    const n = Math.max(1, Math.ceil(L / NARROW_STEP_M));
+    const halves: number[] = [];
+    let narrowed = false;
+    for (let k = 0; k <= n; k++) {
+      const s = (L * k) / n;
+      const [x, z, dx, dz] = pointDirAt(e.points, s);
+      let h = half;
+      const reach = half + 12;
+      const seen = new Set<string>();
+      for (let cx = Math.floor((x - reach) / CELL); cx <= Math.floor((x + reach) / CELL); cx++) {
+        for (let cz = Math.floor((z - reach) / CELL); cz <= Math.floor((z + reach) / CELL); cz++) {
+          for (const [o, i] of grid.get(key(cx, cz)) ?? []) {
+            if (o === e) continue;
+            const id = `${o.id}#${i}`;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            // Near a node the two share, the overlap is the junction's (its polygon), not a
+            // side-by-side street's.
+            const shared = [e.a, e.b].filter((n) => n === o.a || n === o.b).map((n) => nodes.get(n)!);
+            if (shared.some((n) => Math.hypot(n.x - x, n.z - z) < half + o.widthM / 2 + 2)) continue;
+            const a = o.points[i - 1]!, b = o.points[i]!;
+            const q = distToSegment(x, z, a, b);
+            if (q.d >= half + o.widthM / 2) continue;
+            const ox = b[0] - a[0], oz = b[1] - a[1];
+            const ol = Math.hypot(ox, oz) || 1;
+            if (Math.abs((ox * dx + oz * dz) / ol) < Math.cos(Math.PI / 6)) continue; // not side by side
+            h = Math.min(h, Math.max(NARROW_MIN_HALF_M, (q.d * e.widthM) / (e.widthM + o.widthM)));
+          }
+        }
+      }
+      if (h < half - 0.01) narrowed = true;
+      halves.push(r2(h));
+    }
+    if (narrowed) out.set(e.id, halves);
+  }
+  return out;
+}
+
 /**
  * Road ribbons for one tile.
  *   - On the ground, a ribbon is draped on the ground mesh (drapePolygon) DRAPE_LIFT_M over it,
@@ -437,6 +506,7 @@ export function roadMeshes(
   surface: (edge: string, s: number) => number | null = () => null,
   radii: ReadonlyMap<string, number> = new Map(),
   junctions: ReadonlyArray<readonly P2[]> = [],
+  halves: ReadonlyMap<string, readonly number[]> = new Map(),
 ): { roads: MeshData; freeways: MeshData } {
   const roads = new MeshData({ uvs: true });
   const freeways = new MeshData({ uvs: true });
@@ -462,7 +532,16 @@ export function roadMeshes(
   for (const e of edges) {
     const target = e.kind === "freeway" || e.kind === "ramp" ? freeways : roads;
     const col = rgba(ROAD_COLOR[e.pedestrian ? "pedestrian" : e.kind] ?? ROAD_COLOR.other!);
-    const half = e.widthM / 2;
+    const narrow = halves.get(e.id);
+    const Ltot = narrow ? polylineLength(e.points) : 0;
+    /** The ribbon's half width at arc length s: the edge's, or narrowed beside another street. */
+    const halfAt = (s: number): number => {
+      if (!narrow) return e.widthM / 2;
+      const f = Math.max(0, Math.min(narrow.length - 1, (s / (Ltot || 1)) * (narrow.length - 1)));
+      const i = Math.min(narrow.length - 2, Math.floor(f));
+      if (narrow.length === 1) return narrow[0]!;
+      return narrow[i]! + (narrow[i + 1]! - narrow[i]!) * (f - i);
+    };
     const isFreeway = target === freeways;
     // Trim at junctions.
     const L = polylineLength(e.points);
@@ -471,7 +550,7 @@ export function roadMeshes(
     if (s1 - s0 < 0.05) continue;
     // A draped ribbon follows the ground whatever its stations, so they need only follow the
     // centreline (DRAPE_STEP_M at most); a road with a structure keeps MAX_STEP_M stations.
-    const dense = densify(e.points, e.deck || e.tunnel ? MAX_STEP_M : DRAPE_STEP_M).filter((q) => q.s > s0 && q.s < s1);
+    const dense = densify(e.points, narrow ? NARROW_STEP_M : e.deck || e.tunnel ? MAX_STEP_M : DRAPE_STEP_M).filter((q) => q.s > s0 && q.s < s1);
     const [ax, az] = pointDirAt(e.points, s0);
     const [bx, bz] = pointDirAt(e.points, s1);
     const trimmed = [{ p: [ax, az] as P2, s: s0 }, ...dense, { p: [bx, bz] as P2, s: s1 }];
@@ -503,6 +582,7 @@ export function roadMeshes(
           dz /= len;
           // Perpendicular (to the right of travel on a north-up map is (-dz, dx)).
           const px = -dz, pz = dx;
+          const half = halfAt(s);
           return { l: [p[0] - px * half, p[1] - pz * half] as P2, r: [p[0] + px * half, p[1] + pz * half] as P2, s, own: surface(e.id, s), c: p };
         });
         const vOf = (s: number): number => Math.round(s * 100) / 100;
