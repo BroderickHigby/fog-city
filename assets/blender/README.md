@@ -1,17 +1,23 @@
-# Fog City hero assets (scripted Blender)
+# Fog City assets (scripted Blender)
 
-Every hero model is built by a Python script running in headless Blender 4.5 LTS and exported
-as a GLB into `public/models/`. Nothing is hand-edited in a GUI; the `.py` files are the source
-and the `.glb` files are committed build outputs. `tests/assets/` checks the outputs without
-Blender.
+Every model is built by a Python script running in headless Blender 4.5 LTS and exported into
+`public/models/`. Nothing is hand-edited in a GUI; the `.py` files are the source and the
+`.glb` / `.bin` / `.png` files are committed build outputs. The sound effects are synthesised
+by `assets/audio/generate.py` (see `assets/audio/README.md`). `tests/assets/` checks every
+output without Blender.
 
 ```sh
-BLENDER=/path/to/blender assets/blender/build.sh             # all models + content/landmarks.json (~15 s)
-BLENDER=/path/to/blender assets/blender/build.sh robotaxi    # one model
-BLENDER=/path/to/blender assets/blender/build.sh --lookdev   # models, then the four renders (~7 min on 4 cores)
-pnpm vitest run tests/assets                                 # budgets, nodes, orientation, sizes, validator
+BLENDER=/path/to/blender assets/blender/build.sh             # every model, landmarks.json, sounds (~1 min)
+BLENDER=/path/to/blender assets/blender/build.sh robotaxi    # one model (script name without .py)
+BLENDER=/path/to/blender assets/blender/build.sh --lookdev   # models, then every look-dev render (slow)
+pnpm vitest run tests/assets                                 # budgets, nodes, orientation, sizes, validator, VAT, audio
 node assets/blender/tools/glb-stats.ts                       # triangles and sizes as exported
 ```
+
+Order matters in one place: `heaps.py` imports the exported Porter and Trundle, and
+`humanoid_impostor.py` adds its entry to the JSON `humanoid.py` writes; `build.sh` runs them in
+that order. Renders use 2 threads (`FC_RENDER_THREADS` to change); `FC_LOOKDEV_DRAFT=1
+FC_LOOKDEV_OUT=<dir>` renders a quick 40% draft of a look-dev script elsewhere.
 
 `build.sh` stops with a non-zero status on any failure: Blender's exit status (a Python
 exception exits 1 through `--python-exit-code`), a `Traceback` in its output, a model script
@@ -20,8 +26,13 @@ models it prints each GLB's triangle count read back from the file (`tools/glb-s
 which is the number to quote: Blender's pre-export count can be a few triangles higher
 because the exporter drops degenerate triangles.
 
-The build is deterministic: rebuilding produces byte-identical GLBs. It needs no network; the
-outside data it uses is committed in `data/` (see Sources). A quick look at any model:
+The build is deterministic: rebuilding produces byte-identical GLBs. Two settings in
+`build.sh` keep it so on any machine: Blender runs on a fixed 2 threads (`-t`,
+`FC_BLENDER_THREADS` to change), because R-Evolution's remesh and decimate come out slightly
+differently with a different thread count (so `r-evolution.glb` was rebuilt on 2 threads in
+wave 2: its top moved 1.2 cm, the triangle counts are the same), and numpy's BLAS runs on one
+thread (`OPENBLAS_NUM_THREADS=1`). The full build took 45 s on the shared 4-core machine. It
+needs no network; the outside data it uses is committed in `data/` (see Sources). A quick look at any model:
 `"$BLENDER" -b --factory-startup -noaudio -P assets/blender/tools/preview.py -- public/models/robotaxi.glb views=front3q,side`
 writes Cycles previews to `assets/blender/.renders/` (gitignored).
 
@@ -38,6 +49,12 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
   scale `emissiveIntensity` up at night and to 0 by day. Nodes that are only night light carry
   extras `{"nightLight": true}` (`tower_outline_lights`, R-Evolution `glow`).
 - Alpha is `MASK` (alpha test) or opaque, never `BLEND`.
+- Shape keys export as morph targets with their names in the mesh's `extras.targetNames`.
+  Custom vertex attributes start with `_` (glTF) and arrive in three.js lower-cased
+  (`_RUST_MASK` -> `_rust_mask`).
+- Flags the sim and renderer read are node extras (on the root, or on the crowd mesh nodes): `fcActor` (the model's key),
+  `robot`, `vehicle`, `animal`, `child`, `noTouch` (water never reaches it), `mobilityAid`,
+  `throwable`, `refill`, `interact`, `heap`, `toy`.
 
 ## Models and their contracts
 
@@ -46,9 +63,22 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `ferry-building.glb` | 31,886 (100k) | 204.9 x 59.5 m, tower 75.4 m | `ferry_building` > `building`, `tower`, `tower_outline_lights`, `clock_hour_N/E/S/W`, `clock_minute_N/E/S/W`; `light_tower_outline`, `light_clock_face` |
 | `r-evolution.glb` | 32,216 (40k) | 14.3 m on a 7.2 m plinth | `r_evolution` > `frame` (rods), `shell` (`steel_mesh`, MASK), `glow` (`light_sculpture_glow`, MASK), `plinth` |
 | `player-car.glb` | 2,992 (8k) | 4.33 x 2.04 x 1.50 m | `player_car` > `body`, `wheel_FL/FR/RL/RR`; `paint` (recolourable), `light_headlight`, `light_taillight` |
-| `robotaxi.glb` | 4,062 (10k) | 4.78 x 2.21 x 2.12 m | `robotaxi` > `body`, `sensor_dome`, `wheel_FL/FR/RL/RR`; `light_status` (teal ring), `light_headlight`, `light_taillight` |
-| `errand-robot.glb` | 4,532 (6k) | 1.75 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face` |
-| `sidewalk-bot.glb` | 1,969 (3k) | 0.62 m to the lid, flag to 1.42 m | `sidewalk_bot` > `body`, `flag`, `wheel_L1/L2/L3`, `wheel_R1/R2/R3` (1 = front); `light_eyes` |
+| `robotaxi.glb` (Meander) | 4,104 (10k) | 4.98 x 1.92 x 1.53 m | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
+| `errand-robot.glb` (Porter) | 4,948 (6k) | 1.95 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face`; morphs `seize/slump/melt`; `_RUST_MASK` |
+| `sidewalk-bot.glb` (Trundle) | 2,008 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_face`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
+| `moat-van.glb` | 3,904 (9k) | 5.81 x 2.28 x 2.50 m | `moat_van` > `body`, `wheel_FL/FR/RL/RR`, `door_rear_L/R`; `light_headlight`, `light_taillight`, `light_accent` |
+| `humanoid-crowd.glb` + VAT | 2,879 / 871 per body | 1.78 m (adult), 1.18 m (child) | meshes `adult_lod0/1`, `child_lod0/1` (attributes `_VID`, `_SLOT`); see Humanoid line |
+| `player.glb` | 2,879 (4k) | 1.78 m | skinned, 20 bones, 12 morphs, 8 animations, `tint_*` materials; see Humanoid line |
+| `water-blaster.glb` | 922 (2.5k) | worn | `water_blaster` > `tank` (> `pump_handle`, `water_level`), `hose`, `wand` (> `nozzle`) |
+| `hydrant.glb` | 684 (1.2k) | 0.79 m | `hydrant` > `body`, `refill_point` |
+| `drinking-fountain.glb` | 342 (1.2k) | 0.96 m | `drinking_fountain` > `body`, `refill_point` |
+| `traffic-cone.glb` | 220 (400) | 0.70 m | `traffic_cone` > `cone` |
+| `repair-kiosk.glb` | 408 (3k) | 2.5 m | `repair_kiosk` > `booth`, `bay`; `light_kiosk_screen`, `light_kiosk_status` |
+| `vendor-cart.glb` | 1,480 (4k) | 2.25 m | `vendor_cart` > `cart`, `sign_slot`, `wheel_L/R` |
+| `wheelchair.glb` | 1,492 (2.5k) | 0.98 m | `wheelchair` > `chair`, `wheel_L/R` (> `push_rim_L/R`) |
+| `heap-porter/trundle/mixed.glb` | 2,392 / 2,092 / 2,392 (2.5k) | 0.44 / 0.25 / 0.37 m | `heap` > `pile`, `puddle` |
+| `pigeon.glb` | 194 (300) | 0.28 m | `pigeon` > `body` (morph `peck`) |
+| `dog.glb` | 828 (1k) | 0.48 m at the shoulder | `dog` > `body` (morph `stride`), `leash` |
 | `muni-bus.glb` | 2,956 (12k) | 12.5 x 3.19 x 3.48 m | `muni_bus` > `body`, `livery_panel`, `wheel_FL/FR/RL/RR`; `livery`, `light_destination_sign`, `light_headlight`, `light_taillight` |
 
 **Clock hands** (Ferry Building). Each hand's origin is its dial's centre; local +Z is the
@@ -68,16 +98,65 @@ local +X. Rolling forward (toward -Z) is a *negative* rotation about +X: `rotati
 distance / radius`. Extras: `{"wheel": "FL", "spinAxis": [1,0,0], "radius": 0.35, "steer":
 true}` (steer only on front wheels; steering is a rotation about local +Y).
 
-**Robotaxi `sensor_dome`** spins about its local +Y (extras `spinAxis`), origin on the axis.
+**Meander robotaxi (`robotaxi.glb`).** Remodelled in wave 2 to the robot table (the wave-1
+model was a crossover with a roof dome, the shape of real robotaxis, and failed it): a long,
+low, asymmetric hatch, 4.95 m long and 1.53 m to the top of its roof band, with a short round
+nose, a long raked windscreen, a flat roof and a fastback hatch. Every sensor sits in one dark
+band (`sensor_lens`) wrapped round the roof edge, with a teal status line in it
+(`light_status`); there is **no `sensor_dome` node** any more, and no corner or mirror pods.
+Nobody drives it, so the sides differ: the kerb side (right, +X) has one wide sliding door
+under one long window; the street side (left) has no door, a solid panel with a slim high
+window, and a charging flap. Short slim light strips at the nose and tail corners; no
+grille, badge or text. Root extras `fcActor: "robotaxi"`, `kerbSide: "right"` (traffic
+drives on the right, so the door opens onto the pavement).
+`door_slide_R`: the sliding door, shut; extras `door: "slide"`, `popAxis: [1,0,0]`, `popM`
+(0.05), `slideAxis: [0,0,1]`, `slideM` (1.15). To open it, move it out along local +X by
+`popM`, then back along local +Z by `slideM` (both in the model frame; the node's rest
+rotation is the identity); close in reverse. The body under it is `cabin_dark`, so the
+opening reads as the dark cabin. `sensor_band` (no mesh, extras `sprayTarget: true`) marks
+the front of the band on the centre line: aim there when a mission says to water a rogue
+robotaxi's sensors (design.md still says "sensor dome" there). Wheels as for the other cars
+(`radius: 0.36`).
 
-**Errand robot.** Every rigid part is a node whose origin is the joint it turns about: torso
-at the hips (0.90 m), head at the neck, arms at shoulder and elbow, legs at hip and knee. A
-positive rotation about a limb's local +X swings it forward (toward -Z). `bag` hangs from
-the right hand and follows `arm_lower_R`. The groceries (greens and a baguette, materials
-`produce_*`) are the child node `bag_contents` (extras `bagContents: true`, origin at the bag's
-mouth): hide it for an empty bag (the content track's `emptyBag` tell), show it for `fullBag`.
+**Porter (`errand-robot.glb`).** Bramblecot Home's errand humanoid, remodelled in wave 2 to
+the robot table: tall and slim (1.95 m to the carrying ring on its head), an opaque glazed
+ceramic shell (every material is opaque; no face plate, no translucent torso), graphite
+joints, bronze seams, and a lantern-shaped head (a ribbed barrel with a cap, finial and
+carrying ring) whose face light (`light_face`) is one soft horizontal strip across the front.
+Turn it amber for an attack wind-up. Every rigid part is a node whose origin is the joint it
+turns about: torso at the hips (0.95 m), head at the neck (1.53 m), arms at shoulder (1.43 m)
+and elbow, legs at hip and knee. A positive rotation about a limb's local +X swings it forward
+(toward -Z). `bag` hangs from the right hand and follows `arm_lower_R`; the groceries (greens
+and a baguette, materials `produce_*`) are the child node `bag_contents` (extras
+`bagContents: true`, origin at the bag's mouth): hide it for an empty bag (the content track's
+`emptyBag` tell), show it for `fullBag`. Root extras: `robot: "porter"`,
+`slumpKeys: ["seize","slump","melt"]`. The node contract is the wave-1 one, so the renderer's
+drop-in works unchanged.
 
-**Sidewalk bot `flag`** origin is the pole's foot; sway it about local X (extras `swayAxis`).
+**Trundle (`sidewalk-bot.glb`).** A knee-high (0.56 m) four-wheeled delivery bot shaped like a
+bread bin: a cream body whose front top is a quarter-round, closed by a sage-green slatted
+roll-top lid; graphite bumper band and fender skirts, one soft light strip along the front
+lip under the lid (`light_face`, the same face-light name as the Porter's, so a forced
+update's "Updating" glow and the night-light table treat both robots alike) and a camera slot
+in the bumper. It has no pair of round "eye" lights: that is the nearest real sidewalk
+robots' look (the trade-dress checklist). The wave-1 material was `light_eyes`; it is gone.
+**No flag and no whip antenna** (the wave-1 `flag` node is gone),
+and **four wheels**: `wheel_L1`, `wheel_L2`, `wheel_R1`, `wheel_R2` (1 = front; extras
+`radius: 0.085`, `spinAxis`), so `wheel_L3`/`wheel_R3` no longer exist.
+`lid`: origin on the roll axis; rotate about local +X by extras `lidOpenRad` (1.57) to roll it
+back under the top panel and open the bin (`lidAxis: [1,0,0]`). `cargo`: two foil-wrapped
+burritos and a paper bag inside the bin (extras `cargo: true`); hide it for an empty bin (a
+grocery snatch). Root extras `robot: "trundle"`, `slumpKeys`.
+
+**Moat Labs van (`moat-van.glb`).** An original driverless box van in graphite with a teal
+accent: a faceted body with chamfered keep-like corners, a battlement of small blocks along
+both roof edges, narrow vertical slit lamps at the corners, a teal moat band along the sills
+with a light line above it (`light_accent`), camera pods instead of mirrors, and an invented
+castle-over-water emblem built from geometry on both sides and the nose (no text, no texture).
+Wheels as for the cars (`wheel_FL/FR/RL/RR`, extras `radius: 0.37`, `steer` on the front).
+Rear barn doors `door_rear_L` / `door_rear_R`: origin on the hinge at the rear corner;
+rotate about local +Y by extras `openRad` (R +1.75, L -1.75) to swing both outward
+(`hingeAxis: [0,1,0]`). Units walk out of the back.
 
 **Bus livery.** `livery_panel` holds the two large side panels and is the only mesh with
 UVs. Each panel covers the whole red lower body, from the skirt to the window-line strip, and
@@ -91,6 +170,286 @@ cap height (about 26 px at 1024 x 180), so the 0.74 m height takes a headline an
 with room to spare, or three lines. The node's extras carry the numbers: `livery: {material, uv,
 aspect: 5.703, sizeM: [4.22, 0.74], placeholderPx: [1024, 180]}`. The committed texture is an
 abstract placeholder with no words, written at the panel's aspect so it is not stretched.
+
+## Melting and rust (Porter and Trundle)
+
+Built by `lib/melt.py` and `fc.add_rust_mask`; the reference maths for the renderer is
+`runtime/robot-melt.ts` (tested).
+
+**Slump shape keys.** Every mesh part of both robots carries three morph targets, in this
+order: `seize` (a stiff hunch, joints locked, the head tilts), `slump` (the body sags and
+bulges, the head droops), `melt` (a low, rusty soft-serve mound with the head or lid on top).
+They are authored at rest in model space, so before blending them ease every joint node
+(limbs, head, lid, wheels) back to its rest rotation over the first 0.3 s of `seized`. Then
+drive the influences from the sim's melt state and the seconds spent in it
+(`meltWeights(state, t)`):
+
+| Sim state | Seconds | seize | slump | melt |
+|---|---|---|---|---|
+| `seized` | 0 -> 0.5 | 0 -> 1 | 0 | 0 |
+| `slumping`, first half | 0 -> 0.75 | 1 -> 0 | 0 -> 1 | 0 |
+| `slumping`, second half | 0.75 -> 1.5 | 0 | 1 -> 0 | 0 -> 1 |
+| `heap` | | swap to `heap-porter.glb` / `heap-trundle.glb` (`heap-mixed.glb` for two at once) | | |
+
+The heap prop is the robot's own melt shape (re-centred within a few cm), so the swap does not
+jump. Nothing in any key goes below the ground (tested).
+
+**Rust mask.** Every primitive carries a float vertex attribute `_RUST_MASK` (three.js
+`_rust_mask`): 0 rusts first (the graphite joints and the seams: panel edges, wheel hubs, the
+lid's edges), rising over each panel to about 1 at its middle; 2 never rusts (the night lights,
+the groceries, the cargo). Materials that may rust carry extras `{"rustable": true}`. The
+contract, with `rust` the sim's 0..1 value:
+
+```glsl
+float rustCoverage(float mask, float rust) { return smoothstep(mask - 0.1, mask + 0.1, 1.1 * rust); }
+// diffuse = mix(shellColour, rustColour(noise), rustCoverage(_rust_mask, rust));
+// roughness = mix(roughness, 0.9, coverage); metalness can drop a little
+```
+
+At rust 0.3 the joints and seams are orange; at 0.6 most of the shell is; at 0.9 everything.
+Look-dev 05 and 06 render exactly this formula through the imported attribute.
+
+## Props
+
+- **Hydrant** (`hydrant.glb`, 0.79 m): SF style: a white barrel on a cast-iron flange, a blue
+  bonnet with a pentagon nut, two side outlets and a larger pumper outlet facing the street
+  (-Z). Node `refill_point` (no mesh, extras `refillPoint`) is where the player couples; root
+  extras `refill: "hydrant"`.
+- **Drinking fountain** (`drinking-fountain.glb`, 0.96 m): a sage pedestal, a steel bowl and
+  spout facing -Z, a bottle filler on the back. `refill_point` above the spout; `refill:
+  "fountain"`.
+- **Traffic cone** (`traffic-cone.glb`, 0.70 m): orange with two white bands on a 0.36 m
+  square base; root extras `throwable`. Rests on a car's hood on its base.
+- **Repair kiosk** (`repair-kiosk.glb`, 2.5 m): a ceramic booth whose service bay opens to -Z.
+  Node `bay` (no mesh, extras `bay`) is where a robot stands to be "Restored from backup";
+  a blank screen on the back wall (`light_kiosk_screen`, no words) and a status ring
+  (`light_kiosk_status`) above the opening; a heart-and-wrench mark in geometry on the header.
+  Root extras `interact: "repair"`.
+- **Vendor cart** (`vendor-cart.glb`, 2.25 m to the awning): wooden counter, pour-over station,
+  burrito warmer, three spare blaster tanks, a coral-and-cream striped awning. Customers stand
+  at -Z. `sign_slot` (extras `signSlot`, `sizeM: [0.84, 0.34]`) is the blank menu panel where a
+  generated sign texture can go (iconography only for now). `wheel_L/R` are static.
+  Root extras `interact: "vendor"`.
+- **Wheelchair** (`wheelchair.glb`): a manual wheelchair, seat at 0.45 m, the humanoid sit
+  clip's seat height (extras `seatHeightM`), so a person in it plays `sit`. Root extras
+  `mobilityAid: true, noTouch: true`: water never reaches the person using it (design.md).
+  `wheel_L/R` turn about local X (extras `radius: 0.3`).
+
+**Water blaster** (`water-blaster.glb`). A cartoon garden sprayer, plainly a water toy: a bright
+yellow backpack tank with a red pump handle, orange straps, a green hose, and a blue wand with
+a thumb lever on top and a wide orange adjustable nozzle. Nothing is shaped or named like a
+firearm (tested: no gun words in any name or extra, nothing under or behind the grip, more
+than 85% of its surface in bright toy colours). It is laid out as worn by `player.glb`:
+
+| Node | Origin | Attach |
+|---|---|---|
+| `tank` | where it sits on the back | `chest` bone (extras `attachBone`) |
+| `tank` > `pump_handle` | on the tank's top | follows the tank |
+| `tank` > `water_level` | bottom of the white window strip | scale local +Y by the tank's fill (0..1) |
+| `hose` | static loop tank -> wand | or hide it and draw a curve from `tank.extras.hoseStart` to `wand.extras.hoseEnd` |
+| `wand` | the grip | `hand_R` bone (extras `attachBone`) |
+| `wand` > `nozzle` | the nozzle tip (extras `sprayOrigin`) | the stream leaves along the wand's forward (-Z) |
+
+The alt-fire flower hopper is a wave-5 asset on this prop.
+
+**Rust heaps** (`heap-porter.glb`, `heap-trundle.glb`, `heap-mixed.glb`): root `heap` (extras
+`heap: porter|trundle|mixed`) > `pile` (the rusted melt shape: `rust_dark`, `rust_orange`,
+`rust_stained_ceramic`, with the groceries, paper, foil and tyres keeping their colours; the
+face light is a dark `lamp_off`) and `puddle` (a flat irregular puddle at 4 mm,
+`puddle_water`; fade or shrink it as it dries). Cartoon, not gore: nothing broken off, no
+fluid but water. 2.5k triangles each; Tidy hauls them in wave 3.
+
+**Animals** (two frames each, as one morph target; root extras `animal: true, noTouch:
+true`; startle them before the stream arrives):
+- `pigeon.glb` (194 tris): frame 0 standing, morph `peck` = head down to the pavement. Bob the
+  weight; a flock is an InstancedMesh with `setMorphAt`.
+- `dog.glb` (828 tris, 0.48 m at the shoulder): a medium dog with a red collar. Frame 0 one
+  stride, morph `stride` the other: ping-pong the weight at about 2 Hz while walking. Node
+  `leash` runs from the collar to a hand loop behind and to the dog's left at 0.92 m (extras
+  `collar`, `handle`, glTF model frame): keep it for a dog beside its person, or hide it and
+  draw a line from the collar to the walker's hand. Root extras `leashed: true`.
+
+## Humanoid line
+
+One parametric body (`lib/humanoid.py`, pure numpy), one rig and one clip library
+(`lib/humanoid_clips.py`), built by `models/humanoid.py`, `models/humanoid_impostor.py`:
+
+| Output | What |
+|---|---|
+| `humanoid-crowd.glb` | crowd meshes `adult_lod0` (2,879 tris), `adult_lod1` (871), `child_lod0`, `child_lod1`, written by `lib/glbwrite.py` in bake order; attributes `POSITION`/`NORMAL` (rest), `_VID` (vertex index), `_SLOT` (tint slot). Child meshes carry extras `child: true, noTouch: true` |
+| `humanoid-vat-<model>-lod<n>.bin` | the vertex-animation textures for one model and LOD |
+| `humanoid-vat.json` | layout, clip table, shape keys, variants, palettes, impostor |
+| `humanoid-impostor.png` | 8 views x 2 poses for people beyond the LOD1 range |
+| `player.glb` | the player's on-foot body: the same LOD0 body, skinned, with every shape key and clip |
+| `tests/assets/fixtures/humanoid-vat-reference.json` | exact skinning of two variants, for the decoder test |
+
+### The body, slots, variants and palettes
+
+The body is generated, not sculpted: torso rings (super-ellipses with belly, bust, hip and
+waist terms), a head with nose, ears, eyes and brows, tubes for arms and legs, mitten hands
+with a thumb, wool sneakers with a white sole. The topology is the same for every parameter
+set, so a body variant is a difference of two builds: a **shape key**. Clothing and hair layers
+always exist and sit just inside the body when their key is 0.
+
+Shape keys (`morphs` in the JSON, this order): `build_slim`, `build_broad`, `build_heavy`,
+`curvy`, `older` (a slight stoop), `hair_none`, `hair_long`, `hair_bun`, `vest` (fleece
+vest), `hoodie` (lowered hood and pocket), `lanyard` (conference lanyard and badge), `skirt`.
+
+Tint slots (`slots`, this order; `_SLOT` per vertex): 0 `skin`, 1 `hair`, 2 `top`,
+3 `bottom`, 4 `shoes`, 5 `outer` (vest), 6 `accent` (lanyard), 7 `sole`, 8 `eyes` (fixed),
+9 `badge` (fixed). Everyone wears long sleeves and long trousers or tights: it is Fog City.
+
+Variants (`variants`): founder (slim, vest, lanyard), engineer (hoodie, bun), partner (older,
+stocky, vest), attendee (long hair, skirt, lanyard), local (heavy build, broad hips), elder
+(stoop, thinning hair), runner (athletic), student (slim, hoodie, long hair), and the child
+model's two looks (hoodie; long hair), flagged `child: true`. Each has `weights` (shape keys),
+a `heightScale` range (apply as the instance's uniform scale) and suggested `outfits` / `hair`.
+Builds span torso widths at the waist from 0.26 m (`build_slim`) through 0.30 m (no key) to
+0.45 m (`build_heavy`, with a 0.33 m deep belly and the arms held clear of the hips); adult
+height scales span 0.88-1.08, so adults stand 1.56-1.92 m (the body is 1.78 m at scale 1),
+and children 0.90-1.08 of 1.17 m.
+
+**Skin tone is independent of the variant.** Pick it uniformly from `palette.skinTones` for
+every person, whatever their variant, role or outfit; never tie a tone to a build, an age or a
+satirised role. (`humanoid-variants.png` spreads the tones across the roles for the same
+reason.) Palettes: `palette.skinTones` (6), `palette.hair` (7), `palette.outfits` (14: top,
+bottom, shoes, outer, accent, sole), `palette.fixed` (eyes, badge). `paletteTable()` in
+`runtime/humanoid-vat.ts` makes one row per (outfit, hair, skin): row = (outfit x hairCount +
+hair) x skinCount + skin.
+
+### Rig and clips
+
+20 bones with world-aligned rest frames: `root`, `hips`, `spine`, `chest`, `neck`, `head`,
+`shoulder_L/R`, `upper_arm_L/R`, `forearm_L/R`, `hand_L/R`, `thigh_L/R`, `shin_L/R`,
+`foot_L/R`. Skin weights are analytic, at most 4 per vertex. Every clip solves the hips so the
+feet meet the ground (walk, idle, talk, wet shake), or sits the seat on the bench, or follows
+the dive's scripted clearance.
+
+| Clip | Adult frames @ fps | Loop | Notes |
+|---|---|---|---|
+| `walk` | 20 @ 20 (1.0 s) | yes | `speedMps` 1.34: move the instance at this speed (scale the rate with speed) so the planted foot stays put. Child: 16 @ 20 (0.8 s), 1.01 m/s |
+| `idle` | 18 @ 6 (3.0 s) | yes | breathing, weight shift, a look round |
+| `dive` | 30 @ 16 (1.8 s) | no | slapstick hop aside to the person's **left** (-X): crouch, dive, land on the side, roll up, brush off. `rootMotion` [-1.25, 0, 0]: the body ends 1.25 m to its left; keep the instance still for the clip, then move it there. Turn the person so their left points away from the car. Adults only |
+| `wet_shake` | 33 @ 20 (1.6 s) | no | shoulders up, hands shake the water off, head shake, a sigh. Annoyed, never hurt. Adults only |
+| `sit` | 12 @ 6 (2.0 s) | yes | on a seat `seatHeightM` 0.45 high (child 0.30), hips 4 cm behind the origin; benches and the wheelchair |
+| `talk` | 24 @ 8 (3.0 s) | yes | gestures, nods, a shrug |
+
+Children have `walk`, `idle`, `sit` and `talk` only: no dive and no wet shake, because water
+never reaches a child and they are not slapstick props. The player also has `run` (0.7 s) and
+`aim` (2.0 s, both hands on the blaster wand).
+
+### Vertex-animation textures
+
+One `.bin` per model and LOD, three sections back to back (little-endian; byte offsets and
+lengths in `models.<model>.lods.<n>` of the JSON):
+
+| Section | Format | Size (texels) | Contents |
+|---|---|---|---|
+| `position` | RGBA16F (half floats) | `width` x `frames * rowsPerFrame` | xyz = the vertex's position in the glTF model frame at that frame (w = 1) |
+| `rotation` | RGBA8 | `width` x `frames * rowsPerFrame` | the vertex's blended bone rotation as a unit quaternion (x, y, z, w), stored as q * 0.5 + 0.5, w >= 0 |
+| `morph` | RGBA16F | `width` x `12 * 2 * rowsPerFrame` | per shape key k: row 2k = rest position delta, row 2k+1 = rest normal delta |
+
+Texel of vertex `v` in row `r` (a frame, or 2k + c for morphs):
+`x = v % width`, `y = r * rowsPerFrame + floor(v / width)`. Today `width` = the vertex count
+(1,670 or 579, all under 2,048) and `rowsPerFrame` = 1. Frames of all clips are stacked in clip
+order; the clip table gives `startFrame`, `frameCount`, `fps`, `loop`, `durationS`. Sizes:
+adult LOD0 2.9 MB, LOD1 1.0 MB, child LOD0 1.6 MB, LOD1 0.6 MB (serve them compressed).
+
+A variant on top of the bake: `position = vatPosition(frame) + rotate(q(frame), sum_k w_k *
+delta_k)` and `normal = rotate(q, normalize(restNormal + sum_k w_k * normalDelta_k))`. Because
+skinning is linear, this is exact for a vertex on one bone; measured against exact skinning of
+a variant it is within 0.6 mm at the 95th percentile and 11 mm at worst (tested).
+
+### Shader contract (three.js)
+
+`runtime/humanoid-vat-three.ts` is a reference the render track can adopt as is:
+`createHumanoidVat(meta, model, lod, bin)` makes the textures (positions, rotations, morphs,
+a variant-weight texture, an sRGB palette texture) and a `MeshStandardMaterial` patched with
+`onBeforeCompile`; `addVatAttributes(instancedMesh)` and `setVatInstance(mesh, i, {...})` set
+the per-instance attributes. One draw call per mesh, any number of people.
+
+| Input | Kind | Meaning |
+|---|---|---|
+| `_vid`, `_slot` | vertex attributes (float) | vertex index into the textures; tint slot |
+| `vatState` | instanced vec4 | clip index (into the model's clip table), clip start time (s), playback rate, unused |
+| `vatLook` | instanced vec4 | variant row, palette row, wetness 0..1, unused |
+| `vatTime` | uniform float | the current time on the same clock as the start times |
+| `vatClips[8]` | uniform vec4 | startFrame, frameCount, fps, loop per clip |
+| `vatLayout` | uniform vec4 | width, rowsPerFrame, shape-key count, 0 |
+
+Per vertex: frame = (vatTime - start) x rate x fps, wrapped (loop) or clamped (one-shot);
+blend the two neighbouring frames (positions linearly, rotations by normalised lerp with the
+sign aligned); add the variant's rotated deltas; the instance matrix then places and scales
+it. The fragment stage looks up `palette[palette row][slot]`, darkens wet clothes and hair
+(not skin) and lowers their roughness. Give the InstancedMesh's geometry the JSON `bounds`
+as its bounding sphere (the dive leaves the origin). The CPU twin of the vertex maths is
+`VatData.decode()` in `runtime/humanoid-vat.ts`.
+
+**Shadows.** three.js renders shadow maps with its own depth materials, which know nothing of
+the textures, so without help every person casts the shadow of the rest pose (a diving person
+would leave a standing shadow behind). `createHumanoidVat` also returns `depthMaterial`
+(`MeshDepthMaterial`, directional and spot lights) and `distanceMaterial`
+(`MeshDistanceMaterial`, point lights), patched with the same vertex maths (position only,
+`VAT_VERTEX_POSITION`) and sharing the uniforms, so `vatTime` moves body and shadow together:
+
+```ts
+mesh.castShadow = true;
+mesh.customDepthMaterial = vat.depthMaterial;
+mesh.customDistanceMaterial = vat.distanceMaterial;
+```
+
+Checked in a real browser: three.js 0.186 under SwiftShader (Chromium) drew 48 instances
+(every adult clip x every adult variant, mixed palettes) in one draw call with no GL errors,
+and LOD1 and the child the same way. With the shadow materials, a diving adult's shadow under a
+directional light covered x -2.00 to -0.40 m, where `VatData.decode()` puts the body at -2.00
+to -0.40 m (without them: -0.25 to 0.25 m, the rest pose); the point-light shadow, LOD1 sitting
+and a child walking matched the same way. These were scratch pages, not committed: the render
+track should add an e2e for the crowd and its shadows.
+
+### LODs and the impostor
+
+LOD0 within about 60-80 m, LOD1 to 300 m (both play the same clips), the impostor beyond
+(design.md, Performance). The atlas is drawn from the adult body only. **Children beyond
+300 m** use the same atlas on a quad scaled by 0.66 (the child is 1.17 m against the adult's
+1.78 m; at that distance a child is a few pixels tall and the proportions do not show); the
+no-touch flag comes from the sim, not from what is drawn, so a child keeps it at any LOD. `humanoid-impostor.png` is 512 x 256: 8 columns (views 45 degrees
+apart) x 2 rows (`idle`, `walk` mid-stride) of 64 x 128 px cells. R = slot x 16 + 8, G =
+diffuse shading (sRGB), A = coverage (alpha test). Draw a camera-facing quad `cellSizeM`
+(1 x 2 m) with its bottom on the ground; pick the column with `phi = atan2(d.x, -d.z)` for
+`d` the person-to-camera direction in the person's glTF frame, `column = round(phi / 45 deg)
+mod 8` (`impostorCell()` in the runtime); colour = palette[row][floor(R / 16)] x G.
+
+### The player body (`player.glb`)
+
+The adult LOD0 body as a skinned glTF. The scene has two root nodes: `player` (the rig: the
+bone hierarchy, extras `fcActor`, `slots`, `morphs`, `clips`) and `player_body` (the skinned
+mesh). glTF ignores a skinned mesh's own transform and its parents' (the Khronos validator
+warns when it is not a root), so the mesh sits beside the rig rather than under it; every GLB
+here validates with no warnings (tested). Add the loaded `gltf.scene` (or a
+`SkeletonUtils.clone` of it) to the world and move that, not the `player` node alone. It has
+the 20-bone skin, the 12 shape keys as morph targets (names in
+`extras.targetNames`; set `morphTargetInfluences` for a look), materials `tint_skin`,
+`tint_hair`, `tint_top`, `tint_bottom`, `tint_shoes`, `tint_outer`, `tint_accent`,
+`tint_sole`, `eyes`, `badge` (set their colours from a palette row), and glTF animations
+`walk`, `idle`, `dive`, `wet_shake`, `sit`, `talk`, `run`, `aim` at their authored lengths.
+`build_player` checks at build time that Blender's armature deform matches the numpy skinning
+the VAT used (to 0.00 mm), so the player and the crowd move identically. The founder's avatar
+never gets wet (design.md); `wet_shake` is there for completeness. The water blaster attaches
+to its `chest` and `hand_R` bones.
+
+## Sound effects
+
+`assets/audio/generate.py` synthesises `public/audio/{spray,splash,rust-creak,melt-fizz,
+moat-jingle}.{ogg,mp3}` and `public/audio/manifest.json`; details in `assets/audio/README.md`.
+
+## Trade-dress checklist
+
+`tests/assets/trade-dress.json` records each robot and vehicle's silhouette and the real
+products and film robots it was compared with (design.md asks for this before merge);
+`trade-dress.test.ts` fails when a robot or vehicle model has no entry. Every entry waits for
+the user's sign-off. The wave-1 robotaxi failed the Meander row (a crossover with a roof
+dome); it was remodelled in wave 2 and its entry now records the Meander's silhouette and
+comparisons.
 
 ## Landmarks (`content/landmarks.json`)
 
@@ -157,10 +516,18 @@ Generated by `tools/landmarks.py` (run by `build.sh`).
   then `FC_MODELS_DIR=assets/blender/.cache/variants/raised pnpm vitest run tests/assets -t r-evolution`.
 - **Cars** (`lib/vehicle.py`): a lofted, welded body whose sill line rises over each wheel to
   carve round arches, a greenhouse loft with A/B/C pillars, light bars, cladding, arch liners
-  and hub-centred wheel nodes. The player car is an original orange hatchback; the robotaxi
-  an original white crossover with a roof sensor crown, spinning lidar dome, four corner
-  pods, camera pods for mirrors and a teal status ring. No real vehicle, badge or livery.
-- **Errand robot, sidewalk bot, bus**: capsules, lathes and boxes from `lib/fc.py`.
+  and hub-centred wheel nodes. The player car is an original orange hatchback. The Meander
+  uses the same body loft, then sweeps the roof band's cross-section round the roof edge
+  (`ribbon` in `models/robotaxi.py`), lays the street-side panel over the side glass, turns
+  the body faces under the door into the dark cabin and builds the door from the body's own
+  side section pushed out 8 mm. No real vehicle, badge or livery.
+- **Porter, Trundle, bus, van, props**: capsules, lathes, lofts, gridded panels and boxes from
+  `lib/fc.py` and `lib/vehicle.py`; the robots' melt keys from `lib/melt.py`.
+- **Heaps** (`models/heaps.py`): import the exported robot, apply its `melt` key, swap its
+  materials for rust by each face's `_RUST_MASK`, decimate to 2.5k triangles, add a puddle.
+- **Humanoid** (`lib/humanoid.py`, `lib/humanoid_clips.py`, `models/humanoid.py`): see
+  Humanoid line. The crowd GLB is written directly by `lib/glbwrite.py` (the vertex order is
+  the texture order); the player GLB by Blender's exporter.
 
 ## Look-dev renders (`lookdev/`)
 
@@ -174,7 +541,22 @@ The plaza set (`lib/plaza.py`) and the dusk street (in its script) exist only fo
 renders; the storefronts carry no names or words (iconography only, blank sign slots).
 Renders are deterministic (fixed seed and thread count), and `lookdev.render()` strips the
 PNG text chunks where Blender writes the date and render timings, so re-rendering an
-unchanged scene leaves the files byte-identical.
+unchanged scene leaves the files byte-identical. `03-street-robots-dusk.png` was re-rendered in
+wave 2 with the remodelled Porter, Trundle and Meander.
+
+Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio set, all under
+2 MB):
+
+| File | Shows |
+|---|---|
+| `05-porter-turntable.png` | the Porter front, three-quarter, side, back; then seized (rust 0.35), slumping (0.6), melted (0.9) with the `_RUST_MASK` rust preview, and `heap-porter.glb` |
+| `06-trundle-turntable.png` | the Trundle front, three-quarter, side, back, with its lid rolled open; then the melt sequence and `heap-trundle.glb` |
+| `07-moat-van-turntable.png` | the van front three-quarter, side, rear three-quarter with the barn doors open |
+| `08-prop-lineup.png` | repair kiosk, the player wearing the water blaster, vendor cart, wheelchair; hydrant, drinking fountain, cone, the three heaps, two pigeons (standing, pecking), the leashed dog |
+| `09-meander-turntable.png` | the Meander robotaxi: the kerb side from the front three-quarter, the street side broadside (the asymmetry), the kerb side from the rear three-quarter with the sliding door open |
+| `humanoid-variants.png` | the 8 adult variants and the 2 child looks in suggested outfits, decoded from the VAT as the crowd shader decodes them |
+| `humanoid-turntable.png` | the founder look from four sides (VAT), and `player.glb` wearing the blaster, front and back |
+| `humanoid-clips.png` | walk, idle, wet shake, talk, sit (on a 0.45 m bench), four dive moments, the child walking (all VAT) |
 
 ## Sources and licences
 
@@ -188,3 +570,5 @@ unchanged scene leaves the files byte-identical.
 - Photographs (SF Arts Commission extension proposal, Wikipedia, a Burning Man 2015 photo
   page at loupiote.com for the pose description) were used as reference only; no imagery is
   in the assets. All textures are generated by the scripts.
+- Wave 2 uses no outside data: the humanoid, robots, van, props, heaps and animals are
+  generated by the scripts, and the sounds are synthesised (`assets/audio/`).

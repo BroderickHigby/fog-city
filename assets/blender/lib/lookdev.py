@@ -36,8 +36,12 @@ def setup(res=(960, 540), samples=64, exposure=0.0, look="AgX - Medium High Cont
     sc.cycles.sample_clamp_indirect = 8.0
     sc.render.resolution_x, sc.render.resolution_y = res
     sc.render.resolution_percentage = 100
+    # quick drafts: FC_LOOKDEV_DRAFT=1 renders at 40% with 8 samples (into FC_LOOKDEV_OUT)
+    if os.environ.get("FC_LOOKDEV_DRAFT"):
+        sc.render.resolution_percentage = 40
+        sc.cycles.samples = 8
     sc.render.threads_mode = "FIXED"
-    sc.render.threads = 4
+    sc.render.threads = int(os.environ.get("FC_RENDER_THREADS", "2"))
     sc.view_settings.view_transform = "AgX"
     try:
         sc.view_settings.look = look
@@ -193,7 +197,10 @@ def compositor(mist=None, glare=None, mist_falloff="QUADRATIC"):
 def import_glb(file, x=0.0, y=0.0, z=0.0, heading_deg=0.0, game_xz=None):
     """Import public/models/<file>; place its root at Blender (x, y, z) or game (x, z)."""
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=os.path.join(fc.MODELS_OUT, file))
+    try:  # skinned files: no display shapes for the bones (they would be extra roots)
+        bpy.ops.import_scene.gltf(filepath=os.path.join(fc.MODELS_OUT, file), disable_bone_shape=True)
+    except TypeError:
+        bpy.ops.import_scene.gltf(filepath=os.path.join(fc.MODELS_OUT, file))
     new = [o for o in bpy.data.objects if o not in before]
     roots = [o for o in new if o.parent is None]
     assert len(roots) == 1, f"{file}: expected one root, got {[r.name for r in roots]}"
@@ -331,7 +338,11 @@ def strip_png_text(path):
 
 def render(name):
     sc = bpy.context.scene
-    path = os.path.join(LOOKDEV_DIR, name)
+    if os.environ.get("FC_LOOKDEV_DRAFT"):
+        sc.cycles.samples = 8
+    out_dir = os.environ.get("FC_LOOKDEV_OUT", LOOKDEV_DIR)
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, name)
     sc.render.filepath = path
     bpy.ops.render.render(write_still=True)
     strip_png_text(path)
