@@ -573,11 +573,14 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
 
   // House-kit data (W-15, W-29, W-46 to W-50): street level, wall classes, storeys. meta.streetY
   // is written where it differs from baseY by 10 cm or more; the glb's storey grid uses exactly it.
-  const house = houseData(buildings, graph.edges, (x, z) => simGround.heightAt(x, z));
+  // A wall a storefront anchor stands on faces its street (K5): the house data classes it front.
+  const house = houseData(buildings, graph.edges, (x, z) => simGround.heightAt(x, z), storefronts);
   for (const b of buildings) {
     const h = house.get(b.id);
     if (!h || h.streetY === undefined || b.meta.towerOf !== undefined) continue;
-    if (Math.abs(h.streetY - b.baseY) < 0.1) delete h.streetY;
+    // Within 10 cm the street level is the base (the glb uses exactly baseY then, and the record
+    // keeps its fronts); otherwise meta.streetY says where the grid starts.
+    if (Math.abs(h.streetY - b.baseY) < 0.1) h.streetY = b.baseY;
     // The record object is the one every tile list holds: a new meta, never a shared one changed.
     else b.meta = { ...b.meta, streetY: h.streetY };
   }

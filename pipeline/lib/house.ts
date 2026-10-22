@@ -28,6 +28,8 @@ export const STREET_WALL_M = 6;
 export const PARTY_M = 0.6;
 export const PARTY_SHARE = 0.6;
 export const FRONT_M = 12;
+/** A storefront anchor stands 0.3 m out from its wall (storefronts.ts); this finds the wall. */
+export const SHOP_WALL_M = 0.75;
 /** Wall classes as the glb's _FACADE.w byte. */
 export const WALL_REAR = 0;
 export const WALL_PARTY = 85;
@@ -191,7 +193,14 @@ export function storeyGrid(b: Building, streetY: number): { storeyM: number; sto
  * House data for every record (keyed by id). `heightAt` is the sim's ground (bilinear). Towers take
  * their podium's street level; their walls are classed like any other.
  */
-export function houseData(list: readonly Building[], edges: readonly RoadEdge[], heightAt: (x: number, z: number) => number | null): Map<string, HouseInfo> {
+export function houseData(
+  list: readonly Building[],
+  edges: readonly RoadEdge[],
+  heightAt: (x: number, z: number) => number | null,
+  shops: ReadonlyArray<{ x: number; z: number; buildingId: string }> = [],
+): Map<string, HouseInfo> {
+  const shopsOf = new Map<string, Array<{ x: number; z: number }>>();
+  for (const s of shops) (shopsOf.get(s.buildingId) ?? shopsOf.set(s.buildingId, []).get(s.buildingId)!).push(s);
   const streets = new Segments(edges, (e) => !e.pedestrian && e.kind !== "freeway" && e.kind !== "ramp");
   const paths = new Segments(edges, (e) => e.kind !== "freeway" && e.kind !== "ramp");
   const outlines = new Outlines(list);
@@ -222,9 +231,15 @@ export function houseData(list: readonly Building[], edges: readonly RoadEdge[],
     if (pod !== undefined) skip.add(pod);
     if (tow !== undefined) skip.add(tow);
     const walls: number[] = [];
+    const myShops = shopsOf.get(b.id) ?? [];
     for (let i = 0; i < f.length; i++) {
       const a = f[i]!, c = f[(i + 1) % f.length]!;
       const [nx, nz, len] = outward(f, i);
+      // A storefront anchor's wall (the anchor stands SHOP_WALL_M off it, with open ground in front).
+      if (myShops.some((s) => distToSegment(s.x, s.z, a, c).d <= SHOP_WALL_M)) {
+        walls.push(WALL_FRONT);
+        continue;
+      }
       // Party: another outline within PARTY_M along most of the wall.
       const n = Math.max(2, Math.ceil(len));
       let hits = 0;
@@ -281,7 +296,10 @@ export function tileFronts(
   list.forEach((b, ri) => {
     if (b.meta.towerOf !== undefined) return;
     const h = info.get(b.id);
-    if (!h || h.streetY === undefined) return;
+    if (!h) return;
+    // No street wall within STREET_WALL_M (a front on a path or a wide street): the facade starts
+    // at the base, as the glb draws it.
+    const streetY = h.streetY ?? b.baseY;
     const residential = isResidential(b);
     const use = (b.meta.use ?? "").toLowerCase();
     const mixed = use.includes("mixed") || use.includes("retail");
@@ -289,7 +307,7 @@ export function tileFronts(
     const row = h.walls.includes(WALL_PARTY);
     const f = b.footprint;
     // The first floor's rise over the sidewalk, to the decimetre the row stores (the stoop flag reads the same value).
-    const floorM = Math.round(Math.max(0, b.baseY - h.streetY) * 10) / 10;
+    const floorM = Math.round(Math.max(0, b.baseY - streetY) * 10) / 10;
     for (let i = 0; i < f.length; i++) {
       if (h.walls[i] !== WALL_FRONT) continue;
       const a = f[i]!, c = f[(i + 1) % f.length]!;
@@ -299,7 +317,7 @@ export function tileFronts(
       if (residential && year > 0 && year <= BAY_MAX_YEAR && len >= BAY_MIN_FRONT_M && h.storeys >= 2) flags |= FRONT_BAY;
       if (residential && floorM >= STOOP_MIN_RISE_M) flags |= FRONT_STOOP;
       if (residential && year >= GARAGE_YEARS[0] && year <= GARAGE_YEARS[1] && len >= GARAGE_FRONT_M[0] && len <= GARAGE_FRONT_M[1]) flags |= FRONT_GARAGE;
-      if ((byBuilding.get(b.id) ?? []).some((s) => distToSegment(s.x, s.z, a, c).d <= 0.75)) flags |= FRONT_SHOP;
+      if ((byBuilding.get(b.id) ?? []).some((s) => distToSegment(s.x, s.z, a, c).d <= SHOP_WALL_M)) flags |= FRONT_SHOP;
       if ((residential || mixed) && year > 0 && year < ROOFLINE_MAX_YEAR && row) flags |= FRONT_ROOFLINE;
       if (flags === 0) continue;
       const mx = (a[0] + c[0]) / 2, mz = (a[1] + c[1]) / 2;
@@ -310,7 +328,7 @@ export function tileFronts(
         Math.round((mz - origin[1]) * 10),
         deg,
         Math.round(len * 10),
-        Math.round(h.streetY * 100),
+        Math.round(streetY * 100),
         Math.round(floorM * 10),
         h.storeys,
         Math.round(h.storeyM * 100),

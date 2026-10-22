@@ -111,11 +111,13 @@ describe("house kit data (K1, K4-K8)", () => {
   });
 
   it("30th Ave, Kirkham to Lawton: every mid-block house's front faces the avenue (95%), with its garage door (90%)", () => {
-    // The avenue's own centreline (roads.json), between Kirkham St (about 37.7599) and Lawton St
-    // (about 37.7586): a house on the avenue has its interior point 8 to 32 m from it (a Sunset lot
+    // The avenue's own centreline (roads.json), between Kirkham St (its node at about 37.7593) and Lawton St
+    // (about 37.7575): a house on the avenue has its interior point 8 to 32 m from it (a Sunset lot
     // is about 37 m deep, behind a 12 m half street).
     const ave = street("30th Ave", toLocal(37.7592, -122.48885));
-    const north = toLocal(37.7599, -122.48885).z, south = toLocal(37.7586, -122.48885).z;
+    // The block between the avenue's Kirkham and Lawton nodes (z about 4016 and 4223), corner lots
+    // (which face the cross streets) left out.
+    const north = toLocal(37.7591, -122.48885).z, south = toLocal(37.7577, -122.48885).z;
     const houses = colliders
       .filter((c) => SUNSET.includes(c.tileId))
       .flatMap((c) => c.buildings)
@@ -166,12 +168,13 @@ describe("house kit data (K1, K4-K8)", () => {
   });
 
   it("storefront anchors sit on fronts flagged for shopfronts (90% in the loaded tiles)", () => {
-    const loaded = new Set(fronts.keys());
-    const tileOf = (x: number, z: number): string => `t${Math.floor(x / 500)}_${Math.floor(z / 500)}`;
+    // A record's fronts are in its own tile's list (the anchor may stand across a tile border).
+    const tileOfRecord = new Map<string, string>();
+    for (const id of fronts.keys()) for (const b of colliders[tileIndex.get(id)!]!.buildings) tileOfRecord.set(b.id, id);
     let n = 0, on = 0;
     for (const s of storefronts.storefronts) {
-      const id = tileOf(s.x, s.z);
-      if (!loaded.has(id)) continue;
+      const id = tileOfRecord.get(s.buildingId);
+      if (id === undefined) continue;
       n++;
       const list = (fronts.get(id) ?? []).filter((f) => f.b.id === s.buildingId && f.flags & FRONT_SHOP);
       if (list.some((f) => Math.hypot(f.x - s.x, f.z - s.z) <= f.lengthM / 2 + 1)) on++;
