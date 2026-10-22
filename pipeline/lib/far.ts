@@ -24,10 +24,10 @@
 //     footprint is close to convex), flat roof at their topY;
 //   * everything else: records closer than clusterGapM whose heights above the ground differ by at
 //     most clusterHeightM merge into a cluster: its convex hull, or the members' own outlines where
-//     that hull would stand over another record of a different height; the roof follows the
-//     terrain at the members' area-weighted mean height, capped at the highest member's roof.
-//     A record alone keeps its own flat roof
-//     (topY), and a record standing over a tall record's interior point is never clustered;
+//     that hull would stand over another record of a different height; at each hull vertex the
+//     roof is the roof of the member nearest it (a stepped row on a hill slopes from roof to
+//     roof). A record alone keeps its own flat roof (topY), and a record standing over a tall
+//     record's interior point is never clustered;
 // every hull is pushed out HULL_GROW_M (never over another record's interior point), so the far
 // glb's position grid leaves no record's interior point outside its roof.
 // Every hull's walls start skirtM below the lowest ground under it.
@@ -203,6 +203,11 @@ export interface Hull {
   absolute: boolean;
   /** A terrain-following roof (absolute false) never rises over this: its highest member's roof. */
   maxTop?: number;
+  /**
+   * A cluster's roof per ring vertex, absolute: the roof of the member nearest that vertex, so the
+   * roof runs between its members' own roofs (a stepped row on a hill) rather than over the ground.
+   */
+  vertexTops?: number[];
   wall: string;
   roof: string;
   records: number;
@@ -316,8 +321,27 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     const top = area > 0 ? hsum / area : p.clusterByRoof ? biggest.topY : heightOf(biggest);
     const style = facadeStyle(biggest);
     const maxTop = Math.max(...members.map((m) => m.topY));
+    // The member nearest a point (a vertex of the hull): the one whose outline is closest.
+    const nearestTop = (q: P2): number => {
+      let best = Infinity, top = members[0]!.topY;
+      for (const m of members) {
+        const f = m.footprint;
+        if (pointInRing(q[0], q[1], f)) return m.topY;
+        for (let i = 0; i < f.length; i++) {
+          const a = f[i]!, c = f[(i + 1) % f.length]!;
+          const ex = c[0] - a[0], ez = c[1] - a[1];
+          const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * ex + (q[1] - a[1]) * ez) / (ex * ex + ez * ez || 1)));
+          const d = Math.hypot(q[0] - a[0] - ex * t, q[1] - a[1] - ez * t);
+          if (d < best) {
+            best = d;
+            top = m.topY;
+          }
+        }
+      }
+      return top;
+    };
     const push = (ring: P2[], records: number): void => {
-      if (ring.length >= 3) hulls.push({ ring, top, absolute: p.clusterByRoof, maxTop, wall: style.wall, roof: style.roof, records });
+      if (ring.length >= 3) hulls.push({ ring, top, absolute: p.clusterByRoof, maxTop, vertexTops: ring.map(nearestTop), wall: style.wall, roof: style.roof, records });
     };
     const levelOf = (o: Building): number => (p.clusterByRoof ? o.topY : heightOf(o));
     // A hull leaves out none of its members' interior points: its vertex cap grows until it does.
@@ -391,7 +415,7 @@ function emitHull(m: MeshData, h: Hull, ground: (x: number, z: number) => number
   const bottom = Math.min(...g) - skirtM;
   // A cluster's roof follows the ground at its mean height, but never rises over its highest
   // member's roof (on a hill the ground at a hull corner can stand over a terraced member's base).
-  const tops = h.ring.map((_, i) => (h.absolute ? h.top : Math.min(g[i]! + h.top, h.maxTop ?? Infinity)));
+  const tops = h.ring.map((_, i) => (h.vertexTops ? h.vertexTops[i]! : h.absolute ? h.top : Math.min(g[i]! + h.top, h.maxTop ?? Infinity)));
   const wallCol = rgba(h.wall, 0.92);
   const footCol = rgba(h.wall, 0.75);
   const roofCol = rgba(h.roof);
