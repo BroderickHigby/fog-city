@@ -413,6 +413,26 @@ interface Body {
   z: number;
 }
 
+/** The obstacle hash (buildHash) and, in the same pass, the ones on foot and the vehicle boxes walkers meet (Ctx.footHash, Ctx.boxHash). */
+function buildHashes(obs: readonly Obs[]): { hash: Map<number, Obs[]>; footHash: Map<number, Obs[]>; boxHash: Map<number, Obs[]> } {
+  const hash = new Map<number, Obs[]>();
+  const footHash = new Map<number, Obs[]>();
+  const boxHash = new Map<number, Obs[]>();
+  const put = (m: Map<number, Obs[]>, k: number, o: Obs): void => {
+    let l = m.get(k);
+    if (!l) m.set(k, (l = []));
+    l.push(o);
+  };
+  for (const o of obs) {
+    const k = cellKey(Math.floor(o.x / HASH_CELL), Math.floor(o.z / HASH_CELL));
+    put(hash, k, o);
+    if (o.predicted === true) continue;
+    if (o.foot === true) put(footHash, k, o);
+    if (o.box !== undefined && o.onlyFor !== "road") put(boxHash, k, o);
+  }
+  return { hash, footHash, boxHash };
+}
+
 function buildHash(obs: readonly Obs[]): Map<number, Obs[]> {
   const m = new Map<number, Obs[]>();
   for (const o of obs) {
@@ -531,6 +551,8 @@ const OBS_RADIUS_MAX =
 /** The berth's poses along the route are this far apart (STOP_STEP_M over the step itself), metres, and it keeps this much more, metres. */
 const BERTH_STEP_M = 0.1;
 const STOP_STEP_M = 0.02;
+/** berthLimit first looks along the route this often, metres (and finer only when someone is near it). */
+const COARSE_STEP_M = 0.5;
 const BERTH_SLACK_M = 0.05;
 /** How hard the dodge counts on a robotaxi braking, m/s^2, and after how long (dodge.ts ROBOTAXI_BRAKE_MPS2, ROBOTAXI_REACT_S). */
 const DODGE_TAXI_BRAKE = 6;
@@ -551,15 +573,39 @@ function berthLimit(c: Ctx, a: Readonly<AgentState>, dt: number): number {
   const ahead = Math.min(14, v * (dt + DODGE_TAXI_REACT_S) + (v * v) / (2 * DODGE_TAXI_BRAKE) + 0.25);
   const step = v * (dt + DODGE_TAXI_REACT_S) + 0.05;
   const reach = ROBOTAXI_BODY.halfLength + ahead + ROBOTAXI_SLOW_BERTH_CHILD_M + 1;
-  queryHash(c.hash, a.x, a.z, reach, c.scratch);
+  queryHash(c.footHash, a.x, a.z, reach, c.scratch);
   const near: Obs[] = [];
   for (const o of c.scratch) {
-    if (!o.foot || o.predicted) continue;
     const dx = o.x - a.x;
     const dz = o.z - a.z;
     if (dx * dx + dz * dz <= (reach + o.r) * (reach + o.r)) near.push(o);
   }
   if (near.length === 0) return Infinity;
+  const segs = routeOf(c.routes, c.g, a);
+  // First the route every COARSE_STEP_M: the body at any pose lies within half that and its half
+  // diagonal of one of those points, so someone farther than that plus the slow berth from all of
+  // them is clear of every pose (most people on the pavement beside a lane): no finer look.
+  const coarse: number[] = [];
+  for (let d = COARSE_STEP_M; d < ahead - 1e-9; d += COARSE_STEP_M) coarse.push(d);
+  coarse.push(ahead);
+  const cps = agentRouteAt(c.world, a, coarse, segs);
+  const halfDiag = Math.sqrt(ROBOTAXI_BODY.halfLength * ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth * ROBOTAXI_BODY.halfWidth);
+  let any = false;
+  for (const o of near) {
+    const slow = (o.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M;
+    const lim = slow + o.r + halfDiag + COARSE_STEP_M / 2 + 0.02;
+    let close = (o.x - a.x) * (o.x - a.x) + (o.z - a.z) * (o.z - a.z) < lim * lim;
+    for (let i = 0; !close && i < cps.length; i++) {
+      const q = cps[i]!;
+      close = (o.x - q.x) * (o.x - q.x) + (o.z - q.z) * (o.z - q.z) < lim * lim;
+    }
+    if (close) {
+      any = true;
+      break;
+    }
+  }
+  // (A route that ends short of `ahead`, at a dead end: the finer look below handles it.)
+  if (!any && cps.length === coarse.length) return Infinity;
   const poses: Array<{ x: number; z: number; hx: number; hz: number; d: number }> = [{ x: a.x, z: a.z, hx: dsin(a.heading), hz: -dcos(a.heading), d: 0 }];
   // Every STOP_STEP_M over this step (and two ticks), exactly where that ends, then every
   // BERTH_STEP_M on to where it could stop.
@@ -567,7 +613,7 @@ function berthLimit(c: Ctx, a: Readonly<AgentState>, dt: number): number {
   for (let d = STOP_STEP_M; d < step - 1e-9; d += STOP_STEP_M) ds.push(d);
   ds.push(step);
   for (let d = step + BERTH_STEP_M; d < ahead + 1e-9; d += BERTH_STEP_M) ds.push(d);
-  for (const q of agentRouteAt(c.world, a, ds)) {
+  for (const q of agentRouteAt(c.world, a, ds, segs)) {
     const l = Math.sqrt(q.tx * q.tx + q.tz * q.tz);
     if (l > 1e-9) poses.push({ x: q.x, z: q.z, hx: q.tx / l, hz: q.tz / l, d: q.d });
   }
@@ -791,17 +837,35 @@ function turnSpeed(cp: readonly number[], cruise: number): number {
 
 const HALF_PI_LOCAL = 1.5707963267948966;
 
-interface Seg {
+export interface Seg {
   path: Path;
   from: number;
   /** Lateral shift applied to points on this segment (walkers' sidestep, current segment only). */
   lat: number;
 }
 
-/** The route ahead of an agent: current path, then the planned connector and next path. */
-function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Seg[] {
+/**
+ * The route ahead of an agent (routeAhead): the segments it has worked out, and the planned
+ * connector and next path it adds only when a walk along the route gets past them (most walks,
+ * a walker's look-ahead, a robotaxi on a long lane, end on the path the agent is on).
+ */
+export interface Route {
+  segs: Seg[];
+  pending: { g: RoadGraph; a: Readonly<AgentState>; lane: Path } | null;
+}
+
+/**
+ * The route ahead of an agent (routeAhead), for callers that ask agentRouteAt about the same
+ * agent more than once in a tick (the dodge's prediction and reach of a robotaxi): one route walk.
+ */
+export function agentRouteSegs(world: World, a: Readonly<AgentState>): Route {
+  return world.roads ? routeAhead(world.roads, a) : { segs: [], pending: null };
+}
+
+/** The route ahead of an agent: current path, then the planned connector and next path (segAt adds those when needed). */
+function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Route {
   const ei = g.edgeIndex.get(a.edge);
-  if (ei === undefined) return [];
+  if (ei === undefined) return { segs: [], pending: null };
   const e = g.edges[ei]!;
   const lane = basePath(e, a);
   const segs: Seg[] = [];
@@ -811,12 +875,21 @@ function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Seg[] {
   } else {
     segs.push({ path: lane, from: a.s, lat: a.lat });
   }
-  const plan = planNext(g, a);
-  if (plan) {
-    segs.push({ path: connectorPath(makeConnector(lane, plan.path, AGENT_SPEC[a.kind].road ? 0.56 : 0.9)), from: 0, lat: 0 });
-    segs.push({ path: plan.path, from: 0, lat: 0 });
+  return { segs, pending: { g, a, lane } };
+}
+
+/** Segment i of a route (adding the planned connector and next path when the walk needs them), or null past its end. */
+function segAt(r: Route, i: number): Seg | null {
+  if (i >= r.segs.length && r.pending) {
+    const { g, a, lane } = r.pending;
+    r.pending = null;
+    const plan = planNext(g, a);
+    if (plan) {
+      r.segs.push({ path: connectorPath(makeConnector(lane, plan.path, AGENT_SPEC[a.kind].road ? 0.56 : 0.9)), from: 0, lat: 0 });
+      r.segs.push({ path: plan.path, from: 0, lat: 0 });
+    }
   }
-  return segs;
+  return r.segs[i] ?? null;
 }
 
 /**
@@ -837,20 +910,20 @@ export function agentRoute(world: World, a: Readonly<AgentState>, dist: number, 
  * face, as stepAgent will put it (no interpolation across a bend). Stops where the known route
  * ends.
  */
-export function agentRouteAt(world: World, a: Readonly<AgentState>, ds: readonly number[]): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
+export function agentRouteAt(world: World, a: Readonly<AgentState>, ds: readonly number[], route: Route | null = null): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
   const g = world.roads;
   const out: Array<{ x: number; z: number; tx: number; tz: number; d: number }> = [];
   if (!g) return out;
-  const segs = routeAhead(g, a);
+  route ??= routeAhead(g, a);
   let si = 0;
   let base = 0;
   for (const d of ds) {
-    while (si < segs.length && d - base > segs[si]!.path.len - segs[si]!.from) {
-      base += Math.max(0, segs[si]!.path.len - segs[si]!.from);
-      si++;
+    let sg = segAt(route, si);
+    while (sg && d - base > sg.path.len - sg.from) {
+      base += Math.max(0, sg.path.len - sg.from);
+      sg = segAt(route, ++si);
     }
-    if (si >= segs.length) break;
-    const sg = segs[si]!;
+    if (!sg) break;
     const q = pathPoint(sg.path, sg.from + d - base);
     out.push({ x: q.x - q.tz * sg.lat, z: q.z + q.tx * sg.lat, tx: q.tx, tz: q.tz, d });
   }
@@ -871,16 +944,16 @@ interface ProbeResult {
   second: Hit | null;
 }
 
-/** Look ahead along the route for obstacles this agent must yield to. */
+/** Look ahead along the route (from `routes`, the tick's route walks, when given) for obstacles this agent must yield to. */
 function probe(
   g: RoadGraph,
   a: Readonly<AgentState>,
   hash: Map<number, Obs[]>,
   ignoreRobotaxis: boolean,
   scratch: Obs[],
+  routes: Map<number, Route> | null = null,
 ): ProbeResult {
   const spec = AGENT_SPEC[a.kind];
-  const segs = routeAhead(g, a);
   const step = spec.road ? 1.5 : 0.5;
   const start = spec.road ? 0.8 : 0.2;
   const look = spec.road ? spec.halfLength + Math.max(6, (a.speed * a.speed) / 6 + 4) : spec.halfLength + 2.5;
@@ -906,16 +979,17 @@ function probe(
     near.push(o);
   }
   if (near.length === 0) return { first: null, second: null };
+  const route = routes ? routeOf(routes, g, a) : routeAhead(g, a);
   let si = 0;
   let base = 0; // distance already covered by earlier segments
-  for (let d = start; d <= look && si < segs.length; d += step) {
+  for (let d = start; d <= look; d += step) {
     // Advance to the segment containing distance d.
-    while (si < segs.length && d - base > segs[si]!.path.len - segs[si]!.from) {
-      base += Math.max(0, segs[si]!.path.len - segs[si]!.from);
-      si++;
+    let sg = segAt(route, si);
+    while (sg && d - base > sg.path.len - sg.from) {
+      base += Math.max(0, sg.path.len - sg.from);
+      sg = segAt(route, ++si);
     }
-    if (si >= segs.length) break;
-    const sg = segs[si]!;
+    if (!sg) break;
     const q = pathPoint(sg.path, sg.from + d - base);
     const px = q.x - q.tz * sg.lat;
     const pz = q.z + q.tx * sg.lat;
@@ -1113,6 +1187,12 @@ interface Ctx {
   world: World;
   g: RoadGraph;
   hash: Map<number, Obs[]>;
+  /** The same obstacles, only those on foot (not predicted): what a robotaxi's berth is kept from. */
+  footHash: Map<number, Obs[]>;
+  /** Only the vehicle boxes walkers meet (players' cars, robotaxis' drawn bodies): what nearerVehicle checks. */
+  boxHash: Map<number, Obs[]>;
+  /** The route ahead of each agent this tick (routeAhead, once per agent: routeOf). */
+  routes: Map<number, Route>;
   /** Look-ahead results by agent id; filled for every stepping agent, and on demand (probeOf). */
   probes: Map<number, ProbeResult>;
   byId: Map<number, AgentState>;
@@ -1135,9 +1215,19 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   if (have) return have;
   const a = c.byId.get(id);
   if (!a || a.dwell > 0 || a.dodge !== null) return undefined;
-  const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch);
+  const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch, c.routes);
   c.probes.set(id, p);
   return p;
+}
+
+/** The route ahead of agent a (as of the previous tick), walked once per tick. */
+function routeOf(routes: Map<number, Route>, g: RoadGraph, a: Readonly<AgentState>): Route {
+  let r = routes.get(a.id);
+  if (!r) {
+    r = routeAhead(g, a);
+    routes.set(a.id, r);
+  }
+  return r;
 }
 
 /** A walker never steps closer than this to a vehicle's body (a robotaxi's drawn one, a player's car), metres. */
@@ -1149,10 +1239,9 @@ export const WALKER_VEHICLE_GAP_M = 0.1;
  */
 function nearerVehicle(c: Ctx, a: Readonly<AgentState>, x: number, z: number): boolean {
   const r = AGENT_SPEC[a.kind].radius;
-  queryHash(c.hash, x, z, OBS_RADIUS_MAX + r + 1, c.scratch);
+  queryHash(c.boxHash, x, z, OBS_RADIUS_MAX + r + 1, c.scratch);
   for (const o of c.scratch) {
-    if (!o.box || o.predicted) continue;
-    if (o.onlyFor === "road") continue;
+    if (!o.box) continue;
     // (A moving robotaxi's walker box carries the walkers' berth: measure its drawn body.)
     const hl = o.road ? ROBOTAXI_BODY.halfLength : o.box.hl;
     const hw = o.road ? ROBOTAXI_BODY.halfWidth : o.box.hw;
@@ -1742,7 +1831,8 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   if (bodies.length === 0) return { ext, rng: prev.rng };
 
   const obs = [...playerObstacles(prev), ...agentObstacles(ext.list)];
-  const hash = buildHash(obs);
+  const { hash, footHash, boxHash } = buildHashes(obs);
+  const routes = new Map<number, Route>();
 
   // Who steps this tick, and by how much.
   const stepDt = new Map<number, number>();
@@ -1757,7 +1847,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   const scratch: Obs[] = [];
   for (const a of ext.list) {
     if (!stepDt.has(a.id) || a.dwell > 0 || a.dodge !== null) continue;
-    probes.set(a.id, probe(g, a, hash, a.ghost > 0, scratch));
+    probes.set(a.id, probe(g, a, hash, a.ghost > 0, scratch, routes));
   }
 
   // Junctions (nodes with 3+ streets): who holds each one (claimed at the line, crossing, or
@@ -1841,7 +1931,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   }
   const byId = new Map<number, AgentState>();
   for (const a of ext.list) byId.set(a.id, a);
-  const ctx: Ctx = { world, g, hash, probes, byId, scratch, holders, holding, road, winners };
+  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);

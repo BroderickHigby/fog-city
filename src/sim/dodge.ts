@@ -78,12 +78,14 @@ import {
   ROBOTAXI_SLOW_BERTH_M,
   agentCircles,
   agentRouteAt,
+  agentRouteSegs,
   personIsChild,
   playerBodies,
   rejoinAt,
   type AgentKind,
   type AgentState,
   type AgentsExt,
+  type Route,
 } from "./agents.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, cellKey, circleBlocked, circleBlockedBand, meshGroundHeight, meshGroundRange, surfaceHeight, type World } from "./world.ts";
@@ -493,7 +495,10 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
     if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push({ x: k.x, z: k.z, r: k.r, person: false });
   };
   for (const other of sortedIds(after.players)) if (other !== id) for (const k of carCircles(after.players[other]!.car)) add(k);
+  // (An agent's circles lie within its half length of it.)
+  const lim2 = lim + AGENT_SPEC.robotaxi.halfLength;
   for (const a of (after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) {
+    if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim2 * lim2) continue;
     const cls = agentDodgeClass(a);
     if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;
     for (const k of agentCircles(a)) add(k);
@@ -507,7 +512,7 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
  * after ROBOTAXI_REACT_S), its body ROBOTAXI_BODY (its drawn size). Its yaw rate and braking come
  * from its previous pose (`prev`, stepped `dt` seconds ago); its next step is `dt` too.
  */
-export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true): Vehicle {
+export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true, segs: Route | null = null): Vehicle {
   const spec = AGENT_SPEC[a.kind];
   const hl = spec.road ? ROBOTAXI_BODY.halfLength : spec.halfLength;
   const hw = spec.road ? ROBOTAXI_BODY.halfWidth : spec.halfWidth;
@@ -535,7 +540,7 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
       ds.push(dist);
       if (st.stopped) break;
     }
-    route = agentRouteAt(world, a, ds);
+    route = agentRouteAt(world, a, ds, segs);
   }
   // Over its next step it speeds up by at most its acceleration (braking only shortens its
   // step, inside its reach), and its velocity turns with its path (at up to 1 rad/s more than
@@ -554,6 +559,9 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   });
 }
 
+/** Whether a robotaxi needs its footprint predicted is looked at along its route this often, metres. */
+const CORRIDOR_STEP_M = 2;
+
 /** A robotaxi's reach (routeReach) is sampled this often along its route, metres. */
 const ZONE_STEP_M = 0.04;
 
@@ -565,13 +573,13 @@ const ZONE_STEP_M = 0.04;
  * each grown by half that spacing (between two poses it only slides, or turns at a vertex into
  * the later pose's heading). Leaves the vehicle as it is where the route is unknown.
  */
-export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, world: World): void {
+export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, world: World, segs: Route | null = null): void {
   const spec = AGENT_SPEC[a.kind];
   const travel = (a.speed + spec.accel * dt) * dt;
   const n = Math.max(1, Math.ceil(travel / ZONE_STEP_M - 1e-9));
   const ds: number[] = [];
   for (let k = 1; k <= n; k++) ds.push((travel * k) / n);
-  const pts = agentRouteAt(world, a, ds);
+  const pts = agentRouteAt(world, a, ds, segs);
   if (pts.length < n) return;
   const zone: Array<{ x: number; z: number; fx: number; fz: number }> = [{ x: v.x, z: v.z, fx: v.fx, fz: v.fz }];
   for (const q of pts) {
@@ -659,6 +667,19 @@ export function predictPaths(
     out.push(path);
   }
   return out;
+}
+
+/**
+ * How far a robotaxi's predicted footprint reaches at `speed` m/s: at that speed for
+ * ROBOTAXI_REACT_S, then braking at ROBOTAXI_BRAKE_MPS2 (it brakes at least that hard, the dodge
+ * counts on no less), over horizonS(speed), plus a sample's rounding.
+ */
+export function brakingReach(speed: number): number {
+  const T = Math.ceil(horizonS(speed) / SAMPLE_S - 1e-9) * SAMPLE_S;
+  const t = Math.max(0, T - ROBOTAXI_REACT_S);
+  const stop = speed / ROBOTAXI_BRAKE_MPS2;
+  const brake = t >= stop ? (speed * speed) / (2 * ROBOTAXI_BRAKE_MPS2) : speed * t - 0.5 * ROBOTAXI_BRAKE_MPS2 * t * t;
+  return speed * Math.min(T, ROBOTAXI_REACT_S) + brake + 0.01;
 }
 
 /** How far a vehicle goes in sample k's step: constant speed until `react`, then braking at `decel` (to a stop). */
@@ -1276,6 +1297,8 @@ export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Ve
     dirs.push([dsin(a), -dcos(a)]);
   }
   for (const v of vehicles) {
+    // (Along the sides of the vehicles near enough for a line out of their way to matter.)
+    if (zoneDistance(v, b.x, b.z) > CLEAR_FAR_M) continue;
     dirs.push([-v.fz, v.fx], [v.fz, -v.fx], [v.fx, v.fz], [-v.fx, -v.fz]);
   }
   const outside = (x: number, z: number): boolean => {
@@ -1433,8 +1456,8 @@ interface Rec {
   guarded: boolean;
   /** May start a dive (a player falling cannot). */
   canDive: boolean;
-  /** Vehicles whose predicted footprint reaches it this tick, earliest first. */
-  threats: Array<{ v: number; hit: Hit }>;
+  /** Vehicles whose predicted footprint reaches it this tick, earliest first (null: none). */
+  threats: Array<{ v: number; hit: Hit }> | null;
   changed: boolean;
 }
 
@@ -1471,7 +1494,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       dodge: f.dodge,
       guarded: true,
       canDive: f.grounded,
-      threats: [],
+      threats: null,
       changed: false,
     });
   }
@@ -1492,7 +1515,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       dodge: a.dodge,
       guarded: DODGE_PROFILE[cls].override !== null,
       canDive: true,
-      threats: [],
+      threats: null,
       changed: false,
     });
   });
@@ -1518,46 +1541,129 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const scratch: number[] = [];
   const maxReach = 0.5 + DODGE_PROFILE.care.margin;
 
-  // Vehicles: every player's car, every robotaxi. A moving robotaxi predicts its path (a route
-  // walk) only when a dodger is near enough to be in it; one that might matter only for where
-  // someone lands is predicted when a dive needs it (ensurePaths; the same paths either way).
-  const vehicles: Vehicle[] = [];
-  for (const id of ids) vehicles.push(carVehicle(world, before, after, id));
+  // Vehicles: every player's car, every robotaxi, built only when a dodger is near enough for
+  // it to matter (most of the city's robotaxis have nobody near them on most ticks). A moving
+  // robotaxi predicts its path (a route walk) only when a dodger is near enough to be in it; one
+  // that might matter only for where someone lands is predicted when a dive needs it
+  // (ensurePaths; the same paths either way). A robotaxi that is built gets its reach from its
+  // route (routeReach: a connector's vertices turn it at once).
   const prevAgents = new Map<number, AgentState>();
   for (const a of (before.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) prevAgents.set(a.id, a);
   const bodies = playerBodies(before);
-  /** Vehicle index -> the robotaxi (and its step) whose paths are not predicted yet. */
-  const pending = new Map<number, { a: AgentState; dt: number }>();
-  /** The robotaxis, in vehicle order (vehicle index - ids.length), with their step. */
-  const taxis: Array<{ a: AgentState; dt: number }> = [];
+  /**
+   * What each vehicle is (a player's car or a robotaxi and its step) and cheap bounds on it,
+   * before it is built: `slack` bounds how far its reach over its next step extends beyond its
+   * body round where it is now; `far` how far anything of it (its footprint, its reach) is from
+   * where it is now.
+   */
+  interface Src {
+    id: PlayerId | null;
+    a: AgentState | null;
+    dt: number;
+    x: number;
+    z: number;
+    speed: number;
+    slack: number;
+    far: number;
+    /** A robotaxi near enough to someone to predict (null: not worked out yet; cars always do). */
+    predict: boolean | null;
+  }
+  const srcs: Src[] = [];
+  const carHalfDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
+  for (const id of ids) {
+    const c = after.players[id]!.car;
+    const v = Math.sqrt(c.speed * c.speed + c.lateral * c.lateral);
+    const yaw = c.yawRate < 0 ? -c.yawRate : c.yawRate;
+    const slack = v * DT + CAR_DV * DT + ((yaw * DT) / 2 + CAR.wallAlign * DT) * carHalfDiag + CAR.maxPush + 0.05;
+    const far = CAR.halfLength + CAR.halfWidth + (v + PLAYER_SPREAD_MPS) * horizonS(v) + slack + 0.5;
+    srcs.push({ id, a: null, dt: DT, x: c.x, z: c.z, speed: v, slack, far, predict: true });
+  }
+  const taxiHalfDiag = Math.sqrt(ROBOTAXI_BODY.halfLength * ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth * ROBOTAXI_BODY.halfWidth);
   for (const a of agents) {
     if (!AGENT_SPEC[a.kind].road) continue;
-    let predict = false;
-    if (a.speed >= DODGE_MIN_SPEED) {
-      const reach = a.speed * horizonS(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + maxReach + 1;
-      near(a.x - reach, a.z - reach, a.x + reach, a.z + reach, scratch);
-      for (const i of scratch) {
-        const r = recs[i]!;
-        if ((r.x - a.x) * (r.x - a.x) + (r.z - a.z) * (r.z - a.z) <= reach * reach) {
-          predict = true;
-          break;
+    const close = bodies.some((p) => (p.x - a.x) * (p.x - a.x) + (p.z - a.z) * (p.z - a.z) <= NEAR_RANGE_M * NEAR_RANGE_M);
+    const dt = close ? DT : DT * LOD_STRIDE;
+    const travel = (a.speed + AGENT_SPEC[a.kind].accel * dt) * dt;
+    const inflateMax = (a.speed * dt) / 2 + (AGENT_SPEC[a.kind].accel + a.speed * 3) * dt * dt + dt * taxiHalfDiag + 0.01;
+    const slack = 2 * travel + inflateMax + 0.05;
+    const far = ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + brakingReach(a.speed) + slack + 0.5;
+    srcs.push({ id: null, a, dt, x: a.x, z: a.z, speed: a.speed, slack, far, predict: null });
+  }
+  /** Each robotaxi's route walk this tick, shared by its prediction and its reach. */
+  const segsOf = new Map<number, Route>();
+  const routeSegs = (vi: number): Route => {
+    let r = segsOf.get(vi);
+    if (!r) {
+      r = agentRouteSegs(world, srcs[vi]!.a!);
+      segsOf.set(vi, r);
+    }
+    return r;
+  };
+  /** Is any dodger within `lim` of (x, z)? */
+  const anyWithin = (x: number, z: number, lim: number): boolean => {
+    near(x - lim, z - lim, x + lim, z + lim, scratch);
+    for (const i of scratch) {
+      const r = recs[i]!;
+      if ((r.x - x) * (r.x - x) + (r.z - z) * (r.z - z) <= lim * lim) return true;
+    }
+    return false;
+  };
+  /**
+   * A moving robotaxi predicts its path when a dodger is near enough to be in it: within reach of
+   * where its route goes before braking stops it (its body at any point of the route lies within
+   * its half diagonal and half the spacing of one of the points looked at).
+   */
+  const predictOf = (sv: Src, vi: number): boolean => {
+    if (sv.predict === null) {
+      const a = sv.a!;
+      // (Its predicted footprint ends where braking at no less than ROBOTAXI_BRAKE_MPS2 stops it.)
+      const reach = brakingReach(a.speed);
+      sv.predict = false;
+      if (a.speed >= DODGE_MIN_SPEED) {
+        // Who is within reach of anywhere it can get to; then, of those, who is near its route.
+        const circle = reach + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + maxReach + 1;
+        near(a.x - circle, a.z - circle, a.x + circle, a.z + circle, scratch);
+        const cand: Rec[] = [];
+        for (const i of scratch) {
+          const r = recs[i]!;
+          if ((r.x - a.x) * (r.x - a.x) + (r.z - a.z) * (r.z - a.z) <= circle * circle) cand.push(r);
+        }
+        if (cand.length > 0) {
+          const ds: number[] = [];
+          for (let d = 0; d < reach + CORRIDOR_STEP_M; d += CORRIDOR_STEP_M) ds.push(d);
+          const pts = agentRouteAt(world, a, ds, routeSegs(vi));
+          const lim = taxiHalfDiag + CORRIDOR_STEP_M / 2 + maxReach + 0.05;
+          // (A route that ends short, at a dead end: predicted.)
+          sv.predict = pts.length < ds.length || cand.some((r) => pts.some((q) => (r.x - q.x) * (r.x - q.x) + (r.z - q.z) * (r.z - q.z) <= lim * lim));
         }
       }
     }
-    const close = bodies.some((p) => (p.x - a.x) * (p.x - a.x) + (p.z - a.z) * (p.z - a.z) <= NEAR_RANGE_M * NEAR_RANGE_M);
-    const dt = close ? DT : DT * LOD_STRIDE;
-    if (!predict && a.speed >= DODGE_MIN_SPEED) pending.set(vehicles.length, { a, dt });
-    taxis.push({ a, dt });
-    vehicles.push(vehicleOfAgent(a, prevAgents.get(a.id) ?? null, dt, world, predict));
-  }
-  /** Predict every pending robotaxi that could reach within `reach` of (x, z). */
+    return sv.predict;
+  };
+  const built: Array<Vehicle | null> = srcs.map(() => null);
+  /** Vehicle vi, built on first use. */
+  const veh = (vi: number): Vehicle => {
+    let v = built[vi];
+    if (v) return v;
+    const sv = srcs[vi]!;
+    if (sv.id !== null) v = carVehicle(world, before, after, sv.id);
+    else {
+      v = vehicleOfAgent(sv.a!, prevAgents.get(sv.a!.id) ?? null, sv.dt, world, predictOf(sv, vi), routeSegs(vi));
+      routeReach(v, sv.a!, sv.dt, world, routeSegs(vi));
+    }
+    built[vi] = v;
+    return v;
+  };
+  /** Predict every robotaxi not predicted yet that could reach within `reach` of (x, z). */
   const ensurePaths = (x: number, z: number, reach: number): void => {
-    for (const [vi, p] of pending) {
-      const a = p.a;
-      const lim = reach + a.speed * horizonS(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth;
+    for (let vi = ids.length; vi < srcs.length; vi++) {
+      const sv = srcs[vi]!;
+      const a = sv.a!;
+      if (a.speed < DODGE_MIN_SPEED || predictOf(sv, vi)) continue;
+      const lim = reach + brakingReach(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth;
       if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
-      const v = vehicleOfAgent(a, prevAgents.get(a.id) ?? null, p.dt, world, true);
-      const was = vehicles[vi]!;
+      const was = veh(vi);
+      const v = vehicleOfAgent(a, prevAgents.get(a.id) ?? null, sv.dt, world, true, routeSegs(vi));
       v.mx = was.mx;
       v.mz = was.mz;
       v.mfx = was.mfx;
@@ -1565,24 +1671,19 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       v.inflate = was.inflate;
       v.zone = was.zone;
       v.span = was.span;
-      vehicles[vi] = v;
-      pending.delete(vi);
+      built[vi] = v;
+      sv.predict = true;
     }
   };
-  // A robotaxi near anyone: its reach from its route (routeReach: a connector's vertices turn it at once).
-  for (let vi = ids.length; vi < vehicles.length; vi++) {
-    const v = vehicles[vi]!;
-    const lim = v.hl + v.hw + v.inflate * 2 + v.speed * taxis[vi - ids.length]!.dt + 2;
-    near(v.x - lim, v.z - lim, v.x + lim, v.z + lim, scratch);
-    if (scratch.length === 0) continue;
-    const a = taxis[vi - ids.length]!;
-    routeReach(v, a.a, a.dt, world);
-  }
   // Who is in whose predicted footprint. (A robotaxi keeps to its route and holds still while
   // anyone is within its berth of it, agents.ts: only a footprint coming within that berth is a
   // threat, so nobody dives out of the way of one passing as it should.)
-  vehicles.forEach((v, vi) => {
-    if (v.paths.length === 0) return;
+  for (let vi = 0; vi < srcs.length; vi++) {
+    const sv = srcs[vi]!;
+    if (sv.speed < DODGE_MIN_SPEED) continue;
+    if (sv.id === null ? !predictOf(sv, vi) : !anyWithin(sv.x, sv.z, sv.far + maxReach)) continue;
+    const v = veh(vi);
+    if (v.paths.length === 0) continue;
     near(v.minX - maxReach, v.minZ - maxReach, v.maxX + maxReach, v.maxZ + maxReach, scratch);
     for (const i of scratch) {
       const r = recs[i]!;
@@ -1590,9 +1691,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       const margin = DODGE_PROFILE[r.cls].margin;
       // (Not when it cannot be at their height: a car in the street under someone on a roof.)
       const hit = sweepHitBand(world, v, r.x, r.z, r.r + (v.player === null ? Math.min(margin, robotaxiBerth(r.cls)) : margin), r.y);
-      if (hit) r.threats.push({ v: vi, hit });
+      if (hit) (r.threats ??= []).push({ v: vi, hit });
     }
-  });
+  }
 
   // Spots taken: every body where it is, every diver's landing (owner: index into recs). Built
   // when the first body needs them (most ticks nobody dives).
@@ -1644,7 +1745,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     if (r.player === null) return null;
     let v = ownCars.get(r.player);
     if (!v) {
-      v = { ...vehicles[ids.indexOf(r.player)]!, paths: [], moving: false };
+      v = { ...veh(ids.indexOf(r.player)), paths: [], moving: false };
       ownCars.set(r.player, v);
     }
     return v;
@@ -1653,21 +1754,37 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const lim = reach + v.hl + v.hw + v.inflate + v.span;
     return (x - v.mx) * (x - v.mx) + (z - v.mz) * (z - v.mz) <= lim * lim;
   };
+  /** Could anything of vehicle vi (its footprint, its reach) be within `reach` of (x, z)? (Cheap: before it is built.) */
+  const mayReach = (vi: number, x: number, z: number, reach: number): boolean => {
+    const sv = srcs[vi]!;
+    const lim = reach + sv.far;
+    // (A square: it holds the footprint's box grown by `reach` as well as the reach's circle.)
+    return x - sv.x <= lim && sv.x - x <= lim && z - sv.z <= lim && sv.z - z <= lim;
+  };
   /** Vehicles whose footprint or reach comes within `reach` of the body (predicting robotaxis that may need it), and its own car (ownCar). */
   const vehiclesNear = (r: Rec, reach: number): Vehicle[] => {
     ensurePaths(r.x, r.z, reach);
-    const out = vehicles.filter((v) => {
-      if (!notOwn(r)(v)) return false;
+    const out: Vehicle[] = [];
+    for (let vi = 0; vi < srcs.length; vi++) {
+      if (r.player !== null && srcs[vi]!.id === r.player) continue;
+      if (!mayReach(vi, r.x, r.z, reach)) continue;
+      const v = veh(vi);
       const inBox = r.x >= v.minX - reach && r.x <= v.maxX + reach && r.z >= v.minZ - reach && r.z <= v.maxZ + reach;
-      return inBox || reachOf(v, r.x, r.z, reach);
-    });
+      if (inBox || reachOf(v, r.x, r.z, reach)) out.push(v);
+    }
     const own = ownCar(r);
     if (own && reachOf(own, r.x, r.z, reach)) out.push(own);
     return out;
   };
   /** Vehicles whose reach comes within `reach` of (x, z) (no prediction), and the body's own car. */
   const reachNear = (r: Rec, x: number, z: number, reach: number): Vehicle[] => {
-    const out = vehicles.filter((v) => notOwn(r)(v) && reachOf(v, x, z, reach));
+    const out: Vehicle[] = [];
+    for (let vi = 0; vi < srcs.length; vi++) {
+      if (r.player !== null && srcs[vi]!.id === r.player) continue;
+      if (!mayReach(vi, x, z, reach)) continue;
+      const v = veh(vi);
+      if (reachOf(v, x, z, reach)) out.push(v);
+    }
     const own = ownCar(r);
     if (own && reachOf(own, x, z, reach)) out.push(own);
     return out;
@@ -1677,8 +1794,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   for (let ri = 0; ri < recs.length; ri++) {
     const r = recs[ri]!;
     const prof = DODGE_PROFILE[r.cls];
-    r.threats.sort((a, b) => a.hit.t - b.hit.t || a.v - b.v);
-    const threat = r.canDive && r.threats.length > 0 ? r.threats[0]! : null;
+    r.threats?.sort((a, b) => a.hit.t - b.hit.t || a.v - b.v);
+    const threat = r.canDive && r.threats ? r.threats[0]! : null;
     let d = r.dodge;
     const diving = d !== null && d.phase === "dive" && !d.leap;
     let nearV: Vehicle[] | null = null;
@@ -1690,7 +1807,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     if ((threat && !(diving && holds)) || !holds) {
       const nv = nearby();
       let hit: Hit | null = threat ? threat.hit : null;
-      let by: Vehicle | null = threat ? vehicles[threat.v]! : null;
+      let by: Vehicle | null = threat ? veh(threat.v) : null;
       if (!hit && diving) {
         const t = threatAlong(nv, r.x, r.z, d!.tx, d!.tz, r.r, prof);
         if (t) {
@@ -1757,15 +1874,23 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
 
   // 4. The hard guarantee. Candidates: the dodgers near each vehicle's reach.
   const cand = new Map<number, number[]>();
-  vehicles.forEach((v, vi) => {
+  for (let vi = 0; vi < srcs.length; vi++) {
+    const sv = srcs[vi]!;
+    // (Nobody near where its reach can be: not built.)
+    const hl = sv.id !== null ? CAR.halfLength : ROBOTAXI_BODY.halfLength;
+    const hw = sv.id !== null ? CAR.halfWidth : ROBOTAXI_BODY.halfWidth;
+    if (!anyWithin(sv.x, sv.z, hl + hw + sv.slack + DODGE_PROFILE.care.override! + 1 + 0.75)) continue;
+    const v = veh(vi);
     const reach = v.hl + v.hw + v.inflate + v.span + DODGE_PROFILE.care.override! + 1;
     near(v.mx - reach, v.mz - reach, v.mx + reach, v.mz + reach, scratch);
     for (const i of scratch) {
+      const r = recs[i]!;
+      if ((r.x - v.mx) * (r.x - v.mx) + (r.z - v.mz) * (r.z - v.mz) > (reach + 0.75) * (reach + 0.75)) continue;
       let l = cand.get(i);
       if (!l) cand.set(i, (l = []));
       l.push(vi);
     }
-  });
+  }
   for (let ri = 0; ri < recs.length; ri++) {
     const r = recs[ri]!;
     if (!r.guarded) continue;
@@ -1777,7 +1902,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     let worst: Vehicle | null = null;
     let worstD = 0;
     for (const vi of mine) {
-      const v = vehicles[vi]!;
+      const v = veh(vi);
       if (v.player !== null && v.player === r.player) continue;
       // (Not one that cannot be at their height by the next tick: on a roof over it, under a deck it is on.)
       if (!bandMeetsNext(world, v, r.y, r.vy)) continue;
@@ -1793,7 +1918,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       contacts++;
       creditTo(worst, 0, 1);
     }
-    const nearV = vehiclesNear(r, CLEAR_FAR_M);
+    // (Every vehicle that can be near a spot the override may take, out to its last resort.)
+    const nearV = vehiclesNear(r, CLEAR_LAST_M + 2);
     const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
     const to = overrideSpot(groundOf(r), body, nearV, spotsNear(ri, CLEAR_NEAR_M + 2), clearance);
     if (to.tier >= 2) failures++;
