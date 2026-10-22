@@ -254,3 +254,30 @@ export function portalDeckWorld(): World {
     },
   ]);
 }
+
+/**
+ * A freeway deck and an off-ramp diverging from it (I-280 southbound at c19321000; surfaceAt's
+ * reference point): on flat ground, the freeway "fwy" 13.8 m wide along x = 0 from z = 0
+ * at 10 m, rising at 4% from z = 100 (to z = 390); the ramp "off" 5.8 m wide leaving it at z = 100, drifting
+ * east 1 m in 10 and falling at 4%, its centreline 1.5 m from the freeway's at z = 115.
+ */
+export function divergeWorld(): World {
+  const r = 400;
+  const cell = 4;
+  const n = (2 * r) / cell + 1;
+  const fwy: Array<[number, number, number, number]> = [];
+  for (let z = 0; z <= 390; z += 10) fwy.push([0, 10 + 0.04 * Math.max(0, z - 100), z, 13.8]);
+  const off: Array<[number, number, number, number]> = [];
+  for (let z = 100; z <= 300; z += 10) off.push([(z - 100) / 10, 10 - 0.04 * (z - 100), z, 5.8]);
+  return buildWorld([
+    {
+      tileId: "diverge",
+      buildings: [],
+      ground: { x0: -r, z0: -r, cellSizeM: cell, nx: n, nz: n, heights: new Array<number>(n * n).fill(0) },
+      decks: [
+        { id: "off", kind: "ramp", edge: "off-st", layer: 1, path: off },
+        { id: "fwy", kind: "freeway", edge: "fwy-st", layer: 1, path: fwy },
+      ],
+    },
+  ]);
+}

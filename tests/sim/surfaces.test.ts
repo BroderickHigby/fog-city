@@ -23,7 +23,7 @@ import {
   type FootState,
   type SimInput,
 } from "../../src/sim/index.ts";
-import { overpassY, portalDeckWorld, surfaceWorld, twinDeckWorld, twinDeckY } from "./fixtures.ts";
+import { divergeWorld, overpassY, portalDeckWorld, surfaceWorld, twinDeckWorld, twinDeckY } from "./fixtures.ts";
 
 const I = (throttle: number, steer = 0, brake = 0): SimInput => ({ throttle, steer, brake, actions: 0 });
 /** Compass headings: north is -z. */
@@ -191,6 +191,19 @@ describe("overlapping decks (I-80 near 1st St) and decks that contradict their b
       expect(end.z, `${v} m/s`).toBeGreaterThan(260);
       expect(end.hits, `${v} m/s`).toBe(0);
     }
+  });
+
+  it("a car going straight on past an off-ramp keeps all four wheels on the freeway as the ramp falls away beside it", () => {
+    const w = divergeWorld();
+    const trace = drive({ ...makeCar(0, 20, SOUTH, 10), speed: 25 }, I(0.8), 720, w);
+    for (const c of trace) {
+      if (c.z < 30 || c.z > 290) continue;
+      const fy = 10 + 0.04 * Math.max(0, c.z - 100);
+      expect(Math.abs(c.y - fy), `z ${c.z.toFixed(1)}`).toBeLessThan(0.05);
+      expect(Math.abs(c.x), `z ${c.z.toFixed(1)}`).toBeLessThan(0.5);
+    }
+    expect(trace[trace.length - 1]!.z).toBeGreaterThan(290);
+    expect(trace[trace.length - 1]!.hits).toBe(0);
   });
 
   it("a deck of a bore's own edge over its portal is left out; another edge's deck over the bore stays", () => {

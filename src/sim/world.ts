@@ -525,8 +525,8 @@ function onSegment(s: Float64Array, k: number, x: number, z: number): { t: numbe
   return { t, inner: raw === t, d2: px * px + pz * pz, half: s[o + 3]! + (s[o + 7]! - s[o + 3]!) * t, y: s[o + 1]! + (s[o + 5]! - s[o + 1]!) * t };
 }
 
-/** Two decks whose centrelines are this close (as a fraction of the half width) are equally near a body (surfaceAt): the one nearer its feet wins. */
-const DECK_OFF_TIE = 0.01;
+/** Two decks whose centrelines are within this many metres of the same distance from a body are equally near it (surfaceAt): the one nearer its feet wins. */
+const DECK_OFF_TIE = 0.05;
 
 /** A segment's round end that covers a point counts only when no segment of its own ribbon, or carrying it on from that end, covering the point beside itself is within this height of it (covering). */
 const CAP_MERGE_M = 1;
@@ -542,8 +542,8 @@ function endsAt(s: Float64Array, k: number, x: number, z: number): boolean {
 }
 
 /**
- * The ribbon segments covering (x, z) from a cell's list, with their heights and how far across
- * the ribbon the point is. A segment's round end (the point past the segment's end) does not
+ * The ribbon segments covering (x, z) from a cell's list, with their heights and how far from
+ * the segment's centreline the point is. A segment's round end (the point past the segment's end) does not
  * count where a segment of the same ribbon, or one that carries it on from that end (the next
  * edge's deck, a ramp leaving it), covers the point beside itself within CAP_MERGE_M of the
  * end's height: so along a ribbon each point has the height of
@@ -552,15 +552,15 @@ function endsAt(s: Float64Array, k: number, x: number, z: number): boolean {
  * off the ribbons' free ends; a deck that merely crosses another is never mistaken for its
  * continuation.
  */
-function covering(s: Float64Array, list: readonly number[], x: number, z: number): Array<{ k: number; y: number; inner: boolean; off: number }> {
-  const hits: Array<{ k: number; y: number; inner: boolean; off: number; end: number }> = [];
+function covering(s: Float64Array, list: readonly number[], x: number, z: number): Array<{ k: number; y: number; inner: boolean; dist: number }> {
+  const hits: Array<{ k: number; y: number; inner: boolean; dist: number; end: number }> = [];
   let anyCap = false;
   for (let i = 0, n = list.length; i < n; i++) {
     const k = list[i]!;
     const q = onSegment(s, k, x, z);
     if (q.d2 > q.half * q.half) continue;
-    // off: how far across the ribbon the point is, 0 on the centreline, 1 at the edge.
-    hits.push({ k, y: q.y, inner: q.inner, off: q.half > 0 ? Math.sqrt(q.d2) / q.half : 0, end: q.inner ? -1 : q.t === 0 ? 0 : 4 });
+    // dist: how far the point is from the segment's centreline, metres.
+    hits.push({ k, y: q.y, inner: q.inner, dist: Math.sqrt(q.d2), end: q.inner ? -1 : q.t === 0 ? 0 : 4 });
     if (!q.inner) anyCap = true;
   }
   if (!anyCap) return hits;
@@ -597,7 +597,7 @@ function covering(s: Float64Array, list: readonly number[], x: number, z: number
  * A deck or tunnel ribbon covers the points within its half width of its centreline segments
  * (the ends round), at the height interpolated along the segment.
  */
-export function surfaceAt(world: World, x: number, z: number, feet: number, roofs = true): Surface {
+export function surfaceAt(world: World, x: number, z: number, feet: number, roofs = true, refX = x, refZ = z): Surface {
   const g = meshGroundHeight(world, x, z);
   const lim = feet + ROOF_STEP_M;
   let h = g;
@@ -632,17 +632,20 @@ export function surfaceAt(world: World, x: number, z: number, feet: number, roof
         // A body on a deck stays on it: where decks overlap (a freeway's two directions side by
         // side, their ribbons wider than the gap between them, or a ramp leaving it), of the
         // decks it could be on (from RAIL_DROP_M below its feet to ROOF_STEP_M above them) the
-        // one whose centreline it is nearest wins over a higher one, so a car keeps to its own
-        // deck as another rises or falls away beside it, also while it rides a little over its
-        // own deck at a crest. (Between equally near centrelines, the one nearer the feet.)
-        // Decks stacked apart by a clearance never share that band.
+        // one whose centreline is nearest the body (refX, refZ: a car's wheels ask for its
+        // centre, so all four keep to the deck the car is on) wins over a higher one, so a car
+        // keeps to its own deck as another rises or falls away beside it, also while it rides a
+        // little over its own deck at a crest, and a ramp diverging from a freeway does not
+        // take the wheels on its side. (Between equally near centrelines, the one nearer the
+        // feet.) Decks stacked apart by a clearance never share that band.
         let off = Infinity;
         let near = Infinity;
         for (const hit of hits) {
           if (s[hit.k * SURF_STRIDE + 8]! >= 0 || hit.y > lim || hit.y < g || hit.y < feet - RAIL_DROP_M) continue;
           const d = hit.y > feet ? hit.y - feet : feet - hit.y;
-          if (hit.off < off - DECK_OFF_TIE || (hit.off <= off + DECK_OFF_TIE && d < near)) {
-            off = hit.off;
+          const q = refX === x && refZ === z ? hit.dist : Math.sqrt(onSegment(s, hit.k, refX, refZ).d2);
+          if (q < off - DECK_OFF_TIE || (q <= off + DECK_OFF_TIE && d < near)) {
+            off = q;
             near = d;
             best = hit.y;
           }

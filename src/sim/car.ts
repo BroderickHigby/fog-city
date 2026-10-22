@@ -36,7 +36,7 @@ import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, meshGroundHeight, railPush, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, meshGroundHeight, railPush, supported, surfaceAt, type World } from "./world.ts";
 
 export const CAR = {
   /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
@@ -203,10 +203,11 @@ export function sampleGround(
   const rz = fx;
   const dF = slopeF * CAR.axle;
   const dR = slopeR * CAR.track;
-  const hF = surfaceHeight(world, x + fx * CAR.axle, z + fz * CAR.axle, feet + dF);
-  const hB = surfaceHeight(world, x - fx * CAR.axle, z - fz * CAR.axle, feet - dF);
-  const hR = surfaceHeight(world, x + rx * CAR.track, z + rz * CAR.track, feet + dR);
-  const hL = surfaceHeight(world, x - rx * CAR.track, z - rz * CAR.track, feet - dR);
+  // (Each wheel keeps to the deck the car's centre is on where decks overlap: surfaceAt's reference point.)
+  const hF = surfaceAt(world, x + fx * CAR.axle, z + fz * CAR.axle, feet + dF, true, x, z).y;
+  const hB = surfaceAt(world, x - fx * CAR.axle, z - fz * CAR.axle, feet - dF, true, x, z).y;
+  const hR = surfaceAt(world, x + rx * CAR.track, z + rz * CAR.track, feet + dR, true, x, z).y;
+  const hL = surfaceAt(world, x - rx * CAR.track, z - rz * CAR.track, feet - dR, true, x, z).y;
   return { h: (hF + hB + hR + hL) / 4, slopeF: (hF - hB) / (2 * CAR.axle), slopeR: (hR - hL) / (2 * CAR.track) };
 }
 
