@@ -1599,14 +1599,31 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     }
     return r;
   };
-  /** Is any dodger within `lim` of (x, z)? */
-  const anyWithin = (x: number, z: number, lim: number): boolean => {
-    near(x - lim, z - lim, x + lim, z + lim, scratch);
+  /** How far round where it is now the checks below look for dodgers near vehicle vi: the override's candidates, and (moving) its footprint. */
+  const lookOf = (vi: number): { cand: number; foot: number } => {
+    const sv = srcs[vi]!;
+    const hl = sv.id !== null ? CAR.halfLength : ROBOTAXI_BODY.halfLength;
+    const hw = sv.id !== null ? CAR.halfWidth : ROBOTAXI_BODY.halfWidth;
+    const cand = hl + hw + sv.slack + DODGE_PROFILE.care.override! + 1 + 0.75;
+    if (sv.speed < DODGE_MIN_SPEED) return { cand, foot: 0 };
+    return { cand, foot: sv.id === null ? brakingReach(sv.speed) + hl + hw + maxReach + 1 : sv.far + maxReach };
+  };
+  /** The dodgers within the farther of those (rec indices), null when none: one query per vehicle. */
+  const nearOf: Array<number[] | null> = srcs.map((sv, vi) => {
+    const look = lookOf(vi);
+    const lim = Math.max(look.cand, look.foot);
+    near(sv.x - lim, sv.z - lim, sv.x + lim, sv.z + lim, scratch);
+    let out: number[] | null = null;
     for (const i of scratch) {
       const r = recs[i]!;
-      if ((r.x - x) * (r.x - x) + (r.z - z) * (r.z - z) <= lim * lim) return true;
+      if ((r.x - sv.x) * (r.x - sv.x) + (r.z - sv.z) * (r.z - sv.z) <= lim * lim) (out ??= []).push(i);
     }
-    return false;
+    return out;
+  });
+  /** Is any of the dodgers near vehicle vi within `lim` of it? */
+  const anyWithin = (vi: number, lim: number): boolean => {
+    const sv = srcs[vi]!;
+    return (nearOf[vi] ?? []).some((i) => (recs[i]!.x - sv.x) * (recs[i]!.x - sv.x) + (recs[i]!.z - sv.z) * (recs[i]!.z - sv.z) <= lim * lim);
   };
   /**
    * A moving robotaxi predicts its path when a dodger is near enough to be in it: within reach of
@@ -1622,9 +1639,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       if (a.speed >= DODGE_MIN_SPEED) {
         // Who is within reach of anywhere it can get to; then, of those, who is near its route.
         const circle = reach + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + maxReach + 1;
-        near(a.x - circle, a.z - circle, a.x + circle, a.z + circle, scratch);
         const cand: Rec[] = [];
-        for (const i of scratch) {
+        for (const i of nearOf[vi] ?? []) {
           const r = recs[i]!;
           if ((r.x - a.x) * (r.x - a.x) + (r.z - a.z) * (r.z - a.z) <= circle * circle) cand.push(r);
         }
@@ -1681,11 +1697,11 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   for (let vi = 0; vi < srcs.length; vi++) {
     const sv = srcs[vi]!;
     if (sv.speed < DODGE_MIN_SPEED) continue;
-    if (sv.id === null ? !predictOf(sv, vi) : !anyWithin(sv.x, sv.z, sv.far + maxReach)) continue;
+    if (sv.id === null ? !predictOf(sv, vi) : !anyWithin(vi, sv.far + maxReach)) continue;
     const v = veh(vi);
     if (v.paths.length === 0) continue;
-    near(v.minX - maxReach, v.minZ - maxReach, v.maxX + maxReach, v.maxZ + maxReach, scratch);
-    for (const i of scratch) {
+    // (Everyone its footprint can come near is among the dodgers near it.)
+    for (const i of nearOf[vi] ?? []) {
       const r = recs[i]!;
       if (v.player !== null && v.player === r.player) continue; // a player's own car
       const margin = DODGE_PROFILE[r.cls].margin;
@@ -1793,6 +1809,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   // 1-3. Watch and dive; every dive step stays out of the vehicles' reach.
   for (let ri = 0; ri < recs.length; ri++) {
     const r = recs[ri]!;
+    // (Nobody in a vehicle's way and not dodging: nothing to do.)
+    if (r.threats === null && r.dodge === null) continue;
     const prof = DODGE_PROFILE[r.cls];
     r.threats?.sort((a, b) => a.hit.t - b.hit.t || a.v - b.v);
     const threat = r.canDive && r.threats ? r.threats[0]! : null;
@@ -1875,15 +1893,11 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   // 4. The hard guarantee. Candidates: the dodgers near each vehicle's reach.
   const cand = new Map<number, number[]>();
   for (let vi = 0; vi < srcs.length; vi++) {
-    const sv = srcs[vi]!;
     // (Nobody near where its reach can be: not built.)
-    const hl = sv.id !== null ? CAR.halfLength : ROBOTAXI_BODY.halfLength;
-    const hw = sv.id !== null ? CAR.halfWidth : ROBOTAXI_BODY.halfWidth;
-    if (!anyWithin(sv.x, sv.z, hl + hw + sv.slack + DODGE_PROFILE.care.override! + 1 + 0.75)) continue;
+    if (!anyWithin(vi, lookOf(vi).cand)) continue;
     const v = veh(vi);
     const reach = v.hl + v.hw + v.inflate + v.span + DODGE_PROFILE.care.override! + 1;
-    near(v.mx - reach, v.mz - reach, v.mx + reach, v.mz + reach, scratch);
-    for (const i of scratch) {
+    for (const i of nearOf[vi] ?? []) {
       const r = recs[i]!;
       if ((r.x - v.mx) * (r.x - v.mx) + (r.z - v.mz) * (r.z - v.mz) > (reach + 0.75) * (reach + 0.75)) continue;
       let l = cand.get(i);
