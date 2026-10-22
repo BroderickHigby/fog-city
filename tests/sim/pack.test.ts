@@ -180,7 +180,11 @@ describe.skipIf(!sfPresent)("collider pack reader: the committed sf pack", () =>
         const c = readJson<TileCollider & { buildings: Array<TileCollider["buildings"][number] & { meta?: unknown }> }>(`${SF}/${manifest!.tiles[i]!.collider}`);
         const t = pack.tiles[i]!;
         expect(t.tileId).toBe(c.tileId);
-        expect(t.ground).toEqual(c.ground);
+        // The JSON's ground cover classes and lake names (world QA W-11, W-18) are the renderer's;
+        // the pack carries the inland-lake mask (LAKE) instead.
+        const { cover, lakes: _lakes, ...g0 } = c.ground as NonNullable<TileCollider["ground"]> & { cover?: string; lakes?: unknown };
+        const lake = cover ? [...cover].map((ch) => (ch >= "0" && ch <= "9" ? 1 : 0)) : [];
+        expect(t.ground).toEqual(lake.includes(1) ? { ...g0, lake } : g0);
         expect(t.buildings).toEqual(c.buildings.map(({ meta: _meta, ...b }: TileCollider["buildings"][number] & { meta?: unknown }) => b));
         json.push(c);
       }

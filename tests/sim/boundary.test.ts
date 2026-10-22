@@ -345,7 +345,11 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
 
   it("walls the land edge and the shore, with corridors only for streets traffic or people may use", () => {
     const w = world.walls!;
-    expect(w.segments.filter((s) => s.kind === "land").length).toBeGreaterThan(5);
+    // The land walls: stubs beside the Ocean Beach strip and Yerba Buena Island, and the county line, one
+    // straight run along z = 10000 since the Daly City strip became far scenery (W-42), 9.9 km in all.
+    const land = w.segments.filter((s) => s.kind === "land");
+    expect(land.length).toBeGreaterThanOrEqual(3);
+    expect(land.reduce((sum, s) => sum + Math.hypot(s.bx - s.ax, s.bz - s.az), 0)).toBeGreaterThan(9500);
     expect(w.segments.filter((s) => s.kind === "shore").length).toBeGreaterThan(1000);
     expect(w.segments.filter((s) => s.kind === "kerb").length).toBeGreaterThan(20);
     expect(w.gaps).toBeGreaterThanOrEqual(10);
