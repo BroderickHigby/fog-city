@@ -291,6 +291,30 @@ function patchRoadUvShader(freeway: boolean) {
   };
 }
 
+// Sidewalk bands: TEXCOORD_0 = (0 at the kerb .. 1 at the outer edge, metres along the walk
+// line). A lighter kerb strip and slab joints every 1.5 m, fading out with distance.
+function patchSidewalkShader(shader: THREE.WebGLProgramParametersWithUniforms): void {
+  patchGrainShader(0.14, 0.5)(shader);
+  shader.vertexShader = shader.vertexShader
+    .replace("#include <common>", "#include <common>\nvarying vec2 vFcWalkUv;")
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcWalkUv = uv;");
+  shader.fragmentShader = shader.fragmentShader
+    .replace("#include <common>", "#include <common>\nvarying vec2 vFcWalkUv;")
+    .replace(
+      "#include <color_fragment>",
+      `#include <color_fragment>
+  {
+    float fv = fwidth( vFcWalkUv.y ) + 1e-4;
+    float joint = 1.0 - smoothstep( 0.03, 0.03 + fv, abs( fract( vFcWalkUv.y / 1.5 + 0.5 ) - 0.5 ) * 1.5 );
+    float fade = 1.0 - smoothstep( 0.05, 0.25, fv );
+    diffuseColor.rgb *= 1.0 - joint * 0.28 * fade;
+    float fu = fwidth( vFcWalkUv.x ) + 1e-4;
+    float kerb = 1.0 - smoothstep( 0.06, 0.06 + fu, vFcWalkUv.x );
+    diffuseColor.rgb *= 1.0 + kerb * 0.25;
+  }`,
+    );
+}
+
 export interface SharedMaterials {
   building: THREE.MeshStandardMaterial;
   /** For building meshes shipped without normals (flat shading from screen derivatives). */
@@ -299,6 +323,8 @@ export interface SharedMaterials {
   /** The curtains under the ground's borders (ground-extras.ts groundSkirt): both sides drawn. */
   groundSkirt: THREE.MeshStandardMaterial;
   road: THREE.MeshStandardMaterial;
+  /** Sidewalk bands (sidewalks.ts): concrete with slab joints, under the road ribbons. */
+  sidewalk: THREE.MeshStandardMaterial;
   /** Road and freeway ribbons with kerb-to-kerb UVs (pipeline tiles). */
   roadUv: THREE.MeshStandardMaterial;
   freewayUv: THREE.MeshStandardMaterial;
@@ -334,6 +360,13 @@ export function createSharedMaterials(): SharedMaterials {
 
   const groundSkirt = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide, name: "fc:ground-skirt" });
 
+  const sidewalk = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, name: "fc:sidewalk" });
+  sidewalk.onBeforeCompile = patchSidewalkShader;
+  sidewalk.customProgramCacheKey = () => "fc:sidewalk:v1";
+  sidewalk.polygonOffset = true;
+  sidewalk.polygonOffsetFactor = -0.5;
+  sidewalk.polygonOffsetUnits = -1;
+
   const road = roadMaterial("fc:road", patchGrainShader(0.16, 0.35));
   const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false));
   const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true));
@@ -346,13 +379,14 @@ export function createSharedMaterials(): SharedMaterials {
     buildingFlat,
     ground,
     groundSkirt,
+    sidewalk,
     road,
     roadUv,
     freewayUv,
     foliage,
     lampPole,
     lampHead,
-    all: [building, buildingFlat, ground, groundSkirt, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+    all: [building, buildingFlat, ground, groundSkirt, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
   };
 }
 

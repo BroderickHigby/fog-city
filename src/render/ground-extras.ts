@@ -107,7 +107,10 @@ export function groundSkirt(g: Heightfield, depthM = SKIRT_DEPTH_M): ColoredMesh
       pos.push(a[0], a[1], a[2], b[0], b[1], b[2], a[0], a[1] - depthM, a[2], b[0], b[1] - depthM, b[2]);
       for (let q = 0; q < 4; q++) nrm.push(out[0], 0, out[1]);
       col.push(...SKIRT_TOP, ...SKIRT_TOP, ...SKIRT_BOTTOM, ...SKIRT_BOTTOM);
-      idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
+      // Front faces look out of the tile: (b - a) x down has the outward sign.
+      const outward = (b[2] - a[2]) * out[0] - (b[0] - a[0]) * out[1];
+      if (outward >= 0) idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+      else idx.push(v, v + 2, v + 1, v + 1, v + 2, v + 3);
     }
   };
   const north: Array<[number, number, number]> = [];

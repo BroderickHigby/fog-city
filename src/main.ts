@@ -34,6 +34,7 @@ import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from 
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import type { SidewalkGraph } from "./render/sidewalks.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
   Action,
@@ -169,6 +170,15 @@ async function boot(): Promise<void> {
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
   const startCam = params.get("cam") as CameraMode | null;
   if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
+  // Render-only: the sidewalk bands (W-45), after boot so the 10 MB graph never delays the first
+  // frame. Never fatal: without it the streets have no pavement drawn, nothing else changes.
+  const sidewalksFile = manifest.layers?.sidewalks;
+  if (sidewalksFile) {
+    assets.json<SidewalkGraph>(base + sidewalksFile).then(
+      (g) => view.streamer.setSidewalks(g),
+      (err: unknown) => console.warn(`[fog-city] sidewalks ${sidewalksFile}: ${err instanceof Error ? err.message : String(err)}`),
+    );
+  }
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);

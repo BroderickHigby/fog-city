@@ -14,11 +14,12 @@ import { decodeColliderPack, type BoundaryFile, type RoadsFile, type TileCollide
 import type { Assets } from "./assets.ts";
 
 /**
- * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles). The static build (scripts/build-web.ts) ships only these
+ * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
+ * sidewalks (main.ts, the drawn pavement). The static build (scripts/build-web.ts) ships only these
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "sidewalks"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {

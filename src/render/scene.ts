@@ -242,7 +242,7 @@ export class SceneRenderer {
       if (!m.isMesh) return;
       const name = m.name || m.parent?.name || "";
       m.receiveShadow = true;
-      m.castShadow = !/ground|road|pool/.test(name);
+      m.castShadow = !/ground|road|pool|sidewalk|lake/.test(name);
     });
   }
 

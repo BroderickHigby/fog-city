@@ -35,6 +35,7 @@ import {
   type Spot,
 } from "./roads.ts";
 import { PropClearance } from "./prop-clearance.ts";
+import { sidewalkMesh, sidewalksByTile, type SidewalkGraph, type SidewalkLine } from "./sidewalks.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
 import type { RoadContext } from "./tile-geometry.ts";
 import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
@@ -105,6 +106,10 @@ interface TileRecord {
   /** The tile's own collider (fallbackCollider), preferred over `colliders` for the fallback build. */
   collider?: TileCollider;
   error?: string;
+  /** Roads built here from the graph (they bring their own sidewalks), not from the glb. */
+  builtRoads: boolean;
+  /** The sidewalk bands are in the group. */
+  sidewalks: boolean;
 }
 
 export interface StreamerStats {
@@ -128,6 +133,8 @@ export class TileStreamer {
   private readonly roadCtx: RoadContext | null;
   private readonly clearance: Map<string, number>;
   private readonly propClearance: PropClearance;
+  private readonly roadById: Map<string, RoadEdge>;
+  private sidewalksByTile: Map<string, SidewalkLine[]> | null = null;
   private readonly records = new Map<string, TileRecord>();
   private queue: string[] = [];
   private inFlight = 0;
@@ -153,6 +160,7 @@ export class TileStreamer {
     this.roadsByTile = assignEdgesToTiles(edges, this.bounds);
     this.clearance = opts.roads ? nodeClearance(opts.roads) : new Map();
     this.propClearance = new PropClearance(edges, opts.colliders.values());
+    this.roadById = new Map(edges.map((e) => [e.id, e]));
     this.roadCtx = opts.roads
       ? {
           ground: opts.ground,
@@ -266,6 +274,8 @@ export class TileStreamer {
         glbLoaded: false,
         glbAttempts: 0,
         retryTimer: null,
+        builtRoads: false,
+        sidewalks: false,
       };
       rec.group.name = `tile:${id}`;
       rec.group.matrixAutoUpdate = false;
@@ -376,6 +386,7 @@ export class TileStreamer {
       return;
     }
     rec.state = "building";
+    rec.builtRoads = layers.roads;
     rec.gen = buildTileMeshes({
       collider,
       bounds: this.bounds.find((b) => b.id === rec.id)!,
@@ -430,6 +441,7 @@ export class TileStreamer {
       add(meshes.roads, m.road, "roads");
     }
     this.addGroundExtras(rec);
+    this.addSidewalks(rec);
     // Street props from the road graph: on the ground, clear of every carriageway, building and
     // water (W-44), never along a structure (a deck's or a bore's ground is not its surface).
     const edges = this.roadsByTile.get(rec.id) ?? [];
@@ -447,6 +459,38 @@ export class TileStreamer {
     this.opts.parent.add(rec.group);
     this.opts.onTileVisible?.(rec.id, true);
     this.dirty = true;
+  }
+
+  /**
+   * The world's sidewalk graph (sidewalks.json; W-45): every tile whose roads came from its glb
+   * gets the bands of the sidewalks whose midpoint lies in it, now and when it loads later.
+   */
+  setSidewalks(graph: SidewalkGraph | null): void {
+    this.sidewalksByTile = graph ? sidewalksByTile(graph, this.opts.manifest.tileSizeM ?? 500) : null;
+    for (const r of this.records.values()) if (r.state === "ready") this.addSidewalks(r);
+  }
+
+  private addSidewalks(rec: TileRecord): void {
+    if (rec.sidewalks || rec.builtRoads || !this.sidewalksByTile) return;
+    rec.sidewalks = true;
+    const lines = this.sidewalksByTile.get(rec.id);
+    if (!lines || lines.length === 0) return;
+    const data = sidewalkMesh(lines, this.roadById, this.opts.drawnGround ?? this.opts.ground);
+    if (!data) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(data.normals, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(data.colors, 3));
+    g.setAttribute("uv", new THREE.BufferAttribute(data.uvs, 2));
+    g.setIndex(new THREE.BufferAttribute(data.indices, 1));
+    g.computeBoundingSphere();
+    g.computeBoundingBox();
+    rec.geometries.push(g);
+    const mesh = new THREE.Mesh(g, this.opts.materials.sidewalk);
+    mesh.name = "sidewalks";
+    mesh.matrixAutoUpdate = false;
+    mesh.receiveShadow = true;
+    rec.group.add(mesh);
   }
 
   /** Lakes at their level and the skirts under the ground's borders (ground-extras.ts), from the tile's heightfield. */
