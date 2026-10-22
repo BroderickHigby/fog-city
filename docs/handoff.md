@@ -93,6 +93,30 @@ Everything below is committed and pushed; no work is uncommitted.
   (every defect with evidence, cause, fix and test), `docs/testing.md`, and each branch's commit
   messages, which explain the why of each change.
 
+## Why this project exists (the goal)
+Fog City is the owner's game: a drivable, satirical San Francisco about five years out, built
+from the real city's data so it reads as *their* SF, with GTA-style freedom and fun but
+non-violent play (water rusts bad robots; flowers in PvP; nobody is ever hurt). The near-term
+goal is a city that feels continuous and real at street level (hills, houses, landscape,
+landmarks) before more territory and features are piled on, because broken continuity
+(falling through ground, walled streets, floating houses) ruins every other feature.
+
+## Evaluation criteria (definition of done)
+Every step is done only when its criteria hold **and** `pnpm verify` (typecheck, unit, e2e) is
+green, CI is green on the pushed branch, and an independent reviewer agrees.
+
+| Step | Done when |
+|---|---|
+| House-kit review | Street-level screenshots in the Mission, Alamo Square (Painted Ladies), Sunset, Pacific Heights, Russian Hill, Bernal Heights, Marina, Richmond and downtown read as San Francisco per `docs/qa/house-kit-spec.md`: storey grid, garage doors, bays, stoops, cornices, era/district palettes, textured facades (siding, stucco, brick, curtain wall) that vary per building; no hill through a roof, no gap under the downhill side; texture-memory, tile and draw-call budget tests pass. |
+| Integration | All seven `qa/*` lanes merged into `integrate/wave1`; tiles regenerate byte-identically (`--check`); the per-PR world-continuity gate passes with every fixed defect flipped from ratchet to hard assertion; `pnpm tour` PNGs reviewed by eye. |
+| Re-audit | Three auditors (data, play, visual) re-run every W-01..W-52 reproduction and hunt for regressions; an adversarial verifier confirms findings; the round ends **dry**: zero verified blocker/high/medium defects. Closed-loop drives (Filbert, Lombard, Twin Peaks, Great Highway, I-80, I-280, Broadway Tunnel, 3rd St bridge, a 40-seam diagonal) and on-foot routes (Filbert, Lyon St steps) never float, sink, launch, stop on ghost walls or leave the world. |
+| Dodge merge | Zero vehicle-person contacts in the per-PR and nightly clearance soaks, the seeded fuzz and the multi-car optimiser; clearance >= 0.75 m outside counted override episodes; the cross-engine determinism tests and pinned replays pass after the SIM_VERSION renumber; sim cost within the design budget (`scripts/bench/sim.ts`, about 1 ms/tick dodge overhead today). |
+| Playable republish | The static build fits the host (file count, total, per-file size, extensions); the hosted page boots `?world=sf` with no console errors, streams tiles, draws the far skyline, and drives. |
+| Wave 2 and later | Each wave's acceptance tests in `docs/roadmap.md` (for example: the hunter driver melts 3 bad robots in 10 minutes on pinned seeds; a melted Footman and Trundle drop to at most 40% of standing height within 2 s with their heap drawn; no water ever reaches animals, children or seated people). Territory steps also need the world gate green and no open verified defect. |
+
+Things only the owner can judge (frame rate and feel on real hardware, whether it reads as SF,
+whether jokes land) are reported to them with screenshots, never claimed as passed.
+
 ## Prompt to continue (paste into a new Claude Code session on this repo)
 
 > You are continuing Fog City, a browser open-world game of San Francisco in
