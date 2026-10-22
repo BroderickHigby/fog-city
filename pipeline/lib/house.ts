@@ -48,9 +48,11 @@ export const BAY_MIN_FRONT_M = 4.5;
 export const BAY_MAX_YEAR = 1925;
 /** A stoop where the first floor stands this far over the sidewalk (K7). */
 export const STOOP_MIN_RISE_M = 1;
-/** Garage doors on residential rows of these years and frontages (K4). */
+/** Garage doors on residential rows of these years and frontages (the house's width along its facade, K4). */
 export const GARAGE_YEARS: readonly [number, number] = [1920, 1960];
 export const GARAGE_FRONT_M: readonly [number, number] = [5, 16];
+/** A garage door (2.4 to 2.7 m wide) needs this much facade. */
+export const GARAGE_DOOR_MIN_M = 2.8;
 /** Roofline mouldings (cornice, parapet) on residential and mixed fronts built before this (K8). */
 export const ROOFLINE_MAX_YEAR = 1940;
 
@@ -393,7 +395,16 @@ export function tileFronts(
       let flags = 0;
       if (residential && year > 0 && year <= BAY_MAX_YEAR && len >= BAY_MIN_FRONT_M && h.storeys >= 2) flags |= FRONT_BAY;
       if (residential && floorM >= STOOP_MIN_RISE_M) flags |= FRONT_STOOP;
-      if (residential && year >= GARAGE_YEARS[0] && year <= GARAGE_YEARS[1] && len >= GARAGE_FRONT_M[0] && len <= GARAGE_FRONT_M[1]) flags |= FRONT_GARAGE;
+      // The frontage is the house's width along the facade (a front with a recessed entry or an
+      // angled porch is shorter than the lot it fronts); the door needs GARAGE_DOOR_MIN_M of facade.
+      let w0 = Infinity, w1 = -Infinity;
+      for (const q of f) {
+        const t = (q[0] - a[0]) * -nz + (q[1] - a[1]) * nx;
+        w0 = Math.min(w0, t);
+        w1 = Math.max(w1, t);
+      }
+      const frontage = w1 - w0;
+      if (residential && year >= GARAGE_YEARS[0] && year <= GARAGE_YEARS[1] && frontage >= GARAGE_FRONT_M[0] && frontage <= GARAGE_FRONT_M[1] && len >= GARAGE_DOOR_MIN_M) flags |= FRONT_GARAGE;
       const mine = byBuilding.get(b.id) ?? [];
       if (g.some((i) => mine.some((s) => distToSegment(s.x, s.z, f[i]!, f[(i + 1) % f.length]!).d <= SHOP_WALL_M))) flags |= FRONT_SHOP;
       if ((residential || mixed) && year > 0 && year < ROOFLINE_MAX_YEAR && row) flags |= FRONT_ROOFLINE;

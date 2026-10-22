@@ -9,8 +9,8 @@
 //   * every tile border is a polyline through the near tiles' own 10 m lattice samples,
 //     simplified to borderTolM (Douglas-Peucker on the heights) and keeping every 100 m point,
 //     shared exactly by the two squares either side; so where the streaming ring stops at a tile
-//     border, the far terrain meets the near ground there (lowered groundDropM, which is more
-//     than borderTolM: the far side is never above the near one and no sea shows through);
+//     border, the far terrain meets the near ground there (lowered groundDropM, at least
+//     borderTolM: the far side is never above the near one and no sea shows through);
 //   * inside, a lattice of steps[0] (100 m) on a built tile, or the next finer step (50 m) where
 //     the coarser one misses the 10 m lattice by more than refineErrorM (the hills); farSteps
 //     (250 m, 100 m) on every other tile square; cells along a border are fans through the
@@ -23,8 +23,10 @@
 //   * tall records (tallM and up): their own outline, simplified (the convex hull only when the
 //     footprint is close to convex), flat roof at their topY;
 //   * everything else: records closer than clusterGapM whose heights above the ground differ by at
-//     most clusterHeightM merge into a cluster: its convex hull, or the members' own outlines where
-//     that hull would stand over another record of a different height; at each hull vertex the
+//     most clusterHeightM merge into a cluster whose roofs span at most clusterSpanM (W-41: a far
+//     roof within 5 m of the near one at p99, inside the 600k-triangle budget): its convex hull,
+//     or the members' own outlines where that hull would stand over another record whose roof
+//     differs from the hull's there by more than clusterHeightM; at each hull vertex the
 //     roof is the roof of the member nearest it (a stepped row on a hill slopes from roof to
 //     roof). A record alone keeps its own flat roof (topY), and a record standing over a tall
 //     record's interior point is never clustered;
@@ -58,6 +60,12 @@ export interface FarParams {
   /** Records closer than this, and within clusterHeightM of each other's height, merge. */
   clusterGapM: number;
   clusterHeightM: number;
+  /** A cluster's members' heights span at most this (default clusterHeightM)... */
+  clusterSpanM?: number;
+  /** ... measured on their roofs (topY) rather than their heights above the ground. */
+  spanByRoof?: boolean;
+  /** A cluster's hull may stand over a record that is not a member when their heights differ by at most this (default clusterHeightM). */
+  coverHeightM?: number;
   /**
    * Compare roofs (topY) rather than heights above the ground, and give a cluster a flat roof at
    * its members' mean roof: on a hill a stepped row becomes steps of at most clusterHeightM.
@@ -75,12 +83,14 @@ export const FAR_DEFAULTS: FarParams = {
   steps: [100, 50],
   farSteps: [250, 100],
   refineErrorM: 10,
-  borderTolM: 0.4,
+  borderTolM: 0.5,
   farBorderTolM: 4,
   groundDropM: 0.5,
   tallM: 30,
-  clusterGapM: 3,
+  clusterGapM: 6,
   clusterHeightM: 5,
+  clusterSpanM: 8,
+  spanByRoof: true,
   clusterByRoof: false,
   skirtM: 3,
   tallMaxVerts: 6,
@@ -265,6 +275,9 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
   const tallIndex = new PointIndex(all.filter((b) => heightOf(b) >= p.tallM));
   const solo = low.map((b) => tallIndex.inside(b.footprint).length > 0);
   const heights = low.map((b) => (p.clusterByRoof ? b.topY : heightOf(b)));
+  const spanOf = low.map((b) => (p.spanByRoof ? b.topY : p.clusterByRoof ? b.topY : heightOf(b)));
+  const lo = Float64Array.from(spanOf);
+  const hi = Float64Array.from(spanOf);
   const CELL = 40;
   const grid = new Map<string, number[]>();
   boxes.forEach((bb, i) => {
@@ -288,7 +301,14 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
         if (A[0] - GAP > B[2] || B[0] - GAP > A[2] || A[1] - GAP > B[3] || B[1] - GAP > A[3]) continue;
         const ri = find(i), rj = find(j);
         if (ri === rj) continue;
-        if (ringGap(low[i]!.footprint, low[j]!.footprint) <= GAP) parent[Math.max(ri, rj)] = Math.min(ri, rj);
+        // A cluster's members span at most clusterHeightM (no chains of small steps).
+        if (Math.max(hi[ri]!, hi[rj]!) - Math.min(lo[ri]!, lo[rj]!) > (p.clusterSpanM ?? p.clusterHeightM)) continue;
+        if (ringGap(low[i]!.footprint, low[j]!.footprint) <= GAP) {
+          const r = Math.min(ri, rj);
+          parent[Math.max(ri, rj)] = r;
+          lo[r] = Math.min(lo[ri]!, lo[rj]!);
+          hi[r] = Math.max(hi[ri]!, hi[rj]!);
+        }
       }
     }
   }
@@ -343,7 +363,6 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     const push = (ring: P2[], records: number): void => {
       if (ring.length >= 3) hulls.push({ ring, top, absolute: p.clusterByRoof, maxTop, vertexTops: ring.map(nearestTop), wall: style.wall, roof: style.roof, records });
     };
-    const levelOf = (o: Building): number => (p.clusterByRoof ? o.topY : heightOf(o));
     // A hull leaves out none of its members' interior points: its vertex cap grows until it does.
     const covering = (ring: readonly P2[], of: readonly Building[]): boolean =>
       of.every((m) => {
@@ -364,7 +383,8 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     let hull = simplifyConvex(full, p.clusterMaxVerts);
     for (let cap = p.clusterMaxVerts + 2; !covering(hull, members) && cap < full.length + 2; cap += 2) hull = simplifyConvex(full, cap);
     const ids = new Set(members.map((m) => m.id));
-    const covers = index.inside(hull).some((o) => !ids.has(o.id) && Math.abs(levelOf(o) - top) > p.clusterHeightM);
+    // The roof the hull would have over a non-member is its nearest member's roof.
+    const covers = index.inside(hull).some((o) => !ids.has(o.id) && Math.abs(o.topY - nearestTop(interiorPoint(o.footprint))) > (p.coverHeightM ?? p.clusterHeightM));
     if (!covers) {
       push(hull, members.length);
       continue;
