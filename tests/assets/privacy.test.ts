@@ -71,6 +71,7 @@ const ASSET_DIRS = /^(assets|public\/models|public\/audio)\//;
 /** Images drawn by a script elsewhere (repo-relative image path -> the script that writes it). */
 const GENERATED: Record<string, string> = {
   "public/models/humanoid-impostor.png": "assets/blender/models/humanoid_impostor.py",
+  "public/models/house-kit/stair-treads.png": "assets/blender/models/house_kit.py",
 };
 
 /** The script in the repository that draws this image, or null. */
