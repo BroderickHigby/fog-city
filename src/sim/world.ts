@@ -3,7 +3,7 @@
 // road graph (schemas/roads.schema.json) and the world's edge and shore walls (boundary.json,
 // boundary.ts). Never part of SimState, never mutated.
 
-import { buildStairBarriers, buildWalls, type BoundaryFile, type WallSet, type Walls } from "./boundary.ts";
+import { buildStairBarriers, buildStairIndex, buildWalls, type BoundaryFile, type StairIndex, type WallSet, type Walls } from "./boundary.ts";
 import { TILE_SIZE_M } from "../geo/project.ts";
 import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 
@@ -125,6 +125,8 @@ export interface World {
   surfaces: SurfaceIndex | null;
   /** Walls only cars meet: the rings round the stairways (boundary.ts buildStairBarriers), or null. */
   barriers: WallSet | null;
+  /** The stairways' centrelines (boundary.ts onStairs: walkers climb them steeper than a slope), or null. */
+  stairs: StairIndex | null;
 }
 
 const CELL = 50;
@@ -216,6 +218,7 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
     walls: null,
     surfaces: buildSurfaceIndex(sorted),
     barriers: buildStairBarriers(roads),
+    stairs: buildStairIndex(roads),
   };
   if (roads) {
     // A lane or sidewalk of a deck or tunnel edge is checked against buildings at its own

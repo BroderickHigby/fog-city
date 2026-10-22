@@ -859,6 +859,53 @@ export function buildStairBarriers(roads: RoadsFile | null): WallSet | null {
   return { segments, cells };
 }
 
+/** The stairways' centrelines (roads.json `stairs` edges), indexed for onStairs. */
+export interface StairIndex {
+  /** Segments as [ax, az, bx, bz] at 4 * i. */
+  segs: Float64Array;
+  /** cellKey of WALL_CELL_M cells -> indices of the segments within STAIRS_HALF_M of the cell, ascending. */
+  cells: Map<number, number[]>;
+}
+
+/** The stairways' centrelines, whole (not trimmed at the kerbs), or null when there are none. */
+export function buildStairIndex(roads: RoadsFile | null): StairIndex | null {
+  if (!roads) return null;
+  const edges = [...roads.edges].filter((e) => e.stairs === true).sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+  const segs: number[] = [];
+  const cells = new Map<number, number[]>();
+  for (const e of edges) {
+    for (let i = 1; i < e.points.length; i++) {
+      const a = e.points[i - 1]!;
+      const b = e.points[i]!;
+      const k = segs.length / 4;
+      segs.push(a[0]!, a[1]!, b[0]!, b[1]!);
+      addToCells(cells, k, a[0]!, a[1]!, b[0]!, b[1]!, STAIRS_HALF_M);
+    }
+  }
+  return segs.length > 0 ? { segs: Float64Array.from(segs), cells } : null;
+}
+
+/** Is (x, z) on a stairway: within STAIRS_HALF_M of a stairs centreline? */
+export function onStairs(stairs: Readonly<StairIndex> | null, x: number, z: number): boolean {
+  if (!stairs) return false;
+  const list = stairs.cells.get(cellKey(Math.floor(x / WALL_CELL_M), Math.floor(z / WALL_CELL_M)));
+  if (!list) return false;
+  const s = stairs.segs;
+  for (const k of list) {
+    const ax = s[4 * k]!;
+    const az = s[4 * k + 1]!;
+    const ex = s[4 * k + 2]! - ax;
+    const ez = s[4 * k + 3]! - az;
+    const L2 = ex * ex + ez * ez;
+    let t = L2 > 0 ? ((x - ax) * ex + (z - az) * ez) / L2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = ax + ex * t - x;
+    const dz = az + ez * t - z;
+    if (dx * dx + dz * dz <= STAIRS_HALF_M * STAIRS_HALF_M) return true;
+  }
+  return false;
+}
+
 /** Indices of the wall segments whose cells overlap the square of half-size r around (x, z), ascending. */
 export function wallsNear(walls: Readonly<WallSet>, x: number, z: number, r: number): number[] {
   const out: number[] = [];

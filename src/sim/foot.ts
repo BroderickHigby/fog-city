@@ -14,7 +14,8 @@
 //    and lands when its feet reach the surface again.
 //  - It cannot walk up ground that rises more than FOOT.maxGrade * FOOT.gradeReach within
 //    FOOT.gradeReach ahead (a slope steeper than 1:1 that is taller than a metre); it slides
-//    along such a bank instead. A short steep bank (a step) is climbed.
+//    along such a bank instead. A short steep bank (a step) is climbed. On a stairway the limit
+//    is FOOT.stairGrade: the steps climb what no slope would.
 //  - Pushes out of buildings and bodies are capped at FOOT.maxPush a tick.
 //  - On a deck or in a tunnel bore the walker is held by the deck's rails and the bore's walls
 //    (world.ts railPush): it never walks off a viaduct or into the hill around a bore; in a bore
@@ -24,7 +25,7 @@ import { DT, type CarState, type FootState, type SimInput } from "./contract.ts"
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
-import { segmentCrossesWall } from "./boundary.ts";
+import { onStairs, segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, circleBlocked, railPush, segmentBlocked, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
 
 export const FOOT = {
@@ -53,6 +54,8 @@ export const FOOT = {
   gravity: 9.81,
   /** Steepest ground the walker walks up or down in control, rise per metre. */
   maxGrade: 1,
+  /** On a stairway (the steps are steeper than any slope walked; boundary.ts onStairs), rise per metre. */
+  stairGrade: 2.5,
   /** How far ahead the walker looks for a bank too steep to climb, metres. */
   gradeReach: 1,
   /** Extra drop per tick still followed on foot (lattice corners, a kerb), metres. */
@@ -70,11 +73,16 @@ function bandAt(y: number): Band {
   return { bottom: y + ROOF_STEP_M, top: y + FOOT.height };
 }
 
+/** The steepest grade walked at (x, z): a stairway's steps, or FOOT.maxGrade. */
+function gradeAt(world: World, x: number, z: number): number {
+  return onStairs(world.stairs, x, z) ? FOOT.stairGrade : FOOT.maxGrade;
+}
+
 /** Is the ground within FOOT.gradeReach of (x, z) along (dx, dz) (a unit vector) too steep to walk up from feet height y? */
 function tooSteep(world: World, x: number, z: number, y: number, dx: number, dz: number): boolean {
   const r = FOOT.gradeReach;
   // (A hair of tolerance: exactly 1:1 is climbable whatever the rounding.)
-  return surfaceHeight(world, x + dx * r, z + dz * r, y) - y > FOOT.maxGrade * r + 1e-9;
+  return surfaceHeight(world, x + dx * r, z + dz * r, y) - y > gradeAt(world, x, z) * r + 1e-9;
 }
 
 export function stepFoot(
@@ -155,7 +163,8 @@ export function stepFoot(
   const mz = res.z - f.z;
   const moved = Math.sqrt(mx * mx + mz * mz);
   const s1 = surfaceHeight(world, res.x, res.z, f.y);
-  if (s1 < f.y - (FOOT.maxGrade * moved + FOOT.dropTolerance)) {
+  const grade = gradeAt(world, res.x, res.z);
+  if (s1 < f.y - (grade * moved + FOOT.dropTolerance)) {
     // Walked off a drop: start falling from here (never upward: there is no jump).
     const vy0 = f.vy < 0 ? f.vy : 0;
     const vyB = vy0 - FOOT.gravity * DT;
@@ -163,7 +172,7 @@ export function stepFoot(
     if (yB > s1) return { x: res.x, y: yB, z: res.z, heading, speed, sprint, vy: vyB, grounded: false };
   }
   // On the surface: its rise along the walk, as a rate, limited to what walking can climb.
-  const lim = (moved / DT) * FOOT.maxGrade;
+  const lim = (moved / DT) * grade;
   const vy = clamp((s1 - f.y) / DT, -lim, lim);
   return { x: res.x, y: s1, z: res.z, heading, speed, sprint, vy: vy + 0, grounded: true };
 }
