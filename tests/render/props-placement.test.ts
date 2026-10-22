@@ -67,6 +67,19 @@ describe("prop clearance on a made-up crossing", () => {
   });
 });
 
+describe("the drawn ground (W-22 render half)", () => {
+  it("the drawn ground follows the mesh's triangle split, not the bilinear surface", () => {
+    const g = { x0: 0, z0: 0, cellSizeM: 10, nx: 2, nz: 2, heights: [0, 0, 0, 4] };
+    const tile: TileCollider = { tileId: "t", buildings: [], ground: g };
+    const drawn = makeDrawnGroundFn([tile]);
+    const bilinear = makeGroundFn([tile]);
+    // Cell centre: on the (1,0)-(0,1) diagonal the mesh is 0, bilinear is 1.
+    expect(drawn(5, 5)).toBeCloseTo(0, 9);
+    expect(bilinear(5, 5)).toBeCloseTo(1, 9);
+    expect(drawn(7.5, 7.5)).toBeCloseTo(2, 9);
+  });
+});
+
 describe.skipIf(!worldExists("sf"))("street props in the sf world (W-44)", () => {
   const places: Array<[string, number, number]> = [
     ["Mission St at 13th under the Central Freeway", 37.76975, -122.42001],
@@ -122,14 +135,4 @@ describe.skipIf(!worldExists("sf"))("street props in the sf world (W-44)", () =>
     expect(total).toBeGreaterThan(300);
   });
 
-  it("the drawn ground follows the mesh's triangle split, not the bilinear surface", () => {
-    const g = { x0: 0, z0: 0, cellSizeM: 10, nx: 2, nz: 2, heights: [0, 0, 0, 4] };
-    const tile: TileCollider = { tileId: "t", buildings: [], ground: g };
-    const drawn = makeDrawnGroundFn([tile]);
-    const bilinear = makeGroundFn([tile]);
-    // Cell centre: on the (1,0)-(0,1) diagonal the mesh is 0, bilinear is 1.
-    expect(drawn(5, 5)).toBeCloseTo(0, 9);
-    expect(bilinear(5, 5)).toBeCloseTo(1, 9);
-    expect(drawn(7.5, 7.5)).toBeCloseTo(2, 9);
-  });
 });
