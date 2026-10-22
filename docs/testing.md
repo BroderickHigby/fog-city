@@ -284,7 +284,14 @@ that found them, and a seeded optimiser hunts for more every night.
   clearance itself (each printed); and the optimiser (`tests/sim/dodge-optimiser.ts`): a seeded
   (1+1) search, 1,500 evaluations in each of the open, a wall, a corner, a 3.4 m alley and a
   deck, for a car start (12-82 m out, any bearing, 6-38 m/s, sliding and yawing) and 3 s of
-  controls that touch someone; it must find none, and the override must never give up.
+  controls that touch someone; it must find none, and the override must never give up. One
+  test per seed, so a part runs alone in a few minutes (`pnpm soak:nightly -t "five places, seed 1"`,
+  `-t "narrow places"`, `-t "crests|no-touch fuzz|optimiser"`). The run of 2026-10-22, in those four
+  parts (about 25 minutes in all): 0 contacts and 0 overrides in all 64 soak runs; least clearance
+  from a moving car 1.15 m (Spofford Alley), from a closing robotaxi 0.79 m; jumps up to 1.67 s
+  airborne; the fuzz 10,978 dives, 2 overrides, no close pass; the optimiser no driver in 7,500
+  touched anyone (least clearance from a moving car 0.325 m, in a corner, over every tick
+  including override episodes: never inside the override's 0.3 m).
 - `tests/render/dodge-pose.test.ts`: how a dodge is drawn (`src/render/dodge-pose.ts`): people
   turn into the dive, spring with their arms windmilling and stretch flat with the arms out
   ahead only while hopping high, flip forward tucked into a ball while still in the air (a full
@@ -295,8 +302,9 @@ that found them, and a seeded optimiser hunts for more every night.
   sim's hop (`drawnHop`); come up with a startled jump, arms flung up on the way up, brush
   themselves off and end facing their walk; never more than about 20 degrees off upright while
   recovering; the override's leap is drawn along its arc with a tucked flip, a short one as a
-  stumble-hop with no flip; the Trundle skids round and tips, the Footman hops leaning in;
-  everyone ends level.
+  stumble-hop with no flip; a person drawn in one piece at range (the merged copy, no joints to
+  tuck: `rigidDodgePose`) never turns over, swinging from the stretch down onto the feet instead,
+  with no snap; the Trundle skids round and tips, the Footman hops leaning in; everyone ends level.
 - `tests/sim/replay.test.ts`: SIM_VERSION 4; saves from v1, v2 and v3 load (v3 -> v4 as an
   exact round trip of a real state); two replays, one full of dives, replay identically through
   a JSON round trip and are pinned.
