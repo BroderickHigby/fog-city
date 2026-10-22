@@ -409,6 +409,49 @@ export const RAIL_DROP_M = 1;
 /** agents and the road graph find an edge's deck or tunnel within this far beyond the ribbon's side (its sidewalks). */
 export const EDGE_SURFACE_REACH_M = 4;
 
+/**
+ * The deck ribbons (ids before "~<n>") that contradict their own edge's tunnel: a deck of edge E
+ * that covers, in plan, a vertex of E's own tunnel bore at more than ROOF_STEP_M over that bore's
+ * floor. One road cannot be both in the hill and on a deck over the same spot, so the bore wins
+ * and the deck is left out of the surfaces (the pipeline's c3186101.o~0, an "overpass" over the
+ * Broadway Tunnel's west portal on the bore's own edge, which lifted the eastbound approach 6 m
+ * into the houses over the portal; world QA W-02). Decks of other edges over a bore (a street on
+ * the hill above it) are untouched.
+ */
+export function contradictoryDecks(tiles: readonly TileCollider[]): Set<string> {
+  const bores = new Map<string, RibbonVertex[]>();
+  for (const t of tiles) {
+    for (const u of t.tunnels ?? []) {
+      if (u.edge === undefined) continue;
+      let l = bores.get(u.edge);
+      if (!l) bores.set(u.edge, (l = []));
+      l.push(...u.path);
+    }
+  }
+  const out = new Set<string>();
+  if (bores.size === 0) return out;
+  for (const t of tiles) {
+    for (const d of t.decks ?? []) {
+      const verts = d.edge === undefined ? undefined : bores.get(d.edge);
+      if (!verts) continue;
+      const seg = new Float64Array(SURF_STRIDE);
+      search: for (let i = 1; i < d.path.length; i++) {
+        const a = d.path[i - 1]!;
+        const b = d.path[i]!;
+        seg.set([a[0], a[1], a[2], a[3] / 2, b[0], b[1], b[2], b[3] / 2, -1, 0]);
+        for (const v of verts) {
+          const q = onSegment(seg, 0, v[0], v[2]);
+          if (q.d2 <= q.half * q.half && q.y > v[1] + ROOF_STEP_M) {
+            out.add(d.id.replace(/~\d+$/, ""));
+            break search;
+          }
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /** The decks and tunnels of the tiles, segment by segment, in tile order then file order. */
 function buildSurfaceIndex(tiles: readonly TileCollider[]): SurfaceIndex | null {
   const segs: number[] = [];
@@ -443,8 +486,9 @@ function buildSurfaceIndex(tiles: readonly TileCollider[]): SurfaceIndex | null 
       }
     }
   };
+  const dropped = contradictoryDecks(tiles);
   for (const t of tiles) {
-    for (const d of t.decks ?? []) add(d.id, d.path, -1, d.edge);
+    for (const d of t.decks ?? []) if (!dropped.has(d.id.replace(/~\d+$/, ""))) add(d.id, d.path, -1, d.edge);
     for (const u of t.tunnels ?? []) add(u.id, u.path, u.clearanceM, u.edge);
   }
   if (edge.length === 0) return null;
@@ -481,8 +525,8 @@ function onSegment(s: Float64Array, k: number, x: number, z: number): { t: numbe
   return { t, inner: raw === t, d2: px * px + pz * pz, half: s[o + 3]! + (s[o + 7]! - s[o + 3]!) * t, y: s[o + 1]! + (s[o + 5]! - s[o + 1]!) * t };
 }
 
-/** A deck this close to a body's feet is the one it is on: it keeps to it where decks overlap (surfaceAt). */
-const DECK_STAY_M = 0.15;
+/** Two decks whose centrelines are this close (as a fraction of the half width) are equally near a body (surfaceAt): the one nearer its feet wins. */
+const DECK_OFF_TIE = 0.01;
 
 /** A segment's round end that covers a point counts only when no segment of its own ribbon, or carrying it on from that end, covering the point beside itself is within this height of it (covering). */
 const CAP_MERGE_M = 1;
@@ -540,10 +584,11 @@ function covering(s: Float64Array, list: readonly number[], x: number, z: number
  *    over it, and a car on the hill above stays on the hill.
  *  - Otherwise the highest of the drawn ground (meshGroundHeight) and the decks covering the
  *    point that is at most ROOF_STEP_M above the feet: a car on a viaduct stands on the deck,
- *    a car on the street under it on the ground. Where decks overlap, of the decks within
- *    DECK_STAY_M of the feet (the ones the body could be on) the one whose centreline is
- *    nearest, rather than a higher one beside it. When every one is higher (a body under the
- *    ground) the lowest.
+ *    a car on the street under it on the ground. Where decks overlap, of the decks from
+ *    RAIL_DROP_M below the feet to ROOF_STEP_M above them (the ones the body could be on) the
+ *    one whose centreline is nearest, rather than a higher one beside it. When every one is
+ *    higher (a body under the ground) the lowest. Decks that contradict their own edge's bore
+ *    are left out (contradictoryDecks).
  *  - Then a building's roof covering the point when it is above that and at most ROOF_STEP_M
  *    above the feet (a body never steps onto a roof higher than that; such a building blocks
  *    it instead, blocksBand). So a body that reaches a roof (from a hillside above it, or over
@@ -585,15 +630,20 @@ export function surfaceAt(world: World, x: number, z: number, feet: number, roof
       if (bore > -Infinity) return { y: bore, kind: "tunnel", ceiling };
       if (kind === "deck") {
         // A body on a deck stays on it: where decks overlap (a freeway's two directions side by
-        // side or stacked close, a ramp leaving it), of the decks within DECK_STAY_M of its feet
-        // (the ones it could be on) the one whose centreline it is nearest wins over a higher
-        // one, so a car keeps to its own deck as another rises or falls away beside it.
+        // side, their ribbons wider than the gap between them, or a ramp leaving it), of the
+        // decks it could be on (from RAIL_DROP_M below its feet to ROOF_STEP_M above them) the
+        // one whose centreline it is nearest wins over a higher one, so a car keeps to its own
+        // deck as another rises or falls away beside it, also while it rides a little over its
+        // own deck at a crest. (Between equally near centrelines, the one nearer the feet.)
+        // Decks stacked apart by a clearance never share that band.
         let off = Infinity;
+        let near = Infinity;
         for (const hit of hits) {
-          if (s[hit.k * SURF_STRIDE + 8]! >= 0 || hit.y > lim || hit.y < g) continue;
+          if (s[hit.k * SURF_STRIDE + 8]! >= 0 || hit.y > lim || hit.y < g || hit.y < feet - RAIL_DROP_M) continue;
           const d = hit.y > feet ? hit.y - feet : feet - hit.y;
-          if (d <= DECK_STAY_M && hit.off < off) {
+          if (hit.off < off - DECK_OFF_TIE || (hit.off <= off + DECK_OFF_TIE && d < near)) {
             off = hit.off;
+            near = d;
             best = hit.y;
           }
         }
