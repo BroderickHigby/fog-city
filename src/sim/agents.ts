@@ -39,7 +39,9 @@
 //    DESPAWN_RANGE_M from every player are removed; each area whose centre is within
 //    ACTIVE_RANGE_M of a player and below budget gains up to SPAWN_PER_POP agents of each kind,
 //    placed with state.rng on its roads at least SPAWN_MIN_PLAYER_M from every player (no
-//    pop-in in view). The initial state fills every active area to budget. Nearer areas fill
+//    pop-in in view) and SPAWN_VEHICLE_CLEAR_M clear of every vehicle's body (a player's parked
+//    car included; a new robotaxi clear of everyone on foot), so nobody appears inside or
+//    against one. The initial state fills every active area to budget. Nearer areas fill
 //    first. Each area belongs to its nearest player (ties: the lower player id), and so does
 //    each agent: one player's surroundings hold at most MAX_AGENTS agents, the whole state
 //    MAX_AGENTS_TOTAL, so a second player across town gets their own traffic instead of
@@ -185,12 +187,12 @@ export const AGENT_SPEC: Readonly<Record<AgentKind, AgentSpec>> = {
 };
 
 /**
- * A robotaxi's body as people meet it: a box covering the drawn Meander (4.98 x 1.92 m), a little
+ * A robotaxi's body as people meet it: a box covering the drawn Meander (4.98 x 1.92 m, 1.53 m tall), a little
  * longer than the AGENT_SPEC box traffic spaces itself by. Walkers keep clear of it, robotaxis
  * keep their berth from people by it, and the dodge (src/sim/dodge.ts) counts contacts and
  * clearance against it.
  */
-export const ROBOTAXI_BODY = { halfLength: 2.5, halfWidth: 1.0 } as const;
+export const ROBOTAXI_BODY = { halfLength: 2.5, halfWidth: 1.0, height: 1.6 } as const;
 
 /** About this share of the people (by id) are children: smaller, and given a wider berth by the dodge (src/sim/dodge.ts). */
 export const CHILD_PERCENT = 5;
@@ -1502,6 +1504,66 @@ function pickPiece(cum: readonly number[], u: number): number {
   return lo;
 }
 
+/**
+ * A new agent keeps at least this far from a vehicle's body (every player's car, parked or
+ * driven, and every robotaxi's drawn body), or a new robotaxi's body from anyone on foot, metres:
+ * the dodge's widest override clearance (0.6 m, src/sim/dodge.ts) and a little more, so nobody
+ * appears inside or against a vehicle (a contact, or a leap out of it).
+ */
+export const SPAWN_VEHICLE_CLEAR_M = 0.7;
+
+/** Distance from (px, pz) to a box centred at (x, z) facing (fx, fz) with half extents hl, hw (0 inside). */
+function boxGap(px: number, pz: number, x: number, z: number, fx: number, fz: number, hl: number, hw: number): number {
+  const ox = px - x;
+  const oz = pz - z;
+  const along = ox * fx + oz * fz;
+  const lat = -ox * fz + oz * fx;
+  const el = Math.max(0, (lat < 0 ? -lat : lat) - hw);
+  const ef = Math.max(0, (along < 0 ? -along : along) - hl);
+  return Math.sqrt(el * el + ef * ef);
+}
+
+/** Every player's car (driven, or parked while they are on foot): spawns keep clear of them. */
+export interface CarSpot {
+  x: number;
+  z: number;
+  fx: number;
+  fz: number;
+}
+
+export function playerCars(state: Readonly<SimState>): CarSpot[] {
+  return sortedIds(state.players).map((id) => {
+    const c = state.players[id]!.car;
+    return { x: c.x, z: c.z, fx: dsin(c.heading), fz: -dcos(c.heading) };
+  });
+}
+
+/** Is a new agent of this kind at (x, z) facing (hx, hz) clear of every vehicle (and, a robotaxi, of everyone on foot) by SPAWN_VEHICLE_CLEAR_M? */
+function spawnClearOfVehicles(kind: AgentKind, x: number, z: number, hx: number, hz: number, others: readonly AgentState[], cars: readonly CarSpot[]): boolean {
+  const spec = AGENT_SPEC[kind];
+  if (!spec.road) {
+    const need = spec.radius + SPAWN_VEHICLE_CLEAR_M;
+    for (const c of cars) if (boxGap(x, z, c.x, c.z, c.fx, c.fz, CAR.halfLength, CAR.halfWidth) < need) return false;
+    for (const o of others) {
+      if (!AGENT_SPEC[o.kind].road) continue;
+      if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) > 64) continue;
+      if (boxGap(x, z, o.x, o.z, dsin(o.heading), -dcos(o.heading), ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth) < need) return false;
+    }
+    return true;
+  }
+  // A robotaxi: its drawn body clear of every player's car (by both bodies' half diagonals) and of everyone on foot.
+  const carDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
+  const taxiDiag = Math.sqrt(ROBOTAXI_BODY.halfLength * ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth * ROBOTAXI_BODY.halfWidth);
+  const lim = carDiag + taxiDiag + 0.5;
+  for (const c of cars) if ((c.x - x) * (c.x - x) + (c.z - z) * (c.z - z) < lim * lim) return false;
+  for (const o of others) {
+    if (AGENT_SPEC[o.kind].road) continue;
+    if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) > 64) continue;
+    if (boxGap(o.x, o.z, x, z, hx, hz, ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth) < AGENT_SPEC[o.kind].radius + SPAWN_VEHICLE_CLEAR_M) return false;
+  }
+  return true;
+}
+
 function trySpawn(
   world: World,
   g: RoadGraph,
@@ -1512,6 +1574,7 @@ function trySpawn(
   others: readonly AgentState[],
   bodies: readonly Body[],
   minPlayerDist: number,
+  cars: readonly CarSpot[],
 ): [AgentState | null, RngState] {
   const spec = AGENT_SPEC[kind];
   const pieces = spec.road ? area.drive : area.walk;
@@ -1547,6 +1610,7 @@ function trySpawn(
     const heading = datan2(q.tx, -q.tz);
     if (bodyBlocked(world, kind, q.x, q.z, heading)) continue;
     if (minDist2(bodies, q.x, q.z) < minPlayerDist * minPlayerDist) continue;
+    if (!spawnClearOfVehicles(kind, q.x, q.z, q.tx, q.tz, others, cars)) continue;
     let clash = false;
     for (const o of others) {
       const os = AGENT_SPEC[o.kind];
@@ -1606,6 +1670,7 @@ export function populate(
   bodies: readonly Body[],
   seed: number,
   initial: boolean,
+  cars: readonly CarSpot[] = [],
 ): { ext: AgentsExt; rng: RngState } {
   const g = world.roads;
   if (!g || bodies.length === 0) return { ext, rng };
@@ -1647,7 +1712,7 @@ export function populate(
       let add = Math.min(Math.max(0, want - have), Math.max(0, room.get(kind)!));
       if (!initial) add = Math.min(add, SPAWN_PER_POP);
       for (let i = 0; i < add && owned[owner]! < MAX_AGENTS && list.length < MAX_AGENTS_TOTAL; i++) {
-        const [agent, r2] = trySpawn(world, g, ar, kind, r, nextId, list, bodies, minPlayer);
+        const [agent, r2] = trySpawn(world, g, ar, kind, r, nextId, list, bodies, minPlayer, cars);
         r = r2;
         if (!agent) continue;
         list.push(agent);
@@ -1662,7 +1727,7 @@ export function populate(
 
 /** Initial ambient population for a new state (empty when the world has no roads). */
 export function initialAgents(world: World, state: Readonly<SimState>): { ext: AgentsExt; rng: RngState } {
-  return populate(world, { nextId: 1, list: [] }, state.rng, playerBodies(state), state.seed, true);
+  return populate(world, { nextId: 1, list: [] }, state.rng, playerBodies(state), state.seed, true, playerCars(state));
 }
 
 /**
@@ -1795,7 +1860,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   let out: AgentsExt = { nextId: ext.nextId, list };
   let rng = prev.rng;
   if (tick % POP_INTERVAL === 0) {
-    const p = populate(world, out, rng, bodies, prev.seed, false);
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
     out = p.ext;
     rng = p.rng;
   }

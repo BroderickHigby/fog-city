@@ -147,10 +147,19 @@ export const CLEAR_SPOT_RADIUS_M = 30;
  * else the nearest clear spot on rings 1 m apart out to CLEAR_SPOT_RADIUS_M, reached from the
  * requested spot without crossing a wall, in a fixed order (so every client picks the same).
  * A car placed overlapping a footprint would otherwise be pushed out of it (at most
- * CAR.maxPush a tick). When nothing within reach is clear, the requested spot.
+ * CAR.maxPush a tick). `keepOff`: more round bodies its body must not overlap (step.ts: people,
+ * animals and players on foot grown by the dodge's clearance, robots, robotaxis), so a car never
+ * appears on top of anyone. When nothing within reach is clear, the requested spot.
  */
-export function clearCarSpot(world: World, x: number, z: number, heading: number, others: ReadonlyArray<Readonly<Box>> = []): { x: number; z: number } {
-  const circles: Circle[] = others.flatMap((b) => carCircles(b));
+export function clearCarSpot(
+  world: World,
+  x: number,
+  z: number,
+  heading: number,
+  others: ReadonlyArray<Readonly<Box>> = [],
+  keepOff: readonly Circle[] = [],
+): { x: number; z: number } {
+  const circles: Circle[] = [...others.flatMap((b) => carCircles(b)), ...keepOff];
   const clear = (px: number, pz: number): boolean => {
     const y = meshGroundHeight(world, px, pz);
     return !boxBlocked(world, { x: px, z: pz, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, y + ROOF_STEP_M, circles, y + CAR.bodyHeight);

@@ -330,6 +330,47 @@ export function meshGroundHeight(world: World, x: number, z: number): number {
 }
 
 /**
+ * Bounds on the drawn ground's height over the box from (minX, minZ) to (maxX, maxZ): the least
+ * and greatest lattice sample of every cell of every heightfield that covers part of it (the
+ * mesh is planar within each cell's triangles, so it never goes outside its cells' samples), and
+ * 0 where no heightfield covers a corner (the sea). The dodge uses it for the height a vehicle
+ * can reach over its next step.
+ */
+export function meshGroundRange(world: World, minX: number, minZ: number, maxX: number, maxZ: number): { min: number; max: number } {
+  let lo = Infinity;
+  let hi = -Infinity;
+  const seen: Heightfield[] = [];
+  for (const [x, z] of [
+    [minX, minZ],
+    [maxX, minZ],
+    [minX, maxZ],
+    [maxX, maxZ],
+    [(minX + maxX) / 2, (minZ + maxZ) / 2],
+  ] as const) {
+    const g = fieldAt(world, x, z);
+    if (!g) {
+      if (lo > 0) lo = 0;
+      if (hi < 0) hi = 0;
+      continue;
+    }
+    if (seen.includes(g)) continue;
+    seen.push(g);
+    const ix0 = Math.max(0, Math.min(g.nx - 1, Math.floor((minX - g.x0) / g.cellSizeM)));
+    const ix1 = Math.max(0, Math.min(g.nx - 1, Math.ceil((maxX - g.x0) / g.cellSizeM)));
+    const iz0 = Math.max(0, Math.min(g.nz - 1, Math.floor((minZ - g.z0) / g.cellSizeM)));
+    const iz1 = Math.max(0, Math.min(g.nz - 1, Math.ceil((maxZ - g.z0) / g.cellSizeM)));
+    for (let iz = iz0; iz <= iz1; iz++) {
+      for (let ix = ix0; ix <= ix1; ix++) {
+        const h = g.heights[iz * g.nx + ix] ?? 0;
+        if (h < lo) lo = h;
+        if (h > hi) hi = h;
+      }
+    }
+  }
+  return { min: lo, max: hi };
+}
+
+/**
  * The surface a body with its feet at `feet` stands on at (x, z): the drawn ground
  * (meshGroundHeight), or the roof of a
  * building covering the point when that roof is above the ground and at most ROOF_STEP_M above

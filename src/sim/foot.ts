@@ -16,13 +16,16 @@
 //    FOOT.gradeReach ahead (a slope steeper than 1:1 that is taller than a metre); it slides
 //    along such a bank instead. A short steep bank (a step) is climbed.
 //  - Pushes out of buildings and bodies are capped at FOOT.maxPush a tick.
+//  - Vehicle bodies (the boxes) are hard limits: nothing, not even a person overlapping the
+//    walker, pushes it into one (keepOffVehicles). A step that would end in one is pushed out of
+//    it in full, or, when that would put it in a building or across a wall, not taken.
 
 import { DT, type CarState, type FootState, type SimInput } from "./contract.ts";
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
-import { resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
+import { circleInBoxes, pushOutOfBoxes, resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, circleBlocked, segmentBlocked, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, circleBlocked, circleBlockedBand, segmentBlocked, surfaceHeight, type World } from "./world.ts";
 
 export const FOOT = {
   /** Walking speed, m/s. */
@@ -74,6 +77,32 @@ function tooSteep(world: World, x: number, z: number, y: number, dx: number, dz:
   return surfaceHeight(world, x + dx * r, z + dz * r, y) - y > FOOT.maxGrade * r + 1e-9;
 }
 
+/**
+ * Vehicle bodies are hard limits for a walker: a resolved step `res` from (x0, z0) that ends in a
+ * box (a person overlapping the walker pushed it there after the box pass, or the push budget
+ * ran out) is pushed out of every box in full; when that would put it in a building that blocks
+ * its band or across a wall, or it is wedged between two, the walker stays where it was (when
+ * that was clear of them). The dodge (src/sim/dodge.ts) counts a walker inside a vehicle's body as
+ * a contact, so no shove of the walker's own may ever end there.
+ */
+export function keepOffVehicles(
+  world: World,
+  x0: number,
+  z0: number,
+  res: { x: number; z: number; hit: boolean },
+  r: number,
+  boxes: ReadonlyArray<Readonly<Box>>,
+  band: Readonly<Band>,
+): { x: number; z: number; hit: boolean } {
+  if (boxes.length === 0 || !circleInBoxes(res.x, res.z, r, boxes)) return res;
+  const q = pushOutOfBoxes(res.x, res.z, r, boxes);
+  if (q.clear && !circleBlockedBand(world, q.x, q.z, r, band.bottom, band.top) && !segmentCrossesWall(world.walls, x0, z0, q.x, q.z)) {
+    return { x: q.x, z: q.z, hit: true };
+  }
+  if (!circleInBoxes(x0, z0, r, boxes)) return { x: x0, z: z0, hit: true };
+  return res;
+}
+
 export function stepFoot(
   world: World,
   f: Readonly<FootState>,
@@ -86,7 +115,15 @@ export function stepFoot(
     // Falling: no control. Horizontal speed carries on along the heading; gravity pulls down.
     const fx = dsin(f.heading);
     const fz = -dcos(f.heading);
-    const res = resolveCircleAll(world, f.x + fx * f.speed * DT, f.z + fz * f.speed * DT, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush);
+    const res = keepOffVehicles(
+      world,
+      f.x,
+      f.z,
+      resolveCircleAll(world, f.x + fx * f.speed * DT, f.z + fz * f.speed * DT, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush),
+      FOOT.radius,
+      boxes,
+      band,
+    );
     const vyB = f.vy - FOOT.gravity * DT;
     const yB = f.y + vyB * DT;
     const s1 = surfaceHeight(world, res.x, res.z, f.y);
@@ -133,7 +170,7 @@ export function stepFoot(
     }
   }
 
-  const res = resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush);
+  const res = keepOffVehicles(world, f.x, f.z, resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush), FOOT.radius, boxes, band);
   // Report the speed actually achieved along the heading (pressing into a wall reads as 0), never
   // more than the walker's own: being pushed out of a building or a car is not walking.
   const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, speed0 < 0 ? speed0 : 0, speed0 > 0 ? speed0 : 0);
@@ -192,15 +229,19 @@ export function canEnterCar(world: World, c: Readonly<Pick<CarState, "x" | "z" |
 
 /**
  * Where a player steps out of a parked car: the driver's (left) side, else the right, behind,
- * in front. The first spot that is clear of buildings and obstacles, and that the player can
- * reach from the car without crossing a building, wins. When none qualifies the player stays
- * in the car (null): nobody is ever placed inside or beyond a wall.
+ * in front. The first spot that is clear of buildings and obstacles (`boxes`: every vehicle body
+ * a walker collides with, robotaxis' drawn ones included; `circles`: people, robots, walkers),
+ * that the player can reach from the car without crossing a building, and that `avoid` (when
+ * given: step.ts rejects a spot a vehicle can reach this tick, with the dodge's clearance) does
+ * not reject, wins. When none qualifies the player stays in the car (null): nobody is ever placed
+ * inside or beyond a wall, or inside or in the way of a vehicle.
  */
 export function exitSpot(
   world: World,
   c: Readonly<CarState>,
   boxes: ReadonlyArray<Readonly<Box>>,
   circles: readonly Circle[],
+  avoid: ((x: number, z: number) => boolean) | null = null,
 ): FootState | null {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
@@ -220,6 +261,7 @@ export function exitSpot(
     if (segmentCrossesWall(world.walls, c.x, c.z, x, z)) continue;
     const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles);
     if (res.hit) continue;
+    if (avoid && avoid(x, z)) continue;
     return makeFoot(x, surfaceHeight(world, x, z, c.y), z, c.heading);
   }
   return null;
