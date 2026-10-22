@@ -124,3 +124,66 @@ export function terrainWorld(h: (x: number, z: number) => number, r = 400, cell 
 export function wallWorld(): World {
   return buildWorld([{ tileId: "wall", buildings: [rect("wall", -300, -60, 300, -50, 10)], ground: null }]);
 }
+
+/** The height of surfaceWorld's overpass deck at z (its vertices sample this every 4 m). */
+export function overpassY(z: number): number {
+  if (z <= 0 || z >= 260) return 0;
+  if (z <= 100) return 3 * (1 - Math.cos((Math.PI * z) / 100));
+  if (z <= 160) return 6;
+  return 3 * (1 + Math.cos((Math.PI * (z - 160)) / 100));
+}
+
+/**
+ * Decks, a tunnel bore and a stairway (world QA W-02, W-03, W-12, W-33; surfaceAt). On a 2 m
+ * lattice over [-300, 300] (flat at 0 m):
+ *  - a ridge along x, 20 m high at z = -100, falling to the flat at z = -140 and z = -60;
+ *  - a tunnel bore along x = 0 under it, floor level at 0 m from portal z = -150 to portal
+ *    z = -50, 8 m wide, ceiling 5 m over the floor ("bore"); a house on the ridge over it
+ *    ("over-bore", its underside at the ceiling, as the pipeline marks them);
+ *  - an overpass deck along x = 30, 12 m wide ("overpass", vertices every 4 m): up from 0 m at
+ *    z = 0 to 6 m at z = 100 on a rounded profile (overpassY, at most 9.4%), level to z = 160,
+ *    down to 0 m at z = 260; a street at grade crosses under it along z = 130;
+ *  - with roads: the streets x = 30 (on the deck, edge "deck-st"), x = 0 (through the bore,
+ *    edge "bore-st"), z = 130 (under the deck, "under-st") and z = 200 (10 m wide, "walk-st"),
+ *    and a 3 m stairway "stairs" north from (-100, 200) to (-100, 260) up 30 m of hill.
+ */
+export function surfaceWorld(withRoads = false): World {
+  const r = 300;
+  const cell = 2;
+  const n = r + 1;
+  const heights: number[] = [];
+  const h = (x: number, z: number): number => {
+    const ridge = 20 * Math.max(0, 1 - ((z + 100) / 40) ** 2);
+    // The stair's hill: rising north of z = 200 west of x = -60.
+    const hill = x < -60 && z > 200 ? Math.min(30, (z - 200) * 0.5) : 0;
+    return ridge + hill;
+  };
+  for (let iz = 0; iz < n; iz++) for (let ix = 0; ix < n; ix++) heights.push(h(-r + ix * cell, -r + iz * cell));
+  const deckPath: Array<[number, number, number, number]> = [];
+  for (let z = 0; z <= 260; z += 4) deckPath.push([30, overpassY(z), z, 12]);
+  const tile: TileCollider = {
+    tileId: "surfaces",
+    buildings: [
+      { id: "over-bore", footprint: [[-6, -106], [6, -106], [6, -94], [-6, -94]], baseY: 19.5, topY: 27, underY: 5 },
+      { id: "beside", footprint: [[60, 20], [80, 20], [80, 60], [60, 60]], baseY: 0, topY: 12 },
+    ],
+    ground: { x0: -r, z0: -r, cellSizeM: cell, nx: n, nz: n, heights },
+    decks: [{ id: "overpass", kind: "overpass", edge: "deck-st", layer: 1, path: deckPath }],
+    tunnels: [{ id: "bore", kind: "tunnel", edge: "bore-st", clearanceM: 5, path: [[0, 0, -50, 8], [0, 0, -100, 8], [0, 0, -150, 8]] }],
+  };
+  if (!withRoads) return buildWorld([tile]);
+  const node = (id: string, x: number, z: number): RoadsFile["nodes"][number] => ({ id, x, z });
+  const roads: RoadsFile = {
+    version: 1,
+    nodes: [node("d0", 30, -20), node("d1", 30, 280), node("b0", 0, -20), node("b1", 0, -180), node("u0", -40, 130), node("u1", 100, 130), node("w0", -200, 200), node("w1", 0, 200), node("w2", -100, 200), node("s1", -100, 260)],
+    edges: [
+      { id: "deck-st", a: "d0", b: "d1", kind: "residential", lanes: 2, oneway: false, widthM: 11, deck: true, points: [[30, -20], [30, 280]] },
+      { id: "bore-st", a: "b0", b: "b1", kind: "residential", lanes: 2, oneway: false, widthM: 8, tunnel: true, points: [[0, -20], [0, -180]] },
+      { id: "under-st", a: "u0", b: "u1", kind: "residential", lanes: 2, oneway: false, widthM: 11, points: [[-40, 130], [100, 130]] },
+      { id: "walk-st-a", a: "w0", b: "w2", kind: "residential", lanes: 2, oneway: false, widthM: 10, points: [[-200, 200], [-100, 200]] },
+      { id: "walk-st-b", a: "w2", b: "w1", kind: "residential", lanes: 2, oneway: false, widthM: 10, points: [[-100, 200], [0, 200]] },
+      { id: "stairs", a: "w2", b: "s1", kind: "other", lanes: 1, oneway: false, widthM: 3, pedestrian: true, stairs: true, points: [[-100, 200], [-100, 260]] },
+    ],
+  };
+  return buildWorld([tile], roads);
+}

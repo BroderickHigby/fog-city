@@ -19,7 +19,13 @@
 // instead of a bilinear blend, roofs within a step of a body's feet are part of it, and
 // collision pushes are capped per tick: v2 replays diverge. upgradeState() lifts v1 and v2
 // states to v3.
-export const SIM_VERSION = 3;
+// v4 (qa/sim, world QA W-02/W-03/W-11/W-12/W-13/W-14): bodies stand on the surface surfaceAt
+// picks (src/sim/world.ts): the ground, the highest deck at or below them, a tunnel bore's floor
+// (under its ceiling), or a roof within a step. Decks have rails and bores have walls, agents
+// ride their edge's deck or bore floor, and cars meet barriers round the stairways. No field
+// changes; v3 replays on worlds with decks, tunnels or stairs diverge. upgradeState() lifts
+// v1, v2 and v3 states to v4.
+export const SIM_VERSION = 4;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

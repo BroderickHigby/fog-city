@@ -67,11 +67,13 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  * Lift a saved state from an older SIM_VERSION to this one, one version at a time. Pure.
  *  - v1 -> v2: cars gain the handling fields (at rest), players gain foot (none) and exitPending.
  *  - v2 -> v3: a walker gains vy 0 and grounded true (standing where it was saved).
+ *  - v3 -> v4: no field changes (decks, tunnels and stairs barriers are world data).
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
   if (s.version === 1) return upgradeState(upgradeV1(s));
-  if (s.version === 2) return upgradeV2(s);
+  if (s.version === 2) return upgradeState(upgradeV2(s));
+  if (s.version === 3) return upgradeV3(s);
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -100,6 +102,14 @@ function upgradeV2(s: Readonly<SimState>): SimState {
     players[id] = { ...p, foot: f ? { x: f.x, y: f.y, z: f.z, heading: f.heading, speed: f.speed, sprint: f.sprint, vy: 0, grounded: true } : null };
   }
   return { ...s, version: 3, players };
+}
+
+/**
+ * v3 -> v4: no field changes. A v3 body stood on the ground or a roof, both still surfaces at
+ * v4, so it stays where it was saved; the next tick finds a deck or bore floor under it.
+ */
+function upgradeV3(s: Readonly<SimState>): SimState {
+  return { ...s, version: 4 };
 }
 
 /** What every body collides with this tick, built from the previous state. */
