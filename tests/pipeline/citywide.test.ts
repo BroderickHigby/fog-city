@@ -7,7 +7,6 @@ import { inPolygon } from "../../pipeline/lib/districts.ts";
 import { signedArea, type P2 } from "../../pipeline/lib/geom.ts";
 import { decodeWorldColliders, PackGroundIndex } from "../../pipeline/lib/world-colliders.ts";
 import { TILE_SIZE_M, tileId, toLocal } from "../../src/geo/project.ts";
-import { SOUTH_CROP_Z } from "../../pipeline/lib/build.ts";
 import { pointInPolygon } from "../../src/sim/index.ts";
 import { ROOT, readJson } from "../helpers.ts";
 import type { SfManifest, SfRoads } from "./util.ts";
@@ -557,27 +556,17 @@ describe("citywide: gameplay layers", () => {
 describe("citywide: far-LOD", () => {
   it("holds every collider record, in cells that tile the world", () => {
     // Every collider record, plus the far-only Daly City strip (W-42): far scenery, no collider.
-    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number; tiles: string[]; drawnInTiles: number } }>(`${DIR}/report.json`);
-    expect(report.farOnly.records).toBeGreaterThan(1000);
-    // W-42: the strip's records stand in built tiles (past the county-line wall: their glb draws
-    // them as scenery, since the renderer hides the far layer over a streamed tile) or in San
-    // Mateo County's outside tiles.
+    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number; tiles: string[] } }>(`${DIR}/report.json`);
+    expect(report.farOnly.records).toBeGreaterThan(100);
+    // W-42: a far-only record never stands in a built tile (the renderer hides the far layer over
+    // a streamed tile, so it would vanish as the tile loads); its tiles are San Mateo County's.
     const built = new Set(manifest.tiles.map((t) => t.id));
     const area = new Map(manifest.outside.tiles.map((t) => [t.id, t.area]));
-    let drawn = 0;
+    expect(report.farOnly.tiles.length).toBeGreaterThan(0);
     for (const id of report.farOnly.tiles) {
-      if (!built.has(id)) {
-        expect(area.get(id), id).toBe("san-mateo-county");
-        continue;
-      }
-      const b = readFileSync(join(ROOT, DIR, `${id}.glb`));
-      const json = JSON.parse(new TextDecoder().decode(b.subarray(20, 20 + b.readUInt32LE(12)))) as { nodes: Array<{ name: string; extras?: { scenery?: unknown[] } }> };
-      const node = json.nodes.find((q) => q.name === "buildings-scenery");
-      expect(node, id).toBeDefined();
-      drawn += node!.extras!.scenery!.length;
+      expect(built.has(id), id).toBe(false);
+      expect(area.get(id), id).toBe("san-mateo-county");
     }
-    expect(drawn).toBe(report.farOnly.drawnInTiles);
-    expect(drawn).toBeGreaterThan(1000);
     expect(report.far.records).toBe(report.colliderPack.buildings + report.farOnly.records);
     expect(manifest.far.reduce((s, c) => s + c.stats.records!, 0)).toBe(report.far.records);
     for (const c of manifest.far) {
@@ -608,15 +597,8 @@ describe("citywide: the world's edge and shore", () => {
     }
   };
 
-  it("the outline runs between built tiles (on its left) and tiles with no file or the land past the county line (on its right)", () => {
-    // W-42: inside the last built row the land wall follows the county line: past it (south of
-    // z = 9,600 and in no San Francisco neighbourhood) is outside the world.
-    const ds = layer<Districts>("districts").districts;
-    const inSf = (x: number, z: number): boolean => ds.some((d) => d.polygons.some((poly) => inPolygon(x, z, poly)));
-    // (An all-water cell is never cut; only the right side is checked.)
-    const inWorld = (x: number, z: number): boolean => built.has(tileAt(x, z)) && !(z > SOUTH_CROP_Z && !inSf(x, z));
+  it("the outline runs between built tiles (on its left) and tiles with no file (on its right)", () => {
     let n = 0;
-    let county = 0;
     for (const e of b.edges) {
       for (const [x, z, dx, dz] of steps(e.points, e.closed)) {
         // Left of travel is (dz, -dx) on a north-up map; probe 1 m either side of the step's middle.
@@ -624,20 +606,11 @@ describe("citywide: the world's edge and shore", () => {
         const lx = mx + Math.sign(dz) * 1, lz = mz - Math.sign(dx) * 1;
         const rx = mx - Math.sign(dz) * 1, rz = mz + Math.sign(dx) * 1;
         expect(built.has(tileAt(lx, lz)), `${e.kind} at ${mx},${mz}: left`).toBe(true);
-        if (built.has(tileAt(rx, rz))) {
-          // A wall inside a built tile is the county line: land past it is cut (cell by cell, so
-          // probe the cells' centres either side).
-          const lc: [number, number] = [mx + Math.sign(dz) * 5, mz - Math.sign(dx) * 5];
-          const rc: [number, number] = [mx - Math.sign(dz) * 5, mz + Math.sign(dx) * 5];
-          expect(inWorld(...rc), `${e.kind} at ${mx},${mz}: right cell`).toBe(false);
-          expect(lc[1] > SOUTH_CROP_Z - 10, `${e.kind} at ${mx},${mz}: a wall inside a built tile only at the county line`).toBe(true);
-          county++;
-        }
+        expect(built.has(tileAt(rx, rz)), `${e.kind} at ${mx},${mz}: right`).toBe(false);
         n++;
       }
     }
     expect(n).toBeGreaterThan(5000);
-    expect(county * 10, "metres of wall on the county line inside built tiles").toBeGreaterThan(5000);
   });
 
   it("walls the world off on dry ground: the southern city limit is land, the Pacific and the Bay are water", () => {

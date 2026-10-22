@@ -2,8 +2,7 @@
 //
 //   * edges: the outline of the built tiles, as polylines. "land" runs are where the world
 //     stops on dry ground (the southern city limit, where the last built tile meets Daly City
-//     or Brisbane, or the county line itself inside a tile whose land beyond it is cut: W-42):
-//     the sim needs a wall there, since beyond it there is no ground or no city. "water"
+//     or Brisbane): the sim needs a wall there, since beyond it there is no ground. "water"
 //     runs are where the outline crosses open water (the sea-wall and towing rules apply).
 //   * shore: the land/water contour inside the built tiles (marching squares on the 10 m
 //     ground lattice's water flags, simplified): the line for the sea-wall collider and the
@@ -62,11 +61,6 @@ function dropStraight(pts: P2[], closed: boolean): P2[] {
 export function buildBoundary(
   tiles: readonly TileRef[],
   fields: ReadonlyMap<string, Heightfield>,
-  /**
-   * Land the world stops short of inside a built tile, by lattice cell centre (the Daly City strip
-   * south of the county line, W-42): such a cell with a land corner is outside the outline.
-   */
-  cutLand?: (x: number, z: number) => boolean,
 ): { edges: BoundaryEdge[]; shore: ShoreLine[]; stats: BoundaryStats } {
   if (TILE_SIZE_M / GROUND_CELL_M !== CELLS) throw new Error("boundary: tiles must be 50 lattice cells wide");
   const built = new Set(tiles.map((t) => `${t.ix},${t.iz}`));
@@ -79,62 +73,22 @@ export function buildBoundary(
   const wAt = (gx: number, gz: number): number => water.get(k2(gx, gz))!;
   const P = (gx: number, gz: number): P2 => [gx * GROUND_CELL_M, gz * GROUND_CELL_M];
 
-  // ---- Outline: unit lattice segments with the world's cells on the left. A cell is in the
-  // world when its tile is built and it is not cut land.
+  // ---- Outline: unit lattice segments with the built tiles on the left.
   interface Seg { from: [number, number]; to: [number, number]; kind: "land" | "water" }
   const segs: Seg[] = [];
-  const cut = new Map<string, boolean>();
-  const isCut = (cx: number, cz: number): boolean => {
-    if (!cutLand) return false;
-    const k = k2(cx, cz);
-    let v = cut.get(k);
-    if (v === undefined) {
-      const allWater = wAt(cx, cz) === 1 && wAt(cx + 1, cz) === 1 && wAt(cx, cz + 1) === 1 && wAt(cx + 1, cz + 1) === 1;
-      v = !allWater && cutLand((cx + 0.5) * GROUND_CELL_M, (cz + 0.5) * GROUND_CELL_M);
-      cut.set(k, v);
-    }
-    return v;
-  };
-  const inWorld = (cx: number, cz: number): boolean => built.has(`${Math.floor(cx / CELLS)},${Math.floor(cz / CELLS)}`) && !isCut(cx, cz);
-  const seg = (from: [number, number], to: [number, number]): void => {
-    segs.push({ from, to, kind: wAt(...from) === 1 && wAt(...to) === 1 ? "water" : "land" });
-  };
   const side = (x0: number, z0: number, dx: number, dz: number): void => {
     for (let s = 0; s < CELLS; s++) {
       const from: [number, number] = [x0 + dx * s, z0 + dz * s];
-      seg(from, [from[0] + dx, from[1] + dz]);
+      const to: [number, number] = [from[0] + dx, from[1] + dz];
+      segs.push({ from, to, kind: wAt(...from) === 1 && wAt(...to) === 1 ? "water" : "land" });
     }
   };
-  const hasCut = new Set<string>();
-  if (cutLand) {
-    for (const t of tiles) {
-      const X0 = t.ix * CELLS, Z0 = t.iz * CELLS;
-      let any = false;
-      for (let cz = Z0; cz < Z0 + CELLS && !any; cz++) for (let cx = X0; cx < X0 + CELLS && !any; cx++) any = isCut(cx, cz);
-      if (any) hasCut.add(`${t.ix},${t.iz}`);
-    }
-  }
   for (const t of [...tiles].sort((a, b) => a.iz - b.iz || a.ix - b.ix)) {
     const X0 = t.ix * CELLS, Z0 = t.iz * CELLS, X1 = X0 + CELLS, Z1 = Z0 + CELLS;
-    // Cell by cell where this tile or a neighbour has cut land; else by whole tile sides.
-    const cellwise = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => hasCut.has(`${t.ix + dx!},${t.iz + dz!}`));
-    if (!cellwise) {
-      if (!built.has(`${t.ix},${t.iz - 1}`)) side(X1, Z0, -1, 0); // north edge, heading west
-      if (!built.has(`${t.ix - 1},${t.iz}`)) side(X0, Z0, 0, 1); // west edge, heading south
-      if (!built.has(`${t.ix},${t.iz + 1}`)) side(X0, Z1, 1, 0); // south edge, heading east
-      if (!built.has(`${t.ix + 1},${t.iz}`)) side(X1, Z1, 0, -1); // east edge, heading north
-      continue;
-    }
-    // Every side between a world cell and one that is not.
-    for (let cz = Z0; cz < Z1; cz++) {
-      for (let cx = X0; cx < X1; cx++) {
-        if (!inWorld(cx, cz)) continue;
-        if (!inWorld(cx, cz - 1)) seg([cx + 1, cz], [cx, cz]);
-        if (!inWorld(cx - 1, cz)) seg([cx, cz], [cx, cz + 1]);
-        if (!inWorld(cx, cz + 1)) seg([cx, cz + 1], [cx + 1, cz + 1]);
-        if (!inWorld(cx + 1, cz)) seg([cx + 1, cz + 1], [cx + 1, cz]);
-      }
-    }
+    if (!built.has(`${t.ix},${t.iz - 1}`)) side(X1, Z0, -1, 0); // north edge, heading west
+    if (!built.has(`${t.ix - 1},${t.iz}`)) side(X0, Z0, 0, 1); // west edge, heading south
+    if (!built.has(`${t.ix},${t.iz + 1}`)) side(X0, Z1, 1, 0); // south edge, heading east
+    if (!built.has(`${t.ix + 1},${t.iz}`)) side(X1, Z1, 0, -1); // east edge, heading north
   }
   const out = new Map<string, Seg[]>();
   for (const s of segs) (out.get(k2(...s.from)) ?? out.set(k2(...s.from), []).get(k2(...s.from))!).push(s);
