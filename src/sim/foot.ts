@@ -145,8 +145,8 @@ export function stepFoot(
     if (p) {
       const x = res.x + p.dx;
       const z = res.z + p.dz;
-      res = supported(world, x, z, f.y) && !segmentCrossesWall(world.walls, f.x, f.z, x, z) ? { x, z, hit: true } : { x: f.x, z: f.z, hit: true };
-    } else if (!supported(world, res.x, res.z, f.y)) res = { x: f.x, z: f.z, hit: true };
+      res = supported(world, x, z, f.y, false) && !segmentCrossesWall(world.walls, f.x, f.z, x, z) ? { x, z, hit: true } : { x: f.x, z: f.z, hit: true };
+    } else if (!supported(world, res.x, res.z, f.y, false)) res = { x: f.x, z: f.z, hit: true };
   }
   // Report the speed actually achieved along the heading (pressing into a wall reads as 0), never
   // more than the walker's own: being pushed out of a building or a car is not walking.
@@ -236,7 +236,7 @@ export function exitSpot(
     if (res.hit) continue;
     // On a deck or in a bore: never out over the rail or into the bore's wall.
     const on = surfaceAt(world, c.x, c.z, c.y).kind;
-    if ((on === "deck" || on === "tunnel") && !supported(world, x, z, c.y)) continue;
+    if ((on === "deck" || on === "tunnel") && !supported(world, x, z, c.y, false)) continue;
     return makeFoot(x, surfaceHeight(world, x, z, c.y), z, c.heading);
   }
   return null;

@@ -36,7 +36,7 @@ import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, meshGroundHeight, railPush, surfaceAt, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, meshGroundHeight, railPush, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
 
 export const CAR = {
   /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
@@ -216,9 +216,12 @@ const ON_RIBBON_M = 1;
 /**
  * The rails of a deck and the walls of a bore (world.ts railPush) for the car's body at (x, z):
  * each corner that has left every surface the wheels at `feet` could stand on is pushed back
- * onto the ribbon, deepest first, a few passes. Null when every corner is supported.
+ * onto the ribbon, deepest first, a few passes. Null when every corner is supported, or when
+ * the centre itself is not (the car is already over the edge).
  */
 function railBox(world: World, x: number, z: number, heading: number, feet: number): { x: number; z: number; nx: number; nz: number } | null {
+  // A car whose centre is already off every surface it could stand on is past any rail: it falls.
+  if (!supported(world, x, z, feet, false)) return null;
   const fx = dsin(heading);
   const fz = -dcos(heading);
   const rx = -fz;

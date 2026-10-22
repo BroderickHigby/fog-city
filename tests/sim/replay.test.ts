@@ -160,4 +160,4 @@ describe("SIM_VERSION 4", () => {
 const PINNED_DEV: string[] = ["f7176a9d", "36cf2ae4", "225e4f16", "c8fc6fb0", "0219f9b5"];
 
 /** hashState every 300 ticks of surfaceReplay, recorded at SIM_VERSION 4. */
-const PINNED_SURFACES_V4: string[] = ["62ebc992", "6afc3dd8", "2ebecbb9", "a87c42c8"];
+const PINNED_SURFACES_V4: string[] = ["aa6364da", "89e19bc6", "50a14b31", "e738b8e3"];
