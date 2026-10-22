@@ -278,6 +278,22 @@ describe.skipIf(!HAS_SF)("house kit on the sf tiles", () => {
     }
   });
 
+  it("K3: a house's colours do not depend on which tile loaded first (rows are coloured whole)", async () => {
+    const ids = ["t-7_4", "t-6_8"];
+    const a = (await prepareTiles(ids, COLOUR)).tiles;
+    const b = (await prepareTiles([...ids].reverse(), COLOUR)).tiles;
+    let n = 0;
+    for (const id of ids) {
+      const x = a.get(id)!.prep.buildings, y = b.get(id)!.prep.buildings;
+      x.forEach((bx, i) => {
+        expect(y[i]!.body, bx.id).toBe(bx.body);
+        expect(y[i]!.trim, bx.id).toBe(bx.trim);
+        n++;
+      });
+    }
+    expect(n).toBeGreaterThan(800);
+  }, 120_000);
+
   it("textured facades: every building gets a material by era and use", () => {
     const by = new Map<number, number>();
     let oldWood = 0, old = 0, rowStucco = 0, rows = 0;

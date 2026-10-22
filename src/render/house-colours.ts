@@ -97,6 +97,8 @@ interface Lot {
 }
 
 const CELL = 25;
+/** The tile grid of the tile ids (t<x>_<z>, 500 m). */
+const TILE_M = 500;
 
 /**
  * Body, trim and door colours for every house of a world, computed lazily per row of touching
@@ -104,6 +106,9 @@ const CELL = 25;
  */
 export class HouseColours {
   private readonly lots = new Map<string, Lot>();
+  private readonly tiles = new Map<string, TileCollider>();
+  private readonly indexed = new Set<string>();
+  private readonly tileOf = new Map<string, string>();
   private readonly grid = new Map<number, Lot[]>();
   private readonly slots = new Map<string, { slot: number; row: string }>();
   private readonly districts: Array<{ id: string; box: [number, number, number, number]; rings: Ring[] }>;
@@ -113,35 +118,18 @@ export class HouseColours {
   constructor(colliders: Iterable<TileCollider>, districts?: DistrictsLike | null, file: HousePalettesFile = HOUSE_PALETTES) {
     this.file = file;
     this.gap = file.maxGapM;
+    // Lots are indexed a tile at a time, when a house near it is first coloured: the whole city
+    // eagerly cost about a second and 120 MB at boot. Only which tile holds each house is kept.
     for (const t of colliders) {
+      const m = /^t(-?\d+)_(-?\d+)$/.exec(t.tileId);
+      const key = m ? `${m[1]},${m[2]}` : `id:${t.tileId}`;
+      this.tiles.set(key, t);
       for (const b of t.buildings) {
-        const key = parentKey(b.id);
-        let lot = this.lots.get(key);
-        if (!lot) {
-          lot = { key, rings: [], box: [Infinity, Infinity, -Infinity, -Infinity], cx: 0, cz: 0 };
-          this.lots.set(key, lot);
-        }
-        lot.rings.push(b.footprint);
-        for (const [x, z] of b.footprint) {
-          lot.box[0] = Math.min(lot.box[0], x);
-          lot.box[1] = Math.min(lot.box[1], z);
-          lot.box[2] = Math.max(lot.box[2], x);
-          lot.box[3] = Math.max(lot.box[3], z);
-        }
+        const k = parentKey(b.id);
+        if (!this.tileOf.has(k)) this.tileOf.set(k, key);
       }
-    }
-    for (const lot of this.lots.values()) {
-      lot.cx = (lot.box[0] + lot.box[2]) / 2;
-      lot.cz = (lot.box[1] + lot.box[3]) / 2;
-      const g = this.gap;
-      for (let cx = Math.floor((lot.box[0] - g) / CELL); cx <= Math.floor((lot.box[2] + g) / CELL); cx++) {
-        for (let cz = Math.floor((lot.box[1] - g) / CELL); cz <= Math.floor((lot.box[3] + g) / CELL); cz++) {
-          const k = (cx + 32768) * 65536 + cz + 32768;
-          const l = this.grid.get(k);
-          if (l) l.push(lot);
-          else this.grid.set(k, [lot]);
-        }
-      }
+      // A tile named off the 500 m grid (a hand-made world) is indexed at once.
+      if (!m) this.indexTile(key);
     }
     this.districts = (districts?.districts ?? []).map((d) => {
       const rings: Ring[] = [];
@@ -162,6 +150,65 @@ export class HouseColours {
     });
   }
 
+  /** Add one tile's records to the lots and the grid (each ring under the cells its box covers). */
+  private indexTile(key: string): void {
+    if (this.indexed.has(key)) return;
+    this.indexed.add(key);
+    const t = this.tiles.get(key);
+    if (!t) return;
+    const g = this.gap;
+    for (const b of t.buildings) {
+      const k = parentKey(b.id);
+      let lot = this.lots.get(k);
+      if (!lot) {
+        lot = { key: k, rings: [], box: [Infinity, Infinity, -Infinity, -Infinity], cx: 0, cz: 0 };
+        this.lots.set(k, lot);
+      }
+      lot.rings.push(b.footprint);
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+      for (const [x, z] of b.footprint) {
+        x0 = Math.min(x0, x);
+        z0 = Math.min(z0, z);
+        x1 = Math.max(x1, x);
+        z1 = Math.max(z1, z);
+      }
+      lot.box = [Math.min(lot.box[0], x0), Math.min(lot.box[1], z0), Math.max(lot.box[2], x1), Math.max(lot.box[3], z1)];
+      lot.cx = (lot.box[0] + lot.box[2]) / 2;
+      lot.cz = (lot.box[1] + lot.box[3]) / 2;
+      for (let cx = Math.floor((x0 - g) / CELL); cx <= Math.floor((x1 + g) / CELL); cx++) {
+        for (let cz = Math.floor((z0 - g) / CELL); cz <= Math.floor((z1 + g) / CELL); cz++) {
+          const ck = (cx + 32768) * 65536 + cz + 32768;
+          const l = this.grid.get(ck);
+          if (!l) this.grid.set(ck, [lot]);
+          else if (!l.includes(lot)) l.push(lot);
+        }
+      }
+    }
+  }
+
+  /** Index every grid tile a box (plus a margin) touches. */
+  private ensureBox(x0: number, z0: number, x1: number, z1: number): void {
+    const m = 2;
+    for (let tx = Math.floor((x0 - m) / TILE_M); tx <= Math.floor((x1 + m) / TILE_M); tx++) {
+      for (let tz = Math.floor((z0 - m) / TILE_M); tz <= Math.floor((z1 + m) / TILE_M); tz++) this.indexTile(`${tx},${tz}`);
+    }
+  }
+
+  /** A house's lot with every record of it and of its touching neighbours indexed. */
+  private lotReady(key: string): Lot | undefined {
+    const t = this.tileOf.get(key);
+    if (t === undefined) return undefined;
+    this.indexTile(t);
+    let lot = this.lots.get(key);
+    for (let i = 0; lot && i < 4; i++) {
+      const before = lot.box.join(",");
+      this.ensureBox(lot.box[0], lot.box[1], lot.box[2], lot.box[3]);
+      lot = this.lots.get(key);
+      if (lot && lot.box.join(",") === before) break;
+    }
+    return lot;
+  }
+
   /** The DataSF Analysis Neighborhood holding a point, or null. */
   districtAt(x: number, z: number): string | null {
     for (const d of this.districts) {
@@ -173,7 +220,7 @@ export class HouseColours {
 
   /** The houses touching a house (within maxGapM), sorted by key. */
   neighbours(key: string): string[] {
-    const lot = this.lots.get(key);
+    const lot = this.lotReady(key);
     if (!lot) return [];
     const g = this.gap;
     const out = new Set<string>();
@@ -182,7 +229,11 @@ export class HouseColours {
         for (const o of this.grid.get((cx + 32768) * 65536 + cz + 32768) ?? []) {
           if (o === lot || out.has(o.key)) continue;
           if (o.box[0] > lot.box[2] + g || lot.box[0] > o.box[2] + g || o.box[1] > lot.box[3] + g || lot.box[1] > o.box[3] + g) continue;
-          if (lot.rings.some((a) => o.rings.some((b) => ringsWithin(a, b, g)))) out.add(o.key);
+          if (lot.rings.some((a) => o.rings.some((b) => ringsWithin(a, b, g)))) {
+            // The neighbour's own records may run on into a tile not indexed yet.
+            this.lotReady(o.key);
+            out.add(o.key);
+          }
         }
       }
     }
@@ -223,7 +274,7 @@ export class HouseColours {
   /** The row slot of a house (by any record id). */
   slotOf(id: string): { slot: number; row: string } {
     const key = parentKey(id);
-    if (!this.lots.has(key)) return { slot: 0, row: key };
+    if (!this.lotReady(key)) return { slot: 0, row: key };
     if (!this.slots.has(key)) this.colourRow(key);
     return this.slots.get(key)!;
   }
@@ -236,7 +287,7 @@ export class HouseColours {
     if (o) {
       return { body: o.record.body, trim: o.record.trim, accent: o.record.accent, roofEdge: null, glazingDelta: 0, palette: "override", slot, override: o.override.id };
     }
-    const lot = this.lots.get(key);
+    const lot = this.lotReady(key);
     const district = lot ? this.districtAt(lot.cx, lot.cz) : null;
     const rule = paletteRuleFor(year, district, this.file);
     const pal = this.file.palettes[rule.palette]!;
