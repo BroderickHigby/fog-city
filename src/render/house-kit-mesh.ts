@@ -2,6 +2,8 @@
 // (house-kit.ts prepareFacades) and attaches the per-wall and per-building attributes.
 
 import * as THREE from "three";
+import { KIT, KIT_PROTOS, type KitMesh, type ProtoLib, type ProtoNode } from "./house-kit-props.ts";
+import type { ModelRegistry } from "./model-registry.ts";
 import { prepareFacades, WALL_FRONT, WALL_PARTY, WALL_REAR, type FacadeMeshOut, type FrontRow, type LookFn } from "./house-kit.ts";
 
 /**
@@ -69,4 +71,70 @@ function flat(geo: THREE.BufferGeometry, name: string): THREE.BufferAttribute | 
   const b = new THREE.BufferAttribute(out, a.itemSize, a.normalized);
   geo.setAttribute(name, b);
   return b;
+}
+
+/**
+ * The house-kit prototypes (public/models/house-kit/*.glb) as merge-ready triangles, through the
+ * model registry; a prototype that fails to load is left out (its pieces are simply not drawn).
+ */
+export async function loadKitLib(registry: ModelRegistry<THREE.Object3D>): Promise<ProtoLib> {
+  const lib = new Map<string, Map<string, ProtoNode>>();
+  await Promise.all(
+    KIT_PROTOS.map(async (key) => {
+      const file = KIT.prototypes[key]?.file;
+      if (!file) return;
+      registry.register(`kit:${key}`, `models/${file}`);
+      const r = await registry.get(`kit:${key}`);
+      if (r.source !== "file") return;
+      lib.set(key, protoNodes(r.model));
+    }),
+  );
+  return lib;
+}
+
+/** A prototype's meshes by node name, in the prototype's frame. */
+export function protoNodes(root: THREE.Object3D): Map<string, ProtoNode> {
+  const out = new Map<string, ProtoNode>();
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const v = new THREE.Vector3();
+  const nm = new THREE.Matrix3();
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const g = mesh.geometry;
+    const pos = g.getAttribute("position");
+    const nrm = g.getAttribute("normal");
+    const slot = g.getAttribute("_slot");
+    if (!pos) return;
+    const m = new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld);
+    nm.getNormalMatrix(m);
+    const n = pos.count;
+    const positions = new Float32Array(n * 3);
+    const normals = new Float32Array(n * 3);
+    const slots = new Uint8Array(n);
+    for (let i = 0; i < n; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(m);
+      positions.set([v.x, v.y, v.z], 3 * i);
+      if (nrm) v.fromBufferAttribute(nrm, i).applyMatrix3(nm).normalize();
+      else v.set(0, 1, 0);
+      normals.set([v.x, v.y, v.z], 3 * i);
+      slots[i] = slot ? Math.round(slot.getX(i) * (slot.normalized ? 255 : 1)) : 0;
+    }
+    const indices = g.index ? Uint32Array.from(g.index.array as ArrayLike<number>) : Uint32Array.from({ length: n }, (_, i) => i);
+    out.set(mesh.name, { positions, normals, slots, indices });
+  });
+  return out;
+}
+
+/** A merged kit mesh as a three.js geometry. */
+export function kitGeometry(m: KitMesh): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(m.positions, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(m.normals, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(m.colors, 3));
+  g.setIndex(new THREE.BufferAttribute(m.positions.length / 3 < 65536 ? Uint16Array.from(m.indices) : m.indices, 1));
+  g.computeBoundingSphere();
+  g.computeBoundingBox();
+  return g;
 }

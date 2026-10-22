@@ -38,8 +38,10 @@ import { PropClearance } from "./prop-clearance.ts";
 import { boreCuts, boreMesh, quayFaces, shoreByTile, type ShoreSegment, type TunnelLike } from "./structures.ts";
 import { sidewalkMesh, sidewalksByTile, type SidewalkGraph, type SidewalkLine } from "./sidewalks.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
-import { decodeFronts, type LookFn } from "./house-kit.ts";
-import { applyHouseKit } from "./house-kit-mesh.ts";
+import { decodeFronts, type FacadeMeshOut, type FrontRow, type LookFn } from "./house-kit.ts";
+import { applyHouseKit, kitGeometry } from "./house-kit-mesh.ts";
+import { buildShopfronts, mergePlacements, planHouseKit, type ProtoLib, type ShopPlan, type StorefrontAnchor } from "./house-kit-props.ts";
+import { shopfrontFor } from "../content/storefronts.ts";
 import type { RoadContext } from "./tile-geometry.ts";
 import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
 import type { GroundFn, Manifest, ManifestTile, RoadEdge, RoadGraph } from "./types.ts";
@@ -120,6 +122,26 @@ interface TileRecord {
   builtRoads: boolean;
   /** The sidewalk bands are in the group. */
   sidewalks: boolean;
+  /** What the house kit's geometry is built from (the glb's fronts and the facade pass). */
+  kitSrc?: { fronts: FrontRow[]; prep: FacadeMeshOut };
+  /** The house kit's meshes while the tile is near the camera (bays, stoops, mouldings, roof props, shopfronts). */
+  kit: THREE.Mesh[] | null;
+}
+
+/** The house kit's geometry is built for tiles this near the camera and dropped beyond KIT_DROP_M. */
+export const KIT_NEAR_M = 650;
+export const KIT_DROP_M = 900;
+
+export interface HouseKitStats {
+  /** Tiles with their kit built. */
+  tiles: number;
+  bays: number;
+  stoops: number;
+  rooflines: number;
+  roofProps: number;
+  shopfronts: number;
+  triangles: number;
+  drawCalls: number;
 }
 
 export interface StreamerStats {
@@ -155,6 +177,10 @@ export class TileStreamer {
   private hiddenBuildings = new Set<string>();
   private loader: (url: string) => Promise<GLTF>;
   private nightVisible = false;
+  private kitLib: ProtoLib | null = null;
+  private shopsByTile: Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>> | null = null;
+  private camX = NaN;
+  private camZ = NaN;
   radius: number;
   hysteresis: number;
 
@@ -239,11 +265,141 @@ export class TileStreamer {
 
   /** Call once per frame with the camera's ground position and a time budget for building work. */
   update(x: number, z: number, budgetMs = 4): void {
+    this.camX = x;
+    this.camZ = z;
     if (this.dirty || !(Math.abs(x - this.lastX) < RESELECT_M && Math.abs(z - this.lastZ) < RESELECT_M)) {
       this.reselect(x, z);
     }
     this.startLoads();
     this.pump(budgetMs);
+    this.updateKits(x, z);
+  }
+
+  /** The house-kit prototypes (house-kit-mesh.ts loadKitLib); near tiles get their kit from then on. */
+  setKitLib(lib: ProtoLib): void {
+    this.kitLib = lib;
+    for (const r of this.records.values()) this.dropKit(r);
+  }
+
+  /** The world's storefront anchors (storefronts.json, K5): shopfronts on near tiles from then on. */
+  setStorefronts(anchors: readonly StorefrontAnchor[] | null): void {
+    if (!anchors) {
+      this.shopsByTile = null;
+      return;
+    }
+    const size = this.opts.manifest.tileSizeM ?? 500;
+    const byTile = new Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>>();
+    const tileAt = new Map(this.bounds.map((b) => [`${Math.floor(b.minX / size)},${Math.floor(b.minZ / size)}`, b.id]));
+    for (const a of anchors) {
+      const id = tileAt.get(`${Math.floor(a.x / size)},${Math.floor(a.z / size)}`);
+      if (!id) continue;
+      const plan = shopfrontFor(a);
+      if (!plan) continue;
+      (byTile.get(id) ?? byTile.set(id, []).get(id)!).push({ anchor: a, plan });
+    }
+    this.shopsByTile = byTile;
+    for (const r of this.records.values()) this.dropKit(r);
+  }
+
+  /** The house kit's totals over the tiles that have it built. */
+  houseKitStats(): HouseKitStats {
+    const st: HouseKitStats = { tiles: 0, bays: 0, stoops: 0, rooflines: 0, roofProps: 0, shopfronts: 0, triangles: 0, drawCalls: 0 };
+    for (const r of this.records.values()) {
+      if (!r.kit) continue;
+      st.tiles++;
+      for (const m of r.kit) {
+        const k = m.userData.kit as { bays?: number; stoops?: number; rooflines?: number; roofProps?: number; shopfronts?: number; triangles: number };
+        st.bays += k.bays ?? 0;
+        st.stoops += k.stoops ?? 0;
+        st.rooflines += k.rooflines ?? 0;
+        st.roofProps += k.roofProps ?? 0;
+        st.shopfronts += k.shopfronts ?? 0;
+        st.triangles += k.triangles;
+        st.drawCalls++;
+      }
+    }
+    return st;
+  }
+
+  /** Storefront anchors whose shopfront is built (for tests): id, x, z. */
+  shopfrontsBuilt(): Array<{ id: string; x: number; z: number }> {
+    const out: Array<{ id: string; x: number; z: number }> = [];
+    for (const r of this.records.values()) {
+      if (!r.kit || !this.shopsByTile) continue;
+      if (!r.kit.some((m) => m.name === "shopfronts")) continue;
+      for (const s of this.shopsByTile.get(r.id) ?? []) out.push({ id: s.anchor.id, x: s.anchor.x, z: s.anchor.z });
+    }
+    return out;
+  }
+
+  private tileDistance(id: string, x: number, z: number): number {
+    const b = this.bounds.find((t) => t.id === id);
+    if (!b) return Infinity;
+    return Math.hypot(Math.max(b.minX - x, 0, x - b.maxX), Math.max(b.minZ - z, 0, z - b.maxZ));
+  }
+
+  /** Build the kit of at most one near tile per call; drop the kits of tiles that went far. */
+  private updateKits(x: number, z: number): void {
+    if (!this.kitLib && !this.shopsByTile) return;
+    let built = false;
+    for (const r of this.records.values()) {
+      if (r.state !== "ready") continue;
+      const d = this.tileDistance(r.id, x, z);
+      if (r.kit && d > KIT_DROP_M) this.dropKit(r);
+      else if (!r.kit && !built && d <= KIT_NEAR_M) {
+        this.buildKit(r);
+        built = true;
+      }
+    }
+  }
+
+  /** True when every tile within KIT_NEAR_M of the camera has its kit (or the kit is off). */
+  kitsSettled(): boolean {
+    if (!this.kitLib && !this.shopsByTile) return true;
+    for (const r of this.records.values()) if (r.state === "ready" && !r.kit && this.tileDistance(r.id, this.camX, this.camZ) <= KIT_NEAR_M) return false;
+    return true;
+  }
+
+  private buildKit(rec: TileRecord): void {
+    rec.kit = [];
+    const mat = this.opts.materials.houseKit;
+    if (this.kitLib && rec.kitSrc) {
+      const collider = rec.collider ?? this.opts.colliders.get(rec.id);
+      const roofs = new Map((collider?.buildings ?? []).map((b) => [b.id, { footprint: b.footprint, topY: b.topY, baseY: b.baseY }]));
+      const { placements, stats } = planHouseKit(rec.kitSrc.fronts, rec.kitSrc.prep.frontWalls, rec.kitSrc.prep.buildings, roofs);
+      const merged = mergePlacements(this.kitLib, placements);
+      if (merged.triangles > 0) {
+        const mesh = new THREE.Mesh(kitGeometry(merged), mat);
+        mesh.name = "house-kit";
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.kit = { ...stats, triangles: merged.triangles };
+        rec.kit.push(mesh);
+      }
+    }
+    const shops = this.shopsByTile?.get(rec.id);
+    if (shops && shops.length > 0) {
+      const { mesh: sm, count } = buildShopfronts(shops);
+      if (sm.triangles > 0) {
+        const mesh = new THREE.Mesh(kitGeometry(sm), mat);
+        mesh.name = "shopfronts";
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.kit = { shopfronts: count, triangles: sm.triangles };
+        rec.kit.push(mesh);
+      }
+    }
+    for (const m of rec.kit) {
+      rec.group.add(m);
+      m.updateMatrixWorld(true);
+    }
+  }
+
+  private dropKit(rec: TileRecord): void {
+    if (!rec.kit) return;
+    for (const m of rec.kit) {
+      rec.group.remove(m);
+      m.geometry.dispose();
+    }
+    rec.kit = null;
   }
 
   private reselect(x: number, z: number): void {
@@ -288,6 +444,7 @@ export class TileStreamer {
         retryTimer: null,
         builtRoads: false,
         sidewalks: false,
+        kit: null,
       };
       rec.group.name = `tile:${id}`;
       rec.group.matrixAutoUpdate = false;
@@ -389,7 +546,8 @@ export class TileStreamer {
         // The house kit: per-wall frames, doors and garages, palette colours (house-kit.ts).
         const bbox = rec.spec.bbox;
         const fronts = bbox ? decodeFronts(ud.fronts, bbox[0], bbox[1]) : [];
-        applyHouseKit(geo, mesh.matrixWorld, (geo.userData.fcBuildings as Array<[string, number, number]> | undefined) ?? [], fronts, this.opts.houseLook);
+        const prep = applyHouseKit(geo, mesh.matrixWorld, (geo.userData.fcBuildings as Array<[string, number, number]> | undefined) ?? [], fronts, this.opts.houseLook);
+        if (prep && mesh.name === "buildings") rec.kitSrc = { fronts, prep };
       }
     });
     root.traverse((o) => (o.matrixAutoUpdate = false));
@@ -602,6 +760,7 @@ export class TileStreamer {
     for (const mat of rec.ownedMaterials) mat.dispose();
     for (const t of rec.textures) t.dispose();
     rec.props?.dispose();
+    this.dropKit(rec);
     this.dirty = true;
   }
 

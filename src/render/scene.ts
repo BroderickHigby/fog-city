@@ -22,6 +22,7 @@ import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } fr
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { LookFn } from "./house-kit.ts";
+import { loadKitLib } from "./house-kit-mesh.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
@@ -218,6 +219,9 @@ export class SceneRenderer {
       houseLook: world.houseLook,
     });
     this.far.start();
+    // The house kit's prototypes (bays, stoops, mouldings, roof props): near tiles build their
+    // kit once they arrive; a prototype that fails to load is simply not drawn.
+    void loadKitLib(this.registry).then((lib) => this.streamer.setKitLib(lib));
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, opts.shadows);
     this.scene.add(this.actors.group);
@@ -314,7 +318,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.streamer.kitsSettled() && this.far.settled();
   }
 
   resize(): void {

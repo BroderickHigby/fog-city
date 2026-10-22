@@ -284,6 +284,8 @@ export interface SharedMaterials {
   foliage: THREE.MeshStandardMaterial;
   lampPole: THREE.MeshStandardMaterial;
   lampHead: THREE.MeshStandardMaterial;
+  /** The house kit's merged pieces (bays, stoops, mouldings, roof props, shopfronts): vertex colours. */
+  houseKit: THREE.MeshStandardMaterial;
   /** Every shared material, for disposal. */
   all: THREE.Material[];
 }
@@ -328,7 +330,9 @@ export function createSharedMaterials(): SharedMaterials {
   const foliage = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: true, name: "fc:foliage" });
   const lampPole = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6, metalness: 0.5, name: "fc:lamp-pole" });
   const lampHead = new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.4, metalness: 0.1, emissive: 0xffb466, emissiveIntensity: 0, name: "fc:lamp-head" });
+  const houseKit = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0, name: "fc:house-kit" });
   return {
+    houseKit,
     building,
     buildingFlat,
     ground,
@@ -341,7 +345,7 @@ export function createSharedMaterials(): SharedMaterials {
     foliage,
     lampPole,
     lampHead,
-    all: [building, buildingFlat, ground, groundSkirt, tunnel, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+    all: [houseKit, building, buildingFlat, ground, groundSkirt, tunnel, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
   };
 }
 

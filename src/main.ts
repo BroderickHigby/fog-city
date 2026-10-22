@@ -36,6 +36,7 @@ import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import type { SidewalkGraph } from "./render/sidewalks.ts";
 import { HouseColours, houseLookFn, type DistrictsLike } from "./render/house-colours.ts";
+import type { StorefrontAnchor } from "./render/house-kit-props.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
   Action,
@@ -184,6 +185,16 @@ async function boot(): Promise<void> {
     assets.json<SidewalkGraph>(base + sidewalksFile).then(
       (g) => view.streamer.setSidewalks(g),
       (err: unknown) => console.warn(`[fog-city] sidewalks ${sidewalksFile}: ${err instanceof Error ? err.message : String(err)}`),
+    );
+  }
+
+  // Render-only: the storefront anchors (K5 shopfronts), after boot. Never fatal: without them the
+  // shop glazing is still drawn (the fronts' shop flag), with no awnings or sign slots.
+  const storefrontsFile = manifest.layers?.storefronts;
+  if (storefrontsFile) {
+    assets.json<{ storefronts: StorefrontAnchor[] }>(base + storefrontsFile).then(
+      (f) => view.streamer.setStorefronts(f.storefronts),
+      (err: unknown) => console.warn(`[fog-city] storefronts ${storefrontsFile}: ${err instanceof Error ? err.message : String(err)}`),
     );
   }
 

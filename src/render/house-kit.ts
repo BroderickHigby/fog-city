@@ -235,8 +235,28 @@ export interface FacadeMeshOut {
   wall: Int16Array;
   kit: Uint16Array;
   walls: WallInfo[];
-  /** Per building (range order): material, flags, top above street (m). */
-  buildings: Array<{ id: string; material: number; flags: number; topM: number; year: number | null; glazing: number; body: string | null }>;
+  /** Per building (range order): material, flags, top above street (m), colours. */
+  buildings: BuildingKit[];
+  /** Per fronts row (input order): how many front walls matched it (3 or more: the footprint draws its own bay). */
+  frontWalls: number[];
+}
+
+export interface BuildingKit {
+  id: string;
+  material: number;
+  flags: number;
+  /** The wall's top above the street, metres. */
+  topM: number;
+  year: number | null;
+  glazing: number;
+  /** Storey height the facade is drawn with, metres. */
+  storeyM: number;
+  /** The palette body (sRGB hex) when the look gave one. */
+  body: string | null;
+  /** The drawn wall colour at the top of the wall, linear 0..1. */
+  wall: [number, number, number];
+  trim: string;
+  door: string;
 }
 
 /** Where a facade puts its garage door and front door (K4, K7), along its chord from the middle, metres. */
@@ -278,6 +298,7 @@ export function prepareFacades(input: FacadeMeshIn): FacadeMeshOut {
   const buildingsOut: FacadeMeshOut["buildings"] = [];
   const frontsOf = new Map<number, FrontRow[]>();
   for (const f of fronts) (frontsOf.get(f.record) ?? frontsOf.set(f.record, []).get(f.record)!).push(f);
+  const matched = new Map<FrontRow, number>();
   const colorScale = input.color instanceof Uint8Array ? 255 : input.color instanceof Uint16Array ? 65535 : 1;
 
   ranges.forEach(([id, first, count], bi) => {
@@ -291,7 +312,9 @@ export function prepareFacades(input: FacadeMeshIn): FacadeMeshOut {
     let maxY = -Infinity;
     let topV = -Infinity;
     let hasParty = false;
+    let storeyByte = 0;
     for (const v of verts) {
+      storeyByte = Math.max(storeyByte, facade[4 * v]!);
       const cls = facade[4 * v + 3]!;
       glazing = Math.max(glazing, facade[4 * v + 1]! / 255);
       yearByte = Math.max(yearByte, facade[4 * v + 2]!);
@@ -330,7 +353,23 @@ export function prepareFacades(input: FacadeMeshIn): FacadeMeshOut {
         }
       }
     }
-    buildingsOut.push({ id, material: L.material, flags: L.flags, topM: topDm / 10, year, glazing, body: L.body });
+    const wallCol: [number, number, number] = [0.6, 0.58, 0.55];
+    if (input.color) {
+      const col = input.color;
+      const s = input.colorItemSize;
+      let best = -1;
+      for (const v of verts) {
+        if (facade[4 * v + 3] === WALL_ROOF) continue;
+        const sum = col[s * v]! + col[s * v + 1]! + col[s * v + 2]!;
+        if (sum > best) {
+          best = sum;
+          wallCol[0] = col[s * v]! / colorScale;
+          wallCol[1] = col[s * v + 1]! / colorScale;
+          wallCol[2] = col[s * v + 2]! / colorScale;
+        }
+      }
+    }
+    buildingsOut.push({ id, material: L.material, flags: L.flags, topM: topDm / 10, year, glazing, storeyM: Math.max(2.6, (storeyByte / 255) * 8), body: L.body, wall: wallCol, trim: L.trim, door: L.door });
 
     // Walls: each wall triangle's provoking vertex is its start-bottom vertex.
     const mine = new Map<number, WallInfo>();
@@ -389,6 +428,7 @@ export function prepareFacades(input: FacadeMeshIn): FacadeMeshOut {
         }
         if (best && bestD < 3) {
           const r = best;
+          matched.set(r, (matched.get(r) ?? 0) + 1);
           let flags = 0;
           if (r.flags & FRONT_SHOP) flags |= WF_SHOP;
           if (r.flags & FRONT_STOOP) flags |= WF_STOOP;
@@ -432,5 +472,5 @@ export function prepareFacades(input: FacadeMeshIn): FacadeMeshOut {
       walls.push(w);
     }
   });
-  return { wall, kit, walls, buildings: buildingsOut };
+  return { wall, kit, walls, buildings: buildingsOut, frontWalls: fronts.map((f) => matched.get(f) ?? 0) };
 }
