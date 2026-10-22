@@ -7,10 +7,10 @@
 // assets/blender/runtime/house-kit.ts) and the Content storefront kit (src/content/storefronts.ts).
 // Cosmetic only: nothing here touches the sim or its colliders.
 
-import { bayLayout, rooflineLayout, roofLayout, stoopLayout, type Instance, type KitDoc } from "../../assets/blender/runtime/house-kit.ts";
+import { affine, bayLayout, roofLayout, stoopLayout, type Instance, type KitDoc } from "../../assets/blender/runtime/house-kit.ts";
 import type { StorefrontType } from "../content/storefronts.ts";
 import { hashString, unit } from "./hash.ts";
-import { BF_LANDMARK, BF_ROW, facadeFeatures, FRONT_BAY, FRONT_ROOFLINE, FRONT_SHOP, FRONT_STOOP, hexToLinear, type BuildingKit, type FrontRow } from "./house-kit.ts";
+import { BF_LANDMARK, BF_ROW, FRONT_BAY, FRONT_ROOFLINE, FRONT_SHOP, FRONT_STOOP, hexToLinear, type BuildingKit, type FrontRow } from "./house-kit.ts";
 
 /** The prototypes' contract (public/models/house-kit/house-kit.json), as the layout maths reads it. */
 export type { KitDoc };
@@ -88,6 +88,23 @@ export function rooflineProto(year: number | null): string {
   return "parapet-coping";
 }
 
+/** Roofline segments stretch to at most this long (the profile is constant along the run). */
+export const ROOFLINE_SEGMENT_M = 3;
+
+/**
+ * A moulding along a front (the facade frame): whole segments of at most ROOFLINE_SEGMENT_M,
+ * stretched to fit the front exactly, and the profile's end at each end. Assets' rooflineLayout
+ * lays 1 m segments; three-metre ones draw the same profile with a third of the triangles.
+ */
+export function rooflineRun(proto: string, frontM: number, roofM: number): Instance[] {
+  const n = Math.max(1, Math.ceil(frontM / ROOFLINE_SEGMENT_M));
+  const seg = frontM / n;
+  const out: Instance[] = [];
+  for (let i = 0; i < n; i++) out.push({ proto, node: "segment", matrix: affine([-frontM / 2 + i * seg, roofM, 0], [seg, 1, 1]) });
+  for (const x of [-frontM / 2, frontM / 2]) out.push({ proto, node: "end", matrix: affine([x, roofM, 0], [1, 1, 1]) });
+  return out;
+}
+
 const GREY: readonly [number, number, number] = [0.45, 0.44, 0.42];
 
 /**
@@ -99,6 +116,7 @@ export function planHouseKit(
   KIT: KitDoc,
   fronts: readonly FrontRow[],
   frontWalls: readonly number[],
+  frontDoors: ReadonlyArray<number | null>,
   buildings: readonly BuildingKit[],
   roofs: ReadonlyMap<string, { footprint: ReadonlyArray<readonly [number, number]>; topY: number; baseY: number }> = new Map(),
 ): { placements: Placement[]; stats: KitStats } {
@@ -120,7 +138,7 @@ export function planHouseKit(
     if (roofline && !(f.flags & FRONT_SHOP && b.glazing >= 0.3) && roofM > 2.5) {
       const p = KIT.prototypes[roofline]!;
       dropM = p.dropM as number;
-      push(frame, rooflineLayout(KIT, roofline, f.lengthM, roofM), b, trim);
+      push(frame, rooflineRun(roofline, f.lengthM, roofM), b, trim);
       stats.rooflines++;
     }
     // Bays (K6): none where the footprint already draws one (three or more front walls).
@@ -133,10 +151,10 @@ export function planHouseKit(
       }
     }
     // Stoop (K7): straight up to the front door; the door itself is the facade shader's.
+    const doorS = frontDoors[fi] ?? null;
     if (f.flags & FRONT_STOOP) {
-      const feat = facadeFeatures(f, seed);
-      if (feat.door !== null) {
-        const plan = stoopLayout(KIT, { riseM: f.floorM, x: feat.door, rails: b.year !== null && b.year <= 1915 });
+      if (doorS !== null) {
+        const plan = stoopLayout(KIT, { riseM: f.floorM, x: doorS, rails: b.year !== null && b.year <= 1915 });
         if (plan.entryStorey) stats.entryStoreys++;
         else {
           stats.stoops++;

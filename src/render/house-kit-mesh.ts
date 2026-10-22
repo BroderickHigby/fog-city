@@ -18,6 +18,7 @@ export function applyHouseKit(
   ranges: ReadonlyArray<readonly [string, number, number]>,
   fronts: readonly FrontRow[],
   look?: LookFn,
+  shops?: ReadonlyArray<{ x: number; z: number; buildingId: string }>,
 ): FacadeMeshOut | null {
   const index = geo.index;
   const pos = geo.getAttribute("position") as THREE.BufferAttribute | THREE.InterleavedBufferAttribute | undefined;
@@ -53,6 +54,7 @@ export function applyHouseKit(
     ranges: ranges.length > 0 ? ranges : [["", 0, index.count]],
     fronts,
     look,
+    shops,
   });
   index.needsUpdate = true;
   if (color) color.needsUpdate = true;

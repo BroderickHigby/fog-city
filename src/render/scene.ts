@@ -23,7 +23,7 @@ import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { LookFn } from "./house-kit.ts";
 import { loadKitLib } from "./house-kit-mesh.ts";
-import { parseKitDoc } from "./house-kit-props.ts";
+import { parseKitDoc, type StorefrontAnchor } from "./house-kit-props.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
@@ -60,6 +60,8 @@ export interface WorldData {
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
   /** The house kit's colours and materials per building (house-colours.ts houseLookFn). */
   houseLook?: LookFn;
+  /** storefronts.json's anchors (K5), or null. */
+  storefronts?: readonly StorefrontAnchor[] | null;
 }
 
 export interface RenderInfo {
@@ -220,6 +222,7 @@ export class SceneRenderer {
       shore: world.boundary?.shore,
       fallbackCollider: world.fallbackCollider,
       houseLook: world.houseLook,
+      storefronts: world.storefronts,
     });
     this.far.start();
     // The house kit's prototypes (bays, stoops, mouldings, roof props): near tiles build their

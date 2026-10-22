@@ -26,6 +26,28 @@
 // provoking vertex). A geometry without _wall/_kit (never shipped, but harmless) is drawn from
 // the ring's metres with materials chosen by glazing and year.
 
+import { FRONT_TOP_GAP_M, REAR_STYLE, REAR_TOP_GAP_M, SHOP_MIN_H, WINDOW_STYLES, type WindowStyle } from "./house-kit.ts";
+
+/** A GLSL float literal. */
+function f(x: number): string {
+  const s = String(x);
+  return s.includes(".") || s.includes("e") ? s : `${s}.0`;
+}
+
+/** The window style for the fragment (house-kit.ts WINDOW_STYLES and windowStyleName, mirrored). */
+function styleGlsl(): string {
+  const set = (st: WindowStyle): string =>
+    `{ colW = ${f(st.colW)}; ww = ${f(st.ww)}; wh = clamp( S * ${f(st.whK)} + ${f(st.whOff)}, ${f(st.whMin)}, ${f(st.whMax)} ); sill = ${f(st.sill)}; }`;
+  const W = WINDOW_STYLES;
+  return [
+    `      if ( woodHouse ) ${set(W.wood)}`,
+    `      else if ( house ) { if ( year > 1989.0 ) ${set(W.houseModern)} else ${set(W.house)} }`,
+    `      else if ( mat > 3.5 && mat < 5.5 ) ${set(W.masonry)}`,
+    `      else if ( curtain ) ${set(W.curtain)}`,
+    `      else ${set(W.frame)}`,
+  ].join("\n");
+}
+
 export const FACADE_VERTEX_PARS = /* glsl */ `
 attribute vec4 _facade;
 attribute vec4 _wall;
@@ -102,7 +124,7 @@ vec3 fcPerturb( vec3 surfPos, vec3 surfNorm, vec2 dHdxy, float faceDir ) {
  * height, m), fcWin (glass share), fcRough (roughness override, < 0 none), fcLit and fcLightCol
  * (night windows) for the later chunks.
  */
-export const FACADE_FRAGMENT = /* glsl */ `
+export const FACADE_FRAGMENT: string = /* glsl */ `
   float fcH = 0.0;
   float fcWin = 0.0;
   float fcRough = -1.0;
@@ -153,6 +175,8 @@ export const FACADE_FRAGMENT = /* glsl */ `
       bool hasGarage = mod( wflags, 2.0 ) > 0.5;
       bool hasDoor = mod( floor( wflags / 2.0 ), 2.0 ) > 0.5;
       bool shop = mod( floor( wflags / 4.0 ), 2.0 ) > 0.5;
+      // A storefront anchor's wall is a shopfront even where the footprint called it a side wall.
+      if ( shop ) { front = true; party = false; }
       bool stoop = mod( floor( wflags / 8.0 ), 2.0 ) > 0.5;
       float garageX = vFcWall.z * 0.1;
       float doorX = vFcWall.w * 0.1;
@@ -293,13 +317,9 @@ export const FACADE_FRAGMENT = /* glsl */ `
       // ---------------------------------------------------------------- openings
       // Style by material and era: column width, window width, height and sill.
       float colW, ww, wh, sill;
-      if ( woodHouse ) { colW = 2.05; ww = 0.82; wh = clamp( S * 0.6, 1.5, 2.4 ); sill = 0.72; }
-      else if ( house ) { colW = year > 1989.0 ? 2.5 : 2.7; ww = year > 1989.0 ? 1.9 : 1.55; wh = year > 1989.0 ? 1.85 : 1.4; sill = year > 1989.0 ? 0.5 : 0.85; }
-      else if ( mat > 3.5 && mat < 5.5 ) { colW = 2.1; ww = 1.15; wh = clamp( S * 0.55, 1.5, 2.7 ); sill = 0.85; }
-      else if ( curtain ) { colW = 1.5; ww = 1.42; wh = S - 1.0; sill = 1.0; }
-      else { colW = 3.0; ww = 2.3; wh = clamp( S * 0.48, 1.4, 2.2 ); sill = 0.95; }
+${styleGlsl()}
       bool rear = !front && !party;
-      if ( rear && !curtain ) { colW *= 1.45; ww *= 0.85; wh *= 0.85; }
+      if ( rear && !curtain ) { colW *= ${f(REAR_STYLE.colW)}; ww *= ${f(REAR_STYLE.ww)}; wh *= ${f(REAR_STYLE.wh)}; }
       if ( !prepared ) colW = mix( 3.2, 1.7, smoothstep( 0.2, 0.9, glaze ) );
 
       float n = floor( ( L - 0.5 ) / colW );
@@ -316,13 +336,13 @@ export const FACADE_FRAGMENT = /* glsl */ `
       float ry = yr - row * S;
       bool groundRow = front && row < 0.5 && row > -0.5;
       vec4 win = vec4( cx - ww * 0.5, cx + ww * 0.5, base + row * S + sill, base + row * S + sill + wh );
-      bool rowOk = win.w <= topV - ( front ? 0.45 : 0.3 ) && ( front ? yr >= 0.0 : true ) && !party && !landmark && glaze > 0.04;
+      bool rowOk = win.w <= topV - ( front ? ${f(FRONT_TOP_GAP_M)} : ${f(REAR_TOP_GAP_M)} ) && ( front ? yr >= 0.0 : true ) && !party && !landmark && glaze > 0.04;
       if ( rear && !curtain && fcHash( vec2( c, row ) + sd * 3.0 ) < 0.3 ) rowOk = false;
       if ( shop && groundRow ) rowOk = false;
       // Doors and the garage take their part of the ground storey.
       float doorTop = floorM + 2.35;
       if ( hasDoor && groundRow && win.x < doorX + DOOR_HALF + 0.35 && win.y > doorX - DOOR_HALF - 0.35 ) rowOk = false;
-      if ( hasGarage && y < 2.9 && win.z < GARAGE_HT + 0.3 && win.x < garageX + GARAGE_HALF + 0.3 && win.y > garageX - GARAGE_HALF - 0.3 ) rowOk = false;
+      if ( hasGarage && front && win.z < GARAGE_HT + 0.3 && win.x < garageX + GARAGE_HALF + 0.3 && win.y > garageX - GARAGE_HALF - 0.3 ) rowOk = false;
       if ( hasGarage && front && floorM < 1.0 && row < 0.5 && row > -0.5 && win.x < garageX + GARAGE_HALF + 0.6 && win.y > garageX - GARAGE_HALF - 0.6 ) rowOk = false;
       float winMask = inCols && rowOk ? fcRect( p, win, aw ) : 0.0;
       float farW = smoothstep( 0.18, 0.5, lod );
@@ -434,8 +454,8 @@ export const FACADE_FRAGMENT = /* glsl */ `
       }
       // Shopfront (K5, the shader's half): bulkhead, glass with mullions, door recesses,
       // transom, and a blank fascia (the empty sign slot: no names, ever).
-      if ( shop && front && y < max( S, 3.4 ) && y > -0.5 ) {
-        float sh = max( S, 3.4 );
+      if ( shop && front && y < max( S, ${f(SHOP_MIN_H)} ) && y > -0.5 ) {
+        float sh = max( S, ${f(SHOP_MIN_H)} );
         vec3 fr = mix( doorCol, vec3( 0.08 ), 0.4 );
         float bx = mod( x - margin * 0.0, 5.0 );
         float doorBay = fcIn( 3.85, 4.85, bx, aw ) * fcIn( -1.0, 2.4, y, aw );

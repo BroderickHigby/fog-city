@@ -159,12 +159,25 @@ async function boot(): Promise<void> {
   // The house kit's palettes (K3) pick by district: the districts layer is small and read before
   // the first tile, so every tile picks its colours the same way. Never fatal: without it the
   // palettes fall back to their district-free rules.
+  // The storefront anchors (K5) are read with them: a wall with an anchor is drawn as a shopfront.
   const districtsFile = manifest.layers?.districts;
-  const districts = districtsFile ? await assets.json<DistrictsLike>(base + districtsFile).catch(() => null) : null;
+  const storefrontsFile = manifest.layers?.storefronts;
+  const [districts, storefronts] = await Promise.all([
+    districtsFile ? assets.json<DistrictsLike>(base + districtsFile).catch(() => null) : null,
+    storefrontsFile
+      ? assets.json<{ storefronts: StorefrontAnchor[] }>(base + storefrontsFile).then(
+          (f) => f.storefronts,
+          (err: unknown) => {
+            console.warn(`[fog-city] storefronts ${storefrontsFile}: ${err instanceof Error ? err.message : String(err)}`);
+            return null;
+          },
+        )
+      : null,
+  ]);
   const houseLook = houseLookFn(files.colliders === "pack" || worldName === "sf" ? new HouseColours(tiles, districts) : null);
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider, boundary: files.boundary, houseLook },
+    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider, boundary: files.boundary, houseLook, storefronts },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",
@@ -186,16 +199,6 @@ async function boot(): Promise<void> {
     assets.json<SidewalkGraph>(base + sidewalksFile).then(
       (g) => view.streamer.setSidewalks(g),
       (err: unknown) => console.warn(`[fog-city] sidewalks ${sidewalksFile}: ${err instanceof Error ? err.message : String(err)}`),
-    );
-  }
-
-  // Render-only: the storefront anchors (K5 shopfronts), after boot. Never fatal: without them the
-  // shop glazing is still drawn (the fronts' shop flag), with no awnings or sign slots.
-  const storefrontsFile = manifest.layers?.storefronts;
-  if (storefrontsFile) {
-    assets.json<{ storefronts: StorefrontAnchor[] }>(base + storefrontsFile).then(
-      (f) => view.streamer.setStorefronts(f.storefronts),
-      (err: unknown) => console.warn(`[fog-city] storefronts ${storefrontsFile}: ${err instanceof Error ? err.message : String(err)}`),
     );
   }
 

@@ -92,6 +92,8 @@ export interface StreamerOptions {
    * era and district, K3; landmarks, K10). Default: the tile's own colours.
    */
   houseLook?: LookFn;
+  /** The world's storefront anchors (storefronts.json, K5): shop glazing on their walls and a shopfront each. */
+  storefronts?: readonly StorefrontAnchor[] | null;
 }
 
 type TileState = "loading" | "building" | "ready" | "failed";
@@ -129,8 +131,8 @@ interface TileRecord {
 }
 
 /** The house kit's geometry is built for tiles this near the camera and dropped beyond KIT_DROP_M. */
-export const KIT_NEAR_M = 650;
-export const KIT_DROP_M = 900;
+export const KIT_NEAR_M = 400;
+export const KIT_DROP_M = 600;
 
 export interface HouseKitStats {
   /** Tiles with their kit built. */
@@ -180,6 +182,8 @@ export class TileStreamer {
   private kitLib: ProtoLib | null = null;
   private kitDoc: KitDoc | null = null;
   private shopsByTile: Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>> | null = null;
+  /** Every anchor by the tile its building's glb is in (an anchor across a border goes to both). */
+  private anchorsByTile: Map<string, StorefrontAnchor[]> | null = null;
   private camX = NaN;
   private camZ = NaN;
   radius: number;
@@ -200,6 +204,7 @@ export class TileStreamer {
     this.propClearance = new PropClearance(edges, opts.colliders.values());
     this.roadById = new Map(edges.map((e) => [e.id, e]));
     this.shoreByTile = opts.shore ? shoreByTile(opts.shore, opts.manifest.tileSizeM ?? 500) : null;
+    if (opts.storefronts) this.indexStorefronts(opts.storefronts);
     this.roadCtx = opts.roads
       ? {
           ground: opts.ground,
@@ -283,24 +288,32 @@ export class TileStreamer {
     for (const r of this.records.values()) this.dropKit(r);
   }
 
-  /** The world's storefront anchors (storefronts.json, K5): shopfronts on near tiles from then on. */
-  setStorefronts(anchors: readonly StorefrontAnchor[] | null): void {
-    if (!anchors) {
-      this.shopsByTile = null;
-      return;
-    }
+  /** Group the storefront anchors by tile (called once, from the constructor). */
+  private indexStorefronts(anchors: readonly StorefrontAnchor[]): void {
     const size = this.opts.manifest.tileSizeM ?? 500;
-    const byTile = new Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>>();
-    const tileAt = new Map(this.bounds.map((b) => [`${Math.floor(b.minX / size)},${Math.floor(b.minZ / size)}`, b.id]));
+    const shops = new Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>>();
+    const all = new Map<string, StorefrontAnchor[]>();
+    const tileAt = new Map(this.bounds.map((b) => [`${Math.floor((b.minX + 1) / size)},${Math.floor((b.minZ + 1) / size)}`, b.id]));
     for (const a of anchors) {
-      const id = tileAt.get(`${Math.floor(a.x / size)},${Math.floor(a.z / size)}`);
+      const tx = Math.floor(a.x / size), tz = Math.floor(a.z / size);
+      const id = tileAt.get(`${tx},${tz}`);
+      // The anchor's wall may be in the neighbouring tile's glb: offer it to every tile within 2 m.
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const near = tileAt.get(`${tx + dx},${tz + dz}`);
+          if (!near) continue;
+          const b = this.bounds.find((t) => t.id === near)!;
+          if (a.x < b.minX - 2 || a.x > b.maxX + 2 || a.z < b.minZ - 2 || a.z > b.maxZ + 2) continue;
+          (all.get(near) ?? all.set(near, []).get(near)!).push(a);
+        }
+      }
       if (!id) continue;
       const plan = shopfrontFor(a);
       if (!plan) continue;
-      (byTile.get(id) ?? byTile.set(id, []).get(id)!).push({ anchor: a, plan });
+      (shops.get(id) ?? shops.set(id, []).get(id)!).push({ anchor: a, plan });
     }
-    this.shopsByTile = byTile;
-    for (const r of this.records.values()) this.dropKit(r);
+    this.shopsByTile = shops;
+    this.anchorsByTile = all;
   }
 
   /** The house kit's totals over the tiles that have it built. */
@@ -368,7 +381,7 @@ export class TileStreamer {
     if (this.kitLib && this.kitDoc && rec.kitSrc) {
       const collider = rec.collider ?? this.opts.colliders.get(rec.id);
       const roofs = new Map((collider?.buildings ?? []).map((b) => [b.id, { footprint: b.footprint, topY: b.topY, baseY: b.baseY }]));
-      const { placements, stats } = planHouseKit(this.kitDoc, rec.kitSrc.fronts, rec.kitSrc.prep.frontWalls, rec.kitSrc.prep.buildings, roofs);
+      const { placements, stats } = planHouseKit(this.kitDoc, rec.kitSrc.fronts, rec.kitSrc.prep.frontWalls, rec.kitSrc.prep.frontDoors, rec.kitSrc.prep.buildings, roofs);
       const merged = mergePlacements(this.kitLib, placements);
       if (merged.triangles > 0) {
         const mesh = new THREE.Mesh(kitGeometry(merged), mat);
@@ -548,7 +561,7 @@ export class TileStreamer {
         // The house kit: per-wall frames, doors and garages, palette colours (house-kit.ts).
         const bbox = rec.spec.bbox;
         const fronts = bbox ? decodeFronts(ud.fronts, bbox[0], bbox[1]) : [];
-        const prep = applyHouseKit(geo, mesh.matrixWorld, (geo.userData.fcBuildings as Array<[string, number, number]> | undefined) ?? [], fronts, this.opts.houseLook);
+        const prep = applyHouseKit(geo, mesh.matrixWorld, (geo.userData.fcBuildings as Array<[string, number, number]> | undefined) ?? [], fronts, this.opts.houseLook, this.anchorsByTile?.get(rec.id));
         if (prep && mesh.name === "buildings") rec.kitSrc = { fronts, prep };
       }
     });
