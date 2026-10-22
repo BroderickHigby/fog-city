@@ -85,6 +85,8 @@ export interface SfBuilding {
     tower?: string;
     pieceOf?: string;
     piece?: "strip" | "span";
+    outline?: "parcel" | "override";
+    streetY?: number;
   };
 }
 
@@ -163,3 +165,86 @@ export function loadSfPack(): SfPack {
 
 /** The base DataSF id of a record: without its part, tower and piece suffixes. */
 export const baseId = (id: string): string => id.slice(0, 14);
+
+/** A far cell's triangles in world metres: terrain first (node extras.terrainTriangles), then hulls. */
+export interface FarTriangles {
+  /** 9 numbers per triangle: x, y, z of each corner. */
+  terrain: Float64Array;
+  hulls: Float64Array;
+}
+
+/** Decode every far-LOD cell of the committed sf world into world-frame triangles. */
+export async function loadFarTriangles(): Promise<FarTriangles> {
+  await MeshoptDecoder.ready;
+  const io = new NodeIO().registerExtensions([EXTMeshoptCompression, KHRMeshQuantization]).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
+  const manifest = readJson<SfManifest>("public/tiles/sf/manifest.json");
+  const terrain: number[] = [];
+  const hulls: number[] = [];
+  for (const c of manifest.far) {
+    const doc = await io.readBinary(new Uint8Array(readFileSync(join(ROOT, "public/tiles/sf", c.glb))));
+    for (const node of doc.getRoot().listNodes()) {
+      const mesh = node.getMesh();
+      if (!mesh) continue;
+      const m = node.getWorldMatrix();
+      const nTerrain = Number((node.getExtras() as { terrainTriangles?: number }).terrainTriangles ?? 0);
+      for (const prim of mesh.listPrimitives()) {
+        const pos = prim.getAttribute("POSITION")!;
+        const idx = prim.getIndices()!;
+        const el = [0, 0, 0];
+        const P: number[] = [];
+        for (let i = 0; i < pos.getCount(); i++) {
+          pos.getElement(i, el);
+          P.push(m[0]! * el[0]! + m[4]! * el[1]! + m[8]! * el[2]! + m[12]!, m[1]! * el[0]! + m[5]! * el[1]! + m[9]! * el[2]! + m[13]!, m[2]! * el[0]! + m[6]! * el[1]! + m[10]! * el[2]! + m[14]!);
+        }
+        const n = idx.getCount() / 3;
+        for (let t = 0; t < n; t++) {
+          const out = t < nTerrain ? terrain : hulls;
+          for (let k = 0; k < 3; k++) {
+            const v = idx.getScalar(3 * t + k) * 3;
+            out.push(P[v]!, P[v + 1]!, P[v + 2]!);
+          }
+        }
+      }
+    }
+  }
+  return { terrain: Float64Array.from(terrain), hulls: Float64Array.from(hulls) };
+}
+
+/** Point queries on a triangle soup: the highest triangle over (x, z), or null. */
+export class TriangleGrid {
+  private readonly cells = new Map<number, number[]>();
+  private readonly tris: Float64Array;
+  private readonly cell: number;
+  constructor(tris: Float64Array, cell = 25) {
+    this.tris = tris;
+    this.cell = cell;
+    for (let t = 0; t < tris.length / 9; t++) {
+      const xs = [tris[9 * t]!, tris[9 * t + 3]!, tris[9 * t + 6]!];
+      const zs = [tris[9 * t + 2]!, tris[9 * t + 5]!, tris[9 * t + 8]!];
+      for (let cx = Math.floor(Math.min(...xs) / cell); cx <= Math.floor(Math.max(...xs) / cell); cx++) {
+        for (let cz = Math.floor(Math.min(...zs) / cell); cz <= Math.floor(Math.max(...zs) / cell); cz++) {
+          const k = (cx + 32768) * 65536 + cz + 32768;
+          (this.cells.get(k) ?? this.cells.set(k, []).get(k)!).push(t);
+        }
+      }
+    }
+  }
+  /** Highest surface over (x, z) among non-vertical triangles, or null where none covers it. */
+  top(x: number, z: number): number | null {
+    let best: number | null = null;
+    const T = this.tris;
+    for (const t of this.cells.get((Math.floor(x / this.cell) + 32768) * 65536 + Math.floor(z / this.cell) + 32768) ?? []) {
+      const o = 9 * t;
+      const x1 = T[o]!, y1 = T[o + 1]!, z1 = T[o + 2]!, x2 = T[o + 3]!, y2 = T[o + 4]!, z2 = T[o + 5]!, x3 = T[o + 6]!, y3 = T[o + 7]!, z3 = T[o + 8]!;
+      const den = (z2 - z3) * (x1 - x3) + (x3 - x2) * (z1 - z3);
+      if (Math.abs(den) < 1e-6) continue;
+      const w1 = ((z2 - z3) * (x - x3) + (x3 - x2) * (z - z3)) / den;
+      const w2 = ((z3 - z1) * (x - x3) + (x1 - x3) * (z - z3)) / den;
+      const w3 = 1 - w1 - w2;
+      if (w1 < -1e-6 || w2 < -1e-6 || w3 < -1e-6) continue;
+      const y = w1 * y1 + w2 * y2 + w3 * y3;
+      if (best === null || y > best) best = y;
+    }
+    return best;
+  }
+}

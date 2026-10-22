@@ -52,6 +52,8 @@ export const ATTRIBUTION = [
   "Transit routes and stops, traffic signals, crosswalks, parking regulations: SFMTA via DataSF (9exe-acju, i28k-bkz6, ybh5-27n2, g9zy-srvv, hi6h-neyh), ODC PDDL 1.0.",
   "Street cleaning schedules: San Francisco Public Works via DataSF \"Street Sweeping Schedule\" (yhqp-riqs), ODC PDDL 1.0.",
   "Drinking fountains: DataSF \"San Francisco Public Bathrooms and Water Fountains\" (wfq4-upmv), ODC PDDL 1.0.",
+  "Ground cover: DataSF \"Recreation and Parks Properties\" (gtr9-ntp6) and \"Urban Tree Canopy\" (ni2e-vpbg), ODC PDDL 1.0; lakes from the U.S. Geological Survey National Hydrography Dataset, public domain; park land from the National Park Service Land Resources Division boundaries, public domain.",
+  "Buildings newer than the footprints: lot outlines from DataSF \"Parcels – Active and Retired\" (acdm-wktn), ODC PDDL 1.0, with the assessor roll's storeys.",
 ];
 
 export interface TileSelection {

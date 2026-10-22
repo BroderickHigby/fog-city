@@ -154,9 +154,10 @@ export const COVER_COLOURS: Record<string, string> = {
 
 /** A lattice sample's ground colour: its class (cover character), else the height-tinted grey. */
 export function groundColour(h: number, water: boolean, cls: string | undefined): [number, number, number, number] {
-  if (water) return rgba(WATER);
+  // A lake is water like the Bay, whatever its level.
+  if (water || (cls !== undefined && /[0-9]/.test(cls))) return rgba(WATER);
   if (cls !== undefined && cls !== "u") {
-    const c = /[0-9]/.test(cls) ? COVER_COLOURS.lake : COVER_COLOURS[cls];
+    const c = COVER_COLOURS[cls];
     if (c) return rgba(c, 0.96 + Math.min(0.06, h / 800));
   }
   return rgba(h > 40 ? LAND_HIGH : LAND, 0.94 + Math.min(0.1, h / 600));

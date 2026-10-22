@@ -67,6 +67,8 @@ describe("sf world: schemas and layout", () => {
     expect(manifest.roads).toBe("roads.json");
     expect(manifest.attribution.join(" ")).toMatch(/DataSF/);
     expect(manifest.attribution.join(" ")).toMatch(/3DEP/);
+    // The world QA sources (ground cover, lakes, park land, lot outlines) are credited too.
+    for (const src of ["gtr9-ntp6", "ni2e-vpbg", "National Hydrography Dataset", "National Park Service", "acdm-wktn"]) expect(manifest.attribution.join(" "), src).toContain(src);
     const ids = new Set<string>();
     for (const t of manifest.tiles) {
       expect(t.id).toBe(tileId(t.ix, t.iz));

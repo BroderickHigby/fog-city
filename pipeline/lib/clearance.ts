@@ -9,7 +9,8 @@
 //      its podium stays.
 //   2. Redeveloped land: a footprint that a street added or rebuilt after the June 2010 LiDAR
 //      crosses for STALE_INSIDE_M or more, on a parcel the 2025 roll does not date before 2010,
-//      is gone (Treasure Island, Pier 70, the Presidio Parkway, Hunters Point): dropped.
+//      is gone (Treasure Island, Pier 70, the Presidio Parkway, Hunters Point): dropped. Records
+//      added from the 2025 roll or an override (newer.ts) are current and never stale.
 //   3. Misregistered centrelines: where buildings stand within the corridor but a clear corridor
 //      exists within REREGISTER_MAX_M to one side, the centreline is shifted into it (smoothly,
 //      back to the junctions at both ends): the street moves, the houses stay whole.
@@ -414,7 +415,10 @@ export function clearCorridors(
   }
   grid = new BuildingGrid(list);
 
-  // ---- 2. Footprints on land a newer street was built across.
+  // ---- 2. Footprints on land a newer street was built across. A record the newer-buildings pass
+  // or an override added (meta.outline: a 2025 parcel or a hand-checked block) is current, never
+  // stale: what of it stands in a corridor is cut or spanned in step 4 like any other record.
+  const isAdded = (b: Building): boolean => b.meta.outline !== undefined || (b.meta.towerOf !== undefined && list[index.get(b.meta.towerOf) ?? -1]?.meta.outline !== undefined);
   for (const e of graph.edges) {
     if (corridorRadius(e) === 0) continue;
     const d = dateOf.get(e.cnn);
@@ -425,7 +429,7 @@ export function clearCorridors(
     }
     for (const [i, n] of inside) {
       const b = list[i];
-      if (!b || n < STALE_INSIDE_M || !isNewer(d, b)) continue;
+      if (!b || n < STALE_INSIDE_M || !isNewer(d, b) || isAdded(b)) continue;
       // A podium's tower goes with it; a tower alone takes its podium (both are the old building).
       if (b.meta.towerOf !== undefined) {
         const pi = index.get(b.meta.towerOf);

@@ -11,9 +11,10 @@
 //     shared exactly by the two squares either side; so where the streaming ring stops at a tile
 //     border, the far terrain meets the near ground there (lowered groundDropM, which is more
 //     than borderTolM: the far side is never above the near one and no sea shows through);
-//   * inside, a lattice of 100 m, or 50 m or 25 m where the coarser one misses the 10 m lattice by
-//     more than refineErrorM (the hills); cells along a border are fans through the border's
-//     vertices, so there are no T-junction cracks;
+//   * inside, a lattice of steps[0] (100 m) on a built tile, or the next finer step (50 m) where
+//     the coarser one misses the 10 m lattice by more than refineErrorM (the hills); farSteps
+//     (250 m, 100 m) on every other tile square; cells along a border are fans through the
+//     border's vertices, so there are no T-junction cracks;
 //   * samples come from the near tiles' lattice where a candidate tile has one (lakes flattened,
 //     piers raised), else the DEM, over the whole far box: the Marin headlands, San Bruno Mountain
 //     and every land tile beside a built one;
@@ -37,8 +38,10 @@ import { ShapeUtils, Vector2 } from "three";
 export interface FarParams {
   /** Cell side, metres (a multiple of the tile size). The far box must fit in at most 40 cells. */
   cellM: number;
-  /** Interior lattice steps, coarsest first (each divides 500 and is a multiple of 10). */
+  /** Interior lattice steps of a streamed (built) tile, coarsest first (each divides 500 and is a multiple of 10)... */
   steps: number[];
+  /** ... and of every other tile square (Marin, the Peninsula, land beside the city). */
+  farSteps: number[];
   /** A tile takes the next finer step while the coarser one misses its 10 m samples by more than this. */
   refineErrorM: number;
   /** Border polylines of a streamed (built) tile stay within this of the near lattice... */
@@ -66,7 +69,8 @@ export interface FarParams {
 export const FAR_DEFAULTS: FarParams = {
   cellM: 3500,
   steps: [100, 50],
-  refineErrorM: 8,
+  farSteps: [250, 100],
+  refineErrorM: 10,
   borderTolM: 0.4,
   farBorderTolM: 4,
   groundDropM: 0.5,
@@ -75,8 +79,8 @@ export const FAR_DEFAULTS: FarParams = {
   clusterHeightM: 5,
   clusterByRoof: false,
   skirtM: 3,
-  tallMaxVerts: 8,
-  clusterMaxVerts: 5,
+  tallMaxVerts: 6,
+  clusterMaxVerts: 4,
   singleMaxVerts: 4,
 };
 export const FAR_CELL_M = FAR_DEFAULTS.cellM;
@@ -448,10 +452,10 @@ interface Sample {
 /** A tile border: its kept points as (offset along the border in metres, height). */
 type Border = Array<[number, number]>;
 
-/** Douglas-Peucker on a border's 51 samples (10 m apart), keeping every 100 m point. */
-export function simplifyBorder(hs: readonly number[], tol: number): Border {
+/** Douglas-Peucker on a border's 51 samples (10 m apart), keeping every `every`-th sample (10: each 100 m point). */
+export function simplifyBorder(hs: readonly number[], tol: number, every = 10): Border {
   const keep = new Uint8Array(hs.length);
-  for (let i = 0; i < hs.length; i += 10) keep[i] = 1;
+  for (let i = 0; i < hs.length; i += every) keep[i] = 1;
   keep[hs.length - 1] = 1;
   const dp = (a: number, b: number): void => {
     if (b - a < 2) return;
@@ -469,7 +473,12 @@ export function simplifyBorder(hs: readonly number[], tol: number): Border {
     dp(a, best);
     dp(best, b);
   };
-  for (let i = 0; i + 10 < hs.length; i += 10) dp(i, i + 10);
+  let a = 0;
+  for (let i = 1; i < hs.length; i++) {
+    if (!keep[i]) continue;
+    dp(a, i);
+    a = i;
+  }
   const out: Border = [];
   for (let i = 0; i < hs.length; i++) if (keep[i]) out.push([i * LATTICE_M, hs[i]!]);
   return out;
@@ -523,7 +532,7 @@ class TerrainBuilder {
     const near = this.inp.nearTiles;
     const a = kind === "h" ? `${ix},${iz - 1}` : `${ix - 1},${iz}`;
     const fine = !near || near.has(a) || near.has(`${ix},${iz}`);
-    const b = simplifyBorder(hs, fine ? this.p.borderTolM : this.p.farBorderTolM);
+    const b = fine ? simplifyBorder(hs, this.p.borderTolM, 10) : simplifyBorder(hs, this.p.farBorderTolM, 25);
     this.borders.set(key, b);
     return b;
   }
@@ -532,7 +541,9 @@ class TerrainBuilder {
   step(ix: number, iz: number): number {
     const x0 = ix * TILE_M, z0 = iz * TILE_M;
     const n10 = TILE_M / LATTICE_M;
-    for (const s of this.p.steps) {
+    const near = this.inp.nearTiles;
+    const steps = !near || near.has(`${ix},${iz}`) ? this.p.steps : this.p.farSteps;
+    for (const s of steps) {
       const r = s / LATTICE_M;
       let ok = true;
       for (let k = 0; k <= n10 && ok; k++) {
@@ -546,7 +557,7 @@ class TerrainBuilder {
       }
       if (ok) return s;
     }
-    return this.p.steps[this.p.steps.length - 1]!;
+    return steps[steps.length - 1]!;
   }
 
   /** Emit one tile square's terrain into the mesh. Returns triangles. */
@@ -627,19 +638,36 @@ class TerrainBuilder {
   }
 }
 
-export async function buildFarLod(world: string, inp: FarInputs, p: FarParams = FAR_DEFAULTS): Promise<FarCellOut[]> {
+/** Every building's far hull: tall records alone, the rest in clusters (see the file comment). */
+export function farHulls(buildings: readonly Building[], p: FarParams = FAR_DEFAULTS): Hull[] {
   const tall: Hull[] = [];
   const low: Building[] = [];
-  for (const b of inp.buildings) {
+  const index = new PointIndex(buildings);
+  for (const b of buildings) {
     if (heightOf(b) >= p.tallM) {
       const style = facadeStyle(b);
-      const ring = farOutline(b.footprint, p.tallMaxVerts);
+      // A tall record's outline never stands over another record's interior point that its own
+      // footprint does not cover (the neighbour would pop by the height difference): it takes
+      // more vertices until it does not, at worst its own footprint.
+      const intrudes = (ring: readonly P2[]): boolean =>
+        index.inside(ring).some((o) => {
+          if (o.id === b.id) return false;
+          const ip = interiorPoint(o.footprint);
+          return !pointInRing(ip[0], ip[1], b.footprint) && Math.abs(o.topY - b.topY) > p.clusterHeightM;
+        });
+      let ring = farOutline(b.footprint, p.tallMaxVerts);
+      for (let cap = p.tallMaxVerts + 2; intrudes(ring) && cap <= OUTLINE_MAX_VERTS; cap += 2) ring = farOutline(b.footprint, cap);
+      if (intrudes(ring)) ring = signedArea(b.footprint) > 0 ? [...b.footprint].reverse() : [...b.footprint];
       if (ring.length >= 3) tall.push({ ring, top: b.topY, absolute: true, wall: style.wall, roof: style.roof, records: 1 });
     } else {
       low.push(b);
     }
   }
-  const hulls = [...clusterHulls(low, p, inp.buildings), ...tall];
+  return [...clusterHulls(low, p, buildings), ...tall];
+}
+
+export async function buildFarLod(world: string, inp: FarInputs, p: FarParams = FAR_DEFAULTS): Promise<FarCellOut[]> {
+  const hulls = farHulls(inp.buildings, p);
   const terrain = new TerrainBuilder(inp, p);
   const groundAt = (x: number, z: number): number => {
     // Bilinear on the 10 m lattice samples (water at 0).

@@ -1226,3 +1226,9 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-20 · **Nameplates above other players** (user request): display name, rank badge and team colour,
   distance-faded and occlusion-aware; hidden for disguised players in Hide in the Crowd; private-page players may opt in
   to their claude.ai first name, otherwise generated names. Lands with co-op in wave 4.
+- 2026-10-21 · **The Daly City strip is far scenery, not territory** (world QA W-42). The footprint data
+  carries about 1,350 buildings on a strip 150 to 650 m wide south of the county line (1,352 podium records
+  whose centroids lie south of z = 9,850 m) with no streets: the road data ends at z = 9,821. The pipeline crops the
+  built area at the county line, so the strip is drawn only in the far LOD, beyond the south wall: no near
+  tiles, no colliders, no storefronts, never a district. Territory step 10 (south of the line, Later) revisits
+  it with another data source. Decided in the world QA round while the user was away; reversible.

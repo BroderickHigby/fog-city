@@ -288,11 +288,13 @@ export function tileFronts(
     const year = b.meta.year ?? 0;
     const row = h.walls.includes(WALL_PARTY);
     const f = b.footprint;
-    const floorM = Math.max(0, b.baseY - h.streetY);
+    // The first floor's rise over the sidewalk, to the decimetre the row stores (the stoop flag reads the same value).
+    const floorM = Math.round(Math.max(0, b.baseY - h.streetY) * 10) / 10;
     for (let i = 0; i < f.length; i++) {
       if (h.walls[i] !== WALL_FRONT) continue;
       const a = f[i]!, c = f[(i + 1) % f.length]!;
-      const [nx, nz, len] = outward(f, i);
+      const [nx, nz, rawLen] = outward(f, i);
+      const len = Math.round(rawLen * 10) / 10; // as the row stores it
       let flags = 0;
       if (residential && year > 0 && year <= BAY_MAX_YEAR && len >= BAY_MIN_FRONT_M && h.storeys >= 2) flags |= FRONT_BAY;
       if (residential && floorM >= STOOP_MIN_RISE_M) flags |= FRONT_STOOP;
