@@ -187,3 +187,70 @@ export function surfaceWorld(withRoads = false): World {
   };
   return buildWorld([tile], roads);
 }
+
+/** Heights of twinDeckWorld's two decks at z (their vertices sample these every 2 m). */
+export function twinDeckY(z: number): { wb: number; eb: number } {
+  const wb = z <= 60 ? 0.08 * z : Math.max(0, 0.08 * (120 - z));
+  const eb = z <= 50 ? wb : z <= 120 ? wb + 0.03 * (z - 50) : 2.1;
+  return { wb, eb };
+}
+
+/**
+ * Two overlapping decks like I-80's two directions near 1st St (world QA W-03; surfaceAt): on
+ * flat ground at 0 m, both 13.8 m wide, their centrelines 2.5 m apart. "wb" (edge "wb-st")
+ * along x = 0 from z = 0 rises at 8% to 4.8 m at z = 60, a sharp crest, and falls at 8% to the
+ * ground at z = 120, where it ends; "eb" (edge "eb-st") along x = 2.5 follows it to z = 50,
+ * then climbs away over it (0.3 m higher at the crest) and stays up at 2.1 m from z = 120 to
+ * z = 240 (twinDeckY). A car on wb's centreline is on wb all the way and then on the ground.
+ */
+export function twinDeckWorld(): World {
+  const r = 300;
+  const cell = 2;
+  const n = r + 1;
+  const heights = new Array<number>(n * n).fill(0);
+  const wb: Array<[number, number, number, number]> = [];
+  const eb: Array<[number, number, number, number]> = [];
+  for (let z = 0; z <= 240; z += 2) {
+    const y = twinDeckY(z);
+    if (z <= 120) wb.push([0, y.wb, z, 13.8]);
+    eb.push([2.5, y.eb, z, 13.8]);
+  }
+  return buildWorld([
+    {
+      tileId: "twin",
+      buildings: [],
+      ground: { x0: -r, z0: -r, cellSizeM: cell, nx: n, nz: n, heights },
+      decks: [
+        { id: "eb", kind: "freeway", edge: "eb-st", layer: 1, path: eb },
+        { id: "wb", kind: "freeway", edge: "wb-st", layer: 1, path: wb },
+      ],
+    },
+  ]);
+}
+
+/**
+ * A tunnel bore with an overpass deck of its own edge over its portal (the pipeline's
+ * c3186101.o~0 at the Broadway Tunnel; contradictoryDecks): on flat ground, the bore "bore"
+ * (edge "bore-st") along x = 0, floor at 0 m from the portal at z = -50 to z = -150, ceiling 5 m;
+ * the deck "bad~0" of "bore-st" climbing from 0 m at z = 0 to 5 m at z = -50, over the portal;
+ * and a deck "fine" of another edge crossing over the bore at 8 m along z = -100.
+ */
+export function portalDeckWorld(): World {
+  const r = 200;
+  const cell = 2;
+  const n = r + 1;
+  const bad: Array<[number, number, number, number]> = [];
+  for (let z = 0; z >= -50; z -= 5) bad.push([0, -z / 10, z, 8]);
+  return buildWorld([
+    {
+      tileId: "portal",
+      buildings: [],
+      ground: { x0: -r, z0: -r, cellSizeM: cell, nx: n, nz: n, heights: new Array<number>(n * n).fill(0) },
+      decks: [
+        { id: "bad~0", kind: "overpass", edge: "bore-st", layer: 1, path: bad },
+        { id: "fine", kind: "overpass", edge: "cross-st", layer: 1, path: [[-40, 8, -100, 10], [40, 8, -100, 10]] },
+      ],
+      tunnels: [{ id: "bore", kind: "tunnel", edge: "bore-st", clearanceM: 5, path: [[0, 0, -50, 8], [0, 0, -150, 8]] }],
+    },
+  ]);
+}

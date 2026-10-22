@@ -5,7 +5,7 @@
 // drove the bare ground under every deck: the 3rd St bridge at sea level, the Broadway Tunnel
 // over Russian Hill into the houses, I-280 into the buildings under its viaduct.
 import { describe, expect, it } from "vitest";
-import { CAR, blocksBand, closestOnBoundary, nearbyBuildings, onWater, pointInPolygon, roadSurfaceHeight, stepCar, surfaceAt, makeCar, type CarState, type RoadsFile, type World } from "../../../src/sim/index.ts";
+import { CAR, blocksBand, closestOnBoundary, contradictoryDecks, nearbyBuildings, onWater, pointInPolygon, roadSurfaceHeight, stepCar, surfaceAt, makeCar, type CarState, type RoadsFile, type World } from "../../../src/sim/index.ts";
 import { CITY_MS, SF, bearing, drivePath, resample, sfWorld } from "./load.ts";
 
 /** A chain of edges as one path every metre, in travel order (`rev` drives it backwards). */
@@ -171,10 +171,11 @@ describe.skipIf(!SF)("tunnels (W-02)", () => {
   }
 
   it(
-    "the Broadway Tunnel's westbound bore, Stockton and the Toll Plaza tunnel both ways, at 25 m/s: end to end, 0 hits, on the bore's floor, never airborne in it",
+    "both Broadway Tunnel bores, Stockton and the Toll Plaza tunnel both ways, at 25 m/s along the whole edge: end to end, 0 hits, on the bore's floor, never airborne in it",
     () => {
       const { world, roads } = sfWorld();
       for (const [id, rev] of [
+        ["c3186101", false],
         ["c3186201", false],
         ["c12225000", false],
         ["c12225000", true],
@@ -195,45 +196,36 @@ describe.skipIf(!SF)("tunnels (W-02)", () => {
   );
 
   it(
-    "the Broadway Tunnel's eastbound bore from just inside its west portal to the east end: 0 hits, on the floor (its approach's overpass over the portal is listed for Pipeline)",
+    "the one deck that contradicts its own edge's bore is the overpass ribbon over the Broadway Tunnel's west portal; the eastbound approach runs on the ground into the bore",
     () => {
       const { world, roads } = sfWorld();
-      // The bore's floor starts at the west portal; the edge's own path runs 185 m before it,
-      // where the pipeline's overpass ribbon c3186101.o~0 climbs over the portal (cross-track).
+      // The pipeline's c3186101.o~0 rose from 53.8 m to 62.2 m along the eastbound approach and
+      // ended at 60.8 m over the west portal, 5 m over the bore's floor, so a car following the
+      // edge climbed it and stopped against the houses over the portal (at a6caf4e: 204 of 885 m).
+      // The sim leaves it out (contradictoryDecks); listed for Pipeline to drop at the source.
+      expect([...contradictoryDecks(world.tiles)]).toEqual(["c3186101.o"]);
       const bore = world.tiles.flatMap((t) => t.tunnels ?? []).filter((u) => u.edge === "c3186101");
       const portal = bore.map((u) => u.path[0]!).sort((a, b) => a[0] - b[0])[0]!;
       const path = route(roads, ["c3186101"]);
-      const near = (i: number): number => Math.hypot(path[i]![0] - portal[0], path[i]![1] - portal[2]);
-      let from = 0;
-      for (let i = 1; i < path.length; i++) if (near(i) < near(from)) from = i;
-      from += 25;
-      const sub = path.slice(from);
-      let boreTicks = 0;
-      let off = 0;
-      let air = 0;
-      const r = drivePath(world, sub, 25, 15, (c) => {
-        const s = surfaceAt(world, c.x, c.z, c.y);
-        if (s.kind !== "tunnel") return;
-        boreTicks++;
-        off = Math.max(off, Math.abs(c.y - s.y));
-        if (!c.grounded) air++;
-      }, surfaceAt(world, sub[0]![0], sub[0]![1], portal[1]).y);
-      expect(r.reached, `${r.progressM} of ${r.lenM} m`).toBe(true);
-      expect(r.hits).toBe(0);
-      expect(boreTicks).toBeGreaterThan(600);
-      expect(off).toBeLessThan(1);
-      expect(air).toBe(0);
+      // Along the approach, up to 5 m short of the portal, a car on the road stands on the ground.
+      let n = 0;
+      for (const [x, z] of path) {
+        if (Math.hypot(x - portal[0], z - portal[2]) < 5 || x > portal[0]) break;
+        const g = surfaceAt(world, x, z, -1000).y;
+        const s = surfaceAt(world, x, z, g + 0.1);
+        expect(s.kind, `${x.toFixed(1)}, ${z.toFixed(1)}`).toBe("ground");
+        n++;
+      }
+      expect(n).toBeGreaterThan(150);
     },
     CITY_MS,
   );
 
   it(
-    "the Broadway Tunnel's westbound bore and the Stockton tunnel are open to traffic: their lanes are clear of the houses over them, and robotaxis ride the floor",
+    "both Broadway Tunnel bores and the Stockton tunnel are open to traffic: their lanes are clear of the houses over them, and robotaxis ride the floor",
     () => {
       const { world } = sfWorld();
-      // (c3186101, the eastbound bore, is not: its lane is checked on the pipeline's overpass
-      // ribbon c3186101.o~0 where that climbs over the west portal, 60.8 m, into the houses.)
-      for (const id of ["c3186201", "c12225000"]) {
+      for (const id of ["c3186101", "c3186201", "c12225000"]) {
         const e = world.roads!.edges.find((q) => q.id === id)!;
         expect(e.drivable, id).toBe(true);
         expect(e.laneClear[0].some(Boolean) || e.laneClear[1].some(Boolean), id).toBe(true);
@@ -256,12 +248,11 @@ describe.skipIf(!SF)("freeways on their decks (W-03, W-07)", () => {
   const I80_EB = ["c19370000", "c19369000", "c19368000", "c19367000", "c19366000", "c19365000", "c19364000", "c14248000"];
   const I80_WB = ["c14249000", "c19382000", "c19383000", "c19384000", "c19385000", "c19386000", "c19387000", "c19388000"];
 
-  /** Drive a freeway route at 25 m/s: progress, hits, and on its decks how far the car was from the deck at most. */
   /**
-   * Drive a freeway route at 25 m/s: progress, hits (and the hardest), hits with a building
+   * Drive a freeway route at v (25) m/s: progress, hits (and the hardest), hits with a building
    * beside the car, and on its decks how far the car was over the deck at most.
    */
-  function freeway(world: World, roads: RoadsFile, ids: readonly string[], from = 0): { reached: boolean; hits: number; hardest: number; buildingHits: number; deckTicks: number; offDeck: number; progress: string; end: CarState } {
+  function freeway(world: World, roads: RoadsFile, ids: readonly string[], from = 0, v = 25): { reached: boolean; hits: number; hardest: number; buildingHits: number; deckTicks: number; offDeck: number; progress: string; end: CarState } {
     const path = route(roads, ids).slice(from);
     let deckTicks = 0;
     let offDeck = 0;
@@ -271,8 +262,8 @@ describe.skipIf(!SF)("freeways on their decks (W-03, W-07)", () => {
     const r = drivePath(
       world,
       path,
-      25,
-      20,
+      v,
+      Math.min(v, 20),
       (c) => {
         if (c.hits > hits) {
           hits = c.hits;
@@ -314,7 +305,7 @@ describe.skipIf(!SF)("freeways on their decks (W-03, W-07)", () => {
   );
 
   it(
-    "I-80 from the US-101 interchange to the Bay Bridge's west span, and westbound from past the decks' crossing near 1st St to US-101: no stop on the way, no building",
+    "I-80 from the US-101 interchange to the Bay Bridge's west span, and westbound from the span's shore end to US-101: no stop on the way, no building",
     () => {
       const { world, roads } = sfWorld();
       const shore = world.walls!.shore;
@@ -329,19 +320,21 @@ describe.skipIf(!SF)("freeways on their decks (W-03, W-07)", () => {
       expect(ebR.hits, ebR.progress).toBeLessThanOrEqual(1);
       expect(ebR.buildingHits, `eastbound building hits, ${ebR.progress}`).toBe(0);
       expect(ebR.deckTicks).toBeGreaterThan(3000);
-      // Westbound: from the span to US-101, past where the pipeline's westbound and eastbound
-      // decks cross each other 0.6 to 1 m apart near 1st St (x 186 to 200, z 1100 to 1110; two
-      // roadways cannot cross that close: listed for Pipeline, with the other 96 such crossings).
-      const wb = route(roads, I80_WB);
-      const crossing = wb.findIndex(([x, z]) => Math.hypot(x - 186, z - 1110) < 3);
-      expect(crossing).toBeGreaterThan(0);
-      const wbR = freeway(world, roads, I80_WB, crossing + 20);
-      expect(wbR.reached, wbR.progress).toBe(true);
-      // (Rail grazes only, as on I-280.)
-      expect(wbR.hits, `westbound hits, ${wbR.progress}`).toBeLessThanOrEqual(2);
-      expect(wbR.hardest, "westbound hardest hit").toBeLessThan(3);
-      expect(wbR.buildingHits, "westbound building hits").toBe(0);
-      expect(wbR.deckTicks).toBeGreaterThan(3000);
+      // Westbound: the whole land route, from where it leaves the span (c19382000) to US-101, at
+      // 20 and 25 m/s. Near 1st St (x 186 to 200, z 1100 to 1110) the pipeline's westbound deck
+      // lies inside the eastbound one (centrelines 2.5 m apart, both ribbons 13.8 m wide), rising
+      // 1 to 3 m over it, and ends there on the ground under it; a car keeps to its own deck by
+      // its centreline (at a6caf4e it rode onto the eastbound deck at a crest and stopped at 458
+      // of 2756 m; the overlap is listed for Pipeline).
+      for (const v of [20, 25]) {
+        const wbR = freeway(world, roads, I80_WB.slice(1), 0, v);
+        expect(wbR.reached, `westbound at ${v} m/s: ${wbR.progress}`).toBe(true);
+        // (Rail grazes only, as on I-280.)
+        expect(wbR.hits, `westbound hits at ${v} m/s, ${wbR.progress}`).toBeLessThanOrEqual(2);
+        expect(wbR.hardest, "westbound hardest hit").toBeLessThan(3);
+        expect(wbR.buildingHits, "westbound building hits").toBe(0);
+        expect(wbR.deckTicks).toBeGreaterThan(3000);
+      }
     },
     CITY_MS,
   );

@@ -9,6 +9,7 @@ import {
   CAR,
   FOOT,
   circleBlocked,
+  contradictoryDecks,
   makeCar,
   makeFoot,
   railPush,
@@ -22,7 +23,7 @@ import {
   type FootState,
   type SimInput,
 } from "../../src/sim/index.ts";
-import { overpassY, surfaceWorld } from "./fixtures.ts";
+import { overpassY, portalDeckWorld, surfaceWorld, twinDeckWorld, twinDeckY } from "./fixtures.ts";
 
 const I = (throttle: number, steer = 0, brake = 0): SimInput => ({ throttle, steer, brake, actions: 0 });
 /** Compass headings: north is -z. */
@@ -161,6 +162,48 @@ describe("cars on decks and in bores", () => {
     expect(c.vy).toBeLessThanOrEqual(0);
     const top = drive({ ...makeCar(-30, -100, EAST, surfaceHeight(w, -30, -100, 20)), speed: 12 }, I(0.4), 300, w);
     for (const t of top) expect(t.y).toBeGreaterThan(19);
+  });
+});
+
+describe("overlapping decks (I-80 near 1st St) and decks that contradict their bore (Broadway)", () => {
+  it("a car on its own deck keeps to it where another deck overlaps it and climbs away over it, over a crest, to its end on the ground", () => {
+    const w = twinDeckWorld();
+    // The eastbound deck stands 0.3 m over the westbound one at the crest, inside the step.
+    expect(surfaceAt(w, 0, 60, twinDeckY(60).wb).y).toBeCloseTo(twinDeckY(60).wb, 9);
+    // A body 0.4 m over its own deck at the crest (airborne off it) is still over its own deck.
+    expect(surfaceAt(w, 0, 62, twinDeckY(62).wb + 0.4).y).toBeCloseTo(twinDeckY(62).wb, 9);
+    // On the eastbound centreline, the eastbound deck.
+    expect(surfaceAt(w, 2.5, 80, twinDeckY(80).eb).y).toBeCloseTo(twinDeckY(80).eb, 9);
+    for (const v of [20, 25, 30]) {
+      const trace = drive({ ...makeCar(0, -20, SOUTH, 0), speed: v }, I(0.8), 900, w);
+      for (const c of trace) {
+        const label = `${v} m/s at z ${c.z.toFixed(1)}`;
+        // Never on the eastbound deck: on the ground over the westbound one, and never more
+        // than the crest's hop over it in the air.
+        if (c.z > 0 && c.z < 120) {
+          expect(c.y - twinDeckY(c.z).wb, label).toBeLessThan(c.grounded ? 0.2 : 1.5);
+          expect(surfaceAt(w, c.x, c.z, c.y).y, label).toBeCloseTo(twinDeckY(c.z).wb, 1);
+        }
+        // Past the westbound deck's end, on the ground under the eastbound one.
+        if (c.z > 130) expect(c.y, label).toBeLessThan(0.1);
+      }
+      const end = trace[trace.length - 1]!;
+      expect(end.z, `${v} m/s`).toBeGreaterThan(260);
+      expect(end.hits, `${v} m/s`).toBe(0);
+    }
+  });
+
+  it("a deck of a bore's own edge over its portal is left out; another edge's deck over the bore stays", () => {
+    const w = portalDeckWorld();
+    expect([...contradictoryDecks(w.tiles)]).toEqual(["bad"]);
+    // On the approach a car on the road stands on the ground, and it drives into the bore.
+    expect(surfaceAt(w, 0, -40, 0).kind).toBe("ground");
+    expect(surfaceAt(w, 0, -60, 0)).toEqual({ y: 0, kind: "tunnel", ceiling: 5 });
+    expect(surfaceAt(w, 0, -100, 8).kind).toBe("deck");
+    const trace = drive({ ...makeCar(0, 10, NORTH, 0), speed: 20 }, I(0.6), 480, w);
+    for (const c of trace) if (c.z < -55 && c.z > -145) expect(c.y, `z ${c.z.toFixed(1)}`).toBeLessThan(0.05);
+    expect(trace[trace.length - 1]!.z).toBeLessThan(-150);
+    expect(trace[trace.length - 1]!.hits).toBe(0);
   });
 });
 
