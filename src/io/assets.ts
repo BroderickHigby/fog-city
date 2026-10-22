@@ -131,14 +131,15 @@ const message = (err: unknown): string => (err instanceof Error ? err.message : 
 /**
  * The encoded text of one src: its file, or, when the index lists parts for it, every part
  * fetched concurrently, each checked against the size the index gives it, joined in index order.
- * A part that fails or is the wrong size fails the whole text, naming the part.
+ * A part that fails or is the wrong size fails the whole text, naming the part by the number in
+ * its file's name (from 0: ".part1.txt" is "part 1 of parts 0..n-1") and the file itself.
  */
 async function fetchEncoded(base: string, src: string, parts: readonly AssetPart[] | undefined): Promise<string> {
   if (!parts) return (await fetchOk(base + src)).text();
   if (parts.length === 0) throw new Error(`${src}: the index lists no parts`);
   const texts = await Promise.all(
     parts.map(async (part, i) => {
-      const what = `part ${i + 1} of ${parts.length} (${part.src})`;
+      const what = `part ${i} of parts 0..${parts.length - 1} (${part.src})`;
       let text: string;
       try {
         const r = await fetch(base + part.src);

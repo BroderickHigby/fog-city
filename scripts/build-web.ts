@@ -1,8 +1,14 @@
 // pnpm build (= pnpm build:web): the static web build for hosting, in dist/.
 //
 //   node scripts/build-web.ts [--out dist] [--worlds sf] [--level 9] [--skip-vite] [--no-sourcemap]
-//                             [--public <dir>]
+//                             [--public <dir>] [--force-clean]
 //
+// 0. Clears the out directory (relative to the checkout, or absolute), but only one a build
+//    could have written: new, empty, or holding nothing but a build's files (index.html,
+//    assets/, assets.index.json, tiles/ and models/ of .json and .txt). Anything else (a
+//    stray notes.txt, a source tree) stops the build before it deletes a thing, unless
+//    --force-clean; the checkout, the public/ it reads and any directory holding either are
+//    refused even then. The world's manifests are checked before the old build is deleted.
 // 1. vite build (vite.config.ts: base "./", public/ not copied): index.html and the bundle,
 //    every URL relative, so the page works from any sub-path.
 // 2. The world and the models, in the layout src/io/assets.ts reads ("packed"):
@@ -35,15 +41,20 @@
 // out, for a public release. --public builds the world and models from another public/
 // directory (a pipeline branch's world, before it merges).
 //
+// Republishing to a page that already holds an earlier build: the host keeps any file an
+// update leaves out, so remove every path the earlier build had and this one lacks (the whole
+// world.colliders.bin.gz.b64.txt once that is written in parts, a pack name that is gone).
+// The page never reads them, but they count against the host's file and size totals.
+//
 // Deterministic: the same inputs give byte-identical outputs (gzip with no timestamp, sorted
 // inputs, part names and cuts fixed by the encoded text), so a rebuild that changes nothing
 // republishes nothing new.
 
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
-import type { AssetIndex, AssetIndexEntry, AssetPart } from "../src/io/assets.ts";
+import { ASSET_INDEX, type AssetIndex, type AssetIndexEntry, type AssetPart } from "../src/io/assets.ts";
 import { RUNTIME_LAYERS } from "../src/io/world-load.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
@@ -181,6 +192,8 @@ export interface BuildOptions {
   publicDir?: string;
   /** Write an encoded file over this many bytes in parts (default PACK_MAX_BYTES; tests lower it). */
   partMaxBytes?: number;
+  /** Clear `out` even when it holds files a build does not write (--force-clean; outDirRefusal). */
+  forceClean?: boolean;
 }
 
 export interface BuildReport {
@@ -232,9 +245,76 @@ export function checkHostLimits(dir: string): { problems: string[]; files: numbe
   return { problems, files: files.length, totalBytes: total, largest };
 }
 
+/** The top-level names a build writes into its out directory. */
+const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models"]);
+
+/** `p` itself, or a path inside it. */
+function within(p: string, dir: string): boolean {
+  const r = relative(dir, p);
+  return r === "" || (r !== ".." && !r.startsWith(`..${sep}`) && !isAbsolute(r));
+}
+
+/** Symbolic links resolved, for a path that exists; else the path, absolute. */
+function realPath(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return resolve(p);
+  }
+}
+
+/**
+ * Why the build may not clear `out`, or null when it may. The build deletes its out directory
+ * first, so it takes only one a build could have written: absent, empty, or holding nothing but
+ * a build's files (index.html and assets/ from vite, assets.index.json, tiles/ and models/ of
+ * .json and .txt files), whole or left half-written by a build that stopped. Anything else is
+ * refused unless `forceClean`; the checkout, `publicDir` (the build's input) and any directory
+ * holding either, or a directory inside `publicDir`, are refused even then.
+ */
+export function outDirRefusal(out: string, publicDir: string, forceClean = false): string | null {
+  const o = realPath(out);
+  const pub = realPath(publicDir);
+  if (within(realPath(ROOT), o)) return `--out ${out} is the checkout or holds it: the build deletes its out directory first`;
+  if (within(pub, o) || within(o, pub)) return `--out ${out} overlaps the public directory the build reads (${publicDir}): the build deletes its out directory first`;
+  if (!existsSync(out)) return null;
+  const stray: string[] = [];
+  if (!statSync(out).isDirectory()) {
+    stray.push("(it is a file, not a directory)");
+  } else {
+    const look = (dir: string, rel: string, ok: (name: string) => boolean): void => {
+      for (const e of readdirSync(dir, { withFileTypes: true }).sort((p, q) => (p.name < q.name ? -1 : 1))) {
+        if (stray.length >= 3) return;
+        const r = rel ? `${rel}/${e.name}` : e.name;
+        if (e.isDirectory()) look(join(dir, e.name), r, ok);
+        else if (!e.isFile() || !ok(e.name)) stray.push(r);
+      }
+    };
+    const served = (name: string): boolean => (HOST_LIMITS.extensions as readonly string[]).includes(name.slice(name.lastIndexOf(".")).toLowerCase());
+    for (const e of readdirSync(out, { withFileTypes: true }).sort((p, q) => (p.name < q.name ? -1 : 1))) {
+      if (stray.length >= 3) break;
+      const isDir = e.isDirectory();
+      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models")) stray.push(e.name);
+      else if (e.name === "assets") look(join(out, e.name), e.name, served);
+      else if (isDir) look(join(out, e.name), e.name, (n) => n.endsWith(".json") || n.endsWith(".txt"));
+    }
+  }
+  if (stray.length === 0 || forceClean) return null;
+  return (
+    `--out ${out} holds files a build does not write (${stray.join(", ")}), and the build deletes its out directory first: ` +
+    `name a new or empty directory, or an earlier build's, or pass --force-clean (forceClean) to delete it anyway`
+  );
+}
+
 export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   const out = opts.out;
   const pub = opts.publicDir ?? join(ROOT, "public");
+  const refusal = outDirRefusal(out, pub, opts.forceClean);
+  if (refusal) throw new Error(refusal);
+  // The inputs before the delete: a build that cannot read its worlds leaves the last one be.
+  for (const world of opts.worlds) {
+    const manifest = join(pub, "tiles", world, "manifest.json");
+    if (!existsSync(manifest)) throw new Error(`world ${world}: ${manifest} is missing (nothing was deleted)`);
+  }
   rmSync(out, { recursive: true, force: true });
   if (!opts.skipVite) {
     const { build } = await import("vite");
@@ -359,6 +439,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     level: Number(arg("--level") ?? 9),
     skipVite: process.argv.includes("--skip-vite"),
     sourcemap: !process.argv.includes("--no-sourcemap"),
+    forceClean: process.argv.includes("--force-clean"),
     ...(arg("--public") ? { publicDir: resolve(ROOT, arg("--public")!) } : {}),
   });
   const mb = (n: number): string => `${(n / 1e6).toFixed(1)} MB`;

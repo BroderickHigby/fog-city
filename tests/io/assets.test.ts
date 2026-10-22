@@ -20,6 +20,7 @@ import {
   checkHostLimits,
   encode,
   layoutEncoded,
+  outDirRefusal,
   packItems,
   partName,
   splitEncoded,
@@ -250,10 +251,16 @@ describe("assets over HTTP, from a sub-path", () => {
 
   it("parts: a missing, short or reordered part, or a length the bytes miss, fails loudly naming the file and the part", async () => {
     const a = await openAssets(true, base);
-    const n = bigParts.length;
-    await expect(a.bytes("bad/missing.bin")).rejects.toThrow(`bad/missing.bin: part 2 of ${n} (bad/missing.bin.gz.b64.part1.txt): HTTP 404`);
+    const last = bigParts.length - 1;
+    await expect(a.bytes("bad/missing.bin")).rejects.toThrow(`bad/missing.bin: part 1 of parts 0..${last} (bad/missing.bin.gz.b64.part1.txt): HTTP 404`);
     const short = bigParts[2]!.bytes;
-    await expect(a.bytes("bad/short.bin")).rejects.toThrow(`bad/short.bin: part 3 of ${n} (bad/short.bin.gz.b64.part2.txt) is ${short - 8} bytes, the index says ${short}`);
+    await expect(a.bytes("bad/short.bin")).rejects.toThrow(`bad/short.bin: part 2 of parts 0..${last} (bad/short.bin.gz.b64.part2.txt) is ${short - 8} bytes, the index says ${short}`);
+    // One number per part: the one in the message is the one in the file's name.
+    for (const name of ["missing", "short"]) {
+      const m = /part (\d+) of parts 0\.\.\d+ \([^)]*\.part(\d+)\.txt\)/.exec(await a.bytes(`bad/${name}.bin`).then(() => "", (e: Error) => e.message));
+      expect(m, name).not.toBeNull();
+      expect(m![1], name).toBe(m![2]);
+    }
     // Order matters: the same parts out of order are refused, never decoded into other bytes.
     await expect(a.bytes("bad/swapped.bin")).rejects.toThrow(/^bad\/swapped\.bin: bad\/swapped\.bin\.gz\.b64\.txt does not decode/);
     await expect(a.bytes("bad/long.bin")).rejects.toThrow(`bad/long.bin: bad/long.bin${ENCODED_SUFFIX} decodes to ${big.byteLength} bytes, the index says ${big.byteLength + 1}`);
@@ -311,6 +318,67 @@ describe("the web build's limits", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("the web build's out directory", () => {
+  let dir = "";
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "fogcity-out-"));
+  });
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+  const put = (rel: string, data = "x"): void => {
+    mkdirSync(dirname(join(dir, rel)), { recursive: true });
+    writeFileSync(join(dir, rel), data);
+  };
+  const pub = join(ROOT, "public");
+
+  it("clears only a directory a build could have written; anything else is refused unless forced", () => {
+    expect(outDirRefusal(join(dir, "new"), pub)).toBeNull();
+    mkdirSync(join(dir, "empty"));
+    expect(outDirRefusal(join(dir, "empty"), pub)).toBeNull();
+    // An earlier build, or one that stopped half-way (no index yet): cleared.
+    for (const f of ["index.html", "assets/index-abc.js", "assets/index-abc.js.map", "assets.index.json", "tiles/sf/manifest.json", "tiles/sf/packs/tiles-000.pack.gz.b64.txt", "tiles/sf/world.colliders.bin.gz.b64.part1.txt", "models/robotaxi.glb.gz.b64.txt"]) put(`build/${f}`);
+    expect(outDirRefusal(join(dir, "build"), pub)).toBeNull();
+    put("half/index.html");
+    put("half/tiles/sf/world.colliders.bin.gz.b64.part0.txt");
+    expect(outDirRefusal(join(dir, "half"), pub)).toBeNull();
+    // Anything a build does not write: refused, naming it; forced, cleared.
+    put("precious/notes.txt", "keep");
+    expect(outDirRefusal(join(dir, "precious"), pub)).toMatch(/holds files a build does not write \(notes\.txt\).*--force-clean/);
+    expect(outDirRefusal(join(dir, "precious"), pub, true)).toBeNull();
+    put("raw/tiles/sf/t0_0.glb");
+    expect(outDirRefusal(join(dir, "raw"), pub)).toMatch(/\(tiles\/sf\/t0_0\.glb\)/);
+    put("mixed/index.html");
+    put("mixed/src/main.ts");
+    put("mixed/assets/scene.blend");
+    expect(outDirRefusal(join(dir, "mixed"), pub)).toMatch(/\(assets\/scene\.blend, src\)/);
+    put("afile");
+    expect(outDirRefusal(join(dir, "afile"), pub)).toMatch(/a file, not a directory/);
+  });
+
+  it("never clears the checkout, the public directory it reads, or a directory holding either, even forced", () => {
+    expect(outDirRefusal(ROOT, pub, true)).toMatch(/is the checkout or holds it/);
+    expect(outDirRefusal(dirname(ROOT), pub, true)).toMatch(/is the checkout or holds it/);
+    expect(outDirRefusal(pub, pub, true)).toMatch(/overlaps the public directory/);
+    expect(outDirRefusal(join(pub, "tiles", "sf"), pub, true)).toMatch(/overlaps the public directory/);
+    put("elsewhere/public/tiles/sf/manifest.json");
+    expect(outDirRefusal(join(dir, "elsewhere"), join(dir, "elsewhere", "public"), true)).toMatch(/overlaps the public directory/);
+    // The default and the test builds: inside the checkout, outside public/.
+    expect(outDirRefusal(join(ROOT, "dist"), pub)).toBeNull();
+  });
+
+  it("a refused or failing build deletes nothing: not a stray file, not the last good build", async () => {
+    put("keep/notes.txt", "keep");
+    const opts = { worlds: ["sf"], level: 1, skipVite: true };
+    await expect(buildWeb({ out: join(dir, "keep"), publicDir: join(dir, "no-such-public"), ...opts })).rejects.toThrow(/holds files a build does not write \(notes\.txt\)/);
+    expect(readFileSync(join(dir, "keep", "notes.txt"), "utf8")).toBe("keep");
+    // A good earlier build and a public/ without the world: stops before the delete.
+    put("last/assets.index.json", "{}");
+    await expect(buildWeb({ out: join(dir, "last"), publicDir: join(dir, "no-such-public"), ...opts })).rejects.toThrow(/manifest\.json is missing \(nothing was deleted\)/);
+    expect(readFileSync(join(dir, "last", "assets.index.json"), "utf8")).toBe("{}");
   });
 });
 
