@@ -184,7 +184,7 @@ describe("house kit data (K1, K4-K8)", () => {
     expect(on / n).toBeGreaterThanOrEqual(0.9);
   });
 
-  it("a facade is a run of front walls facing the same way: a bay's facets join the wall, a corner splits", () => {
+  it("a facade is a run of front walls facing the same way: a bay's facets and a recessed entry join it, a corner splits", () => {
     // A row house 6 m wide facing north (-z): its front is a 3 m wall, a 45-degree bay (two
     // facets and a 1.6 m face) between x 3 and 6, then party, rear and party walls.
     const ring: P2[] = [[0, 0], [3, 0], [3.5, -0.6], [5.1, -0.6], [6, 0], [6, 20], [0, 20]];
@@ -197,5 +197,11 @@ describe("house kit data (K1, K4-K8)", () => {
     expect(facades(corner, [WALL_FRONT, WALL_PARTY, WALL_FRONT, WALL_REAR])).toEqual([[0], [2]]);
     expect(facades(ring, [WALL_FRONT, WALL_FRONT, WALL_FRONT, WALL_REAR, WALL_PARTY, WALL_REAR, WALL_REAR])).toEqual([[0, 1, 2]]);
     expect(facades(ring, W.map(() => WALL_REAR))).toEqual([]);
+    // A Sunset front with a recessed entry (1 m deep, its sides other walls): one facade; a 4 m
+    // deep light well is not a recess.
+    const recess: P2[] = [[0, 0], [3, 0], [3, 1], [4.5, 1], [4.5, 0], [6, 0], [6, 20], [0, 20]];
+    expect(facades(recess, [WALL_FRONT, WALL_REAR, WALL_FRONT, WALL_REAR, WALL_FRONT, WALL_PARTY, WALL_REAR, WALL_PARTY])).toEqual([[0, 2, 4]]);
+    const well: P2[] = [[0, 0], [3, 0], [3, 4], [4.5, 4], [4.5, 0], [6, 0], [6, 20], [0, 20]];
+    expect(facades(well, [WALL_FRONT, WALL_REAR, WALL_REAR, WALL_REAR, WALL_FRONT, WALL_PARTY, WALL_REAR, WALL_PARTY])).toEqual([[0], [4]]);
   });
 });

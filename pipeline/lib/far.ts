@@ -25,7 +25,8 @@
 //   * everything else: records closer than clusterGapM whose heights above the ground differ by at
 //     most clusterHeightM merge into a cluster: its convex hull, or the members' own outlines where
 //     that hull would stand over another record of a different height; the roof follows the
-//     terrain at the members' area-weighted mean height. A record alone keeps its own flat roof
+//     terrain at the members' area-weighted mean height, capped at the highest member's roof.
+//     A record alone keeps its own flat roof
 //     (topY), and a record standing over a tall record's interior point is never clustered;
 // every hull is pushed out HULL_GROW_M (never over another record's interior point), so the far
 // glb's position grid leaves no record's interior point outside its roof.
@@ -200,6 +201,8 @@ export interface Hull {
   /** Height of the roof above the terrain (clusters) or absolute roof y (tall). */
   top: number;
   absolute: boolean;
+  /** A terrain-following roof (absolute false) never rises over this: its highest member's roof. */
+  maxTop?: number;
   wall: string;
   roof: string;
   records: number;
@@ -312,8 +315,9 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     }
     const top = area > 0 ? hsum / area : p.clusterByRoof ? biggest.topY : heightOf(biggest);
     const style = facadeStyle(biggest);
+    const maxTop = Math.max(...members.map((m) => m.topY));
     const push = (ring: P2[], records: number): void => {
-      if (ring.length >= 3) hulls.push({ ring, top, absolute: p.clusterByRoof, wall: style.wall, roof: style.roof, records });
+      if (ring.length >= 3) hulls.push({ ring, top, absolute: p.clusterByRoof, maxTop, wall: style.wall, roof: style.roof, records });
     };
     const levelOf = (o: Building): number => (p.clusterByRoof ? o.topY : heightOf(o));
     // A hull leaves out none of its members' interior points: its vertex cap grows until it does.
@@ -336,10 +340,7 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     let hull = simplifyConvex(full, p.clusterMaxVerts);
     for (let cap = p.clusterMaxVerts + 2; !covering(hull, members) && cap < full.length + 2; cap += 2) hull = simplifyConvex(full, cap);
     const ids = new Set(members.map((m) => m.id));
-    // A tall record (it has its own hull at its own roof) is never under a cluster's: on a hill the
-    // cluster's roof follows the ground, which can stand well over a terraced tower's base.
-    const foreign = (ring: readonly P2[]): boolean => index.inside(ring).some((o) => !ids.has(o.id) && (Math.abs(levelOf(o) - top) > p.clusterHeightM || heightOf(o) >= p.tallM));
-    const covers = foreign(hull);
+    const covers = index.inside(hull).some((o) => !ids.has(o.id) && Math.abs(levelOf(o) - top) > p.clusterHeightM);
     if (!covers) {
       push(hull, members.length);
       continue;
@@ -352,10 +353,8 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     }
     const outline = (ring: readonly P2[], of: readonly Building[], cap0: number): P2[] => {
       let r = farOutline(ring, cap0);
-      for (let cap = cap0 + 2; !(covering(r, of) && !foreign(r)) && cap <= OUTLINE_MAX_VERTS; cap += 2) r = farOutline(ring, cap);
-      if (covering(r, of) && !foreign(r)) return r;
-      // The part's own outline, when it covers its members and no other record.
-      if (ring.length >= 3 && covering(ring, of) && !foreign(ring)) return signedArea(ring) > 0 ? [...ring].reverse() : [...ring];
+      for (let cap = cap0 + 2; !covering(r, of) && cap <= OUTLINE_MAX_VERTS; cap += 2) r = farOutline(ring, cap);
+      if (covering(r, of)) return r;
       // Still leaving a member out: the part's convex hull, simplified while it covers them all.
       const h = convexHull(ring);
       for (let cap = OUTLINE_MAX_VERTS; cap < h.length; cap += 4) {
@@ -390,7 +389,9 @@ function emitHull(m: MeshData, h: Hull, ground: (x: number, z: number) => number
   const n = h.ring.length;
   const g = h.ring.map(([x, z]) => ground(x, z));
   const bottom = Math.min(...g) - skirtM;
-  const tops = h.ring.map((_, i) => (h.absolute ? h.top : g[i]! + h.top));
+  // A cluster's roof follows the ground at its mean height, but never rises over its highest
+  // member's roof (on a hill the ground at a hull corner can stand over a terraced member's base).
+  const tops = h.ring.map((_, i) => (h.absolute ? h.top : Math.min(g[i]! + h.top, h.maxTop ?? Infinity)));
   const wallCol = rgba(h.wall, 0.92);
   const footCol = rgba(h.wall, 0.75);
   const roofCol = rgba(h.roof);

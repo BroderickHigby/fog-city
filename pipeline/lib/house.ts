@@ -275,39 +275,62 @@ export function houseData(
 export const FACADE_TURN_DEG = 60;
 /** ... and at most this much from the facade's first wall (a corner is two facades). */
 export const FACADE_SPREAD_DEG = 75;
+/** Other walls of at most this much in all (a recessed entry's sides) do not break a facade. */
+export const FACADE_GAP_M = 3;
 
 /**
- * The record's facades: runs of consecutive front walls (edge indices, in ring order) that face the
- * same way, so a Victorian front whose footprint carries its bay (two angled facets and the flat
- * wall) is one facade of its full width (K6: the bay is skinned there, not added).
+ * The record's facades: runs of front walls (edge indices, in ring order) that face the same way,
+ * through recesses of at most FACADE_GAP_M of other walls, so a Victorian front whose footprint
+ * carries its bay (two angled facets and the flat wall) or a Sunset front with a recessed entry is
+ * one facade of its full width (K6: a bay already in the footprint is skinned there, not added).
  */
 export function facades(ring: readonly P2[], walls: readonly number[]): number[][] {
   const n = ring.length;
+  const at = (i: number): number => ((i % n) + n) % n;
   const dir = (i: number): number => {
-    const [nx, nz] = outward(ring, i);
+    const [nx, nz] = outward(ring, at(i));
     return (bearing(nx, nz) * 180) / Math.PI;
   };
+  const len = (i: number): number => {
+    const a = ring[at(i)]!, c = ring[at(i + 1)]!;
+    return Math.hypot(c[0] - a[0], c[1] - a[1]);
+  };
   const turn = (a: number, b: number): number => Math.abs(((a - b + 540) % 360) - 180);
-  const front = (i: number): boolean => walls[((i % n) + n) % n] === WALL_FRONT;
-  // Start at a front wall that does not continue the one before it.
+  const front = (i: number): boolean => walls[at(i)] === WALL_FRONT;
+  /** The front wall before i (through at most FACADE_GAP_M of other walls), or null. */
+  const before = (i: number): number | null => {
+    let gap = 0;
+    for (let j = i - 1; j > i - n; j--) {
+      if (front(j)) return at(j);
+      gap += len(j);
+      if (gap > FACADE_GAP_M) return null;
+    }
+    return null;
+  };
+  // Start at a front wall that does not continue a facade.
   let start = -1;
-  for (let i = 0; i < n && start < 0; i++) if (front(i) && !(front(i - 1) && turn(dir(i), dir((i - 1 + n) % n)) <= FACADE_TURN_DEG)) start = i;
+  for (let i = 0; i < n && start < 0; i++) {
+    if (!front(i)) continue;
+    const j = before(i);
+    if (j === null || turn(dir(i), dir(j)) > FACADE_TURN_DEG) start = i;
+  }
   if (start < 0) start = walls.indexOf(WALL_FRONT);
   if (start < 0) return [];
   const out: number[][] = [];
   let cur: number[] = [];
+  let gap = 0;
   for (let k = 0; k < n; k++) {
-    const i = (start + k) % n;
+    const i = at(start + k);
     if (!front(i)) {
-      if (cur.length) out.push(cur);
-      cur = [];
+      gap += len(i);
       continue;
     }
-    if (cur.length && (turn(dir(i), dir(cur[cur.length - 1]!)) > FACADE_TURN_DEG || turn(dir(i), dir(cur[0]!)) > FACADE_SPREAD_DEG)) {
+    if (cur.length && (gap > FACADE_GAP_M || turn(dir(i), dir(cur[cur.length - 1]!)) > FACADE_TURN_DEG || turn(dir(i), dir(cur[0]!)) > FACADE_SPREAD_DEG)) {
       out.push(cur);
       cur = [];
     }
     cur.push(i);
+    gap = 0;
   }
   if (cur.length) out.push(cur);
   return out;
