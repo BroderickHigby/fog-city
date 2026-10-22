@@ -3,7 +3,8 @@
 // verify`). The soak: chase, weave, no-brake and rival drivers from five busy places (the Ferry
 // Building, Union Square, Chinatown, the Mission, the Castro) and chase and weave drivers in the
 // four narrow places (Ross Alley, Spofford Alley, Waverly Place, Lombard's crooked block), and a
-// jump driver over each of the six sharpest clear crests, 60 s each, two seeds. The fuzz:
+// jump driver over each of the six sharpest clear crests, 60 s each, two seeds (three in the
+// narrow places; one test per seed, so any part can be run alone with -t). The fuzz:
 // seeded scenes 161-2000 (the per-PR test runs 1-160). The optimiser (tests/sim/dodge-
 // optimiser.ts): a seeded search for a driver who can touch someone, in the open, against a
 // wall, in a corner, down an alley and onto a deck. Zero contacts always, and the override
@@ -61,9 +62,10 @@ describe.skipIf(!SF)("the clearance soak on the real city (nightly)", () => {
     }
   }, 600_000);
 
-  it("chase, weave, no-brake and rival drivers, 60 s each from five places, two seeds", () => {
-    const bad: string[] = [];
-    for (const seed of [1, 2]) {
+  // One test per seed, so each fits a run of a few minutes and can be run alone (`-t "seed 1"`).
+  for (const seed of [1, 2]) {
+    it(`chase, weave, no-brake and rival drivers, 60 s each from five places, seed ${seed}`, () => {
+      const bad: string[] = [];
       for (const st of starts) {
         for (const driver of ["chase", "weave", "nobrake", "rival"] as const) {
           const r = soak(world, st, driver, 3600, seed);
@@ -71,13 +73,13 @@ describe.skipIf(!SF)("the clearance soak on the real city (nightly)", () => {
           bad.push(...problems(r, seed));
         }
       }
-    }
-    expect(bad).toEqual([]);
-  }, 3_600_000);
+      expect(bad).toEqual([]);
+    }, 3_600_000);
+  }
 
-  it("chase and weave drivers in the narrow places (Chinatown's alleys, Lombard's crooked block), 60 s each, three seeds", () => {
-    const bad: string[] = [];
-    for (const seed of [3, 7, 8]) {
+  for (const seed of [3, 7, 8]) {
+    it(`chase and weave drivers in the narrow places (Chinatown's alleys, Lombard's crooked block), 60 s each, seed ${seed}`, () => {
+      const bad: string[] = [];
       for (const st of narrow) {
         for (const driver of ["chase", "weave"] as const) {
           const r = soak(world, st, driver, 3600, seed);
@@ -85,9 +87,9 @@ describe.skipIf(!SF)("the clearance soak on the real city (nightly)", () => {
           bad.push(...problems(r, seed));
         }
       }
-    }
-    expect(bad).toEqual([]);
-  }, 3_600_000);
+      expect(bad).toEqual([]);
+    }, 3_600_000);
+  }
 
   it("a jump driver over each of the six sharpest clear crests, two seeds", () => {
     const crests = findCrests(world, 6);
