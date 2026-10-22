@@ -10,7 +10,6 @@ import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
-import { parkShapes, tintParks } from "./parks.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
@@ -49,8 +48,6 @@ export interface WorldData {
   occluded: (x: number, y: number, z: number) => boolean;
   /** Where glb bytes come from (loose files or the packed build). Omitted: fetch each URL. */
   assets?: Assets;
-  /** districts.json, parsed (its park polygons tint the ground green), or null. */
-  districts?: unknown;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
 }
@@ -87,8 +84,6 @@ export interface RenderInfo {
   farCellsDrawn: number;
   /** Triangles in the loaded far cells. */
   farTriangles: number;
-  /** Far quads at the city's outer edge stitched to the streamed tiles' ground. */
-  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
 }
@@ -190,13 +185,10 @@ export class SceneRenderer {
     });
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
-    const parks = parkShapes(world.districts ?? null);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
-      tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
-      ground: world.ground,
     });
     this.scene.add(this.far.group);
 
@@ -213,7 +205,7 @@ export class SceneRenderer {
       loadGltf: assets ? loadTile : undefined,
       onReady: (g) => this.prepareShadows(g),
       onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
-      tintGround: (geo, m) => tintParks(geo, m, parks),
+      lakeMaterial: this.water.lakeMaterial,
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
@@ -445,7 +437,6 @@ export class SceneRenderer {
     out.farCells = f.loaded;
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
-    out.farSeamEdges = f.seamEdges;
     out.cameraFar = this.camera.far;
     return out;
   }
@@ -495,7 +486,6 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCells: 0,
   farCellsDrawn: 0,
   farTriangles: 0,
-  farSeamEdges: 0,
   cameraFar: 0,
 });
 

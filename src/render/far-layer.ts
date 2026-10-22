@@ -11,16 +11,11 @@
 // Look: flat-shaded vertex colours, the shared height fog, and at night sparse warm windows
 // hashed from world position on the walls, so the distant city glows.
 //
-// Seams: the far terrain is a 100 m lattice, a streamed tile's ground a 10 m one. At the city's
-// outer edge (a tile that streams in beside one that never does: the city limit, Ocean Beach's
-// sand strip) the far terrain's straight edge can stand above the tile's ground, opening a crack
-// that shows the sea plane far below, right where the car can stand. So each far quad just
-// outside such an edge is replaced by a stitch (outerSeams, stitchStrip): a strip whose inner
-// side follows the tile's ground every 10 m and whose outer side follows the far lattice. Inside
-// the city the near/far seam sits at the streaming radius and is left as it is. And the far
-// terrain stops at the candidate rectangle, so at its north and south ends the land (Marin, the
-// Peninsula) carries on outward as an apron (farApron) that eases down into the fog, instead of
-// ending in open sea.
+// Seams: the pipeline's far terrain runs every tile border through the near tiles' own 10 m
+// lattice samples, 0.5 m lower (pipeline far.ts, world QA W-17), so where the streaming ring
+// stops the far terrain meets the near ground from just below; the near ground's skirts
+// (ground-extras.ts) close that half metre. The far terrain stops at the far box, so at its north
+// and south ends the land carries on outward as an apron (farApron) that eases down into the fog.
 
 import * as THREE from "three";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
@@ -40,16 +35,12 @@ export interface FarCell {
 
 export interface FarLayerOptions {
   manifest: Manifest;
-  /** The streamed tiles' ground (the sim's): the far terrain is stitched to it at the city's outer edge (outerSeams). */
-  ground?: (x: number, z: number) => number;
   /** URL prefix of the world directory, ending in "/". */
   base: string;
   /** Loads one glb (the meshopt tile loader, through the asset layer). */
   load: (url: string) => Promise<GLTF>;
   /** Cells loaded at once. */
   maxConcurrent?: number;
-  /** Adjusts a cell's vertex colours once when it loads; `terrain` tells lattice vertices from hulls. */
-  tint?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => void;
 }
 
 /** The far terrain is a 100 m lattice: its vertices sit on whole multiples of 100 m; hull corners do not. */
@@ -69,16 +60,8 @@ export interface FarInfo {
   drawn: number;
   /** Triangles in the loaded cells. */
   triangles: number;
-  /** Far quads at the city's outer edge replaced by stitches to the streamed tiles' ground (outerSeams). */
-  seamEdges: number;
 }
 
-/** A stitch's inner side runs this far below the streamed tile's ground (so the tile wins the depth test). */
-export const STITCH_SINK_M = 0.05;
-/** A stitch's inner side follows the tile's ground at this spacing (the tiles' lattice). */
-export const STITCH_STEP_M = 10;
-/** ... over a band this deep, in facets the size of the tile's own; one quad covers the rest of the far quad. */
-export const STITCH_BAND_M = 10;
 /** Distances (m) of the apron's rows outward from the far terrain's north and south ends. */
 export const APRON_ROWS_M: readonly number[] = [0, 150, 400, 900, 1800, 3500, 7000, 14000];
 /** The apron's height at distance d, as a share of the edge's height: easing to APRON_FLOOR. */
@@ -175,104 +158,6 @@ export function farTerrain(geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4
   return out;
 }
 
-/** A far quad just outside the city's outer edge: its inner side a-b on the edge, its outer side a2-b2, and its triangles. */
-export interface OuterSeam {
-  a: FarPoint;
-  b: FarPoint;
-  a2: FarPoint;
-  b2: FarPoint;
-  /** Numbers of the geometry's triangles that make up the quad (they are hidden). */
-  tris: number[];
-}
-
-/**
- * The far quads of one cell that lie just outside the city's outer edge: on a tile boundary
- * with a tile that can stream in on one side and none on the other, on the side with none.
- */
-export function outerSeams(t: FarTerrain, opts: { tileSizeM: number; builtTile: (ix: number, iz: number) => boolean }): OuterSeam[] {
-  const T = opts.tileSizeM;
-  const out: OuterSeam[] = [];
-  const keys = [...t.edges.keys()].sort();
-  for (const key of keys) {
-    const { a: ka, b: kb } = t.edges.get(key)!;
-    const a = t.points.get(ka)!;
-    const b = t.points.get(kb)!;
-    const vertical = a.x === b.x;
-    const line = vertical ? a.x : a.z;
-    if (Math.abs(line / T - Math.round(line / T)) > 1e-9) continue;
-    const k = Math.round(line / T);
-    const j = Math.floor((vertical ? (a.z + b.z) / 2 : (a.x + b.x) / 2) / T);
-    const before = vertical ? opts.builtTile(k - 1, j) : opts.builtTile(j, k - 1);
-    const after = vertical ? opts.builtTile(k, j) : opts.builtTile(j, k);
-    if (before === after) continue;
-    // Step from the edge onto the side with no tile.
-    const step = after ? -LATTICE_M : LATTICE_M;
-    const k2a = vertical ? pointKey(a.x + step, a.z) : pointKey(a.x, a.z + step);
-    const k2b = vertical ? pointKey(b.x + step, b.z) : pointKey(b.x, b.z + step);
-    const a2 = t.points.get(k2a);
-    const b2 = t.points.get(k2b);
-    if (!a2 || !b2) continue;
-    const quad = new Set([ka, kb, k2a, k2b]);
-    const tris = t.tris.filter((tr) => tr.keys.every((q) => quad.has(q))).map((tr) => tr.t);
-    if (tris.length !== 2) continue;
-    out.push({ a, b, a2, b2, tris });
-  }
-  return out;
-}
-
-/**
- * The stitches for a cell's outer seams. Per seam: a band STITCH_BAND_M deep whose inner side
- * runs along the tile's ground (`ground`, every STITCH_STEP_M, STITCH_SINK_M below it) and whose
- * outer side lies on the far quad's surface (bilinear in its corners), in 10 m facets like the
- * tile's own ground; then one quad from there to the far quad's outer side, which it meets
- * exactly, as the next far quad does. Triangles face up. Positions and colours.
- */
-export function stitchStrip(seams: readonly OuterSeam[], ground: (x: number, z: number) => number, colorSize: number): { positions: number[]; colors: number[] } {
-  const out = { positions: [] as number[], colors: [] as number[] };
-  const n = Math.round(LATTICE_M / STITCH_STEP_M);
-  const g = STITCH_BAND_M / LATTICE_M;
-  type V = [number, number, number, number[]];
-  const lerpV = (p: V, q: V, f: number): V => {
-    const c: number[] = [];
-    for (let k = 0; k < colorSize; k++) c.push(p[3][k]! + (q[3][k]! - p[3][k]!) * f);
-    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, p[2] + (q[2] - p[2]) * f, c];
-  };
-  const tri = (t0: V, t1: V, t2: V): void => {
-    // Wind it so its normal points up, whichever side of the edge the strip is on.
-    const ny = (t1[2] - t0[2]) * (t2[0] - t0[0]) - (t1[0] - t0[0]) * (t2[2] - t0[2]);
-    for (const v of ny >= 0 ? [t0, t1, t2] : [t0, t2, t1]) {
-      out.positions.push(v[0], v[1], v[2]);
-      out.colors.push(...v[3]);
-    }
-  };
-  const quad = (p: V, q: V, r: V, u: V): void => {
-    tri(p, q, r);
-    tri(q, u, r);
-  };
-  for (const s of seams) {
-    const A: V = [s.a.x, s.a.y, s.a.z, s.a.c];
-    const B: V = [s.b.x, s.b.y, s.b.z, s.b.c];
-    const A2: V = [s.a2.x, s.a2.y, s.a2.z, s.a2.c];
-    const B2: V = [s.b2.x, s.b2.y, s.b2.z, s.b2.c];
-    // The band's outer side: on the far quad's surface, STITCH_BAND_M out (a straight line).
-    const MA = lerpV(A, A2, g);
-    const MB = lerpV(B, B2, g);
-    let prevIn: V | null = null;
-    let prevMid: V | null = null;
-    for (let i = 0; i <= n; i++) {
-      const f = i / n;
-      const e = lerpV(A, B, f);
-      const inner: V = [e[0], ground(e[0], e[2]) - STITCH_SINK_M, e[2], e[3]];
-      const mid = lerpV(MA, MB, f);
-      if (prevIn && prevMid) quad(prevIn, inner, prevMid, mid);
-      prevIn = inner;
-      prevMid = mid;
-    }
-    quad(MA, MB, A2, B2);
-  }
-  return out;
-}
-
 /** Apron triangles for one cell: positions and colours (the terrain's colour components). */
 export function farApron(t: FarTerrain, northZ: number, southZ: number): { positions: number[]; colors: number[] } {
   const out = { positions: [] as number[], colors: [] as number[] };
@@ -314,25 +199,6 @@ export function farApron(t: FarTerrain, northZ: number, southZ: number): { posit
     }
   }
   return out;
-}
-
-/** Collapse the given triangles of a geometry to points, so they draw nothing (an index buffer, or each triangle's own three vertices). */
-export function hideTriangles(geo: THREE.BufferGeometry, tris: readonly number[]): void {
-  const index = geo.getIndex();
-  if (index) {
-    for (const t of tris) {
-      const first = index.getX(3 * t);
-      index.setX(3 * t + 1, first);
-      index.setX(3 * t + 2, first);
-    }
-    index.needsUpdate = true;
-    return;
-  }
-  const pos = geo.getAttribute("position") as THREE.BufferAttribute;
-  for (const t of tris) {
-    for (const k of [1, 2]) pos.setXYZ(3 * t + k, pos.getX(3 * t), pos.getY(3 * t), pos.getZ(3 * t));
-  }
-  pos.needsUpdate = true;
 }
 
 const FAR_VERTEX_PARS = /* glsl */ `
@@ -407,8 +273,6 @@ export class FarLayer {
   private readonly opts: FarLayerOptions;
   private readonly builtTiles: Set<string>;
   private readonly ends: { northZ: number; southZ: number };
-  /** Far quads replaced by stitches (outerSeams). */
-  private seamEdges = 0;
   private readonly cells: FarCell[];
   private readonly mask: THREE.DataTexture;
   private readonly maskData: Uint8Array;
@@ -507,7 +371,6 @@ export class FarLayer {
       const old = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       for (const m of old) m.dispose();
       mesh.material = this.material;
-      this.opts.tint?.(mesh.geometry, mesh.matrixWorld, onFarLattice);
       mesh.castShadow = false;
       mesh.receiveShadow = false;
       const index = mesh.geometry.getIndex();
@@ -516,14 +379,14 @@ export class FarLayer {
         this.drawnThisFrame++;
       };
     });
-    this.addSeams(root);
+    this.addApron(root);
     this.roots.push(root);
     this.group.add(root);
     this.loaded++;
   }
 
-  /** The cell's stitches at the city's outer edge (outerSeams) and its apron (farApron), under its root. */
-  private addSeams(root: THREE.Object3D): void {
+  /** The cell's apron (farApron), under its root. */
+  private addApron(root: THREE.Object3D): void {
     const meshes: THREE.Mesh[] = [];
     root.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
@@ -545,15 +408,6 @@ export class FarLayer {
     for (const mesh of meshes) {
       const terrain = farTerrain(mesh.geometry, mesh.matrixWorld);
       if (terrain.points.size === 0) continue;
-      const ground = this.opts.ground;
-      if (ground) {
-        const seams = outerSeams(terrain, { tileSizeM: this.opts.manifest.tileSizeM ?? TILE_SIZE_M, builtTile: (ix, iz) => this.builtTiles.has(`${ix},${iz}`) });
-        if (seams.length > 0) {
-          hideTriangles(mesh.geometry, seams.flatMap((q) => q.tris));
-          part("far-stitch", stitchStrip(seams, ground, terrain.colorSize), terrain.colorSize);
-          this.seamEdges += seams.length;
-        }
-      }
       part("far-apron", farApron(terrain, this.ends.northZ, this.ends.southZ), terrain.colorSize);
     }
   }
@@ -575,7 +429,7 @@ export class FarLayer {
   }
 
   info(): FarInfo {
-    return { total: this.cells.length, loaded: this.loaded, failed: this.failed, drawn: this.drawnLast, triangles: this.triangles, seamEdges: this.seamEdges };
+    return { total: this.cells.length, loaded: this.loaded, failed: this.failed, drawn: this.drawnLast, triangles: this.triangles };
   }
 
   /** True once every cell has loaded or failed. */

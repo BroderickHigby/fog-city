@@ -33,6 +33,7 @@ uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform float uBodyLight;
 uniform vec3 uCityGlow;
+uniform float uWave;
 varying vec3 vWorld;
 
 float fcWHash( vec2 p ) {
@@ -76,6 +77,7 @@ void main() {
   g += 0.22 * 0.11 * fcWNoiseD( p * 0.11 + vec2( t * 0.11, t * 0.07 ) ).yz * ( 1.0 - smoothstep( 4.0, 9.0, px ) );
   g += 0.10 * 0.29 * fcWNoiseD( p * 0.29 - vec2( t * 0.21, -t * 0.13 ) ).yz * ( 1.0 - smoothstep( 1.5, 3.5, px ) );
   g += 0.04 * 0.83 * fcWNoiseD( p * 0.83 + vec2( -t * 0.35, t * 0.3 ) ).yz * ( 1.0 - smoothstep( 0.5, 1.2, px ) );
+  g *= uWave;
   float fade = 1.0 - smoothstep( 300.0, 2500.0, dist );
   vec3 N = normalize( vec3( -g.x * fade, 1.0, -g.y * fade ) );
   float cosT = max( dot( N, -V ), 0.0 );
@@ -96,29 +98,43 @@ void main() {
 }
 `;
 
+/** The water shader's material: the sea's (depthDrop 0.12, full waves) or a lake's. */
+function waterMaterial(name: string, bodyLight: { value: number }, cityGlow: { value: THREE.Color }, depthDrop: number, wave: number): THREE.ShaderMaterial {
+  const material = new THREE.ShaderMaterial({
+    name,
+    uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog]) as Record<string, THREE.IUniform>,
+    vertexShader: VERTEX,
+    fragmentShader: FRAGMENT,
+    fog: true,
+  });
+  Object.assign(material.uniforms, skyUniforms, fcUniforms, {
+    uTime: fcUniforms.fcTime,
+    uDeep: { value: new THREE.Color(0x163238) },
+    uShallow: { value: new THREE.Color(0x2c4a4a) },
+    uBodyLight: bodyLight,
+    uDepthDrop: { value: depthDrop },
+    uCityGlow: cityGlow,
+    uWave: { value: wave },
+  });
+  return material;
+}
+
 export class Water {
   readonly mesh: THREE.Mesh;
+  /** The inland lakes' material (W-11): the sea's shader with calmer waves, drawn at each lake's level (ground-extras.ts). */
+  readonly lakeMaterial: THREE.ShaderMaterial;
   private material: THREE.ShaderMaterial;
   private bodyLight: { value: number };
   private cityGlow = { value: new THREE.Color(0, 0, 0) };
 
   constructor(size = 14000) {
     this.bodyLight = { value: 1 };
-    this.material = new THREE.ShaderMaterial({
-      name: "fc:water",
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog]) as Record<string, THREE.IUniform>,
-      vertexShader: VERTEX,
-      fragmentShader: FRAGMENT,
-      fog: true,
-    });
-    Object.assign(this.material.uniforms, skyUniforms, fcUniforms, {
-      uTime: fcUniforms.fcTime,
-      uDeep: { value: new THREE.Color(0x163238) },
-      uShallow: { value: new THREE.Color(0x2c4a4a) },
-      uBodyLight: this.bodyLight,
-      uDepthDrop: { value: 0.12 },
-      uCityGlow: this.cityGlow,
-    });
+    this.material = waterMaterial("fc:water", this.bodyLight, this.cityGlow, 0.12, 1);
+    this.lakeMaterial = waterMaterial("fc:lake", this.bodyLight, this.cityGlow, 0, 0.35);
+    // Lakes sit a few centimetres over their flattened ground: win the depth test far away too.
+    this.lakeMaterial.polygonOffset = true;
+    this.lakeMaterial.polygonOffsetFactor = -2;
+    this.lakeMaterial.polygonOffsetUnits = -4;
     const geo = new THREE.PlaneGeometry(size, size, 1, 1);
     geo.rotateX(-Math.PI / 2);
     this.mesh = new THREE.Mesh(geo, this.material);
@@ -160,5 +176,6 @@ export class Water {
   dispose(): void {
     this.mesh.geometry.dispose();
     this.material.dispose();
+    this.lakeMaterial.dispose();
   }
 }

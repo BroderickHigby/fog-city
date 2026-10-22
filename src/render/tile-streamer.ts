@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
+import { groundSkirt, lakeSurface, type SimpleMesh } from "./ground-extras.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
@@ -59,8 +60,12 @@ export interface StreamerOptions {
   onReady?: (group: THREE.Group) => void;
   /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
   onTileVisible?: (id: string, visible: boolean) => void;
-  /** Adjusts a ground mesh's vertex colours once when its tile loads (parks.ts). */
-  tintGround?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4) => void;
+  /**
+   * The inland lakes' water (W-11; Water.lakeMaterial). With it, every tile whose heightfield has
+   * lake samples gets a "lakes" mesh at their level (ground-extras.ts lakeSurface). The ground's
+   * own colours are the pipeline's ground classes and are never changed here.
+   */
+  lakeMaterial?: THREE.Material;
   /**
    * When a tile's glb fails for good: that tile's own collider, fetched lazily, with the
    * building meta (use, year, stories) the fallback look reads; null when there is none (the
@@ -335,7 +340,6 @@ export class TileStreamer {
         else if (layer === "ground") {
           layers.ground = true;
           dropWaterTriangles(geo, mesh.matrixWorld);
-          this.opts.tintGround?.(geo, mesh.matrixWorld);
         } else if (layer === "road" || layer === "freeway") layers.roads = true;
         disposeMaterial(m);
         return materialFor(this.opts.materials, layer, { hasNormals: !!geo.getAttribute("normal"), hasUv: !!geo.getAttribute("uv") });
@@ -406,7 +410,6 @@ export class TileStreamer {
         if (!data) return;
         const g = geometryFromMeshData(data);
         rec.geometries.push(g);
-        if (name === "ground") this.opts.tintGround?.(g, IDENTITY);
         const mesh = new THREE.Mesh(g, mat);
         mesh.name = name;
         mesh.matrixAutoUpdate = false;
@@ -417,6 +420,7 @@ export class TileStreamer {
       add(meshes.buildings, m.building, "buildings");
       add(meshes.roads, m.road, "roads");
     }
+    this.addGroundExtras(rec);
     // Street props from the road graph.
     const edges = this.roadsByTile.get(rec.id) ?? [];
     if (edges.length > 0) {
@@ -432,6 +436,30 @@ export class TileStreamer {
     this.opts.parent.add(rec.group);
     this.opts.onTileVisible?.(rec.id, true);
     this.dirty = true;
+  }
+
+  /** Lakes at their level and the skirts under the ground's borders (ground-extras.ts), from the tile's heightfield. */
+  private addGroundExtras(rec: TileRecord): void {
+    const ground = (rec.collider ?? this.opts.colliders.get(rec.id))?.ground;
+    if (!ground) return;
+    const add = (name: string, data: SimpleMesh & { colors?: Float32Array }, mat: THREE.Material): void => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
+      g.setAttribute("normal", new THREE.BufferAttribute(data.normals, 3));
+      if (data.colors) g.setAttribute("color", new THREE.BufferAttribute(data.colors, 3));
+      g.setIndex(new THREE.BufferAttribute(data.indices, 1));
+      g.computeBoundingSphere();
+      g.computeBoundingBox();
+      rec.geometries.push(g);
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.name = name;
+      mesh.matrixAutoUpdate = false;
+      rec.group.add(mesh);
+    };
+    const lakes = this.opts.lakeMaterial ? lakeSurface(ground) : null;
+    if (lakes) add("lakes", lakes, this.opts.lakeMaterial!);
+    const skirt = groundSkirt(ground);
+    if (skirt) add("ground-skirt", skirt, this.opts.materials.groundSkirt);
   }
 
   private applyHidden(rec: TileRecord): void {
@@ -478,7 +506,6 @@ export class TileStreamer {
 }
 
 const _v = new THREE.Vector3();
-const IDENTITY = new THREE.Matrix4();
 
 /**
  * Remove triangles whose three corners all lie on or below the water plane (y <= 0.02 in

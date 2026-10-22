@@ -296,6 +296,8 @@ export interface SharedMaterials {
   /** For building meshes shipped without normals (flat shading from screen derivatives). */
   buildingFlat: THREE.MeshStandardMaterial;
   ground: THREE.MeshStandardMaterial;
+  /** The curtains under the ground's borders (ground-extras.ts groundSkirt): both sides drawn. */
+  groundSkirt: THREE.MeshStandardMaterial;
   road: THREE.MeshStandardMaterial;
   /** Road and freeway ribbons with kerb-to-kerb UVs (pipeline tiles). */
   roadUv: THREE.MeshStandardMaterial;
@@ -330,6 +332,8 @@ export function createSharedMaterials(): SharedMaterials {
   ground.onBeforeCompile = patchGrainShader(0.22, 0.08);
   ground.customProgramCacheKey = () => "fc:ground:v1";
 
+  const groundSkirt = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide, name: "fc:ground-skirt" });
+
   const road = roadMaterial("fc:road", patchGrainShader(0.16, 0.35));
   const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false));
   const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true));
@@ -341,13 +345,14 @@ export function createSharedMaterials(): SharedMaterials {
     building,
     buildingFlat,
     ground,
+    groundSkirt,
     road,
     roadUv,
     freewayUv,
     foliage,
     lampPole,
     lampHead,
-    all: [building, buildingFlat, ground, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+    all: [building, buildingFlat, ground, groundSkirt, road, roadUv, freewayUv, foliage, lampPole, lampHead],
   };
 }
 
