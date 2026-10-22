@@ -597,12 +597,17 @@ from the parcel pass.
 
 **The Daly City strip (W-42).** Records south of the county line (z > 9,600 m) in no San
 Francisco neighbourhood never make a tile built (`docs/design.md`, decision log 2026-10-21).
-Row 20 is no longer built west of x = 140: its tiles are `outside` (`san-mateo-county`), the
-strip's records there are far scenery only (`report.json` `farOnly`, with their tiles), and the
-south wall is one straight run along z = 10,000. The strip's records inside row 19's tiles (the
-500 m grid reaches past the county line) stay near records, drawn and solid: the renderer hides
-the far layer over a streamed tile, so a far-only record there would vanish as its tile loads.
-Moving the wall onto the county line (and those records to scenery) is the remaining step.
+Row 20 is no longer built west of x = 140: its tiles are `outside` (`san-mateo-county`). Inside
+row 19 (the 500 m grid reaches past the county line) the world stops at the line itself: a 10 m
+lattice cell is cut when its centre is south of z = 9,600, in no neighbourhood, and more than
+`COUNTY_POCKET_M` (15 m) beyond every road's kerb, and `boundary.json`'s land edges run round
+the cut cells. The pocket round each San Francisco street that carries on a little past the line
+(Mission St, Geneva Ave, I-280 and about 70 others) keeps every lane and sidewalk at least 7.9 m
+clear of the wall. A strip record wholly in cut cells is scenery: no collider, storefront or
+district; its tile's glb draws it in a `buildings-scenery` node (the renderer hides the far layer
+over a streamed tile, so it must be in the tile) and the far layer draws it everywhere. A strip
+record that reaches into a pocket stays a near record, drawn and solid. `report.json` `farOnly`:
+2,967 scenery records (2,938 drawn in row-19 tiles, 29 in row 20), 393 kept solid in pockets.
 
 **House data (W-15, W-29, W-37, W-38, W-46 to W-50; `pipeline/lib/house.ts`,
 `docs/qa/house-kit-spec.md` K0 to K8).**
@@ -696,6 +701,7 @@ went from 26.72 MB to 11.83 MB. Citywide: 583 tiles, 115.3 MB, largest 0.56 MB
 |---|---|
 | `ground` | The heightfield as triangles split along the (i+1, k)–(i, k+1) diagonal. All-water cells are greedily merged into flat rectangles (an all-bay tile is one quad). `NORMAL` comes from central differences on the global lattice, so seams shade continuously. `COLOR_0` by ground class (`ground.cover`): water (the Bay and every lake) blue-grey, grass, forest, sand, land warm grey. |
 | `foliage-broadleaf`, `foliage-conifer` | Instanced trees (W-18): a small vertex-coloured prototype drawn once per instance by `EXT_mesh_gpu_instancing` (used, not required); instance `TRANSLATION` about the tile centre (the node's translation, scale 1), `SCALE` (crown width, height, crown width). Only in tiles with trees. |
+| `buildings-scenery` | The Daly City strip's records past the county-line wall (W-42), built like `buildings` (same material, attributes and wall classes) but never collided with; node `extras.scenery` = `[[id, firstIndex, indexCount], …]`. Only in row-19 tiles that reach past the county line. The renderer's layer rule (`/^buildings?/`) already draws it as buildings. |
 | `roads` | Surface road ribbons 0.15 m above the mesh ground, each side draped separately, densified to ≤ 8 m. `TEXCOORD_0` = (0 left kerb … 1 right kerb, metres along the edge, continuous across tiles). |
 | `freeways` | Freeway and ramp ribbons, draped like roads. The source has no deck heights: they lie on the terrain, and stretches over the bay (the Bay Bridge) are not drawn. A separate node, so a renderer can hide it. |
 | `buildings` | Every collider record in the tile, merged, with no normals (glTF loaders shade flat; three.js sets `flatShading`). `COLOR_0` is the facade colour, darker at the foot. `TEXCOORD_0` = (metres along the wall, metres above `baseY`); roof vertices use (x, z). `_FACADE` (three.js: `_facade`, normalized uint8 ×4) = (storey height / 8 m, glazing 0–1, (year − 1840)/190 or 0 if unknown, wall class: 0 rear or side, 85 party, 170 front, 255 roof). `TEXCOORD_0.y` is metres above the record's street level (`meta.streetY`) or its base. Node `extras.buildings` = `[[colliderId, firstIndex, indexCount], …]` in collider order, so a renderer can hide a building a landmark replaces; `extras.fronts` lists the house kit's facades (see [House data](#ground-cover-newer-buildings-houses-and-the-far-ring-world-qa-2026-10-22)). |
@@ -740,7 +746,7 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
 
 The sim must hold the whole world's collision data deterministically, on every client and
 the server, whatever the renderer has streamed. The design's preferred option (a) ships:
-one binary pack for the whole city, **14.90 MB** (budget 15 MB), against 98.3 MB for the
+one binary pack for the whole city, **14.75 MB** (budget 15 MB), against 97.3 MB for the
 581 per-tile JSON colliders. Format FCWC version 1, specified in
 [`schemas/world-colliders.md`](../schemas/world-colliders.md): a 64-byte header, a tile
 table, every tile's 51 × 51 heightfield as int16 cm and its water mask as bits, then 20-byte
@@ -758,15 +764,15 @@ the lakes' names stay in the JSON (`ground.cover`, `ground.lakes`): they are the
 Encoded for the static web build (gzip level 6, base64) the pack is 14.19 MB, over that build's
 14 MB per-file margin, so `scripts/build-web.ts` writes it as parts the page joins.
 
-The per-tile JSON colliders still ship (98.3 MB, inside the 100 MB budget for them): they
+The per-tile JSON colliders still ship (97.3 MB, inside the 100 MB budget for them): they
 are today's contract for the sim's boot and the renderer, and they carry `meta` (footY,
 year, use, storeys) the pack leaves out. **The sim should switch to the pack**; see
 [What the sim and renderer must change](#what-the-sim-and-renderer-must-change).
 
 ## Far-LOD massing (`fX_Z.glb`)
 
-`pipeline/lib/far.ts`. Every record (the 196,135 collider records and the Daly City strip's
-29 far-only ones), simplified and merged per large cell, with the terrain beyond the
+`pipeline/lib/far.ts`. Every record (the 193,197 collider records and the Daly City strip's
+2,967 scenery ones), simplified and merged per large cell, with the terrain beyond the
 streaming radius. The grid starts at the far box's north-west corner with **3,500 m cells**;
 26 cells hold something. One glb per cell, one node `far`, one primitive, so one draw call per
 cell (budget: 40 draw calls, 600k triangles). The far box is the config's (`areas.json`
@@ -809,9 +815,10 @@ only where no streamed tile is (the renderer's tile mask).
 of the world, on the global 10 m ground lattice (so it is a pure function of the tiles):
 
 * **`edges`**: the outline of the built tiles, built tiles on the left of travel (+x east,
-  +z south), split into runs by what lies under it. **`land`** runs (11.9 km) are where the
-  world stops on dry ground: along the last built row at the southern city limit (Daly City,
-  Brisbane), where a built tile meets Alcatraz, Marin or the Ocean Beach strip. Beyond them
+  +z south), split into runs by what lies under it. **`land`** runs (17.6 km) are where the
+  world stops on dry ground: along the county line inside the last built row (cell by cell,
+  round the road pockets: W-42) and that row's south edge at the southern city limit (Daly
+  City, Brisbane), where a built tile meets Alcatraz, Marin or the Ocean Beach strip. Beyond them
   there is no ground (the sim's ground is 0 outside the tiles, a 100 m drop at the city
   limit), so **the sim must wall them off**. **`water`** runs (61.1 km) are where the
   outline crosses open water: the sea wall and the towing rule cover them.
@@ -821,10 +828,15 @@ of the world, on the global 10 m ground lattice (so it is a pure function of the
   hills and structures](#streets-hills-and-structures-world-qa-2026-10-21)), so it runs round
   them. It is the line for the design's **sea-wall collider** and the
   **Bay-edge refill zone** (refill within a few metres of it, on the land side). Open lines
-  end at the edge of the built tiles.
+  end at the edge of the built tiles. **The inland lakes are water here too** (W-11): the
+  marching squares run over sea or lake samples, and each lake's outline is a closed line
+  tagged `lake` (its id, as in the colliders' `ground.lakes`), so the sim's existing shore walls
+  stop a car at the bank of Lake Merced, Stow Lake and the rest as they do at the Bay, and a
+  path that crosses a lake on a bridge gets a corridor. 30 lake rings, 23.8 km. A lake whose
+  water meets the sea's (the Crissy Field marsh, the India Basin pond) is inside the sea's line.
 * `seaLevelY`: 0.
 
-52 KB. Not emitted yet: deck profiles for the bridges and the Bay Bridge (wave 3 and 8).
+84 KB. Not emitted yet: deck profiles for the bridges and the Bay Bridge (wave 3 and 8).
 
 ## Districts (`districts.json`)
 
@@ -998,11 +1010,11 @@ where surface roads cross it). Walkers do not use `sidewalks.json` yet. The orig
 
 | Files | Bytes |
 |---|---|
-| 581 × `t*.glb` (quantised + meshopt) | 148.45 MB (largest 0.77 MB, `t-4_-1`; budget 150 MB) |
-| 581 × `t*.collider.json` | 98.27 MB (largest 0.57 MB; budget 100 MB) |
-| `world.colliders.bin` | 14.90 MB (budget 15 MB) |
+| 581 × `t*.glb` (quantised + meshopt) | 148.41 MB (largest 0.77 MB, `t-4_-1`; budget 150 MB) |
+| 581 × `t*.collider.json` | 97.34 MB (largest 0.57 MB; budget 100 MB) |
+| `world.colliders.bin` | 14.75 MB (budget 15 MB) |
 | `sidewalks.json` | 10.54 MB |
-| 26 × `f*.glb` (far-LOD) | 7.77 MB |
+| 26 × `f*.glb` (far-LOD) | 7.76 MB |
 | `roads.json` | 4.63 MB |
 | `street-cleaning.json` | 3.73 MB |
 | `storefronts.json` | 1.52 MB |
@@ -1010,12 +1022,13 @@ where surface roads cross it). Walkers do not use `sidewalks.json` yet. The orig
 | `muni.json` | 0.66 MB |
 | `hydrants.json`, `districts.json`, `signals.json`, `fountains.json`, `boundary.json` | 0.73 MB |
 | `manifest.json` + `report.json` | 0.26 MB |
-| **Total (the whole city, 1,202 files)** | **292.72 MB** (292,719,905 bytes; budget 300 MB) |
+| **Total (the whole city, 1,202 files)** | **291.61 MB** (291,613,740 bytes; budget 300 MB) |
 
 The world QA's ground cover, foliage and house data (2026-10-22) added about 20 MB to the tile
-glbs and 3 MB to the collider JSON. Three budgets are now close: the tile glbs (1.55 MB left),
-the collider JSON (1.73 MB) and the collider pack (0.10 MB), so the next per-tile or per-record
-addition needs room made first. A regeneration peaks at 5.0 GB of resident memory
+glbs and 3 MB to the collider JSON; the Daly City strip's move to scenery (W-42) gave back
+0.9 MB of collider JSON and 0.15 MB of pack. Three budgets are still close: the tile glbs
+(1.59 MB left), the collider JSON (2.66 MB) and the collider pack (0.25 MB), so the next
+per-tile or per-record addition needs room made first. A regeneration peaks at 5.0 GB of resident memory
 (`--max-old-space-size=8192`).
 
 Budgets live in `tests/pipeline/budgets.json` and `tests/pipeline/budgets.test.ts` enforces
@@ -1081,12 +1094,13 @@ memory, and compares SHA-256 of every file.
   rebuilt (2012–2015) on new alignments: the Battery tunnel is bored northbound and the Main
   Post tunnel southbound, where the DEM's hill stands over the line; the other direction's
   hill is too shallow (under 3 m of cover) and runs over it.
-* **The collider pack is 0.10 MB under its budget** (14.90 of 15 MB raw). The static web build
+* **The collider pack is 0.25 MB under its budget** (14.75 of 15 MB raw). The static web build
   splits any encoded file over 14 MB into parts (`scripts/build-web.ts`), so the host's 15 MB
   file limit is not the constraint; the pipeline budget is.
 * **Lakes are flat water, not basins.** A lake is its outline flattened to its level (up to
-  2.5 m of bank cut away); there is no lake bed, and the sim does not yet treat `LAKE` samples
-  as water (Sim-World).
+  2.5 m of bank cut away); there is no lake bed. The sim keeps cars off a lake by its shore
+  ring in `boundary.json` (walls, as at the Bay); it does not read the `LAKE` samples
+  themselves yet (swimming, towing and refill at a lake are Sim-World's).
 * **House data is data.** The wall classes, storeys and fronts are in the glbs; the shader
   branches (party walls blank, garage doors, shopfront glazing) and the instanced bays, stoops
   and cornices are the renderer's and the assets' (house kit K1–K8). Pitched roofs (K8) are not
@@ -1224,7 +1238,13 @@ memory, and compares SHA-256 of every file.
   rest within 5 m at p99), `facade-storeys.test.ts` (W-15, W-29: storeys under 5 m, the
   garage storey, the grid at the sidewalk) and `house-kit.test.ts` (W-46 to W-50 data: wall
   classes, 30th Ave's fronts and garage doors, Liberty St's bays, stoops, storefront walls,
-  the facade grouping). `citywide.test.ts` also checks the Daly City strip is far-only (W-42).
+  the facade grouping). `citywide.test.ts` also checks the Daly City strip: scenery past the
+  county-line wall, drawn by the row-19 glbs, the outline's county-line runs (W-42).
+  `network.test.ts` (W-42, the report's acceptance test): every built tile with buildings has a
+  drivable street or is on the named list of 13 pier-end and shoreline tiles, and every solid
+  strip record reaches a road's pocket. `inland-water.test.ts` also checks every lake's tagged
+  ring in `boundary.json` and drives a sim car at South Lake Merced from both banks: it stops
+  at the shore (the QA's C4 drive went 625 m across the water).
 * `tower-rule.test.ts`: the tower rule on real DataSF statistics: the 600 Montgomery
   pyramid, the Ferry Building clock tower, Coit Tower, the Russ Building and an office slab
   keep their towers; five measured needles (including the review's four) do not.

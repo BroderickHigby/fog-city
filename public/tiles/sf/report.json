@@ -1209,7 +1209,8 @@
       "t-8_19",
       "t-9_19"
     ],
-    "drawnInTiles": 2938
+    "drawnInTiles": 2938,
+    "keptNear": 393
   },
   "landcover": {
     "lakes": [
