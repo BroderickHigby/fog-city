@@ -163,8 +163,8 @@ export class PropClearance {
       }
       return false;
     }
-    // Outside every tile: open water.
-    return true;
+    // Outside every heightfield: open water, in a world that has them (a flat hand-made world has none).
+    return this.grounds.length > 0;
   }
 
   /** May a prop stand at (x, z)? */
