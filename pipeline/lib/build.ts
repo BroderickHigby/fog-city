@@ -87,9 +87,8 @@ export interface Report {
   overridesApplied: string[];
   /** Buildings newer than the footprint layer (newer.ts, W-04). */
   newer: NewerStats;
-  /** Records south of the county line drawn only in the far layer (W-42). */
-  /** The Daly City strip's far-only records (W-42): count, the first ids, and every tile they stand in (never a built one). */
-  farOnly: { records: number; ids: string[]; tiles: string[] };
+  /** The Daly City strip's scenery records (W-42): count, the first ids, every tile they stand in, and how many a built tile's glb draws (node buildings-scenery). */
+  farOnly: { records: number; ids: string[]; tiles: string[]; drawnInTiles: number };
   /** Ground cover: lakes, classes, trees (landcover.ts, W-11, W-18, W-34). */
   landcover: LandcoverStats | null;
   roads: RoadStats;
@@ -366,8 +365,15 @@ function mergeClearance(a: ClearanceStats, b: ClearanceStats): ClearanceStats {
   };
 }
 
-/** Records whose interior point lies south of this (local z, m) and in no SF neighbourhood are far scenery only (W-42). */
+/** Records whose interior point lies south of this (local z, m) and in no SF neighbourhood are the Daly City strip (W-42): they never make a tile built, and past the county-line wall they are scenery. */
 export const SOUTH_CROP_Z = 9600;
+/**
+ * W-42: past the county line, land within this many metres of a road's kerb stays in the world
+ * (the pocket round a San Francisco centreline that carries on a little past the line), so the
+ * wall never meets a lane or a sidewalk. The wall follows 10 m lattice cells, so it stands at
+ * least COUNTY_POCKET_M - 7.1 m beyond the kerb.
+ */
+export const COUNTY_POCKET_M = 15;
 
 export interface BuildOptions {
   /** Ground-cover rules (pipeline/landcover.json); with raw.landcover, the lattice gets classes, lakes and trees. */
@@ -478,12 +484,14 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const reconciled = reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground));
 
   // The Daly City strip (W-42, docs/design.md decision log 2026-10-21): records south of the
-  // county line, in no San Francisco neighbourhood, never make a tile built. Those whose tile is
-  // built anyway (by San Francisco land and streets: the last built row reaches past the county
-  // line, and the south wall follows the 500 m tile grid) stay near records, drawn and solid, so
-  // nothing vanishes as that tile streams in (the renderer hides the far layer over a streamed
-  // tile); the rest are far scenery: no near tile, collider or storefront. A tower goes with its
-  // podium.
+  // county line, in no San Francisco neighbourhood, never make a tile built. Inside the last built
+  // row the world's land wall runs along the county line (boundary.ts cutLand), except round the
+  // ends of the San Francisco centrelines that carry on a little past it (Mission St, Geneva Ave,
+  // I-280 ...): a pocket of COUNTY_POCKET_M beyond each road's kerb stays in the world, so no lane
+  // or sidewalk meets the wall. A strip record wholly past the wall is scenery: no collider,
+  // storefront or district; the tile's glb draws it (node "buildings-scenery", since the renderer
+  // hides the far layer over a streamed tile), and the far layer draws it everywhere. A record
+  // that reaches into a pocket stays a near record, drawn and solid. A tower goes with its podium.
   const sfAt = districts.length > 0 ? new DistrictIndex(districts) : null;
   const southOut = new Set<string>();
   if (sfAt) {
@@ -569,18 +577,50 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       return az - bz || ax - bx;
     });
   }
-  // The strip's records in a built tile stay near records (see above); the rest are far-only.
+  // The land past the county line, by lattice cell centre: south of SOUTH_CROP_Z, in no San
+  // Francisco neighbourhood, and more than COUNTY_POCKET_M beyond every road's kerb.
+  const pocket = new RoadSurface(graph.edges, COUNTY_POCKET_M);
+  const cutLand = sfAt ? (x: number, z: number): boolean => z > SOUTH_CROP_Z && !sfAt.at(x, z) && pocket.clearance(x, z) >= COUNTY_POCKET_M : undefined;
+  const cellCut = new Map<string, boolean>();
+  const cutAt = (x: number, z: number): boolean => {
+    const cx = Math.floor(x / 10), cz = Math.floor(z / 10);
+    const k = `${cx},${cz}`;
+    let v = cellCut.get(k);
+    if (v === undefined) cellCut.set(k, (v = cutLand!((cx + 0.5) * 10, (cz + 0.5) * 10)));
+    return v;
+  };
+  /** Is the whole footprint past the wall: every vertex, every 5 m of every side and its interior point in a cut cell? */
+  const whollyCut = (b: Building): boolean => {
+    const ring = b.footprint;
+    if (!cutAt(...interiorPoint(ring))) return false;
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i]!, c = ring[(i + 1) % ring.length]!;
+      const n = Math.max(1, Math.ceil(Math.hypot(c[0] - a[0], c[1] - a[1]) / 5));
+      for (let k = 0; k < n; k++) if (!cutAt(a[0] + ((c[0] - a[0]) * k) / n, a[1] + ((c[1] - a[1]) * k) / n)) return false;
+    }
+    return true;
+  };
   const builtTileIds = new Set(tiles.map((t) => t.id));
-  const tileOfRecord = new Map(reconciled.map((b) => [b.id, b.tile]));
-  const nearTile = (b: Building): boolean => builtTileIds.has(b.meta.towerOf !== undefined ? (tileOfRecord.get(b.meta.towerOf) ?? b.tile) : b.tile);
-  const farOnly = reconciled.filter((b) => isSouth(b) && !nearTile(b));
-  const buildings = farOnly.length ? reconciled.filter((b) => !(isSouth(b) && !nearTile(b))) : reconciled;
+  const byIdAll = new Map(reconciled.map((b) => [b.id, b]));
+  const podiumOf = (b: Building): Building => (b.meta.towerOf !== undefined ? (byIdAll.get(b.meta.towerOf) ?? b) : b);
+  // A strip record in a built tile that reaches into a pocket stays near (decided by its podium).
+  const keepNear = new Set<string>();
+  for (const b of reconciled) {
+    if (!southOut.has(b.id)) continue;
+    if (builtTileIds.has(b.tile) && !whollyCut(b)) keepNear.add(b.id);
+  }
+  const scenery = (b: Building): boolean => isSouth(b) && !keepNear.has(podiumOf(b).id);
+  const farOnly = southOut.size ? reconciled.filter(scenery) : [];
+  const buildings = southOut.size ? reconciled.filter((b) => !scenery(b)) : reconciled;
   byTile.clear();
   for (const b of buildings) {
     let l = byTile.get(b.tile);
     if (!l) byTile.set(b.tile, (l = []));
     l.push(b);
   }
+  // The strip's scenery records standing in a built tile, drawn by that tile's glb.
+  const sceneryByTile = new Map<string, Building[]>();
+  for (const b of farOnly) if (builtTileIds.has(b.tile)) (sceneryByTile.get(b.tile) ?? sceneryByTile.set(b.tile, []).get(b.tile)!).push(b);
   assignTiles(districts, tiles);
   // The sim's ground: built tiles only (open water and land outside the city are 0 / absent).
   const simGround = new Ground(tiles.map((t) => ({ ix: t.ix, iz: t.iz, field: fields.get(t.id)! })));
@@ -625,7 +665,17 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const tileLakes = new Map<string, number[]>();
 
   const files = new Map<string, Uint8Array>();
-  const boundary = buildBoundary(tiles, fields);
+  const boundary = buildBoundary(
+    tiles,
+    fields,
+    cutLand,
+    landcover
+      ? (x, z) => {
+          const li = landcover.lakeIndexAt(x, z);
+          return li >= 0 ? landcover.lakes[li]!.id : null;
+        }
+      : undefined,
+  );
   const structures: TileStructures = { decks: new Map(), tunnels: new Map(), movable: new Map() };
   for (const { tile, tunnel } of tunnelRibbons(graph, decked.bores, heightAnywhere)) {
     const l = structures.tunnels.get(tile);
@@ -647,7 +697,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const halves = ribbonHalfWidths(graph.edges, nodeAt);
 
   // Walls two records share exactly hide each other where both stand (W-36): not drawn.
-  const party = partyWalls(buildings);
+  const party = partyWalls(sceneryByTile.size ? [...buildings, ...[...sceneryByTile.values()].flat()] : buildings);
   let minY = Infinity, maxY = -Infinity, waterSamples = 0, samples = 0;
   const manifestTiles: unknown[] = [];
   for (const t of tiles) {
@@ -684,6 +734,8 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       .map(([, poly]) => poly);
     const { roads, freeways } = roadMeshes(tileEdges, t, ground, decked.surface, radii, tileJunctions, halves);
     const { mesh, ranges } = buildingMesh(tb, party, house);
+    const sceneryList = sceneryByTile.get(t.id) ?? [];
+    const scenery = sceneryList.length ? buildingMesh(sceneryList, party, house) : null;
     const fronts = tileFronts(tb, house, tb.flatMap((b) => shopsByBuilding.get(b.id) ?? []), [t.bbox[0], t.bbox[1]]);
     const foliage: Array<{ name: string; mesh: MeshData; translation: number[]; scale: number[] }> = [];
     if (landcover && cover) {
@@ -708,6 +760,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       ...(fronts.length ? { buildingExtras: { fronts } } : {}),
       structures: deckMesh(structures.decks.get(t.id) ?? [], ground),
       ...(foliage.length ? { foliage } : {}),
+      ...(scenery ? { scenery: scenery.mesh, sceneryRanges: scenery.ranges } : {}),
     });
     files.set(`${t.id}.glb`, glb);
     const water = field.water.reduce((s, v) => s + v, 0) / field.water.length;
@@ -982,7 +1035,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     decks: decked.stats,
     overridesApplied,
     newer: newer.stats,
-    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20), tiles: [...new Set(farOnly.map((b) => b.tile))].sort() },
+    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20), tiles: [...new Set(farOnly.map((b) => b.tile))].sort(), drawnInTiles: [...sceneryByTile.values()].reduce((n, l) => n + l.length, 0) },
     landcover: landcover ? landcover.stats : null,
     roads: rStats,
     storefronts: sStats,

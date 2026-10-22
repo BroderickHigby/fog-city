@@ -1,7 +1,9 @@
 // World QA W-11: the inland lakes are water at their own level, not dry land: the lattice samples
 // inside each listed lake's NHD outline are lake samples (ground.cover digits) at the lake's level,
 // no hydro-flattened surface is left as land, the pack's LAKE section says the same as the JSON,
-// and the glb draws lake samples as water, never lawn.
+// and the glb draws lake samples as water, never lawn. The sim half: boundary.json rings every
+// lake with a shore line tagged with it, so the sim's shore walls stop a car at the bank, as at
+// the Bay: the QA's drive across South Lake Merced (C4, 625 m on the water) stops at the shore.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,6 +11,8 @@ import { pointInRing, type P2 } from "../../pipeline/lib/geom.ts";
 import { COVER_COLOURS, groundColour } from "../../pipeline/lib/mesh.ts";
 import { PIER_Y_M } from "../../pipeline/lib/piers.ts";
 import { readJson, ROOT } from "../helpers.ts";
+import { toLocal } from "../../src/geo/project.ts";
+import { buildWorld, makeCar, onWater, stepCar, type BoundaryFile, type RoadsFile, type TileCollider } from "../../src/sim/index.ts";
 import { loadGlbWithThree, loadSf, loadSfPack } from "./util.ts";
 import type { BufferAttribute, BufferGeometry, Mesh } from "three";
 import { Vector3 } from "three";
@@ -163,5 +167,76 @@ describe("inland lakes (W-11)", () => {
     }
     expect(checked).toBeGreaterThan(10_000);
     expect(COVER_COLOURS.lake).toBeDefined();
+  }, 120_000);
+
+  const boundary = readJson<BoundaryFile & { shore: Array<{ closed: boolean; points: P2[]; lake?: string }> }>("public/tiles/sf/boundary.json");
+
+  it("boundary.json rings every lake with a closed shore line tagged with it, water on its right", () => {
+    const report = readJson<{ landcover: { lakes: Array<{ id: string; name: string; samples: number }> } }>("public/tiles/sf/report.json");
+    const rings = new Map<string, number>();
+    for (const l of boundary.shore) if (l.lake !== undefined) rings.set(l.lake, (rings.get(l.lake) ?? 0) + 1);
+    // Every lake of 20 samples or more (0.2 ha) has its ring, unless its water meets the sea's
+    // (then the sea's line goes round it): the Crissy Field marsh and the India Basin pond.
+    const missing = report.landcover.lakes.filter((l) => l.samples >= 20 && !rings.has(l.id)).map((l) => l.name);
+    expect(missing.filter((n) => !/Crissy Field marsh|India Basin pond/.test(n))).toEqual([]);
+    expect(rings.size).toBeGreaterThanOrEqual(20);
+    for (const name of ["Lake Merced (North Lake)", "Lake Merced (South Lake)", "Stow Lake", "Spreckels Lake", "Pine Lake", "Mountain Lake", "Palace of Fine Arts lagoon", "Laguna Honda Reservoir"]) {
+      const l = report.landcover.lakes.find((q) => q.name === name)!;
+      expect(rings.has(l.id), name).toBe(true);
+    }
+    // Land on the left of travel, the lake's water on the right (probed 6 m either side).
+    let agree = 0, total = 0;
+    for (const l of boundary.shore) {
+      if (l.lake === undefined) continue;
+      expect(l.closed, l.lake).toBe(true);
+      const pts = [...l.points, l.points[0]!];
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, az] = pts[i - 1]!, [bx, bz] = pts[i]!;
+        const len = Math.hypot(bx - ax, bz - az);
+        if (len < 8) continue;
+        const mx = (ax + bx) / 2, mz = (az + bz) / 2, ux = (bx - ax) / len, uz = (bz - az) / len;
+        const lakeAt = (x: number, z: number): boolean => {
+          const q = sample(Math.round(x / 10) * 10, Math.round(z / 10) * 10);
+          return !!q && /[0-9]/.test(q.g.cover?.[q.i] ?? "");
+        };
+        total++;
+        if (!lakeAt(mx + uz * 6, mz - ux * 6) && lakeAt(mx - uz * 6, mz + ux * 6)) agree++;
+      }
+    }
+    expect(total).toBeGreaterThan(300);
+    expect(agree / total).toBeGreaterThan(0.9);
+  });
+
+  it("a car driven from the bank across South Lake Merced (the QA's C4) stops at the shore and never gets onto the water", () => {
+    // The game's world round the lake: the tiles within 1.5 km, the whole road graph, the boundary.
+    const mid = toLocal(37.719, -122.496);
+    const near = colliders.filter((c) => Math.abs(c.ground.x0 + 250 - mid.x) < 1500 && Math.abs(c.ground.z0 + 250 - mid.z) < 1500);
+    const roads = readJson<RoadsFile>("public/tiles/sf/roads.json");
+    const world = buildWorld(near as unknown as TileCollider[], roads, boundary);
+    const shore = world.walls!.shore;
+    // Along z = 37.719: the South Lake's east and west banks, by the lattice.
+    const isLake = (x: number): boolean => {
+      const q = sample(Math.round(x / 10) * 10, Math.round(mid.z / 10) * 10);
+      return !!q && /[0-9]/.test(q.g.cover?.[q.i] ?? "");
+    };
+    expect(isLake(mid.x), "the QA's point is on the lake").toBe(true);
+    let east = mid.x, west = mid.x;
+    while (isLake(east + 10)) east += 10;
+    while (isLake(west - 10)) west -= 10;
+    expect(east - west, "the lake is hundreds of metres across here").toBeGreaterThan(300);
+    for (const [name, x0, heading] of [["from the east bank, west", east + 35, (3 * Math.PI) / 2], ["from the west bank, east", west - 35, Math.PI / 2]] as const) {
+      let c = makeCar(x0, mid.z, heading);
+      expect(onWater(shore, c.x, c.z), `${name}: starts on land`).toBe(false);
+      let wet = 0, maxRun = 0;
+      for (let t = 0; t < 900; t++) {
+        c = stepCar(world, c, { throttle: 1, steer: 0, brake: 0, actions: 0 });
+        if (onWater(shore, c.x, c.z)) wet++;
+        maxRun = Math.max(maxRun, Math.abs(c.x - x0));
+      }
+      expect(wet, `${name}: ticks with the car's centre on the water`).toBe(0);
+      // It reached the bank (it was not stopped by something else first) and went no further.
+      expect(maxRun, `${name}: distance driven`).toBeGreaterThan(25);
+      expect(maxRun, `${name}: distance driven`).toBeLessThan(50);
+    }
   }, 120_000);
 });

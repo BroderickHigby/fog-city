@@ -83,6 +83,16 @@ describe("buildings newer than the footprint layer (W-04)", () => {
       if (Math.abs(h - t.m) > 0.1 * t.m) fails.push(`${t.label}: ${h.toFixed(1)} m, published ${t.m} m`);
     }
     expect(fails).toEqual([]);
+    // Fifteen Fifty is looked up by its override id: it is the 1500 Mission redevelopment's lots
+    // (block 3506; the 2025 roll lists 3506012 to 3506015, built after its footprint layer, at
+    // 37.774186,-122.418127), north-west of Mission St. The QA report's address point
+    // (37.77355,-122.41767) lies across Mission St on block 3511, where the 2025 roll still lists
+    // the 1906-1927 three-storey buildings (3511033, 3511044 ...) the records there show.
+    const ff = all.find((b) => b.id === "201006.9900003-tower")!;
+    expect(ff.meta.parcel).toBe("3506012");
+    const lot = toLocal(37.774186, -122.418127);
+    const [fx, fz] = interiorPoint(ff.footprint as P2[]);
+    expect(Math.hypot(fx - lot.x, fz - lot.z)).toBeLessThan(60);
   });
 
   it("added records carry their provenance and pipeline-only ids, and stand clear of every DataSF record", () => {

@@ -117,25 +117,30 @@ describe("ground classes (W-18, W-34)", () => {
 
   describe("foliage (W-18)", () => {
     const trees = new Map<string, Array<[number, number]>>();
+    /** Every tree's base, [x, y, z] in world metres, by tile. */
+    const bases = new Map<string, Array<[number, number, number]>>();
     beforeAll(async () => {
       await MeshoptDecoder.ready;
       const io = new NodeIO().registerExtensions([EXTMeshoptCompression, KHRMeshQuantization, EXTMeshGPUInstancing]).registerDependencies({ "meshopt.decoder": MeshoptDecoder });
       for (const t of manifest.tiles) {
         const doc = await io.readBinary(new Uint8Array(readFileSync(join(ROOT, "public/tiles/sf", t.glb))));
         const list: Array<[number, number]> = [];
+        const feet: Array<[number, number, number]> = [];
         for (const node of doc.getRoot().listNodes()) {
           const inst = node.getExtension<InstancedMesh>("EXT_mesh_gpu_instancing");
           if (!inst) continue;
           expect(node.getName()).toMatch(/^foliage-(broadleaf|conifer)$/);
           const tr = inst.getAttribute("TRANSLATION")!;
-          const [cx, , cz] = node.getTranslation();
+          const [cx, cy, cz] = node.getTranslation();
           const el = [0, 0, 0];
           for (let i = 0; i < tr.getCount(); i++) {
             tr.getElement(i, el);
             list.push([el[0]! + cx, el[2]! + cz]);
+            feet.push([el[0]! + cx, el[1]! + cy, el[2]! + cz]);
           }
         }
         if (list.length) trees.set(t.id, list);
+        if (feet.length) bases.set(t.id, feet);
       }
     }, 300_000);
 
@@ -200,5 +205,31 @@ describe("ground classes (W-18, W-34)", () => {
       expect(onRoad.slice(0, 10)).toEqual([]);
       expect(inBuilding.slice(0, 10)).toEqual([]);
     }, 120_000);
+
+    it("every tree stands on the drawn ground: its base within 0.3 m below it, never above it", () => {
+      // The drawn ground: the tile's lattice in planar triangles split along the (i+1, k)-(i, k+1)
+      // diagonal, exactly as the glb's ground mesh is built (not the bilinear surface, which
+      // differs by up to a metre or two in steep twisted cells). A tree's base is sunk 0.15 m.
+      const drawn = (g: Ground, x: number, z: number): number => {
+        const fx = (x - g.x0) / 10, fz = (z - g.z0) / 10;
+        const i = Math.min(Math.floor(fx), g.nx - 2), k = Math.min(Math.floor(fz), g.nz - 2);
+        const tx = fx - i, tz = fz - k;
+        const h = (a: number, b: number): number => g.heights[(k + b) * g.nx + i + a]!;
+        if (tx + tz <= 1) return h(0, 0) + (h(1, 0) - h(0, 0)) * tx + (h(0, 1) - h(0, 0)) * tz;
+        return h(1, 1) + (h(0, 1) - h(1, 1)) * (1 - tx) + (h(1, 0) - h(1, 1)) * (1 - tz);
+      };
+      let n = 0;
+      const off: string[] = [];
+      for (const c of colliders) {
+        const g = c.ground as Ground;
+        for (const [x, y, z] of bases.get(c.tileId) ?? []) {
+          n++;
+          const d = y - drawn(g, x, z);
+          if (d > 0.02 || d < -0.3) off.push(`${c.tileId} ${x.toFixed(2)},${z.toFixed(2)}: ${d.toFixed(2)} m`);
+        }
+      }
+      expect(n).toBeGreaterThan(50_000);
+      expect(off.slice(0, 10)).toEqual([]);
+    });
   });
 });
