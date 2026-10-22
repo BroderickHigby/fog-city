@@ -4,8 +4,8 @@
 // crosses run out over the open Bay (the Bay Bridge's west span from Rincon Hill to Yerba Buena
 // Island, and the Golden Gate and Bay Bridge approaches with an end over the water), whose decks
 // are not modelled. I-280 is driven northbound from the Alemany interchange to King St and
-// southbound back at 25 m/s: no wall touches it on the way. (Neither reaches the far end yet: each
-// stops on a building standing on the freeway's draped centreline, W-03.)
+// southbound back at 25 m/s: no wall touches it on the way. (Driving them end to end on their
+// decks, W-03, is tests/sim/world/structures.test.ts.)
 import { describe, expect, it } from "vitest";
 import { MAX_INLET_M, onWater, segmentCrossesWall, wallsNear, wallSide, type RoadsFile, type World } from "../../../src/sim/index.ts";
 import { CITY_MS, SF, drivePath, resample, sfWorld } from "./load.ts";
@@ -82,8 +82,7 @@ describe.skipIf(!SF)("freeway continuity across the creeks (W-07)", () => {
         // c19338000 at 561 m. Now each carries on across the creek and up the far bank.
         expect(r.progressM, `${id} stopped at ${r.progressM} of ${r.lenM} m`).toBeGreaterThan(farBank + 50);
       }
-      // Mission Creek both ways: to the end of the edge. (Islais Creek's c19298000 then stops on
-      // a building standing on the freeway 330 m past the creek, 201006.0002744: W-03, decks.)
+      // Mission Creek both ways: to the end of the edge.
       for (const id of ["c19300000", "c19338000"]) expect(drivePath(world, route(roads, [id]), 25, 20).reached, id).toBe(true);
     },
     CITY_MS,
