@@ -18,7 +18,20 @@ import { clamp } from "./dmath.ts";
 import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
-import { DODGE_PROFILE, STOPPED_CLEAR_M, agentDodgeClass, routeReach, stepDodge, vehicleOfAgent, vehicleOfCar, zoneDistance, type Vehicle } from "./dodge.ts";
+import {
+  DODGE_PROFILE,
+  STOPPED_CLEAR_M,
+  agentDodgeClass,
+  horizonS,
+  robotaxiBerth,
+  routeReach,
+  stepDodge,
+  sweepHit,
+  vehicleOfAgent,
+  vehicleOfCar,
+  zoneDistance,
+  type Vehicle,
+} from "./dodge.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
 import { meshGroundHeight, type World } from "./world.ts";
@@ -266,9 +279,10 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
 }
 
 /**
- * Where the vehicles near (x, z) can be by the end of this tick, from the state it started from:
- * every other player's car (dodge.ts vehicleOfCar, what it collides with included) and every
- * robotaxi (vehicleOfAgent, its route's reach), as the dodge measures them.
+ * The vehicles that can come near (x, z), from the state the tick started from, as the dodge
+ * measures them: every other player's car (dodge.ts vehicleOfCar, what it collides with
+ * included) and every robotaxi (vehicleOfAgent, along its route), with their reach by the end of
+ * this tick and their predicted footprints.
  */
 function vehiclesReaching(world: World, prev: Readonly<SimState>, self: PlayerId, x: number, z: number, within: number): Vehicle[] {
   const out: Vehicle[] = [];
@@ -281,7 +295,8 @@ function vehiclesReaching(world: World, prev: Readonly<SimState>, self: PlayerId
   for (const id of sortedIds(prev.players)) {
     if (id === self) continue;
     const c = prev.players[id]!.car;
-    const lim = within + CAR.halfLength + CAR.halfWidth + (c.speed < 0 ? -c.speed : c.speed) * DT + 2;
+    const v = Math.sqrt(c.speed * c.speed + c.lateral * c.lateral);
+    const lim = within + CAR.halfLength + CAR.halfWidth + v * horizonS(v) + 3;
     if ((c.x - x) * (c.x - x) + (c.z - z) * (c.z - z) > lim * lim) continue;
     const circles: Circle[] = robots.slice();
     for (const other of sortedIds(prev.players)) if (other !== id) circles.push(...carCircles(prev.players[other]!.car));
@@ -289,9 +304,9 @@ function vehiclesReaching(world: World, prev: Readonly<SimState>, self: PlayerId
   }
   for (const a of agents) {
     if (!AGENT_SPEC[a.kind].road) continue;
-    const lim = within + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + a.speed * DT + 2;
+    const lim = within + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + a.speed * horizonS(a.speed) + 3;
     if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
-    const v = vehicleOfAgent(a, null, DT, world, false);
+    const v = vehicleOfAgent(a, null, DT, world, true);
     routeReach(v, a, DT, world);
     out.push(v);
   }
@@ -327,12 +342,16 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
     const circles = obs.forWalker.get(p.id) ?? [];
     // Never where a vehicle can be by the end of this tick, with the dodge's clearance from it
     // and what it can reach on the tick after (dodge.ts zoneDistance): getting out is never a
-    // contact, and never sets off the override.
+    // contact, and never sets off the override. Nor in a moving vehicle's way (its predicted
+    // footprint, with the margin the dodge dives at): nobody steps out in front of a car.
     const near = vehiclesReaching(world, obs.prev, p.id, parked.x, parked.z, CAR.halfLength + FOOT.exitGap + 2 * FOOT.radius + 1);
+    const prof = DODGE_PROFILE.player;
     const avoid = (x: number, z: number): boolean => {
       for (const v of near) {
-        const clear = v.moving ? DODGE_PROFILE.player.override! : STOPPED_CLEAR_M;
+        const clear = v.moving ? prof.override! : STOPPED_CLEAR_M;
         if (zoneDistance(v, x, z) < FOOT.radius + clear + 2 * v.inflate + v.speed * DT + 0.02) return true;
+        const margin = v.player === null ? Math.min(prof.margin, robotaxiBerth("player")) : prof.margin;
+        if (v.paths.length > 0 && sweepHit(v, x, z, FOOT.radius + margin + 0.05)) return true;
       }
       return false;
     };

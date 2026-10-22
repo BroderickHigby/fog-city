@@ -7,7 +7,9 @@
 // (brake and steer into a slide toward them), handbrake turns, banking (coming up beside them
 // and, 8-16 m short, slamming into a drift or a hard turn at them: into a corner, off a wall)
 // and a seeded random driver (steer, brake and throttle changed every 0.1 s: the kind of driver
-// that found the review's holes, 2026-10-21).
+// that found the review's holes, 2026-10-21). And in some scenes an event as the car comes
+// (round 3, 2026-10-22): a player in a car parked among the people gets out, or a player joins
+// with a car asked for in the middle of the crowd.
 // Every tick of every scene: zero contacts (no person inside a car's body, ever: the sim's own
 // count and an independent one here), and every person, child and player on foot at least
 // 0.75 m from every moving car's body, except in an episode the clearance override handled
@@ -19,6 +21,7 @@
 // This module builds and runs the scenes; tests/sim/dodge-fuzz.test.ts asserts on them.
 import {
   AGENT_SPEC,
+  Action,
   CAR,
   DODGE_PROFILE,
   FOOT,
@@ -39,6 +42,7 @@ import {
   type AgentsExt,
   type BuildingCollider,
   type InputFrame,
+  type SimEvent,
   type SimState,
   type World,
 } from "../../src/sim/index.ts";
@@ -68,6 +72,8 @@ function rect(id: string, x0: number, z0: number, x1: number, z1: number, topY =
 export type Place = "open" | "wall" | "corner" | "hill" | "deck";
 export type Crowd = "single" | "group" | "players";
 export type Driver = "straight" | "chase" | "weave" | "drift" | "handbrake" | "bank" | "random";
+/** "exit": player x, parked among the people, gets out at eventTick; "join": player j joins at the crowd's centre then. */
+export type SceneEvent = "none" | "exit" | "join";
 
 export interface Scene {
   name: string;
@@ -81,6 +87,10 @@ export interface Scene {
   at: number;
   lock: number;
   ctl: Array<[number, number, number]>;
+  event: SceneEvent;
+  eventTick: number;
+  /** Where a joining player's car is asked for. */
+  joinAt: { x: number; z: number; heading: number };
 }
 
 const FLAT = emptyWorld();
@@ -231,7 +241,42 @@ export function makeScene(seed: number): Scene {
   const ext: AgentsExt = { nextId: 100000, list: agents };
   s = { ...s, players, ext: { ...s.ext, agents: ext } };
   const target = walkers.length > 0 ? "pw0" : `a${agents[Math.floor(rnd() * agents.length)]!.id}`;
-  return { name: `#${seed} ${place} ${crowd} ${driver} ${speed.toFixed(0)} m/s from ${dist.toFixed(0)} m`, world, state: s, driver, target, ticks: 330, at, lock, ctl };
+
+  // The event (drawn last, so the rest of each scene is as it was before events were added).
+  const ev = rnd();
+  let event: SceneEvent = ev < 0.25 ? "exit" : ev < 0.45 ? "join" : "none";
+  const eventTick = Math.floor(rnd() * 150);
+  const joinAt = { x: cx, z: cz, heading: rnd() * Math.PI * 2 };
+  if (event === "exit") {
+    // A car parked 2-5 m from the crowd's centre, its body clear of buildings and of everyone.
+    let parked: { x: number; z: number; h: number } | null = null;
+    for (let k = 0; k < 60 && !parked; k++) {
+      const a = rnd() * Math.PI * 2;
+      const d = 2 + rnd() * 3;
+      const h = rnd() * Math.PI * 2;
+      const x = cx + Math.sin(a) * d;
+      const z = cz - Math.cos(a) * d;
+      const hx = Math.sin(h);
+      const hz = -Math.cos(h);
+      const clear = taken.every(([tx, tz, tr]) => boxDistance(tx, tz, x, z, hx, hz, CAR.halfLength, CAR.halfWidth) > tr + 0.3);
+      const off = [-1, 0, 1].every((u) => free(world, [], x + hx * u * (CAR.halfLength - CAR.halfWidth), z + hz * u * (CAR.halfLength - CAR.halfWidth), CAR.halfWidth + 0.3));
+      if (clear && off && (place !== "deck" || onDeck(x, z, CAR.halfLength + 0.3))) parked = { x, z, h };
+    }
+    if (parked) {
+      const y = place === "deck" ? DECK_Y : meshGroundHeight(world, parked.x, parked.z);
+      s = { ...s, players: { ...s.players, x: { ...s.players.car!, id: "x", mode: "vehicle", car: makeCar(parked.x, parked.z, parked.h, y), foot: null, exitPending: false } } };
+    } else event = "none";
+  }
+  const label = event === "none" ? "" : event === "exit" ? `, a player gets out among them at tick ${eventTick}` : `, a player joins on them at tick ${eventTick}`;
+  return { name: `#${seed} ${place} ${crowd} ${driver} ${speed.toFixed(0)} m/s from ${dist.toFixed(0)} m${label}`, world, state: s, driver, target, ticks: 330, at, lock, ctl, event, eventTick, joinAt };
+}
+
+/** The scene's event for the step to `t + 1` (a join), and the exiting player's input. */
+function eventsAt(sc: Scene, t: number, s: SimState): { inputs: InputFrame; events: SimEvent[] } {
+  if (t !== sc.eventTick) return { inputs: {}, events: [] };
+  if (sc.event === "exit") return { inputs: { x: { throttle: 0, steer: 0, brake: 0, actions: Action.enterExit } }, events: [] };
+  if (sc.event === "join") return { inputs: {}, events: [{ tick: s.tick + 1, kind: "player.join", playerId: "j", payload: sc.joinAt }] };
+  return { inputs: {}, events: [] };
 }
 
 /** Where the driver's target is now. */
@@ -337,6 +382,9 @@ export interface Result {
   minClear: number;
   minChild: number;
   robotHits: number;
+  /** The scene's event happened: the parked player got out, the joiner's car appeared. */
+  exited: boolean;
+  joined: boolean;
 }
 
 export function run(sc: Scene): Result {
@@ -348,9 +396,21 @@ export function run(sc: Scene): Result {
   let minClear = Infinity;
   let minChild = Infinity;
   for (let t = 0; t < sc.ticks; t++) {
-    s = step(sc.world, s, drive(sc, t, s));
+    const ev = eventsAt(sc, t, s);
+    s = step(sc.world, s, { ...drive(sc, t, s), ...ev.inputs }, ev.events);
     const c = s.players.car!.car;
-    bumps = Math.max(bumps, c.personBumps);
+    bumps = 0;
+    for (const id of Object.keys(s.players)) bumps += s.players[id]!.car.personBumps;
+    // (Every other car stands still: the parked one, the joiner's. Nobody may be inside one either.)
+    for (const id of Object.keys(s.players).sort()) {
+      if (id === "car") continue;
+      const o = s.players[id]!.car;
+      const [ox, oz] = [Math.sin(o.heading), -Math.cos(o.heading)];
+      for (const b of bodies(s)) {
+        if (!b.guarded || b.key === `p${id}`) continue;
+        if (boxDistance(b.x, b.z, o.x, o.z, ox, oz, CAR.halfLength, CAR.halfWidth) - b.r < 0) contacts++;
+      }
+    }
     const moving = Math.hypot(c.speed, c.lateral) > MOVING;
     const fx = Math.sin(c.heading);
     const fz = -Math.cos(c.heading);
@@ -369,6 +429,17 @@ export function run(sc: Scene): Result {
     .filter((e) => !(overridden.get(e.key) ?? []).some((o) => e.tick >= o - EPISODE_BEFORE && e.tick <= o + EPISODE_AFTER))
     .map((e) => `${sc.name}: ${e.key} at tick ${e.tick} only ${e.clear.toFixed(3)} m`);
   const d = dodgeExtOf(s);
-  return { hash: hashState(s), contacts: contacts + d.contacts + bumps, overrides: d.overrides, dives: d.dives, unexplained, minClear, minChild, robotHits: s.players.car!.car.hits };
+  return {
+    hash: hashState(s),
+    contacts: contacts + d.contacts + bumps,
+    overrides: d.overrides,
+    dives: d.dives,
+    unexplained,
+    minClear,
+    minChild,
+    robotHits: s.players.car!.car.hits,
+    exited: s.players.x?.mode === "foot",
+    joined: s.players.j !== undefined,
+  };
 }
 

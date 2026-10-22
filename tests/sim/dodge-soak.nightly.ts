@@ -7,7 +7,10 @@
 // narrow places; one test per seed, so any part can be run alone with -t). The fuzz:
 // seeded scenes 161-2000 (the per-PR test runs 1-160). The optimiser (tests/sim/dodge-
 // optimiser.ts): a seeded search for a driver who can touch someone, in the open, against a
-// wall, in a corner, down an alley and onto a deck. Zero contacts always, and the override
+// wall, in a corner, down an alley and onto a deck; and the multi-car one (tests/sim/dodge-
+// optimiser-multi.ts, round 3): two or three cars, a stopped car or a standing robotaxi, people
+// and players on foot walking about, converging, head-on in an alley, round a stopped car, over a
+// crest. Zero contacts always, and the override
 // never gives up. Clearance >= 0.75 m except in counted override episodes: always in the soak;
 // in the fuzz, at most one scene in 500 may pass closer (every one is printed, and none may come
 // within the override clearance itself). Robotaxis never set the override off, and it is at
@@ -20,6 +23,7 @@ import { SF, sfWorld } from "./world/load.ts";
 import { NARROW_PLACES, crestStart, findCrests, routeFrom, soak, startNear, type SoakResult, type SoakStart } from "./dodge-soak.ts";
 import { makeScene, run } from "./dodge-scenes.ts";
 import { search, type Family } from "./dodge-optimiser.ts";
+import { MULTI_FAMILIES, searchMulti } from "./dodge-optimiser-multi.ts";
 
 /** At most this share of a soak run's dodges may be the override's (at most 2 in a run with few). */
 const OVERRIDE_SHARE = 0.1;
@@ -148,6 +152,18 @@ describe("the optimiser's search for a driver who touches someone (nightly)", ()
       const r = search(family, 2026, 1500, people);
       console.info(`[optimiser] ${family}: ${r.evals} drivers, ${r.found} touched someone, ${r.overrides} overrides, closest reach ${r.best.reach.toFixed(3)} m, least clearance ${r.best.minClear.toFixed(3)} m`);
       if (r.found > 0) bad.push(`${family}: ${r.found} drivers touched someone; first: ${JSON.stringify(r.hits[0])}`);
+    }
+    expect(bad).toEqual([]);
+  }, 3_600_000);
+});
+
+describe("the multi-car optimiser's search (nightly)", () => {
+  it("600 evaluations in each multi-car family (converging, three in the open, head-on in an alley, round a stopped car or a standing robotaxi, over a crest, players walking about, people ringed round a parked car): no contact, no personBump, the override never gives up", () => {
+    const bad: string[] = [];
+    for (const family of MULTI_FAMILIES) {
+      const r = searchMulti(family, 2026, 600);
+      console.info(`[optimiser multi] ${family}: ${r.evals} genomes (${r.valid} scenes), ${r.found} touched someone, ${r.overrides} overrides, closest reach of a moving vehicle ${r.best.reach.toFixed(3)} m`);
+      if (r.found > 0) bad.push(`${family}: ${r.found} genomes touched someone; first: ${JSON.stringify(r.hits[0])}`);
     }
     expect(bad).toEqual([]);
   }, 3_600_000);

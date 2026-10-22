@@ -2,7 +2,8 @@
 // seeded scenes (tests/sim/dodge-scenes.ts) in which cars at up to 38 m/s are aimed at people,
 // who must get out of the way every time: a single person, a group of 20 (with children and
 // robots in it), players on foot, people backed against a wall or into a corner, people on
-// hills; drivers straight at them, chasing them, weaving, drifting and handbrake turns. Every
+// hills; drivers straight at them, chasing them, weaving, drifting and handbrake turns; in some, a
+// player parked among them gets out, or a player joins on top of them, as the car comes. Every
 // tick of every scene: zero contacts, and every person, child and player on foot at least
 // CLEARANCE_M from every moving car's body except in an episode the clearance override handled
 // (counted and reported). Deterministic: a scene replays to the same state.
@@ -14,7 +15,7 @@ const SEEDS = 160;
 
 describe("the no-touch fuzz: cars at up to 38 m/s aimed at people", () => {
   it(
-    `${SEEDS} seeded scenes (people alone, in groups of 20 with children and robots, players on foot, against walls, in corners, on hills; straight, chasing, weaving, drifting and handbrake drivers): zero contacts, clearance >= ${CLEARANCE_M} m except in counted override episodes`,
+    `${SEEDS} seeded scenes (people alone, in groups of 20 with children and robots, players on foot, against walls, in corners, on hills; straight, chasing, weaving, drifting and handbrake drivers; players getting out and joining among them): zero contacts, clearance >= ${CLEARANCE_M} m except in counted override episodes`,
     () => {
       const unexplained: string[] = [];
       let contacts = 0;
@@ -23,6 +24,8 @@ describe("the no-touch fuzz: cars at up to 38 m/s aimed at people", () => {
       let robotHits = 0;
       let minClear = Infinity;
       let minChild = Infinity;
+      let exits = 0;
+      let joins = 0;
       const kinds = new Set<string>();
       for (let seed = 1; seed <= SEEDS; seed++) {
         const sc = makeScene(seed);
@@ -35,10 +38,14 @@ describe("the no-touch fuzz: cars at up to 38 m/s aimed at people", () => {
         robotHits += r.robotHits;
         minClear = Math.min(minClear, r.minClear);
         minChild = Math.min(minChild, r.minChild);
+        if (r.exited) exits++;
+        if (r.joined) joins++;
       }
       // What the run covered, and how often the override had to act (printed for the report).
-      console.info(`[dodge fuzz] ${SEEDS} scenes, ${kinds.size} kinds: ${dives} dives, ${overrides} overrides, ${robotHits} robot bumps, min clearance ${minClear.toFixed(3)} m (children ${minChild.toFixed(3)} m)`);
+      console.info(`[dodge fuzz] ${SEEDS} scenes, ${kinds.size} kinds: ${dives} dives, ${overrides} overrides, ${robotHits} robot bumps, ${exits} players got out among them, ${joins} joined on them, min clearance ${minClear.toFixed(3)} m (children ${minChild.toFixed(3)} m)`);
       expect(contacts).toBe(0);
+      expect(exits).toBeGreaterThan(SEEDS / 10);
+      expect(joins).toBeGreaterThan(SEEDS / 10);
       expect(unexplained.slice(0, 10)).toEqual([]);
       expect(dives).toBeGreaterThan(SEEDS);
       expect(kinds.size).toBeGreaterThan(40);

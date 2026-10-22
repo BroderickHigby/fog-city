@@ -30,7 +30,7 @@ import {
   type AgentKind,
   type AgentState,
   type BuildingCollider,
-  type InputFrame,
+  type SimInput,
   type SimState,
   type World,
 } from "../../src/sim/index.ts";
@@ -306,28 +306,30 @@ function posOf(s: SimState, key: string): { x: number; z: number } | null {
   return a ? { x: a.x, z: a.z } : null;
 }
 
-function protectedBodies(s: SimState): Array<{ key: string; owner: string | null; x: number; z: number; r: number }> {
-  const out: Array<{ key: string; owner: string | null; x: number; z: number; r: number }> = [];
+/** Players on foot and people: where they are, their feet (no hop) and radius. */
+function protectedBodies(s: SimState): Array<{ key: string; owner: string | null; x: number; y: number; z: number; r: number }> {
+  const out: Array<{ key: string; owner: string | null; x: number; y: number; z: number; r: number }> = [];
   for (const id of Object.keys(s.players).sort()) {
     const p = s.players[id]!;
-    if (p.mode === "foot" && p.foot) out.push({ key: `p${id}`, owner: id, x: p.foot.x, z: p.foot.z, r: FOOT.radius });
+    if (p.mode === "foot" && p.foot) out.push({ key: `p${id}`, owner: id, x: p.foot.x, y: p.foot.y - (p.foot.dodge?.hop ?? 0), z: p.foot.z, r: FOOT.radius });
   }
-  for (const a of agentsOf(s)) if (a.kind === "person") out.push({ key: `a${a.id}`, owner: null, x: a.x, z: a.z, r: AGENT_SPEC.person.radius });
+  for (const a of agentsOf(s)) if (a.kind === "person") out.push({ key: `a${a.id}`, owner: null, x: a.x, y: a.y - (a.dodge?.hop ?? 0), z: a.z, r: AGENT_SPEC.person.radius });
   return out;
 }
 
-function vehicleBoxes(s: SimState): Array<{ key: string; owner: string | null; x: number; z: number; h: number; hl: number; hw: number }> {
-  const out: Array<{ key: string; owner: string | null; x: number; z: number; h: number; hl: number; hw: number }> = [];
+/** Every vehicle's body: its box, the height of its wheels and how tall it is. */
+function vehicleBoxes(s: SimState): Array<{ key: string; owner: string | null; x: number; y: number; z: number; h: number; hl: number; hw: number; top: number }> {
+  const out: Array<{ key: string; owner: string | null; x: number; y: number; z: number; h: number; hl: number; hw: number; top: number }> = [];
   for (const id of Object.keys(s.players).sort()) {
     const c = s.players[id]!.car;
-    out.push({ key: `car${id}`, owner: id, x: c.x, z: c.z, h: c.heading, hl: CAR.halfLength, hw: CAR.halfWidth });
+    out.push({ key: `car${id}`, owner: id, x: c.x, y: c.y, z: c.z, h: c.heading, hl: CAR.halfLength, hw: CAR.halfWidth, top: CAR.bodyHeight });
   }
-  for (const a of agentsOf(s)) if (a.kind === "robotaxi") out.push({ key: `taxi${a.id}`, owner: null, x: a.x, z: a.z, h: a.heading, hl: ROBOTAXI_BODY.halfLength, hw: ROBOTAXI_BODY.halfWidth });
+  for (const a of agentsOf(s)) if (a.kind === "robotaxi") out.push({ key: `taxi${a.id}`, owner: null, x: a.x, y: a.y, z: a.z, h: a.heading, hl: ROBOTAXI_BODY.halfLength, hw: ROBOTAXI_BODY.halfWidth, top: ROBOTAXI_BODY.height });
   return out;
 }
 
 export interface MultiOutcome {
-  /** Bodies inside a vehicle's body after a tick (an independent count), the sim's own count, personBumps, override failures. */
+  /** Bodies inside a vehicle's body after a tick (an independent count, height-aware), the sim's own count, personBumps, override failures. */
   contacts: number;
   simContacts: number;
   bumps: number;
@@ -338,8 +340,8 @@ export interface MultiOutcome {
   ticks: number;
 }
 
-/** Run one genome (an empty outcome when the scene cannot be built: a car in a wall, nobody to aim at). */
-export function evaluateMulti(fam: MultiFamily, p: readonly number[]): MultiOutcome {
+/** Run one genome (an empty outcome when the scene cannot be built: a car in a wall, nobody to aim at); `onTick` sees each step. */
+export function evaluateMulti(fam: MultiFamily, p: readonly number[], onTick?: (before: SimState, after: SimState) => void): MultiOutcome {
   const out: MultiOutcome = { contacts: 0, simContacts: 0, bumps: 0, failures: 0, overrides: 0, reach: 99, ticks: 0 };
   const d = decode(fam, p);
   const b = build(fam, d);
@@ -349,7 +351,7 @@ export function evaluateMulti(fam: MultiFamily, p: readonly number[]): MultiOutc
   let prevBodies = new Map(protectedBodies(s).map((q) => [q.key, q]));
   for (let t = 0; t < SEG * NSEG; t++) {
     const seg = Math.floor(t / SEG);
-    const inputs: InputFrame = {};
+    const inputs: Record<string, SimInput> = {};
     for (let c = 0; c < d.ncar; c++) {
       const cg = d.cars[c]!;
       const car = s.players[`c${c}`]!.car;
@@ -370,6 +372,7 @@ export function evaluateMulti(fam: MultiFamily, p: readonly number[]): MultiOutc
     }
     const before = s;
     s = step(world, s, inputs);
+    onTick?.(before, s);
     out.ticks++;
     const vs = vehicleBoxes(s);
     const vsBefore = new Map(vehicleBoxes(before).map((v) => [v.key, v]));
@@ -382,7 +385,8 @@ export function evaluateMulti(fam: MultiFamily, p: readonly number[]): MultiOutc
       for (const v of vs) {
         if (v.owner !== null && v.owner === q.owner) continue;
         if (Math.abs(q.x - v.x) > 8 || Math.abs(q.z - v.z) > 8) continue;
-        if (boxDist(q.x, q.z, v.x, v.z, v.h, v.hl, v.hw) - q.r < 0) out.contacts++;
+        // (Inside its body: overlapping on the ground and at its height, not under a car flying over a crest.)
+        if (boxDist(q.x, q.z, v.x, v.z, v.h, v.hl, v.hw) - q.r < 0 && q.y < v.y + v.top && v.y < q.y + FOOT.height) out.contacts++;
         const was = prevBodies.get(q.key);
         if (was && moved(v)) out.reach = Math.min(out.reach, boxDist(was.x, was.z, v.x, v.z, v.h, v.hl, v.hw) - q.r);
       }
