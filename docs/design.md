@@ -1309,7 +1309,8 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   by circles that missed their corners): the override now keeps people clear of a vehicle's reach over its next step,
   so contact is impossible by construction; dives walk roofs and decks, are rechecked every tick and never step into a
   vehicle's reach; the override always finds a spot; robotaxis are measured by their drawn body, creep past anyone
-  within the dodge's margin of their path and wait for anyone within 0.33 m. The dive is drawn as a comic leap that is flat only well off the ground, flips tucked in the
-  air and lands on its feet (never lying on the road, never upended); it is drawn higher than the sim's hop, with a
-  soft shadow on the ground under it, so the air beneath it shows from any camera. Every reproduction is a permanent test, and a
-  seeded optimiser hunts for a touching driver nightly.
+  within the dodge's margin of their path and wait for anyone within 0.33 m. The dive is drawn as a comic leap that
+  is flat only well off the ground, flips tucked in the air and lands on its feet (never lying on the road, never
+  upended; a person drawn in one piece at range, who cannot tuck, swings down onto their feet instead of flipping);
+  it is drawn higher than the sim's hop, with a soft shadow on the ground under it, so the air beneath it shows from
+  any camera. Every reproduction is a permanent test, and a seeded optimiser hunts for a touching driver nightly.
