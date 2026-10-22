@@ -81,8 +81,13 @@ function gradeAt(world: World, x: number, z: number): number {
 /** Is the ground within FOOT.gradeReach of (x, z) along (dx, dz) (a unit vector) too steep to walk up from feet height y? */
 function tooSteep(world: World, x: number, z: number, y: number, dx: number, dz: number): boolean {
   const r = FOOT.gradeReach;
-  // (A hair of tolerance: exactly 1:1 is climbable whatever the rounding.)
-  return surfaceHeight(world, x + dx * r, z + dz * r, y) - y > gradeAt(world, x, z) * r + 1e-9;
+  const ax = x + dx * r;
+  const az = z + dz * r;
+  // (From the street at a stairway's foot the first step is climbed: the stairs' grade where
+  // either the walker or the ground ahead is on them. A hair of tolerance: exactly 1:1 is
+  // climbable whatever the rounding.)
+  const grade = Math.max(gradeAt(world, x, z), gradeAt(world, ax, az));
+  return surfaceHeight(world, ax, az, y) - y > grade * r + 1e-9;
 }
 
 export function stepFoot(
@@ -163,7 +168,8 @@ export function stepFoot(
   const mz = res.z - f.z;
   const moved = Math.sqrt(mx * mx + mz * mz);
   const s1 = surfaceHeight(world, res.x, res.z, f.y);
-  const grade = gradeAt(world, res.x, res.z);
+  // (Stepping off a stairway's last step into the street is still the stairs' grade.)
+  const grade = Math.max(gradeAt(world, res.x, res.z), gradeAt(world, f.x, f.z));
   if (s1 < f.y - (grade * moved + FOOT.dropTolerance)) {
     // Walked off a drop: start falling from here (never upward: there is no jump).
     const vy0 = f.vy < 0 ? f.vy : 0;

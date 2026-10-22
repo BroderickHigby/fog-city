@@ -157,8 +157,11 @@ describe.skipIf(!SF)("spawns never on the water", () => {
         }
         return true;
       };
-      // At a6caf4e: inside the North Lake ring, and on the Bay off the Embarcadero (0.8 m ground).
-      for (const [x, z] of [[-8899.7, 7508.3], [-430, -955]] as const) {
+      // Inside the North Lake ring (the review's start, a6caf4e returned it unchanged), and on the
+      // Bay 10 m off the pier tip at (-430, -955). (The review's own Bay spot, (-430, -955), is on
+      // the pier's land side of the shore line by onWater, the sim's water rule and its walls,
+      // though the lattice's water mask there is water: it is dry here.)
+      for (const [x, z] of [[-8899.7, 7508.3], [-420, -945]] as const) {
         expect(onWater(shore, x, z), `${x}, ${z} is water`).toBe(true);
         const p = clearCarSpot(world, x, z, 0);
         expect(dry(p.x, p.z, 0), `from ${x}, ${z}: ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`).toBe(true);

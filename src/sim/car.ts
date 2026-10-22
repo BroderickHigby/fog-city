@@ -139,6 +139,8 @@ export function carBox(c: Readonly<Pick<CarState, "x" | "z" | "heading">>): Box 
 
 /** How far from a requested spot clearCarSpot looks for room, metres. */
 export const CLEAR_SPOT_RADIUS_M = 30;
+/** How far it looks for dry land when the requested spot is on the water (piers crowded with sheds), metres. */
+export const CLEAR_SPOT_WATER_RADIUS_M = 150;
 
 /**
  * Where to put a car asked for at (x, z) facing `heading` (a spawn, a join, a respawn or a
@@ -146,7 +148,8 @@ export const CLEAR_SPOT_RADIUS_M = 30;
  * and on dry land (no corner of it on the water side of a shore, the Bay's or a lake's: onWater);
  * else the nearest such spot on rings 1 m apart out to CLEAR_SPOT_RADIUS_M, reached from the
  * requested spot without crossing a wall (from a spot on the water, across the shore to the
- * nearest dry one), in a fixed order (so every client picks the same).
+ * nearest dry one, out to CLEAR_SPOT_WATER_RADIUS_M), in a fixed order (so every client picks
+ * the same).
  * A car placed overlapping a footprint would otherwise be pushed out of it (at most
  * CAR.maxPush a tick). When nothing within reach is clear, the requested spot.
  */
@@ -170,7 +173,8 @@ export function clearCarSpot(world: World, x: number, z: number, heading: number
   if (clear(x, z)) return { x, z };
   // From the water, the way to the land crosses the shore's wall.
   const fromWater = shore !== null && onWater(shore, x, z);
-  for (let r = 1; r <= CLEAR_SPOT_RADIUS_M; r++) {
+  const reach = fromWater ? CLEAR_SPOT_WATER_RADIUS_M : CLEAR_SPOT_RADIUS_M;
+  for (let r = 1; r <= reach; r++) {
     const n = 8 * r;
     for (let k = 0; k < n; k++) {
       const a = heading + (2 * Math.PI * k) / n;
