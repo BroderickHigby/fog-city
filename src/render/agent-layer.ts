@@ -17,8 +17,9 @@
 //    across that whole step (agent-lod.ts trackStep/windowAlpha) so it glides, not stop-go.
 //  - errand robots carry a full bag unless the agent says otherwise; setBags() overrides it.
 //  - an agent with a dodge (src/sim/dodge.ts) is drawn diving, leaping, getting up or skidding
-//    (dodge-pose.ts): people with the full rig near, the merged copy leaning and tumbling at mid
-//    and far range; robots tipped and swung round. Children (personIsChild) are drawn smaller.
+//    (dodge-pose.ts): people with the full rig near, the merged copy leaning (never turned over:
+//    it cannot tuck, rigidDodgePose) at mid and far range; robots tipped and swung round.
+//    Children (personIsChild) are drawn smaller.
 // Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
 // parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
 // With shadows on (?shadows=1) every agent mesh casts and receives them.
@@ -29,7 +30,7 @@
 
 import * as THREE from "three";
 import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, personIsChild, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
-import { drawnHop, newPersonPose, newRobotPose, personDodgePose, robotDodgePose, type PersonPose } from "./dodge-pose.ts";
+import { drawnHop, newPersonPose, newRobotPose, personDodgePose, rigidDodgePose, robotDodgePose, type PersonPose } from "./dodge-pose.ts";
 import type { SimState } from "../sim/contract.ts";
 import {
   DEFAULT_TIERS,
@@ -601,7 +602,8 @@ export class AgentLayer {
           near++;
           this.people.add(px, pose.y, pz, pose.heading, this.look, Math.sin(anim.gait) * anim.amount, dp, b.dodge ? pose.y - drawnHop(b.dodge, alpha) : null);
         } else {
-          if (dp) poseMatrix(px, pose.y, pz, dp, this.look.scale, _base);
+          // In one piece (no joints to tuck), so it never turns over (rigidDodgePose).
+          if (dp) poseMatrix(px, pose.y, pz, rigidDodgePose(b.dodge!, b.heading, alpha, time, this.personPose), this.look.scale, _base);
           else baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
           (tier === TIER_MID ? this.peopleMid : this.peopleFar).push(_base, null, this.look);
         }

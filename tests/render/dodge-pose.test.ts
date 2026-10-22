@@ -6,7 +6,7 @@
 // comic leap, never as someone knocked down (the adversarial review, 2026-10-21). The dive is
 // drawn higher than the sim's hop with a shadow on the ground under it, so the air shows.
 import { describe, expect, it } from "vitest";
-import { AIR_LIFT_M, SHORT_LEAP_M, STRETCH_HOP_M, diveBearing, drawnHop, newPersonPose, newRobotPose, personDodgePose, progress, robotDodgePose, type DodgeLike, type PersonPose } from "../../src/render/dodge-pose.ts";
+import { AIR_LIFT_M, SHORT_LEAP_M, STRETCH_HOP_M, diveBearing, drawnHop, newPersonPose, newRobotPose, personDodgePose, progress, rigidDodgePose, robotDodgePose, type DodgeLike, type PersonPose } from "../../src/render/dodge-pose.ts";
 
 const TAU = Math.PI * 2;
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -188,6 +188,53 @@ describe("people dodging", () => {
     }
     expect(Math.max(...arms) - Math.min(...arms)).toBeGreaterThan(1);
     expect(pose(short(7)).roll).toBeGreaterThan(0.2); // tipping toward it (east, to their right)
+  });
+});
+
+describe("people drawn in one piece (the merged copy at mid and far range)", () => {
+  // It has no joints, so it cannot tuck: turning over it would be a rigid body upended, head over
+  // heels (the e2e dive frames of 2026-10-22 showed a mid-range diver drawn so), which reads as
+  // someone thrown. It never turns over, is flat only while hopping high, flows without a snap,
+  // and lands where the jointed rig lands (the crouch's lean), so the recovery follows on.
+  const rigid = (d: DodgeLike, alpha = 1): PersonPose => rigidDodgePose(d, 0, alpha, 0, newPersonPose());
+  it("never turns over, is flat only well off the ground, and never snaps from one moment to the next", () => {
+    const bad: string[] = [];
+    for (const leap of [false, true]) {
+      for (const dur of [12, 18, 24, 36, 61]) {
+        for (const peak of [0.45, 0.35]) {
+          let last: number | null = null;
+          for (let t = 0; t <= dur; t++) {
+            for (const alpha of [0.25, 0.5, 0.75, 1]) {
+              const d: DodgeLike = { phase: "dive", sx: 0, sz: 0, tx: 2.4, tz: 0, t, dur, hop: 0, leap, peak };
+              const u = progress(d, alpha);
+              const hop = 4 * peak * u * (1 - u);
+              const p = rigid(d, alpha);
+              const tag = `${leap ? "leap" : "dive"} dur ${dur} peak ${peak} u ${u.toFixed(3)}`;
+              if (Math.cos(p.pitch) < 0.2) bad.push(`${tag}: turned over (pitch ${p.pitch.toFixed(2)})`);
+              if (Math.abs(Math.sin(p.pitch)) > 0.7 && hop + p.lift < STRETCH_HOP_M * 0.66) bad.push(`${tag}: flat at ${(hop + p.lift).toFixed(2)} m`);
+              if (last !== null && Math.abs(wrap(p.pitch - last)) > 0.5) bad.push(`${tag}: pitch jumps ${wrap(p.pitch - last).toFixed(2)}`);
+              last = p.pitch;
+            }
+          }
+        }
+      }
+    }
+    expect(bad.slice(0, 5)).toEqual([]);
+  });
+  it("is the jointed rig's pose until the flip, and the same at the landing and through the recovery", () => {
+    const d = (t: number): DodgeLike => ({ phase: "dive", sx: 0, sz: 0, tx: 2.4, tz: 0, t, dur: 18, hop: 0, leap: false, peak: 0.45 });
+    for (const t of [0, 3, 6, 9]) close(rigid(d(t)), pose(d(t)), 1e-9); // spring and stretch (u < 0.52)
+    for (const t of [15, 16, 17]) close(rigid(d(t)), pose(d(t)), 1e-9); // on the feet, the crouch
+    for (let t = 0; t <= 60; t += 5) close(rigid(recover(t)), pose(recover(t)), 1e-9);
+    close(rigid(d(18), 0.999999), pose(recover(0), 0, 1), 1e-3);
+    // The flip itself: from flat out, swinging down onto the feet (pitch only rises toward the lean).
+    const pitches = [10, 11, 12, 13, 14].map((t) => rigid(d(t)).pitch);
+    for (let i = 1; i < pitches.length; i++) expect(pitches[i]!).toBeGreaterThanOrEqual(pitches[i - 1]! - 1e-12);
+    // The override's leap: a lean into the arc, upright again at the end; a short one is the stumble-hop.
+    expect(Math.abs(wrap(rigid(dive(24, true)).pitch))).toBeLessThan(1e-9);
+    expect(rigid(dive(12, true)).pitch).toBeLessThan(-0.3);
+    const short: DodgeLike = { phase: "dive", sx: 0, sz: 0, tx: SHORT_LEAP_M * 0.5, tz: 0, t: 7, dur: 14, hop: 0, leap: true };
+    close(rigid(short), pose(short), 1e-9);
   });
 });
 

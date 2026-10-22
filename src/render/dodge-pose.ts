@@ -20,6 +20,9 @@
 //  - recover: up from the crouch with a startled jump (arms flung up on the way up, then a little
 //    shake), then brushing themselves off, then back to their walk's heading. Comic, never
 //    hurt-looking: no lying still, no limp limbs.
+//  - a person drawn in one piece (the merged copy at mid and far range: no joints, so no tuck)
+//    never turns over (rigidDodgePose): the flip is the stretch swinging down onto the feet,
+//    and the override's leap a lean into the arc.
 // Robots: the Footman (errand robot) hops aside leaning into it with its arms out; the Trundle
 // (sidewalk bot) skids, its body swinging round and tipping toward the dive with a small hop,
 // then rocks back level. Both are upright again before they move on.
@@ -263,6 +266,37 @@ export function personDodgePose(d: Readonly<DodgeLike>, walk: number, alpha: num
 /** A dive's flip starts here (progress), and it lands here. */
 const FLIP_FROM = 0.52;
 const LAND_FROM = 0.82;
+
+/**
+ * A person's dodge pose for a body drawn in one piece (agent-layer.ts: the merged copy at mid and
+ * far range, which has no joints, so it cannot tuck). Turning over stretched out would draw a
+ * rigid body upended, head over heels, which reads as someone thrown rather than a leap, so the
+ * one-piece body never turns over: the dive's flip becomes the stretch swinging down onto the
+ * feet (from flat out to the landing's lean, curling a little), and the override's leap a lean
+ * into the arc. Everything else (the stretch, flat only while hopping high; the landing and the
+ * recovery) is personDodgePose's. Fills and returns `out`.
+ */
+export function rigidDodgePose(d: Readonly<DodgeLike>, walk: number, alpha: number, time: number, out: PersonPose): PersonPose {
+  personDodgePose(d, walk, alpha, time, out);
+  if (d.phase !== "dive") return out;
+  const u = progress(d, alpha);
+  if (d.leap) {
+    const dist = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
+    if (dist < SHORT_LEAP_M) return out; // the stumble-hop never turns over
+    const k = Math.sin(Math.PI * u);
+    out.pitch = -0.5 * k;
+    out.squash = 1 - 0.15 * k;
+    return out;
+  }
+  if (u >= FLIP_FROM && u < LAND_FROM) {
+    const k = (u - FLIP_FROM) / (LAND_FROM - FLIP_FROM);
+    out.pitch = lerp(-1.35, -0.35, ease(k, 0, 1));
+    out.squash = 1 - 0.2 * Math.sin(Math.PI * k);
+  } else if (u >= LAND_FROM) {
+    out.pitch = -0.35; // the crouch's lean (personDodgePose has it a full turn on: the same pose)
+  }
+  return out;
+}
 
 /** A robot's pose in a dodge: the Footman hops aside, the Trundle skids. Fills and returns `out`. */
 export function robotDodgePose(kind: "errandRobot" | "sidewalkBot", d: Readonly<DodgeLike>, walk: number, alpha: number, out: RobotPose): RobotPose {

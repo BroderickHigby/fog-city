@@ -6,10 +6,11 @@
 // at least 0.75 m from them, and the renderer must draw the dive (renderInfo().agentsDodging).
 // The game is paused and stepped through stepFrames, so the run is the same sim run Node gets.
 //
-// DODGE_SHOTS=<dir> also saves a dive sequence there (six frames from a fly camera 9 m ahead of
-// the person at eye height, 1.4 m up, between their line and the car's, looking back at them and
-// the car coming: side-on to the dive, so the air under it and the gap to the car read across the
-// picture), at full size: what the owner looks at.
+// DODGE_SHOTS=<dir> also saves a dive sequence there (six frames from a fly camera 14 m ahead of
+// the dive along the car's travel and 3.2 m up, looking back and a little down at the person and
+// the car coming: side-on to the dive, so the air under it, its shadow on the ground and the gap
+// to the car read across the picture, and a long dive that bends ahead of the car stays in it),
+// at full size: what the owner looks at.
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
@@ -120,24 +121,27 @@ test.describe("the dodge on the real city", () => {
     expect(r.diveTick, "the person dived").toBeGreaterThanOrEqual(0);
     expect(r.diveSpeed, "the car's speed when they dived, m/s").toBeGreaterThan(20);
 
-    // The renderer draws someone dodging. Shots: a fly camera 9 m ahead of them along the car's
-    // travel at eye height (1.4 m up), halfway between where they stood and where they land,
-    // looking back at them with the car coming: the dive goes across the picture, side-on, so the
-    // air under them and the gap between them and the car are plain to see.
+    // The renderer draws someone dodging. Shots: a fly camera 14 m ahead of them along the car's
+    // travel and 3.2 m up, from halfway between where they stood and where they first aim to land,
+    // looking back and 12 degrees down at them with the car coming: the dive goes across the
+    // picture, side-on, with its shadow on the ground beneath, so the air under them and the gap
+    // between them and the car are plain to see. (At eye height a body flying flat at eye level
+    // lines up with the horizon and reads as lying on the pavement; 9 m away a dive the car's
+    // chase turns ahead of it flies into the lens.)
     const f = await features(page);
     const at = r.at!;
     if (SHOTS) {
       mkdirSync(SHOTS, { recursive: true });
       const mx = (at.x + at.tx) / 2;
       const mz = (at.z + at.tz) / 2;
-      const cx = mx + at.ux * 9;
-      const cz = mz + at.uz * 9;
+      const cx = mx + at.ux * 14;
+      const cz = mz + at.uz * 14;
       const yaw = (Math.atan2(mx - cx, -(mz - cz)) * 180) / Math.PI;
       const y = await page.evaluate((id) => {
         const list = ((window as unknown as FogWindow).__fogcity!.state().ext as { agents?: { list: Array<{ id: number; y: number }> } }).agents?.list ?? [];
         return list.find((a) => a.id === id)?.y ?? 0;
       }, r.target);
-      if (f.flyTo) await page.evaluate(({ cx, y, cz, yaw }) => (window as unknown as FogWindow).__fogcity!.flyTo!(cx, y + 1.4, cz, yaw, -4), { cx, y, cz, yaw });
+      if (f.flyTo) await page.evaluate(({ cx, y, cz, yaw }) => (window as unknown as FogWindow).__fogcity!.flyTo!(cx, y + 3.2, cz, yaw, -12), { cx, y, cz, yaw });
       await settle(page, 60_000);
     }
     let drawnDodging = 0;
