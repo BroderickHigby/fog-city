@@ -199,6 +199,10 @@ export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; rules?: 
     why: "the resources name the real support services; every other rule still applies",
   },
   { file: /^content\/landmarks\.json$/, why: "owned by the assets track; real landmark names and sources" },
+  {
+    file: /^content\/landmark-tags\.json$/, path: "landmarks.*.id", rules: ["checklist"],
+    why: "the places table's ids are the join key with content/landmarks.json, whose model ids are the landmarks' real names; labels and notes are still linted",
+  },
 ];
 
 /** Keys whose string values are provenance or machine data rather than player-facing text. */
@@ -243,7 +247,9 @@ export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | 
   const nameFields = NAME_FIELDS.filter((f) => f.file.test(rel));
   walk(doc, [], (path, s) => {
     const at = path.join(".");
-    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || at === e.path || at.startsWith(`${e.path}.`);
+    // A path with a * segment matches that one position exactly (like NAME_FIELDS); a plain path covers its subtree.
+    const under = (e: (typeof EXEMPT_PATHS)[number]) =>
+      e.path === undefined || (e.path.includes("*") ? matches(e.path, path) : at === e.path || at.startsWith(`${e.path}.`));
     if (fileExempt.some((e) => e.rules === undefined && under(e))) return;
     const skipRules = new Set(fileExempt.filter((e) => e.rules !== undefined && under(e)).flatMap((e) => e.rules ?? []));
     const key = path[path.length - 1] ?? "";
