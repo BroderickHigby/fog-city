@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/safehouses",
+  "title": "Safehouses and garages (content/safehouses.json)",
+  "type": "object",
+  "required": ["version", "source", "sites", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "provenance": { "$ref": "provenance" },
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "source": { "type": "string" },
+    "sites": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "garage", "wave", "district", "label", "lat", "lon", "blurb", "opensAtThreat", "opensAtStars"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "kind": { "enum": ["safehouse", "garage"] },
+          "garage": { "type": "boolean" },
+          "wave": { "type": "integer", "minimum": 2, "maximum": 8 },
+          "district": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "label": { "type": "string" },
+          "lat": { "$ref": "places#/$defs/lat" }, "lon": { "$ref": "places#/$defs/lon" },
+          "blurb": { "type": "string", "maxLength": 120 },
+          "opensAtThreat": { "const": 1, "description": "A safehouse only opens at threat <= 1 (design.md)." },
+          "opensAtStars": { "const": 2, "description": "A safehouse opens only at <= 2 VC stars (design.md)." },
+          "vendor": { "type": "string" }
+        },
+        "if": { "properties": { "kind": { "const": "garage" } } },
+        "then": { "properties": { "garage": { "const": true } } }
+      }
+    }
+  }
+}

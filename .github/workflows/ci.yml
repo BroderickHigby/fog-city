@@ -1,9 +1,11 @@
-# Typecheck, unit tests and browser end-to-end tests on every push and pull request.
+# Typecheck, unit tests and browser end-to-end tests on every pull request and every push to main.
 # How to run the same thing locally, and what each suite proves: docs/testing.md.
 name: CI
 
 on:
+  # Pull requests run CI for every branch; a push runs it again only on main.
   push:
+    branches: [main]
   pull_request:
 
 concurrency:
@@ -95,7 +97,10 @@ jobs:
       - name: Screenshots
         if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
         continue-on-error: true
-        run: pnpm shots
+        # A step that reaches timeout-minutes fails the job even under continue-on-error, so Playwright's
+        # own 9-minute limit ends slow software-GL captures first; the step limit is only a backstop.
+        timeout-minutes: 12
+        run: pnpm shots --global-timeout=540000 || echo "::warning::Screenshots stopped early; the ones taken are in the artifact."
 
       - name: Upload test results
         if: ${{ !cancelled() }}

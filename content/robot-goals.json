@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "$comment": "Goal tables for the bad-robot brain (docs/design.md, The bad-robot brain). One table per bad archetype in content/bot-tells.json, one goal list per state: disguised, wary, alerted, attack, flee. The sim's state machine picks among the goals whose 'when' holds, by weight, with its own RNG; the numbers in knowledge and rules are the design's starting values (tune). Bad robots target the player and other robots, never people: no goal or attack has a person as a target, and the target enum has no such value.",
+  "knowledge": {
+    "sightRangeM": 30, "sightConeDeg": 100, "fogSightLoss": 0.6,
+    "hearSprayM": 20, "hearHornM": 40, "broadcastM": 60,
+    "pingRadiusM": 30, "scanAlertRadiusM": 10, "watchWaryS": 3, "watchWaryRadiusM": 10,
+    "unobservedBeyondM": 20
+  },
+  "rules": {
+    "waryS": 10, "attackPlayerWithinM": 15, "goodRobotWithinM": 10, "fleeAtRust": 0.6,
+    "maxMeleeOnPlayer": 2, "fogFollowS": 8, "fogPanicRustMultiplier": 3,
+    "sabotageAlertRadiusM": 150, "sabotageAlertS": 30, "lostTrackS": 30
+  },
+  "attacks": {
+    "shove": { "wave": 2, "rangeM": 1.5, "windupS": 0.6, "models": ["errand-robot"], "targets": ["player", "robot"], "effect": "A bump with a cartoon stumble for 1 s; never a fall, never at head height. -1 month runway." },
+    "grocerySnatch": { "wave": 2, "rangeM": 1, "windupS": 0.5, "models": ["errand-robot", "sidewalk-bot"], "targets": ["robot"], "effect": "Robots only. Oranges roll downhill; the good robot gives chase at 1 m/s, sadly." },
+    "adBlast": { "wave": 2, "rangeM": 8, "windupS": 0.8, "models": ["errand-robot"], "targets": ["player"], "effect": "Up to three AR pop-ups, each at most a third of the screen and never over the reticle; -0.2 month/s while any is up." },
+    "handshake": { "wave": 2, "rangeM": 1.2, "windupS": 0.5, "models": ["errand-robot"], "targets": ["player"], "effect": "A networking handshake that will not let go for up to 2 s; 8 presses break free ('let's circle back')." },
+    "forcedUpdate": { "wave": 2, "rangeM": 3, "windupS": 6, "models": ["errand-robot", "sidewalk-bot"], "targets": ["robot"], "effect": "A 6 s channel on a good robot ('Updating 0-100%'); water on the pusher (rust 0.2) or a shove interrupts it." },
+    "phoneHack": { "wave": 3, "rangeM": 4, "windupS": 0.5, "models": ["errand-robot", "sidewalk-bot"], "targets": ["player"], "effect": "-0.1 month/s while within 4 m; the minimap scrambles. Broken by distance or water." },
+    "carTheft": { "wave": 3, "rangeM": 2, "windupS": 3, "models": ["errand-robot"], "targets": ["emptyParkedCar"], "effect": "Only an empty parked car, only with the player more than 30 m away. Driven to a depot, signalling every lane change." },
+    "boxIn": { "wave": 3, "rangeM": 12, "windupS": 2, "models": ["robotaxi"], "targets": ["playerCar"], "effect": "Parks across the lane ahead of the player's car and honks. Never targets anyone on foot." }
+  },
+  "transitions": [
+    { "from": ["disguised"], "to": "wary", "when": "pinged", "note": "A scan ping within 30 m: keeps the disguise, stops sabotage, hides one tell for 10 s." },
+    { "from": ["disguised"], "to": "wary", "when": "watchedClose", "note": "Watched for more than 3 s from within 10 m." },
+    { "from": ["wary"], "to": "disguised", "when": "waryTimeout" },
+    { "from": ["disguised", "wary"], "to": "alerted", "when": "sprayed" },
+    { "from": ["disguised", "wary"], "to": "alerted", "when": "scannedClose", "note": "Only the scanned robot, only if it is bad and within 10 m." },
+    { "from": ["disguised", "wary"], "to": "alerted", "when": "broadcast", "note": "A seizing bad robot within 60 m sends the player's last-seen position." },
+    { "from": ["disguised", "wary"], "to": "alerted", "when": "heardSpray" },
+    { "from": ["alerted"], "to": "attack", "when": "chooseFight" },
+    { "from": ["alerted"], "to": "flee", "when": "chooseFlee" },
+    { "from": ["alerted", "attack"], "to": "flee", "when": "rustHigh" },
+    { "from": ["alerted", "attack", "flee"], "to": "disguised", "when": "lostTrack" },
+    { "from": ["disguised", "wary", "alerted", "attack", "flee"], "to": "seized", "when": "rustFull" }
+  ],
+  "archetypes": {
+    "snatcher": {
+      "fightBias": 0.7,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 6 },
+          { "goal": "sabotage", "sabotage": "snatchGroceries", "when": "unobserved", "target": "nearestGoodRobot", "weight": 4 },
+          { "goal": "shelter", "when": "rain", "target": "nearestShelter", "weight": 3 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 }
+        ],
+        "alerted": [
+          { "goal": "lookAt", "when": "always", "target": "player", "weight": 2 },
+          { "goal": "callOthers", "when": "playerInSight", "target": "towardBadRobots", "weight": 1 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "shove", "when": "meleeSlotFree", "target": "player", "weight": 4 },
+          { "goal": "attack", "attack": "handshake", "when": "meleeSlotFree", "target": "player", "weight": 2 },
+          { "goal": "attack", "attack": "grocerySnatch", "when": "goodRobotNear", "target": "nearestGoodRobot", "weight": 2 },
+          { "goal": "attack", "attack": "adBlast", "when": "meleeSlotsFull", "target": "player", "weight": 3 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 3 },
+          { "goal": "regroup", "when": "always", "target": "towardBadRobots", "weight": 2 }
+        ]
+      }
+    },
+    "updatePusher": {
+      "fightBias": 0.5,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 },
+          { "goal": "sabotage", "sabotage": "pushUpdate", "when": "unobserved", "target": "nearestGoodRobot", "weight": 5 },
+          { "goal": "avoid", "when": "fog", "target": "awayFromFog", "weight": 2 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 }
+        ],
+        "alerted": [
+          { "goal": "lookAt", "when": "always", "target": "player", "weight": 2 },
+          { "goal": "callOthers", "when": "playerInSight", "target": "towardBadRobots", "weight": 2 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "forcedUpdate", "when": "goodRobotNear", "target": "nearestGoodRobot", "weight": 4 },
+          { "goal": "attack", "attack": "handshake", "when": "meleeSlotFree", "target": "player", "weight": 2 },
+          { "goal": "attack", "attack": "adBlast", "when": "always", "target": "player", "weight": 3 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 2 },
+          { "goal": "regroup", "when": "always", "target": "towardBadRobots", "weight": 3 }
+        ]
+      }
+    },
+    "prowler": {
+      "fightBias": 0.4,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 4 },
+          { "goal": "sabotage", "sabotage": "tryCarDoor", "when": "unobserved", "target": "nearestParkedCar", "weight": 5 },
+          { "goal": "sabotage", "sabotage": "stealEmptyCar", "when": "playerFar", "target": "emptyPlayerCar", "weight": 1, "fromWave": 3 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 }
+        ],
+        "alerted": [
+          { "goal": "lookAt", "when": "always", "target": "player", "weight": 1 },
+          { "goal": "keepDistance", "when": "playerInSight", "target": "player", "weight": 2 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "shove", "when": "meleeSlotFree", "target": "player", "weight": 3 },
+          { "goal": "attack", "attack": "phoneHack", "when": "always", "target": "player", "weight": 3, "fromWave": 3 },
+          { "goal": "keepDistance", "when": "meleeSlotsFull", "target": "player", "weight": 2 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 4 },
+          { "goal": "avoid", "when": "fog", "target": "awayFromFog", "weight": 2 }
+        ]
+      }
+    },
+    "adSticker": {
+      "fightBias": 0.6,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 4 },
+          { "goal": "sabotage", "sabotage": "stickAd", "when": "unobserved", "target": "nearestBusShelter", "weight": 5 },
+          { "goal": "shelter", "when": "rain", "target": "nearestShelter", "weight": 4 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 4 }
+        ],
+        "alerted": [
+          { "goal": "lookAt", "when": "always", "target": "player", "weight": 2 },
+          { "goal": "callOthers", "when": "playerInSight", "target": "towardBadRobots", "weight": 1 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "adBlast", "when": "always", "target": "player", "weight": 5 },
+          { "goal": "attack", "attack": "shove", "when": "meleeSlotFree", "target": "player", "weight": 1 },
+          { "goal": "keepDistance", "when": "meleeSlotsFull", "target": "player", "weight": 2 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 3 },
+          { "goal": "regroup", "when": "always", "target": "towardBadRobots", "weight": 1 }
+        ]
+      }
+    },
+    "harvester": {
+      "fightBias": 0.4,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 4 },
+          { "goal": "sabotage", "sabotage": "harvestData", "when": "unobserved", "target": "nearestRobotaxiPickup", "weight": 5 },
+          { "goal": "avoid", "when": "fog", "target": "awayFromFog", "weight": 3 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 }
+        ],
+        "alerted": [
+          { "goal": "lookAt", "when": "always", "target": "player", "weight": 1 },
+          { "goal": "keepDistance", "when": "playerInSight", "target": "player", "weight": 2 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "forcedUpdate", "when": "goodRobotNear", "target": "nearestGoodRobot", "weight": 3 },
+          { "goal": "attack", "attack": "phoneHack", "when": "always", "target": "player", "weight": 4, "fromWave": 3 },
+          { "goal": "attack", "attack": "grocerySnatch", "when": "goodRobotNear", "target": "nearestGoodRobot", "weight": 1 },
+          { "goal": "keepDistance", "when": "always", "target": "player", "weight": 1 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 3 },
+          { "goal": "avoid", "when": "fog", "target": "awayFromFog", "weight": 3 }
+        ]
+      }
+    },
+    "fakeCourier": {
+      "fightBias": 0.5,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 },
+          { "goal": "sabotage", "sabotage": "snatchGroceries", "when": "unobserved", "target": "nearestGoodRobot", "weight": 3 },
+          { "goal": "sabotage", "sabotage": "pushUpdate", "when": "unobserved", "target": "nearestGoodRobot", "weight": 2 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 }
+        ],
+        "alerted": [
+          { "goal": "lookAt", "when": "always", "target": "player", "weight": 1 },
+          { "goal": "callOthers", "when": "playerInSight", "target": "towardBadRobots", "weight": 2 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "grocerySnatch", "when": "goodRobotNear", "target": "nearestGoodRobot", "weight": 3 },
+          { "goal": "attack", "attack": "forcedUpdate", "when": "goodRobotNear", "target": "nearestGoodRobot", "weight": 3 },
+          { "goal": "keepDistance", "when": "always", "target": "player", "weight": 2 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 3 },
+          { "goal": "regroup", "when": "always", "target": "towardBadRobots", "weight": 2 }
+        ]
+      }
+    },
+    "rogueTaxi": {
+      "fightBias": 0.3,
+      "states": {
+        "disguised": [
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 4 },
+          { "goal": "sabotage", "sabotage": "parkAcrossHydrant", "when": "unobserved", "target": "nearestHydrant", "weight": 4 },
+          { "goal": "avoid", "when": "fog", "target": "awayFromFog", "weight": 3 }
+        ],
+        "wary": [
+          { "goal": "hideTell", "when": "always", "target": "mostObviousTell", "weight": 1 },
+          { "goal": "errand", "when": "always", "target": "errandRoute", "weight": 5 }
+        ],
+        "alerted": [
+          { "goal": "keepDistance", "when": "always", "target": "player", "weight": 3 },
+          { "goal": "callOthers", "when": "playerInSight", "target": "towardBadRobots", "weight": 1 }
+        ],
+        "attack": [
+          { "goal": "attack", "attack": "boxIn", "when": "playerInCar", "target": "laneAheadOfPlayerCar", "weight": 4, "fromWave": 3 },
+          { "goal": "keepDistance", "when": "always", "target": "player", "weight": 2 }
+        ],
+        "flee": [
+          { "goal": "flee", "when": "always", "target": "awayFromWater", "weight": 3 },
+          { "goal": "avoid", "when": "fog", "target": "awayFromFog", "weight": 2 }
+        ]
+      }
+    }
+  },
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:04ed9963",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
+}

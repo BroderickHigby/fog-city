@@ -348,9 +348,9 @@ test.describe("sf world: in the browser", () => {
   });
 
   test("the city limit has no crack: from the car at the southern land edge, no sea shows between the last tile and the land beyond", async () => {
-    // Before the far layer stitched its terrain to the tiles' ground at the city's outer edge, a
-    // strip of the sea plane showed here across the whole screen, through the gap between the
-    // last tile's ground and the far terrain's edge.
+    // Before the far terrain met the tiles' ground at the city's outer edge, a strip of the sea
+    // plane showed here across the whole screen, through the gap between the last tile's ground
+    // and the far terrain's edge.
     test.setTimeout(420_000);
     const have = await features(page);
     gate("render-debug", have.renderInfo && have.setCameraMode && have.tilesSettled, "window.__fogcity.renderInfo(), setCameraMode() or tilesSettled() is missing");
@@ -371,8 +371,9 @@ test.describe("sf world: in the browser", () => {
     });
     expect(await settle(page, 300_000), "tiles and far cells settled").toBe(true);
     await frames(page, 3);
-    const r = (await renderInfo(page))!;
-    expect(r.farSeamEdges ?? 0, "far quads stitched to the tiles' ground at the city's outer edge").toBeGreaterThan(50);
+    // The far terrain now meets the tiles' ground itself: its border vertices are the near
+    // lattice's (pipeline far.ts, world QA W-17), so the renderer's stitches (renderInfo
+    // farSeamEdges) find few 100 m quads left to replace. What must hold is the picture.
     const img = decodePng(await page.screenshot());
     // Sea-coloured pixels below the horizon, outside the middle third (the car is there).
     let sea = 0;

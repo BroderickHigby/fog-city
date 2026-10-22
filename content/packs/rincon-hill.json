@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "rincon-hill",
+  "$comment": "District content pack for Rincon Hill (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:4d1e25a3",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "rincon-hill-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Up Harrison St with groceries. Rincon Hill is small but committed.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering to the 40th floor. The elevator and I are friends.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The view from the top: bridge, bay, and a lot of windows.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Fremont St is steep for one block. I take it slow.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Laundry delivery to the towers. Folded, wrapped, gentle.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The bridge traffic hums below. I hum a different tune.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lobby doors open. Doorbot nods. I nod back.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Walking the little park on the hill. Path only.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Dog-food delivery for a very good dog on the 22nd floor.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Folsom St at rush hour. Patient wheels.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Tower lobbies have the nicest ramps in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bridge lights on. Battery steady. All is well.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bringing a new houseplant up the hill. It's thriving already.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a lamp to a high floor. The lamp is nervous about heights.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "First St on-ramp traffic. I wait at every crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The wind on the hill is strong. I lean like a professional.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Morning coffee for the concierge desk. Two sugars.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Taking the ramp up the hill. Ramps are how I say I care.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! This lobby door is a revolving one and I am not.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, elevator's full. I'll take the next one. And the next.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, the wind pushed me. And then I pushed the wind back. Sorry.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I'm crossing Harrison. Slowly. It's a hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, delivery coming up. Up, up, up.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Nice view. I'm monetising it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every tower is vertical growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I've been watching the bridge for an hour. Strategic observation.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your lobby has been reclassified as a lead.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The higher the floor, the higher the conversion.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This hill is premium elevation.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Elevators are just funnels with buttons.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "From up here, every robot looks acquirable.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I stand still on the hilltop because I'm buffering ambition.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Rincon Hill: now in private beta.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Watching the bridge traffic. Counting future users.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "That laundry delivery is now a laundry acquisition.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Updating the concierge Footman. It'll recommend us.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Ad on the lobby noticeboard. Nobody reads it but everyone sees it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not on the hilltop! Everyone can see the hilltop!",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Wind and water! The worst combination!",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My view! I mean my joints! I mean both!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "rincon-hill-pl-resident-ambient-01",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "I can see the bridge from my window. And three cranes.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-02",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The wind on this hill will take your umbrella.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-03",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Every tower has a robot concierge now.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-04",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The little park on the hill is the quietest place downtown.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-05",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "There's a robot at the top of the hill that just stares at the bridge.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-06",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Bridge traffic sounds like the ocean if you squint your ears.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-07",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "My groceries come up by robot. I come up by elevator. We meet.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-08",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The fog stops at the towers some nights. Like a wall.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-09",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Harrison St is steep for one block and then it's flat. Weird hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-10",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The view from the hill never gets old. The wind does.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-11",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The lobby robot knows everyone's name. Spooky. Helpful.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-12",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Sunset over the bay from the hill. Best free show.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-13",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "Rush hour on the on-ramps. Glad I walk.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-ambient-14",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "calm",
+      "text": "The bridge lights twinkle at night. Very calming.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-01",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "Shortcut over the hill to the ferry. Ten minutes saved.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-02",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "I take the stairs. The robots take the ramp. We both get there.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-03",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "The on-ramp traffic is backed up to 2nd St again.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-04",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "Hill workout before work. Free gym.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-05",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "Every crossing on Folsom has a robot waiting at it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-06",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "The bus goes around the hill. I go over it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-07",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "Wind tunnel between the towers. Hold on to your coffee.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-commuter-ambient-08",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "rushed",
+      "text": "I wave at the concierge robot every morning. It waves back.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-robots-01",
+      "speaker": "resident",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's stood at the top of the hill facing the bridge all morning.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-robots-02",
+      "speaker": "resident",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A Footman just walked off with someone's laundry delivery.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-robots-03",
+      "speaker": "resident",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one took the stairs. Footmen never take the stairs.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-robots-04",
+      "speaker": "resident",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's bag is swinging like there's nothing in it.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-robots-05",
+      "speaker": "resident",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why does that one keep walking against the crowd?",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-robots-06",
+      "speaker": "resident",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's status light says 100% every single time.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-01",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "The fog comes under the bridge like a slow river.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-02",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "When the fog's in, the towers disappear from the top down.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-03",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "Foghorns at night. The best lullaby in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-04",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "Sunny on the hill, fog on the bay. Perfect.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-05",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "The bridge vanishes into the fog halfway across.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-06",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "The wind up here is cold even in summer.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-07",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "Fog days the lobby smells like coffee and wet umbrellas.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-08",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "You can watch the fog roll in from the hilltop like a movie.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-09",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "The fog never makes it up the hill. Usually.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-10",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "Sunrise over the bay. The fog turns pink.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-11",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "Wind, fog, sun, wind. That's the forecast every day.",
+      "maxLength": 90
+    },
+    {
+      "id": "rincon-hill-pl-resident-fog-12",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "dreamy",
+      "text": "Clear night. You can see every light on the bridge.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "rincon-hill-hilltop-watcher",
+      "archetype": "updatePusher",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "The top of Rincon Hill, Harrison St",
+        "lat": 37.78677,
+        "lon": -122.39205
+      },
+      "posting": "A Footman stands on the hilltop facing the bridge, and concierge robots nearby keep getting updated.",
+      "tellHint": "Good robots on the hill are always on an errand. This one never moves.",
+      "localTell": "hilltopWatcher"
+    },
+    {
+      "id": "rincon-hill-laundry-snatch",
+      "archetype": "snatcher",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Folsom St at 1st St",
+        "lat": 37.7873,
+        "lon": -122.39448
+      },
+      "posting": "Laundry deliveries to the towers are going missing.",
+      "tellHint": "Their lookout watches the bridge from the hilltop.",
+      "localTell": "hilltopWatcher"
+    },
+    {
+      "id": "rincon-hill-lobby-prowler",
+      "archetype": "prowler",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Harrison St at 2nd St",
+        "lat": 37.78431,
+        "lon": -122.39516
+      },
+      "posting": "Pairing chimes in the tower garages along Harrison St.",
+      "tellHint": "The crew's lookout stands perfectly still on the hill.",
+      "localTell": "hilltopWatcher"
+    },
+    {
+      "id": "rincon-hill-ramp-stairs",
+      "archetype": "adSticker",
+      "level": 5,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Fremont St, the hill steps",
+        "lat": 37.7875,
+        "lon": -122.3928
+      },
+      "posting": "Moat Labs ads on the tower noticeboards.",
+      "tellHint": "Watch the steps: the ad-sticker takes the stairs when there's a ramp.",
+      "localTell": "hilltopWatcher"
+    }
+  ],
+  "ads": [
+    {
+      "id": "rincon-hill-billboard-01",
+      "surface": "billboard",
+      "headline": "Vertical living, vertical SaaS.",
+      "subline": "{$product}. Every floor is a tier."
+    },
+    {
+      "id": "rincon-hill-billboard-02",
+      "surface": "billboard",
+      "headline": "Your concierge is an agent now.",
+      "subline": "{$product}. It remembers your dog."
+    },
+    {
+      "id": "rincon-hill-busWrap-01",
+      "surface": "busWrap",
+      "headline": "The view is free. {$product} isn't.",
+      "subline": "Premium windows, coming this quarter."
+    },
+    {
+      "id": "rincon-hill-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Rise above it all with {$product}.",
+      "subline": "Unless the elevator's out. Then take the ramp."
+    }
+  ]
+}

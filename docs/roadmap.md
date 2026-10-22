@@ -73,7 +73,10 @@ Sizes: **S** ≈ one agent session, **M** ≈ 2–4 sessions, **L** ≈ 5+ sessi
 | Decision | Needed before | Default if undecided |
 |---|---|---|
 | Tile storage: plain git with compression (current), Git LFS, or a versioned release artifact | only if a budget in `tests/pipeline/budgets.json` is exceeded | **Decided 2026-10-20: plain git, compressed** (see the design decision log) |
-| Hosting for the relay: provider, region, monthly budget, who holds the credentials | wave 4 online play | wave 4 closes on localhost/LAN, online pending |
+| Cleared names (`content/cleared-names.json`) and the renames the search forced | the wave-2 content freeze | **Decided 2026-10-20: signed off**; Porter → Footman and Clout → Humbled accepted (design decision log) |
+| R-Evolution: the real sculpture or an homage | a public release | **Decided 2026-10-20: the real sculpture**; the artist's permission stays on the pre-release legal checklist |
+| The final boss's name: the parody or the real one | wave 8 | **Decided 2026-10-20: the parody name Elizabeth Homes** |
+| Hosting for the relay: provider, region, monthly budget, who holds the credentials | wave 4 online play | wave 4 closes on localhost/LAN, online pending. The hosting and live-AI budget is written and lands as its own doc |
 | The user's own Anthropic key as a server secret, and a Console spend limit | wave 6 live AI | scripted versions only |
 | Model per runtime route and Trust & Safety option A or B (see `docs/ai-layer.md`) | wave 6 | Opus, option B |
 
@@ -128,7 +131,7 @@ Map per building) are gone: use `nearbyBuildings`, or `world.cells` (numeric `ce
 replays from before these walls diverge (the world changed, not the state format).
 
 ## Wave 2 — Bot Hunt is a game
-**Playable result:** start at the Ferry Building, drive to a bounty, read a bad Porter's tells,
+**Playable result:** start at the Ferry Building, drive to a bounty, read a bad Footman's tells,
 scan it, spray it, watch it seize, slump and melt, survive its friends at threat 1–2, escape, get
 paid, and spend the money on a bigger tank. Missions 1–2. Muni buses with AI ads run on real
 routes. Dogpatch is reachable by road.
@@ -144,8 +147,8 @@ King St connector.
 | Sim-Player | Runway, cash, reputation; DOWN ROUND; threat levels 1–2 with decay, car wash and line-of-sight rules (threat requests units by emitting `threat.spawn{kind, count}`); a vendor at the FiDi coworking desk selling 2 tank tiers, 1 flow tier and burritos for runway; FiDi coworking safehouse (save, sleep); the Marina garage (east end of Marina Blvd, toward Fisherman's Wharf) and the Mission Bay garage (save, car repair) for the 1.5 km rule; bounty board; mission runtime (`trigger`, `goto`, `timer`, `dialogue`, `branch`, `reward`); missions Hot Desk (with the coworking sign-up's "What are you building?" step, which records a `StartupDefined` kit id) and Spill; the Ambient Director (one card within 150 m after 45–75 s with no objective); coning (the activity); the repair-kiosk apology tour; one activity in step 3 (delivery shifts on SoMa's flat blocks; the hill shifts follow in wave 3) | L |
 | Render-World | Water stream, splashes, wet decals, puddles; rust shader and slump shape-key playback; heap prop; instanced humanoids playing vertex-animation clips; buses with wraps; aim camera; the Watch zoom and path trail | L |
 | UI-Audio | HUD (runway, cash, tank, salt, threat); ad-blast overlay; minimap with the GPS line on the road graph; phone shell with Map, BotBounty and Bot Check; the vendor screen; aim assist and touch controls for spray, scan, watch, cone and interact; the `FreeTextBox` component (the only way typed text enters the game) with the client crisis check, length caps and deny-list gates, and the lint that forbids raw text inputs elsewhere; the coworking sign-up form; `?perf=1` overlay | M |
-| Content | **Audit first:** every wave-1 content, id, mission and asset file for "YC", "Y Combinator", the orange Y mark, real partner names and Modern Warfare / Call of Duty terms, renamed to Ramen and invented names, and those strings added to the deny-lists. **Name search before the wave-2 content freeze:** a trademark and company-name search (run in an agent session with web access, outside the tests, and signed off by the user) for every invented name in use, Moat Labs, Meander, Clout, FogCast, Marine Layer, Bramblecot Home, Dry Powder and Brackish among them, each recorded with its date and source in `content/cleared-names.json`; a name that fails is renamed; then the lint rule that rejects an invented proper name missing from that file. Then: `bot-tells.json` to ≥ 24 tells and 6 archetypes, with false tells; `robot-goals.json`; 300 shared robot barks (good apologies, bad growth-hack taunts), 100 wet barks, plus district packs; shared bounty templates; district content packs for every shipped district (steps 1–3); 40–60 hand-written director cards (`content/director-cards.json`); missions Hot Desk and Spill; vendor prices; SoMa billboards and bus wraps; the content lint library in `src/content`; the crisis phrase list and crisis lines; `[ai-02]` startup kits (~200, the fallback for every refusal), the keyword matcher and the name composer with `banned-pairs.json` | M |
-| Assets | **Humanoid line (L):** one parametric scripted-Blender humanoid (a shared rig, 6–8 body variants as shape keys, tint slots) with a clip library (walk, idle, dive, wet shake, sit, talk), baked to vertex-animation textures for instancing, with headless Cycles turntable renders for the user to review; it is also the player's on-foot body. Animals (pigeons, a leashed dog) as static-pose or 2-frame instanced meshes. **Props line (M):** hydrant, fountain, blaster prop, three heap variants, repair kiosk, traffic cone, vendor cart, the Moat Labs van (graphite, teal accent, original design); slump shape keys for Porter and Trundle; spray, splash, rust creak and melt fizz sounds | L + M |
+| Content | **Audit first:** every wave-1 content, id, mission and asset file for "YC", "Y Combinator", the orange Y mark, real partner names and Modern Warfare / Call of Duty terms, renamed to Ramen and invented names, and those strings added to the deny-lists. **Name search before the wave-2 content freeze:** a trademark and company-name search (run in an agent session with web access, outside the tests, and signed off by the user) for every invented name in use, Moat Labs, Meander, Clout (renamed Humbled), FogCast, Marine Layer, Bramblecot Home, Dry Powder and Brackish among them, each recorded with its date and source in `content/cleared-names.json`; a name that fails is renamed; then the lint rule that rejects an invented proper name missing from that file. Then: `bot-tells.json` to ≥ 24 tells and 6 archetypes, with false tells; `robot-goals.json`; 300 shared robot barks (good apologies, bad growth-hack taunts), 100 wet barks, plus district packs; shared bounty templates; district content packs for every shipped district (steps 1–3); 40–60 hand-written director cards (`content/director-cards.json`); missions Hot Desk and Spill; vendor prices; SoMa billboards and bus wraps; the content lint library in `src/content`; the crisis phrase list and crisis lines; `[ai-02]` startup kits (~200, the fallback for every refusal), the keyword matcher and the name composer with `banned-pairs.json` | M |
+| Assets | **Humanoid line (L):** one parametric scripted-Blender humanoid (a shared rig, 6–8 body variants as shape keys, tint slots) with a clip library (walk, idle, dive, wet shake, sit, talk), baked to vertex-animation textures for instancing, with headless Cycles turntable renders for the user to review; it is also the player's on-foot body. Animals (pigeons, a leashed dog) as static-pose or 2-frame instanced meshes. **Props line (M):** hydrant, fountain, blaster prop, three heap variants, repair kiosk, traffic cone, vendor cart, the Moat Labs van (graphite, teal accent, original design); slump shape keys for Footman and Trundle; spray, splash, rust creak and melt fizz sounds | L + M |
 | Harness | Closed-loop drivers in `tests/helpers/drivers/` (hunter, escaper, mission runner, chaser, competent player); `pnpm golden:update`; golden replays for three Bot Hunt scenarios; the clearance soak (chase, jump and no-brake drivers, with Moat Labs vans and buses in traffic: zero vehicle–person contacts, clearance ≥ 0.75 m); the renderer-attached hash test; a cross-browser determinism e2e (Playwright replays one seeded 2-minute run in Chromium, Firefox and WebKit under software rendering and compares per-second state hashes with Node), a required check from this wave on; the nightly workflow; e2e `?world=sf&scenario=spill`; `scripts/bench/` with `?bench=embarcadero` and `?bench=soma` | M |
 
 **Acceptance tests**
@@ -157,6 +160,10 @@ King St connector.
 - At threat 2 a Moat Labs van brings 2 units within 20 s, entering about 120 m from the player.
 - A cone thrown from the car at 25 m/s onto a robotaxi's hood stops it within 3 s.
 - A forced update completes in 6 s unopposed and is interrupted when the pusher reaches rust 0.2.
+- A Footman and a Trundle melted by the player visibly go down (owner request, 2026-10-22): within
+  2 s of seizing, each one's drawn height is at most 40% of its standing height and its heap and
+  puddle are drawn (a browser test through `window.__fogcity`); the Assets look-dev shows each
+  model's fall as a 6-frame strip for the owner's sign-off.
 - No water particle ever reaches an animal, a child, or a person who is seated, lying down or
   using a mobility aid (fuzz over seeded scenes: 50 per PR, 1,000 nightly).
 - Scan accuracy over 10,000 seeded scans is within ±2% of the table for each subtlety.
@@ -372,7 +379,8 @@ Fog Royale for 24.
 
 ## Wave 8 — The rest of the south, the finale, Vibes Night
 **Playable result:** the whole city is drivable; the finale against Elizabeth Homes, the ~500 m turtlenecked robot colossus, from the Golden Gate to the Bay Bridge;
-the ferry to Treasure Island; a Vibes Night party room online.
+the ferry to Treasure Island; a Vibes Night party room online. The sky gets its final look: a warmer blue,
+clouds, and blimps and banner planes trailing invented startups' ads over the city.
 **Territory:** step 9b (the Excelsior, Glen Park, West Portal, Lakeshore, Visitacion Valley and the
 rest), the Bay Bridge deck and Treasure Island.
 
@@ -382,13 +390,13 @@ rest), the Bay Bridge deck and Treasure Island.
 | Sim-World | The ferry | M |
 | Sim-Agents | The Moat Walker (threat 5); the final boss state machine (footfall route, weak points with rust, evacuation waves that clear every footfall zone, shed robots) | L |
 | Assets | Elizabeth Homes: the giant boss model with LODs, joint rig and weak-point nodes; damaged-building chunk sets for the stomp route; the fireboat | L |
-| Render-World | Boss rendering at 500 m scale (far plane, LOD, footfall shockwave and dust), scripted facade destruction, the overnight rebuild time-lapse | M |
+| Render-World | Boss rendering at 500 m scale (far plane, LOD, footfall shockwave and dust), scripted facade destruction, the overnight rebuild time-lapse. **The sky pass** (user request, 2026-10-21): a warmer daytime blue, art-directed per time of day and signed off by the owner from screenshots; a cloud layer (drifting cumulus decks and high cirrus that thin into the fog bank, lit by the sun and dark at night); ambient air traffic of blimps with lit ad screens and banner-towing planes on looping routes (the shoreline, Ocean Beach, over downtown and the Bay), drawn from a seeded schedule on the game clock so every client sees the same sky, never part of `SimState`; banners face the camera side that reads them, blimps glow at night, banner planes fly by day only | M |
 | Sim-Player | Mission 10; one step-9b activity; the step-9b garages for the 1.5 km rule | M |
 | Sim-Modes | Vibes Night party room (named apart from mission 5, Demo Day): 2–8 players present their startup kits, each plays a 90 s live demo in the mission-4 format (scored by the sim), they hear roasts, vote for the Vibes Award, keyed-hash tie-break; its own mode JSON; template roasts first | M |
 | Server-AI | Live Vibes Night roasts route (one call per kit, fallback to templates) | M |
 | Server-Net | Vibes Night rooms on the wave-5 room server | S |
-| Content | Template roasts; mission 10; district content packs for step 9b | M |
-| Assets | Moat Walker, ferry, Bay Bridge hero geometry | L |
+| Content | Template roasts; mission 10; district content packs for step 9b; banner and blimp copy: invented startup names from the name composer plus AI-ad lines, every line through the content lint and the cleared-names rule (no real brands), with font fit for a banner and a blimp screen | M |
+| Assets | Moat Walker, ferry, Bay Bridge hero geometry; an original blimp (envelope, gondola, an ad screen as a swappable material; the Blimp Impressions streak reuses it) and an original banner-towing prop plane with a fluttering cloth banner (vertex-animated), no real livery or aircraft copied | L |
 | Harness | Citywide `?bench=` pass; whole-city clearance soak (nightly); a Vibes Night driver for headless test clients (presents a kit, plays the mission-4 demo, votes) | M |
 
 **Acceptance tests**
@@ -398,6 +406,9 @@ rest), the Bay Bridge deck and Treasure Island.
 - A Vibes Night room of 8 headless clients run by the Vibes Night driver completes (no
   rival-founder bots); a tied vote resolves the same way on every client.
 - Territory coverage and budgets pass for the whole city.
+- From each of 10 seeded daytime viewpoints, a blimp or banner plane is in view within 60 s; none
+  flies at night except lit blimps; every banner and blimp line passes the content lint; the sky
+  and cloud screenshots have the owner's sign-off.
 
 ## Later
 South San Francisco (needs a data source and a licence check); Alcatraz by ferry; Demo Unit (M),

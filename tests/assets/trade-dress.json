@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "about": "Trade-dress checklist (design.md, The robots; Legal and taste): every robot and vehicle model, its recorded silhouette, and the nearest real products and film robots it must not copy. Comparisons are the asset author's, from general knowledge, with no image search; the user signs each one off before release. tests/assets/trade-dress.test.ts fails when a robot or vehicle model has no entry.",
+  "entries": [
+    {
+      "model": "errand-robot.glb",
+      "name": "Porter",
+      "maker": "Bramblecot Home (name search pending in content/cleared-names.json)",
+      "silhouette": "Tall (1.95 m), slim, artist's-mannequin proportions: a glazed white ceramic vase torso with a bronze seam, graphite ball joints, long tapered limbs, rounded boots, three-finger hands. The head is a lantern: a bulging barrel with six bronze ribs, a cap, a finial and a carrying ring; one soft warm light strip across the front. Fully opaque; no face plate, no visor, no screen.",
+      "nearest": [
+        { "what": "Film robot with a translucent face and torso (2004 feature)", "difference": "No translucent parts anywhere (test: every material opaque); the head is a lantern, not a human-shaped face." },
+        { "what": "Humanoid robots with a black visor face plate (2020s commercial humanoids)", "difference": "No visor: the face is a single thin horizontal light strip on a white lantern barrel." },
+        { "what": "Small white astronaut-style humanoid with a backpack (2000s research robot)", "difference": "No backpack, no helmet dome, twice as slim and much taller." },
+        { "what": "Inflatable white care robot (2014 animated film)", "difference": "Hard glazed ceramic segments and visible joints; slim, not round." },
+        { "what": "Wooden artist's mannequin", "difference": "Deliberate reference (generic, not a product); the lantern head and bronze trim make it its own." }
+      ],
+      "signOff": "pending"
+    },
+    {
+      "model": "sidewalk-bot.glb",
+      "name": "Trundle",
+      "maker": "Trundle (name search pending)",
+      "silhouette": "Knee-high (0.56 m) bread bin on four wheels: a cream box whose front top is a quarter-round closed by a sage-green slatted roll-top lid that rolls back into the body; graphite bumper band and fender skirts; one soft light strip along the front lip under the lid (light_face) and a camera slot in the bumper. No flag, no whip antenna, no hinged lid, no pair of eye lights.",
+      "nearest": [
+        { "what": "Six-wheeled white sidewalk delivery robot with a hinged lid and an orange flag on a whip antenna", "difference": "Four wheels, a roll-top (tambour) lid, no flag or antenna (tests check both)." },
+        { "what": "Four-wheeled sidewalk delivery robots with two round LED 'eyes' on the front and a hinged top lid (the closest real cue)", "difference": "No eyes: one wide light strip along the lip, like a bread bin's handle line, and the camera low in the bumper (a test checks there is a single centred strip over 0.3 m wide). The lid is a roll-top that rolls back inside the body, not a hinged lid; the front is a quarter-round bread-bin profile in cream and sage, not a box." },
+        { "what": "Four-wheeled sidewalk robots shaped like coolers, some with a face screen", "difference": "A bread-bin profile with a quarter-round front and a slatted roll-top; no screen, no cooler lid." },
+        { "what": "Kitchen bread bins", "difference": "Deliberate reference (a generic household object)." }
+      ],
+      "signOff": "pending"
+    },
+    {
+      "model": "moat-van.glb",
+      "name": "Moat Labs van",
+      "maker": "Moat Labs (invented; name search pending)",
+      "silhouette": "Tall, faceted, driverless box van (5.8 x 2.1 x 2.5 m) in graphite: chamfered keep-like corners, a battlement of small blocks along both roof edges, narrow vertical slit lamps at the corners, a teal moat band and light line along the sills, a castle-over-water emblem in geometry, rear barn doors, camera pods instead of mirrors.",
+      "nearest": [
+        { "what": "Common full-size panel vans (2010s-2020s)", "difference": "Faceted body with chamfered upper corners, roof battlements, slit lamps; no grille shape or badge of any maker." },
+        { "what": "Electric delivery vans with a full-width front light bar", "difference": "No light bar: two narrow vertical slit lamps per corner." },
+        { "what": "Armoured security vans", "difference": "Satirical castle styling, no armour plating or gun-port shapes; driverless, camera pods." }
+      ],
+      "signOff": "pending"
+    },
+    {
+      "model": "robotaxi.glb",
+      "name": "Meander robotaxi",
+      "maker": "Meander (name search pending)",
+      "silhouette": "Long, low, asymmetric hatch (4.95 x 1.90 x 1.53 m, 3.05 m wheelbase) in warm white: a short round nose, a long raked windscreen, a flat roof and a fastback hatch. All its sensors sit in one dark band wrapped round the roof edge, with a teal status line (light_status) in it. Kerb side (right): one wide sliding door (door_slide_R) under one long window, its rail along the rear quarter. Street side (left): no door, a solid panel with a slim high window, a charging flap. Short slim light strips at the nose and tail corners; no grille, badge or text.",
+      "nearest": [
+        { "what": "Production robotaxis built on crossover and SUV bodies with a spinning roof dome and corner sensor pods (the wave-1 model's shape)", "difference": "No dome, no pods, no mirror cameras: the sensors are a flush band round the roof edge, and the car is 1.53 m tall, not an SUV (tests: nothing on the roof, total height under 1.6 m, no sensor_dome node)." },
+        { "what": "Purpose-built symmetric robotaxi pods (boxy, bidirectional, doors on both sides)", "difference": "Directional: a long nose and raked windscreen at the front, a fastback hatch at the back; one door, on the kerb side only, and different glazing on each side (tested)." },
+        { "what": "Minivans and compact MPVs with sliding doors", "difference": "Long and low, not tall; no driver's door, a closed street side with a slim window; no grille or badge; the roof band is its signature." },
+        { "what": "Hatchback cars of the 2010s-2020s", "difference": "Generic proportions only; invented light signature (short corner strips and the teal roof-band line), no grille, badge or livery." }
+      ],
+      "signOff": "pending"
+    },
+    {
+      "model": "player-car.glb",
+      "name": "The Hatch (player car)",
+      "maker": "none",
+      "silhouette": "An orange five-door hatchback (4.3 m), lofted body, round wheel arches, no badge.",
+      "nearest": [
+        { "what": "Compact hatchbacks of the 2010s-2020s", "difference": "Generic proportions, invented light bars, no grille or badge; reviewed in wave 1." }
+      ],
+      "signOff": "wave-1 review"
+    },
+    {
+      "model": "muni-bus.glb",
+      "name": "Muni bus",
+      "maker": "the city's transit agency (real name: pre-release legal checklist)",
+      "silhouette": "A 12.5 m city bus, red lower body, a large livery panel per side for generated ads, destination sign.",
+      "nearest": [
+        { "what": "SF Muni buses and their livery", "difference": "On the pre-release legal checklist (design.md): the Muni name and livery." }
+      ],
+      "signOff": "pre-release legal checklist"
+    }
+  ]
+}

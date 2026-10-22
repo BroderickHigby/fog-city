@@ -279,15 +279,11 @@ def main() -> None:
     r2, r2objs = L.import_glb("errand-robot.glb", x=-0.4, y=6.6, z=0.15, heading_deg=250.0)
     pose_walk(r2objs, -1.6)
     bot, bobjs = L.import_glb("sidewalk-bot.glb", x=-2.6, y=7.3, z=0.15, heading_deg=272.0)
-    for o in list(tobjs.values()):
-        if o.name.startswith("sensor_dome"):
-            o.rotation_euler.z += 0.7
     actors = list(tobjs.values()) + list(r1objs.values()) + list(r2objs.values()) + list(bobjs.values())
     L.emission(actors, 6.0, prefix="light_status")
     L.emission(actors, 8.0, prefix="light_headlight")
     L.emission(actors, 5.0, prefix="light_taillight")
     L.emission(actors, 5.0, prefix="light_face")
-    L.emission(actors, 4.0, prefix="light_eyes")
     # headlight throw from the robotaxi
     for dy in (-0.55, 0.55):
         L.point_light((4.7 - 2.45, 2.35 + dy, 0.75), 900.0, "#eaf2ff", kind="SPOT", radius=0.1, spot=(0.9, 0.5),

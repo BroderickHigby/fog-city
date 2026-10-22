@@ -4,9 +4,10 @@
   "title": "Storefront types by business category (content/storefronts.json). Unnamed: iconography only.",
   "description": "Maps a NAICS code (the pipeline's storefront anchors carry the business registry's self-reported code) to a storefront kit: a sign shape and street props. The longest matching prefix wins (storefrontFor in src/content/storefronts.ts). Signs carry no text and no names: the sign slot is reserved, signText stays null.",
   "type": "object",
-  "required": ["version", "types", "noStorefrontPrefixes"],
+  "required": ["version", "types", "noStorefrontPrefixes", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "#/$defs/provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "noStorefrontPrefixes": {
@@ -45,6 +46,46 @@
     }
   },
   "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "authorSession",
+        "contentHash",
+        "reviewedBy",
+        "review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "agent",
+            "batch",
+            "human"
+          ]
+        },
+        "authorSession": {
+          "type": "string",
+          "minLength": 4
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^fnv1a32:[0-9a-f]{8}$",
+          "description": "FNV-1a over the file's player-facing text joined by newlines (src/content/barks.ts contentHash)."
+        },
+        "reviewedBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reviewing agent sessions and, for sampled drops, the sample ids."
+        },
+        "review": {
+          "type": "string"
+        }
+      },
+      "description": "A copy of schemas/provenance.schema.json, inlined because tests/schemas/schemas.test.ts compiles this schema on its own; tests/content/provenance.test.ts keeps the copy equal."
+    },
     "naics": { "type": "string", "pattern": "^[0-9]{2,6}$" },
     "signShape": {
       "description": "neonPanel: a glowing tube panel in the window, shaped like a beer glass; fasciaBand: a flat blank band above the door; cupBlade: a projecting blade sign shaped like a coffee cup; breadBlade: a projecting loaf-shaped blade; barberPole: the striped spinning pole is the sign; scissorsBlade: a projecting scissors-and-comb blade; projectingCross: a lit cross on a bracket; hangerBlade: a projecting coat-hanger blade; awningValance: the sign is the awning's front flap.",

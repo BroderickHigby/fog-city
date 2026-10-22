@@ -22,9 +22,11 @@ import lookdev as L  # noqa: E402
 VARIANT_DIR = os.path.join(fc.BLENDER_DIR, ".cache", "variants", "raised")
 SCRIPT = os.path.join(fc.BLENDER_DIR, "models", "r_evolution.py")
 
-# build the raised variant with this same Blender, in a clean process
+# build the raised variant with this same Blender, in a clean process, on build.sh's thread
+# count (the remesh and decimate results depend on it)
 subprocess.run(
-    [bpy.app.binary_path, "-b", "--factory-startup", "-noaudio", "--python-exit-code", "1", "-P", SCRIPT, "--",
+    [bpy.app.binary_path, "-b", "--factory-startup", "-noaudio", "-t", os.environ.get("FC_BLENDER_THREADS", "2"),
+     "--python-exit-code", "1", "-P", SCRIPT, "--",
      "pose=raised", f"out={VARIANT_DIR}"],
     check=True,
     stdout=subprocess.DEVNULL,

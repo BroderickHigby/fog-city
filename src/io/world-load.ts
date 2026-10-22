@@ -2,9 +2,10 @@
 // determinism tests (tests/e2e/sim-lab.ts) and, through assembleWorldFiles, Node
 // (tests/helpers.ts): every client must build an identical World, or they desync.
 //
-//  - Colliders: the citywide collider pack (manifest.worldColliders, one 13 MB file for the
-//    whole city, decoded by src/sim/pack.ts) when the manifest names one; otherwise every
-//    tile's *.collider.json (the small hand-made dev worlds).
+//  - Colliders: the citywide collider pack (manifest.worldColliders, one file for the whole
+//    city, and growing, decoded by src/sim/pack.ts; the static build serves it in parts once it
+//    is too big for one host file, and src/io/assets.ts joins them) when the manifest names
+//    one; otherwise every tile's *.collider.json (the small hand-made dev worlds).
 //  - The road graph (manifest.roads) and the world's edge and shore (manifest.layers.boundary).
 //    A file the manifest names that cannot be loaded fails the load: a client must never run a
 //    roadless or wall-less world beside its peers.
