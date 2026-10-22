@@ -271,6 +271,48 @@ export function houseData(
   return out;
 }
 
+/** Facets of one facade turn at most this much from the one before (a bay's 45 to 60 degree sides)... */
+export const FACADE_TURN_DEG = 60;
+/** ... and at most this much from the facade's first wall (a corner is two facades). */
+export const FACADE_SPREAD_DEG = 75;
+
+/**
+ * The record's facades: runs of consecutive front walls (edge indices, in ring order) that face the
+ * same way, so a Victorian front whose footprint carries its bay (two angled facets and the flat
+ * wall) is one facade of its full width (K6: the bay is skinned there, not added).
+ */
+export function facades(ring: readonly P2[], walls: readonly number[]): number[][] {
+  const n = ring.length;
+  const dir = (i: number): number => {
+    const [nx, nz] = outward(ring, i);
+    return (bearing(nx, nz) * 180) / Math.PI;
+  };
+  const turn = (a: number, b: number): number => Math.abs(((a - b + 540) % 360) - 180);
+  const front = (i: number): boolean => walls[((i % n) + n) % n] === WALL_FRONT;
+  // Start at a front wall that does not continue the one before it.
+  let start = -1;
+  for (let i = 0; i < n && start < 0; i++) if (front(i) && !(front(i - 1) && turn(dir(i), dir((i - 1 + n) % n)) <= FACADE_TURN_DEG)) start = i;
+  if (start < 0) start = walls.indexOf(WALL_FRONT);
+  if (start < 0) return [];
+  const out: number[][] = [];
+  let cur: number[] = [];
+  for (let k = 0; k < n; k++) {
+    const i = (start + k) % n;
+    if (!front(i)) {
+      if (cur.length) out.push(cur);
+      cur = [];
+      continue;
+    }
+    if (cur.length && (turn(dir(i), dir(cur[cur.length - 1]!)) > FACADE_TURN_DEG || turn(dir(i), dir(cur[0]!)) > FACADE_SPREAD_DEG)) {
+      out.push(cur);
+      cur = [];
+    }
+    cur.push(i);
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
 /**
  * One front wall of a tile's fronts list (buildings node extras.fronts, one row per wall), all
  * integers to keep the glb small: [record index into extras.buildings, wall middle x and z in
@@ -281,8 +323,9 @@ export function houseData(
 export type FrontRow = [number, number, number, number, number, number, number, number, number, number];
 
 /**
- * The front walls of one tile's records that get a kit feature (K4-K8), in record order then wall
- * order. `shops`: storefront anchors (x, z, building id).
+ * The facades of one tile's records that get a kit feature (K4-K8), in record order then ring
+ * order: each row is one facade (facades()), framed by its chord. `shops`: storefront anchors
+ * (x, z, building id).
  */
 export function tileFronts(
   list: readonly Building[],
@@ -308,16 +351,28 @@ export function tileFronts(
     const f = b.footprint;
     // The first floor's rise over the sidewalk, to the decimetre the row stores (the stoop flag reads the same value).
     const floorM = Math.round(Math.max(0, b.baseY - streetY) * 10) / 10;
-    for (let i = 0; i < f.length; i++) {
-      if (h.walls[i] !== WALL_FRONT) continue;
-      const a = f[i]!, c = f[(i + 1) % f.length]!;
-      const [nx, nz, rawLen] = outward(f, i);
-      const len = Math.round(rawLen * 10) / 10; // as the row stores it
+    for (const g of facades(f, h.walls)) {
+      const a = f[g[0]!]!, c = f[(g[g.length - 1]! + 1) % f.length]!;
+      // The facade's frame: its chord, facing the members' mean outward normal.
+      let mx0 = 0, mz0 = 0;
+      for (const i of g) {
+        const [ex, ez, l] = outward(f, i);
+        mx0 += ex * l;
+        mz0 += ez * l;
+      }
+      const cl = Math.hypot(c[0] - a[0], c[1] - a[1]) || 1;
+      let nx = -(c[1] - a[1]) / cl, nz = (c[0] - a[0]) / cl;
+      if (nx * mx0 + nz * mz0 < 0) {
+        nx = -nx;
+        nz = -nz;
+      }
+      const len = Math.round(cl * 10) / 10; // as the row stores it
       let flags = 0;
       if (residential && year > 0 && year <= BAY_MAX_YEAR && len >= BAY_MIN_FRONT_M && h.storeys >= 2) flags |= FRONT_BAY;
       if (residential && floorM >= STOOP_MIN_RISE_M) flags |= FRONT_STOOP;
       if (residential && year >= GARAGE_YEARS[0] && year <= GARAGE_YEARS[1] && len >= GARAGE_FRONT_M[0] && len <= GARAGE_FRONT_M[1]) flags |= FRONT_GARAGE;
-      if ((byBuilding.get(b.id) ?? []).some((s) => distToSegment(s.x, s.z, a, c).d <= SHOP_WALL_M)) flags |= FRONT_SHOP;
+      const mine = byBuilding.get(b.id) ?? [];
+      if (g.some((i) => mine.some((s) => distToSegment(s.x, s.z, f[i]!, f[(i + 1) % f.length]!).d <= SHOP_WALL_M))) flags |= FRONT_SHOP;
       if ((residential || mixed) && year > 0 && year < ROOFLINE_MAX_YEAR && row) flags |= FRONT_ROOFLINE;
       if (flags === 0) continue;
       const mx = (a[0] + c[0]) / 2, mz = (a[1] + c[1]) / 2;

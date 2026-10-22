@@ -52,7 +52,7 @@ describe("sf world: schemas and layout", () => {
     const cv = v("tile-collider");
     for (const c of colliders) expect(cv(c), `${c.tileId}: ${ajv.errorsText(cv.errors)}`).toBe(true);
     expect(Object.keys(manifest.layers).sort()).toEqual(
-      ["boundary", "districts", "fountains", "hydrants", "parking", "sidewalks", "signals", "streetCleaning", "transit"].sort(),
+      ["boundary", "districts", "fountains", "hydrants", "parking", "sidewalks", "signals", "storefronts", "streetCleaning", "transit"].sort(),
     );
     for (const file of Object.values(manifest.layers)) {
       const lv = v(file.replace(/\.json$/, ""));

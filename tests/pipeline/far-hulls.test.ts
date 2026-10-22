@@ -5,6 +5,7 @@
 // the 99th percentile.
 import { beforeAll, describe, expect, it } from "vitest";
 import { interiorPoint, pointInRing, type P2 } from "../../pipeline/lib/geom.ts";
+import { growRing, HULL_GROW_M } from "../../pipeline/lib/far.ts";
 import { loadFarTriangles, loadSfPack, TriangleGrid } from "./util.ts";
 
 const { buildings } = loadSfPack();
@@ -59,4 +60,18 @@ describe("far hulls match the near skyline (W-41)", () => {
     expect(tallBad.slice(0, 20), `${tallBad.length} of ${tall.length} tall records off by more than 3 m`).toEqual([]);
     expect(low[Math.floor(0.99 * (low.length - 1))]!).toBeLessThanOrEqual(5);
   }, 120_000);
+
+  it("growRing pushes a ring out by d either way round, and leaves it when the result would cross itself", () => {
+    const sq: P2[] = [[0, 0], [10, 0], [10, 10], [0, 10]];
+    for (const r of [sq, [...sq].reverse()]) {
+      const g = growRing(r, HULL_GROW_M);
+      expect(g.length).toBe(4);
+      for (const [x, z] of g) expect(Math.max(Math.abs(x - 5), Math.abs(z - 5))).toBeCloseTo(5 + HULL_GROW_M, 9);
+      // A point on the old wall is now HULL_GROW_M inside.
+      expect(pointInRing(10 + HULL_GROW_M / 2, 5, g)).toBe(true);
+    }
+    // A notch 0.1 m wide closes up when pushed out 0.1 m: unchanged.
+    const notch: P2[] = [[0, 0], [10, 0], [10, 10], [5.05, 10], [5.05, 2], [4.95, 2], [4.95, 10], [0, 10]];
+    expect(growRing(notch, HULL_GROW_M)).toEqual(notch);
+  });
 });

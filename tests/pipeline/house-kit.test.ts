@@ -7,7 +7,7 @@ import { join } from "node:path";
 import type { BufferAttribute, BufferGeometry, Mesh } from "three";
 import { beforeAll, describe, expect, it } from "vitest";
 import { toLocal } from "../../src/geo/project.ts";
-import { FRONT_BAY, FRONT_GARAGE, FRONT_ROOFLINE, FRONT_SHOP, FRONT_STOOP } from "../../pipeline/lib/house.ts";
+import { facades, FRONT_BAY, FRONT_GARAGE, FRONT_ROOFLINE, FRONT_SHOP, FRONT_STOOP, WALL_FRONT, WALL_PARTY, WALL_REAR } from "../../pipeline/lib/house.ts";
 import { interiorPoint, type P2 } from "../../pipeline/lib/geom.ts";
 import { ROOT } from "../helpers.ts";
 import { loadGlbWithThree, loadSf, type SfBuilding } from "./util.ts";
@@ -126,7 +126,8 @@ describe("house kit data (K1, K4-K8)", () => {
         const d = ave.dist(x, z);
         return b.meta.towerOf === undefined && d > 8 && d < 32 && z > north && z < south && (b.meta.use ?? "").toLowerCase().includes("residential");
       });
-    expect(houses.length).toBeGreaterThanOrEqual(30);
+    // 28 residential records stand on the block's two faces between those bounds.
+    expect(houses.length).toBeGreaterThanOrEqual(25);
     const all = SUNSET.flatMap((id) => fronts.get(id) ?? []);
     let right = 0, garage = 0;
     for (const b of houses) {
@@ -181,5 +182,20 @@ describe("house kit data (K1, K4-K8)", () => {
     }
     expect(n).toBeGreaterThan(200);
     expect(on / n).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it("a facade is a run of front walls facing the same way: a bay's facets join the wall, a corner splits", () => {
+    // A row house 6 m wide facing north (-z): its front is a 3 m wall, a 45-degree bay (two
+    // facets and a 1.6 m face) between x 3 and 6, then party, rear and party walls.
+    const ring: P2[] = [[0, 0], [3, 0], [3.5, -0.6], [5.1, -0.6], [6, 0], [6, 20], [0, 20]];
+    const W = [WALL_FRONT, WALL_FRONT, WALL_FRONT, WALL_FRONT, WALL_PARTY, WALL_REAR, WALL_PARTY];
+    expect(facades(ring, W)).toEqual([[0, 1, 2, 3]]);
+    // A corner house: fronts on the north and the east are two facades.
+    const corner: P2[] = [[0, 0], [10, 0], [10, 20], [0, 20]];
+    expect(facades(corner, [WALL_FRONT, WALL_FRONT, WALL_REAR, WALL_PARTY])).toEqual([[0], [1]]);
+    // Runs broken by a party wall stay apart; the run that wraps past the first vertex is one.
+    expect(facades(corner, [WALL_FRONT, WALL_PARTY, WALL_FRONT, WALL_REAR])).toEqual([[0], [2]]);
+    expect(facades(ring, [WALL_FRONT, WALL_FRONT, WALL_FRONT, WALL_REAR, WALL_PARTY, WALL_REAR, WALL_REAR])).toEqual([[0, 1, 2]]);
+    expect(facades(ring, W.map(() => WALL_REAR))).toEqual([]);
   });
 });

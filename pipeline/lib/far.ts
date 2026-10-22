@@ -25,7 +25,10 @@
 //   * everything else: records closer than clusterGapM whose heights above the ground differ by at
 //     most clusterHeightM merge into a cluster: its convex hull, or the members' own outlines where
 //     that hull would stand over another record of a different height; the roof follows the
-//     terrain at the members' area-weighted mean height.
+//     terrain at the members' area-weighted mean height. A record alone keeps its own flat roof
+//     (topY), and a record standing over a tall record's interior point is never clustered;
+// every hull is pushed out HULL_GROW_M (never over another record's interior point), so the far
+// glb's position grid leaves no record's interior point outside its roof.
 // Every hull's walls start skirtM below the lowest ground under it.
 
 import type { Building } from "./buildings.ts";
@@ -249,6 +252,10 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     return i;
   };
   const boxes = low.map((b) => bbox(b.footprint));
+  // A low record standing over a tall record's interior point (an overlapping part or terrace strip)
+  // stays out of every cluster: a cluster's roof follows the ground and could rise over the tower.
+  const tallIndex = new PointIndex(all.filter((b) => heightOf(b) >= p.tallM));
+  const solo = low.map((b) => tallIndex.inside(b.footprint).length > 0);
   const heights = low.map((b) => (p.clusterByRoof ? b.topY : heightOf(b)));
   const CELL = 40;
   const grid = new Map<string, number[]>();
@@ -267,6 +274,7 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
       const i = list[a]!;
       for (let q = a + 1; q < list.length; q++) {
         const j = list[q]!;
+        if (solo[i] || solo[j]) continue;
         if (Math.abs(heights[i]! - heights[j]!) > p.clusterHeightM) continue;
         const A = boxes[i]!, B = boxes[j]!;
         if (A[0] - GAP > B[2] || B[0] - GAP > A[2] || A[1] - GAP > B[3] || B[1] - GAP > A[3]) continue;
@@ -317,7 +325,8 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     if (members.length === 1) {
       let ring = farOutline(members[0]!.footprint, p.singleMaxVerts);
       for (let cap = p.singleMaxVerts + 2; !covering(ring, members) && cap <= p.singleMaxVerts + 8; cap += 2) ring = farOutline(members[0]!.footprint, cap);
-      push(ring, 1);
+      // One record: its own roof, flat at its topY (a terraced strip's base is its lowest ground).
+      if (ring.length >= 3) hulls.push({ ring, top: members[0]!.topY, absolute: true, wall: style.wall, roof: style.roof, records: 1 });
       continue;
     }
     // The cluster's convex hull, unless it would stand over a record that is not a member and
@@ -327,7 +336,10 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     let hull = simplifyConvex(full, p.clusterMaxVerts);
     for (let cap = p.clusterMaxVerts + 2; !covering(hull, members) && cap < full.length + 2; cap += 2) hull = simplifyConvex(full, cap);
     const ids = new Set(members.map((m) => m.id));
-    const covers = index.inside(hull).some((o) => !ids.has(o.id) && Math.abs(levelOf(o) - top) > p.clusterHeightM);
+    // A tall record (it has its own hull at its own roof) is never under a cluster's: on a hill the
+    // cluster's roof follows the ground, which can stand well over a terraced tower's base.
+    const foreign = (ring: readonly P2[]): boolean => index.inside(ring).some((o) => !ids.has(o.id) && (Math.abs(levelOf(o) - top) > p.clusterHeightM || heightOf(o) >= p.tallM));
+    const covers = foreign(hull);
     if (!covers) {
       push(hull, members.length);
       continue;
@@ -340,8 +352,10 @@ export function clusterHulls(low: readonly Building[], p: FarParams, all: readon
     }
     const outline = (ring: readonly P2[], of: readonly Building[], cap0: number): P2[] => {
       let r = farOutline(ring, cap0);
-      for (let cap = cap0 + 2; !covering(r, of) && cap <= OUTLINE_MAX_VERTS; cap += 2) r = farOutline(ring, cap);
-      if (covering(r, of)) return r;
+      for (let cap = cap0 + 2; !(covering(r, of) && !foreign(r)) && cap <= OUTLINE_MAX_VERTS; cap += 2) r = farOutline(ring, cap);
+      if (covering(r, of) && !foreign(r)) return r;
+      // The part's own outline, when it covers its members and no other record.
+      if (ring.length >= 3 && covering(ring, of) && !foreign(ring)) return signedArea(ring) > 0 ? [...ring].reverse() : [...ring];
       // Still leaving a member out: the part's convex hull, simplified while it covers them all.
       const h = convexHull(ring);
       for (let cap = OUTLINE_MAX_VERTS; cap < h.length; cap += 4) {
@@ -560,6 +574,17 @@ class TerrainBuilder {
     return steps[steps.length - 1]!;
   }
 
+  /** Is any 10 m lattice sample on the cell's four sides land? */
+  landOnSides(ax: number, az: number, bx: number, bz: number): boolean {
+    for (let x = ax; x <= bx; x += LATTICE_M) {
+      if (this.sample(x, az)?.water === false || this.sample(x, bz)?.water === false) return true;
+    }
+    for (let z = az; z <= bz; z += LATTICE_M) {
+      if (this.sample(ax, z)?.water === false || this.sample(bx, z)?.water === false) return true;
+    }
+    return false;
+  }
+
   /** Emit one tile square's terrain into the mesh. Returns triangles. */
   tile(m: MeshData, vid: Map<string, number>, ix: number, iz: number): number {
     const x0 = ix * TILE_M, z0 = iz * TILE_M;
@@ -611,7 +636,10 @@ class TerrainBuilder {
         ring.push([ax, bz]);
         if (i === 0) extras(W, bz - z0, az - z0, (s) => [x0, z0 + s]);
         const pts = ring.map(([x, z]) => ({ x, z, ...at(x, z) }));
-        if (pts.every((q) => q.water)) continue;
+        // A cell whose outline points are all water is skipped, unless land lies on its sides
+        // between them (a sliver of shore the border polyline simplified away): the near tile
+        // across that side must face far terrain, never a hole (W-40).
+        if (pts.every((q) => q.water) && !this.landOnSides(ax, az, bx, bz)) continue;
         const ids = pts.map((q) => vertex(q.x, q.z, q.h, q.water));
         if (ring.length === 4) {
           // Split along the (i+1, k)-(i, k+1) diagonal, as the near ground is.
@@ -687,7 +715,17 @@ export function growRing(ring: readonly P2[], d: number): P2[] {
 
 /** Every building's far hull: tall records alone, the rest in clusters (see the file comment). */
 export function farHulls(buildings: readonly Building[], p: FarParams = FAR_DEFAULTS): Hull[] {
-  return farHullsExact(buildings, p).map((h) => ({ ...h, ring: growRing(h.ring, HULL_GROW_M) }));
+  // A grown hull never takes in another record's interior point it did not cover before (a podium
+  // beside its tower): then it grows less, or not at all.
+  const index = new PointIndex(buildings);
+  return farHullsExact(buildings, p).map((h) => {
+    const had = new Set(index.inside(h.ring).map((b) => b.id));
+    for (const d of [HULL_GROW_M, HULL_GROW_M / 2]) {
+      const g = growRing(h.ring, d);
+      if (index.inside(g).every((b) => had.has(b.id))) return { ...h, ring: g };
+    }
+    return h;
+  });
 }
 
 function farHullsExact(buildings: readonly Building[], p: FarParams): Hull[] {

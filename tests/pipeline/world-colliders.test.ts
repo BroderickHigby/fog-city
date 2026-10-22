@@ -122,7 +122,7 @@ describe("FCWC encoder and reader edge cases", () => {
       tileSizeM: 500,
       tiles: [
         { tileId: "t0_0", ix: 0, iz: 0, ground: flat(5.25), buildings: [{ id: "201006.0000001", footprint: [[0, 0], [1, 0], [1, 1]], baseY: 0, topY: 3 }] },
-        { tileId: "t1_0", ix: 1, iz: 0, ground: flat(2), buildings: [] },
+        { tileId: "t1_0", ix: 1, iz: 0, ground: { ...flat(2), x0: 500 }, buildings: [] },
       ],
     };
     const lake = new Array<number>(S * S).fill(0);
