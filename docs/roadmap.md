@@ -160,6 +160,10 @@ King St connector.
 - At threat 2 a Moat Labs van brings 2 units within 20 s, entering about 120 m from the player.
 - A cone thrown from the car at 25 m/s onto a robotaxi's hood stops it within 3 s.
 - A forced update completes in 6 s unopposed and is interrupted when the pusher reaches rust 0.2.
+- A Footman and a Trundle melted by the player visibly go down (owner request, 2026-10-22): within
+  2 s of seizing, each one's drawn height is at most 40% of its standing height and its heap and
+  puddle are drawn (a browser test through `window.__fogcity`); the Assets look-dev shows each
+  model's fall as a 6-frame strip for the owner's sign-off.
 - No water particle ever reaches an animal, a child, or a person who is seated, lying down or
   using a mobility aid (fuzz over seeded scenes: 50 per PR, 1,000 nightly).
 - Scan accuracy over 10,000 seeded scans is within ±2% of the table for each subtlety.

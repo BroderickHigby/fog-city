@@ -84,6 +84,22 @@ under gravity. All values *(tune)*:
   the shell) → `heap` (a rusty pile and a puddle that stays until Tidy, the cleanup bot, comes
   to haul it away, which is its own joke: Tidy apologises to the heap). Until Tidy arrives in
   wave 3, a heap clears when it leaves the fidelity radius.
+- **Every rusted-out robot visibly goes down** (owner request, 2026-10-22): it falls over or melts,
+  never just stops where it stood. Each model has its own collapse, slapstick and never an injury:
+  - **Footman:** seizes mid-stride, its knees buckle, it topples forward with a creak, and its
+    shell sags and runs into a heap with the lantern head on top; its grocery bag spills (the
+    oranges roll downhill).
+  - **Trundle:** the wheels lock, the roll-top lid pops open with a puff of steam, and it sinks
+    on its axles into a squat heap with the lid on top.
+  - **Patrol unit:** the treads seize, the lectern folds down mid-sentence, and it slumps flat
+    like a tent with the poles pulled.
+  - **Ad drone:** the rotors stall and it drops to the pavement with a clatter, its screen
+    flickering one last ad before the heap.
+  - **Sign-spinner:** the board spins once more on momentum, then the spinner topples after it.
+  - The **Meander robotaxi** never melts (it pulls over; see "Robotaxis"), and the **Moat Walker**
+    has its own finale sequence.
+  The fall is part of `slumping` (the sim's state and timer drive it, so every player sees the
+  same fall); the drawn body ends at most 40% of its standing height, then becomes the heap.
 - **Restored from backup.** Heaps are hauled to the nearest repair kiosk. A helper that had been
   converted reboots there as a good robot after 60 s ("Restored from backup. Some memories may
   be lost."). Nothing is ever destroyed; robots are repaired.
@@ -1255,3 +1271,8 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   blue, clouds, and blimps and banner-towing planes trailing ads for invented startups (never real companies; the
   content lint applies). The aircraft are ambient scenery on a seeded schedule, not sim entities, so they cost no
   netcode; the Blimp Impressions streak reuses the blimp, and Fleet Week's jets stay a separate, scheduled event.
+- 2026-10-22 · **A rusted-out robot falls down or melts** (user request). Seizing is never the end of the
+  animation: every model visibly topples or melts into its rust heap during `slumping`, each in its own slapstick
+  way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
+  melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
+  look-dev strip per model for the owner's sign-off.
