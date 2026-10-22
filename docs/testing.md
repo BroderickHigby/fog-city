@@ -324,12 +324,17 @@ and joins, a multi-car optimiser joined the nightly, and the cost is measured (S
   no override failure. The chase and no-brake soak runs have players joining on the crowd every
   10 s. One
   test per seed, so a part runs alone in a few minutes (`pnpm soak:nightly -t "five places, seed 1"`,
-  `-t "narrow places"`, `-t "crests|no-touch fuzz|optimiser"`). The run of 2026-10-22, in those four
-  parts (about 25 minutes in all): 0 contacts and 0 overrides in all 64 soak runs; least clearance
-  from a moving car 1.15 m (Spofford Alley), from a closing robotaxi 0.79 m; jumps up to 1.67 s
-  airborne; the fuzz 10,978 dives, 2 overrides, no close pass; the optimiser no driver in 7,500
-  touched anyone (least clearance from a moving car 0.325 m, in a corner, over every tick
-  including override episodes: never inside the override's 0.3 m).
+  `-t "narrow places"`, `-t "crests|no-touch fuzz|optimiser"`). The run of 2026-10-22 (round 2), in
+  those four parts (about 25 minutes in all): 0 contacts and 0 overrides in all 64 soak runs; least
+  clearance from a moving car 1.15 m (Spofford Alley), from a closing robotaxi 0.79 m; jumps up to
+  1.67 s airborne; the fuzz 10,978 dives, 2 overrides, no close pass; the optimiser no driver in
+  7,500 touched anyone (least clearance from a moving car 0.325 m, in a corner, over every tick
+  including override episodes: never inside the override's 0.3 m). Round 3's run the same day
+  (about 30 minutes): 0 contacts and 0 overrides in all 64 soak runs, 120 of them players joining
+  on the crowd; least clearance from a moving car 1.14 m (the Castro), from a closing robotaxi
+  0.79 m (Spofford Alley); the long fuzz (with exits and joins), the crests and both optimisers
+  passed (the multi-car one, 4,800 genomes, touched nobody; two more searches of 5,600 each by
+  hand, seeds 11 and 23, found nothing either).
 - `tests/render/dodge-pose.test.ts`: how a dodge is drawn (`src/render/dodge-pose.ts`): people
   turn into the dive, spring with their arms windmilling and stretch flat with the arms out
   ahead only while hopping high, flip forward tucked into a ball while still in the air (a full
