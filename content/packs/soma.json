@@ -1,0 +1,939 @@
+{
+  "version": 1,
+  "district": "soma",
+  "$comment": "District content pack for SoMa (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:836dcb7e",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "soma-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "SoMa's flat blocks. My motors say thank you.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lunch for a conference booth on Howard St. Forty sandwiches.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Yerba Buena Gardens. Grass for people, path for me.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering name badges to the convention center. So many lanyards.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Folsom St is wide and long and very, very flat.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Coffee for a hackathon. Three hundred cups. Pacing myself.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "4th and Folsom. Waiting for the light. Waiting is a skill.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivery shift: groceries for a Footman whose motor gave out. Happy to help.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The convention center doors open at nine. I'm a minute early.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Dropping a parcel at a startup on 2nd St. They have a gong.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a whiteboard down Mission St. It's blank. Full of potential.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The waterfall in the gardens is very loud. I respect water. From a distance.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Conference Week crowds. Lanyards everywhere. Elbows tucked.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a keynote clicker. The most important clicker in SoMa.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lunch rush on 3rd St. Every robot in the city is here.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The flat blocks are perfect for heavy shopping. Bring it on.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Rolling past the museum. I look at the art from the sidewalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! The conference crowd is very wide today.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, I'm carrying a demo robot. It's shy.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, I mistook your lanyard queue for a crosswalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, Howard St is closed for a keynote. Rerouting around you.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, delivery shift. Groceries for a friend.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Welcome to Moat Labs HQ. You're already in the funnel.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every robot. Eventually. This block first.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Lanyard check. Yours says 'user'. Mine says 'platform'.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Conference Week means double demos and triple updates.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Our HQ is on the convention-center block. So is your future.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Keynote today: 'The Sidewalk Is the Product'.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm a demo unit. I demo by taking things.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your startup is a feature. Our feature is your startup.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "We don't have booths. We have territories.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The update comes from right here, in SoMa. Fresh daily.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Demo unit, doing a demo. The demo is your groceries.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pushing the update by the convention center doors. Everyone's distracted.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "New poster on the 4th St shelter. 'Every robot. Eventually.'",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pairing with every rideshare at the curb on Howard.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not in front of HQ! The board is watching!",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My lanyard! It's soaked! I'm unbadged!",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water at a tech conference? That's not on the agenda!",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-rb-bad-sprayed-04",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Demo failure! Demo failure! Very wet demo failure!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "soma-pl-techWorker-ambient-01",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "Three conferences, two hackathons, one burrito. Typical Tuesday.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-02",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "The lanyard line at the convention center goes to the gardens.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-03",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "Everyone on this block is pitching. Even the robots.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-04",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "There's a startup on every floor and a gong on every desk.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-05",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "I've seen four keynotes this week and they were all the same slide.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-06",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "The flat blocks are great until you've walked twelve of them.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-07",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "Moat Labs HQ has no windows on the ground floor. That's normal, right?",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-08",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "My standup was in a coffee line. Efficient.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-09",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "Conference Week: double the ads, half the sleep.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-10",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "The gardens are the only quiet place south of Market.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-11",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "I'm wearing three lanyards. One of them is mine.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-12",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "The museum's free on Thursdays. I go to feel things.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-13",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "Somebody's demo robot just walked into the fountain. On purpose? Unclear.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-ambient-14",
+      "speaker": "techWorker",
+      "context": "ambient",
+      "mood": "harried",
+      "text": "Every billboard on this block is an AI startup. Every single one.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-01",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "Is the whole neighbourhood a trade show?",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-02",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "A robot handed me a badge. I'm a speaker now, apparently.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-03",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "The gardens are lovely. The robots in lanyards are less lovely.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-04",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "Which convention hall? There are three. They all have robots.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-05",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "I came for one panel and they gave me four tote bags.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-06",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "Everyone here says 'agentic'. I don't know what it means.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-07",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "The robots queue for coffee better than the engineers.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-visitor-ambient-08",
+      "speaker": "visitor",
+      "context": "ambient",
+      "mood": "overwhelmed",
+      "text": "Lunch is free if you sit through a demo. Worth it?",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-robots-01",
+      "speaker": "techWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's wearing a conference lanyard from last week.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-robots-02",
+      "speaker": "techWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why is that Footman hanging around the rideshare curb?",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-robots-03",
+      "speaker": "techWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one stuck a poster over the bus shelter ad. Moat Labs again.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-robots-04",
+      "speaker": "techWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's been 'waiting for someone' at 4th and Folsom for an hour.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-robots-05",
+      "speaker": "techWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That demo unit hums the jingle every twenty seconds.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-robots-06",
+      "speaker": "techWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "There's a Footman tailing the delivery robots down Howard.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-01",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Sunny in SoMa while the west side drowns in fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-02",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "The wind tunnels between the towers will take your hat.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-03",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Fog never makes it this far east. Usually.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-04",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Hot afternoon on Folsom. The robots look warm.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-05",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "When it rains here, everyone hides under the convention center awning.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-06",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "The fog came over Twin Peaks and stopped at Market. Polite.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-07",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Rain day means every robot is under an awning. Some of them look guilty.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-08",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Clear sky. Good demo weather. Bad hiding weather.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-09",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "The bay breeze hits at five. Every day.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-10",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Sun on the gardens, shade on Howard. Pick a side.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-11",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "The weather app said 97% sun. It's raining.",
+      "maxLength": 90
+    },
+    {
+      "id": "soma-pl-techWorker-weather-12",
+      "speaker": "techWorker",
+      "context": "weather",
+      "mood": "dry",
+      "text": "Fleece in the morning, t-shirt at lunch, fleece at dinner.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "soma-lanyard-demo",
+      "archetype": "snatcher",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "The convention-center block, Howard St",
+        "lat": 37.78326,
+        "lon": -122.40271
+      },
+      "posting": "Demo units in conference lanyards are snatching delivery groceries outside the convention center.",
+      "tellHint": "The conference ended days ago. The lanyard didn't.",
+      "localTell": "lanyardWearer"
+    },
+    {
+      "id": "soma-hq-update",
+      "archetype": "updatePusher",
+      "level": 3,
+      "crew": 3,
+      "lastSeen": {
+        "label": "4th St at Folsom St",
+        "lat": 37.78202,
+        "lon": -122.40116
+      },
+      "posting": "Good Footmen on the delivery-shift blocks are coming back from 4th St updated.",
+      "tellHint": "The pusher still wears its conference badge.",
+      "localTell": "lanyardWearer"
+    },
+    {
+      "id": "soma-gardens-poster",
+      "archetype": "adSticker",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Yerba Buena Gardens, Mission St side",
+        "lat": 37.7851,
+        "lon": -122.4023
+      },
+      "posting": "Moat Labs posters over every shelter around the gardens.",
+      "tellHint": "The paster wears a demo lanyard.",
+      "localTell": "lanyardWearer"
+    },
+    {
+      "id": "soma-curb-prowler",
+      "archetype": "prowler",
+      "level": 4,
+      "crew": 2,
+      "lastSeen": {
+        "label": "3rd St at Harrison St",
+        "lat": 37.78255,
+        "lon": -122.39739
+      },
+      "posting": "Pairing chimes along the rideshare curb on 3rd St.",
+      "tellHint": "Its lookout wears a conference lanyard, days after the conference.",
+      "localTell": "lanyardWearer"
+    },
+    {
+      "id": "soma-hawthorne-courier",
+      "archetype": "fakeCourier",
+      "level": 3,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Hawthorne St at Folsom St",
+        "lat": 37.78467,
+        "lon": -122.39781
+      },
+      "posting": "A delivery Trundle near Hawthorne St hasn't delivered anything in a week.",
+      "tellHint": "Watch the lid: does it ever open at a door?"
+    }
+  ],
+  "ads": [
+    {
+      "id": "soma-billboard-01",
+      "surface": "billboard",
+      "headline": "Every robot. Eventually.",
+      "subline": "Moat Labs. Now hiring robots. Only robots."
+    },
+    {
+      "id": "soma-billboard-02",
+      "surface": "billboard",
+      "headline": "Moat Labs: we built the moat.",
+      "subline": "You're welcome to stand outside it."
+    },
+    {
+      "id": "soma-billboard-03",
+      "surface": "billboard",
+      "headline": "Your conference, but autonomous.",
+      "subline": "{$product}. Keynotes that give themselves."
+    },
+    {
+      "id": "soma-billboard-04",
+      "surface": "billboard",
+      "headline": "Agentic lunch is here.",
+      "subline": "{$product}. Sandwiches that pick themselves."
+    },
+    {
+      "id": "soma-billboard-05",
+      "surface": "billboard",
+      "headline": "We raised $400M for a button.",
+      "subline": "{$product}. The button is bigger now."
+    },
+    {
+      "id": "soma-billboard-06",
+      "surface": "billboard",
+      "headline": "Hire your first AI employee.",
+      "subline": "{$product}. It already asked for equity."
+    },
+    {
+      "id": "soma-billboard-07",
+      "surface": "billboard",
+      "headline": "12% fewer hallucinations*",
+      "subline": "{$product}. *Hallucinated statistic."
+    },
+    {
+      "id": "soma-billboard-08",
+      "surface": "billboard",
+      "headline": "Agentic laundry. Finally.",
+      "subline": "{$product}. Your socks, now autonomous."
+    },
+    {
+      "id": "soma-billboard-09",
+      "surface": "billboard",
+      "headline": "Lanyards as a service.",
+      "subline": "{$product}. Wear your identity, monthly."
+    },
+    {
+      "id": "soma-billboard-10",
+      "surface": "billboard",
+      "headline": "SoMa's flattest startup.",
+      "subline": "{$product}. No hills. No pivots. No revenue."
+    },
+    {
+      "id": "soma-billboard-11",
+      "surface": "billboard",
+      "headline": "Ship it. Then ship it again.",
+      "subline": "{$product}. Continuous deployment of apologies."
+    },
+    {
+      "id": "soma-billboard-12",
+      "surface": "billboard",
+      "headline": "Your demo, guaranteed to work.",
+      "subline": "{$product}. On our laptop. In this room."
+    },
+    {
+      "id": "soma-billboard-13",
+      "surface": "billboard",
+      "headline": "Context window: the whole block.",
+      "subline": "{$product}. We remember every lanyard."
+    },
+    {
+      "id": "soma-billboard-14",
+      "surface": "billboard",
+      "headline": "Demo Day every day.",
+      "subline": "{$product}. Pitch practice for your toaster."
+    },
+    {
+      "id": "soma-billboard-15",
+      "surface": "billboard",
+      "headline": "The future of work is here.",
+      "subline": "{$product}. It's in a meeting."
+    },
+    {
+      "id": "soma-billboard-16",
+      "surface": "billboard",
+      "headline": "Hackathon fuel, now agentic.",
+      "subline": "{$product}. The pizza writes your code."
+    },
+    {
+      "id": "soma-billboard-17",
+      "surface": "billboard",
+      "headline": "From stealth to stealthier.",
+      "subline": "{$product}. Now even we can't find us."
+    },
+    {
+      "id": "soma-billboard-18",
+      "surface": "billboard",
+      "headline": "Default alive. Barely awake.",
+      "subline": "{$product}. Runway measured in cold brew."
+    },
+    {
+      "id": "soma-billboard-19",
+      "surface": "billboard",
+      "headline": "Moat Labs demo units on site.",
+      "subline": "Please do not water the demo units."
+    },
+    {
+      "id": "soma-billboard-20",
+      "surface": "billboard",
+      "headline": "Seed. Series A. Snack.",
+      "subline": "{$product}. Funding the important things."
+    },
+    {
+      "id": "soma-busWrap-01",
+      "surface": "busWrap",
+      "headline": "Every robot. Every bus. Eventually.",
+      "subline": "Moat Labs. Mind the doors. And the moat."
+    },
+    {
+      "id": "soma-busWrap-02",
+      "surface": "busWrap",
+      "headline": "This bus has better uptime than our API.",
+      "subline": "{$product}. Status page: aspirational."
+    },
+    {
+      "id": "soma-busWrap-03",
+      "surface": "busWrap",
+      "headline": "Next stop: product-market fit.",
+      "subline": "{$product}. Change here for the pivot."
+    },
+    {
+      "id": "soma-busWrap-04",
+      "surface": "busWrap",
+      "headline": "Conference Week? Ride with {$product}.",
+      "subline": "Our agents will network for you."
+    },
+    {
+      "id": "soma-busWrap-05",
+      "surface": "busWrap",
+      "headline": "Stand clear of the hype.",
+      "subline": "{$product}. Doors closing on our seed round."
+    },
+    {
+      "id": "soma-busWrap-06",
+      "surface": "busWrap",
+      "headline": "Your commute is a context window.",
+      "subline": "{$product}. We summarise the ride for you."
+    },
+    {
+      "id": "soma-busWrap-07",
+      "surface": "busWrap",
+      "headline": "We put AI in the bus. It's driving.",
+      "subline": "{$product}. Not really. Please hold the rail."
+    },
+    {
+      "id": "soma-busWrap-08",
+      "surface": "busWrap",
+      "headline": "Pull the cord for a live demo.",
+      "subline": "{$product}. Our founder is on this bus."
+    },
+    {
+      "id": "soma-busWrap-09",
+      "surface": "busWrap",
+      "headline": "Hold on. We're pivoting.",
+      "subline": "{$product}. Mind the gap in our revenue."
+    },
+    {
+      "id": "soma-busWrap-10",
+      "surface": "busWrap",
+      "headline": "The flattest route in the city.",
+      "subline": "{$product}. Like our growth curve. Sadly."
+    },
+    {
+      "id": "soma-busWrap-11",
+      "surface": "busWrap",
+      "headline": "Fewer stops than our onboarding.",
+      "subline": "{$product}. Only fourteen screens to say hi."
+    },
+    {
+      "id": "soma-busWrap-12",
+      "surface": "busWrap",
+      "headline": "This wrap was generated in 0.4 s.",
+      "subline": "{$product}. Approved in 0.0 s."
+    },
+    {
+      "id": "soma-busWrap-13",
+      "surface": "busWrap",
+      "headline": "Every rider gets a free agent.",
+      "subline": "{$product}. It pitches you at the next stop."
+    },
+    {
+      "id": "soma-busWrap-14",
+      "surface": "busWrap",
+      "headline": "Built for people who still ride buses.",
+      "subline": "{$product}. Our CEO has heard of buses."
+    },
+    {
+      "id": "soma-busWrap-15",
+      "surface": "busWrap",
+      "headline": "Lanyards welcome. Data welcome.",
+      "subline": "{$product}. Thank you for riding and sharing."
+    }
+  ]
+}

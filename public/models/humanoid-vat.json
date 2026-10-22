@@ -1,0 +1,659 @@
+{
+  "version": 1,
+  "frame": "glTF model space: metres, +Y up, the front faces -Z, origin on the ground between the feet",
+  "slots": [
+    "skin",
+    "hair",
+    "top",
+    "bottom",
+    "shoes",
+    "outer",
+    "accent",
+    "sole",
+    "eyes",
+    "badge"
+  ],
+  "morphs": [
+    "build_slim",
+    "build_broad",
+    "build_heavy",
+    "curvy",
+    "older",
+    "hair_none",
+    "hair_long",
+    "hair_bun",
+    "vest",
+    "hoodie",
+    "lanyard",
+    "skirt"
+  ],
+  "models": {
+    "adult": {
+      "child": false,
+      "lods": {
+        "0": {
+          "vertexCount": 1670,
+          "width": 1670,
+          "rowsPerFrame": 1,
+          "frames": 137,
+          "position": {
+            "format": "RGBA16F",
+            "byteOffset": 0,
+            "byteLength": 1830320,
+            "height": 137
+          },
+          "rotation": {
+            "format": "RGBA8",
+            "byteOffset": 1830320,
+            "byteLength": 915160,
+            "height": 137
+          },
+          "morph": {
+            "format": "RGBA16F",
+            "byteOffset": 2745480,
+            "byteLength": 320640,
+            "height": 24
+          },
+          "bounds": {
+            "min": [
+              -2.117,
+              -0.0,
+              -0.782
+            ],
+            "max": [
+              0.646,
+              1.784,
+              0.538
+            ]
+          },
+          "triangles": 2879,
+          "file": "humanoid-vat-adult-lod0.bin",
+          "mesh": "adult_lod0"
+        },
+        "1": {
+          "vertexCount": 579,
+          "width": 579,
+          "rowsPerFrame": 1,
+          "frames": 137,
+          "position": {
+            "format": "RGBA16F",
+            "byteOffset": 0,
+            "byteLength": 634584,
+            "height": 137
+          },
+          "rotation": {
+            "format": "RGBA8",
+            "byteOffset": 634584,
+            "byteLength": 317292,
+            "height": 137
+          },
+          "morph": {
+            "format": "RGBA16F",
+            "byteOffset": 951876,
+            "byteLength": 111168,
+            "height": 24
+          },
+          "bounds": {
+            "min": [
+              -2.117,
+              -0.0,
+              -0.782
+            ],
+            "max": [
+              0.642,
+              1.784,
+              0.538
+            ]
+          },
+          "triangles": 871,
+          "file": "humanoid-vat-adult-lod1.bin",
+          "mesh": "adult_lod1"
+        }
+      }
+    },
+    "child": {
+      "child": true,
+      "lods": {
+        "0": {
+          "vertexCount": 1670,
+          "width": 1670,
+          "rowsPerFrame": 1,
+          "frames": 70,
+          "position": {
+            "format": "RGBA16F",
+            "byteOffset": 0,
+            "byteLength": 935200,
+            "height": 70
+          },
+          "rotation": {
+            "format": "RGBA8",
+            "byteOffset": 935200,
+            "byteLength": 467600,
+            "height": 70
+          },
+          "morph": {
+            "format": "RGBA16F",
+            "byteOffset": 1402800,
+            "byteLength": 320640,
+            "height": 24
+          },
+          "bounds": {
+            "min": [
+              -0.254,
+              -0.0,
+              -0.381
+            ],
+            "max": [
+              0.253,
+              1.188,
+              0.336
+            ]
+          },
+          "triangles": 2879,
+          "file": "humanoid-vat-child-lod0.bin",
+          "mesh": "child_lod0"
+        },
+        "1": {
+          "vertexCount": 579,
+          "width": 579,
+          "rowsPerFrame": 1,
+          "frames": 70,
+          "position": {
+            "format": "RGBA16F",
+            "byteOffset": 0,
+            "byteLength": 324240,
+            "height": 70
+          },
+          "rotation": {
+            "format": "RGBA8",
+            "byteOffset": 324240,
+            "byteLength": 162120,
+            "height": 70
+          },
+          "morph": {
+            "format": "RGBA16F",
+            "byteOffset": 486360,
+            "byteLength": 111168,
+            "height": 24
+          },
+          "bounds": {
+            "min": [
+              -0.254,
+              -0.0,
+              -0.381
+            ],
+            "max": [
+              0.253,
+              1.188,
+              0.336
+            ]
+          },
+          "triangles": 871,
+          "file": "humanoid-vat-child-lod1.bin",
+          "mesh": "child_lod1"
+        }
+      }
+    }
+  },
+  "clips": {
+    "adult": [
+      {
+        "name": "walk",
+        "startFrame": 0,
+        "frameCount": 20,
+        "fps": 20,
+        "loop": true,
+        "durationS": 1.0,
+        "speedMps": 1.341
+      },
+      {
+        "name": "idle",
+        "startFrame": 20,
+        "frameCount": 18,
+        "fps": 6,
+        "loop": true,
+        "durationS": 3.0
+      },
+      {
+        "name": "dive",
+        "startFrame": 38,
+        "frameCount": 30,
+        "fps": 16,
+        "loop": false,
+        "durationS": 1.8,
+        "rootMotion": [
+          -1.25,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "name": "wet_shake",
+        "startFrame": 68,
+        "frameCount": 33,
+        "fps": 20,
+        "loop": false,
+        "durationS": 1.6
+      },
+      {
+        "name": "sit",
+        "startFrame": 101,
+        "frameCount": 12,
+        "fps": 6,
+        "loop": true,
+        "durationS": 2.0,
+        "seatHeightM": 0.45
+      },
+      {
+        "name": "talk",
+        "startFrame": 113,
+        "frameCount": 24,
+        "fps": 8,
+        "loop": true,
+        "durationS": 3.0
+      }
+    ],
+    "child": [
+      {
+        "name": "walk",
+        "startFrame": 0,
+        "frameCount": 16,
+        "fps": 20,
+        "loop": true,
+        "durationS": 0.8,
+        "speedMps": 1.012
+      },
+      {
+        "name": "idle",
+        "startFrame": 16,
+        "frameCount": 18,
+        "fps": 6,
+        "loop": true,
+        "durationS": 3.0
+      },
+      {
+        "name": "sit",
+        "startFrame": 34,
+        "frameCount": 12,
+        "fps": 6,
+        "loop": true,
+        "durationS": 2.0,
+        "seatHeightM": 0.297
+      },
+      {
+        "name": "talk",
+        "startFrame": 46,
+        "frameCount": 24,
+        "fps": 8,
+        "loop": true,
+        "durationS": 3.0
+      }
+    ]
+  },
+  "variants": [
+    {
+      "id": "founder",
+      "label": "Founder: slim, fleece vest, conference lanyard",
+      "model": "adult",
+      "weights": {
+        "build_slim": 0.5,
+        "vest": 1.0,
+        "lanyard": 1.0
+      },
+      "heightScale": [
+        0.95,
+        1.05
+      ],
+      "outfits": [
+        "vest_charcoal",
+        "vest_navy"
+      ],
+      "child": false
+    },
+    {
+      "id": "engineer",
+      "label": "Engineer: hoodie, bun",
+      "model": "adult",
+      "weights": {
+        "build_broad": 0.2,
+        "hair_bun": 1.0,
+        "hoodie": 1.0
+      },
+      "heightScale": [
+        0.93,
+        1.07
+      ],
+      "outfits": [
+        "hoodie_heather",
+        "hoodie_black"
+      ],
+      "child": false
+    },
+    {
+      "id": "partner",
+      "label": "Partner: older, stocky, fleece vest",
+      "model": "adult",
+      "weights": {
+        "build_broad": 0.4,
+        "build_heavy": 0.35,
+        "older": 0.6,
+        "vest": 1.0
+      },
+      "heightScale": [
+        0.96,
+        1.06
+      ],
+      "outfits": [
+        "partner_vest"
+      ],
+      "hair": [
+        "grey",
+        "white"
+      ],
+      "child": false
+    },
+    {
+      "id": "attendee",
+      "label": "Attendee: long hair, skirt, lanyard",
+      "model": "adult",
+      "weights": {
+        "build_slim": 0.2,
+        "curvy": 0.9,
+        "hair_long": 1.0,
+        "lanyard": 1.0,
+        "skirt": 1.0
+      },
+      "heightScale": [
+        0.88,
+        0.98
+      ],
+      "outfits": [
+        "conference_red",
+        "warm_mustard"
+      ],
+      "child": false
+    },
+    {
+      "id": "local",
+      "label": "Local: heavy build, broad hips",
+      "model": "adult",
+      "weights": {
+        "build_heavy": 1.0,
+        "curvy": 0.3
+      },
+      "heightScale": [
+        0.92,
+        1.04
+      ],
+      "outfits": [
+        "rain_orange",
+        "student_green",
+        "designer_grey"
+      ],
+      "child": false
+    },
+    {
+      "id": "elder",
+      "label": "Older adult: slight stoop, thinning hair",
+      "model": "adult",
+      "weights": {
+        "build_slim": 0.3,
+        "older": 1.0,
+        "hair_none": 0.5
+      },
+      "heightScale": [
+        0.88,
+        0.97
+      ],
+      "outfits": [
+        "retiree_beige",
+        "partner_vest"
+      ],
+      "hair": [
+        "grey",
+        "white"
+      ],
+      "child": false
+    },
+    {
+      "id": "runner",
+      "label": "Runner: athletic, ponytail-length hair",
+      "model": "adult",
+      "weights": {
+        "build_broad": 0.6,
+        "curvy": 0.4,
+        "hair_long": 0.5
+      },
+      "heightScale": [
+        0.98,
+        1.08
+      ],
+      "outfits": [
+        "athleisure"
+      ],
+      "child": false
+    },
+    {
+      "id": "student",
+      "label": "Student: slim, hoodie, long hair",
+      "model": "adult",
+      "weights": {
+        "build_slim": 0.7,
+        "hair_long": 1.0,
+        "hoodie": 1.0
+      },
+      "heightScale": [
+        0.9,
+        1.02
+      ],
+      "outfits": [
+        "student_green",
+        "hoodie_heather"
+      ],
+      "child": false
+    },
+    {
+      "id": "child",
+      "label": "Child (about seven): hoodie",
+      "model": "child",
+      "child": true,
+      "weights": {
+        "hoodie": 1.0
+      },
+      "heightScale": [
+        0.9,
+        1.08
+      ],
+      "outfits": [
+        "kid_yellow",
+        "kid_blue"
+      ]
+    },
+    {
+      "id": "child_long_hair",
+      "label": "Child (about seven): long hair",
+      "model": "child",
+      "child": true,
+      "weights": {
+        "hair_long": 0.8
+      },
+      "heightScale": [
+        0.9,
+        1.08
+      ],
+      "outfits": [
+        "kid_blue",
+        "kid_yellow"
+      ]
+    }
+  ],
+  "palette": {
+    "skinTones": [
+      "#f2d6c4",
+      "#e3b796",
+      "#c79067",
+      "#a26b48",
+      "#7a4a31",
+      "#4d2f21"
+    ],
+    "hair": {
+      "black": "#1e1914",
+      "dark_brown": "#3a2a1f",
+      "brown": "#6e4b30",
+      "auburn": "#9a522a",
+      "blonde": "#cfae6c",
+      "grey": "#a19f9a",
+      "white": "#dcd8cf"
+    },
+    "outfits": {
+      "vest_charcoal": {
+        "top": "#8fb0cf",
+        "bottom": "#b5a07e",
+        "shoes": "#9b9a96",
+        "outer": "#4c5259",
+        "accent": "#e85a4f",
+        "sole": "#efede8"
+      },
+      "vest_navy": {
+        "top": "#ebe8e1",
+        "bottom": "#2d3a4f",
+        "shoes": "#cdc6b9",
+        "outer": "#25344c",
+        "accent": "#3a7bd5",
+        "sole": "#f2f0ea"
+      },
+      "hoodie_heather": {
+        "top": "#8c9096",
+        "bottom": "#2a2b2e",
+        "shoes": "#3b3d42",
+        "outer": "#556b2f",
+        "accent": "#f2b134",
+        "sole": "#e9e6df"
+      },
+      "hoodie_black": {
+        "top": "#2a2c30",
+        "bottom": "#4a5568",
+        "shoes": "#d8d3c8",
+        "outer": "#5a4a6a",
+        "accent": "#9b6dd6",
+        "sole": "#f4f1ea"
+      },
+      "partner_vest": {
+        "top": "#dfe7ef",
+        "bottom": "#3b3f46",
+        "shoes": "#6b5847",
+        "outer": "#2f3438",
+        "accent": "#2f6f9f",
+        "sole": "#3a2f28"
+      },
+      "conference_red": {
+        "top": "#b23a48",
+        "bottom": "#1f2a44",
+        "shoes": "#ece6da",
+        "outer": "#d9a441",
+        "accent": "#f2b134",
+        "sole": "#f4f1ea"
+      },
+      "warm_mustard": {
+        "top": "#e2b04a",
+        "bottom": "#3d5a80",
+        "shoes": "#c8c0b3",
+        "outer": "#8b4c39",
+        "accent": "#e85a4f",
+        "sole": "#efebe3"
+      },
+      "rain_orange": {
+        "top": "#c96a2c",
+        "bottom": "#5d6d7e",
+        "shoes": "#4b3b30",
+        "outer": "#2e4053",
+        "accent": "#e8e8e8",
+        "sole": "#2a2420"
+      },
+      "student_green": {
+        "top": "#3e7d5a",
+        "bottom": "#2c3e50",
+        "shoes": "#ece7dd",
+        "outer": "#7a5c3a",
+        "accent": "#f2b134",
+        "sole": "#f6f3ec"
+      },
+      "retiree_beige": {
+        "top": "#d9c9a8",
+        "bottom": "#5f5f5f",
+        "shoes": "#3b2f2a",
+        "outer": "#8a7f6a",
+        "accent": "#7a9a5a",
+        "sole": "#2a2420"
+      },
+      "athleisure": {
+        "top": "#7c6fd1",
+        "bottom": "#1f1f24",
+        "shoes": "#f2f0eb",
+        "outer": "#e86a5c",
+        "accent": "#e85a4f",
+        "sole": "#ffffff"
+      },
+      "designer_grey": {
+        "top": "#3a3a3c",
+        "bottom": "#8a8f98",
+        "shoes": "#f4f1ea",
+        "outer": "#b9b2a6",
+        "accent": "#e85a4f",
+        "sole": "#ffffff"
+      },
+      "kid_yellow": {
+        "top": "#f6c445",
+        "bottom": "#3d5a80",
+        "shoes": "#e94f37",
+        "outer": "#3e7d5a",
+        "accent": "#7ac0e8",
+        "sole": "#ffffff"
+      },
+      "kid_blue": {
+        "top": "#7ac0e8",
+        "bottom": "#7a3b69",
+        "shoes": "#f2f0eb",
+        "outer": "#f6c445",
+        "accent": "#e94f37",
+        "sole": "#ffffff"
+      }
+    },
+    "fixed": {
+      "eyes": "#18161a",
+      "badge": "#f6f5f0"
+    },
+    "slotOrder": [
+      "skin",
+      "hair",
+      "top",
+      "bottom",
+      "shoes",
+      "outer",
+      "accent",
+      "sole",
+      "eyes",
+      "badge"
+    ]
+  },
+  "impostor": {
+    "file": "humanoid-impostor.png",
+    "width": 512,
+    "height": 256,
+    "columns": 8,
+    "rows": [
+      "idle",
+      "walk"
+    ],
+    "cell": [
+      64,
+      128
+    ],
+    "cellSizeM": [
+      1.0,
+      2.0
+    ],
+    "channels": "R: slot*16+8, G: diffuse shading (sRGB), B: 0, A: coverage (alpha test 0.5)",
+    "column": "phi = atan2(d.x, -d.z) for d the person-to-camera direction in the person's glTF frame; column = round(phi / 45 deg) mod 8"
+  }
+}

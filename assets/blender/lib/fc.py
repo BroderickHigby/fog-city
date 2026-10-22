@@ -180,6 +180,30 @@ class MeshBuilder:
                 uv = list(reversed(uv))
         self.poly(pts, mat, smooth, uv)
 
+    def grid_quad(self, p00, p10, p11, p01, nu, nv, mat, normal, smooth=False) -> None:
+        """A quad split into nu x nv quads (bilinear), facing `normal` (so it can bend)."""
+        P = [Vector(p) for p in (p00, p10, p11, p01)]
+
+        def at(u, v):
+            return P[0] * (1 - u) * (1 - v) + P[1] * u * (1 - v) + P[2] * u * v + P[3] * (1 - u) * v
+
+        for i in range(nu):
+            for j in range(nv):
+                u0, u1, v0, v1 = i / nu, (i + 1) / nu, j / nv, (j + 1) / nv
+                self.poly_n([tuple(at(u0, v0)), tuple(at(u1, v0)), tuple(at(u1, v1)), tuple(at(u0, v1))], mat, normal, smooth)
+
+    def concentric(self, outline, rings, mat, normal, smooth=False) -> None:
+        """A convex polygon filled with concentric rings of quads round its centroid."""
+        O = [Vector(p) for p in outline]
+        c = sum(O, Vector((0, 0, 0))) / len(O)
+        loops = [[c + (p - c) * (k / rings) for p in O] for k in range(1, rings + 1)]
+        n = len(O)
+        for i in range(n):
+            self.poly_n([tuple(c), tuple(loops[0][i]), tuple(loops[0][(i + 1) % n])], mat, normal, smooth)
+        for a, b in zip(loops, loops[1:]):
+            for i in range(n):
+                self.poly_n([tuple(a[i]), tuple(b[i]), tuple(b[(i + 1) % n]), tuple(a[(i + 1) % n])], mat, normal, smooth)
+
     def add(self, other: "MeshBuilder") -> None:
         """Append another builder's geometry, transformed by the current matrix."""
         base = len(self.verts)
@@ -425,9 +449,94 @@ def world_bounds(objects=None):
     return lo, hi
 
 
-def export_glb(filename: str, budget: int | None = None, out_dir: str | None = None) -> str:
+# ------------------------------------------------------------------- melt and rust hooks
+
+
+def mesh_objects():
+    return [o for o in bpy.context.scene.objects if o.type == "MESH"]
+
+
+def add_deform_keys(fns, objects=None) -> None:
+    """Shape keys from model-space deformations, one per (name, fn) in order.
+
+    fn(P) takes the rest positions (N, 3, Blender model space) of every vertex of every mesh
+    and returns the deformed positions. Each key is stored on each part in the part's own
+    frame, so a part whose node only translates at rest shows the designed shape when every
+    key weight is set and every joint is at rest.
+    """
+    import numpy as np
+
+    objs = objects or mesh_objects()
+    bpy.context.view_layer.update()
+    for ob in objs:
+        if ob.data.shape_keys is None:
+            ob.shape_key_add(name="Basis", from_mix=False)
+    for name, fn in fns:
+        for ob in objs:
+            me = ob.data
+            n = len(me.vertices)
+            co = np.zeros(n * 3)
+            me.vertices.foreach_get("co", co)
+            local = co.reshape(-1, 3)
+            mw = np.array(ob.matrix_world)
+            world = local @ mw[:3, :3].T + mw[:3, 3]
+            moved = np.asarray(fn(world), dtype=np.float64)
+            inv = np.linalg.inv(mw)
+            back = moved @ inv[:3, :3].T + inv[:3, 3]
+            sk = ob.shape_key_add(name=name, from_mix=False)
+            sk.data.foreach_set("co", back.reshape(-1))
+        for ob in objs:
+            ob.data["targetNames"] = [k.name for k in ob.data.shape_keys.key_blocks[1:]]
+
+
+def add_rust_mask(seams, reach: float, objects=None, never=("light_",), first=(), seed: int = 0) -> None:
+    """A per-vertex float attribute _RUST_MASK (glTF `_RUST_MASK`, three.js `_rust_mask`).
+
+    0 rusts first, 1 rusts last; >= 2 never rusts. A vertex's value grows with its distance
+    from the nearest seam point (joints, panel edges, wheel hubs), so rust blooms from the
+    joints and seams and then spreads over the shell. Materials whose names start with a
+    prefix in `never` (the night lights) never rust; materials in `first` (bare joints) rust
+    from the start. A little deterministic noise breaks up the front.
+    """
+    import numpy as np
+
+    objs = objects or mesh_objects()
+    S = np.asarray(seams, dtype=np.float64)
+    bpy.context.view_layer.update()
+    for ob in objs:
+        me = ob.data
+        n = len(me.vertices)
+        co = np.zeros(n * 3)
+        me.vertices.foreach_get("co", co)
+        mw = np.array(ob.matrix_world)
+        P = co.reshape(-1, 3) @ mw[:3, :3].T + mw[:3, 3]
+        d = np.sqrt(((P[:, None, :] - S[None, :, :]) ** 2).sum(axis=2)).min(axis=1)
+        h = np.sin(P[:, 0] * 41.3 + P[:, 1] * 17.9 + P[:, 2] * 29.1 + seed) * 43758.5453
+        noise = h - np.floor(h)
+        mask = 0.08 + 0.84 * np.clip(d / reach, 0.0, 1.0) ** 0.8 + 0.08 * (noise - 0.5)
+        mat_of = np.zeros(n, dtype=np.int64)
+        for poly in me.polygons:
+            for vi in poly.vertices:
+                mat_of[vi] = poly.material_index
+        for i, slot in enumerate(me.materials):
+            if slot is None:
+                continue
+            sel = mat_of == i
+            if slot.name.startswith(tuple(never)):
+                mask[sel] = 2.0
+            elif slot.name in first:
+                mask[sel] = 0.04 * noise[sel]
+        attr = me.attributes.new("_RUST_MASK", "FLOAT", "POINT")
+        attr.data.foreach_set("value", np.clip(mask, 0.0, 2.0).astype(np.float32))
+
+
+def export_glb(filename: str, budget: int | None = None, out_dir: str | None = None,
+               morph: bool = False, attributes: bool = False) -> str:
     """Export the whole scene as public/models/<filename> (or <out_dir>/<filename> for a
-    variant that is not the game's asset) and print a one-line report."""
+    variant that is not the game's asset) and print a one-line report.
+
+    morph: export shape keys as morph targets (with normals); attributes: export custom
+    vertex attributes whose names start with "_" (the rust mask)."""
     out_dir = out_dir or MODELS_OUT
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, filename)
@@ -445,7 +554,10 @@ def export_glb(filename: str, budget: int | None = None, out_dir: str | None = N
         export_lights=False,
         export_animations=False,
         export_skins=False,
-        export_morph=False,
+        export_morph=morph,
+        export_morph_normal=morph,
+        export_morph_tangent=False,
+        export_attributes=attributes,
         export_texcoords=True,
         export_normals=True,
         export_tangents=False,

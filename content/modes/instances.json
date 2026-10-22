@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "$comment": "District instances for Bot Sweep, Clean Streets and Hide in the Crowd (docs/design.md, Match framework): FiDi, North Beach, the Marina, Dogpatch, then SoMa bounded to Mission Bay, the convention-center block and Rincon Hill. No instance includes the Tenderloin, Civic Center/UN Plaza, the 6th St corridor or the Division St / 13th St corridor; tests/content/territory-coverage.test.ts checks every polygon against content/places.json, and keeps them clear of every other protected area too. If the user later wants those areas in rotation, instances there use the alternate mode names (Rust Patrol / Rust Rush).",
+  "source": "Hand-traced from DataSF street-centerline intersections (3psu-pn9h, read from the wave-2 road graph); approximate, a game boundary, not an official one.",
+  "modes": [
+    {
+      "id": "botSweep",
+      "name": "Bot Sweep",
+      "wave": 4,
+      "alternateName": "Rust Patrol"
+    },
+    {
+      "id": "cleanStreets",
+      "name": "Clean Streets",
+      "wave": 5,
+      "alternateName": "Rust Rush"
+    },
+    {
+      "id": "hideInTheCrowd",
+      "name": "Hide in the Crowd",
+      "wave": 7
+    }
+  ],
+  "instances": [
+    {
+      "id": "fidi",
+      "name": "Financial District",
+      "district": "fidi",
+      "modes": ["botSweep", "cleanStreets", "hideInTheCrowd"],
+      "polygon": [
+        [37.79572, -122.40268],
+        [37.79572, -122.39632],
+        [37.79068, -122.39632],
+        [37.79068, -122.40268]
+      ]
+    },
+    {
+      "id": "north-beach",
+      "name": "North Beach",
+      "district": "north-beach",
+      "modes": ["botSweep", "cleanStreets", "hideInTheCrowd"],
+      "polygon": [
+        [37.80345, -122.41314],
+        [37.80345, -122.40746],
+        [37.79895, -122.40746],
+        [37.79895, -122.41314]
+      ]
+    },
+    {
+      "id": "marina",
+      "name": "The Marina",
+      "district": "marina",
+      "modes": ["botSweep", "cleanStreets", "hideInTheCrowd"],
+      "polygon": [
+        [37.80652, -122.44118],
+        [37.80652, -122.43482],
+        [37.80148, -122.43482],
+        [37.80148, -122.44118]
+      ]
+    },
+    {
+      "id": "dogpatch",
+      "name": "Dogpatch",
+      "district": "dogpatch",
+      "modes": ["botSweep", "cleanStreets", "hideInTheCrowd"],
+      "polygon": [
+        [37.76152, -122.39118],
+        [37.76152, -122.38482],
+        [37.75648, -122.38482],
+        [37.75648, -122.39118]
+      ]
+    },
+    {
+      "id": "soma-bay",
+      "name": "SoMa to Mission Bay",
+      "district": "soma",
+      "modes": ["botSweep", "cleanStreets", "hideInTheCrowd"],
+      "polygon": [
+        [37.78625, -122.40203],
+        [37.78448, -122.40427],
+        [37.78202, -122.40116],
+        [37.77957, -122.39806],
+        [37.77709, -122.39498],
+        [37.77101, -122.394],
+        [37.7668, -122.3925],
+        [37.7669, -122.387],
+        [37.772, -122.386],
+        [37.77986, -122.38959],
+        [37.78308, -122.39362],
+        [37.78622, -122.38964],
+        [37.78869, -122.39272],
+        [37.78554, -122.39671]
+      ]
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:b37a7ae0",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
+}

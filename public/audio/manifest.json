@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "sampleRate": 44100,
+  "sounds": {
+    "melt-fizz": {
+      "files": {
+        "ogg": "audio/melt-fizz.ogg",
+        "mp3": "audio/melt-fizz.mp3"
+      },
+      "durationS": 2.2,
+      "loop": false,
+      "use": "A robot melting into a rust heap (slumping -> heap)."
+    },
+    "moat-jingle": {
+      "files": {
+        "ogg": "audio/moat-jingle.ogg",
+        "mp3": "audio/moat-jingle.mp3"
+      },
+      "durationS": 1.7,
+      "loop": false,
+      "use": "Moat Labs four-note jingle (A4 D5 E5 B4): bad robots hum it (tell, subtlety 3).",
+      "notes": [
+        "A4",
+        "D5",
+        "E5",
+        "B4"
+      ]
+    },
+    "rust-creak": {
+      "files": {
+        "ogg": "audio/rust-creak.ogg",
+        "mp3": "audio/rust-creak.mp3"
+      },
+      "durationS": 1.3,
+      "loop": false,
+      "use": "A joint rusting solid: rust past 0.5, seize and slump."
+    },
+    "splash": {
+      "files": {
+        "ogg": "audio/splash.ogg",
+        "mp3": "audio/splash.mp3"
+      },
+      "durationS": 0.7,
+      "loop": false,
+      "use": "Water lands on a robot or the pavement."
+    },
+    "spray": {
+      "files": {
+        "ogg": "audio/spray.ogg",
+        "mp3": "audio/spray.mp3"
+      },
+      "durationS": 1.0,
+      "loop": true,
+      "use": "Blaster stream loop: play while firing; loops seamlessly (use the .ogg for gapless looping)."
+    }
+  }
+}

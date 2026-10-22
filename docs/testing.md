@@ -156,9 +156,24 @@ The city runtime has its own suites:
 - `tests/io/assets.test.ts`: the web build's packer and `src/io/assets.ts`. Files packed and
   gzip + base64 encoded come back byte for byte through the index (file -> pack, offset,
   length) from a loopback server under a sub-path, a pack is fetched once however many files
-  it holds, packs split before they pass the size cap, the host-limit check flags `.glb` and
-  `.bin`, every `manifest.layers.<name>` the game reads is in `RUNTIME_LAYERS` (the only layers
-  the build ships), and the dev world still loads from its collider JSON.
+  it holds, packs split before they pass the size cap (a file alone over it is a pack of its
+  own), the host-limit check flags `.glb` and `.bin`, every `manifest.layers.<name>` the game
+  reads is in `RUNTIME_LAYERS` (the only layers the build ships), and the dev world still loads
+  from its collider JSON. Files in parts: a synthetic 30 kB binary under a 12 kB limit is cut
+  into 4 even parts of whole base64 quanta, named `.part0.txt` on, that join back to the exact
+  bytes, fetched concurrently (all in flight at once) and each once; a missing part, a part cut
+  short on the host, two parts listed out of order, and an index length the decoded bytes miss
+  (by one either way) each fail with an error naming the file and the part, never a truncated
+  decode, and a part's error names it by the number in its file's name (`part 1 of parts 0..3
+  (….part1.txt)`); a version 1 index (no parts) still loads and version 3 is refused. On the
+  real SF world: built twice with a 5 MB part limit (the collider pack in 3 parts), every part
+  on disk at its listed size and under the limit, the host check clean, the two builds
+  byte-identical, and the world loads back over HTTP from the parts (the collider pack byte for
+  byte, the sim world from the pack, a tile and a model; about 6 s, 1 GB). The out directory:
+  the build clears one that is new, empty or an earlier build's (whole or half-written), and
+  refuses anything else (a stray `notes.txt`, a raw `.glb`, a source tree) unless forced; the
+  checkout, the `public/` it reads and any directory holding either are refused even forced;
+  and a refused build, or one whose world is missing, deletes nothing.
 - `tests/render/far-seams.test.ts`: the far layer finds its terrain lattice among the hulls;
   at the city's outer edge it finds the far quads just outside, hides them and stitches in
   strips whose inner side follows the streamed tile's ground every 10 m and whose outer side
@@ -199,7 +214,7 @@ sets its own (`it(name, fn, 60_000)`).
 | `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; it boots from the citywide collider pack (`world.colliders.bin` fetched once, **not one `*.collider.json` request** in the page's log, `simInfo().colliders === "pack"`, more than 1,000 edge and shore wall segments); from Twin Peaks every far-LOD cell is loaded, more than three are drawn in the last frame (`renderInfo().farCells`, `farCellsDrawn`), and the camera sees at least 15 km; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building; parked at the southern city limit facing out, the far terrain is stitched to the tiles' ground (`renderInfo().farSeamEdges`) and no sea-coloured pixels show below the horizon (the crack showed about 11,000). Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
 | `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. Boxed in by four other players' cars (joined through `stepFrames()` events, 2 m to each side and 5.2 m ahead and behind), F leaves the player in the car and `hint()` reads "No room to get out" on screen; once they leave, F gets out with no hint. | `foot` |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
-| `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). | `sf` |
+| `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider, lists every file written in parts at its size on disk and at most 14 MB (and says version 2 exactly when there are parts), and agrees with the build's report; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack, each of the pack's files (whole, or every part) fetched exactly once; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). The committed collider pack fits one file, so a second build (`test-results/web-build/split-site/`) lowers the part size to 5 MB so every run boots the split path in Chromium: the pack is written in parts (version 2 index, each part at its size on disk) that join and decode to `world.colliders.bin` byte for byte, the page boots SF from them and drives more than 30 m, fetching every part once and never the whole file, and with one part missing on the host the boot stops with `Failed to start: … part 1 of parts 0..N (….part1.txt): HTTP 404`. `WEB_BUILD_PUBLIC=<dir>` builds both from another `public/` directory. | `sf` |
 
 ### Cross-engine determinism
 
@@ -323,15 +338,16 @@ degrees (+ up), `up` metres above the ground there.
 
 ## Continuous integration (`.github/workflows/ci.yml`)
 
-On every push and pull request, on Ubuntu with Node 22 and pnpm (version from
+On every pull request and every push to main, on Ubuntu with Node 22 and pnpm (version from
 `package.json`), with the pnpm store and Playwright browsers cached: check out (tiles are in
 plain git), `pnpm install --frozen-lockfile`, typecheck, unit tests, `pnpm build` (the static
 web build; it fails if the build breaks the host's limits), Playwright browsers with system
 dependencies, `pnpm e2e` (with `E2E_REQUIRE` from the repository variable), then `pnpm shots`
-(informational: it never fails CI). Each check runs
-whenever install succeeded, so one failure does not hide another. `test-results/`
-(Playwright artefacts and HTML report, `perf.json`, `shots/`) is uploaded as an artifact for
-14 days. With `CI` set, `test.only` fails the run. The workflow has passed `actionlint` and
+(informational: it never fails CI. Playwright's 9-minute `--global-timeout` stops it before
+the step's 12-minute backstop, because a step that reaches its own `timeout-minutes` fails
+the job even under `continue-on-error`). Each check runs whenever install succeeded, so one
+failure does not hide another. `test-results/` (Playwright artefacts and HTML report,
+`perf.json`, `shots/`) is uploaded as an artifact for 14 days. With `CI` set, `test.only` fails the run. The workflow has passed `actionlint` and
 its commands have run locally with `CI=true`; its first run on GitHub's runners happens on
 the first push.
 
@@ -349,20 +365,48 @@ world and the models in the layout `src/io/assets.ts` reads in a production buil
 - tile glbs are concatenated into packs, one per 3 x 3 block of tiles
   (`tiles/sf/packs/tiles-NNN.pack.gz.b64.txt`), the far-LOD cells into `far-NN` packs; a pack
   is fetched whole the first time a file in it is needed, cached, and sliced by offset;
-- `world.colliders.bin` and each model are one `.gz.b64.txt` file each;
+- `world.colliders.bin` and each model are encoded on their own, one `.gz.b64.txt` file each
+  while that stays within the build's 14 MB margin (`PACK_MAX_BYTES`, under the host's 15 MB);
+- an encoded file over 14 MB is written as parts instead: `<name>.gz.b64.part0.txt`,
+  `.part1.txt`, ... (numbered from 0, as few as fit, sizes as even as possible with every cut
+  on a multiple of 4 characters, so each part is valid base64 on its own; the build checks
+  every part is at most 14 MB). The page fetches a file's parts concurrently, checks each
+  against the size the index lists, joins them in order and decodes once; a missing or
+  wrong-sized part fails the load naming the file and the part, and the decoded length must
+  equal the index's. The citywide collider pack needs this from the 2026-10-21 QA world on
+  (14.87 MB raw, 14.26 MB encoded: two parts of 7.13 MB);
 - the world's JSON the game reads is copied as is: the manifest, the road graph and the data
   layers in `RUNTIME_LAYERS` (`src/io/world-load.ts`: boundary and districts); the other layers
   (sidewalks, hydrants, ...) stay out until a feature reads them, and per-tile collider JSON is
   not shipped;
 - the bundle's source map ships by default (useful on a private page); `node
   scripts/build-web.ts --no-sourcemap` leaves it out;
-- `assets.index.json` maps each binary's logical path to `{src, offset, length}`; its
-  `defaultWorld` (`sf`) opens when the page has no `?world=`.
+- `assets.index.json` maps each binary's logical path to `{src, offset, length}`; a src written
+  in parts is listed under `parts[src]` as `[{src, bytes}, ...]` in join order (`src` in the
+  entry then names the whole encoded text, which is not a file). An index with parts says
+  `version: 2`; one without stays `version: 1`, the shape builds wrote before parts, so a page
+  too old to know parts refuses a split build by its version. Its `defaultWorld` (`sf`) opens
+  when the page has no `?world=`.
 
 The build checks the host's limits (at most 450 files, 240 MB in all, 15 MB a file, the
-extensions above) and fails if one is broken. On 2026-10-21: 105 files, 109.2 MB (binaries
-136.1 MB raw, 81.4 MB encoded: meshopt output gzips well), largest file the collider pack at
-12.3 MB, 81 packs, about 10 s. To look at it from a sub-path:
+extensions above; every part is a file of its own) and fails if one is broken; its summary
+names each file written in parts. `--public <dir>` builds the world and models from another
+`public/` directory, e.g. a pipeline branch's world before it merges. `--out <dir>` (relative
+to the checkout, or absolute) is deleted before the build writes it, so the build takes only a
+directory that is new, empty or holds nothing but an earlier build's files (`index.html`,
+`assets/`, `assets.index.json`, `tiles/` and `models/` of `.json` and `.txt`), and checks the
+world's manifest is there before it deletes anything; anything else stops the build, naming
+what it found, unless `--force-clean`. The checkout, the `public/` it reads and any directory
+holding either are refused even then. On 2026-10-22, from the committed world (`pnpm build`):
+112 files, 92.9 MB (binaries 138.8 MB raw, 83.0 MB encoded: meshopt output gzips well; JSON
+5.0 MB; the bundle 4.8 MB), largest file the collider pack at 12.3 MB encoded (12.7 MB raw),
+in one file, so nothing in parts and a version 1 index; 81 packs; about 10 s.
+
+Republishing a build to a page that already holds an earlier one: the host keeps every file an
+update leaves out, so remove each path the earlier build had and this one lacks, e.g. the whole
+`tiles/sf/world.colliders.bin.gz.b64.txt` once the pack is written in parts, or a pack name
+that is gone. The page never reads them, but they count against the host's file and size
+totals. To look at it from a sub-path:
 
 ```sh
 pnpm build
@@ -371,7 +415,10 @@ python3 -m http.server 4299 --bind 127.0.0.1    # from the repo root, then open
 ```
 
 `pnpm dev` keeps serving loose files from `public/`. `tests/e2e/web-build.spec.ts` builds and
-boots its own copy from a sub-path on every e2e run.
+boots its own copies from a sub-path on every e2e run (one as `pnpm build` writes it, one with a
+5 MB part size, so the collider pack is always in parts); `WEB_BUILD_PUBLIC=<dir>` points it at
+another `public/` directory, to prove a world that has not merged yet builds, fits the host and
+boots (`WEB_BUILD_PUBLIC=/path/to/public E2E_PORT=4298 pnpm exec playwright test web-build`).
 
 ## Output layout
 
@@ -382,5 +429,5 @@ boots its own copy from a sub-path on every e2e run.
 | `test-results/perf.json` | `perf.spec.ts` | overwritten each run |
 | `test-results/shots/` | `pnpm shots` | cleared at the start of each shots run |
 | `test-results/playwright-shots/` | `pnpm shots` | artefacts of failed shots |
-| `test-results/web-build/` | `web-build.spec.ts` | the static build it serves from `/fog/city/`, and `hosted-chase.png` |
+| `test-results/web-build/` | `web-build.spec.ts` | the static builds it serves from `/fog/city/` (`site/`, and `split-site/` with the collider pack in parts), and `hosted-chase.png` |
 | `dist/` | `pnpm build` | the static web build (gitignored) |

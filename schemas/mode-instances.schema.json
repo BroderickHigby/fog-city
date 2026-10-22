@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/mode-instances",
+  "title": "District instances for the district modes (content/modes/instances.json)",
+  "type": "object",
+  "required": ["version", "source", "modes", "instances", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "provenance": { "$ref": "provenance" },
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "source": { "type": "string" },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "name", "wave"], "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+          "name": { "type": "string" },
+          "wave": { "type": "integer", "minimum": 2, "maximum": 8 },
+          "alternateName": { "type": "string" }
+        }
+      }
+    },
+    "instances": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "district", "modes", "polygon"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "name": { "type": "string" },
+          "district": { "type": "string" },
+          "modes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "polygon": { "$ref": "places#/$defs/polygon" }
+        }
+      }
+    }
+  }
+}

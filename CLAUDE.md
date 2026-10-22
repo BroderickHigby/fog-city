@@ -70,7 +70,8 @@ Adding a dependency: pin an exact version that is at least two weeks old (`pnpm 
 - No real brands, logos or trademarks. Invent startup and product names. Storefronts stay unnamed for now:
   iconography only (beer-neon shape, barber pole), empty sign slot reserved.
 - Robotaxis and robots are original designs: nothing that copies a real vehicle or a film robot.
-- Public figures only as obvious caricature that never claims to be the real person; never real private people.
+- Public figures only as obvious caricature that never claims to be the real person; never real private people
+  (one consented exception: the owner's own stylised likeness as the player, `docs/design.md` decision log, 2026-10-21).
 - Punch up at tech and VC culture. Never make homelessness, poverty, drug use or crime victims the joke.
 
 ## Tests

@@ -4,9 +4,10 @@
   "title": "Billboard and ad-copy grammar (content/billboards.json)",
   "description": "A context-free grammar of fictional ad copy. Expansion strings reference rules as {sym}, {sym.cap} (first letter upper-cased) or {$sym} (bound: chosen once per output and reused). Start alternatives are 'headline|subline'. Length limits are proven over every derivation by checkBillboardGrammar in src/content/billboards.ts.",
   "type": "object",
-  "required": ["version", "start", "starts", "external", "rules", "palettes"],
+  "required": ["version", "start", "starts", "external", "rules", "palettes", "provenance"],
   "additionalProperties": false,
   "properties": {
+    "provenance": { "$ref": "#/$defs/provenance" },
     "version": { "const": 1 },
     "$comment": { "type": "string" },
     "start": { "type": "string", "description": "Default start kind (a key of starts)." },
@@ -63,6 +64,46 @@
     }
   },
   "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "authorSession",
+        "contentHash",
+        "reviewedBy",
+        "review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "agent",
+            "batch",
+            "human"
+          ]
+        },
+        "authorSession": {
+          "type": "string",
+          "minLength": 4
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^fnv1a32:[0-9a-f]{8}$",
+          "description": "FNV-1a over the file's player-facing text joined by newlines (src/content/barks.ts contentHash)."
+        },
+        "reviewedBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reviewing agent sessions and, for sampled drops, the sample ids."
+        },
+        "review": {
+          "type": "string"
+        }
+      },
+      "description": "A copy of schemas/provenance.schema.json, inlined because tests/schemas/schemas.test.ts compiles this schema on its own; tests/content/provenance.test.ts keeps the copy equal."
+    },
     "start": {
       "type": "object",
       "required": ["symbol", "headlineMax", "sublineMax"],

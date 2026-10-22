@@ -1,5 +1,7 @@
 // Night lights: every light_* material (assets/blender/README.md) is near 0 by day and up at
 // night; nightLight-only nodes are hidden by day; the agent shader's channels follow the same table.
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import {
@@ -13,21 +15,38 @@ import {
   lightIntensity,
   nightNodeVisible,
 } from "../../src/render/lights.ts";
+import { ROOT } from "../helpers.ts";
 
-/** Every light material the committed models use (README "Models and their contracts"). */
-const MODEL_LIGHTS = [
-  "light_tower_outline",
-  "light_clock_face",
-  "light_sculpture_glow",
-  "light_headlight",
-  "light_taillight",
-  "light_status",
-  "light_face",
-  "light_eyes",
-  "light_destination_sign",
-];
+/** Material names of a .glb, from its JSON chunk (no three.js, no decoder). */
+function glbMaterials(file: string): string[] {
+  const buf = readFileSync(file);
+  const len = buf.readUInt32LE(12);
+  if (buf.readUInt32LE(16) !== 0x4e4f534a) throw new Error(`${file}: first chunk is not JSON`);
+  const json = JSON.parse(buf.subarray(20, 20 + len).toString("utf8")) as { materials?: Array<{ name?: string }> };
+  return (json.materials ?? []).map((m) => m.name ?? "");
+}
+
+/** Every light material base name the committed models use, by file (assets/blender/README.md). */
+const MODEL_DIR = join(ROOT, "public/models");
+const LIGHTS_BY_MODEL = new Map(
+  readdirSync(MODEL_DIR)
+    .filter((f) => f.endsWith(".glb"))
+    .sort()
+    .map((f) => [f, [...new Set(glbMaterials(join(MODEL_DIR, f)).filter(isLightMaterial).map(lightBaseName))].sort()] as const),
+);
+const MODEL_LIGHTS = [...new Set([...LIGHTS_BY_MODEL.values()].flat())].sort();
 
 describe("light scaling", () => {
+  it("has a night level for exactly the light materials the committed models use", () => {
+    // Read from public/models, so a remodel that renames a light (wave 2: the Trundle's
+    // light_eyes became light_face) or adds one (light_accent, the kiosk lights) shows here.
+    expect(MODEL_LIGHTS.length).toBeGreaterThan(8);
+    for (const name of MODEL_LIGHTS) expect(LIGHT_NIGHT_INTENSITY[name], `${name} has no night level`).toBeGreaterThan(0);
+    for (const name of Object.keys(LIGHT_NIGHT_INTENSITY)) expect(MODEL_LIGHTS, `${name}: no committed model uses it`).toContain(name);
+    expect(LIGHTS_BY_MODEL.get("sidewalk-bot.glb")).toEqual(["light_face"]);
+    expect(LIGHTS_BY_MODEL.get("robotaxi.glb")).toEqual(["light_headlight", "light_status", "light_taillight"]);
+  });
+
   it("knows every light material the models use", () => {
     for (const name of MODEL_LIGHTS) {
       expect(isLightMaterial(name), name).toBe(true);
@@ -63,7 +82,7 @@ describe("light scaling", () => {
     expect(lightChannel("paint")).toBe(0);
     expect(lightChannel("light_headlight")).toBe(1);
     expect(lightChannel("light_taillight")).toBe(2);
-    for (const n of ["light_status", "light_face", "light_eyes", "light_destination_sign"]) expect(lightChannel(n), n).toBe(3);
+    for (const n of ["light_status", "light_face", "light_destination_sign", "light_accent", "light_kiosk_screen", "light_kiosk_status"]) expect(lightChannel(n), n).toBe(3);
     expect(channelIntensities(0)).toEqual([0, 0, 0]);
     expect(channelIntensities(1)).toEqual([lightIntensity("light_headlight", 1), lightIntensity("light_taillight", 1), lightIntensity("light_status", 1)]);
   });
@@ -78,7 +97,7 @@ describe("agent light channels", () => {
         expect(channelRatio(name) * channelIntensities(night)[ch - 1]!, `${name} at ${night}`).toBeCloseTo(lightIntensity(name, night), 9);
       }
     }
-    // The status channel runs at light_status's level; faces, eyes and signs keep theirs.
+    // The status channel runs at light_status's level; faces and signs keep theirs.
     expect(channelRatio("light_status")).toBe(1);
     expect(channelRatio("light_face")).toBeCloseTo(LIGHT_NIGHT_INTENSITY.light_face! / LIGHT_NIGHT_INTENSITY.light_status!, 12);
     expect(channelRatio("light_destination_sign")).toBeGreaterThan(1);

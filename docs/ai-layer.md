@@ -51,7 +51,7 @@ every box a player can type into runs the crisis check first, online or offline,
   exemption in the content lint.
 
 Earlier the same day: build-time content stopped needing the Batch pipeline; names follow the final
-game (**Ramen**, **Bot Check**, **Moat Labs**, **Meander**, **Clout**, **Dry Powder**, **GPU
+game (**Ramen**, **Bot Check**, **Moat Labs**, **Meander**, **Humbled** (was Clout), **Dry Powder**, **GPU
 allocation**); `[headshot-booth]` became `[portrait-booth]` and `[hype-cycle-director]` became
 `[ambient-director]`; runtime routes wait for wave 6.
 
@@ -97,7 +97,7 @@ come from the district content packs below.
 | `[cofounder]` bank + Hallucination Tour | Confidently wrong takes; Coit guide lines whose false facts are only about objects, infrastructure, geography or invented history | ~1,500 | 4 |
 | Streak and announcer lines | Reward callouts; Pauser and Accelerator announcers | ~200 | 4 |
 | Bench prompt cards | Vibe-coded tuning cards and their side-effect text | ~60 | 4 |
-| `[thought-leader-feed]` | Clout posts keyed to sim events; humblebrag achievements | ~200 | 4 |
+| `[thought-leader-feed]` | Humbled posts keyed to sim events; humblebrag achievements | ~200 | 4 |
 | `[customer-discovery]` cast deck | Three locals, hidden problem tags, 5 clue cards each, answer lines per question type; one bounty chain per local | 3 cards, 3 chains | 5 |
 | `[diligence-memo]` phrase bank | ~30 event types × 10 spins ("74 mph in fog" → "strong bias to action"), openers and closers by verdict | ~340 | 5 |
 | `[side-gig-missions]` | Mission premises with mission JSON; the user keeps and rewrites ~10 | ~40 drafts | 3+ |
@@ -482,7 +482,7 @@ item.
   lines; Backseat Prompt Rally behind the crisis check; the step-4 district packs.
 - **Wave 4:** scripted Mom with tokens that carry into Office Hours; pivot cards and the phone Pivot
   action; Doom Clock headlines; cofounder bank and Hallucination Tour; streak and announcer lines;
-  bench cards; Clout feed; customizer enum lists frozen, then the user's offline avatar script; the
+  bench cards; Humbled feed; customizer enum lists frozen, then the user's offline avatar script; the
   step-5 packs.
 - **Wave 5:** scripted Customer Discovery cast deck and its three bounty chains; diligence memo
   bank; the ambient director deck to ~100 cards; invite sign-up accounts with the age attestation
@@ -501,7 +501,7 @@ item.
 - **Live Meander support bot:** a capable model would understand you, which kills the joke.
 - **Live Backseat Prompt Rally:** same reason; the local parser is funnier and free.
 - **Runtime `[cofounder]` mode:** the bank is about 90% as funny.
-- **Live vision captions for the Clout feed:** screenshot privacy and the nude-sculpture risk.
+- **Live vision captions for the Humbled feed:** screenshot privacy and the nude-sculpture risk.
 - **`[runway-dda]` AI analyst:** adaptive difficulty is ordinary sim code.
 - **Live diligence memo, launch post and press voices:** a bank filled from enums is as funny.
 - **Interview closing-notes call:** a template from the tags is about as good.

@@ -6,6 +6,7 @@
 // terminates, and that every declared outcome is reachable.
 
 import { toLocal } from "../geo/project.ts";
+import { BOT_TELLS, type BotTellsFile } from "./botTells.ts";
 
 export interface Line {
   speaker: string;
@@ -41,16 +42,44 @@ export interface BranchCase { min?: number; max?: number; next: string }
 export interface BranchStep { id: string; type: "branch"; note?: string; meter: string; cases: BranchCase[]; default: string }
 export type Grant =
   | { kind: "billboard"; corridor: string; place: Place & { headingDeg: number }; copy: { generator: "billboard" | "busWrap"; product: "playerStartup" } }
-  | { kind: "stat"; stat: string; delta: number };
+  | { kind: "stat"; stat: string; delta: number }
+  | { kind: "unlock"; unlock: string };
 export interface RewardStep { id: string; type: "reward"; note?: string; outcome: string; lines?: Line[]; grants: Grant[]; next?: string }
 export interface RetryStep {
   id: string; type: "retry"; note?: string; outcome: string; lines?: Line[]; hint?: string; cooldownS?: number; retryFrom: string;
 }
 export interface EndStep { id: string; type: "end"; note?: string; outcome: string; lines?: Line[] }
+/** Wave 2: place mission actors. */
+export interface StageStep {
+  id: string; type: "stage"; note?: string; actors: string[]; place: Place & { radiusM: number }; nearHydrantM?: number; lines?: Line[]; next: string;
+}
+export type ObjectiveKind = "melt" | "watch" | "scan" | "cone" | "interruptUpdate" | "threatAtLeast" | "threatAtMost" | "refill" | "enterVehicle";
+/** Wave 2: a goal the sim checks, optionally against a time limit. */
+export interface ObjectiveStep {
+  id: string; type: "objective"; note?: string;
+  objective: { kind: ObjectiveKind; actor?: string; count?: number; level?: number; seconds?: number };
+  timeLimitS?: number; hint?: string; lines?: Line[]; next: string; onFail?: string;
+}
+/** Wave 2: a FreeTextBox form (the coworking sign-up). */
+export interface FormStep {
+  id: string; type: "form"; note?: string;
+  form: { kind: "startupSignup"; prompt: string; maxLength: number; records: "StartupDefined"; multipleChoice?: string[] };
+  lines?: Line[]; next: string;
+}
 
-export type Step = TriggerStep | GotoStep | TimerStep | DialogueStep | BranchStep | RewardStep | RetryStep | EndStep;
+export type Step = TriggerStep | GotoStep | TimerStep | DialogueStep | BranchStep | RewardStep | RetryStep | EndStep | StageStep | ObjectiveStep | FormStep;
 export type StepType = Step["type"];
-export const STEP_TYPES: readonly StepType[] = ["trigger", "goto", "timer", "dialogue", "branch", "reward", "retry", "end"];
+export const STEP_TYPES: readonly StepType[] = ["trigger", "goto", "timer", "dialogue", "branch", "reward", "retry", "end", "stage", "objective", "form"];
+export const OBJECTIVE_KINDS: readonly ObjectiveKind[] = ["melt", "watch", "scan", "cone", "interruptUpdate", "threatAtLeast", "threatAtMost", "refill", "enterVehicle"];
+
+export interface MissionActor {
+  kind: "badRobot" | "goodRobot" | "rogueTaxi" | "goodTaxi" | "crew";
+  archetype?: string;
+  level?: number;
+  members?: string[];
+  posted?: boolean;
+  note?: string;
+}
 
 export interface Meter { label: string; start: number; min: number; max: number }
 export type OutcomeKind = "success" | "retry" | "fail";
@@ -62,7 +91,10 @@ export interface Mission {
   summary?: string;
   area?: string;
   start?: string;
+  wave?: number;
+  campaign?: number;
   cast: Record<string, { name: string; role: string; description?: string }>;
+  actors?: Record<string, MissionActor>;
   meters: Record<string, Meter>;
   outcomes: Record<string, { label: string; kind: OutcomeKind }>;
   steps: Step[];
@@ -78,7 +110,9 @@ export const MAX_AVG_SPEED_MPS = 20;
 
 export type Decision =
   | { kind: "goto"; stepId: string; options: readonly ["arrive", "timeout"] }
-  | { kind: "answer"; stepId: string; questionId: string; options: readonly string[] };
+  | { kind: "answer"; stepId: string; questionId: string; options: readonly string[] }
+  | { kind: "objective"; stepId: string; options: readonly ["done", "timeout"] }
+  | { kind: "form"; stepId: string; options: readonly ["matched", "fallback"] };
 
 /** Returns one of decision.options. */
 export type Chooser = (d: Decision) => string;
@@ -160,8 +194,27 @@ export function dryRun(m: Mission, choose: Chooser, opts: DryRunOptions = {}): R
     switch (step.type) {
       case "trigger":
       case "timer":
+      case "stage":
         cur = step.next;
         break;
+      case "objective": {
+        if (step.timeLimitS === undefined) {
+          res.choices.push(`${step.id}:done`);
+          cur = step.next;
+          break;
+        }
+        const c = pick({ kind: "objective", stepId: step.id, options: ["done", "timeout"] }, step.id);
+        if (c === null) return res;
+        cur = c === "done" ? step.next : step.onFail;
+        break;
+      }
+      case "form": {
+        // The keyword matcher or the fallback both record a kit; the mission goes on either way.
+        const c = pick({ kind: "form", stepId: step.id, options: ["matched", "fallback"] }, step.id);
+        if (c === null) return res;
+        cur = step.next;
+        break;
+      }
       case "goto": {
         const c = pick({ kind: "goto", stepId: step.id, options: ["arrive", "timeout"] }, step.id);
         if (c === null) return res;
@@ -277,6 +330,7 @@ export function validateMission(input: unknown): MissionReport {
   const cast = isObj(m.cast) ? m.cast : {};
   const meters = isObj(m.meters) ? (m.meters as Record<string, Meter>) : {};
   const outcomes = isObj(m.outcomes) ? m.outcomes : {};
+  const actors = isObj(m.actors) ? (m.actors as Record<string, unknown>) : {};
   if (!isObj(m.cast)) err("cast must be an object");
   if (!isObj(m.meters)) err("meters must be an object");
   if (!isObj(m.outcomes)) err("outcomes must be an object");
@@ -448,6 +502,8 @@ export function validateMission(input: unknown): MissionReport {
               if (!isObj(g.place) || !isNum(g.place.headingDeg)) err(`step ${id}: billboard place needs headingDeg`);
             } else if (g.kind === "stat") {
               if (!isStr(g.stat) || !isNum(g.delta) || !Number.isInteger(g.delta)) err(`step ${id}: stat grant needs stat and integer delta`);
+            } else if (g.kind === "unlock") {
+              if (!isStr(g.unlock) || !/^(safehouse|vendor|activity|app):[a-z0-9-]+$/.test(g.unlock)) err(`step ${id}: unlock must be kind:id`);
             } else err(`step ${id}: unknown grant kind "${String(g.kind)}"`);
           }
         if (s.next !== undefined) ref(id, "next", s.next);
@@ -461,6 +517,37 @@ export function validateMission(input: unknown): MissionReport {
       case "end":
         outcomeOf(id, s.outcome);
         break;
+      case "stage": {
+        place(id, s.place, true);
+        if (!Array.isArray(s.actors) || s.actors.length === 0) err(`step ${id}: stage needs actors`);
+        else for (const a of s.actors as unknown[]) if (!isStr(a) || !(a in actors)) err(`step ${id}: actor "${String(a)}" is not declared`);
+        positive(id, "nearHydrantM", s.nearHydrantM, true);
+        ref(id, "next", s.next);
+        break;
+      }
+      case "objective": {
+        const o = s.objective;
+        if (!isObj(o) || !OBJECTIVE_KINDS.includes(o.kind as ObjectiveKind)) err(`step ${id}: unknown objective`);
+        else {
+          const needsActor = ["melt", "watch", "scan", "cone"].includes(o.kind as string);
+          if (needsActor && (!isStr(o.actor) || !(o.actor in actors))) err(`step ${id}: objective ${String(o.kind)} needs a declared actor`);
+          if (isStr(o.actor) && !(o.actor in actors)) err(`step ${id}: actor "${o.actor}" is not declared`);
+          if ((o.kind === "threatAtLeast" || o.kind === "threatAtMost") && !(isNum(o.level) && Number.isInteger(o.level) && o.level >= 0 && o.level <= 5)) err(`step ${id}: ${o.kind} needs a level 0-5`);
+          if (o.kind === "watch") positive(id, "objective.seconds", o.seconds);
+        }
+        if ((s.timeLimitS === undefined) !== (s.onFail === undefined)) err(`step ${id}: timeLimitS and onFail come together`);
+        positive(id, "timeLimitS", s.timeLimitS, true);
+        ref(id, "next", s.next);
+        if (s.onFail !== undefined) ref(id, "onFail", s.onFail);
+        break;
+      }
+      case "form": {
+        const f = s.form;
+        if (!isObj(f) || f.kind !== "startupSignup" || !isStr(f.prompt) || f.records !== "StartupDefined") err(`step ${id}: form must be a startupSignup that records StartupDefined`);
+        else if (!isNum(f.maxLength) || f.maxLength < 1 || f.maxLength > 280) err(`step ${id}: form maxLength must be 1-280`);
+        ref(id, "next", s.next);
+        break;
+      }
     }
   }
   if (m.start !== undefined) {
@@ -492,6 +579,7 @@ export function validateMission(input: unknown): MissionReport {
     for (const sid of p.trace) {
       const s = byId.get(sid);
       if (s?.type === "trigger") last = s.event.place;
+      else if (s?.type === "stage") last = s.place;
       else if (s?.type === "goto") {
         if (last) {
           const key = `${last.lat},${last.lon}->${s.id}`;
@@ -518,4 +606,44 @@ export function validateMission(input: unknown): MissionReport {
   if (!reachedKinds.has("retry") && !reachedKinds.has("fail")) err("no path fails or asks for a retry");
   for (const s of m.steps) if (!visited.has(s.id)) err(`step ${s.id} is unreachable`);
   return { ok: errors.length === 0, errors, paths, outcomeCounts, meterRanges };
+}
+
+/** Every place a mission names: trigger places, goto targets, stage places, billboard grants. */
+export function missionPlaces(m: Mission): Array<{ step: string; place: Place }> {
+  const out: Array<{ step: string; place: Place }> = [];
+  for (const s of m.steps) {
+    if (s.type === "trigger") out.push({ step: s.id, place: s.event.place });
+    else if (s.type === "goto") out.push({ step: s.id, place: s.target });
+    else if (s.type === "stage") out.push({ step: s.id, place: s.place });
+    else if (s.type === "reward") for (const g of s.grants) if (g.kind === "billboard") out.push({ step: s.id, place: g.place });
+  }
+  return out;
+}
+
+/** Mission actors against the robots: archetypes exist and match their kind; crews are 2-4 bad robots. */
+export function checkMissionActors(m: Mission, tells: BotTellsFile = BOT_TELLS): string[] {
+  const errs: string[] = [];
+  for (const [id, a] of Object.entries(m.actors ?? {})) {
+    if (a.kind === "crew") {
+      const members = a.members ?? [];
+      if (members.length < 2 || members.length > 4) errs.push(`actor ${id}: a crew is 2-4 robots`);
+      for (const x of members) if (tells.archetypes.find((t) => t.id === x)?.kind !== "bad") errs.push(`actor ${id}: crew member ${x} is not a bad archetype`);
+      continue;
+    }
+    const arch = tells.archetypes.find((t) => t.id === a.archetype);
+    if (!arch) {
+      errs.push(`actor ${id}: unknown archetype ${String(a.archetype)}`);
+      continue;
+    }
+    const wantBad = a.kind === "badRobot" || a.kind === "rogueTaxi";
+    if ((arch.kind === "bad") !== wantBad) errs.push(`actor ${id}: ${a.kind} but ${arch.id} is ${arch.kind}`);
+    if ((arch.model === "robotaxi") !== (a.kind === "rogueTaxi" || a.kind === "goodTaxi")) errs.push(`actor ${id}: kind ${a.kind} does not fit model ${arch.model}`);
+  }
+  for (const s of m.steps) {
+    if (s.type === "objective" && (s.objective.kind === "melt" || s.objective.kind === "scan") && s.objective.actor) {
+      const a = m.actors?.[s.objective.actor];
+      if (a && a.kind !== "badRobot" && a.kind !== "rogueTaxi") errs.push(`step ${s.id}: ${s.objective.kind} targets ${s.objective.actor}, which is not a bad robot`);
+    }
+  }
+  return errs;
 }

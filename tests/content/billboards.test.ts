@@ -141,7 +141,7 @@ describe("generateBillboard", () => {
     }
   });
 
-  it("advertises the player's own startup when asked (the YC mission reward)", () => {
+  it("advertises the player's own startup when asked (the Ramen pitch reward)", () => {
     const b = generateBillboard("reward:alice", { product: "Moss Labs" });
     expect(b.product).toBe("Moss Labs");
     expect(`${b.headline} ${b.subline}`).toContain("Moss Labs");

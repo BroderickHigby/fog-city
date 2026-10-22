@@ -122,7 +122,7 @@ describe("blocklist", () => {
     expect(r).toContain(why);
   });
 
-  it.each(["Kelpforge", "Feral Teapot", "moss.ai", "Pondr", "Squandr", "Kale AI", "Hey Kelp", "Paxton Longform", "Slotsworth", "Batchery"])(
+  it.each(["Kelpforge", "Feral Teapot", "moss.ai", "Pondr", "Squandr", "Kale AI", "Hey Kelp", "Slotsworth", "Moat Labs", "Bramblecot Home", "Humbled", "Footman"])(
     "allows invented %s",
     (name) => expect(blockedNameReason(name)).toBeNull(),
   );
@@ -167,7 +167,7 @@ describe("blocklist", () => {
     for (const t of ["Apply to YC by Friday.", "YC's partners", "two YCs", "a Y.C. company", "Y. C. Demo Day", "YCombinator", "Y-Combinator", "y combinator"]) {
       expect(blockedProseReason(t), t).toContain("accelerator");
     }
-    for (const t of ["yc-pitch", "a bicycle", "Recycle it.", "LYCRA", "the Batchery", "Demo Day at the Batchery"]) {
+    for (const t of ["ramen-pitch", "a bicycle", "Recycle it.", "LYCRA", "the Ramen house", "Demo Day at Ramen"]) {
       expect(blockedProseReason(t), t).toBeNull();
     }
   });
