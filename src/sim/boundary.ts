@@ -40,7 +40,7 @@ export interface BoundaryFile {
   shore: ReadonlyArray<{ closed: boolean; points: ReadonlyArray<readonly number[]> }>;
 }
 
-export type WallKind = "land" | "water" | "shore" | "kerb";
+export type WallKind = "land" | "water" | "shore" | "kerb" | "stairs";
 
 /** One straight piece of wall. Land (or the inside of a road corridor) is on the left of a -> b: the normal (nx, nz) points there. */
 export interface WallSegment {
@@ -88,6 +88,13 @@ export interface ShoreIndex {
   cells: Map<number, number[]>;
   /** Open water or not, for points farther than SHORE_SEARCH_M from every shore (the ground's water mask), or null: land. */
   farWater: ((x: number, z: number) => boolean) | null;
+}
+
+/** A set of wall segments with their cell index (Walls, or the cars-only Barriers). */
+export interface WallSet {
+  segments: WallSegment[];
+  /** cellKey(cx, cz) of WALL_CELL_M cells -> indices of the segments touching the cell, ascending. */
+  cells: Map<number, number[]>;
 }
 
 export interface Walls {
@@ -803,8 +810,57 @@ export function buildWalls(boundary: BoundaryFile, roads: RoadsFile | null, opti
   return { segments, cells, gaps, corridors, shore };
 }
 
+/** Half width of a stairway's barrier ring (the 3 m stair plus a margin), metres. */
+export const STAIRS_HALF_M = 2;
+/** A stairway's barrier stops this far beyond the kerb of a street it meets (the street's half width). */
+const STAIRS_KERB_M = 0.5;
+
+/**
+ * Stairways are walked, never driven (world QA W-33): every roads.json `stairs` edge gets a
+ * ring of "stairs" walls STAIRS_HALF_M either side of its centreline that cars cannot cross
+ * (walkers ignore them: buildWorld keeps them apart from the boundary walls, as
+ * World.barriers). At an end that meets a street the ring stops at that street's kerb (its half
+ * width plus STAIRS_KERB_M from the node), so it never stands in the carriageway; the ring's
+ * end across the stair is the bollard line a car meets there. Null when there are no stairs.
+ */
+export function buildStairBarriers(roads: RoadsFile | null): WallSet | null {
+  if (!roads) return null;
+  const edges = [...roads.edges].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
+  // The widest street (neither stairs nor pedestrian) at each node: its half width.
+  const kerb = new Map<string, number>();
+  for (const e of edges) {
+    if (e.stairs === true || e.pedestrian === true) continue;
+    const half = (e.widthM !== undefined && e.widthM > 0 ? e.widthM : KERB_DEFAULT_M) / 2;
+    for (const n of [e.a, e.b]) if (half > (kerb.get(n) ?? 0)) kerb.set(n, half);
+  }
+  const segments: WallSegment[] = [];
+  for (const e of edges) {
+    if (e.stairs !== true) continue;
+    const l = lineOf(e.points);
+    if (l.xs.length < 2 || l.len <= 0) continue;
+    const ka = kerb.get(e.a);
+    const kb = kerb.get(e.b);
+    const s0 = ka !== undefined ? ka + STAIRS_KERB_M : 0;
+    const s1 = l.len - (kb !== undefined ? kb + STAIRS_KERB_M : 0);
+    if (s1 - s0 < 1) continue;
+    const c = corridorOf(e.id, subLine(l, s0, s1), STAIRS_HALF_M);
+    if (!c) continue;
+    const xs: number[] = [];
+    const zs: number[] = [];
+    for (let i = 0; i < c.ring.length; i += 2) {
+      xs.push(c.ring[i]!);
+      zs.push(c.ring[i + 1]!);
+    }
+    emitLine(segments, { kind: "stairs", closed: true, xs, zs }, () => [[0, 1]]);
+  }
+  if (segments.length === 0) return null;
+  const cells = new Map<number, number[]>();
+  segments.forEach((w, k) => addToCells(cells, k, w.ax, w.az, w.bx, w.bz, WALL_END_M));
+  return { segments, cells };
+}
+
 /** Indices of the wall segments whose cells overlap the square of half-size r around (x, z), ascending. */
-export function wallsNear(walls: Walls, x: number, z: number, r: number): number[] {
+export function wallsNear(walls: Readonly<WallSet>, x: number, z: number, r: number): number[] {
   const out: number[] = [];
   const cx0 = Math.floor((x - r) / WALL_CELL_M);
   const cx1 = Math.floor((x + r) / WALL_CELL_M);
@@ -880,14 +936,14 @@ function distToWall(w: Readonly<WallSegment>, x: number, z: number): number {
 }
 
 /** Does a circle overlap any wall (for spawn and exit checks)? */
-export function circleHitsWall(walls: Walls | null, x: number, z: number, r: number): boolean {
+export function circleHitsWall(walls: Readonly<WallSet> | null, x: number, z: number, r: number): boolean {
   if (!walls) return false;
   for (const k of wallsNear(walls, x, z, r + WALL_END_M)) if (distToWall(walls.segments[k]!, x, z) < r) return true;
   return false;
 }
 
 /** Does the segment from (ax, az) to (bx, bz) cross from one side of a wall to the other? */
-export function segmentCrossesWall(walls: Walls | null, ax: number, az: number, bx: number, bz: number): boolean {
+export function segmentCrossesWall(walls: Readonly<WallSet> | null, ax: number, az: number, bx: number, bz: number): boolean {
   if (!walls) return false;
   const mx = (ax + bx) / 2;
   const mz = (az + bz) / 2;

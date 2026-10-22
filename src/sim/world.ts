@@ -3,7 +3,7 @@
 // road graph (schemas/roads.schema.json) and the world's edge and shore walls (boundary.json,
 // boundary.ts). Never part of SimState, never mutated.
 
-import { buildWalls, type BoundaryFile, type Walls } from "./boundary.ts";
+import { buildStairBarriers, buildWalls, type BoundaryFile, type WallSet, type Walls } from "./boundary.ts";
 import { TILE_SIZE_M } from "../geo/project.ts";
 import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 
@@ -35,10 +35,66 @@ export interface Heightfield {
   water?: number[];
 }
 
+/** [x, y, z, w]: a ribbon's centreline point, road-surface height and full width, metres. */
+export type RibbonVertex = [number, number, number, number];
+
+/**
+ * A road deck above the ground (schemas/tile-collider.schema.json decks): a freeway viaduct or
+ * ramp, a street bridge, a street over a freeway cut, a pier. The surface is the ribbon along
+ * `path`; layer 1 stands over the ground, 2 over another deck.
+ */
+export interface Deck {
+  id: string;
+  kind: "freeway" | "ramp" | "bridge" | "overpass" | "pier";
+  /** The roads.json edge the deck carries. */
+  edge?: string;
+  layer: number;
+  path: RibbonVertex[];
+}
+
+/** A road below the ground (tunnels): a bored tunnel or an underpass, with a ceiling clearanceM over its floor. */
+export interface Tunnel {
+  id: string;
+  kind: "tunnel" | "underpass";
+  edge?: string;
+  clearanceM: number;
+  path: RibbonVertex[];
+}
+
+/** A deck piece that lifts about a hinge line (movable): the Lefty O'Doul bascule. The sim holds it closed. */
+export interface Movable {
+  id: string;
+  kind: "bascule";
+  deck: string;
+  hinge: [[number, number], [number, number]];
+  openRad: number;
+}
+
 export interface TileCollider {
   tileId: string;
   buildings: BuildingCollider[];
   ground: Heightfield | null;
+  /** Road decks whose segments' midpoints lie in the tile; absent: none. */
+  decks?: Deck[];
+  /** Tunnel and underpass floors (with their ceilings); absent: none. */
+  tunnels?: Tunnel[];
+  /** Movable spans; absent: none. */
+  movable?: Movable[];
+}
+
+/**
+ * Every deck and tunnel ribbon segment of the world, indexed for surfaceAt (built by
+ * buildWorld). Segment i is SURF_STRIDE numbers at SURF_STRIDE * i: ax, ay, az, half width at a,
+ * bx, by, bz, half width at b, and the ceiling clearance (a tunnel's clearanceM; -1 for a deck).
+ */
+export interface SurfaceIndex {
+  segs: Float64Array;
+  /** The roads.json edge of each segment ("" when the ribbon names none). */
+  edge: string[];
+  /** cellKey of SURFACE_CELL_M cells -> segments whose ribbon reaches into the cell, ascending. */
+  cells: Map<number, number[]>;
+  /** roads.json edge id -> its segments, ascending. */
+  byEdge: Map<string, number[]>;
 }
 
 export interface World {
@@ -64,6 +120,10 @@ export interface World {
   roads: RoadGraph | null;
   /** The world's edge and shore walls (boundary.ts), or null when the world has no boundary.json. */
   walls: Walls | null;
+  /** The decks and tunnels (surfaceAt), or null when the world has none. */
+  surfaces: SurfaceIndex | null;
+  /** Walls only cars meet: the rings round the stairways (boundary.ts buildStairBarriers), or null. */
+  barriers: WallSet | null;
 }
 
 const CELL = 50;
@@ -153,9 +213,13 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
     tileGround: tileAligned(sorted),
     roads: null,
     walls: null,
+    surfaces: buildSurfaceIndex(sorted),
+    barriers: buildStairBarriers(roads),
   };
   if (roads) {
-    world.roads = buildRoadGraph(roads, { blocked: (x, z, r) => circleBlocked(world, x, z, r) });
+    // A lane or sidewalk of a deck or tunnel edge is checked against buildings at its own
+    // surface (a span over a bridge, the houses over a bore), every other one at the ground.
+    world.roads = buildRoadGraph(roads, { blocked: (x, z, r, edge) => circleBlocked(world, x, z, r, edge === undefined ? undefined : roadSurfaceHeight(world, edge, x, z)) });
   }
   if (boundary) {
     // Roads over water get a corridor through the shore only where traffic or people may go.
@@ -329,30 +393,280 @@ export function meshGroundHeight(world: World, x: number, z: number): number {
   return g ? heightOnField(g, x, z) : 0;
 }
 
+const SURF_STRIDE = 9;
+/** Cell size of the surface index, metres. */
+const SURFACE_CELL_M = 25;
 /**
- * The surface a body with its feet at `feet` stands on at (x, z): the drawn ground
- * (meshGroundHeight), or the roof of a
- * building covering the point when that roof is above the ground and at most ROOF_STEP_M above
- * the feet (a body never steps onto a roof higher than that; such a building blocks it instead,
- * blocksBand). So a body that reaches a roof (from a hillside above it, or over a low ledge)
- * stands on it, and walks or drives off its edge rather than sinking into the building.
+ * A body leaving a deck or a tunnel bore may step onto a surface at most this far below its
+ * feet (a ramp's foot onto the ground beside it); farther down is the deck's edge, held by its
+ * rail, and anything above ROOF_STEP_M is the bore's wall (railPush).
  */
-export function surfaceHeight(world: World, x: number, z: number, feet: number): number {
-  let h = meshGroundHeight(world, x, z);
+export const RAIL_DROP_M = 1;
+/** agents and the road graph find an edge's deck or tunnel within this far beyond the ribbon's side (its sidewalks). */
+export const EDGE_SURFACE_REACH_M = 4;
+
+/** The decks and tunnels of the tiles, segment by segment, in tile order then file order. */
+function buildSurfaceIndex(tiles: readonly TileCollider[]): SurfaceIndex | null {
+  const segs: number[] = [];
+  const edge: string[] = [];
+  const cells = new Map<number, number[]>();
+  const byEdge = new Map<string, number[]>();
+  const add = (path: readonly RibbonVertex[], clearance: number, edgeId: string | undefined): void => {
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1]!;
+      const b = path[i]!;
+      const k = edge.length;
+      segs.push(a[0], a[1], a[2], a[3] / 2, b[0], b[1], b[2], b[3] / 2, clearance);
+      edge.push(edgeId ?? "");
+      if (edgeId !== undefined) {
+        let l = byEdge.get(edgeId);
+        if (!l) byEdge.set(edgeId, (l = []));
+        l.push(k);
+      }
+      const r = (a[3] > b[3] ? a[3] : b[3]) / 2;
+      for (let cx = Math.floor(((a[0] < b[0] ? a[0] : b[0]) - r) / SURFACE_CELL_M); cx <= Math.floor(((a[0] > b[0] ? a[0] : b[0]) + r) / SURFACE_CELL_M); cx++) {
+        for (let cz = Math.floor(((a[2] < b[2] ? a[2] : b[2]) - r) / SURFACE_CELL_M); cz <= Math.floor(((a[2] > b[2] ? a[2] : b[2]) + r) / SURFACE_CELL_M); cz++) {
+          const key = cellKey(cx, cz);
+          let l = cells.get(key);
+          if (!l) cells.set(key, (l = []));
+          l.push(k);
+        }
+      }
+    }
+  };
+  for (const t of tiles) {
+    for (const d of t.decks ?? []) add(d.path, -1, d.edge);
+    for (const u of t.tunnels ?? []) add(u.path, u.clearanceM, u.edge);
+  }
+  if (edge.length === 0) return null;
+  return { segs: Float64Array.from(segs), edge, cells, byEdge };
+}
+
+/** What a body stands on (surfaceAt). */
+export interface Surface {
+  /** Height of the surface, metres. */
+  y: number;
+  /** "ground" (the drawn ground), "roof", "deck" or "tunnel" (a bore's floor). */
+  kind: "ground" | "roof" | "deck" | "tunnel";
+  /** In a bore: its ceiling (the body's top stays under it); else Infinity. */
+  ceiling: number;
+}
+
+/**
+ * Where (x, z) falls on segment k of the surface index: its parameter t along the segment
+ * (clamped to the ends, so a ribbon's ends are round), whether the point is beside the segment
+ * itself (`inner`: its unclamped t is within the segment) rather than past an end, the squared
+ * distance from the centreline, the ribbon's half width there, and the surface height y.
+ */
+function onSegment(s: Float64Array, k: number, x: number, z: number): { t: number; inner: boolean; d2: number; half: number; y: number } {
+  const o = k * SURF_STRIDE;
+  const ax = s[o]!;
+  const az = s[o + 2]!;
+  const ex = s[o + 4]! - ax;
+  const ez = s[o + 6]! - az;
+  const L2 = ex * ex + ez * ez;
+  const raw = L2 > 0 ? ((x - ax) * ex + (z - az) * ez) / L2 : 0;
+  const t = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+  const px = ax + ex * t - x;
+  const pz = az + ez * t - z;
+  return { t, inner: raw === t, d2: px * px + pz * pz, half: s[o + 3]! + (s[o + 7]! - s[o + 3]!) * t, y: s[o + 1]! + (s[o + 5]! - s[o + 1]!) * t };
+}
+
+/** A segment's round end that covers a point counts only when no segment beside the point is within this height of it (covering). */
+const CAP_MERGE_M = 1;
+
+/**
+ * The ribbon segments covering (x, z) from a cell's list, with their heights. A segment's round
+ * end (where the point is past the segment's end) counts only where no segment covering the
+ * point beside itself is within CAP_MERGE_M of its height: along a ribbon, and where one ribbon
+ * runs on into the next (an edge's deck into the next edge's, a ramp into a freeway), each point
+ * has the height of the segment it is beside, so an end's level cap never stands as a shelf
+ * over the next segment for a car going downhill to drop off. The caps fill the outside of a
+ * bend and round off the ribbons' free ends.
+ */
+function covering(s: Float64Array, list: readonly number[], x: number, z: number): Array<{ k: number; y: number }> {
+  const hits: Array<{ k: number; y: number; inner: boolean }> = [];
+  let anyCap = false;
+  for (let i = 0, n = list.length; i < n; i++) {
+    const k = list[i]!;
+    const q = onSegment(s, k, x, z);
+    if (q.d2 > q.half * q.half) continue;
+    hits.push({ k, y: q.y, inner: q.inner });
+    if (!q.inner) anyCap = true;
+  }
+  if (!anyCap) return hits;
+  return hits.filter((h) => h.inner || !hits.some((o) => o.inner && o.y - h.y < CAP_MERGE_M && h.y - o.y < CAP_MERGE_M));
+}
+
+/**
+ * The surface a body with its feet at `feet` stands on at (x, z) (docs/design.md "Decks,
+ * tunnels and water"; the pipeline's reference lookup is pipeline/lib/surfaces.ts):
+ *  - In a tunnel bore (a tunnel ribbon covers the point, the feet are between its floor less
+ *    ROOF_STEP_M and its ceiling, and either within ROOF_STEP_M of the floor or more than that
+ *    under the ground above): the bore's floor, with its ceiling. The ground over a bore is not
+ *    its surface, so a car that drives in at a portal stays on the floor while the hill rises
+ *    over it, and a car on the hill above stays on the hill.
+ *  - Otherwise the highest of the drawn ground (meshGroundHeight) and the decks covering the
+ *    point that is at most ROOF_STEP_M above the feet: a car on a viaduct stands on the deck,
+ *    a car on the street under it on the ground. When every one is higher (a body under the
+ *    ground) the lowest.
+ *  - Then a building's roof covering the point when it is above that and at most ROOF_STEP_M
+ *    above the feet (a body never steps onto a roof higher than that; such a building blocks
+ *    it instead, blocksBand). So a body that reaches a roof (from a hillside above it, or over
+ *    a low ledge) stands on it, and walks or drives off its edge rather than sinking into the
+ *    building.
+ * A deck or tunnel ribbon covers the points within its half width of its centreline segments
+ * (the ends round), at the height interpolated along the segment.
+ */
+export function surfaceAt(world: World, x: number, z: number, feet: number): Surface {
+  const g = meshGroundHeight(world, x, z);
   const lim = feet + ROOF_STEP_M;
-  if (lim <= h) return h;
+  let h = g;
+  let kind: Surface["kind"] = "ground";
+  const si = world.surfaces;
+  if (si) {
+    const list = si.cells.get(cellKey(Math.floor(x / SURFACE_CELL_M), Math.floor(z / SURFACE_CELL_M)));
+    if (list) {
+      const s = si.segs;
+      let bore = -Infinity;
+      let ceiling = Infinity;
+      let best = g <= lim ? g : -Infinity;
+      let lowest = g;
+      for (const { k, y } of covering(s, list, x, z)) {
+        const clearance = s[k * SURF_STRIDE + 8]!;
+        if (clearance >= 0) {
+          if (feet >= y - ROOF_STEP_M && feet <= y + clearance && (feet <= y + ROOF_STEP_M || feet < g - ROOF_STEP_M) && y > bore) {
+            bore = y;
+            ceiling = y + clearance;
+          }
+          continue;
+        }
+        if (y <= lim && y > best) {
+          best = y;
+          kind = "deck";
+        }
+        if (y < lowest) lowest = y;
+      }
+      if (bore > -Infinity) return { y: bore, kind: "tunnel", ceiling };
+      if (best > -Infinity) h = best;
+      else {
+        h = lowest;
+        kind = lowest < g ? "deck" : "ground";
+      }
+      if (kind === "deck" && h === g) kind = "ground";
+    }
+  }
+  if (lim <= h) return { y: h, kind, ceiling: Infinity };
   const key = cellKey(Math.floor(x / CELL), Math.floor(z / CELL));
   const list = world.cells.get(key);
-  if (!list) return h;
+  if (!list) return { y: h, kind, ceiling: Infinity };
   const bb = world.cellBoxes.get(key)!;
   for (let i = 0, n = list.length; i < n; i++) {
     const k = i * 4;
     if (x < bb[k]! || x > bb[k + 2]! || z < bb[k + 1]! || z > bb[k + 3]!) continue;
     const b = list[i]!;
     if (b.topY <= h || b.topY > lim || b.topY <= b.baseY) continue;
-    if (pointInPolygon(x, z, b.footprint)) h = b.topY;
+    if (pointInPolygon(x, z, b.footprint)) {
+      h = b.topY;
+      kind = "roof";
+    }
   }
-  return h;
+  return { y: h, kind, ceiling: Infinity };
+}
+
+/** The height of surfaceAt(world, x, z, feet): what a body with its feet at `feet` stands on. */
+export function surfaceHeight(world: World, x: number, z: number, feet: number): number {
+  return surfaceAt(world, x, z, feet).y;
+}
+
+/**
+ * Can a body with its feet at `feet` stand at (x, z) without falling or climbing: is the
+ * surface there (surfaceAt) between RAIL_DROP_M below its feet and ROOF_STEP_M above them?
+ */
+export function supported(world: World, x: number, z: number, feet: number): boolean {
+  const y = surfaceAt(world, x, z, feet).y;
+  return y <= feet + ROOF_STEP_M && y >= feet - RAIL_DROP_M;
+}
+
+/**
+ * The rails of decks and the walls of tunnel bores: a body on a deck or in a bore (its feet at
+ * `feet`) whose point (x, z) has moved off every surface it could stand on (supported) is
+ * pushed back onto the nearest deck or tunnel ribbon at its height, to `inset` inside the
+ * ribbon's edge. Returns the push, or null when the point is supported or no ribbon at the
+ * body's height is near.
+ */
+export function railPush(world: World, x: number, z: number, feet: number, inset = 0): { dx: number; dz: number } | null {
+  const si = world.surfaces;
+  if (!si || supported(world, x, z, feet)) return null;
+  const s = si.segs;
+  const cx0 = Math.floor(x / SURFACE_CELL_M);
+  const cz0 = Math.floor(z / SURFACE_CELL_M);
+  let bestPen = Infinity;
+  let px = 0;
+  let pz = 0;
+  for (let cx = cx0 - 1; cx <= cx0 + 1; cx++) {
+    for (let cz = cz0 - 1; cz <= cz0 + 1; cz++) {
+      const list = si.cells.get(cellKey(cx, cz));
+      if (!list) continue;
+      for (let i = 0, n = list.length; i < n; i++) {
+        const k = list[i]!;
+        const q = onSegment(s, k, x, z);
+        const o = k * SURF_STRIDE;
+        const y = q.y;
+        // A ribbon at the body's height (the one it is on, or one it is moving onto).
+        if (y > feet + ROOF_STEP_M + RAIL_DROP_M || y < feet - 2 * RAIL_DROP_M) continue;
+        const d = Math.sqrt(q.d2);
+        const pen = d - (q.half - inset);
+        if (pen >= bestPen) continue;
+        bestPen = pen;
+        // Back toward the centreline.
+        const ax = s[o]!;
+        const az = s[o + 2]!;
+        const cxp = ax + (s[o + 4]! - ax) * q.t;
+        const czp = az + (s[o + 6]! - az) * q.t;
+        px = d > 1e-9 ? (cxp - x) / d : 0;
+        pz = d > 1e-9 ? (czp - z) / d : 0;
+      }
+    }
+  }
+  if (bestPen <= 0 || bestPen === Infinity) return null;
+  const k = bestPen + 1e-4;
+  return { dx: px * k, dz: pz * k };
+}
+
+/**
+ * The road surface of a roads.json edge at (x, z), for bodies that follow it (agents, the road
+ * graph's clearance checks): the edge's deck or tunnel floor when one of its ribbons is beside
+ * the point within EDGE_SURFACE_REACH_M of the ribbon's side (the lanes and sidewalks over a
+ * bridge or through a bore) or covers it with a round end, else the drawn ground.
+ */
+export function roadSurfaceHeight(world: World, edgeId: string, x: number, z: number): number {
+  const list = world.surfaces?.byEdge.get(edgeId);
+  if (list) {
+    const s = world.surfaces!.segs;
+    // The nearest segment beside the point; only where none is, the nearest end.
+    let best = Infinity;
+    let y = 0;
+    let bestEnd = Infinity;
+    let yEnd = 0;
+    for (let i = 0, n = list.length; i < n; i++) {
+      const k = list[i]!;
+      const q = onSegment(s, k, x, z);
+      const reach = q.half + EDGE_SURFACE_REACH_M;
+      if (q.d2 > reach * reach) continue;
+      const gap = Math.sqrt(q.d2) - q.half;
+      if (q.inner && gap < best) {
+        best = gap;
+        y = q.y;
+      } else if (!q.inner && gap <= 0 && gap < bestEnd) {
+        bestEnd = gap;
+        yEnd = q.y;
+      }
+    }
+    if (best < Infinity) return y;
+    if (bestEnd < Infinity) return yEnd;
+  }
+  return meshGroundHeight(world, x, z);
 }
 
 export function pointInPolygon(x: number, z: number, poly: ReadonlyArray<readonly [number, number]>): boolean {
@@ -465,10 +779,12 @@ export function resolveCircle(
 /**
  * Does a circle of radius r at (x, z) overlap any building footprint? Height is ignored (for
  * ground agents and the road graph), except that a structure whose underside is at least
- * UNDER_CLEARANCE_M above the ground at (x, z) is passed under.
+ * UNDER_CLEARANCE_M above the body's surface `y` (default: the drawn ground at (x, z); a deck or
+ * a tunnel floor for a body on one, roadSurfaceHeight) is passed under.
  */
-export function circleBlocked(world: World, x: number, z: number, r: number): boolean {
+export function circleBlocked(world: World, x: number, z: number, r: number, y?: number): boolean {
   const r2 = r * r;
+  let base = y;
   for (let cx = Math.floor((x - r) / CELL); cx <= Math.floor((x + r) / CELL); cx++) {
     for (let cz = Math.floor((z - r) / CELL); cz <= Math.floor((z + r) / CELL); cz++) {
       const key = cellKey(cx, cz);
@@ -481,7 +797,7 @@ export function circleBlocked(world: World, x: number, z: number, r: number): bo
         const b = list[i]!;
         if (b.topY <= b.baseY) continue;
         // A deck or bridge high enough over the ground here: agents pass under it.
-        if (b.underY !== undefined && b.underY - meshGroundHeight(world, x, z) >= UNDER_CLEARANCE_M) continue;
+        if (b.underY !== undefined && b.underY - (base ??= meshGroundHeight(world, x, z)) >= UNDER_CLEARANCE_M) continue;
         if (circleTouchesPolygon(x, z, r2, b.footprint)) return true;
       }
     }

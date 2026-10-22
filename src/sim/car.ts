@@ -36,7 +36,7 @@ import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, meshGroundHeight, railPush, surfaceAt, surfaceHeight, type World } from "./world.ts";
 
 export const CAR = {
   /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
@@ -161,7 +161,7 @@ export function clearCarSpot(world: World, x: number, z: number, heading: number
       const a = heading + (2 * Math.PI * k) / n;
       const px = x + dsin(a) * r;
       const pz = z - dcos(a) * r;
-      if (segmentCrossesWall(world.walls, x, z, px, pz)) continue;
+      if (segmentCrossesWall(world.walls, x, z, px, pz) || segmentCrossesWall(world.barriers, x, z, px, pz)) continue;
       if (clear(px, pz)) return { x: px, z: pz };
     }
   }
@@ -182,8 +182,11 @@ export function carCircles(c: Readonly<Pick<CarState, "x" | "z" | "heading">>): 
 
 /**
  * Mean surface height under the four wheel positions and the slopes (rise per metre) forward
- * and to the right. The surface is the ground, or a roof the wheels reach (surfaceHeight) for
- * a car whose wheels are at `feet` (default: below every roof, so the bare ground).
+ * and to the right. The surface is the ground, a deck or a tunnel floor, or a roof the wheels
+ * reach (surfaceAt), for a car whose wheels are at `feet` (default: below every roof and deck,
+ * so the bare ground) on a body tilted by `slopeF` and `slopeR` (its pitch and roll as rise per
+ * metre): each wheel's own height is the feet plus the tilt at its offset, so on a steep deck
+ * the front wheels still find the deck rising ahead of the centre.
  */
 export function sampleGround(
   world: World,
@@ -191,17 +194,66 @@ export function sampleGround(
   z: number,
   heading: number,
   feet = -Infinity,
+  slopeF = 0,
+  slopeR = 0,
 ): { h: number; slopeF: number; slopeR: number } {
   const fx = dsin(heading);
   const fz = -dcos(heading);
   const rx = -fz;
   const rz = fx;
-  const hF = surfaceHeight(world, x + fx * CAR.axle, z + fz * CAR.axle, feet);
-  const hB = surfaceHeight(world, x - fx * CAR.axle, z - fz * CAR.axle, feet);
-  const hR = surfaceHeight(world, x + rx * CAR.track, z + rz * CAR.track, feet);
-  const hL = surfaceHeight(world, x - rx * CAR.track, z - rz * CAR.track, feet);
+  const dF = slopeF * CAR.axle;
+  const dR = slopeR * CAR.track;
+  const hF = surfaceHeight(world, x + fx * CAR.axle, z + fz * CAR.axle, feet + dF);
+  const hB = surfaceHeight(world, x - fx * CAR.axle, z - fz * CAR.axle, feet - dF);
+  const hR = surfaceHeight(world, x + rx * CAR.track, z + rz * CAR.track, feet + dR);
+  const hL = surfaceHeight(world, x - rx * CAR.track, z - rz * CAR.track, feet - dR);
   return { h: (hF + hB + hR + hL) / 4, slopeF: (hF - hB) / (2 * CAR.axle), slopeR: (hR - hL) / (2 * CAR.track) };
 }
+
+/** A body this close above a deck or tunnel floor (or below it) is on it: the rails and bore walls hold it. */
+const ON_RIBBON_M = 1;
+
+/**
+ * The rails of a deck and the walls of a bore (world.ts railPush) for the car's body at (x, z):
+ * each corner that has left every surface the wheels at `feet` could stand on is pushed back
+ * onto the ribbon, deepest first, a few passes. Null when every corner is supported.
+ */
+function railBox(world: World, x: number, z: number, heading: number, feet: number): { x: number; z: number; nx: number; nz: number } | null {
+  const fx = dsin(heading);
+  const fz = -dcos(heading);
+  const rx = -fz;
+  const rz = fx;
+  let tx = 0;
+  let tz = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    let best: { dx: number; dz: number } | null = null;
+    let bestD2 = 0;
+    for (const [l, f] of RAIL_CORNERS) {
+      const p = railPush(world, x + rx * l * CAR.halfWidth + fx * f * CAR.halfLength, z + rz * l * CAR.halfWidth + fz * f * CAR.halfLength, feet);
+      if (!p) continue;
+      const d2 = p.dx * p.dx + p.dz * p.dz;
+      if (d2 > bestD2) {
+        bestD2 = d2;
+        best = p;
+      }
+    }
+    if (!best) break;
+    x += best.dx;
+    z += best.dz;
+    tx += best.dx;
+    tz += best.dz;
+  }
+  const t = Math.sqrt(tx * tx + tz * tz);
+  return t > 0 ? { x, z, nx: tx / t, nz: tz / t } : null;
+}
+
+/** The body's corners, [lateral, forward] in half widths and half lengths. */
+const RAIL_CORNERS: ReadonlyArray<readonly [number, number]> = [
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+];
 
 /**
  * Advance one car by one tick. `obstacles` are circles the car cannot pass through (agents,
@@ -217,7 +269,10 @@ export function stepCar(
   const h0 = c.heading;
   const f0x = dsin(h0);
   const f0z = -dcos(h0);
-  const g0 = sampleGround(world, c.x, c.z, h0, c.y);
+  // The body's tilt (rise per metre forward and to the right) from its pitch and roll.
+  const tiltF = dtan(c.pitch);
+  const tiltR = -dtan(c.roll);
+  const g0 = sampleGround(world, c.x, c.z, h0, c.y, tiltF, tiltR);
   const onGround = c.y - g0.h <= CAR.suspension;
 
   let speed = c.speed;
@@ -327,6 +382,26 @@ export function stepCar(
   // Speed removed into walls and buildings this tick (their normal impulse, per unit mass).
   let scrape = 0;
   let pushLeft: number = CAR.maxPush;
+  // On a deck or in a tunnel bore at the start of the tick: its rails and walls hold the car.
+  const s0 = surfaceAt(world, c.x, c.z, c.y);
+  const onRibbon = (s0.kind === "deck" || s0.kind === "tunnel") && c.y - s0.y <= ON_RIBBON_M;
+  /** Velocity into a surface with unit normal (nx, nz) (pointing out of it) is removed, with a little bounce and scraping friction. */
+  const meet = (nx: number, nz: number, person: boolean): void => {
+    const vn = vx * nx + vz * nz;
+    if (vn >= 0) return;
+    if (-vn > impact) {
+      impact = -vn;
+      impactPerson = person;
+    }
+    if (!person) scrape += -vn;
+    const e = -vn > CAR.restitutionMin ? CAR.restitution : 0;
+    const tx = vx - vn * nx;
+    const tz = vz - vn * nz;
+    const tmag = Math.sqrt(tx * tx + tz * tz);
+    const fr = tmag > 1e-9 ? Math.max(0, 1 - (CAR.wallFriction * -vn) / tmag) : 0;
+    vx = tx * fr - e * vn * nx;
+    vz = tz * fr - e * vn * nz;
+  };
   for (let i = 0; i < n; i++) {
     const lastX = x;
     const lastZ = z;
@@ -334,6 +409,21 @@ export function stepCar(
     z += (vz * DT) / n;
     const res = resolveBox(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, colY, obstacles, ref, pushLeft, topY);
     pushLeft -= res.pushed;
+    const rail = onRibbon ? railBox(world, res.x, res.z, heading, c.y) : null;
+    if (rail) {
+      // Held by a rail or a bore wall: back onto the ribbon, never across a wall.
+      touched = true;
+      if (boxCrossedWall(world, { x: rail.x, z: rail.z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+        x = lastX;
+        z = lastZ;
+      } else {
+        x = rail.x;
+        z = rail.z;
+      }
+      if (res.hit) meet(res.nx, res.nz, res.person);
+      meet(rail.nx, rail.nz, false);
+      continue;
+    }
     if (!res.hit) continue;
     x = res.x;
     z = res.z;
@@ -361,21 +451,7 @@ export function stepCar(
       }
       break;
     }
-    const vn = vx * res.nx + vz * res.nz;
-    if (vn < 0) {
-      if (-vn > impact) {
-        impact = -vn;
-        impactPerson = res.person;
-      }
-      if (!res.person) scrape += -vn;
-      const e = -vn > CAR.restitutionMin ? CAR.restitution : 0;
-      const tx = vx - vn * res.nx;
-      const tz = vz - vn * res.nz;
-      const tmag = Math.sqrt(tx * tx + tz * tz);
-      const fr = tmag > 1e-9 ? Math.max(0, 1 - (CAR.wallFriction * -vn) / tmag) : 0;
-      vx = tx * fr - e * vn * res.nx;
-      vz = tz * fr - e * vn * res.nz;
-    }
+    meet(res.nx, res.nz, res.person);
   }
 
   if (touched && !impactPerson) {
@@ -399,7 +475,7 @@ export function stepCar(
   lateral = vx * rx + vz * rz;
 
   // Vertical: ballistic unless the ground (or a roof the wheels reach) holds the car up.
-  const g1 = sampleGround(world, x, z, heading, c.y);
+  const g1 = sampleGround(world, x, z, heading, c.y, tiltF, tiltR);
   // Friction at a wall acts on the vertical slide too: a car that flies into a wall or a
   // building does not carry on rising (or falling) along it at full speed (the same Coulomb
   // coefficient as the horizontal scrape, on the speed the impact removed).
@@ -428,6 +504,12 @@ export function stepCar(
   } else {
     y = yB;
     vy = vyB;
+  }
+  // In a tunnel bore the ceiling holds the roof of the car down.
+  const s1 = surfaceAt(world, x, z, c.y);
+  if (y + CAR.bodyHeight > s1.ceiling) {
+    y = Math.max(g1.h, s1.ceiling - CAR.bodyHeight);
+    if (vy > 0) vy = 0;
   }
   const grounded = y - g1.h <= CAR.suspension;
   const airTicks = grounded ? 0 : c.airTicks + 1;

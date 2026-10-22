@@ -16,13 +16,16 @@
 //    FOOT.gradeReach ahead (a slope steeper than 1:1 that is taller than a metre); it slides
 //    along such a bank instead. A short steep bank (a step) is climbed.
 //  - Pushes out of buildings and bodies are capped at FOOT.maxPush a tick.
+//  - On a deck or in a tunnel bore the walker is held by the deck's rails and the bore's walls
+//    (world.ts railPush): it never walks off a viaduct or into the hill around a bore; in a bore
+//    the ceiling is over its head.
 
 import { DT, type CarState, type FootState, type SimInput } from "./contract.ts";
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
 import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, circleBlocked, segmentBlocked, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, circleBlocked, railPush, segmentBlocked, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
 
 export const FOOT = {
   /** Walking speed, m/s. */
@@ -133,7 +136,18 @@ export function stepFoot(
     }
   }
 
-  const res = resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush);
+  let res = resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush);
+  const s0 = surfaceAt(world, f.x, f.z, f.y);
+  if (s0.kind === "deck" || s0.kind === "tunnel") {
+    // Held by the rail or the bore wall, a radius inside the ribbon's edge; where that is not
+    // enough (a corner), it stays where it was.
+    const p = railPush(world, res.x, res.z, f.y, FOOT.radius);
+    if (p) {
+      const x = res.x + p.dx;
+      const z = res.z + p.dz;
+      res = supported(world, x, z, f.y) && !segmentCrossesWall(world.walls, f.x, f.z, x, z) ? { x, z, hit: true } : { x: f.x, z: f.z, hit: true };
+    } else if (!supported(world, res.x, res.z, f.y)) res = { x: f.x, z: f.z, hit: true };
+  }
   // Report the speed actually achieved along the heading (pressing into a wall reads as 0), never
   // more than the walker's own: being pushed out of a building or a car is not walking.
   const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, speed0 < 0 ? speed0 : 0, speed0 > 0 ? speed0 : 0);
@@ -220,6 +234,9 @@ export function exitSpot(
     if (segmentCrossesWall(world.walls, c.x, c.z, x, z)) continue;
     const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles);
     if (res.hit) continue;
+    // On a deck or in a bore: never out over the rail or into the bore's wall.
+    const on = surfaceAt(world, c.x, c.z, c.y).kind;
+    if ((on === "deck" || on === "tunnel") && !supported(world, x, z, c.y)) continue;
     return makeFoot(x, surfaceHeight(world, x, z, c.y), z, c.heading);
   }
   return null;
