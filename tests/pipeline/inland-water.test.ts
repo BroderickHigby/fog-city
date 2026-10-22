@@ -70,8 +70,10 @@ describe("inland lakes (W-11)", () => {
   it("no hydro-flattened land of 0.5 ha or more is left: every flat basin the DEM flattened is a lake", () => {
     // Samples whose 4-neighbours all lie within 5 cm of them, not sea and not lake, grouped. Pier
     // decks (the lattice set to PIER_Y_M, W-13) are flat by construction. A hydro-flattened water
-    // surface is a basin: the ground around it stands higher on at least 75% of its rim; a flat
-    // roof the DEM kept (a covered reservoir) or a flat fill lot by the Bay is not.
+    // surface is a basin: within 30 m of it the ground never drops below its level, and stands
+    // 0.3 m higher on at least a quarter of its rim (the flat pieces a tile border splits a lake
+    // into border each other); a flat roof the DEM kept (a covered reservoir) or a flat fill lot by
+    // the Bay drops away somewhere.
     const flat = new Set<string>();
     const heightAt = new Map<string, number>();
     for (const c of colliders) {
@@ -94,7 +96,7 @@ describe("inland lakes (W-11)", () => {
       const stack = [start];
       seen.add(start);
       const level = heightAt.get(start)!;
-      let rim = 0, higher = 0;
+      let rim = 0, higher = 0, lower = 0;
       while (stack.length) {
         const [x, z] = stack.pop()!.split(",").map(Number) as [number, number];
         n++;
@@ -107,13 +109,16 @@ describe("inland lakes (W-11)", () => {
             }
             continue;
           }
-          const h = heightAt.get(k);
-          if (h === undefined) continue;
+          // The rim: up to 30 m straight out from the region (its first sample often still sits
+          // at the water's edge, within a few centimetres of the level).
+          const out = [1, 2, 3].map((m) => heightAt.get(`${x + dx * m},${z + dz * m}`)).filter((h): h is number => h !== undefined);
+          if (out.length === 0) continue;
           rim++;
-          if (h > level + 0.1) higher++;
+          if (Math.max(...out) > level + 0.3) higher++;
+          if (Math.min(...out) < level - 0.1) lower++;
         }
       }
-      if (n >= 50 && higher >= 0.75 * rim) regions.push(`${start}: ${n} samples at ${level} m, rim ${higher} of ${rim} higher`);
+      if (n >= 50 && lower === 0 && higher >= 0.25 * rim) regions.push(`${start}: ${n} samples at ${level} m, rim ${higher} of ${rim} higher, none lower`);
     }
     expect(regions).toEqual([]);
   });
