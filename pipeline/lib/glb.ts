@@ -20,6 +20,10 @@
 //              uv v = metres above the record's street level (meta.streetY, K0) or its base,
 //              node extras.buildings = [[colliderId, firstIndex, indexCount], ...],
 //              node extras.fronts = the house kit's front walls (house.ts FrontRow), when any
+//   buildings-scenery
+//              records drawn but never collided with (the Daly City strip beyond the county-line
+//              wall, W-42), built like buildings; node extras.scenery = [[id, firstIndex, indexCount], ...].
+//              Only in tiles that reach past the county line.
 //
 // Compression (docs/data-sources.md, "Compression"): POSITION is int16 on a 1/64 m grid
 // (KHR_mesh_quantization), NORMAL is int8, and every buffer view is then packed with
@@ -123,6 +127,9 @@ export interface TileMeshes {
   structures?: MeshData;
   /** Instanced trees (landcover.ts): a prototype per kind and its instances; absent when the tile has none. */
   foliage?: Array<{ name: string; mesh: MeshData; translation: number[]; scale: number[] }>;
+  /** Scenery records in the tile with no collider (the Daly City strip beyond the county-line wall, W-42); absent when none. */
+  scenery?: MeshData;
+  sceneryRanges?: Array<[string, number, number]>;
 }
 
 export interface GlbPart {
@@ -283,6 +290,7 @@ export async function tileGlb(world: string, tile: TileRef, parts: TileMeshes, o
       { name: "buildings", mesh: parts.buildings, material: "building", roughness: 0.85, extras: { buildings: parts.buildingRanges, ...parts.buildingExtras }, reorder: parts.buildingRanges },
       ...(parts.structures ? [{ name: "structures", mesh: parts.structures, material: "structure", roughness: 0.9, reorder: true }] : []),
       ...(parts.foliage ?? []).map((f) => ({ name: f.name, mesh: f.mesh, material: "foliage", roughness: 0.95, instances: { translation: f.translation, scale: f.scale } })),
+      ...(parts.scenery ? [{ name: "buildings-scenery", mesh: parts.scenery, material: "building", roughness: 0.85, extras: { scenery: parts.sceneryRanges ?? [] }, reorder: parts.sceneryRanges ?? true }] : []),
     ],
     opts,
   );
