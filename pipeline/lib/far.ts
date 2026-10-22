@@ -638,8 +638,59 @@ class TerrainBuilder {
   }
 }
 
+/**
+ * How far every hull is pushed out from its outline. A hull's outline runs through its members'
+ * own vertices, so a thin record's interior point can lie within millimetres of a hull wall; the
+ * far glb's position grid (1/16 m over a 3.5 km cell, so up to 1/32 m off) would then leave it
+ * outside the drawn roof (W-41: every record under a hull).
+ */
+export const HULL_GROW_M = 0.1;
+
+/**
+ * A ring pushed out by d (mitred, the mitre capped at 4d): every point inside it, or on it, ends
+ * up at least about d inside. Unchanged when the result would not be a simple ring.
+ */
+export function growRing(ring: readonly P2[], d: number): P2[] {
+  const n = ring.length;
+  if (n < 3 || d <= 0) return ring.slice();
+  // Outward normal of edge (a, b): to the right for a counter-clockwise ring in x-east, z-south
+  // (negative signed area here), to the left otherwise.
+  const s = signedArea(ring) < 0 ? 1 : -1;
+  const normal = (a: P2, b: P2): P2 => {
+    const ex = b[0] - a[0], ez = b[1] - a[1];
+    const l = Math.hypot(ex, ez) || 1;
+    return [(-ez / l) * s, (ex / l) * s];
+  };
+  const out: P2[] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = ring[(i + n - 1) % n]!, cur = ring[i]!, next = ring[(i + 1) % n]!;
+    const n0 = normal(prev, cur), n1 = normal(cur, next);
+    let mx = n0[0] + n1[0], mz = n0[1] + n1[1];
+    const ml = Math.hypot(mx, mz);
+    if (ml < 1e-9) {
+      mx = n0[0];
+      mz = n0[1];
+    } else {
+      // The mitre: length d / cos(half the turn), capped.
+      const cos = ml / 2;
+      const len = Math.min(d / Math.max(cos, 1e-9), 4 * d);
+      mx = (mx / ml) * len;
+      mz = (mz / ml) * len;
+      out.push([cur[0] + mx, cur[1] + mz]);
+      continue;
+    }
+    out.push([cur[0] + mx * d, cur[1] + mz * d]);
+  }
+  if (Math.abs(signedArea(out)) <= Math.abs(signedArea(ring)) || !isSimpleRing(out)) return ring.slice();
+  return out;
+}
+
 /** Every building's far hull: tall records alone, the rest in clusters (see the file comment). */
 export function farHulls(buildings: readonly Building[], p: FarParams = FAR_DEFAULTS): Hull[] {
+  return farHullsExact(buildings, p).map((h) => ({ ...h, ring: growRing(h.ring, HULL_GROW_M) }));
+}
+
+function farHullsExact(buildings: readonly Building[], p: FarParams): Hull[] {
   const tall: Hull[] = [];
   const low: Building[] = [];
   const index = new PointIndex(buildings);

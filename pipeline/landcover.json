@@ -3,7 +3,7 @@
   "lakes": {
     "$comment": "Open inland water from USGS NHD large-scale waterbodies (public domain), by permanent identifier. Every NHD lake or pond (FTYPE 390) in the city is listed; of the reservoirs (FTYPE 436) only the open ones are: the city's covered reservoirs (Sunset, Sutro, University Mound, Twin Peaks, Lombard St, Merced Manor, Stanford Heights...) and the treatment plant's tanks are roofs, not water. The level is the lake's lattice median where the DEM is hydro-flattened (60% of its samples within 5 cm of it), else the 10th percentile (Mountain Lake, Lily Pond: the 2010 survey left their surfaces rough). A lake smaller than minSamples lattice samples is left as land, and a sample inside an outline standing more than bankM over the level is bank (the NHD outline is a few metres off the DEM in places), not water.",
     "minSamples": 5,
-    "bankM": 1.5,
+    "bankM": 2.5,
     "include": [
       { "nhd": "120028664", "name": "Lake Merced (North Lake)" },
       { "nhd": "120028665", "name": "Lake Merced (South Lake)" },

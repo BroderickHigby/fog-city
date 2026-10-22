@@ -72,7 +72,11 @@ export interface ColliderPack {
 export interface PackedTile extends TileCollider {
   ix: number;
   iz: number;
-  ground: Heightfield & { water: number[] };
+  /**
+   * lake (FCWC LAKE section, world QA W-11): 1 where the sample is an inland lake's water, at the
+   * sample's height (its level); present only on tiles with a lake.
+   */
+  ground: Heightfield & { water: number[]; lake?: number[] };
   buildings: PackedBuilding[];
   /** Present only when the tile has any. */
   decks?: PackedDeck[];
@@ -268,6 +272,16 @@ function decodeExtensions(bytes: Uint8Array, dv: DataView, start: number, tiles:
           openRad: dv.getInt32(q + 28, true) / 1e6,
         };
         (t.movable ??= []).push(m);
+      }
+    } else if (tag === "LAKE") {
+      for (let i = 0; i < n; i++) {
+        const t = tile(dv.getUint16(q, true));
+        const S = t.ground.nx;
+        const bytesN = Math.ceil((S * S) / 8);
+        const lake = new Array<number>(S * S);
+        for (let k = 0; k < S * S; k++) lake[k] = (bytes[q + 4 + (k >> 3)]! >> (k & 7)) & 1;
+        t.ground.lake = lake;
+        q += align4(4 + bytesN);
       }
     }
     o = end;

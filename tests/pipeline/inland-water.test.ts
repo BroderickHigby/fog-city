@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { pointInRing, type P2 } from "../../pipeline/lib/geom.ts";
 import { COVER_COLOURS, groundColour } from "../../pipeline/lib/mesh.ts";
+import { PIER_Y_M } from "../../pipeline/lib/piers.ts";
 import { readJson, ROOT } from "../helpers.ts";
 import { loadGlbWithThree, loadSf, loadSfPack } from "./util.ts";
 import type { BufferAttribute, BufferGeometry, Mesh } from "three";
@@ -66,15 +67,20 @@ describe("inland lakes (W-11)", () => {
     for (const [name, y] of Object.entries(want)) expect(seen.get(name), name).toBeCloseTo(y, 1);
   });
 
-  it("no hydro-flattened land of 0.5 ha or more is left: every flat surface the DEM flattened is a lake", () => {
-    // Samples whose 4-neighbours all lie within 5 cm of them, not sea and not lake, grouped.
+  it("no hydro-flattened land of 0.5 ha or more is left: every flat basin the DEM flattened is a lake", () => {
+    // Samples whose 4-neighbours all lie within 5 cm of them, not sea and not lake, grouped. Pier
+    // decks (the lattice set to PIER_Y_M, W-13) are flat by construction. A hydro-flattened water
+    // surface is a basin: the ground around it stands higher on at least 75% of its rim; a flat
+    // roof the DEM kept (a covered reservoir) or a flat fill lot by the Bay is not.
     const flat = new Set<string>();
+    const heightAt = new Map<string, number>();
     for (const c of colliders) {
       const g = c.ground as Ground;
       for (let k = 1; k < g.nz - 1; k++) {
         for (let i = 1; i < g.nx - 1; i++) {
           const q = k * g.nx + i;
-          if (g.water[q] === 1 || /[0-9]/.test(g.cover?.[q] ?? "") || g.heights[q]! <= 0.5) continue;
+          heightAt.set(`${g.x0 + i * 10},${g.z0 + k * 10}`, g.heights[q]!);
+          if (g.water[q] === 1 || /[0-9]/.test(g.cover?.[q] ?? "") || g.heights[q]! <= 0.5 || g.heights[q] === PIER_Y_M) continue;
           const h = g.heights[q]!;
           if ([q - 1, q + 1, q - g.nx, q + g.nx].every((o) => Math.abs(g.heights[o]! - h) <= 0.05 && g.water[o] === 0)) flat.add(`${g.x0 + i * 10},${g.z0 + k * 10}`);
         }
@@ -87,18 +93,27 @@ describe("inland lakes (W-11)", () => {
       let n = 0;
       const stack = [start];
       seen.add(start);
+      const level = heightAt.get(start)!;
+      let rim = 0, higher = 0;
       while (stack.length) {
         const [x, z] = stack.pop()!.split(",").map(Number) as [number, number];
         n++;
         for (const [dx, dz] of [[10, 0], [-10, 0], [0, 10], [0, -10]] as const) {
           const k = `${x + dx},${z + dz}`;
-          if (flat.has(k) && !seen.has(k)) {
-            seen.add(k);
-            stack.push(k);
+          if (flat.has(k)) {
+            if (!seen.has(k)) {
+              seen.add(k);
+              stack.push(k);
+            }
+            continue;
           }
+          const h = heightAt.get(k);
+          if (h === undefined) continue;
+          rim++;
+          if (h > level + 0.1) higher++;
         }
       }
-      if (n >= 50) regions.push(`${start}: ${n} samples`);
+      if (n >= 50 && higher >= 0.75 * rim) regions.push(`${start}: ${n} samples at ${level} m, rim ${higher} of ${rim} higher`);
     }
     expect(regions).toEqual([]);
   });

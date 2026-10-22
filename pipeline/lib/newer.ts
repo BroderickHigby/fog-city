@@ -44,6 +44,8 @@ export interface NewerStats {
   lots: number;
   /** Lots left alone: most of the lot is already covered by footprints. */
   lotsCovered: number;
+  /** Lots whose every parcel lists an implausible storey count (over MAX_STORIES). */
+  lotsNoStories: number;
   /** Lots with no polygon in the parcel layer. */
   lotsNoShape: number;
   added: number;
@@ -231,7 +233,7 @@ export function newerBuildings(
   ground: Ground,
   tiles: ReadonlySet<string>,
 ): { added: Building[]; retired: Set<string>; stats: NewerStats } {
-  const stats: NewerStats = { candidates: 0, missing: 0, lots: 0, lotsCovered: 0, lotsNoShape: 0, added: 0, twoTier: 0, overridesAdded: [], retired: [] };
+  const stats: NewerStats = { candidates: 0, missing: 0, lots: 0, lotsCovered: 0, lotsNoStories: 0, lotsNoShape: 0, added: 0, twoTier: 0, overridesAdded: [], retired: [] };
   const idx = new FootprintIndex(existing);
   const shapeOf = new Map<string, RawParcelShape>();
   for (const s of shapes) if (!shapeOf.has(s.blklot) || s.active) shapeOf.set(s.blklot, s);
@@ -273,6 +275,20 @@ export function newerBuildings(
 
   // The pass: parcels built since the LiDAR with storeys and no record near their point.
   const lots = new Map<string, { shape: RawParcelShape; parcels: RawParcel[] }>();
+  // Per block, the median plausible storey count of its newer parcels.
+  const blockStories = new Map<string, number>();
+  {
+    const by = new Map<string, number[]>();
+    for (const p of parcels) {
+      const v = num(p.number_of_stories);
+      if (!(num(p.year_property_built) >= LIDAR_YEAR) || !(v > 0 && v <= MAX_STORIES) || !p.block) continue;
+      (by.get(p.block) ?? by.set(p.block, []).get(p.block)!).push(v);
+    }
+    for (const [b, vs] of [...by].sort((a, c) => (a[0] < c[0] ? -1 : 1))) {
+      vs.sort((a, c) => a - c);
+      blockStories.set(b, vs[Math.floor((vs.length - 1) / 2)]!);
+    }
+  }
   for (const p of parcels) {
     const year = num(p.year_property_built);
     const stories = num(p.number_of_stories);
@@ -322,6 +338,15 @@ export function newerBuildings(
     for (const p of l.parcels) {
       const v = num(p.number_of_stories);
       if (v > 0 && v <= MAX_STORIES && v > stories) stories = v;
+    }
+    if (stories < 1) {
+      // Every parcel lists an implausible count (the Shipyard hilltop has 680 and 688): the
+      // block's own newer parcels' median count, as its neighbours stand.
+      stories = blockStories.get(l.parcels[0]!.block ?? "") ?? 0;
+      if (stories < 1) {
+        stats.lotsNoStories++;
+        continue;
+      }
     }
     if (condo && stories <= 2) stories = CONDO_MIN_STORIES;
     while (stories > 1 && !fitsFootprint(stories, use, area)) stories--;

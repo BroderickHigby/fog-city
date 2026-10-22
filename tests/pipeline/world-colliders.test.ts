@@ -25,7 +25,11 @@ describe("world.colliders.bin (sf)", () => {
     pack.tiles.forEach((t, i) => {
       const c = colliders[i]!;
       expect(t.tileId).toBe(c.tileId);
-      expect(t.ground).toEqual(c.ground);
+      // The pack carries the heightfield, the sea mask and (LAKE, W-11) the inland-lake mask; the
+      // JSON's ground cover classes and lake names are the renderer's, not the sim's.
+      const { cover, lakes: _lakes, ...g } = c.ground as typeof c.ground & { cover?: string; lakes?: unknown };
+      const lake = cover ? [...cover].map((ch) => (ch >= "0" && ch <= "9" ? 1 : 0)) : [];
+      expect(t.ground).toEqual(lake.includes(1) ? { ...g, lake } : g);
       expect(t.buildings).toEqual(c.buildings.map(({ meta: _meta, ...b }) => b));
       expect(t.decks).toEqual(c.decks);
       expect(t.tunnels).toEqual(c.tunnels);
@@ -110,6 +114,27 @@ describe("FCWC encoder and reader edge cases", () => {
     const plainBytes = encodeWorldColliders(plain);
     expect(new DataView(plainBytes.buffer).getUint32(28, true)).toBe(0);
     expect(decodeWorldColliders(plainBytes)).toEqual(plain);
+  });
+
+  it("round-trips the LAKE section (W-11) through both readers; a lake-free tile carries no mask", () => {
+    const w: WorldColliders = {
+      origin: { lat: ORIGIN.lat, lon: ORIGIN.lon },
+      tileSizeM: 500,
+      tiles: [
+        { tileId: "t0_0", ix: 0, iz: 0, ground: flat(5.25), buildings: [{ id: "201006.0000001", footprint: [[0, 0], [1, 0], [1, 1]], baseY: 0, topY: 3 }] },
+        { tileId: "t1_0", ix: 1, iz: 0, ground: flat(2), buildings: [] },
+      ],
+    };
+    const lake = new Array<number>(S * S).fill(0);
+    for (const i of [0, 7, 8, 9, 1300, S * S - 1]) lake[i] = 1;
+    w.tiles[0]!.ground.lake = lake;
+    const bytes = encodeWorldColliders(w);
+    const back = decodeWorldColliders(bytes);
+    expect(back).toEqual(w);
+    expect(back.tiles[1]!.ground.lake).toBeUndefined();
+    expect(decodeColliderPack(bytes).tiles[0]!.ground.lake).toEqual(lake);
+    expect(decodeColliderPack(bytes).tiles[1]!.ground.lake).toBeUndefined();
+    expect(Buffer.from(encodeWorldColliders(back)).equals(Buffer.from(bytes))).toBe(true);
   });
 
   it("refuses what the format cannot hold, and rejects a foreign or truncated file", () => {

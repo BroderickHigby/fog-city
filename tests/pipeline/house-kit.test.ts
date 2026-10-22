@@ -12,7 +12,7 @@ import { interiorPoint, type P2 } from "../../pipeline/lib/geom.ts";
 import { ROOT } from "../helpers.ts";
 import { loadGlbWithThree, loadSf, type SfBuilding } from "./util.ts";
 
-const { manifest, colliders, storefronts } = loadSf();
+const { manifest, colliders, storefronts, roads } = loadSf();
 const tileIndex = new Map(manifest.tiles.map((t, i) => [t.id, i]));
 
 interface Front {
@@ -63,14 +63,41 @@ async function load(id: string): Promise<void> {
   classes.set(id, count);
 }
 
-// The 30th Ave block (Kirkham to Lawton), Liberty St (Guerrero to Valencia), a Mission St block.
+// The 30th Ave block (Kirkham to Lawton), Liberty St (Guerrero to Valencia), Mission St (16th to 24th).
 const SUNSET = ["t-17_8", "t-18_8"];
-const MISSION = ["t-6_8", "t-7_8", "t-6_7"];
+const MISSION = ["t-6_8", "t-7_8", "t-6_7", "t-5_7", "t-5_8"];
 beforeAll(async () => {
   for (const id of [...new Set([...SUNSET, ...MISSION, "t-7_4", "t-9_-1"])]) if (tileIndex.has(id)) await load(id);
 }, 300_000);
 
 const angle = (a: number, b: number): number => Math.abs(((a - b + 540) % 360) - 180);
+
+/** A named street's centreline near a point (its roads.json edges within 600 m). */
+function street(name: string, near: { x: number; z: number }): { dist(x: number, z: number): number; xAt(z: number): number } {
+  const segs: Array<[P2, P2]> = [];
+  for (const e of roads.edges) {
+    if (e.name !== name || !e.points.some(([x, z]) => Math.hypot(x - near.x, z - near.z) < 600)) continue;
+    for (let i = 1; i < e.points.length; i++) segs.push([e.points[i - 1]!, e.points[i]!]);
+  }
+  if (segs.length === 0) throw new Error(`no ${name} near ${near.x}, ${near.z}`);
+  const seg = (x: number, z: number, [a, b]: [P2, P2]): { d: number; px: number } => {
+    const ex = b[0] - a[0], ez = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * ex + (z - a[1]) * ez) / (ex * ex + ez * ez || 1)));
+    return { d: Math.hypot(x - a[0] - ex * t, z - a[1] - ez * t), px: a[0] + ex * t };
+  };
+  return {
+    dist: (x, z) => Math.min(...segs.map((g) => seg(x, z, g).d)),
+    xAt: (z) => {
+      let best = { d: Infinity, px: 0 };
+      for (const g of segs) {
+        const r = seg(near.x, z, g);
+        const lo = Math.min(g[0][1], g[1][1]), hi = Math.max(g[0][1], g[1][1]);
+        if (z >= lo && z <= hi && r.d < best.d) best = r;
+      }
+      return best.px;
+    },
+  };
+}
 
 describe("house kit data (K1, K4-K8)", () => {
   it("walls carry their class: rows have party walls and fronts, and only 0, 85, 170 and 255 occur", () => {
@@ -84,22 +111,25 @@ describe("house kit data (K1, K4-K8)", () => {
   });
 
   it("30th Ave, Kirkham to Lawton: every mid-block house's front faces the avenue (95%), with its garage door (90%)", () => {
-    // The avenue runs north-south at about -122.48885; Kirkham St is at about 37.7602 and Lawton St at 37.7583.
-    const ave = toLocal(37.7592, -122.48885).x;
+    // The avenue's own centreline (roads.json), between Kirkham St (about 37.7599) and Lawton St
+    // (about 37.7586): a house on the avenue has its interior point 8 to 32 m from it (a Sunset lot
+    // is about 37 m deep, behind a 12 m half street).
+    const ave = street("30th Ave", toLocal(37.7592, -122.48885));
     const north = toLocal(37.7599, -122.48885).z, south = toLocal(37.7586, -122.48885).z;
     const houses = colliders
       .filter((c) => SUNSET.includes(c.tileId))
       .flatMap((c) => c.buildings)
       .filter((b) => {
         const [x, z] = interiorPoint(b.footprint as P2[]);
-        return b.meta.towerOf === undefined && Math.abs(x - ave) > 8 && Math.abs(x - ave) < 30 && z > north && z < south && (b.meta.use ?? "").toLowerCase().includes("residential");
+        const d = ave.dist(x, z);
+        return b.meta.towerOf === undefined && d > 8 && d < 32 && z > north && z < south && (b.meta.use ?? "").toLowerCase().includes("residential");
       });
     expect(houses.length).toBeGreaterThanOrEqual(30);
     const all = SUNSET.flatMap((id) => fronts.get(id) ?? []);
     let right = 0, garage = 0;
     for (const b of houses) {
-      const [x] = interiorPoint(b.footprint as P2[]);
-      const want = x > ave ? 270 : 90;
+      const [x, z] = interiorPoint(b.footprint as P2[]);
+      const want = x > ave.xAt(z) ? 270 : 90;
       const mine = all.filter((f) => f.b.id === b.id);
       if (mine.some((f) => angle(f.heading, want) <= 30) && !mine.some((f) => angle(f.heading, want) > 60)) right++;
       if (mine.some((f) => angle(f.heading, want) <= 30 && f.flags & FRONT_GARAGE)) garage++;
@@ -109,10 +139,12 @@ describe("house kit data (K1, K4-K8)", () => {
   });
 
   it("Liberty St's Victorians get bays on their fronts (90%), and their flat-roof rows a roofline", () => {
-    const st = toLocal(37.75733, -122.42275).z;
-    const west = toLocal(37.75733, -122.4245).x, east = toLocal(37.75733, -122.4221).x;
+    // Liberty St's centreline (roads.json) between Valencia (about -122.4214) and Guerrero (about
+    // -122.4236): a front facing it has its anchor within 14 m of it.
+    const st = street("Liberty St", toLocal(37.75733, -122.42275));
+    const west = toLocal(37.75733, -122.4236).x, east = toLocal(37.75733, -122.4214).x;
     const rows = MISSION.flatMap((id) => fronts.get(id) ?? []).filter(
-      (f) => Math.abs(f.z - st) < 12 && f.x > west && f.x < east && (f.b.meta.year ?? 9999) <= 1915 && f.lengthM >= 4.5 && f.storeys >= 2 && (f.b.meta.use ?? "").toLowerCase().includes("residential"),
+      (f) => st.dist(f.x, f.z) < 14 && f.x > west && f.x < east && (f.b.meta.year ?? 9999) <= 1915 && f.lengthM >= 4.5 && f.storeys >= 2 && (f.b.meta.use ?? "").toLowerCase().includes("residential"),
     );
     expect(rows.length).toBeGreaterThanOrEqual(15);
     expect(rows.filter((f) => f.flags & FRONT_BAY).length / rows.length).toBeGreaterThanOrEqual(0.9);

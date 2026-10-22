@@ -103,7 +103,11 @@ describe("the far terrain meets the near ground at every tile border (W-17, W-40
       }
     }
     expect([...new Set(missing)]).toEqual([]);
-    for (const id of ["t-16_21", "t-4_21", "t-3_21", "t7_-5"]) expect(outside.has(id), id).toBe(true);
+    // The QA report's south-edge tiles were row 21, beside built row 20. The Daly City crop (W-42)
+    // leaves row 20 unbuilt there, so row 20 is now the outside ring (and row 21 is still far
+    // terrain: the test above).
+    for (const id of ["t-16_20", "t-4_20", "t-3_20", "t7_-5"]) expect(outside.has(id), id).toBe(true);
+    for (const id of ["t-16_20", "t-4_20", "t-3_20"]) expect(built.has(id.slice(1).replace("_", ",")), id).toBe(false);
     // San Bruno Mountain (402 m) at 37.6853, -122.4342: x -3567, z 12231.
     let top = -Infinity;
     for (let x = -4567; x <= -2567; x += 20) for (let z = 11231; z <= 13231; z += 20) top = Math.max(top, terrain.top(x, z) ?? -Infinity);

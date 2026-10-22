@@ -114,7 +114,21 @@ describe("citywide: coverage", () => {
     for (const id of out.keys()) {
       expect(built.has(id) || water.has(id), id).toBe(false);
     }
-    expect(built.size + water.size + out.size).toBe(sel.candidates);
+    // W-40: the outside ring may reach past the candidate rectangle (manifest.water.bbox); every
+    // such tile is land beside a built tile. The rest partition the candidates.
+    const [wx0, wz0, wx1, wz1] = manifest.water.bbox;
+    const beyond = manifest.outside.tiles.filter((t) => {
+      const m = /^t(-?\d+)_(-?\d+)$/.exec(t.id)!;
+      const x = Number(m[1]) * TILE_SIZE_M + 1, z = Number(m[2]) * TILE_SIZE_M + 1;
+      return x < wx0 || x > wx1 || z < wz0 || z > wz1;
+    });
+    for (const t of beyond) {
+      const m = /^t(-?\d+)_(-?\d+)$/.exec(t.id)!;
+      const ix = Number(m[1]), iz = Number(m[2]);
+      expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => built.has(tileId(ix + dx!, iz + dz!))), t.id).toBe(true);
+    }
+    expect(beyond.length).toBeLessThanOrEqual(8);
+    expect(built.size + water.size + out.size - beyond.length).toBe(sel.candidates);
     const area = (lat: number, lon: number): string | undefined => {
       const p = at(lat, lon);
       return out.get(tileId(Math.floor(p.x / TILE_SIZE_M), Math.floor(p.z / TILE_SIZE_M)));
@@ -541,9 +555,11 @@ describe("citywide: gameplay layers", () => {
 
 describe("citywide: far-LOD", () => {
   it("holds every collider record, in cells that tile the world", () => {
-    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number } }>(`${DIR}/report.json`);
-    expect(report.far.records).toBe(report.colliderPack.buildings);
-    expect(manifest.far.reduce((s, c) => s + c.stats.records!, 0)).toBe(report.colliderPack.buildings);
+    // Every collider record, plus the far-only Daly City strip (W-42): far scenery, no collider.
+    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number } }>(`${DIR}/report.json`);
+    expect(report.farOnly.records).toBeGreaterThan(1000);
+    expect(report.far.records).toBe(report.colliderPack.buildings + report.farOnly.records);
+    expect(manifest.far.reduce((s, c) => s + c.stats.records!, 0)).toBe(report.far.records);
     for (const c of manifest.far) {
       expect(c.bbox[2]).toBeGreaterThan(c.bbox[0]);
       expect(c.bbox[3]).toBeGreaterThan(c.bbox[1]);

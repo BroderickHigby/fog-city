@@ -125,10 +125,10 @@ function edgeBox(e: RoadEdge): [number, number, number, number] {
 
 const overlaps = (a: readonly number[], b: readonly number[]): boolean => a[0]! <= b[2]! && a[2]! >= b[0]! && a[1]! <= b[3]! && a[3]! >= b[1]!;
 
-export type OutsideArea = "alcatraz" | "marin" | "san-mateo-county" | "pacific-shore" | "other";
+export type OutsideArea = "alcatraz" | "marin" | "san-mateo-county" | "pacific-shore" | "yerba-buena-island" | "other";
 
 const OUTSIDE_DESCRIPTION =
-  "Candidate tiles with land but no file: land outside the city (Marin across the Golden Gate, San Mateo County south of the city limit), Alcatraz (San Francisco, but no footprint, street or neighbourhood data covers it) and a strip of Ocean Beach sand west of the last built tile. Draw far-LOD terrain here, never sea. The sim has no ground here: boundary.json edges of kind land wall the world off from it.";
+  "Candidate tiles with land but no file: land outside the city (Marin across the Golden Gate, San Mateo County south of the city limit), Alcatraz (San Francisco, but no footprint, street or neighbourhood data covers it), the east tip of Yerba Buena Island beyond the built tiles, and a strip of Ocean Beach sand west of the last built tile. Draw far-LOD terrain here, never sea. The sim has no ground here: boundary.json edges of kind land wall the world off from it.";
 
 /** Alcatraz Island, padded (lat/lon box). */
 const ALCATRAZ = { north: 37.8292, south: 37.8245, west: -122.4265, east: -122.4195 };
@@ -143,6 +143,8 @@ export function outsideArea(t: TileRef): OutsideArea {
   if (c.lat < 37.72) return "san-mateo-county";
   // Ocean Beach sand west of the last built tile (outside the neighbourhood polygons).
   if (c.lon < -122.5) return "pacific-shore";
+  // The east tip of Yerba Buena Island (San Francisco) in the tile beyond the built ones.
+  if (c.lat > 37.80 && c.lat < 37.83 && c.lon > -122.37 && c.lon < -122.34) return "yerba-buena-island";
   return "other";
 }
 
@@ -745,7 +747,17 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   // Far-LOD over the far box (W-17, W-40): the near tiles' own lattice wherever a candidate tile
   // has one (lakes flattened, piers raised), else the DEM; every building, the strip south of the
   // county line included (W-42).
+  // W-40: the far box also holds every listed outside tile (the ring beside the built tiles can
+  // reach past the candidate rectangle: the east tip of Yerba Buena Island).
   const farBounds = farBox(cfg, [candMinX, candMinZ, candMaxX, candMaxZ]);
+  for (const o of outsideTiles) {
+    const m = /^t(-?\d+)_(-?\d+)$/.exec(o.id)!;
+    const r = tileRef(Number(m[1]), Number(m[2]));
+    farBounds[0] = Math.min(farBounds[0], r.bbox[0]);
+    farBounds[1] = Math.min(farBounds[1], r.bbox[1]);
+    farBounds[2] = Math.max(farBounds[2], r.bbox[2]);
+    farBounds[3] = Math.max(farBounds[3], r.bbox[3]);
+  }
   const far = await buildFarLod(cfg.id, {
     buildings: [...buildings, ...farOnly],
     sample: (x, z) => {
