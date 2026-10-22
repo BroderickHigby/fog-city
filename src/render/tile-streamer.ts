@@ -22,7 +22,7 @@ import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
 import { groundSkirt, lakeSurface, type SimpleMesh } from "./ground-extras.ts";
 import type { TileCollider } from "../sim/world.ts";
-import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
+import { groundCutMaterial, materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
 import {
   assignEdgesToTiles,
@@ -35,6 +35,7 @@ import {
   type Spot,
 } from "./roads.ts";
 import { PropClearance } from "./prop-clearance.ts";
+import { boreCuts, boreMesh, quayFaces, shoreByTile, type ShoreSegment, type TunnelLike } from "./structures.ts";
 import { sidewalkMesh, sidewalksByTile, type SidewalkGraph, type SidewalkLine } from "./sidewalks.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
 import type { RoadContext } from "./tile-geometry.ts";
@@ -74,6 +75,8 @@ export interface StreamerOptions {
    * own colours are the pipeline's ground classes and are never changed here.
    */
   lakeMaterial?: THREE.Material;
+  /** boundary.json's shore lines: quay faces where the land stands over the sea (structures.ts). */
+  shore?: ReadonlyArray<{ closed: boolean; lake?: unknown; points: ReadonlyArray<readonly number[]> }>;
   /**
    * When a tile's glb fails for good: that tile's own collider, fetched lazily, with the
    * building meta (use, year, stories) the fallback look reads; null when there is none (the
@@ -135,6 +138,7 @@ export class TileStreamer {
   private readonly propClearance: PropClearance;
   private readonly roadById: Map<string, RoadEdge>;
   private sidewalksByTile: Map<string, SidewalkLine[]> | null = null;
+  private readonly shoreByTile: Map<string, ShoreSegment[]> | null;
   private readonly records = new Map<string, TileRecord>();
   private queue: string[] = [];
   private inFlight = 0;
@@ -161,6 +165,7 @@ export class TileStreamer {
     this.clearance = opts.roads ? nodeClearance(opts.roads) : new Map();
     this.propClearance = new PropClearance(edges, opts.colliders.values());
     this.roadById = new Map(edges.map((e) => [e.id, e]));
+    this.shoreByTile = opts.shore ? shoreByTile(opts.shore, opts.manifest.tileSizeM ?? 500) : null;
     this.roadCtx = opts.roads
       ? {
           ground: opts.ground,
@@ -361,6 +366,10 @@ export class TileStreamer {
           dropWaterTriangles(geo, mesh.matrixWorld);
         } else if (layer === "road" || layer === "freeway") layers.roads = true;
         disposeMaterial(m);
+        if (layer === "ground") {
+          const cut = this.groundCut(rec);
+          if (cut) return cut;
+        }
         return materialFor(this.opts.materials, layer, { hasNormals: !!geo.getAttribute("normal"), hasUv: !!geo.getAttribute("uv") });
       });
       mesh.material = Array.isArray(mesh.material) ? next : next[0]!;
@@ -493,6 +502,23 @@ export class TileStreamer {
     rec.group.add(mesh);
   }
 
+  /** The tile's bores (the collider's tunnels), or none. */
+  private tunnelsOf(rec: TileRecord): TunnelLike[] {
+    const c = (rec.collider ?? this.opts.colliders.get(rec.id)) as (TileCollider & { tunnels?: TunnelLike[] }) | undefined;
+    return c?.tunnels ?? [];
+  }
+
+  /** A ground material with the tile's bores cut out (structures.ts), owned by the tile; null when it has none. */
+  private groundCut(rec: TileRecord): THREE.Material | null {
+    const cuts = boreCuts(this.tunnelsOf(rec));
+    if (cuts.length === 0) return null;
+    const data = new Float32Array(cuts.length * 8);
+    cuts.forEach((c, i) => data.set([c.ax, c.az, c.bx, c.bz, c.halfW, c.ya, c.yb, 0], 8 * i));
+    const m = groundCutMaterial(data, cuts.length);
+    rec.ownedMaterials.push(m);
+    return m;
+  }
+
   /** Lakes at their level and the skirts under the ground's borders (ground-extras.ts), from the tile's heightfield. */
   private addGroundExtras(rec: TileRecord): void {
     const ground = (rec.collider ?? this.opts.colliders.get(rec.id))?.ground;
@@ -515,6 +541,12 @@ export class TileStreamer {
     if (lakes) add("lakes", lakes, this.opts.lakeMaterial!);
     const skirt = groundSkirt(ground);
     if (skirt) add("ground-skirt", skirt, this.opts.materials.groundSkirt);
+    const tunnels = this.tunnelsOf(rec);
+    const bores = tunnels.length > 0 ? boreMesh(tunnels, this.opts.drawnGround ?? this.opts.ground) : null;
+    if (bores) add("tunnels", bores, this.opts.materials.tunnel);
+    const shore = this.shoreByTile?.get(rec.id);
+    const quays = shore ? quayFaces(shore, this.opts.drawnGround ?? this.opts.ground) : null;
+    if (quays) add("quays", quays, this.opts.materials.tunnel);
   }
 
   private applyHidden(rec: TileRecord): void {

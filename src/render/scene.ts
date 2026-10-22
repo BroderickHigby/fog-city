@@ -45,6 +45,8 @@ export interface WorldData {
   colliders: ReadonlyMap<string, TileCollider>;
   roads: RoadGraph | null;
   ground: GroundFn;
+  /** boundary.json (its shore lines get quay faces), or null. */
+  boundary?: { shore: ReadonlyArray<{ closed: boolean; lake?: unknown; points: ReadonlyArray<readonly number[]> }> } | null;
   /** True when (x, y, z) is inside a building below its roof (camera pull-in). */
   occluded: (x: number, y: number, z: number) => boolean;
   /** Where glb bytes come from (loose files or the packed build). Omitted: fetch each URL. */
@@ -208,6 +210,7 @@ export class SceneRenderer {
       onReady: (g) => this.prepareShadows(g),
       onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
       lakeMaterial: this.water.lakeMaterial,
+      shore: world.boundary?.shore,
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();

@@ -156,7 +156,7 @@ async function boot(): Promise<void> {
       : undefined;
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider },
+    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider, boundary: files.boundary },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",

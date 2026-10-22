@@ -315,6 +315,39 @@ function patchSidewalkShader(shader: THREE.WebGLProgramParametersWithUniforms): 
     );
 }
 
+/**
+ * A tile's ground material when bores run under it (structures.ts boreCuts): the shared ground's
+ * look, with fragments over a bore and below its ceiling discarded, so the portals are open.
+ * `cuts` holds two vec4 per piece: (ax, az, bx, bz), (half width, ceiling y at a, at b, 0).
+ */
+export function groundCutMaterial(cuts: Float32Array, count: number): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground-cut" });
+  const grain = patchGrainShader(0.22, 0.08);
+  const n = Math.max(1, count);
+  const vecs: THREE.Vector4[] = [];
+  for (let i = 0; i < 2 * n; i++) vecs.push(new THREE.Vector4(cuts[4 * i] ?? 0, cuts[4 * i + 1] ?? 0, cuts[4 * i + 2] ?? 0, cuts[4 * i + 3] ?? 0));
+  m.onBeforeCompile = (shader) => {
+    grain(shader);
+    shader.uniforms.fcCuts = { value: vecs };
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\nuniform vec4 fcCuts[${2 * n}];`)
+      .replace(
+        "#include <clipping_planes_fragment>",
+        `#include <clipping_planes_fragment>
+  for ( int i = 0; i < ${count}; i++ ) {
+    vec4 ab = fcCuts[ 2 * i ];
+    vec4 wy = fcCuts[ 2 * i + 1 ];
+    vec2 d = ab.zw - ab.xy;
+    float t = dot( vFcWorld.xz - ab.xy, d ) / max( dot( d, d ), 1e-6 );
+    if ( t < 0.0 || t > 1.0 ) continue;
+    if ( length( vFcWorld.xz - ab.xy - d * t ) < wy.x && vFcWorld.y < mix( wy.y, wy.z, t ) ) discard;
+  }`,
+      );
+  };
+  m.customProgramCacheKey = () => `fc:ground-cut:${count}`;
+  return m;
+}
+
 export interface SharedMaterials {
   building: THREE.MeshStandardMaterial;
   /** For building meshes shipped without normals (flat shading from screen derivatives). */
@@ -323,6 +356,8 @@ export interface SharedMaterials {
   /** The curtains under the ground's borders (ground-extras.ts groundSkirt): both sides drawn. */
   groundSkirt: THREE.MeshStandardMaterial;
   road: THREE.MeshStandardMaterial;
+  /** Tunnel bores and portals (structures.ts): concrete, both sides. */
+  tunnel: THREE.MeshStandardMaterial;
   /** Sidewalk bands (sidewalks.ts): concrete with slab joints, under the road ribbons. */
   sidewalk: THREE.MeshStandardMaterial;
   /** Road and freeway ribbons with kerb-to-kerb UVs (pipeline tiles). */
@@ -360,6 +395,7 @@ export function createSharedMaterials(): SharedMaterials {
 
   const groundSkirt = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: THREE.DoubleSide, name: "fc:ground-skirt" });
 
+  const tunnel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide, name: "fc:tunnel" });
   const sidewalk = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, name: "fc:sidewalk" });
   sidewalk.onBeforeCompile = patchSidewalkShader;
   sidewalk.customProgramCacheKey = () => "fc:sidewalk:v1";
@@ -379,6 +415,7 @@ export function createSharedMaterials(): SharedMaterials {
     buildingFlat,
     ground,
     groundSkirt,
+    tunnel,
     sidewalk,
     road,
     roadUv,
@@ -386,7 +423,7 @@ export function createSharedMaterials(): SharedMaterials {
     foliage,
     lampPole,
     lampHead,
-    all: [building, buildingFlat, ground, groundSkirt, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+    all: [building, buildingFlat, ground, groundSkirt, tunnel, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
   };
 }
 
