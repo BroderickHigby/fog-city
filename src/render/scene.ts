@@ -21,6 +21,7 @@ import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import type { LookFn } from "./house-kit.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
@@ -53,6 +54,8 @@ export interface WorldData {
   assets?: Assets;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
+  /** The house kit's colours and materials per building (house-colours.ts houseLookFn). */
+  houseLook?: LookFn;
 }
 
 export interface RenderInfo {
@@ -212,6 +215,7 @@ export class SceneRenderer {
       lakeMaterial: this.water.lakeMaterial,
       shore: world.boundary?.shore,
       fallbackCollider: world.fallbackCollider,
+      houseLook: world.houseLook,
     });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.

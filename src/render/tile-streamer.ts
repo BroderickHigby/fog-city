@@ -38,6 +38,8 @@ import { PropClearance } from "./prop-clearance.ts";
 import { boreCuts, boreMesh, quayFaces, shoreByTile, type ShoreSegment, type TunnelLike } from "./structures.ts";
 import { sidewalkMesh, sidewalksByTile, type SidewalkGraph, type SidewalkLine } from "./sidewalks.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
+import { decodeFronts, type LookFn } from "./house-kit.ts";
+import { applyHouseKit } from "./house-kit-mesh.ts";
 import type { RoadContext } from "./tile-geometry.ts";
 import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
 import type { GroundFn, Manifest, ManifestTile, RoadEdge, RoadGraph } from "./types.ts";
@@ -83,6 +85,11 @@ export interface StreamerOptions {
    * hosted build ships no per-tile colliders), and the tile is built from `colliders`.
    */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
+  /**
+   * The house kit's colours and materials per building (house-colours.ts houseLookFn: palettes by
+   * era and district, K3; landmarks, K10). Default: the tile's own colours.
+   */
+  houseLook?: LookFn;
 }
 
 type TileState = "loading" | "building" | "ready" | "failed";
@@ -374,9 +381,16 @@ export class TileStreamer {
       });
       mesh.material = Array.isArray(mesh.material) ? next : next[0]!;
       // Building ranges: primitive extras (this repo) or node extras (pipeline).
-      const nodeRanges = (mesh.userData as { buildings?: unknown }).buildings;
+      const ud = mesh.userData as { buildings?: unknown; scenery?: unknown; fronts?: unknown };
+      const nodeRanges = ud.buildings ?? ud.scenery;
       if (!geo.userData.fcBuildings && Array.isArray(nodeRanges)) geo.userData.fcBuildings = nodeRanges;
       if (Array.isArray(geo.userData.fcBuildings)) rec.hideable.push(geo);
+      if (mats.some((m) => tileLayer(m.name, mesh.name) === "building")) {
+        // The house kit: per-wall frames, doors and garages, palette colours (house-kit.ts).
+        const bbox = rec.spec.bbox;
+        const fronts = bbox ? decodeFronts(ud.fronts, bbox[0], bbox[1]) : [];
+        applyHouseKit(geo, mesh.matrixWorld, (geo.userData.fcBuildings as Array<[string, number, number]> | undefined) ?? [], fronts, this.opts.houseLook);
+      }
     });
     root.traverse((o) => (o.matrixAutoUpdate = false));
     rec.group.add(root);
@@ -446,7 +460,12 @@ export class TileStreamer {
         if (data.ranges.length > 0) rec.hideable.push(g);
       };
       add(meshes.ground, m.ground, "ground");
-      add(meshes.buildings, m.building, "buildings");
+      if (meshes.buildings) {
+        const before = rec.geometries.length;
+        add(meshes.buildings, m.building, "buildings");
+        const g = rec.geometries[before];
+        if (g) applyHouseKit(g, new THREE.Matrix4(), meshes.buildings.ranges, [], this.opts.houseLook);
+      }
       add(meshes.roads, m.road, "roads");
     }
     this.addGroundExtras(rec);

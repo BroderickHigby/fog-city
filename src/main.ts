@@ -35,6 +35,7 @@ import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import type { SidewalkGraph } from "./render/sidewalks.ts";
+import { HouseColours, houseLookFn, type DistrictsLike } from "./render/house-colours.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
   Action,
@@ -154,9 +155,15 @@ async function boot(): Promise<void> {
           return f ? assets.json<TileCollider>(base + f).catch(() => null) : Promise.resolve(null);
         }
       : undefined;
+  // The house kit's palettes (K3) pick by district: the districts layer is small and read before
+  // the first tile, so every tile picks its colours the same way. Never fatal: without it the
+  // palettes fall back to their district-free rules.
+  const districtsFile = manifest.layers?.districts;
+  const districts = districtsFile ? await assets.json<DistrictsLike>(base + districtsFile).catch(() => null) : null;
+  const houseLook = houseLookFn(files.colliders === "pack" || worldName === "sf" ? new HouseColours(tiles, districts) : null);
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider, boundary: files.boundary },
+    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider, boundary: files.boundary, houseLook },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",
