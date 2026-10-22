@@ -1,7 +1,8 @@
 // The long clearance soak, the long no-touch fuzz and the optimiser search (nightly: `pnpm
 // soak:nightly`, config tests/sim/nightly.vitest.config.ts; never part of `pnpm test` or `pnpm
 // verify`). The soak: chase, weave, no-brake and rival drivers from five busy places (the Ferry
-// Building, Union Square, Chinatown, the Mission, the Castro) and chase and weave drivers in the
+// Building, Union Square, Chinatown, the Mission, the Castro; players joining on the crowd every
+// 10 s in the chase and no-brake runs) and chase and weave drivers in the
 // four narrow places (Ross Alley, Spofford Alley, Waverly Place, Lombard's crooked block), and a
 // jump driver over each of the six sharpest clear crests, 60 s each, two seeds (three in the
 // narrow places; one test per seed, so any part can be run alone with -t). The fuzz:
@@ -72,7 +73,9 @@ describe.skipIf(!SF)("the clearance soak on the real city (nightly)", () => {
       const bad: string[] = [];
       for (const st of starts) {
         for (const driver of ["chase", "weave", "nobrake", "rival"] as const) {
-          const r = soak(world, st, driver, 3600, seed);
+          // (Chase and no-brake runs have players joining on the people nearest the car, every 10 s.)
+          const joins = driver === "chase" || driver === "nobrake" ? { joins: [300, 900, 1500, 2100, 2700, 3300] } : {};
+          const r = soak(world, st, driver, 3600, seed, joins);
           console.info(`[soak] ${r.name} seed ${seed}: ${r.dives} dives, ${r.overrides} overrides, min ${r.minCar.toFixed(2)} m (car) ${r.minTaxi.toFixed(2)} m (robotaxi), ${r.peopleNear} people near, ${r.driven.toFixed(0)} m`);
           bad.push(...problems(r, seed));
         }

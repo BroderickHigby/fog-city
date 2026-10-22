@@ -10,6 +10,8 @@
 //    the road near the landing (within ON_ROUTE_M of its route); airborne it cannot steer.
 //  - rival: two players; the second stands on foot by the road 50 m ahead and the first drives
 //    straight at them flat out, then chases them, never braking.
+// Any driver can have players join mid-run (SoakOptions.joins, round 3): each joins with their car
+// asked for right on the person nearest the driver's car, as a join on a busy pavement would.
 // Every tick it measures, for every person, child and player on foot: contact with any vehicle
 // (a player's car; a robotaxi by its drawn body, ROBOTAXI_BODY; the sim's own count, the car's
 // personBumps and an independent one here) and clearance from every moving vehicle's body; a
@@ -40,6 +42,7 @@ import {
   step,
   type AgentsExt,
   type RoadGraph,
+  type SimEvent,
   type SimInput,
   type SimState,
   type World,
@@ -99,6 +102,8 @@ export interface SoakResult {
   maxAirS: number;
   /** Distance driven, metres. */
   driven: number;
+  /** Players at the end (joins included). */
+  players: number;
 }
 
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -347,7 +352,29 @@ function drive(kind: SoakDriver, start: SoakStart, s: SimState, ds: DriverState)
 }
 
 /** One soak run: a player at `start` with `driver` for `ticks` ticks on `world`, seed `seed`. */
-export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: number, seed: number): SoakResult {
+export interface SoakOptions {
+  /** Ticks at which a player joins with their car asked for on the person nearest the driver's car. */
+  joins?: readonly number[];
+}
+
+/** A player.join for the step to `s.tick + 1`, with the car asked for on the person nearest p1's car. */
+function joinOnCrowd(s: SimState, k: number): SimEvent[] {
+  const c = s.players.p1!.car;
+  let best: { x: number; z: number } | null = null;
+  let bestD = Infinity;
+  for (const a of agentsOf(s)) {
+    if (a.kind !== "person" || a.dodge) continue;
+    const d = Math.hypot(a.x - c.x, a.z - c.z);
+    if (d < bestD) {
+      bestD = d;
+      best = { x: a.x, z: a.z };
+    }
+  }
+  if (!best) return [];
+  return [{ tick: s.tick + 1, kind: "player.join", playerId: `j${k}`, payload: { x: best.x, z: best.z, heading: c.heading } }];
+}
+
+export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: number, seed: number, opts: SoakOptions = {}): SoakResult {
   let s: SimState = createInitialState(world, seed, driver === "rival" ? ["p1", "p2"] : ["p1"], { x: start.x, z: start.z, heading: start.heading });
   if (start.speed) s = { ...s, players: { ...s.players, p1: { ...s.players.p1!, car: { ...s.players.p1!.car, speed: start.speed } } } };
   if (driver === "rival") {
@@ -390,10 +417,13 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
   /** Walker id -> the tick its dodge ended. */
   const ended = new Map<number, number>();
   let taxiOverrides = 0;
+  let joined = 0;
   for (let t = 0; t < ticks; t++) {
     const before = s.players.p1!.car;
     const o0 = dodgeExtOf(s).overrides;
-    s = step(world, s, { p1: drive(driver, start, s, ds) });
+    const k = opts.joins ? opts.joins.indexOf(t) : -1;
+    s = step(world, s, { p1: drive(driver, start, s, ds) }, k >= 0 ? joinOnCrowd(s, k) : []);
+    if (k >= 0) joined++;
     if (dodgeExtOf(s).overrides !== o0) {
       // Whose: any body leapt this tick farther than 8 m from the player's car was a robotaxi's doing.
       const c1 = s.players.p1!.car;
@@ -471,9 +501,11 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
     }
   }
   const d = dodgeExtOf(s);
-  contacts += d.contacts + s.players.p1!.car.personBumps;
+  contacts += d.contacts;
+  for (const id of Object.keys(s.players)) contacts += s.players[id]!.car.personBumps;
   const unexplained = close
     .filter((e) => !(leapt.get(e.key) ?? []).some((o) => e.tick >= o - EPISODE_BEFORE && e.tick <= o + EPISODE_AFTER))
     .map((e) => `${start.name} ${driver}: ${e.key} at tick ${e.tick} only ${e.clear.toFixed(3)} m from the ${e.by}`);
-  return { name: `${start.name} ${driver}`, ticks, dives: d.dives, overrides: d.overrides, taxiOverrides, failures: d.failures, contacts, unexplained, jumps, minCar, minTaxi, peopleNear: nearSeen.size, maxAirS: maxAir / 60, driven };
+  const players = Object.keys(s.players).length;
+  return { name: `${start.name} ${driver}${joined ? ` (${joined} joins)` : ""}`, ticks, dives: d.dives, overrides: d.overrides, taxiOverrides, failures: d.failures, contacts, unexplained, jumps, minCar, minTaxi, peopleNear: nearSeen.size, maxAirS: maxAir / 60, driven, players };
 }

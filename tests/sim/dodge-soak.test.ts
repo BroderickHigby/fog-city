@@ -1,7 +1,7 @@
 // The clearance soak on the real city, per PR (tests/sim/dodge-soak.ts has the drivers and the
 // measures; tests/sim/dodge-soak.nightly.ts the long one): from the spawn by the Ferry Building
-// a chase driver, a no-brake driver and a car driven flat out at a rival player on foot, 20 s
-// each; chase and weave drivers in the narrow places the review found (Chinatown's alleys,
+// a chase driver (with three players joining on the people nearest it), a no-brake driver and a
+// car driven flat out at a rival player on foot, 20 s each; chase and weave drivers in the narrow places the review found (Chinatown's alleys,
 // Lombard's crooked block), 20 s each; and a jump driver flat out over one of the city's
 // sharpest clear crests. In full traffic: zero contacts (a robotaxi measured by its drawn body),
 // the override never giving up, nobody closer than 0.75 m to a moving car or a closing robotaxi
@@ -42,9 +42,13 @@ describe.skipIf(!SF)("the clearance soak on the real city (per PR)", () => {
   };
 
   it(
-    "chase, no-brake and rival drivers from the Ferry Building: zero contacts, clearance >= 0.75 m except counted overrides",
+    "chase, no-brake and rival drivers from the Ferry Building (three players joining on the crowd during the chase): zero contacts, clearance >= 0.75 m except counted overrides",
     () => {
-      for (const driver of ["chase", "nobrake", "rival"] as const) check(soak(world, home, driver, 1200, 5));
+      for (const driver of ["chase", "nobrake", "rival"] as const) {
+        const r = soak(world, home, driver, 1200, 5, driver === "chase" ? { joins: [240, 600, 960] } : {});
+        check(r);
+        if (driver === "chase") expect(r.players, "the joins happened").toBe(4);
+      }
     },
     CITY_MS,
   );
