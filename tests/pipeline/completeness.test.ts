@@ -89,7 +89,7 @@ describe("buildings newer than the footprint layer (W-04)", () => {
     // (37.77355,-122.41767) lies across Mission St on block 3511, where the 2025 roll still lists
     // the 1906-1927 three-storey buildings (3511033, 3511044 ...) the records there show.
     const ff = all.find((b) => b.id === "201006.9900003-tower")!;
-    expect(ff.meta.parcel).toBe("3506012");
+    expect(all.find((b) => b.id === "201006.9900003")!.meta.parcel).toBe("3506012");
     const lot = toLocal(37.774186, -122.418127);
     const [fx, fz] = interiorPoint(ff.footprint as P2[]);
     expect(Math.hypot(fx - lot.x, fz - lot.z)).toBeLessThan(60);

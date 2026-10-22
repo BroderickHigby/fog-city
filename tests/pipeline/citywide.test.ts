@@ -645,11 +645,13 @@ describe("citywide: the world's edge and shore", () => {
   it("walls the world off on dry ground: the southern city limit is land, the Pacific and the Bay are water", () => {
     const landAt = (x: number, z: number, kind: string): boolean =>
       b.edges.some((e) => e.kind === kind && [...steps(e.points, e.closed)].some(([sx, sz, dx, dz]) => Math.hypot(sx + dx / 2 - x, sz + dz / 2 - z) < 260));
-    // The last row of built tiles south of Visitacion Valley and of the Excelsior meets Daly City.
+    // South of Visitacion Valley and of the Excelsior the world stops on dry ground: a land wall
+    // runs between the point and its tile's south edge (the county line or that edge, W-42).
     for (const [name, lat, lon] of [["Visitacion Valley", 37.7085, -122.4045], ["Excelsior", 37.7085, -122.43]] as const) {
       const p = at(lat, lon);
       const southEdge = (Math.floor(p.z / TILE_SIZE_M) + 1) * TILE_SIZE_M;
-      expect(landAt(p.x, southEdge, "land"), name).toBe(true);
+      const wall = b.edges.some((e) => e.kind === "land" && [...steps(e.points, e.closed)].some(([sx, sz, dx]) => dx !== 0 && Math.abs(sx - p.x) < 100 && sz >= p.z && sz <= southEdge));
+      expect(wall, name).toBe(true);
     }
     const land = b.edges.filter((e) => e.kind === "land");
     expect(land.length).toBeGreaterThan(0);

@@ -87,8 +87,8 @@ export interface Report {
   overridesApplied: string[];
   /** Buildings newer than the footprint layer (newer.ts, W-04). */
   newer: NewerStats;
-  /** The Daly City strip's scenery records (W-42): count, the first ids, every tile they stand in, and how many a built tile's glb draws (node buildings-scenery). */
-  farOnly: { records: number; ids: string[]; tiles: string[]; drawnInTiles: number };
+  /** The Daly City strip's scenery records (W-42): count, the first ids, every tile they stand in, how many a built tile's glb draws (node buildings-scenery), and the strip's records kept solid in a road's pocket (towers not counted). */
+  farOnly: { records: number; ids: string[]; tiles: string[]; drawnInTiles: number; keptNear: number };
   /** Ground cover: lakes, classes, trees (landcover.ts, W-11, W-18, W-34). */
   landcover: LandcoverStats | null;
   roads: RoadStats;
@@ -1035,7 +1035,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     decks: decked.stats,
     overridesApplied,
     newer: newer.stats,
-    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20), tiles: [...new Set(farOnly.map((b) => b.tile))].sort(), drawnInTiles: [...sceneryByTile.values()].reduce((n, l) => n + l.length, 0) },
+    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20), tiles: [...new Set(farOnly.map((b) => b.tile))].sort(), drawnInTiles: [...sceneryByTile.values()].reduce((n, l) => n + l.length, 0), keptNear: keepNear.size },
     landcover: landcover ? landcover.stats : null,
     roads: rStats,
     storefronts: sStats,

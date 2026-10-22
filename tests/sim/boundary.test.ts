@@ -345,8 +345,9 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
 
   it("walls the land edge and the shore, with corridors only for streets traffic or people may use", () => {
     const w = world.walls!;
-    // The land walls: stubs beside the Ocean Beach strip and Yerba Buena Island, and the county line, one
-    // straight run along z = 10000 since the Daly City strip became far scenery (W-42), 9.9 km in all.
+    // The land walls: stubs beside the Ocean Beach strip and Yerba Buena Island, the last built
+    // row's south edge, and the county line itself inside that row, where the Daly City strip
+    // beyond it is scenery (W-42): more than 9.5 km in all.
     const land = w.segments.filter((s) => s.kind === "land");
     expect(land.length).toBeGreaterThanOrEqual(3);
     expect(land.reduce((sum, s) => sum + Math.hypot(s.bx - s.ax, s.bz - s.az), 0)).toBeGreaterThan(9500);
@@ -392,14 +393,16 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
   }, SF_RUN_MS);
 
   it("a car driven at the land edge at the southern city limit stops there instead of dropping off the world", () => {
-    // The land run along z = 10000 (the last built row): find a stretch with no building in the way.
-    const edge = world.walls!.segments.filter((s) => s.kind === "land" && s.az === 10000 && s.bz === 10000 && s.len >= 200);
+    // The land runs of the southern city limit, east-west (the county line inside the last built
+    // row, W-42, or that row's south edge): find a stretch with no building in the way, 50 m north of it.
+    const edge = world.walls!.segments.filter((s) => s.kind === "land" && s.az === s.bz && s.az > 9600 && s.len >= 100);
     expect(edge.length).toBeGreaterThan(0);
     let tried = 0;
     for (const w of edge) {
+      const z0 = w.az - 50;
       for (let t = 20; t < w.len - 20; t += 10) {
         const x = w.ax + w.ux * t;
-        const start = makeCar(x, 9950, Math.PI, groundHeight(world, x, 9950));
+        const start = makeCar(x, z0, Math.PI, groundHeight(world, x, z0));
         // Free run in the world without walls: the car would leave the tiles.
         let free = start;
         let clear = true;
@@ -407,12 +410,13 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
           free = stepCar(noWalls, free, FULL);
           if (free.hits > 0) clear = false;
         }
-        if (!clear || free.z < 10010) continue;
+        if (!clear || free.z < w.az + 10) continue;
         tried++;
         const trace = drive(world, start, 600);
         for (const c of trace) {
           expect(overshoot(world, c), `x ${x.toFixed(0)}`).toBeLessThan(0.02);
-          expect(c.y, "the car stays on the ground of the last built row").toBeGreaterThan(groundHeight(world, c.x, 9990) - 3);
+          expect(c.z, "the car stays north of the city limit").toBeLessThan(w.az);
+          expect(c.y, "the car stays on the ground of the last built row").toBeGreaterThan(groundHeight(world, c.x, w.az - 10) - 3);
         }
         const last = trace[trace.length - 1]!;
         expect(last.hits).toBeGreaterThan(0);
