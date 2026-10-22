@@ -1274,9 +1274,12 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-21 · **The Daly City strip is far scenery, not territory** (world QA W-42). The footprint data
   carries about 1,350 buildings on a strip 150 to 650 m wide south of the county line (1,352 podium records
   whose centroids lie south of z = 9,850 m) with no streets: the road data ends at z = 9,821. The pipeline crops the
-  built area at the county line, so the strip is drawn only in the far LOD, beyond the south wall: no near
-  tiles, no colliders, no storefronts, never a district. Territory step 10 (south of the line, Later) revisits
-  it with another data source. Decided in the world QA round while the user was away; reversible.
+  built area at the county line: the strip never makes a tile built, so the tiles beyond the last built row are
+  far LOD only (no near tile, no colliders, no storefronts, never a district) and the south wall runs straight
+  along z = 10,000. The strip's records inside the last built row's tiles (the 500 m grid reaches past the county
+  line there) stay near records, drawn and solid, so nothing vanishes as a tile streams in; moving the south
+  wall onto the county line itself is the remaining step. Territory step 10 (south of the line, Later)
+  revisits it with another data source. Decided in the world QA round while the user was away; reversible.
 - 2026-10-22 · **A rusted-out robot falls down or melts** (user request). Seizing is never the end of the
   animation: every model visibly topples or melts into its rust heap during `slumping`, each in its own slapstick
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a

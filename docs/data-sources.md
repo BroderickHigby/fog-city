@@ -596,10 +596,13 @@ a building (`add: true`: The Avery, 33 Tehama, Fifteen Fifty, Chase Center; ids
 from the parcel pass.
 
 **The Daly City strip (W-42).** Records south of the county line (z > 9,600 m) in no San
-Francisco neighbourhood are far scenery (`docs/design.md`, decision log 2026-10-21): 3,362
-records (`report.json` `farOnly`), drawn only in the far layer, with no near tile, collider or
-storefront. Row 20 is no longer built west of x = 140; its tiles are `outside`
-(`san-mateo-county`), and the south wall is one straight run along z = 10,000.
+Francisco neighbourhood never make a tile built (`docs/design.md`, decision log 2026-10-21).
+Row 20 is no longer built west of x = 140: its tiles are `outside` (`san-mateo-county`), the
+strip's records there are far scenery only (`report.json` `farOnly`, with their tiles), and the
+south wall is one straight run along z = 10,000. The strip's records inside row 19's tiles (the
+500 m grid reaches past the county line) stay near records, drawn and solid: the renderer hides
+the far layer over a streamed tile, so a far-only record there would vanish as its tile loads.
+Moving the wall onto the county line (and those records to scenery) is the remaining step.
 
 **House data (W-15, W-29, W-37, W-38, W-46 to W-50; `pipeline/lib/house.ts`,
 `docs/qa/house-kit-spec.md` K0 to K8).**

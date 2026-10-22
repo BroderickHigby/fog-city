@@ -88,7 +88,8 @@ export interface Report {
   /** Buildings newer than the footprint layer (newer.ts, W-04). */
   newer: NewerStats;
   /** Records south of the county line drawn only in the far layer (W-42). */
-  farOnly: { records: number; ids: string[] };
+  /** The Daly City strip's far-only records (W-42): count, the first ids, and every tile they stand in (never a built one). */
+  farOnly: { records: number; ids: string[]; tiles: string[] };
   /** Ground cover: lakes, classes, trees (landcover.ts, W-11, W-18, W-34). */
   landcover: LandcoverStats | null;
   roads: RoadStats;
@@ -477,8 +478,12 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   const reconciled = reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground));
 
   // The Daly City strip (W-42, docs/design.md decision log 2026-10-21): records south of the
-  // county line, in no San Francisco neighbourhood, are far scenery: no near tile, collider or
-  // storefront. A tower or piece goes with its podium or source record.
+  // county line, in no San Francisco neighbourhood, never make a tile built. Those whose tile is
+  // built anyway (by San Francisco land and streets: the last built row reaches past the county
+  // line, and the south wall follows the 500 m tile grid) stay near records, drawn and solid, so
+  // nothing vanishes as that tile streams in (the renderer hides the far layer over a streamed
+  // tile); the rest are far scenery: no near tile, collider or storefront. A tower goes with its
+  // podium.
   const sfAt = districts.length > 0 ? new DistrictIndex(districts) : null;
   const southOut = new Set<string>();
   if (sfAt) {
@@ -488,13 +493,13 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       if (p[1] > SOUTH_CROP_Z && !sfAt.at(p[0], p[1])) southOut.add(b.id);
     }
   }
-  const farOnly = reconciled.filter((b) => southOut.has(b.id) || (b.meta.towerOf !== undefined && southOut.has(b.meta.towerOf)));
-  const buildings = farOnly.length ? reconciled.filter((b) => !(southOut.has(b.id) || (b.meta.towerOf !== undefined && southOut.has(b.meta.towerOf)))) : reconciled;
+  const isSouth = (b: Building): boolean => southOut.has(b.id) || (b.meta.towerOf !== undefined && southOut.has(b.meta.towerOf));
+  const selecting = southOut.size ? reconciled.filter((b) => !isSouth(b)) : reconciled;
 
   // Tile selection: a tile is built when it holds a building, a road passes through it, or it
   // has land (citywide: land inside San Francisco's neighbourhoods). Open water gets no file.
   const byTile = new Map<string, Building[]>();
-  for (const b of buildings) {
+  for (const b of selecting) {
     let l = byTile.get(b.tile);
     if (!l) byTile.set(b.tile, (l = []));
     l.push(b);
@@ -563,6 +568,18 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
       const [az, ax] = order(a.id), [bz, bx] = order(b.id);
       return az - bz || ax - bx;
     });
+  }
+  // The strip's records in a built tile stay near records (see above); the rest are far-only.
+  const builtTileIds = new Set(tiles.map((t) => t.id));
+  const tileOfRecord = new Map(reconciled.map((b) => [b.id, b.tile]));
+  const nearTile = (b: Building): boolean => builtTileIds.has(b.meta.towerOf !== undefined ? (tileOfRecord.get(b.meta.towerOf) ?? b.tile) : b.tile);
+  const farOnly = reconciled.filter((b) => isSouth(b) && !nearTile(b));
+  const buildings = farOnly.length ? reconciled.filter((b) => !(isSouth(b) && !nearTile(b))) : reconciled;
+  byTile.clear();
+  for (const b of buildings) {
+    let l = byTile.get(b.tile);
+    if (!l) byTile.set(b.tile, (l = []));
+    l.push(b);
   }
   assignTiles(districts, tiles);
   // The sim's ground: built tiles only (open water and land outside the city are 0 / absent).
@@ -965,7 +982,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     decks: decked.stats,
     overridesApplied,
     newer: newer.stats,
-    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20) },
+    farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20), tiles: [...new Set(farOnly.map((b) => b.tile))].sort() },
     landcover: landcover ? landcover.stats : null,
     roads: rStats,
     storefronts: sStats,

@@ -556,8 +556,17 @@ describe("citywide: gameplay layers", () => {
 describe("citywide: far-LOD", () => {
   it("holds every collider record, in cells that tile the world", () => {
     // Every collider record, plus the far-only Daly City strip (W-42): far scenery, no collider.
-    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number } }>(`${DIR}/report.json`);
-    expect(report.farOnly.records).toBeGreaterThan(1000);
+    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number; tiles: string[] } }>(`${DIR}/report.json`);
+    expect(report.farOnly.records).toBeGreaterThan(100);
+    // W-42: a far-only record never stands in a built tile (the renderer hides the far layer over
+    // a streamed tile, so it would vanish as the tile loads); its tiles are San Mateo County's.
+    const built = new Set(manifest.tiles.map((t) => t.id));
+    const area = new Map(manifest.outside.tiles.map((t) => [t.id, t.area]));
+    expect(report.farOnly.tiles.length).toBeGreaterThan(0);
+    for (const id of report.farOnly.tiles) {
+      expect(built.has(id), id).toBe(false);
+      expect(area.get(id), id).toBe("san-mateo-county");
+    }
     expect(report.far.records).toBe(report.colliderPack.buildings + report.farOnly.records);
     expect(manifest.far.reduce((s, c) => s + c.stats.records!, 0)).toBe(report.far.records);
     for (const c of manifest.far) {
