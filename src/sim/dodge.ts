@@ -739,9 +739,11 @@ const G = 9.81;
 
 /**
  * The band a vehicle's body can be in by the end of its next step: from its wheels' lowest to its
- * roof's highest. Its wheels end on the drawn ground somewhere under its reach (meshGroundRange
- * bounds it), on a roof within ROOF_STEP_M of them, or in the air where its vertical speed and
- * gravity take it. Worked out once per vehicle.
+ * roof's highest. A robotaxi stands on the drawn ground at its pose, which meshGroundRange bounds
+ * over its reach. A player's car (car.ts) ends on the surface under its wheels (the drawn ground
+ * under its reach, or a roof within ROOF_STEP_M of them), or in the air where its vertical speed
+ * and gravity take it; it follows the surface down by no more than its travel and push (at its
+ * steepest grade) before it is in the air. Worked out once per vehicle.
  */
 export function vehicleBandNext(world: World, v: Vehicle): { bottom: number; top: number } {
   if (v.band) return v.band;
@@ -766,9 +768,17 @@ export function vehicleBandNext(world: World, v: Vehicle): { bottom: number; top
     minZ = maxZ = v.mz;
   }
   const g = meshGroundRange(world, minX - e, minZ - e, maxX + e, maxZ + e);
-  const air = v.y + v.vy * DT - G * DT * DT;
-  const up = Math.max(g.max, v.y + ROOF_STEP_M, v.y + (v.vy > 0 ? v.vy * DT : 0));
-  const down = Math.min(g.min, air, v.y);
+  let up: number;
+  let down: number;
+  if (v.player === null) {
+    up = g.max;
+    down = g.min;
+  } else {
+    up = Math.max(g.max, v.y + ROOF_STEP_M, v.y + (v.vy > 0 ? v.vy * DT : 0));
+    const air = v.y + ((v.vy < 0 ? v.vy : 0) - G * DT) * DT;
+    const follow = v.y - ((v.speed + CAR_DV) * DT + CAR.maxPush) * CAR.maxClimbGrade;
+    down = Math.min(air, follow);
+  }
   v.band = { bottom: down - 0.05, top: up + v.top + 0.05 };
   return v.band;
 }
@@ -796,16 +806,21 @@ export function bandOverlapsNow(v: Readonly<Vehicle>, feet: number): boolean {
 
 /**
  * Could the vehicle be at the height of a body with its feet at `feet` when it reaches predicted
- * pose s? Its wheels then are on the drawn ground there, plus however far above the ground it is
- * now (on a deck, in the air), plus its climb if it is going up and one ROOF_STEP_M (a deck it
- * drives onto); no lower than the ground there, or its fall from where it is.
+ * pose s? On the ground now, it follows the drawn ground there (up or down a hill), and may climb
+ * one ROOF_STEP_M onto a deck. On a deck or in the air now (more than 0.3 m above the drawn
+ * ground): still over a surface near its height there (its deck goes on), on it; otherwise
+ * falling from where it is (its vertical speed and gravity), never below the ground.
  */
 function bandAtSample(world: World, v: Readonly<Vehicle>, s: Readonly<Sample>, feet: number): boolean {
-  const gs = meshGroundHeight(world, s.x, s.z);
-  const top = gs + v.elev + (v.vy > 0 ? v.vy * s.t : 0) + ROOF_STEP_M + v.top + 0.25;
-  const fall = (v.vy < 0 ? -v.vy : 0) * s.t + 0.5 * G * s.t * s.t;
-  const bottom = Math.max(gs, gs + v.elev - fall) - 0.3;
-  return feet < top && bottom < feet + BODY_HEIGHT_M;
+  const gm = meshGroundHeight(world, s.x, s.z);
+  const gs = surfaceHeight(world, s.x, s.z, v.y);
+  const climb = v.y + (v.vy > 0 ? v.vy * s.t : 0);
+  const top = Math.max(gs, climb) + ROOF_STEP_M + v.top + 0.25;
+  let bottom: number;
+  if (v.elev <= 0.3) bottom = gm;
+  else if (gs > gm + 0.3) bottom = gs;
+  else bottom = Math.max(gm, v.y + (v.vy < 0 ? v.vy : 0) * s.t - 0.5 * G * s.t * s.t);
+  return feet < top && bottom - 0.3 < feet + BODY_HEIGHT_M;
 }
 
 /**

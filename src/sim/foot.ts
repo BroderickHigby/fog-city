@@ -81,9 +81,10 @@ function tooSteep(world: World, x: number, z: number, y: number, dx: number, dz:
  * Vehicle bodies are hard limits for a walker: a resolved step `res` from (x0, z0) that ends in a
  * box (a person overlapping the walker pushed it there after the box pass, or the push budget
  * ran out) is pushed out of every box in full; when that would put it in a building that blocks
- * its band or across a wall, or it is wedged between two, the walker stays where it was (when
- * that was clear of them). The dodge (src/sim/dodge.ts) counts a walker inside a vehicle's body as
- * a contact, so no shove of the walker's own may ever end there.
+ * its band or across a wall, or it is wedged between two, the walker stays where it was, or (when
+ * that was in a box too) takes whichever of the three is least deep in one. The dodge
+ * (src/sim/dodge.ts) counts a walker inside a vehicle's body as a contact, so no shove of the
+ * walker's own may ever take it deeper into one.
  */
 export function keepOffVehicles(
   world: World,
@@ -96,11 +97,37 @@ export function keepOffVehicles(
 ): { x: number; z: number; hit: boolean } {
   if (boxes.length === 0 || !circleInBoxes(res.x, res.z, r, boxes)) return res;
   const q = pushOutOfBoxes(res.x, res.z, r, boxes);
-  if (q.clear && !circleBlockedBand(world, q.x, q.z, r, band.bottom, band.top) && !segmentCrossesWall(world.walls, x0, z0, q.x, q.z)) {
-    return { x: q.x, z: q.z, hit: true };
-  }
+  const reachable = !circleBlockedBand(world, q.x, q.z, r, band.bottom, band.top) && !segmentCrossesWall(world.walls, x0, z0, q.x, q.z);
+  if (q.clear && reachable) return { x: q.x, z: q.z, hit: true };
   if (!circleInBoxes(x0, z0, r, boxes)) return { x: x0, z: z0, hit: true };
-  return res;
+  let best = { x: x0, z: z0, hit: true };
+  let least = boxDepth(x0, z0, r, boxes);
+  for (const c of reachable ? [res, q] : [res]) {
+    const d = boxDepth(c.x, c.z, r, boxes);
+    if (d < least) {
+      least = d;
+      best = { x: c.x, z: c.z, hit: true };
+    }
+  }
+  return best;
+}
+
+/** How deep a circle is in the deepest of the boxes (0 when in none). */
+function boxDepth(x: number, z: number, r: number, boxes: ReadonlyArray<Readonly<Box>>): number {
+  let worst = 0;
+  for (const b of boxes) {
+    const fx = dsin(b.heading);
+    const fz = -dcos(b.heading);
+    const ox = x - b.x;
+    const oz = z - b.z;
+    const l = ox * -fz + oz * fx;
+    const f = ox * fx + oz * fz;
+    const dl = (l < 0 ? -l : l) - b.hw;
+    const df = (f < 0 ? -f : f) - b.hl;
+    const d = dl <= 0 && df <= 0 ? Math.max(dl, df) : Math.sqrt(Math.max(0, dl) * Math.max(0, dl) + Math.max(0, df) * Math.max(0, df));
+    if (r - d > worst) worst = r - d;
+  }
+  return worst;
 }
 
 export function stepFoot(
