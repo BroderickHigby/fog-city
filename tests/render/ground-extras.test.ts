@@ -4,7 +4,8 @@
 //    turns a lake or a beach into lawn) and draws the foliage nodes as instanced trees;
 //  - W-17 / W-40 (render half): skirts under every land border of a streamed tile, and at the
 //    three worst near/far borders of the QA report no probe or ray from the streamed side finds the
-//    sea through the ring.
+//    sea through the ring, and the half-metre slit between the near edge and the far terrain
+//    (seen from over the far side, where the streamed set has a notch) is closed by the skirt alone.
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import * as THREE from "three";
@@ -237,6 +238,9 @@ describe("skirts (W-17, W-40 render half)", () => {
     };
     let sea = 0;
     let probes = 0;
+    let slitProbes = 0;
+    let slitOpen = 0;
+    let slitOpenWithoutSkirt = 0;
     for (const b of BORDERS) {
       // The sim's ground around the border (every built tile within 1.5 km).
       const [bx, bz] = b.vertical ? [b.at, (b.from + b.to) / 2] : [(b.from + b.to) / 2, b.at];
@@ -262,7 +266,8 @@ describe("skirts (W-17, W-40 render half)", () => {
         const skGeo = new THREE.BufferGeometry();
         skGeo.setAttribute("position", new THREE.BufferAttribute(sk.positions, 3));
         skGeo.setIndex(new THREE.BufferAttribute(sk.indices, 1));
-        scene.add(new THREE.Mesh(skGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })));
+        const skirtMesh = new THREE.Mesh(skGeo, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+        scene.add(skirtMesh);
         // Far: every far cell's triangles within 1.5 km of the border, outside the streamed tile.
         const pos: number[] = [];
         const v = new THREE.Vector3();
@@ -305,8 +310,33 @@ describe("skirts (W-17, W-40 render half)", () => {
           return !!h && h.point.y > 0.02;
         };
         const out = side === 0 ? 1 : -1;
+        const noSkirt = scene.children.filter((o) => o !== skirtMesh);
         for (let s = b.from + 2.5; s < b.to; s += 5) {
           const at = (d: number): [number, number] => (b.vertical ? [b.at + out * d, s] : [s, b.at + out * d]);
+          {
+            // The half-metre slit between the near ground's edge and the far terrain just below
+            // it, seen from over the far side (where the streamed set has a notch, the far tile
+            // lies between the viewer and the near tile's edge): only the skirt closes it. A ray
+            // 20 degrees down into the slit must stop at the border, not run on under the near
+            // ground to whatever lies beyond.
+            const [ex, ez] = at(0);
+            const hb = ground(ex, ez);
+            if (hb > 1) {
+              const down = (20 * Math.PI) / 180;
+              const dir = new THREE.Vector3(b.vertical ? -out * Math.cos(down) : 0, -Math.sin(down), b.vertical ? 0 : -out * Math.cos(down));
+              const target = new THREE.Vector3(ex, hb - 0.25, ez);
+              const o = target.clone().addScaledVector(dir, -35);
+              ray.set(o, dir);
+              ray.far = 3000;
+              const first = (objs: THREE.Object3D[]): number => ray.intersectObjects(objs, false)[0]?.distance ?? Infinity;
+              // Count only rays that reach the border unobstructed (the slit is in view).
+              if (first(noSkirt) > 34 && first(noSkirt.filter((m) => m === farMesh)) > 34) {
+                slitProbes++;
+                if (first(scene.children) > 36) slitOpen++;
+                if (first(noSkirt) > 36) slitOpenWithoutSkirt++;
+              }
+            }
+          }
           for (const d of [-2, 2]) {
             const [px, pz] = at(d);
             if (ground(px, pz) <= 0.5) continue;
@@ -336,5 +366,9 @@ describe("skirts (W-17, W-40 render half)", () => {
     }
     expect(probes).toBeGreaterThan(200);
     expect(sea).toBe(0);
+    // The skirt's own proof on the real borders: without it the slit is open, with it closed.
+    expect(slitProbes).toBeGreaterThan(50);
+    expect(slitOpenWithoutSkirt).toBeGreaterThan(slitProbes / 2);
+    expect(slitOpen).toBe(0);
   }, 120_000);
 });
