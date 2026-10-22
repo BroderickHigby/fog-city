@@ -10,6 +10,7 @@ import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
+import { makeDrawnGroundFn } from "./ground.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
@@ -199,6 +200,7 @@ export class SceneRenderer {
       colliders: world.colliders,
       roads: world.roads,
       ground: world.ground,
+      drawnGround: makeDrawnGroundFn([...world.colliders.values()]),
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,

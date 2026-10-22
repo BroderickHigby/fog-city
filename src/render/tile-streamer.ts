@@ -32,7 +32,9 @@ import {
   nodeHalfWidth,
   streetTreeSpots,
   streetlightSpots,
+  type Spot,
 } from "./roads.ts";
+import { PropClearance } from "./prop-clearance.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
 import type { RoadContext } from "./tile-geometry.ts";
 import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
@@ -46,6 +48,11 @@ export interface StreamerOptions {
   colliders: ReadonlyMap<string, TileCollider>;
   roads: RoadGraph | null;
   ground: GroundFn;
+  /**
+   * The ground as the tiles draw it (ground.ts makeDrawnGroundFn: each lattice cell's two
+   * triangles), for what the renderer stands on it itself (street props). Default: `ground`.
+   */
+  drawnGround?: GroundFn;
   materials: SharedMaterials;
   night: NightMaterials;
   radius?: number;
@@ -120,6 +127,7 @@ export class TileStreamer {
   private readonly roadsByTile: Map<string, RoadEdge[]>;
   private readonly roadCtx: RoadContext | null;
   private readonly clearance: Map<string, number>;
+  private readonly propClearance: PropClearance;
   private readonly records = new Map<string, TileRecord>();
   private queue: string[] = [];
   private inFlight = 0;
@@ -144,6 +152,7 @@ export class TileStreamer {
     const edges = opts.roads?.edges ?? [];
     this.roadsByTile = assignEdgesToTiles(edges, this.bounds);
     this.clearance = opts.roads ? nodeClearance(opts.roads) : new Map();
+    this.propClearance = new PropClearance(edges, opts.colliders.values());
     this.roadCtx = opts.roads
       ? {
           ground: opts.ground,
@@ -421,10 +430,12 @@ export class TileStreamer {
       add(meshes.roads, m.road, "roads");
     }
     this.addGroundExtras(rec);
-    // Street props from the road graph.
+    // Street props from the road graph: on the ground, clear of every carriageway, building and
+    // water (W-44), never along a structure (a deck's or a bore's ground is not its surface).
     const edges = this.roadsByTile.get(rec.id) ?? [];
     if (edges.length > 0) {
-      const props = buildTileProps(streetlightSpots(edges, this.clearance), streetTreeSpots(edges, this.clearance), this.opts.ground, m, this.opts.night);
+      const spots = tilePropSpots(edges, this.clearance, this.propClearance);
+      const props = buildTileProps(spots.lamps, spots.trees, this.opts.drawnGround ?? this.opts.ground, m, this.opts.night);
       for (const o of props.nightOnly) o.visible = this.nightVisible;
       rec.props = props;
       rec.group.add(props.group);
@@ -503,6 +514,18 @@ export class TileStreamer {
     for (const id of [...this.records.keys()]) this.unload(id);
     this.queue = [];
   }
+}
+
+/** A street whose whole length lies on the ground and carries traffic: props line it. */
+export function onGroundStreet(e: RoadEdge): boolean {
+  return !e.deck && !e.tunnel && !e.stairs && !e.pedestrian && !e.gradeSeparated;
+}
+
+/** A tile's lamps and street trees: along its streets on the ground, each spot clear of every carriageway, building and water. */
+export function tilePropSpots(edges: readonly RoadEdge[], nodeClear: ReadonlyMap<string, number>, clearance: PropClearance): { lamps: Spot[]; trees: Spot[] } {
+  const streets = edges.filter(onGroundStreet);
+  const ok = (s: Spot): boolean => clearance.clear(s.x, s.z);
+  return { lamps: streetlightSpots(streets, nodeClear).filter(ok), trees: streetTreeSpots(streets, nodeClear).filter(ok) };
 }
 
 const _v = new THREE.Vector3();
