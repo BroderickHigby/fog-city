@@ -425,6 +425,19 @@ ACQUI-HIRED.
     drawn body (`ROBOTAXI_BODY`), not the circles traffic spaces it by. The dive is on top of all
     that.
     Occupied cable cars and buses count as people for the override.
+  - **Nothing puts anyone in a vehicle's way.** Getting out of a car never puts the player in a
+    vehicle's body or reach (a robotaxi's drawn body included) or in front of a moving one: they
+    get out on the first free side, or wait in the car until the vehicle has gone. A vehicle's
+    body is a hard limit for a player on foot: no push (a person bumping into them) moves them
+    into one, and nobody lands a dive or a leap on a player on foot. A player's own parked car is
+    never a threat to them, but it is solid: their dives and leaps go round it. A player who joins
+    gets their car placed clear of everyone on foot; the population refill never spawns anyone
+    within 0.7 m of a vehicle's body (a parked car included).
+  - **Heights.** A vehicle is in nobody's way who cannot be at its height: someone on a roof over
+    the street, or under a deck a car drives across, neither dives nor is leapt (the threat looks
+    at where the vehicle's wheels can be along its predicted path; the override at where they can
+    be by the next tick), and a walker on a roof meets no car parked below it. A leap stands its
+    body on what its line reached (a step it climbed, a street it dropped to).
   - Pedestrians cross only at crosswalks, during their signal phase, with gap acceptance: they
     never step out in front of a vehicle whose stopping distance exceeds the gap. Dodging comes
     before the override. The `?bench=` summary reports override activations per minute; the target
@@ -1314,3 +1327,13 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   upended; a person drawn in one piece at range, who cannot tuck, swings down onto their feet instead of flipping);
   it is drawn higher than the sim's hop, with a soft shadow on the ground under it, so the air beneath it shows from
   any camera. Every reproduction is a permanent test, and a seeded optimiser hunts for a touching driver nightly.
+- 2026-10-22 · **The Crazy Taxi rule, round 3** (second adversarial review). The reviewers raised the contact count
+  through ordinary play rather than placements: getting out of a car beside a robotaxi (the exit spot ignored its
+  drawn body, and the override then leapt the player into their own car, over and over) or as another car passed; a
+  person overlapping a player on foot shoving them into a parked car; the population refill spawning people inside a
+  parked player car; a join placing a car on someone. Each now keeps its body out of every vehicle by construction
+  (exits wait for a passing car, vehicle bodies are hard limits for walkers, nobody lands on a walker, own cars are
+  solid, spawns and joins keep clear), and contacts need overlapping heights (roofs, decks). The dodge's cost was cut
+  to well under half its extra (vehicles worked out only near someone, one route walk per robotaxi, coarse berth
+  checks: `docs/testing.md` "Sim bench"). The cross-engine run now fires the override too. Sim contract v4 is
+  unchanged in shape (still unreleased on this branch); its pinned replays held.

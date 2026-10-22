@@ -201,7 +201,13 @@ spot outside it, so a contact is impossible by construction. An adversarial revi
 corner as a car drifted in, bounced off a wall or spun at a standstill; robotaxis measured by
 circles that missed their corners; robotaxis creeping up and setting the override off). Every
 one is closed and kept as a test (`tests/sim/dodge-review.test.ts`), the fuzz gained the drivers
-that found them, and a seeded optimiser hunts for more every night.
+that found them, and a seeded optimiser hunts for more every night. A second review on
+2026-10-22 raised the count through ordinary play instead: getting out of a car beside a robotaxi
+or as a car passed, a person shoving a player on foot into a parked car, the population refill
+spawning people inside a parked car, a join placing a car on someone; and found the dodge
+diving people on roofs for cars in the street below, and doubling the sim's cost. Those are
+closed and kept too (`tests/sim/dodge-review-r3.test.ts`), the fuzz and the soak gained exits
+and joins, a multi-car optimiser joined the nightly, and the cost is measured (Sim bench, below).
 
 - `tests/sim/dodge.test.ts` (unit): the predicted footprint (0.6-1.5 s from the speed; the
   velocity, not the nose, so a slide counts, and a sliding car's nose too, in case its tyres
@@ -251,6 +257,27 @@ that found them, and a seeded optimiser hunts for more every night.
   Spofford Alley pass) makes them dive and never comes within 0.75 m while it moves.
   `tests/sim/agents.test.ts` also checks that no walker ever touches a robotaxi's drawn body
   over 4,000 ticks.
+- `tests/sim/dodge-review-r3.test.ts` (unit): the second review's reproductions, permanent (each
+  fails on the code before the fix). Getting out of the car beside a robotaxi standing 0.2-1.1 m
+  off the driver's side (out on a free side, never inside the robotaxi or the player's own car,
+  no contact, no override, in control 598 of 600 ticks); as another player's car passes 0.3-1.0 m
+  off the side at 10-38 m/s (never inside it, no personBump: out on the other side, or once it
+  has gone); in the grid city's traffic beside a robotaxi waiting in its lane 0.2-1.1 m off (no
+  contact, no override, in control, and the robotaxi drives off from 0.4 m; closer than that the
+  parked car itself is in its way, out or not); a player landing inside a robotaxi beside their
+  own car is put outside both, once. A person overlapping a player on foot by 0.2-0.5 m beside a
+  parked car, a car creeping at 0.8 m/s and a standing robotaxi: no contact (`keepOffVehicles`
+  too, as a unit); the multi-car optimiser's five recorded natural hits
+  (`tests/sim/dodge-review-r3-hits.json`: two cars head-on in a 3.4 m alley, cars round a
+  stopped car by a wall) replay clean. The population refill round eight cars parked on the
+  grid's sidewalks (seeds 1 and 7, 2,400 ticks): nobody spawns within 0.7 m of a car's body,
+  no contact; a join on a person, on a player on foot and on a crowd of 20: the car is placed
+  0.6 m or more from everyone, no contact, no override. Heights: a player 0.1-0.6 m in from the
+  edge of a 4 m or 10 m roof as a car passes below at 30 m/s neither dives nor is leapt; one on a
+  0.45 m deck still dives (a car can drive onto it); a player walks to a roof's edge over a car
+  parked below; a person under a 5 m deck as a car drives across it at 12-30 m/s is untouched;
+  the override's leap up a flight of steps stands on the step it reached, never inside one. A
+  player on foot beside their parked car dives round it, never into it.
 - `tests/sim/dodge-fuzz.test.ts` (unit, the no-touch fuzz): 160 seeded scenes
   (`tests/sim/dodge-scenes.ts`): a single person, a group of 20 with children and robots in it,
   players on foot, people backed against a wall or into an inside corner, people on 12-28%
@@ -258,14 +285,18 @@ that found them, and a seeded optimiser hunts for more every night.
   them, weaving, drifting (brake and steer into a slide toward them), handbrake turns, banking
   (up beside them, then 8-16 m short a slide or a hard turn at them) and a seeded random driver
   (steer, brake and throttle changed every 0.1 s), at 8-38 m/s from 25-90 m. Every tick: zero
-  contacts (the sim's count, the car's `personBumps` and an independent box test), and every
-  person, child and player on foot at least 0.75 m from the moving car except in a counted
-  override episode; overrides under 5% of dives; scenes replay identically.
+  contacts (the sim's count, every car's `personBumps` and an independent box test against every
+  car), and every person, child and player on foot at least 0.75 m from the moving car except
+  in a counted override episode; overrides under 5% of dives; scenes replay identically. About
+  a quarter of the scenes have a player parked among the people get out as the car comes, and a
+  fifth a player join with their car asked for in the middle of the crowd (both counted: at
+  least one scene in ten each).
 - `tests/sim/dodge-soak.test.ts` (unit, on the real city; skipped without the SF world): the
   clearance soak's per-PR tier (`tests/sim/dodge-soak.ts` has the drivers): from the Ferry
-  Building a chase driver (flat out at the nearest person ahead, never braking), a no-brake
-  route follower (swerving at anyone within 25 m) and a car flat out at a rival player on foot,
-  20 s each; chase and weave drivers 20 s each in the narrow places (Ross Alley, Spofford Alley,
+  Building a chase driver (flat out at the nearest person ahead, never braking; three players
+  join during it, each with their car asked for on the person nearest it), a no-brake route
+  follower (swerving at anyone within 25 m) and a car flat out at a rival player on foot, 20 s
+  each; chase and weave drivers 20 s each in the narrow places (Ross Alley, Spofford Alley,
   Waverly Place, Lombard's crooked block, from the review's starts and seeds); and a jump driver flat out over one of the city's
   sharpest clear crests (it must fly; no robotaxi on the road ahead at the start, and it goes
   for people on the road near the landing). In full traffic: zero contacts with any vehicle
@@ -284,7 +315,14 @@ that found them, and a seeded optimiser hunts for more every night.
   clearance itself (each printed); and the optimiser (`tests/sim/dodge-optimiser.ts`): a seeded
   (1+1) search, 1,500 evaluations in each of the open, a wall, a corner, a 3.4 m alley and a
   deck, for a car start (12-82 m out, any bearing, 6-38 m/s, sliding and yawing) and 3 s of
-  controls that touch someone; it must find none, and the override must never give up. One
+  controls that touch someone; it must find none, and the override must never give up; and the
+  multi-car optimiser (`tests/sim/dodge-optimiser-multi.ts`), 600 evaluations in each of eight
+  families (two cars converging, three in the open, two head-on in a 3.4 m alley, cars round a
+  stopped car by a wall or a standing robotaxi, over a crest, players on foot walking about,
+  people ringed round a parked car), with players on foot among the people: no contact (counted
+  where heights overlap: a car flying over someone off a crest touches nobody), no personBump,
+  no override failure. The chase and no-brake soak runs have players joining on the crowd every
+  10 s. One
   test per seed, so a part runs alone in a few minutes (`pnpm soak:nightly -t "five places, seed 1"`,
   `-t "narrow places"`, `-t "crests|no-touch fuzz|optimiser"`). The run of 2026-10-22, in those four
   parts (about 25 minutes in all): 0 contacts and 0 overrides in all 64 soak runs; least clearance
@@ -309,6 +347,38 @@ that found them, and a seeded optimiser hunts for more every night.
   exact round trip of a real state); two replays, one full of dives, replay identically through
   a JSON round trip and are pinned.
 
+### Sim bench (`scripts/bench/sim.ts`)
+
+The sim step's cost on the real city in Node: one anchor (a player weaving from the Ferry
+Building spawn, about 430 ambient agents) and four (plus three idle at Union Square, Chinatown
+and the Mission: the 1,024-agent cap), 300 warm-up ticks then 1,800 timed. `node
+scripts/bench/sim.ts` prints mean, p50, p95, p99 and max ms per tick; `--check` fails when the
+mean or p95 of either is more than 20% over `scripts/bench/sim-baseline.json` (median of three
+runs; `--update` re-records it); `--root <dir>` measures another checkout's sim on the same
+tiles. The baseline is the machine it was recorded on (it names it): re-record it on the runner
+that checks it. Run it alone (it holds the whole city).
+
+The dodge's cost, 2026-10-22, on a 4-core 2.1 GHz Xeon, two runs each (ms per tick, mean / p95):
+
+| | 1 anchor | 4 anchors |
+|---|---|---|
+| before the dodge (`ffe880b`, v3) | 1.40-1.46 / 3.25-3.54 | 3.83-3.99 / 6.08-6.42 |
+| the dodge after review round 2 (`580eadd`) | 3.42-3.46 / 5.73-6.04 | 7.25-7.67 / 10.3-10.6 |
+| after round 3 | 2.30-2.36 / 4.26-4.42 | 5.34-5.37 / 7.98-8.04 |
+
+So the dodge's extra went from +140% / +90% to +60% / +37% (v4 also runs about 7% more ambient
+agents round one anchor). Where it went: `stepDodge` built a vehicle (its prediction and reach)
+for every robotaxi and car every tick, and walked every robotaxi's route twice; now a vehicle is
+built only when a dodger is near it (most of the city's robotaxis have nobody near), a robotaxi
+is predicted only when someone is near the stretch of route braking leaves it (18 of 280 per
+tick with four anchors, from 69), and one route walk serves both. In `stepAgents`, every
+agent's route walk is shared by its look-ahead and its berth each tick, the planned connector
+past the current path is built only when a walk reaches it (a walker's short look-ahead almost
+never does), the berth looks along the route every 0.5 m before its fine 0.02 m look (only when
+someone on foot is near the route), and walkers check vehicle bodies in a hash of the boxes
+alone. With four anchors the dodge itself now costs about 1.0 ms a tick (finding who is near what
+0.5, the threat check 0.3, the override's candidates 0.1).
+
 ### End-to-end tests (Playwright, `tests/e2e/*.spec.ts`)
 
 
@@ -329,10 +399,12 @@ inputs and events must give bit-identical states on every JavaScript engine.
 
 1. **Pure sim** (tests tagged `@engines`, run in Chromium, Firefox and WebKit):
    `tests/e2e/determinism-scenario.ts` runs a scripted multiplayer session: three players,
-   then joins and leaves on fixed ticks (five players in all), p1 ramming the dev wall,
+   then joins and leaves on fixed ticks (seven players in all), p1 ramming the dev wall,
    random steering, braking and reversing, enter/exit presses (on foot when the sim has it),
-   out-of-range and NaN controls the sim must clamp, and ambient traffic when the sim and
-   world have a road graph. Node runs it in the test process; the browser runs the same file
+   out-of-range and NaN controls the sim must clamp, ambient traffic when the sim and
+   world have a road graph, people diving out of cars' way, and an override episode (p7
+   creeping into p6 on foot in open ground on dev: the dodge's clearance override must fire
+   there, so overrideSpot and the leap are compared between engines too). Node runs it in the test process; the browser runs the same file
    in `tests/e2e/sim-lab.html` (no renderer, no game loop) with the world fetched over HTTP
    exactly as the game loads it (`src/io/world-load.ts`: the collider pack, so its decoder
    runs in every engine, the road graph and the boundary).

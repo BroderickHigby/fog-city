@@ -19,8 +19,10 @@
 //     for a player, who may stand on a roof and dive along it or off its edge), a wall (the
 //     world's edge, the shore, a kerb rail over water) or a step of more than 1.5 m; a spot must
 //     be clear of every predicted footprint (with the margin), of stopped vehicles, and of other
-//     bodies and other divers' landing spots ("never into another path"), and the line to it must
-//     stay clear of the vehicle on the way (a space-time check) and of every stopped vehicle. The
+//     bodies and other divers' landing spots ("never into another path"; a player on foot's spot
+//     or landing is never landed on at all, since a walker is pushed by a body overlapping it), and
+//     the line to it must stay clear of the vehicle on the way (a space-time check) and of every
+//     stopped vehicle, a player's own parked car included (never a threat to them, but solid). The
 //     body leaps at its dive speed (7-9 m/s; pigeons flutter up, the dog bounds, robots skid and
 //     hop) with a hop, lands and recovers (about a second: gets up, brushes off); an agent then
 //     carries on along its path from where it landed. A dive under way is checked again every
@@ -32,9 +34,9 @@
 //     to, along a wall or off another car, lies in the disc whose diameter is its velocity's
 //     step), its speed change and its turn, any overlap that can shove it (another car, a
 //     building it was placed in), and, when it can touch something on that step, the turn its
-//     nose makes toward its slide as it scrapes (carVehicle, vehicleOfCar). A robotaxi near
-//     anyone: its exact poses along its route over the step (routeReach; a connector's vertices
-//     turn it at once). (Vehicle.mx..zone, zoneDistance.) A body's own dive step never ends
+//     nose makes toward its slide as it scrapes (carVehicle, vehicleOfCar). A robotaxi (worked
+//     out once someone is near it): its exact poses along its route over the step (routeReach; a
+//     connector's vertices turn it at once). (Vehicle.mx..zone, zoneDistance.) A body's own dive step never ends
 //     deeper in a vehicle's reach than its clearance (it stops short and is re-aimed next tick),
 //     so a dive never carries anyone into a vehicle.
 //  4. The hard guarantee, which no tuning removes: then any person, animal or player on foot
@@ -45,9 +47,22 @@
 //     step, nobody can then be inside one after it: the contact count stays 0. The spot is found
 //     on lines walked as a dive's are, then with any drop, then over buildings, and as a last
 //     resort anywhere outside the vehicles (counted in `failures`, which must stay 0): there is
-//     always a spot. Cars never collide with people at all (step.ts gives them no person or
+//     always a spot. The leap stands the body on the surface its line reached (a step it climbed, a
+//     street it dropped to). Cars never collide with people at all (step.ts gives them no person or
 //     animal obstacles): a car is never stopped, slowed or deflected by one, and its personBumps
 //     stays 0.
+//  5. Heights. A vehicle is not in the way of someone who cannot be at its height: a player on a
+//     roof over the street, a person under a deck a car drives across. The threat is skipped at a
+//     predicted pose the vehicle cannot be at their height at (sweepHitBand: it follows the drawn
+//     ground there, climbs one deck, falls from a deck or a jump), and the override and the contact
+//     count at a vehicle whose band over its next step cannot meet theirs (bandMeetsNext,
+//     vehicleBandNext: the ground under its reach bounds it); a contact needs the bands to overlap.
+//
+// Everything that puts a body somewhere keeps it out of the vehicles too (step.ts, foot.ts,
+// agents.ts): getting out of a car (never into a vehicle's body or reach, nor in front of a moving
+// one: the player waits in the car until it has gone), a player's walker (vehicle bodies are hard
+// limits: no shove takes it into one), a player joining (the car is placed clear of everyone on
+// foot), the population refill (never within SPAWN_VEHICLE_CLEAR_M of a vehicle's body).
 //
 // Robots dodge by the same rules but are not under the override: they stay solid to cars (a car
 // that reaches one stops against it), and water is the only way to beat one.
@@ -55,6 +70,10 @@
 // Robotaxis are measured by their drawn body (ROBOTAXI_BODY, a box), player cars by their body box.
 // Robotaxis keep a berth from people (agents.ts berthLimit) that makes both the dive and the
 // override unneeded in normal traffic.
+//
+// Cost: a vehicle is built (its prediction, its reach) only when a dodger is near it; a robotaxi
+// is predicted only when someone is near the stretch of route it can cover before braking stops
+// it; one route walk per robotaxi a tick serves its prediction and its reach.
 //
 // Counters (ext.dodge, DodgeExt): contacts (a protected body found inside a vehicle's body
 // before the override moved it: must stay 0; a player's car counts its own in personBumps),
