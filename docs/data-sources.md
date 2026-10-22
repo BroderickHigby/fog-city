@@ -740,7 +740,7 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
 
 The sim must hold the whole world's collision data deterministically, on every client and
 the server, whatever the renderer has streamed. The design's preferred option (a) ships:
-one binary pack for the whole city, **14.72 MB** (budget 15 MB), against 97.2 MB for the
+one binary pack for the whole city, **14.90 MB** (budget 15 MB), against 98.3 MB for the
 581 per-tile JSON colliders. Format FCWC version 1, specified in
 [`schemas/world-colliders.md`](../schemas/world-colliders.md): a 64-byte header, a tile
 table, every tile's 51 × 51 heightfield as int16 cm and its water mask as bits, then 20-byte
@@ -755,18 +755,18 @@ undersides (`BEXT`), every tile's decks (`DECK`), tunnels (`TUNL`) and movable s
 (`MOVE`), with their ids in a string table (`STRS`), and the inland-lake masks (`LAKE`, W-11:
 a lake sample is water at its height, which is the lake's level). The ground cover classes and
 the lakes' names stay in the JSON (`ground.cover`, `ground.lakes`): they are the renderer's.
-Encoded for the static web build (gzip level 6, base64) the pack is 14.02 MB, over that build's
+Encoded for the static web build (gzip level 6, base64) the pack is 14.19 MB, over that build's
 14 MB per-file margin, so `scripts/build-web.ts` writes it as parts the page joins.
 
-The per-tile JSON colliders still ship (97.2 MB, inside the 100 MB budget for them): they
+The per-tile JSON colliders still ship (98.3 MB, inside the 100 MB budget for them): they
 are today's contract for the sim's boot and the renderer, and they carry `meta` (footY,
 year, use, storeys) the pack leaves out. **The sim should switch to the pack**; see
 [What the sim and renderer must change](#what-the-sim-and-renderer-must-change).
 
 ## Far-LOD massing (`fX_Z.glb`)
 
-`pipeline/lib/far.ts`. Every record (the 192,802 collider records and the Daly City strip's
-3,362 far-only ones), simplified and merged per large cell, with the terrain beyond the
+`pipeline/lib/far.ts`. Every record (the 196,135 collider records and the Daly City strip's
+29 far-only ones), simplified and merged per large cell, with the terrain beyond the
 streaming radius. The grid starts at the far box's north-west corner with **3,500 m cells**;
 26 cells hold something. One glb per cell, one node `far`, one primitive, so one draw call per
 cell (budget: 40 draw calls, 600k triangles). The far box is the config's (`areas.json`
@@ -798,7 +798,7 @@ cell (budget: 40 draw calls, 600k triangles). The far box is the config's (`area
   ground under a hull. No normals; vertex colours from the largest member's palette; quantised
   and meshopt-compressed like the tiles.
 
-Result: 26 cells, **588,612 triangles, 7.76 MB**. Against the near records: every record is
+Result: 26 cells, **588,718 triangles, 7.77 MB**. Against the near records: every record is
 under a hull; every record 30 m or taller is within 3 m of its hull's roof at its interior
 point; the rest are within 5 m at p99 (`tests/pipeline/far-hulls.test.ts`). The layer is drawn
 only where no streamed tile is (the renderer's tile mask).
@@ -998,11 +998,11 @@ where surface roads cross it). Walkers do not use `sidewalks.json` yet. The orig
 
 | Files | Bytes |
 |---|---|
-| 581 × `t*.glb` (quantised + meshopt) | 146.99 MB (largest 0.77 MB, `t-4_-1`; budget 150 MB) |
-| 581 × `t*.collider.json` | 97.20 MB (largest 0.57 MB; budget 100 MB) |
-| `world.colliders.bin` | 14.72 MB (budget 15 MB) |
+| 581 × `t*.glb` (quantised + meshopt) | 148.45 MB (largest 0.77 MB, `t-4_-1`; budget 150 MB) |
+| 581 × `t*.collider.json` | 98.27 MB (largest 0.57 MB; budget 100 MB) |
+| `world.colliders.bin` | 14.90 MB (budget 15 MB) |
 | `sidewalks.json` | 10.54 MB |
-| 26 × `f*.glb` (far-LOD) | 7.76 MB |
+| 26 × `f*.glb` (far-LOD) | 7.77 MB |
 | `roads.json` | 4.63 MB |
 | `street-cleaning.json` | 3.73 MB |
 | `storefronts.json` | 1.52 MB |
@@ -1010,11 +1010,12 @@ where surface roads cross it). Walkers do not use `sidewalks.json` yet. The orig
 | `muni.json` | 0.66 MB |
 | `hydrants.json`, `districts.json`, `signals.json`, `fountains.json`, `boundary.json` | 0.73 MB |
 | `manifest.json` + `report.json` | 0.26 MB |
-| **Total (the whole city, 1,202 files)** | **290.01 MB** (290,005,948 bytes; budget 300 MB) |
+| **Total (the whole city, 1,202 files)** | **292.72 MB** (292,719,905 bytes; budget 300 MB) |
 
-The world QA's ground cover, foliage and house data (2026-10-22) added 18.8 MB to the tile glbs
-and 1.8 MB to the collider JSON; the tile glbs are within 3.1 MB of their budget, so the next
-per-tile addition needs room made first. A regeneration peaks at 5.0 GB of resident memory
+The world QA's ground cover, foliage and house data (2026-10-22) added about 20 MB to the tile
+glbs and 3 MB to the collider JSON. Three budgets are now close: the tile glbs (1.55 MB left),
+the collider JSON (1.73 MB) and the collider pack (0.10 MB), so the next per-tile or per-record
+addition needs room made first. A regeneration peaks at 5.0 GB of resident memory
 (`--max-old-space-size=8192`).
 
 Budgets live in `tests/pipeline/budgets.json` and `tests/pipeline/budgets.test.ts` enforces
@@ -1080,7 +1081,7 @@ memory, and compares SHA-256 of every file.
   rebuilt (2012–2015) on new alignments: the Battery tunnel is bored northbound and the Main
   Post tunnel southbound, where the DEM's hill stands over the line; the other direction's
   hill is too shallow (under 3 m of cover) and runs over it.
-* **The collider pack is 0.28 MB under its budget** (14.72 of 15 MB raw). The static web build
+* **The collider pack is 0.10 MB under its budget** (14.90 of 15 MB raw). The static web build
   splits any encoded file over 14 MB into parts (`scripts/build-web.ts`), so the host's 15 MB
   file limit is not the constraint; the pipeline budget is.
 * **Lakes are flat water, not basins.** A lake is its outline flattened to its level (up to
