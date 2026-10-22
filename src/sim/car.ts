@@ -35,7 +35,7 @@
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
-import { segmentCrossesWall } from "./boundary.ts";
+import { onWater, segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, meshGroundHeight, railPush, supported, surfaceAt, type World } from "./world.ts";
 
 export const CAR = {
@@ -142,26 +142,41 @@ export const CLEAR_SPOT_RADIUS_M = 30;
 
 /**
  * Where to put a car asked for at (x, z) facing `heading` (a spawn, a join, a respawn or a
- * teleport): there, when its body is clear of every building, wall and other car (`others`);
- * else the nearest clear spot on rings 1 m apart out to CLEAR_SPOT_RADIUS_M, reached from the
- * requested spot without crossing a wall, in a fixed order (so every client picks the same).
+ * teleport): there, when its body is clear of every building, wall and other car (`others`)
+ * and on dry land (no corner of it on the water side of a shore, the Bay's or a lake's: onWater);
+ * else the nearest such spot on rings 1 m apart out to CLEAR_SPOT_RADIUS_M, reached from the
+ * requested spot without crossing a wall (from a spot on the water, across the shore to the
+ * nearest dry one), in a fixed order (so every client picks the same).
  * A car placed overlapping a footprint would otherwise be pushed out of it (at most
  * CAR.maxPush a tick). When nothing within reach is clear, the requested spot.
  */
 export function clearCarSpot(world: World, x: number, z: number, heading: number, others: ReadonlyArray<Readonly<Box>> = []): { x: number; z: number } {
   const circles: Circle[] = others.flatMap((b) => carCircles(b));
+  const shore = world.walls?.shore ?? null;
+  const fx = dsin(heading);
+  const fz = -dcos(heading);
+  const wet = (px: number, pz: number): boolean => {
+    if (!shore) return false;
+    for (const [l, f] of RAIL_CORNERS) {
+      if (onWater(shore, px - fz * l * CAR.halfWidth + fx * f * CAR.halfLength, pz + fx * l * CAR.halfWidth + fz * f * CAR.halfLength)) return true;
+    }
+    return onWater(shore, px, pz);
+  };
   const clear = (px: number, pz: number): boolean => {
+    if (wet(px, pz)) return false;
     const y = meshGroundHeight(world, px, pz);
     return !boxBlocked(world, { x: px, z: pz, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, y + ROOF_STEP_M, circles, y + CAR.bodyHeight);
   };
   if (clear(x, z)) return { x, z };
+  // From the water, the way to the land crosses the shore's wall.
+  const fromWater = shore !== null && onWater(shore, x, z);
   for (let r = 1; r <= CLEAR_SPOT_RADIUS_M; r++) {
     const n = 8 * r;
     for (let k = 0; k < n; k++) {
       const a = heading + (2 * Math.PI * k) / n;
       const px = x + dsin(a) * r;
       const pz = z - dcos(a) * r;
-      if (segmentCrossesWall(world.walls, x, z, px, pz) || segmentCrossesWall(world.barriers, x, z, px, pz)) continue;
+      if ((!fromWater && segmentCrossesWall(world.walls, x, z, px, pz)) || segmentCrossesWall(world.barriers, x, z, px, pz)) continue;
       if (clear(px, pz)) return { x: px, z: pz };
     }
   }

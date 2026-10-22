@@ -525,8 +525,17 @@ function onSegment(s: Float64Array, k: number, x: number, z: number): { t: numbe
   return { t, inner: raw === t, d2: px * px + pz * pz, half: s[o + 3]! + (s[o + 7]! - s[o + 3]!) * t, y: s[o + 1]! + (s[o + 5]! - s[o + 1]!) * t };
 }
 
-/** Two decks whose centrelines are within this many metres of the same distance from a body are equally near it (surfaceAt): the one nearer its feet wins. */
-const DECK_OFF_TIE = 0.05;
+/**
+ * Where decks overlap, a body is on the one with the least cost (surfaceAt): its distance from
+ * the deck's centreline, metres, plus DECK_HEIGHT_COST per metre the deck is above its feet and
+ * DECK_DROP_COST per metre below them. So the nearest centreline wins, and between nearly
+ * equally near ones (at a ramp's gore) the one at its feet.
+ */
+const DECK_HEIGHT_COST = 1;
+const DECK_DROP_COST = 2;
+
+/** The body is on a deck when one is at most this far above its feet, or below them (surfaceAt); else it steps up onto the highest. */
+const DECK_STAY_M = 0.15;
 
 /** A segment's round end that covers a point counts only when no segment of its own ribbon, or carrying it on from that end, covering the point beside itself is within this height of it (covering). */
 const CAP_MERGE_M = 1;
@@ -629,27 +638,30 @@ export function surfaceAt(world: World, x: number, z: number, feet: number, roof
       }
       if (bore > -Infinity) return { y: bore, kind: "tunnel", ceiling };
       if (kind === "deck") {
-        // A body on a deck stays on it: where decks overlap (a freeway's two directions side by
-        // side, their ribbons wider than the gap between them, or a ramp leaving it), of the
-        // decks it could be on (from RAIL_DROP_M below its feet to ROOF_STEP_M above them) the
-        // one whose centreline is nearest the body (refX, refZ: a car's wheels ask for its
-        // centre, so all four keep to the deck the car is on) wins over a higher one, so a car
-        // keeps to its own deck as another rises or falls away beside it, also while it rides a
-        // little over its own deck at a crest, and a ramp diverging from a freeway does not
-        // take the wheels on its side. (Between equally near centrelines, the one nearer the
-        // feet.) Decks stacked apart by a clearance never share that band.
-        let off = Infinity;
-        let near = Infinity;
+        // A body on a deck stays on it. Where decks overlap (a freeway's two directions side by
+        // side, their ribbons wider than the gap between them; a ramp leaving it) and one is at
+        // or under its feet, of the decks it could be on (from RAIL_DROP_M below its feet to
+        // ROOF_STEP_M above them) the one of least cost (DECK_HEIGHT_COST): the nearest
+        // centreline to the body (refX, refZ: a car's wheels ask for its centre, so all four keep
+        // to the deck the car is on), rather than the highest. So a car keeps to its own deck as
+        // another rises or falls away beside it, also while it rides a little over its own deck
+        // at a crest, and a ramp diverging from a freeway does not take the wheels on its side.
+        // With no deck at or under its feet (a ramp's foot from the ground) it steps up onto the
+        // highest. Decks stacked a clearance apart never share that band.
+        let score = Infinity;
+        let pick = best;
+        let under = false;
         for (const hit of hits) {
           if (s[hit.k * SURF_STRIDE + 8]! >= 0 || hit.y > lim || hit.y < g || hit.y < feet - RAIL_DROP_M) continue;
-          const d = hit.y > feet ? hit.y - feet : feet - hit.y;
-          const q = refX === x && refZ === z ? hit.dist : Math.sqrt(onSegment(s, hit.k, refX, refZ).d2);
-          if (q < off - DECK_OFF_TIE || (q <= off + DECK_OFF_TIE && d < near)) {
-            off = q;
-            near = d;
-            best = hit.y;
+          if (hit.y <= feet + DECK_STAY_M) under = true;
+          const d = hit.y > feet ? hit.y - feet : DECK_DROP_COST * (feet - hit.y);
+          const q = (refX === x && refZ === z ? hit.dist : Math.sqrt(onSegment(s, hit.k, refX, refZ).d2)) + DECK_HEIGHT_COST * d;
+          if (q < score) {
+            score = q;
+            pick = hit.y;
           }
         }
+        if (under) best = pick;
       }
       if (best > -Infinity) h = best;
       else {

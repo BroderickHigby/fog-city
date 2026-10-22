@@ -12,6 +12,7 @@ import {
   clearCarSpot,
   makeCar,
   makeFoot,
+  onWater,
   pointInPolygon,
   stepCar,
   stepFoot,
@@ -137,6 +138,55 @@ describe.skipIf(!SF)("inland lakes are water (W-11)", () => {
           expect(c.hits, `lake ${id}, side ${k}: stopped at the shore`).toBeGreaterThan(0);
         }
       }
+    },
+    CITY_MS,
+  );
+});
+
+describe.skipIf(!SF)("spawns never on the water", () => {
+  it(
+    "clearCarSpot never puts a car on the water: from the review's North Lake and Bay spots, and from round every lake and along the Bay's shore, it returns a dry spot",
+    () => {
+      const { world } = sfWorld();
+      const shore = world.walls!.shore;
+      const dry = (x: number, z: number, heading: number): boolean => {
+        const fx = Math.sin(heading);
+        const fz = -Math.cos(heading);
+        for (const [l, f] of [[1, 1], [-1, 1], [1, -1], [-1, -1], [0, 0]] as const) {
+          if (onWater(shore, x - fz * l * CAR.halfWidth + fx * f * CAR.halfLength, z + fx * l * CAR.halfWidth + fz * f * CAR.halfLength)) return false;
+        }
+        return true;
+      };
+      // At a6caf4e: inside the North Lake ring, and on the Bay off the Embarcadero (0.8 m ground).
+      for (const [x, z] of [[-8899.7, 7508.3], [-430, -955]] as const) {
+        expect(onWater(shore, x, z), `${x}, ${z} is water`).toBe(true);
+        const p = clearCarSpot(world, x, z, 0);
+        expect(dry(p.x, p.z, 0), `from ${x}, ${z}: ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`).toBe(true);
+      }
+      // Every 50th shore vertex (the Bay's and every lake's), 3 m to each side, four headings.
+      const boundary = loadWorldFiles("sf").boundary as unknown as { shore: Array<{ points: number[][] }> };
+      let tried = 0;
+      const wet: string[] = [];
+      for (const ring of boundary.shore) {
+        for (let i = 0; i + 1 < ring.points.length; i += 50) {
+          const [ax, az] = ring.points[i]!;
+          const [bx, bz] = ring.points[i + 1]!;
+          const len = Math.hypot(bx! - ax!, bz! - az!);
+          if (len < 0.5) continue;
+          for (const side of [3, -3]) {
+            const x = ax! + ((bz! - az!) / len) * side;
+            const z = az! - ((bx! - ax!) / len) * side;
+            for (const heading of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+              const p = clearCarSpot(world, x, z, heading);
+              tried++;
+              // (Where nothing dry and clear is within reach, it keeps the requested spot.)
+              if (!dry(p.x, p.z, heading) && (p.x !== x || p.z !== z)) wet.push(`${x.toFixed(1)}, ${z.toFixed(1)} -> ${p.x.toFixed(1)}, ${p.z.toFixed(1)}`);
+            }
+          }
+        }
+      }
+      expect(tried).toBeGreaterThan(500);
+      expect(wet).toEqual([]);
     },
     CITY_MS,
   );

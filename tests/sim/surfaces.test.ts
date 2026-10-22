@@ -12,6 +12,7 @@ import {
   contradictoryDecks,
   makeCar,
   makeFoot,
+  onStairs,
   railPush,
   roadSurfaceHeight,
   stepCar,
@@ -254,6 +255,18 @@ describe("stairways are walked, never driven", () => {
     const along = drive({ ...makeCar(-180, 200, EAST, 0), speed: 15 }, I(0.5), 600, w);
     expect(along[along.length - 1]!.x).toBeGreaterThan(-20);
     expect(along[along.length - 1]!.hits).toBe(0);
+  });
+
+  it("the stairs (the walker's steeper grade) run from the street's kerb to the stairway's top, never into the street", () => {
+    // The street at the foot is 10 m wide: its kerb is 5 m from the node at (-100, 200).
+    expect(onStairs(w.stairs, -100, 201)).toBe(false);
+    expect(onStairs(w.stairs, -101.5, 204.9)).toBe(false);
+    expect(onStairs(w.stairs, -100, 205.1)).toBe(true);
+    expect(onStairs(w.stairs, -98.5, 230)).toBe(true);
+    expect(onStairs(w.stairs, -97.5, 230)).toBe(false);
+    // The top end meets no street: the stairs end there, flat.
+    expect(onStairs(w.stairs, -100, 259.9)).toBe(true);
+    expect(onStairs(w.stairs, -100, 261)).toBe(false);
   });
 
   it("a walker climbs the stairs from the street to the top", () => {

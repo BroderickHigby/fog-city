@@ -20,7 +20,11 @@ import {
 import { toLocal } from "../../../src/geo/project.ts";
 import { CITY_MS, SF, fixture, moveExcess, sfWorld } from "./load.ts";
 
-/** Walls a walker is held at that the regenerated world keeps under the QA's 2.5 m (cross-track, Pipeline), with their height over its feet. */
+/**
+ * Walls a walker is held at that the regenerated world keeps under the QA's 2.5 m (cross-track,
+ * Pipeline, W-05), with their height over its feet. When Pipeline raises them, empty this list
+ * and restore the 2.5 m bound below in place of FOOT.height.
+ */
 const LOW_WALLS: string[] = ["201006.0002771-s1 2.49", "201006.0006258 2.47", "201006.0007825 2.46"];
 
 interface Site {
