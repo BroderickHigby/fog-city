@@ -23,6 +23,7 @@ import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { LookFn } from "./house-kit.ts";
 import { loadKitLib } from "./house-kit-mesh.ts";
+import { parseKitDoc } from "./house-kit-props.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
@@ -39,6 +40,8 @@ export interface RenderOptions {
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
   landmarks: unknown;
+  /** public/models/house-kit/house-kit.json (the house kit's prototypes); null or absent: no kit geometry. */
+  houseKit?: unknown;
 }
 
 export interface WorldData {
@@ -221,7 +224,8 @@ export class SceneRenderer {
     this.far.start();
     // The house kit's prototypes (bays, stoops, mouldings, roof props): near tiles build their
     // kit once they arrive; a prototype that fails to load is simply not drawn.
-    void loadKitLib(this.registry).then((lib) => this.streamer.setKitLib(lib));
+    const kitDoc = parseKitDoc(opts.houseKit);
+    if (kitDoc) void loadKitLib(this.registry, kitDoc).then((lib) => this.streamer.setKitLib(lib, kitDoc));
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, opts.shadows);
     this.scene.add(this.actors.group);

@@ -40,7 +40,7 @@ import { sidewalkMesh, sidewalksByTile, type SidewalkGraph, type SidewalkLine } 
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
 import { decodeFronts, type FacadeMeshOut, type FrontRow, type LookFn } from "./house-kit.ts";
 import { applyHouseKit, kitGeometry } from "./house-kit-mesh.ts";
-import { buildShopfronts, mergePlacements, planHouseKit, type ProtoLib, type ShopPlan, type StorefrontAnchor } from "./house-kit-props.ts";
+import { buildShopfronts, mergePlacements, planHouseKit, type KitDoc, type ProtoLib, type ShopPlan, type StorefrontAnchor } from "./house-kit-props.ts";
 import { shopfrontFor } from "../content/storefronts.ts";
 import type { RoadContext } from "./tile-geometry.ts";
 import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
@@ -178,6 +178,7 @@ export class TileStreamer {
   private loader: (url: string) => Promise<GLTF>;
   private nightVisible = false;
   private kitLib: ProtoLib | null = null;
+  private kitDoc: KitDoc | null = null;
   private shopsByTile: Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>> | null = null;
   private camX = NaN;
   private camZ = NaN;
@@ -276,8 +277,9 @@ export class TileStreamer {
   }
 
   /** The house-kit prototypes (house-kit-mesh.ts loadKitLib); near tiles get their kit from then on. */
-  setKitLib(lib: ProtoLib): void {
+  setKitLib(lib: ProtoLib, doc: KitDoc): void {
     this.kitLib = lib;
+    this.kitDoc = doc;
     for (const r of this.records.values()) this.dropKit(r);
   }
 
@@ -363,10 +365,10 @@ export class TileStreamer {
   private buildKit(rec: TileRecord): void {
     rec.kit = [];
     const mat = this.opts.materials.houseKit;
-    if (this.kitLib && rec.kitSrc) {
+    if (this.kitLib && this.kitDoc && rec.kitSrc) {
       const collider = rec.collider ?? this.opts.colliders.get(rec.id);
       const roofs = new Map((collider?.buildings ?? []).map((b) => [b.id, { footprint: b.footprint, topY: b.topY, baseY: b.baseY }]));
-      const { placements, stats } = planHouseKit(rec.kitSrc.fronts, rec.kitSrc.prep.frontWalls, rec.kitSrc.prep.buildings, roofs);
+      const { placements, stats } = planHouseKit(this.kitDoc, rec.kitSrc.fronts, rec.kitSrc.prep.frontWalls, rec.kitSrc.prep.buildings, roofs);
       const merged = mergePlacements(this.kitLib, placements);
       if (merged.triangles > 0) {
         const mesh = new THREE.Mesh(kitGeometry(merged), mat);

@@ -7,13 +7,20 @@
 // assets/blender/runtime/house-kit.ts) and the Content storefront kit (src/content/storefronts.ts).
 // Cosmetic only: nothing here touches the sim or its colliders.
 
-import kitJson from "../../public/models/house-kit/house-kit.json" with { type: "json" };
 import { bayLayout, rooflineLayout, roofLayout, stoopLayout, type Instance, type KitDoc } from "../../assets/blender/runtime/house-kit.ts";
 import type { StorefrontType } from "../content/storefronts.ts";
 import { hashString, unit } from "./hash.ts";
 import { BF_LANDMARK, BF_ROW, facadeFeatures, FRONT_BAY, FRONT_ROOFLINE, FRONT_SHOP, FRONT_STOOP, hexToLinear, type BuildingKit, type FrontRow } from "./house-kit.ts";
 
-export const KIT = kitJson as unknown as KitDoc;
+/** The prototypes' contract (public/models/house-kit/house-kit.json), as the layout maths reads it. */
+export type { KitDoc };
+
+/** A house-kit.json that names every prototype the kit uses, else null. */
+export function parseKitDoc(doc: unknown): KitDoc | null {
+  const d = doc as KitDoc | null;
+  if (!d || typeof d !== "object" || !d.prototypes || !d.rules || typeof d.storeyM !== "number") return null;
+  return KIT_PROTOS.every((k) => d.prototypes[k]) ? d : null;
+}
 
 /** One prototype node's triangles, in the prototype's frame. */
 export interface ProtoNode {
@@ -89,6 +96,7 @@ const GREY: readonly [number, number, number] = [0.45, 0.44, 0.42];
  * props on flat roofs of 4 storeys or more (`roofs`: each building's footprint and roof height).
  */
 export function planHouseKit(
+  KIT: KitDoc,
   fronts: readonly FrontRow[],
   frontWalls: readonly number[],
   buildings: readonly BuildingKit[],

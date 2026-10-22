@@ -2,7 +2,7 @@
 // (house-kit.ts prepareFacades) and attaches the per-wall and per-building attributes.
 
 import * as THREE from "three";
-import { KIT, KIT_PROTOS, type KitMesh, type ProtoLib, type ProtoNode } from "./house-kit-props.ts";
+import { KIT_PROTOS, type KitDoc, type KitMesh, type ProtoLib, type ProtoNode } from "./house-kit-props.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { prepareFacades, WALL_FRONT, WALL_PARTY, WALL_REAR, type FacadeMeshOut, type FrontRow, type LookFn } from "./house-kit.ts";
 
@@ -77,7 +77,7 @@ function flat(geo: THREE.BufferGeometry, name: string): THREE.BufferAttribute | 
  * The house-kit prototypes (public/models/house-kit/*.glb) as merge-ready triangles, through the
  * model registry; a prototype that fails to load is left out (its pieces are simply not drawn).
  */
-export async function loadKitLib(registry: ModelRegistry<THREE.Object3D>): Promise<ProtoLib> {
+export async function loadKitLib(registry: ModelRegistry<THREE.Object3D>, KIT: KitDoc): Promise<ProtoLib> {
   const lib = new Map<string, Map<string, ProtoNode>>();
   await Promise.all(
     KIT_PROTOS.map(async (key) => {

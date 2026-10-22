@@ -23,7 +23,7 @@
 // Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
 // move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
 
-import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
+import { houseKit as houseKitDoc, landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
 import { openAssets } from "./io/assets.ts";
 import { loadWorldFiles } from "./io/world-load.ts";
@@ -172,6 +172,7 @@ async function boot(): Promise<void> {
       maxPixelRatio: numParam(params, "pr") ?? 1.5,
       models: new Set(models),
       landmarks: landmarksDoc,
+      houseKit: houseKitDoc,
     },
   );
   // ?debug=1 exposes the renderer for poking at from the console. Never used by tests.
