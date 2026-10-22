@@ -32,13 +32,13 @@
       "built": 9
     }
   ],
-  "tiles": 584,
+  "tiles": 581,
   "selection": {
     "candidates": 870,
-    "built": 584,
+    "built": 581,
     "water": 234,
-    "outside": 52,
-    "withBuildings": 522,
+    "outside": 56,
+    "withBuildings": 519,
     "withRoads": 533,
     "withLand": 574
   },
@@ -54,8 +54,8 @@
     "withYear": 165965,
     "withStories": 161553,
     "heightLidar": 173188,
-    "heightStories": 2411,
-    "heightOverride": 5,
+    "heightStories": 2410,
+    "heightOverride": 6,
     "twoTier": 2328,
     "maxOutlier": 10922,
     "condo": 5016,
@@ -81,11 +81,11 @@
     "ringsRepaired": 322
   },
   "terrace": {
-    "terraced": 3915,
-    "strips": 17551,
+    "terraced": 3964,
+    "strips": 17955,
     "slivers": 29,
-    "roofsRaised": 1465,
-    "steepStrips": 157
+    "roofsRaised": 1466,
+    "steepStrips": 161
   },
   "clearance": {
     "towersOnStreets": [
@@ -381,6 +381,7 @@
       "c15143000",
       "c15145000",
       "c15159000",
+      "c15196000",
       "c15207000",
       "c15247000",
       "c15260000",
@@ -813,9 +814,23 @@
       "201006.0154545-b1",
       "201006.0159439-b2",
       "201006.0159809-b1",
-      "201006.0166106-b1"
+      "201006.0166106-b1",
+      "201006.9000162-b2",
+      "201006.9000164-b1",
+      "201006.9000165-b3",
+      "201006.9000166-b3",
+      "201006.9000166-b4",
+      "201006.9000167-b2",
+      "201006.9000167-b3",
+      "201006.9000168-b2",
+      "201006.9000169-b2",
+      "201006.9000170-b2",
+      "201006.9000171-b2",
+      "201006.9000172-b2",
+      "201006.9000173-b2",
+      "201006.9000174-b1"
     ],
-    "cut": 1377,
+    "cut": 1427,
     "stairsDropped": [
       "c10939000"
     ],
@@ -1124,10 +1139,268 @@
     "201006.0000060",
     "201006.0000548",
     "201006.0001563",
+    "201006.0002719",
     "201006.0009087",
     "201006.0062170",
     "201006.0168289"
   ],
+  "newer": {
+    "candidates": 9043,
+    "missing": 1314,
+    "lots": 197,
+    "lotsCovered": 0,
+    "lotsNoStories": 0,
+    "lotsNoShape": 0,
+    "added": 197,
+    "twoTier": 6,
+    "overridesAdded": [
+      "201006.9900001",
+      "201006.9900002",
+      "201006.9900003",
+      "201006.9900004"
+    ],
+    "retired": [
+      "201006.0000232",
+      "201006.0001736"
+    ]
+  },
+  "farOnly": {
+    "records": 3362,
+    "ids": [
+      "201006.0000002",
+      "201006.0000002-s1",
+      "201006.0000002-s10",
+      "201006.0000002-s100",
+      "201006.0000002-s101",
+      "201006.0000002-s102",
+      "201006.0000002-s103",
+      "201006.0000002-s104",
+      "201006.0000002-s105",
+      "201006.0000002-s106",
+      "201006.0000002-s107",
+      "201006.0000002-s108",
+      "201006.0000002-s109",
+      "201006.0000002-s11",
+      "201006.0000002-s110",
+      "201006.0000002-s111",
+      "201006.0000002-s112",
+      "201006.0000002-s113",
+      "201006.0000002-s114",
+      "201006.0000002-s115"
+    ]
+  },
+  "landcover": {
+    "lakes": [
+      {
+        "id": "120028664",
+        "name": "Lake Merced (North Lake)",
+        "y": 5.3,
+        "samples": 3647,
+        "flattenedMaxM": 2.49
+      },
+      {
+        "id": "120028665",
+        "name": "Lake Merced (South Lake)",
+        "y": 5.25,
+        "samples": 8372,
+        "flattenedMaxM": 2.48
+      },
+      {
+        "id": "30934173",
+        "name": "Pine Lake",
+        "y": 12.8,
+        "samples": 112,
+        "flattenedMaxM": 0.62
+      },
+      {
+        "id": "120026408",
+        "name": "Stow Lake",
+        "y": 87,
+        "samples": 534,
+        "flattenedMaxM": 2.43
+      },
+      {
+        "id": "30933567",
+        "name": "Spreckels Lake",
+        "y": 40.9,
+        "samples": 241,
+        "flattenedMaxM": 0.24
+      },
+      {
+        "id": "30933569",
+        "name": "Lloyd Lake",
+        "y": 59.61,
+        "samples": 67,
+        "flattenedMaxM": 1.64
+      },
+      {
+        "id": "30933587",
+        "name": "Elk Glen Lake",
+        "y": 50.8,
+        "samples": 69,
+        "flattenedMaxM": 0.86
+      },
+      {
+        "id": "30933591",
+        "name": "Metson Lake",
+        "y": 56.02,
+        "samples": 28,
+        "flattenedMaxM": 0.68
+      },
+      {
+        "id": "30933593",
+        "name": "Mallard Lake",
+        "y": 44.5,
+        "samples": 38,
+        "flattenedMaxM": 0.73
+      },
+      {
+        "id": "30933525",
+        "name": "North Lake",
+        "y": 18.2,
+        "samples": 114,
+        "flattenedMaxM": 0.68
+      },
+      {
+        "id": "30933585",
+        "name": "Middle Lake",
+        "y": 21.15,
+        "samples": 19,
+        "flattenedMaxM": 0.84
+      },
+      {
+        "id": "30933595",
+        "name": "South Lake",
+        "y": 25.83,
+        "samples": 33,
+        "flattenedMaxM": 0.64
+      },
+      {
+        "id": "41669937",
+        "name": "Lily Pond",
+        "y": 74.35,
+        "samples": 23,
+        "flattenedMaxM": 1.97
+      },
+      {
+        "id": "120012573",
+        "name": "Golden Gate Park reservoir",
+        "y": 37.2,
+        "samples": 78,
+        "flattenedMaxM": 0.86
+      },
+      {
+        "id": "120026402",
+        "name": "Strawberry Hill pond",
+        "y": 113.8,
+        "samples": 12,
+        "flattenedMaxM": 1.82
+      },
+      {
+        "id": "120026404",
+        "name": "Strawberry Hill pool",
+        "y": 127.6,
+        "samples": 5,
+        "flattenedMaxM": 1.04
+      },
+      {
+        "id": "120026406",
+        "name": "Golden Gate Park pond",
+        "y": 71.46,
+        "samples": 13,
+        "flattenedMaxM": 1.26
+      },
+      {
+        "id": "41669935",
+        "name": "Mountain Lake",
+        "y": 41.66,
+        "samples": 156,
+        "flattenedMaxM": 0.81
+      },
+      {
+        "id": "41669917",
+        "name": "Laguna Honda Reservoir",
+        "y": 112.2,
+        "samples": 203,
+        "flattenedMaxM": 2.49
+      },
+      {
+        "id": "41669869",
+        "name": "Palace of Fine Arts lagoon",
+        "y": 1.4,
+        "samples": 175,
+        "flattenedMaxM": 1.57
+      },
+      {
+        "id": "{7FC641AF-C40E-4EF2-8A3C-E9D170B442A0}",
+        "name": "Crissy Field marsh",
+        "y": 1.2,
+        "samples": 466,
+        "flattenedMaxM": 0.96
+      },
+      {
+        "id": "30933531",
+        "name": "Sutro Baths pool",
+        "y": 5.09,
+        "samples": 29,
+        "flattenedMaxM": 0.84
+      },
+      {
+        "id": "30933523",
+        "name": "Lands End pond",
+        "y": 3.63,
+        "samples": 5,
+        "flattenedMaxM": 0.42
+      },
+      {
+        "id": "30934177",
+        "name": "Zoo pond",
+        "y": 7.59,
+        "samples": 15,
+        "flattenedMaxM": 2.04
+      },
+      {
+        "id": "30934901",
+        "name": "Zoo lagoon",
+        "y": 5.94,
+        "samples": 30,
+        "flattenedMaxM": 0.69
+      },
+      {
+        "id": "56655903",
+        "name": "McNab Lake",
+        "y": 63.87,
+        "samples": 32,
+        "flattenedMaxM": 0.37
+      },
+      {
+        "id": "56656007",
+        "name": "McLaren Park pond",
+        "y": 128.88,
+        "samples": 72,
+        "flattenedMaxM": 1.84
+      },
+      {
+        "id": "120030655",
+        "name": "India Basin pond",
+        "y": 0.5,
+        "samples": 147,
+        "flattenedMaxM": 2.02
+      }
+    ],
+    "samples": {
+      "w": 207809,
+      "u": 1054822,
+      "f": 91166,
+      "g": 130472,
+      "s": 11564,
+      "lake": 15348
+    },
+    "parks": 327,
+    "federal": 36,
+    "canopyPolygons": 114069,
+    "trees": 146932
+  },
   "roads": {
     "raw": 16378,
     "excludedLayer": 608,
@@ -1154,9 +1427,9 @@
   "storefronts": {
     "raw": 13265,
     "notStorefrontNaics": 1604,
-    "noBuilding": 213,
+    "noBuilding": 160,
     "noFrontage": 1043,
-    "kept": 10405
+    "kept": 10458
   },
   "sidewalks": {
     "nodes": 33402,
@@ -1174,7 +1447,7 @@
     "bridges": 616,
     "crossingsExtended": 4283,
     "crossingsDropped": 1294,
-    "fragmentsDropped": 458
+    "fragmentsDropped": 457
   },
   "layers": {
     "boundaryEdges": 6,
@@ -1182,13 +1455,14 @@
     "districts": 41,
     "sidewalkNodes": 33402,
     "sidewalkEdges": 58348,
-    "hydrants": 4224,
+    "hydrants": 4223,
     "fountains": 285,
     "transitRoutes": 135,
     "transitStops": 3260,
     "signals": 1301,
     "streetCleaning": 37476,
-    "parking": 7773
+    "parking": 7773,
+    "storefronts": 10458
   },
   "outside": {
     "alcatraz": [
@@ -1236,6 +1510,7 @@
       "t-19_20",
       "t-18_20",
       "t-17_20",
+      "t-16_20",
       "t-15_20",
       "t-14_20",
       "t-13_20",
@@ -1247,33 +1522,45 @@
       "t-7_20",
       "t-6_20",
       "t-5_20",
+      "t-4_20",
+      "t-3_20",
       "t-2_20",
       "t-1_20",
       "t0_20"
+    ],
+    "yerba-buena-island": [
+      "t7_-5"
     ]
   },
   "boundary": {
-    "landEdgeM": 11900,
+    "landEdgeM": 9900,
     "waterEdgeM": 61100,
     "shoreM": 87561,
     "shoreLines": 67
   },
   "colliderPack": {
-    "bytes": 14874916,
-    "tiles": 584,
-    "buildings": 195520
+    "bytes": 14723328,
+    "tiles": 581,
+    "buildings": 192802
   },
   "far": {
-    "cells": 33,
-    "triangles": 483472,
-    "records": 195520,
-    "bytes": 6907084
+    "cells": 26,
+    "triangles": 588612,
+    "terrainTriangles": 104480,
+    "records": 196164,
+    "bytes": 7763816,
+    "bounds": [
+      -11000,
+      -7500,
+      4000,
+      13500
+    ]
   },
   "terrain": {
     "minY": 0,
     "maxY": 283.82,
     "waterSamples": 207809,
-    "samples": 1518984
+    "samples": 1511181
   },
   "spawn": {
     "x": 13.59,
@@ -1478,6 +1765,12 @@
       "source": "lidar"
     },
     {
+      "id": "201006.9900001-tower",
+      "heightM": 188,
+      "topY": 197.72,
+      "source": "override"
+    },
+    {
       "id": "201006.0001244",
       "heightM": 186.24,
       "topY": 190.43,
@@ -1485,17 +1778,11 @@
       "source": "lidar"
     },
     {
-      "id": "201006.0000534-tower",
-      "heightM": 179.93,
-      "topY": 213.88,
-      "source": "lidar"
-    },
-    {
-      "id": "201006.0000633",
-      "heightM": 179.28,
-      "topY": 182.74,
-      "parcel": "0233044",
-      "source": "lidar"
+      "id": "201006.0002719",
+      "heightM": 184.73,
+      "topY": 188.7,
+      "parcel": "3718040",
+      "source": "override"
     }
   ]
 }
