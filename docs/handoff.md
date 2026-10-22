@@ -61,3 +61,54 @@ Everything below is committed and pushed; no work is uncommitted.
 - CI screenshots step uses Playwright `--global-timeout` (a step timeout fails the job even
   under continue-on-error).
 - Commit trailers and PR body footers per the session's attribution rules; no model ids in commits.
+
+## The reasoning behind the main decisions
+- **Pure deterministic TypeScript sim, plain-JSON state** (not Rapier): saves, replays and
+  multiplayer rollback need bit-identical stepping across Node and every browser; cross-engine
+  determinism tests enforce it. Physics libraries are allowed only for cosmetic render effects.
+- **Real SF open data only** (DataSF footprints with LiDAR heights, street centrelines, assessor
+  roll, business registry; USGS 3DEP elevation). Google/Apple/OSM-derived 3D is licence-barred or
+  share-alike; Street View photos are barred, which is also why facades are generated, not photographed.
+- **Tiles in plain git, meshopt-compressed**; a citywide collider pack for the sim; far-LOD cells
+  for the skyline. The page host serves only text types, so the static build gzips+base64s
+  binaries into `.txt` packs and splits any file over 14 MB into parts (host limit 15 MB/file).
+- **The world-QA gate exists because the owner asked for continuity first**: a six-dimension
+  audit found 52 blocker/high/medium defects (streets walled by buildings, hills through roofs,
+  draped tunnels, freeways on the ground, missing bridges, dry lakes, render/sim ground mismatch,
+  near/far seams). Each fix carries an acceptance test that fails on the old code, and a ratchet
+  baseline makes any regression fail CI. Territory expansion waits on this gate on purpose.
+- **Lanes by ownership** (Pipeline, Sim-World, Render-World, Assets, Content, Harness), each on
+  its own `qa/*` branch and worktree, merged in dependency order; every lane gets an independent
+  reviewer because builder self-reports were repeatedly over-optimistic.
+- **Dodge design**: predicted swept footprints plus dives, and a hard post-move override that
+  tuning cannot remove, so contact stays at exactly 0 by construction; adversarial reviewers
+  found and closed exits beside robotaxis, spawns, joins, shoves, roofs and a 2x perf cost
+  (now ~1 ms/tick). Cars are never slowed by people; people always get out of the way.
+- **Facades**: chosen by era/use/district from the assessor roll, scaled to the storey grid,
+  varied per building by seed, within texture-memory and draw-call budgets tested in CI.
+- **Taste and legal rules are non-negotiable** (CLAUDE.md): non-violent (water rusts robots,
+  flowers in PvP), no real brands, original robot and car designs, the owner's likeness as the
+  only real-person exception, satire punches up at tech/VC culture.
+- **Detailed history**: `docs/design.md` decision log (dated entries), `docs/qa/world-qa-report.md`
+  (every defect with evidence, cause, fix and test), `docs/testing.md`, and each branch's commit
+  messages, which explain the why of each change.
+
+## Prompt to continue (paste into a new Claude Code session on this repo)
+
+> You are continuing Fog City, a browser open-world game of San Francisco in
+> `BroderickHigby/fog-city`. Read `CLAUDE.md`, then `docs/handoff.md` on branch
+> `integrate/wave1` (it lists every branch, the reasoning, the operating rules and the next
+> steps), then `docs/design.md`, `docs/roadmap.md` and `docs/qa/`. Follow the operating rules
+> exactly: one agent at a time, every heavy command in the foreground under a single `flock`
+> lock with `NODE_OPTIONS=--max-old-space-size=8192`, vitest `--maxWorkers=2`, playwright
+> `--workers=1`, never under 8 GB free, commit and push often. Then work the "Next steps" list
+> in order: (1) independently review `qa/housekit` against `docs/qa/house-kit-spec.md` with
+> street-level screenshots in every residential district and fix what it finds; (2) integrate
+> the QA lanes into `integrate/wave1` in the listed order and make the full suite and the world
+> gate green, flipping fixed defects to hard assertions; (3) re-audit data, play and visuals,
+> adversarially verify each finding, fix, repeat until nothing new; (4) merge `feature/dodge`,
+> resolving the SIM_VERSION 4 clash with an upgrade step and re-pinned replays; (5) rebuild the
+> static web build and republish the playable link; (6) continue with wave 2 (combat, including
+> robots that visibly fall or melt when rusted), territory expansion and the wave-8 sky. Keep
+> PR #1 and PR #2 green, push to the existing branches, and send the owner screenshots of
+> monuments and street-level houses after each visual milestone.
