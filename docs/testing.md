@@ -257,6 +257,14 @@ and joins, a multi-car optimiser joined the nightly, and the cost is measured (S
   Spofford Alley pass) makes them dive and never comes within 0.75 m while it moves.
   `tests/sim/agents.test.ts` also checks that no walker ever touches a robotaxi's drawn body
   over 4,000 ticks.
+- `tests/sim/walker-offset.test.ts` (unit; the SF part skipped until that world is in the
+  checkout): a walker sidestepping 0.8 m off its line (either side) never moves more than its
+  speed * DT + 0.05 m in a tick where its path bends: synthetic corners both ways (30-150
+  degrees, tight to wide), U-turns, turnarounds, crossings, a rejoin and bent sidewalk
+  polylines walked with the sim's own rule (`roads.ts` `offsetAdvance` / `offsetPoint`); the
+  real `stepAgents` on every corner, crossing and U-turn connector of the dev world; and on about
+  250 of each kind sampled from the SF world. Before the smoothed offset (the offset followed each
+  sampled segment's direction) a walker jumped up to 0.71 m in a tick on dev and 1.49 m on SF.
 - `tests/sim/dodge-review-r3.test.ts` (unit): the second review's reproductions, permanent (each
   fails on the code before the fix). Getting out of the car beside a robotaxi standing 0.2-1.1 m
   off the driver's side (out on a free side, never inside the robotaxi or the player's own car,

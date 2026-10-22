@@ -75,6 +75,8 @@ import {
   endNode,
   lanePath,
   makePath,
+  offsetAdvance,
+  offsetPoint,
   pathPoint,
   sameCorner,
   sideIndex,
@@ -925,7 +927,8 @@ export function agentRouteAt(world: World, a: Readonly<AgentState>, ds: readonly
     }
     if (!sg) break;
     const q = pathPoint(sg.path, sg.from + d - base);
-    out.push({ x: q.x - q.tz * sg.lat, z: q.z + q.tx * sg.lat, tx: q.tx, tz: q.tz, d });
+    const o = offsetPoint(sg.path, sg.from + d - base, sg.lat);
+    out.push({ x: o.x, z: o.z, tx: q.tx, tz: q.tz, d });
   }
   return out;
 }
@@ -991,8 +994,7 @@ function probe(
     }
     if (!sg) break;
     const q = pathPoint(sg.path, sg.from + d - base);
-    const px = q.x - q.tz * sg.lat;
-    const pz = q.z + q.tx * sg.lat;
+    const { x: px, z: pz } = offsetPoint(sg.path, sg.from + d - base, sg.lat);
     for (const o of near) {
       const dx = o.x - px;
       const dz = o.z - pz;
@@ -1388,8 +1390,12 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   else speed = Math.max(target, speed - Math.max(spec.decel, 9) * dt);
   if (speed < 0.02) speed = 0;
 
-  // Advance along the route.
-  let s = a.s + speed * dt;
+  // Advance along the route. A walker sidestepped off its line walks the offset line at its own
+  // pace (roads.ts offsetAdvance: the outside of a bend is the longer way round), also over a hop
+  // onto the next path, where s - len is then the distance still to walk. At lat 0 (and for
+  // robotaxis) this is plain arc length.
+  const paced = !spec.road && lat !== 0;
+  let s = paced ? offsetAdvance(a.conn ? connectorPath(a.conn) : cur, a.s, lat, speed * dt) : a.s + speed * dt;
   let edge = a.edge;
   let dir = a.dir;
   let lane = a.lane;
@@ -1409,7 +1415,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
     const len = conn ? connectorPath(conn).len : curPath.len;
     if (s < len) break;
     if (conn) {
-      s = s - len + resume;
+      s = paced ? offsetAdvance(curPath, resume, lat, s - len) : s - len + resume;
       resume = 0;
       conn = null;
       // Walkers let go of the node at once; a robotaxi holds it until its tail is clear.
@@ -1435,7 +1441,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
       continue;
     }
     const cp = makeConnector(curPath, plan.path, spec.road ? 0.56 : 0.9);
-    s -= len;
+    if (paced) s = offsetAdvance(connectorPath(cp), 0, lat, s - len);
+    else s -= len;
     resume = 0;
     node = g.nodes[endNode(curEdge, dir)]!.id;
     edge = plan.edge.id;
@@ -1458,8 +1465,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   // Pose on the (possibly new) path.
   const path = conn ? connectorPath(conn) : curPath;
   const q = pathPoint(path, s);
-  const x = q.x - q.tz * lat;
-  const z = q.z + q.tx * lat;
+  const { x, z } = offsetPoint(path, s, lat);
   const heading = datan2(q.tx, -q.tz);
 
   // Blocked: stopped (robotaxi) or reduced to a shuffle (walker) by something in the way,
@@ -1532,9 +1538,7 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
   const back: Dir = a.dir === 1 ? -1 : 1;
   if (!e.walkClear[dirIndex(back)][sideIndex(a.lane)]) return { ...a, wait: 0, speed: 0 };
   const from = a.conn ? connectorPath(a.conn) : basePath(e, a);
-  const p = pathPoint(from, a.s);
-  const px = p.x - p.tz * a.lat;
-  const pz = p.z + p.tx * a.lat;
+  const { x: px, z: pz } = offsetPoint(from, a.s, a.lat);
   const to = walkPath(e, back, a.lane);
   const s1 = clamp(projectOnPath(to, px, pz).s + 1.0, 0, to.len);
   const q = pathPoint(to, s1);
