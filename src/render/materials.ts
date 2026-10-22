@@ -331,6 +331,10 @@ export function createSharedMaterials(): SharedMaterials {
   const lampPole = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6, metalness: 0.5, name: "fc:lamp-pole" });
   const lampHead = new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.4, metalness: 0.1, emissive: 0xffb466, emissiveIntensity: 0, name: "fc:lamp-head" });
   const houseKit = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0, name: "fc:house-kit" });
+  // Bays, mouldings and stoops sit on the wall plane: they win the depth ties with it.
+  houseKit.polygonOffset = true;
+  houseKit.polygonOffsetFactor = -1;
+  houseKit.polygonOffsetUnits = -2;
   return {
     houseKit,
     building,

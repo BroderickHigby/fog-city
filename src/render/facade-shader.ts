@@ -361,16 +361,16 @@ ${styleGlsl()}
           float outer = fcRect( p, vec4( win.x - cas, win.y + cas, win.z - cas, win.w + cas ), aw );
           vec3 frameCol = house || woodHouse ? trim : mix( body * 0.6, vec3( 0.12 ), 0.5 );
           col = mix( col, frameCol, outer * ( 1.0 - winMask ) );
-          h += 0.02 * outer;
+          h = mix( h, 0.02, outer );
           if ( front && woodHouse ) {
             float hood = fcRect( p, vec4( win.x - cas - 0.09, win.y + cas + 0.09, win.w + cas, win.w + cas + 0.2 ), aw );
             col = mix( col, trim, hood );
             col *= 1.0 - 0.35 * fcRect( p, vec4( win.x - cas - 0.09, win.y + cas + 0.09, win.w + cas - 0.06, win.w + cas ), aw ) * ( 1.0 - winMask );
-            h += 0.035 * hood;
+            h = mix( h, 0.035, hood );
           }
           float sillB = fcRect( p, vec4( win.x - cas - 0.06, win.y + cas + 0.06, win.z - cas - 0.07, win.z - cas + 0.01 ), aw );
           col = mix( col, mat > 3.5 && mat < 5.5 ? body * 1.25 : trim, sillB );
-          h += 0.03 * sillB;
+          h = mix( h, 0.03, sillB );
           // Shadow under the sill.
           col *= 1.0 - 0.3 * fcRect( p, vec4( win.x - cas - 0.06, win.y + cas + 0.06, win.z - cas - 0.16, win.z - cas - 0.07 ), aw );
         }
@@ -397,8 +397,7 @@ ${styleGlsl()}
         float sashMask = clamp( max( max( rail, frame ), munt ), 0.0, 1.0 );
         vec3 sashCol = house || woodHouse ? ( year >= 1916.0 && year < 1945.0 && house && !woodHouse ? vec3( 0.06 ) : trim ) : vec3( 0.09 );
         glass = mix( glass, sashCol, sashMask );
-        h += 0.01 * sashMask;
-        h -= 0.05 * ( 1.0 - sashMask );
+        h = mix( h, mix( -0.05, 0.0, sashMask ), winMask );
         // Reveal shadow along the top and one side of the opening.
         glass *= 1.0 - 0.45 * ( 1.0 - fcIn( 0.0, Hd - 0.09, wq.y, aw ) ) * ( 1.0 - sashMask );
         fcWin = winMask * ( 1.0 - sashMask );
@@ -411,14 +410,14 @@ ${styleGlsl()}
         float dm = fcRect( p, dr, aw );
         float casing = fcRect( p, vec4( dr.x - 0.12, dr.y + 0.12, dr.z, dr.w + ( woodHouse ? 0.62 : 0.12 ) ), aw ) * ( 1.0 - dm );
         col = mix( col, trim, casing );
-        h += 0.025 * casing;
+        h = mix( h, 0.025, casing );
         vec2 dq = p - dr.xz;
         float panels = fcRect( vec2( fract( dq.x / ( DOOR_HALF ) ), fract( dq.y / 0.78 ) ), vec4( 0.16, 0.84, 0.12, 0.88 ), aw / DOOR_HALF );
         vec3 dc = doorCol * ( 1.0 - 0.18 * panels );
         float lite = woodHouse ? fcRect( dq, vec4( 0.2, 2.0 * DOOR_HALF - 0.2, 1.55, 2.15 ), aw ) : 0.0;
         dc = mix( dc, vec3( 0.04, 0.05, 0.06 ), lite );
         col = mix( col, dc, dm );
-        h -= 0.06 * dm - 0.01 * panels * dm;
+        h = mix( h, -0.06 + 0.01 * panels, dm );
         if ( woodHouse ) {
           float transom = fcRect( p, vec4( dr.x, dr.y, dr.w + 0.08, dr.w + 0.5 ), aw );
           col = mix( col, vec3( 0.04, 0.05, 0.065 ), transom );
@@ -432,7 +431,7 @@ ${styleGlsl()}
         float gm = fcRect( p, gr, aw );
         float frameG = fcRect( p, vec4( gr.x - 0.12, gr.y + 0.12, gr.z, gr.w + 0.14 ), aw ) * ( 1.0 - gm );
         col = mix( col, trim * 0.95, frameG );
-        h += 0.02 * frameG;
+        h = mix( h, 0.02, frameG );
         vec2 gq = p - gr.xz;
         float sec = fcLines( gq.y, GARAGE_HT / 4.0, 0.025, aw );
         float pan = sd > 0.4 ? fcLines( gq.x, 2.0 * GARAGE_HALF / 4.0, 0.03, aw ) : 0.0;
@@ -441,8 +440,7 @@ ${styleGlsl()}
         float lights = sd > 0.6 ? fcRect( gq, vec4( 0.2, 2.0 * GARAGE_HALF - 0.2, GARAGE_HT * 0.75 + 0.1, GARAGE_HT - 0.12 ), aw ) * ( 1.0 - pan ) : 0.0;
         gc = mix( gc, vec3( 0.05, 0.06, 0.07 ), lights );
         col = mix( col, gc, gm );
-        h -= 0.04 * gm;
-        h -= 0.01 * max( sec, pan ) * gm;
+        h = mix( h, -0.04 - 0.01 * max( sec, pan ), gm );
       }
       // Basement windows under a raised first floor (K7): small, barred-looking, low.
       if ( front && floorM >= 1.1 && y < floorM - 0.2 && inCols && !shop ) {
@@ -450,7 +448,7 @@ ${styleGlsl()}
         bool clear = !( hasDoor && abs( cx - doorX ) < DOOR_HALF + 0.9 ) && !( hasGarage && abs( cx - garageX ) < GARAGE_HALF + 0.9 );
         float bm = clear ? fcRect( p, bw, aw ) : 0.0;
         col = mix( col, mix( vec3( 0.03 ), trim * 0.5, fcLines( p.x - bw.x, 0.12, 0.02, aw ) ), bm );
-        h -= 0.04 * bm;
+        h = mix( h, -0.04, bm );
       }
       // Shopfront (K5, the shader's half): bulkhead, glass with mullions, door recesses,
       // transom, and a blank fascia (the empty sign slot: no names, ever).
@@ -472,7 +470,7 @@ ${styleGlsl()}
         col = mix( col, sc, clamp( m, 0.0, 1.0 ) );
         float g2 = max( glassM, transom );
         fcWin = max( fcWin, g2 );
-        h += -0.08 * g2 + 0.02 * fascia;
+        h = mix( h, -0.08 * g2 + 0.02 * fascia, clamp( m, 0.0, 1.0 ) );
         float shopLit = fcHash( vec2( floor( x / 5.0 ), sd ) ) < 0.8 ? 1.0 : 0.0;
         fcLit = max( fcLit, g2 * shopLit * mix( 0.9, 0.45, farW ) );
         fcLightCol = vec3( 1.0, 0.84, 0.6 );
