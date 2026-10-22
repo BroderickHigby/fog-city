@@ -8,7 +8,10 @@
 //    than 0.3 s or rises more than 0.5 m above the ground (the QA measured 176 of 360 launched at 54ee728, up to 27 m);
 //  - flights in the quarter second after a hit, which on Twin Peaks' 50% hillsides include a
 //    car deflected over a brow at 23 m/s (the terrain's: W-14, W-31), stay within the residual
-//    measured when this landed: at most 4 over the gate's 0.3 s / 0.5 m, none over 1 s or 3 m.
+//    measured: none over 1 s or 3 m, and at most 8 over the gate's 0.3 s / 0.5 m. (It was 4 on
+//    the world before qa/pipeline's terraces; on the regenerated world 6 of the 8 never rise
+//    above where they left the ground, falls off a terrace's or a hillside's ledge after a
+//    glancing hit, and 2 leave a hill brow climbing at 24 m/s, the steepest 34%.)
 import { describe, expect, it } from "vitest";
 import { boxBlocked, groundHeight, meshGroundHeight, makeCar, sampleGround, stepCar, type BuildingCollider, type CarState } from "../../../src/sim/index.ts";
 import { CITY_MS, SF, moveExcess, sfWorld } from "./load.ts";
@@ -94,7 +97,7 @@ describe.skipIf(!SF)("ramming buildings on the hills (W-23)", () => {
       expect(rams).toBe(360);
       expect(contacts).toBeGreaterThan(300);
       expect(fails, fails.slice(0, 10).join("\n")).toEqual([]);
-      expect(after.length, after.join("\n")).toBeLessThanOrEqual(4);
+      expect(after.length, after.join("\n")).toBeLessThanOrEqual(8);
     },
     CITY_MS,
   );

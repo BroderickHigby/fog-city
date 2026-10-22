@@ -414,14 +414,26 @@ export function stepCar(
     pushLeft -= res.pushed;
     const rail = onRibbon ? railBox(world, res.x, res.z, heading, c.y) : null;
     if (rail) {
-      // Held by a rail or a bore wall: back onto the ribbon, never across a wall.
+      // Held by a rail or a bore wall: back onto the ribbon, never across a wall, and by no more
+      // than this substep's own travel plus what is left of the tick's push budget (a car that
+      // came onto a deck partly over its edge eases onto it instead of jumping sideways).
       touched = true;
-      if (boxCrossedWall(world, { x: rail.x, z: rail.z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+      let px = rail.x - res.x;
+      let pz = rail.z - res.z;
+      const len = Math.sqrt(px * px + pz * pz);
+      const step = travel / n;
+      const allow = step + pushLeft;
+      if (len > allow) {
+        px *= allow / len;
+        pz *= allow / len;
+      }
+      pushLeft -= Math.max(0, Math.min(len, allow) - step);
+      if (boxCrossedWall(world, { x: res.x + px, z: res.z + pz, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
         x = lastX;
         z = lastZ;
       } else {
-        x = rail.x;
-        z = rail.z;
+        x = res.x + px;
+        z = res.z + pz;
       }
       if (res.hit) meet(res.nx, res.nz, res.person);
       meet(rail.nx, rail.nz, false);

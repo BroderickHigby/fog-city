@@ -1,12 +1,12 @@
 // W-22: the sim stands bodies on the ground that is drawn. At 10,000 seeded points on land
 // across the whole city, the ground cars, walkers and agents stand on (meshGroundHeight, and
-// surfaceHeight where no roof is in reach) equals the rendered ground mesh's height (each
+// surfaceAt where no roof is in reach and no deck or bore covers the point) equals the rendered ground mesh's height (each
 // lattice cell's two triangles, split along the (i+1, k)-(i, k+1) diagonal as
 // pipeline/lib/mesh.ts draws it; computed here by the pipeline's own Ground.meshHeightAt) to
 // within 0.02 m. The bilinear ground bodies stood on before differed by up to 1.8 m on this
 // sample (4.4 m on the worst cell). Tile borders give one height from either side, exactly.
 import { describe, expect, it } from "vitest";
-import { meshGroundHeight, heightOnField, surfaceHeight } from "../../../src/sim/index.ts";
+import { meshGroundHeight, heightOnField, surfaceAt } from "../../../src/sim/index.ts";
 import { Ground } from "../../../pipeline/lib/terrain.ts";
 import { TILE_SIZE_M } from "../../../src/geo/project.ts";
 import { CITY_MS, SF, lcg, sfWorld } from "./load.ts";
@@ -30,7 +30,10 @@ describe.skipIf(!SF)("sim ground = drawn ground (W-22)", () => {
         const z = g.z0 + rnd() * TILE_SIZE_M;
         if (mesh.waterAt(x, z)) continue;
         const want = mesh.meshHeightAt(x, z)!;
-        worst = Math.max(worst, Math.abs(meshGroundHeight(world, x, z) - want), Math.abs(surfaceHeight(world, x, z, want - 10) - want));
+        worst = Math.max(worst, Math.abs(meshGroundHeight(world, x, z) - want));
+        // (Where a deck or a bore covers the point, a body that far down stands on that instead.)
+        const s = surfaceAt(world, x, z, want - 10);
+        if (s.kind === "ground") worst = Math.max(worst, Math.abs(s.y - want));
         n++;
       }
       expect(worst).toBeLessThanOrEqual(0.02);

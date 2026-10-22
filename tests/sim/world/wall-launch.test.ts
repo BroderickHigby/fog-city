@@ -1,13 +1,13 @@
 // W-06: the water side of a shore wall never launches a car. A car that starts on the water
 // side of the shore (inside a wall's reach, or a little farther out) and drives at the wall at
-// 5, 15 and 30 m/s stays within 1 m of the ground and never moves more than speed x DT + 0.5 m
+// 5, 15 and 30 m/s stays within 1 m of the surface under it (the ground, or a bridge's deck) and never moves more than speed x DT + 0.5 m
 // in a tick. (A flight that takes off before the car has touched anything is the terrain's: at
 // one Outer Richmond spot the beach rises 1:3 to a crest on the shore line, and a car at 30 m/s
 // leaves it before it reaches the wall, as off any crest; W-35.) The per-PR sample is 200 places
 // spread evenly over every shore wall plus the QA's worst sites (Lands End, the Marina, the
 // Outer Richmond, Bayview) and the 4th St bridge replay; the nightly sweep runs every 50 m.
 import { describe, expect, it } from "vitest";
-import { circleBlocked, meshGroundHeight, inCorridor, makeCar, onWater, stepCar, wallsNear, type CarState, type WallSegment, type World } from "../../../src/sim/index.ts";
+import { CAR, circleBlocked, circleHitsWall, meshGroundHeight, inCorridor, makeCar, onWater, stepCar, surfaceHeight, wallsNear, type CarState, type WallSegment, type World } from "../../../src/sim/index.ts";
 import { toLocal } from "../../../src/geo/project.ts";
 import { CITY_MS, SF, bearing, moveExcess, sfWorld } from "./load.ts";
 
@@ -21,7 +21,9 @@ interface Approach {
 function approach(world: World, w: Readonly<WallSegment>, px: number, pz: number, back: number, v: number, at: string): Approach | null {
   const sx = px - w.nx * back;
   const sz = pz - w.nz * back;
-  if (circleBlocked(world, sx, sz, 3)) return null;
+  // (Not from a place the car's body already straddles a wall at: where two walls meet, a lake's
+  // ring and the county line, a start 2.5 m off one can lie across the other.)
+  if (circleBlocked(world, sx, sz, 3) || circleHitsWall(world.walls, sx, sz, CAR.halfLength)) return null;
   let car: CarState = { ...makeCar(sx, sz, bearing(w.nx, w.nz), meshGroundHeight(world, sx, sz)), speed: v };
   let peak = 0;
   let excess = -Infinity;
@@ -35,7 +37,7 @@ function approach(world: World, w: Readonly<WallSegment>, px: number, pz: number
     // A flight that took off before any contact is a crest's, followed to its landing.
     if (!car.grounded && p.grounded) terrainFlight = !touched;
     if (car.grounded) terrainFlight = false;
-    if (!terrainFlight) peak = Math.max(peak, car.y - meshGroundHeight(world, car.x, car.z));
+    if (!terrainFlight) peak = Math.max(peak, car.y - surfaceHeight(world, car.x, car.z, car.y));
   }
   return { at, peak, excess };
 }
@@ -125,7 +127,7 @@ describe.skipIf(!SF)("shore walls never launch a car from the water side (W-06)"
           if (car.sinceContact === 0) touched = true;
           if (!car.grounded && p.grounded) terrainFlight = !touched;
           if (car.grounded) terrainFlight = false;
-          if (!terrainFlight) expect(car.y - meshGroundHeight(world, car.x, car.z), `${ang} deg, tick ${t}`).toBeLessThanOrEqual(1);
+          if (!terrainFlight) expect(car.y - surfaceHeight(world, car.x, car.z, car.y), `${ang} deg, tick ${t}`).toBeLessThanOrEqual(1);
         }
         // Through the gap it is on the bridge's corridor at most, never on the open creek.
         expect(onWater(world.walls!.shore, car.x, car.z) && !inCorridor(world.walls!, car.x, car.z), `${ang} deg`).toBe(false);

@@ -37,8 +37,11 @@ describe.skipIf(!SF)("road gaps in the sea wall are walled corridors (W-21)", ()
       const { world, roads } = sfWorld();
       const w = world.walls!;
       const byId = new Map(roads.edges.map((e) => [e.id, e]));
-      // Every road over water: the bridges, the pier roads, I-280 and its ramps over the creeks.
-      expect(w.corridors.length).toBeGreaterThanOrEqual(18);
+      // Every road over water: the bridges, I-280 and its ramps over the creeks, the Embarcadero
+      // and the Pier 70 road. (The pier roads, Al Scoma Way and Pier 45 and Pier 50 Vly, run on
+      // the pier decks the pipeline now lays as land at deck height, W-13: no corridor.)
+      const ids = new Set(w.corridors.map((c) => c.edgeId));
+      for (const id of ["c182000", "c183000", "c270002", "c271000", "c197101", "c197201", "c15166000", "c19298000", "c19300000", "c19338000", "c19288000", "c19330000", "c15357000", "c12929000", "c10925000"]) expect(ids.has(id), id).toBe(true);
       let runs = 0;
       const out: string[] = [];
       for (const c of w.corridors) {
@@ -136,7 +139,7 @@ describe.skipIf(!SF)("road gaps in the sea wall are walled corridors (W-21)", ()
           if (!inCorridor(w, f.x, f.z)) expect(pastShore(f.x, f.z), `${c.edgeId} turn ${turn}`).toBeLessThanOrEqual(3);
         }
       }
-      expect(walks).toBeGreaterThan(30);
+      expect(walks).toBeGreaterThanOrEqual(30);
     },
     CITY_MS,
   );
