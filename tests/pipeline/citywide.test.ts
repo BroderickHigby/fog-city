@@ -557,7 +557,9 @@ describe("citywide: far-LOD", () => {
   it("holds every collider record, in cells that tile the world", () => {
     // Every collider record, plus the far-only Daly City strip (W-42): far scenery, no collider.
     const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number; tiles: string[] } }>(`${DIR}/report.json`);
-    expect(report.farOnly.records).toBeGreaterThan(100);
+    // The three row-20 tiles the strip alone made built before (W-40's bare south-edge tiles beside them).
+    expect(report.farOnly.records).toBeGreaterThan(20);
+    expect(report.farOnly.tiles).toEqual(["t-16_20", "t-3_20", "t-4_20"]);
     // W-42: a far-only record never stands in a built tile (the renderer hides the far layer over
     // a streamed tile, so it would vanish as the tile loads); its tiles are San Mateo County's.
     const built = new Set(manifest.tiles.map((t) => t.id));
