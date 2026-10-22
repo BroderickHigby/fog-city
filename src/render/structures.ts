@@ -18,6 +18,7 @@ export type RibbonVertex = [number, number, number, number];
 export interface TunnelLike {
   id: string;
   kind?: string;
+  edge?: string;
   clearanceM: number;
   path: RibbonVertex[];
 }
