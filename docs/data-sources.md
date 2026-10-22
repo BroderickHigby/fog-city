@@ -47,7 +47,11 @@ OpenStreetMap (ODbL) data is used or committed.
 | Storefront anchors | DataSF *Registered Business Locations*, [`g8m3-pdis`](https://data.sfgov.org/resource/g8m3-pdis.json). Active rows only: `location_end_date`, `dba_end_date` and `administratively_closed` are all null. | `uniqueid` (hashed, never emitted), `self_reported_naics_code`, `location`. Names are never requested. | PDDL 1.0. "San Francisco Treasurer & Tax Collector via DataSF" |
 | District boundaries | DataSF *Analysis Neighborhoods*, [`j2bu-swwd`](https://data.sfgov.org/resource/j2bu-swwd.json): 41 neighbourhoods (MultiPolygon). | `nhood`, `the_geom` | PDDL 1.0. "City and County of San Francisco, DataSF" |
 | Elevation | USGS 3DEP bare-earth DEM, [ImageServer `exportImage`](https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer), float32 GeoTIFFs in WGS84 (20 blocks citywide) | metres NAVD88 | The service's `accessInformation` credit is "USGS National Map 3D Elevation Program (3DEP)". Its `licenseInfo` is empty. USGS-produced data are public domain under U.S. federal policy (17 U.S.C. §105). |
-| Height corrections | `pipeline/overrides.json`: public-record heights for buildings newer than the LiDAR, placeholder plinths where the LiDAR saw a lattice as a solid block, and LiDAR towers kept against the spike check | `heightM` (with `placeholder: true` for a stand-in) or `keepTower: true`, with a `source` note per entry | Facts, cited per entry |
+| Height corrections and added buildings | `pipeline/overrides.json`: public-record heights for buildings newer than the LiDAR, placeholder plinths where the LiDAR saw a lattice as a solid block, LiDAR towers kept against the spike check, and buildings the footprint layer does not have (`add: true`, with the 2010 record they replaced retired) | `heightM` (with `placeholder: true` for a stand-in) or `keepTower: true`; an added building's parcel or position and size, storeys, year, use; a `source` note per entry | Facts, cited per entry |
+| Lot outlines for newer buildings (W-04) | DataSF *Parcels – Active and Retired*, [`acdm-wktn`](https://data.sfgov.org/resource/acdm-wktn.json): the polygons of the 9,046 parcels built since 2010 | `blklot`, `shape` | PDDL 1.0. "City and County of San Francisco, DataSF" |
+| Park land (W-18) | DataSF *Recreation and Parks Properties*, [`gtr9-ntp6`](https://data.sfgov.org/resource/gtr9-ntp6.json): 255 properties; National Park Service land resources boundaries (the GGNRA units in the city) | property type, `shape` | PDDL 1.0; NPS data are public domain |
+| Tree canopy (W-18) | DataSF *Urban Tree Canopy*, [`ni2e-vpbg`](https://data.sfgov.org/resource/ni2e-vpbg.json): 97,104 polygons (114,069 parts) | `the_geom` | PDDL 1.0. "City and County of San Francisco, DataSF" |
+| Inland lakes (W-11) | USGS National Hydrography Dataset, large-scale waterbodies: 59 in the city box, 28 used (`pipeline/landcover.json`) | permanent identifier, FTYPE, outline | Public domain (USGS) |
 
 The gameplay datasets (hydrants, fountains, transit, signals, crosswalks, Street Cleaning,
 parking, cable car track) are in [Gameplay data](#gameplay-data-the-wave-2-spike), with the
@@ -68,18 +72,21 @@ meaning inside the union of the Analysis Neighborhoods. The rest are not built:
 
 | Candidates | Built | With buildings | With roads | With SF land | Open water (no file) | Land with no file (`outside`) |
 |---|---|---|---|---|---|---|
-| 870 | **583** | 522 | 533 | 571 | 235 | 52 |
+| 870 | **581** | 519 | 533 | 574 | 234 | 56 (55 candidates, 1 beyond) |
 
 Open-water tiles are listed in `manifest.json` `water.tiles`, beside `water.y` (0, sea
-level) and `water.bbox` (the candidate rectangle, [−11000, −4500, 3500, 10500]). The 52
-land tiles with no file are listed in `manifest.json` `outside.tiles`, each with its area:
+level) and `water.bbox` (the candidate rectangle, [−11000, −4500, 3500, 10500]). The 56
+land tiles with no file are listed in `manifest.json` `outside.tiles`, each with its area. The
+list holds every land tile 4-adjacent to a built tile (W-40), the candidate rectangle's or
+not: the east tip of Yerba Buena Island (`t7_-5`) lies beyond it.
 
 | `area` | Tiles | What it is |
 |---|---|---|
 | `marin` | 29 | The Marin headlands across the Golden Gate |
-| `san-mateo-county` | 18 | Daly City and Brisbane, south of the last built row |
+| `san-mateo-county` | 21 | Daly City and Brisbane: row 20 from `t-20_20` to `t0_20`, south of the last built row since the Daly City strip became far scenery (W-42) |
 | `alcatraz` | 4 (`t-6_-8`, `t-5_-8`, `t-6_-7`, `t-5_-7`) | Alcatraz Island. It **is** San Francisco, but no footprint, street or neighbourhood polygon covers it, so it is not built. The design has it "visible from the start" and reached by ferry later, never driven: the far-LOD terrain draws it, a landmark model can sit on it. |
 | `pacific-shore` | 1 (`t-22_7`) | A strip of Ocean Beach sand west of the last built tile, outside the neighbourhood polygons |
+| `yerba-buena-island` | 1 (`t7_-5`) | The island's east tip, beyond the candidate rectangle beside the built `t6_-5` (W-40) |
 
 **The renderer's water contract:** draw the sea plane at `water.y` over `water.bbox` and on
 to the horizon; built tiles draw over it, and so does the far-LOD terrain over every
@@ -538,6 +545,87 @@ Contract fields these passes use (all additive, `src/sim/contract.ts` and the sc
 `underY` and `meta.piece`/`meta.pieceOf` on buildings, `decks`, `tunnels` and `movable` on
 colliders (and their FCWC extension sections), `deck`, `tunnel` and `stairs` on road edges.
 
+## Ground cover, newer buildings, houses and the far ring (world QA, 2026-10-22)
+
+The second half of the world QA round (`docs/qa/`): what the ground is, the buildings the
+2016 footprint layer misses, the data the house kit needs, and the far layer the streaming
+ring stops against. Numbers from the sf build.
+
+**Ground cover (W-11, W-18, W-34; `pipeline/lib/landcover.ts`, rules in
+`pipeline/landcover.json`).** Every lattice sample gets one class in the tile collider's
+`ground.cover` string (one character per sample, the heights' layout): `u` urban or bare,
+`g` grass, `f` forest, `s` sand, `w` the Bay or the ocean, `0`–`9` an inland lake (the index
+into `ground.lakes`, `{ id, name, y }`). Citywide: 1,054,822 urban, 130,472 grass, 91,166
+forest, 11,564 sand, 207,809 sea and 15,348 lake samples.
+
+* *Lakes:* the 28 open waterbodies of USGS NHD (public domain) listed by permanent id in
+  `landcover.json` (every NHD lake or pond in the city; of the reservoirs only the open ones:
+  the covered reservoirs and the treatment plant's tanks are roofs). The level is the lake's
+  lattice median where the DEM is hydro-flattened (60% of its samples within 5 cm of it), else
+  its 10th percentile (Mountain Lake and Lily Pond were surveyed rough). Every sample inside
+  the outline no more than `bankM` (2.5 m) over the level is flattened to it, and the lake
+  grows over the flat samples beside it (5 cm, up to 30 m out). Lake Merced is 5.25 m (South
+  Lake) and 5.3 m (North Lake), Stow 87 m, Spreckels 40.9 m, Pine 12.8 m, Mountain Lake
+  41.66 m, the Palace of Fine Arts lagoon 1.4 m. A lake's water flag stays 0 (that flag is sea
+  level only); the collider pack's `LAKE` section carries the mask for the sim, and the ground
+  mesh draws lake samples in the water colour, never grass.
+* *Grass:* DataSF *Recreation and Parks Properties* (`gtr9-ntp6`) of the park types listed in
+  `landcover.json` (327 properties) and the National Park Service units (the Presidio, Lands
+  End, Ocean Beach, Fort Funston, Fort Mason; 36 polygons, public domain).
+* *Forest:* DataSF *Urban Tree Canopy* (`ni2e-vpbg`, 114,069 polygons) rasterised at 2.5 m: a
+  sample is forest where canopy covers half its cell and it is park land or half the 50 m
+  window around it is canopy (a wood, not a back-yard tree).
+* *Sand:* land within a shore distance of the open water and under a height, inside named boxes
+  (Ocean Beach, Baker Beach, China Beach, the Crissy Field and Aquatic Park beaches): the box says
+  where a beach is, the shore and the height which samples are sand.
+* *Foliage:* the glb nodes `foliage-broadleaf` and `foliage-conifer` (`EXT_mesh_gpu_instancing`,
+  used but not required): one tree per 10 m cell whose canopy cover is 40% or more, at the
+  canopy's centroid in the cell, never in a building, on a road ribbon or on water or sand;
+  146,932 trees.
+
+**Newer buildings (W-04; `pipeline/lib/newer.ts`).** The footprint layer is a 2016 snapshot
+measured by the 2010 LiDAR. A 2025-roll parcel built in 2010 or later with storeys and no
+record within 15 m of its point takes its lot outline from DataSF *Parcels – Active and
+Retired* (`acdm-wktn`), less the part any record already covers, at storeys × the use's storey
+height; a lot whose every parcel lists an implausible count (the Hunters Point Shipyard's 680
+and 688) takes its block's median. 197 lots are added (6 two-tier); their ids are
+`201006.9000001` up, `meta.outline: "parcel"`. `pipeline/overrides.json` entries can now add
+a building (`add: true`: The Avery, 33 Tehama, Fifteen Fifty, Chase Center; ids
+`201006.99xxxxx`, `meta.outline: "override"`) and retire the 2010 record a new one replaced
+(two retired). Park Tower at Transbay is 184.5 m. Mission Rock and the Shipyard hilltop come
+from the parcel pass.
+
+**The Daly City strip (W-42).** Records south of the county line (z > 9,600 m) in no San
+Francisco neighbourhood are far scenery (`docs/design.md`, decision log 2026-10-21): 3,362
+records (`report.json` `farOnly`), drawn only in the far layer, with no near tile, collider or
+storefront. Row 20 is no longer built west of x = 140; its tiles are `outside`
+(`san-mateo-county`), and the south wall is one straight run along z = 10,000.
+
+**House data (W-15, W-29, W-37, W-38, W-46 to W-50; `pipeline/lib/house.ts`,
+`docs/qa/house-kit-spec.md` K0 to K8).**
+
+* *Street level (K0):* `meta.streetY` is the ground at the middle of the record's street wall
+  (its wall of 3 m or more nearest a street, within 6 m of the kerb), written where it differs
+  from `baseY` by 10 cm or more. The facade's storey grid starts there (uv v = 0).
+* *Storeys (K2):* a residential facade's storeys are its wall height (roof less a roof allowance
+  of up to 3 m, from the street) over 3.2 m, each at most 4.2 m; a 1920–1960 row shows at least
+  the roll's storeys plus its garage storey. `_FACADE.x` is the storey height / 8 m.
+* *Wall classes (K1):* per footprint edge, `_FACADE.w` = 0 rear or side, 85 party (another
+  outline within 0.6 m along 60% of it), 170 front (a street or path straight out within its
+  half width + 12 m, or a storefront anchor on it), 255 roof.
+* *Fronts (K4–K8):* node `extras.fronts` on the buildings node lists one row per facade (a run
+  of front walls facing the same way, through bay facets and recesses of up to 3 m), framed by
+  its chord: `[record index, middle x and z (dm from the tile's north-west corner), bearing
+  (degrees), length (dm), street level (cm), first floor's rise over the sidewalk (dm), storeys,
+  storey height (cm), flags]`. Flags: 1 bay (residential, built 1925 or earlier, a facade of
+  4.5 m or more and two storeys), 2 stoop (the first floor 1 m or more over the sidewalk), 4
+  garage (residential, 1920–1960, the house 5 to 16 m wide along the facade and 2.8 m of facade
+  for the door), 8 shopfront (a storefront anchor on it), 16 roofline (residential or mixed, before
+  1940, in a row). The renderer and the assets' house kit lay their modules from these rows.
+  `storefronts` is now a manifest layer (K5).
+
+**The far ring (W-17, W-40, W-41; `pipeline/lib/far.ts`).** See [Far-LOD massing](#far-lod-massing-fx_zglb).
+
 ## Storefronts (`storefronts.json`)
 
 * NAICS kept: `722*` (food and drink), `44*`/`45*` retail (2017 and 2022 NAICS),
@@ -559,7 +647,7 @@ colliders (and their FCWC extension sections), `deck`, `tunnel` and `stairs` on 
 
 ## GLB tiles (`tX_Z.glb`)
 
-Written with `@gltf-transform/core` and `@gltf-transform/extensions`. All 583 tiles (and
+Written with `@gltf-transform/core` and `@gltf-transform/extensions`. All 581 tiles (and
 the far-LOD cells) pass the Khronos glTF validator with 0 errors and 0 warnings, both as
 shipped and after decoding the meshopt compression (the validator cannot look inside
 `EXT_meshopt_compression` and says so in an info note). The other info notes are
@@ -603,10 +691,11 @@ went from 26.72 MB to 11.83 MB. Citywide: 583 tiles, 115.3 MB, largest 0.56 MB
 
 | Node | Contents |
 |---|---|
-| `ground` | The heightfield as triangles split along the (i+1, k)–(i, k+1) diagonal. All-water cells are greedily merged into flat rectangles (an all-bay tile is one quad). `NORMAL` comes from central differences on the global lattice, so seams shade continuously. `COLOR_0`: water blue-grey, land warm grey. |
+| `ground` | The heightfield as triangles split along the (i+1, k)–(i, k+1) diagonal. All-water cells are greedily merged into flat rectangles (an all-bay tile is one quad). `NORMAL` comes from central differences on the global lattice, so seams shade continuously. `COLOR_0` by ground class (`ground.cover`): water (the Bay and every lake) blue-grey, grass, forest, sand, land warm grey. |
+| `foliage-broadleaf`, `foliage-conifer` | Instanced trees (W-18): a small vertex-coloured prototype drawn once per instance by `EXT_mesh_gpu_instancing` (used, not required); instance `TRANSLATION` about the tile centre (the node's translation, scale 1), `SCALE` (crown width, height, crown width). Only in tiles with trees. |
 | `roads` | Surface road ribbons 0.15 m above the mesh ground, each side draped separately, densified to ≤ 8 m. `TEXCOORD_0` = (0 left kerb … 1 right kerb, metres along the edge, continuous across tiles). |
 | `freeways` | Freeway and ramp ribbons, draped like roads. The source has no deck heights: they lie on the terrain, and stretches over the bay (the Bay Bridge) are not drawn. A separate node, so a renderer can hide it. |
-| `buildings` | Every collider record in the tile, merged, with no normals (glTF loaders shade flat; three.js sets `flatShading`). `COLOR_0` is the facade colour, darker at the foot. `TEXCOORD_0` = (metres along the wall, metres above `baseY`); roof vertices use (x, z). `_FACADE` (three.js: `_facade`, normalized uint8 ×4) = (storey height / 8 m, glazing 0–1, (year − 1840)/190 or 0 if unknown, 1 on roofs). Node `extras.buildings` = `[[colliderId, firstIndex, indexCount], …]` in collider order, so a renderer can hide a building a landmark replaces. |
+| `buildings` | Every collider record in the tile, merged, with no normals (glTF loaders shade flat; three.js sets `flatShading`). `COLOR_0` is the facade colour, darker at the foot. `TEXCOORD_0` = (metres along the wall, metres above `baseY`); roof vertices use (x, z). `_FACADE` (three.js: `_facade`, normalized uint8 ×4) = (storey height / 8 m, glazing 0–1, (year − 1840)/190 or 0 if unknown, wall class: 0 rear or side, 85 party, 170 front, 255 roof). `TEXCOORD_0.y` is metres above the record's street level (`meta.streetY`) or its base. Node `extras.buildings` = `[[colliderId, firstIndex, indexCount], …]` in collider order, so a renderer can hide a building a landmark replaces; `extras.fronts` lists the house kit's facades (see [House data](#ground-cover-newer-buildings-houses-and-the-far-ring-world-qa-2026-10-22)). |
 
 Materials are plain PBR (`metallic 0`, roughness 0.85–0.95) whose base colour multiplies
 the vertex colour. Facade colours are chosen by use, year and height:
@@ -633,7 +722,7 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
   * `worldColliders`: `"world.colliders.bin"` (see [World collider pack](#world-collider-pack-worldcollidersbin));
   * `farCellSizeM` and `far`: the far-LOD cells, each `{ id, cx, cz, bbox, glb, stats }`;
   * `layers`: name → file for every data layer (`boundary`, `districts`, `sidewalks`,
-    `hydrants`, `fountains`, `transit`, `signals`, `streetCleaning`, `parking`). Each file validates
+    `hydrants`, `fountains`, `transit`, `signals`, `streetCleaning`, `parking`, `storefronts`). Each file validates
     against `schemas/<file name without .json>.schema.json`.
 * **Spawn:** on the street named in `areas.json` (The Embarcadero), at the point nearest
   37.7951, −122.3932, on a carriageway whose travel direction points toward
@@ -648,8 +737,8 @@ Each building gets a deterministic per-id variation. A tower shares its podium's
 
 The sim must hold the whole world's collision data deterministically, on every client and
 the server, whatever the renderer has streamed. The design's preferred option (a) ships:
-one binary pack for the whole city, **12.69 MB** (budget 15 MB), against 82.9 MB for the
-583 per-tile JSON colliders. Format FCWC version 1, specified in
+one binary pack for the whole city, **14.72 MB** (budget 15 MB), against 97.2 MB for the
+581 per-tile JSON colliders. Format FCWC version 1, specified in
 [`schemas/world-colliders.md`](../schemas/world-colliders.md): a 64-byte header, a tile
 table, every tile's 51 × 51 heightfield as int16 cm and its water mask as bits, then 20-byte
 building records (id number, part, tower flag, vertex count, `baseY` int16 cm, height
@@ -659,39 +748,57 @@ long edges. `pipeline/lib/world-colliders.ts` has the encoder and the reference 
 tile-indexed ground lookup). The reader decodes the pack to exactly the JSON colliders'
 values (everything is whole centimetres in both), and a test proves it for every tile. An
 extension block (header offset 28) carries the additive fields: building pieces and
-undersides (`BEXT`), and every tile's decks (`DECK`), tunnels (`TUNL`) and movable spans
-(`MOVE`), with their ids in a string table (`STRS`).
+undersides (`BEXT`), every tile's decks (`DECK`), tunnels (`TUNL`) and movable spans
+(`MOVE`), with their ids in a string table (`STRS`), and the inland-lake masks (`LAKE`, W-11:
+a lake sample is water at its height, which is the lake's level). The ground cover classes and
+the lakes' names stay in the JSON (`ground.cover`, `ground.lakes`): they are the renderer's.
+Encoded for the static web build (gzip level 6, base64) the pack is 14.02 MB, over that build's
+14 MB per-file margin, so `scripts/build-web.ts` writes it as parts the page joins.
 
-The per-tile JSON colliders still ship (82.9 MB, inside the 100 MB budget for them): they
+The per-tile JSON colliders still ship (97.2 MB, inside the 100 MB budget for them): they
 are today's contract for the sim's boot and the renderer, and they carry `meta` (footY,
 year, use, storeys) the pack leaves out. **The sim should switch to the pack**; see
 [What the sim and renderer must change](#what-the-sim-and-renderer-must-change).
 
 ## Far-LOD massing (`fX_Z.glb`)
 
-`pipeline/lib/far.ts`. Every collider record (all 177,921), heavily simplified and merged
-per large cell, so the skyline and the hills beyond the streaming radius are always drawn.
-The grid starts at the candidate rectangle's north-west corner with **2,500 m cells**: the
-city fits in 6 × 6, and 33 cells hold something. One glb per cell, one node `far`, one
-primitive, so one draw call per cell (budget: 40 draw calls, 600k triangles).
+`pipeline/lib/far.ts`. Every record (the 192,802 collider records and the Daly City strip's
+3,362 far-only ones), simplified and merged per large cell, with the terrain beyond the
+streaming radius. The grid starts at the far box's north-west corner with **3,500 m cells**;
+26 cells hold something. One glb per cell, one node `far`, one primitive, so one draw call per
+cell (budget: 40 draw calls, 600k triangles). The far box is the config's (`areas.json`
+`far`: the Marin headlands to San Bruno Mountain) and the candidate rectangle, grown over every
+`outside` tile: [−11000, −7500, 4000, 13500].
 
-* **Terrain:** the DEM on a 100 m lattice over the whole cell (Marin's headlands and Daly
-  City included where the cell reaches them), land quads only, 0.5 m below the true ground
-  so the sea plane and near tiles win where they overlap.
-* **Tall records** (30 m or more above street level): each record's convex hull, cut to 6
-  vertices, flat roof at its `topY`.
-* **Everything else:** records closer than 2 m merge into a cluster (in SF, a row of houses
-  or a block face); a cluster becomes its convex hull cut to 6 vertices (4 for a lone
-  building), at the members' area-weighted mean height above the terrain, the roof following
-  the terrain.
-* Walls start 3 m below the lowest ground under a hull. No normals (three.js shades flat);
-  vertex colours from the largest member's facade palette. Quantised and meshopt-compressed
-  like the tiles.
+* **Terrain (W-17, W-40),** per 500 m tile square: every tile border is a polyline through the
+  near tiles' own 10 m lattice samples, simplified to 0.5 m and keeping every 100 m point,
+  shared exactly by the squares either side, and lowered 0.5 m; so where the streaming ring
+  stops, the far terrain meets the near ground (never above it, at most 1 m below) and no sea
+  shows through. Inside, a 100 m lattice on a built tile, 50 m where 100 m misses the 10 m
+  lattice by more than 10 m (the hills); 250 m or 100 m on every other square; cells along a
+  border are fans through its vertices (no T-junction cracks). Samples are the near lattice
+  where a candidate tile has one (lakes flattened, piers raised), else the DEM (Marin, the
+  Peninsula, the island tip). A cell whose corners are all water is drawn when land lies on its
+  sides (a sliver of shore). Colours by ground class. 104,480 terrain triangles.
+* **Tall records** (30 m or more): their own outline, simplified (the convex hull only when the
+  footprint is close to convex) and taking more vertices until it stands over no other record's
+  interior point of a different height; flat roof at `topY`.
+* **Everything else (W-41):** records closer than 6 m whose heights above the ground differ by
+  at most 5 m merge, as long as the cluster's roofs span at most 8 m; a cluster becomes its
+  convex hull, or its members' own outlines where that hull would stand over another record
+  whose roof differs by more than 5 m from the hull's there. At each hull vertex the roof is the
+  roof of the member nearest it (a stepped row on a hill slopes from roof to roof). A record
+  alone keeps its own flat roof, and a record over a tall record's interior point is never
+  clustered.
+* Every hull is pushed out 0.1 m (never over another record's interior point), so the cell's
+  1/16 m position grid leaves no record outside its roof. Walls start 3 m below the lowest
+  ground under a hull. No normals; vertex colours from the largest member's palette; quantised
+  and meshopt-compressed like the tiles.
 
-Result: 33 cells, **467,343 triangles, 6.68 MB**. The layer is meant to be drawn only
-beyond the streamed radius (a fragment discard inside it, or hiding cells the near tiles
-cover); otherwise its hulls, which are larger than the buildings, poke through the
-detailed tiles.
+Result: 26 cells, **588,612 triangles, 7.76 MB**. Against the near records: every record is
+under a hull; every record 30 m or taller is within 3 m of its hull's roof at its interior
+point; the rest are within 5 m at p99 (`tests/pipeline/far-hulls.test.ts`). The layer is drawn
+only where no streamed tile is (the renderer's tile mask).
 
 ## World edge and shore (`boundary.json`)
 
@@ -810,6 +917,19 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 
 ## What the sim and renderer must change
 
+**After the world QA's second half (2026-10-22), open:**
+
+* **Sim (Sim-World): lakes.** The pack's `LAKE` section (`ground.lake` in `src/sim/pack.ts`)
+  marks inland-lake samples; treat them as the Bay is treated (walls or the tow rule), so a car
+  cannot drive across Lake Merced (W-11). No SimState change.
+* **Render (Render-World): ground cover and the house kit.** The ground's `COLOR_0` is by
+  class already; the foliage nodes are standard `EXT_mesh_gpu_instancing` (three.js's
+  GLTFLoader builds `InstancedMesh`es). The facade shader can branch on `_FACADE.w` (party walls
+  blank, rear walls fewer windows) and lay garage doors, shop glazing and door rectangles from
+  `extras.fronts`; the assets' house kit (`assets/blender/runtime/house-kit.ts`) places bays,
+  stoops and cornices from the same rows. The far layer's stitches at the city's outer edge
+  are no longer needed: the far terrain shares the near border.
+
 **After the world QA passes (2026-10-21), still open:**
 
 * **Sim (Sim-World): decks and tunnels.** `surfaceHeight(x, z, yHint)` must read the pack's
@@ -875,19 +995,24 @@ where surface roads cross it). Walkers do not use `sidewalks.json` yet. The orig
 
 | Files | Bytes |
 |---|---|
-| 584 × `t*.glb` (quantised + meshopt) | 128.16 MB (largest 0.67 MB) |
-| 584 × `t*.collider.json` | 95.42 MB (largest 0.56 MB) |
-| `world.colliders.bin` | 14.87 MB |
-| `sidewalks.json` | 10.55 MB |
-| 33 × `f*.glb` (far-LOD) | 6.91 MB |
-| `roads.json` | 4.64 MB |
+| 581 × `t*.glb` (quantised + meshopt) | 146.99 MB (largest 0.77 MB, `t-4_-1`; budget 150 MB) |
+| 581 × `t*.collider.json` | 97.20 MB (largest 0.57 MB; budget 100 MB) |
+| `world.colliders.bin` | 14.72 MB (budget 15 MB) |
+| `sidewalks.json` | 10.54 MB |
+| 26 × `f*.glb` (far-LOD) | 7.76 MB |
+| `roads.json` | 4.63 MB |
 | `street-cleaning.json` | 3.73 MB |
-| `storefronts.json` | 1.51 MB |
+| `storefronts.json` | 1.52 MB |
 | `parking.json` | 1.25 MB |
 | `muni.json` | 0.66 MB |
 | `hydrants.json`, `districts.json`, `signals.json`, `fountains.json`, `boundary.json` | 0.73 MB |
-| `manifest.json` + `report.json` | 0.25 MB |
-| **Total (the whole city, 1,215 files)** | **268.69 MB** (268,685,992 bytes; budget 300 MB) |
+| `manifest.json` + `report.json` | 0.26 MB |
+| **Total (the whole city, 1,202 files)** | **290.01 MB** (290,005,948 bytes; budget 300 MB) |
+
+The world QA's ground cover, foliage and house data (2026-10-22) added 18.8 MB to the tile glbs
+and 1.8 MB to the collider JSON; the tile glbs are within 3.1 MB of their budget, so the next
+per-tile addition needs room made first. A regeneration peaks at 5.0 GB of resident memory
+(`--max-old-space-size=8192`).
 
 Budgets live in `tests/pipeline/budgets.json` and `tests/pipeline/budgets.test.ts` enforces
 them: each tile glb and each collider JSON ≤ 1.5 MB, all tile glbs ≤ 150 MB, all collider
@@ -900,8 +1025,8 @@ M0 + M1 world, 34.62 MB; it is superseded.)
 Inputs are sorted by source id, coordinates are rounded to cm, JSON is written with a fixed
 key order (one building, node, edge or record per line, so data changes diff as line
 changes), meshopt encoding is deterministic, and there are no timestamps. `--check`
-rebuilds from cache and compares every byte (all 1,215 files byte-identical on
-2026-10-21).
+rebuilds from cache and compares every byte (all 1,202 files byte-identical on
+2026-10-22).
 
 **Rebuilds belong in one commit.** The world is about 269 MB of committed files and a
 rebuild rewrites most of them, so every commit that rebuilds the world adds a full copy to
@@ -911,9 +1036,11 @@ memory, and compares SHA-256 of every file.
 
 ## Known limitations
 
-* **The LiDAR is from 2010.** Buildings finished since then get assessor-storey heights,
-  which are approximate (2,409 buildings), or an override (415 Mission St). Buildings that replaced a
-  different 2010 building on the same footprint keep the old height.
+* **The LiDAR is from 2010, the footprints from 2016.** Buildings finished since then get
+  assessor-storey heights, which are approximate (2,410 buildings), or an override; buildings the
+  footprint layer lacks get their lot's outline (197) or an override's (4), at storeys × a storey
+  height: a lot outline is the building's envelope, not its plan. Buildings that replaced a
+  different 2010 building on the same footprint keep the old height unless an override says so.
 * **Two-tier massing is a model.** The tower is centred on the podium's centroid; the real
   tower may sit at a corner. The tower test reads summary statistics, not the point cloud,
   so a real but very slender tower (a church spire under 25 m²) becomes part of its roof,
@@ -950,13 +1077,16 @@ memory, and compares SHA-256 of every file.
   rebuilt (2012–2015) on new alignments: the Battery tunnel is bored northbound and the Main
   Post tunnel southbound, where the DEM's hill stands over the line; the other direction's
   hill is too shallow (under 3 m of cover) and runs over it.
-* **The collider pack is over the static web build's per-file margin.** `world.colliders.bin`
-  is 14.87 MB (budget 15 MB); gzip + base64 it is 14.27 MB, under the page host's 15 MB file
-  limit but over `PACK_MAX_BYTES` (14 MB) in `scripts/build-web.ts`, which ships it as one file,
-  so `pnpm build` and `tests/e2e/web-build.spec.ts` stop. It grew by the shared walls' kept
-  vertices (W-36, +300k), the terrace strips (W-05/W-28, +17,551 records) and the structures
-  (+0.3 MB): the content the fixes need, so the static build (Render-World) has to carry it,
-  split into parts or up to the host's limit.
+* **The collider pack is 0.28 MB under its budget** (14.72 of 15 MB raw). The static web build
+  splits any encoded file over 14 MB into parts (`scripts/build-web.ts`), so the host's 15 MB
+  file limit is not the constraint; the pipeline budget is.
+* **Lakes are flat water, not basins.** A lake is its outline flattened to its level (up to
+  2.5 m of bank cut away); there is no lake bed, and the sim does not yet treat `LAKE` samples
+  as water (Sim-World).
+* **House data is data.** The wall classes, storeys and fronts are in the glbs; the shader
+  branches (party walls blank, garage doors, shopfront glazing) and the instanced bays, stoops
+  and cornices are the renderer's and the assets' (house kit K1–K8). Pitched roofs (K8) are not
+  modelled: roofs stay flat at the LiDAR ridge.
 * **No 2 m road profile (W-31).** The road surface is the 10 m lattice (drawn exactly as the
   sim drives it); the 1 m DEM that a 2 m road-profile pass needs is not among the cached
   inputs.
@@ -973,7 +1103,8 @@ memory, and compares SHA-256 of every file.
   (clamped at 3 offsets). Freeways have no deck height yet, so a street under an elevated
   freeway is cut and bridged by a crossing as if the freeway were at grade. Hydrants are
   procedural.
-* **Far-LOD hulls are convex**, so a block cluster's hull covers its back yards.
+* **Far-LOD clusters are convex** where that stands over no record of a different height, so a
+  block cluster's hull covers its back yards.
 * **Some thin LiDAR towers remain:** 53 under 60 m² over a low podium, all under 54 m
   (steeples, rooftop structures, and spikes the data cannot tell from them). Towers of
   60 m² and more are kept when the moment model accepts them. A tree mask (DataSF *Urban Tree
@@ -1038,8 +1169,9 @@ memory, and compares SHA-256 of every file.
   on its left and on Ocean Beach's waterline; thin LiDAR towers capped (200, under 60 m);
   the Sutro Tower probe; transit, cable car lines, Street Cleaning and parking edges.
 * `world-colliders.test.ts`: the pack decodes to exactly the JSON colliders and re-encodes
-  byte for byte; its ground lookup equals the sim's; escapes, negative coordinates, parts,
-  towers; refusals and a corrupt file.
+  byte for byte, through both readers; its ground lookup equals the sim's; escapes, negative
+  coordinates, parts, towers, the extension block and the `LAKE` section; refusals and a
+  corrupt file.
 * `budgets.test.ts`: every budget in `budgets.json`.
 * `sf-glb.test.ts`: every tile and far cell through the Khronos validator (compressed and
   decoded) and three.js's `GLTFLoader` with the meshopt decoder; the quantisation grid;
@@ -1075,6 +1207,20 @@ memory, and compares SHA-256 of every file.
   smooth, every overpass 5 m over the road under it), `ribbon-ground.test.ts` (W-09, W-10:
   the drawn ribbons against the ground mesh) and `surfaces.test.ts` (the reference lookup on
   decks and in the Broadway Tunnel).
+* The world QA's second half (2026-10-22), on the committed world: `ground-cover.test.ts`
+  (W-18, W-34: every sample classed, 90% of Rec and Park land green and no property under
+  10%, 90% of the four beaches sand, trees in every listed park and never in a building or on
+  a road), `inland-water.test.ts` (W-11: 90% of each lake's outline water at its level, the
+  measured levels, no flattened basin left dry, the pack's `LAKE` mask equal to the JSON's,
+  lakes drawn as water), `completeness.test.ts` (W-04: at most 10 post-2015 parcels without a
+  record and no cluster of 3, the Shipyard hilltop and Mission Rock, published heights within
+  10%), `far-ring.test.ts` (W-17, W-40: near against far every 5 m along every built tile's
+  border, the bare south-edge and island tiles covered, the outside ring complete, San Bruno
+  Mountain), `far-hulls.test.ts` (W-41: every record under a hull, tall ones within 3 m, the
+  rest within 5 m at p99), `facade-storeys.test.ts` (W-15, W-29: storeys under 5 m, the
+  garage storey, the grid at the sidewalk) and `house-kit.test.ts` (W-46 to W-50 data: wall
+  classes, 30th Ave's fronts and garage doors, Liberty St's bays, stoops, storefront walls,
+  the facade grouping). `citywide.test.ts` also checks the Daly City strip is far-only (W-42).
 * `tower-rule.test.ts`: the tower rule on real DataSF statistics: the 600 Montgomery
   pyramid, the Ferry Building clock tower, Coit Tower, the Russ Building and an office slab
   keep their towers; five measured needles (including the review's four) do not.
