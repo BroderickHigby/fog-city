@@ -37,3 +37,9 @@ Source branch review images; the original capture also includes later landcover 
 - `trees-embarcadero.png`
 - `trees-marina-blvd.png`
 - `trees-palms.png`
+
+## storefront
+
+Taken on the full street-detail stack (every stream branch up to storefront signs), so land cover from #54 may appear too.
+
+- `storefront-bar.png`

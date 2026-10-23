@@ -10,7 +10,7 @@
 //   node pipeline/build-street-detail.ts --refresh                re-download and move the pinned snapshot
 // Flags: --cache <dir>, --out <dir>.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { jsonLines, jsonPretty } from "./lib/output.ts";
@@ -141,7 +141,7 @@ export function buildStreetDetail(
     description: "Street-detail layers (render-only): see docs/data-sources.md, Street detail.",
     snapshotDate,
     attribution: [...attribution, streetDetailAttribution(["trees"])],
-    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, trees: TREES_FILE },
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, trees: TREES_FILE, ...(existsSync(join(dir, "storefronts.json")) ? { storefronts: "storefronts.json" } : {}) },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,
