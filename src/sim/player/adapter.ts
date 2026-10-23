@@ -66,7 +66,8 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
   const observations=base.bodies.map(body=>{
    const player=context.state.players[body.id]!,pose=player.mode==="foot"&&player.foot?player.foot:player.car;
    const isWatching=!!((context.inputs[body.id]?.actions??0)&Action.watch);
-   const candidates=isWatching?actors.filter(actor=>{const x=actor.x-body.x,z=actor.z-body.z,forward=x*dsin(pose.heading)-z*dcos(pose.heading);return actor.kind==="robot"&&visible(body,actor,30)&&forward>0&&forward*forward>=(x*x+z*z)*.9330127018922194;}).sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)):[];
+   const aimError=(actor:CombatActor)=>{const x=actor.x-body.x,z=actor.z-body.z,side=x*dcos(pose.heading)+z*dsin(pose.heading);return side*side/(x*x+z*z);};
+   const candidates=isWatching?actors.filter(actor=>{const x=actor.x-body.x,z=actor.z-body.z,forward=x*dsin(pose.heading)-z*dcos(pose.heading);return actor.kind==="robot"&&visible(body,actor,30)&&forward>0&&forward*forward>=(x*x+z*z)*.9330127018922194;}).sort((a,b)=>aimError(a)-aimError(b)||distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)):[];
    const watchingActorId=candidates[0]?.id;const old=previous.player.players[body.id];
    return {playerId:body.id,seenByBad:actors.some(a=>a.firmware==="bad"&&(context.state.ext.combat?.targets[a.id]?.alerted||(previous.heat.players[body.id]?.threat??0)>0)&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&distanceSquared(body,a)<=40000),fog:options.fog?.(context)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
   });
