@@ -25,3 +25,19 @@ test("disposed UI releases input and removes its modal",async({page})=>{
   await page.keyboard.down("KeyW");expect(await page.evaluate(()=>(window as unknown as {ui:{sampleInput():{throttle:number}}}).ui.sampleInput().throttle)).toBe(1);
   await page.evaluate(()=>(window as unknown as {ui:{dispose():void}}).ui.dispose());await expect(page.locator(".fc-ui")).toHaveCount(0);
 });
+test("IndexedDB preserves progression across a page reload",async({page})=>{
+  await page.evaluate(async()=>{
+    const path="/src/save/index.ts",module=await import(path);
+    const backend=new module.IndexedDbSaveBackend(indexedDB,"fog-city-browser-save-test");
+    const store=new module.SaveStore({backends:[backend],contentHash:"test-bundle",validate:(value:unknown)=>value});
+    await store.save(0,{wallet:{cashCents:12345,settledModeIds:["round-1"]}});await backend.close();
+  });
+  await page.reload();
+  const data=await page.evaluate(async()=>{
+    const path="/src/save/index.ts",module=await import(path);
+    const backend=new module.IndexedDbSaveBackend(indexedDB,"fog-city-browser-save-test");
+    const store=new module.SaveStore({backends:[backend],contentHash:"test-bundle",validate:(value:unknown)=>value});
+    const saved=await store.load(0);await backend.close();return saved?.data;
+  });
+  expect(data).toEqual({wallet:{cashCents:12345,settledModeIds:["round-1"]}});
+});
