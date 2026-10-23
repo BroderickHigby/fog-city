@@ -6,7 +6,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { toLocal } from "../../src/geo/project.ts";
-import { nearbyBuildings, pointInPolygon } from "../../src/sim/index.ts";
+import { canonicalJson, createGameSystems, hashState, nearbyBuildings, pointInPolygon } from "../../src/sim/index.ts";
+import { DEFAULT_CATALOG } from "../../src/sim/player/catalog.ts";
 import { fileExists, loadWorld, loadWorldFiles, readJsonIfExists, worldExists, type RoadGraphFile } from "../helpers.ts";
 import {
   THROTTLE,
@@ -24,11 +25,65 @@ import {
   type FogWindow,
 } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
+import { GameplayDriver } from "./gameplay-driver.ts";
+import { p1Chunk, replay, withRecordedCommands } from "./replay.ts";
 
 const SF = worldExists("sf");
 const ABSENT = "public/tiles/sf/manifest.json is absent: the pipeline has not produced the SF world on this checkout";
 /** Spawn must be this close to the origin (the Ferry Building clock tower), metres. */
 const SPAWN_RADIUS_M = 400;
+
+test.describe("sf world: authored gameplay", () => {
+  test.use({ viewport: { width: 960, height: 540 } });
+  test("drives to the real FiDi counter and makes the first purchase through the HUD", async ({ page }) => {
+    test.setTimeout(900_000);
+    gate("sf", SF, ABSENT);
+    const problems = await bootWorld(page, "sf", "&radius=300&pr=0.75");
+    await page.evaluate(() => {
+      const handle = (window as unknown as FogWindow).__fogcity!;
+      handle.pause();
+      handle.stepN(1); // Consume the recorded boot command before taking the replay snapshot.
+    });
+    const initial = await simState(page);
+    const { world } = loadWorld("sf", { roads: true });
+    const vendor = DEFAULT_CATALOG.sites.find(site => site.id === "fidi-desk" && site.kind === "vendor")!;
+    const driver = new GameplayDriver(world, initial);
+    driver.driveTo(vendor, 18, 9600);
+    for (let at = 0; at < driver.frames.length; at += 500) {
+      await page.evaluate(frames => (window as unknown as FogWindow).__fogcity!.stepFrames!(frames), driver.frames.slice(at, at + 500));
+    }
+    const arrived = await simState(page);
+    expect(canonicalJson(arrived)).toBe(canonicalJson(driver.state));
+    expect(Math.hypot(arrived.players.p1!.car.x - vendor.x, arrived.players.p1!.car.z - vendor.z)).toBeLessThanOrEqual(18);
+    expect(Math.abs(arrived.players.p1!.car.speed)).toBeLessThan(.3);
+
+    await page.getByRole("button", { name: "Counter", exact: true }).click();
+    const tank = page.locator("article").filter({ has: page.getByRole("heading", { name: "Tank I", exact: true }) });
+    await expect(tank.getByRole("button", { name: "Buy", exact: true })).toBeEnabled();
+    const before = await simState(page);
+    const cash = before.ext.economy!.players.p1!.cashCents;
+    await tank.getByRole("button", { name: "Buy", exact: true }).click();
+    await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().ext.economy?.players.p1?.ownedItemIds.includes("tank-1"));
+    const bought = await simState(page);
+    const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands!());
+    expect(bought.ext.economy!.players.p1!.cashCents).toBe(cash - 60_000);
+    expect(bought.ext.economy!.players.p1!.ownedItemIds.filter(id => id === "tank-1")).toHaveLength(1);
+    const purchase = commands.filter(command => command.kind === "gameplay.command" && (command.payload as { kind?: string }).kind === "buy");
+    expect(purchase).toHaveLength(1);
+    const chunks = withRecordedCommands([p1Chunk(bought.tick - before.tick)], before.tick, commands);
+    expect(hashState(replay(world, before, chunks, createGameSystems()).final)).toBe(hashState(bought));
+    await expect(tank.getByRole("button", { name: "Owned", exact: true })).toBeDisabled();
+    await expect(page.locator(".fc-cluster")).toContainText("/ 12 L");
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
+    await frames(page, 2);
+    await page.screenshot({ path: "test-results/first-purchase-third-person.png" });
+    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("first-person"));
+    await frames(page, 2);
+    await page.screenshot({ path: "test-results/first-purchase-first-person.png" });
+    expect(problems).toEqual([]);
+  });
+});
 
 interface LandmarksDoc {
   landmarks: Array<{ id: string; model: string; lat: number; lon: number; headingDeg: number }>;
@@ -292,14 +347,14 @@ test.describe("sf world: in the browser", () => {
     expect(problems).toEqual([]);
   });
 
-  test("the far skyline is drawn beyond the streamed tiles: from Twin Peaks, every far cell loaded and some on screen", async () => {
+  test("the far skyline is drawn beyond the streamed tiles: from Twin Peaks, the current region is loaded and on screen", async () => {
     // 40 tiles stream in around Twin Peaks and every frame draws ~740k triangles: under
     // SwiftShader on a loaded machine that takes minutes of wall time, never a frame-rate claim.
     test.setTimeout(420_000);
     const have = await features(page);
     gate("render-debug", have.renderInfo && have.flyTo, "window.__fogcity.renderInfo() or flyTo() is missing");
     const { manifest } = loadWorldFiles("sf");
-    const far = (manifest as { far?: unknown[] }).far ?? [];
+    const far = (manifest as { far?: Array<{ bbox?: [number, number, number, number] }> }).far ?? [];
     expect(far.length, "manifest.far cells").toBeGreaterThan(20);
     // Twin Peaks, 50 m over the summit, looking north-east at downtown 6.6 km away.
     await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.flyTo!(-4756, 330, 4562, 46, -6));
@@ -307,7 +362,20 @@ test.describe("sf world: in the browser", () => {
     await frames(page, 3);
     const r = (await renderInfo(page))!;
     expect(r.farCellsTotal, "far cells the renderer knows").toBe(far.length);
-    expect(r.farCells, "far cells loaded into the scene").toBe(far.length);
+    if (r.farBudget?.radius !== null && r.farBudget?.radius !== undefined) {
+      const radius = r.farBudget.radius;
+      const wanted = far.filter(({ bbox: b }) => {
+        if (!b) return true;
+        const dx = Math.max(Math.min(b[0], b[2]) + 4756, -4756 - Math.max(b[0], b[2]), 0);
+        const dz = Math.max(Math.min(b[1], b[3]) - 4562, 4562 - Math.max(b[1], b[3]), 0);
+        return Math.hypot(dx, dz) <= radius;
+      }).length;
+      expect(r.farBudget, "the requested software-renderer region has no outstanding or failed loads").toMatchObject({ queued: 0, loading: 0, failed: 0 });
+      expect(r.farCells, "every cell in the bounded current region is loaded").toBeGreaterThanOrEqual(Math.min(24, wanted));
+      expect(r.farCells, "the software skyline cache stays inside its cell budget").toBeLessThanOrEqual(24);
+    } else {
+      expect(r.farCells, "native GPUs retain the full skyline").toBe(far.length);
+    }
     expect(r.farCellsDrawn ?? 0, "far cells drawn in the last frame").toBeGreaterThan(3);
     expect(r.farTriangles ?? 0, "far-LOD triangles loaded").toBeGreaterThan(100_000);
     expect(r.cameraFar ?? 0, "camera far plane, m").toBeGreaterThanOrEqual(15_000);

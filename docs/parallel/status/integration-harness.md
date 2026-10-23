@@ -1,7 +1,7 @@
 # Integration harness
 
 ## Now
-Verifying the composed game on `lane/harness/wave2`, based on reviewed core `aa1eb6a`, source-only UI `25d7aa8`, and isolated follower corrections `953a4d8` / `5eacc15`. The original prototype and other active worktrees are untouched.
+Running full typecheck, unit and browser verification on `lane/harness/wave2`, including core `f9ca263`, source-only UI `7382472`, bounded rendering `5c0c598` and the isolated wave-2 purchase correction `cad8993`. The original prototype and other active worktrees are untouched.
 
 ## Done
 - Node and browser replay builders retain the authored gameplay, sidewalk and transit layers.
@@ -12,18 +12,17 @@ Verifying the composed game on `lane/harness/wave2`, based on reviewed core `aa1
 - `pnpm typecheck` passed on the composed source plus harness changes. Focused harness tests: **24 passed** (11.35 seconds), including delayed UI command placement and an input-only walk / return-to-car replay.
 - Chromium dev smoke **passed** (57.1 seconds): no console or request errors, the game loop advances, and the frame is nonblank. The sandbox required loopback permission for Vite; the same test passed when run with that permission.
 - Baseline canonical SF physical probe: **600 ticks took 51,430 ms** (11.7 ticks/second) without rendering. The car moved approximately 95 m with zero recorded car hits / person bumps. This is below the required real-time throughput and has been reported to Core and Agents for profiling. The bounded route probe intentionally stopped before reaching the distant vendor; it is not purchase acceptance.
+- The same 600-tick drive after `f9ca263` took **5,734 ms** (104.6 ticks/second), approximately nine times faster. All gameplay, sidewalk and transit layers were present; actor counts were 330 initially and 363 at the end, with 363 runtime actors, zero clearance contacts/failures and zero car hits/person bumps. This resolves the measured simulation-throughput blocker on this scenario, not every possible city load.
+- Added real-SF first-purchase acceptance: drive to the FiDi counter using production controls, click the HUD, check cash/item/capacity changes, replay the recorded command, and capture first/third-person screenshots. Pending full browser execution.
 
 ## Next
-1. Run the short Chromium composed replay and cross-engine scenario.
-2. Integrate the reviewed performance correction, then verify first purchase and Hot Desk / Spill through real controls and recorded UI commands.
-3. Run full typecheck, unit and browser suites on the final immutable candidate. Retain concrete failures rather than lowering assertions.
+1. Complete the active full verification run and repair concrete failures without lowering assertions.
+2. Verify Hot Desk / Spill through real controls and recorded UI commands.
 
 ## Blocked on
-- Core / Agents: canonical SF runtime currently measured at 11.7 ticks/second; long mission loops are not yet practical at real time.
-- Firefox and WebKit are not installed; this remains explicit missing cross-engine evidence.
+- Firefox and WebKit are not installed. An official Playwright installation attempt failed with HTTP 403 `Domain forbidden` from `cdn.playwright.dev` and `playwright.download.prss.microsoft.com`; it stopped before downloading WebKit. This remains explicit missing cross-engine evidence. System Chromium continues to work through the local executable override.
 
 ## Requests for other lanes
-- Core / Agents: optimize the observed gameplay provider and actor planning, preserving deterministic accepted poses.
 - Core / Agents: the later Fleet Week recovery producer still needs a physical ownership consumer and current controlled-actor identity.
 - UI: keep the read-only `commands()` log and shared `buildLoadedWorld()` API stable for replay verification.
 
