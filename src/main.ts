@@ -19,7 +19,7 @@
 //   &pr=1.5                      cap on devicePixelRatio
 //   &cam=chase|first-person|fly  starting camera
 //
-// Keys: WASD/arrows drive (or walk), Space brake (sprint on foot); F enter/exit, E fire,
+// Keys: WASD/arrows drive (or walk), Space brake; on foot W jogs, Shift (or Space, pad LT) sprints; F enter/exit, E fire,
 // Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
 // move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
 
@@ -50,7 +50,7 @@ import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
-import { Hud, exitHint, type HudData } from "./render/hud.ts";
+import { HINT_SPRINT, HINT_SPRINT_TOUCH, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
@@ -350,6 +350,9 @@ async function boot(): Promise<void> {
   });
 
   let nextUiUpdate=0;
+  const touchControls = matchMedia("(pointer: coarse)").matches;
+  let sprintHints = 0;
+  let sprintHintDue = false;
   const frame = (now: number): void => {
     const frameS = (now - last) / 1000;
     const dtFrame = Math.min(frameS, MAX_FRAME_S);
@@ -378,6 +381,14 @@ async function boot(): Promise<void> {
           advance(input);
           const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
           if (hint) hud.hint(hint, now);
+          // The first few times the player jogs off after getting out, say how to sprint.
+          const after = curr.players[LOCAL_PLAYER];
+          if (before?.mode === "vehicle" && after?.mode === "foot" && sprintHints < SPRINT_HINTS) sprintHintDue = true;
+          if (sprintHintDue && after?.mode === "foot" && after.foot && after.foot.speed > 1.5 && !after.foot.sprint) {
+            sprintHintDue = false;
+            sprintHints++;
+            hud.hint(touchControls ? HINT_SPRINT_TOUCH : HINT_SPRINT, now);
+          }
         }
         acc -= DT;
       }

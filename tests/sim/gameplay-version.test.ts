@@ -3,7 +3,7 @@ import { buildWorld, canonicalJson, createGameSystems, hashState, SIM_VERSION, s
 import saved from "../golden/legacy-saves/v7-gameplay.json";
 import { deepFreeze } from "../helpers.ts";
 
-describe("v7 to v8 composed gameplay save migration", () => {
+describe("v7 to current composed gameplay save migration", () => {
   it("preserves every field of a real v7 save, including opaque extensions", () => {
     expect(saved.simVersion).toBe(7);
     expect(saved.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
@@ -15,8 +15,10 @@ describe("v7 to v8 composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(8);
-    expect(upgraded).toEqual({ ...old, version: 8 });
+    // v7 -> v8 -> v11 (v9/v10 are reserved by other streams): behaviour only, every field kept.
+    expect(SIM_VERSION).toBe(11);
+    expect(upgraded).toEqual({ ...old, version: 11 });
+    expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
     expect(upgradeState(JSON.parse(before))).toEqual(upgraded);

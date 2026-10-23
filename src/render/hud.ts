@@ -62,6 +62,10 @@ export interface ExitHintPlayer {
 
 export const HINT_NO_ROOM = "No room to get out";
 export const HINT_TOO_FAR = "Too far from your car to get in";
+/** Shown the first few times the player gets out on foot, so the sprint is discoverable. */
+export const HINT_SPRINT = "Hold Shift to sprint";
+export const HINT_SPRINT_TOUCH = "Hold Brake / sprint to run";
+export const SPRINT_HINTS = 3;
 
 /**
  * The hint to show after one tick, or null: F (enterExit, `pressed`) did nothing. In the car:

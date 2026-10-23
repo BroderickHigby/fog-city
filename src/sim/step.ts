@@ -16,7 +16,7 @@ import {
 } from "./contract.ts";
 import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
 import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
-import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
+import { FOOT, canEnterCar, exitSpot, stepFoot, wantsSprint } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
 import {
   DODGE_PROFILE,
@@ -131,6 +131,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
  *  - v7 -> v8: gameplay behavior changes without a required field rewrite. Preserve the
  *    complete saved state, including active missions, combat effects and future extensions.
+ *  - v8 -> v11: faster on-foot pace and Action.sprint change behaviour only; every field is kept.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -138,7 +139,10 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if ([2, 3, 4, 5, 6].includes(s.version)) {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
-  if (s.version === 7) return { ...s, version: 8 };
+  if (s.version === 7) return upgradeState({ ...s, version: 8 });
+  // v9 (structural world) and v10 (weather) are reserved by other streams; whichever lands
+  // first takes its place in this chain.
+  if (s.version === 8) return { ...s, version: 11 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -383,7 +387,7 @@ function stepPlayerWithEffects(world: World, player: PlayerState, input: SimInpu
   const limit = movementLimit(combat, { id: `player:${player.id}`, playerId: player.id });
   if (limit.maxSpeed === null && limit.scale === 1) return stepPlayer(world, player, input, obs);
   const foot = player.mode === "foot" && player.foot;
-  const naturalCap = limit.scale < 1 ? (foot ? (input.brake ? FOOT.sprint : FOOT.walk) : CAR.maxSpeed) * limit.scale : Infinity;
+  const naturalCap = limit.scale < 1 ? (foot ? (wantsSprint(input) ? FOOT.sprint : FOOT.walk) : CAR.maxSpeed) * limit.scale : Infinity;
   const cap = Math.max(0, Math.min(limit.maxSpeed ?? Infinity, naturalCap));
   const body = foot || player.car;
   const limited = { ...body, speed: clamp(body.speed, -cap, cap) };

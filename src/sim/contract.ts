@@ -19,7 +19,11 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-export const SIM_VERSION = 8;
+// v9 is reserved for the structural world (World stream), v10 for wave-3 weather (#29).
+// v11 (player feel): on foot the default pace is a brisk jog (FOOT.walk 3.0 m/s) and the sprint
+// is fast (FOOT.sprint 7.0 m/s); Action.sprint (held, Shift) sprints as the brake already did.
+// Saved fields are unchanged; an upgraded v8 save keeps everything and walks at the new pace.
+export const SIM_VERSION = 11;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -55,6 +59,8 @@ export const Action = {
   watch: 1 << 9,
   altFire: 1 << 10,
   gear: 1 << 11,
+  /** v11: held, not one-shot. On foot with forward, sprint (the brake still sprints too). */
+  sprint: 1 << 12,
 } as const;
 
 /** Shared names for recorded facts and derived gameplay events; payloads stay plain JSON. */
@@ -179,7 +185,7 @@ export interface FootState {
   heading: number;
   /** m/s along heading; negative when stepping back. */
   speed: number;
-  /** True while sprinting (brake held). */
+  /** True while sprinting (Action.sprint or the brake held, with forward). */
   sprint: boolean;
   // ---- v3 additions ----
   /** Vertical velocity, m/s, + = up: the ground's rise along the walk while grounded, gravity while falling. */
