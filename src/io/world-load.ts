@@ -16,6 +16,7 @@ import type { GameplayWorldData } from "../sim/gameplay-world.ts";
 import { navigationFromPipeline, type PipelineSidewalks } from "../sim/agents/pipeline-navigation.ts";
 import type { TransitLayer } from "../sim/agents/transit-runtime.ts";
 import { buildWorld, type World } from "../sim/world.ts";
+import type { ParkingLayer, StreetCleaningLayer } from "../sim/parking-data.ts";
 
 /**
  * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
@@ -23,7 +24,7 @@ import { buildWorld, type World } from "../sim/world.ts";
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay", "sidewalks", "transit"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay", "sidewalks", "transit", "parking", "streetCleaning"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
@@ -43,6 +44,8 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   gameplay?: GameplayWorldData | null;
   sidewalks?: PipelineSidewalks | null;
   transit?: TransitLayer | null;
+  parking?: ParkingLayer | null;
+  streetCleaning?: StreetCleaningLayer | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
 }
@@ -56,7 +59,7 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
   colliders: { pack: Uint8Array } | { json: TileCollider[] },
   roads: RoadsFile | null,
   boundary: BoundaryFile | null,
-  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit">={},
+  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit"|"parking"|"streetCleaning">={},
 ): WorldFiles<M> {
   if ("pack" in colliders) {
     const pack = decodeColliderPack(colliders.pack);
@@ -75,6 +78,8 @@ export function buildLoadedWorld(files:WorldFiles):World {
   const world=buildWorld(files.tiles,files.roads,files.boundary,files.gameplay??undefined);
   if(files.sidewalks)world.sidewalks=navigationFromPipeline(files.sidewalks).graph;
   if(files.transit)world.transit=files.transit;
+  if(files.parking)world.parking=files.parking;
+  if(files.streetCleaning)world.streetCleaning=files.streetCleaning;
   return world;
 }
 
@@ -91,7 +96,8 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
   const boundaryFile = manifest.layers?.boundary ?? null;
   const gameplayFile=manifest.layers?.gameplay;
   const sidewalksFile=manifest.layers?.sidewalks,transitFile=manifest.layers?.transit;
-  const [colliders, roads, boundary, gameplay,sidewalks,transit] = await Promise.all([
+  const parkingFile=manifest.layers?.parking,cleaningFile=manifest.layers?.streetCleaning;
+  const [colliders, roads, boundary, gameplay,sidewalks,transit,parking,streetCleaning] = await Promise.all([
     packFile
       ? assets.bytes(base + packFile).then(
           (pack) => ({ pack }),
@@ -113,6 +119,8 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
     gameplayFile?assets.json<GameplayWorldData>(base+gameplayFile).catch((err:unknown)=>{throw named("gameplay layer",gameplayFile,err);}):Promise.resolve(null),
     sidewalksFile?assets.json<PipelineSidewalks>(base+sidewalksFile).catch((err:unknown)=>{throw named("sidewalk layer",sidewalksFile,err);}):Promise.resolve(null),
     transitFile?assets.json<TransitLayer>(base+transitFile).catch((err:unknown)=>{throw named("transit layer",transitFile,err);}):Promise.resolve(null),
+    parkingFile?assets.json<ParkingLayer>(base+parkingFile).catch((err:unknown)=>{throw named("parking layer",parkingFile,err);}):Promise.resolve(null),
+    cleaningFile?assets.json<StreetCleaningLayer>(base+cleaningFile).catch((err:unknown)=>{throw named("street-cleaning layer",cleaningFile,err);}):Promise.resolve(null),
   ]);
-  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit});
+  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit,parking,streetCleaning});
 }

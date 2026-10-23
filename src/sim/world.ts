@@ -9,6 +9,7 @@ import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 import type { GameplayWorldData } from "./gameplay-world.ts";
 import type { SidewalkGraph } from "./agents/navigation.ts";
 import type { TransitLayer } from "./agents/transit-runtime.ts";
+import type { ParkingLayer, StreetCleaningLayer } from "./parking-data.ts";
 
 export interface BuildingCollider {
   id: string;
@@ -45,6 +46,9 @@ export interface TileCollider {
 }
 
 export interface World {
+  /** Immutable legal-parking rules; absence never grants parking permission. */
+  parking?: Readonly<ParkingLayer>;
+  streetCleaning?: Readonly<StreetCleaningLayer>;
   /** Immutable authored routes/stops loaded beside gameplay metadata. */
   transit?: TransitLayer;
   /** Static pedestrian graph loaded with the world's gameplay metadata. */
