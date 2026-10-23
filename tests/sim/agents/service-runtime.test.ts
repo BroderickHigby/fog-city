@@ -1,3 +1,4 @@
+import {createHeat} from "../../../src/sim/heat/system.ts";
 import {describe,expect,it} from "vitest";
 import {buildWorld} from "../../../src/sim/world.ts";
 import {createInitialState} from "../../../src/sim/step.ts";
@@ -6,7 +7,7 @@ import {createAgentsRuntime,type AgentsRuntimeState} from "../../../src/sim/agen
 import {planServiceRuntime,type ServiceRuntimeState} from "../../../src/sim/agents/service-runtime.ts";
 import type {SimState} from "../../../src/sim/contract.ts";
 const world=buildWorld([],{version:1,nodes:[{id:"a",x:-500,z:0},{id:"b",x:500,z:0}],edges:[{id:"road",a:"a",b:"b",kind:"residential",lanes:2,oneway:false,points:[[-500,0],[500,0]]}]});
-function initial(){const sim=createInitialState(world,7,["p"],{x:0,z:0,heading:0});sim.players.p!.mode="foot";sim.players.p!.foot=makeFoot(0,0,0,0);sim.players.p!.car.z=30;sim.ext.agents={nextId:1,list:[]};sim.ext.heat={events:[{kind:"threat.spawn",payload:{id:"heat:p:1",requestTick:0,playerId:"p",player:{x:0,z:0},kind:"van",threat:2,unitCount:2}}]};return sim;}
+function initial(){const sim=createInitialState(world,7,["p"],{x:0,z:0,heading:0});sim.players.p!.mode="foot";sim.players.p!.foot=makeFoot(0,0,0,0);sim.players.p!.car.z=30;sim.ext.agents={nextId:1,list:[]};sim.ext.heat={...createHeat(),events:[{id:1,tick:sim.tick,playerId:"p",targetId:"",amount:0,detail:"",kind:"threat.spawn",payload:{id:"heat:p:1",requestTick:0,playerId:"p",player:{x:0,z:0},kind:"van",threat:2,unitCount:2}}]};return sim;}
 function install(sim:SimState,runtime:AgentsRuntimeState){return {...sim,ext:{...sim.ext,robots:runtime as unknown as NonNullable<SimState["ext"]["robots"]>}};}
 describe("observed service vehicle runtime",()=>{
  it("dispatches on a clear road about120m away and rejects replayed requests",()=>{const sim=initial(),first=planServiceRuntime(world,sim,undefined);expect(first.spawns).toHaveLength(1);const van=first.spawns[0]!;expect(Math.sqrt(van.x*van.x+van.z*van.z)).toBeGreaterThanOrEqual(100);expect(Math.sqrt(van.x*van.x+van.z*van.z)).toBeLessThanOrEqual(140);expect(first.events.map(e=>e.kind)).toEqual(["service.dispatched"]);const next=planServiceRuntime(world,{...sim,tick:1},first.state);expect(Object.keys(next.state.vehicles)).toHaveLength(1);expect(next.events).toEqual([]);});

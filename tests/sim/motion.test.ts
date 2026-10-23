@@ -80,3 +80,19 @@ describe("core movement acceptance", () => {
   });
 
 });
+
+describe("service vehicle controls",()=>{
+  it("applies normal car physics once and preserves its controller state",()=>{
+    const world=buildWorld([]);
+    let state=createInitialState(world,1,["p"],{x:0,z:0,heading:0});
+    const proposal:AgentMotionProposal={id:"service:one",numericId:100,legacyId:null,kind:"vehicle",bodyKind:"robot",sourceX:10,sourceY:0,sourceZ:20,x:10,y:0,z:20,heading:0,speed:0,radius:1.6,height:1.8,halfLength:2.7,halfWidth:1.1,controls:{throttle:1,steer:0,brake:0,actions:0}};
+    const system:SimSystem={key:"robots",prepare:ctx=>({state:ctx.state,motions:[proposal]}),step:ctx=>ctx.state};
+    for(let tick=0;tick<120;tick++)state=step(world,state,{},[],[system]);
+    const body=state.ext.agents!.list[0]!;
+    expect(body.z).toBeLessThan(10);
+    expect(body.speed).toBeGreaterThan(8);
+    expect(body.vehicle!.speed).toBe(body.speed);
+    expect(body.vehicle!.x).toBe(body.x);
+    expect(JSON.parse(JSON.stringify(state))).toEqual(state);
+  });
+});

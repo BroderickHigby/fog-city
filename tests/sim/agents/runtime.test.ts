@@ -1,3 +1,4 @@
+import {createMissions} from "../../../src/sim/missions/system.ts";
 import { describe, expect, it } from "vitest";
 import { Action, type SimState } from "../../../src/sim/contract.ts";
 import { makeFoot } from "../../../src/sim/foot.ts";
@@ -125,7 +126,7 @@ describe("authoritative agent runtime",()=>{
 describe("mission runtime admission",()=>{
   it("allocates staged actor IDs once and retains accepted bodies through the post-movement hook",()=>{
     let sim=initial(),allocations=0;
-    sim.ext.missions={events:[{kind:"mission.stage",targetId:"first",detail:JSON.stringify({stepId:"meet",actors:["bad"],definitions:{bad:{kind:"badRobot"}},place:{x:10,y:0,z:0},radius:20})}]};
+    sim.ext.missions={...createMissions(),events:[{id:1,tick:sim.tick,playerId:"p",amount:0,kind:"mission.stage",targetId:"first",detail:JSON.stringify({stepId:"meet",actors:["bad"],definitions:{bad:{kind:"badRobot"}},place:{x:10,y:0,z:0},radius:20})}]};
     const allocate=(state:Readonly<SimState>,ids:readonly string[])=>{allocations++;return {state:state as SimState,ids:Object.fromEntries(ids.map(id=>[id,30]))};};
     const system=createAgentsSystem(()=>({}),allocate);
     const context={world,previous:sim,state:sim,inputs:{},events:[]};

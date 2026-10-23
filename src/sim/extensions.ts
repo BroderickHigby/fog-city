@@ -2,6 +2,8 @@ import type { AgentsExt } from "./agents.ts";
 import type { CombatState } from "./combat-contract.ts";
 import type { ClockState } from "./clock/calendar.ts";
 import type { ActorIdentities } from "./identity.ts";
+import type { AgentsRuntimeState } from "./agents/runtime.ts";
+import type { PlayerGameplayState, HeatState, MissionState, EconomyState, ProgressionState, ActivitiesState } from "./player/types.ts";
 
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 export type JsonObject = { [key: string]: JsonValue };
@@ -13,14 +15,14 @@ export interface ExtensionStateMap {
   fog: JsonObject;
   vehicles: JsonObject;
   agents: AgentsExt;
-  robots: JsonObject;
+  robots: AgentsRuntimeState;
   combat: CombatState;
-  player: JsonObject;
-  heat: JsonObject;
-  missions: JsonObject;
-  economy: JsonObject;
-  progression: JsonObject;
-  activities: JsonObject;
+  player: PlayerGameplayState;
+  heat: HeatState;
+  missions: MissionState;
+  economy: EconomyState;
+  progression: ProgressionState;
+  activities: ActivitiesState;
   modes: JsonObject;
   bots: JsonObject;
 }

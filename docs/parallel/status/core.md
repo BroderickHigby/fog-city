@@ -104,3 +104,15 @@ Provide one physical movement path for runtime agents and the player: prepare ac
 Bring the reviewed gravity/roof/dodge core and its replay/fuzz harness into the current interface without importing unrelated QA assets or render work. Bump the state schema to 7; historical input logs remain unchanged and missing physical fields are migrated additively. Add a deterministic calendar, wave-2 fog interface, static navigation adapter, and a measured vehicle follower.
 
 Validation: focused migration/interface/physics/purity, calendar/identity/follower and motion regression checks; exact final results are recorded above as runs finish. Full combined browser and CI verification remain pending. No changes to `main` or `integrate/wave1`; this candidate is not a completed visual-quality or full-wave sign-off.
+
+## Composed gameplay checkpoint
+
+- `createGameSystems({ wave: 2 })` is the shared browser/headless/relay composition. Pass the returned registry as the fifth argument to `step`.
+- It registers the calendar, configured agent preparation/observation, combat with actual body metadata/loadouts/refills, player/economy/mission/progression reducers, and the modes registration list. Empty wave-2 mode registration becomes the real reducer when the modes lane is integrated.
+- `World.gameplay`, `World.sidewalks` and `World.transit` supply immutable loaded data. `World.transit` uses the agents lane's `TransitLayer`; `buildWorldNavigation` adapts the existing sidewalk layer.
+- Service vehicle `controls` now run through `stepCar` once, retain physical controller state, then pass through full-size hull and final clearance acceptance.
+- Typed extension placeholders for robots/player/heat/missions/economy/progression/activities now reference each owning lane's exported state. Narrow owned fixture migrations were authorized by the respective lane owners.
+- Real composed tests exposed and fixed reticle targeting: Watch now uses a 15-degree cone and angular error before distance, preventing an off-reticle nearer robot from stealing an aimed target.
+- Integrated agent services/transit `31b4079` and player real-event normalization `e857ab4` + `4d32239` (local equivalents `e41f1f5` + `6f459ab`).
+- Validation: **typecheck passed; 102 tests across 7 files passed**, including authored Hot Desk stage→accepted actor→held Watch objective, held interact→actual refill, physical service controls, agent runtime/service/transit regressions, event attribution and forbidden APIs.
+- Still pending: visible renderer composition, real-SF service/mission driving and full browser/parity checks. The existing world pack remains FCWC v1; no QA v4 deck/tunnel geometry has been imported.
