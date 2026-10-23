@@ -1,5 +1,8 @@
 import { Action, NEUTRAL_INPUT, sortedIds, type InputFrame, type SimEvent, type SimState, type Spawn } from "../contract.ts";
 import { activeBody, step } from "../step.ts";
+import type { SimSystem } from "../system-contract.ts";
+import { arenaCombatEvents,arenaContains,arenaWorld,constrainArenaMotion,hasArenaRefill } from "./arena.ts";
+import { defaultMatchContext } from "./systems.ts";
 import { createGameSystems } from "../game-systems.ts";
 import { allocateActorIds } from "../identity.ts";
 import { groundHeight, type World } from "../world.ts";
@@ -14,6 +17,11 @@ import { protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
 import { createMatchSession, modeSessionOf, type MatchLoadout, type MatchPayoutEvent } from "./session.ts";
 import type { MatchResult } from "./types.ts";
+
+export class LocalMatchUnavailableError extends Error {
+  readonly reason="refill";
+  constructor(){super("This arena needs an accessible water refill");this.name="LocalMatchUnavailableError";}
+}
 
 export type LocalMatchMode = "botSweep" | "cleanStreets";
 export interface LocalMatchConfig {
@@ -45,10 +53,12 @@ export function createLocalMatch(world:World,config:LocalMatchConfig):SimState {
   if(config.playerId===botId)throw new Error("Reserved rival identity");
   const players=config.mode==="cleanStreets"?[config.playerId,botId]:[config.playerId];
   const relayId=`mission:mode-${config.id}:update-relay`;
-  let state=createMatchSession(world,{id:config.id,mode:config.mode,seed:config.seed,players,...(config.mode==="botSweep"?{relayId}:{})},config.spawn,config.loadouts);
   const center={x:config.spawn.x,y:groundHeight(world,config.spawn.x,config.spawn.z),z:config.spawn.z},radius=120;
-  const roster=planModeRoster(world,state,{id:config.id,mode:config.mode==="botSweep"?"bot-sweep":"clean-streets",playerCount:players.length,center,radius,
-    contains:(x,z)=>distanceSquared({x,z},center)<=radius*radius&&!excluded(x,z)&&dryArenaPoint(world,x,z)},world.sidewalks);
+  const arena={center,radius},isolated=arenaWorld(world,arena);
+  if(!hasArenaRefill(isolated,arena))throw new LocalMatchUnavailableError();
+  let state=createMatchSession(isolated,{id:config.id,mode:config.mode,seed:config.seed,players,...(config.mode==="botSweep"?{relayId}:{})},config.spawn,config.loadouts);
+  const roster=planModeRoster(isolated,state,{id:config.id,mode:config.mode==="botSweep"?"bot-sweep":"clean-streets",playerCount:players.length,center,radius,
+    contains:(x,z)=>arenaContains(arena,x,z,1)&&!excluded(x,z)&&dryArenaPoint(isolated,x,z)},isolated.sidewalks);
   // Missing objectives cannot turn an unbuilt arena into an automatic win.
   if(roster.blocked.length||roster.actors.length!==(config.mode==="botSweep"?121:120))throw new Error("This location has insufficient clear space for the match");
   const reserved=allocateActorIds(state,roster.actors.map(actor=>actor.id));state=reserved.state;
@@ -68,6 +78,7 @@ function loadout(item:MatchLoadout):Partial<CombatPlayer> {
     perks:item.perks.flatMap(id=>perks[id]?[perks[id]!]:[])};
 }
 const systems=createGameSystems({wave:5,
+  matchContext:context=>{const observed=defaultMatchContext(context),ids=new Set(playable(context.state)?.roster.map(actor=>actor.id)??[]);return {...observed,combatEvents:arenaCombatEvents(observed.combatEvents??[],ids)};},
   agents:context=>({spawns:playable(context.state)?.roster??[],services:false}),
   combat:context=>{
     const session=modeSessionOf(context.state);if(!session)return {};
@@ -75,14 +86,20 @@ const systems=createGameSystems({wave:5,
     return {mode:session.match.mode==="cleanStreets"?"clean-streets":"bot-sweep",rivalPlayerIds:rivals,
       loadouts:Object.fromEntries(sortedIds(session.loadouts).map(id=>[id,loadout(session.loadouts[id]!)]))};
   },
-});
+}).map<SimSystem>(system=>system.key!=="robots"||!system.prepare?system:{...system,prepare(context){
+  const prepared=system.prepare!(context),local=playable(context.state);if(!local)return prepared;
+  const motions=prepared.motions.map(motion=>constrainArenaMotion(context.world,local,motion));
+  const robots=agentsRuntimeOf(prepared.state);
+  return {...prepared,motions,state:robots?{...prepared.state,ext:{...prepared.state.ext,robots:{...robots,proposals:motions}}}:prepared.state};
+}});
 
 /** One canonical tick; bot controls come from visible bodies and completed scanner readings. */
 export function stepLocalMatch(world:World,state:Readonly<SimState>,inputs:InputFrame,events:readonly SimEvent[]=[]):SimState {
   const local=playable(state),session=modeSessionOf(state);if(!local||!session)throw new Error("Not a local match");
   if(session.match.phase==="finished")return state as SimState;
-  if((state.ext.combat?.pauseUntil??0)>state.tick)return step(world,state,inputs,[...events],systems);
-  const runtime=agentsRuntimeOf(state),combat=contextFromState(world,state,{...agentsCombatOptions(state),wave:4});
+  const isolated=arenaWorld(world,local);
+  if((state.ext.combat?.pauseUntil??0)>state.tick)return step(isolated,state,inputs,[...events],systems);
+  const runtime=agentsRuntimeOf(state),combat=contextFromState(isolated,state,{...agentsCombatOptions(state),wave:4});
   const observations:BotObservation[]=sortedIds(local.bots.bots).map(id=>{
     const body=activeBody(state.players[id]!);
     const actors=combat.actors.filter(actor=>actor.playerId!==id&&distanceSquared(actor,body)<=40*40)
@@ -90,10 +107,10 @@ export function stepLocalMatch(world:World,state:Readonly<SimState>,inputs:Input
       .map(actor=>({id:actor.id,kind:actor.kind,x:actor.x,y:actor.y,z:actor.z,visible:true,operational:actor.kind==="player"||state.ext.combat?.targets[actor.id]?.phase===undefined||state.ext.combat.targets[actor.id]!.phase==="active",height:actor.height,
         // Behaviour can raise suspicion, but hidden firmware never enters bot observations.
         suspicion:runtime?.actors[actor.id]?.behavior==="attack"?1:0,rival:!!actor.playerId&&session.match.players[actor.playerId]?.team!==session.match.players[id]?.team}));
-    const refills=[...(world.gameplay?.refills??[])].sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)).slice(0,64);
+    const refills=[...(isolated.gameplay?.refills??[])].sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)).slice(0,64);
     return {playerId:id,actors,refills,objective:local.center,paused:session.match.players[id]!.downUntil>state.tick};
   });
-  const plan=planRivalBotInputs(world,state,local.bots,observations);
+  const plan=planRivalBotInputs(isolated,state,local.bots,observations);
   const commanded=plan.commands.map(command=>{const {playerId,...payload}=command;return {tick:state.tick+1,kind:"gameplay.command",playerId,payload};});
   const controls={...inputs,...plan.inputs};
   for(const id of sortedIds(local.bots.bots))if(state.players[id]?.mode==="vehicle")controls[id]={...NEUTRAL_INPUT,actions:Math.abs(state.players[id]!.car.speed)<.1?Action.enterExit:0,brake:1};
@@ -104,7 +121,7 @@ export function stepLocalMatch(world:World,state:Readonly<SimState>,inputs:Input
     {tick:state.tick+1,kind:"player.leave",playerId:event.playerId},
     {tick:state.tick+1,kind:"player.join",playerId:event.playerId,payload:{x:local.center.x,z:local.center.z,heading:0}},
   ]);
-  const next=step(world,state,controls,[...events,...commanded,...respawns],systems);
+  const next=step(isolated,state,controls,[...events,...commanded,...respawns],systems);
   const nextMode=next.ext.modes as unknown as Record<string,unknown>;
   return {...next,ext:{...next.ext,modes:JSON.parse(JSON.stringify({...nextMode,playable:{...local,bots:plan.state}}))}};
 }
