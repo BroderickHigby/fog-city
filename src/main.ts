@@ -195,6 +195,9 @@ async function boot(): Promise<void> {
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
   const startCam = params.get("cam") as CameraMode | null;
   if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
+  // ?tod=noon|golden|night: the lighting (render-only; the HUD clock still follows the sim).
+  const tod = params.get("tod");
+  if (tod === "noon" || tod === "golden" || tod === "night") view.setTimeOfDay(tod);
   // Render-only: the sidewalk bands (W-45), after boot so the 10 MB graph never delays the first
   // frame. Never fatal: without it the streets have no pavement drawn, nothing else changes.
   const sidewalksFile = manifest.layers?.sidewalks;
@@ -310,6 +313,7 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    setTimeOfDay: (t) => view.setTimeOfDay(t),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),

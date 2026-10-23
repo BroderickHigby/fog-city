@@ -19,7 +19,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 /** Bloom by day and by night: night lets lit windows and lamps glow. */
 const BLOOM = {
   day: { strength: 0.18, radius: 0.35, threshold: 0.92 },
-  night: { strength: 0.75, radius: 0.55, threshold: 0.55 },
+  night: { strength: 0.42, radius: 0.5, threshold: 0.82 },
 };
 
 export class PostChain {

@@ -18,7 +18,7 @@ import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
-import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
+import { DAY, NIGHT, NOON, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { LookFn } from "./house-kit.ts";
@@ -32,6 +32,8 @@ import { PostChain } from "./post.ts";
 import { buildShowcase, MASK_HALF_M, type Showcase, type ShowcaseStats } from "./showcase.ts";
 
 export type { CameraMode } from "./cameras.ts";
+
+export type TimeOfDay = "golden" | "noon" | "night";
 
 export interface RenderOptions {
   /** Tile load radius around the camera, metres. */
@@ -364,7 +366,21 @@ export class SceneRenderer {
   setNight(on: boolean): void {
     if (on === this.nightOn) return;
     this.nightOn = on;
-    this.applyPreset(on ? NIGHT : DAY);
+    this.applyPreset(on ? NIGHT : this.daylight);
+  }
+
+  /** The daylight look: golden hour (the default, 18:52) or midday; night stays the N key's. */
+  private daylight: LightingPreset = DAY;
+
+  /** "golden" (the default day), "noon" or "night" (?tod=, the debug handle). */
+  setTimeOfDay(t: TimeOfDay): void {
+    this.daylight = t === "noon" ? NOON : DAY;
+    this.nightOn = t === "night";
+    this.applyPreset(this.nightOn ? NIGHT : this.daylight);
+  }
+
+  get timeOfDay(): TimeOfDay {
+    return this.nightOn ? "night" : this.daylight === NOON ? "noon" : "golden";
   }
 
   private applyPreset(p: LightingPreset): void {
@@ -378,7 +394,10 @@ export class SceneRenderer {
     this.sun.intensity = p.sunIntensity;
     this.hemi.color.setHex(p.hemiSky);
     this.hemi.groundColor.setHex(p.hemiGround);
-    this.hemi.intensity = p.hemiIntensity;
+    // The high tier's shadows take the sun off whole streets: more sky and warmer bounce fill
+    // what they leave (the default tier has no shadows and keeps its balance).
+    const fill = this.shadows && this.gfx.tier === "high" ? 1.7 : 1;
+    this.hemi.intensity = p.hemiIntensity * fill;
     this.water.setBodyLight(p.water);
     this.water.setCityGlow(0xffb070, night * 0.09);
     fcUniforms.fcNight.value = night;
@@ -392,7 +411,7 @@ export class SceneRenderer {
     this.agents.setNight(night);
     this.post?.setNight(night > 0);
     this.scene.environment = this.envFor(p);
-    this.scene.environmentIntensity = p.envIntensity;
+    this.scene.environmentIntensity = p.envIntensity * (fill > 1 ? 1.35 : 1);
   }
 
   /** Image-based lighting from the sky itself, generated once per preset. */

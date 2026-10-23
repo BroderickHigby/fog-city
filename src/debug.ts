@@ -49,7 +49,17 @@ export interface RenderInfo {
    * what was asked for (?gfx=), why, and which high-tier features are on now (post-processing,
    * the PBR detail and how many texture sets loaded, features the frame-rate governor dropped).
    */
-  gfx: { tier: "default" | "high"; requested: "default" | "high" | "auto"; reason: string; post: boolean; detail: boolean; detailSets: number; dropped: string[] };
+  gfx: {
+    tier: "default" | "high";
+    requested: "default" | "high" | "auto";
+    reason: string;
+    post: boolean;
+    detail: boolean;
+    detailSets: number;
+    dropped: string[];
+    /** The Ferry Building showcase's street detail (src/render/showcase.ts) once built, else null. */
+    showcase: { crosswalks: number; stopBars: number; palms: number; trackM: number; paintQuads: number } | null;
+  };
 }
 
 export interface LandmarkInfo {
@@ -100,6 +110,8 @@ export interface DebugHandle {
   /** One entry per content/landmarks.json placement. */
   landmarks(): LandmarkInfo[];
   setNight(on: boolean): void;
+  /** The lighting: "golden" (the default day, 18:52), "noon" or "night" (also ?tod=). */
+  setTimeOfDay?(t: "golden" | "noon" | "night"): void;
   setCameraMode(mode: CameraModeName): void;
   /** Switch to the fly camera at (x, y, z) looking along compass yaw, pitch (degrees, + up). */
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;
