@@ -479,6 +479,17 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
         const glb = Object.keys(index.files).find((f) => f.startsWith("tiles/sf/") && f.endsWith(".glb"))!;
         expect(sha(await assets.bytes(glb))).toBe(sha(readFileSync(join(ROOT, "public", glb))));
         expect(sha(await assets.bytes("models/player-car.glb"))).toBe(sha(readFileSync(join(ROOT, "public", "models", "player-car.glb"))));
+        // The integrated house kit and optional PBR detail use the same asset provider as
+        // streamed tiles. A dev-server-only image or metadata file would otherwise silently
+        // disappear after publishing. Keep the generic avatar and retired likeness separate.
+        expect(assets.has("models/generic-player.glb")).toBe(true);
+        expect(assets.has("models/player.glb")).toBe(false);
+        for (const path of ["models/house-kit/house-kit.json", "models/textures/textures.json", "tiles/sf/storefronts.json"]) {
+          expect(await assets.json(path), path).toEqual(JSON.parse(readFileSync(join(ROOT, "public", path), "utf8")));
+        }
+        for (const path of ["models/house-kit/bay-edwardian.glb", "models/textures/pavers_albedo.webp", "models/textures/paint_orm.webp"]) {
+          expect(sha(await assets.bytes(path)), path).toBe(sha(readFileSync(join(ROOT, "public", path))));
+        }
         const colliderHits = site.hits.filter((h) => h.includes("world.colliders"));
         expect(colliderHits.sort()).toEqual(colliderParts.map((p) => `/a/${p.src}`).sort());
       } finally {
