@@ -14,8 +14,8 @@ import { roadHalfWidth } from "./roads.ts";
 import type { GroundFn, RoadEdge } from "./types.ts";
 
 export interface SidewalkGraph {
-  nodes: Array<{ id: string; x: number; z: number; y?: number }>;
-  edges: Array<{ id: string; a: string; b: string; kind: string; road?: string; points?: Array<[number, number]> }>;
+  nodes: ReadonlyArray<{ id: string; x: number; z: number; y?: number }>;
+  edges: ReadonlyArray<{ id: string; a: string; b: string; kind: string; road?: string; points?: ReadonlyArray<readonly [number, number]> }>;
 }
 
 /** One drawn sidewalk: its walk line and the street it runs beside. */
@@ -48,7 +48,7 @@ export function sidewalksByTile(g: SidewalkGraph, tileSizeM = 500): Map<string, 
     const a = nodes.get(e.a);
     const b = nodes.get(e.b);
     if (!a || !b) continue;
-    const points: Array<[number, number]> = [[a.x, a.z], ...(e.points ?? []), [b.x, b.z]];
+    const points: Array<[number, number]> = [[a.x, a.z], ...(e.points ?? []).map(([x, z]): [number, number] => [x, z]), [b.x, b.z]];
     // Midpoint by length.
     let L = 0;
     for (let i = 1; i < points.length; i++) L += Math.hypot(points[i]![0] - points[i - 1]![0], points[i]![1] - points[i - 1]![1]);
