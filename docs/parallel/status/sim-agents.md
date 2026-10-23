@@ -96,3 +96,5 @@ Latest verification: TypeScript passes; **5 files, 101 tests pass**, covering ru
 The CPU profile of the real SF scene identified repeated nearest-node scans as a major agent cost. The sidewalk graph now owns an immutable spatial tree, and exact nearest-node queries preserve the existing distance and ID tie rules. It also stores weak components, so disconnected destinations return immediately instead of searching a component that cannot reach them. There is no global mutable route cache or changed AI cadence.
 
 Typecheck and **4 focused files / 90 tests pass**, including exact nearest-node comparisons for local/remote points and ties, disconnected-search rejection, physical runtime integration and forbidden APIs. A real-SF per-system timing probe is queued before claiming a measured speed improvement.
+
+Local match integration consumes the isolated `afef191` roster optimization: compute the ordered non-taxi placement candidates once per planning call. The individual occupancy checks and deterministic placement order remain unchanged. The separate Tidy lifecycle branch is not part of this intake.
