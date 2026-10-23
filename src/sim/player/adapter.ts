@@ -82,7 +82,7 @@ export function makeGameplaySystem(key:"player"|"heat"|"missions"|"economy"|"pro
   return {...context.state,ext:{...context.state.ext,[key]:result}};
  }};
 }
-export function createPlayerSystems(provider:GameplayProvider=defaultGameplayProvider):readonly SimSystem[]{return (["player","heat","missions","economy","progression","activities"] as const).map(key=>makeGameplaySystem(key,provider));}
+export function createPlayerSystems(provider:GameplayProvider=defaultGameplayProvider):readonly SimSystem[]{return (["player","heat","missions","activities","economy","progression"] as const).map(key=>makeGameplaySystem(key,provider));}
 
 export function combatLoadout(snapshot:GameplaySnapshot,body:GameplayBody,heading:number):CombatPlayer {
  const own=snapshot.progression.players[body.id]??createProgressionPlayer();const perkMap:Record<string,NonNullable<CombatPlayer["perks"]>[number]>={"marine-layer":"marine","do-not-disturb":"quiet","stealth-mode":"stealth",lean:"lean",brackish:"brackish","hydrant-whisperer":"whisperer"};return {...body,heading,mount:body.mode==="vehicle"?"vehicle":"foot",tankTier:own.tankTier,flowTier:own.flowTier,scannerTier:own.scannerTier,nozzle:own.nozzle,gear:own.gear,gadget:own.gadget,perks:own.perks.flatMap(id=>perkMap[id]?[perkMap[id]!]:[]),trunk:snapshot.economy.players[body.id]?.ownedItemIds.includes("trunk-tank")??false,roofCannon:snapshot.economy.players[body.id]?.ownedItemIds.includes("roof-cannon")??false};
