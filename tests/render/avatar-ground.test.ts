@@ -47,6 +47,16 @@ describe("avatar alignment with rendered floors", () => {
     expect(ground.heightAt(1, 6.1, 1)).toBe(6.1);
   });
 
+  it("supports new sidewalks and tunnel-cut ground without snapping to tunnel walls", () => {
+    const ground = new AvatarGround();
+    ground.addTile(tile("walk", 0.12, "fc:sidewalk"));
+    expect(ground.heightAt(1, 0, 1)).toBeCloseTo(0.12);
+    ground.removeTile("walk");
+    ground.addTile(tile("cut", 0.08, "fc:ground-cut"));
+    ground.addTile(tile("wall", 0.2, "fc:tunnel"));
+    expect(ground.heightAt(1, 0, 1)).toBeCloseTo(0.08);
+  });
+
   it("replaces and removes each tile without retaining stale height data", () => {
     const ground = new AvatarGround();
     ground.addTile(tile("a", 0.15));

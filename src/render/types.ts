@@ -16,6 +16,8 @@ export interface ManifestTile {
 
 export interface Manifest {
   version: number;
+  /** Producer-authored rendering features of the committed geometry. */
+  rendering?: { bakedGround?: boolean };
   world: string;
   origin?: { lat: number; lon: number };
   tileSizeM?: number;
@@ -57,6 +59,16 @@ export interface RoadEdge {
   speedLimitMps?: number;
   name?: string;
   points: Array<[number, number]>;
+  /** Pedestrian-only (stairways included): not a carriageway. */
+  pedestrian?: boolean;
+  /** A limited-access road on a viaduct, in a cut or a tunnel: its points are the ground under it. */
+  gradeSeparated?: boolean;
+  /** Part of it is on a deck (the colliders' decks hold its surface). */
+  deck?: boolean;
+  /** Part of it runs in a bore (the colliders' tunnels). */
+  tunnel?: boolean;
+  /** A public stairway. */
+  stairs?: boolean;
 }
 
 export interface RoadGraph {

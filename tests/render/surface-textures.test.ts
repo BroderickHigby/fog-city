@@ -94,6 +94,28 @@ describe("optional surface scans", () => {
     expect(bitmaps.every(image => image.close.mock.calls.length === 1)).toBe(true);
   });
 
+  it("shares scans with streamed tunnel-cut materials and releases their bindings on unload", async () => {
+    images();
+    const materials = createSharedMaterials();
+    const controller = loadSurfaceTextures(materials, async () => new Uint8Array([1]));
+    active.push(controller);
+    const beforeLoad = new THREE.MeshStandardMaterial();
+    controller.register(beforeLoad, "concrete");
+    await controller.ready;
+    expect(compile(beforeLoad).uniforms.fcSurfaceRepeatM!.value).toBe(1.8);
+    const afterLoad = new THREE.MeshStandardMaterial();
+    const before = afterLoad.onBeforeCompile;
+    controller.register(afterLoad, "concrete");
+    controller.register(afterLoad, "concrete");
+    expect(compile(afterLoad).uniforms.fcSurfaceAlbedo!.value).toBe(compile(materials.ground).uniforms.fcSurfaceAlbedo!.value);
+    afterLoad.dispose();
+    expect(afterLoad.onBeforeCompile).toBe(before);
+    controller.dispose();
+    const ignored = new THREE.MeshStandardMaterial();
+    controller.register(ignored, "concrete");
+    expect(compile(ignored).uniforms.fcSurfaceAlbedo).toBeUndefined();
+  });
+
   it("rejects oversized decoded scans and keeps the fallback", async () => {
     const close = vi.fn();
     vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ width: 4096, height: 4096, close })));

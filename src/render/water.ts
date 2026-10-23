@@ -32,6 +32,7 @@ uniform float uTime;
 uniform vec3 uDeep;
 uniform vec3 uShallow;
 uniform float uBodyLight;
+uniform float uWave;
 uniform vec3 uCityGlow;
 varying vec3 vWorld;
 
@@ -76,6 +77,7 @@ void main() {
   g += 0.22 * 0.11 * fcWNoiseD( p * 0.11 + vec2( t * 0.11, t * 0.07 ) ).yz * ( 1.0 - smoothstep( 4.0, 9.0, px ) );
   g += 0.10 * 0.29 * fcWNoiseD( p * 0.29 - vec2( t * 0.21, -t * 0.13 ) ).yz * ( 1.0 - smoothstep( 1.5, 3.5, px ) );
   g += 0.04 * 0.83 * fcWNoiseD( p * 0.83 + vec2( -t * 0.35, t * 0.3 ) ).yz * ( 1.0 - smoothstep( 0.5, 1.2, px ) );
+  g *= uWave;
   float fade = 1.0 - smoothstep( 300.0, 2500.0, dist );
   vec3 N = normalize( vec3( -g.x * fade, 1.0, -g.y * fade ) );
   float cosT = max( dot( N, -V ), 0.0 );
@@ -98,6 +100,7 @@ void main() {
 
 export class Water {
   readonly mesh: THREE.Mesh;
+  readonly lakeMaterial: THREE.ShaderMaterial;
   private material: THREE.ShaderMaterial;
   private bodyLight: { value: number };
   private cityGlow = { value: new THREE.Color(0, 0, 0) };
@@ -116,9 +119,19 @@ export class Water {
       uDeep: { value: new THREE.Color(0x163238) },
       uShallow: { value: new THREE.Color(0x2c4a4a) },
       uBodyLight: this.bodyLight,
+      uWave: { value: 1 },
       uDepthDrop: { value: 0.12 },
       uCityGlow: this.cityGlow,
     });
+    this.lakeMaterial = this.material.clone();
+    this.lakeMaterial.name = "fc:lake";
+    Object.assign(this.lakeMaterial.uniforms, skyUniforms, fcUniforms, {
+      uTime: fcUniforms.fcTime, uBodyLight: this.bodyLight, uCityGlow: this.cityGlow,
+      uDepthDrop: { value: 0 }, uWave: { value: 0.35 },
+    });
+    this.lakeMaterial.polygonOffset = true;
+    this.lakeMaterial.polygonOffsetFactor = -2;
+    this.lakeMaterial.polygonOffsetUnits = -4;
     const geo = new THREE.PlaneGeometry(size, size, 1, 1);
     geo.rotateX(-Math.PI / 2);
     this.mesh = new THREE.Mesh(geo, this.material);
@@ -160,5 +173,6 @@ export class Water {
   dispose(): void {
     this.mesh.geometry.dispose();
     this.material.dispose();
+    this.lakeMaterial.dispose();
   }
 }

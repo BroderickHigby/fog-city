@@ -12,7 +12,7 @@ interface FloorTriangle {
 }
 
 function floorMaterial(material: THREE.Material | undefined): boolean {
-  return !!material && material.visible && (material.name === "fc:ground"
+  return !!material && material.visible && (material.name === "fc:ground" || material.name === "fc:ground-cut" || material.name === "fc:sidewalk"
     || material.name.startsWith("fc:road") || material.name.startsWith("fc:freeway"));
 }
 const cellKey = (x: number, z: number): string => `${x},${z}`;

@@ -1,0 +1,94 @@
+{
+ "version": 1,
+ "textures": {
+  "asphalt": {
+   "sizeM": 3.0,
+   "meanLinear": [
+    0.11198,
+    0.11036,
+    0.09824
+   ],
+   "albedo": "asphalt_albedo.webp",
+   "normal": "asphalt_normal.webp",
+   "orm": "asphalt_orm.webp",
+   "source": "https://polyhaven.com/a/asphalt_02",
+   "author": "Rob Tuytel",
+   "licence": "CC0 1.0 (https://polyhaven.com/license)",
+   "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+  },
+  "concrete": {
+   "sizeM": 1.8,
+   "meanLinear": [
+    0.21601,
+    0.17802,
+    0.13617
+   ],
+   "albedo": "concrete_albedo.webp",
+   "normal": "concrete_normal.webp",
+   "orm": "concrete_orm.webp",
+   "source": "https://polyhaven.com/a/concrete_pavement",
+   "author": "Charlotte Baglioni",
+   "licence": "CC0 1.0 (https://polyhaven.com/license)",
+   "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+  },
+  "grass": {
+   "sizeM": 2.0,
+   "meanLinear": [
+    0.31976,
+    0.23574,
+    0.10614
+   ],
+   "albedo": "grass_albedo.webp",
+   "normal": "grass_normal.webp",
+   "orm": "grass_orm.webp",
+   "source": "https://polyhaven.com/a/leafy_grass",
+   "author": "Charlotte Baglioni",
+   "licence": "CC0 1.0 (https://polyhaven.com/license)",
+   "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+  },
+  "paint": {
+   "sizeM": 2.0,
+   "meanLinear": [
+    0.78,
+    0.7722,
+    0.7488
+   ],
+   "albedo": "paint_albedo.webp",
+   "normal": "paint_normal.webp",
+   "orm": "paint_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)",
+   "note": "orm R channel = paint coverage (wear mask), not AO"
+  },
+  "pavers": {
+   "sizeM": 2.0,
+   "meanLinear": [
+    0.17043,
+    0.11886,
+    0.08159
+   ],
+   "albedo": "pavers_albedo.webp",
+   "normal": "pavers_normal.webp",
+   "orm": "pavers_orm.webp",
+   "source": "https://polyhaven.com/a/concrete_pavers_02",
+   "author": "Amal Kumar",
+   "licence": "CC0 1.0 (https://polyhaven.com/license)",
+   "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+  },
+  "sandstone": {
+   "sizeM": 2.0,
+   "meanLinear": [
+    0.46254,
+    0.38439,
+    0.29258
+   ],
+   "albedo": "sandstone_albedo.webp",
+   "normal": "sandstone_normal.webp",
+   "orm": "sandstone_orm.webp",
+   "source": "https://polyhaven.com/a/white_sandstone_blocks_02",
+   "author": "Rob Tuytel",
+   "licence": "CC0 1.0 (https://polyhaven.com/license)",
+   "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+  }
+ }
+}

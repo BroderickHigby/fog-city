@@ -47,6 +47,162 @@
         [3.12, -1.8]
       ],
       "source": "Embarcadero Plaza on the Market St axis, facing up Market (Wikipedia coordinate cross-checked against DataSF street centrelines). See assets/blender/README.md."
+    },
+    {
+      "id": "sutro-tower",
+      "model": "models/sutro-tower.glb",
+      "lat": 37.7552405,
+      "lon": -122.452856,
+      "headingDeg": 0,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001431",
+        "201006.0009087",
+        "201006.0062170",
+        "201006.0077893",
+        "201006.0167582",
+        "201006.0168289"
+      ],
+      "source": "Interim proxy: three-legged lattice, published dimensions (297.8 m). Centre and leg bearings from the LiDAR crossarm footprints; replaces the probe's six records and draws each where the sim has it. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "golden-gate-bridge",
+      "model": "models/golden-gate-bridge.glb",
+      "lat": 37.8139613,
+      "lon": -122.4778914,
+      "headingDeg": 354.4,
+      "scale": 1,
+      "source": "Interim far-visible silhouette: towers, deck, main cables. Axis from the Hwy 101 road end through the published centre; origin = south tower at sea level. Pre-release legal checklist (design.md). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "bay-bridge-west",
+      "model": "models/bay-bridge-west.glb",
+      "lat": 37.8032496,
+      "lon": -122.3723977,
+      "headingDeg": 40.38,
+      "scale": 1,
+      "source": "Interim far-visible silhouette of the west span: four towers, centre anchorage, double deck, cables. Axis = I-80 edge c14248000; piers where the DEM marks them; origin = mid eastern main span at sea level. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "600-montgomery",
+      "model": "models/600-montgomery.glb",
+      "lat": 37.7951796,
+      "lon": -122.4027746,
+      "headingDeg": 350.83,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000687",
+        "201006.0000687-tower"
+      ],
+      "source": "Interim shape: tapered four-sided tower with wings and spire (260 m), punched window rows on the sloping faces. Pre-release legal checklist (design.md). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "415-mission",
+      "model": "models/415-mission.glb",
+      "lat": 37.7897923,
+      "lon": -122.3969124,
+      "headingDeg": 315.04,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000548"
+      ],
+      "source": "Interim shape: the 326 m tower on its record, a rounded-square glass shaft between pale fins, tapering, an open crown of fins over a core lit with plain light (no logo, no lettering). No brand name in ids, files or text. Pre-release legal checklist (design.md). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "coit-tower",
+      "model": "models/coit-tower.glb",
+      "lat": 37.8024296,
+      "lon": -122.4058474,
+      "headingDeg": 344.36,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0006230",
+        "201006.0006230-tower"
+      ],
+      "source": "Interim shape: 64 m fluted column with its arcade and crown on the base building record. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "city-hall",
+      "model": "models/city-hall.glb",
+      "lat": 37.7792763,
+      "lon": -122.419228,
+      "headingDeg": 80.84,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000041",
+        "201006.0000041-tower"
+      ],
+      "source": "Interim shape: the block (record footprint) with pilasters, colonnaded drum, dome and lantern (93 m). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "palace-of-fine-arts",
+      "model": "models/palace-of-fine-arts.glb",
+      "lat": 37.8029233,
+      "lon": -122.4484093,
+      "headingDeg": 80.56,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000986",
+        "201006.0000986-tower"
+      ],
+      "source": "Interim shape: the rotunda's eight piers, arches (closed by shadow: the record is solid in the sim), drum and dome (49 m). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "grace-cathedral",
+      "model": "models/grace-cathedral.glb",
+      "lat": 37.7919349,
+      "lon": -122.4135202,
+      "headingDeg": 80.69,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000550",
+        "201006.0000550-tower"
+      ],
+      "source": "Interim shape: nave and transept roofs on the record footprint, twin towers, rose window, fleche over the crossing (70 m). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "dragon-gate",
+      "model": "models/dragon-gate.glb",
+      "lat": 37.7906646,
+      "lon": -122.4055804,
+      "headingDeg": 171.86,
+      "scale": 1,
+      "source": "Prop: the gate across Grant Ave just north of Bush St, portals facing south, spanning the building faces. Blank plaque, no characters. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "sutro-baths",
+      "model": "models/sutro-baths.glb",
+      "lat": 37.7800396,
+      "lon": -122.5137568,
+      "headingDeg": 0,
+      "scale": 1,
+      "source": "Interim shape: the ruined pool walls and standing water on the DEM's basin shelf at Lands End. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "mission-dolores",
+      "model": "models/mission-dolores.glb",
+      "lat": 37.7643661,
+      "lon": -122.4269351,
+      "headingDeg": 85.6,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001563",
+        "201006.0001563-tower"
+      ],
+      "source": "Interim shape: the basilica's record in stucco with a tile roof and a stepped Mission Revival front; the domed drum where the LiDAR finds 39 m. Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "conservatory-of-flowers",
+      "model": "models/conservatory-of-flowers.glb",
+      "lat": 37.7726335,
+      "lon": -122.4602586,
+      "headingDeg": 175.24,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001537",
+        "201006.0001537-tower"
+      ],
+      "source": "Interim shape: the glasshouse on its record (white glazing bars), the glazed and ribbed dome over the centre (17 m). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
     }
   ]
 }

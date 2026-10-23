@@ -28,6 +28,8 @@ export interface SurfaceTextures {
   readonly state: "loading" | "ready" | "disposed";
   /** Safe during loading; pending images are released without changing materials. */
   dispose(): void;
+  /** Share a loaded scan with a newly streamed material; disposal unregisters it. */
+  register(material: THREE.MeshStandardMaterial, kind: SurfaceName): void;
 }
 
 const PARS = /* glsl */ `
@@ -158,7 +160,25 @@ export function loadSurfaceTextures(
   let state: SurfaceTextures["state"] = "loading";
   const loaded: SurfaceName[] = [], failed: SurfaceName[] = [];
   const owned: THREE.Texture[] = [];
-  const restore: Array<() => void> = [];
+  const scans = new Map<SurfaceName, Scan>();
+  const bindings = new Map<THREE.MeshStandardMaterial, { kind: SurfaceName; undo?: () => void; dispose: () => void }>();
+  const register = (material: THREE.MeshStandardMaterial, kind: SurfaceName): void => {
+    if (state === "disposed" || bindings.has(material)) return;
+    const dispose = (): void => {
+      const binding = bindings.get(material);
+      if (!binding) return;
+      binding.undo?.();
+      material.removeEventListener("dispose", dispose);
+      bindings.delete(material);
+    };
+    const binding = { kind, dispose, undo: undefined as (() => void) | undefined };
+    bindings.set(material, binding);
+    material.addEventListener("dispose", dispose);
+    const scan = scans.get(kind);
+    if (scan) binding.undo = install(material, kind, scan);
+  };
+  register(materials.ground, "concrete");
+  for (const material of [materials.road, materials.roadUv, materials.freewayUv]) register(material, "asphalt");
   const anisotropy = Math.max(1, Math.min(8, Math.floor(options.anisotropy ?? 4)));
   const ready = Promise.all((["asphalt", "concrete"] as const).map(async kind => {
     const outcomes = await Promise.allSettled((["albedo", "normal", "orm"] as const).map(async channel => {
@@ -173,8 +193,8 @@ export function loadSurfaceTextures(
     }
     const scan = { albedo: textures[0]!, normal: textures[1]!, orm: textures[2]! };
     owned.push(...textures);
-    const targets = kind === "asphalt" ? [materials.road, materials.roadUv, materials.freewayUv] : [materials.ground];
-    for (const material of targets) restore.push(install(material, kind, scan));
+    scans.set(kind, scan);
+    for (const [material, binding] of bindings) if (binding.kind === kind) binding.undo = install(material, kind, scan);
     loaded.push(kind);
   })).then((): SurfaceTextureResult => {
     if (state !== "disposed") state = "ready";
@@ -182,12 +202,14 @@ export function loadSurfaceTextures(
   });
   return {
     ready,
+    register,
     get loaded() { return [...loaded].sort(); },
     get state() { return state; },
     dispose() {
       if (state === "disposed") return;
       state = "disposed";
-      restore.splice(0).reverse().forEach(undo => undo());
+      for (const binding of [...bindings.values()]) binding.dispose();
+      scans.clear();
       owned.splice(0).forEach(release);
     },
   };

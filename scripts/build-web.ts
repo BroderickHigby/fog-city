@@ -405,6 +405,23 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
   }
 
+  const houseKit = join(modelsDir, "house-kit", "house-kit.json");
+  if (existsSync(houseKit)) {
+    const bytes = readFileSync(houseKit);
+    write(join(out, "models", "house-kit", "house-kit.json"), bytes);
+    jsonBytes += bytes.byteLength;
+  }
+  // Geometry textures are available through the same packed byte provider as their models.
+  for (const image of walk(modelsDir).filter(p => /\.(png|webp)$/i.test(p))) {
+    single(relative(pub, image).split("\\").join("/"), new Uint8Array(readFileSync(image)));
+  }
+  const detailIndex = join(modelsDir, "textures", "textures.json");
+  if (existsSync(detailIndex)) {
+    const bytes = readFileSync(detailIndex);
+    write(join(out, "models", "textures", "textures.json"), bytes);
+    jsonBytes += bytes.byteLength;
+  }
+
   // Optional licensed surface scans use the same relative byte provider as models.
   const surfaceDir = join(pub, "textures", "surfaces");
   if (existsSync(surfaceDir)) {
@@ -433,7 +450,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     ["Fog City civilian car", "assets/imports/civilian-car/LICENSE.txt"],
   ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");
   write(join(out, "third-party-notices.txt"), notices +
-    "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n");
+    "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json and models/textures/textures.json for sources.\n");
 
   const check = checkHostLimits(out);
   if (check.problems.length > 0) throw new Error(`the build breaks the host's limits:\n  ${check.problems.join("\n  ")}`);

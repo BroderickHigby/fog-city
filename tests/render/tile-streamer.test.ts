@@ -90,6 +90,21 @@ describe("TileStreamer", () => {
     expect(glow.visible).toBe(true);
   });
 
+  it("keeps tunnel portals open when a tile must be rebuilt from its collider", async () => {
+    const w = world("dev");
+    const c = w.colliders.values().next().value!;
+    const structure = c as TileCollider & { tunnels: Array<{ id: string; clearanceM: number; path: [number, number, number, number][] }> };
+    structure.tunnels = [{ id: "test-bore", clearanceM: 4, path: [[-20, 0, 0, 8], [20, 0, 0, 8]] }];
+    const parent = new THREE.Group(), materials = createSharedMaterials();
+    const streamer = new TileStreamer({ parent, manifest: w.manifest, base: "", colliders: w.colliders,
+      roads: w.roads, ground: w.ground, materials, night: createNightMaterials(), radius: 1500 });
+    await settle(streamer, 0, 0);
+    const ground = parent.getObjectByName("ground") as THREE.Mesh;
+    expect((ground.material as THREE.Material).name).toBe("fc:ground-cut");
+    expect(parent.getObjectByName("tunnels")).toBeDefined();
+    streamer.dispose();
+  });
+
   it("loads dev-city glb tiles near the camera with shared materials, and leaves the rest", async () => {
     const { streamer, parent, materials, manifest } = make("dev-city", { radius: 400 });
     await settle(streamer, manifest.spawn.x, manifest.spawn.z);

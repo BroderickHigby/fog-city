@@ -25,6 +25,14 @@ import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
+import { makeDrawnGroundFn } from "./ground.ts";
+import { HouseColours, houseLookFn, type DistrictsLike } from "./house-colours.ts";
+import { loadKitLib } from "./house-kit-mesh.ts";
+import { parseKitDoc, type StorefrontAnchor } from "./house-kit-props.ts";
+import type { LookFn } from "./house-kit.ts";
+import type { SidewalkGraph } from "./sidewalks.ts";
+import { DetailMaterial, applyTriplanar, loadDetailSets, textureBytes, disposeDetailSets, type DetailSet } from "./detail.ts";
+import { buildShowcase, MASK_HALF_M, type Showcase } from "./showcase.ts";
 import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
@@ -45,6 +53,8 @@ export interface RenderOptions {
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
   landmarks: unknown;
+  /** Optional original house-kit prototype metadata, supplied by virtual:fogcity-assets. */
+  houseKit?: unknown;
 }
 
 export interface WorldData {
@@ -59,6 +69,12 @@ export interface WorldData {
   assets?: Assets;
   /** districts.json, parsed (its park polygons tint the ground green), or null. */
   districts?: unknown;
+  /** New pipeline tiles contain authoritative baked ground colours and stitched far edges. */
+  bakedGround?: boolean;
+  boundary?: { shore: ReadonlyArray<{ closed: boolean; lake?: unknown; points: ReadonlyArray<readonly number[]> }> } | null;
+  sidewalks?: SidewalkGraph | null;
+  storefronts?: readonly StorefrontAnchor[] | null;
+  houseLook?: LookFn;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
 }
@@ -137,6 +153,14 @@ export class SceneRenderer {
   private readonly water = new Water(SEA_SIZE_M);
   private readonly ground: (x: number, z: number) => number;
   private readonly avatarGround = new AvatarGround();
+  private disposed = false;
+  private showcase: Showcase | null = null;
+  private showcaseLoading = false;
+  private plazaDetail: ((material: THREE.MeshStandardMaterial) => void) | null = null;
+  private readonly plazaGrounds = new Set<THREE.MeshStandardMaterial>();
+  private detailSets = new Map<string, DetailSet>();
+  private readonly detailedLandmarks = new WeakSet<THREE.Material>();
+  private readonly landmarkRoots = new Set<THREE.Object3D>();
   private readonly foliage: FoliageLayer;
   private quality: VisualQuality | null = null;
   private readonly surfaceTextures: SurfaceTextures;
@@ -170,6 +194,7 @@ export class SceneRenderer {
     installFog();
     this.container = container;
     this.ground = world.ground;
+    const bakedGround = world.bakedGround ?? world.manifest.rendering?.bakedGround ?? false;
     this.water.setLevel(world.manifest.water?.y ?? 0);
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
     const gl = this.renderer.getContext();
@@ -213,6 +238,7 @@ export class SceneRenderer {
       if (!response.ok) throw new Error(`Surface texture: ${response.status} ${path}`);
       return new Uint8Array(await response.arrayBuffer());
     }, { anisotropy: this.renderer.capabilities.getMaxAnisotropy() });
+    this.surfaceTextures.register(this.materials.sidewalk, "concrete");
     // A packed build carries only the models it lists; the dev server's listing is the build-time one.
     const available = opts.models && assets && assets.mode === "packed" ? new Set([...opts.models].filter((u) => assets.has(u))) : opts.models;
     this.registry = new ModelRegistry<THREE.Object3D>({
@@ -226,14 +252,16 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
+    const drawnGround = makeDrawnGroundFn([...world.colliders.values()]);
+    const look = world.houseLook ?? houseLookFn(new HouseColours(world.colliders.values(), world.districts as DistrictsLike | null | undefined));
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
-      tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
-      ground: world.ground,
+      tint: bakedGround ? undefined : (geo, m, terrain) => tintParks(geo, m, parks, terrain),
+      ground: bakedGround ? undefined : world.ground,
       budget: softwareFarBudget(rendererName),
     });
     this.scene.add(this.far.group);
@@ -245,6 +273,7 @@ export class SceneRenderer {
       colliders: world.colliders,
       roads: world.roads,
       ground: world.ground,
+      drawnGround,
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
@@ -254,9 +283,25 @@ export class SceneRenderer {
         this.far.setTileVisible(id, visible);
         if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
       },
-      tintGround: (geo, m) => tintParks(geo, m, parks),
+      bakedGround,
+      tintGround: bakedGround ? undefined : (geo, m) => tintParks(geo, m, parks),
+      lakeMaterial: this.water.lakeMaterial,
+      shore: world.boundary?.shore,
+      houseLook: look,
+      storefronts: world.storefronts,
+      onGroundMaterial: (m) => {
+        this.surfaceTextures.register(m, "concrete");
+        this.plazaGrounds.add(m);
+        m.addEventListener("dispose", () => this.plazaGrounds.delete(m));
+        this.plazaDetail?.(m);
+      },
       fallbackCollider: world.fallbackCollider,
     });
+    this.streamer.setSidewalks(world.sidewalks ?? null);
+    const kit = parseKitDoc(opts.houseKit);
+    if (kit) void loadKitLib(this.registry, kit).then(lib => {
+      if (!this.disposed) this.streamer.setKitLib(lib, kit);
+    }).catch(() => { /* Failed optional prototypes leave the procedural facades intact. */ });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, this.shadows,
@@ -277,6 +322,8 @@ export class SceneRenderer {
       (root) => {
         this.prepareShadows(root);
         this.lights.track(root);
+        this.landmarkRoots.add(root);
+        this.dressLandmark(root);
       },
     );
     this.scene.add(this.landmarks.group);
@@ -290,8 +337,57 @@ export class SceneRenderer {
     this.nightOn = preset.name === "night";
     if (!this.nightOn) this.dayPreset = preset;
     this.applyPreset(preset);
+    if (bakedGround && world.roads && (opts.quality ?? !software)) this.loadFerryDetail(world.assets, world.roads, drawnGround);
     window.addEventListener("resize", () => this.resize());
     this.resize();
+  }
+
+  /** Additional Ferry materials layer over the already loaded scan-based road renderer. */
+  private loadFerryDetail(assets: Assets | undefined, roads: RoadGraph, ground: GroundFn): void {
+    this.showcaseLoading = true;
+    void loadDetailSets(textureBytes(assets), ["concrete", "pavers", "paint", "sandstone"], Math.min(8, this.renderer.capabilities.getMaxAnisotropy())).then(sets => {
+      if (this.disposed) { disposeDetailSets(sets); return; }
+      this.detailSets = sets;
+      const concrete = sets.get("concrete"), pavers = sets.get("pavers"), paint = sets.get("paint");
+      this.showcase = buildShowcase(roads, ground, {
+        paint: paint ? { orm: paint.orm, normal: paint.normal } : undefined,
+        concrete: concrete ? { albedo: concrete.albedo.clone(), normal: concrete.normal.clone(), orm: concrete.orm.clone(), sizeM: concrete.info.sizeM } : undefined,
+      });
+      this.prepareShadows(this.showcase.group);
+      this.showcase.group.traverse(object => { if (/paint|trackbed|rails/.test(object.name)) object.castShadow = false; });
+      this.scene.add(this.showcase.group);
+      if (concrete && pavers) {
+        const dressed = new WeakSet<THREE.Material>();
+        this.plazaDetail = material => {
+          if (dressed.has(material) || !this.showcase) return;
+          dressed.add(material);
+          const detail = new DetailMaterial(material);
+          detail.apply(concrete, { albedo: 0.8, normalScale: 0.8, roughness: 1, ao: 0.5, farM: 160, greyOnly: true });
+          // Only plaza-mask pixels change; the existing scans remain authoritative elsewhere.
+          detail.setMasked(pavers, this.showcase.mask, MASK_HALF_M, true);
+        };
+        this.plazaDetail(this.materials.ground);
+        for (const material of this.plazaGrounds) this.plazaDetail(material);
+      }
+      for (const root of this.landmarkRoots) this.dressLandmark(root);
+    }).catch(() => { /* Optional extra detail never prevents the world from starting. */ }).finally(() => { this.showcaseLoading = false; });
+  }
+
+  private dressLandmark(root: THREE.Object3D): void {
+    const sandstone = this.detailSets.get("sandstone"), concrete = this.detailSets.get("concrete");
+    root.traverse(object => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const m = material as THREE.MeshStandardMaterial;
+        if (!m.isMeshStandardMaterial || this.detailedLandmarks.has(m)) continue;
+        const name = m.name.toLowerCase();
+        const set = /sandstone|stone|limestone|granite|plinth/.test(name) ? sandstone : /concrete|roof|slate|plaster|stucco/.test(name) ? concrete : undefined;
+        if (!set) continue;
+        applyTriplanar(m, set, { albedo: 0.7, normalScale: 0.9, roughness: 0.7, ao: 0.6, farM: 220 });
+        this.detailedLandmarks.add(m);
+      }
+    });
   }
 
   private prepareShadows(root: THREE.Object3D): void {
@@ -301,7 +397,7 @@ export class SceneRenderer {
       if (!m.isMesh) return;
       const name = m.name || m.parent?.name || "";
       m.receiveShadow = true;
-      m.castShadow = !/ground|road|pool/.test(name);
+      m.castShadow = !/ground|road|pool|sidewalk|lake/.test(name);
     });
   }
 
@@ -371,7 +467,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && !this.showcaseLoading && this.streamer.settled() && this.streamer.kitsSettled() && this.far.settled();
   }
 
   resize(): void {
@@ -527,7 +623,12 @@ export class SceneRenderer {
   }
 
   dispose(): void {
+    this.disposed = true;
     this.surfaceTextures.dispose();
+    this.showcase?.dispose();
+    disposeDetailSets(this.detailSets);
+    this.plazaGrounds.clear();
+    this.landmarkRoots.clear();
     this.streamer.dispose();
     this.avatarGround.clear();
     this.foliage.dispose();
