@@ -38,6 +38,7 @@ import {
 } from "../../src/sim/index.ts";
 import { navigationFromPipeline, type PipelineSidewalks } from "../../src/sim/agents/pipeline-navigation.ts";
 import type { TransitLayer } from "../../src/sim/agents/transit-runtime.ts";
+import type { ParkingLayer, StreetCleaningLayer } from "../../src/sim/parking-data.ts";
 
 /**
  * buildWorld(tiles, roads, boundary): the road graph runs ambient traffic, the boundary walls
@@ -47,11 +48,15 @@ export interface ScenarioWorldLayers {
   gameplay?:GameplayWorldData|null;
   sidewalks?:PipelineSidewalks|null;
   transit?:TransitLayer|null;
+  parking?:ParkingLayer|null;
+  streetCleaning?:StreetCleaningLayer|null;
 }
 export function makeWorld(tiles: readonly TileCollider[], roads: unknown, boundary: unknown = null,layers:ScenarioWorldLayers={}): World {
   const world=buildWorld(tiles, (roads ?? null) as RoadsFile | null, (boundary ?? null) as BoundaryFile | null,layers.gameplay??undefined);
   if(layers.sidewalks)world.sidewalks=navigationFromPipeline(layers.sidewalks).graph;
   if(layers.transit)world.transit=layers.transit;
+  if(layers.parking)world.parking=layers.parking;
+  if(layers.streetCleaning)world.streetCleaning=layers.streetCleaning;
   return world;
 }
 
