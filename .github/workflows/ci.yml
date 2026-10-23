@@ -19,7 +19,9 @@ jobs:
   verify:
     name: typecheck, unit, e2e
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # On 2026-10-23 a PR run took 34 minutes in the e2e step alone (the campaign spec is 17), and
+    # the job limit cancelled it during the screenshots, before the test results were uploaded.
+    timeout-minutes: 60
     env:
       CI: "true"
       # One job per runner, so the default port is free; set per checkout locally.
