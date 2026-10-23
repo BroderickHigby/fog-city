@@ -79,6 +79,7 @@
     "ui.controls.phone": "Phone",
     "ui.controls.altFire": "Lob flowers",
     "ui.controls.gear": "Use gear",
+    "ui.controls.horn": "Horn",
     "ui.controls.streak": "Call a Hype reward",
     "ui.controls.breakFree": "Let go",
     "ui.controls.closeAd": "Close advert",
@@ -185,7 +186,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave2-2026-10-23",
-    "contentHash": "fnv1a32:8bc26e24",
+    "contentHash": "fnv1a32:c6e1beb9",
     "reviewedBy": [],
     "review": "Authored for the published UI request. Pending independent review; existing approved names reused."
   }
