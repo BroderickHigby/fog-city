@@ -31,6 +31,8 @@ import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
+import { mountMultiplayer } from "./ui/multiplayer.ts";
+import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
@@ -215,14 +217,15 @@ async function boot(): Promise<void> {
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const gameUI=mountGameUI(container,{copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
+  const restoreSave=(data:Parameters<typeof validateSavedProgression>[0]):void=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
-  }},callbacks:{
+  };
+  const gameUI=mountGameUI(container,{copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;},
@@ -234,6 +237,10 @@ async function boot(): Promise<void> {
       else send({kind:"mission-ack"});
     },
   }});
+  // Online Bot Sweep (src/ui/multiplayer.ts): absent without a configured relay. The city waits,
+  // unstepped, while a match owns the screen.
+  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";acc=0;last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
+    restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
   const audio=new GameAudio();void audio.load(assets).catch(()=>{});
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
@@ -365,7 +372,11 @@ async function boot(): Promise<void> {
       pointer.takeDrag(drag);
       pointer.takeWheel();
     }
-    if (!paused) {
+    // During a match the relay's timeline is drawn instead of the city (which does not step).
+    const match = multiplayer.inMatch() && !flying ? multiplayer.frame(dtFrame, () => gameUI.sampleInput()) : null;
+    if (match) {
+      // (the city loop below is skipped)
+    } else if (!paused) {
       acc += dtFrame;
       while (acc >= DT) {
         if (flying) {
@@ -383,12 +394,13 @@ async function boot(): Promise<void> {
       }
     }
     else if(queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
-    const alpha = paused ? 1 : acc / DT;
+    const alpha = match ? match.alpha : paused ? 1 : acc / DT;
+    const shownPrev = match ? match.prev : prev, shown = match ? match.curr : curr, me_ = match ? match.playerId : LOCAL_PLAYER;
 
     // Player ids change only when the sim state does (once per tick at most).
-    if (curr.players !== idsFor) {
-      idsFor = curr.players;
-      ids = sortedIds(curr.players);
+    if (shown.players !== idsFor) {
+      idsFor = shown.players;
+      ids = sortedIds(shown.players);
       const key = ids.join("\u0001");
       if (key !== playersKey) {
         playersKey = key;
@@ -396,8 +408,8 @@ async function boot(): Promise<void> {
       }
     }
     for (const id of ids) {
-      const pc = curr.players[id]!;
-      const pp = prev.players[id] ?? pc;
+      const pc = shown.players[id]!;
+      const pp = shownPrev.players[id] ?? pc;
       const P = poseFor(id);
       const a = pp.car;
       const b = pc.car;
@@ -423,7 +435,7 @@ async function boot(): Promise<void> {
         f.speed = lerp(fa.speed, fb.speed, alpha);
       }
       view.setFoot(id, onFoot ? P.foot : null);
-      if (id === LOCAL_PLAYER) {
+      if (id === me_) {
         // The camera and HUD follow the body the player controls (activeBody), interpolated.
         const src = onFoot ? P.foot : c;
         target.x = src.x;
@@ -434,15 +446,15 @@ async function boot(): Promise<void> {
         target.speed = onFoot ? P.foot.speed : c.speed;
       }
     }
-    view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
-    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
-    audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
-    const minute = gameMinuteOfDay(curr, clockStart);
-    view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
+    view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
+    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha);
+    audio.update(shown.ext.combat,me_,paused&&!match);
+    const minute = gameMinuteOfDay(shown, clockStart);
+    view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
 
     const info = view.info(renderInfo);
-    const me = curr.players[LOCAL_PLAYER];
+    const me = shown.players[me_];
     hudData.speedMps = me ? activeBody(me).speed : 0;
     hudData.x = target.x;
     hudData.z = target.z;
@@ -459,9 +471,9 @@ async function boot(): Promise<void> {
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
-    autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    if(!match)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
+    if(!match&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

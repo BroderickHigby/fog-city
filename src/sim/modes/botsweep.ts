@@ -21,6 +21,8 @@ import type { MatchResult } from "./types.ts";
 
 export const BOT_SWEEP_ARENA_RADIUS = 120;
 export const BOT_SWEEP_MAX_PLAYERS = 4;
+/** No robot is placed this close to the team spawn, so every player starts able to move. */
+export const TEAM_SPAWN_CLEAR_M = 25;
 
 export class ArenaUnavailableError extends Error {
   readonly reason: "refill" | "space" | "location";
@@ -83,7 +85,7 @@ export function createBotSweep(world: World, config: BotSweepConfig): SimState {
   if (!hasArenaRefill(isolated, arena)) throw new ArenaUnavailableError("refill", "This arena needs an accessible water refill");
   let state = createMatchSession(isolated, { id: config.id, mode: "botSweep", seed: config.seed, players, relayId, ...(config.durationTicks !== undefined ? { durationTicks: config.durationTicks } : {}) }, config.spawn);
   const roster = planModeRoster(isolated, state, { id: config.id, mode: "bot-sweep", playerCount: players.length, center, radius,
-    contains: (x, z) => arenaContains(arena, x, z, 1) && !excluded(x, z) && dryPoint(isolated, x, z) }, isolated.sidewalks);
+    contains: (x, z) => arenaContains(arena, x, z, 1) && (x - center.x) * (x - center.x) + (z - center.z) * (z - center.z) >= TEAM_SPAWN_CLEAR_M * TEAM_SPAWN_CLEAR_M && !excluded(x, z) && dryPoint(isolated, x, z) }, isolated.sidewalks);
   // Missing objectives cannot turn an unbuilt arena into an automatic win.
   if (roster.blocked.length || roster.actors.length !== 121) throw new ArenaUnavailableError("space", "This location has insufficient clear space for the match");
   const reserved = allocateActorIds(state, roster.actors.map(actor => actor.id)); state = reserved.state;

@@ -26,7 +26,7 @@ export async function main(): Promise<void> {
     const bundle = await load(name);
     const usable = verifiedArenas(bundle.world);
     worlds.set(name, bundle); arenas.set(name, usable.map((a) => a.spawn));
-    console.log(`world ${name}: fingerprint ${bundle.fingerprint}, ${usable.length} Bot Sweep arenas (${usable.map((a) => a.id).join(", ") || "none"})`);
+    console.log(`world ${name}: fingerprint ${bundle.fingerprint}, ${usable.length} Bot Sweep arenas (${usable.map((a) => `${a.id} ${Math.round(a.driveM)} m`).join(", ") || "none"})`);
   }
   const matchSeconds = int("RELAY_MATCH_SECONDS", 0, 0, 720);
   const relay = createRelay({

@@ -36,14 +36,14 @@ interface Seat {
   commandSequence: number; lastResyncAt: number;
 }
 
-export interface RoomStats { mismatches: number; snapshots: number; droppedInputs: number; ticks: number }
+export interface RoomStats { mismatches: number; behind: number; snapshots: number; droppedInputs: number; ticks: number }
 
 export class Room {
   readonly code: string;
   readonly bundle: WorldBundle;
   readonly createdAt: number;
   readonly creatorIp: string;
-  readonly stats: RoomStats = { mismatches: 0, snapshots: 0, droppedInputs: 0, ticks: 0 };
+  readonly stats: RoomStats = { mismatches: 0, behind: 0, snapshots: 0, droppedInputs: 0, ticks: 0 };
   phase: RoomPhase = "lobby";
   mode: NetModeId = "botSweep";
   matchId = "";
@@ -158,7 +158,12 @@ export class Room {
     seat.queue.push({ seq, input });
     // A client running fast (or flushing a backlog) never grows the relay's queue: the oldest
     // controls are dropped and the ack tells the client which ones were applied.
-    while (seat.queue.length > MAX_PREDICTION_TICKS) { seat.queue.shift(); this.stats.droppedInputs++; }
+    // A dropped control's one-shot actions (fire, enter/exit...) carry into the next one.
+    while (seat.queue.length > MAX_PREDICTION_TICKS) {
+      const dropped = seat.queue.shift()!, next = seat.queue[0]!;
+      next.input = { ...next.input, actions: next.input.actions | dropped.input.actions };
+      this.stats.droppedInputs++;
+    }
   }
 
   command(id: string, command: NetworkCommand): void {
@@ -170,12 +175,15 @@ export class Room {
     this.events.push({ tick: this.state.tick + 1, kind: "gameplay.command", playerId: id, payload: { ...command } });
   }
 
-  /** A client's hash differed from the relay's: count it, and send that client (only) a snapshot. */
-  resync(id: string, now: number): void {
+  /**
+   * A client's hash differed from the relay's (or it fell too far behind to replay): count it,
+   * and send that client, only, a snapshot.
+   */
+  resync(id: string, reason: "mismatch" | "behind", now: number): void {
     const seat = this.seats.get(id);
     if (!seat || this.phase !== "match" || now - seat.lastResyncAt < this.limits.resyncIntervalMs) return;
-    this.stats.mismatches++;
-    this.sendSnapshot(seat, "mismatch", now);
+    if (reason === "mismatch") this.stats.mismatches++; else this.stats.behind++;
+    this.sendSnapshot(seat, reason, now);
   }
 
   /** One 60 Hz tick of housekeeping and, during a match, of the sim. */
@@ -237,9 +245,9 @@ export class Room {
     const message: ServerMessage = { type: "room", phase: this.phase, mode: this.mode, members: this.members(), matchId: this.matchId };
     for (const seat of this.seats.values()) seat.peer?.send(message);
   }
-  private sendSnapshot(seat: Seat, reason: "start" | "rejoin" | "mismatch", now: number): void {
+  private sendSnapshot(seat: Seat, reason: "start" | "rejoin" | "mismatch" | "behind", now: number): void {
     if (!seat.peer || !this.state) return;
-    if (reason === "mismatch") seat.lastResyncAt = now;
+    if (reason === "mismatch" || reason === "behind") seat.lastResyncAt = now;
     this.stats.snapshots++;
     seat.peer.send({ type: "snapshot", matchId: this.matchId, reason, state: this.state, hash: hashState(this.state), ack: seat.ack });
   }

@@ -93,8 +93,8 @@ export class RelayClient {
   }
 
   /** Step the confirmed match by elapsed ticks; returns the steps taken. */
-  advance(ticks: number): number {
-    const steps = this.match?.advance(ticks) ?? 0;
+  advance(ticks: number, overBudget?: () => boolean): number {
+    const steps = this.match?.advance(ticks, overBudget) ?? 0;
     if (this.match) { this.info.queued = this.match.queued; this.info.recovering = this.match.recovering; }
     return steps;
   }
@@ -154,9 +154,9 @@ export class RelayClient {
         return;
       }
       case "snapshot": {
-        if (this.match && this.match.matchId === message.matchId && message.reason === "mismatch") this.match.snapshot(message);
+        if (this.match && this.match.matchId === message.matchId && (message.reason === "mismatch" || message.reason === "behind")) this.match.snapshot(message);
         else {
-          this.match = new MatchTimeline(this.options.world, this.info.playerId, message.matchId, message, (tick) => this.send({ type: "resync", tick }));
+          this.match = new MatchTimeline(this.options.world, this.info.playerId, message.matchId, message, (tick, reason) => this.send({ type: "resync", tick, reason }));
           this.commandSequence = 0; this.actions = 0;
         }
         this.info.matchId = message.matchId;

@@ -40,7 +40,8 @@ export type ClientMessage =
   | { type: "leave" }
   | { type: "input"; seq: number; input: SimInput }
   | { type: "command"; command: NetworkCommand }
-  | { type: "resync"; tick: number }
+  /** "mismatch": this client's hash differed from the relay's; "behind": it fell too far behind to catch up. */
+  | { type: "resync"; tick: number; reason: "mismatch" | "behind" }
   | { type: "ping"; t: number };
 
 export interface Member { id: string; name: string; ready: boolean; connected: boolean; host: boolean }
@@ -60,7 +61,7 @@ export interface Results { matchId: string; result: MatchResult; payouts: MatchP
 export type ServerMessage =
   | { type: "welcome"; net: number; sim: number; code: string; playerId: string; token: string; expiresAt: number }
   | { type: "room"; phase: RoomPhase; mode: NetModeId; members: Member[]; matchId: string }
-  | ({ type: "snapshot"; matchId: string; reason: "start" | "rejoin" | "mismatch" } & Snapshot)
+  | ({ type: "snapshot"; matchId: string; reason: "start" | "rejoin" | "mismatch" | "behind" } & Snapshot)
   | Frame
   | ({ type: "results" } & Results)
   | { type: "pong"; t: number }
@@ -126,7 +127,7 @@ export function parseClientMessage(text: string): ClientMessage {
       if (keys(value, ["type"])) return { type: value.type };
       break;
     case "resync":
-      if (keys(value, ["type", "tick"]) && integer(value.tick, 0, 0x7fffffff)) return { type: "resync", tick: value.tick };
+      if (keys(value, ["type", "tick", "reason"]) && integer(value.tick, 0, 0x7fffffff) && (value.reason === "mismatch" || value.reason === "behind")) return { type: "resync", tick: value.tick, reason: value.reason };
       break;
     case "ping":
       if (keys(value, ["type", "t"]) && between(value.t, 0, Number.MAX_SAFE_INTEGER)) return { type: "ping", t: value.t };

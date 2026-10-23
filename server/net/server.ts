@@ -198,7 +198,7 @@ export function createRelay(options: RelayOptions) {
           case "ready": room.ready(playerId, message.ready); break;
           case "start": room.start(playerId, message.mode, t); break;
           case "end": room.end(playerId); break;
-          case "resync": room.resync(playerId, t); break;
+          case "resync": room.resync(playerId, message.reason, t); break;
           case "leave": { const left = room; room = null; left.leave(playerId); playerId = ""; socket.close(1000, "left"); break; }
         }
       } catch (error) {
