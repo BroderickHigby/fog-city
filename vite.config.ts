@@ -5,6 +5,7 @@ import { defineConfig, type Plugin } from "vite";
 // virtual:fogcity-assets — what other tracks have produced so far, read at dev/build time:
 //   models:    paths of public/models/**/*.glb, relative to public/ ("models/x.glb")
 //   landmarks: content/landmarks.json parsed, or null when absent or unreadable
+//   houseKit:  public/models/house-kit/house-kit.json parsed (the house-kit prototypes' contract), or null
 // The renderer requests only files listed here, so a model that does not exist yet costs
 // no request and no console error. The dev server reloads the page when either changes.
 function fogcityAssets(): Plugin {
@@ -13,6 +14,7 @@ function fogcityAssets(): Plugin {
   const root = resolve(import.meta.dirname);
   const modelsDir = join(root, "public", "models");
   const landmarksFile = join(root, "content", "landmarks.json");
+  const houseKitFile = join(modelsDir, "house-kit", "house-kit.json");
   const listModels = (dir: string, rel: string): string[] => {
     if (!existsSync(dir)) return [];
     const out: string[] = [];
@@ -23,9 +25,9 @@ function fogcityAssets(): Plugin {
     }
     return out.sort();
   };
-  const readLandmarks = (): unknown => {
+  const readJson = (file: string): unknown => {
     try {
-      return existsSync(landmarksFile) ? (JSON.parse(readFileSync(landmarksFile, "utf8")) as unknown) : null;
+      return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as unknown) : null;
     } catch {
       return null;
     }
@@ -39,7 +41,8 @@ function fogcityAssets(): Plugin {
       if (source !== resolved) return null;
       if (existsSync(landmarksFile)) this.addWatchFile(landmarksFile);
       const models = listModels(modelsDir, "models");
-      return `export const models = ${JSON.stringify(models)};\nexport const landmarks = ${JSON.stringify(readLandmarks())};\n`;
+      if (existsSync(houseKitFile)) this.addWatchFile(houseKitFile);
+      return `export const models = ${JSON.stringify(models)};\nexport const landmarks = ${JSON.stringify(readJson(landmarksFile))};\nexport const houseKit = ${JSON.stringify(readJson(houseKitFile))};\n`;
     },
     configureServer(server) {
       const refresh = (file: string): void => {

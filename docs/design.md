@@ -1271,6 +1271,19 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   blue, clouds, and blimps and banner-towing planes trailing ads for invented startups (never real companies; the
   content lint applies). The aircraft are ambient scenery on a seeded schedule, not sim entities, so they cost no
   netcode; the Blimp Impressions streak reuses the blimp, and Fleet Week's jets stay a separate, scheduled event.
+- 2026-10-21 · **The Daly City strip is far scenery, not territory** (world QA W-42). The footprint data
+  carries about 1,350 buildings on a strip 150 to 650 m wide south of the county line (1,352 podium records
+  whose centroids lie south of z = 9,850 m) with no streets: the road data ends at z = 9,821. The strip never
+  makes a tile built, so the tiles beyond the last built row are far LOD only (no near tile, no colliders, no
+  storefronts, never a district). Inside the last built row (the 500 m grid reaches past the county line
+  there) the world's land wall follows the county line cell by cell, and the strip's records past it are
+  scenery: drawn by their tile's glb (so nothing vanishes as a tile streams in) and in the far layer, but no
+  collider, storefront or district. Around the ends of the San Francisco streets that carry on a little past the
+  line (Mission St, Geneva Ave, I-280 and others) a pocket 15 m beyond the kerb stays in the world, so no lane
+  or sidewalk runs into the wall, and the few hundred strip records that reach into a pocket stay solid.
+  (Amended 2026-10-22: the first cut kept the strip's row-19 records solid behind a straight wall at
+  z = 10,000.) Territory step 10 (south of the line, Later) revisits it with another data source. Decided in
+  the world QA round while the user was away; reversible.
 - 2026-10-22 · **A rusted-out robot falls down or melts** (user request). Seizing is never the end of the
   animation: every model visibly topples or melts into its rust heap during `slumping`, each in its own slapstick
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a

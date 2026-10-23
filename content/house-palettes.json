@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "$comment": "House colours by era and district (house kit K3, world QA defect W-37). The pipeline and the renderer pick a house's wall (body), trim, and for the Marina a roof-edge tile colour from here wherever they draw a house today (the pastel class of pipeline/lib/mesh.ts facadeStyle: residential, or under 16 m and not an office; the glass, industrial, masonry and concrete classes keep their own colours). src/content/housePalettes.ts assignHouseColours does the picking: the first rule that matches the house's assessor year and its DataSF Analysis Neighborhood picks the palette, a hash of the building id picks the body, and a body already worn by a touching neighbour (footprints within maxGapM) is skipped, so no two adjacent houses on a block face share a colour. Overrides are hand palettes for named rows and win over the rules. Colours are sRGB hex; saturation means HSV saturation, (max - min) / max, as the houses audit measured it.",
+  "maxGapM": 0.6,
+  "rules": [
+    { "id": "victorian", "palette": "victorian", "maxYear": 1915, "note": "Italianate, Stick, Queen Anne and Edwardian rows: saturated bodies with contrasting trim, plus white and grey bodies with coloured trim." },
+    { "id": "marina-stucco", "palette": "marinaStucco", "minYear": 1916, "maxYear": 1939, "districts": ["marina"], "note": "The Marina's 1920s and 1930s Mediterranean stucco: cream and ochre, red tile at the roof edge." },
+    { "id": "avenues", "palette": "avenues", "minYear": 1916, "maxYear": 1959, "districts": ["sunset-parkside", "inner-sunset", "outer-richmond", "inner-richmond", "west-of-twin-peaks", "oceanview-merced-ingleside", "excelsior", "outer-mission", "lakeshore", "visitacion-valley", "portola"], "note": "The Sunset, the Richmond and the southern row-house tracts of the 1920s to 1950s: pastels and white." },
+    { "id": "interwar", "palette": "interwar", "minYear": 1916, "maxYear": 1959, "note": "Interwar and postwar stucco elsewhere: sand, dove grey, pale terracotta, sage." },
+    { "id": "sixties", "palette": "sixties", "minYear": 1960, "maxYear": 1989, "note": "1960s to 1980s boxes: beige and concrete." },
+    { "id": "modern", "palette": "modern", "minYear": 1990, "note": "1990 and later: greys, with more glazing." },
+    { "id": "undated", "palette": "interwar", "note": "No assessor year: the city's middle register." }
+  ],
+  "palettes": {
+    "victorian": {
+      "label": "Victorian rows to 1915",
+      "glazingDelta": 0,
+      "schemes": [
+        {
+          "id": "deep",
+          "bodies": ["#6e99b8", "#5c998d", "#799962", "#b2775d", "#b87686", "#785480", "#7986bd", "#3b6b4b", "#8f4842", "#8b72ad", "#75343f", "#406c80"],
+          "trims": ["#f3ead6", "#f8f5ee", "#efe2b8"]
+        },
+        {
+          "id": "light",
+          "bodies": ["#dbb969", "#87cca9", "#eddf85", "#ebb791", "#7ebdbd", "#b4cc83"],
+          "trims": ["#3d4f5f", "#5b2a33", "#2f4a3a", "#4a3b52"]
+        },
+        {
+          "id": "muted",
+          "bodies": ["#f2ede4", "#bec5cc", "#e8e0c8", "#8d989e", "#c7bbaf", "#f7f7f7", "#d5d9e0"],
+          "trims": ["#7a2e3a", "#2f5a45", "#2e4a6b", "#7d5a1e", "#2f6d6a"]
+        }
+      ]
+    },
+    "marinaStucco": {
+      "label": "Marina stucco",
+      "glazingDelta": 0,
+      "roofEdges": ["#a5503a", "#b5613f", "#94452f"],
+      "schemes": [
+        {
+          "id": "stucco",
+          "bodies": ["#f2ead5", "#ebd8b7", "#dec29b", "#e3dabf", "#edd8c2", "#d6b89f", "#e6e1cf", "#e6d0c5", "#ccb993", "#f0e8c0"],
+          "trims": ["#fbf7ee", "#f1e6cf", "#6b4a33"]
+        }
+      ]
+    },
+    "avenues": {
+      "label": "Sunset and Richmond rows",
+      "glazingDelta": 0,
+      "schemes": [
+        {
+          "id": "pastel",
+          "bodies": ["#f5f5f5", "#eddbca", "#cfe6d6", "#d8e1ed", "#f2e7b8", "#ebd3dd", "#dbd5ca", "#dae8cc", "#f2d6c2", "#cadae6", "#ede9d5", "#cae0dd", "#e0daeb"],
+          "trims": ["#fbfaf6", "#f2efe8", "#8a8f94"]
+        }
+      ]
+    },
+    "interwar": {
+      "label": "Interwar and postwar stucco",
+      "glazingDelta": 0,
+      "schemes": [
+        {
+          "id": "stucco",
+          "bodies": ["#dbcaaf", "#ccc6c0", "#d1ab9f", "#aeb29a", "#a4b0bd", "#ccbc97", "#adc2a9", "#dbc0ba", "#ebe6d8", "#9ba4a8", "#bd9c84", "#d6d3b0"],
+          "trims": ["#f6f3ea", "#e9e3d3", "#5e5a52"]
+        }
+      ]
+    },
+    "sixties": {
+      "label": "1960s to 1980s",
+      "glazingDelta": 0.05,
+      "schemes": [
+        {
+          "id": "beige",
+          "bodies": ["#d9cdb8", "#ccc0a7", "#c2b7a9", "#bab7b1", "#d4c9be", "#e0dac5", "#b2b0a4", "#c7b7ab", "#ccccc0"],
+          "trims": ["#e8e2d4", "#9a958b", "#5f5b55"]
+        }
+      ]
+    },
+    "modern": {
+      "label": "1990 and later",
+      "glazingDelta": 0.15,
+      "schemes": [
+        {
+          "id": "grey",
+          "bodies": ["#a7acb0", "#8e9499", "#c2c4c0", "#6d7278", "#b5b1a8", "#d4d4d2", "#7d838a", "#9da3a3", "#e0dcd7"],
+          "trims": ["#2f3236", "#d9dad7", "#5a5f64"]
+        }
+      ]
+    }
+  },
+  "overrides": [
+    {
+      "id": "postcard-row",
+      "label": "Postcard Row, the east side of the 700 block of Steiner St",
+      "note": "The seven Painted Ladies facing Alamo Square (710 to 722 Steiner St, built 1892 to 1896; the assessor roll says 1898 and 1900). Confirmed from the committed sf world: the seven consecutive lots 0803017 to 0803023 of assessor block 0803 front the Steiner centreline (8.0 to 10.6 m from it) between the Hayes St node (south) and the Grove St node (north), 13.1 to 15.7 m tall. The other two candidates the houses audit listed stand back from the street: 201006.0088534 (lot 024, 31.5 m back, a rear cottage) and 201006.0072707 (lot 013, 22.3 m back, around the Hayes corner). Records are listed north (Grove) to south (Hayes). Hand colours, invented in the Victorian manner: no two neighbours share a body, and every trim contrasts with its body.",
+      "records": [
+        { "id": "201006.0052851", "parcel": "0803023", "body": "#5f7f9a", "trim": "#f4ecd8", "accent": "#a8332e" },
+        { "id": "201006.0110065", "parcel": "0803022", "body": "#c9a24a", "trim": "#f6f0e0", "accent": "#3f5a3a" },
+        { "id": "201006.0109792", "parcel": "0803021", "body": "#86a882", "trim": "#f4ecd8", "accent": "#7a2e3a" },
+        { "id": "201006.0112685", "parcel": "0803020", "body": "#d49a93", "trim": "#fbf6ea", "accent": "#3d4f6e" },
+        { "id": "201006.0112735", "parcel": "0803019", "body": "#7499ad", "trim": "#f5efe0", "accent": "#b8862e" },
+        { "id": "201006.0093068", "parcel": "0803018", "body": "#e0c060", "trim": "#fbf7ec", "accent": "#2f5a45" },
+        { "id": "201006.0105612", "parcel": "0803017", "body": "#5f8f6a", "trim": "#f3e9d2", "accent": "#8f3a3a" }
+      ]
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:9777d22a",
+    "reviewedBy": [],
+    "review": "Pending: written in the world QA round (W-37); a second agent session reads it against the docs/ai-layer.md checklist."
+  }
+}

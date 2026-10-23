@@ -40,8 +40,14 @@ export interface RoadEdge {
    * under it, not the roadway. Surface traffic should not be routed onto it.
    */
   gradeSeparated?: boolean;
-  /** Part of the edge crosses open water (the Bay Bridge approach): a deck the source gives no height for. */
+  /** Part of the edge crosses open water (a creek bridge, the Bay Bridge approach). */
   bridge?: boolean;
+  /** Part of the edge is carried on a deck (structures.ts decks). */
+  deck?: boolean;
+  /** Part of the edge runs below ground: a bored tunnel or an underpass (structures.ts tunnels). */
+  tunnel?: boolean;
+  /** A public stairway: always pedestrian, never drivable (W-33). */
+  stairs?: boolean;
 }
 
 export interface RoadGraph {
@@ -51,8 +57,42 @@ export interface RoadGraph {
   edges: RoadEdge[];
 }
 
-/** Layers that are not real, open streets. */
+/** Layers that are not real, open streets (but see STAIR_LAYERS). */
 export const EXCLUDED_LAYERS = new Set(["PAPER", "PAPER_FWYS", "PAPER_WATER", "PRIVATE_PARKING", "PSEUDO", "UPROW"]);
+
+/**
+ * Stairways (W-33). San Francisco's public stairways are mostly unaccepted rights of way
+ * (layer UPROW) or paper streets the city never built as roads (PAPER), plus some pedestrian
+ * ways (STREETS_PEDESTRI). The source has no stair flag, so a segment is a stairway when it is
+ * named one (st_type STWY or STPS) or when it is steeper on average than a road is ever built:
+ * UPROW STAIR_GRADE_UPROW, PAPER STAIR_GRADE_PAPER (a paper street that steep is a stairway or
+ * nothing), STREETS_PEDESTRI STAIR_GRADE_PEDESTRIAN. Stairways are pedestrian edges, STAIRS_WIDTH_M
+ * wide; the carriageway clearance pass (clearance.ts) drops an UPROW or PAPER one that runs
+ * through buildings (the right of way was never opened there).
+ */
+export const STAIR_LAYERS = new Set(["UPROW", "PAPER"]);
+export const STAIR_GRADE_UPROW = 0.25;
+export const STAIR_GRADE_PAPER = 0.3;
+export const STAIR_GRADE_PEDESTRIAN = 0.2;
+export const STAIRS_WIDTH_M = 3;
+const STAIR_TYPES = new Set(["STWY", "STPS"]);
+
+function stairGrade(pts: readonly P2[], heightAt: (x: number, z: number) => number): number {
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i]![0] - pts[i - 1]![0], pts[i]![1] - pts[i - 1]![1]);
+  if (len < 10) return 0;
+  return Math.abs(heightAt(pts[pts.length - 1]![0], pts[pts.length - 1]![1]) - heightAt(pts[0]![0], pts[0]![1])) / len;
+}
+
+/** Is this source segment a stairway? (Layers that are otherwise excluded only when steep enough.) */
+export function isStairway(seg: RawStreet, pts: readonly P2[], heightAt: (x: number, z: number) => number): boolean {
+  if (STAIR_TYPES.has((seg.st_type ?? "").toUpperCase())) return true;
+  const layer = seg.layer ?? "";
+  if (layer === "UPROW") return stairGrade(pts, heightAt) >= STAIR_GRADE_UPROW;
+  if (layer === "PAPER") return stairGrade(pts, heightAt) >= STAIR_GRADE_PAPER;
+  if (layer === "STREETS_PEDESTRI") return stairGrade(pts, heightAt) >= STAIR_GRADE_PEDESTRIAN;
+  return false;
+}
 
 const MPH = 0.44704;
 
@@ -100,7 +140,7 @@ export function titleCase(s: string): string {
 }
 
 /** True when the polyline has a stretch (two consecutive samples ~10 m apart) over water. */
-function crossesWater(points: readonly P2[], waterAt: (x: number, z: number) => boolean): boolean {
+export function crossesWater(points: readonly P2[], waterAt: (x: number, z: number) => boolean): boolean {
   let prev = false;
   for (let i = 1; i < points.length; i++) {
     const [ax, az] = points[i - 1]!;
@@ -139,6 +179,9 @@ export interface RoadStats {
   byKind: Record<string, number>;
   /** Edges flagged bridge (a stretch over open water). */
   bridges: number;
+  /** Stairways (pedestrian stairs edges), and how many came from layers otherwise excluded (UPROW, PAPER). */
+  stairs: number;
+  stairsFromExcluded: number;
   components: number;
   largestComponentNodes: number;
 }
@@ -152,12 +195,12 @@ export function buildRoads(
   tiles: TileRef[],
   heightAt: (x: number, z: number) => number,
   waterAt: (x: number, z: number) => boolean = () => false,
-): { graph: RoadGraph; stats: RoadStats } {
+): { graph: RoadGraph; stats: RoadStats; optionalStairs: Set<string> } {
   const stats: RoadStats = {
     raw: raw.length, excludedLayer: 0, outside: 0, degenerate: 0, edges: 0, nodes: 0, synthesizedNodes: 0,
-    byKind: {}, bridges: 0, components: 0, largestComponentNodes: 0,
+    byKind: {}, bridges: 0, stairs: 0, stairsFromExcluded: 0, components: 0, largestComponentNodes: 0,
   };
-  interface Pending { seg: RawStreet; part: number; pts: P2[]; fNode: string; tNode: string }
+  interface Pending { seg: RawStreet; part: number; pts: P2[]; fNode: string; tNode: string; stairs: boolean }
   const pending: Pending[] = [];
   const endpointSums = new Map<string, { x: number; z: number; n: number }>();
   const addEnd = (id: string, p: P2): void => {
@@ -170,7 +213,8 @@ export function buildRoads(
 
   const sorted = [...raw].sort((a, b) => Number(a.cnn) - Number(b.cnn));
   for (const seg of sorted) {
-    if (EXCLUDED_LAYERS.has(seg.layer ?? "")) {
+    const maybeStairs = STAIR_LAYERS.has(seg.layer ?? "");
+    if (EXCLUDED_LAYERS.has(seg.layer ?? "") && !maybeStairs) {
       stats.excludedLayer++;
       continue;
     }
@@ -185,6 +229,11 @@ export function buildRoads(
       }
       if (pts.length < 2) {
         stats.degenerate++;
+        return;
+      }
+      const stairs = isStairway(seg, pts, heightAt);
+      if (maybeStairs && !stairs) {
+        if (part === 0) stats.excludedLayer++;
         return;
       }
       // Keep a segment if any point along it lies in the world's tiles.
@@ -210,7 +259,7 @@ export function buildRoads(
       const tNode = (single ? nodeCnn(seg.t_node_cnn) : null) ?? synth(pts[pts.length - 1]!);
       addEnd(fNode, pts[0]!);
       addEnd(tNode, pts[pts.length - 1]!);
-      pending.push({ seg, part, pts, fNode, tNode });
+      pending.push({ seg, part, pts, fNode, tNode, stairs });
     });
   }
 
@@ -223,9 +272,10 @@ export function buildRoads(
   }
 
   const edges: RoadEdge[] = [];
-  for (const { seg, part, pts, fNode, tNode } of pending) {
+  const optionalStairs = new Set<string>();
+  for (const { seg, part, pts, fNode, tNode, stairs } of pending) {
     const classcode = seg.classcode !== undefined && seg.classcode !== "" ? Number(seg.classcode) : null;
-    const kind = kindOf(classcode, seg.st_type, seg.layer);
+    const kind = stairs ? "other" : kindOf(classcode, seg.st_type, seg.layer);
     const ow = (seg.oneway ?? "B").toUpperCase();
     const oneway = ow === "F" || ow === "T";
     let a = fNode;
@@ -246,22 +296,30 @@ export function buildRoads(
       points = [[na.x, na.z], [nb.x, nb.z]];
     }
     const t = KIND_TABLE[kind];
-    const lanes = oneway ? t.lanesOneWay : t.lanesTwoWay;
+    const lanes = stairs ? 1 : oneway ? t.lanesOneWay : t.lanesTwoWay;
     const e: RoadEdge = {
       id: part === 0 ? `c${seg.cnn}` : `c${seg.cnn}-${part}`,
       a,
       b,
       kind,
       lanes,
-      oneway,
-      widthM: r2(lanes * t.laneM + t.extraM),
+      oneway: stairs ? false : oneway,
+      widthM: stairs ? STAIRS_WIDTH_M : r2(lanes * t.laneM + t.extraM),
       speedLimitMps: r2(t.mph * MPH),
       name: titleCase(seg.streetname ?? [seg.street, seg.st_type].filter(Boolean).join(" ")),
       points,
       cnn: seg.cnn,
       classcode,
     };
-    if (seg.layer === "STREETS_PEDESTRI") e.pedestrian = true;
+    if (seg.layer === "STREETS_PEDESTRI" || stairs) e.pedestrian = true;
+    if (stairs) {
+      e.stairs = true;
+      stats.stairs++;
+      if (STAIR_LAYERS.has(seg.layer ?? "")) {
+        stats.stairsFromExcluded++;
+        optionalStairs.add(e.id);
+      }
+    }
     if (kind === "freeway") e.gradeSeparated = true;
     if (crossesWater(points, waterAt)) {
       e.bridge = true;
@@ -309,5 +367,6 @@ export function buildRoads(
       edges,
     },
     stats,
+    optionalStairs,
   };
 }

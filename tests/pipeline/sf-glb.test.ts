@@ -31,6 +31,13 @@ describe("sf GLB tiles", () => {
       expect(json.extensionsRequired?.sort(), t.glb).toEqual(["EXT_meshopt_compression", "KHR_mesh_quantization"]);
       for (const n of json.nodes) {
         expect(n.translation, `${t.glb} ${n.name}`).toEqual([t.bbox[0] + 250, 0, t.bbox[1] + 250]);
+        if (n.extensions?.EXT_mesh_gpu_instancing) {
+          // Instanced foliage (W-18): float prototype vertices about the tree's foot, instance
+          // translations about the tile centre, which the node carries at scale 1.
+          expect(n.name, t.glb).toMatch(/^foliage-/);
+          expect(n.scale ?? [1, 1, 1], `${t.glb} ${n.name}`).toEqual([1, 1, 1]);
+          continue;
+        }
         expect(n.scale![0]).toBe(n.scale![1]);
         expect(Number.isInteger(Math.log2(n.scale![0]!)), `${t.glb} ${n.name} scale is a power of two`).toBe(true);
         if (n.name === "ground" || n.name === "roads") expect(n.scale![0]).toBe(1 / 64);
@@ -117,7 +124,7 @@ describe("sf far-LOD cells", () => {
 
 interface GltfJson {
   extensionsRequired?: string[];
-  nodes: Array<{ name: string; translation?: number[]; scale?: number[] }>;
+  nodes: Array<{ name: string; translation?: number[]; scale?: number[]; extensions?: { EXT_mesh_gpu_instancing?: unknown } }>;
 }
 
 function glbJson(b: Uint8Array): GltfJson {

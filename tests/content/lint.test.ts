@@ -113,6 +113,18 @@ describe("lintText passes harmless look-alikes", () => {
   });
 });
 
+describe("scoped exemptions", () => {
+  it("the places table's landmark ids may name checklist landmarks; its labels may not", () => {
+    const doc = { landmarks: [{ id: "sutro-tower", label: "The radio tower" }] };
+    expect(lintDocument("content/landmark-tags.json", doc, null)).toEqual([]);
+    const bad = { landmarks: [{ id: "radio-tower", label: "Sutro Tower in the fog" }] };
+    expect(lintDocument("content/landmark-tags.json", bad, null).map((i) => i.rule)).toContain("checklist");
+    // The exemption is for that path only: the same id elsewhere still fails.
+    expect(lintDocument("content/landmark-tags.json", { sites: [{ id: "sutro-tower" }] }, null).map((i) => i.rule)).toContain("checklist");
+    expect(lintDocument("content/places.json", doc, null).map((i) => i.rule)).toContain("checklist");
+  });
+});
+
 describe("mode and item names", () => {
   it.each(["Domination", "Robot Domination", "Hardpoint", "Hard Point Hold", "Search & Destroy", "Team Deathmatch", "dominationMode"])("rejects %s", (n) => {
     expect(lintModeName(n).map((i) => i.rule)).toEqual(["shooterMode"]);

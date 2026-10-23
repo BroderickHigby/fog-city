@@ -42,8 +42,6 @@ export interface RenderInfo {
   farCells: number;
   farCellsDrawn: number;
   farTriangles: number;
-  /** Far quads at the city's outer edge stitched to the streamed tiles' ground (no crack at the city limit). */
-  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
 }
@@ -101,6 +99,8 @@ export interface DebugHandle {
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;
   /** True when no tile is queued, loading or building. */
   tilesSettled(): boolean;
+  /** The ground height the renderer stands things on at (x, z), metres (screenshots, probes). */
+  groundHeight(x: number, z: number): number;
   /** The HUD hint on screen now ("" when none), e.g. "No room to get out". */
   hint(): string;
   /**

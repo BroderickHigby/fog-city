@@ -10,7 +10,7 @@ import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
-import { parkShapes, tintParks } from "./parks.ts";
+import { makeDrawnGroundFn } from "./ground.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
@@ -21,6 +21,9 @@ import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import type { LookFn } from "./house-kit.ts";
+import { loadKitLib } from "./house-kit-mesh.ts";
+import { parseKitDoc, type StorefrontAnchor } from "./house-kit-props.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 
@@ -37,6 +40,8 @@ export interface RenderOptions {
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
   landmarks: unknown;
+  /** public/models/house-kit/house-kit.json (the house kit's prototypes); null or absent: no kit geometry. */
+  houseKit?: unknown;
 }
 
 export interface WorldData {
@@ -45,14 +50,18 @@ export interface WorldData {
   colliders: ReadonlyMap<string, TileCollider>;
   roads: RoadGraph | null;
   ground: GroundFn;
+  /** boundary.json (its shore lines get quay faces), or null. */
+  boundary?: { shore: ReadonlyArray<{ closed: boolean; lake?: unknown; points: ReadonlyArray<readonly number[]> }> } | null;
   /** True when (x, y, z) is inside a building below its roof (camera pull-in). */
   occluded: (x: number, y: number, z: number) => boolean;
   /** Where glb bytes come from (loose files or the packed build). Omitted: fetch each URL. */
   assets?: Assets;
-  /** districts.json, parsed (its park polygons tint the ground green), or null. */
-  districts?: unknown;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
+  /** The house kit's colours and materials per building (house-colours.ts houseLookFn). */
+  houseLook?: LookFn;
+  /** storefronts.json's anchors (K5), or null. */
+  storefronts?: readonly StorefrontAnchor[] | null;
 }
 
 export interface RenderInfo {
@@ -87,8 +96,6 @@ export interface RenderInfo {
   farCellsDrawn: number;
   /** Triangles in the loaded far cells. */
   farTriangles: number;
-  /** Far quads at the city's outer edge stitched to the streamed tiles' ground. */
-  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
 }
@@ -190,13 +197,10 @@ export class SceneRenderer {
     });
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
-    const parks = parkShapes(world.districts ?? null);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
-      tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
-      ground: world.ground,
     });
     this.scene.add(this.far.group);
 
@@ -207,16 +211,24 @@ export class SceneRenderer {
       colliders: world.colliders,
       roads: world.roads,
       ground: world.ground,
+      drawnGround: makeDrawnGroundFn([...world.colliders.values()]),
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
       onReady: (g) => this.prepareShadows(g),
       onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
-      tintGround: (geo, m) => tintParks(geo, m, parks),
+      lakeMaterial: this.water.lakeMaterial,
+      shore: world.boundary?.shore,
       fallbackCollider: world.fallbackCollider,
+      houseLook: world.houseLook,
+      storefronts: world.storefronts,
     });
     this.far.start();
+    // The house kit's prototypes (bays, stoops, mouldings, roof props): near tiles build their
+    // kit once they arrive; a prototype that fails to load is simply not drawn.
+    const kitDoc = parseKitDoc(opts.houseKit);
+    if (kitDoc) void loadKitLib(this.registry, kitDoc).then((lib) => this.streamer.setKitLib(lib, kitDoc));
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, opts.shadows);
     this.scene.add(this.actors.group);
@@ -248,7 +260,7 @@ export class SceneRenderer {
       if (!m.isMesh) return;
       const name = m.name || m.parent?.name || "";
       m.receiveShadow = true;
-      m.castShadow = !/ground|road|pool/.test(name);
+      m.castShadow = !/ground|road|pool|sidewalk|lake/.test(name);
     });
   }
 
@@ -313,7 +325,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.streamer.kitsSettled() && this.far.settled();
   }
 
   resize(): void {
@@ -445,7 +457,6 @@ export class SceneRenderer {
     out.farCells = f.loaded;
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
-    out.farSeamEdges = f.seamEdges;
     out.cameraFar = this.camera.far;
     return out;
   }
@@ -495,7 +506,6 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCells: 0,
   farCellsDrawn: 0,
   farTriangles: 0,
-  farSeamEdges: 0,
   cameraFar: 0,
 });
 

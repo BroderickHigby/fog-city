@@ -1,0 +1,73 @@
+{
+  "$comment": "Ground cover rules for pipeline/lib/landcover.ts (world QA W-11, W-18, W-34). Pipeline config only: names are provenance, never shipped as text in tiles except the lake names in a tile's ground.lakes. See docs/data-sources.md, 'Ground cover'.",
+  "lakes": {
+    "$comment": "Open inland water from USGS NHD large-scale waterbodies (public domain), by permanent identifier. Every NHD lake or pond (FTYPE 390) in the city is listed; of the reservoirs (FTYPE 436) only the open ones are: the city's covered reservoirs (Sunset, Sutro, University Mound, Twin Peaks, Lombard St, Merced Manor, Stanford Heights...) and the treatment plant's tanks are roofs, not water. The level is the lake's lattice median where the DEM is hydro-flattened (60% of its samples within 5 cm of it), else the 10th percentile (Mountain Lake, Lily Pond: the 2010 survey left their surfaces rough). A lake smaller than minSamples lattice samples is left as land, and a sample inside an outline standing more than bankM over the level is bank (the NHD outline is a few metres off the DEM in places), not water.",
+    "minSamples": 5,
+    "bankM": 2.5,
+    "include": [
+      { "nhd": "120028664", "name": "Lake Merced (North Lake)" },
+      { "nhd": "120028665", "name": "Lake Merced (South Lake)" },
+      { "nhd": "30934173", "name": "Pine Lake" },
+      { "nhd": "120026408", "name": "Stow Lake" },
+      { "nhd": "30933567", "name": "Spreckels Lake" },
+      { "nhd": "30933569", "name": "Lloyd Lake" },
+      { "nhd": "30933587", "name": "Elk Glen Lake" },
+      { "nhd": "30933591", "name": "Metson Lake" },
+      { "nhd": "30933593", "name": "Mallard Lake" },
+      { "nhd": "30933525", "name": "North Lake" },
+      { "nhd": "30933585", "name": "Middle Lake" },
+      { "nhd": "30933595", "name": "South Lake" },
+      { "nhd": "41669937", "name": "Lily Pond" },
+      { "nhd": "120012573", "name": "Golden Gate Park reservoir" },
+      { "nhd": "120026402", "name": "Strawberry Hill pond" },
+      { "nhd": "120026404", "name": "Strawberry Hill pool" },
+      { "nhd": "120026406", "name": "Golden Gate Park pond" },
+      { "nhd": "120026410", "name": "Golden Gate Park pool" },
+      { "nhd": "41669935", "name": "Mountain Lake" },
+      { "nhd": "41669917", "name": "Laguna Honda Reservoir" },
+      { "nhd": "41669869", "name": "Palace of Fine Arts lagoon" },
+      { "nhd": "{7FC641AF-C40E-4EF2-8A3C-E9D170B442A0}", "name": "Crissy Field marsh" },
+      { "nhd": "30933531", "name": "Sutro Baths pool" },
+      { "nhd": "30933523", "name": "Lands End pond" },
+      { "nhd": "30934177", "name": "Zoo pond" },
+      { "nhd": "30934901", "name": "Zoo lagoon" },
+      { "nhd": "56655903", "name": "McNab Lake" },
+      { "nhd": "56656007", "name": "McLaren Park pond" },
+      { "nhd": "120030655", "name": "India Basin pond" }
+    ],
+    "grow": {
+      "$comment": "A lake also takes the lattice samples next to it that lie within toleranceM of its level (the hydro-flattened surface the outline misses), at most reachM beyond the outline.",
+      "toleranceM": 0.05,
+      "reachM": 30
+    }
+  },
+  "parks": {
+    "$comment": "Grass and forest land: Rec and Park properties of these types, the plazas listed by name that are lawns, and the National Park Service units (the GGNRA's Presidio, Lands End, Ocean Beach, Fort Funston, Fort Mason; the Maritime park).",
+    "recParkTypes": ["Regional Park", "Neighborhood Park or Playground", "Mini Park", "Community Garden", "Parkway", "Zoological Garden"],
+    "lawnPlazas": ["Palace of Fine Arts", "Collis P Huntington Park", "Washington Square"]
+  },
+  "forest": {
+    "$comment": "Tree canopy (DataSF Urban Tree Canopy, polygons of 100 sq ft or more) rasterised at cellM. A lattice sample is forest when the canopy covers minCover of its 10 m cell and either it is park land or the canopy covers minDensity of the window around it (a wood, not one tree over a back yard).",
+    "cellM": 2.5,
+    "minCover": 0.5,
+    "minDensity": 0.5,
+    "windowM": 50
+  },
+  "beaches": {
+    "$comment": "Sand: land within shoreM of the open water and no higher than maxY inside each box (lat/lon). The boxes only say where a beach is; the shore and the height decide which samples are sand.",
+    "list": [
+      { "name": "Ocean Beach", "north": 37.7800, "south": 37.7050, "west": -122.5200, "east": -122.5050, "shoreM": 130, "maxY": 14 },
+      { "name": "Baker Beach", "north": 37.7990, "south": 37.7870, "west": -122.4880, "east": -122.4800, "shoreM": 60, "maxY": 8 },
+      { "name": "China Beach", "north": 37.7895, "south": 37.7870, "west": -122.4935, "east": -122.4895, "shoreM": 40, "maxY": 6 },
+      { "name": "Crissy Field beach", "north": 37.8105, "south": 37.8030, "west": -122.4750, "east": -122.4470, "shoreM": 45, "maxY": 4 },
+      { "name": "Aquatic Park beach", "north": 37.8085, "south": 37.8055, "west": -122.4245, "east": -122.4195, "shoreM": 30, "maxY": 4 }
+    ]
+  },
+  "foliage": {
+    "$comment": "Instanced trees per tile (the glb's foliage nodes): one tree in each 10 m lattice cell whose canopy cover is at least minCover, at the canopy's centroid in the cell; never in a building, on a road ribbon (half width + roadClearM), or on water or sand. Heights in metres, by hash between the bounds (forest samples use the forest bounds).",
+    "minCover": 0.4,
+    "roadClearM": 1.0,
+    "height": [7, 16],
+    "forestHeight": [12, 26]
+  }
+}
