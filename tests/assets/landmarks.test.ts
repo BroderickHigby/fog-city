@@ -45,7 +45,8 @@ const INTERIM: Record<string, [string, number, string]> = {
   "sutro-tower": ["sutro-tower.glb", 12_000, "sutro_tower"],
   "golden-gate-bridge": ["golden-gate-bridge.glb", 30_000, "golden_gate_bridge"],
   "bay-bridge-west": ["bay-bridge-west.glb", 30_000, "bay_bridge_west"],
-  "600-montgomery": ["600-montgomery.glb", 4_000, "pyramid_tower"],
+  "600-montgomery": ["600-montgomery.glb", 16_000, "pyramid_tower"],
+  "415-mission": ["415-mission.glb", 24_000, "tower_415"],
   "coit-tower": ["coit-tower.glb", 8_000, "coit_tower"],
   "city-hall": ["city-hall.glb", 16_000, "city_hall"],
   "palace-of-fine-arts": ["palace-of-fine-arts.glb", 12_000, "palace_of_fine_arts"],
@@ -269,6 +270,20 @@ describe("hero landmarks: interim shapes (W-27)", () => {
     // across the wings (east-west) the elevator and stair wings stand out, as on the real tower
     expect(span(at200, 0) / span(base, 0)).toBeLessThan(0.65);
     expect(box(allPositions(doc)).max[1]).toBeGreaterThan(255);
+  });
+
+  it("the 415 Mission tower: 326 m, a rounded-square plan about 57 m across that tapers, and a crown narrower than the roof", async () => {
+    const { doc } = await loadModel("415-mission.glb");
+    const tris = allTriangles(doc, "tower");
+    const span = (pts: Array<[number, number]>, k: 0 | 1): number => Math.max(...pts.map((p) => p[k])) - Math.min(...pts.map((p) => p[k]));
+    const base = sectionAt(tris, 20);
+    const high = sectionAt(tris, 280);
+    const crown = sectionAt(tris, 318);
+    expect(span(base, 0)).toBeGreaterThan(48);
+    expect(span(base, 0)).toBeLessThan(62);
+    expect(span(high, 0) / span(base, 0)).toBeLessThan(0.92);
+    expect(span(crown, 0) / span(high, 0)).toBeLessThan(0.8);
+    expect(box(allPositions(doc)).max[1]).toBeGreaterThan(320);
   });
 
   it("City Hall and the Palace of Fine Arts carry round domes; Grace Cathedral two front towers and a fleche over the crossing", async () => {

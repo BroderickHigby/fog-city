@@ -410,6 +410,18 @@ export function buildSites(read: ReadTile): SitesDoc {
     sites.push(s);
   }
 
+  // 415 Mission St (the tallest tower, 2018): one record with the 326 m height override. Origin at
+  // the record's centre, heading so the model's axes run along its square plan.
+  {
+    const probe = toLocal(37.78971, -122.39701);
+    const ids = probeRecords("415-mission");
+    const rect = minAreaRect(findRecord(read, "201006.0000548", probe).footprint);
+    const heading = ((rect.bearingDeg + 45) % 90) - 45;
+    const s = site(read, "415-mission", { x: rect.cx, z: rect.cz }, heading, ids);
+    s.extra = { baseLongM: r2(rect.long), baseShortM: r2(rect.short) };
+    sites.push(s);
+  }
+
   // Coit Tower: the column at the tower record's centre; the base building is its podium record.
   {
     const probe = toLocal(37.80243, -122.40585);
