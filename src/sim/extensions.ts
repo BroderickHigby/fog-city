@@ -1,5 +1,6 @@
 import type { AgentsExt } from "./agents.ts";
 import type { CombatState } from "./combat-contract.ts";
+import type { FogState } from "./fog/index.ts";
 import type { ClockState } from "./clock/calendar.ts";
 import type { ActorIdentities } from "./identity.ts";
 import type { AgentsRuntimeState } from "./agents/runtime.ts";
@@ -12,7 +13,7 @@ export type JsonObject = { [key: string]: JsonValue };
 export interface ExtensionStateMap {
   identities: ActorIdentities;
   clock: ClockState;
-  fog: JsonObject;
+  fog: FogState;
   vehicles: JsonObject;
   agents: AgentsExt;
   robots: AgentsRuntimeState;

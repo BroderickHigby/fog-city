@@ -116,3 +116,16 @@ Validation: focused migration/interface/physics/purity, calendar/identity/follow
 - Integrated agent services/transit `31b4079` and player real-event normalization `e857ab4` + `4d32239` (local equivalents `e41f1f5` + `6f459ab`).
 - Validation: **typecheck passed; 102 tests across 7 files passed**, including authored Hot Desk stage→accepted actor→held Watch objective, held interact→actual refill, physical service controls, agent runtime/service/transit regressions, event attribution and forbidden APIs.
 - Still pending: visible renderer composition, real-SF service/mission driving and full browser/parity checks. The existing world pack remains FCWC v1; no QA v4 deck/tunnel geometry has been imported.
+
+## Wave-3 follow-up (separate from wave-2 freeze)
+
+`lane/core/wave3` starts from `aa1eb6a`. Isolated follower fixes `953a4d8` and `5eacc15` can be picked into wave 2: actual near-goal arrival, conservative braking distance and full braking; five follower tests pass.
+
+Additive local fog fields are in `87e191f`. The weather helper now provides seeded per-position fog arriving west first, later in the Marina and downtown on some nights; winter rain, one seeded tide day per game week, expiring mission weather requests and saved-clock night skips. The registry enables it only from wave 3. Existing microclimate volumes contribute local fog. Validation: typecheck and 80 focused fog/calendar/composition/purity/follower checks passed (the final rerun removes a local identifier that matched the no-DOM guard).
+
+Remaining integration: agent and combat consumers must use the local fog fields; rain traction/shelters/tide geometry and the remaining vehicle/world rows are unfinished. No wave-3 completion claim. New world effects are paused while the team profiles real-city tick performance.
+
+Draft PR title: `Core: add deterministic local weather and stable service arrivals`
+Base: `integrate/wave2` · Head: `lane/core/wave3`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/wave3?expand=1>
+Body: Add pure seeded weather and local actor/player fog, preserving wave-2 registry behavior. Record authored weather windows and night advances in simulation state. Correct service follower stop tolerance and brake control using actual-body regression tests. Validation is scoped; the remaining wave-3 vehicle/weather integration and full browser checks are pending.
