@@ -13,6 +13,21 @@ Stream id `audio` (handoff §8). Branch `work/audio/soundtrack-voices`, cut from
 | Mission voices | **Pipeline complete; generation held (licence).** Manifest of all 120 mission lines (8,304 characters) with mission, speaker, line id, text, subtitle cues and file. Voice queue with priority, interruption, retry, pause, reset/reload and a subtitle fallback. Every line currently plays as timed subtitles. |
 | Static build | **Fixed.** `scripts/build-web.ts` never shipped `public/audio/`, so even the existing effects were silent in the hosted build. It now copies audio as plain `.ogg/.mp3/.json` files. |
 
+## Follow-up: car radio and horns (`work/audio/radio-horn`, stacked on #28)
+
+Owner feedback, relayed by the coordinator: "as soon as you get in a car, there should be music"
+and "the horn button doesn't work".
+
+- **Car radio.** In a car the music is a station:
+  - Four invented stations (Runway FM 88.5, Series A 101.3, Pivot 94.9 and Burn Rate 107.7) over the CC0 tracks, plus Off.
+  - M tunes forward and Shift+M back. A station card shows on getting in or tuning.
+  - A station picker is in settings, and the station persists.
+  - On foot, the music follows combat, a timed mission step, or the on-foot track.
+- **Horns** (synthesized in `assets/audio/generate.py`):
+  - The player's dual-tone horn loops while H (pad L3) is held. It plays in a car only.
+  - A robotaxi in agent mode `honk` plays an original, polite electronic chirp, distance-attenuated, at most once per car per 4 s.
+  - `audio.horn()` is the hook: one line in `src/main.ts`, coordinated with the Player-feel stream.
+
 ## ElevenLabs: why voices are held
 
 `GET /v1/user/subscription` on 2026-10-23 (only tier and counts logged): **tier free**, 5,975 of
