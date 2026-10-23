@@ -6,7 +6,8 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { FAST_QUERY, FAST_VIEWPORT, bootWorld, simState } from "./fixtures.ts";
-import type { AgentState, SimState } from "../../src/sim/index.ts";
+import { propIndex, type AgentState, type SimState } from "../../src/sim/index.ts";
+import { loadWorld } from "../helpers.ts";
 
 interface ImpactWindow {
   __fogcityImpacts?: { bursts: number };
@@ -76,6 +77,41 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
     expect(dmg.condition).toBeLessThanOrEqual(100);
     // The renderer saw the hit.
     await page.waitForFunction(() => ((window as unknown as ImpactWindow).__fogcityImpacts?.bursts ?? 0) > 0, null, { timeout: 60_000 });
+    expect(problems).toEqual([]);
+  });
+
+  test("driving into a street tree knocks it over (or snaps it), and the renderer topples it", async ({ page }) => {
+    // The breakable trees and where they are, from the same world in Node (props.ts).
+    const { world } = loadWorld("dev", { roads: true });
+    const trees = propIndex(world).list.filter((p) => p.kind === "tree" && p.size !== "mature");
+    expect(trees.length, "the dev world has breakable street trees").toBeGreaterThan(0);
+    const problems = await bootWorld(page, "dev", `${FAST_QUERY}&debug=1`);
+    const me = (await page.evaluate(() => (window as unknown as { __fogcity: { simInfo(): { playerIds: string[] } } }).__fogcity.simInfo().playerIds[0]))!;
+    const held = new Set<string>();
+    let target: (typeof trees)[number] | undefined;
+    let broke: string | undefined;
+    const deadline = Date.now() + 150_000;
+    while (Date.now() < deadline) {
+      const s = await simState(page);
+      const knocked = (s.ext.impacts as { props?: Record<string, unknown> } | undefined)?.props ?? {};
+      broke = Object.keys(knocked)[0];
+      if (broke) break;
+      const c = s.players[me]!.car;
+      // The nearest breakable tree ahead-ish, kept once picked.
+      if (!target) target = [...trees].sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0];
+      let off = Math.atan2(target!.x - c.x, -(target!.z - c.z)) - c.heading;
+      while (off > Math.PI) off -= 2 * Math.PI;
+      while (off < -Math.PI) off += 2 * Math.PI;
+      const keys = new Set<string>(["KeyW"]);
+      if (off > 0.06) keys.add("KeyD");
+      else if (off < -0.06) keys.add("KeyA");
+      await hold(page, held, keys);
+      await page.waitForTimeout(60);
+    }
+    await hold(page, held, new Set());
+    expect(broke, "a street tree broke within the time limit").toBeDefined();
+    // The renderer draws it down (re-posed in the foliage layer or its tile's mesh).
+    await page.waitForFunction(() => ((window as unknown as { __fogcityProps?: { info(): { knocked: number } } }).__fogcityProps?.info().knocked ?? 0) > 0, null, { timeout: 60_000 });
     expect(problems).toEqual([]);
   });
 });
