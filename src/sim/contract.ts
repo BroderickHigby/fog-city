@@ -19,7 +19,12 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-export const SIM_VERSION = 8;
+// v9 is reserved for the structural world (World stream) and is never written by this chain.
+// v10: wave-3 weather (src/sim/fog): seeded marine layer, winter rain, wet-road traction, rain
+// puddles, shelter, the King tide's flooded promenade, rain breaking phone hacks and the
+// per-shot wet rule. ext.fog gains its typed shape; an upgraded v8 save keeps every field and
+// the fog reducer fills ext.fog on its first tick.
+export const SIM_VERSION = 10;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
