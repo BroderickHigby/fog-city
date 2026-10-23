@@ -40,7 +40,10 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   own.commandSequence=Math.max(own.commandSequence,...requests.map(c=>c.sequence),0);
   if(player.events.some(e=>e.playerId===body.id&&e.kind==="player.acqui-hired")){own.status="retry";own.retryFrom=mission?initial(mission):"";own.deadlineTick=tick+1;}
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
-   if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+   if(step.type==="trigger"){
+    if(step.event.clock&&ctx.hour!==undefined&&ctx.minute!==undefined){const [hour,minute]=step.event.clock.split(":").map(Number);if(ctx.hour!==hour||ctx.minute!==minute)return;}
+    return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+   }
    if(step.type==="goto"){
     own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60);
     if(near(ctx,body.id,step.target)&&(!step.travel||step.travel==="any"||step.travel===body.mode))return step.next;
@@ -58,7 +61,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     return own.questionIndex>=step.questions.length?step.next:undefined;
    }
    if(step.type==="branch"){const value=own.meters[step.meter]??0;return step.cases.find(c=>(c.min===undefined||value>=c.min)&&(c.max===undefined||value<=c.max))?.next??step.default;}
-   if(step.type==="form")return requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
+   if(step.type==="form")return ctx.validKitIds.includes(player.players[body.id]?.startupKitId??"")||requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
    if(step.type==="objective"){
     const objective=step.objective;const observation=ctx.observations.find(o=>o.playerId===body.id);const target=objective.actor?(observation?.actorBindings?.[objective.actor]??`mission:${mission.id}:${objective.actor}`):undefined;
     const kind=objective.kind as string;const required=Math.max(1,objective.count??1);let complete=false;

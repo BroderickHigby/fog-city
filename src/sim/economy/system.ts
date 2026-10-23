@@ -3,10 +3,10 @@ import { bodyOf,commands,distanceSquared,event,facts,MAX_HISTORY,sortedBodies } 
 import type { EconomyState,GameplayContext,GameplayEvent,HeatState,Wallet } from "../player/types.ts";
 
 export function createWallet():Wallet {return {cashCents:200000,runwayMonths:18,reputation:50,paidActorIds:[],ownedItemIds:[],ownedSiteIds:["fidi-desk","marina-garage","mission-bay-garage"],commandSequence:0};}
-export function createEconomy(tick=0):EconomyState{return {version:1,tick,nextId:1,players:{},factCursors:{},grantCursors:{},events:[]};}
+export function createEconomy(tick=0):EconomyState{return {version:1,tick,nextId:1,players:{},factCursors:{},grantCursors:{},events:[],settledModeIds:[]};}
 function pay(wallet:Wallet,cents:number):void {if(Number.isFinite(cents))wallet.cashCents=Math.max(0,Math.min(Number.MAX_SAFE_INTEGER, wallet.cashCents+Math.round(cents)));}
 function within(ctx:GameplayContext,id:string,siteId:string):boolean {const body=bodyOf(ctx,id),site=ctx.sites.find(site=>site.id===siteId);return !!body&&!!site&&Math.abs(body.speed)<=3&&distanceSquared(body,site)<=site.radius*site.radius;}
-export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],heat?:HeatState,recovery:readonly GameplayEvent[]=[],activities:readonly GameplayEvent[]=[]):EconomyState {
+export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],heat?:HeatState,recovery:readonly GameplayEvent[]=[],activities:readonly GameplayEvent[]=[],ranks:Readonly<Record<string,number>>={}):EconomyState {
  const state:EconomyState={...previous,tick,players:{},factCursors:{...previous.factCursors},grantCursors:{...previous.grantCursors},events:[]};
  const liveActors=new Set(ctx.actors.map(actor=>actor.id));
  for(const body of sortedBodies(ctx)) {const old=previous.players[body.id]??createWallet();state.players[body.id]={...old,paidActorIds:old.paidActorIds.filter(id=>liveActors.has(id)),ownedItemIds:[...old.ownedItemIds],ownedSiteIds:[...old.ownedSiteIds]};}
@@ -45,11 +45,14 @@ export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:numbe
  }
  for(const body of sortedBodies(ctx)) {
   const wallet=state.players[body.id]!;
+  for(const site of ctx.sites)if(site.kind==="garage"&&site.wave<=ctx.wave&&!site.priceCents&&!wallet.ownedSiteIds.includes(site.id))wallet.ownedSiteIds.push(site.id);
   for(const command of commands(ctx,body.id,["buy","sleep","repair"],wallet.commandSequence)) {
    wallet.commandSequence=command.sequence;
    if(command.kind==="buy") {
+    const property=ctx.sites.find(site=>site.id===command.itemId&&site.kind==="safehouse"&&site.wave<=ctx.wave);
+    if(property){if(property.priceCents!==undefined&&property.priceCents>=0&&wallet.cashCents>=property.priceCents&&!wallet.ownedSiteIds.includes(property.id)&&within(ctx,body.id,property.id)){pay(wallet,-property.priceCents);wallet.ownedSiteIds.push(property.id);event(state,"property.purchased",body.id,property.id,property.priceCents);}continue;}
     const item=ctx.items.find(item=>item.id===command.itemId&&item.wave<=ctx.wave);const site=ctx.sites.find(site=>site.id===command.targetId&&site.vendorItems?.includes(command.itemId??""));
-    if(!item||!site||site.wave>ctx.wave||!within(ctx,body.id,site.id)||!Number.isSafeInteger(item.priceCents)||item.priceCents<0||wallet.cashCents<item.priceCents||item.requires&&!wallet.ownedItemIds.includes(item.requires))continue;
+    if(!item||!site||site.wave>ctx.wave||(item.rank??1)>(ranks[body.id]??1)||!within(ctx,body.id,site.id)||!Number.isSafeInteger(item.priceCents)||item.priceCents<0||wallet.cashCents<item.priceCents||item.requires&&!wallet.ownedItemIds.includes(item.requires))continue;
     const consumable=item.kind==="food"||item.kind==="drink";if(!consumable&&wallet.ownedItemIds.includes(item.id))continue;
     pay(wallet,-item.priceCents);if(consumable)wallet.runwayMonths=clamp(wallet.runwayMonths+(item.effect.runwayMonths??0),0,18);else wallet.ownedItemIds.push(item.id);
     event(state,"vendor.purchased",body.id,item.id,item.priceCents);

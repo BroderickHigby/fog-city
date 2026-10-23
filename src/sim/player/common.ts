@@ -1,4 +1,5 @@
 import { clamp } from "../dmath.ts";
+import { isGameplayId } from "../gameplay-contract.ts";
 import type { GameplayBody,GameplayCommand,GameplayContext,GameplayEvent,GameplayFact,Position } from "./types.ts";
 
 export const MAX_HISTORY=4096;
@@ -7,15 +8,16 @@ export function compare(a:string,b:string):number{return a<b?-1:a>b?1:0;}
 export function distanceSquared(a:Position,b:Position):number {const x=a.x-b.x,y=a.y-b.y,z=a.z-b.z;return x*x+y*y+z*z;}
 export function bodyOf(ctx:GameplayContext,id:string):GameplayBody|undefined{return ctx.bodies.find(body=>body.id===id);}
 export function sortedBodies(ctx:GameplayContext):GameplayBody[]{return [...ctx.bodies].sort((a,b)=>compare(a.id,b.id));}
-export function validId(id:unknown):id is string{return typeof id==="string"&&id.length>0&&id.length<=128&&!Object.hasOwn(Object.prototype,id)&&id!=="prototype";}
+export function validId(id:unknown):id is string{return isGameplayId(id);}
 export function commands(ctx:GameplayContext,id:string,kinds:readonly GameplayCommand["kind"][],after:number):GameplayCommand[]{
-  return ctx.commands.filter(command=>command.playerId===id&&kinds.includes(command.kind)&&Number.isSafeInteger(command.sequence)&&command.sequence>after)
-    .sort((a,b)=>a.sequence-b.sequence||compare(a.kind,b.kind));
+  const filtered=ctx.commands.filter(command=>command.playerId===id&&kinds.includes(command.kind)&&Number.isSafeInteger(command.sequence)&&command.sequence>after);
+  const counts=new Map<number,number>();for(const command of ctx.commands.filter(c=>c.playerId===id))counts.set(command.sequence,(counts.get(command.sequence)??0)+1);
+  return filtered.filter(command=>counts.get(command.sequence)===1).sort((a,b)=>a.sequence-b.sequence);
 }
 export function facts(ctx:GameplayContext,tick:number,cursors:Record<string,number>):GameplayFact[]{
   const after={...cursors};
   const key=(fact:GameplayFact)=>`${fact.source}:${fact.id.split(":",1)[0]}`;
-  const out=ctx.facts.filter(fact=>fact.tick===tick&&validId(fact.id)&&["combat","agents","world","modes"].includes(fact.source)&&Number.isSafeInteger(fact.sequence)&&fact.sequence>0&&fact.sequence>(after[key(fact)]??0))
+  const out=ctx.facts.filter(fact=>fact.tick===tick&&validId(fact.id)&&validId(fact.playerId)&&validId(fact.kind)&&(fact.actorId===undefined||validId(fact.actorId))&&(fact.amount===undefined||Number.isFinite(fact.amount))&&["combat","agents","world","modes"].includes(fact.source)&&Number.isSafeInteger(fact.sequence)&&fact.sequence>0&&fact.sequence>(after[key(fact)]??0))
     .sort((a,b)=>compare(key(a),key(b))||a.sequence-b.sequence||compare(a.id,b.id));
   return out.filter(fact=>{const cursor=key(fact);if(fact.sequence<=(cursors[cursor]??0))return false;cursors[cursor]=fact.sequence;return true;});
 }

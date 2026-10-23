@@ -1,14 +1,15 @@
 import { nextU32,seedRng } from "../rng.ts";
+import { Action } from "../contract.ts";
 import { commands,distanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
-function createOwn(seed:number,tick:number):PlayerActivities{return {nextDirectorTick:tick+2700,directorRng:seedRng(seed),activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0};}
+function createOwn(seed:number,tick:number):PlayerActivities{return {nextDirectorTick:tick+2700,directorRng:seedRng(seed),activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
 /** Director schedules are independent per player and persisted in snapshots. */
 export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick:number,missions:MissionState,seed:number):ActivitiesState {
  const state:ActivitiesState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};const incoming=facts(ctx,tick,state.factCursors);
  for(const body of sortedBodies(ctx)){
   let hash=seed;for(const char of body.id)hash=(Math.imul(hash,31)+char.charCodeAt(0))>>>0;
-  const old=previous.players[body.id]??createOwn(hash,tick);const own:PlayerActivities={...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds]};state.players[body.id]=own;
+  const old=previous.players[body.id]??createOwn(hash,tick);const own:PlayerActivities={...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds],cooldowns:{...old.cooldowns}};state.players[body.id]=own;
   const missionActive=missions.players[body.id]?.status==="active";const observation=ctx.observations.find(o=>o.playerId===body.id);
   if(missionActive||own.activeActivityId)own.nextDirectorTick=tick+2700;
   if(own.activeCardId&&tick>=own.cardUntilTick)own.activeCardId="";
@@ -20,16 +21,26 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&a.wave<=ctx.wave&&distanceSquared(body,a)<=a.radius*a.radius);
-   if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;event(state,"activity.started",body.id,activity.id);}
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=ctx.wave&&distanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns[a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id)));
+   if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;own.checkpointIndex=0;own.objectiveCount=0;event(state,"activity.started",body.id,activity.id);}
   }
   if(own.activeActivityId){
    const activity=ctx.activities.find(a=>a.id===own.activeActivityId);const elapsed=tick-own.activityStartedTick;
-   const completion=activity&&incoming.find(f=>f.playerId===body.id&&f.actorId===activity.id&&f.kind==="activity.objective-complete");
-   if(activity&&completion&&elapsed>=60){
+   const checkpoint=activity?.checkpoints?.[own.checkpointIndex];if(checkpoint&&distanceSquared(body,checkpoint)<=checkpoint.radius*checkpoint.radius)own.checkpointIndex++;
+   for(const fact of incoming)if(activity&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount++;
+   const routeComplete=own.checkpointIndex>=(activity?.checkpoints?.length??0);
+   // Route trials derive their completion from the accepted player trajectory. A
+   // photo/relic request only succeeds at the final marked location after the route.
+   if(activity?.kind==="timeTrial"&&routeComplete&&elapsed>=60)own.objectiveCount=Math.max(own.objectiveCount,1);
+   if(activity?.kind==="delivery"&&activity.objective?.event==="delivery.completed"&&routeComplete&&elapsed>=60&&((ctx.actions?.[body.id]??0)&Action.interact))own.objectiveCount=Math.max(own.objectiveCount,1);
+   if(activity&&["photo","relic"].includes(activity.kind)&&routeComplete&&elapsed>=60&&((ctx.actions?.[body.id]??0)&Action.interact)){
+    const final=activity.checkpoints?.at(-1);if(final&&distanceSquared(body,final)<=final.radius*final.radius)own.objectiveCount=Math.max(own.objectiveCount,1);
+   }
+   const objectiveComplete=own.objectiveCount>=(activity?.objective?.count??1);
+   if(activity&&objectiveComplete&&routeComplete&&elapsed>=60){
     event(state,"activity.cash",body.id,activity.id,Math.max(0,activity.rewardCents??0));event(state,"activity.xp",body.id,activity.id,Math.max(0,activity.rewardXp??100));event(state,"activity.finished",body.id,activity.id);
-    if(!own.completedIds.includes(activity.id))own.completedIds.push(activity.id);own.activeActivityId="";own.nextDirectorTick=tick+2700;
-   }else if(!activity||elapsed>36000){event(state,"activity.failed",body.id,own.activeActivityId);own.activeActivityId="";}
+    if(!own.completedIds.includes(activity.id))own.completedIds.push(activity.id);own.cooldowns[activity.id]=tick+60*(activity.cooldownS??60);own.activeActivityId="";own.nextDirectorTick=tick+2700;
+   }else if(!activity||elapsed>60*(activity.timeLimitS??600)){event(state,"activity.failed",body.id,own.activeActivityId);own.activeActivityId="";}
   }
  }
  return state;

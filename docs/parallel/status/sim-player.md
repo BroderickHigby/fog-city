@@ -40,3 +40,12 @@ Body:
 The player lane now registers deterministic player, heat, missions, economy, progression and activity systems. Hot Desk and Spill advance through measured world and combat objectives, pay once, allow retries, and expose HUD/loadout projections. Purchases validate proximity and funds; bounties reject friendly/unknown actors; recovery restores runway and applies cash/heat consequences. Ambient encounters use a persisted per-player random stream.
 
 Validation: TypeScript and 9 focused player tests passed, including Hot Desk/Spill drivers and a 20-seed director check. Later-wave mission mechanics and the production agent/provider adapter remain visible integration work; see Requests for other lanes.
+
+## Wave-3 integration checkpoint
+The observed-provider bridge is published separately as `c93c84e`; portability/contract corrections are `83af5b1` and `de48876`; actual combat refill/cone event normalization is `e857ab4`. These small commits are suitable for immediate core integration without the later content stack.
+
+The continuing branch `lane/sim-player/wave3` consumes reviewed content catalogs for all ten missions, rank XP, purchases, activities and loadouts. Actual runtime additions include observed actor line of sight and watch duration, validated route trials/delivery/photo/relic interactions, route checkpoints and repeat cooldowns, safehouse purchase proximity/funds checks, canonical perk/streak IDs, delayed mission VC grants, one car-wash reduction per visit, and an explicit idempotent `applyModeSettlements` for restoring free roam after a match. Missions now honor preselected startup kits and authored clock gates.
+
+Latest focused validation: TypeScript and **66 tests across four files passed**, including 15 player tests and the repository's deterministic forbidden-API checks. This includes real combat event-name normalization, authored XP/scanner unlocks, mode payout replay protection, and activity route/cooldown checks.
+
+Remaining work is explicit: parking/bell/cable-car mechanics come from the mechanics lane and still need production request wiring; later mission-specific facts and cinematics cannot be inferred from content alone. Doom/faction runtime, subscription billing, foil/cargo physics, and activity-specific encounter producers remain incomplete. Wide-nozzle sales are withheld until combat supports the persistent nozzle, rather than charging for no effect. Core owns respawn/clock/body application; player emits the recovery requests.
