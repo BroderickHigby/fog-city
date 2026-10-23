@@ -6,6 +6,7 @@ export const MAX_HISTORY=4096;
 export const TICKS=60;
 export function compare(a:string,b:string):number{return a<b?-1:a>b?1:0;}
 export function distanceSquared(a:Position,b:Position):number {const x=a.x-b.x,y=a.y-b.y,z=a.z-b.z;return x*x+y*y+z*z;}
+export function planarDistanceSquared(a:Pick<Position,"x"|"z">,b:Pick<Position,"x"|"z">):number {const x=a.x-b.x,z=a.z-b.z;return x*x+z*z;}
 export function bodyOf(ctx:GameplayContext,id:string):GameplayBody|undefined{return ctx.bodies.find(body=>body.id===id);}
 export function sortedBodies(ctx:GameplayContext):GameplayBody[]{return [...ctx.bodies].sort((a,b)=>compare(a.id,b.id));}
 export function validId(id:unknown):id is string{return isGameplayId(id);}
