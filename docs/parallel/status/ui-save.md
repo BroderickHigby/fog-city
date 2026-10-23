@@ -72,3 +72,6 @@ Verification: combined full typecheck passed. The settlement→save→restore→
 Latest draft PR title: `Game: connect local Bot Sweep and Clean Streets to the HUD`
 
 Latest draft PR body: Adds playable local-match entry and results to the phone, driven by the shared deterministic match runner and physical roster. The city simulation is retained independently; cancellation restores it and explicit return applies validated payouts once. Saves capture city progress during matches, and the persisted payout ledger prevents duplicate rewards after reload. Includes controller menu support, authored signup choices, canonical vendor eligibility and a settlement round-trip regression. Validation and remaining browser proof are recorded above.
+
+### High-rank loadout fix
+The match API caps carried perks and streaks at three. A progressed city profile can unlock more than three, so the host now uses `loadoutForMatch`: first three unique entries in unlock order until an explicit slot-selection screen exists. This never edits the city profile. The regression launches both local mode kinds with a rank-25, four-perk/four-streak profile through the real match constructor. Focused verification is queued with the save round-trip check.

@@ -31,6 +31,7 @@ import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, LOCAL_MODES, type LocalModeChoice, type MapPoint } from "./ui/index.ts";
+import { loadoutForMatch } from "./ui/loadout.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
@@ -233,7 +234,7 @@ async function boot(): Promise<void> {
       const body=activeBody(own),profile=gameplaySnapshot({state:curr}).progression.players[LOCAL_PLAYER];
       const ledger=(curr.ext.economy as unknown as {settledModeIds?:string[]}|undefined)?.settledModeIds??[];
       const match=createLocalMatch(world,{id:`local-${ledger.length}-${++localMatchSequence}`,mode,seed:hash32(SEED,localMatchSequence),playerId:LOCAL_PLAYER,spawn:{x:body.x,z:body.z,heading:body.heading},
-        loadouts:profile?{[LOCAL_PLAYER]:{nozzle:profile.nozzle,gadget:profile.gadget,gear:profile.gear,perks:[...profile.perks],streaks:[...profile.streaks],cosmetics:[]}}:{}});
+        loadouts:profile?{[LOCAL_PLAYER]:loadoutForMatch(profile)}:{}});
       cityState=JSON.parse(JSON.stringify(curr)) as SimState;curr=match;modeError=undefined;resetFrame();return true;
     }catch{modeError=uiText("ui.common.error");return false;}
   };
