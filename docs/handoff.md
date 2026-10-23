@@ -38,10 +38,25 @@ draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped
      4-storey rule against those records.
   5. The Alamo Square shot was taken from inside the park's trees; the Painted Ladies need a
      closer shot from Steiner St.
+  6. **The ballpark is missing from the regenerated world.** pipeline/lib/clearance.ts step 2
+     ("redeveloped land") lists 201006.0000003 in report.json clearance.staleDropped: a street
+     re-dated after the 2010 LiDAR crosses its footprint, and the 2000 stadium counts as older. Exempt
+     landmark records (content/landmark-tags.json) from the stale rule, regenerate, and `--check`.
+     tests/content/landmark-tags.test.ts fails on it (ballpark; storefront anchors on civic landmarks).
+  7. **Saints Peter and Paul was terrace-split** into 201006.0001265 and -s1..-s4, so the L-04 probe
+     sits 5.2 m inside the main record, not 16 m. Update the tag's records and its test to the
+     terraced records.
+  Fixed on qa/housekit (c067f44): landmark-sites.json and the landmark models are rebuilt on the
+  regenerated world (tests/assets: 398 pass).
 - Still to do: an independent reviewer judges the saved shots against the spec, with an
   adversarial verify pass (the owner opted in to a workflow for this step: one reviewer per
   neighbourhood, 2-3 skeptics per finding, agents read only, heavy jobs solo under the lock). Then
   fix the confirmed findings and run the full suite.
+- Ferry showcase status (feature/ferry-showcase, draft PR #3): the auto high tier with a governor;
+  N8AO, bloom, 4K shadows and planar Bay reflections; CC0 Poly Haven ground and stone; crosswalks
+  and kerbs; the F-line and palms; ez-tree trees; the VAT crowd and the skinned player; noon, golden
+  and night lighting; the 415 Mission tower and the pyramid's window rows. Shots are in
+  docs/shots/ferry-showcase/ on that branch.
 - Tooling: there is no Blender binary in the container, and download.blender.org is blocked. Blender
   4.5 LTS runs as the `bpy` module from PyPI (Python 3.11 venv) behind a `blender` shim, so
   `assets/blender/build.sh` works headless. CC0 texture hosts (Poly Haven, ambientCG) are blocked
