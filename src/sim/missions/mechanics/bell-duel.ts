@@ -1,4 +1,5 @@
 import type { GameplayBody } from "../../gameplay-contract.ts";
+import { planarDistanceSquared } from "./geometry.ts";
 
 export interface BellDuelRequest { id: string; playerId: string; opponentId: string; x: number; y: number; z: number; radius?: number }
 export interface BellDuelProgress { requestId: string; opponentId: string; phase: "demonstration" | "response" | "intermission" | "won" | "lost"; round: number; wins: number; losses: number; cues: number[]; responseTicks: number[]; ringIndex: number; nextRoundTick: number }
@@ -7,8 +8,9 @@ export const BELL_TOLERANCE_TICKS = 7; // 116.7 ms at 60 Hz, inside the design's
 const hash = (text: string): number => { let value = 2166136261; for (let i = 0; i < text.length; i++) value = Math.imul(value ^ text.charCodeAt(i), 16777619); return value >>> 0; };
 
 export function canStartDuel(body: GameplayBody | undefined, request: BellDuelRequest): boolean {
+  const radius = request.radius ?? 5;
   return !!body && !!request.opponentId && [body.x, body.y, body.z, body.speed, request.x, request.y, request.z, request.radius ?? 5].every(Number.isFinite)
-    && body.mode === "foot" && Math.abs(body.speed) < 2 && (request.radius ?? 5) > 0 && Math.hypot(body.x - request.x, body.z - request.z) <= (request.radius ?? 5) && Math.abs(body.y - request.y) <= 2;
+    && body.mode === "foot" && Math.abs(body.speed) < 2 && radius > 0 && planarDistanceSquared(body.x, body.z, request.x, request.z) <= radius * radius && Math.abs(body.y - request.y) <= 2;
 }
 
 export function newBellRound(id: string, opponentId: string, seed: number, round: number, tick: number, wins = 0, losses = 0): BellDuelProgress {

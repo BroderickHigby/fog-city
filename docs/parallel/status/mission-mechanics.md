@@ -19,32 +19,43 @@ interpreter, core scheduling, renderer or original prototype.
 - Both share one persisted fact sequence and produce `source: "world"`,
   `id: "mission-mechanics:<sequence>"`. `sequenceFloor` supports a central world allocator.
   No player-supplied completion command exists.
+- Cable-car boarding: the player must be at an open running board on a stopped cable car.
+  Recorded interaction creates a `boardingIntent`; it does not move the player or complete
+  the objective. The fact `cableCar.runningBoardMounted` requires core to echo the exact accepted
+  intent and the accepted player pose to match the vehicle's current board position. Missing,
+  stale, rejected and wrong-vehicle attachments cannot complete it. Physical transit/attachment
+  integration is being coordinated with Lane 3 and core; the reducer does not invent a bus body.
 
 ## Runtime handoff
 
 Call `stepMissionMechanics(previous, input)` once per simulation tick using accepted car and
 player poses, recorded `InputFrame`, authoritative active mission/cornering requests, world
 parking bays/rules and game calendar. Persist the returned state in the owned mission state;
-feed returned facts into the player interpreter. The player lane is wiring this adapter.
+feed returned facts into the player interpreter. Submit `boardingIntents` to core's physical
+attachment acceptance and return accepted records through the next tick's `cableBoarding` input.
+The player lane is wiring this adapter.
 Do not invoke separately for every subsystem, and do not derive requests from untrusted UI.
 The bell state's `cues` and `responseTicks` expose fixed simulation times for audio/UI.
 
 ## Validation
 
-Nine focused tests cover oriented footprint/elevation, overnight and holiday cleaning,
+Thirteen focused tests cover oriented footprint/elevation, overnight and holiday cleaning,
 unknown/paid/permit restrictions, continuous stopping, stale-frame replay, held interaction,
-best-of-three success/failure, late rings, distance, deterministic patterns and sequence floor.
-Focused tests and typecheck are queued under `/tmp/fog.lock`; results will be recorded before
-the completion checkpoint. No full browser/full-suite run is duplicated here.
+best-of-three success/failure, late rings, distance, deterministic patterns, sequence floor,
+and cable-car intent/acceptance/current-pose checks. The focused tests plus the repository
+forbidden-API scan pass **71 tests**. Typecheck passes. All distances use explicit squared
+arithmetic, headings use `dmath`, and the reducers remain pure plain-JSON state transitions.
+No full browser/full-suite run is duplicated here.
 
 ## Draft pull request
 
-Title: `Missions: verify legal parking and run timed bell duels`
+Title: `Missions: verify parking, run bell duels and confirm cable-car boarding`
 
 Base: `lane/sim-player/wave2`; head: `lane/mission-mechanics/wave3`.
 
 Body: Add deterministic, world-driven completion producers for the partner-meeting parking
-objective and bell duels. Parking uses accepted geometry and current restrictions, and the
+objective, bell duels and cable-car boarding. Parking uses accepted geometry and current restrictions, and the
 duel measures a repeated bell pattern at simulation-tick resolution. Both use recorded
 interaction edges and persisted event sequences, so holding input or replaying a completed
-frame cannot create rewards. Player/core integration remains with the corresponding owners.
+frame cannot create rewards. Boarding completes only after core confirms the matching physical
+attachment. Player/core integration remains with the corresponding owners.

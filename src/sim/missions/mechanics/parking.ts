@@ -1,5 +1,6 @@
 import { dcos, dsin } from "../../dmath.ts";
 import type { GameplayBody } from "../../gameplay-contract.ts";
+import { planarDistanceSquared } from "./geometry.ts";
 
 export interface ParkingVehicle { playerId: string; x: number; y: number; z: number; heading: number; speed: number; lateral: number; halfLength: number; halfWidth: number }
 export interface ParkingBay { id: string; edge: string; side: "L" | "R"; x: number; y: number; z: number; heading: number; halfLength: number; halfWidth: number; unrestricted?: boolean }
@@ -63,5 +64,6 @@ export function checkParking(vehicle: ParkingVehicle, bay: ParkingBay, input: Pa
 }
 
 export function nearBay(body: GameplayBody | undefined, bay: ParkingBay): boolean {
-  return !!body && [body.x, body.y, body.z].every(Number.isFinite) && Math.hypot(body.x - bay.x, body.z - bay.z) <= bay.halfLength + 6 && Math.abs(body.y - bay.y) <= 2;
+  const radius = bay.halfLength + 6;
+  return !!body && [body.x, body.y, body.z].every(Number.isFinite) && planarDistanceSquared(body.x, body.z, bay.x, bay.z) <= radius * radius && Math.abs(body.y - bay.y) <= 2;
 }
