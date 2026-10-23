@@ -41,3 +41,25 @@ test("IndexedDB preserves progression across a page reload",async({page})=>{
   });
   expect(data).toEqual({wallet:{cashCents:12345,settledModeIds:["round-1"]}});
 });
+
+test("gamepad opens the phone and selects an authored startup answer without leaking held input",async({page})=>{
+  await page.evaluate(()=>{
+    const pad={connected:true,axes:[0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};
+    Object.assign(window,{padHarness:pad});Object.defineProperty(navigator,"getGamepads",{configurable:true,value:()=>[pad]});
+  });
+  const pad=async(indices:number[])=>page.evaluate(async pressed=>{
+    const value=(window as unknown as {padHarness:{buttons:{pressed:boolean;value:number}[]}}).padHarness;
+    value.buttons.forEach((button,index)=>{button.pressed=pressed.includes(index);button.value=button.pressed?1:0;});
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+  },indices);
+  await pad([9]);await expect(page.getByRole("dialog")).toBeVisible();await pad([]);
+  await pad([9]);await expect(page.getByRole("dialog")).toHaveCount(0);await pad([]);
+  await page.evaluate(()=>(window as unknown as {ui:{showStartup():void}}).ui.showStartup());
+  await pad([13]);await expect(page.getByRole("button",{name:"Start building"})).toBeFocused();await pad([]);
+  await pad([13]);await expect(page.getByRole("button",{name:"Something with robots"})).toBeFocused();await pad([]);
+  await pad([0]);await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(()=>(window as unknown as {events:{payload:{kind:string}}[]}).events.at(-1)?.payload.kind)).toBe("startup-define");
+  expect(await page.evaluate(()=>(window as unknown as {ui:{sampleInput():{actions:number}}}).ui.sampleInput().actions)).toBe(0);
+  await pad([]);await page.evaluate(()=>(window as unknown as {ui:{sampleInput():unknown}}).ui.sampleInput());
+  await pad([0]);expect(await page.evaluate(()=>(window as unknown as {ui:{sampleInput():{actions:number}}}).ui.sampleInput().actions)).not.toBe(0);
+});

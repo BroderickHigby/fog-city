@@ -5,6 +5,7 @@ import { toLocal } from "../geo/project.ts";
 import type { SimState } from "../sim/contract.ts";
 import { gameplaySnapshot, playerView, combatLoadout } from "../sim/player/adapter.ts";
 import { capacity } from "../sim/combat/shared.ts";
+import { canInteractAtSite } from "../sim/player/sites.ts";
 import { DEFAULT_CATALOG } from "../sim/player/catalog.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { missionActorBindings } from "../sim/agents/systems.ts";
@@ -37,7 +38,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const target=step?.type==="goto"?toLocal(step.target.lat,step.target.lon):step?.type==="trigger"?toLocal(step.event.place.lat,step.event.place.lon):actorTarget?{x:actorTarget.x,z:actorTarget.z}:undefined;
   if(target)blips.push({id:"mission-target",kind:"safehouse",label:mission?.title??uiText("ui.hud.objective"),...target});
   const owned=new Set(own.ownedItemIds);
-  const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&Math.hypot(site.x-body.x,site.z-body.z)<=site.radius&&Math.abs(body.speed)<=3).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
+  const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
   return {tick:state.tick,playerId,x:body?.x??0,z:body?.z??0,heading:body?.heading??0,speedMps:body?.speed??0,...own,
     waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),
