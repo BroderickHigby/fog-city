@@ -33,3 +33,8 @@ Body: Connect the published SF renderer to shared gameplay systems and immutable
 Canonical save capture now reads `economy.settledModeIds` at the extension root and restores the ledger to that root, preventing a repeated match payout after reload. Advanced nozzle/gear enums are accepted. Optional durable Doom clock fields (months, resets, winters, stopped and faction counts) survive reload, while deadlines/cursors reset against the fresh world's calendar. Existing saves without those fields remain valid.
 
 Validation: full typecheck and three focused canonical progression save tests passed. No changes to the simulation, world data or renderer accompany this fix.
+
+## Controller, signup and purchase acceptance
+Controller menu navigation and held-input release barriers are now mounted in the clean runtime. Hot Desk's authored multiple-choice answers let a gamepad-only player complete signup through the same gated resolver. `?perf=1` also enables the performance readout. The UI and economy use the same planar, low-speed site eligibility helper, so hill vendors no longer advertise a purchase that the reducer rejects.
+
+Validation: full typecheck; 23 input/command/save tests; 2 focused purchase tests (UI-to-economy at elevated terrain and speed rejection); and 4 real Chromium fixture tests passed. Browser tests verify mobile UI, startup crisis gates, disposal, IndexedDB reload and gamepad-only signup with no held action leaking on close. These fixture tests supplement the independent actual-SF mission harness; they do not claim the SF campaign is complete.
