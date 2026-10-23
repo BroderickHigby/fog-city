@@ -1,7 +1,7 @@
 # Lane 4: Sim-Combat
 
 ## Now
-Working ahead on `lane/sim-combat/wave3`, with wave-2 shared-interface intake `ef74fe5` merged forward. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
+Working ahead on `lane/sim-combat/wave4`, with wave-2 shared-interface intake `ef74fe5` merged through wave 3. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. Lane 2 published the matching core pause separately as `4ffe076`, to be consumed only by wave 4 and later. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
 
 ## Done
 - Inspected the handoff, current shared simulation, and combat design.
@@ -9,6 +9,8 @@ Working ahead on `lane/sim-combat/wave3`, with wave-2 shared-interface intake `e
 - Pushed initial status in `ab785bd`. The original prototype remains untouched in `/workspace/fog-city`; this lane uses `/workspace/fog-city-combat`.
 - Pushed wave-2 foundation `3a9da2d`; no prototype changes were included.
 - Wave 3: driver window spray at <=7 m/s, sideways-only 8 m shots at 60% flow; full running-board spray; phone hacks; fog/rain exposure and drone resistance rates; typed puddle refills with fresh/salt inputs; sight range 30 m / 21 m / 12 m at fog density 0 / 0.5 / 1. Marine Layer halves sight, and blindness removes it. Distant heaps persist for Tidy from wave 3.
+- Wave 4: equipped balloons, sprinklers and decoy speakers; Rubber Boots/Airplane Mode; fresh trunk-fed roof cannon; all six authorized streak effects. Wide boost splits one shot's water/rust budget over three pellets. AGI holds combat timers/projectiles for exactly 180 ticks; core's matching movement pause is supplied separately.
+- Device review fixed out-of-order banked reward use, blocked-muzzle bypasses, vertical water/ping ranges, unbounded/stale confidence markers and hallucination proportions. Replay cursors are tracked independently per reward kind.
 - Implemented a pure combat reducer, swept water/cone collision with terrain and walls, deterministic scans, fresh/salt refills, wrong-target penalties, rust/drying, and seized/slumping/heap lifecycle. A heap reaches 30% height by tick 120 after seizure.
 - Added shove, snatch, ad blast, handshake, and interrupted/capped forced updates with monotonic request sequences. Phone hacks remain wave-3 gated.
 - Exposed an explicit compatibility adapter and movement constraints without modifying shared simulation files or registering an incomplete system.
@@ -96,3 +98,29 @@ Lane 1/2: publish per-location weather, puddles and King-tide salt sources. Lane
 
 ### For the owner to judge
 Draft sim behavior; visible stream, weather and NPC reactions require rendering/agent integration.
+
+## Wave-4 draft pull request
+Base: `lane/sim-combat/wave3` until `integrate/wave4` exists.  
+Head: `lane/sim-combat/wave4`  
+Title: `Sim-Combat: add gadgets, gear, roof cannon and authorized streak effects`
+
+### Summary
+Adds equipped water balloons, placed sprinklers/speakers, timed defensive gear, trunk-fed roof shots and the six Hype reward effects. Rewards require owner-provided grants and cannot be replayed or lost by redeeming another reward first. AGI freezes combat timers for 180 ticks; the core pause must accompany it to hold world movement.
+
+### Roadmap deliverables
+- [x] Balloon, sprinkler, decoy speaker; Rubber Boots and Airplane Mode.
+- [x] Trunk reserve and 30-degree/15 m roof cannon at half rust.
+- [x] Confidence, Parrots, Tensor, Blimp, Hydrants and AGI effects.
+- [ ] Real loadouts/grants, gear controls, safe-lot/world-source data and rendered effect integration.
+
+### Acceptance tests
+Scoped combat suite passed 190 tests before final wide-fan assembly; final combined verification is pending. Coverage includes conserved shot volume/rust, 3D splash/jet limits, protected landing removal, stale grant rejection, out-of-order banks, bounded confidence state and exact 180-tick pause timing.
+
+### Contract changes
+No direct shared-file edits. Uses Lane 2's published combat types and separate wave-4 core pause commit. Wide fan width (12 degrees) and ordinary gadget reuse delays are tuning constants.
+
+### Requests for other lanes
+Lane 5 supplies earned grants, loadout/inventory and stable replayed selections. Lane 6 supplies explicit rival lists. Lane 1 supplies safe lots and water sources. Noncombat systems must preserve their absolute deadlines across AGI; merely skipping an update does not hold a deadline against the advancing outer tick. Renderer consumes gadget/mark/boost/pause state and events.
+
+### For the owner to judge
+All effects are deterministic simulation outputs. Their visible playback and gameplay feel require the integration lanes; no frame-rate or high-definition claim is made here.

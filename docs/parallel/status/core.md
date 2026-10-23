@@ -1,7 +1,7 @@
 # Lane 2: Core sim and harness
 
 ## Now
-- Validate and publish the day-one interface on `lane/core/wave2`.
+- Shared interface published on `lane/core/wave2`; combined integration verification is owned by the integrating session.
 
 ## Done
 - Inspected the actual base: `SIM_VERSION` is 2. `qa/sim` and `feature/dodge` use 4, with 5 reserved for their integration. Wave 2 will use 6.
@@ -11,9 +11,11 @@
 - Added core-owned `combat-contract.ts`, typed extension slots, event-name constants and fixed-order pure system hooks. Every area's registration list starts empty.
 - Captured a 300-tick schema-2 replay from the unmodified base (12 ambient agents, driving, braking and walking) with five pinned state hashes in `tests/golden/wave1-v2.json`.
 - Frozen-lockfile offline dependency installation and typecheck passed.
+- Interface commit: `39abfda` (`Core: publish wave-2 interfaces with schema 6 replay migration`).
+- Focused verification passed: 3 files, 50 tests (wave-2 interface, sim determinism, forbidden APIs). An independent read-only adversarial review found no blocking regressions.
 
 ## Next
-- Run the replay, focused and full verification suites before integrating the interface.
+- Integrating session: run full unit/browser verification on the combined core and combat commit, then integrate the interface into `integrate/wave2`.
 - The remaining wave-2 clock, fog, vehicle follower, drivers, benchmarks and browser harness work is separate from this day-one interface.
 
 ## Blocked on
@@ -27,7 +29,7 @@
 
 ## For the owner
 - No changes to `main` or `integrate/wave1`. This is the shared foundation, not a completed wave or a visual-quality sign-off.
-- Draft PR title and body will be recorded here with validation results before the lane push.
+- Draft PR title and body are recorded below. Full unit/browser and CI results remain pending; focused success does not claim full-wave completion.
 
 ## Interface hand-off
 - `Action`: old bits 0–3 remain; `gadget`, `cone`, `interact`, `streak`, `emote`, `watch`, `altFire` are bits 4–10.
@@ -59,8 +61,9 @@ Publish a common interface so the simulation lanes can build against one contrac
 
 ### Acceptance tests
 - Passing: typecheck.
-- In progress: recorded schema-2 replay, migration, action/aim, registration order and sim purity tests.
-- Pending: full unit and browser verification. No CI claim before the PR runs.
+- Passing: 50 tests across the recorded schema-2 replay, migration, action/aim, registration order, sim determinism and sim purity suites.
+- Reviewed: independent adversarial read-only review found no blocking regression.
+- Pending: full unit and browser verification on the integrating session's combined core/combat branch. No CI claim before the PR runs.
 
 ### Contract changes
 **SIM_VERSION 2 → 6**; versions 3–5 are reserved for pending QA/dodge code and are not blindly migrated. v1/v2 saves preserve existing data and old input frames need no new fields. Existing action bits retain their values. All shared combat types live in the core-owned `combat-contract.ts`.
@@ -70,3 +73,39 @@ Lane 4: consume the shared combat types and provide a pure system factory with c
 
 ### For the owner to judge
 This PR supplies interfaces and replay compatibility. It does not claim the full wave, visual quality or gameplay feel is complete. The branch contains no prototype changes and does not alter `main` or `integrate/wave1`.
+
+## Wave-4 follow-up: AGI world pause
+
+Branch: `lane/core/wave4`, from the verified wave-2 interface at `9a6a107`. This change is separate from `lane/core/wave2`; the integrating session will cherry-pick it into wave 4 and later only.
+
+- Core skips player and ambient-agent movement while the previous combat state's `pauseUntil` exceeds the previous outer tick.
+- Only the combat hook runs during this period, so combat can hold its own deadlines. Other system hooks remain frozen.
+- Outer ticks, recorded joins/leaves and input sanitization continue. A 180-tick pause resumes movement on update 181.
+- Validation: typecheck passed; all 41 tests in the pause/interface/purity suites passed. Independent adversarial review found no blocking defect. Combined full verification is owned by the integrating session.
+- Requests: Lane 4 owns holding its combat deadlines and supplying the registered combat hook. This patch does not implement combat timers or activate the future AGI feature in wave 2.
+- Future mission/heat/economy systems using absolute deadlines must compensate for paused ticks; skipping their reducers alone preserves fields but not remaining durations. No such later-lane schema is invented by this patch.
+
+Draft PR title: `Core: freeze world updates during the AGI pause`
+
+Draft PR body:
+
+### Summary
+Honor the combat pause deadline before player and agent movement. Continue the outer tick and recorded membership events, and call only the combat system so it can hold its own timers.
+
+### Roadmap deliverables
+- [x] Core integration support for the wave-4 AGI pause.
+- [ ] Remaining wave-4 systems and feature acceptance; owned by their lanes.
+
+### Acceptance tests
+- Passing: 41 tests across pause/interface/purity suites, including exactly 180 frozen updates, resume on update 181, unchanged traffic/RNG, skipped noncombat hooks, sanitized inputs and recorded joins/leaves; typecheck also passed.
+- Independent review: no blocking defect found.
+- Full integrated unit/browser verification remains with the integrating session.
+
+### Contract changes
+No new fields or schema bump. Uses the already published `CombatState.pauseUntil` and system-hook contract.
+
+### Requests for other lanes
+Lane 4 supplies the timer-holding combat reducer and registry factory. Future noncombat systems must preserve remaining durations when using absolute deadlines. The integrating session should apply this change only to wave 4 and later.
+
+### For the owner to judge
+No visual sign-off is claimed. This is a deterministic core pause mechanism and is not present on the wave-2 lane branch.

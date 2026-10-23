@@ -2,9 +2,11 @@ import { Action, type SimInput, type SimState } from "../contract.ts";
 import { clamp, dcos, dsin } from "../dmath.ts";
 import { seedRng } from "../rng.ts";
 import { stepAttacks } from "./attacks.ts";
+import { applyBalloon, launchBalloon, stepDevices } from "./devices.ts";
 import { applyWaterHit, stepSupport, tickEffects } from "./effects.ts";
 import { advanceProjectile } from "./physics.ts";
 import { waterShot } from "./weapons.ts";
+import { holdCombatTimers } from "./pause.ts";
 import { capacity, emit, initialPlayer, initialTarget, MAX_PROJECTILES, newlyPressed, protectedActor, safeAngle, sortedActors, sortedPlayers, targetOf } from "./shared.ts";
 import type { CombatActor, CombatContext, CombatInputs, CombatPlayer, CombatState, PlayerCombat, Projectile, TargetCombat } from "./types.ts";
 
@@ -82,12 +84,15 @@ function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInput
     const input=inputs[player.id]??{}, own=state.players[player.id]!;
     const direction=aim(player,input.aimYaw,input.aimPitch);
     const shot=waterShot(state,player,input,ctx);
-    if (shot && state.projectiles.length<MAX_PROJECTILES) {
+    if (shot && state.projectiles.length+shot.pellets<=MAX_PROJECTILES) {
       own[shot.supply]=Math.max(0,own[shot.supply]-shot.volume);
       own.nextWaterTick=state.tick+shot.rateTicks;
-      state.projectiles.push({id:state.nextId++,kind:"water",ownerId:player.id,x:player.x,y:shot.spawnHeight,z:player.z,
-        vx:shot.direction.x*shot.speed,vy:shot.direction.y*shot.speed,vz:shot.direction.z*shot.speed,
-        distance:0,range:shot.range,bornTick:state.tick,volume:shot.volume,salt:shot.salt,vehicle:shot.vehicle,rustRate:shot.rustRate});
+      for(let n=0;n<shot.pellets;n++) {
+        const yaw=shot.yaw+(shot.pellets===1?0:shot.spreadRadians*(n/(shot.pellets-1)-.5));
+        state.projectiles.push({id:state.nextId++,kind:"water",ownerId:player.id,x:player.x,y:shot.spawnHeight,z:player.z,
+          vx:dsin(yaw)*dcos(shot.pitch)*shot.speed,vy:dsin(shot.pitch)*shot.speed,vz:-dcos(yaw)*dcos(shot.pitch)*shot.speed,
+          distance:0,range:shot.range,bornTick:state.tick,volume:shot.volume/shot.pellets,salt:shot.salt,vehicle:shot.vehicle,rustRate:shot.rustRate/shot.pellets});
+      }
       emit(state,"weapon.water",player.id,"",shot.volume);
     }
     if (newlyPressed(own,"cone",input.cone===true) && own.cones>0 && state.tick>=own.nextConeTick && state.projectiles.length<MAX_PROJECTILES) {
@@ -95,6 +100,10 @@ function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInput
       own.nextConeTick=state.tick+30;
       spawn(state,player,"cone",direction.yaw,0,8,8,0,0,3.705);
       emit(state,"weapon.cone",player.id,"",own.cones);
+    }
+    if ((ctx.wave??2)>=4 && !input.refill) {
+      const balloon=launchBalloon(state,player,input);
+      if (balloon) state.projectiles.push(balloon);
     }
   }
 }
@@ -127,6 +136,10 @@ function particles(state:CombatState,ctx:CombatContext):void {
       if (projectile.kind==="cone") coneHit(state,moved.projectile,moved.hit);
     }
     if (moved.hit || moved.landed || moved.blocked || moved.expired) {
+      if (projectile.kind==="balloon") {
+        if (moved.hit && (protectedActor(moved.hit) || moved.hit.kind==="person" || moved.hit.kind==="animal")) emit(state,"balloon.removed",projectile.ownerId,"",0,"protected landing");
+        else applyBalloon(state,ctx,moved.projectile,moved.projectile);
+      }
       emit(state,"projectile.ended",projectile.ownerId,moved.hit?.id??"",projectile.id,moved.hit?"actor":moved.blocked?"wall":moved.landed?"ground":"range");
     } else alive.push(moved.projectile);
   }
@@ -138,11 +151,23 @@ export function stepCombat(prev: Readonly<CombatState>, ctx: CombatContext, inpu
   validateContext(ctx);
   if (prev.version!==1 || !Number.isSafeInteger(prev.tick) || prev.tick<0) throw new Error("Unsupported combat state");
   const state=cloneState(prev as CombatState,ctx);
+  if (prev.pauseUntil>prev.tick) {holdCombatTimers(state);return state;}
+  const activeInputs:Record<string,CombatInputs[string]>={};
+  for (const player of ctx.players) {
+    const constraints=[state.targets[player.id],...ctx.actors.filter(actor=>actor.playerId===player.id).map(actor=>state.targets[actor.id])];
+    const input=inputs[player.id]??{};
+    activeInputs[player.id]=constraints.some(target=>target && target.phase!=="active")?{}:
+      constraints.some(target=>target && target.distractedUntil>state.tick)?{...input,fire:false,scan:false,altFire:false}:input;
+  }
+  inputs=activeInputs;
+  stepDevices(state,ctx,inputs);
+  if (state.pauseUntil<=state.tick) {
   stepSupport(state,ctx,inputs);
   fireWeapons(state,ctx,inputs);
   particles(state,ctx);
   tickEffects(state,ctx);
   stepAttacks(state,ctx,inputs);
+  }
   for (const player of sortedPlayers(ctx)) {
     const input=inputs[player.id]??{}, own=state.players[player.id]!;
     own.water=clamp(own.water,0,capacity(player));
@@ -173,6 +198,7 @@ export function combatInput(input: Readonly<SimInput>): CombatInputs[string] {
 
 /** Null means unrestricted acceleration. Agent lane applies a non-null cap before movement; this function does not mutate its body. */
 export function movementLimit(state:Readonly<CombatState>,actor:CombatActor):{maxSpeed:number|null;scale:number;blind:boolean;canAttack:boolean} {
+  if (state.pauseUntil>state.tick) return {maxSpeed:0,scale:0,blind:false,canAttack:false};
   const target=state.targets[actor.id];
   const canonical=actor.playerId?state.targets[actor.playerId]:undefined;
   if (!target && !canonical) return {maxSpeed:null,scale:1,blind:false,canAttack:true};

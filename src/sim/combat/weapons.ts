@@ -18,6 +18,9 @@ export interface WaterShot {
   supply: "water" | "reserve";
   salt: boolean;
   vehicle: boolean;
+  /** Total fan width; evenly space pellets from -width/2 through +width/2. */
+  spreadRadians: number;
+  pellets: number;
 }
 
 /**
@@ -36,6 +39,9 @@ export function waterShot(
   if (input.fire !== true || input.refill || state.tick < own.nextWaterTick || state.pauseUntil > state.tick) return null;
   if (![player.x, player.y, player.z, player.heading, player.speed].every(Number.isFinite)) return null;
   const aliases = ctx.actors.filter(actor => actor.id === player.id || actor.playerId === player.id);
+  const canonical = state.targets[player.id];
+  if (canonical && canonical.phase !== "active" ||
+      aliases.some(actor => state.targets[actor.id] && state.targets[actor.id]!.phase !== "active")) return null;
   if ((state.targets[player.id]?.distractedUntil ?? 0) > state.tick ||
       aliases.some(actor => (state.targets[actor.id]?.distractedUntil ?? 0) > state.tick)) return null;
 
@@ -90,5 +96,7 @@ export function waterShot(
     supply,
     salt,
     vehicle: player.mount !== "foot",
+    spreadRadians: boosted && own.boost === "wide" ? PI / 15 : 0,
+    pellets: boosted && own.boost === "wide" ? 3 : 1,
   };
 }
