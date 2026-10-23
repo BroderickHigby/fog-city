@@ -187,6 +187,14 @@ describe("combat rust and lifecycle", () => {
     expect(s.events.filter(event => event.kind === "robot.seized")).toHaveLength(1);
   });
 
+  it("retains distant heaps for Tidy from wave three onward",()=>{
+    const s=state(), bot=actor({x:400,z:0,inFidelity:false});
+    applyRust(s,bot,10,"p1",true);s.tick=120;
+    tickEffects(s,context([bot],player(),{wave:3}));
+    expect(s.targets.bot).toMatchObject({phase:"heap",puddle:true});
+    expect(s.events.some(event=>event.kind==="robot.heap-cleared")).toBe(false);
+  });
+
   it("gates ambient rust by wave, darkness, exposure, and firmware", () => {
     const p = player();
     const bad = actor(), pursuing = actor({ id: "chasing", pursuing: true }), sheltered = actor({ id: "roofed", sheltered: true }), good = actor({ id: "good", firmware: "good" });
