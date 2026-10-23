@@ -160,6 +160,24 @@ function p1Script(t: number): SimInput | null {
   return null;
 }
 
+/**
+ * The override episode (the dodge's clearance override, src/sim/dodge.ts, compared across engines
+ * too): at session tick 600, p6 parks in open ground 110 m behind and 140 m left of the spawn (the
+ * dev world's empty corner, away from the roads and their people) and gets out on its left; p7
+ * parks with its nose 0.6 m short of where p6 stands and creeps forward (too slow to be a threat
+ * anyone dives from, fast enough to count as moving) until its reach comes within the override's
+ * clearance of p6, who is put aside with a stumble-hop. Open-loop, like every input here. (In the
+ * other worlds the spot may be taken and the cars placed elsewhere; the dev run checks it fired.)
+ */
+const EPISODE_AT = 600;
+
+function episodeScript(id: PlayerId, t: number): SimInput | null {
+  if (t < EPISODE_AT) return null;
+  if (id === "p6") return { throttle: 0, steer: 0, brake: 0, actions: t === EPISODE_AT ? Action.enterExit : 0 };
+  if (id === "p7") return t <= EPISODE_AT ? { throttle: 0, steer: 0, brake: 0, actions: 0 } : { throttle: t % 3 === 0 ? 0.12 : 0.06, steer: 0, brake: 0, actions: 0 };
+  return null;
+}
+
 /** A spot `m` metres behind the spawn along its heading and `side` metres to its right. */
 function behind(spawn: Spawn, m: number, side: number): { x: number; z: number; heading: number } {
   return {
@@ -186,6 +204,13 @@ function eventsFor(rel: number, tick: number, spawn: Spawn): SimEvent[] {
         { tick, kind: "player.join", playerId: "p5", payload: behind(spawn, 8, 6) },
         { tick, kind: "player.leave", playerId: "p4" },
       ];
+    case EPISODE_AT:
+      // p6 gets out on its left (the driver's side), 1.75 m from its car's centre; p7's car is
+      // 0.3 m further left (clear of p6's) and its nose 0.6 m short of p6's body.
+      return [
+        { tick, kind: "player.join", playerId: "p6", payload: behind(spawn, 110, -140) },
+        { tick, kind: "player.join", playerId: "p7", payload: behind(spawn, 110 + 0.35 + 0.6 + 2.2, -140 - 2.05) },
+      ];
     default:
       return [];
   }
@@ -209,7 +234,7 @@ export function runScenario(world: World, opts: ScenarioOptions): ScenarioResult
     for (const id of sortedIds(state.players)) {
       let d = drivers.get(id);
       if (!d) drivers.set(id, (d = newDriver(id, opts.seed)));
-      const scripted = id === "p1" ? p1Script(t) : null;
+      const scripted = id === "p1" ? p1Script(t) : episodeScript(id, t);
       frame[id] = scripted ?? drive(d, id === "p3");
     }
     const prev = state;
@@ -267,7 +292,7 @@ export function recordSession(
     for (const id of [...present].sort()) {
       let d = drivers.get(id);
       if (!d) drivers.set(id, (d = newDriver(id, opts.seed)));
-      const scripted = id === "p1" ? p1Script(t) : null;
+      const scripted = id === "p1" ? p1Script(t) : episodeScript(id, t);
       frame[id] = scripted ?? drive(d, id === "p3");
     }
     const events = eventsFor(t + 1, tick, opts.spawn);

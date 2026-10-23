@@ -15,7 +15,7 @@
 //  - Lane and sidewalk paths stop short of each node by the node's radius (so turns happen
 //    inside the intersection on connectors, see connector()).
 
-import { clamp, datan2, wrapAngle } from "./dmath.ts";
+import { clamp, datan2, dcos, dsin, wrapAngle } from "./dmath.ts";
 
 /** roads.json as written by the pipeline (extra fields are ignored). */
 export interface RoadsFile {
@@ -52,6 +52,11 @@ export interface Path {
   zs: number[];
   cum: number[];
   len: number;
+  /**
+   * Connectors only: the cubic Bezier's control points [x0, z0, x1, z1, x2, z2, x3, z3], so
+   * offsetPoint can offset square to the curve itself (smoothTangent), not to its sampled chords.
+   */
+  bez?: readonly number[];
 }
 
 export type Dir = 1 | -1;
@@ -258,6 +263,174 @@ export function pathPoint(p: Path, s: number): PathPoint {
   };
 }
 
+/**
+ * Half-width of the arc around a polyline vertex over which offsetPoint turns its sideways
+ * direction from one segment's to the next (capped at half of each segment), metres.
+ */
+export const OFFSET_BLEND_M = 1.5;
+
+/** Signed angle from unit (ax, az) to unit (bx, bz), radians (+ = clockwise seen from above). */
+function angleTo(ax: number, az: number, bx: number, bz: number): number {
+  const cross = ax * bz - az * bx;
+  const dot = ax * bx + az * bz;
+  return cross === 0 && dot > 0 ? 0 : datan2(cross, dot);
+}
+
+/** Unit (ax, az) rotated by phi radians (+ = clockwise seen from above). */
+function rotate(ax: number, az: number, phi: number): [number, number] {
+  if (phi === 0) return [ax, az];
+  const c = dcos(phi);
+  const sn = dsin(phi);
+  return [ax * c - az * sn, ax * sn + az * c];
+}
+
+/** Unit direction of segment i (i -> i + 1); a zero-length segment points north. */
+function segDir(p: Path, i: number): [number, number] {
+  const dx = p.xs[i + 1]! - p.xs[i]!;
+  const dz = p.zs[i + 1]! - p.zs[i]!;
+  const l = Math.sqrt(dx * dx + dz * dz);
+  return l > 0 ? [dx / l, dz / l] : [0, -1];
+}
+
+/** Unit tangent at vertex i: the bisector of its two segments (an end: its segment). */
+function vertexTangent(p: Path, i: number): [number, number] {
+  const n = p.xs.length;
+  if (i <= 0) return segDir(p, 0);
+  if (i >= n - 1) return segDir(p, n - 2);
+  const [ax, az] = segDir(p, i - 1);
+  const [bx, bz] = segDir(p, i);
+  return rotate(ax, az, angleTo(ax, az, bx, bz) / 2);
+}
+
+/**
+ * A cubic Bezier's unit tangent at parameter u and its curvature there (w, radians per metre,
+ * + = clockwise). Where the derivative vanishes (a cusp): the chord's direction, w 0.
+ */
+function bezierTangent(cp: readonly number[], u: number): { tx: number; tz: number; w: number } {
+  const v = 1 - u;
+  const ax = cp[2]! - cp[0]!;
+  const az = cp[3]! - cp[1]!;
+  const bx = cp[4]! - cp[2]!;
+  const bz = cp[5]! - cp[3]!;
+  const cx = cp[6]! - cp[4]!;
+  const cz = cp[7]! - cp[5]!;
+  const dx = 3 * (v * v * ax + 2 * v * u * bx + u * u * cx);
+  const dz = 3 * (v * v * az + 2 * v * u * bz + u * u * cz);
+  const ex = 6 * (v * (bx - ax) + u * (cx - bx));
+  const ez = 6 * (v * (bz - az) + u * (cz - bz));
+  const l = Math.sqrt(dx * dx + dz * dz);
+  if (l < 1e-9) {
+    const hx = cp[6]! - cp[0]!;
+    const hz = cp[7]! - cp[1]!;
+    const hl = Math.sqrt(hx * hx + hz * hz);
+    return hl > 1e-9 ? { tx: hx / hl, tz: hz / hl, w: 0 } : { tx: 0, tz: -1, w: 0 };
+  }
+  return { tx: dx / l, tz: dz / l, w: (dx * ez - dz * ex) / (l * l * l) };
+}
+
+/**
+ * Smoothed unit tangent (tx, tz) at arc length s, and how fast it turns there (w, radians per
+ * metre, + = clockwise). A connector (p.bez): the curve's own tangent (not its sampled chords),
+ * which at the ends is the direction of the paths it joins. A polyline: a segment's own direction in its middle, turning
+ * at a steady rate to the vertex tangent (the bisector) over the first and last OFFSET_BLEND_M
+ * of it (at most half the segment). Continuous along the whole path, and at either end equal to
+ * the direction the path ends in (a connector's ends: those of the paths it joins), so a walker
+ * offset along it never jumps sideways where a polyline bends or one path hands over to the next.
+ */
+export function smoothTangent(p: Path, s: number): { tx: number; tz: number; w: number } {
+  const n = p.xs.length;
+  if (n === 1 || p.len <= 0) return { tx: 0, tz: -1, w: 0 };
+  const t = clamp(s, 0, p.len);
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (p.cum[mid]! <= t) lo = mid;
+    else hi = mid;
+  }
+  const seg = p.cum[hi]! - p.cum[lo]!;
+  if (p.bez) return bezierTangent(p.bez, (lo + (seg > 0 ? (t - p.cum[lo]!) / seg : 0)) / (n - 1));
+  const [dx, dz] = segDir(p, lo);
+  if (!(seg > 0)) return { tx: dx, tz: dz, w: 0 };
+  const h = Math.min(OFFSET_BLEND_M, seg / 2);
+  const f = t - p.cum[lo]!;
+  if (f < h) {
+    // From the vertex tangent at lo to the segment's direction.
+    const [vx, vz] = vertexTangent(p, lo);
+    const a = angleTo(vx, vz, dx, dz);
+    const [tx, tz] = rotate(vx, vz, (a * f) / h);
+    return { tx, tz, w: a / h };
+  }
+  const b = seg - f;
+  if (b < h) {
+    // From the segment's direction to the vertex tangent at hi.
+    const [vx, vz] = vertexTangent(p, hi);
+    const a = angleTo(dx, dz, vx, vz);
+    const [tx, tz] = rotate(dx, dz, (a * (h - b)) / h);
+    return { tx, tz, w: a / h };
+  }
+  return { tx: dx, tz: dz, w: 0 };
+}
+
+/**
+ * The point `lat` metres right of a path at arc length s, offset along smoothTangent (not the
+ * segment's own direction), so a point moving steadily along the path never jumps sideways
+ * where the polyline bends. lat = 0 is exactly pathPoint.
+ */
+export function offsetPoint(p: Path, s: number, lat: number): { x: number; z: number } {
+  const q = pathPoint(p, s);
+  if (lat === 0) return { x: q.x, z: q.z };
+  const m = smoothTangent(p, s);
+  return { x: q.x - m.tz * lat, z: q.z + m.tx * lat };
+}
+
+/**
+ * How many metres offsetPoint(p, s, lat) moves per metre of arc length at s, at least 1: the
+ * outside of a bend is the longer way round (|d - lat * w * t|, d the segment's direction, t and
+ * w from smoothTangent). A walker held off its line advances its arc length by its step divided
+ * by this, so it walks the offset line at its own pace instead of swinging round the outside of
+ * a tight corner. Exactly 1 at lat 0 and wherever the offset direction is not turning.
+ */
+export function offsetPace(p: Path, s: number, lat: number): number {
+  if (lat === 0) return 1;
+  const m = smoothTangent(p, s);
+  if (m.w === 0) return 1;
+  const q = pathPoint(p, s);
+  const k = lat * m.w;
+  const vx = q.tx - k * m.tx;
+  const vz = q.tz - k * m.tz;
+  return Math.max(1, Math.sqrt(vx * vx + vz * vz));
+}
+
+/**
+ * Advance a point held `lat` metres right of path p (offsetPoint) from arc length s0 so that it
+ * moves `dist` metres (straight line, tick to tick), never more: the first guess is
+ * dist / offsetPace, halved while the offset point would move farther (a tight bend's outside
+ * is the longer way round, so a walker there takes longer instead of swinging round faster).
+ * Past the end of p it returns p.len plus the distance still to go (for the next path). At a
+ * true cusp, where no step is short enough, it takes the first guess. lat 0: s0 + dist.
+ */
+export function offsetAdvance(p: Path, s0: number, lat: number, dist: number): number {
+  if (lat === 0) return s0 + dist;
+  if (!(dist > 0)) return s0;
+  const a = offsetPoint(p, s0, lat);
+  const lim = dist * 1.001 + 1e-6;
+  const guess = dist / offsetPace(p, s0, lat);
+  let ds = guess;
+  if (s0 + ds >= p.len) {
+    const e = offsetPoint(p, p.len, lat);
+    const used = Math.sqrt((e.x - a.x) * (e.x - a.x) + (e.z - a.z) * (e.z - a.z));
+    if (used <= lim) return p.len + Math.max(0, dist - used);
+    ds = Math.max(0, p.len - s0);
+  }
+  for (let i = 0; i < 16; i++) {
+    const q = offsetPoint(p, s0 + ds, lat);
+    if ((q.x - a.x) * (q.x - a.x) + (q.z - a.z) * (q.z - a.z) <= lim * lim) return s0 + ds;
+    ds *= 0.5;
+  }
+  return s0 + guess;
+}
+
 /** Closest point of a path to (x, z): arc length s, signed lateral d (+ = right of travel), distance. */
 export function projectOnPath(p: Path, x: number, z: number): { s: number; d: number; dist: number } {
   let best = { s: 0, d: 0, dist: Infinity };
@@ -426,7 +599,7 @@ export function connectorPath(cp: readonly number[]): Path {
     xs.push(b0 * cp[0]! + b1 * cp[2]! + b2 * cp[4]! + b3 * cp[6]!);
     zs.push(b0 * cp[1]! + b1 * cp[3]! + b2 * cp[5]! + b3 * cp[7]!);
   }
-  return makePath(xs, zs);
+  return { ...makePath(xs, zs), bez: cp };
 }
 
 // ---------------------------------------------------------------- lanes
