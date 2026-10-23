@@ -5,7 +5,8 @@
 // up as a changed hash and never as a changed input. Shared by tests/golden/composed.test.ts
 // and scripts/golden/composed.ts (which records the pins).
 import {
-  Action, SIM_VERSION, SimEventKind, buildWorld, createGameSystems, createInitialState, hashState, makeFoot, step,
+  Action, DAY_TICKS, SIM_VERSION, SimEventKind, buildWorld, createGameSystems, createInitialState, fogDensity, hashState, makeFoot,
+  rainDensity, roadWetness, step, tideLevel,
   type InputFrame, type RoadsFile, type SimEvent, type SimInput, type SimState, type World,
 } from "../../src/sim/index.ts";
 import { MISSIONS } from "../../src/content/catalog.ts";
@@ -123,7 +124,25 @@ function hotDeskPlace(): { x: number; z: number } {
 
 // Keep the existing wave-2 scenarios and also pin the production wave's open-loop city run.
 const wave3City: ComposedScenario = { ...city, name: "city-wave3", wave: 3 };
-export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission, wave3City];
+
+/** The first rainy winter game hour for `seed`, as elapsed clock ticks (the clock starts at 08:00 on day 0). */
+function firstRain(seed: number): number {
+  const probe = createInitialState(buildWorld([]), seed, [], { x: 0, z: 0, heading: 0 });
+  for (let day = 28; day < 56; day++) for (let hour = 0; hour < 24; hour++) {
+    const elapsedTicks = day * DAY_TICKS + (hour >= 8 ? hour - 8 : hour + 16) * 3600;
+    if (rainDensity({ ...probe, ext: { clock: { version: 1, elapsedTicks }, fog: { version: 1, missionCursor: 0, windows: [] } } }) > 0) return elapsedTicks;
+  }
+  throw new Error("no rainy hour");
+}
+/** The city run in the rain at wave 3 (v10): wet-road driving, sheltered/exposed rust, puddles. */
+const wave3Rain: ComposedScenario = {
+  ...city, name: "city-wave3-rain", wave: 3,
+  initial: world => {
+    const state = city.initial(world);
+    return { ...state, ext: { ...state.ext, clock: { version: 1, elapsedTicks: firstRain(7) } } };
+  },
+};
+export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission, wave3City, wave3Rain];
 
 export function runComposedScenario(scenario: ComposedScenario): ComposedRun {
   const world = scenario.world(), systems = createGameSystems({ wave: scenario.wave ?? 2 });
@@ -138,6 +157,13 @@ export function runComposedScenario(scenario: ComposedScenario): ComposedRun {
     for (const event of state.ext.robots?.events ?? []) count(`robots:${event.kind}`);
     for (const event of state.ext.robots?.services?.events ?? []) count(`services:${event.kind}`);
     for (const event of state.ext.missions?.events ?? []) count(`missions:${event.kind}`);
+    if (state.ext.fog) {
+      const p1 = state.players.p1, body = p1 ? (p1.mode === "foot" && p1.foot ? p1.foot : p1.car) : null;
+      if (rainDensity(state) > 0) count("weather:rain");
+      if (roadWetness(state) > 0) count("weather:wet");
+      if (tideLevel(state) > 0) count("weather:tide");
+      if (body && fogDensity(world, state, body.x, body.z) > 0.4) count("weather:fog");
+    }
     if ((t + 1) % scenario.every === 0 || t + 1 === scenario.ticks) hashes.push(hashState(state));
   }
   count("agents:final", state.ext.agents?.list.length ?? 0);

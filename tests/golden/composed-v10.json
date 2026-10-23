@@ -1,14 +1,14 @@
 {
-  "simVersion": 9,
+  "simVersion": 10,
   "scenarios": {
     "city": {
       "hashes": [
-        "1788968f",
-        "eb8d458e",
-        "3bb0f324",
-        "c4d8e4ea",
-        "33fefe31",
-        "61eb0d48"
+        "93c51f67",
+        "55eadc50",
+        "ed3e8d42",
+        "dbd9f974",
+        "91e1f585",
+        "c5837e7e"
       ],
       "coverage": {
         "agents:final": 17,
@@ -20,15 +20,15 @@
     },
     "service": {
       "hashes": [
-        "7c7404e6",
-        "be8cdd07",
-        "7d9b8313",
-        "5e5bcf15",
-        "b7a8c357",
-        "3d42d573",
-        "010b4b7f",
-        "90627124",
-        "5e7cd172"
+        "e8f9d808",
+        "d524b69f",
+        "8e5da283",
+        "8f09d941",
+        "ac10ddaf",
+        "e1877fe3",
+        "3b4af317",
+        "40a7e742",
+        "6342ab3c"
       ],
       "coverage": {
         "agents:final": 2,
@@ -40,12 +40,12 @@
     },
     "mission": {
       "hashes": [
-        "0f21cddc",
-        "3d84c98c",
-        "ab8862f9",
-        "c00532c6",
-        "d13061cf",
-        "2ffc0af2"
+        "de79d15a",
+        "344b704a",
+        "284a890d",
+        "65483fe8",
+        "95ac1727",
+        "ae8a2fbc"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,12 +57,12 @@
     },
     "city-wave3": {
       "hashes": [
-        "adf5a3b8",
-        "ff0e9504",
-        "5d7f4b26",
-        "992d2d4a",
-        "37656a11",
-        "ca74b0cb"
+        "f4ef4d06",
+        "90e4c32c",
+        "1b109028",
+        "f2da31c4",
+        "47a3ec1a",
+        "4dbc14b2"
       ],
       "coverage": {
         "agents:final": 17,
@@ -70,6 +70,25 @@
         "combat:weapon.water": 41,
         "identities:final": 2,
         "missions:mission.stage": 3
+      }
+    },
+    "city-wave3-rain": {
+      "hashes": [
+        "8db27c26",
+        "25e53b20",
+        "d5322aa4",
+        "e0ee31e7",
+        "a67e4ed7",
+        "60f91d46"
+      ],
+      "coverage": {
+        "agents:final": 17,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3,
+        "weather:rain": 900,
+        "weather:wet": 900
       }
     }
   }

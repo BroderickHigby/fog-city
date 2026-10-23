@@ -4,18 +4,19 @@ import { deepFreeze } from "../helpers.ts";
 import { surfaceWorld } from "./fixtures.ts";
 
 describe("structural-world migration", () => {
-  it("upgrades live v7 and v8 saves to v9 without changing their bodies or extensions", () => {
+  it("upgrades live v7, v8 and v10 saves to v11 without changing their bodies or extensions", () => {
     const world = surfaceWorld();
     const current = createInitialState(world, 41, ["p1"], { x: 30, z: 130, heading: 0 });
-    expect(SIM_VERSION).toBe(9);
-    for (const version of [7, 8]) {
+    expect(SIM_VERSION).toBe(11);
+    for (const version of [7, 8, 10]) {
       const old = deepFreeze({ ...current, version, ext: { ...current.ext, future: { keep: [1, "value"] } } });
       const migrated = upgradeState(old);
-      expect(migrated).toEqual({ ...old, version: 9 });
+      expect(migrated).toEqual({ ...old, version: 11 });
       expect(old.version).toBe(version);
       expect(upgradeState(migrated)).toBe(migrated);
       expect(() => step(world, migrated, {}, [], [])).not.toThrow();
     }
+    expect(() => upgradeState({ ...current, version: 9 })).toThrow("cannot upgrade");
   });
 
   it("retains optional gameplay metadata when building structural worlds", () => {

@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { SIM_VERSION } from "../../src/sim/index.ts";
 import { COMPOSED_SCENARIOS, runComposedScenario } from "../helpers/composed-golden.ts";
-import golden from "./composed-v9.json";
+import golden from "./composed-v11.json";
 
 describe("composed-path golden replays", () => {
   it("is pinned for this SIM_VERSION and every scenario", () => {

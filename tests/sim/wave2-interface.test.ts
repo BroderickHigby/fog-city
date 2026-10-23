@@ -4,7 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v9.json";
+import currentReplay from "../golden/wave2-v11.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -83,7 +83,7 @@ describe("wave-2 shared interface", () => {
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
-      // Structural physics changed deliberately in v9; original inputs and v2/v7 fixtures stay unchanged.
+      // Structural physics changed deliberately in v11; original inputs and v2/v7 fixtures stay unchanged.
       expect(hashState(state)).toBe(currentReplay.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
@@ -91,7 +91,7 @@ describe("wave-2 shared interface", () => {
   });
 
   it("rejects unavailable intermediate and future migrations", () => {
-    for (const version of [0, -1, 2.5, SIM_VERSION + 1, NaN]) {
+    for (const version of [0, -1, 2.5, 9, SIM_VERSION + 1, NaN]) {
       expect(() => upgradeState({ ...baseline.initial, version } as unknown as SimState)).toThrow("cannot upgrade");
     }
   });
