@@ -98,3 +98,38 @@ The CPU profile of the real SF scene identified repeated nearest-node scans as a
 Typecheck and **4 focused files / 90 tests pass**, including exact nearest-node comparisons for local/remote points and ties, disconnected-search rejection, physical runtime integration and forbidden APIs. A real-SF per-system timing probe is queued before claiming a measured speed improvement.
 
 Measured follow-up: canonical SF assets, 100 measured ticks after 10 warmup ticks, current runtime/navigation plus core population-budget fix `f6f8357` (local cherry-pick `2bb31e6`) produced **11.37 ms median / 18.95 ms p95 / 25.43 ms maximum**, with 211 physical/runtime actors and 731 MiB heap. The earlier canonical baseline was 17.11 / 27.29 / 31.89 ms with 255 actors, so this is a combined population/navigation result, not an isolated attribution to the spatial tree. Agent preparation averaged 1.75 ms and observation 0.43 ms per tick. The coordinated observation-cache patch is not included in this measurement. This is simulation timing, not a rendered-frame or multiplayer-soak claim.
+
+## Wave-2 admission repair from the canonical Hot Desk probe
+
+Branch: `lane/sim-agents/wave2-admission-fix`, based directly on frozen `9c65082`. This repair does not include the later threat/flight/Tidy stack.
+
+The saved canonical SF Hot Desk run failed at tick 1201 when `transit:FBUS-in:20` (numeric ID 334) overlapped `transit:FBUS-in:10` (333). Their long bus hulls intersected although the old center/radius entry check passed. Static world clearance was not the cause.
+
+Service and transit entry planners now check complete oriented vehicle hulls against static geometry, physical bodies, runtime extras, parked cars and walking players. Pending service spawns also block transit entries in the same prepare batch. Missing-body retries recheck their stored origin each tick and remain pending while blocked, without inserting a runtime/combat actor.
+
+Validation: TypeScript passes; 16 focused service/transit/admission tests and 75 forbidden-API checks pass. The exact saved state and last input now advance from tick 1200 to 1201 through canonical `createGameSystems()`: the second bus is admitted at `(79.902636, 172.812664)`, and all 333 runtime actors match physical bodies. The narrow tests cover the exact rejected hull pair, foot-player entry blocking, parked car hulls, blocked retries and simultaneous van/bus admission. Full Hot Desk completion remains with the coordinating harness.
+
+Draft PR title: `fix(agents): validate full service hulls before admission`
+
+Draft PR body:
+
+The canonical Hot Desk approach could crash when a second timed Ferry bus spawned through the first bus's long hull. Check complete vehicle footprints and all accepted bodies before service admission, include walking players and pending service/transit spawns, and defer blocked retries before a runtime actor is created.
+
+Validation: typecheck, 16 targeted tests and 75 portable-API checks pass. Replaying the exact saved SF tick-1200 state through the game systems now reaches tick 1201 with a clear second-bus entry and matching runtime/physical actor counts.
+
+Follow-up: service admission now takes missing legacy taxi dimensions from shared `ROBOTAXI_BODY` (half-length 2.5 m, half-width 1.0 m), matching the drawn body and core clearance. Explicit bus/van dimensions remain unchanged. Typecheck and 17 service/transit/admission regressions pass, including the taxi's outer length and width.
+
+## Hot Desk parked actor and durable staging repair
+
+Isolated branch `lane/sim-agents/mission-retry`, from frozen `984fa70`. The Hot Desk `spot` stage had no eligible traffic-lane sample inside its authored 15 m radius, so its one-shot request created a squatter binding without a body and then disappeared.
+
+- Staged taxis may use a collision-validated stationary placement inside the original authored radius. Full drawn hulls, accepted bodies, parked cars, walking players and reserved spawns are checked, along with a clear, nearly level hood approach. No driving route or movement permission is inferred from that placement.
+- Pending stage descriptions persist separately from actors. At most 64 requests are retained; at most two are attempted per tick, each no more than once per 30 ticks. Retries allocate only clear missing actors, keep accepted members, and finish only after actual physical admission. No pending description is exposed as a combat actor.
+- Reset, departure, missing progress and superseding stages cancel stale retries. A legacy save with an existing binding but an absent active-objective actor can recover only from one unambiguous authored stage. Retired actors remain terminal.
+- Placement uses accepted physical poses rather than stale abstract runtime actors. Shared taxi dimensions and normal core admission remain authoritative.
+
+Validation: TypeScript and **5 files / 97 tests** pass, including blocked one-shot retry, partial roster retention, duplicate prevention, cancellation, legacy-save recovery, normal runtime/service integration and portable APIs. Both exact short SF replays pass: the real signup command from tick 13715, and the previously stuck cone state from 13731, each run for 32 ticks. They admit `mission:hot-desk:squatter` as physical ID 810 at the original stage center, stationary and good, with zero contacts/failures. The harness owns the subsequent real-input cone completion check and full campaign acceptance.
+
+Draft PR title: `fix(agents): retain blocked mission stages and safely park objective taxis`
+
+Draft PR body: The Hot Desk squatter stage could disappear because the authored parking area contained no routable lane sample. Admit a stationary objective taxi only at a full-hull-validated local position with hood access, and retain bounded stage retries until physical admission. Recover an already-stuck save from its active objective and existing binding without inventing progress. Typecheck and 97 focused tests pass; exact pre-signup and stuck-cone SF states now admit the canonical taxi with zero contacts/failures. Full-route acceptance remains with the integration harness.

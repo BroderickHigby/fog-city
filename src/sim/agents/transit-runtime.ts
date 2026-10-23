@@ -4,7 +4,7 @@ import {makePath,projectOnPath} from "../roads.ts";
 import {createFollowerState,stepVehicleFollower,type FollowerState} from "../vehicles/follower.ts";
 import {agentsRuntimeOf} from "./runtime.ts";
 import type {ActorBlueprint} from "./mission-actors.ts";
-import {serviceRoadPoint} from "./service-runtime.ts";
+import {serviceBlockersOf,serviceEntryClear,serviceRoadPoint,type ServiceBlocker} from "./service-runtime.ts";
 import type {AdWrapSlot} from "./services.ts";
 
 export interface TransitLayer {
@@ -51,7 +51,7 @@ function ferryPlan(world:World,data:TransitLayer):ReturnType<typeof buildFerryPl
   return byData.get(data)??null;
 }
 
-export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:TransitLayer|undefined,previous:TransitRuntimeState|undefined):TransitFrame{
+export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:TransitLayer|undefined,previous:TransitRuntimeState|undefined,pending:readonly ServiceBlocker[]=[]):TransitFrame{
   const minute=(sim.ext.clock as {elapsedTicks?:number}|undefined)?.elapsedTicks??sim.tick;
   const now=minute/60;
   const old=previous??{version:1 as const,nextDepartureMinute:Math.ceil(now/10)*10,runs:{},events:[],missedDepartures:0};
@@ -60,6 +60,7 @@ export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:Trans
   const frame:TransitFrame={state,spawns:[],controls:{},retirements:[]};
   if(!data)return frame;
   const actors=agentsRuntimeOf(sim),players=playerBodies(sim);
+  const blockers=serviceBlockersOf(sim,pending);
   const plan=state.nextDepartureMinute<=now?ferryPlan(world,data):null;
   const emit=(kind:TransitEvent["kind"],run:BusRun,stopId="")=>state.events.push({id:`${sim.tick}:${state.events.length}`,tick:sim.tick,kind,actorId:run.id,stopId,scheduledMinute:run.scheduledMinute});
   if(state.nextDepartureMinute<=now){
@@ -67,19 +68,24 @@ export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:Trans
     const scheduled=state.nextDepartureMinute;
     state.missedDepartures+=Math.max(0,Math.floor((now-scheduled)/10));state.nextDepartureMinute=(Math.floor(now/10)+1)*10;
     if(plan&&active<16&&players.some(player=>magnitude(player.x-plan.ferry.x,player.z-plan.ferry.z)<=300)){
-      const bodyList=actors?Object.keys(actors.actors).sort().map(id=>actors.actors[id]!).filter(actor=>!actor.retired):[];
-      const entry=serviceRoadPoint(world,plan.ferry,100,140,120,[...bodyList,...Object.keys(sim.players).sort().map(id=>({...sim.players[id]!.car,radius:3}))],6.6,1.35,point=>{
+      const entry=serviceRoadPoint(world,plan.ferry,100,140,120,blockers,6.6,1.35,point=>{
         const follow=stepVehicleFollower(world,{...point,speed:0},createFollowerState({...point,speed:0}),{kind:"pursue",target:plan.ferry,stopDistance:1.5,maxSpeed:10});
         let length=0;for(let i=1;i<follow.state.route.length;i++){const a=follow.state.route[i-1]!,b=follow.state.route[i]!;length+=magnitude(a[0]-b[0],a[1]-b[1]);}
         return follow.status!=="no-route"&&length<=240;
-      });
+      },3.2);
       if(entry){const id=`transit:${plan.routeId}:${scheduled}`,run:BusRun={id,routeId:plan.routeId,scheduledMinute:scheduled,origin:{...entry,y:groundHeight(world,entry.x,entry.z)},stops:plan.stops,nextStop:0,dwellUntil:0,follower:createFollowerState({...entry,speed:0}),ferryTick:null,retiredTick:null,adWrapSlot:{slotId:`${id}:wrap`,surface:"left-right-rear",contentKey:null}};state.runs[id]=run;emit("transit.departed",run);}else state.missedDepartures++;
     }
   }
   for(const id of Object.keys(state.runs).sort()){
     const run=state.runs[id]!;if(run.retiredTick!==null)continue;
     const body=actors?.actors[id];
-    if(!body){frame.spawns.push({id,model:"bus",firmware:"good",...run.origin,radius:1.4,height:3.2,halfLength:6.6,halfWidth:1.35,protected:true,significant:true,adWrapSlot:run.adWrapSlot});continue;}
+    if(!body){
+      if(serviceEntryClear(world,run.origin,blockers,6.6,1.35,3.2)){
+        const spawn:ActorBlueprint={id,model:"bus",firmware:"good",...run.origin,radius:1.4,height:3.2,halfLength:6.6,halfWidth:1.35,protected:true,significant:true,adWrapSlot:run.adWrapSlot};
+        frame.spawns.push(spawn);blockers.push(spawn);
+      }
+      continue;
+    }
     if(run.ferryTick!==null&&players.every(player=>magnitude(player.x-body.x,player.z-body.z)>300)){run.retiredTick=sim.tick;frame.retirements.push(id);emit("transit.retired",run);continue;}
     if(sim.tick<run.dwellUntil){frame.controls[id]={throttle:0,steer:0,brake:1,actions:0};continue;}
     const stop=run.stops[run.nextStop%run.stops.length]!;

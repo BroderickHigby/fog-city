@@ -14,17 +14,15 @@ export interface CombatAdapterOptions extends Partial<Omit<CombatContext,"actors
   walls?: readonly Wall[];
 }
 
-/** Runtime callers cannot replace body identity or position through descriptive metadata. */
+const METADATA_FIELDS = ["kind","radius","height","firmware","model","robotBody","child","protected","posture","mobilityAid","subtlety","obeysTraffic","occupied","sheltered","pursuing","inFidelity","rustScale","fog"] as const;
+
+/** Copy only descriptive fields; never clone and delete authoritative body fields. */
 function actorMetadata(options: CombatAdapterOptions, id: string): CombatActorMetadata {
-  const metadata: Partial<CombatActor> = { ...options.actorMetadata?.[id] };
-  delete metadata.id;
-  delete metadata.playerId;
-  delete metadata.x;
-  delete metadata.y;
-  delete metadata.z;
-  delete metadata.heading;
-  delete metadata.speed;
-  return metadata;
+  const source=options.actorMetadata?.[id] as Readonly<Record<string,unknown>>|undefined;
+  if(!source)return {};
+  const metadata:Record<string,unknown>={};
+  for(const field of METADATA_FIELDS)if(source[field]!==undefined)metadata[field]=source[field];
+  return metadata as CombatActorMetadata;
 }
 
 /**
@@ -52,7 +50,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
   for (const player of players) for (const building of nearbyBuildings(world,player.x,player.z,40)) {
     if (seen.has(building.id)) continue;
     seen.add(building.id);
-    walls.push({id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1]))});
+    walls.push({id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1])),footprint:building.footprint});
   }
   return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),

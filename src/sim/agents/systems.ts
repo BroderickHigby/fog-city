@@ -3,7 +3,8 @@ import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { planTransitRuntime } from "./transit-runtime.ts";
 import { planServiceRuntime } from "./service-runtime.ts";
 import {decodeMissionScene,planSceneActors} from "./scene-actors.ts";
-import { decodeMissionStage, planMissionActors } from "./mission-actors.ts";
+import { planMissionActors } from "./mission-actors.ts";
+import {pendingMissionStages} from "./mission-staging.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
   agentsRuntimeOf, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
@@ -25,17 +26,18 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     let state=context.state;
     const options=provider(context);
     const spawns=[...(options.spawns??[])];
-    const service=allocate&&options.services!==false?planServiceRuntime(context.world,state,agentsRuntimeOf(state)?.services):undefined;
+    const service=allocate&&options.services!==false?planServiceRuntime(context.world,state,agentsRuntimeOf(state)?.services,spawns):undefined;
     if(service&&allocate&&service.spawns.length){
       const reserved=allocate(state,service.spawns.map(actor=>actor.id));state=reserved.state;
       for(const actor of service.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
     }
-    const transit=allocate&&options.transit?planTransitRuntime(context.world,state,options.transit,agentsRuntimeOf(state)?.transit):undefined;
+    const transit=allocate&&options.transit?planTransitRuntime(context.world,state,options.transit,agentsRuntimeOf(state)?.transit,spawns):undefined;
     if(transit&&allocate&&transit.spawns.length){
       const reserved=allocate(state,transit.spawns.map(actor=>actor.id));state=reserved.state;
       for(const actor of transit.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
     }
     const bindings={...(agentsRuntimeOf(state)?.missionBindings??{})};
+    const pending=pendingMissionStages(state,agentsRuntimeOf(state)?.missionStages);
     if(allocate){
       const source=(state.ext.missions as unknown as {events?:unknown}|undefined)?.events;
       const events=Array.isArray(source)?source:[];
@@ -50,8 +52,12 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
           for(const actor of plan.actors)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
           for(const actor of scene.actors)bindings[`${scene.missionId}:${actor.role}`]=actor.id;
         }
-        const stage=decodeMissionStage({kind:event.kind,targetId:event.targetId,detail:event.detail});
-        if(!stage)continue;
+      }
+      let attempted=0;
+      for(const key of Object.keys(pending).sort()){
+        const request=pending[key]!;if(request.nextTick>state.tick||attempted>=2)continue;
+        attempted++;request.nextTick=state.tick+30;request.attempts++;
+        const stage=request.stage;
         const plan=planMissionActors(context.world,state,stage,options.graph,()=>true,spawns);
         const reserved=allocate(state,plan.actors.map(actor=>actor.id));state=reserved.state;
         for(const actor of plan.actors)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
@@ -62,6 +68,7 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     runtime.missionBindings=bindings;
+    runtime.missionStages=pending;
     runtime.proposals=runtime.proposals.filter(proposal=>!runtime.actors[proposal.id]?.retired);
     return {state:withRuntime(state,runtime),motions:runtime.proposals,retirements:Object.keys(runtime.actors).sort().filter(id=>runtime.actors[id]!.retired)};
   }

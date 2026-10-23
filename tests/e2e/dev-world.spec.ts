@@ -4,6 +4,7 @@
 // the game's own loop consuming input after each press (pokeThenRun), replayed in Node.
 
 import { expect, test } from "@playwright/test";
+import { e2eGameSystems } from "./game-systems.ts";
 import { hashState, pointInPolygon, type SimInput, type TileCollider } from "../../src/sim/index.ts";
 import { readJson } from "../helpers.ts";
 import {
@@ -26,7 +27,7 @@ import {
   type PokeRun,
 } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
-import { matchGame, p1Chunk } from "./replay.ts";
+import { matchGame, p1Chunk, withRecordedCommands } from "./replay.ts";
 
 const collider = readJson<TileCollider>("public/tiles/dev/dev.collider.json");
 const wall = collider.buildings.find((b) => b.id === "dev-wall")!;
@@ -40,7 +41,8 @@ const MOVING: SimInput = Object.freeze({ throttle: 1, steer: 0.4, brake: 0, acti
  */
 function expectNeutralRun(world: string, run: PokeRun, what: string): string {
   expect(run.ran, `${what}: the game loop ran`).toBeGreaterThan(0);
-  const m = matchGame(world, run.before, [p1Chunk(run.ran)], [hashState(run.after)], run.after);
+  const chunks = withRecordedCommands([p1Chunk(run.ran)], run.before.tick, run.commands);
+  const m = matchGame(world, run.before, chunks, [hashState(run.after)], run.after,e2eGameSystems());
   expect(
     m.match,
     `after ${what}, the game's own loop ran ${run.ran} ticks with no driving key held and reached a state Node ` +

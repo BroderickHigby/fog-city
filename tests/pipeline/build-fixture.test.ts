@@ -1,3 +1,7 @@
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join,dirname} from "node:path";
+import {rebuildGameplay} from "../../pipeline/build-gameplay.ts";
 // The whole build, end to end, on a small synthetic world (two tiles, made-up records in
 // the same shapes DataSF and 3DEP return). No network, no cache: proves determinism and the
 // modelling rules independently of the committed sf data.
@@ -572,5 +576,27 @@ describe("road helpers", () => {
     expect(titleCase("01ST ST")).toBe("1st St");
     expect(titleCase("10TH ST")).toBe("10th St");
     expect(titleCase("UNNAMED 042")).toBe("Unnamed 42");
+  });
+});
+
+describe("fixture build: gameplay publication", () => {
+  it("emits the shared gameplay layer from full-build inputs as well as standalone indexing", async () => {
+    const f = fixture();
+    f.raw.extras = { neighborhoods: [], fountains: [], muniStops: [], muniRoutes: [], signals: [], crosswalks: [], sweeping: [], parking: [] };
+    const built = await buildWorldFiles(f.cfg, f.raw, f.overrides);
+    const data = json<Record<string, unknown>>(built, "gameplay.json");
+    const validate = new Ajv2020({ allErrors: true }).compile(readJson("schemas/tile-gameplay.schema.json"));
+    expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
+    expect(json<{ layers: Record<string, string> }>(built, "manifest.json").layers.gameplay).toBe("gameplay.json");
+    expect(data.tiles).toHaveLength(2);
+    expect(data.territories).toEqual([]);
+    const dir=mkdtempSync(join(tmpdir(),'fog-gameplay-roundtrip-'));
+    try {
+      for(const [name,bytes] of built.files){mkdirSync(dirname(join(dir,name)),{recursive:true});writeFileSync(join(dir,name),bytes);}
+      expect(()=>rebuildGameplay(dir,f.cfg.sources.snapshotDate??'unversioned',true)).not.toThrow();
+      rebuildGameplay(dir,f.cfg.sources.snapshotDate??'unversioned');
+      for(const name of ['gameplay.json','manifest.json','report.json'])expect(readFileSync(join(dir,name))).toEqual(Buffer.from(built.files.get(name)!));
+    } finally {rmSync(dir,{recursive:true,force:true});}
+
   });
 });

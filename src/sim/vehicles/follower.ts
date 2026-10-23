@@ -137,9 +137,9 @@ export function stepVehicleFollower(world: World, body: FollowerBody, previous: 
   const look = pathPoint(path, projection.s + 3 + Math.abs(body.speed) * 0.6);
   const error = wrapAngle(datan2(look.x - body.x, -(look.z - body.z)) - body.heading);
   const steer = clamp(error * 1.8, -1, 1);
-  const desired = Math.min(maxSpeed / (1 + Math.abs(error) * 2), Math.sqrt(Math.max(0, 2 * CAR.brakeDecel * (dist - stopDistance))));
+  const desired = Math.min(maxSpeed / (1 + Math.abs(error) * 2), Math.sqrt(Math.max(0, 2 * CAR.brakeDecel * 0.65 * (dist - stopDistance))));
   const input: SimInput = reverseTicks > 0
     ? { throttle: body.speed > 0.3 ? 0 : -0.6, steer: -steer, brake: body.speed > 0.3 ? 1 : 0, actions: 0 }
-    : { throttle: body.speed < desired - 0.03 ? clamp((desired - body.speed) / 3, 0, 1) : 0, steer, brake: body.speed > desired + 0.5 ? 0.6 : 0, actions: 0 };
+    : { throttle: body.speed < desired - 0.03 ? clamp((desired - body.speed) / 3, 0, 1) : 0, steer, brake: body.speed > desired + 0.15 ? 1 : 0, actions: 0 };
   return { state, input, status: reverseTicks > 0 ? "reversing" : "driving", distanceToGoal: dist, stopped };
 }

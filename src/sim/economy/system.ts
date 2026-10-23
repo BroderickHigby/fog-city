@@ -1,11 +1,12 @@
 import { clamp } from "../dmath.ts";
-import { bodyOf,commands,distanceSquared,event,facts,MAX_HISTORY,sortedBodies } from "../player/common.ts";
+import { canInteractAtSite } from "../player/sites.ts";
+import { bodyOf,commands,event,facts,MAX_HISTORY,sortedBodies } from "../player/common.ts";
 import type { EconomyState,GameplayContext,GameplayEvent,HeatState,Wallet } from "../player/types.ts";
 
 export function createWallet():Wallet {return {cashCents:200000,runwayMonths:18,reputation:50,paidActorIds:[],ownedItemIds:[],ownedSiteIds:["fidi-desk","marina-garage","mission-bay-garage"],commandSequence:0};}
 export function createEconomy(tick=0):EconomyState{return {version:1,tick,nextId:1,players:{},factCursors:{},grantCursors:{},events:[]};}
 function pay(wallet:Wallet,cents:number):void {if(Number.isFinite(cents))wallet.cashCents=Math.max(0,Math.min(Number.MAX_SAFE_INTEGER, wallet.cashCents+Math.round(cents)));}
-function within(ctx:GameplayContext,id:string,siteId:string):boolean {const body=bodyOf(ctx,id),site=ctx.sites.find(site=>site.id===siteId);return !!body&&!!site&&Math.abs(body.speed)<=3&&distanceSquared(body,site)<=site.radius*site.radius;}
+function within(ctx:GameplayContext,id:string,siteId:string):boolean {const body=bodyOf(ctx,id),site=ctx.sites.find(site=>site.id===siteId);return !!body&&!!site&&canInteractAtSite(body,site);}
 export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],heat?:HeatState,recovery:readonly GameplayEvent[]=[],activities:readonly GameplayEvent[]=[]):EconomyState {
  const state:EconomyState={...previous,tick,players:{},factCursors:{...previous.factCursors},grantCursors:{...previous.grantCursors},events:[]};
  const liveActors=new Set(ctx.actors.map(actor=>actor.id));

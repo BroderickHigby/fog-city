@@ -26,7 +26,7 @@ function setup(opts: { available?: Set<string> | null; fail?: Set<string> } = {}
 
 describe("ModelRegistry", () => {
   it("knows where the shared models live", () => {
-    expect(MODEL_FILES["player-car"]).toBe("models/player-car.glb");
+    expect(MODEL_FILES["player-car"]).toBe("models/civilian-car.glb");
     expect(MODEL_FILES.robotaxi).toBe("models/robotaxi.glb");
     expect(MODEL_FILES.robot).toBe("models/errand-robot.glb");
     expect(MODEL_FILES["sidewalk-bot"]).toBe("models/sidewalk-bot.glb");
@@ -42,7 +42,7 @@ describe("ModelRegistry", () => {
     const a = await reg.get("player-car");
     const b = await reg.get("player-car");
     expect(a.source).toBe("file");
-    expect(a.model.url).toBe("models/player-car.glb");
+    expect(a.model.url).toBe("models/civilian-car.glb");
     expect(a.model).not.toBe(b.model);
     expect(load).toHaveBeenCalledTimes(1);
     expect(reg.status("player-car")).toBe("file");

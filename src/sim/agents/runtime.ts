@@ -14,6 +14,7 @@ import { planFidelity, type FidelityAnchor } from "./fidelity.ts";
 import type { TransitLayer, TransitRuntimeState } from "./transit-runtime.ts";
 import type { AdWrapSlot } from "./services.ts";
 import type { ServiceRuntimeState } from "./service-runtime.ts";
+import type { PendingMissionStages } from "./mission-staging.ts";
 import { IDLE_REACTION, reactToPerception, type ReactionState, type PerceivedStimulus } from "./reactions.ts";
 
 export type RuntimeModel = "footman" | "trundle" | "robotaxi" | "person" | "pigeon" | "dog" | "van" | "bus" | "drone" | "patrol" | "sign-spinner" | "tidy" | "associate" | "walker";
@@ -85,6 +86,7 @@ export interface AgentsRuntimeState {
   tick: number;
   actors: Record<string, RuntimeActor>;
   missionBindings: Record<string,string>;
+  missionStages?: PendingMissionStages;
   services?: ServiceRuntimeState;
   transit?: TransitRuntimeState;
   baseBadCount: number;

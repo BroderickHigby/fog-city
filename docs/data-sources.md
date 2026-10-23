@@ -658,8 +658,8 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 | Parking regulations | DataSF *Parking regulations (except non-metered color curb)*, [`hi6h-neyh`](https://data.sfgov.org/resource/hi6h-neyh.json), SFMTA, PDDL 1.0 | `parking.json`: 7,773 rules matched to the nearest street edge (by the regulation line's midpoint, within 25 m) and side: kind, days, minutes, hour limit, permit areas | — |
 | Sidewalks | DataSF *Sidewalk Widths (2014)*, [`4g86-grxu`](https://data.sfgov.org/resource/4g86-grxu.json), PDDL 1.0: widths only | `sidewalks.json` (procedural, above) | **Used:** offset from road edges |
 | Stairs (walk-only edges) | The streets dataset's `UPROW` layer (mostly stairways), PDDL 1.0 | Not yet: `UPROW` is dropped from the road graph | Wave 3 (the Lyon St steps are wave 4) |
-| Car-wash anchors | *Registered Business Locations* `g8m3-pdis` (NAICS 811192), PDDL 1.0 | Not yet | Procedural kiosks |
-| Repair-kiosk anchors | No dataset | Not yet | Procedural, near garages |
+| Car-wash anchors | Sidewalk/road graph, derived from DataSF PDDL layers | Procedural candidate anchors in `gameplay.json`; not surveyed businesses | Runtime/content approval before activation |
+| Repair-kiosk anchors | Sidewalk/road graph, derived from DataSF PDDL layers | Procedural candidate anchors in `gameplay.json`; not surveyed facilities | Runtime/content approval before activation |
 | Curb ramps, street trees | DataSF `ch9w-7kih` and `tkzw-k3nq`, PDDL 1.0 | Not used yet (accessibility routing, props) | — |
 
 ## What the sim and renderer must change
@@ -872,3 +872,31 @@ memory, and compares SHA-256 of every file.
   pyramid, the Ferry Building clock tower, Coit Tower, the Russ Building and an office slab
   keep their towers; five measured needles (including the review's four) do not.
 * `geotiff.test.ts`: the TIFF reader against TIFFs built byte by byte.
+
+### Gameplay index and service anchors (wave 2)
+
+`manifest.layers.gameplay` points to `gameplay.json`, a version-1 index over the existing
+licensed layers. Sidewalk nodes and edges, signal node IDs and transit IDs remain unchanged.
+Every tile touched by an edge or transit segment gets its ID; sidewalk endpoint IDs accompany
+the edge even when both endpoints lie outside the tile. Consumers can load a complete crossing
+instead of dropping it at a tile seam. Signal phases remain deterministic simulation policy;
+the source data contains signal presence, not real-time phase timing.
+
+Fresh-water refill interactions reuse procedural hydrants and DataSF fountain positions, with
+water, building-footprint and carriageway checks. The original fountain layer retains all 285
+source points; 219 pass the interaction placement checks. Salt refill points sample the existing
+sea shore at 100 m intervals, then move 2–8 m onto low dry ground (at most 3.5 m above sea level).
+They do not assert that a high cliff is a reachable refill point. This yields 4,223 hydrants,
+219 fountains and 763 shore interactions against the pinned 2026-10-20 source snapshot.
+
+Service locations are procedural **candidates**, not claims about real businesses: 331 garage,
+204 repair-kiosk, 136 car-wash and 136 activity anchors. They sit at clear sidewalk nodes within
+30 m of a non-freeway driving edge and include the existing road-node and Analysis Neighborhood
+IDs. Greedy spacing is 650/900/1,200/1,200 m respectively within each neighbourhood. This provides
+placement options; ownership, unlocks, prices and the 1.5 km *driving-route* garage rule remain
+runtime/content decisions. Territory rows map the design's steps 1–9b to Analysis Neighborhood
+geometry and do not activate a district or certify unresolved bridge, tunnel or stair geometry.
+
+Rebuild just this index offline with `node pipeline/build-gameplay.ts`, or verify byte identity
+with `node pipeline/build-gameplay.ts --check`. The full world builder emits the same layer from
+its in-memory inputs. Neither path adds an external dataset, network dependency or licence.

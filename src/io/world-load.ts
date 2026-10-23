@@ -12,6 +12,10 @@
 
 import { decodeColliderPack, type BoundaryFile, type RoadsFile, type TileCollider } from "../sim/index.ts";
 import type { Assets } from "./assets.ts";
+import type { GameplayWorldData } from "../sim/gameplay-world.ts";
+import { navigationFromPipeline, type PipelineSidewalks } from "../sim/agents/pipeline-navigation.ts";
+import type { TransitLayer } from "../sim/agents/transit-runtime.ts";
+import { buildWorld, type World } from "../sim/world.ts";
 
 /**
  * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
@@ -19,7 +23,7 @@ import type { Assets } from "./assets.ts";
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay", "sidewalks", "transit"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
@@ -36,6 +40,9 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   tiles: TileCollider[];
   roads: RoadsFile | null;
   boundary: BoundaryFile | null;
+  gameplay?: GameplayWorldData | null;
+  sidewalks?: PipelineSidewalks | null;
+  transit?: TransitLayer | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
 }
@@ -49,6 +56,7 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
   colliders: { pack: Uint8Array } | { json: TileCollider[] },
   roads: RoadsFile | null,
   boundary: BoundaryFile | null,
+  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit">={},
 ): WorldFiles<M> {
   if ("pack" in colliders) {
     const pack = decodeColliderPack(colliders.pack);
@@ -57,9 +65,17 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
     if (ids.length !== want.length || ids.some((id, i) => id !== want[i])) {
       throw new Error(`collider pack ${manifest.worldColliders}: its ${ids.length} tiles are not the manifest's ${want.length}`);
     }
-    return { manifest, tiles: pack.tiles, roads, boundary, colliders: "pack" };
+    return { manifest, tiles: pack.tiles, roads, boundary, colliders: "pack", ...layers };
   }
-  return { manifest, tiles: colliders.json, roads, boundary, colliders: "json" };
+  return { manifest, tiles: colliders.json, roads, boundary, colliders: "json", ...layers };
+}
+
+/** Browser, server and replay tools must build the same immutable world metadata. */
+export function buildLoadedWorld(files:WorldFiles):World {
+  const world=buildWorld(files.tiles,files.roads,files.boundary,files.gameplay??undefined);
+  if(files.sidewalks)world.sidewalks=navigationFromPipeline(files.sidewalks).graph;
+  if(files.transit)world.transit=files.transit;
+  return world;
 }
 
 function named(what: string, file: string, err: unknown): Error {
@@ -73,7 +89,9 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
   const packFile = manifest.worldColliders;
   const roadsFile = manifest.roads ?? null;
   const boundaryFile = manifest.layers?.boundary ?? null;
-  const [colliders, roads, boundary] = await Promise.all([
+  const gameplayFile=manifest.layers?.gameplay;
+  const sidewalksFile=manifest.layers?.sidewalks,transitFile=manifest.layers?.transit;
+  const [colliders, roads, boundary, gameplay,sidewalks,transit] = await Promise.all([
     packFile
       ? assets.bytes(base + packFile).then(
           (pack) => ({ pack }),
@@ -92,6 +110,9 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
           throw named("boundary", boundaryFile, err);
         })
       : Promise.resolve(null),
+    gameplayFile?assets.json<GameplayWorldData>(base+gameplayFile).catch((err:unknown)=>{throw named("gameplay layer",gameplayFile,err);}):Promise.resolve(null),
+    sidewalksFile?assets.json<PipelineSidewalks>(base+sidewalksFile).catch((err:unknown)=>{throw named("sidewalk layer",sidewalksFile,err);}):Promise.resolve(null),
+    transitFile?assets.json<TransitLayer>(base+transitFile).catch((err:unknown)=>{throw named("transit layer",transitFile,err);}):Promise.resolve(null),
   ]);
-  return assembleWorldFiles(manifest, colliders, roads, boundary);
+  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit});
 }

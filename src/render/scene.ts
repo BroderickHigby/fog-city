@@ -18,18 +18,26 @@ import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
-import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
+import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, LIGHTING_PRESETS, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
+import { softwareFarBudget } from "./far-selection.ts";
+import { AvatarGround } from "./avatar-ground.ts";
+import { FoliageLayer } from "./foliage.ts";
+import { VisualQuality } from "./quality.ts";
+import { PLAYER_BODY_FILE } from "./player-body.ts";
+import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
 export interface RenderOptions {
   /** Tile load radius around the camera, metres. */
   radius: number;
-  shadows: boolean;
+  shadows?: boolean;
+  quality?: boolean;
+  timeOfDay?: keyof typeof LIGHTING_PRESETS;
   night: boolean;
   /** Upper bound on devicePixelRatio. */
   maxPixelRatio: number;
@@ -60,6 +68,10 @@ export interface RenderInfo {
   triangles: number;
   tilesLoaded: number;
   cameraMode: CameraMode;
+  presentation: boolean;
+  lightingPreset: string;
+  foliage: { near: number; far: number; draws: number };
+  surfaceTextures: readonly string[];
   night: boolean;
   tilesPending: number;
   tilesTotal: number;
@@ -77,10 +89,12 @@ export interface RenderInfo {
   agentDrawCalls: number;
   /** Agent kinds drawn from their model files (the rest use box stand-ins). */
   agentModels: string[];
-  /** Players drawn from models/player-car.glb (the rest use the procedural car). */
+  /** Players drawn from models/civilian-car.glb (the rest use the procedural car). */
   playerCarsFromFile: number;
   /** Players drawn on foot last frame. */
   walkers: number;
+  /** On-foot players using the animated human asset, rather than a loading fallback. */
+  walkersFromFile: number;
   /** Far-LOD cells the manifest lists, loaded into the scene, and drawn in the last frame. */
   farCellsTotal: number;
   farCells: number;
@@ -91,9 +105,13 @@ export interface RenderInfo {
   farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /** CPU-renderer fallback diagnostics; native GPUs have no radius limit. */
+  farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
 }
 
-const SHADOW_HALF = 160;
+const SHADOW_HALF = 96;
+const SHADOW_MAP_SIZE = 2048;
+const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
@@ -118,6 +136,13 @@ export class SceneRenderer {
   private readonly sky = new Sky();
   private readonly water = new Water(SEA_SIZE_M);
   private readonly ground: (x: number, z: number) => number;
+  private readonly avatarGround = new AvatarGround();
+  private readonly foliage: FoliageLayer;
+  private quality: VisualQuality | null = null;
+  private readonly surfaceTextures: SurfaceTextures;
+  private frameDelta = 1 / 60;
+  private activePreset: LightingPreset["name"] = "day";
+  private dayPreset: LightingPreset = DAY;
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   private readonly headlight = new THREE.SpotLight(0xfff0d8, 0, 90, 0.52, 0.55, 1.4);
@@ -146,12 +171,16 @@ export class SceneRenderer {
     this.container = container;
     this.ground = world.ground;
     this.water.setLevel(world.manifest.water?.y ?? 0);
-    this.shadows = opts.shadows;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+    const gl = this.renderer.getContext();
+    const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
+    const software = /swiftshader|llvmpipe|software/i.test(rendererName);
+    this.shadows = opts.shadows ?? !software;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.shadowMap.enabled = opts.shadows;
+    this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
@@ -159,9 +188,9 @@ export class SceneRenderer {
     this.scene.fog = this.fog;
     this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target, this.hemi, this.headlight, this.headlight.target);
     this.envScene.add(new Sky(900).mesh);
-    if (opts.shadows) {
+    if (this.shadows) {
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(2048, 2048);
+      this.sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
       const c = this.sun.shadow.camera;
       c.left = -SHADOW_HALF;
       c.right = SHADOW_HALF;
@@ -169,8 +198,8 @@ export class SceneRenderer {
       c.bottom = -SHADOW_HALF;
       c.near = 1;
       c.far = 1600;
-      this.sun.shadow.bias = -0.0004;
-      this.sun.shadow.normalBias = 0.6;
+      this.sun.shadow.bias = -0.00008;
+      this.sun.shadow.normalBias = 0.035;
     }
 
     this.materials = createSharedMaterials();
@@ -178,6 +207,12 @@ export class SceneRenderer {
 
     const gltf = new GLTFLoader();
     const assets = world.assets;
+    this.surfaceTextures = loadSurfaceTextures(this.materials, async path => {
+      if (assets) return assets.bytes(path);
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Surface texture: ${response.status} ${path}`);
+      return new Uint8Array(await response.arrayBuffer());
+    }, { anisotropy: this.renderer.capabilities.getMaxAnisotropy() });
     // A packed build carries only the models it lists; the dev server's listing is the build-time one.
     const available = opts.models && assets && assets.mode === "packed" ? new Set([...opts.models].filter((u) => assets.has(u))) : opts.models;
     this.registry = new ModelRegistry<THREE.Object3D>({
@@ -191,12 +226,15 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
+    this.foliage = new FoliageLayer(this.shadows);
+    this.scene.add(this.foliage.group);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
       ground: world.ground,
+      budget: softwareFarBudget(rendererName),
     });
     this.scene.add(this.far.group);
 
@@ -211,16 +249,25 @@ export class SceneRenderer {
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
-      onReady: (g) => this.prepareShadows(g),
-      onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
+      onReady: (g) => { this.prepareShadows(g); this.avatarGround.addTile(g); this.foliage.addTile(g); },
+      onTileVisible: (id, visible) => {
+        this.far.setTileVisible(id, visible);
+        if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
+      },
       tintGround: (geo, m) => tintParks(geo, m, parks),
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
-    this.actors = new Actors(this.registry, this.lights, opts.shadows);
+    this.actors = new Actors(this.registry, this.lights, this.shadows,
+      available && !available.has(PLAYER_BODY_FILE) ? undefined : async (path) => {
+        if (assets) return assets.bytes(path);
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
+        return new Uint8Array(await response.arrayBuffer());
+      });
     this.scene.add(this.actors.group);
-    this.agents = new AgentLayer(this.registry, {}, opts.shadows);
+    this.agents = new AgentLayer(this.registry, {}, this.shadows);
     this.scene.add(this.agents.group);
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
@@ -235,8 +282,14 @@ export class SceneRenderer {
     this.scene.add(this.landmarks.group);
     this.rig = new CameraRig(this.camera, world.ground, world.occluded);
 
-    this.nightOn = opts.night;
-    this.applyPreset(opts.night ? NIGHT : DAY);
+    // Keep unclipped direct rendering on devices without floating-point color targets.
+    if ((opts.quality ?? !software) && this.renderer.extensions.has("EXT_color_buffer_float")) {
+      this.quality = new VisualQuality(this.renderer, this.scene, this.camera);
+    }
+    const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
+    this.nightOn = preset.name === "night";
+    if (!this.nightOn) this.dayPreset = preset;
+    this.applyPreset(preset);
     window.addEventListener("resize", () => this.resize());
     this.resize();
   }
@@ -259,11 +312,13 @@ export class SceneRenderer {
   setNight(on: boolean): void {
     if (on === this.nightOn) return;
     this.nightOn = on;
-    this.applyPreset(on ? NIGHT : DAY);
+    this.applyPreset(on ? NIGHT : this.dayPreset);
   }
 
   private applyPreset(p: LightingPreset): void {
-    const night = p.name === "night" ? 1 : 0;
+    const night = p.nightFactor ?? (p.name === "night" ? 1 : 0);
+    this.quality?.setPreset(p);
+    this.activePreset = p.name;
     applySkyPreset(p);
     this.fog.color.setHex(p.fogColor);
     setFog(p.fog, this.fog);
@@ -293,7 +348,10 @@ export class SceneRenderer {
   private envFor(p: LightingPreset): THREE.Texture {
     let env = this.envCache.get(p.name);
     if (!env) {
-      env = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 2000).texture;
+      const previousLinear = fcUniforms.fcLinearOutput.value;
+      fcUniforms.fcLinearOutput.value = 1;
+      try { env = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 2000).texture; }
+      finally { fcUniforms.fcLinearOutput.value = previousLinear; }
       this.envCache.set(p.name, env);
     }
     return env;
@@ -322,6 +380,7 @@ export class SceneRenderer {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.quality?.resize(w, h);
   }
 
   setCar(id: string, pose: CarPose): void {
@@ -329,7 +388,7 @@ export class SceneRenderer {
   }
 
   setFoot(id: string, pose: WalkerPose | null): void {
-    this.actors.setFoot(id, pose);
+    this.actors.setFoot(id, pose ? { ...pose, y: this.avatarGround.heightAt(pose.x, pose.y, pose.z) } : null);
   }
 
   /** The two latest sim states and how far (0..1) the frame is between them: agents are drawn from these. */
@@ -351,6 +410,7 @@ export class SceneRenderer {
     minuteOfDay: number,
     frameSeconds: number = dtSeconds,
   ): void {
+    this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
@@ -383,12 +443,16 @@ export class SceneRenderer {
     this.sky.follow(this.camera);
     this.water.follow(this.camera);
     // Keep the sun light (and its shadow box) centred near the camera.
-    const sx = Math.round(cam.x / 20) * 20;
-    const sz = Math.round(cam.z / 20) * 20;
-    this.sun.target.position.set(sx, 0, sz);
-    this.sun.position.set(sx + this.sunDir.x * 800, this.sunDir.y * 800, sz + this.sunDir.z * 800);
+    // Move in texel-sized steps, rather than visibly jumping twenty metres.
+    const sx = Math.round(cam.x / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
+    const sz = Math.round(cam.z / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
+    const groundY = this.ground(sx, sz);
+    this.sun.target.position.set(sx, groundY, sz);
+    this.sun.position.set(sx + this.sunDir.x * 800, groundY + this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    this.far.update(cam.x, cam.z);
+    this.foliage.update(cam.x, cam.z);
     this.landmarks.update(minuteOfDay);
   }
 
@@ -408,7 +472,8 @@ export class SceneRenderer {
   }
 
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    if (this.quality) this.quality.render(this.frameDelta);
+    else this.renderer.render(this.scene, this.camera);
     this.far.endFrame();
     this.framesSinceJump++;
     this.lastCalls = this.renderer.info.render.calls;
@@ -422,6 +487,10 @@ export class SceneRenderer {
     out.triangles = this.lastTris;
     out.tilesLoaded = s.ready;
     out.cameraMode = this.rig.mode;
+    out.presentation = this.quality !== null;
+    out.lightingPreset = this.activePreset;
+    out.foliage = this.foliage.info;
+    out.surfaceTextures = this.surfaceTextures.loaded;
     out.night = this.nightOn;
     out.tilesPending = s.pending;
     out.tilesTotal = s.total;
@@ -440,12 +509,14 @@ export class SceneRenderer {
     for (const src of Object.values(this.actors.carSources())) if (src === "file") fromFile++;
     out.playerCarsFromFile = fromFile;
     out.walkers = this.actors.walkers;
+    out.walkersFromFile = this.actors.walkersFromFile;
     const f = this.far.info();
     out.farCellsTotal = f.total;
     out.farCells = f.loaded;
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
     out.farSeamEdges = f.seamEdges;
+    out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
     out.cameraFar = this.camera.far;
     return out;
   }
@@ -456,7 +527,11 @@ export class SceneRenderer {
   }
 
   dispose(): void {
+    this.surfaceTextures.dispose();
     this.streamer.dispose();
+    this.avatarGround.clear();
+    this.foliage.dispose();
+    this.quality?.dispose();
     this.far.dispose();
     this.actors.dispose();
     this.agents.dispose();
@@ -476,6 +551,9 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   triangles: 0,
   tilesLoaded: 0,
   cameraMode: "chase" as CameraMode,
+  presentation: false,
+  lightingPreset: "day",
+  foliage: { near: 0, far: 0, draws: 0 }, surfaceTextures: [],
   night: false,
   tilesPending: 0,
   tilesTotal: 0,
@@ -491,6 +569,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   agentModels: [],
   playerCarsFromFile: 0,
   walkers: 0,
+  walkersFromFile: 0,
   farCellsTotal: 0,
   farCells: 0,
   farCellsDrawn: 0,

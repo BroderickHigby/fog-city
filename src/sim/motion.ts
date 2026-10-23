@@ -1,6 +1,6 @@
 import { DT, type SimState, type SimInput, type CarState } from "./contract.ts";
-import { AGENT_SPEC, type AgentState } from "./agents.ts";
-import { carBox, makeCar, stepCar } from "./car.ts";
+import { AGENT_SPEC, ROBOTAXI_BODY, type AgentState } from "./agents.ts";
+import { CAR, carBox, makeCar, stepCar } from "./car.ts";
 import { boxBlocked, boxCrossedWall, type Box, type Circle } from "./collide.ts";
 import { boxDistance } from "./dodge.ts";
 import { dcos, dsin, wrapAngle, clamp } from "./dmath.ts";
@@ -40,7 +40,7 @@ function obstacles(state:Readonly<SimState>,ignore:number):{circles:Circle[];box
     if(p.mode==="foot"&&p.foot)circles.push({x:p.foot.x,z:p.foot.z,r:.35,person:true});
   }
   for(const a of state.ext.agents?.list??[])if(a.id!==ignore) {
-    if(a.kind==="robotaxi")boxes.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??2.2,hw:a.halfWidth??.95});
+    if(a.kind==="robotaxi")boxes.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??ROBOTAXI_BODY.halfLength,hw:a.halfWidth??ROBOTAXI_BODY.halfWidth});
     else circles.push({x:a.x,z:a.z,r:a.radius??AGENT_SPEC[a.kind].radius,person:a.kind==="person"});
   }
   return {circles,boxes};
@@ -146,6 +146,10 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
   });
   const byId = new Map(effective.filter(m => m.kind !== "flying").map(m => [m.numericId,m]));
   const vehicleConflicts=conflictingVehicleIntents(state.ext.agents.list,byId);
+  const vehicleBoxes=[...Object.keys(state.players).sort().map(id=>({box:carBox(state.players[id]!.car),y:state.players[id]!.car.y,height:CAR.bodyHeight})),
+    ...state.ext.agents.list.filter(body=>body.kind==="robotaxi").map(body=>({
+      box:{x:body.x,z:body.z,heading:body.heading,hl:body.halfLength??ROBOTAXI_BODY.halfLength,hw:body.halfWidth??ROBOTAXI_BODY.halfWidth},
+      y:body.y,height:body.height??ROBOTAXI_BODY.height}))];
   const list = state.ext.agents.list.map(body => {
     const motion = byId.get(body.id);
     if (!motion || body.dodge) return body;
@@ -153,10 +157,15 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     const allowed = Math.min(length, Math.abs(motion.speed)*DT + 1e-6);
     const x = body.x + (length>0?dx/length*allowed:0), z = body.z + (length>0?dz/length*allowed:0);
     let blocked = vehicleConflicts.has(body.id) || motion.kind!=="vehicle" && (circleBlocked(world,x,z,motion.radius) || segmentBlocked(world,body.x,body.z,x,z));
-    if (motion.kind === "walker") for (const id of Object.keys(state.players).sort()) {
-      const box=carBox(state.players[id]!.car),fx=dsin(box.heading),fz=-dcos(box.heading);
-      const before=boxDistance(body.x,body.z,box.x,box.z,fx,fz,box.hl,box.hw),after=boxDistance(x,z,box.x,box.z,fx,fz,box.hl,box.hw);
-      if (after<motion.radius+.1 && after<before) blocked=true;
+    if (motion.kind === "walker") for (const vehicle of vehicleBoxes) {
+      const box=vehicle.box,reach=box.hl+box.hw+motion.radius+allowed+.1;
+      if(Math.abs(body.x-box.x)>reach||Math.abs(body.z-box.z)>reach||body.y>=vehicle.y+vehicle.height+.1||vehicle.y>=body.y+motion.height+.1)continue;
+      const fx=dsin(box.heading),fz=-dcos(box.heading),before=boxDistance(body.x,body.z,box.x,box.z,fx,fz,box.hl,box.hw);
+      const steps=Math.max(1,Math.ceil(allowed/.05));
+      for(let i=1;i<=steps;i++){
+        const t=i/steps,after=boxDistance(body.x+(x-body.x)*t,body.z+(z-body.z)*t,box.x,box.z,fx,fz,box.hl,box.hw);
+        if(after<motion.radius+.1&&after<before){blocked=true;break;}
+      }
     }
     const y=surfaceHeight(world,x,z,body.y);
     if (Math.abs(y-body.y)>Math.max(.4,allowed)) blocked=true;

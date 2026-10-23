@@ -141,6 +141,8 @@
     "fountains": 285,
     "transitRoutes": 135,
     "transitStops": 3260,
+    "gameplayRefills": 5205,
+    "gameplayAnchors": 807,
     "signals": 1301,
     "streetCleaning": 37476,
     "parking": 7773

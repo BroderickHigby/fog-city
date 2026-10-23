@@ -53,6 +53,7 @@ const ROBOT_PARTS = [
 ];
 
 const SPECS: Spec[] = [
+  { file: "civilian-car.glb", budget: 16_000, nodes: ["civilian_car", "body", ...CAR_WHEELS], lights: ["light_headlight", "light_taillight"] },
   {
     file: "ferry-building.glb",
     budget: 100_000,
@@ -142,6 +143,7 @@ interface VehicleSpec {
 }
 
 describe.each<VehicleSpec>([
+  { file: "civilian-car.glb", length: [4.0, 5.0], width: [1.8, 2.4] },
   { file: "player-car.glb", length: [4.0, 5.0], width: [1.6, 2.1] },
   { file: "robotaxi.glb", length: [4.6, 5.2], width: [1.8, 2.0] },
   { file: "muni-bus.glb", length: [11.0, 13.0], width: [2.4, 3.3] },

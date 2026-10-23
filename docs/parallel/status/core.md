@@ -129,3 +129,47 @@ Draft PR title: `Core: retain claimed actors in population budgets and reuse obs
 Base: `integrate/wave2` · Head: `lane/core/perf`
 Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/perf?expand=1>
 Body: Count runtime-owned legacy actors when replenishing ambient population, preventing duplicate replacements without surrendering movement ownership. Reuse the unchanged observation snapshot across gameplay reducers and verify interleaved replay branches. Includes population and replay regression tests. Actual-SF profiling is still in progress; this branch does not claim the final simulation budget or visual quality target.
+
+Performance candidate follow-up: merged the agents lane's tested `fc64776` exact spatial nearest-node index and current runtime reuse, retained population fix `f6f8357`, and applied an authorized combat adapter allowlist copy (avoids cloning then deleting body fields). The adapter still ignores metadata identity/position overrides. Updated a leftover test assertion from the earlier typed-extension fixture migration. Combined **typecheck and 100 tests across 7 files passed**, including exact navigation queries, actual service movement, population ownership, metadata protection, replay branches and purity. A new consistent-world timed probe is still required before claiming the frame budget.
+
+## Real-route pedestrian contact fix
+
+- Isolated branch `lane/core/contact-fix`, based on corrected harness `7269504`.
+- At Hot Desk tick 3078, runtime person 224 stepped from 0.325502 m clearance to 0.298938 m from stopped legacy taxi 198, penetrating its 0.3 m radius by about 1.062 mm. Runtime walker acceptance checked player cars but omitted ambient/service vehicle hulls; final dodge correctly counted the resulting contact.
+- Runtime walkers now sweep their bounded step against all actual vehicle hulls. Legacy taxis use the drawn `ROBOTAXI_BODY` defaults; explicit van/bus dimensions and parked player cars are preserved. Height bands avoid unrelated stacked surfaces, and an already overlapping body can move away. Strict contact counters and the final dodge phase are unchanged.
+- Validation: **typecheck and 120 tests across four files passed**. The new side/front regressions both reproduced a contact before the change. Tests also cover long service hulls, parked player cars and escape from an existing overlap.
+- The exact saved 3077 state plus its next input now reaches tick 3078 with **zero contacts and zero failures**, then remains at zero for 120 additional ticks through 3198. Full route/browser re-verification belongs to the updated immutable integration candidate.
+- Dependency alignment: Agents owns the corresponding planner fallback to `ROBOTAXI_BODY` so spawn planning and core admission use the same legacy taxi bounds.
+
+Draft PR title: `Core: keep runtime walkers outside every vehicle hull`
+Base: `integrate/wave2` · Head: `lane/core/contact-fix`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/contact-fix?expand=1>
+Body: Prevent runtime-controlled pedestrians from stepping into parked NPC taxis or service vehicles before final clearance runs. Sweep against the full physical hull, use the drawn legacy taxi defaults, and preserve height separation and escape from old overlaps. Typecheck and 120 focused tests passed. The actual Hot Desk contact snapshot now replays with zero contacts/failures through 120 further ticks. Keep the strict zero-contact gate; full route and browser checks run on the combined candidate.
+
+## Exact building walls for combat
+
+- Isolated branch `lane/core/combat-wall-fix` starts from current harness `21a1f3c` (including the recorded cone failure).
+- The real cone muzzle at `(-683.74698, 8.77519, 541.36113)` stood outside building `201006.0000770` but inside its bounding rectangle. Combat incorrectly ended every cone on its birth tick as a wall hit in that open concave notch.
+- `Wall.footprint` optionally carries the immutable world polygon. Bounds still provide the broad phase; the narrow phase intersects the exact closed polygon extruded through the clipped height interval. Rectangle-only fixtures retain their old behavior, and invalid optional polygons fall back to the enclosing wall. Projectile, sight and attack rays share the same test.
+- `SIM_VERSION` remains unchanged: `Wall` lives only in ephemeral `CombatContext`; this adds no serialized state or recorded-input field. Old box-only contexts remain supported.
+- Validation: **typecheck and 135 tests across four files passed**, plus a final **five-test geometry rerun** covering the requested diagonal height-clipping cases. Tests cover rotated footprints, concave notches, actual facades, tangencies, collinear edges, vertical/zero-length paths, above/below clearance, invalid polygons and adapter propagation.
+- The exact saved cone-stage state now completes Hot Desk at tick **14313** after **574 normal input frames**, with **zero contacts and zero failures**. Full browser and aggregate QA remain on the combined final candidate.
+
+Draft PR title: `Core: use exact building footprints for combat wall contacts`
+Base: `integrate/wave2` · Head: `lane/core/combat-wall-fix`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/combat-wall-fix?expand=1>
+Body: Fix cones and other combat rays being blocked in open corners of rotated or concave buildings. Preserve bounding-box broad phase and legacy box-only walls, then use the original footprint for exact height-clipped contact. Sight and attack rays share the same geometry. This context-only addition needs no saved-state version change. Typecheck and135 targeted tests passed; the saved Hot Desk cone endpoint completes through normal inputs with zero physical contacts/failures.
+
+## Reviewed PR #7 resync — 23 October 2026
+
+- Canonical `lane/core/wave2` fast-forwarded to reviewed integration `c36a550`; no frozen showcase branch imported.
+- M1: save upgrades now recurse through each supported version through v7, retaining the existing missing-field repair for old-shaped v6 saves. Added frozen legacy-save coverage for v2–v6, JSON round trips, and preservation of live velocity, grounded state, counters and unknown extensions. Existing v2-input/v7 replay golden is unchanged.
+- M4: copy extension slots before prepare hooks and on the roadless movement path. A frozen-input test exercises both a prepare hook and a reducer assigning new slots without modifying the prior tick.
+- M2/M3: canonical integration already supplies the motion proposal phase and `createGameSystems` runtime composition. Focused coverage includes actual mission actors, accepted movement, held Watch, refill interaction and independent replay branches.
+- Still open: Bay-edge polygon schema/provider contract; typed `gameplay.command`/`threat.spawn` constants and replacing positional threat payloads with body identity. PR #19 remains a later-wave review, not included in this patch. No rendering ownership changes or duplicate PR closures.
+- Validation pending below; this entry is not a full-game quality or deployment sign-off.
+- Validation checkpoint: TypeScript passed; all 128 unit files passed (3,003 tests, one opt-in skip). Two focused Chromium composition/UI replay checks passed. Full Chromium run in progress.
+- Full real-control campaign passed in 11.9 minutes: Hot Desk complete, first purchase verified, Spill acknowledged at tick 14335, zero protected contacts/failures. Replayed 14,330 input frames and five UI commands; expected/actual hash both `31034910`. Proof: `test-results/campaign-replay-proof.json`; screenshots: `test-results/hot-desk-complete-{third,first}-person.png`.
+- Render request: the new third-person campaign screenshot still shows a low-detail avatar and flat environment materials. These images are functional evidence, not the requested modern high-definition visual acceptance. Lane R retains the asset, material and presentation work.
+- Final gate: **3,003 unit tests passed, one opt-in skip; all 37 Chromium browser tests passed (19.7 minutes)**, including production sub-path builds, split collider packs and the expected missing-part failure. Firefox/WebKit's 10 cases explicitly skipped because those engines are not installed. No claim of cross-engine coverage beyond Chromium/Node.
+- Verification used the normal typecheck/unit/e2e stages, two unit workers and one browser worker, serialized under `/tmp/fog.lock`; the external Playwright config points to this checkout and system Chromium on port 4199. Source and golden files were unchanged throughout the browser runs. The only implementation delta over `c36a550` is the reviewed migration and extension-isolation repair above.

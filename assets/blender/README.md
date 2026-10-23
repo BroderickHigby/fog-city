@@ -1,5 +1,11 @@
 # Fog City assets (scripted Blender)
 
+**Runtime update, 23 October 2026:** the default player now uses the generic, MIT-licensed
+[Microsoft Rocketbox conversion](../imports/rocketbox/README.md), and the default player car
+uses the [civilian fastback](../imports/civilian-car/README.md). The `player.glb` and
+founder-default sections below document the earlier source asset and its privacy rules.
+That likeness asset is no longer loaded by the game or included in the hosted build.
+
 Every model is built by a Python script running in headless Blender 4.5 LTS and exported into
 `public/models/`. Nothing is hand-edited in a GUI; the `.py` files are the source and the
 `.glb` / `.bin` / `.png` files are committed build outputs. The sound effects are synthesised
@@ -507,7 +513,8 @@ own photos. CLAUDE.md's content rules say never to depict real private people; t
 self-likeness is an exception that belongs in the decision log of `docs/design.md` (not an Assets
 file: requested from the owner), together with the owner's choice of whether founder-default is
 every player's default look or only the owner's own, with a neutral default for other players.
-Until then `player.glb` ships it as `defaultLook`.
+The historical source `player.glb` retains it as `defaultLook`; the current runtime loads
+`generic-player.glb` instead and excludes the likeness asset from the hosted build.
 
 The crowd is unchanged by all of this: every founder-default branch in `lib/humanoid.py` is
 gated on the frame's `player` flag, and the crowd GLB, VAT textures, `humanoid-vat.json`, the

@@ -16,6 +16,7 @@
 //    and fed to the game frame by frame, compared with Node chunk by chunk.
 
 import { existsSync } from "node:fs";
+import { e2eGameSystems } from "./game-systems.ts";
 import { chromium, expect, firefox, test, webkit, type Page } from "@playwright/test";
 import {
   Action,
@@ -46,7 +47,7 @@ import {
   type FogWindow,
   type Poke,
 } from "./fixtures.ts";
-import { firstDifference, matchGame, p1Chunk, type Chunk, type MatchResult } from "./replay.ts";
+import { firstDifference, matchGame, p1Chunk, withRecordedCommands, type Chunk, type MatchResult } from "./replay.ts";
 import type {} from "./sim-lab.ts"; // window.__simlab typing
 
 const SEED = 20261020;
@@ -58,10 +59,10 @@ const RUNS = [
   { world: "sf", ticks: 900 },
 ] as const;
 
-function browserInstalled(name: string): boolean {
+function browserInstalled(name: string, executablePath?: string): boolean {
   const type = { chromium, firefox, webkit }[name];
   try {
-    return type !== undefined && existsSync(type.executablePath());
+    return type !== undefined && existsSync(executablePath ?? type.executablePath());
   } catch {
     return false;
   }
@@ -90,7 +91,7 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
   // Chromium is always required. With E2E_REQUIRE=engines a missing Firefox or WebKit runs
   // anyway, and fails at launch saying the executable is missing.
   test.skip(
-    ({ browserName }) => optionalAbsent("engines", browserInstalled(browserName)),
+    ({ browserName, launchOptions }) => browserName !== "chromium" && optionalAbsent("engines", browserInstalled(browserName, launchOptions.executablePath)),
     "this browser is not installed here (pnpm exec playwright install --with-deps firefox webkit)",
   );
 
@@ -100,12 +101,22 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
     expect(browser).toEqual(dmathDigest(20000));
   });
 
+  test("dev: the composed gameplay registry hashes identically in Node and this browser", async ({ page }) => {
+    const files = loadWorldFiles("dev");
+    const options = { ticks: 360, checkpointEvery: 60, seed: SEED, gameplay: true };
+    const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary, files), { ...options, spawn: files.manifest.spawn });
+    await openSimLab(page);
+    const browser = await page.evaluate((options) => window.__simlab!.run("dev", options), options);
+    expectSameRun(node, browser);
+    expect(JSON.parse(node.finalJson).ext.clock.elapsedTicks).toBe(options.ticks);
+  });
+
   for (const { world, ticks } of RUNS) {
     test(`${world}: a ${ticks}-tick multiplayer run hashes identically in Node and this browser`, async ({ page, browserName }) => {
       gateWorld(world);
       const files = loadWorldFiles(world);
       const t0 = performance.now();
-      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary), {
+      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary,files), {
         ticks,
         checkpointEvery: EVERY,
         seed: SEED,
@@ -189,6 +200,25 @@ function expectManifestConstruction(world: string, m: MatchResult): void {
 
 test.describe("cross-engine determinism: the running game", () => {
   test.use({ viewport: FAST_VIEWPORT });
+
+  test("dev: short composed replay includes commands emitted by the real UI", async ({ page }) => {
+    const problems = await bootWorld(page, "dev", FAST_QUERY);
+    await pause(page);
+    const initial = await simState(page);
+    const chunk = p1Chunk(120, I(.5, .1));
+    const final = await page.evaluate((chunk) => {
+      const handle = (window as unknown as FogWindow).__fogcity!;
+      if (!handle.stepFrames || !handle.commands) throw new Error("The composed game must expose stepping and read-only commands");
+      handle.stepFrames(chunk.frames);
+      return { state: handle.state(), hash: handle.hash(), commands: handle.commands() };
+    }, chunk);
+    const chunks = withRecordedCommands([chunk], initial.tick, final.commands);
+    const matched = matchGame("dev", initial, chunks, [final.hash], final.state, e2eGameSystems());
+    expect(matched.match, matched.tried.join("\n")).toBeDefined();
+    expect(final.state.ext.clock?.elapsedTicks).toBe(initial.tick + 120);
+    expect(problems).toEqual([]);
+  });
+
   for (const world of ["dev", "sf"] as const) {
     test(`${world}: the running game steps exactly like Node, and render pokes never touch the sim`, async ({ page }) => {
       gateWorld(world);
@@ -225,7 +255,9 @@ test.describe("cross-engine determinism: the running game", () => {
       const gameFinal = await simState(page);
 
       // Node steps the same snapshot with the same inputs: the manifest's construction first.
-      const m = matchGame(world, s0, chunks, gameHashes, gameFinal);
+      const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands?.() ?? []);
+      const recorded = withRecordedCommands(chunks, s0.tick, commands);
+      const m = matchGame(world, s0, recorded, gameHashes, gameFinal,e2eGameSystems());
       expect(
         m.match,
         `the game and Node parted (chunks: ${chunks.length}; loop runs after pokes: ${runs.join(", ")}):\n${m.tried.join("\n")}`,
@@ -240,7 +272,8 @@ test.describe("cross-engine determinism: the running game", () => {
       // Informational: can a fresh client rebuild the game's boot state from (world, seed, players, spawn)?
       const files = loadWorldFiles(world);
       let boot = createInitialState(m.match!.world, s0.seed, sortedIds(s0.players), files.manifest.spawn);
-      while (boot.tick < s0.tick) boot = step(m.match!.world, boot, {}, []);
+      const systems=e2eGameSystems();
+      while (boot.tick < s0.tick) boot = step(m.match!.world, boot, {}, [],systems);
       const bootJson = canonicalJson(boot);
       const s0Json = canonicalJson(s0);
       test.info().annotations.push({
@@ -286,7 +319,9 @@ test.describe("cross-engine determinism: the running game", () => {
       const gameFinal = await simState(page);
       expect(gameFinal.tick, "stepFrames() advanced one tick per frame").toBe(s0.tick + ticks);
 
-      const m = matchGame(world, s0, chunks, gameHashes, gameFinal);
+      const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands?.() ?? []);
+      const recorded = withRecordedCommands(chunks, s0.tick, commands);
+      const m = matchGame(world, s0, recorded, gameHashes, gameFinal,e2eGameSystems());
       expect(m.match, `the game and Node parted:\n${m.tried.join("\n")}`).toBeDefined();
 
       // The session must exercise the sim, or equality proves little.
