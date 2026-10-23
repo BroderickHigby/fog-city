@@ -111,3 +111,7 @@ Validation after intake: TypeScript and **8 files / 39 tests** pass, covering se
 Final convergence intake: `c9b4b98` aligns legacy taxi admission with the drawn `ROBOTAXI_BODY`; `bc30b99` sweeps runtime walkers against every vehicle hull; `50e57fd` settles activity rewards before publishing completion. These are included without later feature expansion.
 
 Final branch validation: TypeScript and **5 files / 19 tests** pass for activity reward ordering, local playable/session behavior, runtime walker clearance and service admission. The earlier pre-order contact batch also passed 27 focused tests. This standalone branch lacks the save host, so its activity regression keeps the real delivery producer, immediate wallet/XP settlement, 120 later ticks and duplicate mode-payout rejection; serialized save/restore proof remains in the combined build.
+
+Final mission-admission repair: included `8dea622` as `6ce19e4`, preserving the existing cached walking-candidate optimization while adopting full-hull parked placement and durable bounded retries. Missing actors are retried separately from accepted members; stale requests cancel on reset, departure, changed objective or missing progress.
+
+Validation after this final intake: TypeScript and **6 files / 32 tests** pass, covering durable/partial staging, parked actor admission, service clearance, full mode rosters, local playable matches and arena bounds. No full-suite or browser result is claimed here; combined campaign acceptance remains with the integration harness.
