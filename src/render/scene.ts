@@ -28,6 +28,7 @@ import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
+import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
 
 export type { CameraMode } from "./cameras.ts";
@@ -70,6 +71,9 @@ export interface RenderInfo {
   cameraMode: CameraMode;
   presentation: boolean;
   lightingPreset: string;
+  /** Pedestrians drawn as skinned Rocketbox people last frame, and crowd characters loaded. */
+  crowdDrawn: number;
+  crowdLoaded: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
   night: boolean;
@@ -139,6 +143,7 @@ export class SceneRenderer {
   private readonly avatarGround = new AvatarGround();
   private readonly foliage: FoliageLayer;
   private quality: VisualQuality | null = null;
+  private crowd: CrowdHumans | null = null;
   private readonly surfaceTextures: SurfaceTextures;
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
@@ -269,6 +274,18 @@ export class SceneRenderer {
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, this.shadows);
     this.scene.add(this.agents.group);
+    // The nearest pedestrians as skinned Rocketbox people, when the build carries the crowd.
+    const crowdFiles = CROWD_FILES.filter((f) => !available || available.has(f));
+    if (crowdFiles.length > 0) {
+      this.crowd = new CrowdHumans(async (path) => {
+        if (assets) return assets.bytes(path);
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Crowd model: ${response.status} ${path}`);
+        return new Uint8Array(await response.arrayBuffer());
+      }, this.shadows, crowdFiles);
+      this.agents.setCrowd(this.crowd);
+      this.scene.add(this.crowd.group);
+    }
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -489,6 +506,8 @@ export class SceneRenderer {
     out.cameraMode = this.rig.mode;
     out.presentation = this.quality !== null;
     out.lightingPreset = this.activePreset;
+    out.crowdDrawn = this.crowd?.drawn ?? 0;
+    out.crowdLoaded = this.crowd?.loaded ?? 0;
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
     out.night = this.nightOn;
@@ -535,6 +554,7 @@ export class SceneRenderer {
     this.far.dispose();
     this.actors.dispose();
     this.agents.dispose();
+    this.crowd?.dispose();
     this.sky.dispose();
     this.water.dispose();
     for (const m of this.materials.all) m.dispose();
@@ -553,6 +573,8 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   cameraMode: "chase" as CameraMode,
   presentation: false,
   lightingPreset: "day",
+  crowdDrawn: 0,
+  crowdLoaded: 0,
   foliage: { near: 0, far: 0, draws: 0 }, surfaceTextures: [],
   night: false,
   tilesPending: 0,
