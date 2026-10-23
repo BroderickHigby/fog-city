@@ -24,7 +24,7 @@ export class CampaignLayer {
     for(const a of Object.values(c?.actors??{})){
       live.add(a.id);let root=this.actors.get(a.id);
       if(!root){root=new THREE.Group();root.name=`mission-actor:${a.id}`;this.actors.set(a.id,root);this.group.add(root);const captured=root;
-        void this.load(a.model??'footman').then(prototype=>{const model=prototype.clone(true);model.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.isMesh){mesh.castShadow=true;mesh.receiveShadow=true;mesh.material=Array.isArray(mesh.material)?mesh.material.map(m=>m.clone()):mesh.material.clone();}});captured.add(model);}).catch(e=>console.warn('Mission model unavailable',e));
+        void this.load(a.model??'footman').then(prototype=>{if(this.actors.get(a.id)!==captured)return;const model=prototype.clone(true);model.traverse(o=>{const mesh=o as THREE.Mesh;if(mesh.isMesh){mesh.castShadow=true;mesh.receiveShadow=true;mesh.material=Array.isArray(mesh.material)?mesh.material.map(m=>m.clone()):mesh.material.clone();}});captured.add(model);}).catch(e=>console.warn('Mission model unavailable',e));
       }
       const target=combat?.targets[a.id];root.position.set(a.x,a.y,a.z);root.rotation.y=-a.heading;root.scale.set(1,target?.heightScale??1,1);root.visible=target?.phase!=='cleared';
       if(target)root.traverse(o=>{const m=o as THREE.Mesh;if(!m.isMesh)return;for(const material of Array.isArray(m.material)?m.material:[m.material]){const p=material as THREE.MeshStandardMaterial;if(!p.color)continue;p.userData.base??=p.color.clone();p.color.copy(p.userData.base as THREE.Color).lerp(new THREE.Color(0x92451f),target.rust*.85);}});

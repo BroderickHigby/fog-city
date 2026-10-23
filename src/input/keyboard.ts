@@ -19,7 +19,7 @@ export class Keyboard {
     target.addEventListener("keyup", (e) => this.held.delete(e.code));
     target.addEventListener("blur", () => this.release());
     target.addEventListener("focusin", () => this.release());
-    target.addEventListener("mousedown", e => {if (e.button === 0 && (e.target as Element | null)?.tagName === "CANVAS") this.held.add("Mouse0");});
+    target.addEventListener("mousedown", e => {if (e.button === 0 && (e.target as Element | null)?.id === "game-canvas") this.held.add("Mouse0");});
     target.addEventListener("mouseup", () => this.held.delete("Mouse0"));
   }
 

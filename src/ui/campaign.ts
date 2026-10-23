@@ -20,13 +20,14 @@ export class CampaignHud {
     if(run)this.sequence=Math.max(this.sequence,run.sequence);
     const player=state.players[id],body=player?.mode==='foot'?player.foot:player?.car;
     this.speed.replaceChildren(document.createTextNode(`${Math.round(Math.abs(body?.speed??0)*3.6)}`));const unit=document.createElement('small');unit.textContent=player?.mode==='foot'?'ON FOOT':'KM/H';this.speed.append(unit);
-    const key=[run?.missionId,run?.stepId,run?.question,run?.status,online].join(':');
+    const retryLeft=run&&step?.type==='retry'?Math.max(0,Math.ceil((step.cooldownS??0)-(state.tick-run.entered)/60)):0;
+    const key=[run?.missionId,run?.stepId,run?.question,run?.status,online,retryLeft].join(':');
     if(key!==this.last){this.last=key;this.actions.replaceChildren();
       this.title.textContent=mission?.title??'Welcome to San Francisco';
       if(online){this.detail.textContent='Free roam with friends. Campaign missions resume in solo play.';}
       else if(!run){this.detail.textContent='A car, a water blaster, and eighteen months of runway. Your first day starts by the Ferry Building.';this.button('Start Hot Desk →','mission-start',{targetId:'hot-desk'});}
       else if(run.status==='success'){this.detail.textContent='Mission complete. The next call is waiting.';const next=CAMPAIGN_MISSIONS.find(m=>m.campaign===(mission?.campaign??0)+1);if(next)this.button(`Next: ${next.title} →`,'mission-start',{targetId:next.id});else this.detail.textContent='Campaign complete. The city is yours — take the scenic route.';}
-      else if(run.status==='retry'){this.detail.textContent='Missed the window? Every founder gets another shot.';this.button('Try again →','mission-retry');}
+      else if(run.status==='retry'){this.detail.textContent=retryLeft?`The desk opens again in ${retryLeft} seconds.`:'Missed the window? Every founder gets another shot.';this.button(retryLeft?'Waiting for the next opening…':'Try again →','mission-retry');(this.actions.lastElementChild as HTMLButtonElement).disabled=retryLeft>0;}
       else if(step?.type==='dialogue'){const q=step.questions[run.question];this.detail.textContent=q?.prompt??'';for(const a of q?.answers??[])this.button(a.text,'mission-answer',{questionId:q!.id,choiceId:a.id});}
       else if(step?.type==='form'){this.detail.textContent=step.form.prompt;for(const [kit,label]of [['mobility','Help people get around'],['climate','Build a cleaner city'],['community','Bring the neighborhood together']])this.button(label!,'startup-define',{kitId:kit!});}
       else {this.detail.textContent=step?.type==='trigger'?`Head to ${step.event.place.label}`:step?.type==='goto'?`Head to ${step.target.label}`:step?.type==='objective'?step.hint??'Complete the objective.':mission?.summary??'';}

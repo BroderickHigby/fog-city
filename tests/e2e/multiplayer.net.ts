@@ -24,7 +24,7 @@ test("two browser contexts share a private room, see movement, leave and rejoin"
     for (const page of [a, b]) await page.waitForFunction(() => Object.keys(window.__fogcity!.state().players).length === 2);
     const id = await a.evaluate(() => window.__fogcityNet!.info()!.playerId);
     const z = await b.evaluate((id) => window.__fogcity!.state().players[id]!.car.z, id);
-    await a.locator("canvas").click({ position: { x: 400, y: 350 } });
+    await a.locator("#game-canvas").click({ position: { x: 400, y: 350 } });
     await a.keyboard.down("KeyW");
     await b.waitForFunction(({ id, z }) => window.__fogcity!.state().players[id]!.car.z < z - 2, { id, z }, { timeout: 30_000 });
     await a.keyboard.up("KeyW");

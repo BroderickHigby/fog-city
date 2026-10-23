@@ -215,6 +215,8 @@ async function boot(): Promise<void> {
     );
   }
 
+  view.renderer.domElement.id = "game-canvas";
+  view.renderer.domElement.setAttribute("aria-label", "San Francisco game view");
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
   let localPlayerId = LOCAL_PLAYER;
