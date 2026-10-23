@@ -5,15 +5,25 @@ import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { fogDensity } from "./fog/index.ts";
 import { allocateActorIds } from "./identity.ts";
 import { createAgentsSystem, agentsCombatOptions } from "./agents/systems.ts";
+import type { AgentRuntimeOptions } from "./agents/runtime.ts";
 import { createCombatSystem } from "./combat/systems.ts";
-import { contextFromState } from "./combat/adapter.ts";
+import { contextFromState, type CombatAdapterOptions } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
 import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatWave } from "./combat-contract.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
 
-export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
+export interface GameSystemsOptions {
+  wave?: CombatWave;
+  protectedArea?: (x:number,z:number)=>boolean;
+  /** Match instances (src/sim/modes): extra agent-runtime options, e.g. the mode roster. */
+  agents?: (context:SimSystemContext)=>Partial<AgentRuntimeOptions>;
+  /** Match instances: extra combat options (mode, per-player loadouts). */
+  combat?: (context:SimSystemContext)=>CombatAdapterOptions;
+  /** Match instances: replaces the static modes registration. */
+  modes?: readonly SimSystem[];
+}
 
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
@@ -27,15 +37,17 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return badRobotRate([p.lat,p.lon]);},
     fog:fogDensity(context.world,context.state,0,0),
     fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z),
+    ...options.agents?.(context),
   }),allocateActorIds);
   const combatContext=(context:SimSystemContext)=>{
+    const supplied=options.combat?.(context)??{};
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
     for(const id of sortedIds(context.state.players)){
       const player=context.state.players[id]!,body=player.mode==="foot"&&player.foot?player.foot:player.car;
-      loadouts[id]=combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading);
+      loadouts[id]={...combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading),...supplied.loadouts?.[id]};
     }
     const calendar=gameTime(context.state);
-    return contextFromState(context.world,context.state,{...agentsCombatOptions(context.state),wave,loadouts,
+    return contextFromState(context.world,context.state,{...supplied,...agentsCombatOptions(context.state),wave,loadouts,
       refills:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
       fog:fogDensity(context.world,context.state,0,0),
       fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z)});
@@ -55,5 +67,5 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     cachedObservation={context,value};
     return value;
   };
-  return Object.freeze([createClockSystem(),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),...modeSystems]);
+  return Object.freeze([createClockSystem(),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),...(options.modes??modeSystems)]);
 }
