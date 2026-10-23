@@ -64,16 +64,9 @@ function inboundEdges(graph: RoadGraph, node: string): Set<string> {
   return out;
 }
 
-export function buildFurniture(
-  graph: RoadGraph,
-  junctions: readonly Junction[],
-  signals: ReadonlyMap<string, { ped: boolean }>,
-  stopApproaches: ReadonlySet<string>,
-): { signals: SignalPole[]; stopSigns: StopSign[] } {
-  const poles: SignalPole[] = [];
-  const stops: StopSign[] = [];
-  const nodeEdges = new Map<string, Set<string>>();
-  // Streets by 100 m cell of their bounding boxes, for clearing poles off every carriageway.
+/** Drivable streets near (x, z) (within one 100 m cell of their bounding boxes). */
+export function streetIndex(graph: RoadGraph): (x: number, z: number) => RoadGraph["edges"] {
+  // Streets by 100 m cell of their bounding boxes.
   const grid = new Map<string, RoadGraph["edges"]>();
   for (const e of graph.edges) {
     if (e.pedestrian) continue;
@@ -88,13 +81,30 @@ export function buildFurniture(
       }
     }
   }
-  const nearby = (x: number, z: number): RoadGraph["edges"] => {
+  return (x, z) => {
     const out = new Set<RoadGraph["edges"][number]>();
     for (let cx = Math.floor(x / 100) - 1; cx <= Math.floor(x / 100) + 1; cx++) {
       for (let cz = Math.floor(z / 100) - 1; cz <= Math.floor(z / 100) + 1; cz++) for (const e of grid.get(`${cx},${cz}`) ?? []) out.add(e);
     }
     return [...out];
   };
+}
+
+/** Whether (x, z) stands clear of every carriageway near it (with `margin` metres to spare). */
+export function offStreet(nearby: (x: number, z: number) => RoadGraph["edges"], x: number, z: number, margin = 0.3): boolean {
+  return !nearby(x, z).some((e) => insideRibbon(x, z, e.points, e.widthM / 2 + margin));
+}
+
+export function buildFurniture(
+  graph: RoadGraph,
+  junctions: readonly Junction[],
+  signals: ReadonlyMap<string, { ped: boolean }>,
+  stopApproaches: ReadonlySet<string>,
+): { signals: SignalPole[]; stopSigns: StopSign[] } {
+  const poles: SignalPole[] = [];
+  const stops: StopSign[] = [];
+  const nodeEdges = new Map<string, Set<string>>();
+  const nearby = streetIndex(graph);
   for (const j of junctions) {
     const signal = signals.get(j.id);
     const controlled = j.legs.filter((l) => stopApproaches.has(`${j.id}|${l.edge}`));
@@ -103,13 +113,12 @@ export function buildFurniture(
     if (!inbound) nodeEdges.set(j.id, (inbound = inboundEdges(graph, j.id)));
     // The corner point of a leg: on its approach side (v < 0), just off the kerb, `t` along it,
     // stepped out along the leg until it stands clear of every street meeting there.
-    const streets = nearby(j.x, j.z);
     const at = (l: Junction["legs"][number], t0: number): { x: number; z: number } => {
       const v = -(l.half + POLE_OFFSET_M);
       let p = { x: 0, z: 0 };
       for (let t = t0; t < t0 + 30; t += 0.5) {
         p = { x: r2(j.x + l.ox + l.ux * t - l.uz * v), z: r2(j.z + l.oz + l.uz * t + l.ux * v) };
-        if (!streets.some((e) => insideRibbon(p.x, p.z, e.points, e.widthM / 2 + 0.3))) break;
+        if (offStreet(nearby, p.x, p.z)) break;
       }
       return p;
     };
