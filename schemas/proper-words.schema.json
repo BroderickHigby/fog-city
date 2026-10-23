@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/proper-words",
+  "title": "Reviewed capitalised words the proseName lint rule accepts mid-sentence (content/proper-words.json; src/content/proseNames.ts)",
+  "type": "object",
+  "required": ["version", "words", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "provenance": { "$ref": "provenance" },
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "words": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["word", "kind", "why"],
+        "additionalProperties": false,
+        "properties": {
+          "word": { "type": "string", "minLength": 2, "maxLength": 60 },
+          "kind": {
+            "enum": ["calendar", "place", "service", "word", "acronym", "firstName", "astronomy"],
+            "description": "Never an invented company, product or person name: those go in cleared-names.json after a search."
+          },
+          "why": { "type": "string", "minLength": 4 }
+        }
+      }
+    }
+  }
+}

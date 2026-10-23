@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/house-palettes",
+  "title": "House colours by era and district, and hand palettes for named rows (content/house-palettes.json)",
+  "description": "House kit K3 (world QA W-37). Rules pick a palette by assessor year and DataSF Analysis Neighborhood (first match wins; the last rule is a catch-all); src/content/housePalettes.ts assignHouseColours picks a body per house by a hash of its id, skipping bodies its touching neighbours wear, and a trim from the body's scheme. Overrides are hand colours by building id.",
+  "type": "object",
+  "required": ["version", "maxGapM", "rules", "palettes", "overrides", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "provenance": { "$ref": "provenance" },
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "maxGapM": { "type": "number", "minimum": 0, "maximum": 2, "description": "Footprints closer than this are neighbours (row houses share a wall or stand a crack apart)." },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "palette"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "palette": { "type": "string", "pattern": "^[a-z][a-zA-Z]*$" },
+          "minYear": { "type": "integer", "minimum": 1700, "maximum": 2100 },
+          "maxYear": { "type": "integer", "minimum": 1700, "maximum": 2100 },
+          "districts": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z-]*$" } },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "palettes": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z][a-zA-Z]*$" },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "glazingDelta", "schemes"],
+        "additionalProperties": false,
+        "properties": {
+          "label": { "type": "string" },
+          "glazingDelta": { "type": "number", "minimum": -0.2, "maximum": 0.3, "description": "Added to the facade's glazing share." },
+          "roofEdges": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/hex" }, "description": "Roof-edge tile colours (the Marina's red tile)." },
+          "schemes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "bodies", "trims"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "pattern": "^[a-z][a-zA-Z]*$" },
+                "bodies": { "type": "array", "minItems": 3, "uniqueItems": true, "items": { "$ref": "#/$defs/hex" } },
+                "trims": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/hex" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "records"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+          "label": { "type": "string" },
+          "note": { "type": "string" },
+          "records": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["id", "parcel", "body", "trim", "accent"],
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$", "description": "A podium record id (towers and pieces wear its colours)." },
+                "parcel": { "type": "string", "pattern": "^[0-9]{4}[0-9A-Z]{3,4}$", "description": "The assessor block and lot the record joins (collider meta.parcel)." },
+                "body": { "$ref": "#/$defs/hex" },
+                "trim": { "$ref": "#/$defs/hex" },
+                "accent": { "$ref": "#/$defs/hex" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "hex": { "type": "string", "pattern": "^#[0-9a-f]{6}$", "description": "sRGB colour, lower-case hex." }
+  }
+}

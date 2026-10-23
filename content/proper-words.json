@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "$comment": "Capitalised words that may appear mid-sentence in player text and are not invented names (the lint's proseName rule, src/content/proseNames.ts). The corpus dictionary, the place gazetteer and cleared-names.json already cover most words; this list is the reviewed rest. An invented company, product or person name never goes here: it goes in cleared-names.json after a search, or in a placeholder.",
+  "words": [
+    {"word": "Monday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Tuesday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Wednesday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Thursday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Friday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Saturday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Sunday", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "January", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "February", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "March", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "April", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "May", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "June", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "July", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "August", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "September", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "October", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "November", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "December", "kind": "calendar", "why": "a weekday or month"},
+    {"word": "Twin Peaks", "kind": "place", "why": "the SF hills; the fog comes over them"},
+    {"word": "Moon", "kind": "astronomy", "why": "the Moon, in market-size jokes"},
+    {"word": "Pro Max Ultra", "kind": "word", "why": "generic product-tier words in a parody of tier names, never a real product's name"},
+    {"word": "Series", "kind": "word", "why": "a funding round (Series A, Series C)"},
+    {"word": "Greg", "kind": "firstName", "why": "a generic first name for an unseen on-call engineer; never a full name, never a real person"},
+    {"word": "988 Suicide & Crisis Lifeline", "kind": "service", "why": "the real US crisis line, named in the sincere crisis lines (content/crisis.json)"},
+    {"word": "National Domestic Violence Hotline", "kind": "service", "why": "the real US domestic violence hotline, named in the sincere crisis lines"},
+    {"word": "RAINN National Sexual Assault Hotline", "kind": "service", "why": "the real US sexual assault hotline, named in the sincere crisis lines"}
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:1137b96a",
+    "reviewedBy": [],
+    "review": "Pending: the user confirms that no entry is an invented name; a second agent session reads it against the docs/ai-layer.md checklist."
+  }
+}

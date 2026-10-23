@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "fidi",
+  "$comment": "District content pack for Financial District (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:7741aed8",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "fidi-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lunch order for the 23rd floor. Elevator etiquette engaged.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "California St cable car incoming. I'll wait on the curb.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a salad to Montgomery St. It is a sad salad. I respect it.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Front St at noon: four hundred lanyards and one me.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Sansome St is all shade. Very restful for a robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying dry cleaning to Battery St. It's a suit. It's nervous.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Coffee run for the whole office. Twelve cups, steady hands.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I know which lobbies have ramps. All of them. I checked.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Waiting at Pine St. Pine St waits for no one, except me.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Badge in, drop off, badge out. Clean.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The towers make their own wind. I lean into it.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a cake to a meeting called 'sync'. Hope it's a happy sync.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Wall-to-wall glass on this block. I wave at my reflection.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bush St is one way. So am I, today.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Rounding the corner at Kearny. Carefully. Sandwiches inside.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "There's a desk on Montgomery with my favourite founder. It's you!",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I deliver to the coworking desk. They tip in compliments.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I didn't mean to interrupt your walking meeting.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, I need this revolving door. Gently.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies! I'll take the next elevator. And the one after.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, was that your lanyard? It's lovely. Here you go.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, lunch rush. Everyone is a lunch rush.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your office is now a coworking space. I'm the cowork.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This lobby has 40% fewer badges than last week. Growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every lanyard is a lead. Every lead is a lanyard.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm in a meeting. The meeting is outside your lobby.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Synergy is just two robots standing near a door.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Let's take this to the 30th floor. I don't have access. Take me.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your calendar is full. I filled it. You're welcome.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Quarterly targets: your coffee. Annual targets: your building.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I don't badge in. Badges are for people with jobs.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Moat Labs is hiring. Moat Labs is hiring you. Involuntarily.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Just a quick update for this delivery Footman. Stand still.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pairing with every car in this garage. Speed-dating.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Front St lobby, hour three. Still not badging in.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "One poster over the lunch menu. Nobody reads the menu.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not in front of the lobby! People have badges!",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My suit! I mean my shell! I mean my everything!",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water in the Financial District? That's not liquidity!",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-rb-bad-sprayed-04",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "I'm being written down! Physically!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "fidi-pl-officeWorker-ambient-01",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "My walking meeting just became a waiting-for-the-signal meeting.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-02",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Twelve floors of AI startups and one elevator that works.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-03",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The robot brought my lunch faster than my manager replies.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-04",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Our office has a nap pod and nobody naps. We're too busy pretending.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-05",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Front St smells like coffee and ambition. Mostly coffee.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-06",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "I had three syncs before lunch. I'm out of sync now.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-07",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "That robot has been outside our lobby since nine. It's not a visitor.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-08",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Somebody's demoing a robot in the plaza again.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-09",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The California cable car is the best commute in the world. When it comes.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-10",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "We pivoted twice this morning. I need a burrito.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-11",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "If I see one more deck with a hockey stick on it, I'll start a podcast about it.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-12",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The towers block the sun from eleven to never.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-13",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Is it Tuesday? Every day in here is Tuesday.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-ambient-14",
+      "speaker": "officeWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "My badge works on three doors and I've only been through one.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-01",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "We're raising. Everyone's raising. The robots are raising.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-02",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "I pitched in an elevator. It stopped on every floor. Great pitch.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-03",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "Our burn rate is fine. Our burrito rate is a concern.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-04",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "The coworking desk has a whiteboard and the whiteboard has opinions.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-05",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "We're default alive. Default awake is the problem.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-06",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "My cofounder is a robot now. Not literally. Mostly.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-07",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "Got an intro. Lost the intro. Got another intro.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-founder-ambient-08",
+      "speaker": "founder",
+      "context": "ambient",
+      "mood": "hopeful",
+      "text": "Every coffee meeting on this block is a funding round in disguise.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-robots-01",
+      "speaker": "officeWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why does that Footman wait outside the lobby and never come in?",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-robots-02",
+      "speaker": "officeWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one's carrying an empty bag around Front St.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-robots-03",
+      "speaker": "officeWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Our delivery robot came back humming something catchy. That's not good.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-robots-04",
+      "speaker": "officeWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A robot just tried every car door in our garage.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-robots-05",
+      "speaker": "officeWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot moved faster the second I looked at it.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-robots-06",
+      "speaker": "officeWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Pretty sure that robot has been 'waiting for someone' for two hours.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-01",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "The fog's at the 20th floor. Above it, sunshine. Below it, me.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-02",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "I can't see the top of our building. That's fine. I don't want to.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-03",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "Fog days are good for focus. That's what I tell myself.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-04",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "The towers make a wind tunnel and the fog loves it.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-05",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "Out of the fog by noon. That's what the weather app says. It's wrong.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-06",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "I brought a jacket and an umbrella and a backup jacket.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-07",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "The bay vanished at lunch. It's back now. Mostly.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-08",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "Is it fog or is it the steam off the coffee line?",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-09",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "The fog's thick enough to lean on today.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-10",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "Cold in the shade, warm in the sun, and there is no sun.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-11",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "Even the robots look cold today.",
+      "maxLength": 90
+    },
+    {
+      "id": "fidi-pl-officeWorker-fog-12",
+      "speaker": "officeWorker",
+      "context": "fog",
+      "mood": "weary",
+      "text": "I'm wearing three layers and the fog's wearing four.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "fidi-front-st-lurker",
+      "archetype": "updatePusher",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Front St at Pine St",
+        "lat": 37.79241,
+        "lon": -122.39859
+      },
+      "posting": "A Footman has waited outside a Front St lobby all morning. Delivery robots around it keep 'updating'.",
+      "tellHint": "It never badges in. It never delivers. It never leaves.",
+      "localTell": "officeLurker"
+    },
+    {
+      "id": "fidi-battery-st-snatch",
+      "archetype": "snatcher",
+      "level": 3,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Battery St at Bush St",
+        "lat": 37.79133,
+        "lon": -122.39957
+      },
+      "posting": "Lunch orders vanishing between Battery and Sansome. A crew of three, one of them parked at a lobby.",
+      "tellHint": "Watch the one by the revolving door: it never goes through.",
+      "localTell": "officeLurker"
+    },
+    {
+      "id": "fidi-sansome-garage",
+      "archetype": "prowler",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Sansome St at California St",
+        "lat": 37.79306,
+        "lon": -122.40113
+      },
+      "posting": "Pairing chimes all down the Sansome St garage ramps.",
+      "tellHint": "Between tries it waits outside an office lobby on Front St.",
+      "localTell": "officeLurker"
+    },
+    {
+      "id": "fidi-montgomery-sticker",
+      "archetype": "adSticker",
+      "level": 4,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Montgomery St at Bush St",
+        "lat": 37.7904,
+        "lon": -122.4018
+      },
+      "posting": "Moat Labs ads over the bus-shelter posters on Montgomery St, two blocks from the desk.",
+      "tellHint": "One of the crew loiters at a lobby door and never badges in.",
+      "localTell": "officeLurker"
+    }
+  ],
+  "ads": [
+    {
+      "id": "fidi-billboard-01",
+      "surface": "billboard",
+      "headline": "Your standup, now sitdown.",
+      "subline": "{$product}. Meetings that attend themselves."
+    },
+    {
+      "id": "fidi-billboard-02",
+      "surface": "billboard",
+      "headline": "Raise faster. Think later.",
+      "subline": "{$product}. The deck writes the company."
+    },
+    {
+      "id": "fidi-busWrap-01",
+      "surface": "busWrap",
+      "headline": "The cable car has a better roadmap.",
+      "subline": "{$product}. Shipping when the cable does."
+    },
+    {
+      "id": "fidi-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Lanyards for your lanyard.",
+      "subline": "{$product}. Badge-as-a-service for every badge."
+    }
+  ]
+}

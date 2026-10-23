@@ -2,21 +2,922 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/mission",
   "title": "Mission (content/missions/*.json), interpreted by the sim mission runtime",
+  "description": "A mission is a graph of steps discriminated by 'type'. Wave 2 adds three step types additively (stage, objective, form) and the optional wave, campaign and actors fields; the wave-1 types are unchanged. Execution starts at 'start' (default: the first step) and ends at a step that names an outcome (reward without next, retry, end). Places are WGS84 lat/lon; the game projects them with src/geo/project.ts. Graph rules JSON Schema cannot express (every target resolves, timers are feasible, meters stay bounded, every answer path terminates and every outcome is reachable) are checked by validateMission in src/content/missions.ts.",
   "type": "object",
-  "required": ["id", "title", "steps"],
+  "required": ["id", "version", "title", "cast", "meters", "outcomes", "steps", "provenance"],
+  "additionalProperties": false,
   "properties": {
-    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
-    "title": { "type": "string" },
-    "area": { "type": "string" },
-    "steps": {
-      "type": "array", "minItems": 1,
-      "items": {
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "version": {
+      "const": 1
+    },
+    "$comment": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "summary": {
+      "type": "string"
+    },
+    "area": {
+      "type": "string"
+    },
+    "start": {
+      "$ref": "#/$defs/stepId"
+    },
+    "cast": {
+      "type": "object",
+      "description": "Everyone who speaks. Invented characters only; caricatures of public figures get invented names.",
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9]*$"
+      },
+      "additionalProperties": {
         "type": "object",
-        "required": ["id", "type"],
+        "required": ["name", "role"],
+        "additionalProperties": false,
         "properties": {
-          "id": { "type": "string" },
-          "type": { "enum": ["trigger", "goto", "timer", "dialogue", "branch", "reward"] },
-          "next": { "type": "string" }
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "meters": {
+      "type": "object",
+      "description": "Bounded numeric meters (e.g. conviction). Every change is clamped to [min, max].",
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "start", "min", "max"],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "start": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "outcomes": {
+      "type": "object",
+      "description": "How a run can end. success: rewards granted; retry: the mission can be replayed from a step; fail: it cannot.",
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9]*$"
+      },
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["success", "retry", "fail"]
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    },
+    "wave": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8,
+      "description": "The wave that ships this mission; its waypoints must lie in that wave's tiles."
+    },
+    "campaign": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Campaign spine number (docs/design.md, Campaign spine); absent for side missions and prototypes."
+    },
+    "actors": {
+      "type": "object",
+      "description": "Robots, robotaxis and props a stage step places. Robots are bot-tells archetypes; people are never mission targets.",
+      "propertyNames": {
+        "pattern": "^[a-z][A-Za-z0-9]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": ["badRobot", "goodRobot", "rogueTaxi", "goodTaxi", "crew"]
+          },
+          "archetype": {
+            "type": "string"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "members": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "string"
+            },
+            "description": "crew: the archetypes of a bounty crew; the first is posted."
+          },
+          "posted": {
+            "type": "boolean",
+            "description": "Posted to BotBounty when staged."
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "required": [
+        "source",
+        "authorSession",
+        "contentHash",
+        "reviewedBy",
+        "review"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "enum": [
+            "agent",
+            "batch",
+            "human"
+          ]
+        },
+        "authorSession": {
+          "type": "string",
+          "minLength": 4
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^fnv1a32:[0-9a-f]{8}$",
+          "description": "FNV-1a over the file's player-facing text joined by newlines (src/content/barks.ts contentHash)."
+        },
+        "reviewedBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Reviewing agent sessions and, for sampled drops, the sample ids."
+        },
+        "review": {
+          "type": "string"
+        }
+      },
+      "description": "A copy of schemas/provenance.schema.json, inlined because tests/schemas/schemas.test.ts compiles this schema on its own; tests/content/provenance.test.ts keeps the copy equal."
+    },
+    "stepId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "clock": {
+      "type": "string",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+      "description": "In-game time of day, HH:MM."
+    },
+    "line": {
+      "type": "object",
+      "required": ["speaker", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "speaker": {
+          "type": "string",
+          "description": "A cast id."
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/line"
+      }
+    },
+    "place": {
+      "type": "object",
+      "required": ["label", "lat", "lon"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "lon": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "radiusM": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Arrival radius."
+        },
+        "headingDeg": {
+          "type": "number",
+          "minimum": 0,
+          "exclusiveMaximum": 360,
+          "description": "Compass bearing an object here faces (billboards: the direction its face looks)."
+        },
+        "source": {
+          "type": "string",
+          "description": "Where the coordinates came from."
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "enum": ["trigger", "goto", "timer", "dialogue", "branch", "reward", "retry", "end", "stage", "objective", "form"]
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/trigger"
+        },
+        {
+          "$ref": "#/$defs/goto"
+        },
+        {
+          "$ref": "#/$defs/timer"
+        },
+        {
+          "$ref": "#/$defs/dialogue"
+        },
+        {
+          "$ref": "#/$defs/branch"
+        },
+        {
+          "$ref": "#/$defs/reward"
+        },
+        {
+          "$ref": "#/$defs/retry"
+        },
+        {
+          "$ref": "#/$defs/end"
+        },
+        {
+          "$ref": "#/$defs/stage"
+        },
+        {
+          "$ref": "#/$defs/objective"
+        },
+        {
+          "$ref": "#/$defs/form"
+        }
+      ]
+    },
+    "trigger": {
+      "description": "Starts the mission when an event happens (a phone call while the player is at a place, or entering an area).",
+      "type": "object",
+      "required": ["id", "type", "event", "next"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "trigger"
+        },
+        "note": {
+          "type": "string"
+        },
+        "event": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["kind", "caller", "place"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "phoneCall"
+                },
+                "caller": {
+                  "type": "string",
+                  "description": "A cast id."
+                },
+                "place": {
+                  "$ref": "#/$defs/place"
+                },
+                "clock": {
+                  "$ref": "#/$defs/clock"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": ["kind", "place"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "enterArea"
+                },
+                "place": {
+                  "$ref": "#/$defs/place"
+                },
+                "clock": {
+                  "$ref": "#/$defs/clock"
+                }
+              }
+            }
+          ]
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "goto": {
+      "description": "Reach target.place within timer.limitS; 'next' on arrival, 'onTimeout' when the timer runs out.",
+      "type": "object",
+      "required": ["id", "type", "target", "timer", "next", "onTimeout"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "goto"
+        },
+        "note": {
+          "type": "string"
+        },
+        "target": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/place"
+            },
+            {
+              "type": "object",
+              "required": ["radiusM"]
+            }
+          ]
+        },
+        "timer": {
+          "type": "object",
+          "required": ["limitS"],
+          "additionalProperties": false,
+          "properties": {
+            "limitS": {
+              "$ref": "#/$defs/seconds"
+            },
+            "warnAtS": {
+              "$ref": "#/$defs/seconds",
+              "description": "Seconds remaining when the HUD warns."
+            },
+            "label": {
+              "type": "string"
+            },
+            "deadline": {
+              "$ref": "#/$defs/clock"
+            }
+          }
+        },
+        "travel": {
+          "enum": ["any", "vehicle", "foot"]
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        },
+        "onTimeout": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "timer": {
+      "description": "Wait durationS (lines play meanwhile), then go to next.",
+      "type": "object",
+      "required": ["id", "type", "durationS", "next"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "timer"
+        },
+        "note": {
+          "type": "string"
+        },
+        "durationS": {
+          "$ref": "#/$defs/seconds"
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "dialogue": {
+      "description": "The speaker asks each question in order; each answer adds its delta to the meter (clamped) and plays the reply.",
+      "type": "object",
+      "required": ["id", "type", "speaker", "meter", "questions", "next"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "dialogue"
+        },
+        "note": {
+          "type": "string"
+        },
+        "speaker": {
+          "type": "string"
+        },
+        "meter": {
+          "type": "string"
+        },
+        "intro": {
+          "$ref": "#/$defs/lines"
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "prompt", "answers"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][A-Za-z0-9]*$"
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "answers": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "required": ["id", "text", "delta", "reply"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "pattern": "^[a-z][A-Za-z0-9]*$"
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "delta": {
+                      "type": "integer"
+                    },
+                    "reply": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "branch": {
+      "description": "Go to the first case whose [min, max] contains the meter's value, else 'default'.",
+      "type": "object",
+      "required": ["id", "type", "meter", "cases", "default"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "branch"
+        },
+        "note": {
+          "type": "string"
+        },
+        "meter": {
+          "type": "string"
+        },
+        "cases": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["next"],
+            "anyOf": [
+              {
+                "required": ["min"]
+              },
+              {
+                "required": ["max"]
+              }
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "next": {
+                "$ref": "#/$defs/stepId"
+              }
+            }
+          }
+        },
+        "default": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "reward": {
+      "description": "Grants rewards. Ends the run with 'outcome' unless 'next' continues it.",
+      "type": "object",
+      "required": ["id", "type", "outcome", "grants"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "reward"
+        },
+        "note": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "grants": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": ["kind", "corridor", "place", "copy"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "billboard"
+                  },
+                  "corridor": {
+                    "type": "string"
+                  },
+                  "place": {
+                    "allOf": [
+                      {
+                        "$ref": "#/$defs/place"
+                      },
+                      {
+                        "type": "object",
+                        "required": ["headingDeg"]
+                      }
+                    ]
+                  },
+                  "copy": {
+                    "type": "object",
+                    "required": ["generator", "product"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "generator": {
+                        "enum": ["billboard", "busWrap"],
+                        "description": "src/content/billboards.ts kind."
+                      },
+                      "product": {
+                        "const": "playerStartup",
+                        "description": "Advertise the player's own startup name."
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "stat", "delta"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "stat"
+                  },
+                  "stat": {
+                    "type": "string",
+                    "pattern": "^[a-z][A-Za-z0-9]*$"
+                  },
+                  "delta": {
+                    "type": "integer"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "required": ["kind", "unlock"],
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "unlock"
+                  },
+                  "unlock": {
+                    "type": "string",
+                    "pattern": "^(safehouse|vendor|activity|app):[a-z0-9-]+$"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "retry": {
+      "description": "Ends the run with 'outcome'; the mission can be replayed from 'retryFrom'.",
+      "type": "object",
+      "required": ["id", "type", "outcome", "retryFrom"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "retry"
+        },
+        "note": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "hint": {
+          "type": "string",
+          "description": "What to do before trying again."
+        },
+        "cooldownS": {
+          "$ref": "#/$defs/seconds"
+        },
+        "retryFrom": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "end": {
+      "description": "Ends the run with 'outcome'.",
+      "type": "object",
+      "required": ["id", "type", "outcome"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "end"
+        },
+        "note": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        }
+      }
+    },
+    "stage": {
+      "description": "Place mission actors at a place (within radiusM), then go to next. Staging uses the sim's spawn primitives; nothing spawns on a spot holding a person.",
+      "type": "object",
+      "required": ["id", "type", "actors", "place", "next"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "stage"
+        },
+        "note": {
+          "type": "string"
+        },
+        "actors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "place": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/place"
+            },
+            {
+              "type": "object",
+              "required": ["radiusM"]
+            }
+          ]
+        },
+        "nearHydrantM": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "A hydrant must be within this distance of the place (the opening melt: 15 m)."
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        }
+      }
+    },
+    "objective": {
+      "description": "A goal the sim checks. 'next' when it is met; with timeLimitS, 'onFail' when time runs out first.",
+      "type": "object",
+      "required": ["id", "type", "objective", "next"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "objective"
+        },
+        "note": {
+          "type": "string"
+        },
+        "objective": {
+          "type": "object",
+          "required": ["kind"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": ["melt", "watch", "scan", "cone", "interruptUpdate", "threatAtLeast", "threatAtMost", "refill", "enterVehicle"]
+            },
+            "actor": {
+              "type": "string",
+              "description": "A mission actor id (melt, watch, scan, cone)."
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "level": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5,
+              "description": "Threat level for threatAtLeast / threatAtMost."
+            },
+            "seconds": {
+              "$ref": "#/$defs/seconds",
+              "description": "watch: how long to hold the Watch."
+            }
+          }
+        },
+        "timeLimitS": {
+          "$ref": "#/$defs/seconds"
+        },
+        "hint": {
+          "type": "string"
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
+        },
+        "onFail": {
+          "$ref": "#/$defs/stepId"
+        }
+      },
+      "dependentRequired": {
+        "timeLimitS": ["onFail"],
+        "onFail": ["timeLimitS"]
+      }
+    },
+    "form": {
+      "description": "A FreeTextBox form. startupSignup: 'What are you building?' (max 140 characters). The client crisis check runs first; then the keyword matcher outside the sim picks a kit (src/content/kits.ts) and the sim records StartupDefined{kitId, sharedTaglineId, refusal, source}. The typed sentence is never displayed.",
+      "type": "object",
+      "required": ["id", "type", "form", "next"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/stepId"
+        },
+        "type": {
+          "const": "form"
+        },
+        "note": {
+          "type": "string"
+        },
+        "form": {
+          "type": "object",
+          "required": ["kind", "prompt", "maxLength", "records"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "startupSignup"
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 3
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 280
+            },
+            "records": {
+              "const": "StartupDefined"
+            },
+            "multipleChoice": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "type": "string"
+              },
+              "description": "Topic chips offered beside the box, so typing is never required."
+            }
+          }
+        },
+        "lines": {
+          "$ref": "#/$defs/lines"
+        },
+        "next": {
+          "$ref": "#/$defs/stepId"
         }
       }
     }

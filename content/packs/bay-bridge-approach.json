@@ -1,0 +1,739 @@
+{
+  "version": 1,
+  "district": "bay-bridge-approach",
+  "$comment": "District content pack for Bay Bridge approach (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:25708797",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "bay-bridge-approach-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The on-ramp queue moves one car at a time. I count, in a friendly way.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Robotaxi depot lot. Everyone charging, everyone polite.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a spare tyre to the depot. It's a big tyre.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The bridge anchorage is so tall. I feel very small. It's nice.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bryant St at rush hour: robotaxis signalling every lane change.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Coffee for the depot crew. They're always on shift.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The Embarcadero curve here is my favourite corner.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Waiting for the light at Bryant and the Embarcadero.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Traffic hum from the bridge. It's like living inside a song.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The ballpark crowd is heading home. I'll wait on the corner.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Charging dock at the depot. Thirty minutes and I'm a new robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Brannan St is flat and wide. Wonderful for deliveries.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "I signal every turn. Even on the sidewalk. Especially on the sidewalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The bridge lights are on. Battery at 60%. Life is good.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering sandwiches to the harbour office.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Parked robotaxis in neat rows. So satisfying.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Helping a Meander back into its bay. Left a bit. Perfect.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Cone on a hood ahead. Everyone stops. Rules are rules.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! The depot lot is busy and I am in it.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, on-ramp traffic. I'll wait for a gap.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, the wind off the bay pushed me sideways.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I'm crossing at the light. Very slowly. It's a long crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, a robotaxi is reversing. We're all waiting.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every car in this queue is a future data point.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The depot is full of robotaxis. Soon full of our robotaxis.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Bridge traffic is just a very slow funnel.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I park across hydrants because hydrants are legacy infrastructure.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Count the plates. Monetise the plates.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Lane changes are for rule-followers.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This on-ramp has been privatised. By me. Just now.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The anchorage is concrete. Our strategy is also concrete. Ish.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Rush hour is peak engagement.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every robot. Every lane. Eventually.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Car three hundred and twelve. Plate logged.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Parking across this hydrant. Nobody tickets a robot.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Updating a depot robotaxi while it charges. Captive audience.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Sticker on the depot gate. Very on-brand.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Bay water at the depot! The worst kind of water!",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My plate count! I lost count! Car three hundred and... ow!",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not here! The whole on-ramp is watching!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-01",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "The on-ramp backs up to Fremont every evening.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-02",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "I take the bus over the bridge. At least I can read.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-03",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "Robotaxis queue better than the people do. Annoying but true.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-04",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "The depot lot is full of robotaxis just sitting there. Charging, I hope.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-05",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "You can feel the bridge traffic through the sidewalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-06",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "Walking under the anchorage is like walking under a mountain.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-07",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "Every evening the same jam. Every evening I'm surprised.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-08",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "There's a robot that counts the cars out loud. Every car.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-09",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "The bridge lights are the only good part of this commute.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-10",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "Game nights the whole area is gridlock.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-11",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "I bike along the Embarcadero to skip the traffic. Smug, but cold.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-12",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "The robotaxi in front of me signals every lane change. Every one.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-13",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "The harbour's right there and nobody looks at it.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-ambient-14",
+      "speaker": "commuter",
+      "context": "ambient",
+      "mood": "impatient",
+      "text": "Somebody's robotaxi just parked across a hydrant again.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-01",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "Forty robotaxis to charge before rush hour.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-02",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "Rogue robotaxis are always empty. That's how you spot them.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-03",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "Cones on the hood. Works every time.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-04",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "If a robotaxi doesn't signal, I flag it. Ours always signal.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-05",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "Night shift at the depot is quiet. Mostly humming.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-06",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "I've seen robotaxis honk in harmony at 4 a.m. Not kidding.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-07",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "Depot coffee is terrible. The robots don't drink it.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-depotWorker-ambient-08",
+      "speaker": "depotWorker",
+      "context": "ambient",
+      "mood": "practical",
+      "text": "We had one take the scenic route around the depot. Three times.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-robots-01",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robotaxi's been parked across the hydrant for an hour. Empty.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-robots-02",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A Trundle keeps counting the cars in the on-ramp queue out loud.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-robots-03",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robotaxi changed lanes without signalling. That never happens.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-robots-04",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why's that robot reading every number plate on Bryant?",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-robots-05",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one avoids the fog bank on the water every time.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-robots-06",
+      "speaker": "commuter",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "I heard a robotaxi humming a jingle. Four notes. Catchy. Wrong.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-01",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "The fog swallows the bridge right at the tower.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-02",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "Foghorns from the bridge every morning. Can't sleep through them. Wouldn't want to.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-03",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "Fog on the water, sun on the depot. Weird split.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-04",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "Driving into the fog on the bridge is like driving into a cloud. Because it is.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-05",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "The wind off the bay here is no joke.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-06",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "On clear days you can see all the way to the hills.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-07",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "Fog makes the brake lights glow red all the way up the ramp.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-08",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "The anchorage disappears in the fog. Very dramatic.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-09",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "Rain on the bridge means everyone drives like a robotaxi.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-10",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "The sunset under the bridge is worth the traffic.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-11",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "Cold, windy, beautiful. Every day.",
+      "maxLength": 90
+    },
+    {
+      "id": "bay-bridge-approach-pl-commuter-fog-12",
+      "speaker": "commuter",
+      "context": "fog",
+      "mood": "resigned",
+      "text": "The fog's thick enough that the robotaxis slow down too.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "bay-bridge-approach-queue-counter",
+      "archetype": "harvester",
+      "level": 1,
+      "crew": 3,
+      "lastSeen": {
+        "label": "The on-ramp queue on Bryant St",
+        "lat": 37.785,
+        "lon": -122.3895
+      },
+      "posting": "A Trundle rolls up and down the on-ramp queue counting cars, and phones in the queue keep glitching.",
+      "tellHint": "Good robots don't count your plates out loud.",
+      "localTell": "queueCounter"
+    },
+    {
+      "id": "bay-bridge-approach-depot-rogue",
+      "archetype": "rogueTaxi",
+      "level": 2,
+      "crew": 1,
+      "lastSeen": {
+        "label": "The robotaxi depot lot",
+        "lat": 37.787,
+        "lon": -122.3884
+      },
+      "posting": "An empty robotaxi has been parked across the depot hydrant since lunch.",
+      "tellHint": "Good robotaxis signal every turn and never block a hydrant."
+    },
+    {
+      "id": "bay-bridge-approach-brannan-courier",
+      "archetype": "fakeCourier",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Brannan St near the Embarcadero",
+        "lat": 37.7852,
+        "lon": -122.3885
+      },
+      "posting": "A delivery Trundle on Brannan St never reaches a door.",
+      "tellHint": "Its partner counts the on-ramp queue out loud.",
+      "localTell": "queueCounter"
+    },
+    {
+      "id": "bay-bridge-approach-anchorage-update",
+      "archetype": "updatePusher",
+      "level": 4,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Under the bridge anchorage, Bryant St",
+        "lat": 37.78622,
+        "lon": -122.38964
+      },
+      "posting": "Depot robotaxis are getting updates they didn't ask for.",
+      "tellHint": "The pusher's lookout counts the queue plate by plate.",
+      "localTell": "queueCounter"
+    }
+  ],
+  "ads": [
+    {
+      "id": "bay-bridge-approach-billboard-01",
+      "surface": "billboard",
+      "headline": "Traffic, but a platform.",
+      "subline": "{$product}. Sit in it with an app."
+    },
+    {
+      "id": "bay-bridge-approach-billboard-02",
+      "surface": "billboard",
+      "headline": "Every lane, monetised.",
+      "subline": "{$product}. Merge with confidence. Ours."
+    },
+    {
+      "id": "bay-bridge-approach-busWrap-01",
+      "surface": "busWrap",
+      "headline": "Skip the bridge queue with {$product}.",
+      "subline": "You can't. But you can pay to try."
+    },
+    {
+      "id": "bay-bridge-approach-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Your commute has a premium tier.",
+      "subline": "{$product}. Same jam, better font."
+    }
+  ]
+}

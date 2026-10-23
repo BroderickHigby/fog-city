@@ -1,0 +1,408 @@
+{
+ "source": "QA verify-houses v01: records whose roof lies under the ground somewhere inside the footprint (7dbb362); worst point and outward normal",
+ "sites": [
+  {
+   "id": "201006.0000980",
+   "district": "Russian Hill",
+   "worst": {
+    "at": [
+     37.799628,
+     -122.416538
+    ],
+    "nx": -0.987241,
+    "nz": 0.159232
+   },
+   "groundOverRoofM": 10.75
+  },
+  {
+   "id": "201006.0000592",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.726428,
+     -122.449661
+    ],
+    "nx": -0.900074,
+    "nz": 0.435737
+   },
+   "groundOverRoofM": 5.51
+  },
+  {
+   "id": "201006.0000837",
+   "district": "Nob Hill",
+   "worst": {
+    "at": [
+     37.793994,
+     -122.412121
+    ],
+    "nx": -0.98862,
+    "nz": 0.150434
+   },
+   "groundOverRoofM": 4.84
+  },
+  {
+   "id": "201006.0001096",
+   "district": "Outer Mission",
+   "worst": {
+    "at": [
+     37.721259,
+     -122.447614
+    ],
+    "nx": -0.986394,
+    "nz": -0.164399
+   },
+   "groundOverRoofM": 3.74
+  },
+  {
+   "id": "201006.0000706",
+   "district": "Nob Hill",
+   "worst": {
+    "at": [
+     37.792298,
+     -122.414164
+    ],
+    "nx": -0.98695,
+    "nz": 0.161026
+   },
+   "groundOverRoofM": 3.37
+  },
+  {
+   "id": "201006.0000116",
+   "district": "Mission",
+   "worst": {
+    "at": [
+     37.764656,
+     -122.406192
+    ],
+    "nx": 0.074725,
+    "nz": 0.997204
+   },
+   "groundOverRoofM": 3.28
+  },
+  {
+   "id": "201006.0009464",
+   "district": "Castro/Upper Market",
+   "worst": {
+    "at": [
+     37.757389,
+     -122.446876
+    ],
+    "nx": -0.677749,
+    "nz": 0.735294
+   },
+   "groundOverRoofM": 2.31
+  },
+  {
+   "id": "201006.0000438",
+   "district": "McLaren Park",
+   "worst": {
+    "at": [
+     37.715691,
+     -122.413086
+    ],
+    "nx": 0.332939,
+    "nz": -0.942948
+   },
+   "groundOverRoofM": 2.06
+  },
+  {
+   "id": "201006.0009459",
+   "district": "Bayview Hunters Point",
+   "worst": {
+    "at": [
+     37.750605,
+     -122.400804
+    ],
+    "nx": 0.998567,
+    "nz": -0.053515
+   },
+   "groundOverRoofM": 1.92
+  },
+  {
+   "id": "201006.0003716",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.742727,
+     -122.458039
+    ],
+    "nx": -0.148901,
+    "nz": -0.988852
+   },
+   "groundOverRoofM": 1.83
+  },
+  {
+   "id": "201006.0000260",
+   "district": "Inner Sunset",
+   "worst": {
+    "at": [
+     37.761932,
+     -122.460461
+    ],
+    "nx": 0.992423,
+    "nz": 0.122867
+   },
+   "groundOverRoofM": 1.71
+  },
+  {
+   "id": "201006.0010415",
+   "district": "Castro/Upper Market",
+   "worst": {
+    "at": [
+     37.757504,
+     -122.447037
+    ],
+    "nx": -0.66976,
+    "nz": 0.742578
+   },
+   "groundOverRoofM": 1.19
+  },
+  {
+   "id": "201006.0076237",
+   "district": "Castro/Upper Market",
+   "worst": {
+    "at": [
+     37.75917,
+     -122.431521
+    ],
+    "nx": 0.083846,
+    "nz": 0.996479
+   },
+   "groundOverRoofM": 1.13
+  },
+  {
+   "id": "201006.0006496",
+   "district": "Pacific Heights",
+   "worst": {
+    "at": [
+     37.794989,
+     -122.434302
+    ],
+    "nx": 0.987974,
+    "nz": -0.15462
+   },
+   "groundOverRoofM": 0.46
+  },
+  {
+   "id": "201006.0007825",
+   "district": "Russian Hill",
+   "worst": {
+    "at": [
+     37.800166,
+     -122.421419
+    ],
+    "nx": 0.989519,
+    "nz": -0.144403
+   },
+   "groundOverRoofM": 0.34
+  },
+  {
+   "id": "201006.0002284",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.745766,
+     -122.469367
+    ],
+    "nx": 0.995802,
+    "nz": 0.091531
+   },
+   "groundOverRoofM": 0.29
+  },
+  {
+   "id": "201006.0010129",
+   "district": "Castro/Upper Market",
+   "worst": {
+    "at": [
+     37.757141,
+     -122.446383
+    ],
+    "nx": -0.387206,
+    "nz": 0.921993
+   },
+   "groundOverRoofM": 0.25
+  },
+  {
+   "id": "201006.0007145",
+   "district": "Mission",
+   "worst": {
+    "at": [
+     37.761603,
+     -122.406647
+    ],
+    "nx": -0.074659,
+    "nz": -0.997209
+   },
+   "groundOverRoofM": 0.19
+  },
+  {
+   "id": "201006.0015892",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.748073,
+     -122.46966
+    ],
+    "nx": -0.063305,
+    "nz": -0.997994
+   },
+   "groundOverRoofM": 0.19
+  },
+  {
+   "id": "201006.0000638",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.743662,
+     -122.473747
+    ],
+    "nx": -0.045598,
+    "nz": -0.99896
+   },
+   "groundOverRoofM": 0.19
+  },
+  {
+   "id": "201006.0161647",
+   "district": "Treasure Island",
+   "worst": {
+    "at": [
+     37.808687,
+     -122.369366
+    ],
+    "nx": 0.549178,
+    "nz": -0.835705
+   },
+   "groundOverRoofM": 0.08
+  },
+  {
+   "id": "201006.0093491",
+   "district": "North Beach",
+   "worst": {
+    "at": [
+     37.798581,
+     -122.404941
+    ],
+    "nx": -0.147539,
+    "nz": -0.989056
+   },
+   "groundOverRoofM": 0.01
+  },
+  {
+   "id": "201006.0002771",
+   "district": "Outer Richmond",
+   "worst": {
+    "at": [
+     37.778288,
+     -122.490595
+    ],
+    "nx": 0.998267,
+    "nz": -0.058845
+   },
+   "groundOverRoofM": 0.01
+  },
+  {
+   "id": "201006.0001593",
+   "district": "Pacific Heights",
+   "worst": {
+    "at": [
+     37.7946,
+     -122.433552
+    ],
+    "nx": 0.152424,
+    "nz": 0.988315
+   },
+   "groundOverRoofM": -0.03
+  },
+  {
+   "id": "201006.0013772",
+   "district": "Twin Peaks",
+   "worst": {
+    "at": [
+     37.75548,
+     -122.440773
+    ],
+    "nx": -0.122893,
+    "nz": -0.99242
+   },
+   "groundOverRoofM": -0.09
+  },
+  {
+   "id": "201006.0006258",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.740424,
+     -122.473856
+    ],
+    "nx": -0.039153,
+    "nz": -0.999233
+   },
+   "groundOverRoofM": -0.09
+  },
+  {
+   "id": "201006.0009973",
+   "district": "Castro/Upper Market",
+   "worst": {
+    "at": [
+     37.757064,
+     -122.446157
+    ],
+    "nx": -0.388837,
+    "nz": 0.921306
+   },
+   "groundOverRoofM": -0.13
+  },
+  {
+   "id": "201006.0005454",
+   "district": "Chinatown",
+   "worst": {
+    "at": [
+     37.799645,
+     -122.411322
+    ],
+    "nx": -0.989337,
+    "nz": 0.145642
+   },
+   "groundOverRoofM": -0.14
+  },
+  {
+   "id": "201006.0063227",
+   "district": "West of Twin Peaks",
+   "worst": {
+    "at": [
+     37.735816,
+     -122.453428
+    ],
+    "nx": 0.006667,
+    "nz": -0.999978
+   },
+   "groundOverRoofM": -0.15
+  },
+  {
+   "id": "201006.0021618",
+   "district": "Twin Peaks",
+   "worst": {
+    "at": [
+     37.758618,
+     -122.449564
+    ],
+    "nx": 0.070302,
+    "nz": 0.997526
+   },
+   "groundOverRoofM": -0.16
+  },
+  {
+   "id": "201006.0001584",
+   "district": "Russian Hill",
+   "worst": {
+    "at": [
+     37.80355,
+     -122.415769
+    ],
+    "nx": 0.150917,
+    "nz": 0.988546
+   },
+   "groundOverRoofM": -0.27
+  }
+ ]
+}

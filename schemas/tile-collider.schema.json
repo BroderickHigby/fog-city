@@ -2,8 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/tile-collider",
   "title": "Tile collision data consumed by src/sim/world.ts",
+  "$comment": "The file, its buildings and its ground are closed (meta stays open): an undeclared key fails the schema suite. Declare a new field here before shipping it; a key starting with x- is free for experiments and is never a contract.",
   "type": "object",
   "required": ["tileId", "buildings", "ground"],
+  "additionalProperties": false,
+  "patternProperties": { "^x-": true },
   "properties": {
     "tileId": { "type": "string" },
     "buildings": {
@@ -11,6 +14,8 @@
       "items": {
         "type": "object",
         "required": ["id", "footprint", "baseY", "topY"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
         "properties": {
           "id": { "type": "string" },
           "footprint": {
@@ -19,10 +24,96 @@
           },
           "baseY": { "type": "number" },
           "topY": { "type": "number" },
+          "underY": {
+            "type": "number",
+            "description": "Optional underside, metres (absolute): a structure spanning a street or path (a deck, an arcade, a bridge between buildings; its record is the piece of the footprint over the carriageway) or a building standing over a tunnel bore (its foot). A body passes under it when the top of the body is at or below underY. Absent: solid down to the ground."
+          },
           "meta": {
-            "description": "Optional facts for facades and storefronts (year built, use, stories, source ids). Never read by the sim.",
-            "type": "object"
+            "description": "Optional facts for facades and storefronts (year built, use, stories, source ids). Never read by the sim. The keys below are the pipeline's (docs/data-sources.md); other worlds may add their own.",
+            "type": "object",
+            "properties": {
+              "footY": { "type": "number", "description": "Lowest ground under the footprint minus 5 cm: where walls start so nothing floats" },
+              "heightM": { "type": "number", "description": "Height of this record's roof above the building's ground reference, metres" },
+              "heightSource": { "enum": ["lidar", "assessor-stories", "override"] },
+              "lidarM": {
+                "description": "LiDAR [median, max] height above ground, metres (2010 survey)",
+                "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2
+              },
+              "parcel": { "type": "string", "description": "Assessor parcel (block + lot) joined to the footprint" },
+              "year": { "type": "integer", "description": "Year built (assessor)" },
+              "use": { "type": "string", "description": "Assessor use definition, or \"Residential Condominium\"" },
+              "stories": { "type": "integer", "minimum": 1, "description": "Storeys, when the assessor's count agrees with the measured height" },
+              "units": { "type": "integer", "minimum": 1, "description": "Units on the parcel, or condominium units on the building" },
+              "condo": { "const": true, "description": "The joined parcel is one unit of a condominium building" },
+              "tower": { "type": "string", "description": "On a podium record: the id of its tower record" },
+              "towerOf": { "type": "string", "description": "On a \"-tower\" record: the podium record's id" },
+              "podiumTopY": { "type": "number", "description": "On a \"-tower\" record: the podium's roof (absolute y)" },
+              "pieceOf": { "type": "string", "description": "On a piece record (id suffix -s<n> or -b<n>): the source footprint's record id, which keeps the rest of the footprint" },
+              "piece": { "enum": ["strip", "span"], "description": "strip: a terrace of a hillside building with its own ground and roof (-s<n>); span: the part of a footprint over a street or path, with an underside (-b<n>)" },
+              "outline": { "enum": ["parcel", "override"], "description": "World QA W-04: a building the footprint layer (a 2016 snapshot) does not have, added by the pipeline; its outline is its parcel's polygon (the newer-buildings pass) or an overrides.json entry's. Its id is 201006.9xxxxxx, never a DataSF id" },
+              "streetY": { "type": "number", "description": "House kit K0 (W-29): the ground at the middle of the record's street wall (its wall nearest a street), absolute y; the facade's storey grid starts there. Absent: within 10 cm of baseY, or no wall within 6 m of a street" }
+            }
           }
+        }
+      }
+    },
+    "decks": {
+      "description": "Road decks above the ground whose segments' midpoints lie in this tile (pipeline/lib/structures.ts): freeway viaducts and ramps, street bridges, streets over a freeway cut. path is [x, y, z, w] per vertex: centreline, road-surface height, full width; the surface between two vertices is the ruled quad between them. layer 1 stands over the ground, 2 over another deck.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "layer", "path"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
+        "properties": {
+          "id": { "type": "string", "description": "Unique in the world: <ribbon id>~<piece number along it>" },
+          "kind": { "enum": ["freeway", "ramp", "bridge", "overpass", "pier"] },
+          "edge": { "type": "string", "description": "The roads.json edge the deck carries" },
+          "layer": { "type": "integer", "minimum": 1 },
+          "path": {
+            "type": "array", "minItems": 2,
+            "items": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 }
+          }
+        }
+      }
+    },
+    "tunnels": {
+      "description": "Roads below the ground (bored tunnels portal to portal, underpasses beneath a freeway embankment) whose segments' midpoints lie in this tile: a ribbon as in decks (y = the road surface) plus a ceiling clearanceM above it. The ground above is not a surface for a body inside the bore.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "clearanceM", "path"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "enum": ["tunnel", "underpass"] },
+          "edge": { "type": "string" },
+          "clearanceM": { "type": "number", "exclusiveMinimum": 0 },
+          "path": {
+            "type": "array", "minItems": 2,
+            "items": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 }
+          }
+        }
+      }
+    },
+    "movable": {
+      "description": "Deck pieces that lift (the Lefty O'Doul bascule on 3rd St). The leaf turns about the hinge line, rising on the side away from it, up to openRad. Its angle is sim state (SimState), never data.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "deck", "hinge", "openRad"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "enum": ["bascule"] },
+          "deck": { "type": "string", "description": "The id of the deck piece that lifts (in this tile)" },
+          "hinge": {
+            "type": "array", "minItems": 2, "maxItems": 2,
+            "items": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 }
+          },
+          "openRad": { "type": "number", "exclusiveMinimum": 0 }
         }
       }
     },
@@ -32,13 +123,31 @@
         {
           "type": "object",
           "required": ["x0", "z0", "cellSizeM", "nx", "nz", "heights"],
+          "additionalProperties": false,
+          "patternProperties": { "^x-": true },
           "properties": {
             "x0": { "type": "number" },
             "z0": { "type": "number" },
             "cellSizeM": { "type": "number", "exclusiveMinimum": 0 },
             "nx": { "type": "integer", "minimum": 2 },
             "nz": { "type": "integer", "minimum": 2 },
-            "heights": { "type": "array", "items": { "type": "number" } }
+            "heights": { "type": "array", "items": { "type": "number" } },
+            "water": {
+              "description": "Optional per-sample open-water flags, same layout as heights (1 = open water at sea level, 0 = land)",
+              "type": "array", "items": { "enum": [0, 1] }
+            },
+            "cover": {
+              "description": "Optional ground class per sample (world QA W-11, W-18, W-34), one character each, same layout as heights: u urban or bare ground, g grass (park land), f forest (tree canopy), s sand (a beach), w the Bay or the ocean (a water sample), 0-9 an inland lake: the index into lakes, whose y is its level (the sample's height is that level; its water flag stays 0, which is for sea level only). Written by pipeline/lib/landcover.ts; absent in worlds without ground cover.",
+              "type": "string", "pattern": "^[ugfsw0-9]*$"
+            },
+            "lakes": {
+              "description": "Optional: the inland lakes with samples in this tile, in the order the cover digits name them. A lake is water at its level y (absolute metres): the sim treats it like the Bay, never as drivable ground; the renderer draws water there. id is the USGS NHD permanent identifier.",
+              "type": "array", "maxItems": 10,
+              "items": {
+                "type": "object", "required": ["id", "name", "y"], "additionalProperties": false,
+                "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "y": { "type": "number" } }
+              }
+            }
           }
         }
       ]

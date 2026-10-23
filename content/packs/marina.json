@@ -1,0 +1,740 @@
+{
+  "version": 1,
+  "district": "marina",
+  "$comment": "District content pack for The Marina (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:0370e31e",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "marina-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Brunch delivery on Chestnut St. Hollandaise secured.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Marina Green at sunrise. I walk the path. The grass is for dogs and joggers.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Yoga mat delivery. Rolled tight. Very zen.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The fog comes in off the water. I walk straight into it. Splash-rated.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a kite to the Green. It wants to fly. Not yet.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Chestnut St is flat. Chestnut St is my favourite street.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The Palace of Fine Arts is very grand. I am very small next to it.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Green juice for apartment three. Lid tight.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Waiting at Fillmore and Chestnut. The light is long. I'm patient.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Boats in the marina. Clinking. Very soothing.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Dog-walker convoy on the path. I wait. Dogs first.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a wetsuit. It's for the bay. Not for me.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The fog bank is right at the edge of the Green. Beautiful.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lombard St runs straight here. I like a straight street.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Picnic basket for the Green. Blanket included.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Running shoes to Scott St. Somebody's training for something.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Sunday market on Chestnut. Robots carry the tomatoes.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The marina gate opens at eight. I'm there at eight.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! A jogger came round the corner and so did I.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, brunch queue. I'll wait behind the stroller.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, I'm giving the dogs right of way. Always.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, I was watching the boats and forgot the crosswalk.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, Chestnut St is busy on Saturdays. I'll go slow.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Brunch is a market. I'm cornering it.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your hollandaise has been acquired.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Laps of the Green. For my metrics. Not my health.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Fog? No thank you. I stick to the sunny side of growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every kite on the Green is an ad surface.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Running is free. Running faster is a subscription.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The marina is full of boats. And now, me.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This yoga mat is premium. Pay-per-pose.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I don't jog. I iterate.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Sunrise on the Green: 100% battery, 0% purpose.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Lap five. Nobody notices a robot jogging.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Snatching this brunch order. Tell them it was a market correction.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pairing with the cars on Marina Blvd. One chime at a time.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pushing an update while the dog walkers are busy.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not near the fog! I'm already nervous about the fog!",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "My laps! My perfect laps!",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Salt water from the marina! That's double rust!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "marina-pl-jogger-ambient-01",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "Three laps of the Green and then brunch. That's the plan.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-02",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "The fog's my air conditioning.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-03",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "That robot's doing laps faster than me. Rude.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-04",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "Morning run, golden hour, cold hands.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-05",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "I run to the bridge view and back. Every day.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-06",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "The path along the water is the best run in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-07",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "Dog walkers, joggers, robots. In that order of right of way.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-08",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "I set a personal best and a robot congratulated me. Weird. Nice.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-09",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "The wind off the water hits you right at the turnaround.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-10",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "There's always one robot running laps with nothing to carry.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-11",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "Brunch line is out the door on Chestnut. Worth it.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-12",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "Sunday on the Green is all kites and picnic blankets.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-13",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "I can see the palace dome from the end of the path.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-ambient-14",
+      "speaker": "jogger",
+      "context": "ambient",
+      "mood": "upbeat",
+      "text": "The boats in the marina sound like wind chimes.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-01",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "Fog rolls in at four and the whole neighbourhood puts on a sweater.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-02",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "The Green is our backyard. Everyone's backyard.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-03",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "My robot does the farmer's market run. It picks better tomatoes than me.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-04",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "Chestnut St on a Saturday is a parade of strollers and robots.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-05",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "The dogs on the Green are the real residents.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-06",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "You can hear the foghorns from my window. I love it.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-07",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "There's a robot that waits at every single crosswalk on Lombard.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-ambient-08",
+      "speaker": "resident",
+      "context": "ambient",
+      "mood": "relaxed",
+      "text": "The palace looks amazing in the fog. Like a movie set.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-robots-01",
+      "speaker": "jogger",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's done ten laps and never once looked tired.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-robots-02",
+      "speaker": "jogger",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why does that one turn back every time it gets to the fog?",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-robots-03",
+      "speaker": "jogger",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A robot just tried the door of every car on Marina Blvd.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-robots-04",
+      "speaker": "jogger",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one swings its bag like there's nothing in it.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-robots-05",
+      "speaker": "jogger",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Is that robot copying me? It stopped when I stopped.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-jogger-robots-06",
+      "speaker": "jogger",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That robot's been humming the same four notes all morning.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-01",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "The fog's coming over the hill. Right on time.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-02",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "First place in the city the fog hits. Lucky us.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-03",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "On fog nights the Green is empty and the boats glow.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-04",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "I don't own a single pair of shorts. I live here.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-05",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "The fog bank sits on the water like a wall.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-06",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "Sunny for twenty minutes, then here comes the fog.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-07",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "The fog's thick enough tonight that the robots look like ghosts.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-08",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "You can hear the bridge foghorn all the way to Chestnut.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-09",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "Fog days are good days for soup.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-10",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "When the fog lifts, the whole bay sparkles.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-11",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "The marine layer's early today.",
+      "maxLength": 90
+    },
+    {
+      "id": "marina-pl-resident-fog-12",
+      "speaker": "resident",
+      "context": "fog",
+      "mood": "content",
+      "text": "The fog never makes it to the sunny side of town. We're not the sunny side.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "marina-green-lapper",
+      "archetype": "snatcher",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Marina Green, the waterfront path",
+        "lat": 37.806,
+        "lon": -122.439
+      },
+      "posting": "A Footman runs laps of the Green while brunch orders go missing on Chestnut St.",
+      "tellHint": "It runs perfect laps with nothing to carry.",
+      "localTell": "greenLapper"
+    },
+    {
+      "id": "marina-chestnut-brunch",
+      "archetype": "adSticker",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "Chestnut St at Fillmore St",
+        "lat": 37.80081,
+        "lon": -122.43627
+      },
+      "posting": "Moat Labs posters over the Chestnut St bus shelters.",
+      "tellHint": "Its lookout laps the waterfront lawn.",
+      "localTell": "greenLapper"
+    },
+    {
+      "id": "marina-marina-blvd-prowler",
+      "archetype": "prowler",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "Marina Blvd at Scott St",
+        "lat": 37.80579,
+        "lon": -122.44221
+      },
+      "posting": "Pairing chimes on the cars parked along Marina Blvd.",
+      "tellHint": "Between cars it runs laps on the lawn.",
+      "localTell": "greenLapper"
+    },
+    {
+      "id": "marina-palace-update",
+      "archetype": "updatePusher",
+      "level": 4,
+      "crew": 2,
+      "lastSeen": {
+        "label": "By the Palace of Fine Arts lagoon",
+        "lat": 37.803,
+        "lon": -122.447
+      },
+      "posting": "Good Footmen near the palace lagoon are coming back with the jingle in their heads.",
+      "tellHint": "Look for laps. Good robots walk the path once and leave.",
+      "localTell": "greenLapper"
+    }
+  ],
+  "ads": [
+    {
+      "id": "marina-billboard-01",
+      "surface": "billboard",
+      "headline": "Brunch, but a platform.",
+      "subline": "{$product}. Bottomless mimosas, bottomless data."
+    },
+    {
+      "id": "marina-billboard-02",
+      "surface": "billboard",
+      "headline": "Fog, managed.",
+      "subline": "{$product}. Microclimate controls for your mood."
+    },
+    {
+      "id": "marina-busWrap-01",
+      "surface": "busWrap",
+      "headline": "Run faster with {$product}.",
+      "subline": "Your legs, now with a premium tier."
+    },
+    {
+      "id": "marina-busWrap-02",
+      "surface": "busWrap",
+      "headline": "The Green is free. {$product} is beta.",
+      "subline": "Picnic blankets with a waitlist."
+    }
+  ]
+}

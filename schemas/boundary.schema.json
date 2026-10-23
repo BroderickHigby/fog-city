@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/boundary",
+  "title": "World edge and shore (public/tiles/<world>/boundary.json), local metres (+x east, +z south)",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "seaLevelY",
+    "edges",
+    "shore"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "point": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    }
+  },
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "seaLevelY": {
+      "type": "number"
+    },
+    "edges": {
+      "description": "The outline of the built tiles, built tiles on the left of travel. land: the world stops on dry ground (the sim walls it off; there is no ground beyond). water: the outline crosses open water.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "closed",
+          "points"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "land",
+              "water"
+            ]
+          },
+          "closed": {
+            "type": "boolean",
+            "description": "A whole outline loop of one kind: the last point joins the first"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/point"
+            },
+            "minItems": 2
+          }
+        }
+      }
+    },
+    "shore": {
+      "description": "Land/water lines inside the built tiles, land on the left of travel: the sea-wall line and the Bay-edge refill zone. Open lines end at the edge of the built tiles. Inland lakes are water too: each one's outline is a closed line tagged with the lake.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "closed",
+          "points"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "closed": {
+            "type": "boolean"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/point"
+            },
+            "minItems": 2
+          },
+          "lake": {
+            "type": "string",
+            "description": "Optional: the inland lake (its id, as in the tile colliders' ground.lakes) this closed ring goes round (world QA W-11). Absent on the sea's lines."
+          }
+        }
+      }
+    }
+  }
+}

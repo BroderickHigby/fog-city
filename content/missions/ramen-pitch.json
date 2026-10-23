@@ -1,0 +1,209 @@
+{
+  "id": "ramen-pitch",
+  "version": 1,
+  "$comment": "The wave-1 pitch prototype, audited in wave 2: the accelerator is Ramen (a parody; never the real one), and its partners are the three archetypes from docs/design.md (the Metrics One, the Philosopher, the Vibes Partner), never likenesses of real partners. The house is at Pier 70 in Dogpatch, as Ramen Office Hours will be in wave 3. Coordinates: the start is a street (Toledo Way centerline, DataSF 3psu-pn9h), the house a hand-placed point inside the Pier 70 site east of Illinois St, the billboard a point beside The Embarcadero; no address is used.",
+  "title": "The Partner Meeting",
+  "summary": "Your partner meeting at Ramen moved up to 10:00. It is 09:51 and you are in the Marina. Get to the Ramen house at Pier 70, survive four questions from three partners, and either get funded or get told to come back with traction.",
+  "area": "Marina to Dogpatch",
+  "start": "call",
+  "cast": {
+    "player": { "name": "You", "role": "Founder" },
+    "slotsworth": { "name": "Slotsworth", "role": "Ramen's AI scheduling agent", "description": "Relentlessly upbeat. Has already accepted on your behalf." },
+    "philosopher": {
+      "name": "The Philosopher", "role": "Partner at Ramen",
+      "description": "An archetype, not a person: asks whether your company is a company or a feature, and waits a long time for the answer."
+    },
+    "metrics": {
+      "name": "The Metrics One", "role": "Partner at Ramen",
+      "description": "An archetype, not a person: has never heard a number she did not want weekly."
+    },
+    "vibes": {
+      "name": "The Vibes Partner", "role": "Partner at Ramen",
+      "description": "An archetype, not a person: judges the deck by how it feels in the room, and the room by its lighting."
+    },
+    "frontDesk": { "name": "Front Desk", "role": "Ramen's lobby robot" }
+  },
+  "meters": {
+    "conviction": { "label": "Partner conviction", "start": 40, "min": 0, "max": 100 }
+  },
+  "outcomes": {
+    "funded": { "label": "Funded", "kind": "success" },
+    "traction": { "label": "Come back with traction", "kind": "retry" },
+    "missed": { "label": "Missed the meeting", "kind": "retry" }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "note": "Rings when the player is at their apartment.",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "slotsworth",
+        "clock": "09:51",
+        "place": {
+          "label": "Your apartment (Marina, Toledo Way)",
+          "lat": 37.8018, "lon": -122.4379, "radiusM": 40,
+          "source": "Toledo Way centerline between EAS 2-30 Toledo Way; a street, not an address"
+        }
+      },
+      "lines": [
+        { "speaker": "slotsworth", "text": "Hi! Slotsworth here, Ramen's scheduling agent. Great news: your partner meeting moved up." },
+        { "speaker": "slotsworth", "text": "It's now at ten. It is nine fifty-one. I accepted on your behalf. You're welcome!" },
+        { "speaker": "player", "text": "Ten? As in nine minutes from now?" },
+        { "speaker": "slotsworth", "text": "The partners have a hard stop at ten fifteen for a panel about hard stops. The Ramen house, Pier 70, Dogpatch. See you there!" }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "travel": "any",
+      "target": {
+        "label": "The Ramen house, Pier 70, Dogpatch",
+        "lat": 37.7608, "lon": -122.385, "radiusM": 30,
+        "source": "Hand-placed inside the Pier 70 site, east of Illinois St at 20th St; a place, not an address"
+      },
+      "timer": { "limitS": 540, "warnAtS": 120, "label": "Partner meeting", "deadline": "10:00" },
+      "lines": [
+        { "speaker": "slotsworth", "text": "Reminder: the partners don't wait. They post threads about people who make them wait." }
+      ],
+      "next": "lobby",
+      "onTimeout": "missed"
+    },
+    {
+      "id": "lobby",
+      "type": "timer",
+      "durationS": 20,
+      "lines": [
+        { "speaker": "frontDesk", "text": "Welcome to Ramen. The partners are finishing a podcast. It's about patience." },
+        { "speaker": "frontDesk", "text": "Kombucha is on tap. It's also on the cap table." }
+      ],
+      "next": "pitch-philosopher"
+    },
+    {
+      "id": "pitch-philosopher",
+      "type": "dialogue",
+      "speaker": "philosopher",
+      "meter": "conviction",
+      "intro": [
+        { "speaker": "vibes", "text": "Love the energy. We've got eleven minutes and the light in here is perfect, so let's go." },
+        { "speaker": "philosopher", "text": "Before we begin, a question I ask everyone. Then another one." }
+      ],
+      "questions": [
+        {
+          "id": "moat",
+          "prompt": "So. What's your moat?",
+          "answers": [
+            { "id": "network", "text": "Network effects. Every new user makes it harder to leave.", "delta": 15, "reply": "Ah. A moat made of people. I've seen worse moats. I've seen a moat made of robots." },
+            { "id": "speed", "text": "Speed. We ship faster than anyone.", "delta": 5, "reply": "Speed isn't a moat. It's a puddle. I'm going to think about that all week." },
+            { "id": "slide", "text": "It's in the deck. Slide nine.", "delta": -10, "reply": "Slide nine is a photo of an actual moat. There's a swan." }
+          ]
+        },
+        {
+          "id": "justAFeature",
+          "prompt": "Is it a company, or is it a feature?",
+          "answers": [
+            { "id": "email", "text": "Every company was a feature once. So was email.", "delta": 15, "reply": "Bold. That's a whole seminar. Possibly a book." },
+            { "id": "waitlist", "text": "It's a feature with a waitlist.", "delta": 5, "reply": "A waitlist is a feature with ambition. I'll allow it." },
+            { "id": "platform", "text": "A feature. The big platforms will ship it next quarter.", "delta": -15, "reply": "Ah. Honesty. We have a portfolio company for that. It's also struggling." }
+          ]
+        }
+      ],
+      "next": "pitch-vibes"
+    },
+    {
+      "id": "pitch-vibes",
+      "type": "dialogue",
+      "speaker": "vibes",
+      "meter": "conviction",
+      "questions": [
+        {
+          "id": "whyNow",
+          "prompt": "Why now?",
+          "answers": [
+            { "id": "window", "text": "A year ago this was impossible. Next year it's a free feature. Now is the window.", "delta": 15, "reply": "A closing window. I can feel it closing. That's a good feeling." },
+            { "id": "robotaxis", "text": "The robotaxis finally stopped circling our office.", "delta": 5, "reply": "Mine still circles my office. I think it's lonely. Great vibe, though." },
+            { "id": "bar", "text": "Honestly? The bar was low, and so were we.", "delta": -10, "reply": "Candid. Too candid. The room just got colder." }
+          ]
+        }
+      ],
+      "next": "pitch-metrics"
+    },
+    {
+      "id": "pitch-metrics",
+      "type": "dialogue",
+      "speaker": "metrics",
+      "meter": "conviction",
+      "questions": [
+        {
+          "id": "traction",
+          "prompt": "What does traction look like? Weekly, please.",
+          "answers": [
+            { "id": "waitlist", "text": "Forty thousand on the waitlist. Some of them are people.", "delta": 10, "reply": "Some is a number. I'll take it. Send it to me weekly." },
+            { "id": "revenue", "text": "Three customers who pay us every month. On purpose.", "delta": 15, "reply": "Revenue? In this economy? Weird. Interesting. Mostly weird." },
+            { "id": "views", "text": "Our launch video has a million views. Mostly us.", "delta": -5, "reply": "Views are a vibe. Vibes aren't a metric. Don't tell him I said that." }
+          ]
+        }
+      ],
+      "next": "decide"
+    },
+    {
+      "id": "decide",
+      "type": "branch",
+      "meter": "conviction",
+      "cases": [{ "min": 70, "next": "funded" }],
+      "default": "traction"
+    },
+    {
+      "id": "funded",
+      "type": "reward",
+      "outcome": "funded",
+      "lines": [
+        { "speaker": "philosopher", "text": "We're in. Don't tell anyone until we've posted about it." },
+        { "speaker": "slotsworth", "text": "Congratulations! I booked your billboard on the Embarcadero. And a nap. Both start Monday." }
+      ],
+      "grants": [
+        {
+          "kind": "billboard",
+          "corridor": "embarcadero",
+          "place": {
+            "label": "The Embarcadero at Harrison St, facing southbound traffic",
+            "lat": 37.7894, "lon": -122.3884, "headingDeg": 330,
+            "source": "Hand-placed on the bay side of The Embarcadero near Harrison St; the roadway runs about 150/330 degrees here, so a board facing 330 faces oncoming southbound traffic"
+          },
+          "copy": { "generator": "billboard", "product": "playerStartup" }
+        },
+        { "kind": "stat", "stat": "vcAttention", "delta": 1 }
+      ]
+    },
+    {
+      "id": "traction",
+      "type": "retry",
+      "outcome": "traction",
+      "lines": [
+        { "speaker": "metrics", "text": "We love it. We're out. Come back with traction." },
+        { "speaker": "vibes", "text": "Genuinely great energy, though. Keep that. Lose the rest." }
+      ],
+      "hint": "Get some traction, or a better answer to 'Is it a company, or is it a feature?', then take the call again.",
+      "cooldownS": 300,
+      "retryFrom": "call"
+    },
+    {
+      "id": "missed",
+      "type": "retry",
+      "outcome": "missed",
+      "lines": [
+        { "speaker": "slotsworth", "text": "The partners waited ninety seconds, then recorded an episode about founders who are late. You're the hero of it." },
+        { "speaker": "slotsworth", "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably." }
+      ],
+      "retryFrom": "call"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:cd839cd9",
+    "reviewedBy": [],
+    "review": "Pending: mission text is on the user's read-in-full list (docs/ai-layer.md, Review), and a second agent session reads it against the checklist."
+  }
+}
