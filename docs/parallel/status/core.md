@@ -116,3 +116,18 @@ Validation: focused migration/interface/physics/purity, calendar/identity/follow
 - Integrated agent services/transit `31b4079` and player real-event normalization `e857ab4` + `4d32239` (local equivalents `e41f1f5` + `6f459ab`).
 - Validation: **typecheck passed; 102 tests across 7 files passed**, including authored Hot Desk stage→accepted actor→held Watch objective, held interact→actual refill, physical service controls, agent runtime/service/transit regressions, event attribution and forbidden APIs.
 - Still pending: visible renderer composition, real-SF service/mission driving and full browser/parity checks. The existing world pack remains FCWC v1; no QA v4 deck/tunnel geometry has been imported.
+
+## Performance candidate
+
+Branch `lane/core/perf` starts at the immutable wave-2 candidate `aa1eb6a`. `9873dd8` reuses identical per-tick observations across the six gameplay reducers; interleaved simulation branches remain identical to fresh registries (three composition tests passed). The first timed comparison did not demonstrate a speed improvement, so this is not a performance sign-off.
+
+A core population defect was found during profiling: claimed legacy actors were omitted from ambient population counts, allowing replacement actors to be added every population tick. Population now counts all present bodies while preserving runtime ownership. The exact regression compares the same population calculation with claimed bodies and passes, alongside the composition tests (four tests total).
+
+Real-SF baseline remains too slow for the intended game: the 100-tick sample measured about 17 ms median, 27 ms p95 at 255 actors; a separate 600-tick driving probe took 51 seconds. CPU sampling points primarily at agent preparation/nearest-node work. Agent and combat hot paths are being reviewed separately; full renderer and replay timing remain pending.
+
+Draft PR title: `Core: retain claimed actors in population budgets and reuse observations`
+Base: `integrate/wave2` · Head: `lane/core/perf`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/perf?expand=1>
+Body: Count runtime-owned legacy actors when replenishing ambient population, preventing duplicate replacements without surrendering movement ownership. Reuse the unchanged observation snapshot across gameplay reducers and verify interleaved replay branches. Includes population and replay regression tests. Actual-SF profiling is still in progress; this branch does not claim the final simulation budget or visual quality target.
+
+Performance candidate follow-up: merged the agents lane's tested `fc64776` exact spatial nearest-node index and current runtime reuse, retained population fix `f6f8357`, and applied an authorized combat adapter allowlist copy (avoids cloning then deleting body fields). The adapter still ignores metadata identity/position overrides. Updated a leftover test assertion from the earlier typed-extension fixture migration. Combined **typecheck and 100 tests across 7 files passed**, including exact navigation queries, actual service movement, population ownership, metadata protection, replay branches and purity. A new consistent-world timed probe is still required before claiming the frame budget.

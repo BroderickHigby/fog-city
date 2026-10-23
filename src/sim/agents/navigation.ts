@@ -41,12 +41,22 @@ export interface SidewalkTraversal {
   readonly reverse: boolean;
 }
 
+interface SidewalkSpatialNode {
+  readonly node: SidewalkNode;
+  readonly axis: 0 | 1;
+  readonly left: SidewalkSpatialNode | null;
+  readonly right: SidewalkSpatialNode | null;
+}
+
 export interface SidewalkGraph {
   readonly nodes: ReadonlyArray<SidewalkNode>;
   readonly edges: ReadonlyArray<SidewalkEdge>;
   readonly nodeById: ReadonlyMap<string, SidewalkNode>;
   readonly edgeById: ReadonlyMap<string, SidewalkEdge>;
   readonly outgoing: ReadonlyMap<string, ReadonlyArray<SidewalkTraversal>>;
+  /** Immutable weak components reject unreachable requests before a graph search. */
+  readonly componentById?: ReadonlyMap<string, string>;
+  readonly spatialRoot?: SidewalkSpatialNode | null;
 }
 
 export interface SidewalkRoute {
@@ -97,7 +107,48 @@ export function buildSidewalkGraph(input: SidewalkGraphInput): SidewalkGraph {
       outgoing.get(edge.b)!.push({ edgeId: edge.id, from: edge.b, to: edge.a, reverse: true });
     }
   }
-  return { nodes, edges, nodeById, edgeById, outgoing };
+  const parent = new Map(nodes.map(node => [node.id, node.id]));
+  const root = (id: string): string => {
+    let result = id;
+    while (parent.get(result)! !== result) result = parent.get(result)!;
+    while (id !== result) { const next = parent.get(id)!; parent.set(id, result); id = next; }
+    return result;
+  };
+  for (const edge of edges) {
+    const a = root(edge.a), b = root(edge.b);
+    if (a !== b) parent.set(compareId(a, b) < 0 ? b : a, compareId(a, b) < 0 ? a : b);
+  }
+  const componentById = new Map(nodes.map(node => [node.id, root(node.id)]));
+  return { nodes, edges, nodeById, edgeById, outgoing, componentById, spatialRoot: buildSpatialTree(nodes, 0) };
+}
+
+/** World-owned immutable index: nearest queries never rebuild or scan remote tile nodes. */
+function buildSpatialTree(nodes: readonly SidewalkNode[], depth: number): SidewalkSpatialNode | null {
+  if (!nodes.length) return null;
+  const axis = depth % 2 as 0 | 1;
+  const sorted = [...nodes].sort((a,b) => (axis === 0 ? a.x-b.x : a.z-b.z) || compareId(a.id,b.id));
+  const middle = Math.floor(sorted.length/2);
+  return {node:sorted[middle]!,axis,left:buildSpatialTree(sorted.slice(0,middle),depth+1),right:buildSpatialTree(sorted.slice(middle+1),depth+1)};
+}
+
+/** Exact nearest node; equal distances retain the previous stable ID tie-break. */
+export function nearestSidewalkNode(graph: SidewalkGraph, point: {x:number;z:number}): string {
+  if (![point.x,point.z].every(Number.isFinite)) throw new Error("Invalid sidewalk query");
+  let best = "", bestDistance = Infinity;
+  const consider = (node: SidewalkNode): void => {
+    const dx=node.x-point.x,dz=node.z-point.z,distance=Math.sqrt(dx*dx+dz*dz);
+    if(distance<bestDistance||distance===bestDistance&&compareId(node.id,best)<0){best=node.id;bestDistance=distance;}
+  };
+  const visit = (branch: SidewalkSpatialNode | null): void => {
+    if(!branch)return;
+    consider(branch.node);
+    const delta=branch.axis===0?point.x-branch.node.x:point.z-branch.node.z;
+    visit(delta<0?branch.left:branch.right);
+    if(Math.abs(delta)<=bestDistance)visit(delta<0?branch.right:branch.left);
+  };
+  if(graph.spatialRoot!==undefined)visit(graph.spatialRoot);
+  else for(const node of graph.nodes)consider(node);
+  return best;
 }
 
 /**
@@ -198,6 +249,7 @@ export function shortestSidewalkRoute(
   graph: SidewalkGraph, start: string, target: string, isBlocked?: BlockedSidewalkQuery,
 ): SidewalkRoute | null {
   if (!graph.nodeById.has(start) || !graph.nodeById.has(target)) return null;
+  if (graph.componentById && graph.componentById.get(start) !== graph.componentById.get(target)) return null;
   const best = new Map<string, Frontier>();
   const previous = new Map<string, SidewalkTraversal>();
   const initial = { id: start, distance: 0, key: "" };

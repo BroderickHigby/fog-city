@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildRoadGraph } from "../../../src/sim/roads.ts";
 import type { RoadsFile } from "../../../src/sim/roads.ts";
 import {
-  advanceSidewalkRoute, buildFallbackSidewalkGraph, buildSidewalkGraph, shortestSidewalkRoute,
+  advanceSidewalkRoute, buildFallbackSidewalkGraph, buildSidewalkGraph, nearestSidewalkNode, shortestSidewalkRoute,
 } from "../../../src/sim/agents/navigation.ts";
 import type { SidewalkGraphInput } from "../../../src/sim/agents/navigation.ts";
 
@@ -53,6 +53,30 @@ describe("sidewalk navigation policy", () => {
     const directed = buildSidewalkGraph({ nodes: diamond.nodes, edges: diamond.edges.map((edge) => ({ ...edge, bidirectional: false })) });
     expect(shortestSidewalkRoute(directed, "end", "start")).toBeNull();
     expect(shortestSidewalkRoute(graph, "missing", "end")).toBeNull();
+  });
+
+  it("matches exact nearest nodes and ID ties for local and remote points", () => {
+    const nodes=Array.from({length:500},(_,i)=>({id:`n${i}`,x:(i%25)*13,z:Math.floor(i/25)*17}));
+    nodes.push({id:"a-tie",x:0,z:0});
+    const graph=buildSidewalkGraph({nodes,edges:[]});
+    for(let i=0;i<100;i++){
+      const point={x:i%2?i*103-4000:i*3.7,z:i%3?i*81-2000:i*2.3};
+      const distance=(node:typeof nodes[number])=>Math.sqrt((node.x-point.x)**2+(node.z-point.z)**2);
+      const expected=[...nodes].sort((a,b)=>distance(a)-distance(b)||(a.id<b.id?-1:1))[0]!.id;
+      expect(nearestSidewalkNode(graph,point)).toBe(expected);
+    }
+    expect(nearestSidewalkNode(graph,{x:0,z:0})).toBe("a-tie");
+    expect(nearestSidewalkNode({...graph,spatialRoot:undefined},{x:0,z:0})).toBe("a-tie");
+    expect(()=>nearestSidewalkNode(graph,{x:NaN,z:0})).toThrow();
+  });
+
+  it("rejects a disconnected destination without visiting the populated component", () => {
+    const nodes = Array.from({length:1000}, (_,i) => ({id:`n${i}`,x:i,z:0}));
+    const graph = buildSidewalkGraph({nodes:[...nodes,{id:"isolated",x:0,z:100}],edges:nodes.slice(1).map((node,i)=>({id:`e${i}`,a:nodes[i]!.id,b:node.id,kind:"sidewalk" as const,points:[[i,0],[i+1,0]]}))});
+    let visited = 0;
+    expect(shortestSidewalkRoute(graph,"n0","isolated",()=>{visited++;return false;})).toBeNull();
+    expect(visited).toBe(0);
+    expect(shortestSidewalkRoute(graph,"n0","n999")!.lengthM).toBe(999);
   });
 
   it("excludes freeway, ramp, and grade-separated explicit edges", () => {
