@@ -1,3 +1,4 @@
+import {circleHitsWall,segmentCrossesWall} from "../boundary.ts";
 import {isGameplayId} from "../gameplay-contract.ts";
 import {agentsOf} from "../agents.ts";
 import type {SimState} from "../contract.ts";
@@ -31,7 +32,7 @@ export function planSceneActors(world:World,sim:Readonly<SimState>,scene:Mission
  for(const definition of [...scene.actors].sort((a,b)=>a.id<b.id?-1:1)){
   if(runtime?.actors[definition.id])continue;
   const anchor={x:scene.anchor.x+definition.offset.x,z:scene.anchor.z+definition.offset.z};
-  const clear=(p:{x:number;z:number})=>!circleBlocked(world,p.x,p.z,definition.radius)&&[...occupied,...actors].every(other=>distance(p,other)>definition.radius+("radius" in other&&other.radius||.5)+.5);
+  const clear=(p:{x:number;z:number})=>!circleHitsWall(world.walls,p.x,p.z,definition.radius)&&!segmentCrossesWall(world.walls,anchor.x,anchor.z,p.x,p.z)&&!circleBlocked(world,p.x,p.z,definition.radius)&&[...occupied,...actors].every(other=>distance(p,other)>definition.radius+("radius" in other&&other.radius||.5)+.5);
   let spot:{x:number;z:number;heading?:number}|undefined;
   if(definition.model==="van")spot=serviceRoadPoint(world,anchor,0,25,0,[...occupied,...actors],2.7,1.1)??undefined;
   else {

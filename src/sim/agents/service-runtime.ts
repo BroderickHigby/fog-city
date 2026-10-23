@@ -1,3 +1,4 @@
+import {boxBlocked} from "../collide.ts";
 import type { SimInput, SimState } from "../contract.ts";
 import type { ThreatSpawnRequest } from "../gameplay-contract.ts";
 import { isGameplayId } from "../gameplay-contract.ts";
@@ -66,6 +67,7 @@ export function serviceRoadPoint(world:World,target:{x:number;z:number},minimum:
       for(const at of positions){
         const p=pathPoint(path,at),d=distance(p,target);if(d<minimum||d>maximum||circleBlocked(world,p.x,p.z,1.4)||actors.some(actor=>distance(actor,p)<halfLength+(actor.radius??.4)+.5))continue;
         const heading=datan2(p.tx,-p.tz),fx=dsin(heading),fz=-dcos(heading),rx=dcos(heading),rz=dsin(heading);
+        if(boxBlocked(world,{x:p.x,z:p.z,heading,hl:halfLength,hw:halfWidth},groundHeight(world,p.x,p.z)+.5))continue;
         const corners=[[-1,-1],[-1,1],[1,1],[1,-1]].map(([f,r])=>({x:p.x+f!*halfLength*fx+r!*halfWidth*rx,z:p.z+f!*halfLength*fz+r!*halfWidth*rz}));
         if(corners.some(c=>circleBlocked(world,c.x,c.z,.15))||corners.some((c,i)=>segmentBlocked(world,c.x,c.z,corners[(i+1)%4]!.x,corners[(i+1)%4]!.z)))continue;
         const candidateScore=Math.abs(d-preferred),candidateKey=`${edge.id}:${dir}:${at}`;

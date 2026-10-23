@@ -1,5 +1,6 @@
 import type { SimState } from "../contract.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
+import {planThreatRuntime} from "./threat-runtime.ts";
 import {planMaintenanceRuntime} from "./maintenance-runtime.ts";
 import { planTransitRuntime } from "./transit-runtime.ts";
 import { planServiceRuntime } from "./service-runtime.ts";
@@ -36,6 +37,11 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
       const reserved=allocate(state,transit.spawns.map(actor=>actor.id));state=reserved.state;
       for(const actor of transit.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
     }
+    const threats=allocate&&options.threats!==false&&(options.wave??2)>=3?planThreatRuntime(context.world,state,agentsRuntimeOf(state)?.threats,options,spawns):undefined;
+    if(threats&&allocate&&threats.spawns.length){
+      const reserved=allocate(state,threats.spawns.map(actor=>actor.id));state=reserved.state;
+      for(const actor of threats.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
+    }
     const maintenance=allocate&&options.maintenance!==false&&(options.wave??2)>=3?planMaintenanceRuntime(context.world,state,agentsRuntimeOf(state)?.maintenance,spawns):undefined;
     if(maintenance&&allocate&&maintenance.spawns.length){
       const reserved=allocate(state,maintenance.spawns.map(actor=>actor.id));state=reserved.state;
@@ -64,9 +70,10 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         for(const alias of Object.keys(plan.bindings).sort())bindings[`${stage.missionId}:${alias}`]=plan.bindings[alias]!;
       }
     }
-    const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,movementGoals:{...options.movementGoals,...maintenance?.goals},restorationPoints:{...options.restorationPoints,...maintenance?.restorationPoints},vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
+    const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,movementGoals:{...options.movementGoals,...maintenance?.goals,...threats?.goals},restorationPoints:{...options.restorationPoints,...maintenance?.restorationPoints},vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls,...threats?.controls}});
     if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
+    if(threats){runtime.threats=threats.state;for(const id of threats.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     if(maintenance){
       runtime.maintenance=maintenance.state;
       for(const id of Object.keys(runtime.actors).sort()){const actor=runtime.actors[id]!;if(actor.model==="tidy"){delete actor.cargoId;if(actor.behavior.startsWith("tidy-"))actor.behavior="idle";}}

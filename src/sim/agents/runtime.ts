@@ -2,6 +2,7 @@ import { BOT_TELLS, botAtLevel } from "../../content/botTells.ts";
 import { ROBOT_GOALS, goalsInWave } from "../../content/robotGoals.ts";
 import { badRobotRate, protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
+import {isGameplayId} from "../gameplay-contract.ts";
 import { Action, type InputFrame, type SimInput, type SimState } from "../contract.ts";
 import { AGENT_SPEC, agentsOf, personIsChild, type AgentState } from "../agents.ts";
 import { dcos, dsin, datan2, clamp } from "../dmath.ts";
@@ -13,6 +14,7 @@ import { buildFallbackSidewalkGraph, nearestSidewalkNode, shortestSidewalkRoute,
 import { planFidelity, type FidelityAnchor } from "./fidelity.ts";
 import type { TransitLayer, TransitRuntimeState } from "./transit-runtime.ts";
 import type { AdWrapSlot } from "./services.ts";
+import type { ThreatRuntimeState } from "./threat-runtime.ts";
 import type { MaintenanceRuntimeState } from "./maintenance-runtime.ts";
 import {microclimateBlocksSight} from "../combat/microclimate.ts";
 import type { ServiceRuntimeState } from "./service-runtime.ts";
@@ -41,6 +43,8 @@ export interface RuntimeSpawn {
   level?: number;
   adWrapSlot?: AdWrapSlot;
   posted?: boolean;
+  dispatch?: {playerId:string;x:number;z:number;tick:number};
+  combatGoals?: Partial<Record<RobotGoal,number>>;
 }
 
 export interface RuntimeActor extends RuntimeSpawn {
@@ -97,6 +101,7 @@ export interface AgentsRuntimeState {
   services?: ServiceRuntimeState;
   transit?: TransitRuntimeState;
   maintenance?: MaintenanceRuntimeState;
+  threats?: ThreatRuntimeState;
   baseBadCount: number;
   lastCombatTick: number;
   attacks: AttackRequest[];
@@ -110,6 +115,8 @@ export interface AgentRuntimeOptions {
   graph?: SidewalkGraph;
   services?: boolean;
   maintenance?: boolean;
+  threats?: boolean;
+  allowFlying?: boolean;
   movementGoals?: Readonly<Record<string,RuntimeMovementGoal>>;
   restorationPoints?: Readonly<Record<string,{x:number;y:number;z:number}>>;
   transit?: TransitLayer;
@@ -125,6 +132,8 @@ export interface AgentRuntimeOptions {
   fogAt?: (x:number,z:number)=>number;
   /** Core owns player-controlled bodies, so autonomous brains never propose motion for them. */
   controlledActorIds?: readonly string[];
+  /** Only core-accepted transfers may retire an actor into player ownership. */
+  retiredActorIds?: readonly string[];
   conversionCap?: number;
   /** Scenario or camera anchors are accepted only when recorded in the simulation. */
   anchors?: readonly FidelityAnchor[];
@@ -153,13 +162,19 @@ function human(model:RuntimeModel):boolean{return model==="person"||model==="ass
 
 function initialize(spawn:RuntimeSpawn,tick:number,legacyId:number|null):RuntimeActor{
   if([spawn.halfLength,spawn.halfWidth,spawn.rustScale].some(value=>value!==undefined&&(!Number.isFinite(value)||value<=0))||spawn.speed!==undefined&&(!Number.isFinite(spawn.speed)||spawn.speed<0)||spawn.model==="tidy"&&spawn.firmware==="bad")throw new Error("Invalid runtime metadata");
-  if(!spawn.id||!Number.isSafeInteger(spawn.numericId)||spawn.numericId<1||![spawn.x,spawn.y,spawn.z,spawn.heading,spawn.radius,spawn.height].every(Number.isFinite)||spawn.radius<=0||spawn.height<=0)throw new Error("Invalid runtime actor");
+  if(!isGameplayId(spawn.id)||!Number.isSafeInteger(spawn.numericId)||spawn.numericId<1||![spawn.x,spawn.y,spawn.z,spawn.heading,spawn.radius,spawn.height].every(Number.isFinite)||spawn.radius<=0||spawn.height<=0)throw new Error("Invalid runtime actor");
   const profile=spawn.archetype&&BOT_TELLS.archetypes.some(candidate=>candidate.id===spawn.archetype)?botAtLevel(spawn.archetype,spawn.level??1):undefined;
   const tells=profile?[...profile.tells,...profile.camouflage]:[];
   const bag:RuntimeActor["bag"]=tells.some(tell=>tell.behaviour.kind==="emptyBag"||tell.behaviour.kind==="emptyBagReturning")?"empty":tells.some(tell=>tell.behaviour.kind==="fullBag")?"full":spawn.model==="footman"?(spawn.firmware==="good"?"full":"empty"):"none";
-  return {...spawn,...(vehicle(spawn.model)?{halfLength:spawn.halfLength??(spawn.model==="bus"?6.6:spawn.model==="van"?2.7:2.2),halfWidth:spawn.halfWidth??(spawn.model==="bus"?1.35:spawn.model==="van"?1.1:.95)}:{}),legacyId,speed:spawn.speed??0,bornTick:tick,retired:false,converted:false,significant:spawn.significant??false,
+  const actor:RuntimeActor={...spawn,...(vehicle(spawn.model)?{halfLength:spawn.halfLength??(spawn.model==="bus"?6.6:spawn.model==="van"?2.7:2.2),halfWidth:spawn.halfWidth??(spawn.model==="bus"?1.35:spawn.model==="van"?1.1:.95)}:{}),legacyId,speed:spawn.speed??0,bornTick:tick,retired:false,converted:false,significant:spawn.significant??false,
     brain:spawn.firmware==="bad"&&!vehicle(spawn.model)?createRobotBrain({id:spawn.numericId,archetype:archetype(spawn.model),tick}):null,
     intent:null,reaction:IDLE_REACTION,route:null,cursor:{stepIndex:0,distanceM:0},goalNode:"",pendingCursor:null,pendingPoint:null,attackSequence:0,actionToken:"",fidelity:"full",behavior:"idle",bag,statusLight:tells.some(tell=>tell.behaviour.kind==="faceLightFlicker")?"flicker":"steady",tellIds:tells.map(tell=>tell.id),tellIntensity:profile?.intensity??1,hiddenTellId:null};
+  if(spawn.dispatch&&actor.brain){
+    const report=spawn.dispatch;
+    if(!isGameplayId(report.playerId)||![report.x,report.z].every(Number.isFinite)||!Number.isSafeInteger(report.tick)||report.tick<0||report.tick>tick)throw new Error("Invalid dispatch observation");
+    actor.brain={...actor.brain,mode:"alerted",knowledge:[{playerId:report.playerId,x:report.x,z:report.z,observedTick:report.tick,expiresTick:report.tick+600,channel:"broadcast"}]};
+  }
+  return actor;
 }
 
 function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):RuntimeSpawn{
@@ -310,13 +325,15 @@ function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|
 function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
-    const controls=options.vehicleControls?.[actor.id];
-    if(actor.legacyId===null||controls)state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:null,kind:"vehicle",...(controls?{controls}:{}),...motionMetadata(actor),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
+    let controls=options.vehicleControls?.[actor.id];
+    const effect=activeCombat(sim)?.targets[actor.id];
+    if(effect&&(effect.phase!=="active"||effect.stoppedUntil>sim.tick))controls={throttle:0,steer:0,brake:1,actions:0};
+    if(actor.legacyId===null||controls)state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,kind:"vehicle",...(controls?{controls}:{}),...motionMetadata(actor),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
     return;
   }
   const wanted=desiredMovement(actor,intent,others);
   const task=options.movementGoals?.[actor.id];
-  if(task){const moving=distance(actor,task)>task.stopDistance;wanted.goal=moving?task:null;wanted.speed=moving?task.speed:0;}
+  if(task&&intent?.movement.kind!=="flee"){const moving=distance(actor,task)>task.stopDistance;wanted.goal=moving?task:null;wanted.speed=moving?task.speed:0;}
   const effect=activeCombat(sim)?.targets[actor.id];
   const updating=(activeCombat(sim)?.attacks??[]).some(attack=>attack.kind==="forced-update"&&attack.targetId===actor.id);
   const frozen=Boolean(effect&&effect.phase!=="active"||updating);
@@ -370,7 +387,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const length=distance(actor,goal),travel=Math.min(length,speed*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
   const x=actor.x+dx*travel,z=actor.z+dz*travel;
-  const clear=!segmentBlocked(world,actor.x,actor.z,x,z);
+  const clear=actor.model==="drone"||!segmentBlocked(world,actor.x,actor.z,x,z);
   const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):groundHeight(world,x,z);
   const actualX=clear?x:actor.x,actualZ=clear?z:actor.z;
   actor.pendingPoint={x:actualX,z:actualZ};
@@ -378,6 +395,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
 }
 
 function contentGoalWeights(actor:RuntimeActor,wave:number):Partial<Record<RobotGoal,number>>|undefined{
+  if(actor.combatGoals)return actor.combatGoals;
   if(!actor.archetype||!ROBOT_GOALS.archetypes[actor.archetype])return undefined;
   const weights:Partial<Record<RobotGoal,number>>={shove:0,grocerySnatch:0,adBlast:0,phoneHack:0,handshake:0,forcedUpdate:0};
   const sabotage:Record<string,RobotGoal>={snatchGroceries:"grocerySnatch",pushUpdate:"forcedUpdate",stickAd:"adBlast",harvestData:"phoneHack"};
@@ -412,6 +430,7 @@ function fallbackGraph(world:World):SidewalkGraph|undefined{
 export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:InputFrame,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const previous=agentsRuntimeOf(sim)??createAgentsRuntime(sim,options);
   const state=synchronize(previous,sim,options);
+  for(const id of options.retiredActorIds??[]){const actor=state.actors[id];if(actor&&!actor.retired){actor.retired=true;delete actor.carriedBy;delete actor.restorePending;event(state,"actor.retired",id,"accepted-transfer");}}
   const people=players(sim);
   const anchors=options.anchors??people.map(player=>({id:player.id,x:player.x,z:player.z}));
   const graph=options.graph??fallbackGraph(world);

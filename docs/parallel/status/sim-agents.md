@@ -74,7 +74,7 @@ Git push works. GitHub API operations have been blocked in this environment, so 
 
 ### Requests for other lanes
 
-- **Core:** supply only accepted `controlledActorIds` and keep their accepted poses in `observedBodies`; add bounded flying-body acceptance for wave 3. World navigation/transit data should continue to flow through the configured provider.
+- **Core:** supply only accepted `controlledActorIds` and keep their accepted poses in `observedBodies`; bounded flying-body acceptance is integrated in the wave-3 checkpoint below. World navigation/transit data should continue to flow through the configured provider.
 - **Player:** `mission.scene-request` can supply the agreed small-body scene schema; giant Walker and fireboat require their dedicated physical/model contract.
 - **Combat:** maintenance dependency is published at `043396c`; the Tidy bridge will retain hidden carried targets in combat until restore, then wait for physical readmission before emitting accepted restoration.
 - **Integration:** full clearance fuzz/soak and browser performance remain necessary beyond the small physical fixtures.
@@ -112,18 +112,29 @@ Active stacked branch: `lane/sim-agents/wave3`, based on the verified wave-2 wor
 
 Validation: TypeScript passes. The actual collection → converted cargo retention → 60-second restore → body readmission test passes, along with pending-admission rejection, repair attribution and microclimate sight tests. The narrow lifecycle/pause run passed **2 files / 6 tests**. Final combined validation passed: typecheck and **5 files / 94 tests**, including mode/mission placement, maintenance, pause and forbidden APIs. The cargo lifecycle also leaves and re-enters player fidelity without losing its converted state.
 
-Requests: core still owns flying-body acceptance and accepted player control; player rewards should consume only the attributed accepted-body event. Final rendered animation, full multiplayer soak and later drone/theft/Walker work are not claimed complete.
+Requests: core still owns accepted player control; player rewards should consume only the attributed accepted-body event. Flying-body acceptance is integrated below. Final rendered animation, full multiplayer soak and later theft/Walker work are not claimed complete.
 
 ### Wave-3 draft pull request
 
-Title: `feat(agents): haul heaps and confirm restored robot bodies`
+Title: `feat(agents): connect threat dispatch, flight and robot restoration`
 
 Body:
 
-Tidy workers collect actual heaps, preserve converted helpers while hauling them to real repair kiosks, and request the combat reducer's continuous 60-second restore. Restored actors stay hidden until the core admits their physical bodies; only then does the runtime emit an attributed completion event. Microclimate gadgets block robot sight.
+Dispatch actual swarms, Patrol bodies, rogue taxis and gated ad drones from authoritative threat requests. Ground and flying bodies use the shared physics kernel; dispatched units retain last-known knowledge and leave attack timing/effects to combat. Tidy workers collect heaps and restore converted helpers at real kiosks, emitting completion only after physical readmission. Microclimate gadgets block robot sight.
 
-Validation: typecheck and 94 focused checks pass. Physical lifecycle coverage includes collection, converted cargo outside player fidelity, restoration and accepted body readmission. Ownership mismatch and pending-admission cases cannot produce a completion reward. Includes the physical-kernel adaptation of the combat pause, with preparation frozen through tick 180 and resumed at tick 181.
+Validation: typecheck and 104 focused checks pass; the final service/scene/flight regression run passes 7 files / 27 tests. Physical lifecycle coverage includes collection, converted cargo outside player fidelity, restoration and accepted body readmission. Ownership mismatch and pending-admission cases cannot produce a completion reward. Includes the physical-kernel adaptation of the combat pause, with preparation frozen through tick 180 and resumed at tick 181.
 
 ## Roster startup optimization
 
 `planMissionActors` now computes its ordered non-taxi placement candidates once per request. A 120-actor mode roster shares that list while retaining per-actor occupancy checks and the exact previous candidate order. The list belongs only to the current call; no global cache or simulation behavior changes. The 94-test combined run above includes mission and roster regressions. Real-SF mode-boot timing remains with the integration harness.
+
+## Ground and airborne threat checkpoint
+
+- Shared flight `657a860` is integrated as `323032e`. Drones retain accepted altitude and use the core's 3D collision/clearance path; the ground-only 2D prefilter is bypassed for drones. Core composition must explicitly set `allowFlying` when enabling later-wave dispatch.
+- `threat.spawn` requests dispatch Patrol/swarm units once into clear nearby positions, plus rogue taxis driven through the shared follower. Requests seed only the reported position; future updates require real sight. Expired knowledge stops directed pursuit, and rust/fog flight behavior can override the dispatch goal.
+- Special units use normal monotonic attack requests. The tested ad drone produces its actual combat popup; the swarm produces shared shove effects. Patrol currently uses existing close-combat/handshake behavior; a dedicated Terms of Service effect is still separate work.
+- Disabled vehicles brake, preserving legacy identities. Accepted `retiredActorIds` remove transferred actors from runtime proposals and combat; these IDs must come from core's accepted handoff, not a pending request.
+- Spawn searches avoid shore/world-wall overlap, and road entries validate their full box. Taxi road targets are retained until the observed target moves enough to need another projection.
+- Typecheck and **4 files / 104 tests pass** across the threat, maintenance, runtime and forbidden-API suites. The eight threat tests cover physical swarm attacks, real hovering/ad attacks, flight gating, sight memory, rust fleeing, safe shoreline placement, legacy taxi identity, disabled taxi motion and accepted retirement. Final combined service/scene/flight regressions passed: **7 files / 27 tests**. The final standalone typecheck also passes.
+
+The coordinating session has requested convergence on a stable playable candidate. New tracks are held after this checkpoint. Remaining work is explicit: dedicated Terms of Service, player-car theft, calendar events and associates; later recruits/parrots, robot-body control and the Walker/finale. They are not covered by this checkpoint.

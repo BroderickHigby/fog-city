@@ -1,3 +1,4 @@
+import {circleHitsWall,segmentCrossesWall} from "../boundary.ts";
 import { BOT_TELLS } from "../../content/botTells.ts";
 import type { MissionActor } from "../../content/missions.ts";
 import { sortedIds, type SimState } from "../contract.ts";
@@ -52,7 +53,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
   const runtime=agentsRuntimeOf(sim);
   const active=runtime?Object.keys(runtime.actors).sort().map(id=>runtime.actors[id]!).filter(actor=>!actor.retired):[];
   const physical=[...agentsOf(sim),...active,...reservedBodies,...sortedIds(sim.players).map(id=>{const p=sim.players[id]!;return p.mode==="foot"&&p.foot?p.foot:p.car;})];
-  const clear=(x:number,z:number,radius:number)=>placementAllowed(x,z)&&!circleBlocked(world,x,z,radius)&&physical.every(p=>magnitude(p.x-x,p.z-z)>radius+2)&&result.actors.every(p=>magnitude(p.x-x,p.z-z)>radius+p.radius+.5);
+  const clear=(x:number,z:number,radius:number)=>placementAllowed(x,z)&&!circleHitsWall(world.walls,x,z,radius)&&!segmentCrossesWall(world.walls,stage.place.x,stage.place.z,x,z)&&!circleBlocked(world,x,z,radius)&&physical.every(p=>magnitude(p.x-x,p.z-z)>radius+2)&&result.actors.every(p=>magnitude(p.x-x,p.z-z)>radius+p.radius+.5);
   let walkingCandidates:{x:number;z:number;id:string}[]|undefined;
   const walkCandidates=()=>{
     if(walkingCandidates)return walkingCandidates;

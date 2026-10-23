@@ -1,3 +1,4 @@
+import {circleHitsWall,segmentCrossesWall} from "../boundary.ts";
 import type {SimState} from "../contract.ts";
 import type {MaintenanceRequest} from "../combat-contract.ts";
 import {circleBlocked,groundHeight,type World} from "../world.ts";
@@ -27,11 +28,11 @@ export function planMaintenanceRuntime(world:World,sim:Readonly<SimState>,previo
  repairRequests.sort((a,b)=>a.requestTick-b.requestTick||compare(a.id,b.id));
  const state:MaintenanceRuntimeState={version:1,tick:sim.tick,jobs,requests:[],kiosks:[]},frame:MaintenanceFrame={state,spawns:[],goals:{},restorationPoints:{}};
  const people=Object.keys(sim.players).sort().flatMap(id=>{const p=sim.players[id]!;return [{...p.car,radius:2.5},...(p.foot?[{...p.foot,radius:.4}]:[])];});
- const clear=(point:{x:number;z:number},radius:number,ignore:string[]=[])=>!circleBlocked(world,point.x,point.z,radius)&&[...actors.filter(a=>!a.retired&&!ignore.includes(a.id)),...people,...reserved,...frame.spawns].every(a=>distance(a,point)>radius+(a.radius??.4)+.15);
+ const clear=(point:{x:number;z:number},radius:number,ignore:string[]=[])=>!circleHitsWall(world.walls,point.x,point.z,radius)&&!circleBlocked(world,point.x,point.z,radius)&&[...actors.filter(a=>!a.retired&&!ignore.includes(a.id)),...people,...reserved,...frame.spawns].every(a=>distance(a,point)>radius+(a.radius??.4)+.15);
  for(const kiosk of kiosks){
   if(frame.spawns.length+actors.filter(a=>a.model==="tidy"&&!a.posted).length>=8)break;
   const id=`tidy:${kiosk.id}`;if(!isGameplayId(id)||runtime?.actors[id]||reserved.some(actor=>actor.id===id)||!people.some(p=>distance(p,kiosk)<180))continue;
-  for(let i=0;i<16;i++){const angle=i*2*PI/16,point={x:kiosk.x+dsin(angle)*3.5,z:kiosk.z+dcos(angle)*3.5};if(clear(point,.45)){frame.spawns.push({id,model:"tidy",firmware:"good",...point,y:groundHeight(world,point.x,point.z),heading:0,radius:.45,height:1.8,significant:true});break;}}
+  for(let i=0;i<16;i++){const angle=i*2*PI/16,point={x:kiosk.x+dsin(angle)*3.5,z:kiosk.z+dcos(angle)*3.5};if(!segmentCrossesWall(world.walls,kiosk.x,kiosk.z,point.x,point.z)&&clear(point,.45)){frame.spawns.push({id,model:"tidy",firmware:"good",...point,y:groundHeight(world,point.x,point.z),heading:0,radius:.45,height:1.8,significant:true});break;}}
  }
  for(const worker of actors.filter(a=>a.model==="tidy"&&!a.retired&&!a.posted&&a.firmware==="good")){
   let job=jobs[worker.id];
@@ -60,7 +61,7 @@ export function planMaintenanceRuntime(world:World,sim:Readonly<SimState>,previo
    if(job.phase==="carry"&&distance(worker,kiosk)<=2.2)job.phase="restore";
    for(let ring=1;ring<=2;ring++)for(let i=0;i<16;i++){
     const angle=i*2*PI/16,point={x:kiosk.x+dsin(angle)*ring*.9,z:kiosk.z+dcos(angle)*ring*.9};
-    if(!frame.restorationPoints[target.id]&&distance(worker,point)<2.9&&clear(point,target.radius,[target.id]))frame.restorationPoints[target.id]={...point,y:groundHeight(world,point.x,point.z)};
+    if(!frame.restorationPoints[target.id]&&distance(worker,point)<2.9&&!segmentCrossesWall(world.walls,kiosk.x,kiosk.z,point.x,point.z)&&clear(point,target.radius,[target.id]))frame.restorationPoints[target.id]={...point,y:groundHeight(world,point.x,point.z)};
    }
   }
   if(job.phase!=="readmit")state.requests.push({id:`maintenance:${worker.numericId}:${job.sequence}`,sequence:job.sequence,kind:job.phase==="collect"?"collect-heap":"restore",workerId:worker.id,actorId:target.id,...(job.phase!=="collect"?{kioskId:kiosk.id}:{})});
