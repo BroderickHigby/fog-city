@@ -47,7 +47,7 @@ OpenStreetMap (ODbL) data is used or committed.
 | Storefront anchors | DataSF *Registered Business Locations*, [`g8m3-pdis`](https://data.sfgov.org/resource/g8m3-pdis.json). Active rows only: `location_end_date`, `dba_end_date` and `administratively_closed` are all null. | `uniqueid` (hashed, never emitted), `self_reported_naics_code`, `location`. Names are never requested. | PDDL 1.0. "San Francisco Treasurer & Tax Collector via DataSF" |
 | District boundaries | DataSF *Analysis Neighborhoods*, [`j2bu-swwd`](https://data.sfgov.org/resource/j2bu-swwd.json): 41 neighbourhoods (MultiPolygon). | `nhood`, `the_geom` | PDDL 1.0. "City and County of San Francisco, DataSF" |
 | Elevation | USGS 3DEP bare-earth DEM, [ImageServer `exportImage`](https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer), float32 GeoTIFFs in WGS84 (20 blocks citywide) | metres NAVD88 | The service's `accessInformation` credit is "USGS National Map 3D Elevation Program (3DEP)". Its `licenseInfo` is empty. USGS-produced data are public domain under U.S. federal policy (17 U.S.C. §105). |
-| Height corrections and added buildings | `pipeline/overrides.json`: public-record heights for buildings newer than the LiDAR, placeholder plinths where the LiDAR saw a lattice as a solid block, LiDAR towers kept against the spike check, and buildings the footprint layer does not have (`add: true`, with the 2010 record they replaced retired) | `heightM` (with `placeholder: true` for a stand-in) or `keepTower: true`; an added building's parcel or position and size, storeys, year, use; a `source` note per entry | Facts, cited per entry |
+| Height corrections and added buildings | `pipeline/overrides.json`: public-record heights for buildings newer than the LiDAR, placeholder plinths where the LiDAR saw a lattice as a solid block, LiDAR towers kept against the spike check, and buildings the footprint layer does not have (`add: true`, with the 2010 record they replaced retired) | `heightM` (with `placeholder: true` for a stand-in), `keepTower: true` or `standing: true`; an added building's parcel or position and size, storeys, year, use; a `source` note per entry | Facts, cited per entry |
 | Lot outlines for newer buildings (W-04) | DataSF *Parcels – Active and Retired*, [`acdm-wktn`](https://data.sfgov.org/resource/acdm-wktn.json): the polygons of the 9,046 parcels built since 2010 | `blklot`, `shape` | PDDL 1.0. "City and County of San Francisco, DataSF" |
 | Park land (W-18) | DataSF *Recreation and Parks Properties*, [`gtr9-ntp6`](https://data.sfgov.org/resource/gtr9-ntp6.json): 255 properties; National Park Service land resources boundaries (the GGNRA units in the city) | property type, `shape` | PDDL 1.0; NPS data are public domain |
 | Tree canopy (W-18) | DataSF *Urban Tree Canopy*, [`ni2e-vpbg`](https://data.sfgov.org/resource/ni2e-vpbg.json): 97,104 polygons (114,069 parts) | `the_geom` | PDDL 1.0. "City and County of San Francisco, DataSF" |
@@ -172,8 +172,8 @@ survey** (the `201006` prefix and the `p2010_*` fields), even though the footpri
 themselves are newer. For each footprint, in order:
 
 1. **Override** (`pipeline/overrides.json`), keyed by `sf16_bldgid` and checked against
-   the parcel. Each entry sets exactly one of `heightM` and `keepTower` (`checkOverrides`;
-   the build fails otherwise, and when an entry matches no footprint). There are five.
+   the parcel. Each entry sets exactly one of `heightM`, `keepTower` and `standing`
+   (`checkOverrides`; the build fails otherwise, and when an entry matches no footprint).
    415 Mission St (completed 2018), whose LiDAR median is 0.24 m (the 2010 site was the
    old Transbay ramps), is set to its public-record 326 m roof. Three Sutro Tower records
    are set to 3 m plinths with `placeholder: true`: the footprint dataset outlines the open
@@ -184,7 +184,11 @@ themselves are newer. For each footprint, in order:
    3 storeys of "Commercial Retail" describe a building that is not drawn, and a facade
    must not paint 3 storeys on a 3 m block. The fifth, `keepTower: true` on Mission Dolores
    (`201006.0001563`), changes no height: it exempts the building from the spike check
-   (below), and the build fails if the building ends up without a tower.
+   (below), and the build fails if the building ends up without a tower. `standing: true` on
+   the ballpark at China Basin (`201006.0000003`, added 2026-10-23) changes no height either:
+   Berry St (added 1998, altered 2017) ends inside its footprint and its parcel has no year
+   built, so the clearance's redeveloped-land rule (step 2) retired the 2000 ballpark; a
+   standing record (and its tower and terrace pieces) is never stale there.
 2. **Assessor storeys** when the parcel was built in 2010 or later, has storeys, and the
    LiDAR median is below 2 m per storey (a construction site or empty lot in 2010). Also
    used when the LiDAR median is under 2 m but the assessor records storeys. The height is
