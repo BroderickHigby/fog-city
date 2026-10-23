@@ -198,6 +198,8 @@ export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; rules?: 
     file: /^content\/crisis\.json$/, path: "resources", rules: ["lexicon", "sexual"],
     why: "the resources name the real support services; every other rule still applies",
   },
+  { file: /^content\/landmark-tags\.json$/, path: "landmarks.*.id", rules: ["checklist"],
+    why: "machine join identifiers match the real landmark model ids; labels and notes remain linted" },
   { file: /^content\/landmarks\.json$/, why: "owned by the assets track; real landmark names and sources" },
 ];
 
@@ -243,7 +245,7 @@ export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | 
   const nameFields = NAME_FIELDS.filter((f) => f.file.test(rel));
   walk(doc, [], (path, s) => {
     const at = path.join(".");
-    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || at === e.path || at.startsWith(`${e.path}.`);
+    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || (e.path.includes("*") ? matches(e.path, path) : at === e.path || at.startsWith(`${e.path}.`));
     if (fileExempt.some((e) => e.rules === undefined && under(e))) return;
     const skipRules = new Set(fileExempt.filter((e) => e.rules !== undefined && under(e)).flatMap((e) => e.rules ?? []));
     const key = path[path.length - 1] ?? "";

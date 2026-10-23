@@ -26,6 +26,8 @@ const V = {
   storefronts: compile("storefront-kit"),
   botTells: compile("bot-tells"),
   mission: compile("mission"),
+  housePalettes: compile("house-palettes"),
+  landmarkTags: compile("landmark-tags"),
 };
 
 /** Every content file and the schema it validates against. A new file without a schema fails. */
@@ -53,6 +55,8 @@ const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
   [/^content\/proper-words\.json$/, "proper-words"],
   [/^content\/startup-kits\.json$/, "startup-kits"],
   [/^content\/ui-copy\.json$/, "ui-copy"],
+  [/^content\/house-palettes\.json$/, "house-palettes"],
+  [/^content\/landmark-tags\.json$/, "landmark-tags"],
 ];
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -75,6 +79,33 @@ describe("content files validate (strict Ajv)", () => {
 });
 
 describe("schemas reject broken content", () => {
+  it("house palettes: upper-case hex, an override record without its parcel, an unknown key", () => {
+    const h = readJson<Json>("content/house-palettes.json");
+    const a = clone(h);
+    a.palettes.victorian.schemes[0].bodies[0] = "#6E99B8";
+    expect(V.housePalettes(a)).toBe(false);
+    const b = clone(h);
+    delete b.overrides[0].records[0].parcel;
+    expect(V.housePalettes(b)).toBe(false);
+    const c = clone(h);
+    c.rules[0].saturation = 0.5;
+    expect(V.housePalettes(c)).toBe(false);
+  });
+
+  it("landmark tags: a shop band, a point outside the city, a record that is not a collider id", () => {
+    const t = readJson<Json>("content/landmark-tags.json");
+    const a = clone(t);
+    a.landmarks[0].shopBand = true;
+    expect(V.landmarkTags(a)).toBe(false);
+    const b = clone(t);
+    b.landmarks[0].point.lat = 40.7;
+    expect(V.landmarkTags(b)).toBe(false);
+    const c = clone(t);
+    c.landmarks[0].records.push("City Hall");
+    expect(V.landmarkTags(c)).toBe(false);
+  });
+
+
   it("billboard grammar: lower-case hex, missing busWrap start, empty rule", () => {
     const g = readJson<Json>("content/billboards.json");
     const a = clone(g);
