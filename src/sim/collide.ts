@@ -37,6 +37,11 @@ export interface ImpactBody {
   z: number;
   vx: number;
   vz: number;
+  /**
+   * A street prop (props.ts): a hit closing slower than this meets it as an immovable body (a
+   * wall that spins the car); at this speed or more it breaks and only its mass counts.
+   */
+  breakSpeed?: number;
 }
 
 /** An oriented rectangle: centre, compass heading, half length (along heading) and half width. */

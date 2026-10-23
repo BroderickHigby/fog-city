@@ -199,7 +199,8 @@ export function bodyHit(
   const rvz = self.vz - body.vz;
   const vn = rvx * nx + rvz * nz;
   if (vn >= 0) return null;
-  const inv = 1 / self.mass + 1 / body.mass;
+  // (A prop hit below its break speed does not give: an immovable body.)
+  const inv = 1 / self.mass + (body.breakSpeed !== undefined && -vn < body.breakSpeed ? 0 : 1 / body.mass);
   const j = ((1 + restitution) * -vn) / inv;
   // Friction along the contact, against the sliding, at most bodyFriction of the normal impulse.
   const tx = -nz;
@@ -217,6 +218,7 @@ export function bodyHit(
 
 /** A body's velocity once it has taken the opposite of contact `k`'s impulse. */
 export function bodyAfter(body: Readonly<ImpactBody>, k: Readonly<CarContact>): { vx: number; vz: number } {
+  if (body.breakSpeed !== undefined && k.speed < body.breakSpeed) return { vx: body.vx, vz: body.vz };
   return { vx: body.vx - (k.j * k.nx + k.jt * k.tx) / body.mass, vz: body.vz - (k.j * k.nz + k.jt * k.tz) / body.mass };
 }
 

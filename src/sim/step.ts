@@ -16,7 +16,8 @@ import {
 } from "./contract.ts";
 import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
 import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar, type CarContact } from "./car.ts";
-import { agentImpactBody, carImpactBody, knockedIds, limpThrottle, stepImpacts } from "./impacts.ts";
+import { agentImpactBody, carImpactBody, impactsOf, knockedIds, limpThrottle, stepImpacts } from "./impacts.ts";
+import { propsNear } from "./props.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
 import {
@@ -139,6 +140,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    they land this step follows theirs: 10 -> 11 needs no rewrite either.)
  *  - v11 -> v12 (impacts.ts): cars bowl robots over and robots stop dodging a player's car. A
  *    knocked robot's state is AgentState.knock (optional, absent in an older save): no rewrite.
+ *  - v12 -> v13 (props.ts, impacts.ts): street trees, lamp posts and hydrants are bodies a car
+ *    hits and breaks; broken ones are in ext.impacts.props (optional, absent: none broken).
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -148,7 +151,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
   if (s.version === 8) return upgradeState({ ...s, version: 11 });
-  if (s.version === 11) return { ...s, version: 12 };
+  if (s.version === 11) return upgradeState({ ...s, version: 12 });
+  if (s.version === 12) return { ...s, version: 13 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -215,6 +219,9 @@ interface Obstacles {
  */
 export const WALKER_SKIN_M = 0.04;
 
+/** Street props farther than this from a player's car cannot touch it this tick (a car's half diagonal plus a tick at 50 m/s). */
+const PROP_REACH_M = 4;
+
 /** Agents farther than this from a player's body cannot touch it this tick. */
 const NEAR_AGENT_M = 40;
 
@@ -230,7 +237,7 @@ export function bandsMeet(feet: number, height: number, vy: number, top: number,
 /** A tick can raise or drop a walker or a vehicle by about this much against the other, metres (a step onto a deck, a hill). */
 const BAND_SLACK_M = 0.75;
 
-function obstaclesOf(prev: Readonly<SimState>): Obstacles {
+function obstaclesOf(world: World, prev: Readonly<SimState>): Obstacles {
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const agentRound: Array<Circle & { road: boolean }> = [];
   // (A robotaxi is a body a car shoves: impacts.ts.)
@@ -289,6 +296,13 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
         // Another player on foot: a body to walkers; to cars, someone who dives out of the way.
         walker.push({ x: o.foot.x, z: o.foot.z, r: FOOT.radius, person: true });
       }
+    }
+    // Street props near its car (impacts.ts, props.ts): bodies it breaks fast enough, walls slower.
+    const pc = p.car;
+    const broken = impactsOf(prev)?.props;
+    for (const q of propsNear(world, pc.x, pc.z, PROP_REACH_M)) {
+      if (broken?.[q.id]) continue;
+      car.push({ x: q.x, z: q.z, r: q.r, person: false, body: { key: `prop:${q.id}`, mass: q.mass, x: q.x, z: q.z, vx: 0, vz: 0, breakSpeed: q.breakSpeed } });
     }
     forCar.set(id, car);
     forWalker.set(id, walker);
@@ -447,7 +461,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
   const admitted = releaseActorIds(prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements), prepared.retirements);
   const before: SimState = { ...admitted, tick:prev.tick };
-  const obs = obstaclesOf(before);
+  const obs = obstaclesOf(world, before);
   const next: Record<PlayerId, PlayerState> = {};
   const contacts = new Map<PlayerId, CarContact[]>();
   for (const id of sortedIds(players)) {

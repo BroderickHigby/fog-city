@@ -37,6 +37,15 @@
 //    seizing, slumping or a heap is not knocked (it stays solid). A tumbling robot bowls over the
 //    robots it meets and stops dead at anyone's clearance. Knocking over a good robot costs the
 //    player (game-systems.ts turns the event into an economy penalty).
+//  - Street props (props.ts: trees and lamp posts where the renderer draws them, hydrants, and
+//    whatever World detail places): a hit slower than a prop's break speed meets it as an
+//    immovable body (the car bounces and spins off a mature tree, which never breaks); faster, the
+//    prop breaks and only its mass slows the car (a sapling snaps at any speed). A broken tree,
+//    lamp post, sign or signal falls the way it was hit, unless anyone (a person, an animal, a
+//    player on foot) is where it would land: then it only leans. A hydrant is knocked off its
+//    base and gushes (the renderer's geyser) until the crews come. Broken props are no longer
+//    obstacles and stay down (ext.impacts.props) until PROP_RESET_TICKS have passed with no player
+//    within PROP_RESET_CLEAR_M, when the city puts them back.
 //
 // State: ext.impacts (ImpactsExt; absent until the first hit), AgentState.knock and .dents.
 
@@ -50,6 +59,7 @@ import { agentDodgeClass } from "./dodge.ts";
 import { connector, lanePath, pathPoint, projectOnPath } from "./roads.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import type { CombatState } from "./combat-contract.ts";
+import { propIndex, type PropKind } from "./props.ts";
 import { ROOF_STEP_M, circleBlocked, meshGroundHeight, type World } from "./world.ts";
 
 export const IMPACTS_EXT_KEY = "impacts";
@@ -70,7 +80,7 @@ export interface CarDamage extends Dents {
   lastHitTick: number;
 }
 
-export type ImpactKind = "car-car" | "car-taxi" | "taxi-car" | "taxi-taxi" | "car-robot" | "taxi-robot" | "robot-robot";
+export type ImpactKind = "car-car" | "car-taxi" | "taxi-car" | "taxi-taxi" | "car-robot" | "taxi-robot" | "robot-robot" | "car-prop";
 
 /** One hit, for sparks, crunches and barks. `a` hit `b` ("p:<player>" or "a:<agent id>"). */
 export interface ImpactEvent {
@@ -90,6 +100,19 @@ export interface ImpactEvent {
   fell?: boolean;
   /** A robot hit: this hit disabled it (absent otherwise). */
   disabled?: boolean;
+  /** A prop hit: it broke (absent otherwise; false: it held). */
+  broke?: boolean;
+}
+
+/** A broken street prop (props.ts), by id in ImpactsExt.props. */
+export interface PropKnock {
+  kind: PropKind;
+  /** The tick it broke. */
+  tick: number;
+  /** "fallen": down along `dir`; "leaning": someone was where it would land; "snapped": a sapling; "knocked": off its base (a hydrant, a bin). */
+  state: "fallen" | "leaning" | "snapped" | "knocked";
+  /** Compass bearing it fell (or leans) toward, radians. */
+  dir: number;
 }
 
 /** state.ext.impacts */
@@ -100,6 +123,8 @@ export interface ImpactsExt {
   /** The most recent events, oldest first (at most MAX_EVENTS). */
   events: ImpactEvent[];
   cars: Record<PlayerId, CarDamage>;
+  /** v13: broken street props by id (absent until the first). */
+  props?: Record<string, PropKnock>;
 }
 
 /** A body knocked off its path (AgentState.knock). */
@@ -193,6 +218,13 @@ export const WRECK_LIMP_MPS = 9;
 export const REPAIR_AFTER_TICKS = 20 * 60;
 export const REPAIR_PER_S = 1;
 export const MAX_EVENTS = 24;
+/** A broken prop is put back once this long has passed with no player within PROP_RESET_CLEAR_M. */
+export const PROP_RESET_TICKS = 3 * 60 * 60;
+export const PROP_RESET_CLEAR_M = 80;
+/** A falling prop only leans when anyone is within this of the line it would fall along, metres. */
+export const FALL_CLEAR_M = 1.2;
+/** A prop hit closing slower than this makes no event (a scrape). */
+const PROP_EVENT_MPS = 2;
 
 // ---------------------------------------------------------------- read helpers
 
@@ -431,10 +463,10 @@ function damageCar(w: Work, id: PlayerId, c: Readonly<CarState>, px: number, pz:
   w.ext.cars = { ...w.ext.cars, [id]: { ...dents, condition: Math.max(0, d.condition - loss), lastHitTick: w.tick } };
 }
 
-function event(w: Work, kind: ImpactKind, a: string, b: string, k: Readonly<Pick<CarContact, "x" | "z" | "speed">>, y: number, dv: number, robot: { fell: boolean; disabled: boolean } | null = null): void {
+function event(w: Work, kind: ImpactKind, a: string, b: string, k: Readonly<Pick<CarContact, "x" | "z" | "speed">>, y: number, dv: number, robot: { fell: boolean; disabled: boolean } | null = null, broke?: boolean): void {
   // (Two players' cars each report the same hit.)
   for (const e of w.ext.events) if (e.tick === w.tick && ((e.a === a && e.b === b) || (e.a === b && e.b === a))) return;
-  const ev: ImpactEvent = { id: w.ext.nextId, tick: w.tick, kind, a, b, x: k.x, y, z: k.z, speed: k.speed, dv, ...(robot ? { fell: robot.fell, disabled: robot.disabled } : {}) };
+  const ev: ImpactEvent = { id: w.ext.nextId, tick: w.tick, kind, a, b, x: k.x, y, z: k.z, speed: k.speed, dv, ...(robot ? { fell: robot.fell, disabled: robot.disabled } : {}), ...(broke !== undefined ? { broke } : {}) };
   const events = [...w.ext.events, ev];
   w.ext = { ...w.ext, nextId: w.ext.nextId + 1, events: events.length > MAX_EVENTS ? events.slice(events.length - MAX_EVENTS) : events };
 }
@@ -452,6 +484,7 @@ function shoveCar(c: Readonly<CarState>, dvx: number, dvz: number, kick: number)
 function kindOf(w: Work, hitter: string, key: string): ImpactKind {
   const of = (k: string): string => {
     if (k.startsWith("p:")) return "car";
+    if (k.startsWith("prop:")) return "prop";
     const i = w.index.get(Number(k.slice(2)));
     return i !== undefined && isRobot(w.agents[i]!) ? "robot" : "taxi";
   };
@@ -594,6 +627,79 @@ function slideObstacles(w: Work, selfKey: string, x: number, z: number, reach: n
     }
   }
   return out;
+}
+
+/** Is anyone (a person, an animal, a player on foot) within FALL_CLEAR_M of the line from (x, z) `len` m along `dir`? */
+function anyoneUnder(w: Work, x: number, z: number, dir: number, len: number): boolean {
+  const fx = dsin(dir);
+  const fz = -dcos(dir);
+  const near = (px: number, pz: number, r: number): boolean => {
+    const ox = px - x;
+    const oz = pz - z;
+    const t = clamp(ox * fx + oz * fz, 0, len);
+    const dx = ox - fx * t;
+    const dz = oz - fz * t;
+    return dx * dx + dz * dz < (FALL_CLEAR_M + r) * (FALL_CLEAR_M + r);
+  };
+  for (const id of sortedIds(w.players)) {
+    const f = w.players[id]!.foot;
+    if (w.players[id]!.mode === "foot" && f && near(f.x, f.z, FOOT.radius)) return true;
+  }
+  for (const a of w.agents) {
+    const cls = agentDodgeClass(a);
+    if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot" && near(a.x, a.z, a.radius ?? AGENT_SPEC[a.kind].radius)) return true;
+  }
+  return false;
+}
+
+/** A car's hit on a street prop: it breaks (fast enough) or holds; an event either way when it was a real hit. */
+function hitProp(world: World, w: Work, k: Readonly<CarContact>, hitter: string, y: number): void {
+  const id = k.key.slice(5);
+  const prop = propIndex(world).byId.get(id);
+  if (!prop || w.ext.props?.[id]) return;
+  const broke = k.speed >= prop.breakSpeed;
+  if (broke) {
+    // It goes the way it was pushed (opposite to the impulse on the car).
+    const dir = datan2(-k.nx, k.nz);
+    const falls = prop.kind === "tree" || prop.kind === "lamp" || prop.kind === "sign" || prop.kind === "signal";
+    const state: PropKnock["state"] = prop.size === "sapling" ? "snapped" : !falls ? "knocked" : anyoneUnder(w, prop.x, prop.z, dir, prop.height) ? "leaning" : "fallen";
+    w.ext = { ...w.ext, props: { ...(w.ext.props ?? {}), [id]: { kind: prop.kind, tick: w.tick, state, dir } } };
+  }
+  if (broke || k.speed >= PROP_EVENT_MPS) event(w, "car-prop", hitter, k.key, k, y, Math.sqrt(k.j * k.j + k.jt * k.jt) / CAR.mass, null, broke);
+}
+
+/** Broken props come back once nobody has been near for a while. */
+function resetProps(world: World, w: Work): void {
+  const props = w.ext.props;
+  if (!props) return;
+  const keys = sortedIds(props);
+  if (keys.length === 0) return;
+  let out: Record<string, PropKnock> | null = null;
+  const idx = propIndex(world);
+  for (const id of keys) {
+    const k = props[id]!;
+    if (w.tick - k.tick < PROP_RESET_TICKS) continue;
+    const p = idx.byId.get(id);
+    if (p && !nobodyWithin(w, p.x, p.z, PROP_RESET_CLEAR_M)) continue;
+    out ??= { ...props };
+    delete out[id];
+  }
+  if (out) w.ext = { ...w.ext, props: out };
+}
+
+function nobodyWithin(w: Work, x: number, z: number, r: number): boolean {
+  for (const id of sortedIds(w.players)) {
+    const p = w.players[id]!;
+    const bx = p.mode === "foot" && p.foot ? p.foot.x : p.car.x;
+    const bz = p.mode === "foot" && p.foot ? p.foot.z : p.car.z;
+    if ((bx - x) * (bx - x) + (bz - z) * (bz - z) < r * r) return false;
+  }
+  return true;
+}
+
+/** Is prop `id` broken? */
+export function propBroken(state: Readonly<SimState>, id: string): boolean {
+  return impactsOf(state)?.props?.[id] !== undefined;
 }
 
 /** What a sliding body hit takes the reaction. */
@@ -820,7 +926,8 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     if (p.mode === "foot" && (p.car.speed !== 0 || p.car.lateral !== 0 || p.car.yawRate !== 0)) anyParked = true;
   }
   const repairing = prior !== undefined && sortedIds(prior.cars).some((id) => prior.cars[id]!.condition < 100);
-  if (!anyContact && !anyKnocked && !anyParked && !repairing) return state;
+  const broken = prior?.props !== undefined && sortedIds(prior.props).length > 0;
+  if (!anyContact && !anyKnocked && !anyParked && !repairing && !broken) return state;
 
   const w: Work = {
     tick: state.tick,
@@ -835,7 +942,8 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
   // 1. The players' cars' hits: the other body takes its share.
   for (const id of sortedIds(state.players)) {
     for (const k of contacts.get(id) ?? []) {
-      receive(w, k.key, k, `p:${id}`, false);
+      if (k.key.startsWith("prop:")) hitProp(world, w, k, `p:${id}`, w.players[id]!.car.y);
+      else receive(w, k.key, k, `p:${id}`, false);
       damageCar(w, id, w.players[id]!.car, k.x, k.z, Math.sqrt(k.j * k.j + k.jt * k.jt) / CAR.mass);
     }
   }
@@ -851,6 +959,8 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     const p = w.players[id]!;
     if (p.mode === "foot") stepParked(world, w, id);
   }
+
+  resetProps(world, w);
 
   // 3. Condition comes back by itself after a while without a hit.
   const cars: Record<PlayerId, CarDamage> = {};

@@ -109,6 +109,7 @@ import {
   type Route,
 } from "./agents.ts";
 import { segmentCrossesWall } from "./boundary.ts";
+import { propsNear } from "./props.ts";
 import { ROOF_STEP_M, cellKey, circleBlocked, circleBlockedBand, meshGroundHeight, meshGroundRange, surfaceHeight, type World } from "./world.ts";
 
 // ---------------------------------------------------------------- tuning (the guarantee is not tunable)
@@ -555,6 +556,8 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
     const body = moving(`a:${a.id}`, a.x, a.z, vx, vz);
     for (const k of agentCircles(a)) add(k, body);
   }
+  // Street props (props.ts): a bounce off one changes its velocity like a shove (broken ones too: a bound).
+  for (const q of propsNear(world, c.x, c.z, lim)) add({ x: q.x, z: q.z, r: q.r }, moving(`prop:${q.id}`, q.x, q.z, 0, 0));
   return vehicleOfCar(id, c, before.players[id]?.car ?? null, world, circles);
 }
 

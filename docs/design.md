@@ -1291,3 +1291,10 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   stays the only way to melt a robot, and people, children, animals, seated people and mobility-aid users keep every
   protection: every sliding car, robotaxi and robot stops dead short of anyone. Knocking over a good robot costs $30
   and 3 reputation; a bad one costs nothing. Implemented in `src/sim/impacts.ts` (SIM_VERSION 11).
+- 2026-10-23 · **Street props break** (owner request: "Ideally, you're able to knock over a tree as well"). Street trees
+  and lamp posts (where the renderer draws them) and fire hydrants are props a car hits: a sapling snaps, a young tree,
+  lamp post or hydrant breaks when hit fast enough and is a wall below that, and a mature tree (like a building) never
+  breaks: the car bounces off it, dented. A falling prop falls the way it was hit, or only leans when anyone is where it
+  would land; a knocked hydrant gushes. Broken props stay broken and come back once no player has been within 80 m for
+  3 minutes. Signs, signals, fences, bins and newspaper boxes use the same rules when World detail places them
+  (`src/sim/props.ts`, SIM_VERSION 13).

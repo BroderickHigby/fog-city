@@ -204,6 +204,8 @@ export class FoliageLayer {
   private disposed = false;
   private nearCount = 0;
   private farCount = 0;
+  /** A pose for a tree at (x, z) other than its placement (a knocked-over tree, impact-layer.ts), or null. */
+  private override: ((x: number, z: number, matrix: THREE.Matrix4) => THREE.Matrix4 | null) | null = null;
 
   constructor(shadows = false) {
     this.group.name = "sf:foliage";
@@ -247,6 +249,12 @@ export class FoliageLayer {
     this.tiles.set(id, record); this.dirty = true;
   }
 
+  /** Draw some trees in another pose (knocked over); repicks on the next update. */
+  setOverride(fn: ((x: number, z: number, matrix: THREE.Matrix4) => THREE.Matrix4 | null) | null): void {
+    this.override = fn;
+    this.dirty = true;
+  }
+
   removeTile(id: string): void {
     const record = this.tiles.get(id);
     if (!record) return;
@@ -272,7 +280,8 @@ export class FoliageLayer {
       const tier = this.tiers[placement.species]![tierIndex]!;
       const count = counts[placement.species]![tierIndex]!;
       if (count >= tier.capacity || (!near && this.farCount >= FOLIAGE_FAR_LIMIT)) continue;
-      tier.bark.setMatrixAt(count, placement.matrix); tier.leaves.setMatrixAt(count, placement.matrix);
+      const matrix = this.override?.(placement.x, placement.z, placement.matrix) ?? placement.matrix;
+      tier.bark.setMatrixAt(count, matrix); tier.leaves.setMatrixAt(count, matrix);
       tier.leaves.setColorAt(count, placement.tint); tier.bark.setColorAt(count, placement.tint);
       counts[placement.species]![tierIndex] = count + 1;
       if (near) this.nearCount++; else this.farCount++;

@@ -383,6 +383,11 @@ export class SceneRenderer {
     this.quality?.resize(w, h);
   }
 
+  /** Knocked-over street trees (impact-layer.ts) through the foliage layer. */
+  setFoliageOverride(fn: ((x: number, z: number, matrix: THREE.Matrix4) => THREE.Matrix4 | null) | null): void {
+    this.foliage.setOverride(fn);
+  }
+
   setCar(id: string, pose: CarPose): void {
     this.actors.setCar(id, pose);
   }
