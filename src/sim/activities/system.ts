@@ -3,8 +3,18 @@ import { protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
 import { Action } from "../contract.ts";
 import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
-import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
+import type { ActivitiesState,ActivityDefinition,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
 import { activityAvailable } from "./availability.ts";
+/** A campaign mission that only waits for the player to reach its start area leaves the city open. */
+export function missionEngaged(progress:MissionState["players"][string]|undefined,ctx:Pick<GameplayContext,"missions">):boolean {
+ if(progress?.status!=="active")return false;
+ const mission=ctx.missions.find(m=>m.id===progress.missionId),first=mission?.steps.find(s=>s.id===(mission.start??mission.steps[0]?.id));
+ return !(first&&progress.stepId===first.id&&first.type==="trigger"&&first.event.kind==="enterArea");
+}
+/** The one start rule, shared by the reducer and the start prompt so the UI never offers a dead button. */
+export function canStartActivity(a:ActivityDefinition,own:Pick<PlayerActivities,"cooldowns"|"completedIds">,body:{x:number;z:number},tick:number,wave:number):boolean {
+ return activityAvailable(a)&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns?.[a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id));
+}
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 function createOwn(seed:number,tick:number):PlayerActivities{const [roll,rng]=nextU32(seedRng(seed));return {nextDirectorTick:tick+2700+roll%1801,directorRng:rng,activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
 /** Director schedules are independent per player and persisted in snapshots. */
@@ -13,7 +23,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
  for(const body of sortedBodies(ctx)){
   let hash=seed;for(const char of body.id)hash=(Math.imul(hash,31)+char.charCodeAt(0))>>>0;
   const old=previous.players[body.id]??createOwn(hash,tick);const own:PlayerActivities={...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds],cooldowns:{...old.cooldowns}};state.players[body.id]=own;
-  const missionActive=missions.players[body.id]?.status==="active";const observation=ctx.observations.find(o=>o.playerId===body.id);
+  const missionActive=missionEngaged(missions.players[body.id],ctx);const observation=ctx.observations.find(o=>o.playerId===body.id);
   if(missionActive||own.activeActivityId)own.nextDirectorTick=tick+2700;
   if(own.activeCardId&&tick>=own.cardUntilTick)own.activeCardId="";
   if(!missionActive&&!own.activeActivityId&&!own.activeCardId&&tick>=own.nextDirectorTick){
@@ -24,7 +34,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&activityAvailable(a)&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=ctx.wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns![a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id)));
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&canStartActivity(a,own,body,tick,ctx.wave));
    if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;own.checkpointIndex=0;own.objectiveCount=0;event(state,"activity.started",body.id,activity.id);}
   }
   if(own.activeActivityId){

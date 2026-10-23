@@ -33,6 +33,7 @@ import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
+import { activityDestination, activityProjection, mountActivityPanel } from "./ui/activities.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
 import { HornVoice, hornBlasts } from "./audio/horn.ts";
@@ -237,6 +238,7 @@ async function boot(): Promise<void> {
       else send({kind:"mission-ack"});
     },
   }});
+  const activityPanel=mountActivityPanel(gameUI.element,uiText,activityId=>send({kind:"activity-start",targetId:activityId}));
   const combatLayer=new CombatLayer(view.scene);
   const horn=new HornVoice();
   const unlockAudio=()=>{audio.unlock();horn.unlock();};window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
@@ -467,7 +469,7 @@ async function boot(): Promise<void> {
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const activityView=activityProjection(curr,LOCAL_PLAYER,GAME_WAVE,uiText);activityPanel.update(activityView);const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER)??activityDestination(activityView));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
