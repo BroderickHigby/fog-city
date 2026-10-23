@@ -75,9 +75,9 @@ export function lineOfSight(a: Vec3, b: Vec3, walls: readonly Wall[]): boolean {
   return !walls.some(wall => segmentWallFraction(a, b, wall) !== null);
 }
 
-function canHit(projectile: Projectile, actor: CombatActor): boolean {
+function canHit(projectile: Projectile, actor: CombatActor, ctx:CombatContext): boolean {
   if (actor.id === projectile.ownerId || actor.playerId === projectile.ownerId) return false;
-  if (projectile.kind === "flower") return actor.kind === "player";
+  if (projectile.kind === "flower") return actor.kind === "player" && (ctx.rivalPlayerIds?.[projectile.ownerId]?.includes(actor.playerId??actor.id)??false);
   if (projectile.kind === "water" && actor.kind === "player" && actor.robotBody !== true) return false;
   // Protected subjects still intercept the path. The effect layer removes the
   // projectile without applying an effect, including when another target is behind.
@@ -165,7 +165,7 @@ export function advanceProjectile(projectile: Projectile, ctx: CombatContext): P
   }
 
   for (const actor of sortedActors(ctx)) {
-    if (!canHit(projectile, actor)) continue;
+    if (!canHit(projectile, actor, ctx)) continue;
     const contact = segmentActorFraction(projectile, end, actor);
     if (contact === null) continue;
     if (contact < stop - CONTACT_EPSILON || !hit && !blocked && !landed && contact <= stop) {

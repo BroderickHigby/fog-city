@@ -33,6 +33,16 @@ function advanceSupport(s: CombatState, ctx: CombatContext, input: { scan?: bool
 }
 
 describe("combat rust and lifecycle", () => {
+  it("gives an armoured relay twenty seconds of starting stream without changing model defaults", () => {
+    const relay = actor({ model: "patrol", rustScale: 0.2 });
+    const s = state();
+    for (let n = 0; n < 199; n++) applyWaterHit(s, relay, water());
+    expect(s.targets.bot!.rust).toBeCloseTo(0.995, 10);
+    expect(s.targets.bot!.phase).toBe("active");
+    applyWaterHit(s, relay, water());
+    expect(s.targets.bot!.rust).toBeCloseTo(1, 10);
+    expect(s.targets.bot!.phase).toBe("seized");
+  });
   it("applies direct-water salt and model multipliers without changing actors", () => {
     const footman = freeze(actor());
     const s = state();
@@ -185,6 +195,14 @@ describe("combat rust and lifecycle", () => {
     expect(s.targets.bot!.heightScale).toBe(0);
     expect(s.events.filter(event => event.kind === "robot.heap-cleared")).toHaveLength(1);
     expect(s.events.filter(event => event.kind === "robot.seized")).toHaveLength(1);
+  });
+
+  it("retains distant heaps for Tidy from wave three onward",()=>{
+    const s=state(), bot=actor({x:400,z:0,inFidelity:false});
+    applyRust(s,bot,10,"p1",true);s.tick=120;
+    tickEffects(s,context([bot],player(),{wave:3}));
+    expect(s.targets.bot).toMatchObject({phase:"heap",puddle:true});
+    expect(s.events.some(event=>event.kind==="robot.heap-cleared")).toBe(false);
   });
 
   it("gates ambient rust by wave, darkness, exposure, and firmware", () => {

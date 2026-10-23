@@ -76,3 +76,39 @@ Lane 4: consume the shared combat types and provide a pure system factory with c
 
 ### For the owner to judge
 This PR supplies interfaces and replay compatibility. It does not claim the full wave, visual quality or gameplay feel is complete. The branch contains no prototype changes and does not alter `main` or `integrate/wave1`.
+
+## Wave-4 follow-up: AGI world pause
+
+Branch: `lane/core/wave4`, from the verified wave-2 interface at `9a6a107`. This change is separate from `lane/core/wave2`; the integrating session will cherry-pick it into wave 4 and later only.
+
+- Core skips player and ambient-agent movement while the previous combat state's `pauseUntil` exceeds the previous outer tick.
+- Only the combat hook runs during this period, so combat can hold its own deadlines. Other system hooks remain frozen.
+- Outer ticks, recorded joins/leaves and input sanitization continue. A 180-tick pause resumes movement on update 181.
+- Validation: typecheck passed; all 41 tests in the pause/interface/purity suites passed. Independent adversarial review found no blocking defect. Combined full verification is owned by the integrating session.
+- Requests: Lane 4 owns holding its combat deadlines and supplying the registered combat hook. This patch does not implement combat timers or activate the future AGI feature in wave 2.
+- Future mission/heat/economy systems using absolute deadlines must compensate for paused ticks; skipping their reducers alone preserves fields but not remaining durations. No such later-lane schema is invented by this patch.
+
+Draft PR title: `Core: freeze world updates during the AGI pause`
+
+Draft PR body:
+
+### Summary
+Honor the combat pause deadline before player and agent movement. Continue the outer tick and recorded membership events, and call only the combat system so it can hold its own timers.
+
+### Roadmap deliverables
+- [x] Core integration support for the wave-4 AGI pause.
+- [ ] Remaining wave-4 systems and feature acceptance; owned by their lanes.
+
+### Acceptance tests
+- Passing: 41 tests across pause/interface/purity suites, including exactly 180 frozen updates, resume on update 181, unchanged traffic/RNG, skipped noncombat hooks, sanitized inputs and recorded joins/leaves; typecheck also passed.
+- Independent review: no blocking defect found.
+- Full integrated unit/browser verification remains with the integrating session.
+
+### Contract changes
+No new fields or schema bump. Uses the already published `CombatState.pauseUntil` and system-hook contract.
+
+### Requests for other lanes
+Lane 4 supplies the timer-holding combat reducer and registry factory. Future noncombat systems must preserve remaining durations when using absolute deadlines. The integrating session should apply this change only to wave 4 and later.
+
+### For the owner to judge
+No visual sign-off is claimed. This is a deterministic core pause mechanism and is not present on the wave-2 lane branch.

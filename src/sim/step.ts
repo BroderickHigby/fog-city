@@ -396,6 +396,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
  */
 export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = [], systems: readonly SimSystem[] = SYSTEMS): SimState {
   const tick = prev.tick + 1;
+  const paused = (prev.ext.combat?.pauseUntil ?? 0) > prev.tick;
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(prev.players)) players[id] = prev.players[id]!;
 
@@ -420,15 +421,15 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   for (const id of sortedIds(players)) {
     const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
     sanitized[id] = input;
-    next[id] = stepPlayer(world, players[id]!, input, obs);
+    next[id] = paused ? players[id]! : stepPlayer(world, players[id]!, input, obs);
   }
 
-  const agents = stepAgents(world, before, tick);
+  const agents = paused ? undefined : stepAgents(world, before, tick);
   const moved: SimState = agents
     ? { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } }
     : { ...prev, tick, players: next };
   // Everybody out of the vehicles' way (dodge.ts), after every vehicle has moved.
-  return runSystems({ world, previous: before, state: stepDodge(world, before, moved), inputs: sanitized, events }, systems);
+  return runSystems({ world, previous: before, state: paused ? moved : stepDodge(world, before, moved), inputs: sanitized, events }, paused ? systems.filter(s => s.key === "combat") : systems);
 }
 
 /** The body a player controls right now: the walker on foot, else the car. For cameras, HUDs and AI. */
