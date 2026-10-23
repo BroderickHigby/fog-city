@@ -6,9 +6,10 @@ little bit more action."
 
 ## Now
 
-- **PR 1, going round stopped vehicles** — branch `work/city-life/overtake` (from
-  `origin/integrate/wave2` `ff7db5b`). SIM_VERSION **10** (9 stays reserved for the World
-  stream's structural integration).
+- **PR 1, going round stopped vehicles** — [#38](https://github.com/BroderickHigby/fog-city/pull/38)
+  (draft), branch `work/city-life/overtake` (from `origin/integrate/wave2` `ff7db5b`).
+  SIM_VERSION **10** (9 stays reserved for the World stream's structural integration). Local:
+  typecheck, full vitest and the new Chromium check on real SF pass; waiting on CI.
 - **PR 2, more robots and more action** — next, on `work/city-life/robots-action`.
 
 ## PR 1: going round stopped vehicles (SIM_VERSION 10)
@@ -50,9 +51,10 @@ Tests:
   walk round a car parked across a crosswalk (nobody stands at it 2 s, zero contacts).
 - `tests/sim/city-life-version.test.ts`: the v8 save upgrades with every field kept and steps on
   to a pass, identically after a JSON round trip.
-- `tests/e2e/city-life.spec.ts` (Chromium, real SF): drive to Drumm St, stop mid-lane, walk
-  off; the page replays the planned frames, robotaxis go round the car, zero contacts, and the
-  page reaches the same state as Node.
+- `tests/e2e/city-life.spec.ts` (Chromium, real SF): get out at the spawn, mid-lane on The
+  Embarcadero, and walk to the pavement; the page replays the 8,069 planned frames, a robotaxi
+  goes round the abandoned car, zero contacts, and the page reaches Node's exact state (passed
+  locally, 4.5 min).
 - Real SF probe (Node, game systems, 40 s per street): Drumm St 2 passes, longest wait 5.5 s,
   0 contacts.
 - Sim bench (single anchor, 900 ticks): mean 8.2 ms vs 7.8 ms at `ff7db5b` (within run noise).
