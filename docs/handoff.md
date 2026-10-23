@@ -20,6 +20,33 @@ Everything below is committed and pushed; no work is uncommitted.
 - The player is the owner's stylised likeness (consented; photos never in the repo).
 - Owner's deadline for this run was Friday 2026-10-23 12:00 PT.
 
+## Update 2026-10-23 00:10 UTC: house-kit review paused for the Ferry showcase
+The owner made the Ferry Building showcase the top priority (branch `feature/ferry-showcase`,
+draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped part-way:
+- Done: typecheck and the five house-kit test files pass on 0352655 (70 tests). Street-level
+  screenshots were taken in all nine districts (Mission/Liberty St and Mission St at 20th, Alamo
+  Square, Sunset 30th Ave, Pacific Heights, Russian Hill, Bernal Heights, the Marina, the Richmond,
+  downtown Montgomery St). The facades, palettes, garages, bays and cornices read plausibly as SF.
+- Preliminary findings, not yet put through the adversarial verify pass:
+  1. **K8 pitched roofs were never built.** Every detached and Sunset house is still a flat box roof,
+     and no test covers the spec's "80% get a pitched roof" (`docs/qa/house-kit-spec.md` K8).
+  2. **Mission St shopfronts are sparse, not continuous** (K5, tour view 17). Only 70 buildings on
+     the 1.25 km from 16th to 24th carry a storefront anchor, and shop glazing appears only on an
+     anchor's own wall. Corridor ground floors without a registry anchor show house windows.
+  3. **K9 night occupancy has no test** (the spec asks for at least 1 lit window per 3 houses).
+  4. Water tanks and boxes sit on 3-4 storey Pacific Heights residential roofs. Check the
+     4-storey rule against those records.
+  5. The Alamo Square shot was taken from inside the park's trees; the Painted Ladies need a
+     closer shot from Steiner St.
+- Still to do: an independent reviewer judges the saved shots against the spec, with an
+  adversarial verify pass (the owner opted in to a workflow for this step: one reviewer per
+  neighbourhood, 2-3 skeptics per finding, agents read only, heavy jobs solo under the lock). Then
+  fix the confirmed findings and run the full suite.
+- Tooling: there is no Blender binary in the container, and download.blender.org is blocked. Blender
+  4.5 LTS runs as the `bpy` module from PyPI (Python 3.11 venv) behind a `blender` shim, so
+  `assets/blender/build.sh` works headless. CC0 texture hosts (Poly Haven, ambientCG) are blocked
+  by the network policy until the owner allows them.
+
 ## Branches (all pushed)
 | Branch | Head | State |
 |---|---|---|
