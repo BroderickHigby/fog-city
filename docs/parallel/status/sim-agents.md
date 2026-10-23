@@ -2,7 +2,7 @@
 
 ## Now
 
-Worktree: `/workspace/fog-city-agents`, branch `lane/sim-agents/wave2`. The original prototype in `/workspace/fog-city` remains untouched. Existing policy commit `083f685` is preserved, with shared core `9a6a107` and combat `ef74fe5` merged.
+Worktree: `/workspace/fog-city-agents`, active branch `lane/sim-agents/wave3`; wave 2 is retained at `b7a5fab`. The original prototype in `/workspace/fog-city` remains untouched. Existing policy commit `083f685` is preserved, with shared core `9a6a107` and combat `ef74fe5` merged.
 
 Published runtime checkpoints: `975ab09` adds the runtime and mission placement; `950f47c` supplies portable arithmetic and retirements; `8b896c4` uses the shared foot factory in the fixture. Core has taken these into its wave-2 candidate. This remains integration work, not a completed wave-2 game.
 
@@ -98,3 +98,28 @@ The CPU profile of the real SF scene identified repeated nearest-node scans as a
 Typecheck and **4 focused files / 90 tests pass**, including exact nearest-node comparisons for local/remote points and ties, disconnected-search rejection, physical runtime integration and forbidden APIs. A real-SF per-system timing probe is queued before claiming a measured speed improvement.
 
 Measured follow-up: canonical SF assets, 100 measured ticks after 10 warmup ticks, current runtime/navigation plus core population-budget fix `f6f8357` (local cherry-pick `2bb31e6`) produced **11.37 ms median / 18.95 ms p95 / 25.43 ms maximum**, with 211 physical/runtime actors and 731 MiB heap. The earlier canonical baseline was 17.11 / 27.29 / 31.89 ms with 255 actors, so this is a combined population/navigation result, not an isolated attribution to the spatial tree. Agent preparation averaged 1.75 ms and observation 0.43 ms per tick. The coordinated observation-cache patch is not included in this measurement. This is simulation timing, not a rendered-frame or multiplayer-soak claim.
+
+## Wave 3: Tidy and accepted restoration
+
+Active stacked branch: `lane/sim-agents/wave3`, based on the verified wave-2 work. Combat maintenance dependency `043396c` is merged. The owner-approved pause adaptation keeps membership/sanitized input handling, runs only combat while paused, and resumes the unchanged physical path afterward; its two boundary tests pass.
+
+- Tidy workers use real repair-kiosk anchors and ordinary accepted walker motion. Combat validates the continuous 3-second collection and 60-second restoration channels.
+- Collected converted helpers remain hidden combat actors at the accepted worker position, preserving the converted marker until restoration. Ordinary bad heaps are disposed of after collection.
+- Restoration stays hidden and inert until `observedBodies` confirms physical readmission. Only that acceptance emits `actor.restored` with `detail: accepted-body`.
+- Recorded `activity.repair-request` ownership is retained as `sourcePlayerId`, `requestId` and `kioskId` on the accepted event. The target's actual repair owner must match the request. Autonomous cleanup has no player attribution and grants no player reward by proximity.
+- Worker `behavior` exposes collection/carry/restore/readmission, with `cargoId` while actually carrying a heap. Rendering can draw the cargo from this metadata without adding another physical body.
+- Robot vision and reactions use actual microclimate sight blocking. The positional fog callback remains supplied by core.
+
+Validation: TypeScript passes. The actual collection → converted cargo retention → 60-second restore → body readmission test passes, along with pending-admission rejection, repair attribution and microclimate sight tests. The narrow lifecycle/pause run passed **2 files / 6 tests**. Final combined validation passed: typecheck and **5 files / 94 tests**, including mode/mission placement, maintenance, pause and forbidden APIs. The cargo lifecycle also leaves and re-enters player fidelity without losing its converted state.
+
+Requests: core still owns flying-body acceptance and accepted player control; player rewards should consume only the attributed accepted-body event. Final rendered animation, full multiplayer soak and later drone/theft/Walker work are not claimed complete.
+
+### Wave-3 draft pull request
+
+Title: `feat(agents): haul heaps and confirm restored robot bodies`
+
+Body:
+
+Tidy workers collect actual heaps, preserve converted helpers while hauling them to real repair kiosks, and request the combat reducer's continuous 60-second restore. Restored actors stay hidden until the core admits their physical bodies; only then does the runtime emit an attributed completion event. Microclimate gadgets block robot sight.
+
+Validation: typecheck and 94 focused checks pass. Physical lifecycle coverage includes collection, converted cargo outside player fidelity, restoration and accepted body readmission. Ownership mismatch and pending-admission cases cannot produce a completion reward. Includes the physical-kernel adaptation of the combat pause, with preparation frozen through tick 180 and resumed at tick 181.

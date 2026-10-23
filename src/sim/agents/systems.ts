@@ -1,5 +1,6 @@
 import type { SimState } from "../contract.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
+import {planMaintenanceRuntime} from "./maintenance-runtime.ts";
 import { planTransitRuntime } from "./transit-runtime.ts";
 import { planServiceRuntime } from "./service-runtime.ts";
 import {decodeMissionScene,planSceneActors} from "./scene-actors.ts";
@@ -35,6 +36,11 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
       const reserved=allocate(state,transit.spawns.map(actor=>actor.id));state=reserved.state;
       for(const actor of transit.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
     }
+    const maintenance=allocate&&options.maintenance!==false&&(options.wave??2)>=3?planMaintenanceRuntime(context.world,state,agentsRuntimeOf(state)?.maintenance,spawns):undefined;
+    if(maintenance&&allocate&&maintenance.spawns.length){
+      const reserved=allocate(state,maintenance.spawns.map(actor=>actor.id));state=reserved.state;
+      for(const actor of maintenance.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
+    }
     const bindings={...(agentsRuntimeOf(state)?.missionBindings??{})};
     if(allocate){
       const source=(state.ext.missions as unknown as {events?:unknown}|undefined)?.events;
@@ -58,12 +64,17 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         for(const alias of Object.keys(plan.bindings).sort())bindings[`${stage.missionId}:${alias}`]=plan.bindings[alias]!;
       }
     }
-    const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
+    const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,movementGoals:{...options.movementGoals,...maintenance?.goals},restorationPoints:{...options.restorationPoints,...maintenance?.restorationPoints},vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
     if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
+    if(maintenance){
+      runtime.maintenance=maintenance.state;
+      for(const id of Object.keys(runtime.actors).sort()){const actor=runtime.actors[id]!;if(actor.model==="tidy"){delete actor.cargoId;if(actor.behavior.startsWith("tidy-"))actor.behavior="idle";}}
+      for(const id of Object.keys(maintenance.state.jobs).sort()){const job=maintenance.state.jobs[id]!,worker=runtime.actors[id];if(worker){worker.behavior=`tidy-${job.phase}`;if(runtime.actors[job.actorId]?.carriedBy===id&&(job.phase==="carry"||job.phase==="restore"))worker.cargoId=job.actorId;}}
+    }
     runtime.missionBindings=bindings;
-    runtime.proposals=runtime.proposals.filter(proposal=>!runtime.actors[proposal.id]?.retired);
-    return {state:withRuntime(state,runtime),motions:runtime.proposals,retirements:Object.keys(runtime.actors).sort().filter(id=>runtime.actors[id]!.retired)};
+    runtime.proposals=runtime.proposals.filter(proposal=>!runtime.actors[proposal.id]?.retired||runtime.actors[proposal.id]?.restorePending);
+    return {state:withRuntime(state,runtime),motions:runtime.proposals,retirements:Object.keys(runtime.actors).sort().filter(id=>runtime.actors[id]!.retired&&!runtime.actors[id]!.restorePending)};
   }
   return {
     key:"robots",prepare,
@@ -92,7 +103,7 @@ export function agentsCombatOptions(state: Readonly<SimState>): CombatAdapterOpt
     if (runtime?.actors[actor.id]?.legacyId !== null) actorMetadata[actor.id] = actor;
     else extraActors.push(actor);
   }
-  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?{conversionCap:runtime.baseBadCount*2}:{}) };
+  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?.maintenance?{maintenance:runtime.maintenance.requests,maintenanceKiosks:runtime.maintenance.kiosks}:{}),...(runtime?{conversionCap:runtime.baseBadCount*2}:{}) };
 }
 
 /** Core composes the configured provider once world navigation and service data are loaded. */
