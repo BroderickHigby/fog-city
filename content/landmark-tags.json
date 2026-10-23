@@ -183,7 +183,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:2073da83",
+    "contentHash": "fnv1a32:077a0888",
     "reviewedBy": [],
     "review": "Pending: written in the world QA round (W-27, L-04); a second agent session reads it against the docs/ai-layer.md checklist."
   }
