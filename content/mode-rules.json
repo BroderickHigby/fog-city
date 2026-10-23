@@ -25,7 +25,7 @@
     "revealIntervalS": 20,
     "revealRangeM": 60,
     "brief": "Melt every beta unit and the update relay before the timer ends. Watch first; good robots still have work to do.",
-    "win": "Pilot closed. Every beta unit restored.",
+    "win": "Pilot closed. Every beta unit stopped.",
     "lose": "The relay completed its update. Reset the pilot and try again."
   },
   "cleanStreets": {
@@ -145,14 +145,16 @@
     "awardAuthority": "playerVote",
     "brief": "Run a clean three-robot demo. The simulation scores the work; players vote for the Vibes Award.",
     "vote": "Vote for the demo you want to remember. You cannot vote for yourself.",
-    "tie": "A tied vote shares the award. The demo scores stay separate."
+    "tie": "Tied votes use a deterministic keyed-hash tie-break. The demo scores stay separate."
   },
   "version": 1,
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:e6d12b16",
-    "reviewedBy": [],
-    "review": "Authored from the design. Pending independent content and gameplay review."
+    "contentHash": "fnv1a32:b1d8b438",
+    "reviewedBy": [
+      "root second-read at 88a9781"
+    ],
+    "review": "Root independently read every authored string at 88a9781 with no taste or identity issue. Mode victory and tie copy were changed to the exact requested corrections."
   }
 }
