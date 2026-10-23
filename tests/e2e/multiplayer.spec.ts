@@ -62,7 +62,7 @@ test.describe("online Bot Sweep", () => {
       // Host creates a private room through the lobby UI.
       const a = await open(first);
       await a.getByRole("button", { name: "Play with friends" }).click();
-      await a.getByRole("button", { name: "Create room" }).click();
+      await a.getByRole("button", { name: "Create private room" }).click();
       await waitNet(a, `n.info()?.phase === "lobby"`);
       const code = await net(a, (n) => n.info()!.code);
       expect(code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
