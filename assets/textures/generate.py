@@ -9,6 +9,10 @@ by construction) and every stamp, crack and joint wraps around the edges.
   normal  tangent-space normal map (OpenGL convention, +Y up), from the height field
   orm     glTF packing: R ambient occlusion, G roughness, B metalness
 
+The CC0 scans from assets/textures/fetch_cc0.py replace the asphalt, concrete, pavers, sandstone
+and grass sets; this script now writes only the paint wear set by default (the others remain as a
+procedural fallback, written when named on the command line).
+
 Each set covers SIZE_M metres per repeat (the renderer reads TEXTURES[name].sizeM from
 public/models/textures/textures.json, which this script writes).
 
@@ -313,7 +317,9 @@ def grass():
 SETS = {"asphalt": asphalt, "concrete": concrete, "pavers": pavers, "sandstone": sandstone, "paint": paint, "grass": grass}
 
 if __name__ == "__main__":
-    names = sys.argv[1:] or list(SETS)
+    # By default only the sets no CC0 scan replaces (fetch_cc0.py writes asphalt, concrete, pavers,
+    # sandstone and grass); name a set to regenerate its procedural fallback over the scan.
+    names = sys.argv[1:] or ["paint"]
     manifest_path = os.path.join(OUT, "textures.json")
     manifest = json.load(open(manifest_path)) if os.path.exists(manifest_path) else {"version": 1, "textures": {}}
     for n in names:

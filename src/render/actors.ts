@@ -240,6 +240,13 @@ export class Actors {
   /** The high tier's skinned player bodies (player-body.ts): walkers are drawn by them from now on. */
   private bodies: PlayerBodies | null = null;
 
+  /** Render-only height to add where the high tier raises the sidewalks (showcase.ts KerbLift). */
+  private lift: ((x: number, z: number) => number) | null = null;
+
+  setLift(lift: ((x: number, z: number) => number) | null): void {
+    this.lift = lift;
+  }
+
   setBodies(bodies: PlayerBodies): void {
     this.bodies = bodies;
     this.group.add(bodies.group);
@@ -332,7 +339,7 @@ export class Actors {
 
   setCar(id: string, pose: CarPose): void {
     const v = this.view(id);
-    v.car.position.set(pose.x, pose.y, pose.z);
+    v.car.position.set(pose.x, pose.y + (this.lift ? this.lift(pose.x, pose.z) : 0), pose.z);
     v.car.rotation.set(pose.pitch, -pose.heading, -pose.roll, "YXZ");
     v.car.visible = !(this.hidden === id && this.hiddenPart === "car");
     let dist = v.placed ? Math.hypot(pose.x - v.lastX, pose.z - v.lastZ) : 0;
@@ -374,8 +381,9 @@ export class Actors {
       v.gait = advanceGait(v.gait, dist, STRIDE_M);
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
-      if (this.bodies) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt);
-      else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
+      const wy = w.y + (this.lift ? this.lift(w.x, w.z) : 0);
+      if (this.bodies) this.bodies.add(id, w.x, wy, w.z, w.heading, w.speed, dt);
+      else this.people.add(w.x, wy, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
     }
     this.people.end();
     this.bodies?.end();

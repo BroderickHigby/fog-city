@@ -27,6 +27,46 @@ export const SHOWCASE = { x: 0, z: 0, radiusM: 800 } as const;
 export const MASK_HALF_M = 820;
 export const MASK_PX = 1024;
 
+/** The showcase's kerb height: its sidewalks stand this far above the gutter (fading out over the last 20 m of the radius). */
+export const KERB_M = 0.15;
+/** The kerb-lift grid's cell, metres (what a person or a robot stands on). */
+export const LIFT_CELL_M = 0.5;
+
+/** How high the sidewalk is raised at (x, z): KERB_M inside the showcase, fading to 0 at its edge. */
+export function kerbAt(x: number, z: number): number {
+  const d = Math.hypot(x - SHOWCASE.x, z - SHOWCASE.z);
+  return KERB_M * Math.max(0, Math.min(1, (SHOWCASE.radiusM - d) / 20));
+}
+
+/**
+ * Where the raised sidewalks are (a raster of the sidewalk bands over the showcase square), so the
+ * renderer stands people, robots and cars on them, not 15 cm inside. Render-only: the sim's ground
+ * is unchanged.
+ */
+export class KerbLift {
+  private readonly grid: Uint8Array;
+  private readonly px: number;
+
+  /** `bands`: sidewalks.ts sidewalkBandTriangles (raised strip, and the ramp behind it). */
+  constructor(bands: { raised: ReadonlyArray<ReadonlyArray<readonly [number, number]>>; ramp: ReadonlyArray<ReadonlyArray<readonly [number, number]>> }) {
+    this.px = Math.round((2 * MASK_HALF_M) / LIFT_CELL_M);
+    const near = (ts: ReadonlyArray<ReadonlyArray<readonly [number, number]>>): P2[][] => ts.filter((t) => t.some(([x, z]) => inShowcase(x, z, 5))) as P2[][];
+    const raised = rasterMask(near(bands.raised), MASK_HALF_M, this.px);
+    const ramp = rasterMask(near(bands.ramp), MASK_HALF_M, this.px);
+    this.grid = new Uint8Array(raised.length);
+    for (let i = 0; i < raised.length; i++) this.grid[i] = raised[i] ? 2 : ramp[i] ? 1 : 0;
+  }
+
+  /** The lift at (x, z): kerbAt there on the raised strip, half of it on the ramp, else 0. */
+  at = (x: number, z: number): number => {
+    const c = Math.floor((x + MASK_HALF_M) / LIFT_CELL_M);
+    const r = Math.floor((z + MASK_HALF_M) / LIFT_CELL_M);
+    if (c < 0 || r < 0 || c >= this.px || r >= this.px) return 0;
+    const g = this.grid[r * this.px + c]!;
+    return g === 0 ? 0 : g === 2 ? kerbAt(x, z) : kerbAt(x, z) * 0.5;
+  };
+}
+
 /** Paint lift over the drawn ground (the road ribbons are 2 cm up). */
 const PAINT_LIFT = 0.032;
 
@@ -320,9 +360,31 @@ export function rasterMask(polys: readonly P2[][], half = MASK_HALF_M, px = MASK
  */
 export const MEDIAN_REACH_M = 450;
 
+/** Street edges near the showcase that carry traffic (what nothing on the median may stand on). */
+function carriageways(roads: RoadGraph): RoadEdge[] {
+  return roads.edges.filter((e) => !e.pedestrian && e.points.length >= 2 && e.points.some(([x, z]) => inShowcase(x, z, 150)));
+}
+
+/** True when (x, z) is at least `clear` metres outside every carriageway's kerb. */
+function offRoad(x: number, z: number, roads: readonly RoadEdge[], clear: number): boolean {
+  for (const e of roads) {
+    const hw = roadHalfWidth(e);
+    for (let i = 1; i < e.points.length; i++) {
+      const [ax, az] = e.points[i - 1]!;
+      const [bx, bz] = e.points[i]!;
+      const ex = bx - ax;
+      const ez = bz - az;
+      const t = Math.max(0, Math.min(1, ((x - ax) * ex + (z - az) * ez) / (ex * ex + ez * ez || 1)));
+      if (Math.hypot(x - ax - ex * t, z - az - ez * t) < hw + clear) return false;
+    }
+  }
+  return true;
+}
+
 export function medianLine(roads: RoadGraph): P2[] {
   const emb = embarcadero(roads).filter((e) => e.oneway);
   if (emb.length < 2) return [];
+  const streets = carriageways(roads);
   // The longest pair of opposite carriageways whose centrelines stay 15-60 m apart.
   let best: P2[] = [];
   for (const a of emb) {
@@ -343,7 +405,7 @@ export function medianLine(roads: RoadGraph): P2[] {
           }
         }
         const mid: P2 = [(p.x + q[0]) / 2, (p.z + q[1]) / 2];
-        if (bestD >= 15 && bestD <= 60 && Math.hypot(mid[0] - SHOWCASE.x, mid[1] - SHOWCASE.z) <= MEDIAN_REACH_M) line.push(mid);
+        if (bestD >= 15 && bestD <= 60 && Math.hypot(mid[0] - SHOWCASE.x, mid[1] - SHOWCASE.z) <= MEDIAN_REACH_M && offRoad(mid[0], mid[1], streets, 3.8)) line.push(mid);
         else if (line.length > 0) break;
       }
       if (lengthOf(line) > lengthOf(best)) best = line;
@@ -383,8 +445,9 @@ function trackGeometry(line: readonly P2[], ground: GroundFn): { bed: THREE.Buff
   return { bed: bed.build(), rails: rails.build() };
 }
 
-/** Palm spots: both sides of the median line every 14 m, 5.5 m out, jittered a little. */
-export function palmSpots(line: readonly P2[]): Array<{ x: number; z: number; h: number; rot: number; lean: number }> {
+/** Palm spots: both sides of the median line every 14 m, 5.5 m out, jittered a little; none within 1 m of a carriageway (with `roads`). */
+export function palmSpots(line: readonly P2[], roads?: RoadGraph): Array<{ x: number; z: number; h: number; rot: number; lean: number }> {
+  const streets = roads ? carriageways(roads) : [];
   const L = lengthOf(line);
   const out: Array<{ x: number; z: number; h: number; rot: number; lean: number }> = [];
   let k = 0;
@@ -393,7 +456,13 @@ export function palmSpots(line: readonly P2[]): Array<{ x: number; z: number; h:
     for (const side of [-1, 1]) {
       const j = rand01(`palm:${k}`);
       const d = side * (5.5 + (j - 0.5) * 0.6);
-      out.push({ x: p.x - p.tz * d, z: p.z + p.tx * d, h: 10 + rand01(`palm-h:${k}`) * 4, rot: rand01(`palm-r:${k}`) * Math.PI * 2, lean: (rand01(`palm-l:${k}`) - 0.5) * 0.08 });
+      const x = p.x - p.tz * d;
+      const z = p.z + p.tx * d;
+      if (roads && !offRoad(x, z, streets, 1.2)) {
+        k++;
+        continue;
+      }
+      out.push({ x, z, h: 10 + rand01(`palm-h:${k}`) * 4, rot: rand01(`palm-r:${k}`) * Math.PI * 2, lean: (rand01(`palm-l:${k}`) - 0.5) * 0.08 });
       k++;
     }
   }
@@ -527,7 +596,7 @@ export function buildShowcase(roads: RoadGraph, ground: GroundFn, tex: ShowcaseT
     disposables.push(tracks.bed, tracks.rails, bedMat, railMat);
   }
 
-  const spots = palmSpots(line);
+  const spots = palmSpots(line, roads);
   if (spots.length > 0) {
     const { trunk, crown } = palmGeometry();
     const trunkMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, name: "fc:palm-trunk" });

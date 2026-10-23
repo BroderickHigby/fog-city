@@ -203,7 +203,7 @@ async function boot(): Promise<void> {
   const sidewalksFile = manifest.layers?.sidewalks;
   if (sidewalksFile) {
     assets.json<SidewalkGraph>(base + sidewalksFile).then(
-      (g) => view.streamer.setSidewalks(g),
+      (g) => view.setSidewalks(g),
       (err: unknown) => console.warn(`[fog-city] sidewalks ${sidewalksFile}: ${err instanceof Error ? err.message : String(err)}`),
     );
   }

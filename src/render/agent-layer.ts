@@ -479,6 +479,13 @@ export class AgentLayer {
   /** The high tier's animated humanoid crowd (crowd.ts): near and mid people are drawn by it from now on. */
   private crowd: CrowdRig | null = null;
 
+  /** Render-only height to add where the high tier raises the sidewalks (showcase.ts KerbLift). */
+  private lift: ((x: number, z: number) => number) | null = null;
+
+  setLift(lift: ((x: number, z: number) => number) | null): void {
+    this.lift = lift;
+  }
+
   setCrowd(crowd: CrowdRig): void {
     this.crowd = crowd;
     this.group.add(crowd.group);
@@ -500,6 +507,7 @@ export class AgentLayer {
       const b = pairs[i]![1];
       const w = this.windows.get(b.id)!;
       const p = interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), this.poses[i]!);
+      if (this.lift) p.y += this.lift(p.x, p.z);
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;

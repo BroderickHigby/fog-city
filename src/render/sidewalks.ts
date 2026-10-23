@@ -105,10 +105,13 @@ export interface SidewalkMesh {
  * (the street's centreline distance less its half width), one on the walk line and one
  * SIDEWALK_OUTER_M beyond it, each on the drawn ground plus SIDEWALK_LIFT_M. Null when empty.
  */
-export function sidewalkMesh(lines: readonly SidewalkLine[], roads: ReadonlyMap<string, RoadEdge>, ground: GroundFn): SidewalkMesh | null {
+export function sidewalkMesh(lines: readonly SidewalkLine[], roads: ReadonlyMap<string, RoadEdge>, ground: GroundFn, kerbAt?: GroundFn): SidewalkMesh | null {
   const pos: number[] = [];
   const uv: number[] = [];
   const idx: number[] = [];
+  const nrm: number[] = [];
+  // Kerb faces (high tier, showcase.ts): a vertical strip down from the raised band to the gutter.
+  const face: { pos: number[]; nrm: number[]; uv: number[]; idx: number[] } = { pos: [], nrm: [], uv: [], idx: [] };
   for (const line of lines) {
     const road = line.road ? roads.get(line.road) : undefined;
     const hw = road ? roadHalfWidth(road) : 0;
@@ -140,6 +143,7 @@ export function sidewalkMesh(lines: readonly SidewalkLine[], roads: ReadonlyMap<
     }
     const toRoad = sideVote >= 0 ? 1 : -1;
     const base = pos.length / 3;
+    const faceBase = face.pos.length / 3;
     for (const p of samples) {
       // Right-hand normal (-dz, dx) points to the street when toRoad is 1.
       const nx = -p.dz * toRoad;
@@ -154,11 +158,42 @@ export function sidewalkMesh(lines: readonly SidewalkLine[], roads: ReadonlyMap<
         [0, inner / (inner + SIDEWALK_OUTER_M)],
         [-SIDEWALK_OUTER_M, 1],
       ];
+      // Raised where kerbAt says (the band's kerb edge stands on the gutter line, inner metres out).
+      const kx = p.x + nx * inner;
+      const kz = p.z + nz * inner;
+      const kerb = kerbAt ? kerbAt(kx, kz) : 0;
       for (const [off, u] of cross) {
         const x = p.x + nx * off;
         const z = p.z + nz * off;
-        pos.push(x, ground(x, z) + SIDEWALK_LIFT_M, z);
+        // The kerb to the walk line stand raised; the back of the band ramps down to the ground,
+        // so it meets a plaza or a lawn level, with no floating edge.
+        pos.push(x, ground(x, z) + SIDEWALK_LIFT_M + (u < 1 ? kerb : 0), z);
+        nrm.push(0, 1, 0);
         uv.push(u, p.s);
+      }
+      if (kerbAt) {
+        const g = ground(kx, kz);
+        face.pos.push(kx, g + SIDEWALK_LIFT_M + kerb, kz, kx, g, kz);
+        face.nrm.push(nx, 0, nz, nx, 0, nz);
+        face.uv.push(0, p.s, 0, p.s);
+      }
+    }
+    if (kerbAt) {
+      for (let k = 0; k + 1 < samples.length; k++) {
+        const t0 = faceBase + 2 * k;
+        const b0 = t0 + 1;
+        const t1 = t0 + 2;
+        const b1 = t0 + 3;
+        // Facing the street (+n): wind so the face's normal agrees with (nx, nz).
+        const ax = face.pos[3 * t1]! - face.pos[3 * t0]!;
+        const az = face.pos[3 * t1 + 2]! - face.pos[3 * t0 + 2]!;
+        const fnx = face.nrm[3 * t0]!;
+        const fnz = face.nrm[3 * t0 + 2]!;
+        // The loop t0 -> b0 -> b1 -> t1 faces (b0 - t0) x (t1 - t0) ~ (-az, 0, ax): keep it when
+        // that agrees with the street-side normal, else reverse it.
+        const out = -az * fnx + ax * fnz;
+        if (out > 0) face.idx.push(t0, b0, b1, t0, b1, t1);
+        else face.idx.push(t0, b1, b0, t0, t1, b1);
       }
     }
     for (let k = 0; k + 1 < samples.length; k++) {
@@ -183,12 +218,33 @@ export function sidewalkMesh(lines: readonly SidewalkLine[], roads: ReadonlyMap<
     }
   }
   if (idx.length === 0) return null;
+  // The kerb faces join the band's buffers (same material: concrete, the kerb strip's u = 0).
+  const off = pos.length / 3;
+  for (const v of face.idx) idx.push(v + off);
+  pos.push(...face.pos);
+  nrm.push(...face.nrm);
+  uv.push(...face.uv);
   const n = pos.length / 3;
-  const normals = new Float32Array(pos.length);
   const colors = new Float32Array(pos.length);
-  for (let i = 0; i < n; i++) {
-    normals[3 * i + 1] = 1;
-    colors.set(CONCRETE, 3 * i);
+  for (let i = 0; i < n; i++) colors.set(CONCRETE, 3 * i);
+  return { positions: new Float32Array(pos), normals: new Float32Array(nrm), colors, uvs: new Float32Array(uv), indices: new Uint32Array(idx) };
+}
+
+/**
+ * The bands' triangles in plan (ground x, z): `raised` from the kerb to the walk line, `ramp` from
+ * the walk line to the outer edge. showcase.ts rasterises them into the kerb-lift grid.
+ */
+export function sidewalkBandTriangles(lines: readonly SidewalkLine[], roads: ReadonlyMap<string, RoadEdge>): { raised: Array<Array<[number, number]>>; ramp: Array<Array<[number, number]>> } {
+  const flat: GroundFn = () => 0;
+  const mesh = sidewalkMesh(lines, roads, flat);
+  const out = { raised: [] as Array<Array<[number, number]>>, ramp: [] as Array<Array<[number, number]>> };
+  if (!mesh) return out;
+  // sidewalkMesh emits, per sample step, two triangles from the kerb to the walk line, then two
+  // from the walk line to the outer edge (no kerb faces without kerbAt).
+  const p = mesh.positions;
+  for (let t = 0; t < mesh.indices.length; t += 3) {
+    const tri = [mesh.indices[t]!, mesh.indices[t + 1]!, mesh.indices[t + 2]!].map((i) => [p[3 * i]!, p[3 * i + 2]!] as [number, number]);
+    (Math.floor(t / 6) % 2 === 0 ? out.raised : out.ramp).push(tri);
   }
-  return { positions: new Float32Array(pos), normals, colors, uvs: new Float32Array(uv), indices: new Uint32Array(idx) };
+  return out;
 }
