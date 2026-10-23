@@ -182,6 +182,58 @@ export function materialTriangles(doc: Document, material: string): Array<[V3, V
   return out;
 }
 
+/** Model-space triangles of every primitive in the scene (optionally only under one node). */
+export function allTriangles(doc: Document, under?: string): Array<[V3, V3, V3]> {
+  const out: Array<[V3, V3, V3]> = [];
+  const nodes = under === undefined ? sceneNodes(doc) : subtree(node(doc, under));
+  for (const n of nodes) {
+    const mesh = n.getMesh();
+    if (!mesh) continue;
+    const m = n.getWorldMatrix() as unknown as number[];
+    for (const p of mesh.listPrimitives()) {
+      const pos = p.getAttribute("POSITION");
+      if (!pos) continue;
+      const el: number[] = [];
+      const at = (i: number): V3 => {
+        pos.getElement(i, el);
+        return apply(m, [el[0]!, el[1]!, el[2]!]);
+      };
+      const idx = p.getIndices();
+      const count = idx ? idx.getCount() : pos.getCount();
+      for (let i = 0; i + 2 < count; i += 3) {
+        const k = idx ? [idx.getScalar(i), idx.getScalar(i + 1), idx.getScalar(i + 2)] : [i, i + 1, i + 2];
+        out.push([at(k[0]!), at(k[1]!), at(k[2]!)]);
+      }
+    }
+  }
+  return out;
+}
+
+/** A node and every node below it. */
+export function subtree(n: Node): Node[] {
+  const out: Node[] = [n];
+  for (const c of n.listChildren()) out.push(...subtree(c));
+  return out;
+}
+
+/**
+ * The points where triangles cross the horizontal plane y = h (each crossing edge gives one):
+ * the model's outline at that height, for measuring a silhouette's width.
+ */
+export function sectionAt(tris: ReadonlyArray<readonly [V3, V3, V3]>, h: number): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const t of tris) {
+    for (let i = 0; i < 3; i++) {
+      const a = t[i]!;
+      const b = t[(i + 1) % 3]!;
+      if ((a[1] - h) * (b[1] - h) > 0 || a[1] === b[1]) continue;
+      const u = (h - a[1]) / (b[1] - a[1]);
+      out.push([a[0] + (b[0] - a[0]) * u, a[2] + (b[2] - a[2]) * u]);
+    }
+  }
+  return out;
+}
+
 /** Names of the materials a node's own mesh uses. */
 export function nodeMaterials(n: Node): string[] {
   return (n.getMesh()?.listPrimitives() ?? []).map((p) => p.getMaterial()?.getName() ?? "");

@@ -93,8 +93,8 @@ describe("TileStreamer", () => {
   it("keeps tunnel portals open when a tile must be rebuilt from its collider", async () => {
     const w = world("dev");
     const c = w.colliders.values().next().value!;
-    const structure = c as TileCollider & { tunnels: Array<{ id: string; clearanceM: number; path: [number, number, number, number][] }> };
-    structure.tunnels = [{ id: "test-bore", clearanceM: 4, path: [[-20, 0, 0, 8], [20, 0, 0, 8]] }];
+    const structure = c as TileCollider & { tunnels: Array<{ id: string; kind: "tunnel"; clearanceM: number; path: [number, number, number, number][] }> };
+    structure.tunnels = [{ id: "test-bore", kind: "tunnel", clearanceM: 4, path: [[-20, 0, 0, 8], [20, 0, 0, 8]] }];
     const parent = new THREE.Group(), materials = createSharedMaterials();
     const streamer = new TileStreamer({ parent, manifest: w.manifest, base: "", colliders: w.colliders,
       roads: w.roads, ground: w.ground, materials, night: createNightMaterials(), radius: 1500 });
