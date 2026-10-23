@@ -10,7 +10,7 @@ Wave-2 browser interface on `lane/ui-save/wave2`, based on core `9a6a107` plus p
 - Added held spray/scan, one-shot gadget actions, gamepad deadzone/edges, touch release handling, typing/modal suppression and disposable keyboard listeners.
 - `gameplayCallbacks` sends validated `gameplay.command` events with monotonically increasing sequence and ID-only payloads; UI never mutates sim state.
 - FreeTextBox runs crisis detection before length/lint, strips contact details and delimiters, and never calls a resolver for blocked or crisis text.
-- Typecheck and 10 focused tests passed. The isolated browser fixture uses port 4187; browser verification is running with system Chromium.
+- Typecheck, 10 focused tests and both 390px Chromium integration tests passed. Browser checks exercise phone/map, hidden robot markers, purchase eligibility, recorded commands, crisis-before-length, typing isolation and teardown.
 
 ## Next
 Separate render-integration branch: mount the tested UI in the ferry-showcase renderer, feed shared player/combat snapshots and queue recorded commands. Progression-only saves, later-wave apps and match panels follow.
@@ -42,7 +42,7 @@ Title: `UI: add guarded browser controls, HUD and phone panels`
 Reusable browser UI consumes immutable presentation data and emits recorded controls. Adds HUD/objectives, directed GPS, phone and vendor panels, accessible modal focus handling, touch/gamepad controls and disposable keyboard input. The sole free-text component runs the existing crisis check before all parsing, validation and submission, then strips contact information before the content resolver. Display text comes from the content lane's UI catalog.
 
 ### Acceptance tests
-`pnpm typecheck` and `pnpm exec vitest run tests/ui/controls.test.ts --maxWorkers=2`: passed (10 tests). Browser fixture: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium pnpm exec playwright test --config tests/ui/browser.config.ts --workers=1` (in progress). Production mounting remains separate render-integration work.
+`pnpm typecheck` and `pnpm exec vitest run tests/ui/controls.test.ts --maxWorkers=2`: passed (10 tests). `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium pnpm exec playwright test --config tests/ui/browser.config.ts --workers=1`: passed (2 tests, 6.3s). Production mounting remains separate render-integration work.
 
 ### Contract changes
 None authored in shared simulation files; shared requests are listed above.
