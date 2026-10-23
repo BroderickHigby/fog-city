@@ -7,7 +7,7 @@ import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionStat
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 export function missionPlace(place:Place):{x:number;y:number;z:number}{return {...toLocal(place.lat,place.lon),y:0};}
-function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)**2;}
+function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)*(place.radiusM??25);}
 function initial(mission:Mission):string{return mission.start??mission.steps[0]?.id??"";}
 function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
 function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;for(const [key,meter] of Object.entries(mission.meters))if(validId(key))progress.meters[key]=meter.start;enter(progress,initial(mission),tick);}
