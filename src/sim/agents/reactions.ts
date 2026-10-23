@@ -76,6 +76,12 @@ interface Candidate {
 
 const compareId = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
 
+/**
+ * The widest radius any stimulus registers at, squared (the horn's 40 m in sense()). Past it
+ * sense() returns null for every kind, so a caller may skip building those stimuli.
+ */
+export const STIMULUS_REACH_SQ = 1600;
+
 function sense(actor: ReactionActor, stimulus: PerceivedStimulus): Candidate | null {
   if (!stimulus.seen && !stimulus.heard) return null;
   const dx = actor.x - stimulus.x;
@@ -87,7 +93,7 @@ function sense(actor: ReactionActor, stimulus: PerceivedStimulus): Candidate | n
   if (stimulus.kind === "spray" && distanceSq <= 400) {
     return { stimulus, mode: "avoid", priority: 3, distanceSq, duration: 90 };
   }
-  if (stimulus.kind === "horn" && stimulus.heard && distanceSq <= 1600) {
+  if (stimulus.kind === "horn" && stimulus.heard && distanceSq <= STIMULUS_REACH_SQ) {
     return { stimulus, mode: "startle", priority: 2, distanceSq, duration: 18 };
   }
   if (stimulus.kind === "ping" && actor.kind === "good-robot" && distanceSq <= 900) {

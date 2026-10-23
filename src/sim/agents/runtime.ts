@@ -15,7 +15,7 @@ import type { TransitLayer, TransitRuntimeState } from "./transit-runtime.ts";
 import type { AdWrapSlot } from "./services.ts";
 import type { ServiceRuntimeState } from "./service-runtime.ts";
 import type { PendingMissionStages } from "./mission-staging.ts";
-import { IDLE_REACTION, reactToPerception, type ReactionState, type PerceivedStimulus } from "./reactions.ts";
+import { IDLE_REACTION, STIMULUS_REACH_SQ, reactToPerception, type ReactionState, type PerceivedStimulus } from "./reactions.ts";
 
 export type RuntimeModel = "footman" | "trundle" | "robotaxi" | "person" | "pigeon" | "dog" | "van" | "bus" | "drone" | "patrol" | "sign-spinner" | "tidy" | "associate" | "walker";
 
@@ -138,6 +138,32 @@ function vehicle(model:RuntimeModel):boolean{return model==="robotaxi"||model===
 function animal(model:RuntimeModel):boolean{return model==="pigeon"||model==="dog";}
 function human(model:RuntimeModel):boolean{return model==="person"||model==="associate";}
 
+/**
+ * This tick's actors, indexed once: by id, and in CROWD_CELL squares for the 30 m sensing
+ * radius. Positions do not change while planning, so one index serves every actor. A query
+ * returns its candidates in list order, so results match a scan of the whole list exactly.
+ */
+interface Crowd {readonly list:readonly RuntimeActor[];readonly byId:ReadonlyMap<string,RuntimeActor>;readonly cells:ReadonlyMap<number,readonly number[]>}
+const CROWD_CELL=30;
+const cellKeyOf=(cx:number,cz:number)=>(cx+32768)*65536+(cz+32768);
+function crowdOf(list:readonly RuntimeActor[]):Crowd{
+  const byId=new Map<string,RuntimeActor>(),cells=new Map<number,number[]>();
+  list.forEach((actor,index)=>{
+    byId.set(actor.id,actor);
+    const key=cellKeyOf(Math.floor(actor.x/CROWD_CELL),Math.floor(actor.z/CROWD_CELL));
+    const cell=cells.get(key);if(cell)cell.push(index);else cells.set(key,[index]);
+  });
+  return {list,byId,cells};
+}
+/** Every actor that may lie within `radius` of `point` (a superset), in list order. */
+function crowdNear(crowd:Crowd,point:{x:number;z:number},radius:number):RuntimeActor[]{
+  const found:number[]=[];
+  for(let cx=Math.floor((point.x-radius)/CROWD_CELL);cx<=Math.floor((point.x+radius)/CROWD_CELL);cx++)
+    for(let cz=Math.floor((point.z-radius)/CROWD_CELL);cz<=Math.floor((point.z+radius)/CROWD_CELL);cz++)
+      for(const index of crowd.cells.get(cellKeyOf(cx,cz))??[])found.push(index);
+  return found.sort((a,b)=>a-b).map(index=>crowd.list[index]!);
+}
+
 function initialize(spawn:RuntimeSpawn,tick:number,legacyId:number|null):RuntimeActor{
   if([spawn.halfLength,spawn.halfWidth,spawn.rustScale].some(value=>value!==undefined&&(!Number.isFinite(value)||value<=0))||spawn.speed!==undefined&&(!Number.isFinite(spawn.speed)||spawn.speed<0)||spawn.model==="tidy"&&spawn.firmware==="bad")throw new Error("Invalid runtime metadata");
   if(!spawn.id||!Number.isSafeInteger(spawn.numericId)||spawn.numericId<1||![spawn.x,spawn.y,spawn.z,spawn.heading,spawn.radius,spawn.height].every(Number.isFinite)||spawn.radius<=0||spawn.height<=0)throw new Error("Invalid runtime actor");
@@ -220,7 +246,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   return state;
 }
 
-function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>):RobotObservations{
+function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,crowd:Crowd,inputs:InputFrame,people:ReturnType<typeof players>):RobotObservations{
   const sight:RobotObservations["sight"][number][]=[],sounds:RobotObservations["sounds"][number][]=[],scans:RobotObservations["scans"][number][]=[],watches:RobotObservations["watches"][number][]=[];
   for(const player of people){
     const near=distance(actor,player)<=40;
@@ -231,7 +257,7 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(input&&(input.actions&Action.horn))sounds.push({kind:"horn",playerId:player.id,x:player.x,z:player.z});
     if(input&&(input.actions&Action.watch))watches.push({playerId:player.id,x:player.x,z:player.z,lineOfSight:visible});
   }
-  for(const other of others){
+  for(const other of crowdNear(crowd,actor,30)){
     if(other.id===actor.id||other.retired||distance(actor,other)>30)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,other.x,other.z);
     if(human(other.model))sight.push({kind:"person",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible});
@@ -246,7 +272,7 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
   const broadcasts:RobotObservations["broadcasts"][number][]=[];
   for(const received of activeCombat(sim)?.events??[]){
     if(received.kind!=="robot.broadcast")continue;
-    const source=others.find(other=>other.id===received.sourceId);
+    const source=crowd.byId.get(received.sourceId);
     if(!source?.brain)continue;
     for(const known of source.brain.knowledge)broadcasts.push({sourceId:source.numericId,sourcePosition:{x:source.x,z:source.z},sourceSeized:phase(sim,source.id)==="seized",emittedTick:sim.tick,observedTick:known.observedTick,playerId:known.playerId,position:{x:known.x,z:known.z}});
   }
@@ -270,7 +296,7 @@ function nearbyNodes(graph:SidewalkGraph,point:{x:number;z:number},radius:number
   return result.sort((a,b)=>compare(a.id,b.id));
 }
 
-function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,others:RuntimeActor[]):{goal:{x:number;z:number}|null;speed:number}{
+function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,crowd:Crowd):{goal:{x:number;z:number}|null;speed:number}{
   const movement=intent?.movement;
   if(movement?.kind==="hold")return {goal:null,speed:0};
   if(movement?.kind==="pursue"){
@@ -281,21 +307,21 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
     if(movement.toward)return {goal:movement.toward,speed:1.8};
     if(movement.from)return {goal:{x:actor.x+(actor.x-movement.from.x),z:actor.z+(actor.z-movement.from.z)},speed:1.8};
   }
-  if(actor.model==="dog"&&actor.ownerId){const owner=others.find(other=>other.id===actor.ownerId);if(owner&&distance(actor,owner)>1.5)return {goal:owner,speed:Math.min(2,distance(actor,owner)-1.5)};}
+  if(actor.model==="dog"&&actor.ownerId){const owner=crowd.byId.get(actor.ownerId);if(owner&&distance(actor,owner)>1.5)return {goal:owner,speed:Math.min(2,distance(actor,owner)-1.5)};}
   return {goal:null,speed:actor.model==="trundle"?1:animal(actor.model)?1.3:1.6};
 }
 
 function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
   return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
 }
-function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>):void{
+function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,crowd:Crowd,people:ReturnType<typeof players>):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
     const controls=options.vehicleControls?.[actor.id];
     if(actor.legacyId===null||controls)state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:null,kind:"vehicle",...(controls?{controls}:{}),...motionMetadata(actor),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
     return;
   }
-  const wanted=desiredMovement(actor,intent,others);
+  const wanted=desiredMovement(actor,intent,crowd);
   const effect=activeCombat(sim)?.targets[actor.id];
   const updating=(activeCombat(sim)?.attacks??[]).some(attack=>attack.kind==="forced-update"&&attack.targetId===actor.id);
   const frozen=Boolean(effect&&effect.phase!=="active"||updating);
@@ -307,6 +333,10 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   }
   if(actor.model==="person"||animal(actor.model)||actor.firmware==="good"){
     const stimuli:PerceivedStimulus[]=people.flatMap(player=>{
+      // Nothing a player does registers past the widest reaction radius (reactions.ts sense()),
+      // so skip the sight line there: the same squared distance sense() compares.
+      const dx=actor.x-player.x,dz=actor.z-player.z;
+      if(dx*dx+dz*dz>STIMULUS_REACH_SQ)return [];
       const input=inputs[player.id],seen=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
       const observed:PerceivedStimulus[]=[];
       if(distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
@@ -318,11 +348,11 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       }
       return observed;
     });
-    const owner=actor.ownerId?others.find(other=>other.id===actor.ownerId):undefined;
+    const owner=actor.ownerId?crowd.byId.get(actor.ownerId):undefined;
     // A detached or displaced dog holds until the body owner restores its pair safely.
     if(actor.model==="dog"&&(!owner||distance(actor,owner)>4)){speed=0;goal=null;}
     else {
-    const reaction=reactToPerception({actor:{id:actor.id,kind:actor.model==="pigeon"?"pigeon":actor.model==="dog"?"dog":actor.firmware==="good"?"good-robot":"person",x:actor.x,z:actor.z,wet:(effect?.wetUntil??0)>sim.tick,...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.level!==undefined?{subtlety:actor.level}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),...(actor.model==="dog"&&actor.ownerId&&others.find(other=>other.id===actor.ownerId)?{leash:{ownerId:actor.ownerId,ownerX:others.find(other=>other.id===actor.ownerId)!.x,ownerZ:others.find(other=>other.id===actor.ownerId)!.z,lengthM:4}}:{})},state:actor.reaction,stimuli,tick:sim.tick,dodgeOverrideActive:false,routineVelocity:{vx:dsin(actor.heading)*speed,vz:-dcos(actor.heading)*speed}});
+    const reaction=reactToPerception({actor:{id:actor.id,kind:actor.model==="pigeon"?"pigeon":actor.model==="dog"?"dog":actor.firmware==="good"?"good-robot":"person",x:actor.x,z:actor.z,wet:(effect?.wetUntil??0)>sim.tick,...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.level!==undefined?{subtlety:actor.level}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),...(actor.model==="dog"&&actor.ownerId&&owner?{leash:{ownerId:actor.ownerId,ownerX:owner.x,ownerZ:owner.z,lengthM:4}}:{})},state:actor.reaction,stimuli,tick:sim.tick,dodgeOverrideActive:false,routineVelocity:{vx:dsin(actor.heading)*speed,vz:-dcos(actor.heading)*speed}});
     actor.reaction=reaction.state;
     if(reaction.movement.kind==="hold")speed=0;
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
@@ -395,6 +425,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const anchors=options.anchors??people.map(player=>({id:player.id,x:player.x,z:player.z}));
   const graph=options.graph??fallbackGraph(world);
   const list=keys(state.actors).map(id=>state.actors[id]!);
+  const crowd=crowdOf(list);
   const presentLegacy=new Set(agentsOf(sim).map(actor=>actor.id));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
@@ -410,12 +441,12 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       if(actor.brain.lastTick>=sim.tick)continue;
       const own=activeCombat(sim)?.targets[actor.id];
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
+        observations:observationSet(world,sim,actor,crowd,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
     }
-    propose(world,state,actor,graph,intent,options,sim,inputs,list,people);
+    propose(world,state,actor,graph,intent,options,sim,inputs,crowd,people);
   }
   return state;
 }
