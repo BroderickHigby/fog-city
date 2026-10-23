@@ -11,4 +11,10 @@ it("never applies free-roam missions, wallet or recovery to a match session",()=
   const next=step(world,active,{},[],systems);
   for(const key of ["player","heat","missions","economy","progression","activities"])expect(next.ext[key]).toBeUndefined();
  }
+ for(const kind of ["crowd","royale","vibes"]){
+  for(const modes of [{version:1,kind,state:{}},{[kind]:{}}]){
+   const next=step(world,{...initial,ext:{modes}}, {},[],createPlayerSystems(()=>{throw new Error("Standalone mode reached free roam");}));
+   expect(next.ext.economy).toBeUndefined();
+  }
+ }
 });

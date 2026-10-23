@@ -70,9 +70,13 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
   return {...base,wave:options.wave??2,observations,facts:[...base.facts,...options.facts?.(context)??[]],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
  };
 }
+export function isMatchInstance(state:Pick<SimSystemContext["state"],"ext">):boolean {
+ const modes=state.ext.modes as unknown as Record<string,unknown>|undefined;
+ return !!modes&&(!!modes.match||!!modes.crowd||!!modes.royale||!!modes.vibes||["crowd","royale","vibes"].includes(String(modes.kind)));
+}
 export function makeGameplaySystem(key:"player"|"heat"|"missions"|"economy"|"progression"|"activities",provider:GameplayProvider=defaultGameplayProvider):SimSystem {
  return {key,step(context){
-  if((context.state.ext.modes as unknown as {match?:unknown}|undefined)?.match)return context.state;
+  if(isMatchInstance(context.state))return context.state;
   const ctx=provider(context);finiteContext(ctx);const own=gameplaySnapshot(context),tick=context.state.tick;
   const result=key==="player"?stepPlayer(own.player,ctx,tick,own.economy,own.heat):key==="heat"?stepHeat(own.heat,ctx,tick,own.player.events):key==="missions"?stepMissions(own.missions,ctx,tick,own.heat,own.player):key==="economy"?stepEconomy(own.economy,ctx,tick,own.missions.events,own.heat,own.player.events,own.activities.events):key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events}):stepActivities(own.activities,ctx,tick,own.missions,context.state.seed);
   return {...context.state,ext:{...context.state.ext,[key]:result}};
