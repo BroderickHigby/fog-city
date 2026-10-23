@@ -61,7 +61,10 @@ const FAMOUS: ReadonlyArray<{ name: string; street: RegExp; at: [number, number]
   { name: "22nd St, Church-Vicksburg", street: /^22nd St$/, at: [37.75486, -122.42828], pct: 31.5, tol: 1.0 },
   { name: "Jones St, Union-Filbert", street: /^Jones St$/, at: [37.8001, -122.41586], pct: 29, tol: 1.0 },
   { name: "Duboce Ave, Alpine-Divisadero", street: /^Duboce Ave$/, at: [37.76896, -122.43708], pct: 27.9, tol: 2.0 },
-  { name: "Fillmore St, Broadway-Vallejo", street: /^Fillmore St$/, at: [37.79505, -122.43535], pct: 24, tol: 1.5 },
+  // (tol 1.5 until integration, 2026-10-23: since qa/sim's v3 (W-22) the drivable surface is the
+  // drawn mesh's triangles, which read this block's steepest 10 m as 25.88% where the bilinear
+  // surface the tolerance was set on read 25.19%.)
+  { name: "Fillmore St, Broadway-Vallejo", street: /^Fillmore St$/, at: [37.79505, -122.43535], pct: 24, tol: 2.0 },
 ];
 
 /** The edge called `street` nearest to a point (within 60 m), resampled at 1 m and clipped to the 80 m either side of it. */

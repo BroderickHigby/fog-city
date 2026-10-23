@@ -187,6 +187,8 @@ function overlaps(recs: readonly SfRecord[]): { duplicates: Array<[string, strin
       const fp = r.footprint;
       const b = bbs[i]!;
       const partner = r.meta.tower ? idx.get(r.meta.tower) : r.meta.towerOf ? idx.get(r.meta.towerOf) : -2;
+      // A podium's terrace pieces (-s<n>) and spans (-b<n>) stand under its tower like the podium.
+      const family = r.id.replace(/(-tower)?(-[sb]\d+)?$/, "");
       const k0 = Math.max(0, Math.floor((b[1] - tz * 500) / C));
       const k1 = Math.min(N - 1, Math.floor((b[3] - tz * 500) / C));
       for (let kk = k0; kk <= k1; kk++) {
@@ -209,6 +211,7 @@ function overlaps(recs: readonly SfRecord[]): { duplicates: Array<[string, strin
               continue;
             }
             if (o === partner || o === i) continue;
+            if (recs[o]!.id.replace(/(-tower)?(-[sb]\d+)?$/, "") === family && (recs[o]!.id.includes("-tower") || r.id.includes("-tower"))) continue;
             const key = o < i ? `${o},${i}` : `${i},${o}`;
             pairs.set(key, (pairs.get(key) ?? 0) + 1);
           }
@@ -250,11 +253,15 @@ export async function measureBuildings(gw: GameWorld): Promise<Measured> {
 
   // ---- accounting (report.json): every source footprint present or dropped for a counted reason
   {
-    const rep = readJson<{ buildings: Record<string, number> }>(`public/tiles/${gw.name}/report.json`).buildings;
+    const report = readJson<{ buildings: Record<string, number>; colliderPack?: { buildings: number } }>(`public/tiles/${gw.name}/report.json`);
+    const rep = report.buildings;
     const unexplained = rep.parts! - rep.kept! - (rep.droppedSmall ?? 0) - (rep.droppedLow ?? 0) - (rep.droppedOutside ?? 0);
     m.metric({ id: "A.accounting.unexplained", target: 0, better: "lower", unit: "footprints", defects: [], desc: "source footprint parts neither kept nor dropped for a counted reason (report.json)" }, unexplained, rep);
-    const plain = recs.filter((r) => !r.id.endsWith("-tower")).length;
-    m.metric({ id: "A.accounting.keptMatchesRecords", target: 0, better: "lower", unit: "footprints", defects: [], desc: "|report.json kept - footprint records in the colliders| (the report and the tiles agree)" }, Math.abs(rep.kept! - plain), { kept: rep.kept, records: plain });
+    // `kept` counts the selection's footprints; the clearance, terrace and newer-buildings passes
+    // after it drop, split and add records, and the report counts what it finally wrote in
+    // colliderPack.buildings (every record, towers and terrace pieces included).
+    const written = report.colliderPack?.buildings ?? Number.NaN;
+    m.metric({ id: "A.accounting.keptMatchesRecords", target: 0, better: "lower", unit: "records", defects: [], desc: "|report.json colliderPack.buildings - building records in the colliders| (the report and the tiles agree)" }, Math.abs(written - recs.length), { written, records: recs.length });
   }
 
   m.lap("accounting");
@@ -343,8 +350,9 @@ export async function measureBuildings(gw: GameWorld): Promise<Measured> {
         relief10++;
         worstRelief.push({ id: r.id, relief: r2(relief) });
       }
+      // (A span, a record with an underside over a street or path, starts its walls there by design.)
       const footY = r.meta.footY;
-      if (footY !== undefined && footY > minGroundAlongWalls(gw, r.footprint) + 0.3) {
+      if (footY !== undefined && (r as { underY?: number }).underY === undefined && footY > minGroundAlongWalls(gw, r.footprint) + 0.3) {
         footAbove++;
         footFails.push(r.id);
       }
@@ -354,7 +362,7 @@ export async function measureBuildings(gw: GameWorld): Promise<Measured> {
     m.metric({ id: "A.ground.roofUnderGround", target: 0, better: "lower", unit: "records", defects: ["W-05"], desc: "records with the ground above the roof anywhere inside the footprint (1 m raster)" }, roofUnder, worstUnder.slice(0, 10));
     m.metric({ id: "A.ground.lowAboveGround", target: 0, better: "lower", unit: "records", defects: ["W-05"], desc: "records 4 m or taller whose roof stands less than 2 m above the highest ground under them" }, lowRoof);
     m.metric({ id: "A.ground.relief10", target: 0, better: "lower", unit: "records", defects: ["W-28"], desc: "drawn parts with more than 10 m of ground relief under one roof" }, relief10, worstRelief.slice(0, 10));
-    m.metric({ id: "A.ground.wallBottomAboveGround", target: 0, better: "lower", unit: "records", defects: ["L-03"], desc: "records whose wall bottom (meta.footY) is more than 0.3 m above the lowest ground along their walls (0.5 m samples)" }, footAbove, footFails.slice(0, 10));
+    m.metric({ id: "A.ground.wallBottomAboveGround", target: 0, better: "lower", unit: "records", defects: ["L-03"], desc: "records whose wall bottom (meta.footY) is more than 0.3 m above the lowest ground along their walls (0.5 m samples; spans, which have an underside, excluded)" }, footAbove, footFails.slice(0, 10));
   }
 
   m.lap("grounding");
@@ -363,7 +371,7 @@ export async function measureBuildings(gw: GameWorld): Promise<Measured> {
     const bad = recs.filter((r) => selfIntersects(r.footprint)).map((r) => r.id);
     m.metric({ id: "A.rings.nonSimple", target: 0, better: "lower", unit: "rings", defects: ["W-30"], desc: "footprint and tower rings that cross themselves (double roofs, slabs outside the walls)" }, bad.length, bad.slice(0, 10));
     const ov = overlaps(recs);
-    m.metric({ id: "A.rings.duplicates", target: 0, better: "lower", unit: "pairs", defects: ["L-01"], desc: "footprint pairs overlapping by 90% or more of the smaller one (0.5 m raster; a podium and its own tower excluded)" }, ov.duplicates.length, ov.duplicates.slice(0, 10));
+    m.metric({ id: "A.rings.duplicates", target: 0, better: "lower", unit: "pairs", defects: ["L-01"], desc: "footprint pairs overlapping by 90% or more of the smaller one (0.5 m raster; a podium, or a terrace piece or span of it, and its own tower excluded)" }, ov.duplicates.length, ov.duplicates.slice(0, 10));
     m.metric({ id: "A.rings.coplanarRoofs", target: 0, better: "lower", unit: "pairs", defects: ["L-01"], desc: "overlapping footprint pairs (2 m2 or more) whose roofs are within 0.1 m: z-fighting roofs" }, ov.coplanar.length, ov.coplanar.slice(0, 10));
   }
 

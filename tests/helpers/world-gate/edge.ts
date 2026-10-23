@@ -28,6 +28,28 @@ import {
 import { bearing, distToRing, distToSegment, drivePath, ll, r2, resample, wrap, type GameWorld, type P2, districtOf } from "../world.ts";
 import { Measured } from "./measured.ts";
 
+const edgeWallCache = new Map<string, Array<{ ax: number; az: number; bx: number; bz: number }>>();
+/**
+ * Is (x, z), on the south edge of a south-row tile whose north edge is at z0, past the county line
+ * (W-42, decision log 2026-10-21)? There the world's land wall runs inside the tile: the ray from
+ * the point north to z0 crosses the land and water walls an odd number of times (the county line,
+ * plus both sides of any road pocket past it), so the point is outside the world.
+ */
+export function pastCountyLine(gw: GameWorld, x: number, z: number, z0: number): boolean {
+  let walls = edgeWallCache.get(gw.name);
+  if (!walls) {
+    walls = buildWalls(gw.boundary, null).segments.filter((w) => w.kind === "land" || w.kind === "water");
+    edgeWallCache.set(gw.name, walls);
+  }
+  let n = 0;
+  for (const w of walls) {
+    if ((w.ax < x) === (w.bx < x)) continue;
+    const wz = w.az + ((x - w.ax) / (w.bx - w.ax)) * (w.bz - w.az);
+    if (wz < z && wz > z0) n++;
+  }
+  return n % 2 === 1;
+}
+
 const isBuilt = (world: World, x: number, z: number): boolean => world.tileGround?.has(cellKey(Math.floor(x / 500), Math.floor(z / 500))) ?? false;
 
 /** How far (x, z) lies out on the water side of the shore, metres (0 on land). */
@@ -544,7 +566,8 @@ export function measureEdge(gw: GameWorld): Measured {
     m.metric({ id: "E.net.seamDeadEnds", target: 0, better: "lower", unit: "nodes", defects: [], desc: "road ends that stop exactly on a tile seam between two built tiles (a road cut by the tiling)" }, seamDeadEnds);
     // boundary.json covers the built outline exactly once.
     const B = buildWalls(gw.boundary, null);
-    const outline: P2[] = [];
+    // [x, z, the tile's north edge z, on a south edge]
+    const outline: Array<[number, number, number, boolean]> = [];
     for (const t of gw.tiles) {
       const g = t.ground;
       if (!g) continue;
@@ -552,19 +575,26 @@ export function measureEdge(gw: GameWorld): Measured {
       const iz = g.z0 / 500;
       for (const [dx, dz, ax, az, bx, bz] of [[0, -1, 0, 0, 500, 0], [0, 1, 0, 500, 500, 500], [-1, 0, 0, 0, 0, 500], [1, 0, 500, 0, 500, 500]] as const) {
         if (world.tileGround?.has(cellKey(ix + dx, iz + dz))) continue;
-        for (let s = 5; s < 500; s += 10) outline.push([g.x0 + ax + ((bx - ax) * s) / 500, g.z0 + az + ((bz - az) * s) / 500]);
+        for (let s = 5; s < 500; s += 10) outline.push([g.x0 + ax + ((bx - ax) * s) / 500, g.z0 + az + ((bz - az) * s) / 500, g.z0, dz === 1]);
       }
     }
+    // A piece of a south-row tile's south edge may lie past the county line, where the world's land
+    // wall runs inside the tile instead (W-42, decision log 2026-10-21): it is covered when the ray
+    // from it north to the tile's north edge crosses the land and water walls an odd number of
+    // times (the county line once, plus both sides of any road pocket past it), so the piece is
+    // outside the world.
     let badCover = 0;
-    for (const [x, z] of outline) {
+    let pastCounty = 0;
+    for (const [x, z, z0, south] of outline) {
       let n = 0;
       for (const k of wallsNear(B, x, z, 1)) {
         const w = B.segments[k]!;
         if ((w.kind === "land" || w.kind === "water") && distToSegment(x, z, w.ax, w.az, w.bx, w.bz) < 0.5) n++;
       }
-      if (n !== 1) badCover++;
+      if (n === 0 && south && pastCountyLine(gw, x, z, z0)) pastCounty++;
+      else if (n !== 1) badCover++;
     }
-    m.metric({ id: "E.net.outlineCoverFails", target: 0, better: "lower", unit: "10 m pieces", defects: [], desc: "10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once" }, badCover, { pieces: outline.length });
+    m.metric({ id: "E.net.outlineCoverFails", target: 0, better: "lower", unit: "10 m pieces", defects: [], desc: "10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once (a south edge past the county line: the walls inside its tile, crossed an odd number of times going north, W-42)" }, badCover, { pieces: outline.length, pastCountyLine: pastCounty });
     // Buildings with no drivable street within 150 m (the Daly City strip), unless their tile is listed as scenery.
     const scenery = new Set(((gw.manifest as { sceneryOnly?: string[] }).sceneryOnly ?? []).map(String));
     const streetCells = new Set<number>();

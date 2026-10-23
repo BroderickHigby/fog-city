@@ -358,13 +358,16 @@ export function meshGroundHeight(world: World, x: number, z: number): number {
 type SurfaceFn = (world: World, x: number, z: number, yHint?: number) => number;
 
 /**
- * The height a body stands on at (x, z): the sim's surfaceHeight(world, x, z, yHint) when the sim
+ * The height a body stands on at (x, z): the sim's surfaceHeight(world, x, z, feet) when the sim
  * exports one (decks, tunnels and road profiles, docs/design.md), else its groundHeight. The gate
  * reads the sim's own function, so a fix in the sim shows up here with no change to the gate.
+ * `yHint` is the body's feet (the sim picks the surface a body there stands on: a deck over the
+ * ground, a bore's floor under it); without one, a body standing on the bare ground (what the
+ * sim stood everything on before surfaces, and what the baselines without a hint measured).
  */
 export function surfaceAt(world: World, x: number, z: number, yHint?: number): number {
   const fn = (sim as unknown as { surfaceHeight?: SurfaceFn }).surfaceHeight;
-  return fn ? fn(world, x, z, yHint) : groundHeight(world, x, z);
+  return fn ? fn(world, x, z, yHint ?? groundHeight(world, x, z)) : groundHeight(world, x, z);
 }
 
 /** Is the sim reading a surface other than the bare ground (decks, tunnels, profiles)? */

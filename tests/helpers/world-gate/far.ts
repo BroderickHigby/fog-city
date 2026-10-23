@@ -6,6 +6,7 @@
 import { toLocal } from "../../../src/geo/project.ts";
 import { cellKey, groundHeight } from "../../../src/sim/index.ts";
 import { centroid, ll, maxOf, percentile, r2, readGlb, triangleHeight, type GameWorld } from "../world.ts";
+import { pastCountyLine } from "./edge.ts";
 import { Measured } from "./measured.ts";
 
 const onLat = (x: number, z: number): boolean => Math.abs(x / 100 - Math.round(x / 100)) < 1e-3 && Math.abs(z / 100 - Math.round(z / 100)) < 1e-3;
@@ -97,7 +98,8 @@ export async function measureFar(gw: GameWorld): Promise<Measured> {
           // Across the border by 1 m: what the far layer draws there.
           const fy = terrain.top(x + dx * 1, z + dz * 1);
           if (fy === null) {
-            if (outer) uncovered++;
+            // (A south edge past the county line is outside the world: its wall runs inside the tile, W-42.)
+            if (outer && !(dz === 1 && pastCountyLine(gw, x, z, g.z0))) uncovered++;
             continue;
           }
           const diff = fy - near;

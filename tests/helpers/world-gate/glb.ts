@@ -4,7 +4,7 @@
 // through ribbons, ribbons drawn twice, and the ground meeting across seams.
 
 import { cellKey } from "../../../src/sim/index.ts";
-import { bbox, meshGroundHeight, percentile, r2, r3, readGlb, resample, surfaceAt, topHeightAt, triangleHeight, type GameWorld, type GlbNode } from "../world.ts";
+import { bbox, distToRing, meshGroundHeight, percentile, r2, r3, readGlb, resample, surfaceAt, topHeightAt, triangleHeight, type GameWorld, type GlbNode } from "../world.ts";
 import { Measured } from "./measured.ts";
 
 /** Visit a 0.5 m raster of cell centres inside one triangle (xz), with the triangle's height there. */
@@ -28,6 +28,30 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
   const m = new Measured("glb", "pr");
   const world = gw.world;
   const colliders = new Map(gw.tiles.map((t) => [t.tileId, t]));
+  // Every record on a 20 m grid, for the walls a neighbour shares (floating wall bottoms below).
+  const byCell = new Map<string, Array<{ id: string; footprint: Array<[number, number]>; topY: number; bb: [number, number, number, number] }>>();
+  for (const t of gw.tiles) {
+    for (const b of t.buildings) {
+      const bb = bbox(b.footprint);
+      for (let cx = Math.floor(bb[0] / 20); cx <= Math.floor(bb[2] / 20); cx++) {
+        for (let cz = Math.floor(bb[1] / 20); cz <= Math.floor(bb[3] / 20); cz++) {
+          const k = `${cx},${cz}`;
+          let l = byCell.get(k);
+          if (!l) byCell.set(k, (l = []));
+          l.push({ id: b.id, footprint: b.footprint, topY: b.topY, bb });
+        }
+      }
+    }
+  }
+  /** Is (x, z) on the wall of another record whose roof is at or above y (a wall it shares stands up to y)? */
+  const sharedUpTo = (self: string, x: number, z: number, y: number): boolean => {
+    for (const o of byCell.get(`${Math.floor(x / 20)},${Math.floor(z / 20)}`) ?? []) {
+      if (o.id === self || o.topY < y - 0.05) continue;
+      if (x < o.bb[0] - 0.3 || x > o.bb[2] + 0.3 || z < o.bb[1] - 0.3 || z > o.bb[3] + 0.3) continue;
+      if (distToRing(x, z, o.footprint) < 0.3) return true;
+    }
+    return false;
+  };
   let parityBad = 0;
   const parityFirst: string[] = [];
   let floating = 0;
@@ -101,14 +125,19 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
           if (parityFirst.length < 10) parityFirst.push(`${id}: top ${r2(maxY)} vs ${r.topY}`);
         }
         // Floating wall bottoms (L-02): the lowest vertices against the drawn ground under them.
-        // A tower record stands on its podium's roof, not on the ground: not a floating wall.
+        // A tower record stands on its podium's roof, not on the ground: not a floating wall. Nor
+        // is a span (a record with an underside, pipeline clearance.ts step 4: the piece of a
+        // building over a street or path), whose walls start at its underside by design.
         let float = 0;
-        if (!id.endsWith("-tower")) for (const v of bottoms) {
+        if (!id.endsWith("-tower") && (r as { underY?: number }).underY === undefined) for (const v of bottoms) {
           const y = bn.positions[v + 1]!;
           if (y > minY + 0.01) continue;
           const vx = bn.positions[v]!;
           const vz = bn.positions[v + 2]!;
           const ground = (groundNode ? topHeightAt(groundNode, vx, vz) : null) ?? meshGroundHeight(world, vx, vz);
+          // A wall shared with a neighbour at least as tall is not drawn (the pipeline's shared
+          // walls): the bottom of what is drawn stands on the neighbour's roof line, not in the air.
+          if (y - ground > 0.05 && sharedUpTo(id, vx, vz, y)) continue;
           float = Math.max(float, y - ground);
         }
         if (float > 0.05) {
@@ -135,7 +164,8 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
             const sz = z + (dx / L) * off;
             const drawn = topHeightAt(rn, sx, sz);
             if (drawn === null) continue;
-            const d = drawn - surfaceAt(world, sx, sz);
+            // (The surface a body on the drawn road stands on: the road's deck or bore floor where it has one.)
+            const d = drawn - surfaceAt(world, sx, sz, drawn);
             roadSamples++;
             roadD.push(Math.abs(d));
             if (d > 0.3) roadSunk++;
@@ -196,7 +226,7 @@ export async function measureGlb(gw: GameWorld): Promise<Measured> {
   }
   void cellKey;
   m.metric({ id: "N.glb.parityMismatches", target: 0, better: "lower", unit: "records", defects: [], desc: "building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes)" }, parityBad, parityFirst);
-  m.metric({ id: "N.glb.floatingWallBottoms", target: 0, better: "lower", unit: "buildings", defects: ["L-02", "L-03"], desc: "buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03)" }, floating, floatFirst);
+  m.metric({ id: "N.glb.floatingWallBottoms", target: 0, better: "lower", unit: "buildings", defects: ["L-02", "L-03"], desc: "buildings (not towers on their podiums, nor spans with an underside) whose drawn wall bottoms stand more than 0.05 m above the drawn ground, where no neighbour's wall stands up to them (shared walls are not drawn); at 544f67c only the two south-edge records over the void (L-03)" }, floating, floatFirst);
   m.metric({ id: "N.glb.roadSunkShare", target: 0, better: "lower", unit: "share of samples", defects: ["W-09"], desc: "centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road)" }, r3(roadSamples ? roadSunk / roadSamples : 0), { samples: roadSamples });
   m.metric({ id: "N.glb.roadSurfaceMaxM", target: 0.05, better: "lower", unit: "m", defects: ["W-09"], desc: "the largest |drawn road top - sim surface| over the same samples" }, r2(roadMax), roadMaxAt);
   m.metric({ id: "N.glb.roadSurfaceP99M", target: 0.05, better: "lower", unit: "m", defects: ["W-09"], desc: "the 99th percentile of |drawn road top - sim surface| over the same samples" }, r3(percentile(roadD, 99)));
