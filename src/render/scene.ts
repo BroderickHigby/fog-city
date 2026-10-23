@@ -31,7 +31,8 @@ import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type G
 import { PostChain } from "./post.ts";
 import { CrowdRig } from "./crowd.ts";
 import { PlayerBodies } from "./player-body.ts";
-import { buildShowcase, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import { buildShowcase, kerbAt, KerbLift, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import { sidewalkBandTriangles, sidewalksByTile, type SidewalkGraph } from "./sidewalks.ts";
 
 /** How far from the showcase's centre the camera may be for the Bay to mirror the city. */
 const REFLECT_REACH_M = 2500;
@@ -184,6 +185,8 @@ export class SceneRenderer {
   private readonly dressed = new WeakSet<THREE.Material>();
   private landmarkSets: Map<string, DetailSet> | null = null;
   private readonly drawnGround: (x: number, z: number) => number;
+  private readonly roadsById: Map<string, RoadGraph["edges"][number]> | null;
+  private readonly tileSizeM: number;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
   private headlightBase = 0;
@@ -250,6 +253,8 @@ export class SceneRenderer {
       this.reflection = new WaterReflection(size.x >> 1, size.y >> 1);
     }
     this.drawnGround = makeDrawnGroundFn([...world.colliders.values()]);
+    this.roadsById = world.roads ? new Map(world.roads.edges.map((e) => [e.id, e])) : null;
+    this.tileSizeM = world.manifest.tileSizeM ?? 500;
     if (this.features.detail) this.loadDetail(world.assets, world.roads);
 
     const gltf = new GLTFLoader();
@@ -286,6 +291,7 @@ export class SceneRenderer {
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
       onReady: (g) => this.prepareShadows(g),
+      kerbAt: this.features.showcase ? kerbAt : undefined,
       onGroundMaterial: (gm) => {
         if (!this.features.detail) return;
         if (this.groundDetail) this.groundDetail(gm);
@@ -330,6 +336,19 @@ export class SceneRenderer {
     this.applyPreset(opts.night ? NIGHT : DAY);
     window.addEventListener("resize", () => this.resize());
     this.resize();
+  }
+
+  /**
+   * The world's sidewalk graph (W-45): the streamer draws the bands; in the showcase (high tier) they
+   * stand KERB_M over the gutter, and the kerb-lift grid stands people, robots and cars on them.
+   */
+  setSidewalks(g: SidewalkGraph | null): void {
+    this.streamer.setSidewalks(g);
+    if (!g || !this.features.showcase || !this.roadsById) return;
+    const lines = [...sidewalksByTile(g, this.tileSizeM).values()].flat();
+    const lift = new KerbLift(sidewalkBandTriangles(lines, this.roadsById));
+    this.agents.setLift(lift.at);
+    this.actors.setLift(lift.at);
   }
 
   /** The high tier's people: the animated crowd and the skinned player body; each keeps the placeholder if its files fail. */

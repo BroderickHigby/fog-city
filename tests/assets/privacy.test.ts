@@ -80,16 +80,31 @@ function generatorOf(rel: string): string | null {
   // a look-dev render: its script beside it, the name with underscores (assets/blender/README.md)
   const m = /^(assets\/blender\/lookdev)\/([^/]+)\.png$/.exec(rel);
   if (m) return `${m[1]}/${m[2]!.replace(/-/g, "_")}.py`;
-  // a material texture set: assets/textures/generate.py writes public/models/textures/<set>_<map>.webp
-  if (/^public\/models\/textures\/[a-z0-9]+_(albedo|normal|orm)\.webp$/.test(rel)) return "assets/textures/generate.py";
+  // a material texture set: a CC0 scan (assets/textures/fetch_cc0.py, its source and licence in
+  // textures.json) or a procedural one (assets/textures/generate.py)
+  const set = /^public\/models\/textures\/([a-z0-9]+)_(?:albedo|normal|orm)\.webp$/.exec(rel)?.[1];
+  if (set) return textureSource(set)?.cc0 ? "assets/textures/fetch_cc0.py" : "assets/textures/generate.py";
   return null;
+}
+
+/** Hosts whose CC0 material scans may ship (materials only: never people or real facades). */
+const CC0_HOSTS = /^https:\/\/(polyhaven\.com|ambientcg\.com)\//;
+
+/** A texture set's entry in public/models/textures/textures.json: is it a logged CC0 scan? */
+function textureSource(set: string): { cc0: boolean } | null {
+  const path = join(ROOT, "public/models/textures/textures.json");
+  if (!existsSync(path)) return null;
+  const e = (JSON.parse(readFileSync(path, "utf8")) as { textures: Record<string, { source?: string; licence?: string }> }).textures[set];
+  if (!e) return null;
+  return { cc0: CC0_HOSTS.test(e.source ?? "") && /^CC0\b/.test(e.licence ?? "") };
 }
 
 /** Whether `script` names the image `rel` (by file name, or a texture set by its SETS entry). */
 function scriptNames(script: string, rel: string): boolean {
   const src = readFileSync(join(ROOT, script), "utf8");
   const set = /^public\/models\/textures\/([a-z0-9]+)_(?:albedo|normal|orm)\.webp$/.exec(rel)?.[1];
-  return set ? src.includes(`"${set}": ${set}`) : src.includes(rel.split("/").pop()!);
+  // generate.py lists `"set": set`; fetch_cc0.py lists `"set": "<asset id>"`.
+  return set ? src.includes(`"${set}": ${set}`) || new RegExp(`"${set}": "[a-z0-9_]+"`).test(src) : src.includes(rel.split("/").pop()!);
 }
 
 describe("privacy: the likeness reference photos never enter the repository", () => {
@@ -123,7 +138,8 @@ describe("privacy: the likeness reference photos never enter the repository", ()
     expect(orphans).toEqual([]);
     expect(generatorOf("assets/blender/lookdev/photo-crop.png")).toBe("assets/blender/lookdev/photo_crop.py");
     expect(generatorOf("public/models/face.png")).toBeNull();
-    expect(generatorOf("public/models/textures/asphalt_normal.webp")).toBe("assets/textures/generate.py");
+    expect(generatorOf("public/models/textures/asphalt_normal.webp")).toBe("assets/textures/fetch_cc0.py");
+    expect(generatorOf("public/models/textures/paint_orm.webp")).toBe("assets/textures/generate.py");
     expect(generatorOf("public/models/textures/face.webp")).toBeNull();
   });
 

@@ -248,6 +248,13 @@ export class Actors {
   /** The high tier's skinned player bodies (player-body.ts): walkers are drawn by them from now on. */
   private bodies: PlayerBodies | null = null;
 
+  /** Render-only height to add where the high tier raises the sidewalks (showcase.ts KerbLift). */
+  private lift: ((x: number, z: number) => number) | null = null;
+
+  setLift(lift: ((x: number, z: number) => number) | null): void {
+    this.lift = lift;
+  }
+
   setBodies(bodies: PlayerBodies): void {
     this.bodies = bodies;
     this.group.add(bodies.group);
@@ -339,7 +346,7 @@ export class Actors {
 
   setCar(id: string, pose: CarPose): void {
     const v = this.view(id);
-    v.car.position.set(pose.x, pose.y, pose.z);
+    v.car.position.set(pose.x, pose.y + (this.lift ? this.lift(pose.x, pose.z) : 0), pose.z);
     v.car.rotation.set(pose.pitch, -pose.heading, -pose.roll, "YXZ");
     v.car.visible = !(this.hidden === id && this.hiddenPart === "car");
     let dist = v.placed ? Math.hypot(pose.x - v.lastX, pose.z - v.lastZ) : 0;
@@ -384,11 +391,14 @@ export class Actors {
       if (this.hidden === id && this.hiddenPart === "person") continue;
       // The skinned model has walk/run clips but no dodge clip. Keep the existing
       // articulated dive and recovery until the high-tier model supports them.
-      if (this.bodies && !w.dodge) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt);
+      const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
+      const wx = dp && dp.x !== null ? dp.x : w.x;
+      const wz = dp && dp.z !== null ? dp.z : w.z;
+      const wy = w.y + (this.lift ? this.lift(wx, wz) : 0);
+      if (this.bodies && !w.dodge) this.bodies.add(id, wx, wy, wz, w.heading, w.speed, dt);
       else {
-        const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
-        const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) : null;
-        this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
+        const ground = w.dodge ? wy - drawnHop(w.dodge, w.alpha ?? 1) : null;
+        this.people.add(wx, wy, wz, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
       }
     }
     this.people.end();
