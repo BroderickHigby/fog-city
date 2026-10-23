@@ -124,3 +124,5 @@ Branch `lane/core/mode-seam`, based on `e98c471`, adds optional `agents`, `comba
 Draft PR title: `Core: expose configured agent, combat and match providers`
 Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/mode-seam?expand=1>
 Body: Add optional provider hooks to the canonical game registry so playable mode adapters can inject their roster, rival mapping and carried equipment through the same body acceptance path. Preserve default free-roam behavior and register the configured modes reducer. Adds a real composition test for accepted actors, equipment and match advancement. Validation status is recorded above; no frozen wave-2 or main branch change.
+
+Later-mode seam verification: typecheck and four tests across three files passed, including configured roster admission, carried equipment and mode advancement. The physical-step AGI adaptation retains recorded membership and sanitized input, freezes preparation/movement/all noncombat hooks through the deadline, and resumes at update 181. Its identical explicit-registry regression passed in the agents integration (two tests); it is separate from wave-2 activation.
