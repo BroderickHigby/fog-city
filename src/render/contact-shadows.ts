@@ -16,7 +16,7 @@ export class ContactShadows {
     this.capacity = capacity;
     const geometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     const material = new THREE.MeshBasicMaterial({
-      name: "fc:contact-shadow", color: 0x101522, opacity: 0.32,
+      name: "fc:contact-shadow", color: 0x101522, opacity: 0.48,
       transparent: true, depthWrite: false, polygonOffset: true,
       polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     });

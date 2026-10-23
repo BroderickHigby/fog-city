@@ -11,6 +11,7 @@
 // window materials read it too. Changing it never recompiles anything.
 
 import * as THREE from "three";
+import { createSurfaceDetail, SURFACE_DETAIL_NORMAL, SURFACE_DETAIL_PARS, SURFACE_DETAIL_ROUGHNESS, surfaceDetailColor } from "./surface-detail.ts";
 
 export interface FogSettings {
   /** Base density at ground level (1/m). */
@@ -229,20 +230,25 @@ float fcN( vec2 p ) {
 }
 `;
 
-function patchGrainShader(amount: number, scale: number) {
+function patchGrainShader(amount: number, scale: number, detail?: THREE.Texture, ground = false, full = true) {
   return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     injectUniforms(shader);
+    if (detail) shader.uniforms.fcSurfaceDetail = { value: detail };
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vFcWorld;")
       .replace("#include <project_vertex>", "#include <project_vertex>\n  vFcWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${GRAIN_PARS}`)
+      .replace("#include <common>", `#include <common>\n${GRAIN_PARS}\n${detail ? SURFACE_DETAIL_PARS : ""}`)
       .replace(
         "#include <color_fragment>",
         `#include <color_fragment>
-  float fcG = fcN( vFcWorld.xz * ${scale.toFixed(3)} ) * 0.6 + fcN( vFcWorld.xz * ${(scale * 7.3).toFixed(3)} ) * 0.4;
-  diffuseColor.rgb *= 1.0 + ( fcG - 0.5 ) * ${amount.toFixed(3)};`,
+  float fcG = ${detail ? full ? "fcSurfaceNoise(vFcWorld.xz * 0.12)" : "0.5" : `fcN( vFcWorld.xz * ${scale.toFixed(3)} ) * 0.6 + fcN( vFcWorld.xz * ${(scale * 7.3).toFixed(3)} ) * 0.4`};
+  diffuseColor.rgb *= 1.0 + ( fcG - 0.5 ) * ${amount.toFixed(3)};
+  ${detail ? surfaceDetailColor(ground, full) : ""}`,
       );
+    if (detail && full) shader.fragmentShader = shader.fragmentShader
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>\n${SURFACE_DETAIL_NORMAL}`)
+      .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>\n${SURFACE_DETAIL_ROUGHNESS}`);
   };
 }
 
@@ -278,8 +284,8 @@ const ROAD_UV_FRAGMENT = (freeway: boolean): string => /* glsl */ `
   }
 `;
 
-function patchRoadUvShader(freeway: boolean) {
-  const grain = patchGrainShader(0.16, 0.35);
+function patchRoadUvShader(freeway: boolean, detail: THREE.Texture, full: boolean) {
+  const grain = patchGrainShader(0.24, 0.35, detail, false, full);
   return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     grain(shader);
     shader.vertexShader = shader.vertexShader
@@ -305,6 +311,7 @@ export interface SharedMaterials {
   lampHead: THREE.MeshStandardMaterial;
   /** Every shared material, for disposal. */
   all: THREE.Material[];
+  textures: THREE.Texture[];
 }
 
 function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithUniforms) => void): THREE.MeshStandardMaterial {
@@ -317,8 +324,11 @@ function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithU
   return m;
 }
 
-export function createSharedMaterials(): SharedMaterials {
+/** CPU renderers use the same albedo tile without normal/roughness or procedural work. */
+export function createSharedMaterials(fullSurfaceDetail = true): SharedMaterials {
   installFog();
+  const detail = createSurfaceDetail();
+  if (!fullSurfaceDetail) detail.anisotropy = 1;
   const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
   building.onBeforeCompile = patchBuildingShader;
   building.customProgramCacheKey = () => "fc:building:v2";
@@ -327,12 +337,13 @@ export function createSharedMaterials(): SharedMaterials {
   buildingFlat.customProgramCacheKey = () => "fc:building:v2";
 
   const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground" });
-  ground.onBeforeCompile = patchGrainShader(0.22, 0.08);
-  ground.customProgramCacheKey = () => "fc:ground:v1";
+  ground.onBeforeCompile = patchGrainShader(0.26, 0.08, detail, true, fullSurfaceDetail);
+  ground.customProgramCacheKey = () => `fc:ground:v2:${fullSurfaceDetail}`;
 
-  const road = roadMaterial("fc:road", patchGrainShader(0.16, 0.35));
-  const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false));
-  const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true));
+  const road = roadMaterial("fc:road", patchGrainShader(0.24, 0.35, detail, false, fullSurfaceDetail));
+  const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false, detail, fullSurfaceDetail));
+  const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true, detail, fullSurfaceDetail));
+  for (const material of [road, roadUv, freewayUv]) { material.roughness = 0.82; material.customProgramCacheKey = () => `${material.name}:v2:${fullSurfaceDetail}`; }
 
   const foliage = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: true, name: "fc:foliage" });
   const lampPole = new THREE.MeshStandardMaterial({ color: 0x3a3d40, roughness: 0.6, metalness: 0.5, name: "fc:lamp-pole" });
@@ -348,6 +359,7 @@ export function createSharedMaterials(): SharedMaterials {
     lampPole,
     lampHead,
     all: [building, buildingFlat, ground, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+    textures: [detail],
   };
 }
 

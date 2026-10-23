@@ -94,6 +94,7 @@ export interface RenderInfo {
   cameraFar: number;
   /** CPU-renderer fallback diagnostics; native GPUs have no radius limit. */
   farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
+  surfaceDetail?: "full" | "albedo";
 }
 
 const SHADOW_HALF = 160;
@@ -178,7 +179,11 @@ export class SceneRenderer {
       this.sun.shadow.normalBias = 0.6;
     }
 
-    this.materials = createSharedMaterials();
+    const gl = this.renderer.getContext();
+    const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
+    const softwareBudget = softwareFarBudget(rendererName);
+    this.materials = createSharedMaterials(softwareBudget === undefined);
     this.nightMats = createNightMaterials();
 
     const gltf = new GLTFLoader();
@@ -196,16 +201,13 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
-    const gl = this.renderer.getContext();
-    const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
-    const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
       ground: world.ground,
-      budget: softwareFarBudget(rendererName),
+      budget: softwareBudget,
     });
     this.scene.add(this.far.group);
 
@@ -227,7 +229,7 @@ export class SceneRenderer {
     });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
-    this.actors = new Actors(this.registry, this.lights, opts.shadows);
+    this.actors = new Actors(this.registry, this.lights, opts.shadows, softwareBudget === undefined);
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
@@ -458,6 +460,7 @@ export class SceneRenderer {
     out.farTriangles = f.triangles;
     out.farSeamEdges = f.seamEdges;
     out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
+    out.surfaceDetail = f.radius === null ? "full" : "albedo";
     out.cameraFar = this.camera.far;
     return out;
   }
@@ -475,6 +478,7 @@ export class SceneRenderer {
     this.sky.dispose();
     this.water.dispose();
     for (const m of this.materials.all) m.dispose();
+    for (const texture of this.materials.textures) texture.dispose();
     this.nightMats.glow.dispose();
     this.nightMats.pool.dispose();
     for (const e of this.envCache.values()) e.dispose();
