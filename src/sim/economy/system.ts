@@ -6,7 +6,7 @@ export function createWallet():Wallet {return {cashCents:200000,runwayMonths:18,
 export function createEconomy(tick=0):EconomyState{return {version:1,tick,nextId:1,players:{},factCursors:{},grantCursors:{},events:[],settledModeIds:[]};}
 function pay(wallet:Wallet,cents:number):void {if(Number.isFinite(cents))wallet.cashCents=Math.max(0,Math.min(Number.MAX_SAFE_INTEGER, wallet.cashCents+Math.round(cents)));}
 function within(ctx:GameplayContext,id:string,siteId:string):boolean {const body=bodyOf(ctx,id),site=ctx.sites.find(site=>site.id===siteId);return !!body&&!!site&&Math.abs(body.speed)<=3&&distanceSquared(body,site)<=site.radius*site.radius;}
-export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],heat?:HeatState,recovery:readonly GameplayEvent[]=[],activities:readonly GameplayEvent[]=[],ranks:Readonly<Record<string,number>>={}):EconomyState {
+export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],heat?:HeatState,recovery:readonly GameplayEvent[]=[],activities:readonly GameplayEvent[]=[],ranks:Readonly<Record<string,number>>={},perks:Readonly<Record<string,readonly string[]>>={}):EconomyState {
  const state:EconomyState={...previous,tick,players:{},factCursors:{...previous.factCursors},grantCursors:{...previous.grantCursors},settledModeIds:[...(previous.settledModeIds??[])],events:[]};
  const liveActors=new Set(ctx.actors.map(actor=>actor.id));
  for(const body of sortedBodies(ctx)) {const old=previous.players[body.id]??createWallet();state.players[body.id]={...old,paidActorIds:old.paidActorIds.filter(id=>liveActors.has(id)),ownedItemIds:[...old.ownedItemIds],ownedSiteIds:[...old.ownedSiteIds]};}
@@ -19,7 +19,7 @@ export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:numbe
    const stars=(heat?.players[fact.playerId]?.vcQuarters??0)/4;
    const hype=ctx.observations.find(o=>o.playerId===fact.playerId)?.associateWithin200?1+.1*stars:1;
    const multiplier=(1+.25*(clamp(actor.subtlety??1,1,5)-1))*(actor.caughtInAct?1.5:1)*clamp(ctx.doomPayFactor??1,0,5)*hype;
-   const amount=Math.round((actor.armoured?40000:15000)*multiplier);pay(wallet,amount);wallet.reputation=clamp(wallet.reputation+1+(actor.caughtInAct?1:0),0,100);wallet.runwayMonths=Math.min(18,wallet.runwayMonths+.5);wallet.paidActorIds.push(fact.actorId);event(state,"bounty.paid",fact.playerId,fact.actorId,amount);
+   const amount=Math.round((actor.armoured?40000:15000)*multiplier);pay(wallet,amount);wallet.reputation=clamp(wallet.reputation+1+(actor.caughtInAct?1:0),0,100);wallet.runwayMonths=Math.min(18,wallet.runwayMonths+.5+(perks[fact.playerId]?.includes("default-alive")?0.5:0));wallet.paidActorIds.push(fact.actorId);event(state,"bounty.paid",fact.playerId,fact.actorId,amount);
   }
   if(fact.kind==="update.interrupted"){wallet.reputation=Math.min(100,wallet.reputation+2);event(state,"update.rewarded",fact.playerId,fact.actorId??"");}
  }

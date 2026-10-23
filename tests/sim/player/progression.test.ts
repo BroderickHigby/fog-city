@@ -7,7 +7,7 @@ import { createMissions,stepMissions } from "../../../src/sim/missions/system.ts
 import { createPlayer } from "../../../src/sim/player/system.ts";
 import { createHeat } from "../../../src/sim/heat/system.ts";
 import { createProgression,createProgressionPlayer,stepProgression,rankForXp } from "../../../src/sim/progression/system.ts";
-import { createEconomy,stepEconomy } from "../../../src/sim/economy/system.ts";
+import { createEconomy,createWallet,stepEconomy } from "../../../src/sim/economy/system.ts";
 import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import type { GameplayContext,GameplayFact } from "../../../src/sim/player/types.ts";
 import type { Mission } from "../../../src/content/missions.ts";
@@ -56,4 +56,10 @@ it("makes a purchased wide nozzle and selected microclimate effective",()=>{
  const previous=createProgression();previous.players.p={...createProgressionPlayer(),xp:2800,rank:8};
  const bought=stepProgression(previous,ctx,1,{economy:wallet.events});expect(bought.players.p!.nozzle).toBe("wide");
  const selected=stepProgression(bought,{...ctx,commands:[{sequence:2,kind:"loadout",playerId:"p",itemId:"microclimate"}]},2,{});expect(selected.players.p!.gear).toBe("microclimate");
+});
+it("applies the Default Alive perk to a paid melt without exceeding the runway cap",()=>{
+ const previous=createEconomy();previous.players.p={...createWallet(),runwayMonths:10};
+ const facts:GameplayFact[]=[{id:"combat:1",source:"combat",sequence:1,tick:1,kind:"robot.heap",playerId:"p",actorId:"bad"}];
+ const result=stepEconomy(previous,context({actors:[{id:"bad",firmware:"bad"}],facts}),1,[],undefined,[],[],{}, {p:["default-alive"]});
+ expect(result.players.p!.runwayMonths).toBe(11);
 });
