@@ -26,7 +26,7 @@
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
 import { openAssets } from "./io/assets.ts";
-import { loadWorldFiles } from "./io/world-load.ts";
+import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
@@ -40,8 +40,10 @@ import { contentHash } from "./content/barks.ts";
 import { VENDOR } from "./content/vendor.ts";
 import { STARTUP_KITS } from "./content/kits.ts";
 import { DEFAULT_CATALOG } from "./sim/player/catalog.ts";
-import { createCombatSystem, contextFromState } from "./sim/combat/index.ts";
-import { createPlayerSystems, gameplaySnapshot, combatLoadout } from "./sim/player/adapter.ts";
+import { createGameSystems } from "./sim/game-systems.ts";
+import { agentsRuntimeOf } from "./sim/agents/runtime.ts";
+import { renderWithRuntimeActors } from "./render/runtime-actors.ts";
+import { gameplaySnapshot } from "./sim/player/adapter.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
@@ -55,7 +57,6 @@ import {
   NEUTRAL_INPUT,
   activeBody,
   agentsOf,
-  buildWorld,
   createInitialState,
   groundHeight,
   hashState,
@@ -73,6 +74,7 @@ import {
 
 const LOCAL_PLAYER = "p1";
 const SEED = 1;
+const GAME_WAVE = 2;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
@@ -148,7 +150,7 @@ async function boot(): Promise<void> {
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
   const tBuild = performance.now();
-  const world = buildWorld(tiles, files.roads, files.boundary, files.gameplay??undefined);
+  const world = buildLoadedWorld(files);
   const buildMs = performance.now() - tBuild;
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
@@ -199,6 +201,8 @@ async function boot(): Promise<void> {
   let paused = false;
   let acc = 0;
   let last = performance.now();
+  const systems=createGameSystems({wave:GAME_WAVE});
+  let requestedMission="hot-desk";
   let waypoint:MapPoint|undefined;
   let queuedEvents:SimEvent[]=[];
   const recordedCommands:SimEvent[]=[];
@@ -211,7 +215,7 @@ async function boot(): Promise<void> {
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
-    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>!completed.includes(mission.id));if(next)send({kind:"mission-start",targetId:next.id});
+    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>(mission.wave??2)<=GAME_WAVE&&!completed.includes(mission.id));requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
@@ -227,13 +231,6 @@ async function boot(): Promise<void> {
   const combatLayer=new CombatLayer(view.scene);
   const audio=new GameAudio();void audio.load(assets).catch(()=>{});
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
-  const systems=[createCombatSystem(system=>{
-    const snapshot=gameplaySnapshot(system),loadouts=Object.fromEntries(sortedIds(system.state.players).map(id=>{
-      const p=system.state.players[id]!,body=p.mode==="foot"&&p.foot?p.foot:p.car;
-      return[id,combatLoadout(snapshot,{id,mode:p.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading)];
-    }));
-    return {context:contextFromState(world,system.state,{loadouts,refills:world.gameplay?.refills??[]})};
-  }),...createPlayerSystems()];
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
   const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
@@ -431,7 +428,7 @@ async function boot(): Promise<void> {
         target.speed = onFoot ? P.foot.speed : c.speed;
       }
     }
-    view.setSim(prev, curr, alpha);
+    view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
     combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
     audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
     const minute = gameMinuteOfDay(curr, clockStart);
@@ -455,8 +452,10 @@ async function boot(): Promise<void> {
     hudData.minuteOfDay = minute;
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
-    const progress=gameplaySnapshot({state:curr});autosave.observe(curr.tick,JSON.stringify([progress.missions.players[LOCAL_PLAYER]?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint);gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
+    autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
+    if(mission?.status==="complete"){const next=[...MISSIONS].sort((a,b)=>(a.campaign??0)-(b.campaign??0)).find(candidate=>(candidate.wave??2)<=GAME_WAVE&&!mission.completedIds.includes(candidate.id));if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE);gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
