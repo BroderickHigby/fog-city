@@ -263,6 +263,7 @@ export class SceneRenderer {
     });
     this.far.start();
     this.streetDetail = new StreetDetailLayer({
+      foliage: this.foliage,
       base: world.base,
       json: assets ? (path) => assets.json(path) : fetchJson,
       ground: world.ground,

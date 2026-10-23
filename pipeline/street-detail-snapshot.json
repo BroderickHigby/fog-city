@@ -21,6 +21,21 @@
    "url": "https://data.sfgov.org/resource/m48z-6ji4.json?%24where=status_code%20%3D%20'IS'%20AND%20shape%20IS%20NOT%20NULL%20AND%20sign_category%20IN%20('STREET%20NAME'%2C%20'ONE%20WAY(RA)'%2C%20'ONE%20WAY(LA)'%2C%20'STREET%20CLEANING'%2C%20'PARKING'%2C%20'PARKING%3ARPP'%2C%20'PARKING%3ANPRK%20ANY%20TIME'%2C%20'TOW%20(TANP%20ANY%20TIME)')&%24select=objectid%2Csign_category%2Clegend%2Csign_support%2Cstreetname%2Ccorner_side_facing%2Ccnn%2Cshape&%24order=objectid&%24limit=50000&%24offset=50000",
    "sha256": "b06074fde72b8bdccf3d507e5ebd2076444145f0d80a3f68663cbeb1f635fbff",
    "bytes": 1874390
+  },
+  {
+   "url": "https://data.sfgov.org/resource/tkzw-k3nq.json?%24where=latitude%20IS%20NOT%20NULL%20AND%20species%20IS%20NOT%20NULL&%24select=treeid%2Cspecies%2Cmapdbh%2Clatitude%2Clongitude&%24order=treeid&%24limit=50000&%24offset=0",
+   "sha256": "c8d27a91197961d0010dada218a18f24ec7f8a3d8845848c211c476aa4925313",
+   "bytes": 6818655
+  },
+  {
+   "url": "https://data.sfgov.org/resource/tkzw-k3nq.json?%24where=latitude%20IS%20NOT%20NULL%20AND%20species%20IS%20NOT%20NULL&%24select=treeid%2Cspecies%2Cmapdbh%2Clatitude%2Clongitude&%24order=treeid&%24limit=50000&%24offset=50000",
+   "sha256": "ac3193ca4f34db3413ec4ab66103557a4f42ab6b80f3015a893ba224df5f5260",
+   "bytes": 6735471
+  },
+  {
+   "url": "https://data.sfgov.org/resource/tkzw-k3nq.json?%24where=latitude%20IS%20NOT%20NULL%20AND%20species%20IS%20NOT%20NULL&%24select=treeid%2Cspecies%2Cmapdbh%2Clatitude%2Clongitude&%24order=treeid&%24limit=50000&%24offset=100000",
+   "sha256": "17dbb2d7d3a24ac6397a987725683c001e8fd4b2fd7d41ed180db79acee2677b",
+   "bytes": 4995211
   }
  ]
 }

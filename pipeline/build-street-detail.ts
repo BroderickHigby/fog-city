@@ -17,6 +17,7 @@ import { jsonLines, jsonPretty } from "./lib/output.ts";
 import type { RoadGraph } from "./lib/roads.ts";
 import { downloadStreetDetail, streetDetailAttribution, writeSnapshot } from "./lib/street-detail-sources.ts";
 import { buildFurniture } from "./lib/street-furniture.ts";
+import { buildTrees, TREE_CLASSES, type TreeRow } from "./lib/street-trees.ts";
 import { buildStreetSigns, type SignRow } from "./lib/street-signs.ts";
 import { buildMarkings, stopApproaches, type Junction, type MarkingStats } from "./lib/street-markings.ts";
 import { Ground } from "./lib/terrain.ts";
@@ -26,6 +27,7 @@ import { decodeWorldColliders } from "./lib/world-colliders.ts";
 export const MARKINGS_FILE = "street-markings.json";
 export const FURNITURE_FILE = "street-furniture.json";
 export const SIGNS_FILE = "street-signs.json";
+export const TREES_FILE = "street-trees.json";
 
 const STYLE_CODE = { continental: "c", standard: "s" } as const;
 
@@ -117,13 +119,29 @@ export function buildStreetDetail(
     },
     ["corners", "curb"],
   );
+  // Trees on land inside the world: on a tile with ground and above the sea.
+  const tileIds = new Set(pack.tiles.map((t) => `${t.ix},${t.iz}`));
+  const trees = buildTrees((rows.trees ?? []) as TreeRow[], (x, z) => tileIds.has(`${Math.floor(x / 500)},${Math.floor(z / 500)}`) && (ground.heightAt(x, z) ?? -1) > 0.2);
+  const treesFile = jsonLines(
+    {
+      version: 1,
+      world: manifest.world,
+      description:
+        "Street trees (render-only), one per line: [treeid, x, z, class, height m]. class indexes `classes`. Placed from San Francisco Public Works' Street Tree Inventory; height from trunk diameter (pipeline/lib/street-trees.ts). Ids for knockable props: tree:<treeid>.",
+      snapshotDate,
+      attribution: streetDetailAttribution(["trees"]),
+      classes: [...TREE_CLASSES],
+      trees: trees.trees,
+    },
+    ["trees"],
+  );
   const index = jsonPretty({
     version: 1,
     world: manifest.world,
     description: "Street-detail layers (render-only): see docs/data-sources.md, Street detail.",
     snapshotDate,
-    attribution,
-    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE },
+    attribution: [...attribution, streetDetailAttribution(["trees"])],
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, trees: TREES_FILE },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,
@@ -133,9 +151,10 @@ export function buildStreetDetail(
       stopSigns: furniture.stopSigns.length,
       signPosts: signs.corners.length,
       curbSigns: signs.curb.length,
+      trees: trees.trees.length,
     },
   });
-  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile, [SIGNS_FILE]: signsFile }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length }, signs: { ...signs.stats, posts: signs.corners.length } } };
+  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile, [SIGNS_FILE]: signsFile, [TREES_FILE]: treesFile }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length }, signs: { ...signs.stats, posts: signs.corners.length } } };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

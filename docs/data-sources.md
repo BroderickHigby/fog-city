@@ -663,6 +663,7 @@ committed files, so a world rebuild is followed by a street-detail rebuild.
 | Continental crosswalks | DataSF *Continental Crosswalks*, [`g9zy-srvv`](https://data.sfgov.org/resource/g9zy-srvv.json), SFMTA, PDDL 1.0. Intersection-level: nodes with at least one continental crosswalk. | `cnn`, `continental` |
 | Stop signs | DataSF *Stop Signs*, [`4542-gpa3`](https://data.sfgov.org/resource/4542-gpa3.json), SFMTA, PDDL 1.0. One row per sign: the node (`cnn`), the street it controls and the traffic direction it faces. | `cnn`, `street`, `x_street`, `st_facing`, `direction` |
 | Traffic signals | `signals.json` (SFMTA `ybh5-27n2`, see Gameplay data) | `node`, `kind` |
+| Street trees | DataSF *San Francisco Street Tree Inventory*, [`tkzw-k3nq`](https://data.sfgov.org/resource/tkzw-k3nq.json), San Francisco Public Works, PDDL 1.0 | `treeid`, `species`, `mapdbh`, `latitude`, `longitude` |
 | Street signs | DataSF *Street Signs*, [`m48z-6ji4`](https://data.sfgov.org/resource/m48z-6ji4.json), SFMTA, PDDL 1.0. In-service rows (`status_code = 'IS'`) of the categories STREET NAME, ONE WAY(RA/LA), STREET CLEANING, PARKING, PARKING:RPP, PARKING:NPRK ANY TIME and TOW (TANP ANY TIME). | `objectid`, `sign_category`, `legend`, `sign_support`, `streetname`, `corner_side_facing`, `cnn`, `shape` |
 
 ### Junction paint (`street-markings.json`)
@@ -747,6 +748,23 @@ drivable legs meet (freeway and ramp nodes are skipped): 7,439 junctions in sf.
 * Ids: `corner:<node>:<k>` and `curb:<objectid>`.
 * sf result: 9,553 corner posts, 38,561 kerbside signs; 9,909 rows unplaced (no matching node
   or block, or no clear spot); 4.8 MB.
+
+### Street trees (`street-trees.json`)
+
+`pipeline/lib/street-trees.ts`. Every inventoried tree with a position and a species, on land
+inside the world: 135,647 trees (123,167 broadleaf, 7,781 conifer, 4,699 palm); 4.1 MB.
+
+* **Class** from the genus: palms (Phoenix, Washingtonia, Syagrus, Trachycarpus, … and the
+  palm-like Cordyline and Yucca), conifers (pines, cypresses, redwoods, junipers, yews,
+  podocarps, araucarias, cedars, Casuarina), broadleaf otherwise. Empty planting sites,
+  "Landscape Plants" and undetermined rows are left out.
+* **Height** from trunk diameter (`mapdbh`, inches): broadleaf 3 m + 0.42 m/in (3–20 m),
+  conifer 4 m + 0.5 m/in (3.5–30 m), palm 3.5 m + 0.55 m/in (2.5–22 m); a missing or
+  implausible DBH takes 6.5 / 9 / 8 m.
+* **Rendering**: broadleaf and conifer trees go to the foliage layer (`src/render/foliage.ts`,
+  which owns their look), replacing the procedural street trees once loaded; palms are drawn by
+  `src/render/street-trees.ts`. Trees load within 1.3 km of the camera.
+* Ids: `tree:<treeid>`.
 
 ## Gameplay data (the wave-2 spike)
 

@@ -1,6 +1,6 @@
 // Street detail placed by the pipeline (pipeline/build-street-detail.ts): junction patches,
 // crosswalks and stop bars; traffic signals and stop signs; street-name blades, one-way and
-// kerbside parking signs. Render-only: nothing here touches
+// kerbside parking signs; real street trees to the foliage layer and palms here. Render-only: nothing here touches
 // the sim (the signal lamps only read the sim tick).
 //
 // The world's street-detail.json lists the layer files. They load once, after boot, and never
@@ -12,6 +12,7 @@ import * as THREE from "three";
 import type { SharedMaterials } from "./materials.ts";
 import { geometryFromMeshData } from "./props.ts";
 import { FurnitureCell, type SignalRecord, type StopSignRecord } from "./street-furniture.ts";
+import { buildPalms, foliagePlacements, type TreePlacement, type TreeRecord } from "./street-trees.ts";
 import { SignCell, type CornerRecord, type CurbRecord } from "./street-signs.ts";
 import { STREET_DETAIL_INDEX, buildMarkingMeshes, decodeJunction, type MarkingJunction } from "./street-markings.ts";
 import type { GroundFn } from "./types.ts";
@@ -20,6 +21,8 @@ const CELL_M = 200;
 const NEAR_M = 450;
 const HYSTERESIS_M = 120;
 const BUILDS_PER_UPDATE = 2;
+const TREES_NEAR_M = 1300;
+const TREES_PER_UPDATE = 6;
 
 export interface StreetDetailInfo {
   /** Layers loaded from street-detail.json. */
@@ -35,6 +38,8 @@ export interface StreetDetailInfo {
   signPosts: number;
   blades: number;
   curbSigns: number;
+  trees: number;
+  palms: number;
 }
 
 interface Built {
@@ -54,6 +59,8 @@ interface Cell {
   stopSigns: StopSignRecord[];
   corners: CornerRecord[];
   curb: CurbRecord[];
+  trees: TreeRecord[];
+  treesPlaced: THREE.Group | null | false;
   built: Built | null;
 }
 
@@ -63,6 +70,10 @@ export interface StreetDetailOptions {
   json: <T>(path: string) => Promise<T>;
   ground: GroundFn;
   materials: SharedMaterials;
+  foliage?: {
+    setPlacements(key: string, list: readonly TreePlacement[]): void;
+    removePlacements(key: string): void;
+  };
 }
 
 const isPlaced = (r: unknown): r is { id: string; x: number; z: number } =>
@@ -78,6 +89,8 @@ export class StreetDetailLayer {
   private lastX = Number.NaN;
   private lastZ = Number.NaN;
   private queue: Cell[] = [];
+  private treeQueue: Cell[] = [];
+  private treeClasses: string[] = [];
 
   constructor(opts: StreetDetailOptions) {
     this.opts = opts;
@@ -92,7 +105,7 @@ export class StreetDetailLayer {
     const cx = Math.floor(x / CELL_M), cz = Math.floor(z / CELL_M);
     const key = `${cx},${cz}`;
     let cell = this.cells.get(key);
-    if (!cell) this.cells.set(key, (cell = { key, cx, cz, junctions: [], signals: [], stopSigns: [], corners: [], curb: [], built: null }));
+    if (!cell) this.cells.set(key, (cell = { key, cx, cz, junctions: [], signals: [], stopSigns: [], corners: [], curb: [], trees: [], treesPlaced: false, built: null }));
     return cell;
   }
 
@@ -131,6 +144,10 @@ export class StreetDetailLayer {
       for (const r of (doc.corners as unknown[] | undefined) ?? []) if (isPlaced(r) && Array.isArray((r as CornerRecord).blades)) this.cellAt(r.x, r.z).corners.push(r as CornerRecord);
       for (const r of (doc.curb as unknown[] | undefined) ?? []) if (isPlaced(r)) this.cellAt(r.x, r.z).curb.push(r as CurbRecord);
     });
+    await layer("trees", (doc) => {
+      this.treeClasses = Array.isArray(doc.classes) ? (doc.classes as string[]) : [];
+      for (const t of (doc.trees as TreeRecord[] | undefined) ?? []) if (Array.isArray(t) && t.length >= 5) this.cellAt(t[1], t[2]).trees.push(t);
+    });
     this.lastX = Number.NaN;
   }
 
@@ -147,18 +164,33 @@ export class StreetDetailLayer {
       }
       want.sort((a, b) => a.d - b.d || (a.cell.key < b.cell.key ? -1 : 1));
       this.queue = want.map((w) => w.cell);
+      const trees: Array<{ cell: Cell; d: number }> = [];
+      for (const cell of this.cells.values()) {
+        if (!cell.trees.length) continue;
+        const d = distToCell(cell, x, z);
+        if (cell.treesPlaced !== false && d > TREES_NEAR_M + HYSTERESIS_M) this.dropTrees(cell);
+        else if (cell.treesPlaced === false && d <= TREES_NEAR_M) trees.push({ cell, d });
+      }
+      trees.sort((a, b) => a.d - b.d || (a.cell.key < b.cell.key ? -1 : 1));
+      this.treeQueue = trees.map((w) => w.cell);
     }
     for (let k = 0; k < BUILDS_PER_UPDATE && this.queue.length; k++) this.build(this.queue.shift()!);
+    for (let k = 0; k < TREES_PER_UPDATE && this.treeQueue.length; k++) this.placeTrees(this.treeQueue.shift()!);
     for (const cell of this.cells.values()) cell.built?.furniture?.update(tick);
   }
 
   /** True when every cell near the camera is built. */
   settled(): boolean {
-    return this.queue.length === 0;
+    return this.queue.length === 0 && this.treeQueue.length === 0;
   }
 
   info(): StreetDetailInfo {
-    const out: StreetDetailInfo = { layers: [...this.layers], junctions: this.junctions, cellsBuilt: 0, patches: 0, crosswalks: 0, stopBars: 0, signals: 0, stopSigns: 0, signPosts: 0, blades: 0, curbSigns: 0 };
+    const out: StreetDetailInfo = { layers: [...this.layers], junctions: this.junctions, cellsBuilt: 0, patches: 0, crosswalks: 0, stopBars: 0, signals: 0, stopSigns: 0, signPosts: 0, blades: 0, curbSigns: 0, trees: 0, palms: 0 };
+    for (const c of this.cells.values()) {
+      if (c.treesPlaced === false) continue;
+      out.trees += c.trees.length;
+      if (c.treesPlaced) out.palms += (c.treesPlaced.children[0] as THREE.InstancedMesh).count;
+    }
     for (const c of this.cells.values()) {
       if (!c.built) continue;
       out.cellsBuilt++;
@@ -175,7 +207,7 @@ export class StreetDetailLayer {
   }
 
   dispose(): void {
-    for (const c of this.cells.values()) this.drop(c);
+    for (const c of this.cells.values()) { this.drop(c); this.dropTrees(c); }
     this.paint.dispose();
   }
 
@@ -208,6 +240,24 @@ export class StreetDetailLayer {
     }
     for (const o of built.meshes) this.group.add(o);
     cell.built = built;
+  }
+
+  private placeTrees(cell: Cell): void {
+    if (cell.treesPlaced !== false) return;
+    this.opts.foliage?.setPlacements(cell.key, foliagePlacements(cell.trees, this.treeClasses, this.opts.ground));
+    const palms = buildPalms(cell.trees, this.treeClasses, this.opts.ground);
+    if (palms) this.group.add(palms);
+    cell.treesPlaced = palms;
+  }
+
+  private dropTrees(cell: Cell): void {
+    if (cell.treesPlaced === false) return;
+    this.opts.foliage?.removePlacements(cell.key);
+    if (cell.treesPlaced) {
+      this.group.remove(cell.treesPlaced);
+      for (const o of cell.treesPlaced.children) (o as THREE.InstancedMesh).dispose();
+    }
+    cell.treesPlaced = false;
   }
 
   private drop(cell: Cell): void {

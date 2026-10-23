@@ -29,3 +29,11 @@ Right-hand or single images show the full street-detail stack (every stream bran
 
 - `signs-blades.png`
 - `signs-chestnut-street.png`
+
+## trees
+
+Source branch review images; the original capture also includes later landcover that is excluded from this release.
+
+- `trees-embarcadero.png`
+- `trees-marina-blvd.png`
+- `trees-palms.png`
