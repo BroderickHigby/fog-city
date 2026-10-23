@@ -1,51 +1,95 @@
 # Lane 5: Player, missions & economy
 
 ## Now
-Building wave 2 on `lane/sim-player/wave2` from the published core interface `9a6a107`, in `/workspace/fog-city-player`. The existing prototype remains untouched.
+
+Wave-4 continuation on `lane/sim-player/wave4`, based on the existing wave-3 checkpoint
+`59fbfe0`. The isolated checkout is `/workspace/fog-city-player`. The original multiplayer
+checkout remains on its own branch. This is work ahead for review, not a closed wave.
 
 ## Done
-- Read the player-lane handoff, design, roadmap and current content schemas.
-- Confirmed existing Hot Desk and Spill data can drive the mission runtime; no duplicate mission catalog will be invented.
-- Coordinated recorded ID-only commands, HUD projections and shared type publication with core, UI and content lanes.
+
+- Preserved the wave-2 and wave-3 mission/economy implementation and reviewed content catalogs.
+- Canonical and legacy loadout IDs share one authored unlock lookup. Gadget selection uses
+  catalog ranks, perk/streak slots use the rank gates, and permanent upgrades cannot downgrade.
+  The existing issued balloon remains available; selecting one uses its authored gate.
+- Streak thresholds, point rates and reset rules come from `STREAKS`. Crossing a threshold banks
+  an equipped reward once per run; calling it spends one banked reward, not the accumulated score.
+  A persisted earned ledger prevents re-equip farming and safely adopts point-only old profiles.
+- Mission mechanics are prepared once in the player system and persisted only in `ext.player`.
+  Parking, bell-duel and cable-car facts feed the same-tick player/heat/mission pipeline. Requests
+  derive from the active authored objective and unique trusted world bindings. Forged completion
+  facts are stripped; cable-car objectives require matching accepted physical boarding.
+- Added the deterministic shared Doom Clock reducer: daily drift, faction-completion accounting,
+  crunch/cooling modifiers, AGI and AI Winter lifecycle, Conference Week cadence, and once-only
+  match-win clock carry-out. Long calendar gaps update counters without replaying an old pause.
+- Exposed Doom/Conference state, banked rewards and perk availability in `playerView`. Brackish
+  is disabled for instances without a coastline. Default Alive adds its extra runway on a valid
+  bounty, or emits a Spotter scan-charge grant; the baseline bounty restoration remains intact.
+- Independent review found a cross-player contract-key collision when IDs contain slashes.
+  Tuple encoding fixes it, with an explicit two-player regression.
+
+No shared `contract.ts`, `gameplay-contract.ts`, schemas, content, renderer, UI, package file or
+lockfile changed. New state fields stay within the lane-owned extension schemas.
+
+## Validation
+
+Typecheck and the initial combined player/mechanics/purity checks passed (131 tests). The
+individual progression suite passed 21 tests; mechanics and its existing regressions passed
+29; the updated registered-pipeline suite passed 18. Final full-suite results are pending.
+Tests cover replay/double-payout, aliases and rank gates, bank migration, simultaneous players,
+accepted physical poses, JSON restore, Doom boundaries and calendar jumps, and extension ownership.
+
+Commands use the pinned Corepack pnpm and one shared resource lock:
+
+```sh
+cd /workspace/fog-city-player
+export COREPACK_HOME=/workspace/.cache/corepack
+export NODE_OPTIONS=--max-old-space-size=8192
+flock /workspace/.cache/fog-city-heavy.lock corepack pnpm typecheck
+flock /workspace/.cache/fog-city-heavy.lock corepack pnpm exec vitest run --maxWorkers=2
+```
 
 ## Next
-Implement economy, threat, mission interpretation, safehouse/vendor interactions, bounties and the Ambient Director; add deterministic/adversarial checks; then continue wave 3–8 progression and activities.
+
+Complete the remaining wave-4 integrations before advancing the later-wave runtime: tuning
+bench physics, full per-mode perk effects, faction activity producers, Phone Pivot and Mom,
+missions 5–7 producers/drivers, then wave-5–8 discoveries, cargo/foil, later missions and finale.
+The authored data for ten missions is not evidence that every gameplay producer exists.
 
 ## Blocked on
-- Production world/agent observations and shared gameplay type publication are being coordinated with Lane 2.
-- GitHub API is blocked; Git pushes work. Draft PR title/body will be recorded here.
+
+- Lane 2's production provider/calendar/body integration and a future `integrate/wave4` target.
+- Authored faction contracts currently lack explicit faction alignment and objective bindings;
+  this branch deliberately does not assign a side or fabricate completed contracts.
+- Current combat contract does not support the wide nozzle or Microclimate gear. Their sales
+  remain withheld. The before-first-attack bonus has no authoritative producer yet.
+- Shared commands do not yet define Phone Pivot, Mom or subscriptions. Do not overload unrelated
+  command IDs or accept free-text completion as a substitute.
 
 ## Requests for other lanes
-- Lane 2: publish gameplay state/event/provider types from this lane's provisional `player/types.ts`, and wire the registered systems into the integrated runtime.
-- Lane 3: consume `threat.spawn` and mission staging requests, return actual actor IDs and perception observations.
-- Lane 4: consume loadout fields and streak grants, preserve event IDs for once-only rewards.
-- Lane 7: use `gameplay.command` with monotonic sequence and ID-only payloads; consume the read-only gameplay projection.
-- Lane 8: preserve authored mission IDs and node schemas, add later mission/catalog data, reconcile tank upgrade copy to the existing 8/12/16-litre combat contract.
-- Lane R: mount UI and draw mission/encounter markers without advancing simulation.
+
+- **Lane 2:** integrate the player systems using `createObservedGameplayProvider({wave:4, ...})`.
+  The backward-compatible default remains wave 2. Supply absolute zero-based `gameDay`/`gameWeek`,
+  actor bindings, and `mechanics` world data. Consume `ext.player.boardingIntents`, then supply
+  accepted cable-car attachments. Each system continues to write only its own extension slot.
+- **Lane 2 / Lane 3 / Lane R:** consume Doom modifiers and `doom.agi`/`doom.winter` events for the
+  three-second global pause, clock/billboard state, robot speed, density, ads and associates.
+  Conference state is exposed; apply its density/ad change near the convention center only.
+- **Lane 2 / Lane 6:** pass the actual mode and per-player roles. Consume `perk.scan-charge` for
+  Spotters. `applyModeSettlements` now applies one faction clock move for a validated winning
+  settlement, using the player's established faction; duplicate settlement IDs do nothing.
+- **Lane 3 / Pipeline:** provide unique objective bindings, accepted vehicle poses, parking rules,
+  turntable/opponent bodies and cable-car attachments via `MissionMechanicsWorld`. There is no
+  permission for the UI to claim parking, a duel win or physical boarding directly.
+- **Lane 4:** wire all enabled perk effects in each supported mode; publish wide-nozzle and
+  Microclimate support plus the pre-first-attack fact before exposing those unlocks/bonuses.
+- **Lane 7:** use `playerView` for banked streaks, perk enabled state and Doom state. Pass coastline
+  context to `combatLoadout` and the view. Build the screens and call only recorded ID commands.
+- **Lane 8:** add explicit faction/wave/location metadata and accepted objective bindings for the
+  eight contract rows. Supply scripted Mom/Pivot flow keys; keep later mission outcomes authored.
 
 ## For the owner
-No paid services, new external licenses, design changes or release merges are proposed. This is active lane work, not an integrated-game completion claim.
 
-## Wave-2 checkpoint
-Implemented six registered deterministic reducers: player recovery/startup kit; threat/VC; authored mission interpreter; wallet/bounties/vendor; progression/loadouts; activities/director. DTOs import core `gameplay-contract.ts`. Hot Desk and Spill execute actual trigger/stage/watch/scan/cone/melt/travel/form/reward steps; objective facts and rewards are deduplicated. Mission rewards honor authored XP, scanner unlocks and story-advance outcomes.
-
-Validation: TypeScript passed; focused `tests/sim/player` passed **9 tests**, including two authored mission drivers, replay/double-payout prevention, purchases and tank loadout, DOWN ROUND/Bridge eligibility, fog decay, 20 seeded director starts and deterministic registration. Tests use `flock /tmp/fog.lock`, 8GB Node cap, two workers. Full suite/browser validation remains with the integration owner.
-
-Still being integrated: actual agent perception/provider wiring, later authored content/mechanic producers, fully measured side activities. Default provider initializes a wave-2 simulation; production host must supply actual actors/perception using `createPlayerSystems(provider)` until the agent adapter is integrated. This checkpoint does not claim the final ten-mission game is complete.
-
-## Draft pull request
-Title: `Sim-Player: run wave-2 missions, economy and player recovery`
-
-Body:
-The player lane now registers deterministic player, heat, missions, economy, progression and activity systems. Hot Desk and Spill advance through measured world and combat objectives, pay once, allow retries, and expose HUD/loadout projections. Purchases validate proximity and funds; bounties reject friendly/unknown actors; recovery restores runway and applies cash/heat consequences. Ambient encounters use a persisted per-player random stream.
-
-Validation: TypeScript and 9 focused player tests passed, including Hot Desk/Spill drivers and a 20-seed director check. Later-wave mission mechanics and the production agent/provider adapter remain visible integration work; see Requests for other lanes.
-
-## Wave-3 integration checkpoint
-The observed-provider bridge is published separately as `c93c84e`; portability/contract corrections are `83af5b1` and `de48876`; actual combat refill/cone event normalization is `e857ab4`. These small commits are suitable for immediate core integration without the later content stack.
-
-The continuing branch `lane/sim-player/wave3` consumes reviewed content catalogs for all ten missions, rank XP, purchases, activities and loadouts. Actual runtime additions include observed actor line of sight and watch duration, validated route trials/delivery/photo/relic interactions, route checkpoints and repeat cooldowns, safehouse purchase proximity/funds checks, canonical perk/streak IDs, delayed mission VC grants, one car-wash reduction per visit, and an explicit idempotent `applyModeSettlements` for restoring free roam after a match. Missions now honor preselected startup kits and authored clock gates.
-
-Latest focused validation: TypeScript and **66 tests across four files passed**, including 15 player tests and the repository's deterministic forbidden-API checks. This includes real combat event-name normalization, authored XP/scanner unlocks, mode payout replay protection, and activity route/cooldown checks.
-
-Remaining work is explicit: parking/bell/cable-car mechanics come from the mechanics lane and still need production request wiring; later mission-specific facts and cinematics cannot be inferred from content alone. Doom/faction runtime, subscription billing, foil/cargo physics, and activity-specific encounter producers remain incomplete. Wide-nozzle sales are withheld until combat supports the persistent nozzle, rather than charging for no effect. Core owns respawn/clock/body application; player emits the recovery requests.
+No paid service, hosting choice, new licence or design rewrite is included. No release or
+integration branch was modified. The remaining render, physical-world and mode consumers mean
+this is not a claim that all of Lane 5 or waves 2–8 are complete.

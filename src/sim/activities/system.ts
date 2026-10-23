@@ -1,12 +1,15 @@
 import { nextU32,seedRng } from "../rng.ts";
+import { createWorldEvents,stepWorldEvents } from "./world-events.ts";
 import { Action } from "../contract.ts";
 import { commands,distanceSquared,event,facts,sortedBodies } from "../player/common.ts";
-import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
-export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
+import type { ActivitiesState,GameplayContext,GameplayEvent,MissionState,PlayerActivities } from "../player/types.ts";
+export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[],worldEvents:createWorldEvents()};}
 function createOwn(seed:number,tick:number):PlayerActivities{return {nextDirectorTick:tick+2700,directorRng:seedRng(seed),activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
 /** Director schedules are independent per player and persisted in snapshots. */
-export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick:number,missions:MissionState,seed:number):ActivitiesState {
+export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick:number,missions:MissionState,seed:number,progression:readonly GameplayEvent[]=[]):ActivitiesState {
  const state:ActivitiesState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};const incoming=facts(ctx,tick,state.factCursors);
+ const world=stepWorldEvents(previous.worldEvents,ctx,tick,progression);state.worldEvents=world.state;
+ for(const emitted of world.emissions){const e=event(state,emitted.kind,emitted.playerId,emitted.targetId,emitted.amount,emitted.detail);if(emitted.payload)e.payload=emitted.payload;}
  for(const body of sortedBodies(ctx)){
   let hash=seed;for(const char of body.id)hash=(Math.imul(hash,31)+char.charCodeAt(0))>>>0;
   const old=previous.players[body.id]??createOwn(hash,tick);const own:PlayerActivities={...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds],cooldowns:{...old.cooldowns}};state.players[body.id]=own;

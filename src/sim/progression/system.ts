@@ -1,55 +1,136 @@
 import { clamp } from "../dmath.ts";
-import { commands,event,sortedBodies } from "../player/common.ts";
-import { rankForXp as contentRankForXp,LOADOUTS,PROGRESSION } from "../../content/gameplay.ts";
-import type { GameplayContext,GameplayEvent,Progression,ProgressionState } from "../player/types.ts";
+import { commands, event, sortedBodies } from "../player/common.ts";
+import { rankForXp as contentRankForXp, PROGRESSION } from "../../content/gameplay.ts";
+import type { GameplayContext, GameplayEvent, Progression, ProgressionState } from "../player/types.ts";
+import { loadoutSlots, normalizeLoadoutChoice, normalizeStreakId, STREAK_REWARDS, streakPointsFor, streakResetsOn } from "./rules.ts";
+export { STREAK_COST } from "./rules.ts";
 
-export function createProgressionPlayer():Progression{return {xp:0,rank:1,tankTier:0,flowTier:0,scannerTier:1,nozzle:"standard",gadget:"balloon",gear:"none",perks:[],streaks:["confidence"],streakPoints:0,streakSequence:0,banked:{},commandSequence:0,achievements:[]};}
-export function createProgression(tick=0):ProgressionState{return {version:1,tick,nextId:1,players:{},grantCursors:{},events:[]};}
-export const STREAK_COST:Readonly<Record<string,number>>={confidence:300,parrots:500,tensor:700,blimp:900,hydrants:1200,agi:2500};
-const STREAK_IDS:Readonly<Record<string,string>>={"confidence-score":"confidence","buzzword-parrots":"parrots","tensor-brick-drop":"tensor","blimp-impressions":"blimp","open-hydrants":"hydrants","agi-allegedly":"agi"};
-export function rankForXp(xp:number):number{return contentRankForXp(xp);}
-export function conversionCap(localBaseCount:number,inFidelity:boolean,protectedArea=false):number{return Math.floor(Math.max(0,localBaseCount)*(inFidelity&&!protectedArea?2:1));}
-/** Permanent upgrades and tactical grants have one authoritative owner. */
-export function stepProgression(previous:ProgressionState,ctx:GameplayContext,tick:number,groups:Readonly<Record<string,readonly GameplayEvent[]>>):ProgressionState {
- const state:ProgressionState={...previous,tick,players:{},grantCursors:{...previous.grantCursors},events:[]};
- for(const body of sortedBodies(ctx)){const old=previous.players[body.id]??createProgressionPlayer();state.players[body.id]={...old,perks:[...old.perks],streaks:[...old.streaks],banked:{...old.banked}};}
- for(const source of Object.keys(groups).sort())for(const grant of [...groups[source]!].sort((a,b)=>a.id-b.id)){
-  if(grant.id<=(state.grantCursors[source]??0))continue;state.grantCursors[source]=grant.id;const own=state.players[grant.playerId];if(!own)continue;
-  if(grant.kind==="bounty.paid"){const actor=ctx.actors.find(a=>a.id===grant.targetId);own.xp+=50*clamp(actor?.subtlety??1,1,5);own.streakPoints+=(actor?.armoured?200:100)+(actor?.caughtInAct?50:0);}
-  if(grant.kind==="update.rewarded")own.streakPoints+=150;
-  if(grant.kind==="mission.unlock"&&grant.targetId==="app:scanner-tier-2")own.scannerTier=Math.max(own.scannerTier,2) as 2|3|4;
-  if(grant.kind==="economy.changed"&&grant.detail==="wrong-target"){own.streakPoints=0;own.banked={};}
-  if(grant.kind==="mission.xp"||grant.kind==="activity.xp")own.xp+=Math.max(0,grant.amount);
-  if(grant.kind==="player.down"||grant.kind==="player.acqui-hired"){own.streakPoints=0;own.banked={};}
-  if(grant.kind==="vendor.purchased"){
-   const item=ctx.items.find(item=>item.id===grant.targetId);if(!item)continue;
-   if(item.kind==="tank")own.tankTier=clamp(item.tier??0,0,2) as 0|1|2;
-   if(item.kind==="flow")own.flowTier=clamp(item.tier??0,0,1) as 0|1;
-   if(item.kind==="scanner")own.scannerTier=clamp(item.tier??1,1,4) as 1|2|3|4;
-   if(item.id==="pressure-nozzle")own.nozzle="pressure";
-   if(item.kind==="perk"&&!own.perks.includes(item.id))own.perks.push(item.id);
+export function createProgressionPlayer(): Progression {
+  return { xp: 0, rank: 1, tankTier: 0, flowTier: 0, scannerTier: 1, nozzle: "standard", gadget: "balloon", gear: "none", perks: [], streaks: ["confidence"], streakPoints: 0, streakSequence: 0, banked: {}, earnedStreaks: [], commandSequence: 0, achievements: [] };
+}
+export function createProgression(tick = 0): ProgressionState {
+  return { version: 1, tick, nextId: 1, players: {}, grantCursors: {}, events: [] };
+}
+export function rankForXp(xp: number): number { return contentRankForXp(xp); }
+export function conversionCap(localBaseCount: number, inFidelity: boolean, protectedArea = false): number {
+  return Math.floor(Math.max(0, localBaseCount) * (inFidelity && !protectedArea ? 2 : 1));
+}
+const nonnegative = (value: number): number => Number.isFinite(value) ? clamp(value, 0, Number.MAX_SAFE_INTEGER) : 0;
+
+function normalizePlayer(old: Progression, ctx: GameplayContext): Progression {
+  const rank = ctx.wave >= 4 ? rankForXp(old.xp) : 1;
+  const gadget = normalizeLoadoutChoice(old.gadget);
+  const gear = normalizeLoadoutChoice(old.gear);
+  const perks = [...new Set(old.perks.flatMap((id) => {
+    const choice = normalizeLoadoutChoice(id);
+    return choice?.kind === "perk" ? [choice.value] : [];
+  }))].slice(0, loadoutSlots("perkSlots", rank, ctx.wave));
+  const streaks = [...new Set(old.streaks.flatMap((id) => normalizeStreakId(id) ?? []))]
+    .slice(0, loadoutSlots("streakSlots", rank, ctx.wave));
+  const banked: Record<string, number> = {};
+  for (const id of Object.keys(old.banked).sort()) {
+    const count = old.banked[id]!;
+    const key = normalizeStreakId(id);
+    if (key) banked[key] = nonnegative((banked[key] ?? 0) + Math.floor(nonnegative(count)));
   }
- }
- for(const body of sortedBodies(ctx)){
-  const own=state.players[body.id]!;own.rank=ctx.wave>=4?rankForXp(own.xp):1;
-  const streakSlots=ctx.wave>=4?PROGRESSION.gates.filter(g=>g.kind==="streakSlots"&&g.rank<=own.rank).reduce((n,g)=>Math.max(n,g.value),0):1;
-  own.streaks=own.streaks.slice(0,streakSlots);
-  for(const command of commands(ctx,body.id,["loadout","streak-call"],own.commandSequence)){
-   own.commandSequence=command.sequence;
-   const streakId=command.itemId&&(STREAK_IDS[command.itemId]??command.itemId);
-   if(command.kind==="streak-call"&&streakId&&own.streaks.includes(streakId)&&own.streakPoints>=(STREAK_COST[streakId]??Infinity)){
-    own.streakPoints-=STREAK_COST[streakId]!;event(state,"streak.grant",body.id,streakId,++own.streakSequence);
-   }
-   if(command.kind==="loadout"&&command.itemId&&ctx.wave>=4){
-    if(["balloon","sprinkler","speaker"].includes(command.itemId)&&own.rank>=(command.itemId==="balloon"?1:command.itemId==="sprinkler"?12:24))own.gadget=command.itemId as Progression["gadget"];
-    if(["none","boots","airplane"].includes(command.itemId)&&own.rank>=(command.itemId==="none"?1:command.itemId==="boots"?8:20))own.gear=command.itemId as Progression["gear"];
-    const gadget=LOADOUTS.gadgets.find(g=>g.id===command.itemId&&own.rank>=g.rank);if(gadget)own.gadget=({"water-balloon":"balloon","lawn-sprinkler":"sprinkler","decoy-speaker":"speaker"} as const)[gadget.id as "water-balloon"|"lawn-sprinkler"|"decoy-speaker"];
-    if(command.itemId==="rubber-boots")own.gear="boots";if(command.itemId==="airplane-mode")own.gear="airplane";
-    const perk=LOADOUTS.perks.find(p=>p.id===command.itemId),slots=PROGRESSION.gates.filter(g=>g.kind==="perkSlots"&&g.rank<=own.rank).reduce((n,g)=>Math.max(n,g.value),0);
-    if(perk){if(own.perks.includes(perk.id))own.perks=own.perks.filter(id=>id!==perk.id);else if(own.perks.length<slots)own.perks.push(perk.id);}
-    if(streakId&&Object.hasOwn(STREAK_COST,streakId)){if(own.streaks.includes(streakId))own.streaks=own.streaks.filter(id=>id!==streakId);else if(own.streaks.length<streakSlots)own.streaks.push(streakId);}
-   }
+  const streakPoints = nonnegative(old.streakPoints);
+  // Legacy profiles stored points without an earned ledger. Recover their already earned,
+  // equipped rewards once; marking all crossed thresholds prevents retroactive equip farming.
+  const earnedStreaks = old.earnedStreaks === undefined
+    ? STREAK_REWARDS.filter((reward) => reward.threshold <= streakPoints).map((reward) => reward.runtimeId)
+    : [...new Set(old.earnedStreaks.flatMap((id) => normalizeStreakId(id) ?? []))];
+  if (old.earnedStreaks === undefined) {
+    for (const id of earnedStreaks) if (streaks.includes(id) && !banked[id]) banked[id] = 1;
   }
- }
- return state;
+  return {
+    ...old, xp: nonnegative(old.xp), rank, streakPoints, perks, streaks, banked, earnedStreaks,
+    gadget: gadget?.kind === "gadget" && (ctx.wave < 4 || rank >= gadget.rank || gadget.value === "balloon") ? gadget.value : "balloon",
+    gear: gear?.kind === "gear" && (ctx.wave < 4 || rank >= gear.rank) ? gear.value : "none",
+    achievements: [...old.achievements],
+  };
+}
+
+function points(own: Progression, amount: number): void {
+  if (!Number.isFinite(amount)) return;
+  const previous = own.streakPoints;
+  own.streakPoints = nonnegative(previous + amount);
+  for (const reward of STREAK_REWARDS) {
+    if (previous >= reward.threshold || own.streakPoints < reward.threshold || own.earnedStreaks!.includes(reward.runtimeId)) continue;
+    own.earnedStreaks!.push(reward.runtimeId);
+    if (own.streaks.includes(reward.runtimeId)) own.banked[reward.runtimeId] = nonnegative((own.banked[reward.runtimeId] ?? 0) + 1);
+  }
+}
+function resetPoints(own: Progression): void {
+  own.streakPoints = 0;
+  own.earnedStreaks = [];
+  // Earned rewards remain banked after the run ends; calling one spends the reward, not score.
+}
+
+/** Permanent upgrades, score accounting and banked tactical grants have one authoritative owner. */
+export function stepProgression(previous: ProgressionState, ctx: GameplayContext, tick: number, groups: Readonly<Record<string, readonly GameplayEvent[]>>): ProgressionState {
+  const state: ProgressionState = { ...previous, tick, players: {}, grantCursors: { ...previous.grantCursors }, events: [] };
+  for (const body of sortedBodies(ctx)) state.players[body.id] = normalizePlayer(previous.players[body.id] ?? createProgressionPlayer(), ctx);
+  for (const source of Object.keys(groups).sort()) {
+    for (const grant of [...groups[source]!].sort((a, b) => a.id - b.id)) {
+      if (!Number.isSafeInteger(grant.id) || grant.id <= 0 || grant.id <= (state.grantCursors[source] ?? 0)) continue;
+      state.grantCursors[source] = grant.id;
+      const own = state.players[grant.playerId];
+      if (!own) continue;
+      if (grant.kind === "bounty.paid") {
+        const actor = ctx.actors.find((a) => a.id === grant.targetId);
+        const subtlety = Number.isFinite(actor?.subtlety) ? actor!.subtlety! : 1;
+        own.xp = nonnegative(own.xp + PROGRESSION.awards.melt * clamp(subtlety, 1, 5));
+        points(own, streakPointsFor(ctx.mode, actor?.armoured ? "armouredMelt" : "melt") + (actor?.caughtInAct ? streakPointsFor(ctx.mode, "caughtInAct") : 0));
+        // beforeFirstAttack has no authoritative producer in GameplayContext yet.
+      }
+      if (grant.kind === "update.rewarded") points(own, streakPointsFor(ctx.mode, "interruptedUpdate"));
+      if (grant.kind === "mission.unlock" && grant.targetId === "app:scanner-tier-2") own.scannerTier = Math.max(own.scannerTier, 2) as 2 | 3 | 4;
+      if (grant.kind === "economy.changed" && grant.detail === "wrong-target" && streakResetsOn(ctx.mode, "wrongTarget")) resetPoints(own);
+      if (grant.kind === "mission.xp" || grant.kind === "activity.xp") own.xp = nonnegative(own.xp + nonnegative(grant.amount));
+      if ((grant.kind === "player.down" || grant.kind === "player.acqui-hired") && streakResetsOn(ctx.mode, "downRound")) resetPoints(own);
+      if (grant.kind === "vendor.purchased") {
+        const item = ctx.items.find((item) => item.id === grant.targetId);
+        if (!item) continue;
+        const catalogRank = PROGRESSION.upgrades.find((row) => row.id === item.id)?.rank ?? 1;
+        const currentRank = ctx.wave >= 4 ? rankForXp(own.xp) : 1;
+        if (currentRank < Math.max(item.rank ?? 1, ctx.wave >= 4 ? catalogRank : 1)) continue;
+        if (item.kind === "tank") own.tankTier = Math.max(own.tankTier, clamp(item.tier ?? 0, 0, 2)) as 0 | 1 | 2;
+        if (item.kind === "flow") own.flowTier = Math.max(own.flowTier, clamp(item.tier ?? 0, 0, 1)) as 0 | 1;
+        if (item.kind === "scanner") own.scannerTier = Math.max(own.scannerTier, clamp(item.tier ?? 1, 1, 4)) as 1 | 2 | 3 | 4;
+        if (item.id === "pressure-nozzle") own.nozzle = "pressure";
+        const choice = normalizeLoadoutChoice(item.id);
+        if (item.kind === "perk" && choice?.kind === "perk" && !own.perks.includes(choice.value)) own.perks.push(choice.value);
+      }
+    }
+  }
+  for (const body of sortedBodies(ctx)) {
+    const own = state.players[body.id]!;
+    own.rank = ctx.wave >= 4 ? rankForXp(own.xp) : 1;
+    const streakSlots = loadoutSlots("streakSlots", own.rank, ctx.wave);
+    const perkSlots = loadoutSlots("perkSlots", own.rank, ctx.wave);
+    own.perks = own.perks.slice(0, perkSlots);
+    own.streaks = own.streaks.slice(0, streakSlots);
+    for (const command of commands(ctx, body.id, ["loadout", "streak-call"], own.commandSequence)) {
+      own.commandSequence = command.sequence;
+      const streakId = command.itemId ? normalizeStreakId(command.itemId) : null;
+      if (command.kind === "streak-call" && streakId && (own.banked[streakId] ?? 0) > 0) {
+        own.banked[streakId] = own.banked[streakId]! - 1;
+        event(state, "streak.grant", body.id, streakId, ++own.streakSequence);
+      }
+      if (command.kind !== "loadout" || !command.itemId || ctx.wave < 4) continue;
+      const choice = normalizeLoadoutChoice(command.itemId);
+      if (!choice || own.rank < choice.rank) continue;
+      if (choice.kind === "gadget") own.gadget = choice.value;
+      if (choice.kind === "gear") own.gear = choice.value;
+      if (choice.kind === "perk") {
+        if (own.perks.includes(choice.value)) own.perks = own.perks.filter((id) => id !== choice.value);
+        else if (own.perks.length < perkSlots) own.perks.push(choice.value);
+      }
+      if (choice.kind === "streak") {
+        if (own.streaks.includes(choice.value)) own.streaks = own.streaks.filter((id) => id !== choice.value);
+        else if (own.streaks.length < streakSlots) own.streaks.push(choice.value);
+      }
+    }
+  }
+  return state;
 }

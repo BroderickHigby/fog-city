@@ -8,7 +8,7 @@ function raise(state:HeatState,id:string,level:number,ctx:GameplayContext):void 
  event(state,"threat.changed",id,"",next);
  if(next>=2){const body=ctx.bodies.find(b=>b.id===id)!;const kind=next===2?"van":next===3?"drone":next===4?"swarm":"patrol";const out=event(state,"threat.spawn",id,"",next===4?8:next===5?4:2,kind),base={id:`heat:${id}:${++own.spawnSequence}`,requestTick:state.tick,playerId:id,player:{x:body.x,z:body.z}};out.payload=next===2?{...base,kind:"van",unitCount:2,threat:2}:{...base,kind:next===3?"drone":next===4?"swarm":"patrol",unitCount:out.amount,threat:next as 3|4|5};}
 }
-export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],missionGrants:readonly GameplayEvent[]=[]):HeatState {
+export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],missionGrants:readonly GameplayEvent[]=[],worldGrants:readonly GameplayEvent[]=[]):HeatState {
  const state:HeatState={...previous,tick,players:{},factCursors:{...previous.factCursors},grantCursors:{...previous.grantCursors},events:[]};
  for(const body of sortedBodies(ctx)){const old=previous.players[body.id]??createHeatStatus(tick);state.players[body.id]={...old,recentMelts:old.recentMelts.filter(t=>t>=tick-7200)};}
  for(const fact of facts(ctx,tick,state.factCursors)){
@@ -29,13 +29,14 @@ export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,gran
   if(ctx.wave>=3&&fact.kind==="player.commandeer")own.vcQuarters=Math.min(20,own.vcQuarters+4);
  }
  const accepted:GameplayEvent[]=[];
- for(const [source,group] of [["player",grants],["missions",missionGrants]] as const)for(const grant of [...group].sort((a,b)=>a.id-b.id))if(grant.id>(state.grantCursors[source]??0)&&grant.tick<=tick){state.grantCursors[source]=grant.id;accepted.push(grant);}
+ for(const [source,group] of [["player",grants],["missions",missionGrants],["world",worldGrants]] as const)for(const grant of [...group].sort((a,b)=>a.id-b.id))if(grant.id>(state.grantCursors[source]??0)&&grant.tick<=tick){state.grantCursors[source]=grant.id;accepted.push(grant);}
  for(const body of sortedBodies(ctx)){
   const own=state.players[body.id]!, observation=ctx.observations.find(o=>o.playerId===body.id), fog=(observation?.fog??0)>.4;
-  for(const grant of accepted.filter(e=>e.playerId===body.id)){
+  for(const grant of accepted.filter(e=>e.playerId===body.id||e.kind==="doom.agi")){
    if(grant.kind==="player.down"){own.threat=0;own.vcQuarters=Math.min(20,own.vcQuarters+4);}
    if(grant.kind==="player.bridge")own.vcQuarters=Math.min(20,own.vcQuarters+4);
    if(grant.kind==="player.acqui-hired"){own.threat=0;own.vcQuarters=0;}
+   if(grant.kind==="doom.agi")own.vcQuarters=Math.min(20,own.vcQuarters+4);
    if(grant.kind==="mission.vc")own.vcQuarters=clamp(own.vcQuarters+4*grant.amount,0,20);
   }
   const wash=ctx.sites.find(site=>site.kind==="carWash"&&site.wave<=ctx.wave&&Math.abs(body.speed)<=3&&distanceSquared(body,site)<=site.radius*site.radius);
