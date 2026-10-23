@@ -1,4 +1,20 @@
 import type { Position } from "./gameplay-contract.ts";
+import { buildSidewalkGraph, type SidewalkGraph } from "./agents/navigation.ts";
+
+export interface WorldSidewalkData {
+  nodes: { id: string; x: number; y?: number; z: number }[];
+  edges: { id: string; a: string; b: string; kind: "sidewalk" | "crossing"; road?: string; points?: [number, number][] }[];
+}
+
+export function buildWorldNavigation(data: WorldSidewalkData): SidewalkGraph {
+  const nodes = new Map(data.nodes.map(node => [node.id,node]));
+  return buildSidewalkGraph({ nodes:data.nodes, edges:data.edges.map(edge=>{
+    const a=nodes.get(edge.a), b=nodes.get(edge.b);
+    if(!a || !b) throw new Error(`Unknown sidewalk endpoint: ${edge.id}`);
+    return {id:edge.id,a:edge.a,b:edge.b,kind:edge.kind==="crossing"?"crosswalk":"sidewalk",roadId:edge.road,
+      points:edge.points??[[a.x,a.z],[b.x,b.z]],bidirectional:true};
+  }) });
+}
 
 export interface WorldRefill extends Position {
   id: string;

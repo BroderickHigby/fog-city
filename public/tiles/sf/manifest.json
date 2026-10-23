@@ -12136,6 +12136,7 @@
     "transit": "muni.json",
     "signals": "signals.json",
     "streetCleaning": "street-cleaning.json",
-    "parking": "parking.json"
+    "parking": "parking.json",
+    "gameplay": "gameplay.json"
   }
 }

@@ -76,3 +76,43 @@ Lane 4: consume the shared combat types and provide a pure system factory with c
 
 ### For the owner to judge
 This PR supplies interfaces and replay compatibility. It does not claim the full wave, visual quality or gameplay feel is complete. The branch contains no prototype changes and does not alter `main` or `integrate/wave1`.
+
+## Physical runtime candidate (2026-10-23)
+
+Branch: `lane/core/clearance-candidate` (disposable integration candidate; not merged into `integrate/wave2` yet).
+
+- Shared allocator/follower checkpoint `fd9715e` is pushed. Stable actor names reserve monotonic numeric IDs; vehicle following produces normal inputs and measures actual travel.
+- Intake is limited to the reviewed `feature/dodge` core physics, its regression harness, and compatible lane-owned gameplay commits. No QA pipeline/render tree was imported.
+- **SIM_VERSION 7** adds missing vertical/dodge fields for historical schemas while preserving existing fields and old input logs. The old v2 golden remains unchanged; the v7 replay has its own golden.
+- Prepare/observe hooks admit actors before movement, apply desired movement once, perform final clearance, and expose accepted poses to the agent reducer. Retirement removes the physical proxy without recycling its ID.
+- Added deterministic calendar (24-minute game days) and explicit wave-2 fog provider, plus static sidewalk metadata adapter.
+- Validation before the final adversarial fixes: typecheck and 85 focused tests passed; reviewed physics harness had 131 tests passed, and 10 real-city/fuzz/calendar/identity tests passed. Final acceptance run passed 110 tests across motion, follower, dodge and purity. Typecheck passed before the final regression-only rerun; subsequent shared additions are type-only. Full combined browser verification remains with the integrating session.
+- Read-only adversarial review identified legacy population retention, vehicle hull collision, and identity/dimension validation gaps; fixes and regression coverage are included in the candidate.
+
+### Candidate draft PR
+
+Title: `Core: integrate physical actor preparation, clearance and schema-7 migration`
+
+Base: `integrate/wave2`
+Head: `lane/core/clearance-candidate`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/clearance-candidate?expand=1>
+
+Body:
+
+Provide one physical movement path for runtime agents and the player: prepare actor intent before movement, admit deterministic identities, apply bounded desired motion, finish collision/clearance, and return accepted body poses. Retired runtime bodies are removed and IDs are never reused. Vehicle proposals are checked using their full swept footprint, and claimed legacy actors retain population ownership.
+
+Bring the reviewed gravity/roof/dodge core and its replay/fuzz harness into the current interface without importing unrelated QA assets or render work. Bump the state schema to 7; historical input logs remain unchanged and missing physical fields are migrated additively. Add a deterministic calendar, wave-2 fog interface, static navigation adapter, and a measured vehicle follower.
+
+Validation: focused migration/interface/physics/purity, calendar/identity/follower and motion regression checks; exact final results are recorded above as runs finish. Full combined browser and CI verification remain pending. No changes to `main` or `integrate/wave1`; this candidate is not a completed visual-quality or full-wave sign-off.
+
+## Composed gameplay checkpoint
+
+- `createGameSystems({ wave: 2 })` is the shared browser/headless/relay composition. Pass the returned registry as the fifth argument to `step`.
+- It registers the calendar, configured agent preparation/observation, combat with actual body metadata/loadouts/refills, player/economy/mission/progression reducers, and the modes registration list. Empty wave-2 mode registration becomes the real reducer when the modes lane is integrated.
+- `World.gameplay`, `World.sidewalks` and `World.transit` supply immutable loaded data. `World.transit` uses the agents lane's `TransitLayer`; `buildWorldNavigation` adapts the existing sidewalk layer.
+- Service vehicle `controls` now run through `stepCar` once, retain physical controller state, then pass through full-size hull and final clearance acceptance.
+- Typed extension placeholders for robots/player/heat/missions/economy/progression/activities now reference each owning lane's exported state. Narrow owned fixture migrations were authorized by the respective lane owners.
+- Real composed tests exposed and fixed reticle targeting: Watch now uses a 15-degree cone and angular error before distance, preventing an off-reticle nearer robot from stealing an aimed target.
+- Integrated agent services/transit `31b4079` and player real-event normalization `e857ab4` + `4d32239` (local equivalents `e41f1f5` + `6f459ab`).
+- Validation: **typecheck passed; 102 tests across 7 files passed**, including authored Hot Desk stage→accepted actor→held Watch objective, held interact→actual refill, physical service controls, agent runtime/service/transit regressions, event attribution and forbidden APIs.
+- Still pending: visible renderer composition, real-SF service/mission driving and full browser/parity checks. The existing world pack remains FCWC v1; no QA v4 deck/tunnel geometry has been imported.

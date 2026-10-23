@@ -4,6 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
+import currentReplay from "../golden/wave2-v7.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -31,28 +32,29 @@ describe("wave-2 shared interface", () => {
     const old = deepFreeze({ ...baseline.initial, ext: { ...baseline.initial.ext, future: { keep: [1, true] } } }) as unknown as SimState;
     const upgraded = upgradeState(old);
     expect(upgraded.version).toBe(SIM_VERSION);
-    expect({ ...upgraded, version: 2 }).toEqual(old);
+    expect(upgraded).toMatchObject({ ...old, version: SIM_VERSION });
+    expect(upgraded.players.p1!.car.nearMisses).toBe(0);
     expect(old.version).toBe(2);
     expect(upgradeState(upgraded)).toBe(upgraded);
     const walking = deepFreeze({ ...old, players: { ...old.players, p1: { ...old.players.p1!, mode: "foot" as const, foot: { x: 1, y: 2, z: 3, heading: .5, speed: 1, sprint: false }, exitPending: true } } });
-    expect(upgradeState(walking).players.p1).toEqual(walking.players.p1);
+    expect(upgradeState(walking as unknown as SimState).players.p1).toMatchObject(walking.players.p1);
   });
 
-  it("replays recorded wave-1 inputs through migration against pre-change hashes", () => {
+  it("replays the unchanged wave-1 input log through the deliberate physics migration", () => {
     const { world } = loadDevWorldWithRoads();
     let state = upgradeState(deepFreeze(baseline.initial) as unknown as SimState);
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
-      for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame);
-      // The only persisted difference in this interface-only release is the version stamp.
-      expect(hashState({ ...state, version: 2 })).toBe(baseline.hashes[i]);
+      for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
+      // Physics changed deliberately in v7; the recorded inputs and original v2 fixture stay unchanged.
+      expect(hashState(state)).toBe(currentReplay.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
     expect(state.tick).toBe(300);
   });
 
   it("rejects unavailable intermediate and future migrations", () => {
-    for (const version of [0, 3, 4, 5, SIM_VERSION + 1, NaN]) {
+    for (const version of [0, -1, 2.5, SIM_VERSION + 1, NaN]) {
       expect(() => upgradeState({ ...baseline.initial, version } as unknown as SimState)).toThrow("cannot upgrade");
     }
   });
@@ -74,7 +76,7 @@ describe("wave-2 shared interface", () => {
     const missions: SimSystem = { key: "missions", step: context => {
       calls.push("missions");
       expect(context.state.ext.future).toEqual({ order: "combat" });
-      return { ...context.state, ext: { ...context.state.ext, missions: { started: true } } };
+      return { ...context.state, ext: { ...context.state.ext, future: { started: true } } };
     } };
     const inputs = deepFreeze({ a: { throttle: 5, steer: 0, brake: 0, actions: 0 } });
     const a = step(world, previous, inputs, [], Object.freeze([missions, combat]));
