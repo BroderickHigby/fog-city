@@ -12,10 +12,13 @@ const VERTEX = /* glsl */ `
 #include <common>
 #include <fog_pars_vertex>
 varying vec3 vWorld;
+varying vec4 vRefl;
 uniform float uDepthDrop;
+uniform mat4 uReflMat;
 void main() {
   vec4 wp = modelMatrix * vec4( position, 1.0 );
   vWorld = wp.xyz;
+  vRefl = uReflMat * wp;
   vec4 mvPosition = viewMatrix * wp;
   // Shade at y = 0, but rasterise depth as if the surface sat uDepthDrop lower, so land
   // drawn at y ~ 0 (tiles with no heightfield) always wins without polygon offset.
@@ -34,7 +37,10 @@ uniform vec3 uShallow;
 uniform float uBodyLight;
 uniform vec3 uCityGlow;
 uniform float uWave;
+uniform sampler2D uRefl;
+uniform float uReflOn;
 varying vec3 vWorld;
+varying vec4 vRefl;
 
 float fcWHash( vec2 p ) {
   p = fract( p * vec2( 233.34, 851.73 ) );
@@ -85,6 +91,13 @@ void main() {
   vec3 R = reflect( V, N );
   R.y = max( R.y, 0.015 );
   vec3 sky = fcSkyRadiance( normalize( R ) );
+  // High tier near the showcase: the city mirrored in the water (a planar reflection pass),
+  // rippled by the same wave normal; the analytic sky elsewhere.
+  if ( uReflOn > 0.5 ) {
+    vec2 ruv = vRefl.xy / vRefl.w + N.xz * 0.07 * fade;
+    vec3 mirrored = texture2D( uRefl, clamp( ruv, vec2( 0.001 ), vec2( 0.999 ) ) ).rgb;
+    sky = mix( sky, mirrored, uReflOn * ( 1.0 - smoothstep( 1500.0, 3500.0, dist ) ) );
+  }
   vec3 body = mix( uDeep, uShallow, 0.35 + 0.35 * N.x ) * uBodyLight;
   vec3 col = mix( body, sky, clamp( fres, 0.0, 1.0 ) );
   // At night the shore lights smear into a warm band where the water reflects the horizon.
@@ -115,8 +128,83 @@ function waterMaterial(name: string, bodyLight: { value: number }, cityGlow: { v
     uDepthDrop: { value: depthDrop },
     uCityGlow: cityGlow,
     uWave: { value: wave },
+    uRefl: { value: null },
+    uReflOn: { value: 0 },
+    uReflMat: { value: new THREE.Matrix4() },
   });
   return material;
+}
+
+const BIAS = new THREE.Matrix4().set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1);
+
+/**
+ * A planar reflection of the scene in the water at height `level` (the high tier, gfx.ts): a
+ * mirrored camera renders the scene into a half-resolution target, with an oblique near plane at
+ * the water so nothing under it shows. Costs one more scene render per frame.
+ */
+export class WaterReflection {
+  readonly target: THREE.WebGLRenderTarget;
+  readonly camera = new THREE.PerspectiveCamera();
+  readonly matrix = new THREE.Matrix4();
+  private readonly pos = new THREE.Vector3();
+  private readonly look = new THREE.Vector3();
+  private readonly up = new THREE.Vector3();
+  private readonly plane = new THREE.Plane();
+  private readonly clip = new THREE.Vector4();
+  private readonly q = new THREE.Vector4();
+
+  constructor(width: number, height: number) {
+    this.target = new THREE.WebGLRenderTarget(Math.max(1, width), Math.max(1, height), { type: THREE.HalfFloatType });
+    this.target.texture.name = "fc:water-reflection";
+  }
+
+  setSize(width: number, height: number): void {
+    this.target.setSize(Math.max(1, width), Math.max(1, height));
+  }
+
+  /** Render `scene` as seen in a mirror at y = level, hiding `hide` meanwhile. */
+  render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, main: THREE.PerspectiveCamera, level: number, hide: THREE.Object3D): void {
+    const cam = this.camera;
+    const m = main.matrixWorld.elements;
+    // Position, a point ahead and the up vector, mirrored in the plane y = level.
+    this.pos.set(m[12]!, 2 * level - m[13]!, m[14]!);
+    this.look.set(m[12]! - m[8]!, 2 * level - (m[13]! - m[9]!), m[14]! - m[10]!);
+    this.up.set(m[4]!, -m[5]!, m[6]!);
+    cam.position.copy(this.pos);
+    cam.up.copy(this.up);
+    cam.lookAt(this.look);
+    cam.near = main.near;
+    cam.far = main.far;
+    cam.updateMatrixWorld();
+    cam.projectionMatrix.copy(main.projectionMatrix);
+    cam.projectionMatrixInverse.copy(main.projectionMatrixInverse);
+    this.matrix.copy(BIAS).multiply(cam.projectionMatrix).multiply(cam.matrixWorldInverse);
+    // Oblique near plane at the water (Lengyel): nothing below it renders.
+    this.plane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, level, 0)).applyMatrix4(cam.matrixWorldInverse);
+    this.clip.set(this.plane.normal.x, this.plane.normal.y, this.plane.normal.z, this.plane.constant);
+    const p = cam.projectionMatrix.elements;
+    this.q.set((Math.sign(this.clip.x) + p[8]!) / p[0]!, (Math.sign(this.clip.y) + p[9]!) / p[5]!, -1, (1 + p[10]!) / p[14]!);
+    this.clip.multiplyScalar(2 / this.clip.dot(this.q));
+    p[2] = this.clip.x;
+    p[6] = this.clip.y;
+    p[10] = this.clip.z + 1 - 0.003;
+    p[14] = this.clip.w;
+    const was = hide.visible;
+    hide.visible = false;
+    const shadowAuto = renderer.shadowMap.autoUpdate;
+    renderer.shadowMap.autoUpdate = false;
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(this.target);
+    renderer.clear();
+    renderer.render(scene, cam);
+    renderer.setRenderTarget(prev);
+    renderer.shadowMap.autoUpdate = shadowAuto;
+    hide.visible = was;
+  }
+
+  dispose(): void {
+    this.target.dispose();
+  }
 }
 
 export class Water {
@@ -145,6 +233,18 @@ export class Water {
 
   setBodyLight(v: number): void {
     this.bodyLight.value = v;
+  }
+
+  /** Use (or stop using, with null) a planar reflection for the sea (the lakes keep the sky). */
+  setReflection(r: WaterReflection | null, on: number): void {
+    const u = this.material.uniforms;
+    u.uRefl!.value = r ? r.target.texture : null;
+    u.uReflOn!.value = r ? on : 0;
+    if (r) u.uReflMat!.value = r.matrix;
+  }
+
+  get seaLevel(): number {
+    return this.level;
   }
 
   /** Warm reflected shore light (linear RGB); black by day. */

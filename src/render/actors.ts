@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
+import type { PlayerBodies } from "./player-body.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
 import { drawnHop, newPersonPose, personDodgePose, type DodgeLike } from "./dodge-pose.ts";
 import { packedMaterial } from "./agent-packing.ts";
@@ -244,7 +245,23 @@ export class Actors {
   }
 
   /** Players drawn on foot last frame. */
+  /** The high tier's skinned player bodies (player-body.ts): walkers are drawn by them from now on. */
+  private bodies: PlayerBodies | null = null;
+
+  /** Render-only height to add where the high tier raises the sidewalks (showcase.ts KerbLift). */
+  private lift: ((x: number, z: number) => number) | null = null;
+
+  setLift(lift: ((x: number, z: number) => number) | null): void {
+    this.lift = lift;
+  }
+
+  setBodies(bodies: PlayerBodies): void {
+    this.bodies = bodies;
+    this.group.add(bodies.group);
+  }
+
   get walkers(): number {
+    if (this.bodies) return this.bodies.drawn;
     return this.people.body.count;
   }
 
@@ -330,7 +347,7 @@ export class Actors {
 
   setCar(id: string, pose: CarPose): void {
     const v = this.view(id);
-    v.car.position.set(pose.x, pose.y, pose.z);
+    v.car.position.set(pose.x, pose.y + (this.lift ? this.lift(pose.x, pose.z) : 0), pose.z);
     v.car.rotation.set(pose.pitch, -pose.heading, -pose.roll, "YXZ");
     v.car.visible = !(this.hidden === id && this.hiddenPart === "car");
     let dist = v.placed ? Math.hypot(pose.x - v.lastX, pose.z - v.lastZ) : 0;
@@ -361,6 +378,7 @@ export class Actors {
   update(dt: number): void {
     this.clock += dt;
     this.people.begin();
+    this.bodies?.begin();
     for (const [id, v] of this.players) {
       const w = v.walker;
       if (!w) continue;
@@ -372,11 +390,16 @@ export class Actors {
       v.gait = advanceGait(v.gait, dist, STRIDE_M);
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
+      const lift = this.lift ? this.lift(w.x, w.z) : 0;
       const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
-      const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) : null;
-      this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
+      const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) + lift : null;
+      // The skinned body (high tier) walks; a dive (the dodge's comic leap) is drawn by the
+      // placeholder rig, which has the dive pose.
+      if (this.bodies && !dp) this.bodies.add(id, w.x, w.y + lift, w.z, w.heading, w.speed, dt);
+      else this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y + lift, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
     }
     this.people.end();
+    this.bodies?.end();
   }
 
   /** Hide one player's own body (first-person view), or nobody. */
@@ -396,6 +419,7 @@ export class Actors {
   dispose(): void {
     this.remove(new Set());
     this.people.dispose();
+    this.bodies?.dispose();
     this.peopleMaterial.dispose();
   }
 }

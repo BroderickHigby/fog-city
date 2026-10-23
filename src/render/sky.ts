@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { fcUniforms } from "./materials.ts";
 
 export interface LightingPreset {
-  name: "day" | "night";
+  name: "day" | "noon" | "night";
   /** Direction towards the sun (or moon), compass azimuth and elevation in degrees. */
   sunAzimuthDeg: number;
   sunElevationDeg: number;
@@ -55,6 +55,34 @@ export const DAY: LightingPreset = {
   exposure: 1.0,
   stars: 0,
   water: 1,
+};
+
+/**
+ * Midday with the fog burnt off (the high tier's daytime look, ?tod=noon): a high sun from the
+ * south-south-west, short shadows, a clear blue sky, neutral light.
+ */
+export const NOON: LightingPreset = {
+  name: "noon",
+  sunAzimuthDeg: 200,
+  sunElevationDeg: 58,
+  sunColor: 0xfff3e2,
+  sunIntensity: 3.4,
+  hemiSky: 0xbcd2ee,
+  hemiGround: 0x7a6b5a,
+  hemiIntensity: 0.6,
+  envIntensity: 0.65,
+  zenith: 0x2f69b8,
+  horizonWarm: 0xd9e2ea,
+  horizonCool: 0xb9cde3,
+  sunGlow: 0.6,
+  sunDisc: 18,
+  fogColor: 0xc9d3dc,
+  sunFogColor: 0xf3eadb,
+  sunFogStrength: 0.35,
+  fog: { density: 0.00018, falloff: 1 / 130, baseY: 0, distK: 1 / 16000 },
+  exposure: 0.92,
+  stars: 0,
+  water: 1.1,
 };
 
 export const NIGHT: LightingPreset = {

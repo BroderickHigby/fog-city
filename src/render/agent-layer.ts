@@ -73,6 +73,7 @@ import {
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
+import type { CrowdRig } from "./crowd.ts";
 
 // ---------------------------------------------------------------- one instanced part
 
@@ -544,6 +545,21 @@ export class AgentLayer {
    * Place every agent for this frame: `alpha` is the fraction of a tick since `curr`'s, the
    * viewer the camera, `dt` the frame time and `time` a running render clock (seconds).
    */
+  /** The high tier's animated humanoid crowd (crowd.ts): near and mid people are drawn by it from now on. */
+  private crowd: CrowdRig | null = null;
+
+  /** Render-only height to add where the high tier raises the sidewalks (showcase.ts KerbLift). */
+  private lift: ((x: number, z: number) => number) | null = null;
+
+  setLift(lift: ((x: number, z: number) => number) | null): void {
+    this.lift = lift;
+  }
+
+  setCrowd(crowd: CrowdRig): void {
+    this.crowd = crowd;
+    this.group.add(crowd.group);
+  }
+
   update(prev: SimState, curr: SimState, alpha: number, viewer: Readonly<Viewer>, dt: number, time: number): void {
     this.frameNo++;
     if (prev !== this.lastPrev || curr !== this.lastCurr) {
@@ -560,6 +576,7 @@ export class AgentLayer {
       const b = pairs[i]![1];
       const w = this.windows.get(b.id)!;
       const p = interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), this.poses[i]!);
+      if (this.lift) p.y += this.lift(p.x, p.z);
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -573,6 +590,8 @@ export class AgentLayer {
       for (const p of v.near) p.part.begin();
     }
     this.people.begin();
+    this.crowd?.begin();
+    this.crowd?.setTime(time);
     this.peopleMid.begin();
     this.peopleFar.begin();
     let drawn = 0;
@@ -590,6 +609,16 @@ export class AgentLayer {
       if (cue.brakeUntil > held) this.brakeUntil.set(b.id, cue.brakeUntil);
       drawn++;
       if (b.kind === "person") {
+        // The crowd walks and idles; a person mid-dodge (dive, leap, getting up) is drawn by the
+        // placeholder rig below, which has the dodge's poses.
+        if (this.crowd && tier !== TIER_FAR && !b.dodge) {
+          if (tier === TIER_NEAR) {
+            this.wasNear.add(b.id);
+            near++;
+          }
+          this.crowd.add(String(b.id), tier === TIER_NEAR ? 0 : 1, pose.x, pose.y, pose.z, pose.heading, b.speed);
+          continue;
+        }
         personLook(b.id, this.look);
         if (personIsChild(b.id)) this.look.scale *= CHILD_SCALE;
         // A dodge: dived, leapt, tumbling or getting up (a leap is drawn along its arc).
@@ -641,6 +670,11 @@ export class AgentLayer {
     this.people.end();
     for (const m of [this.people.body, this.people.arms, this.people.legs]) if (m.count > 0) tris += m.count * m.triangles;
     calls += this.people.drawCalls;
+    if (this.crowd) {
+      this.crowd.end();
+      calls += this.crowd.drawCalls;
+      tris += this.crowd.triangles;
+    }
     tally(this.peopleMid);
     tally(this.peopleFar);
 
@@ -765,6 +799,7 @@ export class AgentLayer {
       for (const p of v.near) p.part.dispose();
     }
     this.people.dispose();
+    this.crowd?.dispose();
     this.peopleMid.dispose();
     this.peopleFar.dispose();
     this.material.dispose();

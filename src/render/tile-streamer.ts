@@ -71,6 +71,15 @@ export interface StreamerOptions {
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
+  /**
+   * The high tier's street trees (trees.ts): given a tile's street-tree spots, takes the ones it
+   * draws itself and returns the rest, which the tile's props draw as before.
+   */
+  treeSpots?: (trees: readonly Spot[]) => Spot[];
+  /** The high tier's raised sidewalks (showcase.ts kerbAt): how far each band stands over the gutter. */
+  kerbAt?: GroundFn;
+  /** Called with each ground material a tile makes for itself (bores cut out), so it can wear the shared ground's detail. */
+  onGroundMaterial?: (m: THREE.MeshStandardMaterial) => void;
   /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
   onTileVisible?: (id: string, visible: boolean) => void;
   /**
@@ -648,7 +657,8 @@ export class TileStreamer {
     const edges = this.roadsByTile.get(rec.id) ?? [];
     if (edges.length > 0) {
       const spots = tilePropSpots(edges, this.clearance, this.propClearance);
-      const props = buildTileProps(spots.lamps, spots.trees, this.opts.drawnGround ?? this.opts.ground, m, this.opts.night);
+      const trees = this.opts.treeSpots ? this.opts.treeSpots(spots.trees) : spots.trees;
+      const props = buildTileProps(spots.lamps, trees, this.opts.drawnGround ?? this.opts.ground, m, this.opts.night);
       for (const o of props.nightOnly) o.visible = this.nightVisible;
       rec.props = props;
       rec.group.add(props.group);
@@ -676,7 +686,7 @@ export class TileStreamer {
     rec.sidewalks = true;
     const lines = this.sidewalksByTile.get(rec.id);
     if (!lines || lines.length === 0) return;
-    const data = sidewalkMesh(lines, this.roadById, this.opts.drawnGround ?? this.opts.ground);
+    const data = sidewalkMesh(lines, this.roadById, this.opts.drawnGround ?? this.opts.ground, this.opts.kerbAt);
     if (!data) return;
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
@@ -707,6 +717,7 @@ export class TileStreamer {
     const data = new Float32Array(cuts.length * 8);
     cuts.forEach((c, i) => data.set([c.ax, c.az, c.bx, c.bz, c.halfW, c.ya, c.yb, 0], 8 * i));
     const m = groundCutMaterial(data, cuts.length);
+    this.opts.onGroundMaterial?.(m);
     rec.ownedMaterials.push(m);
     return m;
   }

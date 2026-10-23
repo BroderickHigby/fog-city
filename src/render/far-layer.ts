@@ -232,9 +232,11 @@ if ( fcNight > 0.0 ) {
   vec3 fn = normalize( cross( fdx, fdy ) );
   float wall = 1.0 - smoothstep( 0.25, 0.45, abs( fn.y ) );
   vec2 cell = floor( vec2( vFarWorld.x + vFarWorld.z, vFarWorld.y ) / vec2( 4.0, 3.2 ) );
-  float lit = step( 0.72, fcFarHash( cell ) ) * wall * step( 2.0, vFarWorld.y );
+  // Lit windows cluster: blocks of a few storeys and bays are mostly on or mostly off.
+  float block = fcFarHash( floor( cell / vec2( 4.0, 3.0 ) ) + 41.0 );
+  float lit = step( 0.9 - 0.45 * block, fcFarHash( cell ) ) * wall * step( 2.0, vFarWorld.y );
   vec3 warm = mix( vec3( 1.0, 0.72, 0.42 ), vec3( 0.75, 0.85, 1.0 ), fcFarHash( cell + 17.0 ) * 0.4 );
-  gl_FragColor.rgb += warm * lit * fcNight * 0.9;
+  gl_FragColor.rgb += warm * lit * fcNight * 1.1;
 }
 `;
 
