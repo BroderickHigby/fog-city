@@ -8,6 +8,8 @@ import {
   CAR,
   IMPACT,
   PERSON_CLEAR_M,
+  REPAIR_AFTER_TICKS,
+  WRECK_LIMP_MPS,
   SIM_VERSION,
   agentVelocity,
   boxDistance,
@@ -255,6 +257,32 @@ describe("a sliding robotaxi never touches anyone", () => {
     }
     expect(minGap).toBeGreaterThan(PERSON_CLEAR_M - 0.05);
   });
+});
+
+describe("condition", () => {
+  it("a wrecked car limps (no throttle above WRECK_LIMP_MPS) and condition comes back after a while without a hit", () => {
+    const world = emptyWorld();
+    const s0 = createInitialState(world, 3, ["p"], { x: 0, z: 0, heading: 0 });
+    const wrecked = { ...s0, ext: { ...s0.ext, impacts: { version: 1, nextId: 1, events: [], cars: { p: { condition: 0, front: 1, rear: 0, left: 0, right: 0, lastHitTick: 0 } } } } } as SimState;
+    let cur = wrecked;
+    let top = 0;
+    for (let t = 0; t < 600; t++) {
+      cur = step(world, cur, { p: I(1) });
+      top = Math.max(top, cur.players.p!.car.speed);
+    }
+    expect(top).toBeLessThan(WRECK_LIMP_MPS + 0.5);
+    // A fresh car on the same road goes much faster.
+    let fresh = s0;
+    for (let t = 0; t < 600; t++) fresh = step(world, fresh, { p: I(1) });
+    expect(fresh.players.p!.car.speed).toBeGreaterThan(20);
+    // Twenty seconds after its last hit the condition starts coming back, a point a second.
+    while (cur.tick < REPAIR_AFTER_TICKS + 300) cur = step(world, cur, { p: I(0, 0, 1) });
+    const back = carDamage(cur, "p").condition;
+    expect(back).toBeGreaterThan(3);
+    expect(back).toBeLessThan(8);
+    // The dents stay until a repair.
+    expect(carDamage(cur, "p").front).toBe(1);
+  }, LONG_RUN_MS);
 });
 
 describe("saves", () => {

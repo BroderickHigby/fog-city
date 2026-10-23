@@ -46,6 +46,7 @@ import {
   type SimInput,
   type SimState,
   type World,
+  impactsOf,
 } from "../../src/sim/index.ts";
 
 export const CLEARANCE_M = 0.75;
@@ -67,7 +68,7 @@ const REJOIN_TICKS = 30;
 const ON_ROUTE_M = 6;
 const CLEAR_RUN_M = 8;
 
-export type SoakDriver = "chase" | "weave" | "nobrake" | "jump" | "rival";
+export type SoakDriver = "chase" | "weave" | "nobrake" | "jump" | "rival" | "ram";
 
 export interface SoakStart {
   name: string;
@@ -104,6 +105,8 @@ export interface SoakResult {
   driven: number;
   /** Players at the end (joins included). */
   players: number;
+  /** Hits recorded by impacts.ts (cars and robotaxis shoving each other). */
+  hits: number;
 }
 
 const wrap = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -298,6 +301,24 @@ function personAhead(s: SimState, range: number, near: ReadonlyArray<readonly [n
   return best;
 }
 
+/** The nearest robotaxi ahead of p1's car within `range` metres, or null. */
+function taxiAhead(s: SimState, range: number): { x: number; z: number } | null {
+  const c = s.players.p1!.car;
+  const fx = Math.sin(c.heading);
+  const fz = -Math.cos(c.heading);
+  let best: { x: number; z: number; d: number } | null = null;
+  for (const a of agentsOf(s)) {
+    if (a.kind !== "robotaxi") continue;
+    const dx = a.x - c.x;
+    const dz = a.z - c.z;
+    const d = Math.hypot(dx, dz);
+    if (d > range || d < 1) continue;
+    if ((dx * fx + dz * fz) / d < 0.3) continue;
+    if (!best || d < best.d) best = { x: a.x, z: a.z, d };
+  }
+  return best;
+}
+
 interface DriverState {
   idx: number;
   stuck: number;
@@ -324,6 +345,12 @@ function drive(kind: SoakDriver, start: SoakStart, s: SimState, ds: DriverState)
   if (kind === "rival") {
     const f = s.players.p2!.foot!;
     return { throttle: 1, steer: aim(c, f.x, f.z), brake: 0, actions: 0 };
+  }
+  if (kind === "ram") {
+    // Flat out at the nearest robotaxi ahead (impacts.ts: it is shoved, knocked and slides
+    // through whoever is near), else a slow arc until one is.
+    const T = taxiAhead(s, 70);
+    return { throttle: 1, steer: T ? aim(c, T.x, T.z) : 0.25, brake: 0, actions: 0 };
   }
   if (kind === "chase" || kind === "weave") {
     const p = personAhead(s, 60);
@@ -507,5 +534,5 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
     .filter((e) => !(leapt.get(e.key) ?? []).some((o) => e.tick >= o - EPISODE_BEFORE && e.tick <= o + EPISODE_AFTER))
     .map((e) => `${start.name} ${driver}: ${e.key} at tick ${e.tick} only ${e.clear.toFixed(3)} m from the ${e.by}`);
   const players = Object.keys(s.players).length;
-  return { name: `${start.name} ${driver}${joined ? ` (${joined} joins)` : ""}`, ticks, dives: d.dives, overrides: d.overrides, taxiOverrides, failures: d.failures, contacts, unexplained, jumps, minCar, minTaxi, peopleNear: nearSeen.size, maxAirS: maxAir / 60, driven, players };
+  return { name: `${start.name} ${driver}${joined ? ` (${joined} joins)` : ""}`, ticks, dives: d.dives, overrides: d.overrides, taxiOverrides, failures: d.failures, contacts, unexplained, jumps, minCar, minTaxi, peopleNear: nearSeen.size, maxAirS: maxAir / 60, driven, players, hits: impactsOf(s)?.nextId ? impactsOf(s)!.nextId - 1 : 0 };
 }

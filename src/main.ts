@@ -34,6 +34,7 @@ import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
+import { ImpactLayer } from "./render/impact-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
@@ -235,6 +236,8 @@ async function boot(): Promise<void> {
     },
   }});
   const combatLayer=new CombatLayer(view.scene);
+  const impactLayer=new ImpactLayer(view.scene);
+  if (params.get("debug") === "1") (window as unknown as { __fogcityImpacts?: ImpactLayer }).__fogcityImpacts = impactLayer;
   const audio=new GameAudio();void audio.load(assets).catch(()=>{});
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
@@ -436,6 +439,7 @@ async function boot(): Promise<void> {
     }
     view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
     combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
+    impactLayer.update(prev,curr,alpha,dtFrame,target.x,target.z);
     audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
     const minute = gameMinuteOfDay(curr, clockStart);
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);

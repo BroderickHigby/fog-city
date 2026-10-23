@@ -85,7 +85,7 @@ import { DT, sortedIds, type CarState, type DodgeState, type FootState, type Pla
 import { clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { hash32 } from "./rng.ts";
 import { CAR, carCircles } from "./car.ts";
-import { boxBlocked, type Circle } from "./collide.ts";
+import { boxBlocked, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
 import {
   AGENTS_EXT_KEY,
@@ -490,12 +490,30 @@ export function vehicleOfCar(
   // The furthest its body can get over the step (twice the reach's growth about its middle pose).
   const e = 2 * v.inflate + 0.05;
   let touch = shove > 0;
+  // A body it can shove (another car, a robotaxi: car.ts bodyHit) changes its velocity by up to
+  // (1 + restitution) times their closing speed, mid-step, when it can touch one.
+  let kick = 0;
   for (const k of circles) {
     const d = boxDistance(k.x, k.z, c.x, c.z, fx, fz, CAR.halfLength, CAR.halfWidth);
     if (k.r - d > shove) shove = k.r - d;
-    if (d < k.r + e) touch = true;
+    if (d < k.r + e) {
+      touch = true;
+      if (k.body) kick = Math.max(kick, (1 + CAR.bodyRestitution) * (v.speed + CAR_DV + Math.sqrt(k.body.vx * k.body.vx + k.body.vz * k.body.vz)));
+    }
   }
+  v.inflate += kick * DT;
   if (!touch) touch = boxBlocked(world, { ...box, hl: box.hl + e, hw: box.hw + e }, y, [], top);
+  // Spinning (a hit's kick, car.ts bodyHit) it can swing a corner into a building and be pushed
+  // out by the overlap, which moves its whole body by up to the corner's sweep. (The probes
+  // above sample the outline, so also look at the box turned by the most this step can turn it.)
+  const yawAbs = c.yawRate < 0 ? -c.yawRate : c.yawRate;
+  const turn = (yawAbs + 0.5) * DT;
+  if (!touch && yawAbs > 0.3) {
+    for (const h of [c.heading + turn, c.heading - turn]) {
+      if (boxBlocked(world, { ...box, heading: h, hl: box.hl + e, hw: box.hw + e }, y, [], top)) touch = true;
+    }
+  }
+  if (touch) v.inflate += turn * halfDiag;
   v.inflate += Math.min(CAR.maxPush, shove);
   if (touch && v.speed + CAR_DV > 1) v.inflate += CAR.wallAlign * DT * halfDiag;
   return v;
@@ -510,17 +528,29 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
   const c = after.players[id]!.car;
   const lim = CAR.halfLength + CAR.halfWidth + 6;
   const circles: Circle[] = [];
-  const add = (k: { x: number; z: number; r: number }): void => {
-    if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push({ x: k.x, z: k.z, r: k.r, person: false });
+  const add = (k: { x: number; z: number; r: number }, body?: ImpactBody): void => {
+    if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push(body ? { x: k.x, z: k.z, r: k.r, person: false, body } : { x: k.x, z: k.z, r: k.r, person: false });
   };
-  for (const other of sortedIds(after.players)) if (other !== id) for (const k of carCircles(after.players[other]!.car)) add(k);
+  // (Only its velocity matters to the reach: the key and mass are not used.)
+  const moving = (key: string, x: number, z: number, vx: number, vz: number): ImpactBody => ({ key, mass: CAR.mass, x, z, vx, vz });
+  for (const other of sortedIds(after.players)) {
+    if (other === id) continue;
+    const o = after.players[other]!.car;
+    const ofx = dsin(o.heading);
+    const ofz = -dcos(o.heading);
+    const body = moving(`p:${other}`, o.x, o.z, o.speed * ofx - o.lateral * ofz, o.speed * ofz + o.lateral * ofx);
+    for (const k of carCircles(o)) add(k, body);
+  }
   // (An agent's circles lie within its half length of it.)
   const lim2 = lim + AGENT_SPEC.robotaxi.halfLength;
   for (const a of (after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) {
     if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim2 * lim2) continue;
     const cls = agentDodgeClass(a);
     if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;
-    for (const k of agentCircles(a)) add(k);
+    const vx = a.knock ? a.knock.vx : a.speed * dsin(a.heading);
+    const vz = a.knock ? a.knock.vz : -a.speed * dcos(a.heading);
+    const body = AGENT_SPEC[a.kind].road ? moving(`a:${a.id}`, a.x, a.z, vx, vz) : undefined;
+    for (const k of agentCircles(a)) add(k, body);
   }
   return vehicleOfCar(id, c, before.players[id]?.car ?? null, world, circles);
 }
