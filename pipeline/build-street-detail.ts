@@ -184,7 +184,7 @@ export function buildStreetDetail(
       streetDetailAttribution(["rpdAreas", "rpdLinear", "trees"]),
       ...(osmFile ? ["Grass, barriers and piers in street-osm.json: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)."] : []),
     ],
-    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, landcover: LANDCOVER_FILE, trees: TREES_FILE, ...(osmFile ? { osm: OSM_FILE } : {}) },
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, landcover: LANDCOVER_FILE, trees: TREES_FILE, ...(osmFile ? { osm: OSM_FILE } : {}), ...(existsSync(join(dir, "storefronts.json")) ? { storefronts: "storefronts.json" } : {}) },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,

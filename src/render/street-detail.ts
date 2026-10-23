@@ -1,7 +1,7 @@
 // Street detail placed by the pipeline (pipeline/build-street-detail.ts): junction patches,
 // crosswalks and stop bars; traffic signals and stop signs; street-name blades, one-way and
 // kerbside parking signs; grass, fences, walls, hedges and piers; real street trees (to the
-// foliage layer; palms here). Render-only: nothing here touches
+// foliage layer; palms here); icon-only storefront signs. Render-only: nothing here touches
 // the sim (the signal lamps only read the sim tick).
 //
 // The world's street-detail.json lists the layer files. They load once, after boot, and never
@@ -14,6 +14,7 @@ import type { SharedMaterials } from "./materials.ts";
 import { geometryFromMeshData } from "./props.ts";
 import { FurnitureCell, type SignalRecord, type StopSignRecord } from "./street-furniture.ts";
 import { SignCell, type CornerRecord, type CurbRecord } from "./street-signs.ts";
+import { StorefrontCell, type StorefrontRecord } from "./storefront-signs.ts";
 import { buildPalms, foliagePlacements, type TreePlacement, type TreeRecord } from "./street-trees.ts";
 import { barrierPieces, buildBarriers, buildGrass, buildPiers, deckMaterial, grassMaterial, type BarrierKind, type BarrierPiece, type GrassRecord, type PierRecord } from "./street-landcover.ts";
 import { STREET_DETAIL_INDEX, buildMarkingMeshes, decodeJunction, type MarkingJunction } from "./street-markings.ts";
@@ -47,12 +48,14 @@ export interface StreetDetailInfo {
   /** Real street trees placed near the camera, and of those palms. */
   trees: number;
   palms: number;
+  storefronts: number;
 }
 
 interface Built {
   meshes: THREE.Object3D[];
   furniture: FurnitureCell | null;
   signs: SignCell | null;
+  shops: StorefrontCell | null;
   crosswalks: number;
   stopBars: number;
 }
@@ -70,6 +73,7 @@ interface Cell {
   barriers: BarrierPiece[];
   piers: PierRecord[];
   trees: TreeRecord[];
+  shops: StorefrontRecord[];
   /** The cell's trees are with the foliage layer (and its palms in the scene). */
   treesPlaced: THREE.Group | null | false;
   built: Built | null;
@@ -119,7 +123,7 @@ export class StreetDetailLayer {
     const cx = Math.floor(x / CELL_M), cz = Math.floor(z / CELL_M);
     const key = `${cx},${cz}`;
     let cell = this.cells.get(key);
-    if (!cell) this.cells.set(key, (cell = { key, cx, cz, junctions: [], signals: [], stopSigns: [], corners: [], curb: [], grass: [], barriers: [], piers: [], trees: [], treesPlaced: false, built: null }));
+    if (!cell) this.cells.set(key, (cell = { key, cx, cz, junctions: [], signals: [], stopSigns: [], corners: [], curb: [], grass: [], barriers: [], piers: [], trees: [], shops: [], treesPlaced: false, built: null }));
     return cell;
   }
 
@@ -183,6 +187,11 @@ export class StreetDetailLayer {
       this.treeClasses = Array.isArray(doc.classes) ? (doc.classes as string[]) : [];
       for (const t of (doc.trees as TreeRecord[] | undefined) ?? []) if (Array.isArray(t) && t.length >= 5) this.cellAt(t[1], t[2]).trees.push(t);
     });
+    await layer("storefronts", (doc) => {
+      for (const r of (doc.storefronts as unknown[] | undefined) ?? []) {
+        if (isPlaced(r) && typeof (r as StorefrontRecord).heading === "number") this.cellAt(r.x, r.z).shops.push(r as StorefrontRecord);
+      }
+    });
     await layer("landcover", cover);
     await layer("osm", cover);
     this.lastX = Number.NaN;
@@ -222,7 +231,7 @@ export class StreetDetailLayer {
   }
 
   info(): StreetDetailInfo {
-    const out: StreetDetailInfo = { layers: [...this.layers], junctions: this.junctions, cellsBuilt: 0, patches: 0, crosswalks: 0, stopBars: 0, signals: 0, stopSigns: 0, signPosts: 0, blades: 0, curbSigns: 0, grassPieces: 0, barrierPieces: 0, piers: 0, trees: 0, palms: 0 };
+    const out: StreetDetailInfo = { layers: [...this.layers], junctions: this.junctions, cellsBuilt: 0, patches: 0, crosswalks: 0, stopBars: 0, signals: 0, stopSigns: 0, signPosts: 0, blades: 0, curbSigns: 0, grassPieces: 0, barrierPieces: 0, piers: 0, trees: 0, palms: 0, storefronts: 0 };
     for (const c of this.cells.values()) {
       if (c.treesPlaced === false) continue;
       out.trees += c.trees.length;
@@ -242,6 +251,7 @@ export class StreetDetailLayer {
       out.grassPieces += c.grass.length;
       out.barrierPieces += c.barriers.length;
       out.piers += c.piers.length;
+      out.storefronts += c.built.shops?.signs ?? 0;
     }
     return out;
   }
@@ -256,7 +266,7 @@ export class StreetDetailLayer {
 
   private build(cell: Cell): void {
     if (cell.built) return;
-    const built: Built = { meshes: [], furniture: null, signs: null, crosswalks: 0, stopBars: 0 };
+    const built: Built = { meshes: [], furniture: null, signs: null, shops: null, crosswalks: 0, stopBars: 0 };
     if (cell.junctions.length) {
       const m = buildMarkingMeshes(cell.junctions, this.opts.ground);
       const patch = new THREE.Mesh(geometryFromMeshData(m.patch), this.opts.materials.road);
@@ -280,6 +290,11 @@ export class StreetDetailLayer {
       built.signs = new SignCell(cell.corners, cell.curb, this.opts.ground);
       built.signs.group.name = `street signs ${cell.key}`;
       built.meshes.push(built.signs.group);
+    }
+    if (cell.shops.length) {
+      built.shops = new StorefrontCell(cell.shops, this.opts.ground);
+      built.shops.group.name = `storefront signs ${cell.key}`;
+      built.meshes.push(built.shops.group);
     }
     if (cell.grass.length) {
       const grass = new THREE.Mesh(geometryFromMeshData(buildGrass(cell.grass, this.opts.ground)), grassMaterial());
@@ -328,6 +343,7 @@ export class StreetDetailLayer {
     }
     cell.built.furniture?.dispose();
     cell.built.signs?.dispose();
+    cell.built.shops?.dispose();
     cell.built = null;
   }
 }

@@ -15,7 +15,8 @@
     "signs": "street-signs.json",
     "landcover": "street-landcover.json",
     "trees": "street-trees.json",
-    "osm": "street-osm.json"
+    "osm": "street-osm.json",
+    "storefronts": "storefronts.json"
   },
   "counts": {
     "junctions": 7439,
