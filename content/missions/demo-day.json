@@ -1,0 +1,219 @@
+{
+  "id": "demo-day",
+  "version": 1,
+  "title": "Demo Day",
+  "campaign": 5,
+  "wave": 4,
+  "area": "SoMa",
+  "start": "start",
+  "cast": {
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    },
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, by text"
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "role": "Mission support"
+    }
+  },
+  "actors": {
+    "pusher": {
+      "kind": "badRobot",
+      "archetype": "updatePusher",
+      "level": 3
+    },
+    "guest": {
+      "kind": "goodRobot",
+      "archetype": "errandFootman"
+    },
+    "sticker": {
+      "kind": "badRobot",
+      "archetype": "adSticker",
+      "level": 3
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Complete",
+      "kind": "success"
+    },
+    "retry": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "event": {
+        "kind": "enterArea",
+        "place": {
+          "label": "SoMa convention-center plaza",
+          "lat": 37.783,
+          "lon": -122.4,
+          "radiusM": 25
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "great news: the demo is live. bad news: moat labs pushed an update to the guest list."
+        }
+      ],
+      "next": "stage"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "SoMa convention-center plaza",
+        "lat": 37.783,
+        "lon": -122.4,
+        "radiusM": 25
+      },
+      "actors": [
+        "pusher",
+        "guest",
+        "sticker"
+      ],
+      "nearHydrantM": 20,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the good one is still resisting the update. break the link before you clear the stage."
+        }
+      ],
+      "next": "interrupt"
+    },
+    {
+      "id": "interrupt",
+      "type": "objective",
+      "objective": {
+        "kind": "interruptUpdate",
+        "actor": "pusher"
+      },
+      "hint": "Interrupt the forced update before its progress bar fills.",
+      "next": "melt",
+      "timeLimitS": 90,
+      "onFail": "retry"
+    },
+    {
+      "id": "melt",
+      "type": "objective",
+      "objective": {
+        "kind": "melt",
+        "actor": "sticker"
+      },
+      "hint": "Rust the two confirmed bad robots while investors watch.",
+      "next": "melt-pusher",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "melt-pusher",
+      "type": "objective",
+      "objective": {
+        "kind": "melt",
+        "actor": "pusher"
+      },
+      "hint": "Finish the update pusher before the next conversion.",
+      "timeLimitS": 120,
+      "onFail": "retry",
+      "next": "attention"
+    },
+    {
+      "id": "attention",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "five stars. apparently public incident response counts as a pitch."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "vcAttention",
+          "delta": 5
+        }
+      ],
+      "next": "corner"
+    },
+    {
+      "id": "corner",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "bell.duelStarted"
+      },
+      "hint": "Reach the marked turntable when the associates corner you.",
+      "next": "bell",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "bell",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "bell.duelWon"
+      },
+      "hint": "Win the bell duel: observe the cue, ring in the open window, keep your footing.",
+      "next": "complete",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "complete",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the investors wrote \"handles pressure\". nobody wrote down who caused it."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 1800
+        },
+        {
+          "kind": "stat",
+          "stat": "xp",
+          "delta": 1200
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "retry",
+      "retryFrom": "stage",
+      "hint": "Interrupt the update first; return to the turntable only when the duel starts.",
+      "cooldownS": 10,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the venue can reset the demo. your calendar has already reset the meeting."
+        }
+      ]
+    }
+  ],
+  "summary": "A live showcase becomes a forced-update rescue, then a public bell duel.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave3-2026-10-23",
+    "contentHash": "fnv1a32:44ffb0ea",
+    "reviewedBy": [],
+    "review": "Authored against the campaign design. Pending independent narrative and gameplay review."
+  }
+}

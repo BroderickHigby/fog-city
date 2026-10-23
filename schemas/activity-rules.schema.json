@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/activity-rules",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "authority",
+    "definitions",
+    "plainWords",
+    "benchCards",
+    "factionContracts",
+    "provenance"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "authority": {
+      "type": "string",
+      "minLength": 1
+    },
+    "definitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "wave",
+          "objective",
+          "timeLimitS",
+          "reward",
+          "repeatable",
+          "cooldownS",
+          "checkpoints"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "wave": {
+            "type": "integer",
+            "minimum": 2,
+            "maximum": 8
+          },
+          "objective": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "event",
+              "count"
+            ],
+            "properties": {
+              "event": {
+                "type": "string",
+                "pattern": "^[a-z][A-Za-z0-9-]*(\\.[a-z][A-Za-z0-9-]*)+$"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "timeLimitS": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reward": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "cashCents",
+              "xp"
+            ],
+            "properties": {
+              "cashCents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "xp": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "repeatable": {
+            "type": "boolean"
+          },
+          "cooldownS": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "checkpoints": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "label",
+                "lat",
+                "lon",
+                "radiusM"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z][A-Za-z0-9-]*$"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "lat": {
+                  "type": "number",
+                  "minimum": 37.7,
+                  "maximum": 37.84
+                },
+                "lon": {
+                  "type": "number",
+                  "minimum": -122.53,
+                  "maximum": -122.35
+                },
+                "radiusM": {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          },
+          "maxSpeedMps": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    },
+    "plainWords": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "boardCount",
+        "spinnerCount",
+        "boardWashS",
+        "timeLimitS",
+        "ladder",
+        "advanceEvery",
+        "southLat",
+        "northLat",
+        "corridor"
+      ],
+      "properties": {
+        "boardCount": {
+          "const": 20
+        },
+        "spinnerCount": {
+          "const": 4
+        },
+        "boardWashS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeLimitS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "ladder": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "advanceEvery": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "southLat": {
+          "type": "number"
+        },
+        "northLat": {
+          "type": "number"
+        },
+        "corridor": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "benchCards": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text",
+          "speedFactor",
+          "brakeFactor",
+          "reviewS",
+          "priceCents"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "speedFactor": {
+            "type": "number",
+            "minimum": 0
+          },
+          "brakeFactor": {
+            "type": "number",
+            "minimum": 0
+          },
+          "reviewS": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "priceCents": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "factionContracts": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "district",
+          "event",
+          "count",
+          "cashCents",
+          "brief"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "district": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "event": {
+            "type": "string",
+            "minLength": 1
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "cashCents": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "brief": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

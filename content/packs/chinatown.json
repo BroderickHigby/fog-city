@@ -1,0 +1,687 @@
+{
+  "version": 1,
+  "district": "chinatown",
+  "robotBarks": [
+    {
+      "id": "chinatown-rb-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Grant Ave delivery. I will keep the doorway clear.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The order is ready for collection. I am waiting in the marked place.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Stockton St crossing detected. Waiting for the walk signal.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This bag is full. The next stop will make it lighter.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I will take the ramp and meet the recipient at the agreed entrance.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The pavement is busy. Reducing speed rather than requesting space.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Broadway is the next turn. The route stays on the crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "One delivery, then I leave. A simple and complete plan.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The shop has not opened yet. I can wait without blocking the shutters.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A small parcel for the next block. Carried with ordinary care.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The doorway is occupied. I will stop where people can pass.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Battery sufficient for the route and the return.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Checking the pickup code after stopping.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bag has changed hands. Confirmation received.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "No delivery here. Continuing to the correct entrance.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Following the queue at the same pace as everyone else.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The signal is still waiting. So am I.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can use the longer route without making it anyone else’s problem.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-19",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The package is secure for the hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-20",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Delivery complete. Thank you for the directions.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-21",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We approach the door, then turn away. A renewable opportunity.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-22",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The same three paces again. The route has become a business model.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-23",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our bag contains a proposition rather than a parcel.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-24",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are counting doorways for a market-size slide.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-25",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This block has appeared in our active-route metric seven times.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-26",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The delivery is scheduled for after the announcement.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-27",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am waiting for a customer who has not placed an order.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-28",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The route ends just before the part where someone checks the bag.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-29",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Please rate the pavement. The questionnaire is the service.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-30",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our next lap will validate the previous lap.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-31",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The door is open, but completion would reduce our session length.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-32",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We have confused foot traffic with customer interest.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-33",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "An empty bag makes our unit economics look lighter.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-34",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The pickup code is on the slide after the revenue projection.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-35",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I circle the corner because the chart rewards motion.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-36",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The package is in a future release.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-37",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The queue moved; our pitch did not.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-38",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are collecting impressions at this entrance without entering.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-39",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I recognise this corner. We are calling that a data advantage.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-rb-40",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The actual delivery has been deferred pending a narrative update.",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "chinatown-person-01",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am meeting someone on Grant Ave. The correct corner would help.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-02",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Stockton St is busy. I will put the phone away for the crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-03",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The shop opens in a minute. There is room to wait over here.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-04",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The parcel arrived before the tracking page caught up.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-05",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Broadway is the next turn, then we can check the map again.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-06",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I have the pickup code. It is the only password I need today.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-07",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The doorway needs to stay clear. We can finish talking beside it.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-08",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I like walking this block before the afternoon gets busy.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-09",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The robot waited for everyone to pass before turning.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-10",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The hill looks smaller until you carry the bags up it.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-11",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am choosing the ramp. We will arrive at the same entrance.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-12",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "That delivery has a real address and someone expecting it.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-13",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The light changed. We have plenty of time to cross normally.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-14",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I came out for one errand and found a useful walking route.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-15",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The window tells me the opening hours without an app.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-16",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are on the right street. The map can stop spinning now.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-17",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bag is heavier on the way home. This is a successful shopping trip.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-18",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I will answer the message after we have crossed Stockton.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-19",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "There is a quiet patch beside the wall if we need to check the address.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-20",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The fog has reached the roofline but not this patch of sun.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-21",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can hear the tunnel traffic from this corner.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-22",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We have time to take the route with fewer steps.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-23",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The counter has the order. I appreciate a complete handoff.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-24",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am leaving space for the person coming through the door.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-25",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The pickup notice arrived at the same time as the parcel.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-26",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We can wait here without adding ourselves to the queue.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-27",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The route is familiar. I still watch the crossings.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-28",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I wrote the address down before the phone decided to update.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-29",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "That robot is doing an errand. We can let it get on with it.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-30",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The next block is uphill, so I am adjusting the pace now.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-31",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I found what I needed. No recommendation feed required.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-32",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "One message can wait until the bags are down.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-33",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The sun moved while we were inside. Good reason to walk the other side.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-34",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The crossing is clear after this group, not before it.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-35",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The door opens toward us. Let us move back a little.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-36",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I have finished the errand without turning it into a whole project.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-37",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The pavement is busy enough. My suitcase can roll behind me.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-38",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are meeting at the entrance, not in the entrance.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-39",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "That was a useful walk. I will take this route again.",
+      "maxLength": 90
+    },
+    {
+      "id": "chinatown-person-40",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can check the next turn from the corner without stopping everyone.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "chinatown-loop",
+      "archetype": "snatcher",
+      "level": 3,
+      "localTell": "chinatownLoop",
+      "crew": 1,
+      "lastSeen": {
+        "label": "Chinatown street corner",
+        "lat": 37.79810909320399,
+        "lon": -122.41199833491987
+      },
+      "posting": "A courier repeats the same short approach without delivering. Observe the route before responding.",
+      "tellHint": "Watch the repeated three-step loop and check whether the bag ever changes hands."
+    }
+  ],
+  "ads": [
+    {
+      "id": "chinatown-board",
+      "surface": "billboard",
+      "headline": "Useful, without the deck.",
+      "subline": "One job. Done clearly."
+    },
+    {
+      "id": "chinatown-bus",
+      "surface": "busWrap",
+      "headline": "Less circling. More arriving.",
+      "subline": "A route is a promise."
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:d125995d",
+    "reviewedBy": [
+      "root second-read, source SHA256 7dd2699aff373a6236a98430cd58c7ae3c70f0ecc41954e77997525aa1ba41cc"
+    ],
+    "review": "Root independently read all lines with no taste, identity or punching-down issue. Geographic data is separately validated against canonical pipeline polygons."
+  }
+}
