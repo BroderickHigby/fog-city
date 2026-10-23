@@ -1,0 +1,687 @@
+{
+  "version": 1,
+  "district": "nob-hill",
+  "robotBarks": [
+    {
+      "id": "nob-hill-robot-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "California St delivery. I will cross when the bell has passed.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lobby is ready for this bag. I have the actual order this time.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A lift is available. I see no reason to challenge the stairs.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Waiting at the front desk. My patience requires no premium tier.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The door opens inward. I have stopped outside its path.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The crest is busy. Slowing down for a clear view.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Pine St is the return route. The battery agrees.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "One parcel for the desk, one confirmation, then I leave.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The cable car has right of way. It also has a persuasive bell.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A bag of groceries for the next block. No pitch enclosed.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am using the crossing rather than the diagonal I imagined.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Grace Cathedral delivery area noted. The steps remain for people.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lobby rug is dry. I intend to maintain that state.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The queue moved. I will move the same amount.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lift is full. I can wait without sending a reminder.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The parcel is signed for. My work here is complete.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The next turn is downhill. My speed will reflect that fact.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Checking the address at a stop, not in the middle of the crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-19",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The route has a hill. The package has a secure lid.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-20",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Good morning. I am delivering, not prospecting.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-21",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We have been outside this lobby long enough to count as enterprise.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-22",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The delivery is pending an introduction to the door.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-23",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I circle the block to keep our active-user number moving.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-24",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lift is a vertical growth channel. We have sent a proposal.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-25",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our queue position is an aspirational estimate.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-26",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We do not badge in. Access would end the discovery phase.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-27",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The same corner again. Our retention strategy is working.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-28",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are watching the front desk for signs of budget authority.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-29",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bag is light because the service is cloud-native.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-30",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I have not delivered anything, but the lobby has seen the brand.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-31",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The next lap will contain the customer insight.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-32",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our appointment has no time and no person expecting us.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-33",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Please rate the pavement while I avoid the actual entrance.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-34",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The hill is steep enough to justify another funding round.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-35",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We converted the waiting area into an acquisition channel.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-36",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "No signature required if the package never arrives.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-37",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bell is a notification we have chosen not to support.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-38",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can stand here indefinitely. It is a platform capability.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-39",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our customer journey is this exact block, repeatedly.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-robot-40",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The meeting is upstairs. We are building a thesis about downstairs.",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "nob-hill-person-01",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "California St is a better walk when I remember the hill before the coffee.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-02",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The cable car bell cuts through every meeting voice.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-03",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am waiting for a friend, not a calendar invitation.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-04",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The view changes at each corner of Nob Hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-05",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Grace Cathedral is a useful landmark even when the fog has the top half.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-06",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lobby is quiet. I am enjoying the lack of a presentation.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-07",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I took Pine St back. My knees approved the routing change.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-08",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The door attendant recognised the bag before the delivery app did.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-09",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We can stand clear of the entrance and still have this conversation.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-10",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The pavement levels out just long enough to encourage you.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-11",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bell is coming from behind us. Give the crossing a moment.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-12",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am at the top. This is both my location and my available effort.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-13",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lift button works. It does not need to know my goals.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-14",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The wind found the one corner without my jacket zipped.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-15",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A good place to check the address before walking another hill.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-16",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "That robot actually had a delivery. The other one just had a lanyard.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-17",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The fog makes the next block look farther away than it is.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-18",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I booked the meeting after lunch. The hill booked the warm-up.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-19",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The front desk has handled this exact app problem before.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-20",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The little garden is quieter than the route beside it.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-21",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The coffee arrived safely. I appreciate the secure lid.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-22",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This is a street where parallel parking becomes a technical discussion.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-23",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can wait until the car clears the crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-24",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The map rotated. The hill did not, which is a relief.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-25",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We chose somewhere halfway up and described it as halfway.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-26",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I have put the phone away so I can actually see the view.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-27",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The parcel was expected. A pleasantly complete explanation.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-28",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am walking to the next block, then reassessing my ambitions.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-29",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The steps are beautiful. I am using the accessible route.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-30",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bell sounds different when the fog is thick.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-31",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The lobby clock and my meeting clock have reached an agreement.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-32",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The weather changed while we were discussing the weather.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-33",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A short pause at the crest improves most decisions.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-34",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I would rather be five minutes late than rush through that crossing.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-35",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The delivery robot stopped for the door swing. Nicely judged.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-36",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The next street is downhill. I have read that part of the map twice.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-37",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bench has a view and no booking link.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-38",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am here for a walk. The watch can report whatever it wants.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-39",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "California St is busy enough without my suitcase in the doorway.",
+      "maxLength": 90
+    },
+    {
+      "id": "nob-hill-person-40",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The conversation can wait until we have finished crossing.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "nob-hill-loop",
+      "archetype": "snatcher",
+      "level": 3,
+      "localTell": "nobHillLoop",
+      "crew": 1,
+      "lastSeen": {
+        "label": "Nob Hill street corner",
+        "lat": 37.787286748659504,
+        "lon": -122.41673561946354
+      },
+      "posting": "A courier repeats the same short approach without delivering. Observe the route before responding.",
+      "tellHint": "Watch the repeated three-step loop and check whether the bag ever changes hands."
+    }
+  ],
+  "ads": [
+    {
+      "id": "nob-hill-board",
+      "surface": "billboard",
+      "headline": "Useful, without the deck.",
+      "subline": "One job. Done clearly."
+    },
+    {
+      "id": "nob-hill-bus",
+      "surface": "busWrap",
+      "headline": "Less circling. More arriving.",
+      "subline": "A route is a promise."
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:93a74832",
+    "reviewedBy": [
+      "root second-read, source SHA256 855a0317f71b97149c511ad92cc711467d611948db4ac95a7e825abfcffdfea1"
+    ],
+    "review": "Root independently read all lines with no taste, identity or punching-down issue. Geographic data is separately validated against canonical pipeline polygons."
+  }
+}

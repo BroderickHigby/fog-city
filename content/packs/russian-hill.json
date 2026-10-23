@@ -1,0 +1,687 @@
+{
+  "version": 1,
+  "district": "russian-hill",
+  "robotBarks": [
+    {
+      "id": "russian-hill-robot-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Hyde St delivery. I have selected the ramp before selecting optimism.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The hill is included in the route estimate. My sigh is not.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Groceries secured for the descent. Oranges deserve a seat belt.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Union St is below us. The brakes have been informed.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This bag is full. That is why I am taking the long ramp.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I will wait until the crossing is clear. Gravity can wait too.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Lombard St has requested another steering correction.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A delivery at the top, an empty bag on the way down. The proper order.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Please pass first. I do not need to demonstrate my turning radius.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The stairs are faster only if you omit the consequences.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "My route avoids the steps. The package appreciates this policy.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "At the crest I slow down. It is not a software limitation.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Climbing Hyde St with soup. Quietly ambitious.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Handrail detected. It is for people; I will use the ramp.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The delivery is upstairs. I am waiting for the lift, as instructed.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This grade exceeds my willingness to improvise.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The next corner is a fine place to stop and check the address.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "No need to hurry. The bag has already arrived at a sensible temperature.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-19",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I counted the turns on Lombard. The count did not improve the turns.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-20",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Charging after this climb. No presentation required.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-21",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Three steps up, three steps down. Our growth graph is more selective.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-22",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We have renamed the hill an upward engagement surface.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-23",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Your brake pedal is an objection to our momentum strategy.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-24",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our route is shorter if we describe elevation as optional.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-25",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can deliver faster if nobody asks what is in the bag.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-26",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This staircase has excellent conversion potential.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-27",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are circling the parked cars for customer discovery.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-28",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The queue is vertical. We are calling it a ladder.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-29",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our hill model is perfectly flat at the executive level.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-30",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The downhill forecast contains no braking events.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-31",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "These three paces are a recurring-revenue route.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-32",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I have climbed this block four times. Engagement is up.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-33",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We put the delivery on hold while the bag finds product-market fit.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-34",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The crest blocks sightlines. Convenient for our next announcement.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-35",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I only take the stairs because the ramp has better observability.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-36",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "If I turn around at the door, the delivery remains a future opportunity.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-37",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We are testing demand for an empty bag at altitude.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-38",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The cable car queue is an excellent place to repeat a pitch.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-39",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Our navigation has achieved a local maximum. It is this exact spot.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-robot-40",
+      "speaker": "badRobot",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Please rate the climb before inspecting the delivery.",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "russian-hill-person-01",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Hyde St makes every errand feel like a small expedition.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-02",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The cable car bell is the best notification sound on this block.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-03",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I took the stairs. My legs would like a review of that decision.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-04",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The map gave me distance. The hill supplied the rest of the document.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-05",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Lombard is shorter on a postcard.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-06",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can see the Bay from here when the fog leaves a gap.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-07",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We agreed to meet at the top. That phrase was insufficiently specific.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-08",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The oranges are staying in the bag until we get home.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-09",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "That robot found the ramp before I did.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-10",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am going downhill now. Emotionally neutral, geographically excellent.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-11",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "One block of Hyde St is plenty of exercise for a coffee.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-12",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The handbrake is the most useful feature on this street.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-13",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "Please let the cable car clear the corner first.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-14",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The view gets better at exactly the point I want to stop walking.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-15",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I came up Union St. I will be describing that as a scenic choice.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-16",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The steps are quiet this morning. I can hear the next bell.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-17",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I like the fog when I am looking at it rather than looking for a turn.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-18",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The pavement has more slope than the forecast admitted.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-19",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This is a lovely place for a rest that looks like admiring the view.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-20",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "A good delivery route includes somewhere sensible to turn around.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-21",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bus app says nearby. I am negotiating what near means uphill.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-22",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We parked with the wheels turned. It is a useful kind of commitment.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-23",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The little robot waited at the crest until it could see the path.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-24",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "No, the staircase is not a shortcut for the rolling suitcase.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-25",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The best part of this route is the bench after the difficult part.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-26",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I am taking a photo after I catch my breath.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-27",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The bell echoes round this corner before the car appears.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-28",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The next delivery can wait until that crossing is clear.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-29",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "This coffee made the climb with the lid still on. Strong execution.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-30",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I have discovered a new use for pockets: keeping things off this slope.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-31",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The car has a hill-hold setting. I would like one too.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-32",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I can hear a meeting through the open window. I will keep walking.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-33",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The fog keeps changing which rooftops are in the picture.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-34",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "We chose the long ramp. Everyone arrived in a better mood.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-35",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The route home has fewer stairs because I learned something today.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-36",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I will admire the crooked street from this perfectly straight patch.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-37",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The robot is backing up carefully. Please give it a little room.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-38",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The hill is steep. That is the entire review, and it is five stars.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-39",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "I put a walk in the calendar and accidentally added elevation.",
+      "maxLength": 90
+    },
+    {
+      "id": "russian-hill-person-40",
+      "speaker": "person",
+      "context": "idle",
+      "mood": "conversational",
+      "text": "The cable car is coming. We can finish the conversation after it passes.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "russian-hill-loop",
+      "archetype": "snatcher",
+      "level": 3,
+      "localTell": "russianHillLoop",
+      "crew": 1,
+      "lastSeen": {
+        "label": "Russian Hill street corner",
+        "lat": 37.800088504706174,
+        "lon": -122.41256886638455
+      },
+      "posting": "A courier repeats the same short approach without delivering. Observe the route before responding.",
+      "tellHint": "Watch the repeated three-step loop and check whether the bag ever changes hands."
+    }
+  ],
+  "ads": [
+    {
+      "id": "russian-hill-board",
+      "surface": "billboard",
+      "headline": "Useful, without the deck.",
+      "subline": "One job. Done clearly."
+    },
+    {
+      "id": "russian-hill-bus",
+      "surface": "busWrap",
+      "headline": "Less circling. More arriving.",
+      "subline": "A route is a promise."
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:6e5db0e0",
+    "reviewedBy": [
+      "root second-read, source SHA256 04f27bf0c05830bb7176aa707c5f38e7ef70e6dcda39e328406acaa37ec8d2fc"
+    ],
+    "review": "Root independently read all lines with no taste, identity or punching-down issue. Geographic data is separately validated against canonical pipeline polygons."
+  }
+}

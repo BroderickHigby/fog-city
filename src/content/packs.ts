@@ -12,6 +12,9 @@ import missionBayJson from "../../content/packs/mission-bay.json" with { type: "
 import northBeachJson from "../../content/packs/north-beach.json" with { type: "json" };
 import rinconHillJson from "../../content/packs/rincon-hill.json" with { type: "json" };
 import somaJson from "../../content/packs/soma.json" with { type: "json" };
+import russianHillJson from "../../content/packs/russian-hill.json" with { type: "json" };
+import nobHillJson from "../../content/packs/nob-hill.json" with { type: "json" };
+import chinatownJson from "../../content/packs/chinatown.json" with { type: "json" };
 import { contentHash, checkBarks, type Bark, type Provenance } from "./barks.ts";
 import { BOT_TELLS, botWithLocalTell, type BotTellsFile } from "./botTells.ts";
 import { lintFit } from "./lint.ts";
@@ -47,6 +50,9 @@ export interface DistrictPack {
 
 /** Every pack, by district id. A new pack file must be added here (the packs test checks the directory). */
 export const PACKS: Readonly<Record<string, DistrictPack>> = {
+  "russian-hill": russianHillJson as unknown as DistrictPack,
+  "nob-hill": nobHillJson as unknown as DistrictPack,
+  "chinatown": chinatownJson as unknown as DistrictPack,
   "bay-bridge-approach": bayBridgeApproachJson as unknown as DistrictPack,
   "dogpatch": dogpatchJson as unknown as DistrictPack,
   "downtown": downtownJson as unknown as DistrictPack,

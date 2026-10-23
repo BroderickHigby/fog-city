@@ -151,12 +151,17 @@
       "word": "Great Highway",
       "kind": "place",
       "why": "the San Francisco coastal street, a real location rather than an invented brand"
+    },
+    {
+      "word": "Grace Cathedral",
+      "kind": "place",
+      "why": "the public San Francisco landmark on Nob Hill"
     }
   ],
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:5e3107e9",
+    "contentHash": "fnv1a32:b33e6d21",
     "reviewedBy": [],
     "review": "Pending: the user confirms that no entry is an invented name; a second agent session reads it against the docs/ai-layer.md checklist."
   }
