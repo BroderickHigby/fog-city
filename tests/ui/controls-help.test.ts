@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { KEY_ACTIONS } from "../../src/input/keyboard.ts";
+import { CONTROL_ICONS } from "../../src/ui/control-icons.ts";
 import { GAMEPAD_ROWS, KEYBOARD_ROWS } from "../../src/ui/controls-help.ts";
 
 const strings = (JSON.parse(readFileSync(new URL("../../content/ui-copy.json", import.meta.url), "utf8")) as { strings: Record<string, string> }).strings;
@@ -15,6 +16,9 @@ describe("controls help menu", () => {
     const listed = new Set(KEYBOARD_ROWS.flatMap((row) => row.keys.split(/[\s/]+/)));
     for (const code of Object.keys(KEY_ACTIONS)) expect(listed.has(label(code)), code).toBe(true);
     for (const key of ["E", "Q", "Z", "R", "B", "P", "Esc", "C", "V", "N", "Space", "F1"]) expect(listed.has(key), key).toBe(true);
+  });
+  it("gives every row a picture that exists", () => {
+    for (const row of [...KEYBOARD_ROWS, ...GAMEPAD_ROWS]) expect(CONTROL_ICONS[row.icon], row.keys).toMatch(/^<(path|g|circle|rect) /);
   });
   it("lists each gamepad button once", () => {
     const keys = GAMEPAD_ROWS.map((row) => row.keys);
