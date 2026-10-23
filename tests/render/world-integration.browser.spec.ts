@@ -67,6 +67,8 @@ test("height-aware camera stays inside the Broadway bore", async ({ page }) => {
   }, { x: x!, y: floor! + 2, z: z! });
   await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.tilesSettled!(), null, { timeout: 120_000 });
   await frames(page, 2);
+  const cameraY = await page.evaluate(() => (window as unknown as { __fogcityView: { camera: { position: { y: number } } } }).__fogcityView.camera.position.y);
+  expect(cameraY).toBeCloseTo(floor! + 2, 2);
   await page.screenshot({ path: "test-results/world-integration-tunnel-interior.png" });
   expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash())).toBe(initial);
   expect(problems).toEqual([]);
