@@ -2,34 +2,47 @@ import { Action, type SimInput } from "../sim/contract.ts";
 
 const NO_PRESSES: readonly string[] = Object.freeze([]);
 
-/** Maps held keys to SimInput. One-shot actions fire once per key press. */
+const HELD: Readonly<Record<string, number>> = { KeyE: Action.fire, Enter: Action.fire, KeyQ: Action.scan, KeyZ: Action.watch, KeyR: Action.watch, KeyB: Action.altFire, KeyT: Action.interact };
+export const KEY_ACTIONS: Readonly<Record<string, number>> = { KeyF: Action.enterExit, KeyH: Action.horn, KeyJ: Action.gadget, KeyG: Action.cone, KeyX: Action.streak, KeyY: Action.emote };
+
+export function isTextEntry(target: EventTarget | null): boolean {
+  return !!(target as Element | null)?.closest?.("input,textarea,select,[contenteditable='true']");
+}
+
+/** Held movement/fire and edge-triggered actions; typing never drives the player. */
 export class Keyboard {
   private held = new Set<string>();
   private pressed = 0;
   /** Render-only toggles (camera, night mode); never reach the sim. */
   private uiPresses: string[] = [];
 
-  constructor(target: Window = window) {
-    target.addEventListener("keydown", (e) => {
-      if (typeof HTMLElement !== "undefined" && e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return;
-      if (!this.held.has(e.code)) this.onPress(e.code);
-      this.held.add(e.code);
-      if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
-    });
-    target.addEventListener("keyup", (e) => this.held.delete(e.code));
-    target.addEventListener("blur", () => this.release());
-    target.addEventListener("focusin", () => this.release());
-    target.addEventListener("mousedown", e => {if (e.button === 0 && (e.target as Element | null)?.id === "game-canvas") this.held.add("Mouse0");});
-    target.addEventListener("mouseup", () => this.held.delete("Mouse0"));
+  private readonly target: Window;
+  private readonly blocked: () => boolean;
+  private readonly keydown = (e: KeyboardEvent): void => {
+    if (this.blocked() || isTextEntry(e.target)) return;
+    if (!this.held.has(e.code)) this.onPress(e.code);
+    this.held.add(e.code);
+    if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
+  };
+  private readonly keyup = (e: KeyboardEvent): void => { this.held.delete(e.code); };
+  private readonly mouseDown = (e:MouseEvent):void => {if(e.button===0&&(e.target as Element|null)?.id==="game-canvas")this.held.add("Mouse0");};
+  private readonly mouseUp = ():void => {this.held.delete("Mouse0");};
+  private readonly blur = (): void => { this.releaseAll(); };
+
+  constructor(target: Window = window, blocked?: () => boolean) {
+    this.target = target;
+    this.blocked = blocked ?? (() => isTextEntry(target.document?.activeElement));
+    target.addEventListener("keydown", this.keydown);
+    target.addEventListener("keyup", this.keyup);
+    target.addEventListener("blur", this.blur);
+    target.addEventListener("focusin", this.blur);
+    target.addEventListener("mousedown",this.mouseDown);
+    target.addEventListener("mouseup",this.mouseUp);
   }
 
   private onPress(code: string): void {
-    if (code === "KeyF") this.pressed |= Action.enterExit;
-    else if (code === "KeyE" || code === "Enter") this.pressed |= Action.fire;
-    else if (code === "KeyQ") this.pressed |= Action.scan;
-    else if (code === "KeyG") this.pressed |= Action.cone;
-    else if (code === "KeyH") this.pressed |= Action.horn;
-    else this.uiPresses.push(code);
+    if (KEY_ACTIONS[code]) this.pressed |= KEY_ACTIONS[code];
+    else if (!HELD[code]) this.uiPresses.push(code);
   }
 
   private axis(pos: string[], neg: string[]): number {
@@ -40,11 +53,14 @@ export class Keyboard {
 
   /** Input for the next sim tick. Consumes one-shot actions. */
   sample(): SimInput {
+    if (this.blocked()) { this.releaseAll(); return { throttle: 0, steer: 0, brake: 0, actions: 0 }; }
+    let actions = this.pressed;
+    for (const code of this.held) actions |= code === "Mouse0" ? Action.fire : HELD[code] ?? 0;
     const input: SimInput = {
       throttle: this.axis(["KeyW", "ArrowUp"], ["KeyS", "ArrowDown"]),
       steer: this.axis(["KeyD", "ArrowRight"], ["KeyA", "ArrowLeft"]),
       brake: this.held.has("Space") ? 1 : 0,
-      actions: this.pressed | (this.held.has("KeyE") || this.held.has("Mouse0") ? Action.fire : 0) | (this.held.has("KeyQ") ? Action.scan : 0) | (this.held.has("KeyR") ? Action.watch : 0) | (this.held.has("KeyT") ? Action.interact : 0),
+      actions,
     };
     this.pressed = 0;
     return input;
@@ -60,11 +76,18 @@ export class Keyboard {
     this.pressed = 0;
   }
 
-  /** A form taking focus owns subsequent keyups too, so release controls when focus enters it. */
-  release(): void {
-    this.held.clear();
-    this.pressed = 0;
-    this.uiPresses = [];
+  release():void {this.releaseAll();}
+
+  releaseAll(): void { this.held.clear(); this.pressed = 0; this.uiPresses = []; }
+
+  dispose(): void {
+    this.releaseAll();
+    this.target.removeEventListener("keydown", this.keydown);
+    this.target.removeEventListener("keyup", this.keyup);
+    this.target.removeEventListener("blur", this.blur);
+    this.target.removeEventListener("focusin",this.blur);
+    this.target.removeEventListener("mousedown",this.mouseDown);
+    this.target.removeEventListener("mouseup",this.mouseUp);
   }
 
   /** Render-only key presses since the last call (e.g. "KeyC" camera, "KeyN" night). */

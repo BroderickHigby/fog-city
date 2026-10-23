@@ -16,3 +16,5 @@ export class Minimap {
     c.save();c.translate(200,200);c.rotate(b.heading);c.fillStyle='#b3ffe0';c.strokeStyle='#0d2720';c.lineWidth=3;c.beginPath();c.moveTo(0,-15);c.lineTo(10,11);c.lineTo(0,6);c.lineTo(-10,11);c.closePath();c.fill();c.stroke();c.restore();c.fillStyle='#c7e4db';c.font='bold 20px sans-serif';c.fillText('N',191,30);
   }
 }
+
+export { drawMap } from "./map-drawing.ts";
