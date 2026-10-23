@@ -173,6 +173,9 @@ export class CameraRig {
     const minY = this.ground(this.pos.x, this.pos.z) + 1.0;
     if (this.pos.y < minY) this.pos.y = minY;
     this.camera.position.copy(this.pos);
-    this.camera.lookAt(this.lookAt);
+    // Position may ease or be clamped by terrain; the visible aiming ray must still
+    // match this tick's recorded weapon angles, including an abrupt turn.
+    if(aiming)this.camera.lookAt(this.pos.x+lx*cp*30,this.pos.y+sy*30,this.pos.z+lz*cp*30);
+    else this.camera.lookAt(this.lookAt);
   }
 }

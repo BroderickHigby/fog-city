@@ -35,14 +35,14 @@ export function mountSavePanel(doc:Document,copy:UiCopy,options:SavePanelOptions
     });},{once:true});input.click();
   }
   async function refresh():Promise<void>{
-    const slots=await Promise.all(([0,1,2] as const).map(async slot=>{try{return {slot,save:await options.store.load(slot),failed:false};}catch{return {slot,save:null,failed:true};}}));
+    const slots=await Promise.all((["auto",0,1,2] as const).map(async slot=>{try{return {slot,save:await options.store.load(slot),failed:false};}catch{return {slot,save:null,failed:true};}}));
     if(disposed)return;rows.replaceChildren();
-    for(const {slot,save,failed}of slots){const row=doc.createElement("article");row.className="fc-card";const label=doc.createElement("h3");label.textContent=copy("ui.save.slot",{slot:slot+1});row.append(label);
+    for(const {slot,save,failed}of slots){if(slot==="auto"&&!save)continue;const row=doc.createElement("article");row.className="fc-card";row.dataset.slot=String(slot);const label=doc.createElement("h3");label.textContent=copy("ui.save.slot",{slot:slot==="auto"?slot:slot+1});row.append(label);
       if(!save){const empty=doc.createElement("p");empty.textContent=copy(failed?"ui.save.corrupt":"ui.save.empty");row.append(empty);}
-      row.append(button(copy("ui.save.save"),()=>void run(async()=>{await options.store.save(slot,options.capture());if(!disposed){status.textContent=copy("ui.save.autosaved");await refresh();}})));
+      if(slot!=="auto")row.append(button(copy("ui.save.save"),()=>void run(async()=>{await options.store.save(slot,options.capture());if(!disposed){status.textContent=copy("ui.save.autosaved");await refresh();}})));
       const load=button(copy("ui.save.load"),()=>void run(async()=>{if(!await ask(copy("ui.save.confirmLoad")))return;const current=await options.store.load(slot);if(current&&!disposed){await options.restore(current.data);status.textContent=copy("ui.common.done");}}));load.disabled=!save;
       const download=button(copy("ui.save.export"),()=>exportSave(slot));download.disabled=!save;
-      row.append(load,download,button(copy("ui.save.import"),()=>importSave(slot)));rows.append(row);
+      row.append(load,download);if(slot!=="auto")row.append(button(copy("ui.save.import"),()=>importSave(slot)));rows.append(row);
     }
   }
   void refresh();

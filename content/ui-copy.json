@@ -137,6 +137,7 @@
     "ui.lobby.name": "Display name",
     "ui.lobby.generated": "Generate another name",
     "ui.lobby.private": "Only people with your code can join.",
+    "ui.mode.refillRequired": "Move near a hydrant or fountain and try again.",
     "ui.mode.botSweep": "Bot Sweep",
     "ui.mode.cleanStreets": "Clean Streets",
     "ui.mode.fogRoyale": "Fog Royale",

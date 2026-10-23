@@ -11,6 +11,6 @@ it("launches a high-rank profile with more than three unlocked rewards using bou
   const before=JSON.stringify(profile),loadout=loadoutForMatch(profile);
   expect(()=>copyMatchLoadouts(["p1"],{p1:loadout})).not.toThrow();
   expect(loadout.perks).toEqual(profile.perks.slice(0,3));expect(loadout.streaks).toEqual(profile.streaks.slice(0,3));
-  for(const mode of ["botSweep","cleanStreets"] as const){const match=createLocalMatch(buildWorld([]),{id:"high-rank",mode,seed:1,playerId:"p1",spawn:{x:0,z:0,heading:0},loadouts:{p1:loadout}});expect(modeSessionOf(match)?.loadouts.p1?.streaks).toHaveLength(3);}
+  for(const mode of ["botSweep","cleanStreets"] as const){const match=createLocalMatch(buildWorld([],null,null,{version:1,world:"fixture",sourceSnapshot:"test",refills:[{id:"water",kind:"hydrant",x:0,y:0,z:10,radius:3,salt:false}],anchors:[],tiles:[],territories:[]}),{id:"high-rank",mode,seed:1,playerId:"p1",spawn:{x:0,z:0,heading:0},loadouts:{p1:loadout}});expect(modeSessionOf(match)?.loadouts.p1?.streaks).toHaveLength(3);}
   expect(JSON.stringify(profile)).toBe(before);
 });

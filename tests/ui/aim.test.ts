@@ -32,3 +32,10 @@ it("releases pointer fire on cancellation and disposes canvas listeners",async()
   dispatch("pointerdown");expect(controls.sample().actions).not.toBe(0);dispatch("pointermove",20);expect(controls.consumeLook().pixelsX).toBe(20);
   dispatch("pointercancel");expect(controls.sample().actions).toBe(0);pointer.dispose();dispatch("pointerdown");expect(controls.sample().actions).toBe(0);expect(target.style.cursor).toBe("default");
 });
+
+it("chase aiming stays aligned through abrupt turns and terrain camera clamping",()=>{
+  const camera=new PerspectiveCamera(),rig=new CameraRig(camera,()=>10);
+  const target:CameraTarget={x:0,y:0,z:0,heading:0,onFoot:true,speed:0,lookYaw:0,lookPitch:0};rig.update(1/60,target,NO_FLY_INPUT);
+  rig.update(1/60,{...target,lookYaw:1.8,lookPitch:-1.1},NO_FLY_INPUT);
+  const direction=camera.getWorldDirection(new Vector3());expect(Math.atan2(direction.x,-direction.z)).toBeCloseTo(1.8);expect(Math.asin(direction.y)).toBeCloseTo(-1.1);expect(camera.position.y).toBeGreaterThanOrEqual(11);
+});

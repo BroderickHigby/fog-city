@@ -31,14 +31,14 @@ import { Keyboard } from "./input/keyboard.ts";
 import { AimController, NO_LOOK } from "./input/aim.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
-import { mountGameUI, createGameplayDispatcher, LOCAL_MODES, type LocalModeChoice, type MapPoint } from "./ui/index.ts";
+import { mountGameUI, createGameplayDispatcher, LOCAL_MODES, modeFailureText, type LocalModeChoice, type MapPoint } from "./ui/index.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { loadoutForMatch } from "./ui/loadout.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
-import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
-import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
+import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave, ProgressionSession } from "./save/index.ts";
+import { validateSavedProgression } from "./save/progression.ts";
 import { contentHash } from "./content/barks.ts";
 import { VENDOR } from "./content/vendor.ts";
 import { STARTUP_KITS } from "./content/kits.ts";
@@ -218,7 +218,8 @@ async function boot(): Promise<void> {
   const recordedCommands:SimEvent[]=[];
   const send=createGameplayDispatcher({playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>{queuedEvents.push(event);recordedCommands.push(event);}});
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
-  const captureCity=()=>captureProgression(cityState??curr,LOCAL_PLAYER);
+  const progressionSession=new ProgressionSession();
+  const captureCity=()=>progressionSession.capture(cityState??curr,LOCAL_PLAYER);
   const autosave=new Autosave(saveStore,captureCity);
   const resetFrame=()=>{prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();aim.reset();audio.reset(curr.ext.combat);};
   const leaveLocalMatch=(settle:boolean)=>{
@@ -239,7 +240,7 @@ async function boot(): Promise<void> {
       const match=createLocalMatch(world,{id:`local-${ledger.length}-${++localMatchSequence}`,mode,seed:hash32(SEED,localMatchSequence),playerId:LOCAL_PLAYER,spawn:{x:body.x,z:body.z,heading:body.heading},
         loadouts:profile?{[LOCAL_PLAYER]:loadoutForMatch(profile)}:{}});
       cityState=JSON.parse(JSON.stringify(curr)) as SimState;curr=match;modeError=undefined;resetFrame();return true;
-    }catch{modeError=uiText("ui.common.error");return false;}
+    }catch(error){modeError=modeFailureText(error,uiText);return false;}
   };
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
   const gameUI=mountGameUI(container,{copy:uiText,keyboard,localModes:LOCAL_MODES,pointerTarget:view.renderer.domElement,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",saves:{store:saveStore,capture:captureCity,restore:data=>{
@@ -247,7 +248,7 @@ async function boot(): Promise<void> {
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
-    cityState=null;modeError=undefined;curr=restoreProgression(fresh,clean,LOCAL_PLAYER);resetFrame();
+    cityState=null;modeError=undefined;curr=progressionSession.restore(fresh,clean,LOCAL_PLAYER);resetFrame();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},

@@ -36,3 +36,8 @@ export function matchResults(doc:Document,copy:UiCopy,view:MatchUiView,returnToC
   for(const [label,value]of [[copy("ui.match.score"),view.score],[copy("ui.match.remaining"),view.objectivesRemaining],[copy("ui.hud.runway"),view.runway],[copy("ui.hud.cash"),view.cashCents===undefined?undefined:`$${(view.cashCents/100).toFixed(2)}`],[copy("ui.hud.xp"),view.xp]] as const){if(value===undefined)continue;stats.append(element(doc,"dt",label),element(doc,"dd",String(value)));}
   const back=element(doc,"button",copy("ui.match.return"));back.type="button";back.addEventListener("click",()=>{back.disabled=true;returnToCity();});result.append(stats,back);return result;
 }
+
+/** Expected launch failures use authored action text; internal errors are never exposed. */
+export function modeFailureText(error:unknown,copy:UiCopy):string {
+  return error instanceof Error&&"reason"in error&&error.reason==="refill"?copy("ui.mode.refillRequired"):copy("ui.common.error");
+}
