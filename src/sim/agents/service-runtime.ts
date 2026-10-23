@@ -3,7 +3,7 @@ import type { ThreatSpawnRequest } from "../gameplay-contract.ts";
 import { isGameplayId } from "../gameplay-contract.ts";
 import { MOAT_SITES } from "../../content/places.ts";
 import { toLocal } from "../../geo/project.ts";
-import { AGENT_SPEC } from "../agents.ts";
+import { AGENT_SPEC, ROBOTAXI_BODY } from "../agents.ts";
 import { carBox } from "../car.ts";
 import { boxBlocked, type Box } from "../collide.ts";
 import { boxDistance } from "../dodge.ts";
@@ -62,7 +62,7 @@ export interface ServiceBlocker {x:number;z:number;radius?:number;heading?:numbe
 /** Physical bodies, parked cars and walking players all block a new service body. */
 export function serviceBlockersOf(sim:Readonly<SimState>,pending:readonly ServiceBlocker[]=[]):ServiceBlocker[]{
   const blockers:ServiceBlocker[]=(sim.ext.agents?.list??[]).map(actor=>actor.kind==="robotaxi"
-    ?{...actor,halfLength:actor.halfLength??2.2,halfWidth:actor.halfWidth??.95}
+    ?{...actor,halfLength:actor.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:actor.halfWidth??ROBOTAXI_BODY.halfWidth}
     :{...actor,radius:actor.radius??AGENT_SPEC[actor.kind].radius});
   const runtime=agentsRuntimeOf(sim);
   if(runtime)for(const id of Object.keys(runtime.actors).sort()){const actor=runtime.actors[id]!;if(!actor.retired&&actor.legacyId===null)blockers.push(actor);}
