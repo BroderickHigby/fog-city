@@ -1,0 +1,11 @@
+.git
+node_modules
+dist
+test-results
+playwright-report
+pipeline
+assets
+docs
+tests
+scripts
+.cache

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
       n8ao:
         specifier: 2.0.1
         version: 2.0.1(postprocessing@6.39.5(three@0.186.1))(three@0.186.1)
@@ -17,6 +20,9 @@ importers:
       three:
         specifier: 0.186.1
         version: 0.186.1
+      ws:
+        specifier: 8.21.0
+        version: 8.21.0
     devDependencies:
       '@gltf-transform/core':
         specifier: 4.5.1
@@ -33,6 +39,9 @@ importers:
       '@types/three':
         specifier: 0.186.0
         version: 0.186.0
+      '@types/ws':
+        specifier: 8.18.2
+        version: 8.18.2
       '@wasm-audio-decoders/ogg-vorbis':
         specifier: 0.1.20
         version: 0.1.20
@@ -84,6 +93,10 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
 
   '@oxc-project/types@0.154.0':
     resolution: {integrity: sha512-KYOUGQFlLWR+s4QMV2Q9ko38TZm7EdO87Qm7rvZLqk/webse/cDjtyxKhg/47l0byCbs/k46LT8qc4PKjAikzA==}
@@ -209,6 +222,9 @@ packages:
 
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
+
+  '@types/ws@8.18.2':
+    resolution: {integrity: sha512-67MQl+fpWKVTT1NYdnmo3U4sc/xPo/zQBncVnI74qmQa0z/b+1g6iYqNmGCPbxO+zz2aklb08a0oHfegiVd0/w==}
 
   '@vitest/mocker@5.0.3':
     resolution: {integrity: sha512-T8sWAIbkSyAjkwTcaEc3Iu0o9A27X1/kdXrizhZkGuSKScRQtRzclfAMpOTcGdXCsqxeWlpGy3XjqaW8CpLORg==}
@@ -562,6 +578,18 @@ packages:
     engines: {node: '>=20.11'}
     hasBin: true
 
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
 snapshots:
 
   '@dimforge/rapier3d-compat@0.12.0': {}
@@ -585,6 +613,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
+
+  '@noble/hashes@1.8.0': {}
 
   '@oxc-project/types@0.154.0': {}
 
@@ -666,6 +696,10 @@ snapshots:
       meshoptimizer: 1.1.1
 
   '@types/webxr@0.5.24': {}
+
+  '@types/ws@8.18.2':
+    dependencies:
+      '@types/node': 22.19.1
 
   '@vitest/mocker@5.0.3(vite@8.3.3(@types/node@22.19.1))':
     dependencies:
@@ -913,3 +947,5 @@ snapshots:
       - msw
 
   why-is-node-running@3.2.1: {}
+
+  ws@8.21.0: {}
