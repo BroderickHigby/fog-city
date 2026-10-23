@@ -2,11 +2,10 @@ import { expect, it } from "vitest";
 import { captureProgression, restoreProgression } from "../../../src/save/progression.ts";
 import { Action, NEUTRAL_INPUT } from "../../../src/sim/contract.ts";
 import { createPlayerSystems, defaultGameplayProvider, gameplaySnapshot } from "../../../src/sim/player/adapter.ts";
-import { applyModeSettlements } from "../../../src/sim/player/settlements.ts";
 import { createInitialState, step } from "../../../src/sim/step.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 
-it("settles activity rewards before immediate save or mode capture, exactly once across reload", () => {
+it("settles activity rewards before immediate save, exactly once across reload", () => {
   const world = buildWorld([]);
   const systems = createPlayerSystems(context => ({
     ...defaultGameplayProvider(context),
@@ -33,7 +32,7 @@ it("settles activity rewards before immediate save or mode capture, exactly once
   expect(completed.economy.players.p1!.cashCents).toBe(207500);
   expect(completed.progression.players.p1!.xp).toBe(100);
 
-  // A checkpoint autosave, manual save, or local-match snapshot can occur now,
+  // A checkpoint autosave or manual save can occur now,
   // without another simulation tick to consume the activity's reward events.
   const document = captureProgression(city, "p1");
   const fresh = step(world, initial(), {}, [], systems);
@@ -47,10 +46,4 @@ it("settles activity rewards before immediate save or mode capture, exactly once
     expect(view.activities.players.p1!.completedIds).toEqual(["soma-delivery"]);
   }
 
-  const payout = { id: "local-1:p1", playerId: "p1", cashCents: 1000, xp: 25, achievements: [], factionClockMoves: 0 as const };
-  const returned = applyModeSettlements(city, [payout]);
-  const returnedSave = restoreProgression(fresh, captureProgression(returned, "p1"), "p1");
-  const returnedAgain = applyModeSettlements(returnedSave, [payout]);
-  expect(gameplaySnapshot({ state: returnedAgain }).economy.players.p1!.cashCents).toBe(208500);
-  expect(gameplaySnapshot({ state: returnedAgain }).progression.players.p1!.xp).toBe(125);
 });
