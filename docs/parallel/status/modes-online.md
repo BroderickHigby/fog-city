@@ -62,3 +62,29 @@ Local play and deterministic state are the review target. Online deployment rema
 - Match deadlines survive skipped global pause ticks. Payout `cashCents` is capped at 7,500 cents per elapsed minute and has a stable settlement ID.
 - Rooms remain private, four-player, thirty-minute invitation rooms. Client controls and commands cannot submit player identity, chat, positions or arbitrary simulation events.
 - Advanced mode IDs currently fail closed until their rule modules and drivers land.
+
+## Wave 7: Hide in the Crowd rule checkpoint
+
+The standalone `createCrowdState` / `stepCrowd` reducer validates hider and spotter roles, three active tasks, continuous timed interactions, delayed corner pings, six-minute halves, role swaps, limited scans, visible burst/flicker cues, survival points and ten-second replacement requests. A replacement requires a new core-approved body at least150m from Spotters; a melted body cannot be reattached. Pauses stop the logical clock. The movement owner must apply `crowdSpeedLimit`, supply accepted robot bodies and deliver these cues to bot perception. This is not yet a playable browser mode.
+
+Validation: TypeScript plus54tests (6modecases and48deterministic API checks) passed.
+
+Draft PR title: `Modes: implement deterministic Hide in the Crowd rules`
+Base: `integrate/wave7` when published; currently stacked on the tested wave4foundation.
+Body: Adds task, scan, score, role-swap and reconnect rules for robot-body Hide in the Crowd. Uses observed poses and core-approved replacement bodies; does not permit proximity-only respawn. Browser and bot adapters remain explicit integration gates.
+
+Adversarial follow-up: ordinary robot scans now spend charges and return noisy results, so resource changes cannot reveal hidden players. Replacement bodies require confirmed control and every Spotter pose; disappearing bodies reset task channels. Tick-and-ID cursors preserve late same-tick facts. Regression batch: TypeScript and62tests passed (Hide9, Vibes5, deterministic rules48).
+
+## Wave 8: Vibes Night rules
+
+`createVibesState` / `stepVibes` run 2–8 timed three-robot demos, score observed calls/melts/incidents, accept one non-self vote per player, and request a separately authenticated award. `chooseVibesAward` keeps its key server-side and records a match/request-bound winner. Model roasts never affect demo scores or votes. Global cast IDs and per-presenter event windows prevent stale incidents crossing demos. The eight-client headless rule driver completes all90-second demos and voting, including an independently keyed tied vote; pause and replay regressions pass. Browser stage actors and lobby selection remain integration gates.
+
+Draft PR title: `Modes: add Vibes Night demos, voting and keyed award results`
+Base: `integrate/wave8` when published; stacked on the reviewed earlier mode rules.
+Body: Implements simulation-owned demo scoring, locked votes and server-only keyed ties. Separates presentation roasts from gameplay and binds external award facts to the active match request. Validation: fiveVibes cases passed plus cross-mode/determinism suite.
+
+## Integrated rule adapters
+
+The registered modes system now supports fresh, separate Crowd, Royale and Vibes instances through explicit context providers. Only six named loadout fields cross into a match; financial and unrelated-player fields are dropped. All three modes emit stable settlement IDs only once on completion. Providers still own approved instance geometry, actor casts, authoritative awards, bot controls and confirmed physical attachments.
+
+Adversarial fixes also accept a real bot-associate duel loss immediately, preserve +1/+3 Royale runway rewards above the starting18months, and reject one-founder online wins. Final validation: TypeScript and86tests across7mode/determinism files passed.

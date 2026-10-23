@@ -4,6 +4,7 @@ import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { stepMatch } from "./match.ts";
 import { encodeSession, modeSessionOf, settleSession } from "./session.ts";
 import type { MatchContext, MatchInput } from "./types.ts";
+import { stepAdvancedModes, type AdvancedModeProviders } from "./advanced.ts";
 
 export type MatchContextProvider=(context:SimSystemContext)=>MatchContext;
 export const defaultMatchContext:MatchContextProvider=context=>{
@@ -20,8 +21,9 @@ export const defaultMatchContext:MatchContextProvider=context=>{
   }
   return {tick:context.state.tick,positions,inputs,combatEvents:context.state.ext.combat?.events??[]};
 };
-export function createModesSystem(provider:MatchContextProvider=defaultMatchContext):SimSystem {
+export function createModesSystem(provider:MatchContextProvider=defaultMatchContext,advanced:AdvancedModeProviders={}):SimSystem {
   return {key:"modes",step(context){
+    const extended=stepAdvancedModes(context,advanced);if(extended)return extended;
     const previous=modeSessionOf(context.previous);if(!previous)return context.state;
     const match=stepMatch(previous.match,{...provider(context),tick:context.state.tick});
     const session=settleSession({...previous,match,payouts:[]});
