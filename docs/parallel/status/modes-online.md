@@ -74,3 +74,11 @@ Base: `integrate/wave7` when published; currently stacked on the tested wave4fou
 Body: Adds task, scan, score, role-swap and reconnect rules for robot-body Hide in the Crowd. Uses observed poses and core-approved replacement bodies; does not permit proximity-only respawn. Browser and bot adapters remain explicit integration gates.
 
 Adversarial follow-up: ordinary robot scans now spend charges and return noisy results, so resource changes cannot reveal hidden players. Replacement bodies require confirmed control and every Spotter pose; disappearing bodies reset task channels. Tick-and-ID cursors preserve late same-tick facts. Regression batch: TypeScript and62tests passed (Hide9, Vibes5, deterministic rules48).
+
+## Wave 8: Vibes Night rules
+
+`createVibesState` / `stepVibes` run 2–8 timed three-robot demos, score observed calls/melts/incidents, accept one non-self vote per player, and request a separately authenticated award. `chooseVibesAward` keeps its key server-side and records a match/request-bound winner. Model roasts never affect demo scores or votes. Global cast IDs and per-presenter event windows prevent stale incidents crossing demos. The eight-client headless rule driver completes all90-second demos and voting, including an independently keyed tied vote; pause and replay regressions pass. Browser stage actors and lobby selection remain integration gates.
+
+Draft PR title: `Modes: add Vibes Night demos, voting and keyed award results`
+Base: `integrate/wave8` when published; stacked on the reviewed earlier mode rules.
+Body: Implements simulation-owned demo scoring, locked votes and server-only keyed ties. Separates presentation roasts from gameplay and binds external award facts to the active match request. Validation: fiveVibes cases passed plus cross-mode/determinism suite.
