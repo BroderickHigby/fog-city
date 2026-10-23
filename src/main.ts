@@ -31,6 +31,7 @@ import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, LOCAL_MODES, type LocalModeChoice, type MapPoint } from "./ui/index.ts";
+import { nextCampaignMission } from "./ui/campaign.ts";
 import { loadoutForMatch } from "./ui/loadout.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
@@ -78,7 +79,7 @@ import {
 
 const LOCAL_PLAYER = "p1";
 const SEED = 1;
-const GAME_WAVE = 2;
+const GAME_WAVE = 4;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
@@ -245,7 +246,7 @@ async function boot(): Promise<void> {
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
     cityState=null;modeError=undefined;curr=restoreProgression(fresh,clean,LOCAL_PLAYER);resetFrame();
-    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>(mission.wave??2)<=GAME_WAVE&&!completed.includes(mission.id));requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
+    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
     startMode:startLocalMatch,cancelMode:()=>leaveLocalMatch(false),returnFromMode:()=>leaveLocalMatch(true),
@@ -485,7 +486,7 @@ async function boot(): Promise<void> {
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!cityState)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(!cityState&&mission?.status==="complete"){const next=[...MISSIONS].sort((a,b)=>(a.campaign??0)-(b.campaign??0)).find(candidate=>(candidate.wave??2)<=GAME_WAVE&&!mission.completedIds.includes(candidate.id));if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(!cityState&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
     if(now>=nextUiUpdate){
       nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE),match=localMatchView(curr);
       const payout=match?.payouts.find(row=>row.playerId===LOCAL_PLAYER);

@@ -26,7 +26,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const stats=new Map<string,HTMLElement>();
   for(const key of ["runway","cash","water","threat","vc","reputation"]){const stat=node("div","fc-stat"),label=node("small",undefined,copy(`ui.hud.${key}`)),value=node("strong");stat.append(label,value);stats.set(key,value);cluster.append(stat);if(key==="water"){const progress=node("progress");progress.max=1;progress.value=0;progress.setAttribute("aria-label",copy("ui.hud.water"));stat.append(progress);}}
   tools.append(button(copy("ui.phone.open"),()=>setModal("phone")),button(copy("ui.vendor.title"),()=>setModal("vendor")));hud.append(cluster,tools);
-  const objective=node("aside","fc-objective"),objectiveTitle=node("h2"),objectiveDetail=node("p");objective.setAttribute("aria-label",copy("ui.hud.objective"));objective.append(objectiveTitle,objectiveDetail);objective.hidden=true;
+  const objective=node("aside","fc-objective"),objectiveTitle=node("h2"),objectiveDetail=node("p");objective.setAttribute("aria-label",copy("ui.hud.objective"));const resumeInteraction=button(copy("ui.common.continue"),()=>setModal("interaction"));resumeInteraction.hidden=true;objective.append(objectiveTitle,objectiveDetail,resumeInteraction);objective.hidden=true;
   const mini=node("div","fc-minimap"),canvas=node("canvas");canvas.setAttribute("aria-label",copy("ui.phone.map"));mini.append(canvas);
   const matchHud=node("aside","fc-match-hud");matchHud.hidden=true;
   const speed=node("div","fc-speed"),perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
@@ -63,6 +63,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     layer.replaceChildren(dialog);dialog.focus();
   }
   function renderPhone(dialog:HTMLElement):void {
+    if(view?.interaction)dialog.append(button(copy("ui.common.continue"),()=>setModal("interaction")));
     const apps=node("nav","fc-phone-apps");apps.setAttribute("aria-label",copy("ui.phone.title"));
     for(const key of APPS){const b=button(copy(`ui.phone.${key}`),()=>{app=key;callbacks.app?.(key);renderPanel();});b.disabled=!(view?.phoneApps??["map","botBounty","botCheck"]).includes(key);b.setAttribute("aria-pressed",String(key===app));apps.append(b);}
     dialog.append(apps);if(!app)return;
@@ -121,7 +122,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     stats.get("water")!.parentElement!.querySelector("progress")!.value=next.capacityLitres>0?bounded(next.waterLitres/next.capacityLitres,0,1):0;
     stats.get("vc")!.textContent=String(bounded(next.vcStars??0,0,5));
     stats.get("threat")!.textContent=String(Math.round(bounded(next.threat,0,100)));stats.get("reputation")!.textContent=String(Math.round(bounded(next.reputation,-999,999)));
-    objective.hidden=!next.objective;if(next.objective){objectiveTitle.textContent=next.objective.title;objectiveDetail.textContent=next.objective.detail;}
+    objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveDetail.textContent=next.objective?.detail??next.interaction?.detail??"";
     speed.textContent=`${Math.round(bounded(next.speedMps,0,200)*3.6)} km/h`;drawMap(canvas,next);
     if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris`;
     renderAds();

@@ -75,3 +75,8 @@ Latest draft PR body: Adds playable local-match entry and results to the phone, 
 
 ### High-rank loadout fix
 The match API caps carried perks and streaks at three. A progressed city profile can unlock more than three, so the host now uses `loadoutForMatch`: first three unique entries in unlock order until an explicit slot-selection screen exists. This never edits the city profile. The regression launches both local mode kinds with a rank-25, four-perk/four-streak profile through the real match constructor. Focused verification is queued with the save round-trip check.
+
+### Wave availability and convergence
+The later local-mode host uses implemented wave 4; the clean wave-2 host remains wave 2. A shared UI campaign selector skips standalone authoring fixtures and exposes Launch Day after Hot Desk/Spill, then the rest of the implemented campaign in order. Higher-wave missions remain gated. Typecheck and seven focused campaign/loadout/save tests pass, including both high-rank local-mode constructors and duplicate payout prevention after reload. The Continue/reopen behavior matches the separately browser-verified clean fix.
+
+Remaining integration dependencies: arena isolation, Watch following recorded aim, accepted visual polish, and the combined actual-SF browser pass. Private-room relay APIs exist, but this host does not expose a network lobby; only local Bot Sweep and Clean Streets are enabled here.
