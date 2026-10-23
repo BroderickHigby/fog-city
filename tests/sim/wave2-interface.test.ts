@@ -40,6 +40,43 @@ describe("wave-2 shared interface", () => {
     expect(upgradeState(walking as unknown as SimState).players.p1).toMatchObject(walking.players.p1);
   });
 
+  it("repairs every intermediate save without mutating or resetting live fields", () => {
+    for (const version of [2, 3, 4, 5, 6]) {
+      const old = deepFreeze({ ...baseline.initial, version, players: {
+        ...baseline.initial.players, p1: { ...baseline.initial.players.p1,
+          mode: "foot", foot: { x: 1, y: 2, z: 3, heading: .5, speed: 1, sprint: false },
+        },
+      }, ext: { future: { keep: true } } }) as unknown as SimState;
+      const upgraded = upgradeState(old);
+      expect(upgraded.version).toBe(SIM_VERSION);
+      expect(upgraded.players.p1!.foot).toMatchObject({ vy: 0, grounded: true, dodge: null });
+      expect(upgraded.players.p1!.car.nearMisses).toBe(0);
+      expect(upgraded.ext.future).toEqual({ keep: true });
+      expect(old.version).toBe(version);
+      const live = deepFreeze({ ...upgraded, version, players: { ...upgraded.players,
+        p1: { ...upgraded.players.p1!, car: { ...upgraded.players.p1!.car, nearMisses: 12 },
+          foot: { ...upgraded.players.p1!.foot!, vy: -2, grounded: false } },
+      } });
+      expect(upgradeState(live).players.p1).toMatchObject({ car: { nearMisses: 12 }, foot: { vy: -2, grounded: false } });
+      expect(upgradeState(JSON.parse(JSON.stringify(old)))).toEqual(upgraded);
+    }
+  });
+
+  it("isolates extension slots from the previous tick before hooks and reducers", () => {
+    const { world, manifest } = loadWorld("dev");
+    const previous = deepFreeze(createInitialState(world, 42, ["p1"], manifest.spawn));
+    const system: SimSystem = { key: "combat", prepare: context => {
+      context.state.ext.prepared = true;
+      return { state: context.state, motions: [] };
+    }, step: context => {
+      context.state.ext.reduced = true;
+      return context.state;
+    } };
+    const next = step(world, previous, {}, [], [system]);
+    expect(previous.ext).toEqual({});
+    expect(next.ext).toMatchObject({ prepared: true, reduced: true });
+  });
+
   it("replays the unchanged wave-1 input log through the deliberate physics migration", () => {
     const { world } = loadDevWorldWithRoads();
     let state = upgradeState(deepFreeze(baseline.initial) as unknown as SimState);
