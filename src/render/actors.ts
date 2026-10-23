@@ -15,6 +15,7 @@ import type { NightLights } from "./lights.ts";
 import { hashString } from "./hash.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { STRIDE_M, newLook, type PersonLook } from "./person.ts";
+import { ContactShadows } from "./contact-shadows.ts";
 import type { Pose } from "./types.ts";
 
 /** A car between two ticks. Angles in radians; pitch + = nose up, roll + = right side down, steer + = right. */
@@ -211,6 +212,7 @@ export class Actors {
   private readonly shadows: boolean;
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
+  private readonly contacts = new ContactShadows(MAX_PLAYERS_DRAWN * 2);
 
   constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false) {
     this.registry = registry;
@@ -219,6 +221,7 @@ export class Actors {
     this.people = new PeopleRig(MAX_PLAYERS_DRAWN, this.peopleMaterial, "players:people", shadows);
     this.group.name = "actors";
     this.group.add(this.people.group);
+    this.group.add(this.contacts.mesh);
   }
 
   /** Each player's colour slot (playerColorIndex), for tests and the debug handle. */
@@ -352,9 +355,13 @@ export class Actors {
   /** Per frame, after setCar/setFoot: draws the walkers. */
   update(dt: number): void {
     this.people.begin();
+    this.contacts.begin();
     for (const [id, v] of this.players) {
+      if (v.placed) this.contacts.add(v.car.position.x, v.car.position.y, v.car.position.z,
+        -v.car.rotation.y, 2.6, 5.2, v.car.rotation.x, -v.car.rotation.z);
       const w = v.walker;
       if (!w) continue;
+      this.contacts.add(w.x, w.y, w.z, w.heading, 0.85, 0.85);
       let dist = v.walking ? Math.hypot(w.x - v.walkX, w.z - v.walkZ) : 0;
       if (dist > 5) dist = 0;
       v.walkX = w.x;
@@ -366,6 +373,7 @@ export class Actors {
       this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
     }
     this.people.end();
+    this.contacts.end();
   }
 
   /** Hide one player's own body (first-person view), or nobody. */
@@ -386,5 +394,6 @@ export class Actors {
     this.remove(new Set());
     this.people.dispose();
     this.peopleMaterial.dispose();
+    this.contacts.dispose();
   }
 }
