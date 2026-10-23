@@ -2,6 +2,7 @@ import type { SimState } from "../contract.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { planTransitRuntime } from "./transit-runtime.ts";
 import { planServiceRuntime } from "./service-runtime.ts";
+import {decodeMissionScene,planSceneActors} from "./scene-actors.ts";
 import { decodeMissionStage, planMissionActors } from "./mission-actors.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
@@ -42,6 +43,13 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         if(!raw||typeof raw!=="object")continue;
         const event=raw as {kind?:unknown;targetId?:unknown;detail?:unknown};
         if(typeof event.kind!=="string"||typeof event.targetId!=="string"||typeof event.detail!=="string")continue;
+        const scene=decodeMissionScene({kind:event.kind,detail:event.detail});
+        if(scene){
+          const plan=planSceneActors(context.world,state,scene,options.graph,spawns);
+          const reserved=allocate(state,plan.actors.map(actor=>actor.id));state=reserved.state;
+          for(const actor of plan.actors)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
+          for(const actor of scene.actors)bindings[`${scene.missionId}:${actor.role}`]=actor.id;
+        }
         const stage=decodeMissionStage({kind:event.kind,targetId:event.targetId,detail:event.detail});
         if(!stage)continue;
         const plan=planMissionActors(context.world,state,stage,options.graph,()=>true,spawns);
@@ -62,7 +70,7 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     step(context){
       if(agentsRuntimeOf(context.state)?.tick!==context.state.tick)return prepare(context).state;
       const options=provider(context);
-      const observed=(context as SimSystemContext & {observedBodies?:AgentRuntimeOptions["observedBodies"]}).observedBodies;
+      const observed=context.observedBodies;
       const runtime=observeAgentRuntime(context.state,{...options,...(observed?{observedBodies:observed}:{})});
       return withRuntime(context.state,runtime);
     },

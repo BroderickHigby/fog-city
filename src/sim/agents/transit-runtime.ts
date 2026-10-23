@@ -68,7 +68,11 @@ export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:Trans
     state.missedDepartures+=Math.max(0,Math.floor((now-scheduled)/10));state.nextDepartureMinute=(Math.floor(now/10)+1)*10;
     if(plan&&active<16&&players.some(player=>magnitude(player.x-plan.ferry.x,player.z-plan.ferry.z)<=300)){
       const bodyList=actors?Object.keys(actors.actors).sort().map(id=>actors.actors[id]!).filter(actor=>!actor.retired):[];
-      const entry=serviceRoadPoint(world,plan.ferry,100,140,120,[...bodyList,...Object.keys(sim.players).sort().map(id=>({...sim.players[id]!.car,radius:3}))],6.6,1.35);
+      const entry=serviceRoadPoint(world,plan.ferry,100,140,120,[...bodyList,...Object.keys(sim.players).sort().map(id=>({...sim.players[id]!.car,radius:3}))],6.6,1.35,point=>{
+        const follow=stepVehicleFollower(world,{...point,speed:0},createFollowerState({...point,speed:0}),{kind:"pursue",target:plan.ferry,stopDistance:1.5,maxSpeed:10});
+        let length=0;for(let i=1;i<follow.state.route.length;i++){const a=follow.state.route[i-1]!,b=follow.state.route[i]!;length+=magnitude(a[0]-b[0],a[1]-b[1]);}
+        return follow.status!=="no-route"&&length<=240;
+      });
       if(entry){const id=`transit:${plan.routeId}:${scheduled}`,run:BusRun={id,routeId:plan.routeId,scheduledMinute:scheduled,origin:{...entry,y:groundHeight(world,entry.x,entry.z)},stops:plan.stops,nextStop:0,dwellUntil:0,follower:createFollowerState({...entry,speed:0}),ferryTick:null,retiredTick:null,adWrapSlot:{slotId:`${id}:wrap`,surface:"left-right-rear",contentKey:null}};state.runs[id]=run;emit("transit.departed",run);}else state.missedDepartures++;
     }
   }
@@ -80,7 +84,7 @@ export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:Trans
     if(sim.tick<run.dwellUntil){frame.controls[id]={throttle:0,steer:0,brake:1,actions:0};continue;}
     const stop=run.stops[run.nextStop%run.stops.length]!;
     const follow=stepVehicleFollower(world,body,run.follower,{kind:"pursue",target:stop,stopDistance:1.5,maxSpeed:10});run.follower=follow.state;frame.controls[id]=follow.input;
-    if(follow.status==="arrived"){
+    if(follow.distanceToGoal<=2&&follow.stopped){
       emit("transit.stop",run,stop.id);
       if(ferryIds.includes(stop.id)){run.ferryTick=sim.tick;emit("transit.ferry-pass",run,stop.id);}
       run.nextStop++;run.dwellUntil=sim.tick+60;

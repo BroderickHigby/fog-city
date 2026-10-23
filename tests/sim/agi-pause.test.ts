@@ -29,9 +29,10 @@ describe("AGI world pause", () => {
     const before = deepFreeze(pausedState());
     let state: SimState = before;
     let otherCalls = 0;
-    const robots: SimSystem = { key: "robots", step: context => {
+    let prepareCalls = 0;
+    const robots: SimSystem = { key: "robots", prepare: context => {prepareCalls++;return {state:context.state,motions:[]};}, step: context => {
       otherCalls++;
-      return { ...context.state, ext: { ...context.state.ext, robots: { ran: true } } };
+      return context.state;
     } };
     const input = { p1: { throttle: 1, steer: .5, brake: 0, actions: Action.enterExit } };
     for (let tick = 1; tick <= 180; tick++) {
@@ -43,10 +44,12 @@ describe("AGI world pause", () => {
       expect(state.rng).toEqual(before.rng);
     }
     expect(otherCalls).toBe(0);
+    expect(prepareCalls).toBe(0);
     state = step(world, state, input, [], [robots, combat]);
     expect(state.tick).toBe(181);
     expect(state.players.p1!.mode).toBe("foot");
     expect(otherCalls).toBe(1);
+    expect(prepareCalls).toBe(1);
     expect(state.ext.agents).not.toEqual(before.ext.agents);
   });
 
@@ -64,7 +67,7 @@ describe("AGI world pause", () => {
       expect(context.inputs.p3!.throttle).toBe(1);
       expect(context.state.players.p3!.car).toMatchObject({ x: 100, z: 10, speed: 0 });
       expect(context.events).toEqual(events);
-      return combat.step(context);
+      return combat.step!(context);
     } };
     const state = step(world, before, { p3: { throttle: 3, steer: 0, brake: 0, actions: 0 } }, events, [observer]);
     expect(state.tick).toBe(1);

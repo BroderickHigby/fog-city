@@ -61,7 +61,7 @@ function nodeRoute(graph: RoadGraph, from: number, to: number): { edge: number; 
   const queue: { node: number; cost: number }[] = [{ node: from, cost: 0 }];
   let visits = 0;
   while (queue.length && visits++ < graph.nodes.length * 4) {
-    queue.sort((a, b) => a.cost - b.cost || (graph.nodes[a.node]!.id < graph.nodes[b.node]!.id ? -1 : 1));
+    queue.sort((a, b) => a.cost - b.cost || (graph.nodes[a.node]!.id < graph.nodes[b.node]!.id ? -1 : graph.nodes[a.node]!.id > graph.nodes[b.node]!.id ? 1 : 0));
     const current = queue.shift()!;
     if (current.cost !== costs.get(current.node)) continue;
     if (current.node === to) {
@@ -70,7 +70,7 @@ function nodeRoute(graph: RoadGraph, from: number, to: number): { edge: number; 
       while (node !== from) { const p = previous.get(node)!; route.push({ edge: p.edge, dir: p.dir }); node = p.node; }
       return route.reverse();
     }
-    const outgoing = [...graph.nodes[current.node]!.out].sort((a, b) => graph.edges[a.edge]!.id < graph.edges[b.edge]!.id ? -1 : 1);
+    const outgoing = [...graph.nodes[current.node]!.out].sort((a, b) => graph.edges[a.edge]!.id < graph.edges[b.edge]!.id ? -1 : graph.edges[a.edge]!.id > graph.edges[b.edge]!.id ? 1 : 0);
     for (const next of outgoing) {
       const edge = graph.edges[next.edge]!;
       if (!edge.drivable || !edge.laneClear[next.dir === 1 ? 0 : 1][0]) continue;
@@ -116,7 +116,7 @@ export function stepVehicleFollower(world: World, body: FollowerBody, previous: 
   }
   const moved = distance(body, { x: previous.lastX, z: previous.lastZ });
   if (moved > 50) throw new Error("Follower observed an unacknowledged teleport");
-  const dist = distance(body, target), arrived = dist <= stopDistance && Math.abs(body.speed) < 0.3;
+  const dist = distance(body, target), atGoal = dist <= stopDistance + 0.15, arrived = atGoal && Math.abs(body.speed) < 0.3;
   const blockedTicks = arrived || moved > 0.015 ? 0 : previous.blockedTicks + 1;
   const beginReverse = blockedTicks >= 180 && previous.reverseTicks === 0;
   const reverseTicks = beginReverse ? 90 : Math.max(0, previous.reverseTicks - 1);
@@ -131,15 +131,15 @@ export function stepVehicleFollower(world: World, body: FollowerBody, previous: 
   const state: FollowerState = { version: 1, route, goalX: target.x, goalZ: target.z, lastX: body.x, lastZ: body.z,
     distanceM: previous.distanceM + moved, blockedTicks: beginReverse ? 0 : blockedTicks, reverseTicks, reversals: previous.reversals + (beginReverse ? 1 : 0) };
   const stopped = Math.abs(body.speed) < 0.3;
-  if (arrived || !route.length) return { state, input: { throttle: 0, steer: 0, brake: 1, actions: 0 }, status: arrived ? "arrived" : "no-route", distanceToGoal: dist, stopped };
+  if (atGoal || !route.length) return { state, input: { throttle: 0, steer: 0, brake: 1, actions: 0 }, status: arrived ? "arrived" : atGoal ? "driving" : "no-route", distanceToGoal: dist, stopped };
   const path = makePath(route.map(p => p[0]), route.map(p => p[1]));
   const projection = projectOnPath(path, body.x, body.z);
   const look = pathPoint(path, projection.s + 3 + Math.abs(body.speed) * 0.6);
   const error = wrapAngle(datan2(look.x - body.x, -(look.z - body.z)) - body.heading);
   const steer = clamp(error * 1.8, -1, 1);
-  const desired = Math.min(maxSpeed / (1 + Math.abs(error) * 2), Math.sqrt(Math.max(0, 2 * CAR.brakeDecel * (dist - stopDistance))));
+  const desired = Math.min(maxSpeed / (1 + Math.abs(error) * 2), Math.sqrt(Math.max(0, 2 * CAR.brakeDecel * 0.65 * (dist - stopDistance))));
   const input: SimInput = reverseTicks > 0
     ? { throttle: body.speed > 0.3 ? 0 : -0.6, steer: -steer, brake: body.speed > 0.3 ? 1 : 0, actions: 0 }
-    : { throttle: body.speed < desired - 0.3 ? clamp((desired - body.speed) / 3, 0, 1) : 0, steer, brake: body.speed > desired + 0.5 ? 0.6 : 0, actions: 0 };
+    : { throttle: body.speed < desired - 0.03 ? clamp((desired - body.speed) / 3, 0, 1) : 0, steer, brake: body.speed > desired + 0.15 ? 1 : 0, actions: 0 };
   return { state, input, status: reverseTicks > 0 ? "reversing" : "driving", distanceToGoal: dist, stopped };
 }
