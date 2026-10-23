@@ -65,6 +65,8 @@ export interface RenderInfo {
     characters: { crowd: boolean; player: boolean };
     /** Street trees the showcase draws with ez-tree (src/render/trees.ts). */
     trees: number;
+    /** Triangles the street trees draw now. */
+    treeTriangles: number;
   };
 }
 

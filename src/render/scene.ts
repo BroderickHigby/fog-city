@@ -132,6 +132,8 @@ export interface RenderInfo {
     characters: { crowd: boolean; player: boolean };
     /** Street trees the showcase draws with ez-tree (trees.ts). */
     trees: number;
+    /** Triangles the street trees draw now (both LOD builds). */
+    treeTriangles: number;
   };
 }
 
@@ -788,6 +790,7 @@ export class SceneRenderer {
       showcase: this.showcase?.stats ?? null,
       characters: { ...this.charactersOn },
       trees: this.trees?.count ?? 0,
+      treeTriangles: this.trees?.triangles ?? 0,
     };
     return out;
   }
@@ -841,7 +844,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
-  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false }, trees: 0 },
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false }, trees: 0, treeTriangles: 0 },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
