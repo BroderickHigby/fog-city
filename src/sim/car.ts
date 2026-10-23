@@ -35,8 +35,8 @@
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
-import { onWater, segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, meshGroundHeight, railPush, supported, surfaceAt, type World } from "./world.ts";
+import { inCorridor, onWater, segmentCrossesWall } from "./boundary.ts";
+import { ROOF_STEP_M, groundWater, meshGroundHeight, railPush, supported, surfaceAt, type World } from "./world.ts";
 
 export const CAR = {
   /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
@@ -309,6 +309,13 @@ export function stepCar(
   const tiltR = -dtan(c.roll);
   const g0 = sampleGround(world, c.x, c.z, h0, c.y, tiltF, tiltR);
   const onGround = c.y - g0.h <= CAR.suspension;
+  // A save, teleport or fall can leave a car already inside a lake. Shore walls stop entry,
+  // but must not turn the water's flat heightfield into a road. Hold it without moving it to
+  // another bank; a real deck, tunnel, roof or legacy bridge corridor remains driveable.
+  const onOpenWater = onGround
+    && groundWater(world, c.x, c.z)
+    && (!world.walls || onWater(world.walls.shore, c.x, c.z) && !inCorridor(world.walls, c.x, c.z))
+    && surfaceAt(world, c.x, c.z, c.y).kind === "ground";
 
   let speed = c.speed;
   let lateral = c.lateral;
@@ -357,9 +364,9 @@ export function stepCar(
   lateral = vx * rx + vz * rz;
 
   if (onGround) {
-    const thr = input.throttle;
+    const thr = onOpenWater ? 0 : input.throttle;
     let engine = 0;
-    let brake = 0;
+    let brake = onOpenWater ? CAR.brakeDecel : 0;
     if (thr > 0) {
       if (speed < -0.1) brake += CAR.brakeDecel * thr;
       else engine += CAR.accel * thr * clamp((CAR.maxSpeed - speed) / (CAR.maxSpeed * CAR.engineFade), 0, 1);

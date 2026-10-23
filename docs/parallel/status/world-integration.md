@@ -18,6 +18,8 @@ Validation at this checkpoint:
 
 The incoming world's last ratchet update accepted known regressions, including the unfinished Golden Gate approach deck, the drawn contradictory Broadway Tunnel deck and a stopped Twin Peaks route. Those defects are not waived by this candidate. Strict world-gate results and combined browser/render/campaign validation remain required before release.
 
+**Version reservation:** the safe gameplay integration reserves SIM_VERSION 8 on the retained physical world. This isolated, unreleased structural candidate still uses version 8 for its current test checkpoint. Before any future merge or release of these structural physics changes, bump this candidate to **version 9**, add and test the **8 → 9** migration, and record separate version-9 goldens. Do not release these physics changes under the gameplay-only version-8 contract.
+
 ## Strict gate checkpoint
 
 The world gate and historical audit documents are restored from before the incoming branch's `--accept-worse` update. The numeric baselines and failing-run lists remain byte-identical to `7a4c0ea`; no value, target or tracked defect was weakened.
@@ -41,3 +43,13 @@ Other worsening values are duplicate footprint pairs (23 to 26), buried walker s
 The shared height-aware line sweep `segmentBlockedBand` is also added for runtime actors and motion. It retains the original polygon/spatial-index implementation while testing each building against the caller's vertical body band. Its focused run passed TypeScript and 28 surface/replay/segment tests; importing its callers is coordinated separately.
 
 Logs and comparison: `/tmp/fog-world-gate.log`, `/tmp/fog-world-gate-comparison.json`, `/tmp/fog-world-band.log`. The historical documents describe their original world; this checkpoint describes the integrated candidate and its current release hold.
+
+## Lake safety follow-up
+
+The runtime now recognises both the collider pack's inland-lake mask and the equivalent JSON cover digits. A car already on unsupported water loses propulsion and brakes in place; it is not moved to a different bank. Decks, tunnel floors, roofs and existing bridge corridors retain their normal handling, as does an airborne car over water.
+
+The official drive measurement now records **0 m driven on Lake Merced**, down from 780 m, within the unchanged 10 m target. Every other drive metric and failing-run list is unchanged from the checkpoint above. The strict baseline is still unmodified, so its stale-baseline rule continues to flag this large improvement until a later reviewed tightening. Nine collider encoding/JSON/pack tests pass. The official cross-format deterministic replay also passes with zero hash mismatches.
+
+The legacy boundary test also now discovers the actual southern county-line wall. Its old fixture assumed a straight wall on the z = 10000 tile border; the new world places that boundary inside the final row of tiles. The collision and height assertions are retained. This exposes an additional unresolved failure: the southern-boundary drive at x ≈ 1450 records **2.1978 m of wall overshoot**, against the existing 0.02 m limit. The assertion remains red; this is another reason to hold the structural candidate.
+
+Final focused run: TypeScript passed; **136 of 137 tests passed**, including all seven lake cases, the surface tests, deterministic-API checks and unchanged candidate-v8 goldens. The southern-boundary assertion above is the one failure. Logs: `/tmp/fog-world-lake-check2.log` and `/tmp/fog-world-lake-gate.log`. No full world baseline refresh was performed.

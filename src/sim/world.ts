@@ -34,8 +34,12 @@ export interface Heightfield {
   nx: number;
   nz: number;
   heights: number[];
-  /** Water mask per sample (1 = open water, height 0), when the source has one. Only the wall build reads it (boundary.ts). */
+  /** Sea mask per sample (1 = open water, height 0), when the source has one. */
   water?: number[];
+  /** Inland-water mask in packed worlds (1 = a lake at the sample's height). */
+  lake?: number[];
+  /** JSON worlds encode inland water with a digit at the sample, indexing ground.lakes. */
+  cover?: string;
 }
 
 /** [x, y, z, w]: a ribbon's centreline point, road-surface height and full width, metres. */
@@ -246,8 +250,9 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
 }
 
 /**
- * Is (x, z) open water by the ground's water mask (the nearest lattice sample of the covering
- * heightfield)? False where no heightfield with a mask covers the point.
+ * Is (x, z) sea or inland water at the nearest sample of the covering heightfield? Packed
+ * worlds carry a lake bitmask; JSON worlds carry the same samples as digits in ground.cover.
+ * False where no heightfield with either water representation covers the point.
  */
 export function groundWater(world: World, x: number, z: number): boolean {
   let g: Heightfield | undefined;
@@ -262,10 +267,12 @@ export function groundWater(world: World, x: number, z: number): boolean {
       }
     }
   }
-  if (!g || !g.water) return false;
+  if (!g) return false;
   const i = Math.min(g.nx - 1, Math.max(0, Math.floor((x - g.x0) / g.cellSizeM + 0.5)));
   const k = Math.min(g.nz - 1, Math.max(0, Math.floor((z - g.z0) / g.cellSizeM + 0.5)));
-  return g.water[k * g.nx + i] === 1;
+  const sample = k * g.nx + i;
+  const cover = g.cover?.[sample];
+  return g.water?.[sample] === 1 || g.lake?.[sample] === 1 || (cover !== undefined && cover >= "0" && cover <= "9");
 }
 
 /** Buildings whose bounding cells overlap the square of half-size r around (x, z). Deterministic order. */
