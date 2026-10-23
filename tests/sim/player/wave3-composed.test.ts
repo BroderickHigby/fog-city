@@ -82,7 +82,7 @@ function runMission(id: "launch-day" | "demoed-correctly", mode: "normal" | "ret
     placeFoot(destination.x, destination.z);
     for (let i = 0; i < 3; i++) tick();
     expect(state.ext.missions?.players.p?.stepId).toBe("present");
-    for (const alias of ["demoGoodA", "demoGoodB", "demoBad"]) for (let i = 0; i < 185; i++) { face(alias); tick(Action.watch); if(i%30===0){const o=state.ext.player?.players.p;const a=runtimeCombatActors(state).find(v=>v.id===actorId(alias));const r=state.ext.robots!.actors[actorId(alias)]!;console.log(alias,i,o?.watchingActorId?.slice(-9),o?.watchedTicks,a?.x.toFixed(2),a?.z.toFixed(2),r.behavior,JSON.stringify(r.intent?.movement),JSON.stringify(state.ext.fog));} }
+    for (const alias of ["demoGoodA", "demoGoodB", "demoBad"]) for (let i = 0; i < 185; i++) { face(alias); tick(Action.watch); }
     until(() => state.ext.missions!.players.p!.status === "complete", 700, () => { face("demoBad", 3); tick(Action.fire); });
     expect(state.ext.missions?.players.p?.outcome).toBe("termSheet");
     expect(state.ext.combat?.targets[actorId("demoGoodA")]?.rust).toBe(0);
