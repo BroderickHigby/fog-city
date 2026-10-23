@@ -1,4 +1,4 @@
-// The composed-path golden replays (tests/golden/composed-v7.json): step() through
+// The composed-path golden replays (tests/golden/composed-v8.json): step() through
 // createGameSystems(), the registry the game, the headless drivers and the relay run, rather
 // than the core-only [] of the physics goldens. Every scenario is open loop: its inputs and
 // events are a function of the tick alone, so a behaviour change on the composed path shows
@@ -121,7 +121,9 @@ function hotDeskPlace(): { x: number; z: number } {
   return missionPlace(opening.event.place);
 }
 
-export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission];
+// Keep the existing wave-2 scenarios and also pin the production wave's open-loop city run.
+const wave3City: ComposedScenario = { ...city, name: "city-wave3", wave: 3 };
+export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission, wave3City];
 
 export function runComposedScenario(scenario: ComposedScenario): ComposedRun {
   const world = scenario.world(), systems = createGameSystems({ wave: scenario.wave ?? 2 });

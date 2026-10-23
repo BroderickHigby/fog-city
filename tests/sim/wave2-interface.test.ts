@@ -83,8 +83,9 @@ describe("wave-2 shared interface", () => {
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
-      // Physics changed deliberately in v7; the recorded inputs and original v2 fixture stay unchanged.
-      expect(hashState(state)).toBe(currentReplay.hashes[i]);
+      // v8 changes composed gameplay, not this core-only replay. Keep the original v7
+      // physics fixture and normalize only the version header for an exact payload check.
+      expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
     expect(state.tick).toBe(300);
