@@ -2,6 +2,7 @@ import type { AgentsExt } from "./agents.ts";
 import type { CombatState } from "./combat-contract.ts";
 import type { ClockState } from "./clock/calendar.ts";
 import type { ActorIdentities } from "./identity.ts";
+import type { WorldEffectsState } from "./vehicles/world-effects.ts";
 import type { AgentsRuntimeState } from "./agents/runtime.ts";
 import type { PlayerGameplayState, HeatState, MissionState, EconomyState, ProgressionState, ActivitiesState } from "./player/types.ts";
 
@@ -13,7 +14,7 @@ export interface ExtensionStateMap {
   identities: ActorIdentities;
   clock: ClockState;
   fog: JsonObject;
-  vehicles: JsonObject;
+  vehicles: WorldEffectsState;
   agents: AgentsExt;
   robots: AgentsRuntimeState;
   combat: CombatState;
