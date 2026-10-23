@@ -1,7 +1,7 @@
 # Integration harness
 
 ## Now
-Running full typecheck, unit and browser verification on `lane/harness/wave2`, including core `f9ca263`, source-only UI `7382472`, bounded rendering `5c0c598` and the isolated wave-2 purchase correction `cad8993`. The original prototype and other active worktrees are untouched.
+Running full typecheck, unit and browser verification on `lane/harness/wave2`, including core `f9ca263`, source-only UI through `352b526`, bounded rendering `5c0c598` and the isolated wave-2 purchase correction `cad8993`. The original prototype and other active worktrees are untouched.
 
 ## Done
 - Node and browser replay builders retain the authored gameplay, sidewalk and transit layers.
@@ -14,6 +14,8 @@ Running full typecheck, unit and browser verification on `lane/harness/wave2`, i
 - Baseline canonical SF physical probe: **600 ticks took 51,430 ms** (11.7 ticks/second) without rendering. The car moved approximately 95 m with zero recorded car hits / person bumps. This is below the required real-time throughput and has been reported to Core and Agents for profiling. The bounded route probe intentionally stopped before reaching the distant vendor; it is not purchase acceptance.
 - The same 600-tick drive after `f9ca263` took **5,734 ms** (104.6 ticks/second), approximately nine times faster. All gameplay, sidewalk and transit layers were present; actor counts were 330 initially and 363 at the end, with 363 runtime actors, zero clearance contacts/failures and zero car hits/person bumps. This resolves the measured simulation-throughput blocker on this scenario, not every possible city load.
 - Added real-SF first-purchase acceptance: drive to the FiDi counter using production controls, click the HUD, check cash/item/capacity changes, replay the recorded command, and capture first/third-person screenshots. Pending full browser execution.
+- First complete unit run: **2,968 passed, three failed, one skipped** in 233.28 seconds. The failures were the missing `gameplay` entry in the manifest test, tests looking for `gameplay.schema.json` instead of canonical `tile-gameplay.schema.json`, and an old whole-extension-empty assertion despite intentionally registered player systems. Fixes retain schema validation and positive population/player/wallet checks. The skipped unit is the existing opt-in content generator, not gameplay coverage.
+- Integrated controller release guards, authored signup choices and the UI fix that reopens a dismissed active mission interaction from the objective or phone.
 
 ## Next
 1. Complete the active full verification run and repair concrete failures without lowering assertions.
