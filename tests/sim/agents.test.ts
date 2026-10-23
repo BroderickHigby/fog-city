@@ -115,12 +115,14 @@ describe("population", () => {
     expect(differs).toBe(true);
   });
 
-  it("a world without roads has no agents and no ext key", () => {
+  it("a world without roads has no agent extension while gameplay areas still initialize", () => {
     const { world: dev } = loadDevWorldWithRoads();
     const plain = { ...dev, roads: null };
     const s = run(plain, createInitialState(plain, 1, ["p1"], { x: 0, z: 0, heading: 0 }), 60);
-    expect(s.ext).toEqual({});
+    expect(s.ext.agents).toBeUndefined();
     expect(agentsOf(s)).toEqual([]);
+    expect(s.ext.player?.players.p1?.status).toBe("active");
+    expect(s.ext.economy?.players.p1?.runwayMonths).toBe(18);
   });
 
   it("with no players every agent is frozen", () => {

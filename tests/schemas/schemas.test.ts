@@ -57,10 +57,11 @@ describe("world tiles validate", () => {
     }
     for (const f of m.far ?? []) covered.add(f.glb);
     if (m.worldColliders) covered.add(m.worldColliders);
-    for (const file of Object.values(m.layers ?? {})) {
+    for (const [layer, file] of Object.entries(m.layers ?? {})) {
       const rel = `${dir}/${file}`;
       covered.add(file);
-      it(`${rel} (layer)`, () => check(schema(file.replace(/\.json$/, "")), rel));
+      const schemaName = layer === "gameplay" ? "tile-gameplay" : file.replace(/\.json$/, "");
+      it(`${rel} (layer)`, () => check(schema(schemaName), rel));
     }
     for (const [file, s] of Object.entries(EXTRAS)) {
       if (!existsSync(join(ROOT, dir, file))) continue;
