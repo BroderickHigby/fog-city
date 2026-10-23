@@ -172,3 +172,23 @@ All were already failing in the pre-dodge integration run `/tmp/fog-city-tests.l
 - `test-results/world-gate/{suite}.specs.json`: definitions and short worst-case/site lists; use `buildings`, `drive`, `edge`, `far`, `glb`, `routes`, `streets`, `terrain` for the actionable cases above.
 - `/tmp/fog-city-tests.log`: pre-dodge failure/value comparison. `/tmp/fog-city-baseline-before-description.json`: exact pre-metadata-edit baseline used by the structural check.
 - The world-baseline adjustment changes only the accounting-description metadata. No source behavior, geometry, threshold, golden run list or defect status was changed.
+
+## Follow-up full Chromium run
+
+On the same application code, the full Chromium suite completed in 14.0 minutes:
+**35 passed, one failed, zero skipped**. The failure is the intentional stale-baseline
+rule for `G.carPose.wheelGapM`: baseline 3.9 m, measured 0.37 m, target 0.1 m. This is a
+large improvement with residual wheel placement error, not a completed W-09 fix.
+Filbert wheel gaps are at most 0.01 m, Twin Peaks 0.27 m and Kearny 0.37 m. Car pitch
+error is zero; the Twin Peaks far view draws 13 cells, with all 26 cells loaded.
+
+All remaining Chromium checks pass: Node/browser replay agreement, render/simulation
+independence, keyboard driving and wall collision, visible no-contact pedestrian dodge,
+walking/re-entry and blocked exit, SF spawn/buildings, compressed tile decoding without
+collider fallback, landmark placement, traffic models, collider-pack loading, far skyline,
+driving, the southern city-edge view, packed sub-path boot and missing-pack failure.
+
+Evidence is in `test-results/world-gate/car-pose.json`, `car-pose.specs.json` and the
+retained Playwright trace. The software-renderer performance probe is informational;
+it does not establish real-hardware frame rate. Firefox/WebKit separately passed all
+eight pure-simulation checks. Their rendered multiplayer flows were not run.

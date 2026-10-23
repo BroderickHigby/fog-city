@@ -18,9 +18,10 @@ commit containing this status file, for Lane R and Lane 7 to review independentl
 - SHA-256 world identity works on plain HTTP LAN addresses as well as secure origins.
 - Loopback tests cover remote movement, leave/rejoin, fifth-player and expired-code refusal,
   malformed/oversized/flooded messages, spoofed players, bad input sequences and origin checks.
-- Two simulated minutes with 100 ms input/delivery jitter converge exactly after deliberate
-  client divergence and a corrupt snapshot. The scheduling test measures exactly 7,200 ticks
-  over two minutes and caps catch-up after a stalled timer.
+- Two players for two simulated minutes and four players for ten simulated minutes with
+  100 ms input/delivery jitter converge exactly after deliberate client divergence and a
+  corrupt snapshot. Both affected clients explicitly request recovery. The scheduling test
+  measures exactly 7,200 ticks over two minutes and caps catch-up after a stalled timer.
 - Separate coordinator integration hooks provide a minimal lobby and two-browser proof;
   these are proposed to their owning lanes rather than a replacement for their UI work.
 

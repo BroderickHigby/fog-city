@@ -37,8 +37,8 @@ and performance on real hardware remain for the owner to judge.
 
 ## Broader checks and visual sample
 
-All eight Firefox/WebKit pure-simulation comparisons against Node passed. The full unit/world
-run finished with 3,062 passed, 92 failed and one maintenance test pending; see
+All eight Firefox/WebKit pure-simulation comparisons against Node passed. The full Chromium run finished with 35 passed and one stale wheel-gap baseline failure.
+The full unit/world run finished with 3,062 passed, 92 failed and one maintenance test pending; see
 `2026-10-23-full-suite-triage.md` for exact failures, attribution and ownership. The world
 baseline description adjustment preserves every threshold and failing-run list.
 
@@ -49,3 +49,22 @@ movement/synchronization evidence comes from the browser assertions, not the scr
 The developer HUD remains prominent and the invitation panel has no copy/share action;
 those are future UI refinements. These samples do not validate other districts, frame rate
 or the final visual direction.
+
+## Four-player stress coverage
+
+`NET_STRESS=nightly` expands the default two-player, 7,200-tick test to four players and
+36,000 ticks (ten simulated minutes). The first extended run exposed a test timing issue:
+injecting bad client state at a global simulation tick could let an already queued valid
+snapshot heal it before a hash comparison, so only one explicit recovery was observed.
+
+Faults are now injected at delivery. The first client is corrupted immediately before a
+contiguous hash-bearing frame, and the second receives a corrupt snapshot. The test asserts
+that both faults were delivered and each affected client requested recovery. It also checks
+all four final confirmed/predicted hashes against the server, at most eight pending inputs
+per client throughout, and a 7,200-frame history cap. Periodic event-loop yields make the
+nightly timeout enforceable; its 600-second budget accommodates the measured five-minute
+CPU run. The default retains its 60-second budget.
+
+Independent review found no weakened assertion. The updated default passed both tests in
+27.08 seconds; the four-player run passed both in 295.21 seconds. No production networking
+change was needed for this test correction.
