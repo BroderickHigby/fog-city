@@ -27,6 +27,7 @@ export interface RuntimeSpawn {
   mobilityAid?: boolean;
   ownerId?: string;
   significant?: boolean;
+  rustScale?: number;
 }
 
 export interface RuntimeActor extends RuntimeSpawn {
@@ -103,7 +104,7 @@ const BODY_EPSILON=.015;
 const attackKinds:Record<string,AttackKind>={shove:"shove",grocerySnatch:"snatch",adBlast:"ad-blast",phoneHack:"phone-hack",handshake:"handshake"};
 const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
 function keys<T>(record:Readonly<Record<string,T>>):string[]{return Object.keys(record).sort(compare);}
-function distance(a:{x:number;z:number},b:{x:number;z:number}):number{return Math.hypot(a.x-b.x,a.z-b.z);}
+function distance(a:{x:number;z:number},b:{x:number;z:number}):number{return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.z-b.z)*(a.z-b.z));}
 function bodyOf(player:SimState["players"][string]){return player.mode==="foot"&&player.foot?player.foot:player.car;}
 function players(state:Readonly<SimState>){return keys(state.players).map(id=>({id,mode:state.players[id]!.mode,...bodyOf(state.players[id]!)}));}
 function hash(value:string):number{let out=2166136261;for(let i=0;i<value.length;i++)out=Math.imul(out^value.charCodeAt(i),16777619);return out>>>0;}
@@ -286,10 +287,10 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     // A detached or displaced dog holds until the body owner restores its pair safely.
     if(actor.model==="dog"&&(!owner||distance(actor,owner)>4)){speed=0;goal=null;}
     else {
-    const reaction=reactToPerception({actor:{id:actor.id,kind:actor.model==="pigeon"?"pigeon":actor.model==="dog"?"dog":actor.firmware==="good"?"good-robot":"person",x:actor.x,z:actor.z,wet:(effect?.wetUntil??0)>sim.tick,...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),...(actor.model==="dog"&&actor.ownerId&&others.find(other=>other.id===actor.ownerId)?{leash:{ownerId:actor.ownerId,ownerX:others.find(other=>other.id===actor.ownerId)!.x,ownerZ:others.find(other=>other.id===actor.ownerId)!.z,lengthM:4}}:{})},state:actor.reaction,stimuli,tick:sim.tick,dodgeOverrideActive:false,routineVelocity:{vx:dsin(actor.heading)*speed,vz:-dcos(actor.heading)*speed}});
+    const reaction=reactToPerception({actor:{id:actor.id,kind:actor.model==="pigeon"?"pigeon":actor.model==="dog"?"dog":actor.firmware==="good"?"good-robot":"person",x:actor.x,z:actor.z,wet:(effect?.wetUntil??0)>sim.tick,...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),...(actor.model==="dog"&&actor.ownerId&&others.find(other=>other.id===actor.ownerId)?{leash:{ownerId:actor.ownerId,ownerX:others.find(other=>other.id===actor.ownerId)!.x,ownerZ:others.find(other=>other.id===actor.ownerId)!.z,lengthM:4}}:{})},state:actor.reaction,stimuli,tick:sim.tick,dodgeOverrideActive:false,routineVelocity:{vx:dsin(actor.heading)*speed,vz:-dcos(actor.heading)*speed}});
     actor.reaction=reaction.state;
     if(reaction.movement.kind==="hold")speed=0;
-    else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.hypot(reaction.movement.vx,reaction.movement.vz);}
+    else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
   if(speed<=0||frozen){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
@@ -375,7 +376,7 @@ export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
   const state=agentsRuntimeOf(sim);if(!state)return [];
   return keys(state.actors).map(id=>state.actors[id]!).filter(actor=>!actor.retired&&actor.fidelity!=="abstract"&&actor.fidelity!=="despawn").map(actor=>({id:actor.id,kind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:actor.speed,radius:actor.radius,height:actor.height,firmware:actor.firmware,
     ...(actor.model==="person"||actor.model==="associate"?{}:{model:actor.model==="pigeon"||actor.model==="dog"||actor.model==="van"||actor.model==="bus"?"footman":actor.model}),
-    protected:animal(actor.model)||(human(actor.model)&&(Boolean(actor.child)||Boolean(actor.mobilityAid)||(actor.posture??"standing")!=="standing")),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),
+    protected:animal(actor.model)||(human(actor.model)&&(Boolean(actor.child)||Boolean(actor.mobilityAid)||(actor.posture??"standing")!=="standing")),...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),
     ...(vehicle(actor.model)?{obeysTraffic:true}:{}),...(actor.model==="van"||actor.model==="bus"?{protected:true}:{}),pursuing:actor.behavior==="attack",inFidelity:true}));
 }
 

@@ -9,7 +9,7 @@ import {
 
 export type AgentRuntimeProvider = (context: SimSystemContext) => AgentRuntimeOptions;
 export interface AgentsSystem extends SimSystem {
-  prepare(context: SimSystemContext): { state: SimState; motions: readonly AgentMotionProposal[] };
+  prepare(context: SimSystemContext): { state: SimState; motions: readonly AgentMotionProposal[]; retirements: readonly string[] };
 }
 function withRuntime(state: SimState, runtime: ReturnType<typeof planAgentRuntime>): SimState {
   return { ...state, ext: { ...state.ext, robots: runtime as unknown as JsonObject } };
@@ -21,7 +21,7 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({})):
     key: "robots",
     prepare(context) {
       const runtime = planAgentRuntime(context.world, context.state, context.inputs, provider(context));
-      return { state: withRuntime(context.state, runtime), motions: runtime.proposals };
+      return { state: withRuntime(context.state, runtime), motions: runtime.proposals, retirements: Object.keys(runtime.actors).sort().filter(id=>runtime.actors[id]!.retired) };
     },
     step(context) {
       // Keep compatibility with an older system host; only a prepare-capable host moves bodies.
