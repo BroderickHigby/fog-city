@@ -1,7 +1,7 @@
 # Lane 2: Core sim and harness
 
 ## Now
-- Validate and publish the day-one interface on `lane/core/wave2`.
+- Shared interface published on `lane/core/wave2`; combined integration verification is owned by the integrating session.
 
 ## Done
 - Inspected the actual base: `SIM_VERSION` is 2. `qa/sim` and `feature/dodge` use 4, with 5 reserved for their integration. Wave 2 will use 6.
@@ -11,9 +11,11 @@
 - Added core-owned `combat-contract.ts`, typed extension slots, event-name constants and fixed-order pure system hooks. Every area's registration list starts empty.
 - Captured a 300-tick schema-2 replay from the unmodified base (12 ambient agents, driving, braking and walking) with five pinned state hashes in `tests/golden/wave1-v2.json`.
 - Frozen-lockfile offline dependency installation and typecheck passed.
+- Interface commit: `39abfda` (`Core: publish wave-2 interfaces with schema 6 replay migration`).
+- Focused verification passed: 3 files, 50 tests (wave-2 interface, sim determinism, forbidden APIs). An independent read-only adversarial review found no blocking regressions.
 
 ## Next
-- Run the replay, focused and full verification suites before integrating the interface.
+- Integrating session: run full unit/browser verification on the combined core and combat commit, then integrate the interface into `integrate/wave2`.
 - The remaining wave-2 clock, fog, vehicle follower, drivers, benchmarks and browser harness work is separate from this day-one interface.
 
 ## Blocked on
@@ -27,7 +29,7 @@
 
 ## For the owner
 - No changes to `main` or `integrate/wave1`. This is the shared foundation, not a completed wave or a visual-quality sign-off.
-- Draft PR title and body will be recorded here with validation results before the lane push.
+- Draft PR title and body are recorded below. Full unit/browser and CI results remain pending; focused success does not claim full-wave completion.
 
 ## Interface hand-off
 - `Action`: old bits 0–3 remain; `gadget`, `cone`, `interact`, `streak`, `emote`, `watch`, `altFire` are bits 4–10.
@@ -59,8 +61,9 @@ Publish a common interface so the simulation lanes can build against one contrac
 
 ### Acceptance tests
 - Passing: typecheck.
-- In progress: recorded schema-2 replay, migration, action/aim, registration order and sim purity tests.
-- Pending: full unit and browser verification. No CI claim before the PR runs.
+- Passing: 50 tests across the recorded schema-2 replay, migration, action/aim, registration order, sim determinism and sim purity suites.
+- Reviewed: independent adversarial read-only review found no blocking regression.
+- Pending: full unit and browser verification on the integrating session's combined core/combat branch. No CI claim before the PR runs.
 
 ### Contract changes
 **SIM_VERSION 2 → 6**; versions 3–5 are reserved for pending QA/dodge code and are not blindly migrated. v1/v2 saves preserve existing data and old input frames need no new fields. Existing action bits retain their values. All shared combat types live in the core-owned `combat-contract.ts`.
