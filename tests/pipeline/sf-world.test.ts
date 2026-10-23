@@ -52,10 +52,10 @@ describe("sf world: schemas and layout", () => {
     const cv = v("tile-collider");
     for (const c of colliders) expect(cv(c), `${c.tileId}: ${ajv.errorsText(cv.errors)}`).toBe(true);
     expect(Object.keys(manifest.layers).sort()).toEqual(
-      ["boundary", "districts", "fountains", "hydrants", "parking", "sidewalks", "signals", "streetCleaning", "transit"].sort(),
+      ["boundary", "districts", "fountains", "gameplay", "hydrants", "parking", "sidewalks", "signals", "streetCleaning", "transit"].sort(),
     );
     for (const file of Object.values(manifest.layers)) {
-      const lv = v(file.replace(/\.json$/, ""));
+      const lv = v(file === "gameplay.json" ? "tile-gameplay" : file.replace(/\.json$/, ""));
       expect(lv(readJson(`public/tiles/sf/${file}`)), `${file}: ${ajv.errorsText(lv.errors)}`).toBe(true);
     }
   });

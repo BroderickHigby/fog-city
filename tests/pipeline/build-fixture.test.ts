@@ -1,3 +1,7 @@
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join,dirname} from "node:path";
+import {rebuildGameplay} from "../../pipeline/build-gameplay.ts";
 // The whole build, end to end, on a small synthetic world (two tiles, made-up records in
 // the same shapes DataSF and 3DEP return). No network, no cache: proves determinism and the
 // modelling rules independently of the committed sf data.
@@ -586,5 +590,13 @@ describe("fixture build: gameplay publication", () => {
     expect(json<{ layers: Record<string, string> }>(built, "manifest.json").layers.gameplay).toBe("gameplay.json");
     expect(data.tiles).toHaveLength(2);
     expect(data.territories).toEqual([]);
+    const dir=mkdtempSync(join(tmpdir(),'fog-gameplay-roundtrip-'));
+    try {
+      for(const [name,bytes] of built.files){mkdirSync(dirname(join(dir,name)),{recursive:true});writeFileSync(join(dir,name),bytes);}
+      expect(()=>rebuildGameplay(dir,f.cfg.sources.snapshotDate??'unversioned',true)).not.toThrow();
+      rebuildGameplay(dir,f.cfg.sources.snapshotDate??'unversioned');
+      for(const name of ['gameplay.json','manifest.json','report.json'])expect(readFileSync(join(dir,name))).toEqual(Buffer.from(built.files.get(name)!));
+    } finally {rmSync(dir,{recursive:true,force:true});}
+
   });
 });
