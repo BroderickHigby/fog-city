@@ -115,3 +115,7 @@ Final branch validation: TypeScript and **5 files / 19 tests** pass for activity
 Final mission-admission repair: included `8dea622` as `6ce19e4`, preserving the existing cached walking-candidate optimization while adopting full-hull parked placement and durable bounded retries. Missing actors are retried separately from accepted members; stale requests cancel on reset, departure, changed objective or missing progress.
 
 Validation after this final intake: TypeScript and **6 files / 32 tests** pass, covering durable/partial staging, parked actor admission, service clearance, full mode rosters, local playable matches and arena bounds. No full-suite or browser result is claimed here; combined campaign acceptance remains with the integration harness.
+
+Final combat geometry intake: `9f5dd0c` is included as `bbc36fa`. Combat contacts use the exact building footprint inside the existing broad-phase bounds, preventing empty portions of a building's bounding box from blocking attacks or cones. The footprint remains context-only; existing state and mode behavior are preserved.
+
+Validation after intake: TypeScript and **5 files / 72 tests** pass across exact wall footprints, projectile physics, attacks, combat systems and local playable modes. No additional feature work is included.
