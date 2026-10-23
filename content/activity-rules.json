@@ -2,6 +2,88 @@
   "authority": "Only observed gameplay facts complete objectives; client requests never award a payout.",
   "definitions": [
     {
+      "id": "soma-delivery",
+      "kind": "delivery",
+      "wave": 2,
+      "objective": {
+        "event": "delivery.completed",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 7500,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "pickup",
+          "label": "4th St at Folsom St",
+          "lat": 37.78202,
+          "lon": -122.40116,
+          "radiusM": 12
+        },
+        {
+          "id": "delivery",
+          "label": "Folsom St delivery corner",
+          "lat": 37.7794,
+          "lon": -122.398,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "embarcadero-coning",
+      "kind": "coning",
+      "wave": 2,
+      "objective": {
+        "event": "cone.placed",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 5000,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "curb",
+          "label": "Ferry Building plaza curb",
+          "lat": 37.7947,
+          "lon": -122.3942,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "downtown-kiosk",
+      "kind": "repair",
+      "wave": 2,
+      "objective": {
+        "event": "repair.completed",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 0,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "kiosk",
+          "label": "Union Square repair kiosk",
+          "lat": 37.7879,
+          "lon": -122.407,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
       "id": "search-and-park",
       "kind": "parking",
       "wave": 3,
@@ -672,10 +754,10 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:56494111",
+    "contentHash": "fnv1a32:79261204",
     "reviewedBy": [
       "root second-read at 88a9781"
     ],
-    "review": "Root independently read every authored string at 88a9781 with no taste, identity or brand misuse issue. Adversarial inputs remain non-display fixtures."
+    "review": "Root independently read every authored string at 88a9781 with no taste, identity or brand misuse issue. Adversarial inputs remain non-display fixtures. Three wave-2 activity definitions added after review; narrow review pending."
   }
 }

@@ -52,3 +52,16 @@ Draft PR title: Author campaign chapters and publish gameplay content contracts
 Draft PR base: integrate/wave3
 Draft PR body:
 Adds the authored mission spine through the finale, typed static catalogs for activities, progression, loadouts, streaks and mode rules, and offline dialogue/AI fixtures. Mission event names are explicit integration contracts; gameplay owners must produce them from measured state. The content never accepts arbitrary completion commands or model text as simulation authority. Existing approved names are reused. Pending full content validation and later district-pack completion are tracked above.
+
+## Reviewed hill and ambient checkpoint
+- Added 150 individually authored adult ambient lines, plus 40 robot and 40 people lines for each of Russian Hill, Nob Hill and Chinatown (390 lines total). Root's independent full read found no taste/identity/punching-down issues; exact reviewed source hashes are recorded in each provenance block. The Chinatown bark IDs were shortened after review to avoid an ID-only lint false positive; the spoken text is unchanged.
+- Reused the pipeline's canonical neighborhood outer rings and road-node garage candidates for the three new district records. Their authored content is staged for wave 3 (`active: false` until the integration lane publishes that territory).
+- Added local tell and bounty anchors, street-side garages and board markers. No geometry was invented.
+- Added requested wave-2 SoMa delivery, Embarcadero coning and repair-kiosk definitions using `delivery.completed`, `cone.placed` and `repair.completed`.
+- Validation: TypeScript passed. Full content run: 1,183 passed and three failures; all three were corrected (new district test registry, a missing public-landmark gazetteer entry, an opaque bark-ID false positive). Focused re-run: 148 passed, covering packs, taste, provenance and gameplay catalogs. One unrelated existing content test is intentionally skipped.
+- Parent requested Server-AI implementation next; additional later district packs and director-card expansion are deferred explicitly, not counted complete.
+
+Draft PR title: Add reviewed ambient writing and canonical hill district packs
+Draft PR base: integrate/wave4
+Draft PR body:
+Adds 390 reviewed ambient lines and the Russian Hill, Nob Hill and Chinatown content packs with canonical geometry, local tells, bounty anchors and garages. Adds the requested wave-2 runtime activity definitions. Reuses approved names and preserves the protected-area rules. TypeScript passed; the 148-test focused re-run covers the three issues corrected from the full content run. Later district packs remain tracked work.
