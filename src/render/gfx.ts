@@ -64,12 +64,14 @@ export interface GfxFeatures {
   shadows: boolean;
   detail: boolean;
   showcase: boolean;
+  /** The animated humanoid crowd (crowd.ts) and the skinned player body (player-body.ts). */
+  characters: boolean;
 }
 
 export function featuresFor(tier: GfxTier, shadowsAsked: boolean): GfxFeatures {
   return tier === "high"
-    ? { reflections: true, post: true, shadows: true, detail: true, showcase: true }
-    : { reflections: false, post: false, shadows: shadowsAsked, detail: false, showcase: false };
+    ? { reflections: true, post: true, shadows: true, detail: true, showcase: true, characters: true }
+    : { reflections: false, post: false, shadows: shadowsAsked, detail: false, showcase: false, characters: false };
 }
 
 /** Frame rate under which the high tier steps down, and how long it must last (seconds). */

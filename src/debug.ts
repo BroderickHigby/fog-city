@@ -61,6 +61,8 @@ export interface RenderInfo {
     dropped: string[];
     /** The Ferry Building showcase's street detail (src/render/showcase.ts) once built, else null. */
     showcase: { crosswalks: number; stopBars: number; palms: number; trackM: number; paintQuads: number } | null;
+    /** The animated humanoid crowd and the skinned player body are in (else the placeholders draw). */
+    characters: { crowd: boolean; player: boolean };
   };
 }
 

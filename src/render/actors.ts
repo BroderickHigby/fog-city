@@ -9,6 +9,7 @@
 
 import * as THREE from "three";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
+import type { PlayerBodies } from "./player-body.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
 import { packedMaterial } from "./agent-packing.ts";
 import type { NightLights } from "./lights.ts";
@@ -236,7 +237,16 @@ export class Actors {
   }
 
   /** Players drawn on foot last frame. */
+  /** The high tier's skinned player bodies (player-body.ts): walkers are drawn by them from now on. */
+  private bodies: PlayerBodies | null = null;
+
+  setBodies(bodies: PlayerBodies): void {
+    this.bodies = bodies;
+    this.group.add(bodies.group);
+  }
+
   get walkers(): number {
+    if (this.bodies) return this.bodies.drawn;
     return this.people.body.count;
   }
 
@@ -352,6 +362,7 @@ export class Actors {
   /** Per frame, after setCar/setFoot: draws the walkers. */
   update(dt: number): void {
     this.people.begin();
+    this.bodies?.begin();
     for (const [id, v] of this.players) {
       const w = v.walker;
       if (!w) continue;
@@ -363,9 +374,11 @@ export class Actors {
       v.gait = advanceGait(v.gait, dist, STRIDE_M);
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
-      this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
+      if (this.bodies) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt);
+      else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
     }
     this.people.end();
+    this.bodies?.end();
   }
 
   /** Hide one player's own body (first-person view), or nobody. */
@@ -385,6 +398,7 @@ export class Actors {
   dispose(): void {
     this.remove(new Set());
     this.people.dispose();
+    this.bodies?.dispose();
     this.peopleMaterial.dispose();
   }
 }

@@ -29,6 +29,8 @@ import { Water, WaterReflection } from "./water.ts";
 import { applyTriplanar, DetailMaterial, loadDetailSets, textureBytes, type DetailSet } from "./detail.ts";
 import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type GfxFeatures, type GfxRequest } from "./gfx.ts";
 import { PostChain } from "./post.ts";
+import { CrowdRig } from "./crowd.ts";
+import { PlayerBodies } from "./player-body.ts";
 import { buildShowcase, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
 
 /** How far from the showcase's centre the camera may be for the Bay to mirror the city. */
@@ -123,6 +125,8 @@ export interface RenderInfo {
     dropped: string[];
     /** The Ferry Building showcase's street detail (showcase.ts), once built. */
     showcase: ShowcaseStats | null;
+    /** The animated crowd and the skinned player body are in (else the placeholders draw). */
+    characters: { crowd: boolean; player: boolean };
   };
 }
 
@@ -302,6 +306,7 @@ export class SceneRenderer {
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
+    if (this.features.characters) this.loadCharacters(world.assets);
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -324,6 +329,25 @@ export class SceneRenderer {
     window.addEventListener("resize", () => this.resize());
     this.resize();
   }
+
+  /** The high tier's people: the animated crowd and the skinned player body; each keeps the placeholder if its files fail. */
+  private loadCharacters(assets: Assets | undefined): void {
+    const bytes = textureBytes(assets);
+    void CrowdRig.load(bytes, [400, 600], this.shadows)
+      .then((crowd) => {
+        this.agents.setCrowd(crowd);
+        this.charactersOn.crowd = true;
+      })
+      .catch((err) => console.warn("crowd: placeholder people kept:", err));
+    void PlayerBodies.load(bytes, this.shadows)
+      .then((bodies) => {
+        this.actors.setBodies(bodies);
+        this.charactersOn.player = true;
+      })
+      .catch((err) => console.warn("player body: placeholder kept:", err));
+  }
+
+  private readonly charactersOn = { crowd: false, player: false };
 
   /** The high tier's PBR detail on the ground, roads and sidewalks (detail.ts); the materials recompile once when it lands. */
   private loadDetail(assets: Assets | undefined, roads: RoadGraph | null): void {
@@ -676,6 +700,7 @@ export class SceneRenderer {
       detailSets: this.detailSets,
       dropped: [...this.governor.dropped],
       showcase: this.showcase?.stats ?? null,
+      characters: { ...this.charactersOn },
     };
     return out;
   }
@@ -729,7 +754,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
-  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null },
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false } },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
