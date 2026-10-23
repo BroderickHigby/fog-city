@@ -12,7 +12,10 @@ export interface GameCalendar extends CalendarEpoch {
   second: number;
   /** Sunday = 0 through Saturday = 6. */
   weekday: number;
-  /** Elapsed full game days and one-based game week. */
+  /**
+   * Calendar days since the epoch's date: it rolls over at midnight with `day`, not 24 game
+   * hours after the 08:00 start. gameWeek is its one-based week (seasons follow it).
+   */
   dayIndex: number;
   gameWeek: number;
   season: "summer" | "winter";
@@ -52,9 +55,9 @@ export function calendarAt(seed: number, elapsedTicks: number, epoch: CalendarEp
   let month = 1;
   while (day >= monthDays(year, month)) day -= monthDays(year, month++);
   const secondOfDay = daySeconds % DAY_TICKS;
-  const gameWeek = Math.floor(dayAdvance / 7) + 1;
+  const dayIndex = absoluteDay - epochDay, gameWeek = Math.floor(dayIndex / 7) + 1;
   return { year, month, day: day + 1, hour: Math.floor(secondOfDay / 3600), minute: Math.floor(secondOfDay / 60) % 60,
-    second: secondOfDay % 60, weekday: (absoluteDay + 1) % 7, dayIndex: dayAdvance, gameWeek,
+    second: secondOfDay % 60, weekday: (absoluteDay + 1) % 7, dayIndex, gameWeek,
     season: (gameWeek - 1) % 8 < 4 ? "summer" : "winter" };
 }
 

@@ -121,10 +121,13 @@ export function createInitialState(world: World, seed: number, playerIds: readon
 /**
  * Lift a saved state from an older SIM_VERSION to this one, one version at a time. Pure.
  *  - v1 -> v2: cars gain the handling fields (at rest), players gain foot (none) and exitPending.
- *  - v2 -> v3: a walker gains vy 0 and grounded true (standing where it was saved).
- *  - v3 through v6: preserve intermediate contracts and repair missing physical fields.
- *  - v6 -> v7: repair saves written with an older body shape under a newer version.
- *    ext.dodge stays absent (every counter 0) until the first dive.
+ *  - v2 -> v3, ..., v6 -> v7: each step fills only the body fields a save still lacks and keeps
+ *    every field it has: a walker's vy (0), grounded (true) and dodge (null), a car's nearMisses
+ *    (0) and each ambient agent's dodge (null). Stamps 3 to 6 were written with overlapping
+ *    meanings (qa/sim's v3 and v4 gravity and surfaces, feature/dodge's own v4 dodge, their v5
+ *    combination, the wave-2 v6 interface on v2 bodies), so no step may assume which fields a
+ *    stamp implies. Unknown ext keys are kept; ext.dodge stays absent (every counter 0) until
+ *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -371,7 +374,9 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
 
 /**
  * Advance the world by one fixed tick (DT). Pure: returns a new state.
- * `events` must all carry tick === prev.tick + 1.
+ * `events` must all carry tick === prev.tick + 1. `systems` defaults to the static SYSTEMS
+ * (systems.ts), which leaves out every provider-backed gameplay system: pass
+ * createGameSystems() to step the game as it is played.
  */
 export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = [], systems: readonly SimSystem[] = SYSTEMS): SimState {
   const tick = prev.tick + 1;

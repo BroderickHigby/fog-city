@@ -14,7 +14,11 @@ import type { CombatWave } from "./combat-contract.ts";
 
 export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
 
-/** One explicit composition shared by browser, headless drivers and relay sessions. */
+/**
+ * The game: one explicit composition shared by the browser, headless drivers, relay sessions
+ * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
+ * tests/golden/composed-v7.json pins this path.
+ */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
   const protectedArea=options.protectedArea??((x:number,z:number)=>{const p=toLatLon(x,z);return Boolean(protectedAreaAt([p.lat,p.lon]));});
