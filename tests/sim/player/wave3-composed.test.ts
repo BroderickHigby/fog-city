@@ -18,15 +18,16 @@ import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import type { GameplayContext, GameplayCommand } from "../../../src/sim/player/types.ts";
 import type { MissionParkingWorld } from "../../../src/sim/missions/mechanics/runtime.ts";
 
-const world = buildWorld([]);
 const owned = new Set(["player", "heat", "missions", "activities", "economy", "progression"]);
 
 /** Composed reducer fixture: route traversal is outside this test; world/combat outcomes are real. */
-function runMission(id: "launch-day" | "demoed-correctly") {
+function runMission(id: "launch-day" | "demoed-correctly", mode: "normal" | "retry" | "early-melt" = "normal") {
   const mission = MISSIONS.find(value => value.id === id)!;
   const first = mission.steps[0]!;
   if (first.type !== "trigger") throw new Error("Missing entry");
   const at = missionPlace(first.event.place);
+  const hydrant={id:"fixture-hydrant",kind:"hydrant" as const,x:at.x+30,y:0,z:at.z+30,radius:4,salt:false};
+  const world=buildWorld([],null,null,{version:1,world:"fixture",sourceSnapshot:"fixture",refills:[hydrant],anchors:[],tiles:[],territories:[]});
   let state = createInitialState(world, 319, ["p"], { x: at.x + 30, z: at.z + 30, heading: 0 });
   const progress = createMissionProgress();
   progress.completedIds = id === "launch-day" ? ["hot-desk", "spill"] : ["hot-desk", "spill", "launch-day"];
@@ -35,17 +36,20 @@ function runMission(id: "launch-day" | "demoed-correctly") {
   const observed = createObservedGameplayProvider({ wave: 3, actors: context => contextFromState(context.world, context.state, agentsCombatOptions(context.state)).actors, missionParking: () => parking, protectedArea: () => false });
   const systems = [...createGameSystems({ wave: 3, protectedArea: () => false }).filter(system => !owned.has(system.key)), ...createPlayerSystems(observed)];
   const commands: GameplayCommand[] = [];
+  let missionCashAwards=0;
   function tick(actions = 0, command?: Omit<GameplayCommand, "playerId" | "sequence">) {
     const events: SimEvent[] = [];
     if (command) { const next = { ...command, playerId: "p", sequence: commands.length + 1 }; commands.push(next); events.push({ tick: state.tick + 1, kind: "gameplay.command", playerId: "p", payload: { ...command, sequence: next.sequence } }); }
     const input: SimInput = { throttle: 0, steer: 0, brake: 1, actions, ...((actions & Action.fire) ? { aimPitch: -.25 } : {}) };
     state = step(world, state, { p: input }, events, systems);
+    missionCashAwards += state.ext.missions?.events.filter(event=>event.kind==="mission.cash").length??0;
   }
   function placeFoot(x: number, z: number, heading = 0) {
     state = { ...state, players: { p: { ...state.players.p!, mode: "foot", foot: makeFoot(x, 0, z, heading) } } };
   }
+  const actorId=(alias:string)=>state.ext.robots?.missionBindings[`p:${id}:${alias}`]??state.ext.robots?.missionBindings[`${id}:${alias}`]??`mission:${id}:${alias}`;
   function face(alias: string, distance = 5) {
-    const actor = runtimeCombatActors(state).find(value => value.id === `mission:${id}:${alias}`);
+    const actor = runtimeCombatActors(state).find(value => value.id === actorId(alias));
     if (!actor) throw new Error(`Missing physical ${alias} at ${state.ext.missions?.players.p?.stepId}`);
     // Keep the observed body inside the sight cone without asserting any mission outcome.
     const px = actor.x, pz = actor.z + distance;
@@ -81,19 +85,38 @@ function runMission(id: "launch-day" | "demoed-correctly") {
     for (const alias of ["demoGoodA", "demoGoodB", "demoBad"]) for (let i = 0; i < 185; i++) { face(alias); tick(Action.watch); }
     until(() => state.ext.missions!.players.p!.status === "complete", 700, () => { face("demoBad", 3); tick(Action.fire); });
     expect(state.ext.missions?.players.p?.outcome).toBe("termSheet");
-    expect(state.ext.combat?.targets[`mission:${id}:demoGoodA`]?.rust).toBe(0);
-    expect(state.ext.combat?.targets[`mission:${id}:demoGoodB`]?.rust).toBe(0);
+    expect(state.ext.combat?.targets[actorId("demoGoodA")]?.rust).toBe(0);
+    expect(state.ext.combat?.targets[actorId("demoGoodB")]?.rust).toBe(0);
   } else {
     for (let i = 0; i < 3; i++) tick();
     for (let i = 0; i < 185; i++) { face("suspect"); tick(Action.watch); }
     expect(state.ext.missions?.players.p?.stepId).toBe("scan");
     until(() => state.ext.missions!.players.p!.stepId === "false-positive", 120, () => { face("suspect"); tick(Action.scan); });
+    if(mode!=="normal"){
+      const firstId=actorId("suspect"),firstNumeric=state.ext.robots!.actors[firstId]!.numericId;
+      until(()=>state.ext.missions!.players.p!.observed!.melted.includes(firstId),700,()=>{face("suspect",3);tick(Action.fire);});
+      if(mode==="retry"){
+        until(()=>state.ext.missions!.players.p!.status==="retry",7300,()=>tick());
+        until(()=>state.tick>=state.ext.missions!.players.p!.deadlineTick,700,()=>tick());
+        tick(0,{kind:"mission-retry"});for(let i=0;i<4;i++)tick();
+        const freshId=actorId("suspect");expect(freshId).not.toBe(firstId);
+        expect(state.ext.robots!.actors[freshId]!.numericId).not.toBe(firstNumeric);
+        expect(state.ext.combat!.targets[freshId]!.rust).toBe(0);
+        expect(state.ext.agents!.list.some(body=>body.runtimeId===firstId)).toBe(false);
+        expect(state.ext.missions!.players.p!.observed!.melted).toEqual([]);
+        placeFoot(hydrant.x,hydrant.z);
+        until(()=>state.ext.combat!.players.p!.water===8,240,()=>tick(Action.interact));
+        for(let i=0;i<185;i++){face("suspect");tick(Action.watch);}
+        until(()=>state.ext.missions!.players.p!.stepId==="false-positive",120,()=>{face("suspect");tick(Action.scan);});
+      }
+    }
     until(() => Boolean(state.ext.missions!.players.p!.observed?.falsePositives.length), 1800, () => { face("courier"); tick(Action.scan); });
     expect(state.ext.missions?.players.p?.stepId).toBe("false-positive");
     tick(0, { kind: "mission-ack" });
     for (let i = 0; i < 185; i++) { face("courier"); tick(Action.watch); }
-    expect(state.ext.missions?.players.p?.stepId).toBe("melt");
-    until(() => state.ext.missions!.players.p!.stepId === "pivot", 700, () => { face("suspect", 3); tick(Action.fire); });
+    if(mode!=="early-melt"){expect(state.ext.missions?.players.p?.stepId).toBe("melt");
+      until(() => state.ext.missions!.players.p!.stepId === "pivot", 700, () => { face("suspect", 3); tick(Action.fire); });}
+    else expect(state.ext.missions!.players.p!.stepId).toBe("pivot");
     tick(0, { kind: "startup-define", kitId: DEFAULT_CATALOG.validKitIds[0]! });
     expect(state.ext.missions?.players.p?.status).toBe("complete");
     expect(state.ext.progression?.players.p?.scannerTier).toBe(2);
@@ -101,6 +124,7 @@ function runMission(id: "launch-day" | "demoed-correctly") {
   const cash = state.ext.economy!.players.p!.cashCents;
   tick(0, { kind: "mission-start", targetId: id });
   expect(state.ext.economy!.players.p!.cashCents).toBe(cash);
+  expect(missionCashAwards).toBe(1);
   return state;
 }
 
@@ -111,6 +135,12 @@ describe("wave-3 composed mission outcomes", () => {
   it("completes Demoed Correctly through physical parking, dialogue and observed safe presentation", () => {
     expect(runMission("demoed-correctly")).toEqual(runMission("demoed-correctly"));
   }, 30_000);
+  it("retries after an early real melt with fresh actors and completes without duplicate mission rewards",()=>{
+    expect(runMission("launch-day","retry")).toEqual(runMission("launch-day","retry"));
+  },60_000);
+  it("retains an early authoritative melt inside its current attempt",()=>{
+    expect(runMission("launch-day","early-melt").ext.missions!.players.p!.status).toBe("complete");
+  },30_000);
   it("rejects externally supplied story completion facts", () => {
     const mission = MISSIONS.find(value => value.id === "launch-day")!, progress = { ...createMissionProgress(), missionId: mission.id, status: "active" as const, stepId: "false-positive", startedTick: 1 };
     const state = { ...createMissions(), players: { p: progress } };

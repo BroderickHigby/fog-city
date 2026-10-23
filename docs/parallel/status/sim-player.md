@@ -76,3 +76,20 @@ missions repeated deterministically, spoof rejection, real-SF signed parking, pa
 negatives, car-wash/delayed-grant checks, the existing player and content suites, the
 composed wave-2 regression and every forbidden-API check. No full browser campaign or
 later-wave gameplay completion is claimed by this lane.
+
+### Retry recovery follow-up
+
+The independent review found that an early melt could survive a retry under the same actor
+identity and leave Launch Day impossible to finish. Wave-3 starts and retries now carry a
+stable attempt token in the authored stage event. The current player receives fresh actor
+identities and bindings, while the prior attempt's physical actors retire through Core's
+normal removal path. Legacy first-attempt wave-2 names remain compatible. Observation
+state is cleared on retry; earlier authoritative melt evidence is accepted only for the
+same attempt's exact actor binding.
+
+The composed regression performs a real early melt, advances the full timeout/cooldown,
+retries, checks fresh actors and zero inherited rust, refills at a real fixture hydrant, and
+completes the mission again. It repeats deterministically and requires exactly one mission
+cash grant. A separate case completes a deliberately early melt without retry. The focused
+13-test pass includes these cases plus existing staging and placement checks; the broader
+final owned-suite verification is recorded by the integrator.

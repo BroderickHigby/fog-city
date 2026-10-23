@@ -3,7 +3,7 @@ import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { planTransitRuntime } from "./transit-runtime.ts";
 import { planServiceRuntime } from "./service-runtime.ts";
 import {decodeMissionScene,planSceneActors} from "./scene-actors.ts";
-import { planMissionActors } from "./mission-actors.ts";
+import { planMissionActors, stageActorId } from "./mission-actors.ts";
 import {pendingMissionStages} from "./mission-staging.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
@@ -20,10 +20,28 @@ function withRuntime(state: SimState, runtime: ReturnType<typeof planAgentRuntim
   return { ...state, ext: { ...state.ext, robots: runtime } };
 }
 
+/** A new attempt cannot inherit a melted actor, its old physical body or its attack state. */
+function retirePreviousAttempts(state:SimState):SimState {
+  const runtime=agentsRuntimeOf(state);if(!runtime)return state;
+  let actors:typeof runtime.actors|undefined;
+  for(const playerId of Object.keys(state.ext.missions?.players??{}).sort()){
+    const progress=state.ext.missions!.players[playerId]!;
+    if(progress.status!=="active"||!progress.actorAttempt)continue;
+    const missionPrefix=`mission:${progress.missionId}:`,currentPrefix=stageActorId({missionId:progress.missionId,attemptId:progress.actorAttempt},"");
+    for(const id of Object.keys(runtime.actors).sort()){
+      const actor=(actors??runtime.actors)[id]!;
+      if(!actor.retired&&id.startsWith(missionPrefix)&&!id.startsWith(currentPrefix)&&(actor.ownerId===undefined||actor.ownerId===playerId)){
+        actors??={...runtime.actors};actors[id]={...actor,retired:true};
+      }
+    }
+  }
+  return actors?withRuntime(state,{...runtime,actors}):state;
+}
+
 /** The core calls prepare before movement, accepts proposals through clearance, then step. */
 export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), allocate?:ActorIdAllocator): AgentsSystem {
   function prepare(context:SimSystemContext){
-    let state=context.state;
+    let state=retirePreviousAttempts(context.state);
     const options=provider(context);
     const spawns=[...(options.spawns??[])];
     const service=allocate&&options.services!==false?planServiceRuntime(context.world,state,agentsRuntimeOf(state)?.services,spawns):undefined;
@@ -61,7 +79,10 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         const plan=planMissionActors(context.world,state,stage,options.graph,()=>true,spawns);
         const reserved=allocate(state,plan.actors.map(actor=>actor.id));state=reserved.state;
         for(const actor of plan.actors)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
-        for(const alias of Object.keys(plan.bindings).sort())bindings[`${stage.missionId}:${alias}`]=plan.bindings[alias]!;
+        for(const alias of Object.keys(plan.bindings).sort()){
+          bindings[`${stage.missionId}:${alias}`]=plan.bindings[alias]!;
+          if(stage.playerId)bindings[`${stage.playerId}:${stage.missionId}:${alias}`]=plan.bindings[alias]!;
+        }
       }
     }
     const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
@@ -84,9 +105,10 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
   };
 }
 
-export function missionActorBindings(state:Readonly<SimState>,missionId:string):Record<string,string>{
+export function missionActorBindings(state:Readonly<SimState>,missionId:string,playerId?:string):Record<string,string>{
   const all=agentsRuntimeOf(state)?.missionBindings??{},bindings:Record<string,string>={};
   for(const key of Object.keys(all).sort())if(key.startsWith(`${missionId}:`))bindings[key.slice(missionId.length+1)]=all[key]!;
+  if(playerId){const prefix=`${playerId}:${missionId}:`;for(const key of Object.keys(all).sort())if(key.startsWith(prefix))bindings[key.slice(prefix.length)]=all[key]!;}
   return bindings;
 }
 

@@ -14,6 +14,8 @@ import type { SidewalkGraph } from "./navigation.ts";
 
 export interface MissionStage {
   missionId: string;
+  attemptId?: string;
+  playerId?: string;
   stepId: string;
   actorIds: readonly string[];
   definitions: Readonly<Record<string, MissionActor>>;
@@ -32,12 +34,13 @@ const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
 const validId=(id:unknown):id is string=>typeof id==="string"&&/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(id)&&!Object.hasOwn(Object.prototype,id);
 
 /** Gameplay emits a JSON stage description; malformed authored data fails closed. */
-export function decodeMissionStage(event: {kind:string;targetId:string;detail:string}): MissionStage|null {
+export function decodeMissionStage(event: {kind:string;targetId:string;detail:string;playerId?:string}): MissionStage|null {
   if(event.kind!=="mission.stage"||!validId(event.targetId))return null;
   let raw:unknown;try{raw=JSON.parse(event.detail);}catch{return null;}
   if(!raw||typeof raw!=="object")return null;
   const value=raw as Record<string,unknown>,place=value.place as MissionStage["place"]|undefined;
   if(!validId(value.stepId)||!Array.isArray(value.actors)||value.actors.length>64||!value.actors.every(validId)||!value.definitions||typeof value.definitions!=="object"||Array.isArray(value.definitions)||!place||![place.x,place.y,place.z,value.radius].every(v=>typeof v==="number"&&Number.isFinite(v))||(value.radius as number)<=0)return null;
+  if(value.attemptId!==undefined&&!validId(value.attemptId)||event.playerId!==undefined&&!validId(event.playerId))return null;
   const definitions:Record<string,MissionActor>={};
   for(const id of sortedIds(value.definitions as Record<string,unknown>)){
     const candidate=(value.definitions as Record<string,unknown>)[id];
@@ -46,8 +49,10 @@ export function decodeMissionStage(event: {kind:string;targetId:string;detail:st
     if(!["badRobot","goodRobot","rogueTaxi","goodTaxi","crew"].includes(actor.kind)||actor.members!==undefined&&(!Array.isArray(actor.members)||actor.members.length>64||!actor.members.every(validId)))return null;
     definitions[id]={...actor,...(actor.members?{members:[...actor.members]}:{})};
   }
-  return {missionId:event.targetId,stepId:value.stepId,actorIds:[...value.actors],definitions,place:{...place},radius:Math.min(100,value.radius as number)};
+  return {missionId:event.targetId,...(value.attemptId?{attemptId:value.attemptId as string}:{}),...(event.playerId&&value.attemptId?{playerId:event.playerId}:{}),stepId:value.stepId,actorIds:[...value.actors],definitions,place:{...place},radius:Math.min(100,value.radius as number)};
 }
+
+export function stageActorId(stage:Pick<MissionStage,"missionId"|"attemptId">,alias:string):string{return `mission:${stage.missionId}:${stage.attemptId?`attempt:${stage.attemptId}:`:""}${alias}`;}
 
 /** Produces clear, stable actor identities; the core allocates numeric IDs and admits bodies. */
 export function planMissionActors(world:World,sim:Readonly<SimState>,stage:MissionStage,graph?:SidewalkGraph,placementAllowed:(x:number,z:number)=>boolean=()=>true,reservedBodies:readonly ServiceBlocker[]=[]):MissionActorPlan {
@@ -62,7 +67,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
   function place(alias:string,stack:Set<string>):string[]{
     if(stack.has(alias)){result.blocked.push(alias);return [];}
     const definition=stage.definitions[alias];if(!definition){result.blocked.push(alias);return [];}
-    const stable=`mission:${stage.missionId}:${alias}`;
+    const stable=stageActorId(stage,alias);
     result.bindings[alias]=stable;
     if(definition.kind==="crew"&&definition.members?.length){
       const next=new Set(stack);next.add(alias);
@@ -103,7 +108,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
       return clear(front.x,front.z,.4)&&!segmentBlocked(world,p.x,p.z,front.x,front.z)&&Math.abs(groundHeight(world,front.x,front.z)-groundHeight(world,p.x,p.z))<=.4;
     });
     if(!spot){result.blocked.push(alias);return [];}
-    result.actors.push({id:stable,model:taxi?"robotaxi":profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?"trundle":"footman",...(definition.archetype?{archetype:definition.archetype}:{}),...(definition.level?{level:definition.level}:{}),firmware:definition.kind==="goodRobot"||definition.kind==="goodTaxi"?"good":"bad",x:spot.x,y:groundHeight(world,spot.x,spot.z),z:spot.z,heading:spot.heading??0,radius,height:taxi?ROBOTAXI_BODY.height:profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?.7:1.8,...(taxi?{halfLength:ROBOTAXI_BODY.halfLength,halfWidth:ROBOTAXI_BODY.halfWidth}:{}),significant:true,...(definition.posted?{posted:true}:{}),...(definition.archetype==="UpdateRelay"?{rustScale:.2}:{})});
+    result.actors.push({id:stable,...(stage.playerId?{ownerId:stage.playerId}:{}),model:taxi?"robotaxi":profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?"trundle":"footman",...(definition.archetype?{archetype:definition.archetype}:{}),...(definition.level?{level:definition.level}:{}),firmware:definition.kind==="goodRobot"||definition.kind==="goodTaxi"?"good":"bad",x:spot.x,y:groundHeight(world,spot.x,spot.z),z:spot.z,heading:spot.heading??0,radius,height:taxi?ROBOTAXI_BODY.height:profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?.7:1.8,...(taxi?{halfLength:ROBOTAXI_BODY.halfLength,halfWidth:ROBOTAXI_BODY.halfWidth}:{}),significant:true,...(definition.posted?{posted:true}:{}),...(definition.archetype==="UpdateRelay"?{rustScale:.2}:{})});
     return [stable];
   }
   for(const id of [...stage.actorIds].sort(compare))place(id,new Set());
