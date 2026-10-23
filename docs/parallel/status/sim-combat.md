@@ -1,12 +1,14 @@
 # Lane 4: Sim-Combat
 
 ## Now
-Wave-2 combat foundation on `lane/sim-combat/wave2`, based on `integrate/wave1` at `2deafc912ea0971440b541e800158b258c548275`, with Lane 2's published interface `39abfda` merged in `0b7fc70`. The isolated intake worktree is `/workspace/fog-city-combat-base`; future-wave work remains separate. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
+Working ahead on `lane/sim-combat/wave3`, with wave-2 shared-interface intake `ef74fe5` merged forward. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
 
 ## Done
 - Inspected the handoff, current shared simulation, and combat design.
 - Created a separate checkout to preserve existing uncommitted prototype work.
 - Pushed initial status in `ab785bd`. The original prototype remains untouched in `/workspace/fog-city`; this lane uses `/workspace/fog-city-combat`.
+- Pushed wave-2 foundation `3a9da2d`; no prototype changes were included.
+- Wave 3: driver window spray at <=7 m/s, sideways-only 8 m shots at 60% flow; full running-board spray; phone hacks; fog/rain exposure and drone resistance rates; typed puddle refills with fresh/salt inputs; sight range 30 m / 21 m / 12 m at fog density 0 / 0.5 / 1. Marine Layer halves sight, and blindness removes it. Distant heaps persist for Tidy from wave 3.
 - Implemented a pure combat reducer, swept water/cone collision with terrain and walls, deterministic scans, fresh/salt refills, wrong-target penalties, rust/drying, and seized/slumping/heap lifecycle. A heap reaches 30% height by tick 120 after seizure.
 - Added shove, snatch, ad blast, handshake, and interrupted/capped forced updates with monotonic request sequences. Phone hacks remain wave-3 gated.
 - Exposed an explicit compatibility adapter and movement constraints without modifying shared simulation files or registering an incomplete system.
@@ -69,3 +71,28 @@ See the detailed handoffs above. Core owns shared definitions/registration; acto
 
 ### For the owner to judge
 Open as draft. Gameplay feel and visible collapse require the integrated renderer; this reducer does not establish a high-definition playable build by itself.
+
+## Wave-3 draft pull request
+Base: `lane/sim-combat/wave2` until `integrate/wave3` exists.  
+Head: `lane/sim-combat/wave3`  
+Title: `Sim-Combat: add vehicle spray and weather combat effects`
+
+### Summary
+Adds wave-gated driver and running-board fire, the fog sight handoff and Tidy heap retention. Existing phone hacks, rain/fog rust, drone rates and puddle refills are enabled by the wave-3 context. Window shots consume 60% flow, travel sideways up to 8 m, and stop above 7 m/s.
+
+### Roadmap deliverables
+- [x] Phone hack, window spray and running-board spray.
+- [x] Fog rust/sight, rain rust, fresh/salt puddle refills, drone rust rate.
+- [ ] World-provided rain/King-tide puddle locations and agent consumption of sight constraints.
+
+### Acceptance tests
+Scoped tests cover speeds just above/below the driver limit, sideways aim, full running-board flow, empty tanks, weather/shelter boundaries, all three fog sight densities, drone rates and Tidy retention. Typecheck passes. Full verification will run on the combined core/combat branch.
+
+### Contract changes
+None authored in shared files. Inherits the wave-2 interface once the intake is merged. The weapon helper includes disabled wave-4 roof/boost branches to preserve one source of firing rules.
+
+### Requests for other lanes
+Lane 1/2: publish per-location weather, puddles and King-tide salt sources. Lane 3: use `sightRange`, `movementLimit` and emit monotonic phone-hack requests; Tidy removes collected heaps. Lane 5: add a passenger-seat signal for full-flow co-op passenger fire (driver/running-board are implemented).
+
+### For the owner to judge
+Draft sim behavior; visible stream, weather and NPC reactions require rendering/agent integration.

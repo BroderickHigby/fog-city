@@ -158,7 +158,7 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
         emit(state, "robot.heap", target.sourceId, actor.id, 1, actor.model ?? "robot");
       }
     }
-    if (target.phase === "heap" && (actor.inFidelity === false ||
+    if ((ctx.wave ?? 2) < 3 && target.phase === "heap" && (actor.inFidelity === false ||
       players.length > 0 && players.every(player => distance2(player, actor) > FIDELITY_RADIUS * FIDELITY_RADIUS))) {
       target.phase = "cleared";
       target.heightScale = 0;
