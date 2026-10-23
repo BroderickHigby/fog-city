@@ -71,6 +71,46 @@ draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped
   `assets/blender/build.sh` works headless. CC0 texture hosts (Poly Haven, ambientCG) are blocked
   by the network policy until the owner allows them.
 
+## Update 2026-10-23 18:30 UTC: QA lanes and the dodge integrated (`integrate/wave1-qa`)
+Owner's request (relayed): "get all of the PRs ready" (drive to mergeable). Lane R holds #3, #2
+(within this integration) and #1.
+- `integrate/wave1-qa` = integrate/wave1 + qa/housekit (which carries qa/pipeline, qa/render,
+  qa/assets, qa/content) + qa/gate + qa/sim + feature/dodge. Conflicts resolved by hand:
+  - **SIM_VERSION 5**: qa/sim's surfaces are v4 (no field changes), the dodge is v5 (it was v4 on its branch);
+    upgradeState lifts v3 -> v4 -> v5. Replays re-pinned (dev world, deck and bore, dodge).
+  - The gate's cover suite no longer re-applies the park tint qa/render removed.
+- **Ballpark fixed**: `pipeline/overrides.json` gains `standing: true` (exactly one of heightM,
+  keepTower, standing), passed to the clearance as `standing`, so the redeveloped-land rule leaves
+  the 2000 ballpark (Berry St, added 1998 and altered 2017, ends inside it; its parcel has no year built).
+- **World regenerated** from a fresh download (`node pipeline/build-world.ts --world sf`; snapshot
+  2026-10-23). Only 21 files changed: the ballpark's tile, Berry St's corridor, the storefronts.
+  `--check` is byte-identical.
+- **Data host**: DataSF moved to `data.sf.gov` and answers 428 under load: the pipeline retries 428.
+  Node's fetch needs `NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt` in this
+  container. The download takes about 10 minutes (373 MB cache), a build about 5 minutes and 3.5 GB.
+- **World gate green** (138/138), full unit suite 3111/3111. The gate measured artefacts after the
+  merge, and its helpers were fixed to measure what the lanes build:
+  - a surface probe now passes a body's feet;
+  - spans and shared walls no longer count as floating walls;
+  - a podium's terrace pieces no longer count as duplicates of its tower;
+  - the county-line wall is part of the outline;
+  - the pack-vs-JSON determinism world;
+  - accounting.
+  - Rebaselined: 84 metrics better, 16 accepted worse with reasons (commit 91e4c92).
+- **Findings for the lanes** (accepted in the ratchet, not fixed):
+  1. Pipeline/Sim: Hwy 101 northbound's deck (c19205000) ends 34 m above the shore at the Golden
+     Gate Bridge's south end (the bridge is a landmark model only, W-24). Needs a deck or a barrier.
+  2. Pipeline: the Broadway Tunnel's contradictory deck (c3186101.o~0) is still drawn though the
+     sim ignores it (W-02); N.glb.roadSurfaceMaxM 6.6 m there.
+  3. Pipeline far.ts: the far hulls of terraced hillside towers (Russian Hill) differ from their
+     pieces' roofs by up to 94 m (W-41; N.far.tallHullsOff3m 44 -> 110).
+  4. Sim-World: routes/hills: Market St to Twin Peaks is now held by a wall at 37.75756,-122.44789;
+     F.routes.belowSurfaceM 0.17 -> 0.40 m; one placement start near Twin Peaks rises 1.69 m;
+     4 more street-over-freeway crossings go airborne (W-14, W-22, W-51).
+  5. Land cover paints shore parks green: 68 ha of shore under 8 m (W-18/W-34; parks went 0.44 -> 0.88 green).
+- Next: e2e on wave1-qa, fast-forward integrate/wave1 to it (PR #2 then shows merged), merge
+  integrate/wave1 into feature/ferry-showcase, keep #1 and #3 green.
+
 ## Branches (all pushed)
 | Branch | Head | State |
 |---|---|---|
