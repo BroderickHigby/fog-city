@@ -1,21 +1,19 @@
 import { expect, it } from "vitest";
-import { captureProgression, restoreProgression } from "../../../src/save/progression.ts";
 import { Action, NEUTRAL_INPUT } from "../../../src/sim/contract.ts";
 import { createPlayerSystems, defaultGameplayProvider, gameplaySnapshot } from "../../../src/sim/player/adapter.ts";
-import { applyModeSettlements } from "../../../src/sim/player/settlements.ts";
 import { createInitialState, step } from "../../../src/sim/step.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 
-it("settles activity rewards before immediate save or mode capture, exactly once across reload", () => {
+it("settles authoritative activity rewards immediately and exactly once on later ticks", () => {
   const world = buildWorld([]);
   const systems = createPlayerSystems(context => ({
     ...defaultGameplayProvider(context),
-    wave: 4,
+    wave: 2,
     missions: [],
+    facts: context.state.tick === 61 ? [{ id: "activity:complete", tick: 61, source: "world", sequence: 1, kind: "activity.objective-complete", playerId: "p1", actorId: "soma-delivery" }] : [],
     activities: [{
       id: "soma-delivery", kind: "delivery", wave: 2, x: 0, y: 0, z: 0, radius: 5,
-      rewardCents: 7500, rewardXp: 100, objective: { event: "delivery.completed", count: 1 },
-      checkpoints: [{ id: "drop", x: 0, y: 0, z: 0, radius: 5 }],
+      rewardCents: 7500, rewardXp: 100,
     }],
   }));
   const initial = () => createInitialState(world, 17, ["p1"], { x: 0, z: 0, heading: 0 });
@@ -33,24 +31,15 @@ it("settles activity rewards before immediate save or mode capture, exactly once
   expect(completed.economy.players.p1!.cashCents).toBe(207500);
   expect(completed.progression.players.p1!.xp).toBe(100);
 
-  // A checkpoint autosave, manual save, or local-match snapshot can occur now,
-  // without another simulation tick to consume the activity's reward events.
-  const document = captureProgression(city, "p1");
-  const fresh = step(world, initial(), {}, [], systems);
-  const restored = restoreProgression(fresh, document, "p1");
-  const resumed = step(world, restored, inputs, [], systems);
-  const replayed = step(world, city, inputs, [], systems);
-  for (const state of [restored, resumed, replayed]) {
-    const view = gameplaySnapshot({ state });
+  // The online branch has no save/UI host. Confirm the authoritative wallet is
+  // already settled when completion publishes and cannot pay again later.
+  let resumed = city;
+  for (let tick = 0; tick < 120; tick++) {
+    resumed = step(world, resumed, inputs, [], systems);
+    const view = gameplaySnapshot({ state: resumed });
     expect(view.economy.players.p1!.cashCents).toBe(207500);
     expect(view.progression.players.p1!.xp).toBe(100);
     expect(view.activities.players.p1!.completedIds).toEqual(["soma-delivery"]);
   }
-
-  const payout = { id: "local-1:p1", playerId: "p1", cashCents: 1000, xp: 25, achievements: [], factionClockMoves: 0 as const };
-  const returned = applyModeSettlements(city, [payout]);
-  const returnedSave = restoreProgression(fresh, captureProgression(returned, "p1"), "p1");
-  const returnedAgain = applyModeSettlements(returnedSave, [payout]);
-  expect(gameplaySnapshot({ state: returnedAgain }).economy.players.p1!.cashCents).toBe(208500);
-  expect(gameplaySnapshot({ state: returnedAgain }).progression.players.p1!.xp).toBe(125);
+  expect(city.tick).toBe(61);
 });
