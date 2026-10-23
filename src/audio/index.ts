@@ -11,8 +11,6 @@ import { isTextEntry } from "../input/keyboard.ts";
 import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
-import { capacity } from "../sim/combat/shared.ts";
-import type { CombatPlayer } from "../sim/combat-contract.ts";
 import { InnerVoice } from "./inner-voice.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
@@ -222,12 +220,11 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       missionVoice.observe(missions, frame.nowMs);
       if (!frame.paused && missions) {
         // The player's inner voice, behind (and interrupted by) the mission's own lines.
-        const own = combat?.players[playerId], progression = snapshot.progression.players[playerId];
-        const tank = progression ? capacity({ tankTier: progression.tankTier, perks: progression.perks } as unknown as CombatPlayer) : 0;
+        const own = combat?.players[playerId];
         const line = inner.observe({
           missionId: missions.missionId, stepId: missions.stepId, status: missions.status, visits: missions.visits,
           player: body ? { x: body.x, z: body.z } : null,
-          water: own && tank > 0 ? own.water / tank : null,
+          salt: own ? own.salt : null,
           badScanTick: own?.scan?.bad ? own.scan.tick : null,
         }, frame.nowMs / 1000);
         if (line) queue.enqueue({ ...missionVoice.item(line, "inner"), priority: PRIORITY.ambient }, frame.nowMs);

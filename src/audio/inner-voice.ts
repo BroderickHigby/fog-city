@@ -1,5 +1,6 @@
 // The player's inner voice, GTA-style: short asides that say what to do next and where ("Okay,
-// I gotta get to the Ferry Building plaza."), when the water runs low, when a bot looks wrong,
+// I gotta get to the Ferry Building plaza."), when a refill switches between fresh and salt
+// water (the blaster never runs dry), when a bot looks wrong,
 // and on a win or a retry. Every possible line is enumerated from the mission data, so the
 // generator can voice the whole bank ahead of time (scripts/audio/generate-voices.ts) and the
 // subtitles work without it. Variants rotate (least recently used) and each situation has a
@@ -24,7 +25,8 @@ export const INNER_TEMPLATES = {
   cone: ["Cone time. Very official.", "One traffic cone, coming right up."],
   threatUp: ["Need these bots to notice me.", "Okay. Time to make some noise."],
   threatDown: ["Too much heat. Lay low.", "Cool it. Let them forget me."],
-  water: ["Damn, need water.", "Tank's dry. Hydrant, hydrant, hydrant.", "Running on empty. Gotta refill."],
+  salt: ["Salt water. Great for rust, rough on the nozzle.", "Bay water. Extra crunchy.", "Salt in the tank. The bots won't love this."],
+  fresh: ["Fresh water again.", "Back on the good stuff.", "Fresh tank. Nice and gentle."],
   sketchy: ["That bot's acting sketchy.", "Yeah, that one's not right.", "Huh. That bot's up to something."],
   win: ["Nailed it.", "Ship it.", "Another one for the pitch deck."],
   retry: ["Okay. Again.", "Fine. Take two.", "That didn't happen. Again."],
@@ -34,14 +36,12 @@ export type InnerSituation = keyof typeof INNER_TEMPLATES;
 /** Seconds before the same situation may speak again (place lines key on their step). */
 export const INNER_COOLDOWN_S: Readonly<Record<InnerSituation, number>> = {
   goto: 0, gotoRush: 0, start: 0, reminder: 90, melt: 30, watch: 30, scan: 30, cone: 30, threatUp: 30, threatDown: 30,
-  water: 45, sketchy: 30, win: 0, retry: 0,
+  salt: 30, fresh: 30, sketchy: 30, win: 0, retry: 0,
 };
 /** At least this long between any two inner-voice lines. */
 export const INNER_GAP_S = 6;
 /** A goto step longer than this and still far: a reminder. */
 export const REMINDER_FAR_M = 150;
-/** Water below this share of the tank: "need water". */
-export const LOW_WATER = 0.15;
 
 /**
  * A place label as the player would say it: the part before any comma, street abbreviations
@@ -95,8 +95,8 @@ export interface InnerObservation {
   visits: number;
   /** The local player's position, when known. */
   player: { x: number; z: number } | null;
-  /** Water as a share of the tank, 0..1, when known. */
-  water: number | null;
+  /** Whether the blaster holds salt water (the last refill point's), when known. */
+  salt: boolean | null;
   /** The latest scan said "bad" (a fresh result only: its tick). */
   badScanTick: number | null;
 }
@@ -112,7 +112,7 @@ export class InnerVoice {
   private stepEnteredS = 0;
   private lastStatus = "";
   private lastBadScan: number | null = null;
-  private lowWater = false;
+  private salt: boolean | null = null;
   private uses = 0;
 
   constructor(missions: readonly Mission[]) {
@@ -125,7 +125,7 @@ export class InnerVoice {
     this.stepKey = "";
     this.lastStatus = "";
     this.lastBadScan = null;
-    this.lowWater = false;
+    this.salt = null;
     this.lastSpokeS = Number.NEGATIVE_INFINITY;
   }
 
@@ -145,10 +145,10 @@ export class InnerVoice {
     const freshBad = o.badScanTick !== null && o.badScanTick !== this.lastBadScan;
     if (o.badScanTick !== null) this.lastBadScan = o.badScanTick;
     if (freshBad) { const l = this.say("sketchy", null, nowS); if (l) return l; }
-    const low = o.water !== null && o.water < LOW_WATER;
-    const newlyLow = low && !this.lowWater;
-    this.lowWater = low;
-    if (newlyLow) { const l = this.say("water", null, nowS); if (l) return l; }
+    // A refill switched the tank between fresh and salt (the first look only learns which).
+    const switched = o.salt !== null && this.salt !== null && o.salt !== this.salt;
+    if (o.salt !== null) this.salt = o.salt;
+    if (switched) { const l = this.say(o.salt ? "salt" : "fresh", null, nowS); if (l) return l; }
     if (!step || o.status !== "active") return null;
     const target = stepPlace(step);
     if (entered) {

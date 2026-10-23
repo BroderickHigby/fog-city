@@ -7,7 +7,7 @@ import { missionVoiceLines } from "../../src/audio/voice-lines.ts";
 import { toLocal } from "../../src/geo/project.ts";
 
 const at = (stepId: string, visits: number, extra: Partial<InnerObservation> = {}): InnerObservation =>
-  ({ missionId: "hot-desk", stepId, status: "active", visits, player: null, water: 1, badScanTick: null, ...extra });
+  ({ missionId: "hot-desk", stepId, status: "active", visits, player: null, salt: false, badScanTick: null, ...extra });
 
 describe("inner voice lines", () => {
   const lines = innerVoiceLines(MISSIONS);
@@ -49,28 +49,31 @@ describe("inner voice timing", () => {
     expect(v.observe(at("cone", 9), 200)?.id).toMatch(/^inner\.cone\./);
   });
 
-  it("needs water when the tank runs low, once until refilled, and rotates its variants", () => {
+  it("notices a refill switching to salt water and back, rotating its variants, never on the first look", () => {
+    const first = new InnerVoice(MISSIONS);
+    expect(first.observe(at("watch", 3, { salt: true }), 0)?.id).toMatch(/^inner\.watch\./); // learns "salt", says nothing about it
     const v = new InnerVoice(MISSIONS);
     v.observe(at("watch", 3), 0);
     const said: string[] = [];
     let t = 100;
     for (let i = 0; i < 3; i++) {
-      said.push(v.observe(at("watch", 3, { water: 0.05 }), t)!.id);
-      expect(v.observe(at("watch", 3, { water: 0.04 }), t + 1)).toBeNull(); // still low: quiet
-      v.observe(at("watch", 3, { water: 0.9 }), t + 2); // refilled
-      t += 60;
+      said.push(v.observe(at("watch", 3, { salt: true }), t)!.id);
+      expect(v.observe(at("watch", 3, { salt: true }), t + 1)).toBeNull(); // still salt: quiet
+      said.push(v.observe(at("watch", 3, { salt: false }), t + 40)!.id);
+      t += 80;
     }
-    expect(said).toEqual(["inner.water.0", "inner.water.1", "inner.water.2"]);
+    expect(said).toEqual(["inner.salt.0", "inner.fresh.0", "inner.salt.1", "inner.fresh.1", "inner.salt.2", "inner.fresh.2"]);
   });
 
   it("respects each situation's cooldown and the gap between lines", () => {
     const v = new InnerVoice(MISSIONS);
     v.observe(at("watch", 3), 0);
-    expect(v.observe(at("watch", 3, { water: 0.05 }), INNER_GAP_S - 1)).toBeNull(); // too soon after "watch"
-    v.observe(at("watch", 3, { water: 0.9 }), INNER_GAP_S);
-    expect(v.observe(at("watch", 3, { water: 0.05 }), INNER_GAP_S + 1)?.id).toBe("inner.water.0");
-    v.observe(at("watch", 3, { water: 0.9 }), INNER_GAP_S + 2);
-    expect(v.observe(at("watch", 3, { water: 0.05 }), INNER_GAP_S + 20)).toBeNull(); // water cooldown (45 s)
+    expect(v.observe(at("watch", 3, { salt: true }), INNER_GAP_S - 1)).toBeNull(); // too soon after "watch"
+    expect(v.observe(at("watch", 3, { salt: false }), INNER_GAP_S + 1)?.id).toBe("inner.fresh.0");
+    expect(v.observe(at("watch", 3, { salt: true }), INNER_GAP_S + 10)?.id).toBe("inner.salt.0");
+    expect(v.observe(at("watch", 3, { salt: false }), INNER_GAP_S + 20)).toBeNull(); // fresh cooldown (30 s)
+    // No line ever talks about running dry: the blaster is unlimited.
+    expect(innerVoiceLines(MISSIONS).some((l) => /need water|tank's dry|running on empty/i.test(l.text))).toBe(false);
   });
 
   it("calls out a fresh bad scan, not the same one twice", () => {

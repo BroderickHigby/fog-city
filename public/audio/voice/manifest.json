@@ -5596,13 +5596,70 @@
    ]
   },
   {
-   "id": "inner.water.0",
+   "id": "inner.salt.0",
    "missionId": "inner",
-   "stepId": "water",
+   "stepId": "salt",
    "kind": "inner",
    "speaker": "player",
-   "text": "Damn, need water.",
-   "hash": "34470418921df8c392e91edb39338b0c811595eef537fda7a76f3fad6066d7ed",
+   "text": "Salt water. Great for rust, rough on the nozzle.",
+   "hash": "fd2a3bf0dfd687c766d91fb6b847dca4a321db8a60df600c5798e3b4877cb9cb",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Salt water. Great for rust, rough on the nozzle."
+    }
+   ]
+  },
+  {
+   "id": "inner.salt.1",
+   "missionId": "inner",
+   "stepId": "salt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Bay water. Extra crunchy.",
+   "hash": "6e94458f66ac78585bea1e52822f132551610cd8a6c145cecad3f36d26a5a7b8",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Bay water. Extra crunchy."
+    }
+   ]
+  },
+  {
+   "id": "inner.salt.2",
+   "missionId": "inner",
+   "stepId": "salt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Salt in the tank. The bots won't love this.",
+   "hash": "b986d823d8f1a3752882153d8292453a8bafa078e58b9934d5f5d70d4af019a4",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Salt in the tank. The bots won't love this."
+    }
+   ]
+  },
+  {
+   "id": "inner.fresh.0",
+   "missionId": "inner",
+   "stepId": "fresh",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Fresh water again.",
+   "hash": "484a2066d50a94ee90ecb7ffa5f0953f385ee3b0f2e08c7368fa8e59d2517544",
    "file": null,
    "durationS": 1.8,
    "measured": false,
@@ -5610,37 +5667,37 @@
     {
      "startS": 0,
      "endS": 1.8,
-     "text": "Damn, need water."
+     "text": "Fresh water again."
     }
    ]
   },
   {
-   "id": "inner.water.1",
+   "id": "inner.fresh.1",
    "missionId": "inner",
-   "stepId": "water",
+   "stepId": "fresh",
    "kind": "inner",
    "speaker": "player",
-   "text": "Tank's dry. Hydrant, hydrant, hydrant.",
-   "hash": "b7c4ddcff7c0cde39a3bebbb95cee4a61cbe5539a0a1c1b7d071785f65ac6fd0",
+   "text": "Back on the good stuff.",
+   "hash": "df0050082db5d3179b925bba819ea6d7c6ce9e6f878f9afd3a0945dfb9d7a9c6",
    "file": null,
-   "durationS": 2.63,
+   "durationS": 2.27,
    "measured": false,
    "cues": [
     {
      "startS": 0,
-     "endS": 2.63,
-     "text": "Tank's dry. Hydrant, hydrant, hydrant."
+     "endS": 2.27,
+     "text": "Back on the good stuff."
     }
    ]
   },
   {
-   "id": "inner.water.2",
+   "id": "inner.fresh.2",
    "missionId": "inner",
-   "stepId": "water",
+   "stepId": "fresh",
    "kind": "inner",
    "speaker": "player",
-   "text": "Running on empty. Gotta refill.",
-   "hash": "5e5c8310542a43371d188f68200100de664fb885f53d3251f18cd487df719ac3",
+   "text": "Fresh tank. Nice and gentle.",
+   "hash": "2150aedf70e7cda1bd3c8ba29f79b498102125f19df2dd7a7949be36f3140a5f",
    "file": null,
    "durationS": 2.39,
    "measured": false,
@@ -5648,7 +5705,7 @@
     {
      "startS": 0,
      "endS": 2.39,
-     "text": "Running on empty. Gotta refill."
+     "text": "Fresh tank. Nice and gentle."
     }
    ]
   },

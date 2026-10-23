@@ -108,17 +108,17 @@ On foot the music follows the moment again: combat, a timed mission step, or the
 
 `node scripts/audio/generate-voices.ts` writes `public/audio/voice/manifest.json`: every
 mission line (step lines, dialogue intros, question prompts and answer replies; 120 lines,
-8,304 characters) and every inner-voice line (168, 6,312 characters) with its mission id, step id, line id, speaker, text, subtitle cues and file.
+8,304 characters) and every inner-voice line (171, 6,888 characters) with its mission id, step id, line id, speaker, text, subtitle cues and file.
 With `--generate` it calls ElevenLabs at build time only (the key stays in the environment and
 never reaches the page, `dist/` or a log), caching each line by a hash of its text, voice and
 settings, and transcodes to mono Ogg Opus 40 kb/s. Casting is in [`voices.json`](voices.json):
 only ElevenLabs premade voices, one distinct voice per recurring speaker; the player is silent.
 
 **The player's inner voice** (`src/audio/inner-voice.ts`), GTA-style. Short asides say what to do
-and where ("Okay, I gotta get to the FiDi coworking desk.", "Damn, need water.", "That bot's acting
-sketchy."), and react to a win or a retry.
+and where ("Okay, I gotta get to the FiDi coworking desk.", "Salt water. Great for rust, rough on the nozzle.", "That bot's
+acting sketchy."), and react to a win or a retry.
 - **A finite bank.** Every line is enumerated from the mission data: each place a goto or start
-  step names, times its variants, plus fixed lines per situation. That makes 168 lines and 6,312
+  step names, times its variants, plus fixed lines per situation. That makes 171 lines and 6,888
   characters, so the whole bank can be voiced ahead of time. The manifest lists them after the
   mission lines.
 - **No frequent repeats.** Variants rotate least-recently-used, each situation has a cooldown, and

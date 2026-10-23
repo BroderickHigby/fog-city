@@ -32,20 +32,20 @@ and "the horn button doesn't work".
 
 Owner feedback: "the voice should talk just like in GTA … it kind of just tells you what to do".
 
-- `src/audio/inner-voice.ts` builds a finite bank of 168 lines (6,312 characters) from the mission
+- `src/audio/inner-voice.ts` builds a finite bank of 171 lines (6,888 characters) from the mission
   data. The lines cover:
   - going to a place, rushed when the timer is 300 s or less;
   - the start place of a mission;
   - reminders while still far away;
   - each objective kind;
-  - low water;
+  - a refill switching between fresh and salt water (the blaster never runs dry);
   - a fresh "bad" scan ("That bot's acting sketchy.");
   - a win or a retry.
 - Variants rotate least-recently-used, and each situation has a cooldown, with a 6 s gap between
   asides. It speaks at the lowest priority, behind the cofounder's lines.
 - The player is cast as Chris, a premade voice distinct from the cofounder.
 - Subtitles only until the ElevenLabs tier allows generation. The manifest already lists every
-  line: 288 in total, 14,616 characters.
+  line: 291 in total, 15,192 characters.
 
 ## ElevenLabs: why voices are held
 
