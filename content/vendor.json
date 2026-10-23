@@ -1,22 +1,99 @@
 {
   "version": 1,
   "$comment": "Vendor prices (docs/design.md, Combat: water and rust; Health, failure, heat; Progression and economy). The wave-2 vendor at the FiDi coworking desk sells two tank tiers, one flow tier and burritos for runway. Starting values: tank 8 L, flow 0.8 L/s (10 particles/s, so one particle is 0.08 L); maxima 16 L and 1.2 L/s; blaster upgrades $500-8,000; burrito $12 for +2 months of runway; runway never rises above 18 months. Prices are in cents. All values tune.",
-  "base": { "tankL": 8, "flowLps": 0.8, "particleL": 0.08, "runwayMaxMonths": 18, "startCashCents": 200000 },
-  "limits": { "tankMaxL": 16, "flowMaxLps": 1.2, "upgradeMinCents": 50000, "upgradeMaxCents": 800000 },
+  "base": {
+    "tankL": 8,
+    "flowLps": 0.8,
+    "particleL": 0.08,
+    "runwayMaxMonths": 18,
+    "startCashCents": 200000
+  },
+  "limits": {
+    "tankMaxL": 16,
+    "flowMaxLps": 1.2,
+    "upgradeMinCents": 50000,
+    "upgradeMaxCents": 800000
+  },
   "items": [
-    { "id": "tank-1", "name": "Tank I", "kind": "tank", "tier": 1, "priceCents": 60000, "wave": 2, "effect": { "tankL": 10 }, "blurb": "Ten litres. Two more seconds of being right." },
-    { "id": "tank-2", "name": "Tank II", "kind": "tank", "tier": 2, "priceCents": 150000, "wave": 2, "requires": "tank-1", "effect": { "tankL": 12 }, "blurb": "Twelve litres. Refill less, rust more." },
-    { "id": "flow-1", "name": "Flow I", "kind": "flow", "tier": 1, "priceCents": 90000, "wave": 2, "effect": { "flowLps": 1 }, "blurb": "A litre a second. The stream finally keeps up with your opinions." },
-    { "id": "burrito", "name": "Burrito", "kind": "food", "priceCents": 1200, "wave": 2, "effect": { "runwayMonths": 2 }, "blurb": "Plus two months of runway. Foil included." },
-    { "id": "pour-over", "name": "Pour-over", "kind": "food", "priceCents": 750, "wave": 3, "effect": { "runwayMonths": 0.5 }, "blurb": "Half a month of runway and a long wait at the counter." }
+    {
+      "id": "tank-1",
+      "name": "Tank I",
+      "kind": "tank",
+      "tier": 1,
+      "priceCents": 60000,
+      "wave": 2,
+      "effect": {
+        "tankL": 12
+      },
+      "blurb": "Twelve litres. The extra capacity is real; the confidence is yours."
+    },
+    {
+      "id": "tank-2",
+      "name": "Tank II",
+      "kind": "tank",
+      "tier": 2,
+      "priceCents": 150000,
+      "wave": 2,
+      "requires": "tank-1",
+      "effect": {
+        "tankL": 16
+      },
+      "blurb": "Sixteen litres. Refill less, rust more."
+    },
+    {
+      "id": "flow-1",
+      "name": "Flow I",
+      "kind": "flow",
+      "tier": 1,
+      "priceCents": 90000,
+      "wave": 2,
+      "effect": {
+        "flowLps": 1.2
+      },
+      "blurb": "More water per second. Same number of opinions."
+    },
+    {
+      "id": "burrito",
+      "name": "Burrito",
+      "kind": "food",
+      "priceCents": 1200,
+      "wave": 2,
+      "effect": {
+        "runwayMonths": 2
+      },
+      "blurb": "Plus two months of runway. Foil included."
+    },
+    {
+      "id": "pour-over",
+      "name": "Pour-over",
+      "kind": "food",
+      "priceCents": 750,
+      "wave": 3,
+      "effect": {
+        "runwayMonths": 0.5
+      },
+      "blurb": "Half a month of runway and a long wait at the counter."
+    }
   ],
   "vendors": [
-    { "id": "fidi-desk", "site": "fidi-desk", "label": "The coworking desk counter", "wave": 2, "items": ["tank-1", "tank-2", "flow-1", "burrito", "pour-over"] }
+    {
+      "id": "fidi-desk",
+      "site": "fidi-desk",
+      "label": "The coworking desk counter",
+      "wave": 2,
+      "items": [
+        "tank-1",
+        "tank-2",
+        "flow-1",
+        "burrito",
+        "pour-over"
+      ]
+    }
   ],
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:e04aec83",
+    "contentHash": "fnv1a32:c593c9b4",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
   }

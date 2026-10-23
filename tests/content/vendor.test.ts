@@ -31,8 +31,14 @@ describe("content/vendor.json", () => {
 describe("buying", () => {
   it("tank tier 1 changes the tank and costs the listed price (the wave-2 acceptance test)", () => {
     const after = buy(start, "tank-1", 2) as Loadout;
-    expect(after.tankL).toBe(10);
+    expect(after.tankL).toBe(12);
     expect(after.cashCents).toBe(start.cashCents - vendorItem("tank-1").priceCents);
+  });
+
+  it("uses the same 12/16 L tank tiers and 1.2 L/s flow as combat", () => {
+    expect(vendorItem("tank-1").effect.tankL).toBe(12);
+    expect(vendorItem("tank-2").effect.tankL).toBe(16);
+    expect(vendorItem("flow-1").effect.flowLps).toBe(1.2);
   });
 
   it("a burrito restores the listed runway, never above 18 months", () => {

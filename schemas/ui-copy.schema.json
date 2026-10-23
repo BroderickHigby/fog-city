@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/ui-copy",
+  "type": "object",
+  "required": ["version", "strings", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "strings": {
+      "type": "object", "minProperties": 50,
+      "propertyNames": { "pattern": "^ui\\.[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 180 }
+    },
+    "provenance": { "$ref": "provenance" }
+  }
+}
