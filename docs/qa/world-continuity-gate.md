@@ -513,7 +513,7 @@ difference is listed with its reason.
 | `B.seams.maxStep` | terrain (pr) | pass check | 0 | <= 0 m | enforced | largest height difference on a tile border (every 2.5 m) between the two neighbours' lattices |
 | `B.summits.fails` | terrain (pr) | pass check | 0 | <= 0 summits | enforced | of 25 named summits, those whose sim ground maximum within 150 m is not within 1 m of the 3DEP DEM maximum (the published heights differ from the DEM by up to 47 m for known reasons and are listed in the details) |
 | `G.carPose.pitchErrorDeg` | car-pose (e2e) | W-19 | 0 | <= 1 deg | enforced | on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's |
-| `G.carPose.wheelGapM` | car-pose (e2e) | W-09 | 3.9 | <= 0.1 m | ratchet | on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon) |
+| `G.carPose.wheelGapM` | car-pose (e2e) | W-09 | 0.37 | <= 0.1 m | ratchet | on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon) |
 | `G.far.cellsDrawnFromTwinPeaks` | car-pose (e2e) | W-20 | 13 | >= 4 far cells | enforced | from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles) |
 | `N.freeways.airborneRuns` | freeways-all (nightly) | W-03 | 96 | <= 0 runs | ratchet | freeway and ramp runs at 25 m/s airborne for more than 0.3 s (draped viaducts launching the car) |
 | `N.freeways.hardLandings` | freeways-all (nightly) | W-03 | 76 | <= 0 runs | ratchet | freeway and ramp runs with a landing harder than 3 m/s |
