@@ -16,6 +16,7 @@ import { hashString } from "./hash.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { STRIDE_M, newLook, type PersonLook } from "./person.ts";
 import { ContactShadows } from "./contact-shadows.ts";
+import { dressPlayerCar } from "./car-finish.ts";
 import type { Pose } from "./types.ts";
 
 /** A car between two ticks. Angles in radians; pitch + = nose up, roll + = right side down, steer + = right. */
@@ -212,12 +213,14 @@ export class Actors {
   private readonly shadows: boolean;
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
+  private readonly fullSurfaceDetail: boolean;
   private readonly contacts = new ContactShadows(MAX_PLAYERS_DRAWN * 2);
 
-  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false) {
+  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false, fullSurfaceDetail = true) {
     this.registry = registry;
     this.lights = lights;
     this.shadows = shadows;
+    this.fullSurfaceDetail = fullSurfaceDetail;
     this.people = new PeopleRig(MAX_PLAYERS_DRAWN, this.peopleMaterial, "players:people", shadows);
     this.group.name = "actors";
     this.group.add(this.people.group);
@@ -249,7 +252,7 @@ export class Actors {
     v.carSource = source;
     v.wheels = findWheels(car);
     // The procedural car is built in its colour; a loaded model is recoloured (slot 0 keeps its paint).
-    v.ownMaterials = source === "file" ? recolorCar(car, v.colorIndex === 0 ? null : CAR_COLORS[v.colorIndex]!) : [];
+    v.ownMaterials = source === "file" ? dressPlayerCar(car, v.colorIndex === 0 ? null : CAR_COLORS[v.colorIndex]!, this.fullSurfaceDetail) : [];
     car.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) castShadows(o, this.shadows);
     });
