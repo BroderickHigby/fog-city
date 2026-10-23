@@ -4,7 +4,7 @@
 // the game's own loop consuming input after each press (pokeThenRun), replayed in Node.
 
 import { expect, test } from "@playwright/test";
-import { hashState, pointInPolygon, type SimInput, type TileCollider } from "../../src/sim/index.ts";
+import { createGameSystems, hashState, pointInPolygon, type SimInput, type TileCollider } from "../../src/sim/index.ts";
 import { readJson } from "../helpers.ts";
 import {
   FAST_QUERY,
@@ -40,7 +40,7 @@ const MOVING: SimInput = Object.freeze({ throttle: 1, steer: 0.4, brake: 0, acti
  */
 function expectNeutralRun(world: string, run: PokeRun, what: string): string {
   expect(run.ran, `${what}: the game loop ran`).toBeGreaterThan(0);
-  const m = matchGame(world, run.before, [p1Chunk(run.ran)], [hashState(run.after)], run.after);
+  const m = matchGame(world, run.before, [p1Chunk(run.ran)], [hashState(run.after)], run.after,createGameSystems());
   expect(
     m.match,
     `after ${what}, the game's own loop ran ${run.ran} ticks with no driving key held and reached a state Node ` +

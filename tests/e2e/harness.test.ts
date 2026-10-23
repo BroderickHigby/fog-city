@@ -6,8 +6,10 @@ import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { crc32, deflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { canonicalJson, createInitialState, hashState, step } from "../../src/sim/index.ts";
-import { ROOT, loadWorldFiles, readJson } from "../helpers.ts";
+import { canonicalJson, createGameSystems, createInitialState, hashState, step, type GameplayWorldData } from "../../src/sim/index.ts";
+import type { PipelineSidewalks } from "../../src/sim/agents/pipeline-navigation.ts";
+import type { TransitLayer } from "../../src/sim/agents/transit-runtime.ts";
+import { ROOT, buildWorldWithRoads, loadWorldFiles, readJson } from "../helpers.ts";
 import { dmathDigest, makeWorld, recordSession, runScenario } from "./determinism-scenario.ts";
 import { distanceToPolyline, headingDelta } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
@@ -142,6 +144,20 @@ describe("the running-game replay (replay.ts, recordSession)", () => {
   let s0 = createInitialState(world, 1, ["p1"], dev.manifest.spawn);
   for (let i = 0; i < 25; i++) s0 = step(world, s0, {});
 
+  it("replays the explicit game registry and detects a registry accidentally omitted by the harness", () => {
+    const gameWorld = makeWorld(dev.tiles, dev.roads);
+    const gameSystems = createGameSystems();
+    const initial = createInitialState(gameWorld, 1, ["p1"], dev.manifest.spawn);
+    const chunks = [p1Chunk(3), p1Chunk(4)];
+    const game = replay(gameWorld, initial, chunks, gameSystems);
+    const matched = matchGame("dev", initial, chunks, game.hashes, game.final, createGameSystems());
+    expect(matched.match?.label).toBe(WITH_ROADS);
+    expect(matched.match?.final).toEqual(game.final);
+    expect(matchGame("dev", initial, chunks, game.hashes, game.final).match).toBeUndefined();
+    expect(game.final.ext.clock).toBeDefined();
+    expect(initial.ext.clock).toBeUndefined();
+  });
+
   it("recordSession joins p2 and p3 on its first tick and stamps every event with its absolute tick", () => {
     const chunks = recordSession(["p1"], s0.tick, { ticks: 1800, seed: 20261020, spawn: dev.manifest.spawn }, 60);
     expect(chunks).toHaveLength(30);
@@ -209,6 +225,30 @@ describe("E2E_REQUIRE (prereq.ts)", () => {
 });
 
 describe("helpers", () => {
+  it("builds the same authored world layers in browser scenarios and Node replays, retaining curved sidewalks", () => {
+    const gameplay: GameplayWorldData = {
+      version: 1, world: "fixture", sourceSnapshot: "committed",
+      refills: [{ id: "fixture-hydrant", kind: "hydrant", x: 4, y: 0, z: 3, radius: 4, salt: false }],
+      anchors: [], tiles: [], territories: [],
+    };
+    const sidewalks: PipelineSidewalks = {
+      version: 1,
+      nodes: [{ id: "a", x: 0, y: 0, z: 0 }, { id: "b", x: 20, y: 0, z: 0 }],
+      edges: [{ id: "bend", a: "a", b: "b", kind: "sidewalk", points: [[10, 5]] }],
+    };
+    const transit: TransitLayer = { version: 1, routes: [], stops: [{ id: "stop", x: 4, y: 0, z: 3, routes: [] }] };
+    const layers = { gameplay, sidewalks, transit };
+    const browserWorld = makeWorld([], null, null, layers);
+    const nodeWorld = buildWorldWithRoads([], null, null, layers);
+    expect(nodeWorld.gameplay).toEqual(gameplay);
+    expect(browserWorld.gameplay).toEqual(nodeWorld.gameplay);
+    expect(browserWorld.sidewalks).toEqual(nodeWorld.sidewalks);
+    expect(browserWorld.sidewalks?.edges[0]?.path.xs).toEqual([0, 10, 20]);
+    expect(browserWorld.sidewalks?.edges[0]?.path.zs).toEqual([0, 5, 0]);
+    expect(browserWorld.transit).toEqual(nodeWorld.transit);
+    expect(nodeWorld.transit?.stops[0]?.id).toBe("stop");
+  });
+
   it("readJson names a Git LFS pointer instead of failing to parse it", () => {
     const dir = "test-results/harness-unit";
     mkdirSync(join(ROOT, dir), { recursive: true });

@@ -22,6 +22,7 @@ import {
   NEUTRAL_INPUT,
   canonicalJson,
   createInitialState,
+  createGameSystems,
   sortedIds,
   step,
   type SimInput,
@@ -58,10 +59,10 @@ const RUNS = [
   { world: "sf", ticks: 900 },
 ] as const;
 
-function browserInstalled(name: string): boolean {
+function browserInstalled(name: string, executablePath?: string): boolean {
   const type = { chromium, firefox, webkit }[name];
   try {
-    return type !== undefined && existsSync(type.executablePath());
+    return type !== undefined && existsSync(executablePath ?? type.executablePath());
   } catch {
     return false;
   }
@@ -90,7 +91,7 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
   // Chromium is always required. With E2E_REQUIRE=engines a missing Firefox or WebKit runs
   // anyway, and fails at launch saying the executable is missing.
   test.skip(
-    ({ browserName }) => optionalAbsent("engines", browserInstalled(browserName)),
+    ({ browserName, launchOptions }) => browserName !== "chromium" && optionalAbsent("engines", browserInstalled(browserName, launchOptions.executablePath)),
     "this browser is not installed here (pnpm exec playwright install --with-deps firefox webkit)",
   );
 
@@ -100,12 +101,22 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
     expect(browser).toEqual(dmathDigest(20000));
   });
 
+  test("dev: the composed gameplay registry hashes identically in Node and this browser", async ({ page }) => {
+    const files = loadWorldFiles("dev");
+    const options = { ticks: 360, checkpointEvery: 60, seed: SEED, gameplay: true };
+    const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary, files), { ...options, spawn: files.manifest.spawn });
+    await openSimLab(page);
+    const browser = await page.evaluate((options) => window.__simlab!.run("dev", options), options);
+    expectSameRun(node, browser);
+    expect(JSON.parse(node.finalJson).ext.clock.elapsedTicks).toBe(options.ticks);
+  });
+
   for (const { world, ticks } of RUNS) {
     test(`${world}: a ${ticks}-tick multiplayer run hashes identically in Node and this browser`, async ({ page, browserName }) => {
       gateWorld(world);
       const files = loadWorldFiles(world);
       const t0 = performance.now();
-      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary), {
+      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary,files), {
         ticks,
         checkpointEvery: EVERY,
         seed: SEED,
@@ -225,7 +236,7 @@ test.describe("cross-engine determinism: the running game", () => {
       const gameFinal = await simState(page);
 
       // Node steps the same snapshot with the same inputs: the manifest's construction first.
-      const m = matchGame(world, s0, chunks, gameHashes, gameFinal);
+      const m = matchGame(world, s0, chunks, gameHashes, gameFinal,createGameSystems());
       expect(
         m.match,
         `the game and Node parted (chunks: ${chunks.length}; loop runs after pokes: ${runs.join(", ")}):\n${m.tried.join("\n")}`,
@@ -240,7 +251,8 @@ test.describe("cross-engine determinism: the running game", () => {
       // Informational: can a fresh client rebuild the game's boot state from (world, seed, players, spawn)?
       const files = loadWorldFiles(world);
       let boot = createInitialState(m.match!.world, s0.seed, sortedIds(s0.players), files.manifest.spawn);
-      while (boot.tick < s0.tick) boot = step(m.match!.world, boot, {}, []);
+      const systems=createGameSystems();
+      while (boot.tick < s0.tick) boot = step(m.match!.world, boot, {}, [],systems);
       const bootJson = canonicalJson(boot);
       const s0Json = canonicalJson(s0);
       test.info().annotations.push({
@@ -286,7 +298,7 @@ test.describe("cross-engine determinism: the running game", () => {
       const gameFinal = await simState(page);
       expect(gameFinal.tick, "stepFrames() advanced one tick per frame").toBe(s0.tick + ticks);
 
-      const m = matchGame(world, s0, chunks, gameHashes, gameFinal);
+      const m = matchGame(world, s0, chunks, gameHashes, gameFinal,createGameSystems());
       expect(m.match, `the game and Node parted:\n${m.tried.join("\n")}`).toBeDefined();
 
       // The session must exercise the sim, or equality proves little.

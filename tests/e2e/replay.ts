@@ -16,6 +16,7 @@ import {
   type SimInput,
   type SimState,
   type World,
+  type SimSystem,
 } from "../../src/sim/index.ts";
 import { loadWorldFiles } from "../helpers.ts";
 import { makeWorld } from "./determinism-scenario.ts";
@@ -54,7 +55,7 @@ export function constructions(name: string): Constructions {
     get(i: number): Construction {
       if (!built[i]) {
         const label = labels[i]!;
-        const world = label === COLLIDERS_ONLY ? makeWorld(files.tiles, null) : makeWorld(files.tiles, files.roads, label === WITH_ROADS_AND_BOUNDARY ? files.boundary : null);
+        const world = label === COLLIDERS_ONLY ? makeWorld(files.tiles, null) : makeWorld(files.tiles, files.roads, label === WITH_ROADS_AND_BOUNDARY ? files.boundary : null,files);
         built[i] = { label, world };
       }
       return built[i]!;
@@ -76,7 +77,7 @@ export function p1Chunk(n: number, input: SimInput = NEUTRAL_INPUT): Chunk {
 }
 
 /** Step `s0` through the chunks: the hash after each chunk, and the final state. */
-export function replay(world: World, s0: SimState, chunks: readonly Chunk[]): { hashes: string[]; final: SimState } {
+export function replay(world: World, s0: SimState, chunks: readonly Chunk[],systems?:readonly SimSystem[]): { hashes: string[]; final: SimState } {
   let s = s0;
   const hashes: string[] = [];
   for (const c of chunks) {
@@ -86,7 +87,7 @@ export function replay(world: World, s0: SimState, chunks: readonly Chunk[]): { 
       if (list) list.push(e);
       else byTick.set(e.tick, [e]);
     }
-    for (const f of c.frames) s = step(world, s, f, byTick.get(s.tick + 1) ?? []);
+    for (const f of c.frames) s = step(world, s, f, byTick.get(s.tick + 1) ?? [],systems);
     hashes.push(hashState(s));
   }
   return { hashes, final: s };
@@ -119,13 +120,14 @@ export function matchGame(
   chunks: readonly Chunk[],
   gameHashes: readonly string[],
   gameFinal: SimState,
+  systems?:readonly SimSystem[],
 ): MatchResult {
   const c = constructions(name);
   const tried: string[] = [];
   const finalJson = canonicalJson(gameFinal);
   for (let i = 0; i < c.count; i++) {
     const { label, world } = c.get(i);
-    const r = replay(world, s0, chunks);
+    const r = replay(world, s0, chunks,systems);
     const k = r.hashes.findIndex((h, j) => h !== gameHashes[j]);
     const nodeJson = canonicalJson(r.final);
     if (k < 0 && r.hashes.length === gameHashes.length && nodeJson === finalJson) {

@@ -1,38 +1,44 @@
 # Integration harness
 
 ## Now
-Preparing independent verification on `lane/harness/wave2` from immutable physical-kernel checkpoint `b7c412c`. The original `/workspace/fog-city` prototype and other lanes' worktrees are untouched. Full gameplay composition and its renderer consumer are still being prepared.
+Verifying the composed game on `lane/harness/wave2`, based on reviewed core `aa1eb6a`, source-only UI `25d7aa8`, and isolated follower corrections `953a4d8` / `5eacc15`. The original prototype and other active worktrees are untouched.
 
 ## Done
-- Read the repository, ownership, deterministic simulation and memory rules.
-- Reviewed the existing browser/replay harness and the visible integration's main-loop adapters.
-- Identified two integration gates: browser replay must use the same registered gameplay systems as the game; Node/browser world loaders must both load the manifest's gameplay metadata.
-- Reported those gates to Core and UI. No full-suite result is claimed.
+- Node and browser replay builders retain the authored gameplay, sidewalk and transit layers.
+- Running-game replay explicitly uses `createGameSystems()`; pure base-simulation tests retain their intentional default.
+- Regression checks prove a missing gameplay registry fails replay, and curved sidewalk metadata survives both builders.
+- Chromium determinism can use a configured executable and cannot silently skip because the bundled binary is absent. A separate composed-gameplay cross-engine scenario is included.
+- Added an input-only route driver; it advances production simulation controls, without assigning player poses, mission outcomes or wallet state.
+- `pnpm typecheck` passed on the composed source plus harness changes. Focused harness tests: **22 passed** (5.58 seconds).
+- Baseline canonical SF physical probe: **600 ticks took 51,430 ms** (11.7 ticks/second) without rendering. The car moved approximately 95 m with zero recorded car hits / person bumps. This is below the required real-time throughput and has been reported to Core and Agents for profiling. The bounded route probe intentionally stopped before reaching the distant vendor; it is not purchase acceptance.
 
 ## Next
-1. Merge the immutable composed core and render checkpoints into this isolated worktree.
-2. Adapt the replay helpers to use the same pure runner and the same world metadata.
-3. Verify first purchase, startup form and Hot Desk/Spill with real controls or recorded input frames. Do not mutate debug state or teleport the player to satisfy an objective.
-4. Verify protected water targets and vehicle-person clearance, command ownership and replay consistency.
-5. Run typecheck, full unit tests and browser tests once the integrated snapshot is stable; retain failure artifacts and exact environment limitations.
+1. Resolve the Vite process startup failure in the current sandbox and run Chromium smoke / composed replay.
+2. Integrate the reviewed performance correction, then verify first purchase and Hot Desk / Spill through real controls and recorded UI commands.
+3. Run full typecheck, unit and browser suites on the final immutable candidate. Retain concrete failures rather than lowering assertions.
 
 ## Blocked on
-- Core's final composition checkpoint after the validated physical kernel.
-- UI's committed renderer/main consumer of that composition.
-- Firefox and WebKit are not installed in the current executor; Chromium is available at `/usr/bin/chromium`. Any missing-engine limitation will be reported rather than treated as a pass.
+- Core / Agents: canonical SF runtime currently measured at 11.7 ticks/second; long mission loops are not yet practical at real time.
+- Browser smoke attempt exited before any test because the configured Vite web server failed to start; diagnosis underway.
+- Firefox and WebKit are not installed; this remains explicit missing cross-engine evidence.
 
 ## Requests for other lanes
-- Core: publish one immutable pure gameplay runner or system factory used by browser and replay.
-- UI: publish the matching main-loop checkpoint and expose a read-only log of recorded UI commands for replay validation.
-- Render/UI: load the gameplay manifest data in the browser and include it in the packed web build.
+- Core / Agents: optimize the observed gameplay provider and actor planning, preserving deterministic accepted poses.
+- Core / Agents: the later Fleet Week recovery producer still needs a physical ownership consumer and current controlled-actor identity.
+- UI: keep the read-only `commands()` log and shared `buildLoadedWorld()` API stable for replay verification.
 
 ## For the owner
-This is verification work in an isolated checkout. No release branch or protected integration branch is being modified.
+No release or protected integration branch is modified. First purchase and the first two missions are not yet signed off. Visual realism and real-hardware feel remain separate owner review items.
 
 ## Draft pull request
 Base: `integrate/wave2`
 
-Title: `Harness: verify integrated gameplay controls and deterministic replay`
+Title: `Harness: replay the composed game with authored world metadata`
 
 Body:
-Adds independent integration checks for the registered gameplay runner, UI commands, mission progression and safety invariants. Replays use the same world metadata and simulation composition as the running browser. Final acceptance results and any unavailable-engine limitations will be recorded here after the integrated snapshot is tested.
+The browser now runs registered gameplay systems and authored world layers, so replaying only base vehicle physics cannot reproduce its state. Pass the same explicit registry and all authored metadata through the replay harness, and add regressions that detect a missing registry or discarded navigation curves. Add a short composed-gameplay cross-engine scenario and require Chromium to execute even when its binary is supplied through a local override.
+
+Validation: typecheck passed; 22 focused harness tests passed. Full unit/browser acceptance is pending the current runtime performance and browser-startup investigations. No harness contract or SIM_VERSION change. Reviewed Core/UI commits are integrated separately; no QA collider migration is included.
+
+## Compatibility review
+The visual checkpoint `ce41d92` was merged only into a disposable local comparison. It brought 1,449 changed paths versus the physical checkpoint, including a pack decoder with DECK/TUNL/SPAN/LAKE extensions. The approved `b7c412c` world/vehicle code does not consume those added surfaces. The binary header remains FCWC version 1, so this combination can load while lacking matching deck/tunnel/lake physics. The comparison is retained as `harness/qa-compatibility`; no broad comparison merge was pushed. The active branch uses the source-only UI and reviewed gameplay metadata instead.
