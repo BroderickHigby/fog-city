@@ -2,9 +2,9 @@ import { BOT_TELLS } from "../../content/botTells.ts";
 import type { MissionActor } from "../../content/missions.ts";
 import { sortedIds, type SimState } from "../contract.ts";
 import { dcos, dsin, datan2, PI } from "../dmath.ts";
-import { circleBlocked, groundHeight, segmentBlocked, type World } from "../world.ts";
+import { circleBlockedBand, roadSurfaceHeight, surfaceHeight, segmentBlockedBand, type World } from "../world.ts";
 import { circleHitsWall } from "../boundary.ts";
-import { carBox } from "../car.ts";
+import { CAR, carBox } from "../car.ts";
 import { boxDistance } from "../dodge.ts";
 import { pathPoint } from "../roads.ts";
 import { AGENT_SPEC, ROBOTAXI_BODY } from "../agents.ts";
@@ -60,10 +60,10 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
   const visited=new Set<string>();
   const runtime=agentsRuntimeOf(sim);
   // Only accepted physical poses and this batch's reservations block admission.
-  const physical:ServiceBlocker[]=(sim.ext.agents?.list??[]).map(a=>a.kind==="robotaxi"?{...a,halfLength:a.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:a.halfWidth??ROBOTAXI_BODY.halfWidth}:{...a,radius:a.radius??AGENT_SPEC[a.kind].radius});
-  for(const id of sortedIds(sim.players)){const p=sim.players[id]!,box=carBox(p.car);physical.push({...box,halfLength:box.hl,halfWidth:box.hw});if(p.mode==="foot"&&p.foot)physical.push({...p.foot,radius:.35});}
+  const physical:ServiceBlocker[]=(sim.ext.agents?.list??[]).map(a=>a.kind==="robotaxi"?{...a,height:a.height??ROBOTAXI_BODY.height,halfLength:a.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:a.halfWidth??ROBOTAXI_BODY.halfWidth}:{...a,height:a.height??1.8,radius:a.radius??AGENT_SPEC[a.kind].radius});
+  for(const id of sortedIds(sim.players)){const p=sim.players[id]!,box=carBox(p.car);physical.push({...box,y:p.car.y,height:CAR.bodyHeight,halfLength:box.hl,halfWidth:box.hw});if(p.mode==="foot"&&p.foot)physical.push({...p.foot,height:1.8,radius:.35});}
   physical.push(...reservedBodies);
-  const clear=(x:number,z:number,radius:number)=>placementAllowed(x,z)&&!circleHitsWall(world.walls,x,z,radius)&&!circleBlocked(world,x,z,radius)&&[...physical,...result.actors].every(p=>p.halfLength!==undefined&&p.halfWidth!==undefined?boxDistance(x,z,p.x,p.z,dsin(p.heading??0),-dcos(p.heading??0),p.halfLength,p.halfWidth)>=radius+.5:magnitude(p.x-x,p.z-z)>radius+Math.max(2,p.radius??.4));
+  const clear=(x:number,z:number,radius:number,y=surfaceHeight(world,x,z,stage.place.y),height=1.8)=>placementAllowed(x,z)&&!circleHitsWall(world.walls,x,z,radius)&&!circleBlockedBand(world,x,z,radius,y+Math.min(.5,height/2),y+height)&&[...physical,...result.actors].every(p=>p.y!==undefined&&p.height!==undefined&&(y>=p.y+p.height+.1||p.y>=y+height+.1)|| (p.halfLength!==undefined&&p.halfWidth!==undefined?boxDistance(x,z,p.x,p.z,dsin(p.heading??0),-dcos(p.heading??0),p.halfLength,p.halfWidth)>=radius+.5:magnitude(p.x-x,p.z-z)>radius+Math.max(2,p.radius??.4)));
   function place(alias:string,stack:Set<string>):string[]{
     if(stack.has(alias)){result.blocked.push(alias);return [];}
     const definition=stage.definitions[alias];if(!definition){result.blocked.push(alias);return [];}
@@ -79,13 +79,14 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
     const profile=BOT_TELLS.archetypes.find(profile=>profile.id===definition.archetype);
     const taxi=definition.kind==="rogueTaxi"||definition.kind==="goodTaxi";
     const radius=taxi?1.1:.4;
-    const candidates:{x:number;z:number;id:string;heading?:number}[]=graph?.nodes.filter(n=>magnitude(n.x-stage.place.x,n.z-stage.place.z)<=stage.radius).map(n=>({x:n.x,z:n.z,id:n.id})).sort((a,b)=>magnitude(a.x-stage.place.x,a.z-stage.place.z)-magnitude(b.x-stage.place.x,b.z-stage.place.z)||compare(a.id,b.id))??[];
+    const height=taxi?ROBOTAXI_BODY.height:profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?.7:1.8;
+    const candidates:{x:number;y?:number;z:number;id:string;heading?:number;edgeId?:string}[]=graph?.nodes.filter(n=>magnitude(n.x-stage.place.x,n.z-stage.place.z)<=stage.radius).map(n=>({x:n.x,z:n.z,id:n.id})).sort((a,b)=>magnitude(a.x-stage.place.x,a.z-stage.place.z)-magnitude(b.x-stage.place.x,b.z-stage.place.z)||compare(a.id,b.id))??[];
     if(taxi){
       candidates.length=0;
       for(const road of world.roads?.edges??[])if(road.drivable)for(let direction=0;direction<2;direction++)for(let lane=0;lane<road.lanePaths[direction]!.length;lane++){
         if(!road.laneSafe[direction]![lane])continue;
         const path=road.lanePaths[direction]![lane]!;
-        for(let at=0;at<=path.len;at+=5){const point=pathPoint(path,at);if(magnitude(point.x-stage.place.x,point.z-stage.place.z)<=stage.radius)candidates.push({x:point.x,z:point.z,heading:datan2(point.tx,-point.tz),id:`road:${road.id}:${direction}:${lane}:${at}`});}
+        for(let at=0;at<=path.len;at+=5){const point=pathPoint(path,at);if(magnitude(point.x-stage.place.x,point.z-stage.place.z)<=stage.radius)candidates.push({x:point.x,y:roadSurfaceHeight(world,road.id,point.x,point.z),z:point.z,heading:datan2(point.tx,-point.tz),edgeId:road.id,id:`road:${road.id}:${direction}:${lane}:${at}`});}
       }
       candidates.sort((a,b)=>magnitude(a.x-stage.place.x,a.z-stage.place.z)-magnitude(b.x-stage.place.x,b.z-stage.place.z)||compare(a.id,b.id));
       // A staged taxi is parked, so it need not begin on a routable traffic lane.
@@ -102,13 +103,14 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
       candidates.push({x:stage.place.x+dsin(angle)*d,z:stage.place.z+dcos(angle)*d,id:`fallback:${ring}:${index}`});
     }
     const spot=candidates.find(p=>{
-      if(!taxi)return clear(p.x,p.z,radius);
-      if(!placementAllowed(p.x,p.z)||!serviceEntryClear(world,{...p,heading:p.heading??0},[...physical,...result.actors],ROBOTAXI_BODY.halfLength,ROBOTAXI_BODY.halfWidth,ROBOTAXI_BODY.height))return false;
+      const y=p.y??surfaceHeight(world,p.x,p.z,stage.place.y);
+      if(!taxi)return clear(p.x,p.z,radius,y,height);
+      if(!placementAllowed(p.x,p.z)||!serviceEntryClear(world,{...p,y,heading:p.heading??0},[...physical,...result.actors],ROBOTAXI_BODY.halfLength,ROBOTAXI_BODY.halfWidth,ROBOTAXI_BODY.height))return false;
       const heading=p.heading??0,front={x:p.x+dsin(heading)*(ROBOTAXI_BODY.halfLength+1.2),z:p.z-dcos(heading)*(ROBOTAXI_BODY.halfLength+1.2)};
-      return clear(front.x,front.z,.4)&&!segmentBlocked(world,p.x,p.z,front.x,front.z)&&Math.abs(groundHeight(world,front.x,front.z)-groundHeight(world,p.x,p.z))<=.4;
+      return clear(front.x,front.z,.4,y)&&!segmentBlockedBand(world,p.x,p.z,front.x,front.z,y+.5,y+ROBOTAXI_BODY.height)&&Math.abs(surfaceHeight(world,front.x,front.z,y)-y)<=.4;
     });
     if(!spot){result.blocked.push(alias);return [];}
-    result.actors.push({id:stable,...(stage.playerId?{ownerId:stage.playerId}:{}),model:taxi?"robotaxi":profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?"trundle":"footman",...(definition.archetype?{archetype:definition.archetype}:{}),...(definition.level?{level:definition.level}:{}),firmware:definition.kind==="goodRobot"||definition.kind==="goodTaxi"?"good":"bad",x:spot.x,y:groundHeight(world,spot.x,spot.z),z:spot.z,heading:spot.heading??0,radius,height:taxi?ROBOTAXI_BODY.height:profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?.7:1.8,...(taxi?{halfLength:ROBOTAXI_BODY.halfLength,halfWidth:ROBOTAXI_BODY.halfWidth}:{}),significant:true,...(definition.posted?{posted:true}:{}),...(definition.archetype==="UpdateRelay"?{rustScale:.2}:{})});
+    result.actors.push({id:stable,...(stage.playerId?{ownerId:stage.playerId}:{}),model:taxi?"robotaxi":profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?"trundle":"footman",...(definition.archetype?{archetype:definition.archetype}:{}),...(definition.level?{level:definition.level}:{}),firmware:definition.kind==="goodRobot"||definition.kind==="goodTaxi"?"good":"bad",x:spot.x,y:spot.y??surfaceHeight(world,spot.x,spot.z,stage.place.y),z:spot.z,heading:spot.heading??0,radius,height,...(taxi?{halfLength:ROBOTAXI_BODY.halfLength,halfWidth:ROBOTAXI_BODY.halfWidth}:{}),significant:true,...(definition.posted?{posted:true}:{}),...(definition.archetype==="UpdateRelay"?{rustScale:.2}:{})});
     return [stable];
   }
   for(const id of [...stage.actorIds].sort(compare))place(id,new Set());

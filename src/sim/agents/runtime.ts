@@ -6,7 +6,7 @@ import { Action, type InputFrame, type SimInput, type SimState } from "../contra
 import { AGENT_SPEC, agentsOf, personIsChild, type AgentState } from "../agents.ts";
 import { dcos, dsin, datan2, clamp } from "../dmath.ts";
 import type { AgentMotionProposal as CoreAgentMotionProposal } from "../motion.ts";
-import { groundHeight, segmentBlocked, type World } from "../world.ts";
+import { groundHeight, surfaceHeight, segmentBlocked, segmentBlockedBand, type World } from "../world.ts";
 import type { AttackKind, AttackRequest, CombatActor, CombatState } from "../combat-contract.ts";
 import { createRobotBrain, stepRobotBrain, type RobotBrainState, type RobotBrainIntent, type RobotObservations, type BrainTarget, type RobotGoal } from "../robots/brain.ts";
 import { buildFallbackSidewalkGraph, nearestSidewalkNode, shortestSidewalkRoute, advanceSidewalkRoute, type SidewalkGraph, type SidewalkRoute, type SidewalkCursor } from "./navigation.ts";
@@ -377,8 +377,8 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const length=distance(actor,goal),travel=Math.min(length,speed*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
   const x=actor.x+dx*travel,z=actor.z+dz*travel;
-  const clear=!segmentBlocked(world,actor.x,actor.z,x,z);
-  const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):groundHeight(world,x,z);
+  const clear=!segmentBlockedBand(world,actor.x,actor.z,x,z,actor.y+.5,actor.y+actor.height);
+  const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):surfaceHeight(world,x,z,actor.y);
   const actualX=clear?x:actor.x,actualZ=clear?z:actor.z;
   actor.pendingPoint={x:actualX,z:actualZ};
   state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actualX,y:clear?y:actor.y,z:actualZ,heading:length>1e-8?datan2(dx,-dz):actor.heading,speed:clear?speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});

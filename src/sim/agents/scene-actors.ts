@@ -1,12 +1,12 @@
 import {isGameplayId} from "../gameplay-contract.ts";
-import {agentsOf} from "../agents.ts";
 import type {SimState} from "../contract.ts";
+import {CAR} from "../car.ts";
 import {dcos,dsin,PI} from "../dmath.ts";
-import {circleBlocked,groundHeight,type World} from "../world.ts";
-import {agentsRuntimeOf,type RuntimeSpawn} from "./runtime.ts";
+import {circleBlockedBand,surfaceHeight,type World} from "../world.ts";
+import {agentsRuntimeOf} from "./runtime.ts";
 import type {ActorBlueprint} from "./mission-actors.ts";
 import type {SidewalkGraph} from "./navigation.ts";
-import {serviceRoadPoint} from "./service-runtime.ts";
+import {serviceRoadPoint,type ServiceBlocker} from "./service-runtime.ts";
 export interface SceneActor {
  id:string;role:string;model:"van"|"footman"|"person"|"tidy";firmware:"good"|"bad"|"none";
  offset:{x:number;z:number};radius:number;height:number;protected?:boolean;
@@ -25,14 +25,14 @@ export function decodeMissionScene(event:{kind:string;detail:string}):MissionSce
  return {missionId:value.missionId,anchor:{...value.anchor},actors:value.actors.map(actor=>({...actor,offset:{...actor.offset}}))};
 }
 /** Scene offsets are search anchors; every resulting body still needs core clearance acceptance. */
-export function planSceneActors(world:World,sim:Readonly<SimState>,scene:MissionScene,graph?:SidewalkGraph,reserved:readonly Pick<RuntimeSpawn,"x"|"z"|"radius">[]=[]):{actors:ActorBlueprint[];blocked:string[]} {
+export function planSceneActors(world:World,sim:Readonly<SimState>,scene:MissionScene,graph?:SidewalkGraph,reserved:readonly ServiceBlocker[]=[]):{actors:ActorBlueprint[];blocked:string[]} {
  const runtime=agentsRuntimeOf(sim),actors:ActorBlueprint[]=[],blocked:string[]=[];
- const occupied=[...agentsOf(sim),...Object.keys(runtime?.actors??{}).sort().map(id=>runtime!.actors[id]!).filter(actor=>!actor.retired),...reserved,...Object.keys(sim.players).sort().flatMap(id=>{const p=sim.players[id]!;return [{...p.car,radius:2.5},...(p.foot?[{...p.foot,radius:.4}]:[])];})];
+ const occupied:ServiceBlocker[]=[...(sim.ext.agents?.list??[]).map(body=>({...body,height:body.height??1.8})),...reserved,...Object.keys(sim.players).sort().flatMap(id=>{const p=sim.players[id]!;return [{...p.car,height:CAR.bodyHeight,radius:2.5},...(p.mode==="foot"&&p.foot?[{...p.foot,height:1.8,radius:.4}]:[])];})];
  for(const definition of [...scene.actors].sort((a,b)=>a.id<b.id?-1:1)){
   if(runtime?.actors[definition.id])continue;
   const anchor={x:scene.anchor.x+definition.offset.x,z:scene.anchor.z+definition.offset.z};
-  const clear=(p:{x:number;z:number})=>!circleBlocked(world,p.x,p.z,definition.radius)&&[...occupied,...actors].every(other=>distance(p,other)>definition.radius+("radius" in other&&other.radius||.5)+.5);
-  let spot:{x:number;z:number;heading?:number}|undefined;
+  const clear=(p:{x:number;z:number})=>{const y=surfaceHeight(world,p.x,p.z,scene.anchor.y);return !circleBlockedBand(world,p.x,p.z,definition.radius,y+.5,y+definition.height)&&[...occupied,...actors].every(other=>"y" in other&&"height" in other&&typeof other.y==="number"&&typeof other.height==="number"&&(y>=other.y+other.height+.1||other.y>=y+definition.height+.1)||distance(p,other)>definition.radius+("radius" in other&&other.radius||.5)+.5);};
+  let spot:{x:number;y?:number;z:number;heading?:number}|undefined;
   if(definition.model==="van")spot=serviceRoadPoint(world,anchor,0,25,0,[...occupied,...actors],2.7,1.1)??undefined;
   else {
    const candidates=(graph?.nodes??[]).filter(node=>distance(anchor,node)<=25).map(node=>({x:node.x,z:node.z})).sort((a,b)=>distance(anchor,a)-distance(anchor,b)||a.x-b.x||a.z-b.z);
@@ -41,7 +41,7 @@ export function planSceneActors(world:World,sim:Readonly<SimState>,scene:Mission
    spot=candidates.find(clear);
   }
   if(!spot){blocked.push(definition.id);continue;}
-  actors.push({id:definition.id,model:definition.model,firmware:definition.firmware,x:spot.x,y:groundHeight(world,spot.x,spot.z),z:spot.z,heading:spot.heading??0,radius:definition.radius,height:definition.height,protected:definition.protected??definition.model==="person",significant:true,posted:definition.role!=="unit"});
+  actors.push({id:definition.id,model:definition.model,firmware:definition.firmware,x:spot.x,y:spot.y??surfaceHeight(world,spot.x,spot.z,scene.anchor.y),z:spot.z,heading:spot.heading??0,radius:definition.radius,height:definition.height,protected:definition.protected??definition.model==="person",significant:true,posted:definition.role!=="unit"});
  }
  return {actors,blocked};
 }
