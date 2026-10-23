@@ -8,6 +8,7 @@ import { advanceProjectile } from "./physics.ts";
 import { waterShot } from "./weapons.ts";
 import { holdCombatTimers } from "./pause.ts";
 import { applyFlowerHit, launchFlowers } from "./flowers.ts";
+import { stepMaintenance } from "./maintenance.ts";
 import { capacity, emit, initialPlayer, initialTarget, MAX_PROJECTILES, newlyPressed, protectedActor, safeAngle, sortedActors, sortedPlayers, targetOf } from "./shared.ts";
 import type { CombatActor, CombatContext, CombatInputs, CombatPlayer, CombatState, PlayerCombat, Projectile, TargetCombat } from "./types.ts";
 
@@ -61,7 +62,9 @@ function cloneState(prev: CombatState, ctx: CombatContext): CombatState {
   return {
     ...prev,tick:prev.tick+1,rng:[...prev.rng],players,targets,
     projectiles:prev.projectiles.map(p=>({...p})),gadgets:prev.gadgets.map(g=>({...g})),
-    attacks:prev.attacks.map(a=>({...a})),attackSequence:{...prev.attackSequence},events:[],
+    attacks:prev.attacks.map(a=>({...a})),attackSequence:{...prev.attackSequence},
+    ...(prev.maintenanceSequence ? {maintenanceSequence:{...prev.maintenanceSequence}} : {}),
+    ...(prev.maintenanceChannels ? {maintenanceChannels:Object.fromEntries(Object.keys(prev.maintenanceChannels).sort().map(id=>[id,{...prev.maintenanceChannels![id]!}]))} : {}),events:[],
   };
 }
 
@@ -170,6 +173,7 @@ export function stepCombat(prev: Readonly<CombatState>, ctx: CombatContext, inpu
   launchFlowers(state,ctx,inputs);
   particles(state,ctx);
   tickEffects(state,ctx);
+  stepMaintenance(state,ctx);
   stepAttacks(state,ctx,inputs);
   }
   for (const player of sortedPlayers(ctx)) {

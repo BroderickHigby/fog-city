@@ -28,6 +28,8 @@ export const DEVICE_TUNING = {
   speakerReuseTicks: 480,
   gearTicks: 900,
   gearReuseTicks: 5400,
+  microclimateTicks: 1200,
+  microclimateRadius: 8,
   confidenceRange: 150,
   confidenceTicks: 1200,
   parrotsPlacementRange: 200,
@@ -307,6 +309,11 @@ function activateStreak(state: CombatState, ctx: CombatContext, player: CombatPl
 function tickGadgets(state: CombatState, ctx: CombatContext, inputs: CombatInputs): void {
   state.gadgets = state.gadgets.filter(gadget => state.tick < gadget.untilTick && state.players[gadget.ownerId] !== undefined);
   for (const gadget of state.gadgets) {
+    if (gadget.kind === "microclimate") {
+      const owner = playerById(ctx, gadget.ownerId);
+      if (owner) { gadget.x = owner.x; gadget.y = owner.y; gadget.z = owner.z; }
+      continue;
+    }
     if (gadget.kind === "sprinkler") {
       const source = { x: gadget.x, y: gadget.y + 0.4, z: gadget.z };
       for (const actor of sortedActors(ctx)) if (activeBad(state, actor) && spatialDistance2(source, actor) <= gadget.radius * gadget.radius &&
@@ -376,10 +383,12 @@ export function stepDevices(state: CombatState, ctx: CombatContext, inputs: Comb
     if (state.tick >= owner.boostUntil) owner.boost = "none";
     const input = inputs[player.id] ?? {};
     if (input.gear === true && player.gear && player.gear !== "none" && newlyPressed(owner, "gear", true) && state.tick >= owner.nextGearTick) {
+      if (player.gear === "microclimate" && !addGadget(state, "microclimate", player.id, player, DEVICE_TUNING.microclimateRadius, DEVICE_TUNING.microclimateTicks)) continue;
       owner.gear = player.gear;
-      owner.gearUntil = state.tick + DEVICE_TUNING.gearTicks;
+      const duration = player.gear === "microclimate" ? DEVICE_TUNING.microclimateTicks : DEVICE_TUNING.gearTicks;
+      owner.gearUntil = state.tick + duration;
       owner.nextGearTick = state.tick + DEVICE_TUNING.gearReuseTicks;
-      emit(state, "gear.activated", player.id, "", DEVICE_TUNING.gearTicks, player.gear);
+      emit(state, "gear.activated", player.id, "", duration, player.gear);
     }
     placeOrdinary(state, ctx, player, input);
     activateStreak(state, ctx, player, input);

@@ -1,6 +1,7 @@
 import { clamp, dcos, dsin } from "../dmath.ts";
 import { nextFloat } from "../rng.ts";
 import { lineOfSight } from "./physics.ts";
+import { fogAtPoint } from "./microclimate.ts";
 import {
   capacity, distance2, DT, emit, FIDELITY_RADIUS, protectedActor, robotActor,
   safeAngle, sortedActors, sortedPlayers, targetOf,
@@ -124,11 +125,12 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
   for (const actor of sortedActors(ctx)) {
     let target = state.targets[actor.id];
     if (target?.phase === "cleared") continue;
-    if ((ctx.wave ?? 2) >= 3 && actor.firmware === "bad" && robotActor(actor) && !actor.sheltered && !protectedActor(actor)) {
-      const fog = ctx.night && (ctx.fog ?? 0) > 0.6 ? 0.01 * (actor.pursuing ? 3 : 1) : 0;
-      const rain = EFFECTS.rainRustPerSecond * clamp(ctx.rain ?? 0, 0, 1);
+    if ((ctx.wave ?? 2) >= 3 && actor.firmware === "bad" && robotActor(actor) && !protectedActor(actor)) {
+      const microclimate = fogAtPoint(state, actor);
+      const fog = Math.max(microclimate ? 0.03 : 0, !actor.sheltered && ctx.night && (ctx.fog ?? 0) > 0.6 ? 0.01 * (actor.pursuing ? 3 : 1) : 0);
+      const rain = actor.sheltered ? 0 : EFFECTS.rainRustPerSecond * clamp(ctx.rain ?? 0, 0, 1);
       if (fog + rain > 0) {
-        applyRust(state, actor, (fog + rain) * DT, "environment", false);
+        applyRust(state, actor, (fog + rain) * DT, microclimate?.ownerId ?? "environment", false, !microclimate);
         target = state.targets[actor.id];
       }
     }

@@ -183,3 +183,28 @@ One `index.html` line, isolated on the render compatibility branch. No combat, s
 ## Objective resistance follow-up
 
 Shared `CombatActor.rustScale` is now validated in (0, 1] and overrides model resistance for authored objectives. The Update Relay at 0.2 requires twenty seconds of the starting stream; absent metadata preserves existing model behavior. Focused effects/system validation: 51 tests passed. Core shared contract dependency: 991aaff.
+
+## Wave-6 maintenance and equipment follow-up
+
+Base: `lane/sim-combat/wave5` (`d8e6911`). Head: `lane/sim-combat/wave6`.
+
+Draft PR title: `Sim-Combat: validate Tidy work and activate persistent wide/fog equipment`
+
+Draft PR body:
+
+Tidy now clears a heap only after three continuous seconds of valid work by an active, stationary, good-firmware Tidy in fidelity and within three metres. Restoring converted cargo or a repair-marked helper takes sixty continuous seconds at an authoritative kiosk. Missing workers, interrupted work, protected bodies, occupied taxis, blocked sight, different floors and completed request replays cannot complete the channel. Completed work emits the existing `robot.heap-cleared` / `robot.restored` events; the agent runtime owns hauling and restored firmware.
+
+The purchased wide nozzle keeps the existing three-pellet fan without multiplying water or rust. Microclimate gear creates an eight-metre sphere for twenty seconds, follows the accepted owner pose, blocks robot sight, and applies 0.03 rust per second to bad firmware. It preserves the ninety-second reuse delay and pause timing. The registered provider consumes the published `Action.gear` bit, so recorded controls activate equipped gear.
+
+Validation: the full combat scope passed 218 tests. After the recorded gear mapping, typecheck and 57 registered-system / forbidden-API tests passed, including the new actual-input activation regression. No browser or full-repository suite was rerun independently; root owns those checks on the composed game. Prototype changes were not included.
+
+### Shared dependencies
+
+Consumed exact core changes `224f7f3`, `357f711`, `dbd2eb6` and `d56a9f6` by cherry-pick; this lane authored no shared contract changes. The implementation remains in owned combat paths.
+
+### Requests for other lanes
+
+- Agent runtime: provide persistent maintenance intents and kiosk coordinates; retain cleared converted cargo in the context while hauling; reactivate its good firmware only after `robot.restored`. Sequence numbers are monotonic per worker. Repeating an uncompleted request continues work; all required poses and eligibility are rechecked each tick.
+- Agent perception: consume `sightRange` or `activeFogZones` / `microclimateBlocksSight` so fog changes actual target acquisition. The exported zone has `id`, `ownerId`, `x`, `y`, `z`, `radius`, `untilTick`.
+- Player progression/input: preserve purchased `nozzle: "wide"` and `gear: "microclimate"` in loadouts; map the gear control to `Action.gear`.
+- Renderer: display the active sphere and work progress from combat state. Physical hauling and visual effects remain integration checks, not claims made by these reducer tests.

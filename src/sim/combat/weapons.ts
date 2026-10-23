@@ -77,6 +77,8 @@ export function waterShot(
   } else if (player.mount !== "foot") return null;
 
   const boosted = wave >= 4 && own.boostUntil > state.tick;
+  const wide = player.nozzle === "wide" || boosted && own.boost === "wide";
+  if (wide && player.mount === "roof") yaw = wrapAngle(heading + clamp(wrapAngle(yaw - heading), -PI / 12 + PI / 30, PI / 12 - PI / 30));
   if (boosted && own.boost === "pressure") range *= 1.5;
   const volume = (player.flowTier === 1 ? 1.2 : 0.8) / 10 * volumeScale;
   const available = supply === "reserve" ? own.reserve : own.water;
@@ -96,7 +98,7 @@ export function waterShot(
     supply,
     salt,
     vehicle: player.mount !== "foot",
-    spreadRadians: boosted && own.boost === "wide" ? PI / 15 : 0,
-    pellets: boosted && own.boost === "wide" ? 3 : 1,
+    spreadRadians: wide ? PI / 15 : 0,
+    pellets: wide ? 3 : 1,
   };
 }

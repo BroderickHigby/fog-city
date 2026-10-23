@@ -46,6 +46,11 @@ export function holdCombatTimers(state: CombatState): void {
   }
   for (const projectile of state.projectiles) projectile.bornTick = holdTimestamp(projectile.bornTick);
   for (const gadget of state.gadgets) gadget.untilTick = holdDeadline(gadget.untilTick, state.tick);
+  for (const id of Object.keys(state.maintenanceChannels ?? {}).sort()) {
+    const channel = state.maintenanceChannels![id]!;
+    channel.startedTick = holdTimestamp(channel.startedTick);
+    channel.lastTick = holdTimestamp(channel.lastTick);
+  }
   for (const attack of state.attacks) {
     attack.startTick = holdTimestamp(attack.startTick);
     attack.resolveTick = holdTimestamp(attack.resolveTick);

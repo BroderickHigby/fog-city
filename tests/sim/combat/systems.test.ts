@@ -88,6 +88,16 @@ describe("registered combat system", () => {
     expect(result.ext.combat?.players.p?.held).toEqual([]);
   });
 
+  it("activates equipped microclimate from the recorded gear action", () => {
+    const combat = provider({ wave: 4, loadouts: { p: { gear: "microclimate" } } });
+    const result = step(world, initial(), { p: { ...neutral, actions: Action.gear } }, [], [combat]);
+    expect(result.ext.combat?.gadgets).toHaveLength(1);
+    expect(result.ext.combat?.gadgets[0]).toMatchObject({ kind: "microclimate", ownerId: "p", radius: 8 });
+    expect(result.ext.combat?.players.p?.nextGearTick).toBe(5401);
+    const second = step(world, result, { p: { ...neutral, actions: Action.gear } }, [], [combat]);
+    expect(second.ext.combat?.gadgets).toHaveLength(1);
+  });
+
   it("lets explicit provider inputs replace recorded defaults, even with an empty map", () => {
     const cases: CombatInputs[] = [{}, { p: { scan: true } }];
     for (const inputs of cases) {
