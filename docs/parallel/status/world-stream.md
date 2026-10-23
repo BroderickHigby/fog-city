@@ -14,6 +14,12 @@ commands of §10. Coordinator session: `session_012u6jdJxkY41mYkqG3yG9Xk`.
 
 ## Decisions
 
+- **Version renumbering pending (coordinator, 22:37):** Gameplay weather PR #29 takes
+  SIM_VERSION 10 and lands first. When it merges into `integrate/wave2`, merge it here and
+  renumber the structural physics to the next unused number (likely **11**), chaining
+  10 → 11. The v9-labelled fixtures (`composed-v9.json`, `wave2-v9.json`) never shipped, so they
+  are re-recorded as v11 rather than kept. v7/v8 (and weather's v10) fixtures stay.
+
 - **SIM_VERSION 9 is stamped in PR (a)**, in the same commit that imports the structural
   physics, so no branch targeting `integrate/wave2` ever carries structural physics under the
   gameplay-only v8 stamp. `upgradeState` chains v7 → v8 → v9 with no field rewrite. PR (c)
