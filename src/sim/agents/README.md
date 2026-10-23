@@ -29,7 +29,9 @@ An agent already controlled by a dive/clearance override must keep that motion a
 
 The current integration branch's `src/sim/agents.ts` uses numeric IDs and the `ext.agents` list. Its `errandRobot` maps to the brain's `footman` archetype and `sidewalkBot` maps to `trundle`; do not rename the existing serialized kinds to adopt the policy API. The road graph is static world data. Policy state belongs in a typed, migrated extension chosen by core; it must not silently replace `ext.agents` or the separately developed prototype's `ext.game`.
 
-Keep significant actors when they leave active regions. Keep their route, identity, random state and phase when promoting or handing them back to full detail. Abstract actors must not attack, convert, receive new sensory knowledge or award rewards. Van request IDs and their creation ticks must be stable across retries. Timetable minute values must be monotonic across midnight; convert the shared day/clock before calling the scheduler.
+Keep significant actors when they leave active regions. Promote wet, rusted, scanned, recruited, converted or mission actors before population handoff/despawn, and handle a refused promotion explicitly so an interacted actor cannot silently disappear at the population cap. Keep their route, identity, random state and phase when promoting or handing them back to full detail. Abstract actors must not attack, convert, receive new sensory knowledge or award rewards. Van request IDs and their creation ticks must be stable across retries. Timetable minute values must be monotonic across midnight; convert the shared day/clock before calling the scheduler.
+
+Service vehicle IDs are reservations from the core allocator, not a separate global ID space. Confirm retirement only after the shared vehicle system has safely removed the physical body; a completed or timed-out job retains its vehicle slot until that acknowledgement. Confirm forced-update completion with both `targetId` and `completedTick`, after the combat lane has applied it, so delayed acknowledgements cannot consume a newer completion.
 
 ## Validation
 
@@ -38,6 +40,9 @@ From this checkout, with its dependencies installed:
 ```bash
 NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock pnpm typecheck
 NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock pnpm exec vitest run tests/sim/agents --maxWorkers=2
+NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock node tests/sim/agents/browser-parity.ts
 ```
+
+The parity runner uses installed Chromium (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`), compares 30 checkpoints over 1,800 policy ticks against Node, and writes `test-results/lane3/browser-parity.json`. It does not register the policies in the live simulation or validate physical clearance.
 
 Core owns the final registration, migrations, cross-engine suite, golden updates and combined vehicle/person clearance soak. Lane R owns visible assets and animation; lane 4 owns rust and effect application. Requests and current verification results are recorded in `docs/parallel/status/sim-agents.md`.
