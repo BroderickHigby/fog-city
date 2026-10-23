@@ -83,6 +83,7 @@ describe("L-04: Saints Peter and Paul", () => {
     const { x, z } = toLocal(sspp.point.lat, sspp.point.lon);
     const church = unionRings(near.filter((r) => podium(r) === "201006.0001265" && !r.meta?.towerOf).map((r) => r.footprint));
     expect(church).toHaveLength(1);
+    for (const k of [1, 2, 3, 4]) expect(byId.get(`201006.0001265-s${k}`)?.meta?.pieceOf).toBe("201006.0001265");
     expect(distToRing(x, z, church[0]!.outer)).toBeGreaterThan(15);
   });
 
