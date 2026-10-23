@@ -90,7 +90,7 @@ describe("robotaxi rides", () => {
     far.s.players.p!.foot = makeFoot(far.taxi.x + 30, 0, far.taxi.z, 0);
     expect(step(world, far.s, F).players.p!.ride ?? null).toBeNull();
     const rogue = besideTaxi();
-    rogue.s.ext.robots = { version: 1, actors: { r: { legacyId: rogue.taxi.id, firmware: "bad", retired: false } } };
+    rogue.s.ext.robots = { version: 1, actors: { r: { legacyId: rogue.taxi.id, firmware: "bad", retired: false } } } as unknown as SimState["ext"]["robots"];
     expect(boardableTaxi(world, rogue.s, rogue.s.players.p!.foot!.x, rogue.s.players.p!.foot!.z)).toBeNull();
     const taken = besideTaxi();
     const boarded = step(world, taken.s, F);

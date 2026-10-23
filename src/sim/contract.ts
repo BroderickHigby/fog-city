@@ -19,10 +19,14 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-// v9 is reserved for the structural world (World stream), v10 for wave-3 weather (#29).
+// v9 is reserved for the structural world (World stream) and is never written by this chain.
+// v10: wave-3 weather (src/sim/fog): seeded marine layer, winter rain, wet-road traction, rain
+// puddles, shelter, the King tide's flooded promenade, rain breaking phone hacks and the
+// per-shot wet rule. ext.fog gains its typed shape; an upgraded v8 save keeps every field and
+// the fog reducer fills ext.fog on its first tick.
 // v11 (player feel): on foot the default pace is a brisk jog (FOOT.walk 3.0 m/s) and the sprint
 // is fast (FOOT.sprint 7.0 m/s); Action.sprint (held, Shift) sprints as the brake already did.
-// Saved fields are unchanged; an upgraded v8 save keeps everything and walks at the new pace.
+// Saved fields are unchanged; an upgraded v10 save keeps everything and walks at the new pace.
 // v12 (player feel): a player can ride an ambient robotaxi as a passenger (PlayerState.ride,
 // optional; absent or null = not riding). The taxi stays an ambient agent under every robotaxi
 // rule; the player's own car stays parked. An upgraded v11 save keeps every field (no ride).

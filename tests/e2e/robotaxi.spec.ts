@@ -22,8 +22,8 @@ test("walk up to a robotaxi, F hops in, ride to a map waypoint, F gets out", asy
   const boarded = await page.evaluate(() => {
     const h = (window as unknown as FogWindow).__fogcity!;
     const idle = { throttle: 0, steer: 0, brake: 0, actions: 0 };
-    h.stepFrames([{ p1: { ...idle, actions: 1 } }]);
-    for (let i = 0; i < 60; i++) h.stepFrames([{ p1: idle }]);
+    h.stepFrames!([{ p1: { ...idle, actions: 1 } }]);
+    for (let i = 0; i < 60; i++) h.stepFrames!([{ p1: idle }]);
     for (let tick = 0; tick < 6000; tick++) {
       const s = h.state();
       const me = s.players.p1 as unknown as { ride?: unknown; foot: { x: number; z: number; heading: number } | null };
@@ -45,7 +45,7 @@ test("walk up to a robotaxi, F hops in, ride to a map waypoint, F gets out", asy
       while (err > Math.PI) err -= 2 * Math.PI;
       while (err < -Math.PI) err += 2 * Math.PI;
       const near = bestD < 4.5 && Math.abs(best.speed) < 1.2;
-      h.stepFrames([{ p1: { throttle: dist > 0.6 && Math.abs(err) < 0.7 ? 1 : 0, steer: Math.max(-1, Math.min(1, err * 4)), brake: 0, actions: near && tick % 10 === 0 ? 1 : 0 } }]);
+      h.stepFrames!([{ p1: { throttle: dist > 0.6 && Math.abs(err) < 0.7 ? 1 : 0, steer: Math.max(-1, Math.min(1, err * 4)), brake: 0, actions: near && tick % 10 === 0 ? 1 : 0 } }]);
     }
     return false;
   });

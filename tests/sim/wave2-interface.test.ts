@@ -92,7 +92,7 @@ describe("wave-2 shared interface", () => {
   });
 
   it("rejects unavailable intermediate and future migrations", () => {
-    for (const version of [0, -1, 2.5, SIM_VERSION + 1, NaN]) {
+    for (const version of [0, -1, 2.5, 9, SIM_VERSION + 1, NaN]) {
       expect(() => upgradeState({ ...baseline.initial, version } as unknown as SimState)).toThrow("cannot upgrade");
     }
   });
