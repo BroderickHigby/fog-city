@@ -1,5 +1,6 @@
 import {isGameplayId} from "../gameplay-contract.ts";
-import {agentsOf} from "../agents.ts";
+import {ROBOTAXI_BODY,agentsOf} from "../agents.ts";
+import {boxDistance} from "../dodge.ts";
 import type {SimState} from "../contract.ts";
 import {dcos,dsin,PI} from "../dmath.ts";
 import {circleBlocked,groundHeight,type World} from "../world.ts";
@@ -13,6 +14,11 @@ export interface SceneActor {
 }
 export interface MissionScene {missionId:string;anchor:{x:number;y:number;z:number};actors:SceneActor[]}
 const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.z-b.z)*(a.z-b.z));
+function vehicleBox(other:{x:number;z:number}):{heading:number;hl:number;hw:number}|null {
+ const o=other as {kind?:string;model?:string;heading?:number;halfLength?:number;halfWidth?:number};
+ if(o.kind!=="robotaxi"&&o.halfLength===undefined&&o.model!=="van"&&o.model!=="bus"&&o.model!=="robotaxi")return null;
+ return {heading:o.heading??0,hl:o.halfLength??ROBOTAXI_BODY.halfLength,hw:o.halfWidth??ROBOTAXI_BODY.halfWidth};
+}
 export function decodeMissionScene(event:{kind:string;detail:string}):MissionScene|null {
  if(event.kind!=="mission.scene-request")return null;
  let value:MissionScene;try{value=JSON.parse(event.detail) as MissionScene;}catch{return null;}
@@ -31,7 +37,11 @@ export function planSceneActors(world:World,sim:Readonly<SimState>,scene:Mission
  for(const definition of [...scene.actors].sort((a,b)=>a.id<b.id?-1:1)){
   if(runtime?.actors[definition.id])continue;
   const anchor={x:scene.anchor.x+definition.offset.x,z:scene.anchor.z+definition.offset.z};
-  const clear=(p:{x:number;z:number})=>!circleBlocked(world,p.x,p.z,definition.radius)&&[...occupied,...actors].every(other=>distance(p,other)>definition.radius+("radius" in other&&other.radius||.5)+.5);
+  const clear=(p:{x:number;z:number})=>!circleBlocked(world,p.x,p.z,definition.radius)&&[...occupied,...actors].every(other=>{
+   // A vehicle body (a legacy robotaxi has no radius; a van's or bus's is not its hull) by its box.
+   const box=vehicleBox(other);
+   return box?boxDistance(p.x,p.z,other.x,other.z,dsin(box.heading),-dcos(box.heading),box.hl,box.hw)>definition.radius+.5:distance(p,other)>definition.radius+("radius" in other&&other.radius||.5)+.5;
+  });
   let spot:{x:number;z:number;heading?:number}|undefined;
   if(definition.model==="van")spot=serviceRoadPoint(world,anchor,0,25,0,[...occupied,...actors],2.7,1.1)??undefined;
   else {

@@ -73,13 +73,15 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
   const list = ext.list.filter(a => !retired.has(a.runtimeId ?? `agent:${a.id}`));
   const seen = new Set<number>();
   const names = new Set<string>();
+  // Indexed once: motions have distinct ids and names, so no admission below changes an answer.
+  const indexOf = new Map<number, number>(), claimedBy = new Map<string, number[]>();
+  list.forEach((a, index) => { if (!indexOf.has(a.id)) indexOf.set(a.id, index); if (a.runtimeId !== undefined) claimedBy.set(a.runtimeId, [...(claimedBy.get(a.runtimeId) ?? []), a.id]); });
   for (const motion of [...motions].sort((a,b) => a.numericId-b.numericId)) {
     valid(motion);
     if (seen.has(motion.numericId) || names.has(motion.id)) throw new Error("Duplicate physical actor ID");
     seen.add(motion.numericId); names.add(motion.id);
-    const conflictingBody = list.find(a => a.runtimeId === motion.id && a.id !== motion.numericId);
-    if (conflictingBody) throw new Error("Physical actor identity changed");
-    const index = list.findIndex(a => a.id === motion.numericId);
+    if ((claimedBy.get(motion.id) ?? []).some(id => id !== motion.numericId)) throw new Error("Physical actor identity changed");
+    const index = indexOf.get(motion.numericId) ?? -1;
     if (index >= 0) {
       const body = list[index]!;
       if ((body.kind === "robotaxi") !== (motion.kind === "vehicle")) throw new Error("Physical actor body kind changed");
