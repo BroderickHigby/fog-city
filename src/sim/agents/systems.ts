@@ -1,6 +1,8 @@
 import type { SimState } from "../contract.ts";
 import type { JsonObject } from "../extensions.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
+import { planTransitRuntime } from "./transit-runtime.ts";
+import { planServiceRuntime } from "./service-runtime.ts";
 import { decodeMissionStage, planMissionActors } from "./mission-actors.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
@@ -23,6 +25,16 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     let state=context.state;
     const options=provider(context);
     const spawns=[...(options.spawns??[])];
+    const service=allocate&&options.services!==false?planServiceRuntime(context.world,state,agentsRuntimeOf(state)?.services):undefined;
+    if(service&&allocate&&service.spawns.length){
+      const reserved=allocate(state,service.spawns.map(actor=>actor.id));state=reserved.state;
+      for(const actor of service.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
+    }
+    const transit=allocate&&options.transit?planTransitRuntime(context.world,state,options.transit,agentsRuntimeOf(state)?.transit):undefined;
+    if(transit&&allocate&&transit.spawns.length){
+      const reserved=allocate(state,transit.spawns.map(actor=>actor.id));state=reserved.state;
+      for(const actor of transit.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
+    }
     const bindings={...(agentsRuntimeOf(state)?.missionBindings??{})};
     if(allocate){
       const source=(state.ext.missions as unknown as {events?:unknown}|undefined)?.events;
@@ -39,8 +51,11 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         for(const alias of Object.keys(plan.bindings).sort())bindings[`${stage.missionId}:${alias}`]=plan.bindings[alias]!;
       }
     }
-    const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns});
+    const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
+    if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
+    if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     runtime.missionBindings=bindings;
+    runtime.proposals=runtime.proposals.filter(proposal=>!runtime.actors[proposal.id]?.retired);
     return {state:withRuntime(state,runtime),motions:runtime.proposals,retirements:Object.keys(runtime.actors).sort().filter(id=>runtime.actors[id]!.retired)};
   }
   return {
@@ -70,7 +85,7 @@ export function agentsCombatOptions(state: Readonly<SimState>): CombatAdapterOpt
     if (runtime?.actors[actor.id]?.legacyId !== null) actorMetadata[actor.id] = actor;
     else extraActors.push(actor);
   }
-  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state) };
+  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?{conversionCap:runtime.baseBadCount*2}:{}) };
 }
 
 /** Core composes the configured provider once world navigation and service data are loaded. */
