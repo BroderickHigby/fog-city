@@ -30,7 +30,7 @@ import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
-import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
+import { mountGameUI, createGameplayDispatcher, LOCAL_MODES, type LocalModeChoice, type MapPoint } from "./ui/index.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
@@ -40,6 +40,9 @@ import { contentHash } from "./content/barks.ts";
 import { VENDOR } from "./content/vendor.ts";
 import { STARTUP_KITS } from "./content/kits.ts";
 import { DEFAULT_CATALOG } from "./sim/player/catalog.ts";
+import { createLocalMatch, stepLocalMatch, localMatchView } from "./sim/modes/playable.ts";
+import { applyModeSettlements, type ModeSettlement } from "./sim/player/settlements.ts";
+import { hash32 } from "./sim/rng.ts";
 import { createGameSystems } from "./sim/game-systems.ts";
 import { agentsRuntimeOf } from "./sim/agents/runtime.ts";
 import { renderWithRuntimeActors } from "./render/runtime-actors.ts";
@@ -198,6 +201,9 @@ async function boot(): Promise<void> {
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
+  let cityState:SimState|null=null;
+  let localMatchSequence=0;
+  let modeError:string|undefined;
   let paused = false;
   let acc = 0;
   let last = performance.now();
@@ -208,16 +214,40 @@ async function boot(): Promise<void> {
   const recordedCommands:SimEvent[]=[];
   const send=createGameplayDispatcher({playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>{queuedEvents.push(event);recordedCommands.push(event);}});
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
-  const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
-  const gameUI=mountGameUI(container,{copy:uiText,keyboard,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
+  const captureCity=()=>captureProgression(cityState??curr,LOCAL_PLAYER);
+  const autosave=new Autosave(saveStore,captureCity);
+  const resetFrame=()=>{prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();audio.reset(curr.ext.combat);};
+  const leaveLocalMatch=(settle:boolean)=>{
+    if(!cityState)return;
+    const result=localMatchView(curr),saved=cityState;
+    const payouts:ModeSettlement[]=[];
+    if(settle&&result?.phase==="finished")for(const payout of result.payouts){if(payout.factionClockMoves===0||payout.factionClockMoves===1)payouts.push({...payout,factionClockMoves:payout.factionClockMoves});}
+    curr=settle?applyModeSettlements(saved,payouts):saved;cityState=null;modeError=undefined;resetFrame();
+    if(settle)autosave.flush();
+  };
+  const startLocalMatch=(mode:LocalModeChoice):boolean=>{
+    if(cityState)return false;
+    try{
+      if(queuedEvents.some(event=>event.tick===curr.tick+1))advanceFrame({[LOCAL_PLAYER]:{...NEUTRAL_INPUT}});
+      const own=curr.players[LOCAL_PLAYER];if(!own)return false;
+      const body=activeBody(own),profile=gameplaySnapshot({state:curr}).progression.players[LOCAL_PLAYER];
+      const ledger=(curr.ext.economy as unknown as {settledModeIds?:string[]}|undefined)?.settledModeIds??[];
+      const match=createLocalMatch(world,{id:`local-${ledger.length}-${++localMatchSequence}`,mode,seed:hash32(SEED,localMatchSequence),playerId:LOCAL_PLAYER,spawn:{x:body.x,z:body.z,heading:body.heading},
+        loadouts:profile?{[LOCAL_PLAYER]:{nozzle:profile.nozzle,gadget:profile.gadget,gear:profile.gear,perks:[...profile.perks],streaks:[...profile.streaks],cosmetics:[]}}:{}});
+      cityState=JSON.parse(JSON.stringify(curr)) as SimState;curr=match;modeError=undefined;resetFrame();return true;
+    }catch{modeError=uiText("ui.common.error");return false;}
+  };
+  const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
+  const gameUI=mountGameUI(container,{copy:uiText,keyboard,localModes:LOCAL_MODES,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",saves:{store:saveStore,capture:captureCity,restore:data=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
-    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
+    cityState=null;modeError=undefined;curr=restoreProgression(fresh,clean,LOCAL_PLAYER);resetFrame();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>(mission.wave??2)<=GAME_WAVE&&!completed.includes(mission.id));requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
+    startMode:startLocalMatch,cancelMode:()=>leaveLocalMatch(false),returnFromMode:()=>leaveLocalMatch(true),
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;},
     interaction:choiceId=>{
@@ -242,7 +272,7 @@ async function boot(): Promise<void> {
     prev = curr;
     const tick=curr.tick+1,pending=queuedEvents.filter(event=>event.tick===tick);
     queuedEvents=queuedEvents.filter(event=>event.tick>tick);
-    curr = step(world, curr, frame, [...events,...pending],systems);
+    curr = cityState?stepLocalMatch(world,curr,frame,[...events,...pending]):step(world, curr, frame, [...events,...pending],systems);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -453,9 +483,16 @@ async function boot(): Promise<void> {
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
-    autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(mission?.status==="complete"){const next=[...MISSIONS].sort((a,b)=>(a.campaign??0)-(b.campaign??0)).find(candidate=>(candidate.wave??2)<=GAME_WAVE&&!mission.completedIds.includes(candidate.id));if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE);gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    if(!cityState)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
+    if(!cityState&&mission?.status==="complete"){const next=[...MISSIONS].sort((a,b)=>(a.campaign??0)-(b.campaign??0)).find(candidate=>(candidate.wave??2)<=GAME_WAVE&&!mission.completedIds.includes(candidate.id));if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(now>=nextUiUpdate){
+      nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE),match=localMatchView(curr);
+      const payout=match?.payouts.find(row=>row.playerId===LOCAL_PLAYER);
+      const cityWallet=cityState?gameplaySnapshot({state:cityState}).economy.players[LOCAL_PLAYER]:undefined;
+      gameUI.update({...uiView,...(cityWallet?{cashCents:cityWallet.cashCents}:{}),phoneApps:[...(uiView.phoneApps??[]),"playlists"],modeError,
+        ...(match?{objective:undefined,interaction:undefined,vendor:[],match:{...match,won:match.result?match.result.winners.includes(LOCAL_PLAYER):undefined,cashCents:payout?.cashCents,xp:payout?.xp}}:{}),
+        performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});
+    }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

@@ -13,13 +13,14 @@ describe("canonical progression saves",()=>{
     snapshot.missions.players.p1!.completedIds=["hot-desk"];
     snapshot.missions.players.p1!.rewardedIds=["hot-desk:moved-in"];
     snapshot.progression.players.p1!.xp=900;
+    snapshot.progression.players.p1!.rank=1;
     const saved=captureProgression(state,"p1");
     expect(Object.keys(saved).sort()).toEqual(["activities","missions","player","progression","wallet"]);
     const fresh=initial(2),before=JSON.stringify(fresh),restored=restoreProgression(fresh,saved,"p1"),view=gameplaySnapshot({state:restored});
     expect(JSON.stringify(fresh)).toBe(before);expect(restored.seed).toBe(2);
     expect(view.economy.players.p1!.cashCents).toBe(12345);expect((view.economy as unknown as {settledModeIds:string[]}).settledModeIds).toEqual(["round-1"]);
     expect(view.missions.players.p1!.completedIds).toEqual(["hot-desk"]);expect(view.missions.players.p1!.status).toBe("idle");
-    expect(view.progression.players.p1!.rank).toBe(2);expect(view.player.players.p1!.status).toBe("active");
+    expect(view.progression.players.p1!.rank).toBe(4);expect(view.player.players.p1!.status).toBe("active");
   });
   it("preserves advanced equipment and durable world clock without expired tick deadlines",()=>{
     const state=initial(),snapshot=gameplaySnapshot({state});

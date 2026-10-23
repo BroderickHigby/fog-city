@@ -24,7 +24,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   function button(label:string,fn:()=>void){const b=node("button",undefined,label);b.type="button";b.addEventListener("click",fn);return b;}
   const hud=node("div","fc-hud"),cluster=node("div","fc-cluster"),tools=node("div","fc-tools");
   const stats=new Map<string,HTMLElement>();
-  for(const key of ["runway","cash","water","threat","reputation"]){const stat=node("div","fc-stat"),label=node("small",undefined,copy(`ui.hud.${key}`)),value=node("strong");stat.append(label,value);stats.set(key,value);cluster.append(stat);if(key==="water"){const progress=node("progress");progress.max=1;progress.value=0;progress.setAttribute("aria-label",copy("ui.hud.water"));stat.append(progress);}}
+  for(const key of ["runway","cash","water","threat","vc","reputation"]){const stat=node("div","fc-stat"),label=node("small",undefined,copy(`ui.hud.${key}`)),value=node("strong");stat.append(label,value);stats.set(key,value);cluster.append(stat);if(key==="water"){const progress=node("progress");progress.max=1;progress.value=0;progress.setAttribute("aria-label",copy("ui.hud.water"));stat.append(progress);}}
   tools.append(button(copy("ui.phone.open"),()=>setModal("phone")),button(copy("ui.vendor.title"),()=>setModal("vendor")));hud.append(cluster,tools);
   const objective=node("aside","fc-objective"),objectiveTitle=node("h2"),objectiveDetail=node("p");objective.setAttribute("aria-label",copy("ui.hud.objective"));objective.append(objectiveTitle,objectiveDetail);objective.hidden=true;
   const mini=node("div","fc-minimap"),canvas=node("canvas");canvas.setAttribute("aria-label",copy("ui.phone.map"));mini.append(canvas);
@@ -119,6 +119,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     stats.get("water")!.parentElement!.querySelector("small")!.textContent=copy(next.salt?"ui.hud.salt":"ui.hud.water");
     stats.get("water")!.parentElement!.dataset.alert=String(next.salt);stats.get("water")!.parentElement!.title=copy(next.salt?"ui.hud.salt":"ui.hud.fresh");
     stats.get("water")!.parentElement!.querySelector("progress")!.value=next.capacityLitres>0?bounded(next.waterLitres/next.capacityLitres,0,1):0;
+    stats.get("vc")!.textContent=String(bounded(next.vcStars??0,0,5));
     stats.get("threat")!.textContent=String(Math.round(bounded(next.threat,0,100)));stats.get("reputation")!.textContent=String(Math.round(bounded(next.reputation,-999,999)));
     objective.hidden=!next.objective;if(next.objective){objectiveTitle.textContent=next.objective.title;objectiveDetail.textContent=next.objective.detail;}
     speed.textContent=`${Math.round(bounded(next.speedMps,0,200)*3.6)} km/h`;drawMap(canvas,next);

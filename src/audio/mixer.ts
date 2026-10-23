@@ -24,6 +24,8 @@ export class GameAudio {
     if(id==="spray"){if(source.paused)void source.play().catch(()=>{});return;}
     while(this.voices.length>=6)this.voices.shift()?.pause();const voice=source.cloneNode() as HTMLAudioElement;voice.volume=this.volume;this.voices.push(voice);void voice.play().catch(()=>{});
   }
+  /** Reset event cursors when switching between isolated simulations or loading a save. */
+  reset(state?:CombatState):void{this.lastEvent=Math.max(0,(state?.nextId??1)-1);this.spraying=false;for(const sample of this.samples.values())sample.pause();for(const voice of this.voices)voice.pause();this.voices.length=0;}
   update(state:CombatState|undefined,playerId:string,muted:boolean):void{
     const spraying=!muted&&!!state?.projectiles.some(p=>p.ownerId===playerId&&p.kind==="water"&&p.bornTick>=state.tick-12);
     if(spraying&&!this.spraying)this.play("spray");if(!spraying&&this.spraying)this.samples.get("spray")?.pause();this.spraying=spraying;

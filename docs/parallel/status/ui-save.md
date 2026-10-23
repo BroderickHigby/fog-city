@@ -63,3 +63,12 @@ Draft PR title: `UI: add local match menu, status HUD and result screen`
 Draft PR body: Adds controller-accessible local mode selection and match result presentation behind an explicit host enablement option. Runtime integration follows the canonical local-match API; no outcome or reward is injected by this UI. Existing free-roam UI remains on the clean renderer branch.
 
 Validation for the local UI scaffold: full typecheck and 14 focused controller/command tests pass. The module uses existing authored copy keys and plain text DOM nodes. Actual mode creation, play-through, cancellation and settlement await the published runtime API and integration checks.
+
+## Local match runtime integration
+The isolated mode UI branch now composes the published local-match driver (`4bba79b`) with verified core mode/performance/pause seam (`f20d53d`). Playlists starts Bot Sweep or Clean Streets in a fresh simulation at the player's position. An unavailable arena leaves the city untouched and shows the existing error copy. The host retains the city by value, routes fixed ticks through `stepLocalMatch`, displays actual match status/results, and applies canonical payouts only on explicit return. Cancel restores the city unchanged. Save/autosave read the retained city during a match; load cancels the match. Audio cursors reset when switching simulations. Vendor eligibility calls the shared site predicate.
+
+Verification: combined full typecheck passed. The settlement→save→restore→repeated-settlement regression passed, alongside input and storage tests. One existing rank expectation was updated from 2 to 4 to match the current authored 900-XP threshold; its narrow rerun is pending. Actual SF mode browser proof still awaits the integration harness/performance freeze.
+
+Latest draft PR title: `Game: connect local Bot Sweep and Clean Streets to the HUD`
+
+Latest draft PR body: Adds playable local-match entry and results to the phone, driven by the shared deterministic match runner and physical roster. The city simulation is retained independently; cancellation restores it and explicit return applies validated payouts once. Saves capture city progress during matches, and the persisted payout ledger prevents duplicate rewards after reload. Includes controller menu support, authored signup choices, canonical vendor eligibility and a settlement round-trip regression. Validation and remaining browser proof are recorded above.
