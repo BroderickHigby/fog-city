@@ -4,7 +4,7 @@ import { dcos, dsin, PI } from "../dmath.ts";
 import { circleBlocked, groundHeight, type World } from "../world.ts";
 import { pathPoint } from "../roads.ts";
 import { agentsOf } from "../agents.ts";
-import type { RuntimeSpawn } from "./runtime.ts";
+import { agentsRuntimeOf, type RuntimeSpawn } from "./runtime.ts";
 import type { SidewalkGraph } from "./navigation.ts";
 
 export interface MissionStage {
@@ -45,10 +45,12 @@ export function decodeMissionStage(event: {kind:string;targetId:string;detail:st
 }
 
 /** Produces clear, stable actor identities; the core allocates numeric IDs and admits bodies. */
-export function planMissionActors(world:World,sim:Readonly<SimState>,stage:MissionStage,graph?:SidewalkGraph,placementAllowed:(x:number,z:number)=>boolean=()=>true):MissionActorPlan {
+export function planMissionActors(world:World,sim:Readonly<SimState>,stage:MissionStage,graph?:SidewalkGraph,placementAllowed:(x:number,z:number)=>boolean=()=>true,reservedBodies:readonly Pick<RuntimeSpawn,"x"|"z"|"radius">[]=[]):MissionActorPlan {
   const result:MissionActorPlan={actors:[],bindings:{},groups:{},blocked:[]};
   const visited=new Set<string>();
-  const physical=[...agentsOf(sim),...sortedIds(sim.players).map(id=>{const p=sim.players[id]!;return p.mode==="foot"&&p.foot?p.foot:p.car;})];
+  const runtime=agentsRuntimeOf(sim);
+  const active=runtime?Object.keys(runtime.actors).sort().map(id=>runtime.actors[id]!).filter(actor=>!actor.retired):[];
+  const physical=[...agentsOf(sim),...active,...reservedBodies,...sortedIds(sim.players).map(id=>{const p=sim.players[id]!;return p.mode==="foot"&&p.foot?p.foot:p.car;})];
   const clear=(x:number,z:number,radius:number)=>placementAllowed(x,z)&&!circleBlocked(world,x,z,radius)&&physical.every(p=>magnitude(p.x-x,p.z-z)>radius+2)&&result.actors.every(p=>magnitude(p.x-x,p.z-z)>radius+p.radius+.5);
   function place(alias:string,stack:Set<string>):string[]{
     if(stack.has(alias)){result.blocked.push(alias);return [];}

@@ -22,6 +22,7 @@ export interface RuntimeSpawn {
   radius: number; height: number;
   halfLength?: number; halfWidth?: number;
   speed?: number;
+  protected?: boolean;
   child?: boolean;
   posture?: "standing" | "seated" | "lying";
   mobilityAid?: boolean;
@@ -56,6 +57,11 @@ export interface AgentMotionProposal {
   numericId: number;
   legacyId: number | null;
   kind: "walker" | "vehicle" | "flying";
+  bodyKind?: "robot" | "person" | "animal";
+  protected?: boolean;
+  child?: boolean;
+  mobilityAid?: boolean;
+  posture?: "standing" | "seated" | "lying";
   x: number; y: number; z: number; heading: number; speed: number;
   radius: number; height: number;
   halfLength?: number; halfWidth?: number;
@@ -75,6 +81,7 @@ export interface AgentsRuntimeState {
   version: 1;
   tick: number;
   actors: Record<string, RuntimeActor>;
+  missionBindings: Record<string,string>;
   baseBadCount: number;
   lastCombatTick: number;
   attacks: AttackRequest[];
@@ -118,6 +125,7 @@ function animal(model:RuntimeModel):boolean{return model==="pigeon"||model==="do
 function human(model:RuntimeModel):boolean{return model==="person"||model==="associate";}
 
 function initialize(spawn:RuntimeSpawn,tick:number,legacyId:number|null):RuntimeActor{
+  if([spawn.halfLength,spawn.halfWidth,spawn.rustScale].some(value=>value!==undefined&&(!Number.isFinite(value)||value<=0))||spawn.speed!==undefined&&(!Number.isFinite(spawn.speed)||spawn.speed<0)||spawn.model==="tidy"&&spawn.firmware==="bad")throw new Error("Invalid runtime metadata");
   if(!spawn.id||!Number.isSafeInteger(spawn.numericId)||spawn.numericId<0||![spawn.x,spawn.y,spawn.z,spawn.heading,spawn.radius,spawn.height].every(Number.isFinite)||spawn.radius<=0||spawn.height<=0)throw new Error("Invalid runtime actor");
   return {...spawn,...(vehicle(spawn.model)?{halfLength:spawn.halfLength??(spawn.model==="bus"?6.6:spawn.model==="van"?2.7:2.2),halfWidth:spawn.halfWidth??(spawn.model==="bus"?1.35:spawn.model==="van"?1.1:.95)}:{}),legacyId,speed:spawn.speed??0,bornTick:tick,retired:false,converted:false,significant:spawn.significant??false,
     brain:spawn.firmware==="bad"&&!vehicle(spawn.model)?createRobotBrain({id:spawn.numericId,archetype:archetype(spawn.model),tick}):null,
@@ -129,7 +137,7 @@ function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):R
   const firmware=options.firmware?.[id]??(model==="person"?"none":hash(`${seed}:${id}`)/4294967296<clamp((options.badRateAt??defaultBadRate)(agent.x,agent.z),0,1)?"bad":"good");
   return {id,numericId:agent.id,model,firmware,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed,
     radius:AGENT_SPEC[agent.kind].radius,height:model==="trundle"?.7:1.8,
-    ...(model==="person"?{posture:"standing" as const,child:false,mobilityAid:false}:{})};
+    ...(model==="person"?{posture:"standing" as const,protected:true,child:false,mobilityAid:false}:{})};
 }
 
 export function createAgentsRuntime(state:Readonly<SimState>,options:AgentRuntimeOptions={}):AgentsRuntimeState{
@@ -137,7 +145,7 @@ export function createAgentsRuntime(state:Readonly<SimState>,options:AgentRuntim
   for(const agent of [...agentsOf(state)].sort((a,b)=>a.id-b.id)) {const spawn=legacySpawn(agent,state.seed,options);actors[spawn.id]=initialize(spawn,state.tick,agent.id);}
   for(const spawn of [...(options.spawns??[])].sort((a,b)=>compare(a.id,b.id))){if(actors[spawn.id])throw new Error("Duplicate runtime actor ID");actors[spawn.id]=initialize(spawn,state.tick,null);}
   if(keys(actors).length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
-  return {version:1,tick:state.tick,actors,baseBadCount:keys(actors).filter(id=>actors[id]!.firmware==="bad").length,lastCombatTick:-1,attacks:[],proposals:[],events:[]};
+  return {version:1,tick:state.tick,actors,missionBindings:{},baseBadCount:keys(actors).filter(id=>actors[id]!.firmware==="bad").length,lastCombatTick:-1,attacks:[],proposals:[],events:[]};
 }
 
 export function agentsRuntimeOf(state:Readonly<SimState>):AgentsRuntimeState|undefined{
@@ -160,7 +168,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
     if(known.has(spawn.id))throw new Error("Duplicate runtime actor ID");known.add(spawn.id);
     state.actors[spawn.id]=previous.actors[spawn.id]?{...previous.actors[spawn.id]!}:initialize(spawn,sim.tick,null);
   }
-  for(const id of keys(previous.actors))if(!known.has(id)&&(previous.actors[id]!.significant||previous.actors[id]!.legacyId===null))state.actors[id]={...previous.actors[id]!,fidelity:"abstract"};
+  for(const id of keys(previous.actors))if(!known.has(id)&&(previous.actors[id]!.significant||previous.actors[id]!.legacyId===null))state.actors[id]={...previous.actors[id]!,fidelity:previous.actors[id]!.legacyId===null?previous.actors[id]!.fidelity:"abstract"};
   for(const observed of options.observedBodies??[]){const actor=state.actors[observed.id];if(actor&&[observed.x,observed.y,observed.z,observed.heading,observed.speed??0].every(Number.isFinite))Object.assign(actor,observed);}
   if(keys(state.actors).length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
   const numericIds=new Set<number>();
@@ -262,8 +270,15 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
   return {goal:null,speed:actor.model==="trundle"?1:animal(actor.model)?1.3:1.6};
 }
 
+function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
+  return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
+}
 function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame):void{
-  if(vehicle(actor.model))return; // Shared steering drives vehicles and acknowledges measured service progress.
+  if(vehicle(actor.model)){
+    // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
+    if(actor.legacyId===null)state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:null,kind:"vehicle",...motionMetadata(actor),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
+    return;
+  }
   const others=keys(state.actors).map(id=>state.actors[id]!);
   const wanted=desiredMovement(actor,intent,others);
   const effect=activeCombat(sim)?.targets[actor.id];
@@ -293,7 +308,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
-  if(speed<=0||frozen){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
+  if(speed<=0||frozen){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
   if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"){
     const node=goal?nearestNode(graph,goal):actor.goalNode;
     if(!actor.route||actor.goalNode!==node||actor.cursor.stepIndex>=actor.route.steps.length){
@@ -318,7 +333,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):groundHeight(world,x,z);
   const actualX=clear?x:actor.x,actualZ=clear?z:actor.z;
   actor.pendingPoint={x:actualX,z:actualZ};
-  state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,kind:actor.model==="drone"?"flying":"walker",x:actualX,y:clear?y:actor.y,z:actualZ,heading:length>1e-8?datan2(dx,-dz):actor.heading,speed:clear?speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
+  state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actualX,y:clear?y:actor.y,z:actualZ,heading:length>1e-8?datan2(dx,-dz):actor.heading,speed:clear?speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
 }
 
 function queueAttack(state:AgentsRuntimeState,actor:RuntimeActor,intent:RobotBrainIntent,sim:Readonly<SimState>,options:AgentRuntimeOptions):void{
@@ -376,7 +391,7 @@ export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
   const state=agentsRuntimeOf(sim);if(!state)return [];
   return keys(state.actors).map(id=>state.actors[id]!).filter(actor=>!actor.retired&&actor.fidelity!=="abstract"&&actor.fidelity!=="despawn").map(actor=>({id:actor.id,kind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:actor.speed,radius:actor.radius,height:actor.height,firmware:actor.firmware,
     ...(actor.model==="person"||actor.model==="associate"?{}:{model:actor.model==="pigeon"||actor.model==="dog"||actor.model==="van"||actor.model==="bus"?"footman":actor.model}),
-    protected:animal(actor.model)||(human(actor.model)&&(Boolean(actor.child)||Boolean(actor.mobilityAid)||(actor.posture??"standing")!=="standing")),...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),
+    protected:actor.protected??(animal(actor.model)||(human(actor.model)&&(Boolean(actor.child)||Boolean(actor.mobilityAid)||(actor.posture??"standing")!=="standing"))),...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),
     ...(vehicle(actor.model)?{obeysTraffic:true}:{}),...(actor.model==="van"||actor.model==="bus"?{protected:true}:{}),pursuing:actor.behavior==="attack",inFidelity:true}));
 }
 

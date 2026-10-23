@@ -121,3 +121,21 @@ describe("authoritative agent runtime",()=>{
     expect(run(true)).toBe(run(false));
   });
 });
+
+describe("mission runtime admission",()=>{
+  it("allocates staged actor IDs once and retains accepted bodies through the post-movement hook",()=>{
+    let sim=initial(),allocations=0;
+    sim.ext.missions={events:[{kind:"mission.stage",targetId:"first",detail:JSON.stringify({stepId:"meet",actors:["bad"],definitions:{bad:{kind:"badRobot"}},place:{x:10,y:0,z:0},radius:20})}]};
+    const allocate=(state:Readonly<SimState>,ids:readonly string[])=>{allocations++;return {state:state as SimState,ids:Object.fromEntries(ids.map(id=>[id,30]))};};
+    const system=createAgentsSystem(()=>({}),allocate);
+    const context={world,previous:sim,state:sim,inputs:{},events:[]};
+    const prepared=system.prepare(context);
+    expect(prepared.motions).toHaveLength(1);
+    expect(allocations).toBe(1);
+    sim=system.step({...context,state:prepared.state});
+    const actors=runtimeCombatActors(sim);
+    expect(actors).toHaveLength(1);
+    expect(actors[0]!.id).toBe("mission:first:bad");
+    expect((sim.ext.robots as unknown as ReturnType<typeof createAgentsRuntime>).missionBindings["first:bad"]).toBe(actors[0]!.id);
+  });
+});
