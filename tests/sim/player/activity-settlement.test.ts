@@ -5,16 +5,21 @@ import { createPlayerSystems, defaultGameplayProvider, gameplaySnapshot } from "
 import { createInitialState, step } from "../../../src/sim/step.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 
-it("settles activity rewards before immediate save, exactly once across reload", () => {
+it("settles an authoritative activity completion before immediate save, exactly once across reload", () => {
   const world = buildWorld([]);
   const systems = createPlayerSystems(context => ({
     ...defaultGameplayProvider(context),
-    wave: 4,
+    wave: 2,
     missions: [],
+    // This wave-2 fixture tests the settlement boundary. Physical checkpoint
+    // production belongs to the later-wave activity adapter's own tests.
+    facts: context.state.tick === 61 ? [{
+      id: "delivery-complete:1", source: "world" as const, sequence: 1, tick: 61,
+      kind: "activity.objective-complete", playerId: "p1", actorId: "soma-delivery",
+    }] : [],
     activities: [{
       id: "soma-delivery", kind: "delivery", wave: 2, x: 0, y: 0, z: 0, radius: 5,
-      rewardCents: 7500, rewardXp: 100, objective: { event: "delivery.completed", count: 1 },
-      checkpoints: [{ id: "drop", x: 0, y: 0, z: 0, radius: 5 }],
+      rewardCents: 7500, rewardXp: 100,
     }],
   }));
   const initial = () => createInitialState(world, 17, ["p1"], { x: 0, z: 0, heading: 0 });
