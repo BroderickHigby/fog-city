@@ -4,4 +4,6 @@ export * from "./effects.ts";
 export * from "./physics.ts";
 export * from "./adapter.ts";
 export * from "./attacks.ts";
+export * from "./weapons.ts";
+export * from "./perception.ts";
 export * from "./systems.ts";

@@ -11,6 +11,21 @@ describe("seeded game calendar", () => {
     expect(calendarAt(1, DAY_TICKS, { year: 2032, month: 2, day: 28, hour: 0 })).toMatchObject({ month: 2, day: 29 });
     expect(calendarAt(1, DAY_TICKS, { year: 2100, month: 2, day: 28, hour: 0 })).toMatchObject({ month: 3, day: 1 });
   });
+  it("rolls dayIndex over at midnight together with the calendar date", () => {
+    expect(calendarAt(1, 0, epoch)).toMatchObject({ day: 1, dayIndex: 0 });
+    expect(calendarAt(1, 16 * 3600 - 1, epoch)).toMatchObject({ day: 1, hour: 23, dayIndex: 0 });
+    expect(calendarAt(1, 16 * 3600, epoch)).toMatchObject({ day: 2, hour: 0, dayIndex: 1 });
+    expect(calendarAt(1, DAY_TICKS, epoch)).toMatchObject({ day: 2, hour: 8, dayIndex: 1 });
+    for (const start of [epoch, { year: 2031, month: 12, day: 31, hour: 23 }, { year: 2032, month: 2, day: 28, hour: 0 }]) {
+      let previous = calendarAt(1, 0, start);
+      for (let ticks = 3600; ticks <= 10 * DAY_TICKS; ticks += 3600) {
+        const now = calendarAt(1, ticks, start);
+        expect(now.dayIndex - previous.dayIndex).toBe(now.day === previous.day ? 0 : 1);
+        expect(now.gameWeek).toBe(Math.floor(now.dayIndex / 7) + 1);
+        previous = now;
+      }
+    }
+  });
   it("alternates four summer and four winter weeks without consuming simulation RNG", () => {
     expect(calendarAt(1, 4 * WEEK_TICKS).season).toBe("winter");
     expect(calendarAt(1, 8 * WEEK_TICKS).season).toBe("summer");

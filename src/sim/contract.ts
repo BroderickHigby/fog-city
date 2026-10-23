@@ -17,7 +17,9 @@
 // v7: bring the reviewed gravity/roof support and no-contact dodge into wave 2.
 // Older QA/dodge branches used overlapping 3/4/5 stamps; migration preserves existing
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
-export const SIM_VERSION = 7;
+// v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
+// and observes mission outcomes. No saved fields are removed or reset by this upgrade.
+export const SIM_VERSION = 8;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -62,6 +64,14 @@ export const SimEventKind = {
   robotMelted: "robot.melted",
   updateInterrupted: "update.interrupted",
   playerDown: "player.down",
+  /** A recorded player command (gameplay-contract.ts GameplayCommandEvent): ids and integers only. */
+  gameplayCommand: "gameplay.command",
+  /**
+   * Heat asking the agents runtime for pursuers (gameplay-contract.ts ThreatSpawnRequest). Derived
+   * by the heat reducer into ext.heat.events rather than recorded, but named here so emitter and
+   * consumer cannot drift apart. Its payload carries ids and integers only (whole metres).
+   */
+  threatSpawn: "threat.spawn",
 } as const;
 export type KnownSimEventKind = typeof SimEventKind[keyof typeof SimEventKind];
 

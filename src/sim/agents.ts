@@ -65,6 +65,7 @@
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
+import { movementLimit } from "./combat/system.ts";
 import {
   AREA_M,
   areaOf,
@@ -1339,7 +1340,7 @@ function bodyBlocked(world: World, kind: AgentKind, x: number, z: number, headin
 }
 
 /** Advance one agent by dt seconds (DT, or LOD_STRIDE * DT when far). null = remove it. */
-function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
+function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<typeof movementLimit>): AgentState | null {
   const spec = AGENT_SPEC[a.kind];
   const g = c.g;
   const ei = g.edgeIndex.get(a.edge);
@@ -1387,7 +1388,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   }
 
   // Target speed.
-  let cruise = a.vmax;
+  const speedCap = movement?.maxSpeed ?? Infinity;
+  let cruise = Math.min(a.vmax * (movement?.scale ?? 1), speedCap);
   if (spec.road) cruise = Math.min(cruise, e.speedLimitMps * 1.1);
   let target = cruise;
   let limitedByObstacle = false;
@@ -1446,6 +1448,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   let speed = a.speed;
   if (target > speed) speed = Math.min(target, speed + spec.accel * dt);
   else speed = Math.max(target, speed - Math.max(spec.decel, 9) * dt);
+  speed = Math.min(speed, speedCap);
   if (speed < 0.02) speed = 0;
 
   // Advance along the route. A walker sidestepped off its line walks the offset line at its own
@@ -2011,7 +2014,8 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
       list.push(a);
       continue;
     }
-    const n = stepAgent(ctx, a, dt);
+    const limit = prev.ext.combat ? movementLimit(prev.ext.combat, { id: a.runtimeId ?? `agent:${a.id}` }) : undefined;
+    const n = stepAgent(ctx, a, dt, limit);
     if (!n) continue;
     // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.
     if (n.wait > STUCK_REMOVE_TICKS && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
@@ -2021,11 +2025,12 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   let out: AgentsExt = { nextId: ext.nextId, list };
   let rng = prev.rng;
   if (tick % POP_INTERVAL === 0) {
-    const physical = out.list.filter(a => a.runtimeId !== undefined);
     // Claimed legacy bodies still occupy the ambient population budget. Counting
-    // only unclaimed rows refills the same slots every population tick.
+    // only unclaimed rows refills the same slots every population tick. They must
+    // also obey the same distance cull: restoring every claimed body afterwards
+    // leaves a trail of frozen pedestrians as the player travels across the city.
     const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
-    out = physical.length ? { ...p.ext,list:[...p.ext.list.filter(a=>a.runtimeId===undefined),...physical].sort((a,b)=>a.id-b.id) } : p.ext;
+    out = p.ext;
     rng = p.rng;
   }
   return { ext: out, rng };

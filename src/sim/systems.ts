@@ -15,7 +15,15 @@ import { systems as activitiesSystems } from "./activities/systems.ts";
 import { systems as modesSystems } from "./modes/systems.ts";
 import { systems as botsSystems } from "./bots/systems.ts";
 
-/** Area lists are composed here; registration never changes ambient global state. */
+/**
+ * The static per-area registrations: each area's `systems.ts` list, composed in a fixed order;
+ * registration never changes ambient global state. This is step()'s default, and it is NOT the
+ * game: an area whose system needs a provider (the clock, the agents runtime and its identity
+ * allocator, combat, the player reducers) registers nothing here, so a step() without a
+ * systems argument runs movement, ambient traffic and the dodge only. The browser, the headless
+ * drivers, the relay and scripts/bench/sim.ts run createGameSystems() (game-systems.ts) instead;
+ * the physics goldens pass [] to pin core movement alone.
+ */
 export const SYSTEMS: readonly SimSystem[] = Object.freeze([
   ...clockSystems,
   ...fogSystems,

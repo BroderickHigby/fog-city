@@ -62,4 +62,19 @@ describe("closed-loop vehicle follower", () => {
     expect(state.reversals).toBe(0);
   });
 
+  it("re-plans from a relocated body instead of failing the tick",()=>{
+    const world=buildWorld([]);
+    const goal:FollowerGoal={kind:"pursue",target:{x:0,z:-200},maxSpeed:8};
+    let body=makeCar(0,0,0),state=createFollowerState(body);
+    for(let tick=0;tick<120;tick++){const result=stepVehicleFollower(world,body,state,goal);body=stepCar(world,body,result.input);state=result.state;}
+    const travelled=state.distanceM;
+    expect(travelled).toBeGreaterThan(5);
+    const moved=deepFreeze({...body,x:body.x+400});
+    const result=stepVehicleFollower(world,moved,state,goal);
+    expect(result.state.distanceM).toBe(travelled);
+    expect(result.state.route[0]).toEqual([moved.x,moved.z]);
+    expect([result.state.lastX,result.state.lastZ]).toEqual([moved.x,moved.z]);
+    expect(result.state.blockedTicks).toBe(0);
+    expect(result.status).toBe("driving");
+  });
 });

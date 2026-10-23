@@ -237,7 +237,7 @@ test.describe("sf world: in the browser", () => {
       const h = (window as unknown as FogWindow).__fogcity!;
       h.pause();
       const list = (s: { ext: Record<string, unknown> }) =>
-        ((s.ext.agents as { list?: Array<{ id: number; x: number; z: number; kind: string }> } | undefined)?.list ?? []).map((a) => ({ ...a }));
+        ((s.ext.agents as { list?: Array<{ id: number; x: number; z: number; kind: string; runtimeId?: string; runtimeLegacy?: boolean }> } | undefined)?.list ?? []).map((a) => ({ ...a }));
       const t0 = h.state().tick;
       const before = list(h.state());
       h.stepN(120);
@@ -253,7 +253,11 @@ test.describe("sf world: in the browser", () => {
     expect(moved.length, "agents that moved more than 1 m in 2 s").toBeGreaterThan(run.after.length / 4);
     if (run.info) {
       expect(run.info.roads, "simInfo().roads").toBe(true);
-      expect(run.info.agents).toBe(run.after.length);
+      // simInfo().agents counts the ambient population (agentsOf): ext.agents.list also holds
+      // the bodies gameplay systems own (a transit bus departs at game minute 10, tick 601),
+      // so whether one is there depends on how long the page ran before this test.
+      const ambient = run.after.filter((a) => a.runtimeId === undefined || a.runtimeLegacy === true);
+      expect(run.info.agents, `ambient agents at tick ${run.tick}`).toBe(ambient.length);
       expect(run.info.seed).toBe(1);
     }
 

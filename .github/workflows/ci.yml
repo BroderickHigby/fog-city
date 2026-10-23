@@ -19,7 +19,11 @@ jobs:
   verify:
     name: typecheck, unit, e2e
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The e2e step runs one worker on this runner. On 2026-10-23, after the render realism pass
+    # landed, it took 34 minutes on one run and over 53 on the next (the campaign spec alone 17
+    # and 26.5); a 45- and then a 60-minute job limit cancelled both, the first during the
+    # screenshots and the second before e2e finished, so no test results were uploaded.
+    timeout-minutes: 90
     env:
       CI: "true"
       # One job per runner, so the default port is free; set per checkout locally.

@@ -88,6 +88,8 @@ export interface CombatContext {
   streaks?: readonly StreakGrant[];
   night?: boolean;
   fog?: number;
+  /** Spatial fog sample supplied by the world; the scalar is a legacy fallback. */
+  fogAt?: (x: number, z: number) => number;
   rain?: number;
   conversionCap?: number;
   rivalPlayerIds?: Readonly<Record<string, readonly string[]>>;
@@ -126,6 +128,8 @@ export interface TargetCombat {
   phase: "active" | "seized" | "slumping" | "heap" | "disabled" | "cleared";
   phaseTick: number;
   lastWaterTick: number;
+  /** Direct spray only; optional for saves made before this distinction existed. */
+  lastDirectWaterTick?: number;
   heightScale: number;
   puddle: boolean;
   repair: boolean;

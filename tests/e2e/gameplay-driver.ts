@@ -102,10 +102,14 @@ export class GameplayDriver {
       this.input({ throttle: Math.abs(error) < .65 ? 1 : 0, steer: clamp(error / (2.2 * DT), -1, 1), brake: 1, actions: 0 });
       if ((i + 1) % 120 === 0) {
         if (Math.hypot(this.body.x - checkpoint.x, this.body.z - checkpoint.z) < .5) {
-          if (replans >= 4) throw new Error(`Walking made no progress after four replans at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
+          if (replans >= 4) throw new Error(`Walking made no progress after four consecutive replans at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
           route = plan();
           waypoint = 0;
           replans++;
+        } else {
+          // New traffic later in a long walk gets its own bounded recovery. The
+          // overall input/tick budgets still cap the entire trip.
+          replans = 0;
         }
         checkpoint = { x: this.body.x, z: this.body.z };
       }

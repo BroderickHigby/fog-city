@@ -12,16 +12,22 @@ import { systems as modeSystems } from "./modes/systems.ts";
 import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatWave } from "./combat-contract.ts";
+import { buildMissionParkingWorld } from "./missions/parking-world.ts";
 
 export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
 
-/** One explicit composition shared by browser, headless drivers and relay sessions. */
+/**
+ * The game: one explicit composition shared by the browser, headless drivers, relay sessions
+ * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
+ * tests/golden/composed-v8.json pins this path.
+ */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
   const protectedArea=options.protectedArea??((x:number,z:number)=>{const p=toLatLon(x,z);return Boolean(protectedAreaAt([p.lat,p.lon]));});
   const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,
     badRateAt:badRobotRateAt,
     fog:fogDensity(context.world,context.state,0,0),
+    fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z),
   }),allocateActorIds);
   const combatContext=(context:SimSystemContext)=>{
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
@@ -32,10 +38,13 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     const calendar=gameTime(context.state);
     return contextFromState(context.world,context.state,{...agentsCombatOptions(context.state),wave,loadouts,
       refills:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
-      fog:fogDensity(context.world,context.state,0,0)});
+      fog:fogDensity(context.world,context.state,0,0),
+      fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z)});
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
-    protectedArea,fog:context=>fogDensity(context.world,context.state,0,0)});
+    protectedArea,fog:context=>fogDensity(context.world,context.state,0,0),
+    missionParking:context=>buildMissionParkingWorld(context,context.world.parking?.rules??[],context.world.streetCleaning?.rules??[]),
+    calendar:context=>{const time=gameTime(context.state);return {day:time.dayIndex,month:time.month,hour:time.hour,minute:time.minute};}});
   let cachedObservation:{context:SimSystemContext;value:ReturnType<typeof observed>}|undefined;
   const gameplay=(context:SimSystemContext)=>{
     const previous=cachedObservation?.context;

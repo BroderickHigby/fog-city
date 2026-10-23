@@ -1,0 +1,224 @@
+{
+  "id": "comeback-round",
+  "version": 1,
+  "title": "The Comeback Round",
+  "campaign": 10,
+  "wave": 8,
+  "area": "Golden Gate to the Bay Bridge",
+  "start": "start",
+  "cast": {
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    },
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, by text"
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "role": "Mission support"
+    }
+  },
+  "actors": {},
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Complete",
+      "kind": "success"
+    },
+    "retry": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "event": {
+        "kind": "enterArea",
+        "place": {
+          "label": "Crissy Field waterfront",
+          "lat": 37.8058,
+          "lon": -122.4556,
+          "radiusM": 25
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "that is not a new skyline. that is a demo made out of other demos."
+        }
+      ],
+      "next": "entrance"
+    },
+    {
+      "id": "entrance",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "boss.entranceSeen"
+      },
+      "hint": "Watch the robot assembly enter through the Golden Gate; meet the fireboat at its marker.",
+      "next": "boat",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "boat",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "boss.fireboatBoarded"
+      },
+      "hint": "Board the fireboat and take the salt-water marking control.",
+      "next": "ankles",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "ankles",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "boss.anklesRusted"
+      },
+      "hint": "Mark the ankle joints between footfalls. The fireboat aims only at robot machinery.",
+      "next": "waterfront",
+      "timeLimitS": 240,
+      "onFail": "retry"
+    },
+    {
+      "id": "waterfront",
+      "type": "goto",
+      "target": {
+        "label": "Ferry Building waterfront",
+        "lat": 37.7954,
+        "lon": -122.394,
+        "radiusM": 25
+      },
+      "travel": "any",
+      "timer": {
+        "limitS": 480,
+        "warnAtS": 30
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "follow the waterfront route as the assembly stops to pitch the city."
+        }
+      ],
+      "next": "pitch",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "pitch",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "boss.pitchSurvived"
+      },
+      "hint": "Wash the paper term sheets from the investor drones while the pitch runs.",
+      "next": "bridge",
+      "timeLimitS": 240,
+      "onFail": "retry"
+    },
+    {
+      "id": "bridge",
+      "type": "goto",
+      "target": {
+        "label": "Bay Bridge approach deck",
+        "lat": 37.787,
+        "lon": -122.3858,
+        "radiusM": 25
+      },
+      "travel": "any",
+      "timer": {
+        "limitS": 300,
+        "warnAtS": 30
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "follow the marked approach. the remaining robots are holding up the demonstration."
+        }
+      ],
+      "next": "knees",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "knees",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "boss.kneesRusted"
+      },
+      "hint": "Rust the marked knee braces and release the joined robots.",
+      "next": "reveal",
+      "timeLimitS": 240,
+      "onFail": "retry"
+    },
+    {
+      "id": "reveal",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "boss.robotsFreed"
+      },
+      "hint": "Watch the shell come apart and the robots restore from backup. The clock stops.",
+      "next": "complete",
+      "timeLimitS": 120,
+      "onFail": "retry"
+    },
+    {
+      "id": "complete",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the demo was held together by other people's work. the robots are home. the clock can just tell time."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 3000
+        },
+        {
+          "kind": "stat",
+          "stat": "xp",
+          "delta": 2000
+        },
+        {
+          "kind": "unlock",
+          "unlock": "app:campaign-complete"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "retry",
+      "retryFrom": "boat",
+      "hint": "Mark the glowing mechanical joints during the safe window; use the fireboat salt water.",
+      "cooldownS": 10,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the boat is ready for another pass. the city is waiting for the short version."
+        }
+      ]
+    }
+  ],
+  "summary": "Use the fireboat to rust a giant robot assembly, survive its comeback pitch and free the robots holding up the demo.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave3-2026-10-23",
+    "contentHash": "fnv1a32:91082d1f",
+    "reviewedBy": [],
+    "review": "Authored against the campaign design. Pending independent narrative and gameplay review."
+  }
+}
