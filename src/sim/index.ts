@@ -23,3 +23,4 @@ export * from "./identity.ts";
 export * from "./vehicles/follower.ts";
 export * from "./motion.ts";
 export * from "./game-systems.ts";
+export * from "./impacts.ts";

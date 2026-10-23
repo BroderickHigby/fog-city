@@ -31,10 +31,16 @@
 //    bounce on hard hits) and scraping friction slows the slide, so the car slides along
 //    walls. A hit is counted once per impact event: a contact that starts at least
 //    hitCooldown ticks after the previous one, at hitMinSpeed or more into the surface.
+//  - Bodies that can be shoved (another car, a robotaxi: a Circle with a `body`) are not walls:
+//    the first time in a tick the car closes on one, the two exchange momentum along the contact
+//    normal (masses CAR.mass and body.mass, restitution CAR.bodyRestitution), the car's share
+//    turns it about its centre (an off-centre hit spins it), and the impulse is reported in
+//    `contacts` so step.ts (impacts.ts) can give the other body its share. The car is still held
+//    out of the body's circles, which stand where the body was at the start of the tick.
 
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
-import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
+import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle, type ImpactBody } from "./collide.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
@@ -104,7 +110,38 @@ export const CAR = {
   /** Legacy Phase 0 collision radius (kept for consumers that still read it). */
   radius: 1.6,
   bounce: 0.25,
+  /** Kilograms, for momentum exchange with other bodies (impacts.ts). */
+  mass: 1400,
+  /** Yaw moment of inertia per unit mass, m^2: (length^2 + width^2) / 12 of the body box. */
+  yawK2: 1.91,
+  /** Restitution of a car against a body it can shove (bumpers give a little). */
+  bodyRestitution: 0.25,
+  /** How much of the off-centre impulse becomes spin (arcade: a little more than a rigid box), and its cap, rad/s. */
+  spinGain: 1.2,
+  maxSpinKick: 2.5,
+  /** Coulomb friction between the bodies along the contact, as a share of the normal impulse. */
+  bodyFriction: 0.15,
 } as const;
+
+/**
+ * A car's hit on a body it can shove, from stepCar: the impulse on the car (kg m/s) along the
+ * contact normal (nx, nz), pointing out of the body toward the car; the body takes -j.
+ */
+export interface CarContact {
+  /** The body (ImpactBody.key). */
+  key: string;
+  j: number;
+  nx: number;
+  nz: number;
+  /** Friction impulse on the car along the contact's tangent (tx, tz), kg m/s. */
+  jt: number;
+  tx: number;
+  tz: number;
+  /** Where the bodies touched, and how fast they closed, m/s. */
+  x: number;
+  z: number;
+  speed: number;
+}
 
 const SINCE_CONTACT_CAP = 600;
 
@@ -131,6 +168,59 @@ export function makeCar(x: number, z: number, heading: number, y = 0): CarState 
     personBumps: 0,
     nearMisses: 0,
   };
+}
+
+/** A body that shoves and is shoved: mass (kg), yaw inertia per unit mass (m^2), centre and world velocity. */
+export interface Shover {
+  mass: number;
+  k2: number;
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+}
+
+/**
+ * One hit of `self` on a body it can shove (`circle` is the slice of `body` it touched, the
+ * normal (nx, nz) points out of the body toward self): self's velocity after exchanging momentum
+ * along the normal (with `restitution`) and a little friction along the contact, the spin the
+ * off-centre impulse gives self (rad/s, + = clockwise, capped), and the contact (the body takes
+ * the opposite impulse at the same point). Null when they are not closing.
+ */
+export function bodyHit(
+  self: Readonly<Shover>,
+  body: Readonly<ImpactBody>,
+  circle: Readonly<Circle>,
+  nx: number,
+  nz: number,
+  restitution: number,
+): { vx: number; vz: number; kick: number; contact: CarContact } | null {
+  const rvx = self.vx - body.vx;
+  const rvz = self.vz - body.vz;
+  const vn = rvx * nx + rvz * nz;
+  if (vn >= 0) return null;
+  const inv = 1 / self.mass + 1 / body.mass;
+  const j = ((1 + restitution) * -vn) / inv;
+  // Friction along the contact, against the sliding, at most bodyFriction of the normal impulse.
+  const tx = -nz;
+  const tz = nx;
+  const vt = rvx * tx + rvz * tz;
+  const jt = clamp(-vt / inv, -CAR.bodyFriction * j, CAR.bodyFriction * j);
+  const jx = j * nx + jt * tx;
+  const jz = j * nz + jt * tz;
+  // The touching point: on the circle, toward self.
+  const px = circle.x + nx * circle.r;
+  const pz = circle.z + nz * circle.r;
+  const kick = spinKick(self.mass, self.k2, px - self.x, pz - self.z, jx, jz);
+  return { vx: self.vx + jx / self.mass, vz: self.vz + jz / self.mass, kick, contact: { key: body.key, j, nx, nz, jt, tx, tz, x: px, z: pz, speed: -vn } };
+}
+
+/**
+ * The spin (rad/s, + = clockwise) an impulse (jx, jz) at offset (ox, oz) from a body's centre
+ * gives it (a point's velocity from yaw rate w is w * (-oz, ox)), scaled by CAR.spinGain and capped.
+ */
+export function spinKick(mass: number, k2: number, ox: number, oz: number, jx: number, jz: number): number {
+  return clamp((CAR.spinGain * (-oz * jx + ox * jz)) / (mass * k2), -CAR.maxSpinKick, CAR.maxSpinKick);
 }
 
 /** The car's collision rectangle. */
@@ -224,6 +314,7 @@ export function stepCar(
   c: Readonly<CarState>,
   input: Readonly<SimInput>,
   obstacles: readonly Circle[] = [],
+  contacts: CarContact[] = [],
 ): CarState {
   const G = CAR.gravity;
   const h0 = c.heading;
@@ -372,6 +463,31 @@ export function stepCar(
         vz -= vn * res.nz;
       }
       break;
+    }
+    const body = res.person ? undefined : res.circle?.body;
+    if (body) {
+      // Another car or a robotaxi: momentum is exchanged once a tick; after that the car only
+      // stops closing on it (it moves at the body's velocity along the normal).
+      const rvx = vx - body.vx;
+      const rvz = vz - body.vz;
+      const vn = rvx * res.nx + rvz * res.nz;
+      if (vn < 0) {
+        if (-vn > impact) {
+          impact = -vn;
+          impactPerson = false;
+        }
+        if (contacts.some((k) => k.key === body.key)) {
+          vx -= vn * res.nx;
+          vz -= vn * res.nz;
+        } else {
+          const h = bodyHit({ mass: CAR.mass, k2: CAR.yawK2, x, z, vx, vz }, body, res.circle!, res.nx, res.nz, CAR.bodyRestitution)!;
+          vx = h.vx;
+          vz = h.vz;
+          yawRate += h.kick;
+          contacts.push(h.contact);
+        }
+      }
+      continue;
     }
     const vn = vx * res.nx + vz * res.nz;
     if (vn < 0) {

@@ -18,7 +18,7 @@ export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:numb
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v8.json pins this path.
+ * tests/golden/composed-v11.json pins this path (composed-v8.json is the v8 record).
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;

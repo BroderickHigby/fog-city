@@ -19,7 +19,9 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-export const SIM_VERSION = 8;
+// v11: cars shove, spin and dent other cars and robotaxis (src/sim/impacts.ts): ext.impacts, and
+// optional AgentState.knock/dents. (9 is reserved for the structural world, 10 for weather.)
+export const SIM_VERSION = 11;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

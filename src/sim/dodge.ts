@@ -549,7 +549,7 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   const fz = -dcos(a.heading);
   // Its route: its exact pose at each predicted sample's distance (as stepAgent will put it).
   let route: RoutePoint[] | null = null;
-  if (predict && world && a.runtimeId === undefined && a.speed >= DODGE_MIN_SPEED) {
+  if (predict && world && a.runtimeId === undefined && !a.knock && a.speed >= DODGE_MIN_SPEED) {
     const ds = [0];
     const n = Math.ceil(horizonS(a.speed) / SAMPLE_S - 1e-9);
     let dist = 0;
@@ -566,7 +566,10 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   // it turns now: a connector starting).
   const yawAbs = yaw < 0 ? -yaw : yaw;
   const dv = (spec.accel + a.speed * (yawAbs + 1)) * dt;
-  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, hl, hw, a.speed * fx, a.speed * fz, yaw, decel, {
+  // A robotaxi knocked off its lane by a hit (impacts.ts) slides at its knock velocity and spins
+  // at its knock yaw rate, braking no harder than its slide does.
+  const knock = a.knock;
+  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, hl, hw, knock ? knock.vx : a.speed * fx, knock ? knock.vz : a.speed * fz, knock ? knock.yaw : yaw, knock ? 0 : decel, {
     react: ROBOTAXI_REACT_S,
     route: route && route.length >= 2 ? route : null,
     predict,
@@ -593,7 +596,8 @@ const ZONE_STEP_M = 0.04;
  * the later pose's heading). Leaves the vehicle as it is where the route is unknown.
  */
 export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, world: World, segs: Route | null = null): void {
-  if (a.runtimeId !== undefined) return;
+  // (A body off its route, a system's or one knocked by a hit, keeps the reach its velocity gives.)
+  if (a.runtimeId !== undefined || a.knock) return;
   const spec = AGENT_SPEC[a.kind];
   const travel = (a.speed + spec.accel * dt) * dt;
   const n = Math.max(1, Math.ceil(travel / ZONE_STEP_M - 1e-9));
@@ -1653,7 +1657,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const predictOf = (sv: Src, vi: number): boolean => {
     if (sv.predict === null) {
       const a = sv.a!;
-      if (a.runtimeId !== undefined) { sv.predict = true; return true; }
+      if (a.runtimeId !== undefined || a.knock) { sv.predict = true; return true; }
       // (Its predicted footprint ends where braking at no less than ROBOTAXI_BRAKE_MPS2 stops it.)
       const reach = brakingReach(a.speed);
       sv.predict = false;

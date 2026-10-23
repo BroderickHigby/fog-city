@@ -15,7 +15,8 @@ import {
   type Spawn,
 } from "./contract.ts";
 import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
-import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
+import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar, type CarContact } from "./car.ts";
+import { agentImpactBody, carImpactBody, knockedIds, limpThrottle, stepImpacts } from "./impacts.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
 import {
@@ -131,6 +132,11 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
  *  - v7 -> v8: gameplay behavior changes without a required field rewrite. Preserve the
  *    complete saved state, including active missions, combat effects and future extensions.
+ *  - v8 -> v11 (impacts.ts): cars shove, spin and dent other cars and robotaxis instead of
+ *    stopping against them as at a wall. Every new field is optional (ext.impacts absent until
+ *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v8 save
+ *    loads unchanged. (9 and 10 are taken by the structural world and weather streams; when
+ *    they land this step follows theirs: 10 -> 11 needs no rewrite either.)
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -138,7 +144,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if ([2, 3, 4, 5, 6].includes(s.version)) {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
-  if (s.version === 7) return { ...s, version: 8 };
+  if (s.version === 7) return upgradeState({ ...s, version: 8 });
+  if (s.version === 8) return { ...s, version: 11 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -179,7 +186,8 @@ interface Obstacles {
   /**
    * Round bodies a player's car must not pass through: robots and other cars. Never people,
    * animals or walkers (v4): they dive out of its way (dodge.ts), so a car is never stopped,
-   * slowed or deflected by one.
+   * slowed or deflected by one. Other cars and robotaxis carry their `body` (v11): a car shoves
+   * them (car.ts, impacts.ts).
    */
   forCar: Map<PlayerId, Circle[]>;
   /** Round bodies a player's walker must not pass through: agents and other walkers. */
@@ -222,13 +230,15 @@ const BAND_SLACK_M = 0.75;
 function obstaclesOf(prev: Readonly<SimState>): Obstacles {
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const agentRound: Array<Circle & { road: boolean }> = [];
+  // (A robotaxi is a body a car shoves: impacts.ts.)
   const taxiBoxes: Array<{ box: Box; y: number; height: number }> = [];
   for (const a of agents) {
     // People and animals: under the dodge's override (dodge.ts), never a car's obstacle.
     const cls = agentDodgeClass(a);
     const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
     const road = AGENT_SPEC[a.kind].road;
-    for (const c of agentCircles(a)) agentRound.push({ x: c.x, z: c.z, r: c.r, person, road });
+    const body = agentImpactBody(a);
+    for (const c of agentCircles(a)) agentRound.push(body ? { x: c.x, z: c.z, r: c.r, person, road, body } : { x: c.x, z: c.z, r: c.r, person, road });
     if (road) taxiBoxes.push({ box: { x: a.x, z: a.z, heading: a.heading, hl: (a.halfLength ?? ROBOTAXI_BODY.halfLength) + WALKER_SKIN_M, hw: (a.halfWidth ?? ROBOTAXI_BODY.halfWidth) + WALKER_SKIN_M }, y: a.y, height: a.height ?? ROBOTAXI_BODY.height });
   }
   const ids = sortedIds(prev.players);
@@ -251,7 +261,7 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
     // (In the car: the walker it would get out as, at the car's height.)
     const feet = onFoot ? p.foot!.y : p.car.y;
     const near = agentRound.filter((c) => (c.x - bx) * (c.x - bx) + (c.z - bz) * (c.z - bz) < NEAR_AGENT_M * NEAR_AGENT_M);
-    const car: Circle[] = near.filter((c) => !c.person).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
+    const car: Circle[] = near.filter((c) => !c.person).map((c) => (c.body ? { x: c.x, z: c.z, r: c.r, person: c.person, body: c.body } : { x: c.x, z: c.z, r: c.r, person: c.person }));
     // (A walker meets a robotaxi's drawn body, a box, not its circles.)
     const walker: Circle[] = near.filter((c) => !c.road).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
     const boxes: Box[] = [];
@@ -270,7 +280,8 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
     for (const other of ids) {
       if (other === id) continue;
       const o = prev.players[other]!;
-      car.push(...carCircles(o.car));
+      const body = carImpactBody(other, o.car);
+      for (const c of carCircles(o.car)) car.push({ ...c, body });
       if (o.mode === "foot" && o.foot) {
         // Another player on foot: a body to walkers; to cars, someone who dives out of the way.
         walker.push({ x: o.foot.x, z: o.foot.z, r: FOOT.radius, person: true });
@@ -317,7 +328,7 @@ function vehiclesReaching(world: World, prev: Readonly<SimState>, self: PlayerId
   return out;
 }
 
-function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs: Obstacles): PlayerState {
+function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs: Obstacles, contacts: CarContact[] = []): PlayerState {
   const pressed = (input.actions & Action.enterExit) !== 0;
   if (p.mode === "foot" && p.foot) {
     // Diving out of a car's way, or getting up: the dodge moves the walker (dodge.ts).
@@ -371,17 +382,20 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   if (exitPending && canExit(p.car)) return getOut(p.car);
   // While an exit is pending the car brakes to a stop by itself, then the player gets out.
   const drive: SimInput = exitPending ? { throttle: 0, steer: 0, brake: 1, actions: input.actions } : input;
-  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? []);
+  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? [], contacts);
   if (exitPending && canExit(car)) return getOut(car);
   return { ...p, car, exitPending };
 }
 
 /** Apply physical movement limits without swallowing combat or interaction inputs. */
-function stepPlayerWithEffects(world: World, player: PlayerState, input: SimInput, obs: ReturnType<typeof obstaclesOf>, state: Readonly<SimState>): PlayerState {
+function stepPlayerWithEffects(world: World, player: PlayerState, raw: SimInput, obs: ReturnType<typeof obstaclesOf>, state: Readonly<SimState>, contacts: CarContact[]): PlayerState {
+  // A wrecked car limps (impacts.ts).
+  const throttle = player.mode === "vehicle" ? limpThrottle(state, player.id, player.car, raw.throttle) : raw.throttle;
+  const input = throttle === raw.throttle ? raw : { ...raw, throttle };
   const combat = state.ext.combat;
-  if (!combat) return stepPlayer(world, player, input, obs);
+  if (!combat) return stepPlayer(world, player, input, obs, contacts);
   const limit = movementLimit(combat, { id: `player:${player.id}`, playerId: player.id });
-  if (limit.maxSpeed === null && limit.scale === 1) return stepPlayer(world, player, input, obs);
+  if (limit.maxSpeed === null && limit.scale === 1) return stepPlayer(world, player, input, obs, contacts);
   const foot = player.mode === "foot" && player.foot;
   const naturalCap = limit.scale < 1 ? (foot ? (input.brake ? FOOT.sprint : FOOT.walk) : CAR.maxSpeed) * limit.scale : Infinity;
   const cap = Math.max(0, Math.min(limit.maxSpeed ?? Infinity, naturalCap));
@@ -389,7 +403,7 @@ function stepPlayerWithEffects(world: World, player: PlayerState, input: SimInpu
   const limited = { ...body, speed: clamp(body.speed, -cap, cap) };
   const before = foot ? { ...player, foot: limited as FootState } : { ...player, car: { ...limited, lateral: cap === 0 ? 0 : player.car.lateral } as CarState };
   const controls = { ...input, throttle: cap === 0 ? 0 : input.throttle * limit.scale, steer: cap === 0 ? 0 : input.steer, brake: cap === 0 ? (foot ? 0 : 1) : input.brake };
-  const next = stepPlayer(world, before, controls, obs);
+  const next = stepPlayer(world, before, controls, obs, contacts);
   // Enter/exit placement still uses the normal clearance solver; constrain subsequent travel.
   if (next.mode !== player.mode) return next;
   const nextBody = next.mode === "foot" && next.foot ? next.foot : next.car;
@@ -432,14 +446,21 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const before: SimState = { ...admitted, tick:prev.tick };
   const obs = obstaclesOf(before);
   const next: Record<PlayerId, PlayerState> = {};
-  for (const id of sortedIds(players)) next[id] = stepPlayerWithEffects(world, players[id]!, sanitized[id]!, obs, before);
-  const controlled = new Set(prepared.motions.map(motion=>motion.numericId));
+  const contacts = new Map<PlayerId, CarContact[]>();
+  for (const id of sortedIds(players)) {
+    const hits: CarContact[] = [];
+    next[id] = stepPlayerWithEffects(world, players[id]!, sanitized[id]!, obs, before, hits);
+    contacts.set(id, hits);
+  }
+  // (Knocked bodies are moved by impacts.ts, not by their routes.)
+  const controlled = new Set([...prepared.motions.map(motion=>motion.numericId), ...knockedIds(before)]);
   const agents = stepAgents(world, before, tick, controlled);
   const moved: SimState = agents
     ? { ...admitted, tick, players: next, rng: agents.rng, ext: { ...admitted.ext, [AGENTS_EXT_KEY]: agents.ext } }
     : { ...admitted, tick, players: next, ext: { ...admitted.ext } };
   const physical = applyMotionBodies(world, moved, prepared.motions);
-  const cleared = stepDodge(world, before, physical);
+  const impacted = stepImpacts(world, physical, contacts);
+  const cleared = stepDodge(world, before, impacted);
   return runSystems({ world, previous: before, state: cleared, inputs: sanitized, events, observedBodies:observedMotionBodies(cleared,prepared.motions) }, systems);
 }
 
