@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Action, type SimState } from "../../../src/sim/contract.ts";
+import { makeFoot } from "../../../src/sim/foot.ts";
 import { createInitialState } from "../../../src/sim/step.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 import { canonicalJson } from "../../../src/sim/serialize.ts";
@@ -13,7 +14,7 @@ const neutral={throttle:0,steer:0,brake:0,actions:0};
 function initial():SimState {
   const state=createInitialState(world,17,["p"],{x:0,z:-1,heading:0});
   state.players.p!.mode="foot";
-  state.players.p!.foot={x:0,y:0,z:-1,heading:0,speed:0,sprint:false};
+  state.players.p!.foot=makeFoot(0,0,-1,0);
   return state;
 }
 function spawn(id="r",extra:Partial<RuntimeSpawn>={}):RuntimeSpawn {
