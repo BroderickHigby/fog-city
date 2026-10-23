@@ -72,3 +72,5 @@ Validation: TypeScript plus54tests (6modecases and48deterministic API checks) pa
 Draft PR title: `Modes: implement deterministic Hide in the Crowd rules`
 Base: `integrate/wave7` when published; currently stacked on the tested wave4foundation.
 Body: Adds task, scan, score, role-swap and reconnect rules for robot-body Hide in the Crowd. Uses observed poses and core-approved replacement bodies; does not permit proximity-only respawn. Browser and bot adapters remain explicit integration gates.
+
+Adversarial follow-up: ordinary robot scans now spend charges and return noisy results, so resource changes cannot reveal hidden players. Replacement bodies require confirmed control and every Spotter pose; disappearing bodies reset task channels. Tick-and-ID cursors preserve late same-tick facts. Regression batch: TypeScript and62tests passed (Hide9, Vibes5, deterministic rules48).

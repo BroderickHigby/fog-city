@@ -3,10 +3,10 @@ import { createCrowdState,stepCrowd,CROWD_RULES,crowdSpeedLimit,type CrowdContex
 import { canonicalJson } from "../../../src/sim/serialize.ts";
 const tasks=["cone","update","ad","groceries"].map((kind,i)=>({id:`task-${i}`,kind:kind as "cone"|"update"|"ad"|"groceries",x:200+i*10,y:0,z:0}));
 const create=()=>createCrowdState({seed:7,players:["a","b","c","d"],hiders:["a"],tasks,solo:true});
-const ctx:CrowdContext={positions:{a:{x:200,y:0,z:0},b:{x:0,y:0,z:0},c:{x:0,y:0,z:5},d:{x:0,y:0,z:10},puppet:{x:200,y:0,z:0}},availableUnits:[{id:"puppet",playerId:"a",x:200,y:0,z:0,clear:true}]};
+const ctx:CrowdContext={positions:{a:{x:200,y:0,z:0},b:{x:0,y:0,z:0},c:{x:0,y:0,z:5},d:{x:0,y:0,z:10},puppet:{x:200,y:0,z:0}},acceptedUnits:[{id:"puppet",playerId:"a",x:200,y:0,z:0,clear:true,attached:true}]};
 describe("Hide in the Crowd rules",()=>{
   it("waits for a clear replacement body at least150m from every spotter",()=>{
-    const initial=create();const near=stepCrowd(initial,{...ctx,availableUnits:[{id:"puppet",playerId:"a",x:1,y:0,z:0,clear:true}]});
+    const initial=create();const near=stepCrowd(initial,{...ctx,acceptedUnits:[{id:"puppet",playerId:"a",x:1,y:0,z:0,clear:true,attached:true}]});
     expect(near.players.a!.unitId).toBe("");
     const accepted=stepCrowd(initial,ctx);expect(accepted.players.a!.unitId).toBe("puppet");expect(initial.players.a!.unitId).toBe("");
   });
@@ -26,7 +26,7 @@ describe("Hide in the Crowd rules",()=>{
     s=stepCrowd(s,{...ctx,combatEvents:[event,event]});expect(s.players.b!.score).toBe(500);expect(s.players.a!.unitId).toBe("");
     for(let i=0;i<CROWD_RULES.reconnectTicks-1;i++)s=stepCrowd(s,ctx);
     expect(s.players.a!.unitId).toBe("");s=stepCrowd(s,ctx);expect(s.players.a!.unitId).toBe("");
-    s=stepCrowd(s,{...ctx,availableUnits:[{id:"new-unit",playerId:"a",x:200,y:0,z:0,clear:true}]});expect(s.players.a!.unitId).toBe("new-unit");
+    s=stepCrowd(s,{...ctx,positions:{...ctx.positions,"new-unit":{x:200,y:0,z:0}},acceptedUnits:[{id:"new-unit",playerId:"a",x:200,y:0,z:0,clear:true,attached:true}]});expect(s.players.a!.unitId).toBe("new-unit");
   });
   it("limits burst speed and freezes logical time during global pauses",()=>{
     let s=stepCrowd(create(),{...ctx,inputs:{a:{burst:true}}});expect(crowdSpeedLimit(s,"a")).toBe(3);
@@ -43,5 +43,25 @@ describe("Hide in the Crowd rules",()=>{
     const input={...ctx,combatEvents:[{id:1,tick:1,kind:"robot.heap",sourceId:"b",targetId:"good",amount:1,detail:""}]};
     expect(canonicalJson(stepCrowd(create(),input))).toBe(canonicalJson(stepCrowd(create(),input)));
     expect(stepCrowd(create(),input).players.b!.score).toBe(0);
+  });
+  it("charges for normal robot scans as well as hidden players",()=>{
+    const initial=stepCrowd(create(),ctx),positions={...ctx.positions,b:{x:180,y:0,z:0},normal:{x:190,y:0,z:0}};
+    for(const scanTarget of ["normal","puppet"]){
+      const next=stepCrowd(initial,{...ctx,positions,scannableIds:["normal","puppet"],inputs:{b:{scanTarget}}});
+      expect(next.players.b!.scanCharges).toBe(2);expect(next.events.filter(e=>e.kind==="crowd.scan")).toHaveLength(1);
+    }
+  });
+  it("rejects unobserved clearance and resets a channel when its body disappears",()=>{
+    const positions={...ctx.positions};delete (positions as Record<string,unknown>).b;
+    expect(stepCrowd(create(),{...ctx,positions}).players.a!.unitId).toBe("");
+    const state=stepCrowd(create(),ctx);state.players.a!.taskTicks=99;state.players.a!.taskId="task-0";
+    const missing={...ctx.positions};delete (missing as Record<string,unknown>).puppet;
+    const next=stepCrowd(state,{...ctx,positions:missing});expect(next.players.a!.taskTicks).toBe(0);
+  });
+  it("accepts a later event batch from the same source tick once",()=>{
+    const fact=(id:number)=>({id,tick:1,kind:"robot.heap",sourceId:"b",targetId:`bad-${id}`,amount:1,detail:""});
+    let s=stepCrowd(create(),{...ctx,badRobotIds:["bad-1","bad-2"],combatEvents:[fact(1)]});
+    s=stepCrowd(s,{...ctx,badRobotIds:["bad-1","bad-2"],combatEvents:[fact(1),fact(2)]});
+    expect(s.players.b!.score).toBe(100);
   });
 });

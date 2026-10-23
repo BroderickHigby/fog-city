@@ -16,16 +16,16 @@ export interface CrowdState {
   version:1;tick:number;elapsedTicks:number;half:1|2;solo:boolean;rng:RngState;
   phase:"active"|"finished";players:Record<string,CrowdPlayer>;tasks:CrowdTask[];activeTasks:string[];
   retiredUnitIds:string[];
-  pings:{taskId:string;due:number}[];lastCombatTick:number;nextEventId:number;events:CrowdEvent[];
+  pings:{taskId:string;due:number}[];lastCombatTick:number;lastCombatId:number;nextEventId:number;events:CrowdEvent[];
   winnerTeam:0|1|null;
 }
 export interface CrowdConfig {seed:number;players:readonly string[];hiders:readonly string[];tasks:readonly CrowdTask[];solo?:boolean;quietPlayers?:readonly string[]}
 export interface CrowdInput {interact?:boolean;taskId?:string;scanTarget?:string;burst?:boolean;emote?:"wait"|"carry"|"recharge"|"wave"|"apologise"}
 export interface CrowdContext {
   tick?:number;paused?:boolean;positions:Readonly<Record<string,CrowdPoint>>;inputs?:Readonly<Record<string,CrowdInput>>;
-  combatEvents?:readonly CombatEvent[];badRobotIds?:readonly string[];
+  combatEvents?:readonly CombatEvent[];badRobotIds?:readonly string[];scannableIds?:readonly string[];
   /** Core-approved replacement bodies, clear of people and >=150m from Spotters. */
-  availableUnits?:readonly (CrowdPoint&{id:string;playerId:string;clear:boolean})[];
+  acceptedUnits?:readonly (CrowdPoint&{id:string;playerId:string;clear:boolean;attached:true})[];
 }
 export const CROWD_RULES={halfTicks:6*60*60,reconnectTicks:10*60,pingTicks:5*60,survivalTicks:2*60*60,chargeTicks:60*60,scanRange:25,attachClearance:150,taskRange:3} as const;
 function nextInt(rng:RngState,max:number):[number,RngState]{const [value,next]=nextU32(rng);return [Math.floor(value/4294967296*max),next];}
@@ -46,22 +46,22 @@ export function createCrowdState(config:CrowdConfig):CrowdState {
   if(tasks.length<4||tasks.length>128||new Set(tasks.map(task=>task.id)).size!==tasks.length||tasks.some(task=>!validId(task.id)||!finite(task)||!Object.hasOwn(duration,task.kind)))throw new Error("Invalid crowd tasks");
   const players:Record<string,CrowdPlayer>={};
   for(const id of ids)players[id]={id,team:hiders.has(id)?0:1,role:hiders.has(id)?"hider":"spotter",score:0,unitId:"",reconnectAt:0,survivalTicks:0,scanCharges:3,scanChargeTicks:0,scanReadyAt:0,taskId:"",taskTicks:0,burstUntil:0,burstReadyAt:0,quiet:config.quietPlayers?.includes(id)??false};
-  const state:CrowdState={version:1,tick:0,elapsedTicks:0,half:1,solo:config.solo??false,rng:seedRng(config.seed),phase:"active",players,tasks,activeTasks:[],retiredUnitIds:[],pings:[],lastCombatTick:-1,nextEventId:1,events:[],winnerTeam:null};
+  const state:CrowdState={version:1,tick:0,elapsedTicks:0,half:1,solo:config.solo??false,rng:seedRng(config.seed),phase:"active",players,tasks,activeTasks:[],retiredUnitIds:[],pings:[],lastCombatTick:-1,lastCombatId:-1,nextEventId:1,events:[],winnerTeam:null};
   pickTasks(state);return state;
 }
 function attachUnits(s:CrowdState,ctx:CrowdContext):void {
   const used=new Set([...s.retiredUnitIds,...sortedIds(s.players).map(id=>s.players[id]!.unitId).filter(Boolean)]);
-  const candidates=[...(ctx.availableUnits??[])].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+  const candidates=[...(ctx.acceptedUnits??[])].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
   for(const candidate of candidates){
     const player=s.players[candidate.playerId];
-    if(!player||player.role!=="hider"||player.unitId||s.elapsedTicks<player.reconnectAt||!validId(candidate.id)||used.has(candidate.id)||!candidate.clear||!finite(candidate))continue;
-    const blocked=sortedIds(s.players).some(id=>s.players[id]!.role==="spotter"&&finite(ctx.positions[id])&&distance(candidate,ctx.positions[id]!)<CROWD_RULES.attachClearance*CROWD_RULES.attachClearance);
+    if(!player||player.role!=="hider"||player.unitId||s.elapsedTicks<player.reconnectAt||!validId(candidate.id)||used.has(candidate.id)||!candidate.clear||candidate.attached!==true||!finite(candidate)||!finite(ctx.positions[candidate.id])||distance(candidate,ctx.positions[candidate.id]!)>0.0025)continue;
+    const blocked=sortedIds(s.players).some(id=>s.players[id]!.role==="spotter"&&(!finite(ctx.positions[id])||distance(candidate,ctx.positions[id]!)<CROWD_RULES.attachClearance*CROWD_RULES.attachClearance));
     if(blocked)continue;
     player.unitId=candidate.id;used.add(candidate.id);emit(s,"crowd.attached",player.id,candidate.id);
   }
 }
 function combat(s:CrowdState,ctx:CrowdContext):void {
-  const events=[...(ctx.combatEvents??[])].filter(event=>event.tick>s.lastCombatTick&&event.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
+  const events=[...(ctx.combatEvents??[])].filter(event=>(event.tick>s.lastCombatTick||event.tick===s.lastCombatTick&&event.id>(s.lastCombatId??-1))&&event.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
   const seen=new Set<string>();
   for(const event of events){
     const key=`${event.tick}:${event.id}`;if(seen.has(key))continue;seen.add(key);
@@ -74,11 +74,11 @@ function combat(s:CrowdState,ctx:CrowdContext):void {
     }else if(event.kind==="robot.heap"&&source?.role==="spotter"&&ctx.badRobotIds?.includes(event.targetId)){source.score+=50;emit(s,"crowd.score",source.id,event.targetId,50);}
     else if(event.kind==="economy.penalty"&&source?.role==="spotter"){const amount=event.amount===20?-200:-150;source.score+=amount;emit(s,"crowd.score",source.id,event.targetId,amount);}
   }
-  if(events.length)s.lastCombatTick=events[events.length-1]!.tick;
+  if(events.length){s.lastCombatTick=events[events.length-1]!.tick;s.lastCombatId=events[events.length-1]!.id;}
 }
 function hider(s:CrowdState,player:CrowdPlayer,ctx:CrowdContext,input:CrowdInput):void {
   if(!player.unitId){if(s.elapsedTicks>=player.reconnectAt)emit(s,"crowd.unit-request",player.id);return;}
-  const position=ctx.positions[player.unitId];if(!finite(position))return;
+  const position=ctx.positions[player.unitId];if(!finite(position)){player.taskId="";player.taskTicks=0;return;}
   player.survivalTicks++;
   if(player.survivalTicks%CROWD_RULES.survivalTicks===0){player.score+=300;emit(s,"crowd.score",player.id,"",300);}
   if(s.elapsedTicks%(player.quiet?2700:1800)===0)emit(s,"crowd.flicker",player.id,player.unitId);
@@ -97,13 +97,13 @@ function hider(s:CrowdState,player:CrowdPlayer,ctx:CrowdContext,input:CrowdInput
 }
 function spotter(s:CrowdState,player:CrowdPlayer,ctx:CrowdContext,input:CrowdInput):void {
   if(player.scanCharges<3&&++player.scanChargeTicks>=CROWD_RULES.chargeTicks){player.scanCharges++;player.scanChargeTicks=0;}
-  if(!input.scanTarget||player.scanCharges<=0||player.scanReadyAt>s.elapsedTicks)return;
+  if(!input.scanTarget||player.scanCharges<=0||player.scanReadyAt>s.elapsedTicks||!ctx.scannableIds?.includes(input.scanTarget))return;
   const source=ctx.positions[player.id],target=ctx.positions[input.scanTarget];
   if(!finite(source)||!finite(target)||distance(source,target)>CROWD_RULES.scanRange*CROWD_RULES.scanRange)return;
   const victim=sortedIds(s.players).map(id=>s.players[id]!).find(p=>p.unitId===input.scanTarget);
-  if(!victim)return;
   player.scanCharges--;player.scanReadyAt=s.elapsedTicks+60;const [draw,rng]=nextInt(s.rng,10);s.rng=rng;
-  emit(s,"crowd.scan",player.id,input.scanTarget,draw<7?1:0);
+  const truth=!!victim||!!ctx.badRobotIds?.includes(input.scanTarget);
+  emit(s,"crowd.scan",player.id,input.scanTarget,(draw<7?truth:!truth)?1:0);
 }
 function finishHalf(s:CrowdState):void {
   if(s.solo||s.half===2){
@@ -116,7 +116,7 @@ function finishHalf(s:CrowdState):void {
 }
 export function stepCrowd(previous:CrowdState,ctx:CrowdContext):CrowdState {
   const tick=ctx.tick??previous.tick+1;if(previous.version!==1||!Number.isSafeInteger(tick)||tick<=previous.tick)throw new Error("Invalid crowd tick");
-  const s:CrowdState={...previous,tick,rng:[...previous.rng],players:Object.fromEntries(sortedIds(previous.players).map(id=>[id,{...previous.players[id]!}])),activeTasks:[...previous.activeTasks],retiredUnitIds:[...previous.retiredUnitIds],pings:previous.pings.map(p=>({...p})),events:[]};
+  const s:CrowdState={...previous,tick,rng:[...previous.rng],players:Object.fromEntries(sortedIds(previous.players).map(id=>[id,{...previous.players[id]!}])),activeTasks:[...previous.activeTasks],retiredUnitIds:[...(previous.retiredUnitIds??[])],pings:previous.pings.map(p=>({...p})),events:[]};
   if(s.phase==="finished"||ctx.paused)return s;s.elapsedTicks++;combat(s,ctx);attachUnits(s,ctx);
   for(const id of sortedIds(s.players)){const p=s.players[id]!,input=ctx.inputs?.[id]??{};if(p.role==="hider")hider(s,p,ctx,input);else spotter(s,p,ctx,input);}
   for(const ping of s.pings)if(ping.due<=s.elapsedTicks)emit(s,"crowd.corner-ping","",ping.taskId);
