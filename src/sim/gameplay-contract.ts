@@ -3,7 +3,7 @@ import type { JsonObject } from "./extensions.ts";
 
 export interface Position { x: number; y: number; z: number }
 export interface GameplayBody extends Position { id: string; mode: "vehicle" | "foot"; speed: number }
-export interface GameplayFact { id: string; tick: number; kind: string; playerId: string; actorId?: string; amount?: number; detail?: string }
+export interface GameplayFact { id: string; tick: number; source: "combat" | "agents" | "world" | "modes"; sequence: number; kind: string; playerId: string; actorId?: string; amount?: number; detail?: string }
 export interface GameplayEvent { id: number; tick: number; kind: string; playerId: string; targetId: string; amount: number; detail: string; payload?: ThreatSpawnRequest | JsonObject }
 export interface RewardActor { id: string; firmware: "good" | "bad" | "none"; armoured?: boolean; subtlety?: number; caughtInAct?: boolean; witnessedByBad?: boolean; peopleWitnesses?: number }
 export interface PlayerObservation { playerId: string; seenByBad: boolean; seenByAssociate: boolean; associateWithin200: boolean; fog: number; protectedArea: boolean; watchingActorId?: string; watchedTicks?: number; atSafehouseId?: string; actorBindings?: Readonly<Record<string, string>> }
