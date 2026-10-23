@@ -37,6 +37,7 @@ const EXTRAS: Record<string, string> = {
   // Render-only street detail (pipeline/build-street-detail.ts): the index and its layers.
   "street-detail.json": "street-detail",
   "street-markings.json": "street-markings",
+  "street-furniture.json": "street-furniture",
 };
 
 describe("world tiles validate", () => {

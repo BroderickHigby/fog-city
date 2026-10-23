@@ -1,14 +1,16 @@
 // Street detail placed by the pipeline (pipeline/build-street-detail.ts): junction patches,
-// crosswalks and stop bars for now. Render-only: nothing here touches the sim.
+// crosswalks and stop bars; traffic signals and stop signs. Render-only: nothing here touches
+// the sim (the signal lamps only read the sim tick).
 //
 // The world's street-detail.json lists the layer files. They load once, after boot, and never
-// block it (a world or a build without them simply has no street detail). Junctions are
+// block it (a world or a build without them simply has no street detail). Records are
 // bucketed into CELL_M cells; cells within NEAR_M of the camera are built (a few per frame)
 // and cells beyond NEAR_M + HYSTERESIS_M are disposed.
 
 import * as THREE from "three";
 import type { SharedMaterials } from "./materials.ts";
 import { geometryFromMeshData } from "./props.ts";
+import { FurnitureCell, type SignalRecord, type StopSignRecord } from "./street-furniture.ts";
 import { STREET_DETAIL_INDEX, buildMarkingMeshes, decodeJunction, type MarkingJunction } from "./street-markings.ts";
 import type { GroundFn } from "./types.ts";
 
@@ -22,8 +24,17 @@ export interface StreetDetailInfo {
   layers: string[];
   junctions: number;
   cellsBuilt: number;
-  /** Junction patches, crosswalks and stop bars in the built cells. */
+  /** Junction patches, crosswalks, stop bars, signal poles and stop signs in the built cells. */
   patches: number;
+  crosswalks: number;
+  stopBars: number;
+  signals: number;
+  stopSigns: number;
+}
+
+interface Built {
+  meshes: THREE.Object3D[];
+  furniture: FurnitureCell | null;
   crosswalks: number;
   stopBars: number;
 }
@@ -33,9 +44,9 @@ interface Cell {
   cx: number;
   cz: number;
   junctions: MarkingJunction[];
-  meshes: THREE.Mesh[] | null;
-  crosswalks: number;
-  stopBars: number;
+  signals: SignalRecord[];
+  stopSigns: StopSignRecord[];
+  built: Built | null;
 }
 
 export interface StreetDetailOptions {
@@ -45,6 +56,9 @@ export interface StreetDetailOptions {
   ground: GroundFn;
   materials: SharedMaterials;
 }
+
+const isPlaced = (r: unknown): r is { id: string; x: number; z: number } =>
+  !!r && typeof (r as { id?: unknown }).id === "string" && typeof (r as { x?: unknown }).x === "number" && typeof (r as { z?: unknown }).z === "number";
 
 export class StreetDetailLayer {
   readonly group = new THREE.Group();
@@ -66,6 +80,14 @@ export class StreetDetailLayer {
     this.paint.polygonOffsetUnits = -4;
   }
 
+  private cellAt(x: number, z: number): Cell {
+    const cx = Math.floor(x / CELL_M), cz = Math.floor(z / CELL_M);
+    const key = `${cx},${cz}`;
+    let cell = this.cells.get(key);
+    if (!cell) this.cells.set(key, (cell = { key, cx, cz, junctions: [], signals: [], stopSigns: [], built: null }));
+    return cell;
+  }
+
   /** Load the layers; resolves when done (or when there are none). Never rejects. */
   async load(): Promise<void> {
     const { base, json } = this.opts;
@@ -75,42 +97,47 @@ export class StreetDetailLayer {
     } catch {
       return;
     }
-    const file = index.layers?.markings;
-    if (!file) return;
-    try {
-      const doc = await json<{ junctions?: unknown[] }>(base + file);
-      for (const r of doc.junctions ?? []) {
+    const layer = async (name: string, read: (doc: Record<string, unknown>) => void): Promise<void> => {
+      const file = index.layers?.[name];
+      if (!file) return;
+      try {
+        read(await json<Record<string, unknown>>(base + file));
+        this.layers.push(name);
+      } catch (err) {
+        console.warn(`[fog-city] street detail ${file}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    };
+    await layer("markings", (doc) => {
+      for (const r of (doc.junctions as unknown[] | undefined) ?? []) {
         const j = decodeJunction(r);
         if (!j) continue;
-        const cx = Math.floor(j.x / CELL_M), cz = Math.floor(j.z / CELL_M);
-        const key = `${cx},${cz}`;
-        let cell = this.cells.get(key);
-        if (!cell) this.cells.set(key, (cell = { key, cx, cz, junctions: [], meshes: null, crosswalks: 0, stopBars: 0 }));
-        cell.junctions.push(j);
+        this.cellAt(j.x, j.z).junctions.push(j);
         this.junctions++;
       }
-      this.layers.push("markings");
-      this.lastX = Number.NaN;
-    } catch (err) {
-      console.warn(`[fog-city] street detail ${file}: ${err instanceof Error ? err.message : String(err)}`);
-    }
+    });
+    await layer("furniture", (doc) => {
+      for (const r of (doc.signals as unknown[] | undefined) ?? []) if (isPlaced(r)) this.cellAt(r.x, r.z).signals.push(r as SignalRecord);
+      for (const r of (doc.stopSigns as unknown[] | undefined) ?? []) if (isPlaced(r)) this.cellAt(r.x, r.z).stopSigns.push(r as StopSignRecord);
+    });
+    this.lastX = Number.NaN;
   }
 
-  /** Build the cells near (x, z) a few at a time; drop the far ones. */
-  update(x: number, z: number): void {
+  /** Build the cells near (x, z) a few at a time; drop the far ones; light the signals for `tick`. */
+  update(x: number, z: number, tick = 0): void {
     if (!(Math.abs(x - this.lastX) < 25 && Math.abs(z - this.lastZ) < 25)) {
       this.lastX = x;
       this.lastZ = z;
       const want: Array<{ cell: Cell; d: number }> = [];
       for (const cell of this.cells.values()) {
         const d = distToCell(cell, x, z);
-        if (cell.meshes && d > NEAR_M + HYSTERESIS_M) this.drop(cell);
-        else if (!cell.meshes && d <= NEAR_M) want.push({ cell, d });
+        if (cell.built && d > NEAR_M + HYSTERESIS_M) this.drop(cell);
+        else if (!cell.built && d <= NEAR_M) want.push({ cell, d });
       }
       want.sort((a, b) => a.d - b.d || (a.cell.key < b.cell.key ? -1 : 1));
       this.queue = want.map((w) => w.cell);
     }
     for (let k = 0; k < BUILDS_PER_UPDATE && this.queue.length; k++) this.build(this.queue.shift()!);
+    for (const cell of this.cells.values()) cell.built?.furniture?.update(tick);
   }
 
   /** True when every cell near the camera is built. */
@@ -119,15 +146,17 @@ export class StreetDetailLayer {
   }
 
   info(): StreetDetailInfo {
-    let cellsBuilt = 0, patches = 0, crosswalks = 0, stopBars = 0;
+    const out: StreetDetailInfo = { layers: [...this.layers], junctions: this.junctions, cellsBuilt: 0, patches: 0, crosswalks: 0, stopBars: 0, signals: 0, stopSigns: 0 };
     for (const c of this.cells.values()) {
-      if (!c.meshes) continue;
-      cellsBuilt++;
-      patches += c.junctions.length;
-      crosswalks += c.crosswalks;
-      stopBars += c.stopBars;
+      if (!c.built) continue;
+      out.cellsBuilt++;
+      out.patches += c.junctions.length;
+      out.crosswalks += c.built.crosswalks;
+      out.stopBars += c.built.stopBars;
+      out.signals += c.built.furniture?.signals ?? 0;
+      out.stopSigns += c.built.furniture?.stopSigns ?? 0;
     }
-    return { layers: [...this.layers], junctions: this.junctions, cellsBuilt, patches, crosswalks, stopBars };
+    return out;
   }
 
   dispose(): void {
@@ -136,29 +165,39 @@ export class StreetDetailLayer {
   }
 
   private build(cell: Cell): void {
-    if (cell.meshes) return;
-    const m = buildMarkingMeshes(cell.junctions, this.opts.ground);
-    const patch = new THREE.Mesh(geometryFromMeshData(m.patch), this.opts.materials.road);
-    patch.name = `junctions ${cell.key}`;
-    const paint = new THREE.Mesh(geometryFromMeshData(m.paint), this.paint);
-    paint.name = `road paint ${cell.key}`;
-    for (const mesh of [patch, paint]) {
-      mesh.receiveShadow = true;
-      mesh.matrixAutoUpdate = false;
-      this.group.add(mesh);
+    if (cell.built) return;
+    const built: Built = { meshes: [], furniture: null, crosswalks: 0, stopBars: 0 };
+    if (cell.junctions.length) {
+      const m = buildMarkingMeshes(cell.junctions, this.opts.ground);
+      const patch = new THREE.Mesh(geometryFromMeshData(m.patch), this.opts.materials.road);
+      patch.name = `junctions ${cell.key}`;
+      const paint = new THREE.Mesh(geometryFromMeshData(m.paint), this.paint);
+      paint.name = `road paint ${cell.key}`;
+      for (const mesh of [patch, paint]) {
+        mesh.receiveShadow = true;
+        mesh.matrixAutoUpdate = false;
+        built.meshes.push(mesh);
+      }
+      built.crosswalks = m.crosswalks;
+      built.stopBars = m.stopBars;
     }
-    cell.meshes = [patch, paint];
-    cell.crosswalks = m.crosswalks;
-    cell.stopBars = m.stopBars;
+    if (cell.signals.length || cell.stopSigns.length) {
+      built.furniture = new FurnitureCell(cell.signals, cell.stopSigns, this.opts.ground);
+      built.furniture.group.name = `street furniture ${cell.key}`;
+      built.meshes.push(built.furniture.group);
+    }
+    for (const o of built.meshes) this.group.add(o);
+    cell.built = built;
   }
 
   private drop(cell: Cell): void {
-    if (!cell.meshes) return;
-    for (const mesh of cell.meshes) {
-      this.group.remove(mesh);
-      mesh.geometry.dispose();
+    if (!cell.built) return;
+    for (const o of cell.built.meshes) {
+      this.group.remove(o);
+      if (o instanceof THREE.Mesh) o.geometry.dispose();
     }
-    cell.meshes = null;
+    cell.built.furniture?.dispose();
+    cell.built = null;
   }
 }
 

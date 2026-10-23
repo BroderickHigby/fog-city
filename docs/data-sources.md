@@ -700,6 +700,29 @@ drivable legs meet (freeway and ramp nodes are skipped): 7,439 junctions in sf.
 * sf result (snapshot 2026-10-23): 26,814 continental and 13 standard crosswalks, 14,225 stop
   bars; 4.4 MB.
 
+### Signals and stop signs (`street-furniture.json`)
+
+`pipeline/lib/street-furniture.ts`, placed on the junction paint. Render-only: no colliders yet
+(a solid pole is a physics change with its own SIM_VERSION, in a separate PR).
+
+* **Signal poles** (SFMTA Traffic Signals via `signals.json`, kind `signal`): one per
+  approach into a signalised node (not on a one-way leaving it), on the approach's near-right
+  corner 0.8 m off the kerb, just short of the crosswalk, with a vehicle head facing the
+  approaching traffic. Approaches 6 m or more from centreline to kerb also get a mast arm over
+  the lanes with an overhead head. Approaches split into two phase groups by axis. Where the
+  signal row says pedestrian heads (`ped_signal` ALL or SOME PHASES), each pole carries one
+  facing across its leg's crosswalk.
+* **Signal timing** is not published (see Gameplay data: "Signal phases: no dataset"); the
+  renderer cycles the lamps on a fixed 60 s plan from the sim tick, offset per node by a hash
+  of its id (`src/render/street-furniture.ts`). It never feeds back into the sim.
+* **Stop signs** (SFMTA Stop Signs `4542-gpa3`): one post per matched approach, on its
+  near-right corner just short of the stop bar, facing the traffic; `allWay` (the "ALL WAY"
+  plaque) when every approach into the node has a sign.
+* Every pole and post is stepped out along its leg until it is clear of every carriageway
+  within 100 m (tested around Chestnut St).
+* Ids: `sig:<node>:<edge>`, `stop:<node>:<edge>`, stable across rebuilds (for knockable props).
+* sf result: 4,113 signal poles, 10,325 stop signs; 1.6 MB.
+
 ## Gameplay data (the wave-2 spike)
 
 Each dataset the roadmap asks for, its DataSF id and licence (read from the dataset's

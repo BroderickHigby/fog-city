@@ -16,12 +16,14 @@ import { fileURLToPath } from "node:url";
 import { jsonLines, jsonPretty } from "./lib/output.ts";
 import type { RoadGraph } from "./lib/roads.ts";
 import { downloadStreetDetail, streetDetailAttribution, writeSnapshot } from "./lib/street-detail-sources.ts";
+import { buildFurniture } from "./lib/street-furniture.ts";
 import { buildMarkings, stopApproaches, type Junction, type MarkingStats } from "./lib/street-markings.ts";
 import { Ground } from "./lib/terrain.ts";
 import { STREET_DETAIL_INDEX } from "../src/render/street-markings.ts";
 import { decodeWorldColliders } from "./lib/world-colliders.ts";
 
 export const MARKINGS_FILE = "street-markings.json";
+export const FURNITURE_FILE = "street-furniture.json";
 
 const STYLE_CODE = { continental: "c", standard: "s" } as const;
 
@@ -44,7 +46,7 @@ export function encodeJunction(j: Junction): Record<string, unknown> {
 
 export interface StreetDetailOutput {
   files: Record<string, string>;
-  stats: MarkingStats & { stopSigns: { matched: number; unmatched: number } };
+  stats: MarkingStats & { stopSigns: { matched: number; unmatched: number }; furniture: { signals: number; stopSigns: number } };
 }
 
 export function buildStreetDetail(
@@ -57,7 +59,7 @@ export function buildStreetDetail(
   const roads = read<RoadGraph>(manifest.roads);
   const pack = decodeWorldColliders(readFileSync(join(dir, manifest.worldColliders)));
   const ground = new Ground(pack.tiles.map((t) => ({ ix: t.ix, iz: t.iz, field: t.ground })));
-  const signalLayer = manifest.layers.signals ? read<{ signals: Array<{ node: string; kind: string }> }>(manifest.layers.signals).signals : [];
+  const signalLayer = manifest.layers.signals ? read<{ signals: Array<{ node: string; kind: string; ped: boolean }> }>(manifest.layers.signals).signals : [];
   const signals = new Set(signalLayer.filter((s) => s.kind === "signal").map((s) => s.node));
   const nodeIds = new Set(roads.nodes.map((n) => n.id));
   const continental = new Set<string>();
@@ -67,9 +69,11 @@ export function buildStreetDetail(
   }
   const stops = stopApproaches(rows.stopSigns ?? [], roads);
   const { junctions, stats } = buildMarkings(roads, { continental, signals, stopApproaches: stops.approaches }, (x, z) => ground.heightAt(x, z) ?? 0);
+  const signalPed = new Map(signalLayer.filter((s) => s.kind === "signal").map((s) => [s.node, { ped: s.ped }]));
+  const furniture = buildFurniture(roads, junctions, signalPed, stops.approaches);
 
   const attribution = [
-    "Junction paint: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2).",
+    "Junction paint, signals and stop signs: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2).",
     streetDetailAttribution(["continental", "stopSigns"]),
   ];
   const markings = jsonLines(
@@ -84,21 +88,36 @@ export function buildStreetDetail(
     },
     ["junctions"],
   );
+  const furnitureFile = jsonLines(
+    {
+      version: 1,
+      world: manifest.world,
+      description:
+        "Traffic signal poles and stop signs at junctions (render-only). heading: compass bearing (radians clockwise from north) the head or sign faces, toward the approaching traffic. group: signal phase group (0/1, one per axis). arm: mast-arm length over the lanes (m, 0 = none). ped: bearing of the pedestrian head, or null. allWay: every approach into the node is stop-controlled.",
+      snapshotDate,
+      attribution: attribution.join(" "),
+      signals: furniture.signals,
+      stopSigns: furniture.stopSigns,
+    },
+    ["signals", "stopSigns"],
+  );
   const index = jsonPretty({
     version: 1,
     world: manifest.world,
     description: "Street-detail layers (render-only): see docs/data-sources.md, Street detail.",
     snapshotDate,
     attribution,
-    layers: { markings: MARKINGS_FILE },
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,
       standardCrosswalks: stats.crosswalks.standard,
       stopBars: stats.stopBars,
+      signalPoles: furniture.signals.length,
+      stopSigns: furniture.stopSigns.length,
     },
   });
-  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched } } };
+  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length } } };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -139,7 +158,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const s = result.stats;
   console.log(
     `street detail ${flag("check") ? "check OK" : "wrote"} (${((Date.now() - t0) / 1000).toFixed(1)} s): ${s.junctions} junctions, ` +
-      `${s.crosswalks.continental} continental + ${s.crosswalks.standard} standard crosswalks, ${s.stopBars} stop bars; ` +
+      `${s.crosswalks.continental} continental + ${s.crosswalks.standard} standard crosswalks, ${s.stopBars} stop bars, ` +
+      `${s.furniture.signals} signal poles, ${s.furniture.stopSigns} stop signs; ` +
       `stop signs ${s.stopSigns.matched} matched, ${s.stopSigns.unmatched} unmatched; skipped ${s.skipped.freeway} freeway, ${s.skipped.deck} deck nodes`,
   );
 }

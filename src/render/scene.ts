@@ -465,7 +465,7 @@ export class SceneRenderer {
     this.streamer.update(cam.x, cam.z, 4);
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
-    this.streetDetail.update(cam.x, cam.z);
+    this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
   }
 
