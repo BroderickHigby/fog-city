@@ -76,7 +76,7 @@ function copy(previous: RoyaleState, tick: number): RoyaleState {
 }
 
 function combat(state: RoyaleState, context: RoyaleContext): void {
-  const batch = [...(context.combatEvents ?? [])].filter((e) => Number.isSafeInteger(e.id) && e.id > 0 && Number.isSafeInteger(e.tick) && e.tick <= state.tick && (e.tick > state.lastCombatTick || e.tick === state.lastCombatTick && e.id > state.lastCombatId)).sort((a, b) => a.tick - b.tick || a.id - b.id);
+  const batch = [...(context.combatEvents ?? [])].filter((e) => Number.isSafeInteger(e.id) && e.id > 0 && Number.isSafeInteger(e.tick) && e.tick >= 0 && e.tick <= state.tick && (e.tick > state.lastCombatTick || e.tick === state.lastCombatTick && e.id > state.lastCombatId)).sort((a, b) => a.tick - b.tick || a.id - b.id);
   for (const event of batch) {
     if (event.tick < state.lastCombatTick || event.tick === state.lastCombatTick && event.id <= state.lastCombatId) continue;
     state.lastCombatTick = event.tick; state.lastCombatId = event.id;
@@ -90,7 +90,7 @@ function combat(state: RoyaleState, context: RoyaleContext): void {
 function requestRedeploy(state: RoyaleState, playerId: string, circle: RoyaleCircle, context: RoyaleContext): void {
   const player = state.players[playerId]!, point = context.positions[playerId];
   const dx = point ? point.x - circle.x : 1, dz = point ? point.z - circle.z : 0, length = Math.sqrt(dx * dx + dz * dz);
-  const radius = Math.max(0, circle.radius - 2), scale = length > 1e-9 ? radius / length : 0;
+  const radius = circle.radius - Math.min(2, circle.radius / 4), scale = length > 1e-9 ? radius / length : 0;
   const request = { id: `redeploy:${hash(state.id)}:${hash(playerId)}:${state.elapsedTicks}`, playerId, x: circle.x + (length > 1e-9 ? dx * scale : radius), z: circle.z + dz * scale };
   state.pendingRedeploys.push(request); player.status = "redeploy";
   emit(state, "royale.redeploy-request", playerId, request.id, 6);

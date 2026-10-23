@@ -62,7 +62,7 @@ describe("Fog Royale rewards and recovery", () => {
     let state = createRoyale({ ...config(), playerIds: ["a", "b", "c"] });
     state = stepRoyale(state, context(1, { combatEvents: [damage(1, "a", -18), damage(1, "b", -18, 2)] })).state;
     expect(state.players.a!.runway).toBe(6); expect(state.players.a!.bridgeUsed).toBe(true);
-    state = stepRoyale(state, context(2, { combatEvents: [damage(2, "a", -6), damage(2, "b", -6, 2)] })).state;
+    state = stepRoyale(state, context(2, { combatEvents: [damage(2, "a", -6, 3), damage(2, "b", -6, 4)] })).state;
     expect(state.duels).toHaveLength(1); expect(state.duels[0]!.players).toEqual(["a", "b"]);
     state = stepRoyale(state, context(3, { duelResults: [{ sequence: 1, duelId: state.duels[0]!.id, winnerId: "a" }] })).state;
     expect(state.players.a!.status).toBe("redeploy"); expect(state.players.b!.status).toBe("spectating");
@@ -92,6 +92,18 @@ describe("Fog Royale rewards and recovery", () => {
     expect(state.players.a!.runway).toBe(17);
     state = stepRoyale(state, context(2, { combatEvents: [hit, damage(2, "a", -1, 1)] })).state;
     expect(state.players.a!.runway).toBe(16);
+  });
+
+  it("rejects negative event ticks and suppresses physical requests during pause", () => {
+    let state = createRoyale(config());
+    state = stepRoyale(state, context(1, { combatEvents: [damage(-1, "a", -18)] })).state;
+    expect(state.players.a!.runway).toBe(18);
+    state = stepRoyale(state, context(2, { combatEvents: [damage(2, "a", -18)] })).state;
+    state = stepRoyale(state, context(3, { combatEvents: [damage(3, "a", -6)] })).state;
+    state = advance(state, 1200);
+    const paused = stepRoyale(state, context(state.tick + 1000, { paused: true }));
+    expect(paused.duelRequests).toEqual([]); expect(paused.redeployRequests).toEqual([]); expect(paused.botIntents).toEqual([]);
+    expect(paused.state.elapsedTicks).toBe(state.elapsedTicks);
   });
 });
 

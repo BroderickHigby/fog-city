@@ -31,7 +31,12 @@ state as `MatchState.royale`; this branch does not edit shared match DTOs or sch
 
 Focused tests cover phases, measured-position drain, fleece/crates, pause, invalid/missing
 poses, one-time scoring, all recovery stages, real-pose redeploy acceptance, bot IDs/intents,
-and deterministic stepping. Focused tests, forbidden-API scan and typecheck are pending.
+negative event ticks, pause suppression and deterministic stepping.
+
+`pnpm exec vitest run tests/sim/modes/royale.test.ts tests/sim/forbidden-apis.test.ts --maxWorkers=2`
+passed **57 tests** (10 Royale cases plus the repository deterministic-API scan).
+`pnpm typecheck` passed. All heavy checks used `/tmp/fog.lock` and the 8 GB Node cap.
+No full browser suite or physical bot soak is claimed here.
 
 ## Draft pull request
 
