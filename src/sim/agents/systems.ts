@@ -25,12 +25,12 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     let state=context.state;
     const options=provider(context);
     const spawns=[...(options.spawns??[])];
-    const service=allocate&&options.services!==false?planServiceRuntime(context.world,state,agentsRuntimeOf(state)?.services):undefined;
+    const service=allocate&&options.services!==false?planServiceRuntime(context.world,state,agentsRuntimeOf(state)?.services,spawns):undefined;
     if(service&&allocate&&service.spawns.length){
       const reserved=allocate(state,service.spawns.map(actor=>actor.id));state=reserved.state;
       for(const actor of service.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
     }
-    const transit=allocate&&options.transit?planTransitRuntime(context.world,state,options.transit,agentsRuntimeOf(state)?.transit):undefined;
+    const transit=allocate&&options.transit?planTransitRuntime(context.world,state,options.transit,agentsRuntimeOf(state)?.transit,spawns):undefined;
     if(transit&&allocate&&transit.spawns.length){
       const reserved=allocate(state,transit.spawns.map(actor=>actor.id));state=reserved.state;
       for(const actor of transit.spawns)if(!spawns.some(spawn=>spawn.id===actor.id))spawns.push({...actor,numericId:reserved.ids[actor.id]!});
