@@ -16,7 +16,7 @@ export function renderWithRuntimeActors(state:SimState,actors:readonly RuntimeVi
   const decorate=(agent:AgentState,actor:RuntimeVisualActor|undefined)=>({...agent,tell:actor?.bag==="empty"?"emptyBag":"fullBag",visualFlash:actor?.statusLight==="flicker",visualHeightScale:actor?state.ext.combat?.targets[actor.id]?.heightScale??1:1});
   const extras:AgentState[]=actors.filter(actor=>actor.legacyId===null&&!actor.retired&&["full","active"].includes(actor.fidelity)).map(actor=>({
     id:actor.numericId,kind:kindFor(actor.model),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,pitch:0,speed:actor.speed,vmax:Math.abs(actor.speed),
-    edge:"",dir:1,lane:1,s:0,next:"",ndir:1,nlane:1,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:Math.abs(actor.speed)<.05?"wait":"go",rng:1,
+    edge:"",dir:1,lane:1,s:0,next:"",ndir:1,nlane:1,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:Math.abs(actor.speed)<.05?"wait":"go",rng:1,dodge:null,
   }));
   if(!actors.length)return state;
   const list=[...agentsOf(state),...extras].map(agent=>decorate(agent,metadata.get(agent.id))).sort((a,b)=>a.id-b.id);
