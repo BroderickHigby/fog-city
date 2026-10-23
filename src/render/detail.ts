@@ -108,8 +108,8 @@ export interface DetailOptions {
   /** Metres from the camera where the detail has faded out. */
   farM: number;
   /**
-   * Only where the vertex colour is grey (urban ground, not lawns or sand): the ground's paving.
-   * Fragments whose colour is saturated get `alt` (a second set: grass) instead, when given.
+   * Only where the vertex colour is not green (urban ground, not lawns): the ground's paving.
+   * Fragments whose colour is green-led get `alt` (a second set: grass) instead, when given.
    */
   greyOnly?: boolean;
 }
@@ -127,15 +127,23 @@ uniform sampler2D fcDetN2;
 uniform sampler2D fcDetO2;
 uniform vec4 fcDetInfo2;  // second set (lawns): 1/sizeM, on (0/1), unused, unused
 uniform vec3 fcDetMean2;
+uniform sampler2D fcDetA3;
+uniform sampler2D fcDetN3;
+uniform sampler2D fcDetO3;
+uniform vec4 fcDetInfo3;  // third set (pavers under a mask): 1/sizeM, on (0/1), mask half side (m), unused
+uniform vec3 fcDetMean3;
+uniform sampler2D fcDetMask;
 varying vec3 fcDetWorld;
 `;
 
 const COLOR = /* glsl */ `
   vec2 fcDuv = fcDetWorld.xz * fcDetInfo.x;
   float fcDfade = 1.0 - smoothstep( fcDetInfo.w * 0.45, fcDetInfo.w, distance( fcDetWorld, cameraPosition ) );
-  float fcDmax = max( diffuseColor.r, max( diffuseColor.g, diffuseColor.b ) );
-  float fcDsat = ( fcDmax - min( diffuseColor.r, min( diffuseColor.g, diffuseColor.b ) ) ) / max( fcDmax, 1e-3 );
-  float fcDpaved = fcDetGrey > 0.5 ? 1.0 - smoothstep( 0.14, 0.24, fcDsat ) : 1.0;
+  // Lawn is where green leads (judged on roughly sRGB values: linear exaggerates the tint of dark
+  // greys, and the city's blue-grey paving must stay paving); everything else on the ground is paved.
+  vec3 fcDs = sqrt( max( diffuseColor.rgb, vec3( 0.0 ) ) );
+  float fcDgreen = ( fcDs.g - max( fcDs.r, fcDs.b ) ) / max( fcDs.g, 1e-3 );
+  float fcDpaved = fcDetGrey > 0.5 ? 1.0 - smoothstep( 0.04, 0.10, fcDgreen ) : 1.0;
   float fcDlawn = fcDetInfo2.y * ( 1.0 - fcDpaved );
   vec3 fcDo = vec3( 1.0, 0.85, 0.0 );
   vec3 fcDn = vec3( 0.0, 0.0, 1.0 );
@@ -143,6 +151,17 @@ const COLOR = /* glsl */ `
     vec3 fcDa = texture2D( fcDetA, fcDuv ).rgb / fcDetMean;
     vec3 fcDo1 = texture2D( fcDetO, fcDuv ).rgb;
     vec3 fcDn1 = texture2D( fcDetN, fcDuv ).xyz * 2.0 - 1.0;
+    if ( fcDetInfo3.y > 0.0 ) {
+      vec2 fcMuv = fcDetWorld.xz / ( 2.0 * fcDetInfo3.z ) + 0.5;
+      float fcM = all( greaterThan( fcMuv, vec2( 0.0 ) ) ) && all( lessThan( fcMuv, vec2( 1.0 ) ) ) ? texture2D( fcDetMask, fcMuv ).r : 0.0;
+      fcM = smoothstep( 0.25, 0.75, fcM );
+      if ( fcM > 0.0 ) {
+        vec2 fcDuv3 = fcDetWorld.xz * fcDetInfo3.x;
+        fcDa = mix( fcDa, texture2D( fcDetA3, fcDuv3 ).rgb / fcDetMean3, fcM );
+        fcDo1 = mix( fcDo1, texture2D( fcDetO3, fcDuv3 ).rgb, fcM );
+        fcDn1 = mix( fcDn1, texture2D( fcDetN3, fcDuv3 ).xyz * 2.0 - 1.0, fcM );
+      }
+    }
     float k = fcDfade * fcDpaved;
     diffuseColor.rgb *= mix( vec3( 1.0 ), fcDa, k * fcDetInfo.y );
     fcDo = mix( fcDo, fcDo1, k );
@@ -192,6 +211,12 @@ export class DetailMaterial {
     fcDetO2: { value: null as THREE.Texture | null },
     fcDetInfo2: { value: new THREE.Vector4(0.25, 0, 0, 0) },
     fcDetMean2: { value: new THREE.Vector3(0.5, 0.5, 0.5) },
+    fcDetA3: { value: null as THREE.Texture | null },
+    fcDetN3: { value: null as THREE.Texture | null },
+    fcDetO3: { value: null as THREE.Texture | null },
+    fcDetInfo3: { value: new THREE.Vector4(0.25, 0, 1, 0) },
+    fcDetMean3: { value: new THREE.Vector3(0.5, 0.5, 0.5) },
+    fcDetMask: { value: null as THREE.Texture | null },
   };
   private on = false;
   private readonly material: THREE.MeshStandardMaterial;
@@ -202,6 +227,20 @@ export class DetailMaterial {
     this.material = material;
     this.basePatch = material.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? null : material.onBeforeCompile.bind(material);
     this.baseKey = material.customProgramCacheKey();
+  }
+
+  /**
+   * A third set where `mask` (an R8 texture over the square of half side `halfM` round the origin)
+   * is set: the showcase's plazas and promenades get pavers (showcase.ts). Call after apply().
+   */
+  setMasked(set: DetailSet, mask: THREE.Texture, halfM: number): void {
+    const u = this.uniforms;
+    u.fcDetA3.value = set.albedo;
+    u.fcDetN3.value = set.normal;
+    u.fcDetO3.value = set.orm;
+    u.fcDetInfo3.value.set(1 / set.info.sizeM, 1, halfM, 0);
+    u.fcDetMean3.value.set(...set.info.meanLinear);
+    u.fcDetMask.value = mask;
   }
 
   /** Turn the detail on with `set` (and `alt` for lawns on the ground). */
@@ -226,6 +265,13 @@ export class DetailMaterial {
       u.fcDetN2.value = set.normal;
       u.fcDetO2.value = set.orm;
       u.fcDetInfo2.value.set(1 / set.info.sizeM, 0, 0, 0);
+    }
+    // The third set's samplers default to the first set's until setMasked() binds pavers.
+    if (!u.fcDetA3.value) {
+      u.fcDetA3.value = set.albedo;
+      u.fcDetN3.value = set.normal;
+      u.fcDetO3.value = set.orm;
+      u.fcDetMask.value = set.orm;
     }
     if (this.on) return;
     this.on = true;

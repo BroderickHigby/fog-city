@@ -29,6 +29,7 @@ import { Water } from "./water.ts";
 import { DetailMaterial, loadDetailSets, textureBytes } from "./detail.ts";
 import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type GfxFeatures, type GfxRequest } from "./gfx.ts";
 import { PostChain } from "./post.ts";
+import { buildShowcase, MASK_HALF_M, type Showcase, type ShowcaseStats } from "./showcase.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -106,7 +107,17 @@ export interface RenderInfo {
   /** The camera's far plane, metres. */
   cameraFar: number;
   /** The graphics tier (gfx.ts), why, and which of its features are on now. */
-  gfx: { tier: GfxChoice["tier"]; requested: GfxChoice["requested"]; reason: string; post: boolean; detail: boolean; detailSets: number; dropped: string[] };
+  gfx: {
+    tier: GfxChoice["tier"];
+    requested: GfxChoice["requested"];
+    reason: string;
+    post: boolean;
+    detail: boolean;
+    detailSets: number;
+    dropped: string[];
+    /** The Ferry Building showcase's street detail (showcase.ts), once built. */
+    showcase: ShowcaseStats | null;
+  };
 }
 
 const SHADOW_HALF = 160;
@@ -151,6 +162,11 @@ export class SceneRenderer {
   private post: PostChain | null = null;
   private readonly governor: GfxGovernor;
   private detailSets = 0;
+  private showcase: Showcase | null = null;
+  /** How the ground's detail is applied (set once the texture sets land), and tile ground materials waiting for it. */
+  private groundDetail: ((m: THREE.MeshStandardMaterial) => void) | null = null;
+  private readonly groundWaiting: THREE.MeshStandardMaterial[] = [];
+  private readonly drawnGround: (x: number, z: number) => number;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
   private headlightBase = 0;
@@ -212,7 +228,8 @@ export class SceneRenderer {
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
     if (this.features.post) this.post = new PostChain(this.renderer, this.scene, this.camera, opts.gfxOff ?? []);
-    if (this.features.detail) this.loadDetail(world.assets);
+    this.drawnGround = makeDrawnGroundFn([...world.colliders.values()]);
+    if (this.features.detail) this.loadDetail(world.assets, world.roads);
 
     const gltf = new GLTFLoader();
     const assets = world.assets;
@@ -242,12 +259,17 @@ export class SceneRenderer {
       colliders: world.colliders,
       roads: world.roads,
       ground: world.ground,
-      drawnGround: makeDrawnGroundFn([...world.colliders.values()]),
+      drawnGround: this.drawnGround,
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
       onReady: (g) => this.prepareShadows(g),
+      onGroundMaterial: (gm) => {
+        if (!this.features.detail) return;
+        if (this.groundDetail) this.groundDetail(gm);
+        else this.groundWaiting.push(gm);
+      },
       onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
       lakeMaterial: this.water.lakeMaterial,
       shore: world.boundary?.shore,
@@ -285,18 +307,42 @@ export class SceneRenderer {
   }
 
   /** The high tier's PBR detail on the ground, roads and sidewalks (detail.ts); the materials recompile once when it lands. */
-  private loadDetail(assets: Assets | undefined): void {
+  private loadDetail(assets: Assets | undefined, roads: RoadGraph | null): void {
     const m = this.materials;
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-    void loadDetailSets(textureBytes(assets), ["asphalt", "concrete", "grass"], aniso).then((sets) => {
+    void loadDetailSets(textureBytes(assets), ["asphalt", "concrete", "grass", "pavers", "paint"], aniso).then((sets) => {
       this.detailSets = sets.size;
       const asphalt = sets.get("asphalt");
       const concrete = sets.get("concrete");
       const grass = sets.get("grass");
+      const pavers = sets.get("pavers");
+      const paint = sets.get("paint");
       const road = { albedo: 1, normalScale: 1, roughness: 1, ao: 0.6, farM: 160 };
       if (asphalt) for (const mat of [m.roadUv, m.freewayUv, m.road]) new DetailMaterial(mat).apply(asphalt, road);
       if (concrete) new DetailMaterial(m.sidewalk).apply(concrete, { albedo: 1, normalScale: 1, roughness: 1, ao: 0.7, farM: 120 });
-      if (concrete) new DetailMaterial(m.ground).apply(concrete, { albedo: 0.8, normalScale: 0.8, roughness: 1, ao: 0.5, farM: 160, greyOnly: true }, grass);
+      if (!concrete) return;
+      // The Ferry Building showcase: paint, the F-line and palms, and pavers under its mask.
+      if (this.features.showcase && roads) {
+        this.showcase = buildShowcase(roads, this.drawnGround, {
+          paint: paint ? { orm: paint.orm, normal: paint.normal } : undefined,
+          concrete: { albedo: concrete.albedo.clone(), normal: concrete.normal.clone(), orm: concrete.orm.clone(), sizeM: concrete.info.sizeM },
+        });
+        this.prepareShadows(this.showcase.group);
+        // Paint, trackbed and rails lie on the road: they receive shadows but never cast them.
+        this.showcase.group.traverse((o) => {
+          if (/paint|trackbed|rails/.test(o.name)) o.castShadow = false;
+        });
+        this.scene.add(this.showcase.group);
+      }
+      // The shared ground and every tile's own ground (bores cut out under it) wear the same detail.
+      const mask = this.showcase?.mask ?? null;
+      this.groundDetail = (gm) => {
+        const d = new DetailMaterial(gm);
+        d.apply(concrete, { albedo: 0.8, normalScale: 0.8, roughness: 1, ao: 0.5, farM: 160, greyOnly: true }, grass);
+        if (pavers && mask) d.setMasked(pavers, mask, MASK_HALF_M);
+      };
+      this.groundDetail(m.ground);
+      for (const gm of this.groundWaiting.splice(0)) this.groundDetail(gm);
     });
   }
 
@@ -538,6 +584,7 @@ export class SceneRenderer {
       detail: this.features.detail,
       detailSets: this.detailSets,
       dropped: [...this.governor.dropped],
+      showcase: this.showcase?.stats ?? null,
     };
     return out;
   }
@@ -560,6 +607,7 @@ export class SceneRenderer {
     for (const e of this.envCache.values()) e.dispose();
     this.pmrem.dispose();
     this.post?.dispose();
+    this.showcase?.dispose();
     this.renderer.dispose();
   }
 }
@@ -589,7 +637,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
-  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, detail: false, detailSets: 0, dropped: [] },
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, detail: false, detailSets: 0, dropped: [], showcase: null },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

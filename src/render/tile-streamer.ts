@@ -71,6 +71,8 @@ export interface StreamerOptions {
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
+  /** Called with each ground material a tile makes for itself (bores cut out), so it can wear the shared ground's detail. */
+  onGroundMaterial?: (m: THREE.MeshStandardMaterial) => void;
   /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
   onTileVisible?: (id: string, visible: boolean) => void;
   /**
@@ -707,6 +709,7 @@ export class TileStreamer {
     const data = new Float32Array(cuts.length * 8);
     cuts.forEach((c, i) => data.set([c.ax, c.az, c.bx, c.bz, c.halfW, c.ya, c.yb, 0], 8 * i));
     const m = groundCutMaterial(data, cuts.length);
+    this.opts.onGroundMaterial?.(m);
     rec.ownedMaterials.push(m);
     return m;
   }
