@@ -1,0 +1,2635 @@
+{
+ "version": 1,
+ "status": "subtitles-only",
+ "hold": "Voice generation is held: the ElevenLabs account is on the free tier, which grants no commercial licence, so its output cannot ship in a distributed game. Upgrade to any paid tier, then run `node scripts/audio/generate-voices.ts --generate`. Until then every mission line plays as timed subtitles.",
+ "settings": {
+  "modelId": "eleven_multilingual_v2",
+  "stability": 0.45,
+  "similarityBoost": 0.75,
+  "style": 0.35,
+  "useSpeakerBoost": true,
+  "outputFormat": "mp3_44100_128"
+ },
+ "speakers": {
+  "cofounder": {
+   "name": "Your cofounder",
+   "voiced": true,
+   "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+   "voiceName": "Laura",
+   "why": "Sunny, quirky, a little sassy: the deadpan-cheerful cofounder who texts in lowercase and never panics on camera."
+  },
+  "dispatch": {
+   "name": "Dispatcher",
+   "voiced": true,
+   "voiceId": "SAz9YHcvj6GT2YYXdXww",
+   "voiceName": "River",
+   "why": "Calm, neutral, informative: BotBounty's dispatcher bot, unbothered by anything."
+  },
+  "host": {
+   "name": "Desk host",
+   "voiced": true,
+   "voiceId": "cgSgspJ2msm6clMCkdW9",
+   "voiceName": "Jessica",
+   "why": "Bright, playful coworking host selling hot desks with total sincerity."
+  },
+  "slotsworth": {
+   "name": "Slotsworth",
+   "voiced": true,
+   "voiceId": "onwK4e9ZLuTAKqWW03F9",
+   "voiceName": "Daniel",
+   "why": "Formal British broadcaster: Ramen's AI scheduling agent, far too grand for calendar invites."
+  },
+  "philosopher": {
+   "name": "The Philosopher",
+   "voiced": true,
+   "voiceId": "pqHfZKP75CvOlQylNhV4",
+   "voiceName": "Bill",
+   "why": "Wise, mature, unhurried: the VC partner who asks what your startup means."
+  },
+  "metrics": {
+   "name": "The Metrics One",
+   "voiced": true,
+   "voiceId": "pNInz6obpgDQGcFmaJgB",
+   "voiceName": "Adam",
+   "why": "Brash, firm tenor: the partner who only wants the numbers."
+  },
+  "vibes": {
+   "name": "The Vibes Partner",
+   "voiced": true,
+   "voiceId": "IKne3meq5aSn9XLyUdCD",
+   "voiceName": "Charlie",
+   "why": "Hyped, energetic: the partner who invests on vibes."
+  },
+  "frontDesk": {
+   "name": "Front Desk",
+   "voiced": true,
+   "voiceId": "XrExE9yKIg1WjnnlVkGX",
+   "voiceName": "Matilda",
+   "why": "Upbeat professional alto for Ramen's lobby robot."
+  },
+  "player": {
+   "name": "You",
+   "voiced": false,
+   "voiceId": null,
+   "voiceName": null,
+   "why": "The player character stays silent: subtitles only."
+  }
+ },
+ "lines": [
+  {
+   "missionId": "hot-desk",
+   "stepId": "arrive",
+   "id": "hot-desk.arrive.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones. only the bad ones, ideally",
+   "hash": "b9d1b510a089038690197229aab81b0be3a87493fd0deca357a385ce6b0e0720",
+   "file": null,
+   "durationS": 8.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.6,
+     "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones."
+    },
+    {
+     "startS": 6.6,
+     "endS": 8.8,
+     "text": "only the bad ones, ideally"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "arrive",
+   "id": "hot-desk.arrive.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bad robots look exactly like good ones. watch what they DO",
+   "hash": "e03b6746a2d776edc114fe404262437de56c40da3fcceadde1f00b84ed07a83e",
+   "file": null,
+   "durationS": 4.49,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.49,
+     "text": "bad robots look exactly like good ones. watch what they DO"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "snatch",
+   "id": "hot-desk.snatch.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "see the footman following the other one? 2 metres behind, every turn. and its bag is empty. that's not normal",
+   "hash": "fb331e134cb71d4496073af8ce72a54773273da64222fca37e7e5efd35cbb3b6",
+   "file": null,
+   "durationS": 8.19,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.03,
+     "text": "see the footman following the other one?"
+    },
+    {
+     "startS": 3.03,
+     "endS": 8.19,
+     "text": "2 metres behind, every turn. and its bag is empty. that's not normal"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "watch",
+   "id": "hot-desk.watch.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "hold your aim on it without spraying. that's Watch. look at its trail",
+   "hash": "5b232e4138fedb16c93f9a89aeb865d695756b231e4caf4161fbd89f5f87143c",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.35,
+     "text": "hold your aim on it without spraying. that's Watch. look at its trail"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "melt",
+   "id": "hot-desk.melt.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "it took the groceries!! spray it. hydrant's right there if you run out",
+   "hash": "f44c01d2bc5751e931b8b691c069ea091d3491bdff115c4c418f29f5e4e40ae9",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.62,
+     "text": "it took the groceries!! spray it."
+    },
+    {
+     "startS": 2.62,
+     "endS": 5.47,
+     "text": "hydrant's right there if you run out"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "melted",
+   "id": "hot-desk.melted.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "first melt!!! it'll be restored from backup. some memories may be lost. not ours",
+   "hash": "7838abccd937e8521f2086bf36c199ddad1a7aab1a1adfa954c638317ee46f07",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.09,
+     "text": "first melt!!! it'll be restored from backup. some memories may be lost. not ours"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "melted",
+   "id": "hot-desk.melted.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "ok your desk is on Montgomery St. they give it away if you're late. go go go",
+   "hash": "752bc387b5cde1615c4fd28c780d7ea16ac97672a136e97f2290dfbaa50a61e5",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "ok your desk is on Montgomery St."
+    },
+    {
+     "startS": 3.01,
+     "endS": 6.84,
+     "text": "they give it away if you're late. go go go"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "to-desk",
+   "id": "hot-desk.to-desk.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "Hi! We're holding your desk for five minutes. After that it goes to the next founder on the waitlist.",
+   "hash": "db959335b73f983eac1a5013a0aafc11b484b2398827ec683e3f7e86e6be03d7",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.47,
+     "text": "Hi! We're holding your desk for five minutes."
+    },
+    {
+     "startS": 3.47,
+     "endS": 7.7,
+     "text": "After that it goes to the next founder on the waitlist."
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "signup",
+   "id": "hot-desk.signup.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "Welcome! One question before I hand you a lanyard: what are you building?",
+   "hash": "be1ea351cc11c7de605846e54651a2c036c7d88cc1957f542e62b038b4bf38e3",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.47,
+     "text": "Welcome! One question before I hand you a lanyard: what are you building?"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "signup",
+   "id": "hot-desk.signup.line1",
+   "kind": "line",
+   "speaker": "host",
+   "text": "Love it. Love it. You're desk 14. Your stuff goes in a locker; there's no garage, sorry.",
+   "hash": "88083f9829f3e515abef21c857450c30df10d35ddf59b0ab38a1637656a9c608",
+   "file": null,
+   "durationS": 7.32,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.78,
+     "text": "Love it. Love it. You're desk 14."
+    },
+    {
+     "startS": 2.78,
+     "endS": 7.32,
+     "text": "Your stuff goes in a locker; there's no garage, sorry."
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "spot",
+   "id": "hot-desk.spot.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "also a robotaxi is parked in your spot. cone it. robotaxis stop dead for a cone on the hood. it's harmless",
+   "hash": "4bcd741602ebcb18bfc7a839f20e5a6d178381a03e0fc98aa7fc8d9bb14f91da",
+   "file": null,
+   "durationS": 8.44,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.86,
+     "text": "also a robotaxi is parked in your spot. cone it."
+    },
+    {
+     "startS": 3.86,
+     "endS": 8.44,
+     "text": "robotaxis stop dead for a cone on the hood. it's harmless"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "moved-in",
+   "id": "hot-desk.moved-in.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "And you've coned a robotaxi on day one. You're going to fit right in.",
+   "hash": "2a9536d32999fdb4ba736cdd3f3ea2657859d6a85371d712aab9b6b42f353380",
+   "file": null,
+   "durationS": 5.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.29,
+     "text": "And you've coned a robotaxi on day one."
+    },
+    {
+     "startS": 3.29,
+     "endS": 5.73,
+     "text": "You're going to fit right in."
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "moved-in",
+   "id": "hot-desk.moved-in.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "we have a desk!!! and a startup!!! and 18 months of runway. that's basically forever",
+   "hash": "203fe3040ceb2de947234d26cfffe18fda91592fc4130dc4fb36d0378d65d581",
+   "file": null,
+   "durationS": 6.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.7,
+     "text": "we have a desk!!! and a startup!!! and 18 months of runway. that's basically forever"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "got-away",
+   "id": "hot-desk.got-away.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "it got away with the groceries. it's fine. it's not fine. try again?",
+   "hash": "ee51c8035a69464ec43f54eb4faa035d8f99b56987191d27e52b17b635163718",
+   "file": null,
+   "durationS": 5.59,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.59,
+     "text": "it got away with the groceries. it's fine. it's not fine. try again?"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "late",
+   "id": "hot-desk.late.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "So sorry, the desk went to a founder building an app for ordering desks. Next opening is in a minute!",
+   "hash": "c63ab8fb3005df767736d971b55686f32ecae3633836bbb1e965dedd3433df74",
+   "file": null,
+   "durationS": 8.07,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.81,
+     "text": "So sorry, the desk went to a founder building an app for ordering desks."
+    },
+    {
+     "startS": 5.81,
+     "endS": 8.07,
+     "text": "Next opening is in a minute!"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "posting",
+   "id": "spill.posting.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "BotBounty dispatch. One posting near the Embarcadero at Mission St: a Footman, crew of three. Pays on melt.",
+   "hash": "ab31d6b3feaaf545c23c92515c647b2e4968856f7efcf2425fb6c15e53996a00",
+   "file": null,
+   "durationS": 7.57,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.36,
+     "text": "BotBounty dispatch."
+    },
+    {
+     "startS": 1.36,
+     "endS": 7.57,
+     "text": "One posting near the Embarcadero at Mission St: a Footman, crew of three. Pays on melt."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "posting",
+   "id": "spill.posting.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bot check beta is on your phone now. it's 97% confident about everything. that's a joke. it's also true",
+   "hash": "cb8d6de431aab3634302e38a230c8e77c6b97d28682ddaa5cd5094dcc064b4e2",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.72,
+     "text": "bot check beta is on your phone now."
+    },
+    {
+     "startS": 2.72,
+     "endS": 7.7,
+     "text": "it's 97% confident about everything. that's a joke. it's also true"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "crew",
+   "id": "spill.crew.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Posted robot is in the area. Last seen near the promenade. Tell: tails a good Footman.",
+   "hash": "2570208fb084fb79d7cb72d89aeba2683e9a645b26ab07c4a13d45ac72791b77",
+   "file": null,
+   "durationS": 6.71,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.21,
+     "text": "Posted robot is in the area."
+    },
+    {
+     "startS": 2.21,
+     "endS": 6.71,
+     "text": "Last seen near the promenade. Tell: tails a good Footman."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "scan",
+   "id": "spill.scan.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "if it says 98% that means nothing. if it walks like a bad robot that means something",
+   "hash": "f89b138b7221d9728ab9e005ae7268a042f569f1f800c68c85f6bf864dfa882a",
+   "file": null,
+   "durationS": 6.72,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.75,
+     "text": "if it says 98% that means nothing."
+    },
+    {
+     "startS": 2.75,
+     "endS": 6.72,
+     "text": "if it walks like a bad robot that means something"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "converge",
+   "id": "spill.converge.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Heads up: the rest of the crew is converging. A Moat Labs van has been dispatched from the depot.",
+   "hash": "0bd58151ef6c51334e3e460122d135b9aaa2974634e7606eecd2b6d9d7124bc2",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.61,
+     "text": "Heads up: the rest of the crew is converging."
+    },
+    {
+     "startS": 3.61,
+     "endS": 7.7,
+     "text": "A Moat Labs van has been dispatched from the depot."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "escape",
+   "id": "spill.escape.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "ok now LEAVE. fog, traffic, car wash, anything. they can't follow what they can't see",
+   "hash": "7108a1c3d8432dbaff4c2a67cac9cde4cfaa116d45a6cfa4eb00ed63a6c049a2",
+   "file": null,
+   "durationS": 6.46,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.61,
+     "text": "ok now LEAVE. fog, traffic, car wash, anything."
+    },
+    {
+     "startS": 3.61,
+     "endS": 6.46,
+     "text": "they can't follow what they can't see"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "paid",
+   "id": "spill.paid.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Bounty confirmed. Payment sent. Revenue extends runway.",
+   "hash": "a10958b4fc0d64688115d02b04510b19fe8e53b3a08289da4def742967fdc901",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Bounty confirmed. Payment sent. Revenue extends runway."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "paid",
+   "id": "spill.paid.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "we're profitable!!! for one afternoon!!! buy a bigger tank",
+   "hash": "f2476d5f2133363b75aad816be9037ffdeaccf68df009f09827f130379bb99ed",
+   "file": null,
+   "durationS": 4.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.35,
+     "text": "we're profitable!!! for one afternoon!!! buy a bigger tank"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "scattered",
+   "id": "spill.scattered.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "The crew has scattered. The posting will be renewed shortly.",
+   "hash": "d516ad141af85e7f7ff271f830d724a16297eb4d2e8fde5259778b6872b86401",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "The crew has scattered. The posting will be renewed shortly."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "cornered",
+   "id": "spill.cornered.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "they kept finding you. next time head for the fog, or the car wash on the way",
+   "hash": "ff0f2352da815c1481757d7d0cbb49a0ea8bd01d4642511543115eb908ee6eac",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.84,
+     "text": "they kept finding you. next time head for the fog, or the car wash on the way"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "cold",
+   "id": "spill.cold.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Posting expired. Another will be along. They always are.",
+   "hash": "a2c5e4947c720695038947de6d66bf893d970f60771f379d2ebf140f6ec09abc",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Posting expired. Another will be along. They always are."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "start",
+   "id": "launch-day.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bot check 1.0 is live! the launch is in the square. we have two users if we count us.",
+   "hash": "1d55e5a430b935e6d9c1b6aee84e7056325aa69c221687b013969a750cccf882",
+   "file": null,
+   "durationS": 7.82,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.75,
+     "text": "bot check 1.0 is live! the launch is in the square."
+    },
+    {
+     "startS": 4.75,
+     "endS": 7.82,
+     "text": "we have two users if we count us."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "stage",
+   "id": "launch-day.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "one has an empty bag. one has a full bag and a light that flickers. watch before you scan.",
+   "hash": "a1104abd93ffb327ba4e4e8bb07e24bf49df546942cda4c5879e1e0758aedf33",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 7.7,
+     "text": "one has an empty bag. one has a full bag and a light that flickers. watch before you scan."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "pivot",
+   "id": "launch-day.pivot.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "new positioning: same startup, now with reasons. \"98%\" is a number, not a witness.",
+   "hash": "d2378e38152baa6c00faeb08ab5588c949543920ccb942f7f5a48e91a52ea824",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.61,
+     "text": "new positioning: same startup, now with reasons."
+    },
+    {
+     "startS": 3.61,
+     "endS": 6.09,
+     "text": "\"98%\" is a number, not a witness."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "complete",
+   "id": "launch-day.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "scanner tier 2 is ready. it gives more detail, not permission to stop thinking.",
+   "hash": "6ce6daa7ab95c458c836dc1ea792310888764f844d270bb460a74a892269a0df",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "scanner tier 2 is ready. it gives more detail, not permission to stop thinking."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "retry",
+   "id": "launch-day.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the launch can wait. the harmless courier cannot. reset and follow the evidence.",
+   "hash": "8d6e850f1bea9dca2e72e60776ac78b451627f73935b375e3772218944564d8a",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.39,
+     "text": "the launch can wait. the harmless courier cannot."
+    },
+    {
+     "startS": 3.39,
+     "endS": 5.47,
+     "text": "reset and follow the evidence."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "start",
+   "id": "demoed-correctly.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "your startup is on that billboard. and the bus. our distribution strategy is now traffic.",
+   "hash": "1f7de6576d78de71b636f90ad4ab08ce5c3792b5ab4915e9711eee550552bf4f",
+   "file": null,
+   "durationS": 6.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.32,
+     "text": "your startup is on that billboard. and the bus."
+    },
+    {
+     "startS": 3.32,
+     "endS": 6.22,
+     "text": "our distribution strategy is now traffic."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "drive",
+   "id": "demoed-correctly.drive.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the partners are ready. find a legal space before you prove product-market fit.",
+   "hash": "4deae9de1b5e8709366423c7198bda5d8079cdc6ee04eca75f122f15a7c771f6",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.35,
+     "text": "the partners are ready. find a legal space before you prove product-market fit."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "If the large platforms copy the feature, what remains?",
+   "questionId": "interviewfeature",
+   "hash": "fc16b039dd55cdfd382792c8a3c6d5d6756c1f287d96624ae7856908c7ca34cc",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "If the large platforms copy the feature, what remains?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.workflow.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A reason to stay that does not fit on a release note.",
+   "questionId": "interviewfeature",
+   "answerId": "workflow",
+   "hash": "d0e9e1301242c151014a3cf60f53009549d12b24197e4463398c13edf729aa16",
+   "file": null,
+   "durationS": 4.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.86,
+     "text": "A reason to stay that does not fit on a release note."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.faster.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Speed is an activity. What will it accumulate?",
+   "questionId": "interviewfeature",
+   "answerId": "faster",
+   "hash": "1011287ce8e469659eb509d753b1ffb0e4d9e8c0c901e7d713421f51e2ffc6eb",
+   "file": null,
+   "durationS": 3.5,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.5,
+     "text": "Speed is an activity. What will it accumulate?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.honest.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A small honest question can become a useful company.",
+   "questionId": "interviewfeature",
+   "answerId": "honest",
+   "hash": "cdd643be71fcdc98910b30ad7607b67b03e28df330ded25e500db01449b65869",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "A small honest question can become a useful company."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "What would convince you this idea is wrong?",
+   "questionId": "interviewproof",
+   "hash": "2b3de0231a2cbd50ea26fb1bb29daf5f249c5ff52ee8f7bfd554b942351575d3",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "What would convince you this idea is wrong?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.test.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A belief with an exit door. Encouraging.",
+   "questionId": "interviewproof",
+   "answerId": "test",
+   "hash": "920164266896ce4ad88c8f7010be677218981148a93392df6dabe32100a7a3ee",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "A belief with an exit door. Encouraging."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.faith.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Then this is a faith round. We do not lead those.",
+   "questionId": "interviewproof",
+   "answerId": "faith",
+   "hash": "e1c9bef2828675f9fd41b12ece8e97c9d0e36c082f5a7e017be29a97a9b2f9e8",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "Then this is a faith round. We do not lead those."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.price.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Good. Do not discount away the answer.",
+   "questionId": "interviewproof",
+   "answerId": "price",
+   "hash": "22e594a0b28e560613974edaee2ac746d0ac4475bdf2448186081a28c6209374",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Good. Do not discount away the answer."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "Explain the demo without explaining the architecture.",
+   "questionId": "interviewstory",
+   "hash": "0e57c6412a7b2f2336241f906a4a07b5b26a222c28a7d3d20f059f6a659c5c3b",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Explain the demo without explaining the architecture."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.job.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "I can picture the person and the Tuesday.",
+   "questionId": "interviewstory",
+   "answerId": "job",
+   "hash": "2bdff199a7eeb497d2503e3771d7148ab93721f4ddf33659792aee7714b09e6f",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "I can picture the person and the Tuesday."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.stack.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "I can picture a diagram arguing with another diagram.",
+   "questionId": "interviewstory",
+   "answerId": "stack",
+   "hash": "9c5d238ab9f061496b755dd9c76eb00af715c9bf1bb20ca54c472e51a59a962a",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "I can picture a diagram arguing with another diagram."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.small.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Excellent. The room has one attention span.",
+   "questionId": "interviewstory",
+   "answerId": "small",
+   "hash": "bd621de1782de6f08f2aab546b228891776d900920b30c5cc65a9bf86685a55a",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Excellent. The room has one attention span."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "What happens when it is confidently wrong?",
+   "questionId": "interviewfailure",
+   "hash": "60ba9f21edf73ec14a9b421fa5c5f9810fbb3f42af48502638ce4bcf877ad0df",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "What happens when it is confidently wrong?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.review.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "The correction is part of the product. Keep it visible.",
+   "questionId": "interviewfailure",
+   "answerId": "review",
+   "hash": "5eadc9225787c38806ad45d3cdbc30d3219800676699a11b8d63974073f76685",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "The correction is part of the product. Keep it visible."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.hide.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "The number was not the problem I was asking about.",
+   "questionId": "interviewfailure",
+   "answerId": "hide",
+   "hash": "1b3823a25b87088679c465b2756771c2ff8264ffb406d3facd7b03c562f5cd39",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "The number was not the problem I was asking about."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.manual.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "An unglamorous landing is still a landing.",
+   "questionId": "interviewfailure",
+   "answerId": "manual",
+   "hash": "bda75196270d2a636d84bd7e7577b756364549bd71ff12f212c9d9be350c1000",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "An unglamorous landing is still a landing."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "What did your first customers do the second week?",
+   "questionId": "interviewretention",
+   "hash": "6157c24dfd8fb90ed7b4392ee3e1ff58bd274a2135a2b1cf5937eadc5174f48b",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "What did your first customers do the second week?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.cohort.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A cohort and a denominator. We can have a conversation.",
+   "questionId": "interviewretention",
+   "answerId": "cohort",
+   "hash": "eb124f5adfe1237491dff8f7d8dd9f3b5ce907806f3ab8078d308d89ea48ad4e",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A cohort and a denominator. We can have a conversation."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.users.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A sign-up is a hello. I asked whether they stayed.",
+   "questionId": "interviewretention",
+   "answerId": "users",
+   "hash": "9114b604ecb9fe84449df4a49c6e8fdcaedda4640321cab007f9e1f8ff021eaa",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A sign-up is a hello. I asked whether they stayed."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.destiny.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Please put inevitable in the forecast, not the actuals.",
+   "questionId": "interviewretention",
+   "answerId": "destiny",
+   "hash": "53d01aa27a2039d04f5802b17eb72b94b8e4a8c25e50eac0146fbaf900ecba4d",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Please put inevitable in the forecast, not the actuals."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "Who can say yes to buying this?",
+   "questionId": "interviewbuyer",
+   "hash": "e99badf519f148f4ebb151905550efcde167392441808f9767a8eed4104ef99d",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Who can say yes to buying this?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.owner.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A buyer close enough to the problem to recognise it.",
+   "questionId": "interviewbuyer",
+   "answerId": "owner",
+   "hash": "cd307833db279e61ba6e497eb5429230cead9d5c7222a279cfe15adc6e9db3b1",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "A buyer close enough to the problem to recognise it."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.everyone.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "That is a distribution problem disguised as a market.",
+   "questionId": "interviewbuyer",
+   "answerId": "everyone",
+   "hash": "9033b29257fa5beda0feba9de434319452a82b081146b78968a7866a103e94e3",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "That is a distribution problem disguised as a market."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.unknown.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Good. Bring the calls, including the uncomfortable one.",
+   "questionId": "interviewbuyer",
+   "answerId": "unknown",
+   "hash": "73558b0ef7a83c7b82493d605cdd81ad25c561d6c13231558721ab0c6230cae8",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Good. Bring the calls, including the uncomfortable one."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "demo-stage",
+   "id": "demoed-correctly.demo-stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "three robots, one bad. the partners stay behind the rope. observation first, water second.",
+   "hash": "4368de22cd8b7e903fb961307d3ca3b20d442e916ad1325fabcbffc1b6f9b0e4",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.9,
+     "text": "three robots, one bad. the partners stay behind the rope."
+    },
+    {
+     "startS": 3.9,
+     "endS": 6.09,
+     "text": "observation first, water second."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "term-sheet",
+   "id": "demoed-correctly.term-sheet.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "We are in. Please let us announce it first; our post is already drafted.",
+   "hash": "d796ecc6708eae6a302963949dd6017f848a0c269ee22c7d2256f25b8f193021",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "We are in. Please let us announce it first; our post is already drafted."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "follow-up",
+   "id": "demoed-correctly.follow-up.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "Useful demo. Send weekly numbers, including the weeks they go down.",
+   "hash": "6742665150e0d3b15ba03bd67b62c1b51ad0f10b96ecfeefa0f781157950a858",
+   "file": null,
+   "durationS": 4.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.73,
+     "text": "Useful demo. Send weekly numbers, including the weeks they go down."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "practice",
+   "id": "demoed-correctly.practice.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "Strong energy. Bring clearer evidence next time. Office Hours open again tomorrow.",
+   "hash": "267a7a5721873e21e12f0636ec37015e1d29c8dd6a2dfca0ecac1d7286e78602",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.02,
+     "text": "Strong energy. Bring clearer evidence next time."
+    },
+    {
+     "startS": 3.02,
+     "endS": 5.1,
+     "text": "Office Hours open again tomorrow."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "start",
+   "id": "demo-day.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "great news: the demo is live. bad news: moat labs pushed an update to the guest list.",
+   "hash": "66dd39bd4508ef1f42079fa8a62af0907a8e1a51150e34cf300ca2593c22aa63",
+   "file": null,
+   "durationS": 7.08,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.44,
+     "text": "great news: the demo is live."
+    },
+    {
+     "startS": 2.44,
+     "endS": 7.08,
+     "text": "bad news: moat labs pushed an update to the guest list."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "stage",
+   "id": "demo-day.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the good one is still resisting the update. break the link before you clear the stage.",
+   "hash": "6715ced8ffd29d0fe7f02b5fbc0c53c0144a85404fc476cc1a940c7ef1895ce5",
+   "file": null,
+   "durationS": 6.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.27,
+     "text": "the good one is still resisting the update."
+    },
+    {
+     "startS": 3.27,
+     "endS": 6.47,
+     "text": "break the link before you clear the stage."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "attention",
+   "id": "demo-day.attention.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "five stars. apparently public incident response counts as a pitch.",
+   "hash": "f24dfe558777f58e0483ec52d323b0c9b8c0b7195c4b5ca100a2b2bc41bab538",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "five stars. apparently public incident response counts as a pitch."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "complete",
+   "id": "demo-day.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the investors wrote \"handles pressure\". nobody wrote down who caused it.",
+   "hash": "3a732cce86613a1949a9070b07efb0201d14034a1c31a11ce8068be6a35e4c6f",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.53,
+     "text": "the investors wrote \"handles pressure\"."
+    },
+    {
+     "startS": 2.53,
+     "endS": 4.61,
+     "text": "nobody wrote down who caused it."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "retry",
+   "id": "demo-day.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the venue can reset the demo. your calendar has already reset the meeting.",
+   "hash": "89413a620e70082c6f9cc48029827caf3005a455b4624b64dcda53022de5cc27",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.13,
+     "text": "the venue can reset the demo."
+    },
+    {
+     "startS": 2.13,
+     "endS": 5.35,
+     "text": "your calendar has already reset the meeting."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "start",
+   "id": "fleet-week.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "fleet week. the meeting room is a picnic blanket and the mute button is the sky.",
+   "hash": "2d98bb2c4c6456dcc02522702f098df51a26c958243f996b2beb057e88284d5b",
+   "file": null,
+   "durationS": 6.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.47,
+     "text": "fleet week. the meeting room is a picnic blanket and the mute button is the sky."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "stage",
+   "id": "fleet-week.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the footman took our car. our car! cone through the window; it stops the vehicle.",
+   "hash": "97ac8700aaa628c7ab5e0ee6e7931885e14fa897b66a1a216e203f5b7bc344a1",
+   "file": null,
+   "durationS": 6.34,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.69,
+     "text": "the footman took our car. our car!"
+    },
+    {
+     "startS": 2.69,
+     "endS": 6.34,
+     "text": "cone through the window; it stops the vehicle."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "chase",
+   "id": "fleet-week.chase.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the marked car along Marina Blvd. pedestrians have right of way.",
+   "hash": "e0a831e5d2a8878aaa8e669a9cd2c2b226cc4508b72c61768879faa202af7b42",
+   "file": null,
+   "durationS": 4.98,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.85,
+     "text": "follow the marked car along Marina Blvd."
+    },
+    {
+     "startS": 2.85,
+     "endS": 4.98,
+     "text": "pedestrians have right of way."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "complete",
+   "id": "fleet-week.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "car recovered. the partner called it a memorable product demonstration.",
+   "hash": "24ca3b7dbe6b4c307552b3ffa3d7be5b01b3d38f80d7e0d3528e9cc1aeaec60e",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "car recovered. the partner called it a memorable product demonstration."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "retry",
+   "id": "fleet-week.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "we can do another pass. the pilots were going to anyway.",
+   "hash": "b13e1590a9ef86059f22eeabfb8694b60e5e65f554e4d69f7dffe748d97ea694",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "we can do another pass. the pilots were going to anyway."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "start",
+   "id": "hill-climb.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "same stolen cars. same empty bags. different pitch deck. the ring is using the hills.",
+   "hash": "25fb5fd17b298755624d2d97def1084d2fbd55dd09e2b7eb97d910bd0054228c",
+   "file": null,
+   "durationS": 6.34,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.23,
+     "text": "same stolen cars. same empty bags. different pitch deck."
+    },
+    {
+     "startS": 4.23,
+     "endS": 6.34,
+     "text": "the ring is using the hills."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "stage",
+   "id": "hill-climb.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "watch the footman that checks every parked car and never opens its delivery bag.",
+   "hash": "446aa25ace11846873bcd5c9b6460f49f617e58fe9efb52789861692a620a24b",
+   "file": null,
+   "durationS": 5.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.61,
+     "text": "watch the footman that checks every parked car and never opens its delivery bag."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "crooked",
+   "id": "hill-climb.crooked.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the marked route down Lombard. brake before each turn; the shortcut is not faster.",
+   "hash": "7d92050b3a7108a1d3d6f1260f648581fdcf42efe3f1aa2b453a890a3c295564",
+   "file": null,
+   "durationS": 6.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.62,
+     "text": "follow the marked route down Lombard."
+    },
+    {
+     "startS": 2.62,
+     "endS": 6.22,
+     "text": "brake before each turn; the shortcut is not faster."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "complete",
+   "id": "hill-climb.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the ring is stopped. our burn rate now includes handbrake maintenance.",
+   "hash": "44f596762f87f48027e09ffd4aac8a7c5038cb98e6665f8219af9dfce5b399ed",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "the ring is stopped. our burn rate now includes handbrake maintenance."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "retry",
+   "id": "hill-climb.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the cable car runs again. so does this plan.",
+   "hash": "b71a6ed977cc70ef47956d1c95e4e3a27a800b2915a207b2c0b77548d8d193b4",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "the cable car runs again. so does this plan."
+    }
+   ]
+  },
+  {
+   "missionId": "acqui-hire-offer",
+   "stepId": "start",
+   "id": "acqui-hire-offer.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "moat labs wants to acquire us. their due diligence form asks for our passwords. we have a different form.",
+   "hash": "8e3220eba024874aaa093e84f9acfffbb20d216c52c6ca1996d288c21cd2fc15",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.22,
+     "text": "moat labs wants to acquire us."
+    },
+    {
+     "startS": 2.22,
+     "endS": 7.7,
+     "text": "their due diligence form asks for our passwords. we have a different form."
+    }
+   ]
+  },
+  {
+   "missionId": "acqui-hire-offer",
+   "stepId": "complete",
+   "id": "acqui-hire-offer.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "offer declined. we kept the server map and our vesting schedule.",
+   "hash": "2e44a1d80ef191ac2662e5631e66990eddb1d2c85558b5fb99d1fab9993bce2e",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "offer declined. we kept the server map and our vesting schedule."
+    }
+   ]
+  },
+  {
+   "missionId": "acqui-hire-offer",
+   "stepId": "retry",
+   "id": "acqui-hire-offer.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "connection dropped. the van is still ours. try a less memorable route.",
+   "hash": "cbe5eea261c3cc6ae935ddbe6763d575deb61c8abad7075f3cae019087b131b1",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "connection dropped. the van is still ours. try a less memorable route."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "start",
+   "id": "marine-layer.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the fog is coming in. the fleet keeps its distance from water and from weather it cannot monetise.",
+   "hash": "a29df508886347546181aca0d77ef8686857faa5742e5379a8ae34ceb51761d0",
+   "file": null,
+   "durationS": 7.21,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.56,
+     "text": "the fog is coming in."
+    },
+    {
+     "startS": 1.56,
+     "endS": 7.21,
+     "text": "the fleet keeps its distance from water and from weather it cannot monetise."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "stage",
+   "id": "marine-layer.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bring the fleet west. keep moving on the marked route and leave the beachgoers out of it.",
+   "hash": "d6dd70913a05ff873f3d116ef71de6c51cb56fbe693b11f17a80af577ca48ce1",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.84,
+     "text": "bring the fleet west. keep moving on the marked route and leave the beachgoers out of it."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "news",
+   "id": "marine-layer.news.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "radio says a former founder is out and planning a comeback. the fog has a silhouette now.",
+   "hash": "e81d7a01ef57ed559a0178b0e37a8fdb7b0c432eda4e313595194beb4dd4fbca",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.59,
+     "text": "radio says a former founder is out and planning a comeback."
+    },
+    {
+     "startS": 4.59,
+     "endS": 6.84,
+     "text": "the fog has a silhouette now."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "complete",
+   "id": "marine-layer.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the fleet lost the route. the fog declined to provide a quarterly forecast.",
+   "hash": "ce5b6449a34b421147f71468f84da5b7a13e5d1987f82694136c2afb2c1d73dc",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.35,
+     "text": "the fleet lost the route. the fog declined to provide a quarterly forecast."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "retry",
+   "id": "marine-layer.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "too much daylight, too little distance. wait for the layer and try again.",
+   "hash": "df36b282d202ae73da0955848a6290472a4abb567af21117454ca16534b1f21d",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.96,
+     "text": "too much daylight, too little distance."
+    },
+    {
+     "startS": 2.96,
+     "endS": 5.47,
+     "text": "wait for the layer and try again."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "start",
+   "id": "comeback-round.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "that is not a new skyline. that is a demo made out of other demos.",
+   "hash": "a85f5b1ed9318c5e0f45628f4dfb4ccfe35970ba588aed5694f77c14e2fead6b",
+   "file": null,
+   "durationS": 6.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.1,
+     "text": "that is not a new skyline. that is a demo made out of other demos."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "waterfront",
+   "id": "comeback-round.waterfront.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the waterfront route as the assembly stops to pitch the city.",
+   "hash": "021b7603a2525cbacdb559e6f9449496e08e21872947fc87f883f4f5af61aef9",
+   "file": null,
+   "durationS": 4.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.86,
+     "text": "follow the waterfront route as the assembly stops to pitch the city."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "bridge",
+   "id": "comeback-round.bridge.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the marked approach. the remaining robots are holding up the demonstration.",
+   "hash": "5fb0cc87e2a4e53dd2042b9d8020d680149f3658aa5c0bc893250988c7de8b98",
+   "file": null,
+   "durationS": 4.98,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.98,
+     "text": "follow the marked approach. the remaining robots are holding up the demonstration."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "complete",
+   "id": "comeback-round.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the demo was held together by other people's work. the robots are home. the clock can just tell time.",
+   "hash": "2b69445ea35e78059207917948ab124b356ef80667fb3e089269ae310bb9cb25",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.47,
+     "text": "the demo was held together by other people's work. the robots are home."
+    },
+    {
+     "startS": 5.47,
+     "endS": 7.7,
+     "text": "the clock can just tell time."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "retry",
+   "id": "comeback-round.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the boat is ready for another pass. the city is waiting for the short version.",
+   "hash": "e0699689197686d0a0133c1476e667592653e6385a6c4106d82780839bd76aa9",
+   "file": null,
+   "durationS": 6.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.77,
+     "text": "the boat is ready for another pass."
+    },
+    {
+     "startS": 2.77,
+     "endS": 6.1,
+     "text": "the city is waiting for the short version."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line0",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "Hi! Slotsworth here, Ramen's scheduling agent. Great news: your partner meeting moved up.",
+   "hash": "009efab5cdccf11128d568b10a6925e360e10dcb49f09cbedac003a148f3d304",
+   "file": null,
+   "durationS": 5.71,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.98,
+     "text": "Hi! Slotsworth here, Ramen's scheduling agent."
+    },
+    {
+     "startS": 2.98,
+     "endS": 5.71,
+     "text": "Great news: your partner meeting moved up."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line1",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "It's now at ten. It is nine fifty-one. I accepted on your behalf. You're welcome!",
+   "hash": "c8c00bca297261cf2832e4bfbfb324578be2cd5b9b859fb80dd6b318703d238d",
+   "file": null,
+   "durationS": 6.34,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.34,
+     "text": "It's now at ten. It is nine fifty-one. I accepted on your behalf. You're welcome!"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line2",
+   "kind": "line",
+   "speaker": "player",
+   "text": "Ten? As in nine minutes from now?",
+   "hash": "",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Ten? As in nine minutes from now?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line3",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "The partners have a hard stop at ten fifteen for a panel about hard stops. The Ramen house, Pier 70, Dogpatch. See you there!",
+   "hash": "597c97e4f72e56153383ed58714ae1479c87940ed6da73059e1e09c476a4f558",
+   "file": null,
+   "durationS": 9.79,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.84,
+     "text": "The partners have a hard stop at ten fifteen for a panel about hard stops."
+    },
+    {
+     "startS": 5.84,
+     "endS": 9.79,
+     "text": "The Ramen house, Pier 70, Dogpatch. See you there!"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "drive",
+   "id": "ramen-pitch.drive.line0",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "Reminder: the partners don't wait. They post threads about people who make them wait.",
+   "hash": "033348750ef1a4e9a07b9e39c92e6150f39a5bb5cad5c5634d65212bb994a51f",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.37,
+     "text": "Reminder: the partners don't wait."
+    },
+    {
+     "startS": 2.37,
+     "endS": 5.85,
+     "text": "They post threads about people who make them wait."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "lobby",
+   "id": "ramen-pitch.lobby.line0",
+   "kind": "line",
+   "speaker": "frontDesk",
+   "text": "Welcome to Ramen. The partners are finishing a podcast. It's about patience.",
+   "hash": "1091a3e0a7caa13fb688d1977d7155eca004419071a0d57665cc4e483cc97dde",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "Welcome to Ramen. The partners are finishing a podcast. It's about patience."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "lobby",
+   "id": "ramen-pitch.lobby.line1",
+   "kind": "line",
+   "speaker": "frontDesk",
+   "text": "Kombucha is on tap. It's also on the cap table.",
+   "hash": "b2bdbd8d02101d0e66562dac4dd3cc5f7be20634121397bb2b677ff58c52f2e4",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Kombucha is on tap. It's also on the cap table."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.intro0",
+   "kind": "intro",
+   "speaker": "vibes",
+   "text": "Love the energy. We've got eleven minutes and the light in here is perfect, so let's go.",
+   "hash": "a6388aee6a794513a685731b5766e31716442fdc95023a65526ea0aa97a7763a",
+   "file": null,
+   "durationS": 6.96,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.96,
+     "text": "Love the energy. We've got eleven minutes and the light in here is perfect, so let's go."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.intro1",
+   "kind": "intro",
+   "speaker": "philosopher",
+   "text": "Before we begin, a question I ask everyone. Then another one.",
+   "hash": "377fead6b5bfc05afb3904b0648708564939f2e5650231ef0342bceddc269ce3",
+   "file": null,
+   "durationS": 4.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.73,
+     "text": "Before we begin, a question I ask everyone. Then another one."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "So. What's your moat?",
+   "questionId": "moat",
+   "hash": "b725dae827d5eeb390ce06faf4be9588dd6d69cc695a7026c2eda5f38823c53a",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "So. What's your moat?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.network.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Ah. A moat made of people. I've seen worse moats. I've seen a moat made of robots.",
+   "questionId": "moat",
+   "answerId": "network",
+   "hash": "28193586e5ff4416558afc9f8325233e3611424efb0bc44583c5a7441da04afd",
+   "file": null,
+   "durationS": 7.08,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.28,
+     "text": "Ah. A moat made of people. I've seen worse moats."
+    },
+    {
+     "startS": 4.28,
+     "endS": 7.08,
+     "text": "I've seen a moat made of robots."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.speed.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Speed isn't a moat. It's a puddle. I'm going to think about that all week.",
+   "questionId": "moat",
+   "answerId": "speed",
+   "hash": "2ff98f44c1d84cac48663d630b099246f1482c5d51e4dd8aeab2d50be7dc25ce",
+   "file": null,
+   "durationS": 6.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.9,
+     "text": "Speed isn't a moat. It's a puddle."
+    },
+    {
+     "startS": 2.9,
+     "endS": 6.22,
+     "text": "I'm going to think about that all week."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.slide.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Slide nine is a photo of an actual moat. There's a swan.",
+   "questionId": "moat",
+   "answerId": "slide",
+   "hash": "e1f57b31a1e22318c118a50a982efa7dc1fb8cb68ae2f2cdea33d293f9ea2dd0",
+   "file": null,
+   "durationS": 4.98,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.98,
+     "text": "Slide nine is a photo of an actual moat. There's a swan."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "Is it a company, or is it a feature?",
+   "questionId": "justAFeature",
+   "hash": "e3bbbaf25c8580518a477f18c416201a4f64892e661717fdb9c357ac9e24133b",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Is it a company, or is it a feature?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.email.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Bold. That's a whole seminar. Possibly a book.",
+   "questionId": "justAFeature",
+   "answerId": "email",
+   "hash": "6e644e4a6a4043a1a84a61da2c25542ca8cba3eb2013a4ce48d78af0afdda598",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Bold. That's a whole seminar. Possibly a book."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.waitlist.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A waitlist is a feature with ambition. I'll allow it.",
+   "questionId": "justAFeature",
+   "answerId": "waitlist",
+   "hash": "14aac5a500abe02cf8b53b1036e76f9222af178e747aea60530ddff067df99b8",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A waitlist is a feature with ambition. I'll allow it."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.platform.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Ah. Honesty. We have a portfolio company for that. It's also struggling.",
+   "questionId": "justAFeature",
+   "answerId": "platform",
+   "hash": "4a17824596c5665ec9bb3081b1e44f729251f4ad3f03325e47eb14859d09444c",
+   "file": null,
+   "durationS": 5.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.22,
+     "text": "Ah. Honesty. We have a portfolio company for that. It's also struggling."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "Why now?",
+   "questionId": "whyNow",
+   "hash": "88730005f8c2eab94f56ec0139674f91e110f17f6345cab2af6632bd31bc31d5",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Why now?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.window.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "A closing window. I can feel it closing. That's a good feeling.",
+   "questionId": "whyNow",
+   "answerId": "window",
+   "hash": "f0e735fad8fed45f0852e4aaca9dedec191b8e2301984e118dd2d03bf4acc02c",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "A closing window. I can feel it closing. That's a good feeling."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.robotaxis.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Mine still circles my office. I think it's lonely. Great vibe, though.",
+   "questionId": "whyNow",
+   "answerId": "robotaxis",
+   "hash": "a551ed6fe678701bb74e728f5ab85754775689e9d738c3149838c5cbfbb4efd3",
+   "file": null,
+   "durationS": 5.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.22,
+     "text": "Mine still circles my office. I think it's lonely. Great vibe, though."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.bar.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Candid. Too candid. The room just got colder.",
+   "questionId": "whyNow",
+   "answerId": "bar",
+   "hash": "76dba18819ba11e6cdfa124ac573ef241f508d753b21040cc0be9b261b6b5d49",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Candid. Too candid. The room just got colder."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "What does traction look like? Weekly, please.",
+   "questionId": "traction",
+   "hash": "d7a493bfb268792af74d602b6688eb35c4d66a04ec15feaa837db90c4a650809",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "What does traction look like? Weekly, please."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.waitlist.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Some is a number. I'll take it. Send it to me weekly.",
+   "questionId": "traction",
+   "answerId": "waitlist",
+   "hash": "c6f662173348e2a102ee60787ed096649872bb71906e5b8177880f46b8802943",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "Some is a number. I'll take it. Send it to me weekly."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.revenue.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Revenue? In this economy? Weird. Interesting. Mostly weird.",
+   "questionId": "traction",
+   "answerId": "revenue",
+   "hash": "78985b61c1de33ea2bc73fd99b3c4cd3b32c23e0c6486bd4516d2b9ab4b6ae5c",
+   "file": null,
+   "durationS": 3.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.86,
+     "text": "Revenue? In this economy? Weird. Interesting. Mostly weird."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.views.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Views are a vibe. Vibes aren't a metric. Don't tell him I said that.",
+   "questionId": "traction",
+   "answerId": "views",
+   "hash": "2cb2049c94a95c958b2a9a71ed1aed9bd44853017499b5d99c8cd125015f1dbc",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "Views are a vibe. Vibes aren't a metric. Don't tell him I said that."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "funded",
+   "id": "ramen-pitch.funded.line0",
+   "kind": "line",
+   "speaker": "philosopher",
+   "text": "We're in. Don't tell anyone until we've posted about it.",
+   "hash": "98047cb80ca5accf63837d5b8888d06a05ad6001e5a10a05481bdd130569b701",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "We're in. Don't tell anyone until we've posted about it."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "funded",
+   "id": "ramen-pitch.funded.line1",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "Congratulations! I booked your billboard on the Embarcadero. And a nap. Both start Monday.",
+   "hash": "4ab1870b504f303407ba012346154530da3e4e8924c1cbc2ef1821e7a7d3e1db",
+   "file": null,
+   "durationS": 5.97,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.97,
+     "text": "Congratulations! I booked your billboard on the Embarcadero. And a nap. Both start Monday."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "traction",
+   "id": "ramen-pitch.traction.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "We love it. We're out. Come back with traction.",
+   "hash": "661e7c3c8a172b3f304b053eaeab0993a2fedb83a320bb6ce00dabe8af9cbad5",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "We love it. We're out. Come back with traction."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "traction",
+   "id": "ramen-pitch.traction.line1",
+   "kind": "line",
+   "speaker": "vibes",
+   "text": "Genuinely great energy, though. Keep that. Lose the rest.",
+   "hash": "9095430fb90ce77f762da6067651b3c9f2dd3a6369140f48ed4daf0c04486862",
+   "file": null,
+   "durationS": 4.11,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.11,
+     "text": "Genuinely great energy, though. Keep that. Lose the rest."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "missed",
+   "id": "ramen-pitch.missed.line0",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "The partners waited ninety seconds, then recorded an episode about founders who are late. You're the hero of it.",
+   "hash": "ac86511ecf7724e6a40c7e4e08fe0c91cee5eb8a14d70bc286da51065db88c08",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.17,
+     "text": "The partners waited ninety seconds, then recorded an episode about founders who are late."
+    },
+    {
+     "startS": 6.17,
+     "endS": 7.7,
+     "text": "You're the hero of it."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "missed",
+   "id": "ramen-pitch.missed.line1",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably.",
+   "hash": "af342c093a6177dd3adb756d55d29b696dd9721ee347c28db430e388879c388c",
+   "file": null,
+   "durationS": 4.11,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.11,
+     "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably."
+    }
+   ]
+  }
+ ]
+}
