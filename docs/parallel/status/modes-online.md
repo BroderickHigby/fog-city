@@ -18,9 +18,10 @@ commit containing this status file, for Lane R and Lane 7 to review independentl
 - SHA-256 world identity works on plain HTTP LAN addresses as well as secure origins.
 - Loopback tests cover remote movement, leave/rejoin, fifth-player and expired-code refusal,
   malformed/oversized/flooded messages, spoofed players, bad input sequences and origin checks.
-- Two simulated minutes with 100 ms input/delivery jitter converge exactly after deliberate
-  client divergence and a corrupt snapshot. The scheduling test measures exactly 7,200 ticks
-  over two minutes and caps catch-up after a stalled timer.
+- Two players for two simulated minutes and four players for ten simulated minutes with
+  100 ms input/delivery jitter converge exactly after deliberate client divergence and a
+  corrupt snapshot. Both affected clients explicitly request recovery. The scheduling test
+  measures exactly 7,200 ticks over two minutes and caps catch-up after a stalled timer.
 - Separate coordinator integration hooks provide a minimal lobby and two-browser proof;
   these are proposed to their owning lanes rather than a replacement for their UI work.
 
@@ -43,6 +44,12 @@ or SIM_VERSION changes.
 - **Owner:** AI provider/key and spending/retention policy before any live AI routes; this
   prototype uses no paid services or secrets.
 - **Lane 2:** match/state extension interfaces and wave-2 simulation integration.
+- Lane 2 has published the schema-6 interface on `lane/core/wave2` (`9a6a107`). Its status
+  explicitly reserves the QA/dodge migrations for integration. This prototype stays on the
+  verified schema-5 base until those migrations are combined by the integrating lane. When
+  adopting schema 6, update the closed network input validator for its optional aim fields
+  and re-run world identity, replay and browser convergence checks; do not silently accept
+  a different simulation version.
 - The inherited world/ballpark regeneration and other world QA defects remain tracked in
   `docs/qa/2026-10-23-integration-status.md`; the relay does not waive their gate.
 

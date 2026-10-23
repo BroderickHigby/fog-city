@@ -54,6 +54,7 @@ with WebSocket upgrades and an exact `ALLOWED_ORIGINS` allowlist. Hosting remain
 
 ```sh
 pnpm test:net
+NET_STRESS=nightly pnpm exec vitest run tests/net/prediction.test.ts --maxWorkers=1
 pnpm e2e:net
 MULTIPLAYER_WORLD=sf pnpm e2e:net
 docker build -f server/deploy/Dockerfile -t fog-city-relay .
@@ -62,7 +63,9 @@ docker compose -f server/deploy/compose.yaml up
 
 `test:net` covers real loopback sockets, room limits and expiration, invalid/malicious messages,
 disconnect/rejoin, backpressure, and two simulated minutes with up to 100 ms jitter, deliberate
-client divergence and corrupt snapshots. `e2e:net` opens two separate browser contexts and
+client divergence and corrupt snapshots. The optional `NET_STRESS=nightly` check extends
+that to four clients and ten simulated minutes, with explicit per-client recovery and
+exact final server-hash agreement. `e2e:net` opens two separate browser contexts and
 checks remote movement, visible player lists and leave/rejoin. Install the pinned Playwright
 browsers before that check. CI/onboarding environments may need loopback/network permissions.
 Keep memory-heavy checks under the single lock described in `docs/handoff.md`.

@@ -2,7 +2,8 @@
 
 Branch: `codex/fog-city-multiplayer`, based on the Ferry showcase, with the gate and
 simulation QA branches integrated. This checkpoint repairs integration errors; it is
-**not** a green world gate or a completed multiplayer implementation.
+**not** a green world gate. The later private multiplayer prototype is documented in
+`2026-10-23-multiplayer-foundation.md`.
 
 ## Repairs and validation
 
@@ -38,6 +39,13 @@ stalled worker was terminated. These numbers must not be presented as a clean fu
 verification. `pnpm verify` has not passed. No baseline values were loosened and no
 tests were skipped by this patch.
 
+The later complete run on `b788d11` finished with **3,062 passed, 92 failed and one
+maintenance test pending**, across 143 files (131 passed, 12 failed), without socket
+setup errors. All failed files are world-gate or landmark-content checks. The exact
+classification, affected locations and owners are in `2026-10-23-full-suite-triage.md`.
+The world-baseline adjustment fixes the accounting-description metadata mismatch only; all
+numeric thresholds and golden run lists are preserved.
+
 ## Ballpark regeneration prerequisite
 
 `public/tiles/sf/report.json` lists `201006.0000003` in `clearance.staleDropped`.
@@ -46,8 +54,9 @@ year. The source repair above prevents that inference for the verified landmark;
 the committed world still needs regeneration through `pipeline/build-world.ts`.
 
 The supported offline check stops immediately because the raw DataSF building cache
-is absent. The current network policy returns HTTP 403 for `data.sfgov.org`; raw
-elevation data also requires `elevation.nationalmap.gov`. A saved environment network
+is absent. The DataSF endpoint redirects from `data.sfgov.org` to `data.sf.gov`, whose response
+is still HTTP 403 under this running environment’s policy; raw elevation data also
+requires `elevation.nationalmap.gov`. A saved environment network
 draft is not a runtime policy change. Once data access or a valid cache is available,
 regenerate with the supported pipeline, run its byte-identity check, refresh landmark
 sites/assets if they change, and rerun the content suite and full world gate. Do not

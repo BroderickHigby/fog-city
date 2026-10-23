@@ -6,6 +6,9 @@ import { Prediction } from "../../src/net/prediction.ts";
 import { hashState, type SimInput } from "../../src/sim/index.ts";
 import { ROOT } from "../helpers.ts";
 
+const stressPlayers = process.env.NET_STRESS === "nightly" ? 4 : 2;
+const stressTicks = process.env.NET_STRESS === "nightly" ? 36_000 : 7_200;
+
 describe("authoritative rollback with delayed inputs", () => {
   it("starts a new room timeline when a client instance reconnects", async () => {
     const bundle = await worldLoader(`${ROOT}/public`)("dev");
@@ -35,14 +38,17 @@ describe("authoritative rollback with delayed inputs", () => {
     expect(client.predict({ throttle: 0, steer: 0, brake: 0, actions: 0 })?.seq).toBe(1);
   });
 
-  it("converges two clients through 2 simulated minutes of 100ms jitter, divergence and corrupt snapshots", async () => {
+  it(`converges ${stressPlayers} clients through ${stressTicks / 3600} simulated minutes of 100ms jitter, divergence and corrupt snapshots`, async () => {
     const bundle = await worldLoader(`${ROOT}/public`)("dev");
     const room = new Room("ABCDEFGHIJ", bundle, 0, 77);
-    let tick = 0, seed = 318, resyncs = 0;
+    let tick = 0, seed = 318;
+    const resyncs = Array<number>(stressPlayers).fill(0);
+    let divergenceInjected = false, corruptSnapshotInjected = false;
     const random = (): number => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) % 7; };
     type Delivery = { at: number; run(): void };
-    const down: Delivery[][] = [[], []], up: Delivery[][] = [[], []];
-    const lastDown = [0, 0], lastUp = [0, 0];
+    const down: Delivery[][] = Array.from({ length: stressPlayers }, () => []);
+    const up: Delivery[][] = Array.from({ length: stressPlayers }, () => []);
+    const lastDown = Array<number>(stressPlayers).fill(0), lastUp = Array<number>(stressPlayers).fill(0);
     const clients: Prediction[] = [];
     const ids: string[] = [];
     const schedule = (queue: Delivery[], last: number[], i: number, run: () => void): void => {
@@ -50,9 +56,9 @@ describe("authoritative rollback with delayed inputs", () => {
       last[i] = at;
       queue.push({ at, run });
     };
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < stressPlayers; i++) {
       const client = new Prediction(bundle.world, () => {
-        resyncs++;
+        resyncs[i] = resyncs[i]! + 1;
         const snapshot = { type: "snapshot" as const, ...structuredClone(room.snapshot()) };
         schedule(down[i]!, lastDown, i, () => client.receive(snapshot));
       });
@@ -61,7 +67,21 @@ describe("authoritative rollback with delayed inputs", () => {
         if (message.type === "error") throw new Error(message.message);
         const copy = structuredClone(message);
         if (message.type === "welcome") client.receive(copy as Exclude<ServerMessage, { type: "error" }>);
-        else schedule(down[i]!, lastDown, i, () => client.receive(copy as Exclude<ServerMessage, { type: "error" }>));
+        else schedule(down[i]!, lastDown, i, () => {
+          // Inject at delivery, before a hash-bearing contiguous frame. Injecting by
+          // simulation tick can be silently repaired by an already queued valid snapshot.
+          if (i === 0 && copy.type === "frame" && copy.tick >= 1800 && copy.hash &&
+              !divergenceInjected && !client.recovering && client.confirmed?.tick === copy.tick - 1) {
+            client.confirmed = { ...client.confirmed, rng: [1, 2, 3, 4] };
+            divergenceInjected = true;
+          }
+          if (i === 1 && copy.type === "snapshot" && copy.state.tick >= 3600 &&
+              !corruptSnapshotInjected && !client.recovering) {
+            copy.hash = "bad";
+            corruptSnapshotInjected = true;
+          }
+          client.receive(copy as Exclude<ServerMessage, { type: "error" }>);
+        });
       } };
       ids.push(room.join(peer, 0));
     }
@@ -69,9 +89,9 @@ describe("authoritative rollback with delayed inputs", () => {
       for (const queue of queues) while (queue[0] && queue[0].at <= tick) queue.shift()!.run();
     };
     room.tick(0);
-    for (tick = 1; tick <= 7200; tick++) {
+    for (tick = 1; tick <= stressTicks; tick++) {
       deliver(down);
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < stressPlayers; i++) {
         const input: SimInput = { throttle: tick % 180 < 90 ? 1 : -0.3, steer: (tick + i * 80) % 120 < 60 ? 0.4 : -0.4, brake: tick % 200 > 180 ? 1 : 0, actions: 0 };
         const accepted = clients[i]!.predict(input);
         if (accepted) schedule(up[i]!, lastUp, i, () => room.input(ids[i]!, accepted.seq, accepted.input));
@@ -79,13 +99,16 @@ describe("authoritative rollback with delayed inputs", () => {
       }
       deliver(up);
       room.tick(tick * 1000 / 60);
-      if (tick === 1800) clients[0]!.confirmed = { ...clients[0]!.confirmed!, rng: [1, 2, 3, 4] };
-      if (tick === 3600) clients[1]!.receive({ type: "snapshot", ...structuredClone(room.snapshot()), hash: "bad" });
+      // Let the runner enforce its timeout during the longer nightly simulation.
+      if (tick % 600 === 0) await new Promise<void>((resolve) => setImmediate(resolve));
     }
-    for (; tick <= 7220; tick++) { deliver(up); room.tick(tick * 1000 / 60); deliver(down); }
+    for (; tick <= stressTicks + 20; tick++) { deliver(up); room.tick(tick * 1000 / 60); deliver(down); }
     tick += 10;
     deliver(down);
-    expect(resyncs).toBeGreaterThanOrEqual(2);
+    expect(divergenceInjected).toBe(true);
+    expect(corruptSnapshotInjected).toBe(true);
+    expect(resyncs[0]).toBeGreaterThanOrEqual(1);
+    expect(resyncs[1]).toBeGreaterThanOrEqual(1);
     for (const client of clients) {
       expect(client.pending).toHaveLength(0);
       expect(client.recovering).toBe(false);
@@ -93,5 +116,5 @@ describe("authoritative rollback with delayed inputs", () => {
       expect(hashState(client.state)).toBe(hashState(room.state));
     }
     expect(room.history).toHaveLength(7200);
-  }, 60_000);
+  }, stressPlayers === 4 ? 600_000 : 60_000);
 });
