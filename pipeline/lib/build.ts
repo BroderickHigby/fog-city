@@ -21,6 +21,7 @@ import {
 } from "./gameplay.ts";
 import { tileGlb } from "./glb.ts";
 import { buildGameplayIndex } from "./gameplay-index.ts";
+import { gameplayLand, gameplayMetadata } from "./gameplay-context.ts";
 import { RoadSurface, trafficEdges } from "./road-surface.ts";
 import { buildSidewalks, type SidewalkStats } from "./sidewalks.ts";
 import { encodeWorldColliders } from "./world-colliders.ts";
@@ -390,8 +391,8 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   for (const c of far) files.set(`${c.id}.glb`, c.glb);
 
   // Gameplay layers (citywide worlds only: they need the extra DataSF datasets).
-  const layers: Record<string, string> = {};
-  const layerCounts: Record<string, number> = {};
+  let layers: Record<string, string> = {};
+  let layerCounts: Record<string, number> = {};
   let sidewalkStats: SidewalkStats | null = null;
   const builtIds = new Set(tiles.map((t) => t.id));
   const inWorld = (x: number, z: number): boolean => builtIds.has(`t${Math.floor(x / TILE_SIZE_M)}_${Math.floor(z / TILE_SIZE_M)}`);
@@ -505,12 +506,11 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     const gameplay = buildGameplayIndex({
       world: cfg.id, sourceSnapshot: cfg.sources.snapshotDate ?? "unversioned", tileSizeM: TILE_SIZE_M,
       tiles, walk, roads: graph, districts, hydrants, fountains, signals, transit, shore: boundary.shore,
-      isLand, heightAt: (px, pz) => simGround.heightAt(px, pz), roadClearance: (px, pz) => surface.clearance(px, pz),
+      isLand: gameplayLand(tiles, TILE_SIZE_M, simGround, buildings), heightAt: (px, pz) => simGround.heightAt(px, pz), roadClearance: (px, pz) => surface.clearance(px, pz),
     });
     files.set("gameplay.json", utf8(jsonLines({ ...gameplay }, ["refills", "anchors", "tiles", "territories"])));
-    layers.gameplay = "gameplay.json";
-    layerCounts.gameplayRefills = gameplay.refills.length;
-    layerCounts.gameplayAnchors = gameplay.anchors.length;
+    const metadata = gameplayMetadata(layers, layerCounts, gameplay);
+    layers = metadata.layers; layerCounts = metadata.counts;
     layer("signals", "signals.json", "Working traffic signals and beacons at road-graph nodes. Phases are the sim's (procedural).", ATTRIBUTION[7]!, "signals", signals);
     layer(
       "streetCleaning",

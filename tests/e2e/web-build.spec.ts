@@ -148,12 +148,17 @@ test.describe("static web build, served from a sub-path", () => {
     const dist = join(SITE, ...SUB.split("/").filter(Boolean));
     const check = checkHostLimits(dist);
     expect(check.problems).toEqual([]);
+    expect(readFileSync(join(dist, "third-party-notices.txt"), "utf8")).toContain("Copyright (c) 2020 Microsoft");
     expect(check.files).toBeLessThanOrEqual(HOST_LIMITS.maxFiles);
     expect(check.totalBytes).toBeLessThanOrEqual(HOST_LIMITS.maxTotalBytes);
     expect(check.largest.bytes).toBeLessThanOrEqual(HOST_LIMITS.maxFileBytes);
     expect(report.packs, "tile and far-cell packs").toBeGreaterThan(5);
     const index = JSON.parse(readFileSync(join(dist, "assets.index.json"), "utf8")) as WebIndex;
     expect(index.defaultWorld).toBe("sf");
+    expect(index.files["models/generic-player.glb"], "generic human is shipped").toBeDefined();
+    expect(index.files["models/player.glb"], "retired likeness is excluded").toBeUndefined();
+    expect(index.files["textures/surfaces/asphalt_albedo.webp"]).toBeDefined();
+    expect(index.files["textures/surfaces/concrete_normal.webp"]).toBeDefined();
     expect(Object.keys(index.files).some((f) => f.endsWith(".collider.json")), "per-tile colliders in the index").toBe(false);
     expect(index.files[COLLIDERS]?.src).toMatch(/\.gz\.b64\.txt$/);
     // Files in parts: the index lists each part at its size on disk, every one under the build's
@@ -189,6 +194,15 @@ test.describe("static web build, served from a sub-path", () => {
     expect(sim.roads).toBe(true);
     expect(sim.walls ?? 0).toBeGreaterThan(1000);
     expect(sim.agents).toBeGreaterThan(50);
+    // The actual skinned avatar must load through the packed asset provider too.
+    await page.keyboard.press("KeyF");
+    await page.waitForFunction(() => {
+      const game = (window as unknown as FogWindow).__fogcity!;
+      return game.state().players.p1!.mode === "foot" && game.renderInfo!().walkersFromFile === 1;
+    });
+    await page.keyboard.press("KeyF");
+    await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.mode === "vehicle");
+    await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().surfaceTextures?.length === 2);
     // Relative URLs only: nothing asked for outside the sub-path, nothing the host would refuse.
     expect(requests.filter((r) => !r.path.startsWith(SUB)).map((r) => r.path), "requests outside the sub-path").toEqual([]);
     expect(requests.filter((r) => r.status !== 200).map((r) => `${r.status} ${r.path}`), "failed requests").toEqual([]);

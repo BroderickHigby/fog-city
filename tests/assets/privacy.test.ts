@@ -1,23 +1,23 @@
-// The player's default look, founder-default, is a likeness of the project owner made from
-// reference photos that stay outside the repository (assets/blender/README.md, "founder-default"
-// and its privacy rule). This test fails if a photo file appears anywhere in the tree, if a
-// file under assets/ or public/ carries JPEG or HEIF image data (a photo under another name, or
-// one embedded in a GLB or a binary), or if an image in the Assets track's folders was not drawn
-// by a script in the repository (a crop or colour-picked patch of a photo re-saved as a PNG).
+// Private likeness reference photos must never enter the repository. The runtime avatar is
+// now a generic, licensed library human. Its embedded JPEG textures are allowed only at
+// an exact reviewed hash, with the upstream licence retained; other photo signatures fail.
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { ROOT } from "../helpers.ts";
 
 const PHOTO_FILE = /\.(jpe?g|heic|heif)$/i;
 const SKIP_DIRS = new Set(["node_modules", ".git"]);
 
-/**
- * Files under assets/ or public/ that already held JPEG or HEIF bytes on wave2/assets, before
- * founder-default (repo-relative paths). Measured 2026-10-21: there were none, so any match fails.
- */
-const ALLOWED = new Set<string>();
+/** Reviewed generic asset; never a directory-wide exception for private reference photos. */
+const LICENSED = new Map([
+  ["public/models/generic-player.glb", {
+    sha256: "3439b2b3fe4438c124c3d187d83457cb50e5ea860dd96e1bc37c6556c462cf28",
+    license: "assets/imports/rocketbox/LICENSE.md",
+  }],
+]);
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -71,6 +71,7 @@ const ASSET_DIRS = /^(assets|public\/models|public\/audio)\//;
 /** Images drawn by a script elsewhere (repo-relative image path -> the script that writes it). */
 const GENERATED: Record<string, string> = {
   "public/models/humanoid-impostor.png": "assets/blender/models/humanoid_impostor.py",
+  "assets/imports/civilian-car/preview.png": "assets/imports/civilian-car/generate.py",
 };
 
 /** The script in the repository that draws this image, or null. */
@@ -90,11 +91,17 @@ describe("privacy: the likeness reference photos never enter the repository", ()
     expect(photos).toEqual([]);
   });
 
-  it("no file under assets/ or public/ carries JPEG or HEIF bytes", () => {
+  it("no unapproved file under assets/ or public/ carries JPEG or HEIF bytes", () => {
     const found: string[] = [];
     for (const f of files) {
       const rel = relative(ROOT, f).split("\\").join("/");
-      if (!/^(assets|public)\//.test(rel) || ALLOWED.has(rel)) continue;
+      if (!/^(assets|public)\//.test(rel)) continue;
+      const approved = LICENSED.get(rel);
+      if (approved) {
+        expect(createHash("sha256").update(readFileSync(f)).digest("hex"), rel).toBe(approved.sha256);
+        expect(existsSync(join(ROOT, approved.license)), rel).toBe(true);
+        continue;
+      }
       const why = photoSignature(new Uint8Array(readFileSync(f)));
       if (why) found.push(`${rel}: ${why}`);
     }

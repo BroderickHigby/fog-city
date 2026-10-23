@@ -35,7 +35,7 @@ export interface RegistryOptions<T> {
  * files, assets/blender/README.md). People have no model yet: person.ts builds them.
  */
 export const MODEL_FILES: Readonly<Record<string, string>> = Object.freeze({
-  "player-car": "models/player-car.glb",
+  "player-car": "models/civilian-car.glb",
   robotaxi: "models/robotaxi.glb",
   robot: "models/errand-robot.glb",
   "sidewalk-bot": "models/sidewalk-bot.glb",

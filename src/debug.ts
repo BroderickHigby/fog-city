@@ -33,7 +33,7 @@ export interface RenderInfo {
   agentDrawCalls: number;
   /** Agent kinds drawn from their model files ("robotaxi", "errandRobot", "sidewalkBot"). */
   agentModels: string[];
-  /** Players whose car is models/player-car.glb (not the procedural stand-in). */
+  /** Players whose car is models/civilian-car.glb (not the procedural stand-in). */
   playerCarsFromFile: number;
   /** Players drawn on foot last frame. */
   walkers: number;

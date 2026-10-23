@@ -79,3 +79,20 @@ Also read all vendor blurb changes and the generic `Royale`/`Award` additions ag
 - The new `advanceOnAnyOutcome` campaign property needs interpreter support, or a non-success partner-pitch result blocks later missions.
 
 Lane 5 and Lane 8 have the actionable findings. Core's clearance candidate is not yet published; accepted-body and scheduling review will use its stable checkpoint rather than mislabel unfinished integration as a regression.
+
+## PR #8 review remediation and Lane 2 dependency audit
+
+Work remains on `lane/pipeline/wave2`; no off-plan integration or render branch was changed.
+
+- **H1:** full generation and standalone indexing now share the exact tile/land/footprint predicate and gameplay metadata ordering. Standalone indexing also updates the report counts. A synthetic full-build → re-index regression requires byte equality of `gameplay.json`, `manifest.json` and `report.json`, and covers the outer tile seam where neighbouring heightfield interpolation previously admitted out-of-world points. Full SF `build-world --offline --check` remains blocked by the missing pinned source cache; no claim of full-city regeneration is made.
+- **M2:** Core #7 is still an integration dependency. No other lane's changes were merged into this branch during remediation; Lane 2 must land its reviewed interface before closing #8.
+- **M3:** the committed index is regenerated from this branch's current world data and must be regenerated again when QA geometry lands. No tile geometry, heightfield or source ID was fabricated.
+- **L4:** the source inventory now identifies the shipped procedural car-wash and repair-kiosk candidates instead of saying they are absent. They remain candidates, not active businesses.
+
+Read-only Lane 2 audit at `991aaff`: its 54 interface/gameplay/purity tests pass, but an independent runtime probe reproduces the review findings: v2→v6 leaves `foot.vy`, `foot.grounded`, `foot.dodge` and `car.nearMisses` absent; versions 3–5 are rejected; default `SYSTEMS` is empty; and a reducer assigning to `context.state.ext` mutates an unfrozen input state's extension. Those findings require Lane 2's reviewed migration/registration/purity work. This lane did not edit Core or claim those issues fixed.
+
+Requests for Render-World / Assets: full verification also reports that the static web build's `RUNTIME_LAYERS` omits `gameplay`, despite the loader reading it (`tests/io/assets.test.ts`). That packaging fix is outside this lane and is needed before a production wave-2 build can supply the index. The Pipeline schema sweep now validates `gameplay.json` against `tile-gameplay.schema.json` instead of omitting the layer or looking for a nonexistent `gameplay.schema.json`.
+
+Salvage references only (not merged here): the prior `feature/latest-showcase` candidate `d269fec` includes rendering work; `f465dcc` contains tree-instancing, height/budget and licence-packaging fixes. Lane R should review those render-owned changes. The prior gameplay fork is not a replacement for the canonical wave-2 integration. All frozen branches remain untouched by this remediation.
+
+Verification of this remediation: typecheck passed; all **161 Pipeline tests** passed, including full synthetic-build/re-index byte identity and committed schema/budget checks. The committed SF gameplay index passes `build-gameplay --check` with unchanged 583 tiles / 5,205 refills / 807 anchors. `pnpm verify` was run; after correcting the Pipeline schema sweep, the final serialized typecheck/whole-Vitest rerun reports **2,636 passed, two failed, one skipped across 78 files**. Remaining failures are `tests/io/assets.test.ts` (runtime gameplay layer omitted by the web packer) and `tests/schemas/schemas.test.ts` (looks for `gameplay.schema.json` instead of `tile-gameplay.schema.json`). Browser verification did not run because the unit stage remains red. No CI pass, merge readiness, full offline SF rebuild, or game-completion claim is made.

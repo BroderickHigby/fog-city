@@ -31,6 +31,8 @@ export const fcUniforms = {
   fcSunDir: { value: new THREE.Vector4(-0.9, 0.12, -0.2, 0.75) },
   /** Display-space colour of fog lit by the sun. */
   fcSunFog: { value: new THREE.Vector3(1, 0.8, 0.6) },
+  /** Composer targets are linear; direct screen rendering keeps legacy display-space tint. */
+  fcLinearOutput: { value: 0 },
   fcNight: { value: 0 },
   fcTime: { value: 0 },
 };
@@ -55,6 +57,7 @@ const FOG_PARS_FRAGMENT = /* glsl */ `
   uniform vec4 fcFogParams;
   uniform vec4 fcSunDir;
   uniform vec3 fcSunFog;
+  uniform float fcLinearOutput;
   #ifdef FOG_EXP2
     uniform float fogDensity;
   #else
@@ -78,7 +81,8 @@ const FOG_PARS_FRAGMENT = /* glsl */ `
   }
   vec3 fcFogTint( vec3 dir ) {
     float s = pow( max( dot( dir, fcSunDir.xyz ), 0.0 ), 6.0 ) * fcSunDir.w;
-    return mix( fogColor, fcSunFog, clamp( s, 0.0, 1.0 ) );
+    vec3 tint = fcLinearOutput > 0.5 ? sRGBTransferEOTF( vec4( fcSunFog, 1.0 ) ).rgb : fcSunFog;
+    return mix( fogColor, tint, clamp( s, 0.0, 1.0 ) );
   }
 #endif
 `;
@@ -126,16 +130,24 @@ const BUILDING_VERTEX_PARS = /* glsl */ `
 attribute vec4 _facade;
 varying vec2 vFcUv;
 varying vec4 vFcFacade;
+varying vec3 vFcBuildingWorld;
 `;
 
 const BUILDING_FRAGMENT_PARS = /* glsl */ `
 varying vec2 vFcUv;
 varying vec4 vFcFacade;
+varying vec3 vFcBuildingWorld;
 uniform float fcNight;
 float fcHash( vec2 p ) {
   p = fract( p * vec2( 123.34, 456.21 ) );
   p += dot( p, p + 45.32 );
   return fract( p.x * p.y );
+}
+float fcNoise( vec2 p ) {
+  vec2 i = floor( p ), f = fract( p );
+  vec2 u = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( fcHash( i ), fcHash( i + vec2( 1.0, 0.0 ) ), u.x ),
+              mix( fcHash( i + vec2( 0.0, 1.0 ) ), fcHash( i + 1.0 ), u.x ), u.y );
 }
 float fcBand( float lo, float hi, float x, float w ) {
   return smoothstep( lo - w, lo + w, x ) - smoothstep( hi - w, hi + w, x );
@@ -153,16 +165,40 @@ vec4 fcGrid( float storeyM, float g, out vec4 win ) {
 }
 `;
 
-/** Computes window coverage, adjusts albedo/roughness, adds night emission. */
+/** Metre-scaled wall relief and window reveals, filtered before they become subpixel. */
 const BUILDING_FRAGMENT = /* glsl */ `
   float fcWin = 0.0;
   float fcLit = 0.0;
+  float fcRelief = 0.0;
+  float fcGlassVariation = 0.5;
   vec3 fcLightCol = vec3( 1.0, 0.72, 0.42 );
   float fcGlaze = vFcFacade.y;
+  float fcWallDetail = 1.0;
+  // Material colour is already supplied by the SF footprint data. Preserve it, adding only
+  // shallow construction joints and weathering rather than painting arbitrary facades over it.
+  if ( vFcFacade.w < 0.5 ) {
+    float historic = step( 0.01, vFcFacade.z ) * ( 1.0 - step( 0.62, vFcFacade.z ) );
+    float brick = historic * step( diffuseColor.g * 1.14, diffuseColor.r );
+    vec2 blockM = mix( vec2( 1.1, 0.44 ), vec2( 0.29, 0.095 ), brick );
+    vec2 block = vFcUv / blockM;
+    block.x += mod( floor( block.y ), 2.0 ) * 0.5;
+    vec2 bf = fract( block ), bw = max( fwidth( block ), vec2( 0.0001 ) );
+    vec2 edge = min( bf, 1.0 - bf );
+    vec2 groutWidth = vec2( 0.006 ) / blockM;
+    float mortar = 1.0 - smoothstep( groutWidth.x, groutWidth.x + bw.x, edge.x )
+                         * smoothstep( groutWidth.y, groutWidth.y + bw.y, edge.y );
+    fcWallDetail = 1.0 - smoothstep( 0.22, 0.75, max( bw.x, bw.y ) );
+    float masonry = ( 1.0 - smoothstep( 0.45, 0.8, fcGlaze ) ) * fcWallDetail;
+    float stoneTone = ( fcHash( floor( block ) ) - 0.5 ) * 0.065;
+    diffuseColor.rgb *= 1.0 + masonry * ( stoneTone - mortar * 0.14 );
+    float lowerWall = 1.0 - smoothstep( 0.15, 2.3, max( vFcUv.y, 0.0 ) );
+    float rain = fcNoise( vec2( vFcUv.x * 1.3, vFcUv.y * 0.08 ) );
+    diffuseColor.rgb *= 1.0 - lowerWall * 0.075 - ( rain - 0.4 ) * 0.04;
+    fcRelief = -mortar * masonry * 0.003;
+  }
   if ( vFcFacade.w < 0.5 && fcGlaze > 0.04 ) {
     vec4 win;
     vec4 grid = fcGrid( vFcFacade.x * 8.0, fcGlaze, win );
-    // Before ~1910: narrower, taller sash windows.
     if ( vFcFacade.z > 0.01 && vFcFacade.z < 0.37 ) win = vec4( 0.5 + ( win.xy - 0.5 ) * 0.78, win.z * 0.8, min( 0.95, win.w + 0.06 ) );
     vec2 cell = grid.xy;
     bool shop = grid.w > 0.0 && vFcUv.y < grid.w && vFcUv.y > 0.0;
@@ -170,33 +206,78 @@ const BUILDING_FRAGMENT = /* glsl */ `
     vec2 g = vFcUv / cell;
     vec2 f = fract( g );
     vec2 id = floor( g );
-    vec2 fw = fwidth( g );
+    vec2 fw = max( fwidth( g ), vec2( 0.0001 ) );
     float w = fcBand( win.x, win.y, f.x, fw.x * 0.75 ) * fcBand( win.z, win.w, f.y, fw.y * 0.75 );
     float avg = ( win.y - win.x ) * ( win.w - win.z );
     float far = smoothstep( 0.3, 0.75, max( fw.x, fw.y ) );
     w = mix( w, avg, far );
-    // No windows below the first storey line on non-shop facades, or under ground.
-    if ( !shop && vFcUv.y < max( grid.w, 0.8 ) ) w = 0.0;
-    if ( vFcUv.y < 0.0 ) w = 0.0;
+    float floorMask = ( !shop && vFcUv.y < max( grid.w, 0.8 ) ) || vFcUv.y < 0.0 ? 0.0 : 1.0;
+    w *= floorMask;
     fcWin = w;
     float h = fcHash( id + vec2( floor( fcGlaze * 31.0 ) * 17.0, 0.0 ) );
-    // Occupancy comes in clusters (a flat, an office floor), not salt and pepper.
     float cluster = fcHash( floor( id / vec2( 5.0, 3.0 ) ) + 7.3 );
     float litFrac = shop ? 0.75 : grid.z * ( 0.35 + 1.3 * cluster );
     float on = step( 1.0 - litFrac, h );
-    // Far away, a smooth and dimmer average: clusters would read as blotches.
     fcLit = mix( on, ( shop ? 0.6 : grid.z ) * 0.22, far ) * w;
     float tone = fcHash( id * 1.7 + 3.1 );
+    fcGlassVariation = tone;
     fcLightCol = tone > 0.82 ? vec3( 0.75, 0.86, 1.0 ) : ( tone > 0.55 ? vec3( 1.0, 0.85, 0.6 ) : vec3( 1.0, 0.7, 0.4 ) );
     if ( shop ) fcLightCol = vec3( 1.0, 0.82, 0.55 );
-    // Glass reads darker and bluer by day; the environment map supplies reflections.
-    vec3 glass = mix( vec3( 0.035, 0.05, 0.065 ), vec3( 0.06, 0.07, 0.08 ), tone );
-    diffuseColor.rgb = mix( diffuseColor.rgb, glass, w * 0.9 );
+
+    // Narrow frames and stone sills read at street distance, then fade to a smooth average.
+    vec2 reveal = vec2( 0.065 ) / cell;
+    float outer = fcBand( win.x - reveal.x, win.y + reveal.x, f.x, fw.x )
+                * fcBand( win.z - reveal.y, win.w + reveal.y, f.y, fw.y );
+    float frame = max( outer - w, 0.0 ) * ( 1.0 - far ) * floorMask;
+    float sill = fcBand( win.x - reveal.x * 1.7, win.y + reveal.x * 1.7, f.x, fw.x )
+               * fcBand( win.z - reveal.y * 2.4, win.z - reveal.y * 0.5, f.y, fw.y )
+               * ( 1.0 - far ) * floorMask * ( 1.0 - smoothstep( 0.7, 0.95, fcGlaze ) );
+    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.54, frame );
+    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 1.13, sill );
+
+    // View-dependent room depth from the existing facade UV frame. No new textures or meshes.
+    vec3 px = dFdx( vFcBuildingWorld ), py = dFdy( vFcBuildingWorld );
+    vec2 ux = dFdx( vFcUv ), uy = dFdy( vFcUv );
+    float uvDet = ux.x * uy.y - ux.y * uy.x;
+    vec3 tangent = abs( uvDet ) > 1e-9 ? normalize( ( px * uy.y - py * ux.y ) / uvDet ) : vec3( 1.0, 0.0, 0.0 );
+    vec3 wallNormal = normalize( cross( px, py ) );
+    vec3 eye = normalize( cameraPosition - vFcBuildingWorld );
+    float facing = max( abs( dot( eye, wallNormal ) ), 0.28 );
+    vec2 shift = clamp( vec2( dot( eye, tangent ), eye.y ) / facing, vec2( -1.5 ), vec2( 1.5 ) );
+    vec2 roomUv = ( f - win.xz ) / max( win.yw - win.xz, vec2( 0.05 ) );
+    roomUv -= shift * vec2( 0.09, 0.065 ) * ( 1.0 - far );
+    float roomBack = smoothstep( 0.02, 0.18, roomUv.x ) * ( 1.0 - smoothstep( 0.82, 0.98, roomUv.x ) );
+    float blindLevel = mix( 0.12, 0.9, h );
+    float blind = smoothstep( blindLevel - 0.025, blindLevel + 0.025, roomUv.y ) * step( 0.62, tone );
+    float blindLines = 0.92 + 0.08 * cos( roomUv.y * 95.0 );
+    blindLines = mix( blindLines, 0.96, smoothstep( 0.02, 0.055, fw.y ) );
+    vec3 glass = mix( vec3( 0.038, 0.052, 0.065 ), vec3( 0.074, 0.087, 0.092 ), tone );
+    glass *= mix( 0.65, 1.0, roomBack );
+    vec3 blindColor = mix( vec3( 0.18, 0.17, 0.14 ), vec3( 0.25, 0.26, 0.25 ), h );
+    glass = mix( glass, blindColor * blindLines, blind * ( 1.0 - far ) * 0.72 );
+    // Inner top/side reveals stay dark; the central pane receives sky reflections through PBR.
+    vec2 paneEdge = min( roomUv, 1.0 - roomUv );
+    float revealShade = 1.0 - smoothstep( 0.0, 0.08, min( paneEdge.x, paneEdge.y ) );
+    glass *= 1.0 - revealShade * ( 1.0 - far ) * 0.24;
+    diffuseColor.rgb = mix( diffuseColor.rgb, glass, w * 0.94 );
+    fcRelief += ( -w * 0.035 + frame * 0.007 + sill * 0.014 ) * ( 1.0 - far );
   }
 `;
 
+const RELIEF_NORMAL_PARS = /* glsl */ `
+vec3 fcReliefNormal( vec3 positionView, vec3 surfaceNormal, float height ) {
+  vec3 px = dFdx( positionView ), py = dFdy( positionView );
+  vec3 n = normalize( surfaceNormal );
+  vec3 rx = cross( py, n ), ry = cross( n, px );
+  float determinant = dot( px, rx );
+  if ( abs( determinant ) < 1e-12 ) return n;
+  vec3 gradient = sign( determinant ) * ( dFdx( height ) * rx + dFdy( height ) * ry );
+  return normalize( abs( determinant ) * n - gradient );
+}
+`;
+
 const BUILDING_ROUGHNESS = /* glsl */ `
-  roughnessFactor = mix( roughnessFactor, 0.12, fcWin );
+  roughnessFactor = mix( roughnessFactor, mix( 0.13, 0.25, fcGlassVariation ), fcWin );
 `;
 
 const BUILDING_EMISSIVE = /* glsl */ `
@@ -207,42 +288,79 @@ function patchBuildingShader(shader: THREE.WebGLProgramParametersWithUniforms): 
   injectUniforms(shader);
   shader.vertexShader = shader.vertexShader
     .replace("#include <common>", `#include <common>\n${BUILDING_VERTEX_PARS}`)
-    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcUv = uv;\n  vFcFacade = _facade;");
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcUv = uv;\n  vFcFacade = _facade;")
+    .replace("#include <project_vertex>", "#include <project_vertex>\n  vFcBuildingWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
   shader.fragmentShader = shader.fragmentShader
-    .replace("#include <common>", `#include <common>\n${BUILDING_FRAGMENT_PARS}`)
+    .replace("#include <common>", `#include <common>\n${BUILDING_FRAGMENT_PARS}\n${RELIEF_NORMAL_PARS}`)
     .replace("#include <color_fragment>", `#include <color_fragment>\n${BUILDING_FRAGMENT}`)
     .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>\n${BUILDING_ROUGHNESS}`)
-    .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${BUILDING_EMISSIVE}`);
+    .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${BUILDING_EMISSIVE}`)
+    .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = fcReliefNormal( -vViewPosition, normal, fcRelief );");
 }
 
-/** Vertex-coloured ground/road material with a little procedural grain so big flat areas are not dead. */
+/** Metre-scaled surface detail. High frequencies fade before becoming shimmering pixels. */
 const GRAIN_PARS = /* glsl */ `
 varying vec3 vFcWorld;
+float fcRand( vec2 p ) {
+  p = fract( p * vec2( 123.34, 456.21 ) );
+  p += dot( p, p + 45.32 );
+  return fract( p.x * p.y );
+}
 float fcN( vec2 p ) {
-  vec2 i = floor( p ); vec2 f = fract( p );
-  float a = fract( sin( dot( i, vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
-  float b = fract( sin( dot( i + vec2( 1.0, 0.0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
-  float c = fract( sin( dot( i + vec2( 0.0, 1.0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
-  float d = fract( sin( dot( i + vec2( 1.0, 1.0 ), vec2( 127.1, 311.7 ) ) ) * 43758.5453 );
+  vec2 i = floor( p ), f = fract( p );
   vec2 u = f * f * ( 3.0 - 2.0 * f );
-  return mix( mix( a, b, u.x ), mix( c, d, u.x ), u.y );
+  return mix( mix( fcRand( i ), fcRand( i + vec2( 1.0, 0.0 ) ), u.x ),
+              mix( fcRand( i + vec2( 0.0, 1.0 ) ), fcRand( i + 1.0 ), u.x ), u.y );
 }
 `;
 
-function patchGrainShader(amount: number, scale: number) {
+function patchGrainShader(amount: number, scale: number, road = false) {
+  const detail = road ? /* glsl */ `
+  // Aggregate, old repairs and sparse hairline cracks; painted lines remain clean and legible.
+  float fcAsphalt = 1.0 - smoothstep( 0.22, 0.5, max( diffuseColor.r, max( diffuseColor.g, diffuseColor.b ) ) );
+  vec2 warped = ( fcP + vec2( fcN( fcP * 0.21 ), fcN( fcP * 0.21 + 31.7 ) ) * 1.7 ) * 0.19;
+  vec2 wf = fract( warped ), wa = max( fwidth( warped ), vec2( 0.0001 ) );
+  vec2 we = min( wf, 1.0 - wf );
+  float crack = ( 1.0 - smoothstep( 0.001, 0.0025 + max( wa.x, wa.y ), min( we.x, we.y ) ) )
+              * step( 0.7, fcRand( floor( warped ) ) ) * smoothstep( 0.28, 0.65, fcN( fcP * 0.7 ) );
+  crack *= 1.0 - smoothstep( 0.035, 0.12, max( wa.x, wa.y ) );
+  diffuseColor.rgb *= 1.0 + fcAsphalt * ( fcFine * 0.12 * fcFineVisible - crack * 0.24 );
+  fcRelief += fcAsphalt * ( fcFine * 0.0012 * fcFineVisible - crack * 0.002 );
+  fcSurfaceRoughness = mix( 0.78, 0.92, fcN( fcP * 0.32 ) );
+  ` : /* glsl */ `
+  // Paving joints only on neutral pavement. Park and dirt vertex colours keep their own surface.
+  float fcRange = max( diffuseColor.r, max( diffuseColor.g, diffuseColor.b ) ) - min( diffuseColor.r, min( diffuseColor.g, diffuseColor.b ) );
+  float fcPaved = 1.0 - smoothstep( 0.035, 0.12, fcRange );
+  vec2 slab = fcP / vec2( 1.5, 2.0 );
+  slab.x += mod( floor( slab.y ), 2.0 ) * 0.5;
+  vec2 sf = fract( slab ), sa = max( fwidth( slab ), vec2( 0.0001 ) );
+  vec2 se = min( sf, 1.0 - sf );
+  float joint = 1.0 - smoothstep( 0.002, 0.004 + sa.x, se.x ) * smoothstep( 0.002, 0.004 + sa.y, se.y );
+  float slabVisible = 1.0 - smoothstep( 0.15, 0.6, max( sa.x, sa.y ) );
+  float slabTone = ( fcRand( floor( slab ) ) - 0.5 ) * 0.055;
+  diffuseColor.rgb *= 1.0 + fcPaved * slabVisible * ( slabTone - joint * 0.12 ) + fcFine * 0.065 * fcFineVisible;
+  fcRelief += fcPaved * slabVisible * ( fcFine * 0.0007 - joint * 0.003 );
+  fcSurfaceRoughness = mix( 0.87, 0.98, fcN( fcP * 0.75 ) );
+  `;
   return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     injectUniforms(shader);
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vFcWorld;")
       .replace("#include <project_vertex>", "#include <project_vertex>\n  vFcWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
     shader.fragmentShader = shader.fragmentShader
-      .replace("#include <common>", `#include <common>\n${GRAIN_PARS}`)
-      .replace(
-        "#include <color_fragment>",
-        `#include <color_fragment>
-  float fcG = fcN( vFcWorld.xz * ${scale.toFixed(3)} ) * 0.6 + fcN( vFcWorld.xz * ${(scale * 7.3).toFixed(3)} ) * 0.4;
-  diffuseColor.rgb *= 1.0 + ( fcG - 0.5 ) * ${amount.toFixed(3)};`,
-      );
+      .replace("#include <common>", `#include <common>\n${GRAIN_PARS}\n${RELIEF_NORMAL_PARS}`)
+      .replace("#include <color_fragment>", `#include <color_fragment>
+  vec2 fcP = vFcWorld.xz;
+  float fcPixelM = max( length( dFdx( fcP ) ), length( dFdy( fcP ) ) );
+  float fcFineVisible = 1.0 - smoothstep( 0.012, 0.055, fcPixelM );
+  float fcFine = fcN( fcP * 48.0 ) - 0.5;
+  float fcG = fcN( fcP * ${scale.toFixed(3)} ) * 0.6 + fcN( fcP * ${(scale * 7.3).toFixed(3)} ) * 0.4;
+  diffuseColor.rgb *= 1.0 + ( fcG - 0.5 ) * ${amount.toFixed(3)};
+  float fcRelief = 0.0;
+  float fcSurfaceRoughness = roughness;
+  ${detail}`)
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = min( roughnessFactor, fcSurfaceRoughness );")
+      .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = fcReliefNormal( -vViewPosition, normal, fcRelief );");
   };
 }
 
@@ -279,7 +397,7 @@ const ROAD_UV_FRAGMENT = (freeway: boolean): string => /* glsl */ `
 `;
 
 function patchRoadUvShader(freeway: boolean) {
-  const grain = patchGrainShader(0.16, 0.35);
+  const grain = patchGrainShader(0.10, 0.35, true);
   return (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     grain(shader);
     shader.vertexShader = shader.vertexShader
@@ -310,7 +428,7 @@ export interface SharedMaterials {
 function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithUniforms) => void): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, name });
   m.onBeforeCompile = patch;
-  m.customProgramCacheKey = () => `${name}:v1`;
+  m.customProgramCacheKey = () => `${name}:v2`;
   m.polygonOffset = true;
   m.polygonOffsetFactor = -1;
   m.polygonOffsetUnits = -2;
@@ -321,16 +439,16 @@ export function createSharedMaterials(): SharedMaterials {
   installFog();
   const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
   building.onBeforeCompile = patchBuildingShader;
-  building.customProgramCacheKey = () => "fc:building:v2";
+  building.customProgramCacheKey = () => "fc:building:v3";
   const buildingFlat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, flatShading: true, name: "fc:building-flat" });
   buildingFlat.onBeforeCompile = patchBuildingShader;
-  buildingFlat.customProgramCacheKey = () => "fc:building:v2";
+  buildingFlat.customProgramCacheKey = () => "fc:building:v3";
 
   const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground" });
-  ground.onBeforeCompile = patchGrainShader(0.22, 0.08);
-  ground.customProgramCacheKey = () => "fc:ground:v1";
+  ground.onBeforeCompile = patchGrainShader(0.12, 0.16);
+  ground.customProgramCacheKey = () => "fc:ground:v2";
 
-  const road = roadMaterial("fc:road", patchGrainShader(0.16, 0.35));
+  const road = roadMaterial("fc:road", patchGrainShader(0.10, 0.35, true));
   const roadUv = roadMaterial("fc:road-uv", patchRoadUvShader(false));
   const freewayUv = roadMaterial("fc:freeway-uv", patchRoadUvShader(true));
 

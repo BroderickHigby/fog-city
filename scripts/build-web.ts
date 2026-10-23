@@ -246,7 +246,7 @@ export function checkHostLimits(dir: string): { problems: string[]; files: numbe
 }
 
 /** The top-level names a build writes into its out directory. */
-const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models"]);
+const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models", "textures", "third-party-notices.txt"]);
 
 /** `p` itself, or a path inside it. */
 function within(p: string, dir: string): boolean {
@@ -293,7 +293,7 @@ export function outDirRefusal(out: string, publicDir: string, forceClean = false
     for (const e of readdirSync(out, { withFileTypes: true }).sort((p, q) => (p.name < q.name ? -1 : 1))) {
       if (stray.length >= 3) break;
       const isDir = e.isDirectory();
-      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models")) stray.push(e.name);
+      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models" || e.name === "textures")) stray.push(e.name);
       else if (e.name === "assets") look(join(out, e.name), e.name, served);
       else if (isDir) look(join(out, e.name), e.name, (n) => n.endsWith(".json") || n.endsWith(".txt"));
     }
@@ -400,7 +400,23 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   // Models: each its own file (a handful, loaded at boot).
   const modelsDir = join(pub, "models");
   for (const f of walk(modelsDir).filter((p) => p.toLowerCase().endsWith(".glb"))) {
+    // The retired founder likeness is retained only as source history, never shipped.
+    if (relative(modelsDir, f).split("\\").join("/") === "player.glb") continue;
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
+  }
+
+  // Optional licensed surface scans use the same relative byte provider as models.
+  const surfaceDir = join(pub, "textures", "surfaces");
+  if (existsSync(surfaceDir)) {
+    for (const f of walk(surfaceDir).filter(p => p.endsWith(".webp"))) {
+      single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
+    }
+    const sources = join(surfaceDir, "sources.json");
+    if (existsSync(sources)) {
+      const bytes = readFileSync(sources);
+      write(join(out, "textures", "surfaces", "sources.json"), bytes);
+      jsonBytes += bytes.byteLength;
+    }
   }
 
   const byKey = <T>(r: Record<string, T>): Record<string, T> => Object.fromEntries(Object.entries(r).sort((p, q) => (p[0] < q[0] ? -1 : p[0] > q[0] ? 1 : 0)));
@@ -410,6 +426,14 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
       ? { version: 1, defaultWorld: opts.worlds[0]!, worlds: opts.worlds, files: byKey(files) }
       : { version: 2, defaultWorld: opts.worlds[0]!, worlds: opts.worlds, files: byKey(files), parts: byKey(parts) };
   write(join(out, "assets.index.json"), JSON.stringify(index));
+
+  const notices = [
+    ["Microsoft Rocketbox generic player", "assets/imports/rocketbox/LICENSE.md"],
+    ["Slop New York rendering reference", "assets/imports/slop-new-york/LICENSE.md"],
+    ["Fog City civilian car", "assets/imports/civilian-car/LICENSE.txt"],
+  ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");
+  write(join(out, "third-party-notices.txt"), notices +
+    "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n");
 
   const check = checkHostLimits(out);
   if (check.problems.length > 0) throw new Error(`the build breaks the host's limits:\n  ${check.problems.join("\n  ")}`);
