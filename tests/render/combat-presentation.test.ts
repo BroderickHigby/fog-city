@@ -4,12 +4,12 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { CombatLayer, SPLASH_DROPS, SPLASH_MAX, SPLASH_S } from "../../src/render/combat-layer.ts";
-import { visualCombat } from "../../src/render/agent-layer.ts";
+import { collapse, visualCombat } from "../../src/render/agent-layer.ts";
 import { packedMaterial } from "../../src/render/agent-packing.ts";
 import { PERSON_WET_FADE_TICKS, ROBOT_WET_TICKS, combatLook } from "../../src/render/runtime-actors.ts";
 import type { CombatState, Projectile, TargetCombat } from "../../src/sim/combat-contract.ts";
 import { EFFECTS } from "../../src/sim/combat/effects.ts";
-import type { AgentState } from "../../src/sim/agents.ts";
+import { AGENT_SPEC, type AgentState } from "../../src/sim/agents.ts";
 
 const target = (over: Partial<TargetCombat>): TargetCombat =>
   ({
@@ -58,6 +58,34 @@ describe("visualCombat", () => {
     expect({ ...visualCombat(a) }).toEqual({ rust: 0, wet: 0, topple: 0 });
     const b = { id: 3, visualRust: 2, visualWet: 0.25, visualTopple: -1 } as unknown as AgentState;
     expect({ ...visualCombat(b) }).toEqual({ rust: 1, wet: 0.25, topple: 0 });
+  });
+});
+
+describe("the drawn collapse", () => {
+  // The combat lane's acceptance: a Footman or Trundle reads at most 40% of its standing height
+  // within two seconds (EFFECTS.collapseTicks at 60 Hz) of seizing. The bodies here span the
+  // sidewalk robot kinds' footprints and heights from a short Trundle to a tall Footman.
+  const drawnHeight = (kind: "errandRobot" | "sidewalkBot", tall: number, id: number, age: number): number => {
+    const spec = AGENT_SPEC[kind];
+    // The sim's height scale (combat/effects.ts): 1 while seized, down to 0.3 over the slump.
+    const scale = 1 - 0.7 * Math.min(1, Math.max(0, age - EFFECTS.seizedTicks) / (EFFECTS.collapseTicks - EFFECTS.seizedTicks));
+    const phase = age >= EFFECTS.collapseTicks ? "heap" : age >= EFFECTS.seizedTicks ? "slumping" : "seized";
+    const look = combatLook(target({ rust: 1, phase, phaseTick: 0, heightScale: scale }), age, false);
+    const m = new THREE.Matrix4().makeTranslation(3, 0, -2).multiply(new THREE.Matrix4().makeRotationY(0.7));
+    collapse(m, { id }, look, scale);
+    const box = new THREE.Box3(new THREE.Vector3(-spec.halfWidth, 0, -spec.halfLength), new THREE.Vector3(spec.halfWidth, tall, spec.halfLength));
+    return box.applyMatrix4(m).max.y;
+  };
+
+  it("stands whole until seized, and is at most 40% of its height two seconds after seizing", () => {
+    expect(EFFECTS.collapseTicks / 60).toBeLessThanOrEqual(2);
+    for (const [kind, tall] of [["sidewalkBot", 0.7], ["sidewalkBot", 1.0], ["errandRobot", 1.2], ["errandRobot", 1.8]] as const) {
+      for (const id of [4, 5]) {
+        expect(drawnHeight(kind, tall, id, 0)).toBeCloseTo(tall);
+        expect(drawnHeight(kind, tall, id, EFFECTS.collapseTicks), `${kind} ${tall} m`).toBeLessThanOrEqual(0.4 * tall);
+        expect(drawnHeight(kind, tall, id, EFFECTS.collapseTicks + 600)).toBeLessThanOrEqual(0.4 * tall);
+      }
+    }
   });
 });
 

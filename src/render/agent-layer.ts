@@ -429,12 +429,12 @@ export class AgentLayer {
     return part;
   }
 
-  /** Every part mesh's instance capacity, by mesh name (tests check it against the budget rule). */
+  /** Every part mesh's instance capacity, by mesh name (tests check it against the budget rule). Puddles are not parts. */
   capacities(): Record<string, number> {
     const out: Record<string, number> = {};
     this.group.traverse((o) => {
       const m = o as THREE.InstancedMesh;
-      if (m.isInstancedMesh) out[m.name] = m.instanceMatrix.count;
+      if (m.isInstancedMesh && m !== this.puddles) out[m.name] = m.instanceMatrix.count;
     });
     return out;
   }
@@ -778,13 +778,13 @@ export const TOPPLE_RAD = 1.35;
 const _rz = new THREE.Matrix4();
 
 /**
- * The slump: a seized robot tips sideways (left or right by its id) about its foot as it sinks
- * (the sim's height scale), ending on its side as a heap. Applied in model space, after the
- * placement matrix.
+ * The slump: a seized robot tips sideways (left or right by its id) about its foot as it sinks,
+ * ending on its side as a heap. The sim's height scale squashes the tipped body along the
+ * vertical, so its width cannot stand taller than the heap. Applied after the placement matrix.
  */
-function collapse(base: THREE.Matrix4, a: Readonly<AgentState>, c: Readonly<VisualCombat>, height: number): void {
-  if (c.topple > 0) base.multiply(_rz.makeRotationZ((a.id % 2 === 0 ? 1 : -1) * TOPPLE_RAD * c.topple * c.topple * (3 - 2 * c.topple)));
+export function collapse(base: THREE.Matrix4, a: Readonly<Pick<AgentState, "id">>, c: Readonly<VisualCombat>, height: number): void {
   base.scale(_s.set(1, height, 1));
+  if (c.topple > 0) base.multiply(_rz.makeRotationZ((a.id % 2 === 0 ? 1 : -1) * TOPPLE_RAD * c.topple * c.topple * (3 - 2 * c.topple)));
 }
 
 function visualHeight(a:Readonly<AgentState>):number {const scale=(a as AgentState&{visualHeightScale?:number}).visualHeightScale;return typeof scale==="number"&&Number.isFinite(scale)?Math.max(.05,Math.min(1,scale)):1;}
