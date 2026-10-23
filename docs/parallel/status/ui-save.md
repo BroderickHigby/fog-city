@@ -1,7 +1,7 @@
 # Lane 7: UI, audio and saves
 
 ## Now
-Wave-2 browser interface on `lane/ui-save/wave2`, based on core `9a6a107` plus published core `8c6dff9` and content `5b40bb5`. Worktree: `/workspace/fog-city-ui`; the previous prototype remains untouched.
+Wave-3 persistence checkpoint on `lane/ui-save/wave3`, stacked on the published wave-2 UI. Worktree: `/workspace/fog-city-ui`; the previous prototype remains untouched. Actual renderer integration runs separately in `/workspace/fog-city-play` on `lane/render-integration/wave2`.
 
 ## Done
 - Read the lane rules, UI/save roadmap, input/HUD implementation and free-text safety contract.
@@ -10,10 +10,13 @@ Wave-2 browser interface on `lane/ui-save/wave2`, based on core `9a6a107` plus p
 - Added held spray/scan, one-shot gadget actions, gamepad deadzone/edges, touch release handling, typing/modal suppression and disposable keyboard listeners.
 - `gameplayCallbacks` sends validated `gameplay.command` events with monotonically increasing sequence and ID-only payloads; UI never mutates sim state.
 - FreeTextBox runs crisis detection before length/lint, strips contact details and delimiters, and never calls a resolver for blocked or crisis text.
-- Typecheck and 10 focused tests passed. The isolated browser fixture uses port 4187; browser verification is running with system Chromium.
+- Typecheck, 10 focused tests and both 390px Chromium integration tests passed. Browser checks exercise phone/map, hidden robot markers, purchase eligibility, recorded commands, crisis-before-length, typing isolation and teardown.
+- Follow-up controls/command checks: 12 tests pass, including held interaction through a full refill and sequence one for first gameplay commands. Purchases can carry the actual vendor site ID.
+- Added progression-only `SaveStore`: three manual slots plus autosave, schema/SIM_VERSION/content-hash metadata, corruption checksum, explicit migration hook, required host domain validation, confirmation-before-import, newest offline-cache selection and serialized writes. Whole simulations and transient actor fields are rejected.
+- Added IndexedDB and memory backends, a host-provided private-page backend interface, a mounted save/load/import/export panel and coalescing autosave helper. Save-domain tests and typecheck pass; IndexedDB reload browser test is authored and awaits the next permitted browser window.
 
 ## Next
-Separate render-integration branch: mount the tested UI in the ferry-showcase renderer, feed shared player/combat snapshots and queue recorded commands. Progression-only saves, later-wave apps and match panels follow.
+Finish actual SF browser play-through with the shared core composition; mount save controls with the player's whitelist projection/restore adapter, then later-wave apps and match panels.
 
 ## Blocked on
 - Real player/mode projections and render mounting must come from the owning lanes.
@@ -32,17 +35,17 @@ Separate render-integration branch: mount the tested UI in the ferry-showcase re
 No new service, hosting, licence or design decision is introduced by this lane.
 
 ## Draft PR
-Base: `integrate/wave2`
+Base: `lane/ui-save/wave2`
 
-Head: `lane/ui-save/wave2`
+Head: `lane/ui-save/wave3`
 
-Title: `UI: add guarded browser controls, HUD and phone panels`
+Title: `Saves: add versioned progression storage and import/export panel`
 
 ### Summary
-Reusable browser UI consumes immutable presentation data and emits recorded controls. Adds HUD/objectives, directed GPS, phone and vendor panels, accessible modal focus handling, touch/gamepad controls and disposable keyboard input. The sole free-text component runs the existing crisis check before all parsing, validation and submission, then strips contact information before the content resolver. Display text comes from the content lane's UI catalog.
+Adds three-slot progression storage with autosave, IndexedDB fallback and a host-supplied private-page backend. Checksums detect corruption; import validates the record before asking for confirmation and never changes the running game directly. A mounted panel provides accessible save/load/import/export controls. The required domain validator and transient-state gate keep traffic, combat actors and raw simulation snapshots out of saves.
 
 ### Acceptance tests
-`pnpm typecheck` and `pnpm exec vitest run tests/ui/controls.test.ts --maxWorkers=2`: passed (10 tests). Browser fixture: `PLAYWRIGHT_CHROMIUM_EXECUTABLE=/usr/bin/chromium pnpm exec playwright test --config tests/ui/browser.config.ts --workers=1` (in progress). Production mounting remains separate render-integration work.
+`pnpm typecheck` and `pnpm exec vitest run tests/save tests/ui/commands.test.ts --maxWorkers=2`: passed (6 tests). Earlier wave-2 browser tests passed (2 tests, 6.3s); the new IndexedDB reload test is pending the shared browser window. Actual SF rendering and gameplay validation remain separate integration work.
 
 ### Contract changes
 None authored in shared simulation files; shared requests are listed above.
