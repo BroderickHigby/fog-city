@@ -7,6 +7,7 @@ import { applyWaterHit, stepSupport, tickEffects } from "./effects.ts";
 import { advanceProjectile } from "./physics.ts";
 import { waterShot } from "./weapons.ts";
 import { holdCombatTimers } from "./pause.ts";
+import { applyFlowerHit, launchFlowers } from "./flowers.ts";
 import { capacity, emit, initialPlayer, initialTarget, MAX_PROJECTILES, newlyPressed, protectedActor, safeAngle, sortedActors, sortedPlayers, targetOf } from "./shared.ts";
 import type { CombatActor, CombatContext, CombatInputs, CombatPlayer, CombatState, PlayerCombat, Projectile, TargetCombat } from "./types.ts";
 
@@ -134,6 +135,7 @@ function particles(state:CombatState,ctx:CombatContext):void {
     if (moved.hit) {
       if (projectile.kind==="water") applyWaterHit(state,moved.hit,projectile);
       if (projectile.kind==="cone") coneHit(state,moved.projectile,moved.hit);
+      if (projectile.kind==="flower") applyFlowerHit(state,ctx,moved.projectile,moved.hit);
     }
     if (moved.hit || moved.landed || moved.blocked || moved.expired) {
       if (projectile.kind==="balloon") {
@@ -164,6 +166,7 @@ export function stepCombat(prev: Readonly<CombatState>, ctx: CombatContext, inpu
   if (state.pauseUntil<=state.tick) {
   stepSupport(state,ctx,inputs);
   fireWeapons(state,ctx,inputs);
+  launchFlowers(state,ctx,inputs);
   particles(state,ctx);
   tickEffects(state,ctx);
   stepAttacks(state,ctx,inputs);

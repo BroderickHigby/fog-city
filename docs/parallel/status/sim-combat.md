@@ -1,7 +1,7 @@
 # Lane 4: Sim-Combat
 
 ## Now
-Working ahead on `lane/sim-combat/wave4`, with wave-2 shared-interface intake `ef74fe5` merged through wave 3. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. Lane 2 published the matching core pause separately as `4ffe076`, to be consumed only by wave 4 and later. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
+Working ahead on `lane/sim-combat/wave5`, with wave-2 shared-interface intake `ef74fe5` merged through the wave chain. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. The separate core pause `4ffe076` is merged on wave 4 and later. Combined type/unit/browser verification is running on this branch. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
 
 ## Done
 - Inspected the handoff, current shared simulation, and combat design.
@@ -11,17 +11,18 @@ Working ahead on `lane/sim-combat/wave4`, with wave-2 shared-interface intake `e
 - Wave 3: driver window spray at <=7 m/s, sideways-only 8 m shots at 60% flow; full running-board spray; phone hacks; fog/rain exposure and drone resistance rates; typed puddle refills with fresh/salt inputs; sight range 30 m / 21 m / 12 m at fog density 0 / 0.5 / 1. Marine Layer halves sight, and blindness removes it. Distant heaps persist for Tidy from wave 3.
 - Wave 4: equipped balloons, sprinklers and decoy speakers; Rubber Boots/Airplane Mode; fresh trunk-fed roof cannon; all six authorized streak effects. Wide boost splits one shot's water/rust budget over three pellets. AGI holds combat timers/projectiles for exactly 180 ticks; core's matching movement pause is supplied separately.
 - Device review fixed out-of-order banked reward use, blocked-muzzle bypasses, vertical water/ping ranges, unbounded/stale confidence markers and hallucination proportions. Replay cursors are tracked independently per reward kind.
+- Wave 5: rival-authorized flowers with 90-tick cooldown and 20 m ballistic range; NPCs and teammates are transparent to the projectile. Clean Streets suppresses spray/scan for 90 ticks; Royale emits its runway/score events. Hair effects persist until the mode resets combat state.
 - Implemented a pure combat reducer, swept water/cone collision with terrain and walls, deterministic scans, fresh/salt refills, wrong-target penalties, rust/drying, and seized/slumping/heap lifecycle. A heap reaches 30% height by tick 120 after seizure.
 - Added shove, snatch, ad blast, handshake, and interrupted/capped forced updates with monotonic request sequences. Phone hacks remain wave-3 gated.
 - Exposed an explicit compatibility adapter and movement constraints without modifying shared simulation files or registering an incomplete system.
 - Consumed the published shared contract through a type-only re-export. Added `createCombatSystem(provider)` for the core's registered post-movement hook; recorded fire, scan, cone, alt-fire, aim, equipped gadget and nearest valid refill inputs map into the reducer. Explicit provider inputs replace those defaults. The default system list stays empty until real actor/world providers are supplied.
 - Hardened compatibility metadata: actor classification may be supplied, but body IDs, ownership and current poses remain authoritative at runtime and in the metadata type.
 - Adversarial fixes: protected subjects intercept projectiles; vertical interaction limits; huge finite aim values; canonical player-body constraints; non-resurrecting heaps; bounded attack history; unknown attackers cannot exhaust it; no zero-speed cap on unaffected actors.
-- Typecheck passed. Scoped combat suite passed 166 tests across seven files, including later-wave modules still being reviewed. This checkpoint includes wave-2 files only. Scan accuracy has 10,000 seeded samples per tier; protected-crowd regression covers 50 scenes.
+- Typecheck and the combined scoped suite passed 201 tests across 13 files before the final registered-pause integration test. Scan accuracy has 10,000 seeded samples per tier; protected-crowd regression covers 50 scenes.
 - Intake validation: typecheck and all 110 wave-2 combat tests passed across five files. `git diff --check` and a direct Node registered-step smoke also passed. Seven new owned tests cover registration, unrelated extension preservation, sanitized controls, explicit input overrides, refill selection and metadata identity.
 
 ## Next
-Run full combined verification and carry this shared-type intake into the separate wave-3 through wave-5 branches.
+Complete combined verification, publish the wave-5 checkpoint and hand the data/render/control requests to their owning lanes.
 
 ## Blocked on
 - Production registration still needs current actor/world/loadout providers. `createCombatSystem` is ready, but no default provider invents classifications or water sources. Controls without a recorded shared action/value (gear, selected streak, close-ad, break-free, placement and boost) still require provider inputs from the owning lanes.
@@ -63,7 +64,7 @@ Adds the wave-2 combat reducer and provider-driven registered adapter under the 
 - [ ] Production actor/world provider registration and rendered browser acceptance.
 
 ### Acceptance tests
-Passing scoped tests from the reducer checkpoint: conservation, dry thresholds, good-robot non-seizure, 120-tick collapse, three-second cone stop, forced-update interruption/cap, 10,000 seeded scans per tier, 50 protected crowd scenes, frozen-state replay equivalence, bounded history and vertical-range regressions. Intake adds seven integration/adapter tests; their heavy run and full repository/browser verification are pending. Direct Node registered-step smoke and whitespace checks passed.
+All 110 wave-2 combat tests pass, including seven integration/adapter tests. Coverage includes conservation, dry thresholds, good-robot non-seizure, 120-tick collapse, three-second cone stop, forced-update interruption/cap, 10,000 seeded scans per tier, 50 protected crowd scenes, frozen-state replay equivalence, bounded history and vertical ranges. Full combined repository/browser verification is tracked below.
 
 ### Contract changes
 **Shared contract changed through the merge of Lane 2's published `39abfda`: `SIM_VERSION` is now 6.** That upstream interface adds optional recorded aim, action bits, typed `ext.combat`, deterministic system ordering and the published replay migration. The combat lane did not edit shared core files by hand; `combat/types.ts` now re-exports the authoritative `combat-contract.ts` types. Owned adapter changes preserve unrelated extension slots and leave default registration empty. Lane 2 owns all shared migration and baseline changes.
@@ -124,3 +125,30 @@ Lane 5 supplies earned grants, loadout/inventory and stable replayed selections.
 
 ### For the owner to judge
 All effects are deterministic simulation outputs. Their visible playback and gameplay feel require the integration lanes; no frame-rate or high-definition claim is made here.
+
+## Wave-5 draft pull request
+Base: `lane/sim-combat/wave4` until `integrate/wave5` exists.
+
+Head: `lane/sim-combat/wave5`
+
+Title: `Sim-Combat: add rival-authorized PvP flower alt-fire`
+
+### Summary
+Adds slow ballistic flower lobs only in PvP modes and only against explicitly assigned rivals. Projectiles pass through NPCs, teammates and the owner. Hits add persistent hair flowers; Clean Streets applies a 90-tick distraction, while Royale emits its runway and score changes without mutating another lane's economy state.
+
+### Roadmap deliverables
+- [x] 20 m flower alt-fire, one lob every 1.5 seconds, PvP only.
+- [x] Hair flowers, mode effects, no rust/knockback and no NPC impact.
+- [ ] Mode-provided rival assignments, reset lifecycle and renderer hair effect.
+
+### Acceptance tests
+Scoped tests pass for cooldown/range, raised ballistic aim, finite input, NPC/team transparency, changed permission at impact, exact mode effects and real-projectile suppression of rival spray/scan. The combined suite also tests real combat-hook/core pause integration; full verification results will be recorded below.
+
+### Contract changes
+None. Uses the shared core contract already merged into prior wave branches.
+
+### Requests for other lanes
+Lane 6 supplies mode/rivals and clears combat state between matches; Lane 5 consumes score/runway event IDs once; Lane 7 renders cooldown/distraction; Lane R renders flowers in hair and the slow projectile.
+
+### For the owner to judge
+Review as a stacked draft above wave 4. These are sim changes; final presentation and feel remain an integrated-game review.

@@ -1,6 +1,10 @@
 import { describe,expect,it } from "vitest";
 import { createCombatState,stepCombat } from "../../../src/sim/combat/system.ts";
 import type { CombatActor,CombatContext,CombatPlayer } from "../../../src/sim/combat/types.ts";
+import { buildWorld } from "../../../src/sim/world.ts";
+import { createInitialState,step } from "../../../src/sim/step.ts";
+import { createCombatSystem } from "../../../src/sim/combat/systems.ts";
+import { contextFromState } from "../../../src/sim/combat/adapter.ts";
 
 const player:CombatPlayer={id:"p1",x:0,y:0,z:0,heading:0,speed:0,mount:"foot",tankTier:0,flowTier:0,scannerTier:1,gadget:"balloon"};
 const bot:CombatActor={id:"bot",x:1,y:0,z:-2,heading:0,speed:0,radius:.4,height:1.8,kind:"robot",firmware:"bad"};
@@ -56,5 +60,19 @@ describe("wave-four reducer integration",()=>{
     expect(state.projectiles.reduce((sum,p)=>sum+p.volume,0)).toBeCloseTo(.08,12);
     expect(state.projectiles.reduce((sum,p)=>sum+p.rustRate,0)).toBeCloseTo(.025,12);
     expect(state.players.p1!.water).toBeCloseTo(7.92,10);
+  });
+
+  it("combines the real combat hook with core's exact 180-tick movement freeze",()=>{
+    const world=buildWorld([]);
+    const system=createCombatSystem(({world,state})=>({context:contextFromState(world,state,{wave:4,streaks:[{playerId:"p1",kind:"agi",sequence:1}]}),inputs:{p1:{streak:"agi"}}}));
+    let state=createInitialState(world,17,["p1"],{x:0,z:0,heading:0});
+    const input={p1:{throttle:1,steer:0,brake:0,actions:0}};
+    state=step(world,state,input,[],[system]);
+    const start={...state.players.p1!.car};
+    for(let n=0;n<180;n++)state=step(world,state,input,[],[system]);
+    expect(state.players.p1!.car).toEqual(start);
+    expect(state.tick).toBe(181);expect(state.ext.combat!.tick).toBe(181);
+    state=step(world,state,input,[],[system]);
+    expect(state.players.p1!.car.z).toBeLessThan(start.z);
   });
 });
