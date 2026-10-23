@@ -161,6 +161,9 @@ export class PlayerBodies {
 
   get drawn(): number { return this.drawnCount; }
 
+  /** Player `id`'s posed body root, once it has been drawn. */
+  rootOf(id: string): THREE.Object3D | null { return this.bodies.get(id)?.root ?? null; }
+
   remove(keep: ReadonlySet<string>): void {
     for (const [id, body] of this.bodies) {
       if (keep.has(id)) continue;
