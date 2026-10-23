@@ -19,7 +19,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const style=doc.createElement("style");style.textContent=UI_STYLES;root.append(style);
   let view:UiView|undefined,modal:"phone"|"vendor"|"startup"|"pause"|"interaction"|"help"|undefined,app:PhoneApp|undefined,previousFocus:HTMLElement|null=null,freeText:FreeTextControl|undefined,disposed=false,panelStamp="",crisis=false,interactionId="";
   const keyboard=options.keyboard??new Keyboard(win,()=>!!modal||isTextEntry(doc.activeElement));const controls=new InputController(keyboard);
-  let savePanel:ReturnType<typeof mountSavePanel>|undefined;
+  let savePanel:ReturnType<typeof mountSavePanel>|undefined,audioPanel:{element:HTMLElement;dispose():void}|undefined;
   function node<K extends keyof HTMLElementTagNameMap>(tag:K,className?:string,text?:string):HTMLElementTagNameMap[K]{const element=doc.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
   function button(label:string,fn:()=>void){const b=node("button",undefined,label);b.type="button";b.addEventListener("click",fn);return b;}
   const hud=node("div","fc-hud"),cluster=node("div","fc-cluster"),tools=node("div","fc-tools");
@@ -42,13 +42,14 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(!modal)previousFocus?.focus();
   }
   function renderPanel():void {
-    savePanel?.dispose();savePanel=undefined;
+    savePanel?.dispose();savePanel=undefined;audioPanel?.dispose();audioPanel=undefined;
     layer.hidden=!modal;if(!modal){freeText?.dispose();freeText=undefined;layer.replaceChildren();return;}
     freeText?.dispose();freeText=undefined;
     const dialog=node("section","fc-dialog");dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");dialog.tabIndex=-1;
     const header=node("header"),title=node("h1",undefined,modal==="interaction"?(view?.interaction?.title??copy("ui.hud.objective")):copy(modal==="phone"?"ui.phone.title":modal==="vendor"?"ui.vendor.title":modal==="startup"?"ui.signup.title":modal==="help"?"ui.help.title":"ui.hud.pause"));
     title.id="fc-dialog-title";dialog.setAttribute("aria-labelledby",title.id);header.append(title,button(copy("ui.common.close"),()=>setModal(undefined)));dialog.append(header);
     if(modal==="phone")renderPhone(dialog);
+    if(modal==="pause"&&options.audioSettings){audioPanel=options.audioSettings(doc);dialog.append(audioPanel.element);}
     if(modal==="help"||modal==="pause")dialog.append(createControlsHelp(doc,copy));
     if(modal==="vendor")for(const item of view?.vendor??[]){
       const card=node("article","fc-card"),footer=node("footer"),buy=button(copy(item.owned?"ui.vendor.owned":"ui.vendor.buy"),()=>callbacks.purchase?.(item.id,view?.vendorSiteId));buy.disabled=item.owned||!item.available||(view?.cashCents??0)<item.priceCents;
@@ -79,7 +80,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       content.append(node("p",undefined,copy(view?.scan?(view.scan.bad?"ui.hud.scanBad":"ui.hud.scanGood"):"ui.hud.scanUnknown")));
       if(view?.scan)content.append(node("strong",undefined,copy("ui.hud.scanConfidence",{confidence:Math.round(bounded(view.scan.confidence,0,1)*100)})));
     }else if(app==="bank")content.append(node("strong",undefined,formatMoney(view?.cashCents??0)));
-    else if(app==="settings"&&options.saves){savePanel=mountSavePanel(doc,copy,options.saves);content.append(savePanel.element);}
+    else if(app==="settings"&&(options.saves||options.audioSettings)){if(options.audioSettings){audioPanel=options.audioSettings(doc);content.append(audioPanel.element);}if(options.saves){savePanel=mountSavePanel(doc,copy,options.saves);content.append(savePanel.element);}}
     else content.append(node("p",undefined,copy("ui.common.empty")));
     dialog.append(content);
   }
@@ -120,5 +121,5 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     // Never replace a focused form while sim snapshots arrive.
     if(modal&&modal!=="startup"&&modal!=="interaction"){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;const active=doc.activeElement as HTMLElement|null;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }
-  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();savePanel?.dispose();win.cancelAnimationFrame(gamepadFrame);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
+  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
 }
