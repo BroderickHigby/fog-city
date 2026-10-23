@@ -7,7 +7,7 @@ import {allocateActorIds} from "../../../src/sim/identity.ts";
 import {createHeat} from "../../../src/sim/heat/system.ts";
 import {createAgentsRuntime} from "../../../src/sim/agents/runtime.ts";
 import {createAgentsSystem} from "../../../src/sim/agents/systems.ts";
-import {planServiceRuntime,serviceEntryClear} from "../../../src/sim/agents/service-runtime.ts";
+import {planServiceRuntime,serviceBlockersOf,serviceEntryClear} from "../../../src/sim/agents/service-runtime.ts";
 import {planTransitRuntime,type TransitLayer} from "../../../src/sim/agents/transit-runtime.ts";
 const world=buildWorld([],{version:1,nodes:[{id:"a",x:-500,z:0},{id:"b",x:500,z:0}],edges:[{id:"road",a:"a",b:"b",kind:"residential",lanes:2,oneway:false,points:[[-500,0],[500,0]]}]});
 world.roads={...world.roads!,areas:[]};
@@ -16,6 +16,16 @@ function initial(){const sim=createInitialState(world,7,["p"],{x:0,z:8,heading:0
 function request(){const sim=initial();sim.ext.heat={...createHeat(),events:[{id:1,tick:0,playerId:"p",targetId:"",amount:2,detail:"",kind:"threat.spawn",payload:{id:"heat:p:1",requestTick:0,playerId:"p",player:{x:0,z:0},kind:"van",threat:2,unitCount:2}}]};return sim;}
 
 describe("service bodies pass physical admission",()=>{
+ it("uses the drawn legacy taxi hull at its outer length and width while preserving explicit dimensions",()=>{
+  const sim=initial();
+  sim.ext.agents!.list=[{id:1,kind:"robotaxi",x:0,y:0,z:0,heading:0,speed:0,pitch:0,vmax:0,edge:"",dir:1,lane:0,s:0,next:"",ndir:1,nlane:0,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:"go",rng:1,dodge:null}];
+  const taxi=serviceBlockersOf(sim)[0]!;
+  expect(taxi).toMatchObject({halfLength:2.5,halfWidth:1});
+  expect(serviceEntryClear(world,{x:0,z:5.05,heading:0},[taxi])).toBe(false);
+  expect(serviceEntryClear(world,{x:2.175,z:0,heading:0},[taxi])).toBe(false);
+  sim.ext.agents!.list[0]!.halfLength=6.6;sim.ext.agents!.list[0]!.halfWidth=1.35;
+  expect(serviceBlockersOf(sim)[0]).toMatchObject({halfLength:6.6,halfWidth:1.35});
+ });
  it("rejects the exact long-bus overlap from the SF tick1201 replay",()=>{
   const next={x:86.11231637828408,z:161.66352548205964,heading:-.7059982851862002};
   const accepted={x:79.95023053306147,z:154.56539699783687,heading:-.7042356300165814,halfLength:6.6,halfWidth:1.35,radius:1.4};
