@@ -50,4 +50,32 @@ The committed city already had sidewalks, transit and water-source layers, but n
 
 The full builder emits the layer, and an offline command rebuilds it from existing committed data without downloads or tile regeneration. Placement checks exclude water, building footprints and traffic lanes; candidate services remain subject to content progression and driving-route validation. The world QA geometry gate remains open and this change does not claim bridge/tunnel/stair readiness.
 
-Validation: `pnpm exec vitest run tests/pipeline/gameplay-index.test.ts tests/pipeline/gameplay-world.test.ts tests/pipeline/build-fixture.test.ts tests/pipeline/layers.test.ts tests/pipeline/budgets.test.ts --maxWorkers=2` — 62 passed. `node pipeline/build-gameplay.ts --check` — byte-identical. Typecheck passed after merging the shared contract; final hardening typecheck pending below.
+Validation: `pnpm exec vitest run tests/pipeline/gameplay-index.test.ts tests/pipeline/gameplay-world.test.ts tests/pipeline/build-fixture.test.ts tests/pipeline/layers.test.ts tests/pipeline/budgets.test.ts --maxWorkers=2` — 62 passed. `node pipeline/build-gameplay.ts --check` — byte-identical. Final `pnpm typecheck` passed. Hardening checkpoint `2ce6e9d` is pushed.
+
+## Independent content read (2026-10-23)
+
+At Lane R's request, `/root/lane1_pipeline` read every player-facing line in the following Lane 8 files, including labels, cast roles, actor notes, hints, choices and summaries. Checklist: stated/implied punching down; ethnic/accent caricature; claims about real people/events; real brands; encampment/disease language; juxtaposition with real SF street names. No checklist failure found in this snapshot. This is an independent agent read, not the user sample review or a gameplay readiness claim.
+
+| File | SHA-256 of reviewed bytes |
+| --- | --- |
+| `content/ui-copy.json` (180 strings) | `feb4e6b92d04e16c194af277c3cf5c994597b42b9572569d73c4e2f426b6175a` |
+| `content/missions/launch-day.json` | `66795b8c3fb4ab09754a5244052eb9dab13eec74f999c8e4ec16028ef7baa5b6` |
+| `content/missions/demoed-correctly.json` | `256adb356e576d75e5ddccf1416ec7a3a7e297fa4255e85d309214267c60eefb` |
+| `content/missions/demo-day.json` | `3cf90cf516c4af8cb6c9e7140a75571cf3f7a32cb406159775369648f9fc0fc2` |
+| `content/missions/fleet-week.json` | `491eb94303c08f7f7bb1b686f50d0ef9800bb0a936dc2d2b7f5bf7d8f41a6389` |
+| `content/missions/hill-climb.json` | `389d9f8b088a2ed50de9ccf7d751b8f2fce5776896d9b78034d826a912286656` |
+| `content/missions/acqui-hire-offer.json` | `fb86abfd2f00c3692f4f728c9891770c10919e5ec0bc7f9fbc7582ae207c22c7` |
+| `content/missions/marine-layer.json` | `7caeeddc892f5a06961d241ae6b82adbf6ae9179c62de7b194690ff521c89f85` |
+| `content/missions/comeback-round.json` | `6cbf563ecb70b05d0b04b2254b678ed7f394f9885649ed5c4ff400e13d4cf72c` |
+
+Also read all vendor blurb changes and the generic `Royale`/`Award` additions against the wave-2 base. Suggested neutral disconnect text because “Your progress is safe” currently promises an unverified multiplayer save guarantee.
+
+### Runtime integration findings sent to the owners
+
+- New mission event objectives require authoritative producers (scanner false positive, pitch window, Lombard chase, cable-car boarding, teleoperation, fog fleet and boss phases). No current producer was found in the player runtime at the reviewed snapshot. Authored events alone cannot make these missions playable.
+- Launch Day scans the suspect, then waits for a false-positive event on the harmless courier. Add an explicit action/instruction for the harmless scan or a deterministic scenario-generated observation; do not require an unexplained event.
+- The mission interpreter emits an authored `stat: xp` grant as `mission.stat`, which progression ignores, then substitutes a formula XP grant. Respect the authored amount and test one-time payment.
+- The promised `app:scanner-tier-2` reward reaches inventory but has no progression handler; the actual combat scanner tier stays 1.
+- The new `advanceOnAnyOutcome` campaign property needs interpreter support, or a non-success partner-pitch result blocks later missions.
+
+Lane 5 and Lane 8 have the actionable findings. Core's clearance candidate is not yet published; accepted-body and scheduling review will use its stable checkpoint rather than mislabel unfinished integration as a regression.
