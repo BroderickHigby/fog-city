@@ -1,4 +1,5 @@
 import { SYSTEM_ORDER, type SimSystem, type SimSystemContext } from "./system-contract.ts";
+import type { AgentMotionProposal } from "./motion.ts";
 import { systems as clockSystems } from "./clock/systems.ts";
 import { systems as fogSystems } from "./fog/systems.ts";
 import { systems as vehiclesSystems } from "./vehicles/systems.ts";
@@ -46,4 +47,19 @@ export function runSystems(context: SimSystemContext, systems: readonly SimSyste
     if (state.tick !== context.state.tick || state.version !== context.state.version) throw new Error(`Sim system ${system.key} changed tick or version`);
   }
   return state;
+}
+
+export function prepareSystems(context: SimSystemContext, systems: readonly SimSystem[] = SYSTEMS): { state: import("./contract.ts").SimState; motions: AgentMotionProposal[]; retirements: string[] } {
+  const seen = new Set<string>();
+  const motions: AgentMotionProposal[] = [], retirements: string[] = [];
+  let state = context.state;
+  for (const system of [...systems].sort((a,b)=>SYSTEM_ORDER.indexOf(a.key)-SYSTEM_ORDER.indexOf(b.key))) {
+    if (!SYSTEM_ORDER.includes(system.key) || seen.has(system.key)) throw new Error(`Invalid or duplicate sim system: ${system.key}`);
+    seen.add(system.key);
+    if (!system.prepare) continue;
+    const result=system.prepare({...context,state});
+    if (result.state.tick!==context.state.tick || result.state.version!==context.state.version) throw new Error(`Sim system ${system.key} changed tick or version`);
+    state=result.state;motions.push(...result.motions);retirements.push(...(result.retirements??[]));
+  }
+  return {state,motions,retirements};
 }

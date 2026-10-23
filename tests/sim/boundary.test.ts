@@ -20,6 +20,7 @@ import {
   dsin,
   groundHeight,
   inCorridor,
+  MAX_INLET_M,
   makeCar,
   onWater,
   pathPoint,
@@ -289,12 +290,31 @@ describe("boundary walls: roads over water", () => {
     }
   });
 
-  it("a freeway over the same creek gets no corridor: its deck is not modelled, so the shore stays walled", () => {
-    const fw = buildWorld([tile], roadsOf(edge("fw", 0, -60, 100, { kind: "freeway", gradeSeparated: true })), creek);
-    expect(fw.walls!.corridors).toHaveLength(0);
-    expect(fw.walls!.gaps).toBe(0);
-    const last = drive(fw, makeCar(0, -40, Math.PI, 3), 300).pop()!;
-    expect(last.z).toBeLessThan(0);
+  it("a freeway across the creek from bank to bank gets a corridor like a bridge: no wall across its carriageway (W-07)", () => {
+    for (const extra of [{ kind: "freeway", gradeSeparated: true }, { kind: "ramp" }] as const) {
+      // Traffic never uses it (the road graph), but a player drives across.
+      const fw = buildWorld([tile], roadsOf(edge("fw", 0, -60, 100, extra)), creek);
+      expect(fw.walls!.corridors.map((c) => c.edgeId)).toEqual(["fw"]);
+      expect(fw.walls!.gaps).toBe(2);
+      const trace = drive(fw, makeCar(0, -40, Math.PI, 3), 480);
+      expect(trace[trace.length - 1]!.z).toBeGreaterThan(60);
+      for (const c of trace) expect(c.hits).toBe(0);
+    }
+  });
+
+  it("a freeway that runs out over open water stays walled: an end over the water, or a crossing longer than an inlet", () => {
+    // One end over the water (a bridge span heading out into the Bay).
+    const out = buildWorld([tile], roadsOf(edge("fw", 0, -60, 30, { kind: "freeway", gradeSeparated: true })), { ...creek, shore: [creek.shore[0]!] });
+    expect(out.walls!.corridors).toHaveLength(0);
+    expect(out.walls!.gaps).toBe(0);
+    expect(drive(out, makeCar(0, -40, Math.PI, 3), 300).pop()!.z).toBeLessThan(0);
+    // Both ends on land, but MAX_INLET_M or more of water between (the Bay Bridge's west span).
+    const wide: BoundaryFile = { ...creek, shore: [creek.shore[0]!, { closed: false, points: [[200, MAX_INLET_M + 10], [-200, MAX_INLET_M + 10]] }] };
+    const bay = buildWorld([tile], roadsOf(edge("fw", 0, -60, MAX_INLET_M + 60, { kind: "freeway", gradeSeparated: true })), wide);
+    expect(bay.walls!.corridors).toHaveLength(0);
+    expect(bay.walls!.gaps).toBe(0);
+    // A surface street over the same water still gets its corridor.
+    expect(buildWorld([tile], roadsOf(edge("st", 0, -60, MAX_INLET_M + 60)), wide).walls!.corridors).toHaveLength(1);
   });
 
   it("overlapping corridors are one: the two halves of a divided road keep only their outer kerbs", () => {
@@ -352,14 +372,18 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
     expect(w.gaps).toBeLessThan(60);
     const g = world.roads!;
     const ids = new Set(w.corridors.map((c) => c.edgeId));
+    const raw = new Map((files.roads as RoadsFile).edges.map((e) => [e.id, e]));
     for (const id of ids) {
       const e = g.edges[g.edgeIndex.get(id)!]!;
-      expect(e.drivable || e.walkable, `${id} ${e.name}`).toBe(true);
+      // A street traffic or people use, or a freeway or ramp across an inlet (W-07).
+      const fwy = raw.get(id)!.gradeSeparated === true || raw.get(id)!.kind === "ramp";
+      expect(e.drivable || e.walkable || fwy, `${id} ${e.name}`).toBe(true);
     }
+    const named = (name: string): boolean => [...ids].some((id) => g.edges[g.edgeIndex.get(id)!]!.name === name);
     // The 3rd St and 4th St bridges over Mission Creek, the 3rd St bridge over Islais Creek;
-    // never the I-280 ramps that cross Mission Creek on their viaduct.
-    for (const name of ["3rd St", "4th St"]) expect([...ids].some((id) => g.edges[g.edgeIndex.get(id)!]!.name === name), name).toBe(true);
-    expect([...ids].some((id) => g.edges[g.edgeIndex.get(id)!]!.name.includes("I-280"))).toBe(false);
+    // I-280 and its ramps over both creeks; never the Bay Bridge or the Golden Gate approach.
+    for (const name of ["3rd St", "4th St", "I-280 Northbound", "I-280 Southbound", "I-280 N Off Ramp", "I-280 S On Ramp"]) expect(named(name), name).toBe(true);
+    for (const name of ["I-80 Eastbound", "I-80 Westbound", "Hwy 101 Northbound", "Hwy 101 Southbound"]) expect(named(name), name).toBe(false);
   });
 
   it("the spawn and the surface streets are clear of every wall", () => {
