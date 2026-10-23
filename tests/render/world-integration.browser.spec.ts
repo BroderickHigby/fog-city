@@ -38,7 +38,7 @@ test("new-world houses, Ferry detail and structural materials preserve the runni
 
   for (const view of [
     { name: "alamo-houses", ...point(37.7758, -122.4336, 6), yaw: 80, pitch: -12 },
-    { name: "broadway-tunnel", ...point(37.7975, -122.4168, 5), yaw: 85, pitch: -8 },
+    { name: "broadway-street", ...point(37.7975, -122.4168, 5), yaw: 85, pitch: -8 },
     { name: "stow-lake", ...point(37.7687, -122.4748, 8), yaw: 325, pitch: -10 },
   ]) {
     await page.evaluate(v => (window as unknown as FogWindow).__fogcity!.flyTo!(v.x, v.y, v.z, v.yaw, v.pitch), view);
@@ -46,6 +46,28 @@ test("new-world houses, Ferry detail and structural materials preserve the runni
     await frames(page, 2);
     await page.screenshot({ path: `test-results/world-integration-${view.name}.png` });
   }
+  expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash())).toBe(initial);
+  expect(problems).toEqual([]);
+});
+
+test("height-aware camera stays inside the Broadway bore", async ({ page }) => {
+  test.setTimeout(180_000);
+  const collider = JSON.parse(readFileSync(join(ROOT, "public", "tiles", "sf", "t-5_-1.collider.json"), "utf8")) as {
+    tunnels: Array<{ edge: string; path: number[][] }>;
+  };
+  const bore = collider.tunnels.find(t => t.edge === "c3186101")!;
+  expect(bore, "Broadway's committed bore geometry").toBeDefined();
+  const [x, floor, z] = bore.path[6]!;
+  const problems = await bootWorld(page, "sf", "&quality=1&shadows=1&tod=golden&radius=300&pr=1&debug=1");
+  const initial = await page.evaluate(pose => {
+    const game = (window as unknown as FogWindow).__fogcity!;
+    game.pause(); game.stepN(1);
+    game.flyTo!(pose.x, pose.y, pose.z, 81.2, 0);
+    return game.hash();
+  }, { x: x!, y: floor! + 2, z: z! });
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.tilesSettled!(), null, { timeout: 120_000 });
+  await frames(page, 2);
+  await page.screenshot({ path: "test-results/world-integration-tunnel-interior.png" });
   expect(await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash())).toBe(initial);
   expect(problems).toEqual([]);
 });
