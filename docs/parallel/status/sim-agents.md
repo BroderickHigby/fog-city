@@ -123,3 +123,7 @@ Body:
 Tidy workers collect actual heaps, preserve converted helpers while hauling them to real repair kiosks, and request the combat reducer's continuous 60-second restore. Restored actors stay hidden until the core admits their physical bodies; only then does the runtime emit an attributed completion event. Microclimate gadgets block robot sight.
 
 Validation: typecheck and 94 focused checks pass. Physical lifecycle coverage includes collection, converted cargo outside player fidelity, restoration and accepted body readmission. Ownership mismatch and pending-admission cases cannot produce a completion reward. Includes the physical-kernel adaptation of the combat pause, with preparation frozen through tick 180 and resumed at tick 181.
+
+## Roster startup optimization
+
+`planMissionActors` now computes its ordered non-taxi placement candidates once per request. A 120-actor mode roster shares that list while retaining per-actor occupancy checks and the exact previous candidate order. The list belongs only to the current call; no global cache or simulation behavior changes. The 94-test combined run above includes mission and roster regressions. Real-SF mode-boot timing remains with the integration harness.
