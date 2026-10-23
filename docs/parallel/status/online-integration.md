@@ -26,3 +26,7 @@ Final branch validation: TypeScript and **6 files / 16 tests** pass for reward o
 Final mission-admission repair: included `8dea622` as `4f17f6f`. Blocked mission stage descriptions retry within fixed queue/work limits, and an absent bound objective actor can recover from one unambiguous authored stage. Parked objective taxis receive full-hull and hood-access validation within the original radius; no later-wave feature module was imported.
 
 Validation after this final intake: TypeScript and **6 files / 19 tests** pass, covering durable/partial mission staging, parked actor admission, service clearance, gameplay/driver parity and world fingerprints. The exact saved-state taxi admission proof is recorded in the agents status; campaign completion remains with the combined harness.
+
+Final combat geometry intake: `9f5dd0c` is included as `f6bf0b5`. Combat contacts use exact building footprints with the existing broad-phase bounds; the geometry is supplied only through simulation context, preserving the saved state and shared gameplay factory.
+
+Validation after intake: TypeScript and **7 files / 69 tests** pass across exact wall footprints, projectile physics, attacks, combat systems, gameplay/driver parity and world fingerprints. No additional feature work is included.
