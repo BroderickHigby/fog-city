@@ -1,5 +1,6 @@
 import { clamp } from "../dmath.ts";
-import { commands,distanceSquared,event,facts,sortedBodies } from "../player/common.ts";
+import { canInteractAtSite } from "../player/sites.ts";
+import { commands,event,facts,sortedBodies } from "../player/common.ts";
 import type { GameplayContext,GameplayEvent,HeatState,HeatStatus } from "../player/types.ts";
 export function createHeatStatus(tick:number):HeatStatus {return {threat:0,vcQuarters:0,lastSeenTick:tick,lastAssociateSeenTick:tick,recentMelts:[],levelMelts:0,spawnSequence:0,commandSequence:0,lastWashId:""};}
 export function createHeat(tick=0):HeatState{return {version:1,tick,nextId:1,players:{},factCursors:{},grantCursors:{},events:[]};}
@@ -38,7 +39,7 @@ export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,gran
    if(grant.kind==="player.acqui-hired"){own.threat=0;own.vcQuarters=0;}
    if(grant.kind==="mission.vc")own.vcQuarters=clamp(own.vcQuarters+4*grant.amount,0,20);
   }
-  const wash=ctx.sites.find(site=>site.kind==="carWash"&&site.wave<=ctx.wave&&Math.abs(body.speed)<=3&&distanceSquared(body,site)<=site.radius*site.radius);
+  const wash=ctx.sites.find(site=>site.kind==="carWash"&&site.wave<=ctx.wave&&canInteractAtSite(body,site));
   if(!wash)own.lastWashId="";
   for(const command of commands(ctx,body.id,["activity-start"],own.commandSequence)){
    own.commandSequence=command.sequence;

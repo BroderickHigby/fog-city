@@ -1,7 +1,7 @@
 # Lane 5: Player, missions & economy
 
 ## Now
-Building wave 2 on `lane/sim-player/wave2` from the published core interface `9a6a107`, in `/workspace/fog-city-player`. The existing prototype remains untouched.
+Wave-4 player systems are integrated for the mode host; isolated later scene work is on `lane/sim-player/wave7` in `/workspace/fog-city-player`. The original prototype remains untouched.
 
 ## Done
 - Read the player-lane handoff, design, roadmap and current content schemas.
@@ -92,3 +92,9 @@ Wave-7 draft PR body: Later mission reducers now advance from accepted robot/bod
 The six registered free-roam reducers already return the existing state for active/finished match sessions and standalone crowd/royale/vibes instances, before calling the provider. This includes Doom progression, wallet, heat and mission penalties. `applyModeSettlements` now also refuses a match world; the host must restore its preserved free-roam snapshot and apply payouts on explicit return. Cancellation restores the preserved snapshot without payouts.
 
 The mode ledger belongs at `economy.settledModeIds`, not inside any player's wallet. UI has been notified to capture/restore that authoritative root field and include wide/microclimate in equipment validation. Faction payouts affect the root Doom state; durable Doom months/faction counts also need persistence while tick-based deadlines must be rebased in a fresh world.
+
+
+## Grounded map interactions
+Published the canonical `player/sites.ts` helper `canInteractAtSite(body, site)`: authored sites are horizontal map locations, with the existing 3 m/s interaction cap. Vendor/property/sleep/repair and car-wash checks use the helper. Hill activity starts and route checkpoints likewise use horizontal distance because their authored `y=0` is a placeholder, not a terrain elevation. Actual combat/actor interactions retain full physical distance. This fixes visible nearby vendor buttons refusing a purchase on elevated ground and unreachable hill route markers.
+
+Latest validation: TypeScript and **97 tests across ten files passed**, including all player tests and the repository forbidden-API checks. New checks cover elevated-ground purchases, rejected distant/fast interactions, an uphill route, match settlement refusal, teleoperation control ownership and retry-safe finale evidence.

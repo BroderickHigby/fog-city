@@ -1,6 +1,6 @@
 import { nextU32,seedRng } from "../rng.ts";
 import { Action } from "../contract.ts";
-import { commands,distanceSquared,event,facts,sortedBodies } from "../player/common.ts";
+import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 function createOwn(seed:number,tick:number):PlayerActivities{return {nextDirectorTick:tick+2700,directorRng:seedRng(seed),activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{},ruleFailed:false};}
@@ -21,14 +21,14 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=ctx.wave&&distanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns[a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id)));
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=ctx.wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns[a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id)));
    if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;own.checkpointIndex=0;own.objectiveCount=0;own.ruleFailed=false;event(state,"activity.started",body.id,activity.id);}
   }
   if(own.activeActivityId){
    const activity=ctx.activities.find(a=>a.id===own.activeActivityId);const elapsed=tick-own.activityStartedTick;
    if(activity?.maxSpeedMps!==undefined&&Math.abs(body.speed)>activity.maxSpeedMps)own.ruleFailed=true;
    if(incoming.some(f=>f.playerId===body.id&&f.kind==="activity.ruleFailed"&&f.actorId===activity?.id))own.ruleFailed=true;
-   const checkpoint=activity?.checkpoints?.[own.checkpointIndex];if(checkpoint&&distanceSquared(body,checkpoint)<=checkpoint.radius*checkpoint.radius)own.checkpointIndex++;
+   const checkpoint=activity?.checkpoints?.[own.checkpointIndex];if(checkpoint&&planarDistanceSquared(body,checkpoint)<=checkpoint.radius*checkpoint.radius)own.checkpointIndex++;
    for(const fact of incoming)if(activity&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount++;
    const routeComplete=own.checkpointIndex>=(activity?.checkpoints?.length??0);
    // Route trials derive their completion from the accepted player trajectory. A
@@ -38,7 +38,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    const faction=activity?.objective?.event;
    if(activity&&routeComplete&&!own.ruleFailed&&elapsed>=60&&(faction==="faction.pauser-completed"||faction==="faction.accelerator-completed")&&((ctx.actions?.[body.id]??0)&Action.interact))own.objectiveCount=1;
    if(activity&&["photo","relic"].includes(activity.kind)&&routeComplete&&elapsed>=60&&((ctx.actions?.[body.id]??0)&Action.interact)){
-    const final=activity.checkpoints?.at(-1);if(final&&distanceSquared(body,final)<=final.radius*final.radius)own.objectiveCount=Math.max(own.objectiveCount,1);
+    const final=activity.checkpoints?.at(-1);if(final&&planarDistanceSquared(body,final)<=final.radius*final.radius)own.objectiveCount=Math.max(own.objectiveCount,1);
    }
    const objectiveComplete=own.objectiveCount>=(activity?.objective?.count??1);
    if(activity&&objectiveComplete&&routeComplete&&!own.ruleFailed&&elapsed>=60){
