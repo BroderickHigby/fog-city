@@ -186,6 +186,7 @@ async function boot(): Promise<void> {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.has("shadows") ? params.get("shadows") === "1" : undefined,
       quality: params.has("quality") ? params.get("quality") === "1" : params.get("gfx") === "high" ? true : undefined,
+      gpuMemory: params.get("gpumem") === "1",
       timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
         ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
@@ -342,6 +343,8 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    setTimeOfDay: (name) => view.setTimeOfDay(name),
+    renderStats: () => view.renderStats(),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),

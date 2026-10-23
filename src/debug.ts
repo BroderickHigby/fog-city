@@ -98,6 +98,21 @@ export interface DebugHandle {
   /** One entry per content/landmarks.json placement. */
   landmarks(): LandmarkInfo[];
   setNight(on: boolean): void;
+  /** Switch the lighting preset (as ?tod= does at boot). Render-only. */
+  setTimeOfDay?(name: "noon" | "golden" | "twilight" | "night"): void;
+  /** GPU resource figures for budget reports; walks the scene, so call it on demand. */
+  renderStats?(): {
+    geometries: number;
+    textures: number;
+    programs: number;
+    textureBytesEst: number;
+    /** With ?gpumem=1: bytes the GPU holds in textures and renderbuffers (src/render/gpu-memory.ts). */
+    gpu: { textureBytes: number; renderbufferBytes: number; textures: number; renderbuffers: number } | null;
+    fov: number;
+    width: number;
+    height: number;
+    pixelRatio: number;
+  };
   setCameraMode(mode: CameraModeName): void;
   /** Switch to the fly camera at (x, y, z) looking along compass yaw, pitch (degrees, + up). */
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;
