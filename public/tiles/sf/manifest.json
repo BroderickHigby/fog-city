@@ -3307,7 +3307,7 @@
       "collider": "t0_3.collider.json",
       "glb": "t0_3.glb",
       "stats": {
-        "buildings": 97,
+        "buildings": 99,
         "roadEdges": 42,
         "waterFraction": 0.02,
         "maxTopY": 62.92
@@ -11772,9 +11772,9 @@
       ],
       "glb": "f3_2.glb",
       "stats": {
-        "records": 1648,
-        "hulls": 1083,
-        "triangles": 13286,
+        "records": 1650,
+        "hulls": 1085,
+        "triangles": 13306,
         "terrainTriangles": 1493
       }
     },
