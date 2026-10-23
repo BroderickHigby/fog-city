@@ -5,6 +5,8 @@ Current frozen runtime includes the reviewed bus admission, pedestrian/taxi clea
 
 The retained browser trace supplied the exact pre-signup state at tick 13,715 and its real `startup-define` command at tick 13,716. `test-results/hot-desk-pre-signup.json` and `hot-desk-browser-commands.json` permit a short reproduction. At tick 13,731 the mission binding exists but no squatter runtime actor or allocated identity exists; a blocked one-shot stage placement appears to have been discarded.
 
+Integrated `8dea622` as `136d8c3`: the parked actor is now physically admitted at the authored site, with bounded stage retries. The focused continuation then exposed a separate combat-wall error: all three legitimate cone throws ended on a wall in their birth tick. Core confirmed that building `201006.0000770` uses an AABB that covers clear space outside its true concave footprint. The shooter is outside the footprint but inside that AABB; the muzzle falls within its vertical range. `test-results/cone-recovery-events.log` and `cone-recovery.json` retain the input tape and events. No cone, collision or mission assertion was lowered.
+
 The bounded walking probe exposed a QA planner omission: its static route ignored accepted NPC bodies. It now uses full physical vehicle hulls, including explicit service dimensions, and walker bounds, with one bounded replan after a 120-tick stall. Recovery from the exact saved state reached the real signup objective after **6,376 input frames**, with **zero contacts and failures** (`test-results/walk-recovery-v2.log`, 144.26 seconds). This is recovery evidence, not a substitute for the active complete browser test.
 
 ## Done
