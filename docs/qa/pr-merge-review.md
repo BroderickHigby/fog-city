@@ -6,10 +6,10 @@ The candidate branch `merge/review-prs-1-2-3-5` contains all four requested PR h
 | --- | --- |
 | #1 | bd1239e5e9dab301b3471f3e0439cb20464989a7 |
 | #2 | 8c9b7a20589ce768aefbf9150f22168a876dfa5a |
-| #3 | f3c845a7a697147d07e89a4264dd1e70cab85a0b |
+| #3 | 7118c74654992a14671369e12edfa837a3d8c37a |
 | #5 | b788d11b1685c6d87870fb8de72b72fbc409fee0 |
 
-PR #5 already includes #2. The candidate merges #1's additional documentation and #3's three newer rendering commits. It preserves both sides of the actor-rendering conflict: walking adults use the new character renderer; dodges, recovery poses and child proportions retain the existing rig. Regression tests exercise both paths and the rendered-player count. An inline favicon prevents a real missing-resource console error. The high-graphics browser check loads the actual character assets, renders all three lighting presets and checks that lighting does not change simulation state.
+PR #5 already includes #2. The candidate merges #1's additional documentation and #3's newer rendering commits, including the late update adding raised kerbs, CC0 materials and graphics tests. It preserves both sides of the actor-rendering conflict: walking adults use the new character renderer; dodges, recovery poses and child proportions retain the existing rig. Regression tests exercise both paths and the rendered-player count. An inline favicon prevents a real missing-resource console error. The high-graphics browser check loads the actual character assets, renders all three lighting presets and checks that lighting does not change simulation state.
 
 The candidate does not change the simulation, generated world data, landmark definitions or world-gate baseline relative to PR #5. It retains SIM_VERSION 5 from that PR, including its existing migrations.
 
@@ -24,12 +24,12 @@ Browser checks use system Chromium 154 via an external local Playwright config w
 ## Validation results
 
 - Node 24.19.0, pnpm 9.12.0; frozen-lockfile install succeeded. Typecheck passed.
-- `pnpm test` completed: **3,061 passed, 93 failed, 1 skipped** across 143 files (130 passed, 13 failed). Of the failures, 90 are in the world gate, two are the missing ballpark/its storefront anchors, and one was the privacy test observing temporary JPEGs written by a concurrent Playwright trace. The isolated privacy rerun passed after the browser run completed; no privacy assertion was relaxed.
+- `pnpm test` completed on the initial combined candidate (before the late PR #3 rendering-only update): **3,061 passed, 93 failed, 1 skipped** across 143 files (130 passed, 13 failed). Of the failures, 90 are in the world gate, two are the missing ballpark/its storefront anchors, and one was the privacy test observing temporary JPEGs written by a concurrent Playwright trace. The isolated privacy rerun passed after the browser run completed; no privacy assertion was relaxed.
 - A separate focused run of the character integration regressions, privacy checks, and all network/server-network tests passed: **43 tests, 9 files**. This includes delayed-input prediction, room boundaries, protocol handling and relay behavior.
-- The two-browser multiplayer test passed: create/join, remote movement, leave and rejoin.
+- The two-browser multiplayer test passed again after the latest PR #3 update: create/join, remote movement, leave and rejoin.
 - The new high-graphics browser regression passed: actual character files loaded, three lighting presets rendered, simulation hash unchanged, no console or shader errors.
-- `pnpm build` passed on the final code: 164 files, 179.6 MB, largest file 10.5 MB; within the configured host limits.
-- A separate browser smoke test of that packed production build passed on SF: packed colliders, 333 agents, six detail texture sets, the showcase, both character renderers, post-processing and reflections loaded without console/HTTP errors.
+- `pnpm build` passed on the final code: 164 files, 177.7 MB, largest file 10.5 MB; within the configured host limits.
+- A separate browser smoke test of the latest packed production build passed on SF, including all three lighting presets: packed colliders, 333 agents, six detail texture sets, the showcase, both character renderers, post-processing and reflections loaded without console/HTTP errors.
 - The broad browser suite was interrupted after the required unit/world gate was known to be red. It is not a full browser-suite pass. Nightly and the full screenshot tour were not run; their merge prerequisite remains unmet.
 
 Representative world-gate observations (candidate data is unchanged from PR #5):
@@ -49,5 +49,7 @@ Some other gate failures are improvements exceeding the stale-baseline threshold
 2. Repair the remaining world defects and reconcile measurement definitions; lower baselines only for verified improvements.
 3. Run a green `pnpm verify`, the world nightly and the required reviewed screenshot tour on the final candidate.
 4. Recheck the four PR heads and main, GitHub checks and review state, then merge. The four heads above and main were rechecked unchanged during this review.
+
+After the late PR #3 update, typecheck and a broader focused run of every render test, privacy and network tests passed: **235 tests, 31 files**. The simulation, generated world and world-gate tests remain byte-identical to the earlier combined candidate.
 
 Raw logs and measurement files are retained locally in `/workspace/fog-city-review/` (not committed). The branch is a review candidate, not a claim of release readiness.
