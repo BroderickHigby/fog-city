@@ -286,14 +286,15 @@ describe("condition", () => {
 });
 
 describe("saves", () => {
-  it("a v8 save loads as v11 with nothing rewritten", () => {
+  it("a v8 save (and a v11 one) loads as the current version with nothing rewritten", () => {
     const world = gridCity();
     const s = createInitialState(world, 5, ["p"], { x: 150, z: -40, heading: 0 });
     const v8 = { ...s, version: 8 };
     const up = upgradeState(v8);
-    expect(SIM_VERSION).toBe(11);
-    expect(up.version).toBe(11);
+    expect(SIM_VERSION).toBe(12);
+    expect(up.version).toBe(SIM_VERSION);
     expect({ ...up, version: 8 }).toEqual(v8);
+    expect(upgradeState({ ...s, version: 11 })).toEqual(up);
     // And it steps.
     expect(step(world, up, { p: I(1) }).tick).toBe(s.tick + 1);
   });

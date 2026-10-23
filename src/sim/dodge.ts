@@ -64,8 +64,10 @@
 // limits: no shove takes it into one), a player joining (the car is placed clear of everyone on
 // foot), the population refill (never within SPAWN_VEHICLE_CLEAR_M of a vehicle's body).
 //
-// Robots dodge by the same rules but are not under the override: they stay solid to cars (a car
-// that reaches one stops against it), and water is the only way to beat one.
+// Robots dodge robotaxis by the same rules but are not under the override, and they do not get out
+// of a player's car's way at all (owner request, 2026-10-23): a car bowls them over (impacts.ts),
+// and a knocked robot is not a dodger until it is back on its feet. Water is still the only way to
+// beat one.
 //
 // Robotaxis are measured by their drawn body (ROBOTAXI_BODY, a box), player cars by their body box.
 // Robotaxis keep a berth from people (agents.ts berthLimit) that makes both the dive and the
@@ -549,7 +551,8 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
     if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;
     const vx = a.knock ? a.knock.vx : a.speed * dsin(a.heading);
     const vz = a.knock ? a.knock.vz : -a.speed * dcos(a.heading);
-    const body = AGENT_SPEC[a.kind].road ? moving(`a:${a.id}`, a.x, a.z, vx, vz) : undefined;
+    // (Robots too: a car bowls them over, car.ts bodyHit.)
+    const body = moving(`a:${a.id}`, a.x, a.z, vx, vz);
     for (const k of agentCircles(a)) add(k, body);
   }
   return vehicleOfCar(id, c, before.players[id]?.car ?? null, world, circles);
@@ -1554,7 +1557,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   }
   agents.forEach((a, index) => {
     const cls = agentDodgeClass(a);
-    if (!cls) return;
+    // (A robot knocked over by a hit tumbles where it is sent: impacts.ts.)
+    if (!cls || a.knock) return;
     const hop = a.dodge ? a.dodge.hop : 0;
     recs.push({
       player: null,
@@ -1759,6 +1763,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     for (const i of nearOf[vi] ?? []) {
       const r = recs[i]!;
       if (v.player !== null && v.player === r.player) continue; // a player's own car
+      // Robots do not get out of a player's car's way: it bowls them over (impacts.ts). They
+      // still dodge robotaxis, which keep their berth anyway.
+      if (v.player !== null && (r.cls === "errandRobot" || r.cls === "sidewalkBot")) continue;
       const margin = DODGE_PROFILE[r.cls].margin;
       // (Not when it cannot be at their height: a car in the street under someone on a roof.)
       const hit = sweepHitBand(world, v, r.x, r.z, r.r + (v.player === null ? Math.min(margin, robotaxiBerth(r.cls)) : margin), r.y);

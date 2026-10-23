@@ -6,10 +6,12 @@ import type { SimState } from "../sim/contract.ts";
 import { impactsOf, type Dents, type ImpactEvent } from "../sim/impacts.ts";
 
 // Impact presentation (src/sim/impacts.ts): a burst of sparks at every hit (more for a harder
-// one), smoke from a battered car's bonnet, and dark crumple scuffs on each dented side of the
-// players' cars and the robotaxis near the camera. Pooled and bounded; everything that decides
-// where a hit was or how dented a body is comes from the sim snapshot. Sparks and smoke are
-// cosmetic and live only here (seeded from the event id, never from the clock or Math.random).
+// one), smoke from a battered car's bonnet, dark crumple scuffs on each dented side of the
+// players' cars and the robotaxis near the camera, and a disabled robot fizzing where it lies
+// (a knocked robot topples by its pitch, which the agent layer draws). Pooled and bounded;
+// everything that decides where a hit was or how dented a body is comes from the sim snapshot.
+// Sparks and smoke are cosmetic and live only here (seeded from the event id, never from the
+// clock or Math.random).
 
 const SPARKS = 384;
 const SMOKE = 160;
@@ -102,6 +104,13 @@ export class ImpactLayer {
     for (const a of agents) {
       if (!a.dents || n >= SCUFFS) continue;
       if ((a.x - camX) * (a.x - camX) + (a.z - camZ) * (a.z - camZ) > SCUFF_RANGE_M * SCUFF_RANGE_M) continue;
+      if (a.kind !== "robotaxi") {
+        // A robot knocked out (impacts.ts ROBOT.disableDv) fizzes while it lies there; it topples by its pitch (agent layer).
+        if (a.knock?.disabled && emit && rand(++this.puff, 5) < 0.4) {
+          for (let k = 0; k < 3; k++) this.spawn(this.sparks, SPARKS, a.x, a.y + 0.4, a.z, 1.5 * (rand(this.puff, 10 + k) - 0.5), 1.5 + rand(this.puff, 20 + k), 1.5 * (rand(this.puff, 30 + k) - 0.5), SPARK_LIFE_S * 0.7);
+        }
+        continue;
+      }
       n = this.scuffBody(n, a.x, a.y, a.z, a.heading, a.halfLength ?? ROBOTAXI_BODY.halfLength, a.halfWidth ?? ROBOTAXI_BODY.halfWidth, (a.height ?? ROBOTAXI_BODY.height) * 0.65, a.dents);
     }
     this.scuffs.count = n;

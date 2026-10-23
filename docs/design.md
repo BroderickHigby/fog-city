@@ -415,8 +415,15 @@ ACQUI-HIRED.
     is live only when the landing side's sidewalks are clear.
   - The Moat Walker's feet never land within 3 m of a person or animal; crowds clear ahead of it
     with slapstick dives.
-  - Robots on foot dodge cars too. You cannot run a robot over; water is the only way to beat one.
+  - Robots do not dodge a player's car (owner request, 2026-10-23): a car bowls a robot over. It
+    tumbles, lies there (status light flashing if the hit disabled it), gets up and carries on;
+    nothing is destroyed, and water is still the only way to melt one. Knocking over a good robot
+    costs $30 and 3 reputation (an apology invoice); a bad one costs nothing but is not beaten.
+    A robot that is seizing, slumping or a heap stays solid. A tumbling robot stops dead short of
+    anyone (the same clearance as every sliding body).
   - Car-to-car contact dents cars (car condition 0–100) and costs repair money, never runway.
+    Cars, robotaxis and parked cars shove each other by momentum and spin when hit off-centre; a
+    robotaxi knocked off its lane slides, sits with its hazards and horn on, and rejoins its lane.
     Player cars can only dent each other. At condition 0 your car "is in the shop" and returns at
     the nearest garage for $300.
   - Tested: seeded chase, jump, no-brake and Royale drivers, plus a jump driver at maximum "Make
@@ -1276,3 +1283,11 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
   melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
   look-dev strip per model for the owner's sign-off.
+- 2026-10-23 · **You can hit cars and robots** (owner request after playing: "You should be able to hit robots, and
+  you should be able to hit cars as well"). Cars exchange momentum with other cars and robotaxis (shove, spin, dents,
+  car condition) instead of stopping against them like walls; a knocked robotaxi leaves its lane, sits with hazards and
+  horn, then rejoins it. Robots no longer dodge a player's car: it bowls them over, they tumble, lie there and get up;
+  a hard hit or one dent too many disables one for longer. Replaces "you cannot run a robot over" (2026-10-20). Water
+  stays the only way to melt a robot, and people, children, animals, seated people and mobility-aid users keep every
+  protection: every sliding car, robotaxi and robot stops dead short of anyone. Knocking over a good robot costs $30
+  and 3 reputation; a bad one costs nothing. Implemented in `src/sim/impacts.ts` (SIM_VERSION 11).

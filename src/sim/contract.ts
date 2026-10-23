@@ -21,7 +21,8 @@
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
 // v11: cars shove, spin and dent other cars and robotaxis (src/sim/impacts.ts): ext.impacts, and
 // optional AgentState.knock/dents. (9 is reserved for the structural world, 10 for weather.)
-export const SIM_VERSION = 11;
+// v12: cars bowl robots over (impacts.ts); robots no longer dodge a player's car.
+export const SIM_VERSION = 12;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

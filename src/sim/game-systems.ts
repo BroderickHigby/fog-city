@@ -10,8 +10,37 @@ import { contextFromState } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
 import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
-import type { CombatWave } from "./combat-contract.ts";
+import type { CombatActor, CombatWave } from "./combat-contract.ts";
+import type { GameplayFact } from "./gameplay-contract.ts";
+import { impactsOf } from "./impacts.ts";
+import type { AgentsExt } from "./agents.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
+
+/** Knocking over a good robot with your car: $30 and 3 reputation (impacts.ts; design decision log 2026-10-23). */
+export const RAM_GOOD_ROBOT_CENTS = 3000;
+
+/**
+ * A player's car knocking a good robot over this tick becomes an economy penalty (a fact the
+ * economy reducer already settles: cash and reputation). Bad robots cost nothing. `actors` (the
+ * combat actors, with their firmware) is only built when there is such a hit.
+ */
+export function rammedRobotFacts(context:SimSystemContext,actors:()=>readonly CombatActor[]):GameplayFact[] {
+  const tick=context.state.tick;
+  const hits=(impactsOf(context.state)?.events??[]).filter(e=>e.tick===tick&&e.kind==="car-robot"&&e.fell===true&&e.a.startsWith("p:"));
+  if(!hits.length)return [];
+  const list=(context.state.ext.agents as AgentsExt|undefined)?.list??[];
+  const all=actors();
+  const out:GameplayFact[]=[];
+  for(const e of hits){
+    const agent=list.find(a=>a.id===Number(e.b.slice(2)));
+    if(!agent)continue;
+    const actorId=agent.runtimeId??`agent:${agent.id}`;
+    const actor=all.find(a=>a.id===actorId);
+    if(!actor||actor.kind!=="robot"||actor.firmware!=="good")continue;
+    out.push({id:`world:ram-${e.id}`,source:"world",sequence:e.id,tick,kind:"economy.penalty",playerId:e.a.slice(2),actorId,amount:RAM_GOOD_ROBOT_CENTS/100,detail:"reputation:-3 rammed"});
+  }
+  return out;
+}
 
 export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
 
@@ -41,6 +70,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
       fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z)});
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
+    facts:context=>rammedRobotFacts(context,()=>combatContext(context).actors),
     protectedArea,fog:context=>fogDensity(context.world,context.state,0,0),
     missionParking:context=>buildMissionParkingWorld(context,context.world.parking?.rules??[],context.world.streetCleaning?.rules??[]),
     calendar:context=>{const time=gameTime(context.state);return {day:time.dayIndex,month:time.month,hour:time.hour,minute:time.minute};}});

@@ -27,17 +27,30 @@
 //  - Events: each hit is recorded in ext.impacts.events (the last MAX_EVENTS, with a durable id)
 //    for sparks, crunches and barks in the renderer and the audio mixer.
 //
+//  - Robots (the owner's request: "you should be able to hit robots"; docs/design.md decision log
+//    2026-10-23) are light bodies a car bowls over: a Footman (90 kg) or a Trundle (60 kg) takes
+//    nearly all of a hit and the car loses a little speed. Hit hard enough (ROBOT.fallMinDv) it
+//    tumbles: slides, topples (its pitch goes to ROBOT.fallen, which the renderer draws), lies
+//    there, gets up and walks back onto its sidewalk (agents.ts rejoinAt). A harder hit, or one
+//    dent too many, disables it for longer, its status light flashing (mode "honk"). Nothing is
+//    destroyed and water stays the only way to melt one (combat is untouched); a robot that is
+//    seizing, slumping or a heap is not knocked (it stays solid). A tumbling robot bowls over the
+//    robots it meets and stops dead at anyone's clearance. Knocking over a good robot costs the
+//    player (game-systems.ts turns the event into an economy penalty).
+//
 // State: ext.impacts (ImpactsExt; absent until the first hit), AgentState.knock and .dents.
 
 import { DT, sortedIds, type CarState, type PlayerId, type SimState } from "./contract.ts";
 import { approach, clamp, datan2, dcos, dsin, wrapAngle } from "./dmath.ts";
-import { CAR, bodyHit, carCircles, spinKick, type CarContact } from "./car.ts";
+import { CAR, bodyAfter, bodyHit, carCircles, spinKick, type CarContact } from "./car.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
-import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, SPAWN_MIN_PLAYER_M, agentCircles, type AgentState, type AgentsExt } from "./agents.ts";
+import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, SPAWN_MIN_PLAYER_M, agentCircles, rejoinAt, type AgentState, type AgentsExt } from "./agents.ts";
 import { agentDodgeClass } from "./dodge.ts";
 import { connector, lanePath, pathPoint, projectOnPath } from "./roads.ts";
-import { ROOF_STEP_M, meshGroundHeight, type World } from "./world.ts";
+import { segmentCrossesWall } from "./boundary.ts";
+import type { CombatState } from "./combat-contract.ts";
+import { ROOF_STEP_M, circleBlocked, meshGroundHeight, type World } from "./world.ts";
 
 export const IMPACTS_EXT_KEY = "impacts";
 
@@ -57,7 +70,7 @@ export interface CarDamage extends Dents {
   lastHitTick: number;
 }
 
-export type ImpactKind = "car-car" | "car-taxi" | "taxi-car" | "taxi-taxi";
+export type ImpactKind = "car-car" | "car-taxi" | "taxi-car" | "taxi-taxi" | "car-robot" | "taxi-robot" | "robot-robot";
 
 /** One hit, for sparks, crunches and barks. `a` hit `b` ("p:<player>" or "a:<agent id>"). */
 export interface ImpactEvent {
@@ -73,6 +86,10 @@ export interface ImpactEvent {
   speed: number;
   /** The larger change of velocity of the two bodies, m/s (how hard it felt). */
   dv: number;
+  /** A robot hit: it was standing and this hit knocked it over (absent otherwise). */
+  fell?: boolean;
+  /** A robot hit: this hit disabled it (absent otherwise). */
+  disabled?: boolean;
 }
 
 /** state.ext.impacts */
@@ -87,8 +104,11 @@ export interface ImpactsExt {
 
 /** A body knocked off its path (AgentState.knock). */
 export interface KnockState {
-  /** "slide": moving on locked tyres; "stopped": sitting with hazards on; "realign": turning in place toward its lane. */
-  phase: "slide" | "stopped" | "realign";
+  /**
+   * "slide": moving on locked tyres (a robot: tumbling); "stopped": sitting with hazards on;
+   * "realign": turning in place toward its lane; a robot: "down" (lying there), "getup".
+   */
+  phase: "slide" | "stopped" | "realign" | "down" | "getup";
   /** World velocity, m/s, and yaw rate, rad/s (+ = clockwise). */
   vx: number;
   vz: number;
@@ -96,7 +116,41 @@ export interface KnockState {
   /** Ticks in this phase, and since the knock began. */
   t: number;
   age: number;
+  /** A robot: the pitch it falls to (0: it was only pushed and stays on its feet). */
+  fall?: number;
+  /** A robot: ticks it lies down. */
+  down?: number;
+  /** A robot: disabled by the hit (lies down longer, status light flashing). */
+  disabled?: boolean;
 }
+
+/** Robots hit by cars (all values tune). */
+export const ROBOT = {
+  /** Kilograms: a Footman and a Trundle. */
+  footmanMass: 90,
+  trundleMass: 60,
+  /** The fastest a hit sends a robot off, m/s, and how far off the hitter's line it is flung, rad. */
+  launchMax: 22,
+  fling: 0.5,
+  /** A hit that changes its velocity by this much knocks it over, m/s; this much disables it. */
+  fallMinDv: 1.2,
+  disableDv: 10,
+  /** Dents (front + rear + left + right) at which a hit disables it. */
+  disableDents: 1.2,
+  /** Tumbling friction, m/s^2, and its spin damping, rad/s^2. */
+  friction: 11,
+  yawDamp: 6,
+  /** Fallen pitch, rad, how fast it topples and gets up, rad/s. */
+  fallen: 1.45,
+  fallRate: 7,
+  getupRate: 2.4,
+  /** Ticks it lies down: knocked over, or disabled. */
+  downTicks: 150,
+  disabledTicks: 480,
+  /** A robot it tumbles into takes this share of its velocity (and it keeps restShare). */
+  passShare: 0.6,
+  restShare: 0.3,
+} as const;
 
 export const IMPACT = {
   /** Robotaxi mass, kg, and yaw inertia per unit mass, m^2 (its ROBOTAXI_BODY box). */
@@ -181,11 +235,32 @@ export function carImpactBody(id: PlayerId, c: Readonly<CarState>): ImpactBody {
   return { key: `p:${id}`, mass: CAR.mass, x: c.x, z: c.z, vx: v.vx, vz: v.vz };
 }
 
-/** A road agent (robotaxi, service vehicle) as a body others shove; null for anything else. */
-export function agentImpactBody(a: Readonly<AgentState>): ImpactBody | null {
-  if (!AGENT_SPEC[a.kind].road) return null;
+/** A robot (not a person, animal or robotaxi). */
+export function isRobot(a: Readonly<Pick<AgentState, "kind">>): boolean {
+  return a.kind === "errandRobot" || a.kind === "sidewalkBot";
+}
+
+/** A robot's mass, kg. */
+export function robotMass(a: Readonly<Pick<AgentState, "kind">>): number {
+  return a.kind === "sidewalkBot" ? ROBOT.trundleMass : ROBOT.footmanMass;
+}
+
+/** Can this robot be knocked? Not while seizing, slumping or a heap (combat owns those; it stays solid). */
+export function robotKnockable(a: Readonly<AgentState>, combat: Readonly<CombatState> | undefined): boolean {
+  const phase = combat?.targets[a.runtimeId ?? `agent:${a.id}`]?.phase;
+  return phase === undefined || phase === "active";
+}
+
+/**
+ * An agent as a body others shove: a road agent (robotaxi, service vehicle), or a robot that can
+ * be knocked (`combat`: the combat state, for the robot's phase); null for anything else (people
+ * and animals are never bodies a car meets).
+ */
+export function agentImpactBody(a: Readonly<AgentState>, combat?: Readonly<CombatState>): ImpactBody | null {
   const v = agentVelocity(a);
-  return { key: `a:${a.id}`, mass: IMPACT.taxiMass, x: a.x, z: a.z, vx: v.vx, vz: v.vz };
+  if (AGENT_SPEC[a.kind].road) return { key: `a:${a.id}`, mass: IMPACT.taxiMass, x: a.x, z: a.z, vx: v.vx, vz: v.vz };
+  if (isRobot(a) && robotKnockable(a, combat)) return { key: `a:${a.id}`, mass: robotMass(a), x: a.x, z: a.z, vx: v.vx, vz: v.vz };
+  return null;
 }
 
 /** Throttle for a wrecked car: none above WRECK_LIMP_MPS. */
@@ -282,8 +357,10 @@ function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obs
     }
     const body = res.circle?.body;
     if (body) {
-      if (contacts.some((k) => k.key === body.key)) {
-        const vn = (vx - body.vx) * res.nx + (vz - body.vz) * res.nz;
+      const hit = contacts.find((k) => k.key === body.key);
+      if (hit) {
+        const bv = bodyAfter(body, hit);
+        const vn = (vx - bv.vx) * res.nx + (vz - bv.vz) * res.nz;
         if (vn < 0) {
           vx -= vn * res.nx;
           vz -= vn * res.nz;
@@ -325,6 +402,7 @@ interface Work {
   ext: ImpactsExt;
   /** Agents knocked this tick (they start sliding next tick: stepAgents already moved them). */
   fresh: Set<number>;
+  combat: Readonly<CombatState> | undefined;
 }
 
 function addDents(d: Readonly<Dents>, local: { f: number; r: number }, hl: number, dv: number): Dents {
@@ -353,10 +431,10 @@ function damageCar(w: Work, id: PlayerId, c: Readonly<CarState>, px: number, pz:
   w.ext.cars = { ...w.ext.cars, [id]: { ...dents, condition: Math.max(0, d.condition - loss), lastHitTick: w.tick } };
 }
 
-function event(w: Work, kind: ImpactKind, a: string, b: string, k: Readonly<CarContact>, y: number, dv: number): void {
+function event(w: Work, kind: ImpactKind, a: string, b: string, k: Readonly<Pick<CarContact, "x" | "z" | "speed">>, y: number, dv: number, robot: { fell: boolean; disabled: boolean } | null = null): void {
   // (Two players' cars each report the same hit.)
   for (const e of w.ext.events) if (e.tick === w.tick && ((e.a === a && e.b === b) || (e.a === b && e.b === a))) return;
-  const ev: ImpactEvent = { id: w.ext.nextId, tick: w.tick, kind, a, b, x: k.x, y, z: k.z, speed: k.speed, dv };
+  const ev: ImpactEvent = { id: w.ext.nextId, tick: w.tick, kind, a, b, x: k.x, y, z: k.z, speed: k.speed, dv, ...(robot ? { fell: robot.fell, disabled: robot.disabled } : {}) };
   const events = [...w.ext.events, ev];
   w.ext = { ...w.ext, nextId: w.ext.nextId + 1, events: events.length > MAX_EVENTS ? events.slice(events.length - MAX_EVENTS) : events };
 }
@@ -371,10 +449,13 @@ function shoveCar(c: Readonly<CarState>, dvx: number, dvz: number, kick: number)
   return { ...c, speed: vx * fx + vz * fz, lateral: vx * -fz + vz * fx, yawRate: c.yawRate + kick };
 }
 
-function kindOf(hitter: string, key: string): ImpactKind {
-  const a = hitter.startsWith("p:") ? "car" : "taxi";
-  const b = key.startsWith("p:") ? "car" : "taxi";
-  return `${a}-${b}` as ImpactKind;
+function kindOf(w: Work, hitter: string, key: string): ImpactKind {
+  const of = (k: string): string => {
+    if (k.startsWith("p:")) return "car";
+    const i = w.index.get(Number(k.slice(2)));
+    return i !== undefined && isRobot(w.agents[i]!) ? "robot" : "taxi";
+  };
+  return `${of(hitter)}-${of(key)}` as ImpactKind;
 }
 
 /**
@@ -396,13 +477,14 @@ function receive(w: Work, key: string, k: Readonly<CarContact>, hitter: string, 
       w.players = { ...w.players, [id]: { ...p, car: shoveCar(p.car, jx / CAR.mass, jz / CAR.mass, kick) } };
     }
     damageCar(w, id, p.car, k.x, k.z, dv);
-    event(w, kindOf(hitter, key), hitter, key, k, p.car.y, dv);
+    event(w, kindOf(w, hitter, key), hitter, key, k, p.car.y, dv);
     return dv;
   }
   const id = Number(key.slice(2));
   const i = w.index.get(id);
   if (i === undefined) return 0;
   const a = w.agents[i]!;
+  if (isRobot(a)) return knockRobot(w, i, jx, jz, k, hitter);
   const d = dimsOf(a);
   const dvx = jx / d.mass;
   const dvz = jz / d.mass;
@@ -425,7 +507,67 @@ function receive(w: Work, key: string, k: Readonly<CarContact>, hitter: string, 
     };
   }
   w.agents[i] = next;
-  event(w, kindOf(hitter, key), hitter, key, k, a.y, dv);
+  event(w, kindOf(w, hitter, key), hitter, key, k, a.y, dv);
+  return dv;
+}
+
+/**
+ * Robot i takes impulse (jx, jz) from `hitter` at contact `k`: it tumbles off (no faster than
+ * ROBOT.launchMax), knocked over when the hit is hard enough, disabled when harder still or
+ * dented enough. Returns its change of velocity, m/s.
+ */
+function knockRobot(w: Work, i: number, jx: number, jz: number, k: Readonly<Pick<CarContact, "x" | "z" | "speed">>, hitter: string): number {
+  const a = w.agents[i]!;
+  const m = robotMass(a);
+  const dvx = jx / m;
+  const dvz = jz / m;
+  const dv = Math.sqrt(dvx * dvx + dvz * dvz);
+  const v0 = agentVelocity(a);
+  let vx = v0.vx + dvx;
+  let vz = v0.vz + dvz;
+  // Flung aside, off the hitter's line: turned up to ROBOT.fling toward the side of the line the
+  // contact was on (a dead-centre hit goes right), so a car bowls it out of its way.
+  const along = (k.x - a.x) * dvz - (k.z - a.z) * dvx;
+  const turn = along > 0 ? -ROBOT.fling : ROBOT.fling;
+  const c = dcos(turn);
+  const sn = dsin(turn);
+  [vx, vz] = [vx * c - vz * sn, vz * c + vx * sn];
+  const sp = Math.sqrt(vx * vx + vz * vz);
+  if (sp > ROBOT.launchMax) {
+    vx *= ROBOT.launchMax / sp;
+    vz *= ROBOT.launchMax / sp;
+  }
+  const spec = AGENT_SPEC[a.kind];
+  const dents = addDents(a.dents ?? { front: 0, rear: 0, left: 0, right: 0 }, localOf(a.x, a.z, a.heading, k.x, k.z), spec.halfLength, dv);
+  const total = dents.front + dents.rear + dents.left + dents.right;
+  const was = a.knock;
+  const fell = dv >= ROBOT.fallMinDv && !(was && was.fall);
+  const disabled = (dv >= ROBOT.disableDv || (total >= ROBOT.disableDents && dv >= ROBOT.fallMinDv)) && !was?.disabled;
+  // It falls the way it is pushed: forward (nose down) when shoved from behind.
+  const ahead = dvx * dsin(a.heading) - dvz * dcos(a.heading);
+  const fall = was?.fall ? was.fall : dv >= ROBOT.fallMinDv ? (ahead >= 0 ? -ROBOT.fallen : ROBOT.fallen) : 0;
+  const kick = spinKick(m, 0.1, k.x - a.x, k.z - a.z, jx, jz);
+  if (!was) w.fresh.add(a.id);
+  const isDisabled = disabled || was?.disabled === true;
+  w.agents[i] = {
+    ...a,
+    dents,
+    knock: {
+      phase: "slide",
+      vx,
+      vz,
+      yaw: (was?.yaw ?? 0) + kick,
+      t: 0,
+      age: was?.age ?? 0,
+      fall,
+      down: isDisabled ? ROBOT.disabledTicks : ROBOT.downTicks,
+      ...(isDisabled ? { disabled: true } : {}),
+    },
+    speed: 0,
+    mode: isDisabled ? "honk" : "wait",
+    dwell: 0,
+  };
+  event(w, kindOf(w, hitter, `a:${a.id}`), hitter, `a:${a.id}`, k, a.y, dv, { fell, disabled });
   return dv;
 }
 
@@ -445,7 +587,7 @@ function slideObstacles(w: Work, selfKey: string, x: number, z: number, reach: n
     if (`a:${a.id}` === selfKey || !near(a.x, a.z, AGENT_SPEC.robotaxi.halfLength + 1)) continue;
     const cls = agentDodgeClass(a);
     const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
-    const body = agentImpactBody(a) ?? undefined;
+    const body = agentImpactBody(a, w.combat) ?? undefined;
     for (const c of agentCircles(a)) {
       if (person) out.push({ x: c.x, z: c.z, r: c.r + PERSON_CLEAR_M, person: true });
       else out.push(body ? { x: c.x, z: c.z, r: c.r, person: false, body } : { x: c.x, z: c.z, r: c.r, person: false });
@@ -462,6 +604,7 @@ function slideContacts(w: Work, selfKey: string, contacts: readonly CarContact[]
 /** Step one knocked agent (index i). Returns false when it is removed. */
 function stepKnocked(world: World, w: Work, i: number): boolean {
   const a = w.agents[i]!;
+  if (isRobot(a)) return stepKnockedRobot(world, w, i);
   const k = a.knock!;
   const key = `a:${a.id}`;
   const d = dimsOf(a);
@@ -493,16 +636,7 @@ function stepKnocked(world: World, w: Work, i: number): boolean {
     return true;
   }
   // Stopped or turning back toward its lane.
-  if (age > IMPACT.giveUpTicks) {
-    let near = false;
-    for (const id of sortedIds(w.players)) {
-      const p = w.players[id]!;
-      const bx = p.mode === "foot" && p.foot ? p.foot.x : p.car.x;
-      const bz = p.mode === "foot" && p.foot ? p.foot.z : p.car.z;
-      if ((bx - a.x) * (bx - a.x) + (bz - a.z) * (bz - a.z) < SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) near = true;
-    }
-    if (!near) return false;
-  }
+  if (age > IMPACT.giveUpTicks && nobodyNear(w, a.x, a.z)) return false;
   if (k.phase === "stopped" && k.t < IMPACT.stoppedTicks) {
     w.agents[i] = { ...a, knock: { ...k, t: k.t + 1, age }, mode: "honk", speed: 0 };
     return true;
@@ -547,6 +681,106 @@ function stepKnocked(world: World, w: Work, i: number): boolean {
   return true;
 }
 
+function nobodyNear(w: Work, x: number, z: number): boolean {
+  for (const id of sortedIds(w.players)) {
+    const p = w.players[id]!;
+    const bx = p.mode === "foot" && p.foot ? p.foot.x : p.car.x;
+    const bz = p.mode === "foot" && p.foot ? p.foot.z : p.car.z;
+    if ((bx - x) * (bx - x) + (bz - z) * (bz - z) < SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) return false;
+  }
+  return true;
+}
+
+/** Step one knocked robot (index i): tumble, lie there, get up, walk on. Returns false when it is removed. */
+function stepKnockedRobot(world: World, w: Work, i: number): boolean {
+  const a = w.agents[i]!;
+  const k = a.knock!;
+  const age = k.age + 1;
+  const fall = k.fall ?? 0;
+  if (age > IMPACT.giveUpTicks && nobodyNear(w, a.x, a.z)) return false;
+  if (k.phase === "slide") {
+    const r = a.radius ?? AGENT_SPEC[a.kind].radius;
+    let vx = k.vx;
+    let vz = k.vz;
+    const sp = Math.sqrt(vx * vx + vz * vz);
+    const slower = Math.max(0, sp - ROBOT.friction * DT);
+    if (sp > 0) {
+      vx *= slower / sp;
+      vz *= slower / sp;
+    }
+    const yaw = approach(k.yaw, 0, ROBOT.yawDamp * DT);
+    let x = a.x;
+    let z = a.z;
+    const travel = slower * DT;
+    const n = clamp(Math.ceil(travel / 0.1), 1, 4);
+    const obstacles = slideObstacles(w, `a:${a.id}`, a.x, a.z, r + travel + 1);
+    let hitRobot: number | null = null;
+    for (let s = 0; s < n && (vx !== 0 || vz !== 0); s++) {
+      const nx = x + (vx * DT) / n;
+      const nz = z + (vz * DT) / n;
+      let stop = circleBlocked(world, nx, nz, r) || segmentCrossesWall(world.walls, x, z, nx, nz);
+      for (const c of obstacles) {
+        if (stop) break;
+        const dx = nx - c.x;
+        const dz = nz - c.z;
+        if (dx * dx + dz * dz >= (r + c.r) * (r + c.r)) continue;
+        // (Only what it moves toward stops it.)
+        if (dx * vx + dz * vz > 0) continue;
+        const other = c.body && c.body.key.startsWith("a:") ? w.index.get(Number(c.body.key.slice(2))) : undefined;
+        if (!c.person && other !== undefined && isRobot(w.agents[other]!)) hitRobot = other;
+        stop = true;
+      }
+      if (stop) break;
+      x = nx;
+      z = nz;
+    }
+    const speed0 = Math.sqrt(vx * vx + vz * vz);
+    if (hitRobot !== null && speed0 > 0) {
+      // Bowled into another robot: it takes most of the tumble.
+      const o = w.agents[hitRobot]!;
+      const m = robotMass(o);
+      const share = ROBOT.passShare;
+      knockRobot(w, hitRobot, vx * share * m, vz * share * m, { x: (x + o.x) / 2, z: (z + o.z) / 2, speed: speed0 }, `a:${a.id}`);
+      vx *= ROBOT.restShare;
+      vz *= ROBOT.restShare;
+    } else if (x === a.x && z === a.z && speed0 > 0) {
+      // Against a wall, a vehicle or someone's clearance: it stops there.
+      vx = 0;
+      vz = 0;
+    }
+    const pitch = approach(a.pitch, fall, ROBOT.fallRate * DT);
+    const done = vx * vx + vz * vz < IMPACT.stopSpeed * IMPACT.stopSpeed;
+    const cur = w.agents[i]!;
+    w.agents[i] = {
+      ...cur,
+      x,
+      y: meshGroundHeight(world, x, z),
+      z,
+      heading: wrapAngle(cur.heading + yaw * DT),
+      pitch,
+      speed: 0,
+      knock: done ? { ...k, phase: fall !== 0 ? "down" : "getup", vx: 0, vz: 0, yaw: 0, t: 0, age } : { ...k, vx, vz, yaw, t: k.t + 1, age },
+    };
+    return true;
+  }
+  if (k.phase === "down") {
+    const pitch = approach(a.pitch, fall, ROBOT.fallRate * DT);
+    w.agents[i] = { ...a, pitch, knock: k.t + 1 >= (k.down ?? ROBOT.downTicks) ? { ...k, phase: "getup", t: 0, age } : { ...k, t: k.t + 1, age } };
+    return true;
+  }
+  // Getting up, then back to its errand.
+  const pitch = approach(a.pitch, 0, ROBOT.getupRate * DT);
+  if (pitch !== 0) {
+    w.agents[i] = { ...a, pitch, mode: "wait", knock: { ...k, phase: "getup", t: k.t + 1, age } };
+    return true;
+  }
+  const { knock: _k, ...rest } = a;
+  void _k;
+  const back = a.runtimeId === undefined ? rejoinAt(world, a, a.x, a.z) : null;
+  w.agents[i] = { ...rest, pitch: 0, speed: 0, wait: 0, mode: "go", ...(back ?? {}) };
+  return true;
+}
+
 /** A parked player's car (its player on foot) that is moving slides until it stops. */
 function stepParked(world: World, w: Work, id: PlayerId): void {
   const p = w.players[id]!;
@@ -573,6 +807,7 @@ function stepParked(world: World, w: Work, id: PlayerId): void {
  * ever been hit).
  */
 export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap<PlayerId, readonly CarContact[]>): SimState {
+  const combat = state.ext.combat as CombatState | undefined;
   const agentsExt = state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined;
   const prior = impactsOf(state);
   const list = agentsExt ? agentsExt.list : [];
@@ -594,6 +829,7 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     index: new Map(list.map((a, i) => [a.id, i])),
     ext: prior ?? { version: 1, nextId: 1, events: [], cars: {} },
     fresh: new Set(),
+    combat,
   };
 
   // 1. The players' cars' hits: the other body takes its share.

@@ -137,6 +137,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v8 save
  *    loads unchanged. (9 and 10 are taken by the structural world and weather streams; when
  *    they land this step follows theirs: 10 -> 11 needs no rewrite either.)
+ *  - v11 -> v12 (impacts.ts): cars bowl robots over and robots stop dodging a player's car. A
+ *    knocked robot's state is AgentState.knock (optional, absent in an older save): no rewrite.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -145,7 +147,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
-  if (s.version === 8) return { ...s, version: 11 };
+  if (s.version === 8) return upgradeState({ ...s, version: 11 });
+  if (s.version === 11) return { ...s, version: 12 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -237,7 +240,7 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
     const cls = agentDodgeClass(a);
     const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
     const road = AGENT_SPEC[a.kind].road;
-    const body = agentImpactBody(a);
+    const body = agentImpactBody(a, prev.ext.combat);
     for (const c of agentCircles(a)) agentRound.push(body ? { x: c.x, z: c.z, r: c.r, person, road, body } : { x: c.x, z: c.z, r: c.r, person, road });
     if (road) taxiBoxes.push({ box: { x: a.x, z: a.z, heading: a.heading, hl: (a.halfLength ?? ROBOTAXI_BODY.halfLength) + WALKER_SKIN_M, hw: (a.halfWidth ?? ROBOTAXI_BODY.halfWidth) + WALKER_SKIN_M }, y: a.y, height: a.height ?? ROBOTAXI_BODY.height });
   }
