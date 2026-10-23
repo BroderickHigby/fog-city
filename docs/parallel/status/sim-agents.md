@@ -114,3 +114,5 @@ Draft PR body:
 The canonical Hot Desk approach could crash when a second timed Ferry bus spawned through the first bus's long hull. Check complete vehicle footprints and all accepted bodies before service admission, include walking players and pending service/transit spawns, and defer blocked retries before a runtime actor is created.
 
 Validation: typecheck, 16 targeted tests and 75 portable-API checks pass. Replaying the exact saved SF tick-1200 state through the game systems now reaches tick 1201 with a clear second-bus entry and matching runtime/physical actor counts.
+
+Follow-up: service admission now takes missing legacy taxi dimensions from shared `ROBOTAXI_BODY` (half-length 2.5 m, half-width 1.0 m), matching the drawn body and core clearance. Explicit bus/van dimensions remain unchanged. Typecheck and 17 service/transit/admission regressions pass, including the taxi's outer length and width.
