@@ -54,7 +54,7 @@ export function threatRequestsOf(sim:Readonly<SimState>):ThreatSpawnRequest[]{
 }
 
 interface RoadPoint {x:number;z:number;heading:number}
-export function serviceRoadPoint(world:World,target:{x:number;z:number},minimum:number,maximum:number,preferred:number,actors:readonly {x:number;z:number;radius?:number}[],halfLength=2.7,halfWidth=1.1):RoadPoint|null{
+export function serviceRoadPoint(world:World,target:{x:number;z:number},minimum:number,maximum:number,preferred:number,actors:readonly {x:number;z:number;radius?:number}[],halfLength=2.7,halfWidth=1.1,accept?:(point:RoadPoint)=>boolean):RoadPoint|null{
   let best:RoadPoint|null=null,score=Infinity,key="";
   for(const edge of world.roads?.edges??[]){
     if(!edge.drivable)continue;
@@ -69,7 +69,7 @@ export function serviceRoadPoint(world:World,target:{x:number;z:number},minimum:
         const corners=[[-1,-1],[-1,1],[1,1],[1,-1]].map(([f,r])=>({x:p.x+f!*halfLength*fx+r!*halfWidth*rx,z:p.z+f!*halfLength*fz+r!*halfWidth*rz}));
         if(corners.some(c=>circleBlocked(world,c.x,c.z,.15))||corners.some((c,i)=>segmentBlocked(world,c.x,c.z,corners[(i+1)%4]!.x,corners[(i+1)%4]!.z)))continue;
         const candidateScore=Math.abs(d-preferred),candidateKey=`${edge.id}:${dir}:${at}`;
-        if(candidateScore<score||candidateScore===score&&compare(candidateKey,key)<0){score=candidateScore;key=candidateKey;best={x:p.x,z:p.z,heading};}
+        if(candidateScore<score||candidateScore===score&&compare(candidateKey,key)<0){const point={x:p.x,z:p.z,heading};if(accept&&!accept(point))continue;score=candidateScore;key=candidateKey;best=point;}
       }
     }
   }
@@ -96,7 +96,12 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
     const id=`service:${request.id}`;
     state.receipts.push({id:request.id,tick:request.requestTick});
     if(Object.keys(state.vehicles).filter(key=>state.vehicles[key]!.phase!=="retired").length>=16){emit("service.blocked",{id,requestId:request.id},0,"capacity");continue;}
-    const origin=serviceRoadPoint(world,request.player,100,140,120,blockers),target=serviceRoadPoint(world,request.player,0,12,0,[]);
+    const target=serviceRoadPoint(world,request.player,0,12,0,[]);
+    const origin=target?serviceRoadPoint(world,request.player,100,140,120,blockers,2.7,1.1,point=>{
+      const follow=stepVehicleFollower(world,{...point,speed:0},createFollowerState({...point,speed:0}),{kind:"pursue",target,stopDistance:1,maxSpeed:13});
+      let length=0;for(let i=1;i<follow.state.route.length;i++){const a=follow.state.route[i-1]!,b=follow.state.route[i]!;length+=distance({x:a[0],z:a[1]},{x:b[0],z:b[1]});}
+      return follow.status!=="no-route"&&length<=180;
+    }):null;
     if(!origin||!target){emit("service.blocked",{id,requestId:request.id},0,"no-valid-road-entry");continue;}
     const test=stepVehicleFollower(world,{...origin,speed:0},createFollowerState({...origin,speed:0}),{kind:"pursue",target,stopDistance:1,maxSpeed:13});
     if(test.status==="no-route"){emit("service.blocked",{id,requestId:request.id},0,"no-directed-route");continue;}

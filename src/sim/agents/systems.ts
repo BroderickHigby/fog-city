@@ -63,7 +63,7 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     step(context){
       if(agentsRuntimeOf(context.state)?.tick!==context.state.tick)return prepare(context).state;
       const options=provider(context);
-      const observed=(context as SimSystemContext & {observedBodies?:AgentRuntimeOptions["observedBodies"]}).observedBodies;
+      const observed=context.observedBodies;
       const runtime=observeAgentRuntime(context.state,{...options,...(observed?{observedBodies:observed}:{})});
       return withRuntime(context.state,runtime);
     },

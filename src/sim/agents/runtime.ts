@@ -3,8 +3,9 @@ import { ROBOT_GOALS, goalsInWave } from "../../content/robotGoals.ts";
 import { badRobotRate, protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
 import { Action, type InputFrame, type SimInput, type SimState } from "../contract.ts";
-import { AGENT_SPEC, agentsOf, type AgentState } from "../agents.ts";
+import { AGENT_SPEC, agentsOf, personIsChild, type AgentState } from "../agents.ts";
 import { dcos, dsin, datan2, clamp } from "../dmath.ts";
+import type { AgentMotionProposal as CoreAgentMotionProposal } from "../motion.ts";
 import { groundHeight, segmentBlocked, type World } from "../world.ts";
 import type { AttackKind, AttackRequest, CombatActor, CombatState } from "../combat-contract.ts";
 import { createRobotBrain, stepRobotBrain, type RobotBrainState, type RobotBrainIntent, type RobotObservations, type BrainTarget, type RobotGoal } from "../robots/brain.ts";
@@ -65,22 +66,9 @@ export interface RuntimeActor extends RuntimeSpawn {
   hiddenTellId: string | null;
 }
 
-export interface AgentMotionProposal {
-  id: string;
-  numericId: number;
-  legacyId: number | null;
-  kind: "walker" | "vehicle" | "flying";
+export interface AgentMotionProposal extends CoreAgentMotionProposal {
+  /** Follower controls are consumed by core's vehicle physics, once per tick. */
   controls?: Readonly<SimInput>;
-  bodyKind?: "robot" | "person" | "animal";
-  protected?: boolean;
-  child?: boolean;
-  mobilityAid?: boolean;
-  posture?: "standing" | "seated" | "lying";
-  x: number; y: number; z: number; heading: number; speed: number;
-  radius: number; height: number;
-  halfLength?: number; halfWidth?: number;
-  /** This is a desired step. Core collision/clearance owns acceptance. */
-  sourceX: number; sourceY: number; sourceZ: number;
 }
 
 export interface AgentRuntimeEvent {
@@ -161,7 +149,7 @@ function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):R
   const profile=profiles[hash(id)%Math.max(1,profiles.length)];
   return {id,numericId:agent.id,model,firmware,...(profile?{archetype:profile.id,level:1+hash(`${id}:level`)%5}:{}),x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed,
     radius:AGENT_SPEC[agent.kind].radius,height:model==="trundle"?.7:1.8,
-    ...(model==="person"?{posture:"standing" as const,protected:true,child:false,mobilityAid:false}:{})};
+    ...(model==="person"?{posture:"standing" as const,protected:personIsChild(agent.id),child:personIsChild(agent.id),mobilityAid:false}:{})};
 }
 
 export function createAgentsRuntime(state:Readonly<SimState>,options:AgentRuntimeOptions={}):AgentsRuntimeState{
@@ -225,9 +213,8 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   return state;
 }
 
-function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame):RobotObservations{
+function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>):RobotObservations{
   const sight:RobotObservations["sight"][number][]=[],sounds:RobotObservations["sounds"][number][]=[],scans:RobotObservations["scans"][number][]=[],watches:RobotObservations["watches"][number][]=[];
-  const people=players(sim);
   for(const player of people){
     const near=distance(actor,player)<=40;
     if(!near)continue;
@@ -301,17 +288,17 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
 function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
   return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
 }
-function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame):void{
+function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
     const controls=options.vehicleControls?.[actor.id];
     if(actor.legacyId===null||controls)state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:null,kind:"vehicle",...(controls?{controls}:{}),...motionMetadata(actor),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
     return;
   }
-  const others=keys(state.actors).map(id=>state.actors[id]!);
   const wanted=desiredMovement(actor,intent,others);
   const effect=activeCombat(sim)?.targets[actor.id];
-  const frozen=effect&&effect.phase!=="active";
+  const updating=(activeCombat(sim)?.attacks??[]).some(attack=>attack.kind==="forced-update"&&attack.targetId===actor.id);
+  const frozen=Boolean(effect&&effect.phase!=="active"||updating);
   let speed=frozen?0:wanted.speed*(effect?.movementScale??1);
   let goal=wanted.goal;
   if(effect?.repair&&actor.firmware==="good"){
@@ -319,7 +306,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     const kiosk=kiosks[0];if(kiosk){goal=distance(actor,kiosk)>2?kiosk:null;speed=goal?Math.min(speed,.9):0;}
   }
   if(actor.model==="person"||animal(actor.model)||actor.firmware==="good"){
-    const stimuli:PerceivedStimulus[]=players(sim).flatMap(player=>{
+    const stimuli:PerceivedStimulus[]=people.flatMap(player=>{
       const input=inputs[player.id],seen=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
       const observed:PerceivedStimulus[]=[];
       if(distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
@@ -404,7 +391,8 @@ function fallbackGraph(world:World):SidewalkGraph|undefined{
 export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:InputFrame,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const previous=agentsRuntimeOf(sim)??createAgentsRuntime(sim,options);
   const state=synchronize(previous,sim,options);
-  const anchors=options.anchors??players(sim).map(player=>({id:player.id,x:player.x,z:player.z}));
+  const people=players(sim);
+  const anchors=options.anchors??people.map(player=>({id:player.id,x:player.x,z:player.z}));
   const graph=options.graph??fallbackGraph(world);
   const list=keys(state.actors).map(id=>state.actors[id]!);
   const presentLegacy=new Set(agentsOf(sim).map(actor=>actor.id));
@@ -420,12 +408,12 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       if(actor.brain.lastTick>=sim.tick)continue;
       const own=activeCombat(sim)?.targets[actor.id];
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:clamp(options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
     }
-    propose(world,state,actor,graph,intent,options,sim,inputs);
+    propose(world,state,actor,graph,intent,options,sim,inputs,list,people);
   }
   return state;
 }
