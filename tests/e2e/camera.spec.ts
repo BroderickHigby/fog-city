@@ -17,7 +17,7 @@ test("click-hold-drag orbits the chase camera without touching the sim", async (
   const hash = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash());
   await expect.poll(() => bearing(page), { timeout: 60_000 }).not.toBeNaN();
   const start = await bearing(page);
-  const box = (await page.locator("#game canvas").boundingBox())!;
+  const box = (await page.locator("#game > canvas").boundingBox())!;
   const x = box.x + box.width / 2, y = box.y + box.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
