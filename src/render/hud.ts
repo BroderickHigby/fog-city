@@ -64,6 +64,10 @@ export const HINT_NO_ROOM = "No room to get out";
 export const HINT_TOO_FAR = "Too far from your car to get in";
 /** Shown the first few times the player gets out on foot, so the sprint is discoverable. */
 export const HINT_SPRINT = "Hold Shift to sprint";
+/** Robotaxi rides (src/sim/ride.ts). */
+export const HINT_TAXI_BOARD = "F: hop in the robotaxi";
+export const HINT_TAXI_RIDING = "Riding. Set a map waypoint to go there; F to get out";
+export const HINT_TAXI_HEADING = "Riding to your waypoint; F to get out";
 export const HINT_SPRINT_TOUCH = "Hold Brake / sprint to run";
 export const SPRINT_HINTS = 3;
 

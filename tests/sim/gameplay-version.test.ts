@@ -15,9 +15,9 @@ describe("v7 to current composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    // v7 -> v8 -> v11 (v9/v10 are reserved by other streams): behaviour only, every field kept.
-    expect(SIM_VERSION).toBe(11);
-    expect(upgraded).toEqual({ ...old, version: 11 });
+    // v7 -> v8 -> v11 -> v12 (v9/v10 are reserved by other streams): behaviour only, every field kept.
+    expect(SIM_VERSION).toBe(12);
+    expect(upgraded).toEqual({ ...old, version: 12 });
     expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);

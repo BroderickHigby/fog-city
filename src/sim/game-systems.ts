@@ -1,4 +1,5 @@
 import { protectedAreaAt, badRobotRate } from "../content/places.ts";
+import { playerPose } from "./ride.ts";
 import { toLatLon } from "../geo/project.ts";
 import { sortedIds } from "./contract.ts";
 import { createClockSystem, gameTime } from "./clock/calendar.ts";
@@ -31,7 +32,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   const combatContext=(context:SimSystemContext)=>{
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
     for(const id of sortedIds(context.state.players)){
-      const player=context.state.players[id]!,body=player.mode==="foot"&&player.foot?player.foot:player.car;
+      const player=context.state.players[id]!,body=playerPose(player);
       loadouts[id]=combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading);
     }
     const calendar=gameTime(context.state);
