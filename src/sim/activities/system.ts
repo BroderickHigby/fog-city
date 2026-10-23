@@ -4,6 +4,7 @@ import { toLatLon } from "../../geo/project.ts";
 import { Action } from "../contract.ts";
 import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
+import { activityAvailable } from "./availability.ts";
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 function createOwn(seed:number,tick:number):PlayerActivities{const [roll,rng]=nextU32(seedRng(seed));return {nextDirectorTick:tick+2700+roll%1801,directorRng:rng,activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
 /** Director schedules are independent per player and persisted in snapshots. */
@@ -23,11 +24,11 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=ctx.wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns![a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id)));
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&activityAvailable(a)&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=ctx.wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns![a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id)));
    if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;own.checkpointIndex=0;own.objectiveCount=0;event(state,"activity.started",body.id,activity.id);}
   }
   if(own.activeActivityId){
-   const activity=ctx.activities.find(a=>a.id===own.activeActivityId);const elapsed=tick-own.activityStartedTick;
+   const activity=ctx.activities.find(a=>a.id===own.activeActivityId&&activityAvailable(a));const elapsed=tick-own.activityStartedTick;
    const checkpoint=activity?.checkpoints?.[(own.checkpointIndex??0)];if(checkpoint&&planarDistanceSquared(body,checkpoint)<=checkpoint.radius*checkpoint.radius)own.checkpointIndex=(own.checkpointIndex??0)+1;
    for(const fact of incoming)if(activity&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount=(own.objectiveCount??0)+1;
    const routeComplete=(own.checkpointIndex??0)>=(activity?.checkpoints?.length??0);
