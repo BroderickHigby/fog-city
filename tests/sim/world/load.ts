@@ -69,6 +69,8 @@ export interface Drive {
   lenM: number;
   /** Ticks with any wall, building or body contact. */
   contactTicks: number;
+  /** Building and wall hits (impact events) on the way. */
+  hits: number;
   /** Longest airborne run, seconds. */
   maxAirS: number;
   maxMoveExcess: number;
@@ -79,9 +81,16 @@ export interface Drive {
  * Drive a car along a path ([x, z] every metre) at up to vmax with the QA critic's Stanley
  * controller around stepCar. Stuck (throttle held under 0.5 m/s for 2 s) ends the run.
  */
-export function drivePath(world: World, path: ReadonlyArray<readonly [number, number]>, vmax: number, startSpeed = Math.min(vmax, 8), onTick?: (c: CarState) => void): Drive {
+export function drivePath(
+  world: World,
+  path: ReadonlyArray<readonly [number, number]>,
+  vmax: number,
+  startSpeed = Math.min(vmax, 8),
+  onTick?: (c: CarState) => void,
+  startY = meshGroundHeight(world, path[0]![0], path[0]![1]),
+): Drive {
   const look = path[Math.min(3, path.length - 1)]!;
-  let car: CarState = { ...makeCar(path[0]![0], path[0]![1], bearing(look[0] - path[0]![0], look[1] - path[0]![1]), meshGroundHeight(world, path[0]![0], path[0]![1])), speed: startSpeed };
+  let car: CarState = { ...makeCar(path[0]![0], path[0]![1], bearing(look[0] - path[0]![0], look[1] - path[0]![1]), startY), speed: startSpeed };
   const len = path.length - 1;
   const limit = Math.ceil((len / Math.max(3, vmax * 0.5)) * 60) + 600;
   let idx = 0;
@@ -139,5 +148,5 @@ export function drivePath(world: World, path: ReadonlyArray<readonly [number, nu
       if (++stuck >= 120) break;
     } else stuck = 0;
   }
-  return { reached, progressM: idx, lenM: len, contactTicks: contact, maxAirS: maxAir / 60, maxMoveExcess: excess, end: car };
+  return { reached, progressM: idx, lenM: len, contactTicks: contact, hits: car.hits, maxAirS: maxAir / 60, maxMoveExcess: excess, end: car };
 }

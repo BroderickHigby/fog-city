@@ -7,6 +7,7 @@ import { inPolygon } from "../../pipeline/lib/districts.ts";
 import { signedArea, type P2 } from "../../pipeline/lib/geom.ts";
 import { decodeWorldColliders, PackGroundIndex } from "../../pipeline/lib/world-colliders.ts";
 import { TILE_SIZE_M, tileId, toLocal } from "../../src/geo/project.ts";
+import { SOUTH_CROP_Z } from "../../pipeline/lib/build.ts";
 import { pointInPolygon } from "../../src/sim/index.ts";
 import { ROOT, readJson } from "../helpers.ts";
 import type { SfManifest, SfRoads } from "./util.ts";
@@ -114,7 +115,21 @@ describe("citywide: coverage", () => {
     for (const id of out.keys()) {
       expect(built.has(id) || water.has(id), id).toBe(false);
     }
-    expect(built.size + water.size + out.size).toBe(sel.candidates);
+    // W-40: the outside ring may reach past the candidate rectangle (manifest.water.bbox); every
+    // such tile is land beside a built tile. The rest partition the candidates.
+    const [wx0, wz0, wx1, wz1] = manifest.water.bbox;
+    const beyond = manifest.outside.tiles.filter((t) => {
+      const m = /^t(-?\d+)_(-?\d+)$/.exec(t.id)!;
+      const x = Number(m[1]) * TILE_SIZE_M + 1, z = Number(m[2]) * TILE_SIZE_M + 1;
+      return x < wx0 || x > wx1 || z < wz0 || z > wz1;
+    });
+    for (const t of beyond) {
+      const m = /^t(-?\d+)_(-?\d+)$/.exec(t.id)!;
+      const ix = Number(m[1]), iz = Number(m[2]);
+      expect([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => built.has(tileId(ix + dx!, iz + dz!))), t.id).toBe(true);
+    }
+    expect(beyond.length).toBeLessThanOrEqual(8);
+    expect(built.size + water.size + out.size - beyond.length).toBe(sel.candidates);
     const area = (lat: number, lon: number): string | undefined => {
       const p = at(lat, lon);
       return out.get(tileId(Math.floor(p.x / TILE_SIZE_M), Math.floor(p.z / TILE_SIZE_M)));
@@ -541,9 +556,32 @@ describe("citywide: gameplay layers", () => {
 
 describe("citywide: far-LOD", () => {
   it("holds every collider record, in cells that tile the world", () => {
-    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number } }>(`${DIR}/report.json`);
-    expect(report.far.records).toBe(report.colliderPack.buildings);
-    expect(manifest.far.reduce((s, c) => s + c.stats.records!, 0)).toBe(report.colliderPack.buildings);
+    // Every collider record, plus the far-only Daly City strip (W-42): far scenery, no collider.
+    const report = readJson<{ far: { records: number }; colliderPack: { buildings: number }; farOnly: { records: number; tiles: string[]; drawnInTiles: number } }>(`${DIR}/report.json`);
+    expect(report.farOnly.records).toBeGreaterThan(1000);
+    // The three row-20 tiles the strip alone made built before are among them, unbuilt.
+    for (const id of ["t-16_20", "t-3_20", "t-4_20"]) expect(report.farOnly.tiles, id).toContain(id);
+    // W-42: the strip's records stand in built tiles (past the county-line wall: their glb draws
+    // them as scenery, since the renderer hides the far layer over a streamed tile) or in San
+    // Mateo County's outside tiles.
+    const built = new Set(manifest.tiles.map((t) => t.id));
+    const area = new Map(manifest.outside.tiles.map((t) => [t.id, t.area]));
+    let drawn = 0;
+    for (const id of report.farOnly.tiles) {
+      if (!built.has(id)) {
+        expect(area.get(id), id).toBe("san-mateo-county");
+        continue;
+      }
+      const b = readFileSync(join(ROOT, DIR, `${id}.glb`));
+      const json = JSON.parse(new TextDecoder().decode(b.subarray(20, 20 + b.readUInt32LE(12)))) as { nodes: Array<{ name: string; extras?: { scenery?: unknown[] } }> };
+      const node = json.nodes.find((q) => q.name === "buildings-scenery");
+      expect(node, id).toBeDefined();
+      drawn += node!.extras!.scenery!.length;
+    }
+    expect(drawn).toBe(report.farOnly.drawnInTiles);
+    expect(drawn).toBeGreaterThan(1000);
+    expect(report.far.records).toBe(report.colliderPack.buildings + report.farOnly.records);
+    expect(manifest.far.reduce((s, c) => s + c.stats.records!, 0)).toBe(report.far.records);
     for (const c of manifest.far) {
       expect(c.bbox[2]).toBeGreaterThan(c.bbox[0]);
       expect(c.bbox[3]).toBeGreaterThan(c.bbox[1]);
@@ -572,8 +610,15 @@ describe("citywide: the world's edge and shore", () => {
     }
   };
 
-  it("the outline runs between built tiles (on its left) and tiles with no file (on its right)", () => {
+  it("the outline runs between built tiles (on its left) and tiles with no file or the land past the county line (on its right)", () => {
+    // W-42: inside the last built row the land wall follows the county line: past it (south of
+    // z = 9,600 and in no San Francisco neighbourhood) is outside the world.
+    const ds = layer<Districts>("districts").districts;
+    const inSf = (x: number, z: number): boolean => ds.some((d) => d.polygons.some((poly) => inPolygon(x, z, poly)));
+    // (An all-water cell is never cut; only the right side is checked.)
+    const inWorld = (x: number, z: number): boolean => built.has(tileAt(x, z)) && !(z > SOUTH_CROP_Z && !inSf(x, z));
     let n = 0;
+    let county = 0;
     for (const e of b.edges) {
       for (const [x, z, dx, dz] of steps(e.points, e.closed)) {
         // Left of travel is (dz, -dx) on a north-up map; probe 1 m either side of the step's middle.
@@ -581,21 +626,32 @@ describe("citywide: the world's edge and shore", () => {
         const lx = mx + Math.sign(dz) * 1, lz = mz - Math.sign(dx) * 1;
         const rx = mx - Math.sign(dz) * 1, rz = mz + Math.sign(dx) * 1;
         expect(built.has(tileAt(lx, lz)), `${e.kind} at ${mx},${mz}: left`).toBe(true);
-        expect(built.has(tileAt(rx, rz)), `${e.kind} at ${mx},${mz}: right`).toBe(false);
+        if (built.has(tileAt(rx, rz))) {
+          // A wall inside a built tile is the county line: land past it is cut (cell by cell, so
+          // probe the cells' centres either side).
+          const lc: [number, number] = [mx + Math.sign(dz) * 5, mz - Math.sign(dx) * 5];
+          const rc: [number, number] = [mx - Math.sign(dz) * 5, mz + Math.sign(dx) * 5];
+          expect(inWorld(...rc), `${e.kind} at ${mx},${mz}: right cell`).toBe(false);
+          expect(lc[1] > SOUTH_CROP_Z - 10, `${e.kind} at ${mx},${mz}: a wall inside a built tile only at the county line`).toBe(true);
+          county++;
+        }
         n++;
       }
     }
     expect(n).toBeGreaterThan(5000);
+    expect(county * 10, "metres of wall on the county line inside built tiles").toBeGreaterThan(5000);
   });
 
   it("walls the world off on dry ground: the southern city limit is land, the Pacific and the Bay are water", () => {
     const landAt = (x: number, z: number, kind: string): boolean =>
       b.edges.some((e) => e.kind === kind && [...steps(e.points, e.closed)].some(([sx, sz, dx, dz]) => Math.hypot(sx + dx / 2 - x, sz + dz / 2 - z) < 260));
-    // The last row of built tiles south of Visitacion Valley and of the Excelsior meets Daly City.
+    // South of Visitacion Valley and of the Excelsior the world stops on dry ground: a land wall
+    // runs between the point and its tile's south edge (the county line or that edge, W-42).
     for (const [name, lat, lon] of [["Visitacion Valley", 37.7085, -122.4045], ["Excelsior", 37.7085, -122.43]] as const) {
       const p = at(lat, lon);
       const southEdge = (Math.floor(p.z / TILE_SIZE_M) + 1) * TILE_SIZE_M;
-      expect(landAt(p.x, southEdge, "land"), name).toBe(true);
+      const wall = b.edges.some((e) => e.kind === "land" && [...steps(e.points, e.closed)].some(([sx, sz, dx]) => dx !== 0 && Math.abs(sx - p.x) < 100 && sz >= p.z && sz <= southEdge));
+      expect(wall, name).toBe(true);
     }
     const land = b.edges.filter((e) => e.kind === "land");
     expect(land.length).toBeGreaterThan(0);
@@ -608,7 +664,9 @@ describe("citywide: the world's edge and shore", () => {
 
   it("the shore separates land (left) from water (right), and passes Ocean Beach where the ground does", () => {
     let agree = 0, total = 0;
-    for (const l of b.shore) {
+    // The sea's lines (the lakes' rings, tagged, are checked in inland-water.test.ts).
+    for (const l of b.shore as Array<{ closed: boolean; points: P2[]; lake?: string }>) {
+      if (l.lake !== undefined) continue;
       const pts = l.closed ? [...l.points, l.points[0]!] : l.points;
       for (let i = 1; i < pts.length; i++) {
         const [ax, az] = pts[i - 1]!, [bx, bz] = pts[i]!;

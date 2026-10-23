@@ -8,6 +8,11 @@ it('rejects water and footprints across index cells',()=>{
  const land=gameplayLand([{ix:0,iz:0}],500,{heightAt:()=>2,waterAt:x=>x===10},[{footprint:[[40,40],[80,40],[80,80],[40,80]]}]);
  expect(land(10,10)).toBe(false);expect(land(60,60)).toBe(false);expect(land(90,90)).toBe(true);
 });
+it('rejects inland lake samples while retaining nearby dry anchors',()=>{
+ const field={x0:0,z0:0,cellSizeM:10,nx:3,nz:3,heights:Array(9).fill(5),water:Array(9).fill(0)};
+ const land=gameplayLand([{ix:0,iz:0}],500,{heightAt:()=>5,waterAt:()=>false,field:()=>field},[],new Map([['t0_0',[0,0,0,0,1,0,0,0,0]]]));
+ expect(land(10,10)).toBe(false);expect(land(1,1)).toBe(true);
+});
 it('orders both metadata paths identically and preserves unrelated report values',()=>{
  const initial={layers:{transit:'muni.json',signals:'signals.json',gameplay:'old.json'},counts:{transitStops:42,signals:3,gameplayRefills:0}};
  const result=gameplayMetadata(initial.layers,initial.counts,{refills:[1,2],anchors:[1]});

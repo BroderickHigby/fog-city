@@ -70,7 +70,7 @@
       }
     },
     "shore": {
-      "description": "Land/water lines inside the built tiles, land on the left of travel: the sea-wall line and the Bay-edge refill zone. Open lines end at the edge of the built tiles.",
+      "description": "Land/water lines inside the built tiles, land on the left of travel: the sea-wall line and the Bay-edge refill zone. Open lines end at the edge of the built tiles. Inland lakes are water too: each one's outline is a closed line tagged with the lake.",
       "type": "array",
       "items": {
         "type": "object",
@@ -89,6 +89,10 @@
               "$ref": "#/$defs/point"
             },
             "minItems": 2
+          },
+          "lake": {
+            "type": "string",
+            "description": "Optional: the inland lake (its id, as in the tile colliders' ground.lakes) this closed ring goes round (world QA W-11). Absent on the sea's lines."
           }
         }
       }

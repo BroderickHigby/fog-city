@@ -191,6 +191,7 @@
                   "marin",
                   "san-mateo-county",
                   "pacific-shore",
+                  "yerba-buena-island",
                   "other"
                 ]
               }
@@ -250,6 +251,13 @@
           }
         }
       }
+    },
+    "rendering": {
+      "description": "Presentation metadata emitted by the world producer.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bakedGround"],
+      "properties": { "bakedGround": { "type": "boolean" } }
     },
     "layers": {
       "description": "World data layers: name -> path relative to the manifest. Each file validates against schemas/<file name without .json>.schema.json.",

@@ -62,7 +62,8 @@ export async function cachedGet(url: string, ext: string, opts: FetchOptions): P
 }
 
 async function getWithRetry(url: string, log?: (msg: string) => void): Promise<Buffer> {
-  // DataSF answers 425 "Too Early" in long runs under load; back off up to a minute.
+  // DataSF answers 425 "Too Early" (and, since its move to data.sf.gov, 428 "Precondition
+  // Required") in long runs under load; back off up to a minute.
   const attempts = 10;
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
@@ -75,7 +76,7 @@ async function getWithRetry(url: string, log?: (msg: string) => void): Promise<B
           redirect: "follow",
           headers: { "user-agent": "fog-city-pipeline/1 (offline world builder)", accept: "*/*" },
         });
-        if (res.status === 408 || res.status === 425 || res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`);
+        if (res.status === 408 || res.status === 425 || res.status === 428 || res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`);
         if (!res.ok) {
           const text = (await res.text()).slice(0, 400);
           throw Object.assign(new Error(`HTTP ${res.status} for ${url}: ${text}`), { fatal: true });

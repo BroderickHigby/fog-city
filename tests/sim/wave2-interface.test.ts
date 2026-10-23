@@ -4,7 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v7.json";
+import currentReplay from "../golden/wave2-v9.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -83,9 +83,8 @@ describe("wave-2 shared interface", () => {
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
-      // v8 changes composed gameplay, not this core-only replay. Keep the original v7
-      // physics fixture and normalize only the version header for an exact payload check.
-      expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
+      // Structural physics changed deliberately in v9; original inputs and v2/v7 fixtures stay unchanged.
+      expect(hashState(state)).toBe(currentReplay.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
     expect(state.tick).toBe(300);

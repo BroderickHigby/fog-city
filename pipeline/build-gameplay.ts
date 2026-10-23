@@ -18,7 +18,7 @@ import { decodeWorldColliders } from "./lib/world-colliders.ts";
 
 export function rebuildGameplay(dir: string, sourceSnapshot: string, check = false): {tiles:number;refills:number;anchors:number;territories:number} {
   const read = <T>(file: string): T => JSON.parse(readFileSync(join(dir, file), "utf8")) as T;
-  const manifest = read<{ world: string; tileSizeM: number; tiles: TileRef[]; roads: string; worldColliders: string; layers: Record<string, string> }>("manifest.json");
+  const manifest = read<{ world: string; tileSizeM: number; tiles: TileRef[]; roads: string; worldColliders: string; layers: Record<string, string>; rendering?: { bakedGround: boolean } }>("manifest.json");
   const layer = <T>(key: string): T => {
     const file = manifest.layers[key];
     if (!file) throw new Error(`gameplay: missing ${key} layer`);
@@ -37,12 +37,14 @@ export function rebuildGameplay(dir: string, sourceSnapshot: string, check = fal
     signals: layer<{ signals: Signal[] }>("signals").signals,
     transit: layer<{ routes: TransitRoute[]; stops: TransitStop[] }>("transit"),
     shore: layer<{ shore: ShoreLine[] }>("boundary").shore,
-    isLand: gameplayLand(manifest.tiles, manifest.tileSizeM, ground, pack.tiles.flatMap(t=>t.buildings)),
+    isLand: gameplayLand(manifest.tiles, manifest.tileSizeM, ground, pack.tiles.flatMap(t=>t.buildings),
+      new Map(pack.tiles.filter(t => t.ground.lake).map(t => [t.tileId, t.ground.lake!]))),
     heightAt: (x, z) => ground.heightAt(x, z), roadClearance: (x, z) => surface.clearance(x, z),
   });
-  const report = read<{layers:Record<string,number>}>('report.json');
+  const report = read<{layers:Record<string,number>; landcover?: unknown}>('report.json');
   const metadata = gameplayMetadata(manifest.layers, report.layers, gameplay);
   manifest.layers = metadata.layers; report.layers = metadata.counts;
+  manifest.rendering = { bakedGround: report.landcover !== null && report.landcover !== undefined };
   const files = { "gameplay.json": jsonLines({ ...gameplay }, ["refills", "anchors", "tiles", "territories"]), "manifest.json": jsonPretty(manifest), "report.json": jsonPretty(report) };
   for (const [file, contents] of Object.entries(files)) {
     if (check) {

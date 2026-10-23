@@ -2,7 +2,7 @@
 // Only columns the pipeline uses are requested; business names are never requested.
 
 import { TILE_SIZE_M } from "../../src/geo/project.ts";
-import { areaTileRect, candidateTiles, demBlocks, q6, rectLatLon, type TileRect, type WorldConfig } from "./config.ts";
+import { areaTileRect, boxTileRect, candidateTiles, demBlocks, q6, rectLatLon, tileRef, type TileRef, type TileRect, type WorldConfig } from "./config.ts";
 import { cachedGet, socrataAll, type FetchOptions } from "./fetch.ts";
 import { parseGeoTiff, type GeoRaster } from "./geotiff.ts";
 
@@ -32,6 +32,13 @@ export interface RawStreet {
   layer?: string;
   oneway?: string;
   line?: { type: "LineString" | "MultiLineString"; coordinates: unknown };
+}
+
+/** When a street segment entered (or last changed in) the centreline dataset (same query as the streets, two columns). */
+export interface RawStreetDate {
+  cnn: string;
+  date_added?: string;
+  date_altered?: string;
 }
 
 export interface RawParcel {
@@ -126,6 +133,44 @@ export interface RawParking {
   shape?: GeoLines;
 }
 
+/** A Rec and Park property (DataSF gtr9-ntp6): its polygon and kind. */
+export interface RawPark {
+  property_id?: string;
+  property_name?: string;
+  propertytype?: string;
+  shape?: { type: "MultiPolygon" | "Polygon"; coordinates: unknown };
+}
+
+/** A tree-canopy polygon (DataSF ni2e-vpbg), simplified to about 2 m at download. */
+export interface RawCanopy {
+  t_sqft?: string;
+  g?: { type: "MultiPolygon" | "Polygon"; coordinates: unknown };
+}
+
+/** A GeoJSON feature from an ArcGIS query (NHD waterbodies, NPS unit boundaries). */
+export interface RawFeature {
+  properties: Record<string, unknown>;
+  geometry: { type: string; coordinates: unknown } | null;
+}
+
+/** A parcel polygon (DataSF acdm-wktn); condominium unit lots carry their base lot's polygon. */
+export interface RawParcelShape {
+  blklot: string;
+  mapblklot?: string;
+  active?: boolean;
+  shape?: { type: "MultiPolygon" | "Polygon"; coordinates: unknown };
+}
+
+/** Ground-cover sources (world QA W-11, W-18, W-34). */
+export interface RawLandcover {
+  parks: RawPark[];
+  canopy: RawCanopy[];
+  /** NHD large-scale waterbodies intersecting the citywide box. */
+  waterbodies: RawFeature[];
+  /** National Park Service unit boundaries (GGNRA, the Maritime park). */
+  federal: RawFeature[];
+}
+
 /** Citywide gameplay layers (absent for area-only worlds). */
 export interface RawExtras {
   neighborhoods: RawNeighborhood[];
@@ -146,6 +191,12 @@ export interface RawInputs {
   /** One raster per area (areas.json order), or per DEM block (citywide), first match wins. */
   dems: Array<{ areaId: string; raster: GeoRaster }>;
   extras?: RawExtras;
+  /** Citywide: when each street segment was added or altered (the carriageway clearance pass). */
+  streetDates?: RawStreetDate[];
+  /** Citywide: ground cover (lakes, parks, federal open space, tree canopy). */
+  landcover?: RawLandcover;
+  /** Citywide: polygons of the parcels the 2025 roll says were built in or after 2010 (W-04), by blklot. */
+  parcelShapes?: RawParcelShape[];
 }
 
 /** Padding around each area's tile rectangle for queries, metres. */
@@ -189,8 +240,9 @@ export function demUrlForRect(rect: TileRect): string {
 
 const STOREFRONT_NAICS_PREFIXES = ["44", "45", "722", "8121", "8123"];
 
-export async function downloadAll(cfg: WorldConfig, opts: FetchOptions): Promise<RawInputs> {
-  if (cfg.citywide) return downloadCitywide(cfg, opts);
+/** `extraParcels`: blklots whose polygons the build needs besides the newer-buildings pass's (overrides.json "add" entries). */
+export async function downloadAll(cfg: WorldConfig, opts: FetchOptions, extraParcels: readonly string[] = []): Promise<RawInputs> {
+  if (cfg.citywide) return downloadCitywide(cfg, opts, extraParcels);
   const log = opts.log ?? (() => {});
   const src = cfg.sources;
   const buildings = new Map<string, RawBuilding>();
@@ -285,7 +337,7 @@ const byKeySorted = <T>(rows: T[], key: (r: T) => string): T[] => {
  * has geometry), one DEM per block of tiles. Datasets download in parallel under the
  * fetch layer's concurrency cap; each page is cached on its own.
  */
-async function downloadCitywide(cfg: WorldConfig, opts: FetchOptions): Promise<RawInputs> {
+async function downloadCitywide(cfg: WorldConfig, opts: FetchOptions, extraParcels: readonly string[]): Promise<RawInputs> {
   const log = opts.log ?? (() => {});
   const cw = cfg.citywide!;
   const src = cfg.sources;
@@ -351,21 +403,41 @@ async function downloadCitywide(cfg: WorldConfig, opts: FetchOptions): Promise<R
       }, "parking regulations"),
     ]);
 
-  const blocks = demBlocks(candidateTiles(cfg), cw.demBlockTiles);
+  // A separate query (two columns) so the cached street geometry above stays the same download.
+  const streetDates = await page<RawStreetDate>(src.streets, {
+    where: `active = true AND intersects(line, '${wktBox(box)}')`,
+    select: "cnn,date_added,date_altered",
+    order: ":id",
+  }, "street segment dates");
+
+  // The DEM: the citywide blocks, then the further blocks the far layer's box reaches (W-17,
+  // W-40). Elevation reads the first raster covering a point, so the far blocks come last: they
+  // never change a height the citywide blocks give.
+  const cityBlocks = demBlocks(candidateTiles(cfg), cw.demBlockTiles);
+  const cityIds = new Set(cityBlocks.map((b) => b.id));
+  const farBlocks = cfg.far ? demBlocks(tilesOfBox(cfg.far), cw.demBlockTiles).filter((b) => !cityIds.has(b.id)) : [];
+  const blocks = [...cityBlocks, ...farBlocks];
   const dems = await Promise.all(
     blocks.map(async (b) => {
       const tif = await cachedGet(demUrlForRect(b.rect), "tif", opts);
       return { areaId: b.id, raster: parseGeoTiff(new Uint8Array(tif.buffer, tif.byteOffset, tif.byteLength)) };
     }),
   );
-  log(`  DEM: ${dems.length} blocks of ${cw.demBlockTiles}x${cw.demBlockTiles} tiles`);
+  log(`  DEM: ${dems.length} blocks of ${cw.demBlockTiles}x${cw.demBlockTiles} tiles (${farBlocks.length} for the far layer only)`);
+
+  // World QA part B: separate queries, so the cached downloads above stay the same files.
+  const landcover = await downloadLandcover(cfg, box, opts, page);
+  const parcelShapes = await downloadParcelShapes(cfg, parcels, opts, log, extraParcels);
 
   return {
+    landcover,
+    parcelShapes,
     buildings: byKeySorted(buildings, (r) => r.sf16_bldgid),
     streets: byKeySorted(streets, (r) => r.cnn),
     parcels: byKeySorted(parcels.filter((r) => r.parcel_number), (r) => r.parcel_number!),
     businesses: byKeySorted(businesses, (r) => r.uniqueid),
     dems,
+    streetDates: byKeySorted(streetDates, (r) => r.cnn),
     extras: {
       neighborhoods: byKeySorted(neighborhoods, (r) => r.nhood),
       fountains: byKeySorted(fountains, (r) => r.uid),
@@ -377,4 +449,133 @@ async function downloadCitywide(cfg: WorldConfig, opts: FetchOptions): Promise<R
       parking: byKeySorted(parking, (r) => r.objectid),
     },
   };
+}
+
+/** Every tile a lat/lon box touches. */
+export function tilesOfBox(b: { north: number; west: number; south: number; east: number }): TileRef[] {
+  const r = boxTileRect(b);
+  const out: TileRef[] = [];
+  for (let iz = r.iz0; iz <= r.iz1; iz++) for (let ix = r.ix0; ix <= r.ix1; ix++) out.push(tileRef(ix, iz));
+  return out;
+}
+
+/** An ArcGIS layer query for every feature intersecting a lat/lon box, as GeoJSON in WGS84. */
+export function arcgisQueryUrl(layer: string, params: Record<string, string>): string {
+  const q = Object.entries(params)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+  return `${layer}/query?${q}`;
+}
+
+async function arcgisFeatures(url: string, opts: FetchOptions, label: string): Promise<RawFeature[]> {
+  const body = await cachedGet(url, "json", opts);
+  const doc = JSON.parse(body.toString("utf8")) as { features?: RawFeature[]; error?: unknown; exceededTransferLimit?: boolean };
+  if (!Array.isArray(doc.features)) throw new Error(`${label}: unexpected response ${body.toString("utf8").slice(0, 300)}`);
+  if (doc.exceededTransferLimit) throw new Error(`${label}: the server truncated the answer (exceededTransferLimit)`);
+  return doc.features;
+}
+
+/**
+ * Ground cover (world QA W-11, W-18, W-34): Rec and Park properties, the Urban Tree Canopy
+ * (polygons of 100 sq ft or more, simplified to about 2 m by the server), NHD waterbodies in the
+ * citywide box, and the National Park Service units (the GGNRA: the Presidio, Lands End, Ocean
+ * Beach, Fort Funston, Fort Mason; the Maritime park), generalised to about 3 m.
+ */
+async function downloadLandcover(
+  cfg: WorldConfig,
+  box: { north: number; west: number; south: number; east: number },
+  opts: FetchOptions,
+  page: <T>(dataset: string, q: { where: string; select: string; order: string }, label: string, size?: number) => Promise<T[]>,
+): Promise<RawLandcover | undefined> {
+  const src = cfg.sources;
+  if (!src.recParks || !src.canopy || !src.waterbodies || !src.federalLands) return undefined;
+  const parks = await page<RawPark>(src.recParks, {
+    where: "shape IS NOT NULL",
+    select: "property_id,property_name,propertytype,shape",
+    order: "property_id",
+  }, "rec and park properties");
+  const canopy = await page<RawCanopy>(src.canopy, {
+    where: `t_sqft > 100 AND intersects(the_geom, '${wktBox(box)}')`,
+    select: "t_sqft,simplify_preserve_topology(the_geom, 0.00002) as g",
+    order: ":id",
+  }, "tree canopy polygons", 10000);
+  const envelope = [box.west, box.south, box.east, box.north].map(q6).join(",");
+  const waterbodies = await arcgisFeatures(
+    arcgisQueryUrl(src.waterbodies, {
+      where: "1=1",
+      geometry: envelope,
+      geometryType: "esriGeometryEnvelope",
+      inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects",
+      outFields: "gnis_name,ftype,fcode,areasqkm,permanent_identifier",
+      returnGeometry: "true",
+      outSR: "4326",
+      f: "geojson",
+    }),
+    opts,
+    "NHD waterbodies",
+  );
+  const units = (src.federalUnits ?? []).map((u) => `'${u}'`).join(",");
+  const federal = await arcgisFeatures(
+    arcgisQueryUrl(src.federalLands, {
+      where: `UNIT_CODE IN (${units})`,
+      outFields: "UNIT_CODE,UNIT_NAME",
+      returnGeometry: "true",
+      outSR: "4326",
+      maxAllowableOffset: "0.00003",
+      geometryPrecision: "6",
+      f: "geojson",
+    }),
+    opts,
+    "NPS unit boundaries",
+  );
+  opts.log?.(`  NHD waterbodies: ${waterbodies.length}; NPS units: ${federal.length}`);
+  const key = (f: RawFeature): string => String(f.properties.permanent_identifier ?? f.properties.PERMANENT_IDENTIFIER ?? f.properties.UNIT_CODE ?? "");
+  return {
+    parks: byKeySorted(parks, (r) => `${r.property_id ?? ""}|${r.property_name ?? ""}`),
+    canopy,
+    waterbodies: [...waterbodies].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0)),
+    federal: [...federal].sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0)),
+  };
+}
+
+/** Parcels whose polygons the newer-buildings pass may need: built in or after 2010 with storeys. */
+export function newerParcelNumbers(parcels: readonly RawParcel[]): string[] {
+  const out = new Set<string>();
+  for (const p of parcels) {
+    const year = Number(p.year_property_built);
+    const stories = Number(p.number_of_stories);
+    if (p.parcel_number && year >= 2010 && stories > 0) out.add(p.parcel_number);
+  }
+  return [...out].sort();
+}
+
+/** Batch size of the parcel-polygon queries (blklot IN (...)). */
+const PARCEL_BATCH = 150;
+
+async function downloadParcelShapes(
+  cfg: WorldConfig,
+  parcels: readonly RawParcel[],
+  opts: FetchOptions,
+  log: (m: string) => void,
+  extra: readonly string[],
+): Promise<RawParcelShape[] | undefined> {
+  const ds = cfg.sources.parcelShapes;
+  if (!ds) return undefined;
+  const want = newerParcelNumbers(parcels);
+  // Override lots go in a query of their own, so the pass's batches stay the same downloads.
+  const own = new Set(want);
+  const more = [...new Set(extra)].filter((b) => !own.has(b)).sort();
+  if (more.length) want.push(...more);
+  const rows: RawParcelShape[] = [];
+  const batches: string[][] = [];
+  const base = want.length - more.length;
+  for (let i = 0; i < base; i += PARCEL_BATCH) batches.push(want.slice(i, Math.min(base, i + PARCEL_BATCH)));
+  if (more.length) batches.push(more);
+  for (const batch of batches) {
+    const list = batch.map((b) => `'${b}'`).join(",");
+    rows.push(...(await socrataAll<RawParcelShape>(ds, { where: `blklot IN (${list})`, select: "blklot,mapblklot,active,shape", order: "blklot" }, opts, 1000)));
+  }
+  log(`  parcel polygons for ${want.length} parcels built since 2010: ${rows.length}`);
+  return byKeySorted(rows.filter((r) => r.blklot && r.shape), (r) => `${r.blklot}|${r.active ? 1 : 0}`);
 }
