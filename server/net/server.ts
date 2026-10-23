@@ -5,8 +5,10 @@ import { MAX_MESSAGE_BYTES, parseClientMessage, type ServerMessage, type WorldNa
 import { Room } from "./room.ts";
 import { FixedClock } from "./clock.ts";
 import type { WorldBundle } from "./world.ts";
+import type { NetworkSimulation } from "../../src/net/simulation.ts";
 
 export interface RelayOptions {
+  simulation?:NetworkSimulation;
   loadWorld(name: WorldName): Promise<WorldBundle>;
   now?: () => number;
   automaticTicks?: boolean;
@@ -104,7 +106,7 @@ export function createRelay(options: RelayOptions) {
               let code: string;
               const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
               do { code = Array.from(randomBytes(10), (n) => alphabet[n & 31]!).join(""); } while (rooms.has(code));
-              room = new Room(code, bundle, now(), randomBytes(4).readUInt32BE());
+              room = new Room(code, bundle, now(), randomBytes(4).readUInt32BE(),options.simulation);
               rooms.set(code, room);
             } finally { creating--; }
           } else {
@@ -117,6 +119,7 @@ export function createRelay(options: RelayOptions) {
         } else {
           if (!room || !playerId) throw new Error("not_joined");
           if (message.type === "input") room.input(playerId, message.seq, message.input);
+          else if(message.type==="command")room.command(playerId,message.command);
           else if (now() - lastResync >= 1000) { lastResync = now(); send({ type: "snapshot", ...room.snapshot() }); }
         }
       }).catch((error: unknown) => fail(error instanceof Error ? error.message : "invalid_message")).finally(() => { queued--; });

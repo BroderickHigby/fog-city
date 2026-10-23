@@ -1,5 +1,6 @@
 // The relay accepts controls, never client positions or arbitrary simulation events.
 import { Action, SIM_VERSION, type InputFrame, type SimEvent, type SimInput, type SimState } from "../sim/index.ts";
+import { gameplayCommandFromEvent, type GameplayCommand } from "../sim/gameplay-contract.ts";
 
 export const NET_VERSION = 1;
 export const MAX_PLAYERS = 4;
@@ -18,7 +19,8 @@ export interface Hello {
   fingerprint: string;
   code?: string;
 }
-export type ClientMessage = Hello | { type: "input"; seq: number; input: SimInput } | { type: "resync" };
+export type NetworkCommand=Omit<GameplayCommand,"playerId">;
+export type ClientMessage = Hello | { type: "input"; seq: number; input: SimInput } | { type: "command"; command:NetworkCommand } | { type: "resync" };
 export interface Snapshot {
   state: SimState;
   hash: string;
@@ -46,9 +48,12 @@ const keys = (x: Record<string, unknown>, names: string[]): boolean => Object.ke
 const between = (x: unknown, min: number, max: number): x is number => typeof x === "number" && Number.isFinite(x) && x >= min && x <= max;
 
 export function validInput(x: unknown): x is SimInput {
-  return object(x) && keys(x, ["throttle", "steer", "brake", "actions"]) &&
+  return object(x) && ["throttle", "steer", "brake", "actions"].every(key=>Object.hasOwn(x,key)) &&
+    Object.keys(x).every(key=>["throttle","steer","brake","actions","aimYaw","aimPitch"].includes(key)) &&
     between(x.throttle, -1, 1) && between(x.steer, -1, 1) && between(x.brake, 0, 1) &&
-    between(x.actions, 0, actionMask) && Number.isInteger(x.actions) && (x.actions & ~actionMask) === 0;
+    between(x.actions, 0, actionMask) && Number.isInteger(x.actions) && (x.actions & ~actionMask) === 0 &&
+    (!Object.hasOwn(x,"aimYaw") || typeof x.aimYaw==="number" && Number.isFinite(x.aimYaw)) &&
+    (!Object.hasOwn(x,"aimPitch") || typeof x.aimPitch==="number" && Number.isFinite(x.aimPitch));
 }
 
 /** Closed message shapes also reject player-id spoofing, chat, and state injection. */
@@ -57,6 +62,10 @@ export function parseClientMessage(text: string): ClientMessage {
   let value: unknown;
   try { value = JSON.parse(text); } catch { throw new Error("invalid_message"); }
   if (!object(value)) throw new Error("invalid_message");
+  if(value.type==="command" && keys(value,["type","command"]) && object(value.command)) {
+    const parsed=gameplayCommandFromEvent({tick:1,kind:"gameplay.command",playerId:"network",payload:value.command});
+    if(parsed){const {playerId:_,...command}=parsed;return {type:"command",command};}
+  }
   if (value.type === "resync" && keys(value, ["type"])) return { type: "resync" };
   if (value.type === "input" && keys(value, ["type", "seq", "input"]) &&
       between(value.seq, 1, 0x7fffffff) && Number.isInteger(value.seq) && validInput(value.input)) {

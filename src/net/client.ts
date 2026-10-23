@@ -1,6 +1,7 @@
 import { SIM_VERSION, type SimInput, type SimState, type World } from "../sim/index.ts";
-import { NET_VERSION, type Hello, type ServerMessage, type WorldName } from "./protocol.ts";
+import { NET_VERSION, type Hello, type NetworkCommand, type ServerMessage, type WorldName } from "./protocol.ts";
 import { Prediction } from "./prediction.ts";
+import type { NetworkSimulation } from "./simulation.ts";
 
 export interface ConnectionInfo {
   status: "offline" | "connecting" | "connected" | "recovering" | "error";
@@ -13,6 +14,7 @@ export interface ConnectionInfo {
 }
 
 export interface ClientOptions {
+  simulation?:NetworkSimulation;
   onState(state: SimState, playerId: string): void;
   onStatus(info: ConnectionInfo): void;
   onDisconnect(): void;
@@ -26,12 +28,13 @@ export class RelayClient {
   private readonly worldName: WorldName;
   private readonly fingerprint: string;
   private actions = 0;
+  private commandSequence=1;
 
   constructor(world: World, worldName: WorldName, fingerprint: string, options: ClientOptions) {
     this.options = options;
     this.worldName = worldName;
     this.fingerprint = fingerprint;
-    this.prediction = new Prediction(world, () => this.send({ type: "resync" }));
+    this.prediction = new Prediction(world, () => this.send({ type: "resync" }),options.simulation);
   }
 
   connect(url: string, code?: string): void {
@@ -60,6 +63,7 @@ export class RelayClient {
           if (message.world !== this.worldName || message.fingerprint !== this.fingerprint) throw new Error("World versions do not match.");
           this.info.code = message.code;
           this.info.playerId = message.playerId;
+          this.commandSequence=1;
         }
         this.prediction.receive(message);
         this.info.status = this.prediction.recovering ? "recovering" : "connected";
@@ -103,6 +107,12 @@ export class RelayClient {
   }
 
   disconnect(): void { this.socket?.close(); }
+  command(command:Omit<NetworkCommand,"sequence">):boolean {
+    if(this.info.status!=="connected" || !this.socket || this.socket.readyState!==WebSocket.OPEN)return false;
+    if(this.socket.bufferedAmount>=32_768){this.fellBehind();return false;}
+    this.send({type:"command",command:{...command,sequence:this.commandSequence++}});
+    return true;
+  }
   private send(value: unknown): void {
     if (this.socket?.readyState !== WebSocket.OPEN) return;
     if (this.socket.bufferedAmount >= 32_768) { this.fellBehind(); return; }

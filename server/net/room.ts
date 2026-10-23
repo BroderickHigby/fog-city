@@ -1,10 +1,11 @@
 import { createInitialState, hashState, NEUTRAL_INPUT, step, type SimEvent, type SimInput, type SimState } from "../../src/sim/index.ts";
-import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, ROOM_LIFETIME_MS, type Frame, type ServerMessage, type Snapshot } from "../../src/net/protocol.ts";
+import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, ROOM_LIFETIME_MS, type Frame, type NetworkCommand, type ServerMessage, type Snapshot } from "../../src/net/protocol.ts";
 import { SIM_VERSION } from "../../src/sim/contract.ts";
 import type { WorldBundle } from "./world.ts";
+import { baseSimulation, type NetworkSimulation } from "../../src/net/simulation.ts";
 
 export interface Peer { send(message: ServerMessage): void; close(code: string): void }
-interface Member { peer: Peer; queue: Array<{ seq: number; input: SimInput }>; seq: number; ack: number; name: string }
+interface Member { peer: Peer; queue: Array<{ seq: number; input: SimInput }>; seq: number; ack: number; name: string; commandSequence:number }
 
 /** One server-owned 60 Hz timeline. The ring is a bounded replay of accepted inputs and events. */
 export class Room {
@@ -17,13 +18,15 @@ export class Room {
   lastActive: number;
   private nextId = 1;
   private events: SimEvent[] = [];
+  private readonly simulation:NetworkSimulation;
 
-  constructor(code: string, bundle: WorldBundle, now: number, seed: number) {
+  constructor(code: string, bundle: WorldBundle, now: number, seed: number,simulation:NetworkSimulation=baseSimulation) {
     this.code = code;
     this.bundle = bundle;
     this.expiresAt = now + ROOM_LIFETIME_MS;
     this.lastActive = now;
-    this.state = createInitialState(bundle.world, seed, [], bundle.spawn);
+    this.simulation=simulation;
+    this.state = simulation.create(bundle.world, seed, [], bundle.spawn);
   }
 
   join(peer: Peer, now: number): string {
@@ -32,7 +35,7 @@ export class Room {
     const id = `p${this.nextId++}`;
     const used = new Set([...this.members.values()].map((m) => m.name));
     const name = NAME_PARTS.find((n) => !used.has(n))!;
-    this.members.set(id, { peer, queue: [], seq: 0, ack: 0, name });
+    this.members.set(id, { peer, queue: [], seq: 0, ack: 0, name,commandSequence:0 });
     this.events.push({ tick: this.state.tick + 1, kind: "player.join", playerId: id, payload: this.bundle.spawn });
     this.lastActive = now;
     peer.send({ type: "welcome", version: NET_VERSION, simVersion: SIM_VERSION, world: this.bundle.name,
@@ -56,6 +59,14 @@ export class Room {
     member.queue.push({ seq, input: { ...input } });
   }
 
+  command(id:string,command:NetworkCommand):void {
+    const member=this.members.get(id);if(!member)throw new Error("not_joined");
+    if(command.sequence!==member.commandSequence+1)throw new Error("input_sequence");
+    if(this.events.length>=128)throw new Error("input_backlog");
+    member.commandSequence=command.sequence;
+    this.events.push({tick:this.state.tick+1,kind:"gameplay.command",playerId:id,payload:{...command}});
+  }
+
   snapshot(): Snapshot {
     return { state: this.state, hash: hashState(this.state), ack: this.acks(), players: this.names() };
   }
@@ -70,7 +81,7 @@ export class Room {
     }
     const events = this.events;
     this.events = [];
-    this.state = step(this.bundle.world, this.state, inputs, events);
+    this.state = this.simulation.step(this.bundle.world, this.state, inputs, events);
     if (this.members.size) this.lastActive = now;
     const frame: Frame = { type: "frame", tick: this.state.tick, inputs, events, ack: this.acks(), players: this.names() };
     if (this.state.tick % 60 === 0) frame.hash = hashState(this.state);

@@ -1,4 +1,5 @@
-import { hashState, SIM_VERSION, step, type SimInput, type SimState, type World } from "../sim/index.ts";
+import { hashState, SIM_VERSION, type SimInput, type SimState, type World } from "../sim/index.ts";
+import { baseSimulation, type NetworkSimulation } from "./simulation.ts";
 import { MAX_PREDICTION_TICKS, NET_VERSION, validInput, type ServerMessage, type Snapshot } from "./protocol.ts";
 
 /** Bounded client prediction; every correction replays only unacknowledged local controls. */
@@ -13,10 +14,12 @@ export class Prediction {
   private seq = 0;
   private readonly world: World;
   private readonly requestSnapshot: () => void;
+  private readonly simulation:NetworkSimulation;
 
-  constructor(world: World, requestSnapshot: () => void) {
+  constructor(world: World, requestSnapshot: () => void, simulation:NetworkSimulation=baseSimulation) {
     this.world = world;
     this.requestSnapshot = requestSnapshot;
+    this.simulation=simulation;
   }
 
   predict(input: SimInput): { seq: number; input: SimInput } | null {
@@ -50,7 +53,7 @@ export class Prediction {
     if (!this.confirmed || this.recovering) return;
     if (message.tick <= this.confirmed.tick) return;
     if (message.tick !== this.confirmed.tick + 1) { this.recover(); return; }
-    const next = step(this.world, this.confirmed, message.inputs, message.events);
+    const next = this.simulation.step(this.world, this.confirmed, message.inputs, message.events);
     if (message.hash && hashState(next) !== message.hash) { this.recover(); return; }
     this.confirmed = next;
     this.players = { ...message.players };
@@ -82,7 +85,7 @@ export class Prediction {
   private replay(): void {
     let state = this.confirmed;
     if (!state) return;
-    for (const p of this.pending) state = step(this.world, state, { [this.playerId]: p.input });
+    for (const p of this.pending) state = this.simulation.step(this.world, state, { [this.playerId]: p.input });
     this.state = state;
   }
 }
