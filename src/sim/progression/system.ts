@@ -24,6 +24,7 @@ export function stepProgression(previous:ProgressionState,ctx:GameplayContext,ti
   if(grant.kind==="mission.unlock"&&grant.targetId==="app:scanner-tier-2")own.scannerTier=Math.max(own.scannerTier,2) as 2|3|4;
   if(grant.kind==="economy.changed"&&grant.detail==="wrong-target"){own.streakPoints=0;own.banked={};}
   if(grant.kind==="mission.xp"||grant.kind==="activity.xp")own.xp+=Math.max(0,grant.amount);
+  if(grant.kind==="boss.robotsFreed"){state.doom={...state.doom,months:24,stopped:true,pausedUntil:0,winterUntilDay:-1};event(state,"world.doom-stopped",grant.playerId);}
   if(grant.kind==="player.down"||grant.kind==="player.acqui-hired"){own.streakPoints=0;own.banked={};}
   if(grant.kind==="vendor.purchased"){
    const item=ctx.items.find(item=>item.id===grant.targetId);if(!item)continue;

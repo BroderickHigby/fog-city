@@ -74,3 +74,15 @@ Validation: TypeScript and **81 tests across eight files passed**, including sev
 Consumed the core's persistent wide-nozzle and microclimate equipment contract, enabled the authored wide-nozzle purchase, mapped it into combat loadout state, and enabled switching between owned nozzles. Microclimate selection now reaches combat's implemented gear effect. The subscription renewal/cancellation flow remains a separate unfinished system; this checkpoint does not claim subscription billing is present.
 
 Latest validation: TypeScript and **82 tests across eight files passed**. Composed-core review also found that nearby off-reticle robots could steal Watch: `c0d5d0a` and `29b3705` now use a 15-degree aim cone and angular error before distance. The core owner has independently verified the same fix against an actual staged Hot Desk scene.
+
+
+## Future scene branch: wave 7
+`lane/sim-player/wave7` isolates the later scene reducers from the verified wave-2 integration. Acqui-hire Offer now requests a real delivery scene, requires accepted robot control and sequential physical delivery/server interactions, drops the connection on exposure, and waits for accepted disconnection plus leaving the van. Retries discard attempt evidence, request control release, and cannot inherit a stale control mapping as a fresh connection.
+
+The finale reducer requests phase-specific scene bodies, requires three seconds of actually seeing the giant, accepted fireboat control, player-owned rust on both joints, real paper-drone clears, and a restored friendly fleet before stopping the Doom Clock. Retry retains the already observed entrance while discarding joint evidence. Footfall requests require clear person/animal/player footprints and ask the core to revalidate clearance at application time.
+
+These are measured mission reducers, not a claim that the physical boss is integrated. Lane 3 supports the teleoperation scene and accepted-control AI suppression. Core must move the accepted controlled actor, expose `controlledActorIds`, and release control on exit requests. The giant, fireboat, salt-cannon range, scripted joints, waterfront motion and collapse need a dedicated core/render/combat implementation; the generic small-agent adapter intentionally rejects a 500 m walker. Named facts never arise merely from sending a scene request.
+
+Wave-7 draft PR title: `Sim-Player: require observed teleoperation and finale scene outcomes`
+
+Wave-7 draft PR body: Later mission reducers now advance from accepted robot/body control, physical delivery interactions, owned joint rust, timed observation and an observed restored fleet. Scene requests are deterministic and retries clear attempt evidence without losing a previously witnessed entrance. The observed provider projects accepted controlled bodies and exposes visibility, phases and damage owners. Doom stops only after the actual fleet is restored. Validation: TypeScript and focused player/forbidden-API tests. Dedicated giant/fireboat physics and rendering remain explicitly unintegrated; this branch stays separate from the current wave-2 game.

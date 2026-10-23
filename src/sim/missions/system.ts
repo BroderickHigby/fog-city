@@ -4,6 +4,8 @@ import type { Mission,Place,Step } from "../../content/missions.ts";
 import { commands,distanceSquared,event,facts,sortedBodies,validId } from "../player/common.ts";
 import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionState,PlayerGameplayState } from "../player/types.ts";
 import { observeMission } from "./observed.ts";
+import { stepTeleoperation } from "./teleoperation.ts";
+import { createFinale,stepFinale } from "./finale.ts";
 
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
@@ -11,7 +13,7 @@ export function missionPlace(place:Place):{x:number;y:number;z:number}{return {.
 function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)*(place.radiusM??25);}
 function initial(mission:Mission):string{return mission.start??mission.steps[0]?.id??"";}
 function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
-function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
+function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;delete progress.observed;delete progress.teleoperation;delete progress.finale;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
 export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState):MissionState {
@@ -27,7 +29,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     const earlier=wanted&&eligible.some(m=>(m.campaign??0)>0&&(m.campaign??0)<(wanted.campaign??0)&&!own.completedIds.includes(m.id));
     if(wanted&&!earlier)start(own,wanted,tick);
    }
-   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";delete own.observed;enter(own,own.retryFrom,tick);}
+   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";delete own.observed;delete own.teleoperation;const sawEntrance=own.finale?.sawEntrance??false;if(own.finale)own.finale={...createFinale(),sawEntrance};enter(own,own.retryFrom,tick);}
   }
   if(own.status==="idle"){
    const mission=eligible.find(m=>!own.completedIds.includes(m.id));const first=mission?.steps.find(s=>s.id===initial(mission));
@@ -64,6 +66,17 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
    if(step.type==="branch"){const value=own.meters[step.meter]??0;return step.cases.find(c=>(c.min===undefined||value>=c.min)&&(c.max===undefined||value<=c.max))?.next??step.default;}
    if(step.type==="form")return ctx.validKitIds.includes(player.players[body.id]?.startupKitId??"")||requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
    if(step.type==="objective"){
+    if(mission.id==="comeback-round"){
+     const finale=stepFinale(own.finale,mission,step,ctx,body.id,tick,own.stepStartedTick);own.finale=finale.state;
+     for(const request of finale.requests)event(state,request.kind,body.id,request.targetId,0,request.detail);
+     if(finale.complete){event(state,step.objective.event??"boss.objective",body.id,mission.id);return step.next;}
+    }
+    if(mission.id==="acqui-hire-offer"){
+     const teleoperation=stepTeleoperation(own.teleoperation,mission,step,ctx,body.id,tick);own.teleoperation=teleoperation.state;
+     for(const request of teleoperation.requests)event(state,request.kind,body.id,request.targetId,0,request.detail);
+     if(teleoperation.failed&&step.onFail)return step.onFail;
+     if(teleoperation.complete){event(state,step.objective.event??"teleoperation.objective",body.id,mission.id);return step.next;}
+    }
     const measured=observeMission(own.observed,mission,step,ctx,body.id,tick,own.stepStartedTick,incoming);own.observed=measured.state;
     for(const request of measured.requests)event(state,request.kind,body.id,request.targetId,0,request.detail);
     if(measured.complete){if(step.objective.kind==="event")event(state,step.objective.event!,body.id,mission.id);return step.next;}
@@ -85,7 +98,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}
     return;
    }
-   if(step.type==="retry"){own.status="retry";own.retryFrom=step.retryFrom;own.deadlineTick=tick+Math.ceil((step.cooldownS??0)*60);own.outcome=step.outcome;event(state,"mission.retry",body.id,mission.id,own.deadlineTick,step.outcome);return;}
+   if(step.type==="retry"){const controlled=ctx.controlledActorIds?.[body.id];if(controlled&&mission.id==="acqui-hire-offer")event(state,"mission.control-request",body.id,controlled,0,JSON.stringify({id:`${mission.id}:${body.id}:retry:${tick}`,playerId:body.id,actorId:controlled,action:"exit"}));own.status="retry";own.retryFrom=step.retryFrom;own.deadlineTick=tick+Math.ceil((step.cooldownS??0)*60);own.outcome=step.outcome;event(state,"mission.retry",body.id,mission.id,own.deadlineTick,step.outcome);return;}
    if(step.type==="reward"){
     const rewardId=`${mission.id}:${step.id}`;
     if(!own.rewardedIds.includes(rewardId)){

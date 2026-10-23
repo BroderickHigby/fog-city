@@ -25,3 +25,6 @@ it("only completes a measured faction route within its speed rule",()=>{
  const fast=stepActivities(start,{...ctx,commands:[],bodies:[{...ctx.bodies[0]!,x:10,speed:10}],actions:{p:Action.interact}},60,createMissions(),1);expect(fast.events.some(e=>e.kind==="faction.pauser-completed")).toBe(false);expect(fast.events.some(e=>e.kind==="activity.failed")).toBe(true);
  const valid=stepActivities(start,{...ctx,commands:[],bodies:[{...ctx.bodies[0]!,x:10}],actions:{p:Action.interact}},60,createMissions(),1);expect(valid.events.some(e=>e.kind==="faction.pauser-completed")).toBe(true);
 });
+it("leaves the clock stopped after the finale",()=>{
+ const result=stepDoomClock({...createDoomClock(),stopped:true,lastDay:0},context(100),6000);expect(result.state.months).toBe(24);expect(result.events).toEqual([]);
+});

@@ -14,7 +14,7 @@ export function applyModeSettlements(freeRoam:SimState,payouts:readonly ModeSett
   const wallet={...(economy.players[payout.playerId]??createWallet())},profile={...(progression.players[payout.playerId]??createProgressionPlayer())};
   wallet.cashCents=Math.min(Number.MAX_SAFE_INTEGER,wallet.cashCents+payout.cashCents);profile.xp=Math.min(Number.MAX_SAFE_INTEGER,profile.xp+payout.xp);profile.rank=rankForXp(profile.xp);profile.achievements=[...new Set([...(profile.achievements??[]),...payout.achievements.filter(validId)])].sort();
   economy.players[payout.playerId]=wallet;progression.players[payout.playerId]=profile;economy.settledModeIds.push(payout.id);
-  if(payout.factionClockMoves===1){const faction=factionFor(progression.doom,payout.playerId);if(faction!=="unaffiliated")progression.doom.months+=faction==="pauser"?1:-1;}
+  if(payout.factionClockMoves===1&&!progression.doom.stopped){const faction=factionFor(progression.doom,payout.playerId);if(faction!=="unaffiliated")progression.doom.months+=faction==="pauser"?1:-1;}
  }
  const ext={...freeRoam.ext};Object.assign(ext,{economy,progression});return {...freeRoam,ext};
 }

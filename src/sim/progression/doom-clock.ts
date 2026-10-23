@@ -2,14 +2,15 @@ import { facts } from "../player/common.ts";
 import type { GameplayContext } from "../player/types.ts";
 
 export interface FactionRecord {pauser:number;accelerator:number}
-export interface DoomClockState {months:number;lastDay:number;resets:number;winters:number;pausedUntil:number;winterUntilDay:number;factions:Record<string,FactionRecord>;factCursors:Record<string,number>}
+export interface DoomClockState {months:number;lastDay:number;resets:number;winters:number;pausedUntil:number;winterUntilDay:number;stopped:boolean;factions:Record<string,FactionRecord>;factCursors:Record<string,number>}
 export interface DoomChange {kind:"world.agi-achieved"|"world.ai-winter"|"faction.changed";playerId:string;amount:number}
-export function createDoomClock():DoomClockState{return {months:24,lastDay:-1,resets:0,winters:0,pausedUntil:0,winterUntilDay:-1,factions:{},factCursors:{}};}
+export function createDoomClock():DoomClockState{return {months:24,lastDay:-1,resets:0,winters:0,pausedUntil:0,winterUntilDay:-1,stopped:false,factions:{},factCursors:{}};}
 /** A day of hype advances one month; completed contracts move three months. */
 export function stepDoomClock(previous:DoomClockState,ctx:GameplayContext,tick:number):{state:DoomClockState;events:DoomChange[]} {
  const state:DoomClockState={...previous,factions:{},factCursors:{...previous.factCursors}},events:DoomChange[]=[];
  for(const id of Object.keys(previous.factions).sort())state.factions[id]={...previous.factions[id]!};
  const day=Number.isSafeInteger(ctx.day)&&ctx.day>=0?ctx.day:Math.max(0,previous.lastDay);
+ if(state.stopped){state.lastDay=Math.max(day,previous.lastDay);return {state,events};}
  if(previous.lastDay>=0&&day>previous.lastDay)state.months-=day-previous.lastDay;
  state.lastDay=Math.max(day,previous.lastDay);
  for(const fact of facts(ctx,tick,state.factCursors)){
