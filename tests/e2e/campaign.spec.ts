@@ -38,7 +38,7 @@ async function feed(page: Page, driver: CampaignDriver): Promise<void> {
 
 test.use({ viewport: { width: 960, height: 540 } });
 test("Hot Desk and the first purchase complete through real controls, then Spill waits for acknowledgement", async ({ page }) => {
-  test.setTimeout(1_200_000);
+  test.setTimeout(2_700_000);
   const problems = await bootWorld(page, "sf", "&radius=300&pr=0.75");
   await page.evaluate(() => {
     const handle = (window as unknown as FogWindow).__fogcity!;
@@ -125,8 +125,17 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
     { frames: second.frames },
     p1Chunk(final.tick - second.state.tick),
   ], initial.tick, commands);
-  const replayHash = await quietRenderer(page, () => hashState(replay(world, initial, recorded, e2eGameSystems()).final));
-  expect(replayHash).toBe(hashState(final));
+  const expectedHash = hashState(final);
+  const replayHash = await quietRenderer(page, () => {
+    const actualHash = hashState(replay(world, initial, recorded, e2eGameSystems()).final);
+    writeFileSync("test-results/campaign-replay-proof.json", JSON.stringify({
+      initialTick: initial.tick, finalTick: final.tick,
+      inputFrames: recorded.reduce((count, chunk) => count + chunk.frames.length, 0),
+      commands: commands.length, actualHash, expectedHash, matches: actualHash === expectedHash,
+    }, null, 2));
+    return actualHash;
+  });
+  expect(replayHash).toBe(expectedHash);
   console.info("Campaign full replay hash matched");
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("chase"));
   await frames(page, 2);

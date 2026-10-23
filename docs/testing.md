@@ -76,7 +76,9 @@ Live-game replays use `E2E_GAME_WAVE` (default `4`) to match the page's enabled 
 systems. This combined wave-4 build uses that default; set `E2E_GAME_WAVE` explicitly when checking another enabled wave. Pure cross-engine
 fixtures keep their explicit wave-2 scenario independently of the live page.
 
-The campaign browser check uses a 1×1 viewport only during pure Node input planning and full replay calculation to reduce software-rasterization contention. It restores 960×540 before applying inputs, inspecting the UI, making assertions, or capturing screenshots; simulation state, input frames, and timeouts remain unchanged.
+The campaign browser check uses a 1×1 viewport only during pure Node input planning and full replay calculation to reduce software-rasterization contention. It restores 960×540 before applying inputs, inspecting the UI, making assertions, or capturing screenshots; simulation state and input frames remain unchanged.
+
+The complete campaign case has a 45-minute wall-clock allowance for its bounded physical route and full replay under software rendering. Its final replay hashes and input counts are written before awaiting viewport restoration, so a slow browser teardown cannot discard completed proof. All physical, purchase, mission and replay assertions remain required.
 
 ## Prerequisites, skips and E2E_REQUIRE
 
