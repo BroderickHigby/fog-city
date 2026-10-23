@@ -38,6 +38,7 @@ import { meshGroundHeight, type World } from "./world.ts";
 import { prepareSystems, runSystems, SYSTEMS } from "./systems.ts";
 import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
+import { releaseActorIds } from "./identity.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -395,7 +396,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   for (const id of sortedIds(players)) sanitized[id] = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
   const prior: SimState = { ...prev, players };
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
-  const admitted = prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements);
+  const admitted = releaseActorIds(prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements), prepared.retirements);
   const before: SimState = { ...admitted, tick:prev.tick };
   const obs = obstaclesOf(before);
   const next: Record<PlayerId, PlayerState> = {};
