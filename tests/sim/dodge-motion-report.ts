@@ -4,10 +4,9 @@
 //   node tests/sim/dodge-motion-report.ts docs/shots/dodge-stream/after/motion.json [--quick]
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { DT, SIM_VERSION, buildWorld, createInitialState, makeCar, meshGroundHeight, step, type AgentState, type AgentsExt, type SimState, type World } from "../../src/sim/index.ts";
-import { AGENTS_EXT_KEY } from "../../src/sim/agents.ts";
+import { DT, SIM_VERSION, buildWorld, step } from "../../src/sim/index.ts";
 import { toLocal } from "../../src/geo/project.ts";
-import { DodgeMotion, type MotionSummary } from "./dodge-motion.ts";
+import { DodgeMotion, straightAtOne, type MotionSummary } from "./dodge-motion.ts";
 import { makeScene, run } from "./dodge-scenes.ts";
 import { NARROW_PLACES, routeFrom, soak, startNear, type SoakStart } from "./dodge-soak.ts";
 import { loadWorldFiles } from "../helpers.ts";
@@ -20,22 +19,9 @@ function summarise(name: string, m: DodgeMotion, extra: Record<string, unknown> 
   const s: MotionSummary = m.summary();
   const row = { name, ...extra, ...s, traces: undefined };
   console.log(
-    `${name.padEnd(46)} dives ${String(s.dives).padStart(4)}  overrides ${String(s.overrides).padStart(3)}  peak ${s.peakSpeed.toFixed(2)} m/s (dive ${s.peakDiveSpeed.toFixed(2)}, p99 ${s.p99Speed.toFixed(2)})  accel ${s.peakAccel.toFixed(1)} (p99 ${s.p99Accel.toFixed(1)}) m/s2  lift ${s.peakLift.toFixed(2)} m  leap ${s.maxLeapM.toFixed(2)} m`,
+    `${name.padEnd(46)} dives ${String(s.dives).padStart(4)}  overrides ${String(s.overrides).padStart(3)}  peak ${s.peakSpeed.toFixed(2)} m/s (dive ${s.peakDiveSpeed.toFixed(2)}, p99 ${s.p99Speed.toFixed(2)})  accel ${s.peakAccel.toFixed(1)} (p99 ${s.p99Accel.toFixed(1)}, ${s.hardStops} pull-ups) m/s2  lift ${s.peakLift.toFixed(2)} m  leap ${s.maxLeapM.toFixed(2)} m`,
   );
   return { ...row, traces: s.traces.slice(0, 2) };
-}
-
-/** One person standing at the origin of a flat world, a car coming straight at them from 80 m at `speed` m/s, holding it. */
-function straightAt(speed: number): { world: World; state: SimState } {
-  const world = buildWorld([{ tileId: "flat", buildings: [], ground: null }]);
-  let s = createInitialState(world, 1, ["car"], { x: 0, z: 80, heading: 0 });
-  const person: AgentState = {
-    id: 100, kind: "person", x: 0, y: meshGroundHeight(world, 0, 0), z: 0, heading: Math.PI / 2, pitch: 0, speed: 0, vmax: 1.3,
-    edge: "", dir: 1, lane: 1, s: 0, next: "", ndir: 1, nlane: 1, conn: null, node: "", resume: 0, lat: 0, wait: 0, dwell: 0, ghost: 0, mode: "go", rng: 100, dodge: null,
-  };
-  const ext = s.ext[AGENTS_EXT_KEY] as AgentsExt;
-  s = { ...s, players: { car: { ...s.players.car!, car: { ...makeCar(0, 80, 0), speed } } }, ext: { ...s.ext, [AGENTS_EXT_KEY]: { ...ext, list: [person] } } };
-  return { world, state: s };
 }
 
 const rows: Record<string, unknown>[] = [];
@@ -43,7 +29,8 @@ const totals = { dives: 0, overrides: 0 };
 
 // Straight at one person, held at a fixed speed.
 for (const speed of [6, 10, 15, 20, 30]) {
-  const { world, state } = straightAt(speed);
+  const world = buildWorld([{ tileId: "flat", buildings: [], ground: null }]);
+  const state = straightAtOne(world, speed);
   const m = new DodgeMotion(world);
   let s = state;
   for (let t = 0; t < Math.round((80 / speed + 3) / DT); t++) {

@@ -4,9 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { PLAYER_BODY_FILE, PlayerBodies } from "../../src/render/player-body.ts";
+import { PLAYER_BODY_FILE, PLAYER_DODGE_FILE, PlayerBodies, motionFor } from "../../src/render/player-body.ts";
+import type { DodgeState } from "../../src/sim/contract.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
+const dodgeBytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_DODGE_FILE}`, import.meta.url)));
+const files = async (path: string): Promise<Uint8Array> => (path === PLAYER_DODGE_FILE ? dodgeBytes : bytes);
 // Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
 beforeEach(() => {
   vi.stubGlobal("self", globalThis);
@@ -49,7 +52,7 @@ const pose = { x: 10, y: 3, z: -5, heading: Math.PI / 2, speed: 0 };
 
 describe("generic online player avatar", () => {
   it("loads actual human geometry and animates independent skeletons without moving the world pose", async () => {
-    const humans = await PlayerBodies.load(async path => { expect(path).toBe(PLAYER_BODY_FILE); return bytes; }, true);
+    const humans = await PlayerBodies.load(async path => { expect([PLAYER_BODY_FILE, PLAYER_DODGE_FILE]).toContain(path); return path === PLAYER_DODGE_FILE ? dodgeBytes : bytes; }, true);
     disposables.push(humans);
     humans.begin();
     humans.add("p1", 10, 3, -5, Math.PI / 2, 0, 0);
@@ -133,7 +136,10 @@ describe("generic online player avatar", () => {
     await vi.waitFor(() => expect(actors.group.getObjectByName("players:bodies")).toBeDefined());
     actors.setFoot("p2", { ...pose, x: 12 });
     actors.update(1 / 60);
-    expect(load).toHaveBeenCalledExactlyOnceWith(PLAYER_BODY_FILE);
+    // The human and its dodge clips, once each, for every player.
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(load).toHaveBeenNthCalledWith(1, PLAYER_BODY_FILE);
+    expect(load).toHaveBeenNthCalledWith(2, PLAYER_DODGE_FILE);
     expect(actors.walkers).toBe(2);
     expect(actors.walkersFromFile).toBe(2);
     expect((actors.group.getObjectByName("players:people:body") as THREE.InstancedMesh).count).toBe(0);
@@ -197,5 +203,38 @@ describe("generic online player avatar", () => {
     expect(actors.group.getObjectByName("players:bodies")).toBeUndefined();
     expect(actors.walkersFromFile).toBe(0);
     expect(() => actors.dispose()).not.toThrow();
+  });
+
+  it("dodging plays real clips (the dodge stream): a startled push-off, a run or sprint at the body's speed, a flinch on a sidestep, a stumble for the override's shove, brushing off after; every clip binds to the avatar's bones", async () => {
+    const humans = await PlayerBodies.load(files, false);
+    disposables.push(humans);
+    const all = () => true;
+    const dive = (over: Partial<DodgeState>): DodgeState => ({ phase: "dive", sx: 0, sz: 0, tx: 4, tz: 0, t: 30, dur: 70, peak: 0, hop: 0, leap: false, vx: 4, vz: 0, vmax: 4.8, ...over });
+    expect(motionFor(4.8, dive({ t: 3 }), all)).toBe("runStart");
+    expect(motionFor(3, dive({}), all)).toBe("run");
+    expect(motionFor(5.5, dive({}), all)).toBe("sprint");
+    expect(motionFor(1, dive({ tx: 1 }), all)).toBe("flinch");
+    expect(motionFor(0, dive({ leap: true, t: 0, dur: 14 }), all)).toBe("stumble");
+    expect(motionFor(0, dive({ phase: "recover", t: 3, dur: 36 }), all)).toBe("recover");
+    expect(motionFor(0, null, all)).toBe("idle");
+    // Without the clips: the plain locomotion.
+    const plain = (m: string) => m === "idle" || m === "walk" || m === "run";
+    expect(motionFor(0, dive({ leap: true }), plain)).toBe("idle");
+    expect(motionFor(5.5, dive({}), plain)).toBe("run");
+    // Real clips, bound to real bones: playing the stumble moves the skeleton.
+    humans.begin();
+    humans.add("p1", 0, 0, 0, 0, 0, 1 / 60);
+    humans.end();
+    const root = body(humans.group, "p1");
+    const pelvis = root.getObjectByName("Bip01_Pelvis")!;
+    const spine = root.getObjectByName("Bip01_Spine")!;
+    expect(pelvis).toBeDefined();
+    const rest = spine.quaternion.clone();
+    for (let i = 0; i < 20; i++) {
+      humans.begin();
+      humans.add("p1", 0, 0, 0, 0, 0, 1 / 60, undefined, dive({ leap: true, t: i, dur: 24 }));
+      humans.end();
+    }
+    expect(spine.quaternion.angleTo(rest)).toBeGreaterThan(0.05);
   });
 });

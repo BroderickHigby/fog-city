@@ -246,7 +246,7 @@ describe("getting out of the car", () => {
       const tx = -(CAR.halfWidth + gap + ROBOTAXI_BODY.halfWidth);
       // Getting up from a dive that ended there (the walker's own step does not run meanwhile).
       const wx = -CAR.halfWidth - FOOT.radius - 0.05;
-      const foot = { ...makeFoot(wx, 0, 0, 0), dodge: { phase: "recover" as const, sx: wx, sz: 0, tx: wx, tz: 0, t: 0, dur: 30, peak: 0.45, hop: 0, leap: false } };
+      const foot = { ...makeFoot(wx, 0, 0, 0), dodge: { phase: "recover" as const, sx: wx, sz: 0, tx: wx, tz: 0, t: 0, dur: 30, peak: 0, hop: 0, leap: false, vx: 0, vz: 0, vmax: 4.8 } };
       s = { ...s, players: { a: { ...s.players.a!, mode: "foot", car: makeCar(0, 0, 0), foot }, b: { ...s.players.b!, car: makeCar(200, 0, 0) } } };
       s = withAgents(s, [agent(FLAT, 5, "robotaxi", tx, 0)]);
       let deepest = -Infinity;

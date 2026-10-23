@@ -82,7 +82,7 @@
 // body's decision sees the spots the bodies before it chose.
 
 import { DT, sortedIds, type CarState, type DodgeState, type FootState, type PlayerId, type PlayerState, type SimState } from "./contract.ts";
-import { clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
+import { clamp, datan2, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { hash32 } from "./rng.ts";
 import { CAR, carCircles } from "./car.ts";
 import { boxBlocked, type Circle } from "./collide.ts";
@@ -156,8 +156,18 @@ export const PASSING_M = 0.2;
  * A body the vehicle reaches within this many seconds (it saw it late: a car that swerved, or
  * was flung off a wall) scrambles: it dives EMERGENCY_BOOST times as fast.
  */
-export const EMERGENCY_S = 0.45;
-export const EMERGENCY_BOOST = 1.5;
+export const EMERGENCY_S = 0.6;
+export const EMERGENCY_BOOST = 1.25;
+/** Scrambling, a body also gets up to speed this many times as fast. */
+export const EMERGENCY_ACCEL = 4;
+/**
+ * A dive no longer than this is a sidestep: the body keeps facing the way it faced (toward the
+ * car, most often); a longer one turns and runs, its facing following its motion at up to
+ * TURN_RATE rad/s. Recovering, it turns back toward its path at up to RECOVER_TURN_RATE.
+ */
+export const SIDESTEP_M = 1.4;
+export const TURN_RATE = 10;
+export const RECOVER_TURN_RATE = 5;
 /** The most a dive climbs or drops, metres; the override's leap, OVERRIDE_STEP_M (then any drop). */
 export const DIVE_STEP_M = 1.5;
 export const OVERRIDE_STEP_M = 3;
@@ -180,9 +190,13 @@ export const CAR_DV = (CAR.accel + CAR.gripAccel * 1.5 + CAR.gravity) * DT;
 /** A dive step is checked against the vehicles' reach every this many metres. */
 const STEP_CHECK_M = 0.04;
 
-/** Seconds of a vehicle's path that are predicted at `speed` m/s: 0.6 s, plus 0.025 s per m/s, at most 1.5 s. */
+/**
+ * Seconds of a vehicle's path that are predicted at `speed` m/s: 1 s, plus 0.05 s per m/s, at
+ * most 2.5 s. People on foot need the time: they see a car coming, turn and run at human speeds
+ * (v10; before, 0.6 s plus 0.025 s per m/s and a 9 m/s leap).
+ */
 export function horizonS(speed: number): number {
-  return clamp(0.6 + 0.025 * speed, 0.6, 1.5);
+  return clamp(1 + 0.05 * speed, 1, 2.5);
 }
 
 /** Who dodges how. */
@@ -193,26 +207,32 @@ export interface DodgeProfile {
   margin: number;
   /** The override: placed outside a moving vehicle's reach closer than this, metres; null: not under it (robots). */
   override: number | null;
-  /** Dive speed, m/s; the longest dive, metres; the shortest, ticks. */
+  /**
+   * Top speed getting out of the way, m/s (scrambling: EMERGENCY_BOOST times it); how fast the
+   * body gets up to speed and slows down again, m/s^2; the longest dive, metres; the shortest, ticks.
+   */
   speed: number;
+  accel: number;
   maxDive: number;
   minTicks: number;
-  /** Peak hop of a dive, and of the override's longest leap, metres. */
+  /** Peak hop of a dive, and of the override's longest leap, metres (people: 0, they stay on their feet). */
   peak: number;
   leapPeak: number;
-  /** Getting up after landing, ticks. */
+  /** Catching their breath once there, ticks. */
   recover: number;
 }
 
+// People (v10, the dodge stream): a startled sidestep, jog or sprint at up to 4.8 m/s (6 m/s
+// scrambling), getting up to speed at 7 m/s^2 (a quick first step; 9 scrambling) and slowing the
+// same way, feet on the ground throughout. Children and anyone seated, lying down or using a
+// mobility aid move slower and keep a wider berth both ways. A player on foot gets control back
+// sooner. Robots are machines: the Footman hops aside, the Trundle skids with a little hop.
 export const DODGE_PROFILE: Readonly<Record<DodgeClass, DodgeProfile>> = {
-  person: { margin: 0.75, override: 0.3, speed: 9, maxDive: 5.5, minTicks: 12, peak: 0.45, leapPeak: 2.0, recover: 60 },
-  // Children, and anyone seated, lying down or using a mobility aid: a wider berth both ways.
-  care: { margin: 1.25, override: 0.6, speed: 8, maxDive: 5.5, minTicks: 12, peak: 0.35, leapPeak: 2.0, recover: 60 },
-  // A player on foot gets control back sooner.
-  player: { margin: 0.75, override: 0.3, speed: 9, maxDive: 5.5, minTicks: 12, peak: 0.45, leapPeak: 2.0, recover: 30 },
-  // The Footman hops aside; the Trundle skids with a little hop.
-  errandRobot: { margin: 0.75, override: null, speed: 7, maxDive: 5, minTicks: 12, peak: 0.3, leapPeak: 0, recover: 30 },
-  sidewalkBot: { margin: 0.75, override: null, speed: 7, maxDive: 5, minTicks: 12, peak: 0.12, leapPeak: 0, recover: 24 },
+  person: { margin: 0.75, override: 0.3, speed: 4.8, accel: 7, maxDive: 5.5, minTicks: 12, peak: 0, leapPeak: 0, recover: 36 },
+  care: { margin: 1.25, override: 0.6, speed: 3.6, accel: 5.5, maxDive: 5.5, minTicks: 12, peak: 0, leapPeak: 0, recover: 40 },
+  player: { margin: 0.75, override: 0.3, speed: 4.8, accel: 7, maxDive: 5.5, minTicks: 12, peak: 0, leapPeak: 0, recover: 20 },
+  errandRobot: { margin: 0.75, override: null, speed: 7, accel: 30, maxDive: 5, minTicks: 12, peak: 0.3, leapPeak: 0, recover: 30 },
+  sidewalkBot: { margin: 0.75, override: null, speed: 7, accel: 30, maxDive: 5, minTicks: 12, peak: 0.12, leapPeak: 0, recover: 24 },
 };
 
 /** The berth a robotaxi keeps from a body of this class (agents.ts): a child's is wider. */
@@ -1103,26 +1123,74 @@ function walkerFree(spots: readonly Spot[], x: number, z: number, r: number): bo
 }
 
 /**
- * Does a body leaving (px, pz) along (wx, wz) at `speed` for `len` metres stay `passing` (plus
- * the spread) clear of every moving vehicle's predicted body on the way? It has moved one tick
- * when the samples' clock starts (they are the vehicles after this tick's move).
+ * How a body moves along a line: its speed along it now (v0, m/s; negative while it is still
+ * going the other way), its top speed (vmax) and how fast it speeds up and slows down (accel,
+ * m/s^2). It sets off at once (it is already turning to go) and slows to a stop at the line's end.
  */
-function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing: number): boolean {
-  return passCheck(vehicles, px, pz, wx, wz, len, speed, r, passing) === 0;
+export interface Kin {
+  v0: number;
+  vmax: number;
+  accel: number;
+}
+
+/** How far along a line of `len` metres a body moving by `k` has got after `t` seconds. */
+export function travelAt(k: Readonly<Kin>, len: number, t: number): number {
+  if (len <= 0 || t <= 0) return 0;
+  const a = k.accel;
+  const v0 = k.v0 < k.vmax ? k.v0 : k.vmax;
+  // Its top speed on this line: vmax, or less on a line too short to reach it and stop again.
+  let vp = Math.sqrt((2 * a * len + v0 * v0) / 2);
+  if (vp > k.vmax) vp = k.vmax;
+  if (vp < v0) vp = v0;
+  const tUp = (vp - v0) / a;
+  const dUp = (vp * vp - v0 * v0) / (2 * a);
+  const dDown = (vp * vp) / (2 * a);
+  const dCruise = len - dUp - dDown > 0 ? len - dUp - dDown : 0;
+  const tCruise = vp > 0 ? dCruise / vp : 0;
+  if (t <= tUp) return v0 * t + 0.5 * a * t * t;
+  if (t <= tUp + tCruise) return dUp + vp * (t - tUp);
+  const td = t - tUp - tCruise;
+  const tDown = vp / a;
+  if (td >= tDown) return len;
+  const d = dUp + dCruise + vp * td - 0.5 * a * td * td;
+  return d < len ? d : len;
+}
+
+/** How long a body moving by `k` takes to cover a line of `len` metres and stop, seconds. */
+export function travelTime(k: Readonly<Kin>, len: number): number {
+  if (len <= 0) return 0;
+  const a = k.accel;
+  const v0 = k.v0 < k.vmax ? k.v0 : k.vmax;
+  let vp = Math.sqrt((2 * a * len + v0 * v0) / 2);
+  if (vp > k.vmax) vp = k.vmax;
+  if (vp < v0) vp = v0;
+  const dUp = (vp * vp - v0 * v0) / (2 * a);
+  const dDown = (vp * vp) / (2 * a);
+  const dCruise = len - dUp - dDown > 0 ? len - dUp - dDown : 0;
+  return (vp - v0) / a + (vp > 0 ? dCruise / vp : 0) + vp / a;
+}
+
+/**
+ * Does a body leaving (px, pz) along (wx, wz), moving by `kin`, for `len` metres stay `passing`
+ * (plus the spread) clear of every moving vehicle's predicted body on the way? It has moved one
+ * tick when the samples' clock starts (they are the vehicles after this tick's move).
+ */
+function passesClear(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, kin: Readonly<Kin>, r: number, passing: number): boolean {
+  return passCheck(vehicles, px, pz, wx, wz, len, kin, r, passing) === 0;
 }
 
 /**
  * passesClear's answer: 0 clear; 1 too close on the way (every longer line along it is too);
  * 2 too close only once at the landing, waiting there (a longer line along it may be clear).
  */
-function passCheck(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, speed: number, r: number, passing: number): 0 | 1 | 2 {
+function passCheck(vehicles: readonly Vehicle[], px: number, pz: number, wx: number, wz: number, len: number, kin: Readonly<Kin>, r: number, passing: number): 0 | 1 | 2 {
   let out: 0 | 1 | 2 = 0;
   for (const v of vehicles) {
     const half = Math.sqrt(v.hl * v.hl + v.hw * v.hw);
     for (const path of v.paths) {
       for (const s of path) {
-        const go = speed * (s.t + DT);
-        const along = go < len ? go : len;
+        const along = travelAt(kin, len, s.t + DT);
+        const go = along < len - 1e-9 ? along : len + 1;
         const x = px + wx * along;
         const z = pz + wz * along;
         const lim = r + passing + v.spread * s.t;
@@ -1174,8 +1242,9 @@ const MARCH_M = 0.25;
  * the lines with the most clearance from the vehicles whose line never meets a vehicle's
  * predicted body (a best effort the override backs up), or null. `prefer` (a unit direction:
  * a dive already under way) keeps a body from changing its mind: its side is the side that
- * direction is on, and a line turning back against it costs up to REVERSE_COST more. `speed` is
- * the dive's speed (boosted when it scrambles).
+ * direction is on, and a line turning back against it costs up to REVERSE_COST more. `move` is
+ * how the body moves: its velocity now, its top speed (boosted when it scrambles) and how fast it
+ * speeds up and slows down; along each line it sets off at its velocity's share along it.
  */
 export function chooseDive(
   g: Ground,
@@ -1184,9 +1253,13 @@ export function chooseDive(
   vehicles: readonly Vehicle[],
   spots: readonly Spot[],
   prefer: { x: number; z: number } | null = null,
-  speed = DODGE_PROFILE[b.cls].speed,
+  move: Readonly<Move> = { vx: 0, vz: 0, vmax: DODGE_PROFILE[b.cls].speed, accel: DODGE_PROFILE[b.cls].accel },
 ): { x: number; z: number } | null {
   const prof = DODGE_PROFILE[b.cls];
+  const kinAlong = (wx: number, wz: number): Kin => ({ v0: move.vx * wx + move.vz * wz, vmax: move.vmax, accel: move.accel });
+  // What a line costs is how long the body takes to get to its end (as metres at its top speed):
+  // a line against the way it is already going costs the time it takes to turn round.
+  const timeCost = (wx: number, wz: number, len: number): number => travelTime(kinAlong(wx, wz), len) * move.vmax;
   const s = threat.sample;
   // Right of the direction of travel.
   const nx = -s.uz;
@@ -1224,26 +1297,27 @@ export function chooseDive(
         const wz = pz * c - s.uz * sn;
         const back = prefer ? -(wx * prefer.x + wz * prefer.z) : 0;
         const base = angCost + (sideSign === side ? 0 : OTHER_SIDE_COST) + (back > 0 ? REVERSE_COST * back : 0);
-        if (best && base + MARCH_M >= best.cost) continue;
+        if (best && base + timeCost(wx, wz, MARCH_M) >= best.cost) continue;
         const walk: Walk = { x: b.x, z: b.z, feet: b.y };
         for (let len = MARCH_M; len <= prof.maxDive + 1e-9; len += MARCH_M) {
-          if (best && base + len >= best.cost) break;
+          const lc = timeCost(wx, wz, len);
+          if (best && base + lc >= best.cost) break;
           const x = b.x + wx * len;
           const z = b.z + wz * len;
           if (!walkTo(g, walk, x, z, b.r, b.y, DIVE_STEP_M) || !clearOfStopped(stopped, x, z, b.r, prof)) break;
           if (!clearOfVehicles(vehicles, x, z, b.r, prof.margin + LANDING_EXTRA_M)) continue;
           // (Across the vehicle's path: with a wider berth, since that line goes in front of it.)
-          const pass = passCheck(moving, b.x, b.z, wx, wz, len, speed, b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M), passing);
+          const pass = passCheck(moving, b.x, b.z, wx, wz, len, kinAlong(wx, wz), b.r + (sideSign === side ? 0 : CROSSING_EXTRA_M), passing);
           if (pass === 1) break;
           if (pass === 2) continue;
           // Never onto a player on foot; onto another body or landing: allowed, but dearer (a
           // little further on is usually free).
           if (!walkerFree(spots, x, z, b.r)) continue;
           if (!spotFree(spots, x, z, b.r)) {
-            if (!best || base + len + CROWDED_COST < best.cost) best = { x, z, cost: base + len + CROWDED_COST };
+            if (!best || base + lc + CROWDED_COST < best.cost) best = { x, z, cost: base + lc + CROWDED_COST };
             continue;
           }
-          if (!best || base + len < best.cost) best = { x, z, cost: base + len };
+          if (!best || base + lc < best.cost) best = { x, z, cost: base + lc };
           break;
         }
       }
@@ -1269,7 +1343,7 @@ export function chooseDive(
         const d = vehicleClearance(vehicles, x, z);
         if (!(d > here && (!far || d > far.d))) continue;
         if (!walkerFree(spots, x, z, b.r)) continue;
-        const pass = passCheck(moving, b.x, b.z, wx, wz, len, speed, b.r, 0);
+        const pass = passCheck(moving, b.x, b.z, wx, wz, len, kinAlong(wx, wz), b.r, 0);
         if (pass === 1) break;
         if (pass === 2) continue;
         far = { x, z, d };
@@ -1277,6 +1351,14 @@ export function chooseDive(
     }
   }
   return far ? { x: far.x, z: far.z } : null;
+}
+
+/** How a body moves on its dive: its velocity now, m/s, its top speed and its acceleration. */
+export interface Move {
+  vx: number;
+  vz: number;
+  vmax: number;
+  accel: number;
 }
 
 /** The override's spot, and how far it had to go to find one (0: along a line it can walk). */
@@ -1370,53 +1452,102 @@ export function overrideSpot(g: Ground, b: Readonly<Body>, vehicles: readonly Ve
 
 // ---------------------------------------------------------------- the dive itself
 
-function startDive(prof: DodgeProfile, sx: number, sz: number, tx: number, tz: number, speed = prof.speed): DodgeState {
+/** The ticks a dive from where its body is, moving by `k`, still takes: at least one. */
+function restTicks(k: Readonly<Kin>, len: number): number {
+  const n = Math.ceil(travelTime(k, len) / DT - 1e-9);
+  return n > 1 ? n : 1;
+}
+
+function startDive(prof: DodgeProfile, sx: number, sz: number, tx: number, tz: number, vmax = prof.speed, vx = 0, vz = 0): DodgeState {
   const len = Math.sqrt((tx - sx) * (tx - sx) + (tz - sz) * (tz - sz));
-  const dur = Math.max(Math.round(prof.minTicks * (prof.speed / speed)), Math.ceil(len / speed / DT - 1e-9));
-  return { phase: "dive", sx, sz, tx, tz, t: 0, dur, peak: prof.peak, hop: 0, leap: false };
+  const along = len > 1e-9 ? (vx * (tx - sx) + vz * (tz - sz)) / len : 0;
+  const dur = restTicks({ v0: along, vmax, accel: diveAccel(prof, vmax) }, len);
+  return { phase: "dive", sx, sz, tx, tz, t: 0, dur, peak: prof.peak, hop: 0, leap: false, vx, vz, vmax };
+}
+
+/** How fast a dive at top speed `vmax` gets up to speed and slows down, m/s^2 (scrambling: faster). */
+export function diveAccel(prof: Readonly<DodgeProfile>, vmax: number): number {
+  return vmax > prof.speed * 1.01 ? prof.accel * EMERGENCY_ACCEL : prof.accel;
 }
 
 /**
  * A dive under way, turned toward a new landing (tx, tz) from where the body is (px, pz): it
- * keeps the ticks it has been in the air (t) and covers what is left at `speed`, so its progress
- * (t / dur, which the renderer draws the dive by) carries on from about where it was instead of
- * starting over, and the dive still takes at least the profile's shortest dive in all. (sx, sz)
- * is put back along the new line so the body is exactly where it is now.
+ * keeps the ticks it has been going (t) and its velocity (it turns as fast as it can speed up and
+ * slow down), and `dur` becomes t plus what is left at its pace. (sx, sz) is where it is now.
  */
-export function redirectDive(prof: DodgeProfile, d: Readonly<DodgeState>, px: number, pz: number, tx: number, tz: number, speed = prof.speed): DodgeState {
+export function redirectDive(prof: DodgeProfile, d: Readonly<DodgeState>, px: number, pz: number, tx: number, tz: number, vmax = prof.speed): DodgeState {
   const len = Math.sqrt((tx - px) * (tx - px) + (tz - pz) * (tz - pz));
-  const t = d.t;
-  const rest = Math.max(1, Math.ceil(len / speed / DT - 1e-9), Math.round(prof.minTicks * (prof.speed / speed)) - t);
-  const dur = t + rest;
-  const k = t / rest;
-  return { phase: "dive", sx: px + (px - tx) * k, sz: pz + (pz - tz) * k, tx, tz, t, dur, peak: d.peak, hop: d.hop, leap: false };
+  const along = len > 1e-9 ? (d.vx * (tx - px) + d.vz * (tz - pz)) / len : 0;
+  const top = vmax > d.vmax ? vmax : d.vmax;
+  const dur = d.t + restTicks({ v0: along, vmax: top, accel: diveAccel(prof, top) }, len);
+  return { ...d, phase: "dive", sx: px, sz: pz, tx, tz, dur, leap: false, vmax: top };
 }
 
-/** How fast a dive moves its body, m/s (its line over its ticks). */
+/** How fast a dive moves its body now, m/s. */
 export function diveSpeed(d: Readonly<DodgeState>): number {
-  const len = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
-  return d.dur > 0 ? len / (d.dur * DT) : 0;
+  return Math.sqrt(d.vx * d.vx + d.vz * d.vz);
 }
 
-/** One tick of a dodge: the new state (null when over) and where the body is. */
-export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfile>): { dodge: DodgeState | null; x: number; z: number } {
+/** The most a dive under way may take, ticks, before the body stops wherever it has got to. */
+const DIVE_MAX_TICKS = 6 * 60;
+
+/**
+ * One tick of a dodge: the new state (null when over) and where the body is. A dive moves its
+ * body on its feet toward (tx, tz): it steers its velocity toward the speed that still lets it
+ * stop there (at most vmax), changing it by at most its acceleration this tick, and arrives with
+ * its speed spent. A robot's hop follows the dive's progress (t / dur); a person's is 0.
+ */
+export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfile>, x = d.tx, z = d.tz): { dodge: DodgeState | null; x: number; z: number } {
   if (d.phase === "recover") {
     const t = d.t + 1;
     if (t >= d.dur) return { dodge: null, x: d.tx, z: d.tz };
-    return { dodge: { ...d, t, hop: 0 }, x: d.tx, z: d.tz };
+    return { dodge: { ...d, t, hop: 0, vx: 0, vz: 0 }, x: d.tx, z: d.tz };
   }
   const t = d.t + 1;
-  if (t >= d.dur) return { dodge: { ...d, phase: "recover", t: 0, dur: prof.recover, hop: 0 }, x: d.tx, z: d.tz };
-  const u = t / d.dur;
-  const hop = 4 * d.peak * u * (1 - u);
-  if (d.leap) return { dodge: { ...d, t, hop }, x: d.tx, z: d.tz };
-  return { dodge: { ...d, t, hop }, x: d.sx + (d.tx - d.sx) * u, z: d.sz + (d.tz - d.sz) * u };
+  if (d.leap) {
+    if (t >= d.dur) return { dodge: { ...d, phase: "recover", t: 0, dur: prof.recover, hop: 0, vx: 0, vz: 0 }, x: d.tx, z: d.tz };
+    const u = t / d.dur;
+    return { dodge: { ...d, t, hop: 4 * d.peak * u * (1 - u), vx: 0, vz: 0 }, x: d.tx, z: d.tz };
+  }
+  const a = diveAccel(prof, d.vmax);
+  const dx = d.tx - x;
+  const dz = d.tz - z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  // The speed it wants: as fast as it can go and still stop at the spot, braking a * DT a tick
+  // (so it arrives at walking pace or less, without a jolt).
+  const h = (a * DT) / 2;
+  let want = Math.sqrt(2 * a * dist + h * h) - h;
+  if (want > d.vmax) want = d.vmax;
+  const wx = dist > 1e-9 ? (dx / dist) * want : 0;
+  const wz = dist > 1e-9 ? (dz / dist) * want : 0;
+  let ax = wx - d.vx;
+  let az = wz - d.vz;
+  const dv = Math.sqrt(ax * ax + az * az);
+  const most = a * DT;
+  if (dv > most) {
+    ax *= most / dv;
+    az *= most / dv;
+  }
+  const vx = d.vx + ax;
+  const vz = d.vz + az;
+  const sp = Math.sqrt(vx * vx + vz * vz);
+  // There this tick (or close enough and nearly stopped, or out of time): it stops on the spot.
+  // (Within one more tick's step, at no more than one tick's speed-up: it stops on the spot.)
+  if (dist <= (sp + most) * DT + 1e-6 || t >= DIVE_MAX_TICKS) {
+    const tx = t >= DIVE_MAX_TICKS && dist > sp * DT ? x + vx * DT : d.tx;
+    const tz = t >= DIVE_MAX_TICKS && dist > sp * DT ? z + vz * DT : d.tz;
+    return { dodge: { ...d, phase: "recover", tx, tz, t: 0, dur: prof.recover, hop: 0, vx: 0, vz: 0 }, x: tx, z: tz };
+  }
+  const left = Math.max(1, d.dur - t);
+  const u = t / (t + left);
+  const hop = d.peak > 0 ? 4 * d.peak * u * (1 - u) : 0;
+  return { dodge: { ...d, t, dur: t + left, hop, vx, vz }, x: x + vx * DT, z: z + vz * DT };
 }
 
 /**
  * The override's leap of `dist` metres: how long it is drawn (ticks) and how high it hops. A
- * long one is the big superhuman hop (the profile's leapPeak over LEAP_TICKS); a short one (a
- * robotaxi creeping up, a car brushing past) a quick stumble-hop aside.
+ * person never hops (the profile's leapPeak is 0): the renderer draws a short one as a stumble
+ * aside and a longer one as a shove. LEAP_TICKS at most.
  */
 export function leapShape(prof: Readonly<DodgeProfile>, dist: number): { dur: number; peak: number } {
   return { dur: clamp(Math.round(12 + 6 * dist), 12, LEAP_TICKS), peak: Math.min(prof.leapPeak, 0.2 + 0.45 * dist) };
@@ -1468,6 +1599,10 @@ interface Rec {
   y: number;
   /** Vertical speed (a player falling), m/s. */
   vy: number;
+  /** Facing (compass bearing) and horizontal velocity now (walking, or the dive's), m/s. */
+  heading: number;
+  vx: number;
+  vz: number;
   r: number;
   cls: DodgeClass;
   id: number;
@@ -1508,6 +1643,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       z: f.z,
       y: f.y - hop,
       vy: f.grounded ? 0 : f.vy,
+      heading: f.heading,
+      vx: f.dodge ? f.dodge.vx : dsin(f.heading) * f.speed,
+      vz: f.dodge ? f.dodge.vz : -dcos(f.heading) * f.speed,
       r: FOOT.radius,
       cls: "player",
       id: hash32(...[...id].map((ch) => ch.charCodeAt(0))),
@@ -1529,6 +1667,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       z: a.z,
       y: a.y - hop,
       vy: 0,
+      heading: a.heading,
+      vx: a.dodge ? a.dodge.vx : dsin(a.heading) * a.speed,
+      vz: a.dodge ? a.dodge.vz : -dcos(a.heading) * a.speed,
       r: a.radius ?? AGENT_SPEC[a.kind].radius,
       cls,
       id: a.id,
@@ -1856,8 +1997,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       }
       let to: { x: number; z: number } | null = null;
       // Seen late, or already scrambling: scramble.
-      const scramble = (hit !== null && hit.t <= EMERGENCY_S) || (diving && diveSpeed(d!) > prof.speed * 1.01);
-      const speed = scramble ? prof.speed * EMERGENCY_BOOST : prof.speed;
+      const scramble = (hit !== null && hit.t <= EMERGENCY_S) || (diving && d!.vmax > prof.speed * 1.01);
+      const vmax = scramble ? prof.speed * EMERGENCY_BOOST : prof.speed;
       if (hit) {
         // A dive under way keeps its direction if it can (no dithering as a car steers about).
         let prefer: { x: number; z: number } | null = null;
@@ -1866,10 +2007,10 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
           if (len > 1e-9) prefer = { x: (d!.tx - d!.sx) / len, z: (d!.tz - d!.sz) / len };
         }
         const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
-        to = chooseDive(groundOf(r), body, hit, nv, spotsNear(ri, prof.maxDive + 2), prefer, speed);
+        to = chooseDive(groundOf(r), body, hit, nv, spotsNear(ri, prof.maxDive + 2), prefer, { vx: r.vx, vz: r.vz, vmax, accel: diveAccel(prof, vmax) });
       }
       if (to) {
-        d = diving ? redirectDive(prof, d!, r.x, r.z, to.x, to.z, speed) : startDive(prof, r.x, r.z, to.x, to.z, speed);
+        d = diving ? redirectDive(prof, d!, r.x, r.z, to.x, to.z, vmax) : startDive(prof, r.x, r.z, to.x, to.z, vmax, r.vx, r.vz);
         takeSpots().push({ x: to.x, z: to.z, r: r.r, owner: ri, walker: r.player !== null });
         if (!diving) {
           dives++;
@@ -1879,19 +2020,17 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       } else if (diving && !holds) {
         // Nowhere better: land short of whatever is in the way (never through a vehicle).
         const end = clearPart(nv, r.x, r.z, d!.tx, d!.tz, r.r, prof);
-        d = redirectDive(prof, d!, r.x, r.z, end.x, end.z, Math.max(diveSpeed(d!), 1));
+        d = redirectDive(prof, d!, r.x, r.z, end.x, end.z, d!.vmax);
       }
     }
     if (d) {
-      const n = advanceDodge(d, prof);
+      const n = advanceDodge(d, prof, r.x, r.z);
       if (n.dodge && n.dodge.phase === "dive" && !n.dodge.leap) {
         const stop = stepStop(reachNear(r, r.x, r.z, 2), r.x, r.z, n.x, n.z, r.r, prof);
         if (stop) {
-          // Stopped short this tick (re-aimed next tick, its line no longer holding): the dive is
-          // put back along its line so it carries on from here.
-          const u = n.dodge.t / n.dodge.dur;
-          const k = u / (1 - u);
-          n.dodge = { ...n.dodge, sx: stop.x + (stop.x - n.dodge.tx) * k, sz: stop.z + (stop.z - n.dodge.tz) * k };
+          // Stopped short this tick (re-aimed next tick, its line no longer holding): it pulls up
+          // here and carries on from a standstill.
+          n.dodge = { ...n.dodge, vx: 0, vz: 0 };
           n.x = stop.x;
           n.z = stop.z;
         }
@@ -1907,6 +2046,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       r.x = n.x;
       r.z = n.z;
       r.dodge = n.dodge;
+      r.heading = dodgeFacing(r.heading, n.dodge);
       r.changed = true;
     }
   }
@@ -1963,7 +2103,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     creditTo(worst, 1, 0);
     const dist = Math.sqrt((to.x - r.x) * (to.x - r.x) + (to.z - r.z) * (to.z - r.z));
     const shape = leapShape(prof, dist);
-    r.dodge = { phase: "dive", sx: r.x, sz: r.z, tx: to.x, tz: to.z, t: 0, dur: shape.dur, peak: shape.peak, hop: 0, leap: true };
+    r.dodge = { phase: "dive", sx: r.x, sz: r.z, tx: to.x, tz: to.z, t: 0, dur: shape.dur, peak: shape.peak, hop: 0, leap: true, vx: 0, vz: 0, vmax: prof.speed };
     r.x = to.x;
     r.z = to.z;
     // (Standing on what the leap reached: a step it climbed, a lower street it dropped to.)
@@ -1989,7 +2129,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const f = p.foot!;
     const ground = surfaceHeight(world, r.x, r.z, r.y);
     const hop = r.dodge ? r.dodge.hop : 0;
-    const foot: FootState = { ...f, x: r.x, y: ground + hop, z: r.z, speed: 0, sprint: false, vy: 0, grounded: true, dodge: r.dodge };
+    // (Its speed along its facing while it runs, so it is drawn running; 0 once it is there.)
+    const along = r.dodge ? r.dodge.vx * dsin(r.heading) - r.dodge.vz * dcos(r.heading) : 0;
+    const foot: FootState = { ...f, x: r.x, y: ground + hop, z: r.z, heading: r.heading, speed: along, sprint: false, vy: 0, grounded: true, dodge: r.dodge };
     players[r.player] = { ...p, foot };
   }
   for (const id of sortedIds(players)) {
@@ -2003,7 +2145,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const list = agents.slice();
     for (const r of recs) {
       if (!r.changed || r.player !== null) continue;
-      list[r.index] = placeAgent(world, list[r.index]!, r.x, r.z, r.dodge);
+      list[r.index] = placeAgent(world, list[r.index]!, r.x, r.z, r.dodge, r.heading);
     }
     ext = { ...ext, [AGENTS_EXT_KEY]: { ...agentsExt, list } };
   }
@@ -2025,7 +2167,9 @@ function diveHolds(vehicles: readonly Vehicle[], px: number, pz: number, d: Read
   const wz = (d.tz - pz) / len;
   const moving = vehicles.filter((v) => v.paths.length > 0);
   const stopped = vehicles.filter((v) => v.paths.length === 0);
-  return passesClear(moving, px, pz, wx, wz, len, Math.max(diveSpeed(d), 1), r, prof.margin) && lineClearOfStopped(stopped, px, pz, d.tx, d.tz, r, prof);
+  const v0 = d.vx * wx + d.vz * wz;
+  const kin: Kin = { v0, vmax: d.vmax, accel: diveAccel(prof, d.vmax) };
+  return passesClear(moving, px, pz, wx, wz, len, kin, r, prof.margin) && lineClearOfStopped(stopped, px, pz, d.tx, d.tz, r, prof);
 }
 
 /**
@@ -2080,10 +2224,37 @@ function clearPart(vehicles: readonly Vehicle[], px: number, pz: number, tx: num
  * it turns that way as it gets up). Done: it walks on from right here (agents.ts rejoinAt: on
  * its path, or along a connector back onto its sidewalk), never jumping back to its line.
  */
-function placeAgent(world: World, a: Readonly<AgentState>, x: number, z: number, dodge: DodgeState | null): AgentState {
+function placeAgent(world: World, a: Readonly<AgentState>, x: number, z: number, dodge: DodgeState | null, heading: number): AgentState {
   const y = surfaceHeight(world, x, z, a.y - (a.dodge?.hop ?? 0));
-  if (dodge && dodge.phase === "dive") return { ...a, x, y: y + dodge.hop, z, speed: 0, mode: dodge.phase, dodge };
+  if (dodge && dodge.phase === "dive") {
+    // (Its speed along its facing while it runs, so it is drawn running.)
+    const along = dodge.vx * dsin(heading) - dodge.vz * dcos(heading);
+    return { ...a, x, y: y + dodge.hop, z, heading, speed: along, mode: dodge.phase, dodge };
+  }
   const at = rejoinAt(world, a, x, z);
-  if (dodge) return { ...a, x, y: y + dodge.hop, z, speed: 0, mode: dodge.phase, dodge, heading: at ? at.heading : a.heading };
+  if (dodge) {
+    // Getting its breath back, it turns back toward the way it will walk on.
+    const want = at ? at.heading : heading;
+    const turn = wrapAngle(want - heading);
+    const most = RECOVER_TURN_RATE * DT;
+    const h = turn > most ? heading + most : turn < -most ? heading - most : want;
+    return { ...a, x, y: y + dodge.hop, z, speed: 0, mode: dodge.phase, dodge, heading: wrapAngle(h) };
+  }
   return { ...a, ...(at ?? {}), x, y, z, speed: 0, mode: "go", wait: 0, dodge: null };
+}
+
+/**
+ * Which way a dodging body faces after this tick: on a run (a dive longer than SIDESTEP_M, moving
+ * faster than 0.8 m/s) it turns toward where it is going at up to TURN_RATE; on a sidestep, a
+ * leap or while recovering it keeps its facing (placeAgent turns an agent back to its path).
+ */
+export function dodgeFacing(heading: number, d: Readonly<DodgeState> | null): number {
+  if (!d || d.phase !== "dive" || d.leap) return heading;
+  const sp = Math.sqrt(d.vx * d.vx + d.vz * d.vz);
+  const len = Math.sqrt((d.tx - d.sx) * (d.tx - d.sx) + (d.tz - d.sz) * (d.tz - d.sz));
+  if (sp < 0.8 || len <= SIDESTEP_M) return heading;
+  const want = datan2(d.vx, -d.vz);
+  const turn = wrapAngle(want - heading);
+  const most = TURN_RATE * DT;
+  return wrapAngle(turn > most ? heading + most : turn < -most ? heading - most : want);
 }

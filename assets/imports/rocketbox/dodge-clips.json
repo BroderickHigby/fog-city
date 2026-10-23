@@ -1,0 +1,47 @@
+{
+  "file": "public/models/generic-player-dodge.glb",
+  "bytes": 612488,
+  "sha256": "38ad1087c6153b34d8b8ab4f0fab28659467847fb1a66c6baac07a4b89b1f771",
+  "builtWith": "Blender 4.5.9 LTS, assets/imports/rocketbox/clips.py",
+  "skeleton": "Microsoft Rocketbox Male_Adult_01 (MIT), the same bones as public/models/generic-player.glb; no mesh, no textures",
+  "clips": [
+    {
+      "name": "sprint",
+      "source": "Microsoft Rocketbox all_animations_max_motextr_xy/m_run_fast_01.max.fbx",
+      "licence": "MIT",
+      "sha256": "81d096f62465ae038149e7726485133264e4a47d105d236370b00dc18c650526",
+      "sourceSpeedMps": 5.8395
+    },
+    {
+      "name": "runStart",
+      "source": "Microsoft Rocketbox all_animations_max_motextr_xy/m_run_start.max.fbx",
+      "licence": "MIT",
+      "sha256": "aba4486443fc3845f6d9b3d5b11d0fec9cfaeb39687b0e32d5b69493a130979d"
+    },
+    {
+      "name": "runStop",
+      "source": "Microsoft Rocketbox all_animations_max_motextr_xy/m_run_stop.max.fbx",
+      "licence": "MIT",
+      "sha256": "1eb03637281bd5c363ef2262321ca3322fc55387f33c09213528a67b6058202c"
+    },
+    {
+      "name": "recover",
+      "source": "Microsoft Rocketbox all_animations_max_motextr_static/m_idle_dust_01.max.fbx",
+      "licence": "MIT",
+      "sha256": "6533fb581f73cc3ba56d81872ead654e5fbcb03a1466a042fe5749cf9642b85c"
+    },
+    {
+      "name": "stumble",
+      "source": "Mixamo (Adobe) 'Stumble Backwards', frames 1-20, downloaded by the owner to branch assets/mixamo-raw (4fa39e3)",
+      "licence": "Mixamo terms: free to use in games and projects; not redistributed as a standalone animation file",
+      "sha256": "9bd60668cbdd6a88bbdec251efc83267f4d38687e76f40b3f1109af462f9062f"
+    },
+    {
+      "name": "flinch",
+      "source": "Mixamo (Adobe) 'Dodging Right', frames 1-44, assets/mixamo-raw (4fa39e3)",
+      "licence": "Mixamo terms: free to use in games and projects; not redistributed as a standalone animation file",
+      "sha256": "1ea04f26042a43b7d022403665250af4ff1a16e676201a9bf130b477f1eec3f5"
+    }
+  ],
+  "rocketboxCommit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9"
+}

@@ -7,8 +7,14 @@
 // short trace of the first few dodges for the evidence in docs/shots/dodge-stream/.
 
 import {
+  AGENTS_EXT_KEY,
   AGENT_SPEC,
   DT,
+  createInitialState,
+  makeCar,
+  meshGroundHeight,
+  type AgentState,
+  type AgentsExt,
   agentDodgeClass,
   agentsOf,
   dodgeExtOf,
@@ -45,6 +51,8 @@ export interface MotionSummary {
   /** Peak horizontal acceleration while dodging (change of the per-tick velocity), m/s^2, override jumps excluded. */
   peakAccel: number;
   p99Accel: number;
+  /** Ticks on which a body's velocity changed by more than HARD_STOP_MPS2 (stopped short of a vehicle's reach). */
+  hardStops: number;
   /** Peak lift above the surface while dodging, metres (independent), and the dodge's own peak hop. */
   peakLift: number;
   peakHop: number;
@@ -57,10 +65,14 @@ export interface MotionSummary {
 interface Track {
   vx: number;
   vz: number;
+  /** Its last tick was an override's jump (its velocity then is the jump, not a pace). */
+  jumped: boolean;
   trace: TracePoint[] | null;
 }
 
 const TRACE_BODIES = 6;
+/** A change of velocity faster than this in a tick is a pull-up short of a vehicle's reach (dodge.ts stepStop), m/s^2. */
+export const HARD_STOP_MPS2 = 40;
 const TRACE_TICKS = 150;
 
 export class DodgeMotion {
@@ -74,6 +86,7 @@ export class DodgeMotion {
   private readonly tracks = new Map<string, Track>();
   private readonly traces: Array<{ body: string; points: TracePoint[] }> = [];
   private dives = 0;
+  private hardStops = 0;
   private overrides = 0;
   private dives0: number | null = null;
   private overrides0 = 0;
@@ -127,22 +140,33 @@ export class DodgeMotion {
       if (jump) this.maxLeap = Math.max(this.maxLeap, speed * DT);
       this.speeds.push(speed);
       if (!jump) this.peakDive = Math.max(this.peakDive, speed);
-      if (tr && !jump) this.accels.push(Math.hypot(vx - tr.vx, vz - tr.vz) / DT);
+      // (Not the tick the dodge ends on: the walk takes over from there, agents.ts's start.)
+      if (tr && !jump && !tr.jumped && b.dodge !== null) {
+        const acc = Math.hypot(vx - tr.vx, vz - tr.vz) / DT;
+        this.accels.push(acc);
+        if (acc > HARD_STOP_MPS2) this.hardStops++;
+      }
       const lift = b.y - surfaceHeight(this.world, b.x, b.z, b.y - (b.dodge?.hop ?? 0));
       this.peakLift = Math.max(this.peakLift, lift);
       this.peakHop = Math.max(this.peakHop, b.dodge?.hop ?? 0);
       if (!tr) {
-        tr = { vx: 0, vz: 0, trace: this.traces.length < TRACE_BODIES ? [] : null };
+        tr = { vx: 0, vz: 0, jumped: false, trace: this.traces.length < TRACE_BODIES ? [] : null };
         if (tr.trace) this.traces.push({ body: b.key, points: tr.trace });
         this.tracks.set(b.key, tr);
       }
       tr.vx = vx;
       tr.vz = vz;
+      tr.jumped = jump;
       if (tr.trace && tr.trace.length < TRACE_TICKS) {
         tr.trace.push({ tick: after.tick, x: r3(b.x), y: r3(b.y), z: r3(b.z), speed: r3(speed), lift: r3(lift), phase: b.dodge?.phase ?? "done", leap: b.dodge?.leap ?? false });
       }
     }
     for (const k of [...this.tracks.keys()]) if (!seen.has(k)) this.tracks.delete(k);
+  }
+
+  /** Every acceleration sample so far (to pool several runs). */
+  accelSamples(): readonly number[] {
+    return this.accels;
   }
 
   summary(): MotionSummary {
@@ -155,6 +179,7 @@ export class DodgeMotion {
       peakDiveSpeed: r3(this.peakDive),
       peakAccel: r3(max(this.accels)),
       p99Accel: r3(pct(this.accels, 0.99)),
+      hardStops: this.hardStops,
       peakLift: r3(this.peakLift),
       peakHop: r3(this.peakHop),
       maxLeapM: r3(this.maxLeap),
@@ -173,8 +198,23 @@ function max(xs: readonly number[]): number {
   return m;
 }
 
-function pct(xs: readonly number[], q: number): number {
+export function pct(xs: readonly number[], q: number): number {
   if (xs.length === 0) return 0;
   const s = [...xs].sort((a, b) => a - b);
   return s[Math.min(s.length - 1, Math.floor(q * s.length))]!;
+}
+
+/**
+ * One person standing at the origin of `world` (flat), facing east, and a player's car ("car") 80 m
+ * south of them coming straight at them at `speed` m/s (hold it with throttle while slower).
+ */
+export function straightAtOne(world: World, speed: number): SimState {
+  let s = createInitialState(world, 1, ["car"], { x: 0, z: 80, heading: 0 });
+  const person: AgentState = {
+    id: 100, kind: "person", x: 0, y: meshGroundHeight(world, 0, 0), z: 0, heading: Math.PI / 2, pitch: 0, speed: 0, vmax: 1.3,
+    edge: "", dir: 1, lane: 1, s: 0, next: "", ndir: 1, nlane: 1, conn: null, node: "", resume: 0, lat: 0, wait: 0, dwell: 0, ghost: 0, mode: "go", rng: 100, dodge: null,
+  };
+  const ext = (s.ext[AGENTS_EXT_KEY] as AgentsExt | undefined) ?? ({ list: [] } as unknown as AgentsExt);
+  s = { ...s, players: { car: { ...s.players.car!, car: { ...makeCar(0, 80, 0), speed } } }, ext: { ...s.ext, [AGENTS_EXT_KEY]: { ...ext, list: [person] } } };
+  return s;
 }

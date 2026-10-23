@@ -421,6 +421,7 @@ async function boot(): Promise<void> {
         f.z = lerp(fa.z, fb.z, alpha);
         f.heading = fa.heading + wrapAngle(fb.heading - fa.heading) * alpha;
         f.speed = lerp(fa.speed, fb.speed, alpha);
+        f.dodge = fb.dodge;
       }
       view.setFoot(id, onFoot ? P.foot : null);
       if (id === LOCAL_PLAYER) {

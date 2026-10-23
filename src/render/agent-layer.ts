@@ -66,7 +66,7 @@ import {
 } from "./agent-packing.ts";
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
-import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
+import { HIP, SHOULDER, STRIDE_M, WALK_ARM, WALK_LEG, dodgePose, newLook, personLook, personParts, strideFor, type PersonLook, type PersonPose } from "./person.ts";
 
 // ---------------------------------------------------------------- one instanced part
 
@@ -180,15 +180,18 @@ function baseMatrix(x: number, y: number, z: number, heading: number, pitch: num
   return out.compose(_p.set(x, y, z), _q, _s.setScalar(scale));
 }
 
-/** base x T(pivot) x Ry(ry) x Rx(rx). */
-function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4): THREE.Matrix4 {
-  _e.set(rx, ry, 0, "YXZ");
+/** base x T(pivot) x Ry(ry) x Rx(rx) x Rz(rz). */
+function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4, rz = 0): THREE.Matrix4 {
+  _e.set(rx, ry, rz, "YXZ");
   _q.setFromEuler(_e);
   _local.compose(_p.set(px, py, pz), _q, _one);
   return out.multiplyMatrices(base, _local);
 }
 
 // ---------------------------------------------------------------- people (agents and players)
+
+/** A plain walk (person.ts dodgePose with no dodge, at walking speed). */
+const WALK_POSE: Readonly<PersonPose> = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
 
 /** Instanced people: body, two arms, two legs per person; also draws players on foot. */
 export class PeopleRig {
@@ -216,17 +219,20 @@ export class PeopleRig {
     this.legs.begin();
   }
 
-  /** One person: `swing` is sin(gait phase) times the gait amount (-1..1). */
-  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number): void {
+  /**
+   * One person: `swing` is sin(gait phase) times the gait amount (-1..1); `pose` (person.ts
+   * dodgePose) leans the body and scales the swing for a run, a startle, a stumble (default: a walk).
+   */
+  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number, pose: Readonly<PersonPose> = WALK_POSE): void {
     if (this.body.count >= this.body.capacity) return;
-    baseMatrix(x, y, z, heading, 0, look.scale, _base);
+    baseMatrix(x, y, z, heading, pose.lean, look.scale, _base);
     this.body.push(_base, null, look);
-    const leg = 0.42 * swing;
-    const arm = 0.34 * swing;
+    const leg = pose.legGain * swing;
+    const arm = pose.armGain * swing;
     this.legs.push(partMatrix(_base, -HIP[0], HIP[1], HIP[2], leg, 0, _m), null, look);
     this.legs.push(partMatrix(_base, HIP[0], HIP[1], HIP[2], -leg, 0, _m), null, look);
-    this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], -arm, 0, _m), null, look);
-    this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], arm, 0, _m), null, look);
+    this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], -arm, 0, _m, -pose.armOut), null, look);
+    this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], arm, 0, _m, pose.armOut), null, look);
   }
 
   end(): void {
@@ -317,6 +323,8 @@ interface Anim {
   z: number;
   heading: number;
   seen: number;
+  /** Horizontal speed as drawn (smoothed over frames), m/s: what a person's gait and pose follow. */
+  v: number;
 }
 
 export interface AgentRenderInfo {
@@ -371,6 +379,7 @@ export class AgentLayer {
   /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
   private brakeUntil = new Map<number, number>();
   private readonly look = newLook();
+  private readonly pose: PersonPose = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
@@ -522,10 +531,10 @@ export class AgentLayer {
       if (b.kind === "person") {
         personLook(b.id, this.look);
         if (tier === TIER_NEAR) {
-          const anim = this.anim(b.id, pose, dt);
+          const anim = this.anim(b.id, pose, dt, 0.35, 2.7, 1.3, true);
           this.wasNear.add(b.id);
           near++;
-          this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount);
+          this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount, dodgePose(b.dodge, anim.v, this.pose));
         } else {
           baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
           (tier === TIER_MID ? this.peopleMid : this.peopleFar).push(_base, null, this.look);
@@ -600,12 +609,16 @@ export class AgentLayer {
     this.scratch = { idx: new Int32Array(cap), key: new Float64Array(cap) };
   }
 
-  /** The animation state of a near agent, advanced to this frame's pose. */
-  private anim(id: number, pose: AgentPose, dt: number, wheelRadius = 0.35, wheelbase = 2.7, cruise = 1.3): Anim {
+  /**
+   * The animation state of a near agent, advanced to this frame's pose. A person (`person`) steps
+   * by the distance it is drawn to move whichever way it goes (a sidestep swings its legs too),
+   * with longer steps the faster it goes (strideFor), so its feet never slide.
+   */
+  private anim(id: number, pose: AgentPose, dt: number, wheelRadius = 0.35, wheelbase = 2.7, cruise = 1.3, person = false): Anim {
     let an = this.anims.get(id);
     const fresh = !an || this.frameNo - an.seen > 2;
     if (!an) {
-      an = { wheel: 0, steer: 0, gait: (id * 1.7) % (Math.PI * 2), amount: 0, x: pose.x, z: pose.z, heading: pose.heading, seen: 0 };
+      an = { wheel: 0, steer: 0, gait: (id * 1.7) % (Math.PI * 2), amount: 0, x: pose.x, z: pose.z, heading: pose.heading, seen: 0, v: 0 };
       this.anims.set(id, an);
     }
     let dist = 0;
@@ -624,8 +637,9 @@ export class AgentLayer {
       an.steer = 0;
     }
     an.wheel = rollWheel(an.wheel, dist, wheelRadius);
-    an.gait = advanceGait(an.gait, dist, STRIDE_M);
-    const want = gaitAmount(pose.speed, cruise);
+    if (dt > 0) an.v += (Math.abs(dist) / dt - an.v) * Math.min(1, dt * 12);
+    an.gait = advanceGait(an.gait, dist, person ? strideFor(an.v) : STRIDE_M);
+    const want = gaitAmount(person ? an.v : pose.speed, cruise);
     an.amount += (want - an.amount) * Math.min(1, dt * 5);
     an.x = pose.x;
     an.z = pose.z;

@@ -15,7 +15,8 @@ import { packedMaterial } from "./agent-packing.ts";
 import type { NightLights } from "./lights.ts";
 import { hashString } from "./hash.ts";
 import type { ModelRegistry } from "./model-registry.ts";
-import { STRIDE_M, newLook, type PersonLook } from "./person.ts";
+import { dodgePose, newLook, strideFor, type PersonLook, type PersonPose } from "./person.ts";
+import type { DodgeState } from "../sim/contract.ts";
 import { ContactShadows } from "./contact-shadows.ts";
 import type { Pose } from "./types.ts";
 
@@ -30,6 +31,8 @@ export interface CarPose extends Pose {
 /** A walker between two ticks. */
 export interface WalkerPose extends Pose {
   speed: number;
+  /** The sim's dodge (getting out of a car's way), else null or absent: picks the body's clips and pose. */
+  dodge?: Readonly<DodgeState> | null;
 }
 
 /**
@@ -189,6 +192,8 @@ interface PlayerView {
   walkX: number;
   walkZ: number;
   walking: boolean;
+  /** Horizontal speed as drawn (smoothed), m/s. */
+  drawnSpeed: number;
 }
 
 /** The wheel nodes of a car model (extras {"wheel": "FL", "radius", "steer"}). */
@@ -213,6 +218,7 @@ export class Actors {
   private readonly shadows: boolean;
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
+  private readonly pose: PersonPose = { lean: 0, legGain: 0.42, armGain: 0.34, armOut: 0 };
   private bodies: PlayerBodies | null = null;
   private disposed = false;
   private readonly contacts = new ContactShadows(MAX_PLAYERS_DRAWN * 2);
@@ -311,6 +317,7 @@ export class Actors {
       walkX: 0,
       walkZ: 0,
       walking: false,
+      drawnSpeed: 0,
     };
     this.players.set(id, v);
     this.adopt(v, car, now.source);
@@ -363,6 +370,7 @@ export class Actors {
     }
     if (!v.walker) v.walker = { x: 0, y: 0, z: 0, heading: 0, speed: 0 };
     Object.assign(v.walker, pose);
+    v.walker.dodge = pose.dodge ?? null;
   }
 
   /** Per frame, after setCar/setFoot: draws the walkers. */
@@ -381,12 +389,15 @@ export class Actors {
       v.walkX = w.x;
       v.walkZ = w.z;
       v.walking = true;
-      v.gait = advanceGait(v.gait, dist, STRIDE_M);
-      v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
+      // (Speed as drawn, whichever way it moves: a sidestep steps too.)
+      if (dt > 0) v.drawnSpeed += (dist / dt - v.drawnSpeed) * Math.min(1, dt * 12);
+      v.gait = advanceGait(v.gait, dist, strideFor(v.drawnSpeed));
+      v.gaitAmount += (gaitAmount(w.dodge ? v.drawnSpeed : w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
       if (this.walkers >= MAX_PLAYERS_DRAWN) continue;
-      if (this.bodies) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt, v.colorIndex === 0 ? undefined : v.look.shirt);
-      else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
+      const dodge = w.dodge ?? null;
+      if (this.bodies) this.bodies.add(id, w.x, w.y, w.z, w.heading, dodge ? v.drawnSpeed : w.speed, dt, v.colorIndex === 0 ? undefined : v.look.shirt, dodge);
+      else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dodgePose(dodge, v.drawnSpeed, this.pose));
     }
     this.people.end();
     this.bodies?.end();
