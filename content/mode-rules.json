@@ -1,0 +1,158 @@
+{
+  "payoutCapCentsPerMinute": 7500,
+  "instanceIds": [
+    "fidi",
+    "north-beach",
+    "marina",
+    "dogpatch",
+    "soma-bay"
+  ],
+  "botSweep": {
+    "durationS": 720,
+    "playersMin": 1,
+    "playersMax": 4,
+    "baseBetaUnits": 10,
+    "betaUnitsPerPlayer": 4,
+    "backgroundRobots": 120,
+    "relayStreamS": 20,
+    "teamLives": 5,
+    "downS": 30,
+    "reviveS": 3,
+    "reviveRunwayMonths": 6,
+    "respawnS": 15,
+    "revealAtRemaining": 3,
+    "revealAtS": 540,
+    "revealIntervalS": 20,
+    "revealRangeM": 60,
+    "brief": "Melt every beta unit and the update relay before the timer ends. Watch first; good robots still have work to do.",
+    "win": "Pilot closed. Every beta unit stopped.",
+    "lose": "The relay completed its update. Reset the pilot and try again."
+  },
+  "cleanStreets": {
+    "durationS": 480,
+    "teams": 2,
+    "playersPerTeamMin": 1,
+    "playersPerTeamMax": 4,
+    "postedRobots": 30,
+    "goodRobotPenalty": 150,
+    "wetPersonPenalty": 200,
+    "tieBreak": "interruptedUpdates",
+    "brief": "Confirm the posted robots and earn more points than the other team. Wrong targets cost points.",
+    "win": "More evidence. Fewer incidents. Your team takes the board.",
+    "lose": "The other team closed more cases. The next board starts fresh."
+  },
+  "hideInTheCrowd": {
+    "durationS": 480,
+    "activeTasks": 3,
+    "flickerIntervalS": 30,
+    "quietFlickerIntervalS": 45,
+    "taskPingDelayS": 5,
+    "scanCharges": 3,
+    "scanRechargeS": 60,
+    "scanAccuracy": 0.7,
+    "replacementDelayS": 10,
+    "replacementDistanceM": 150,
+    "tasks": [
+      {
+        "id": "cone-taxi",
+        "event": "hide.taxiConed",
+        "durationS": 5,
+        "instruction": "Place a cone on the marked robotaxi. Walk away at an ordinary pace."
+      },
+      {
+        "id": "push-update",
+        "event": "hide.updatePushed",
+        "durationS": 6,
+        "instruction": "Send the update to the marked AI robot. Its light will flicker while it transfers."
+      },
+      {
+        "id": "place-ad",
+        "event": "hide.adPlaced",
+        "durationS": 4,
+        "instruction": "Attach the ad to the marked board. The corner ping follows in five seconds."
+      },
+      {
+        "id": "snatch-groceries",
+        "event": "hide.groceriesSnatched",
+        "durationS": 2,
+        "instruction": "Take the bag from the marked AI delivery robot, then blend into the route."
+      }
+    ],
+    "briefHider": "Complete tasks while following ordinary robot routines. Avoid obvious detours.",
+    "briefSpotter": "Watch behaviour, compare tells, and use your limited scans carefully."
+  },
+  "fogRoyale": {
+    "players": 8,
+    "startRunwayMonths": 18,
+    "phases": [
+      {
+        "phase": 1,
+        "holdS": 90,
+        "closeS": 60,
+        "radiusFraction": 1
+      },
+      {
+        "phase": 2,
+        "holdS": 90,
+        "closeS": 60,
+        "radiusFraction": 0.75
+      },
+      {
+        "phase": 3,
+        "holdS": 90,
+        "closeS": 60,
+        "radiusFraction": 0.5
+      },
+      {
+        "phase": 4,
+        "holdS": 90,
+        "closeS": 60,
+        "radiusFraction": 0.3
+      },
+      {
+        "phase": 5,
+        "holdS": 90,
+        "closeS": 60,
+        "radiusFraction": 0.15
+      }
+    ],
+    "outsideDrainMonths": 1,
+    "outsideDrainEveryS": 3,
+    "fleeceDurationS": 60,
+    "fleeceDrainFactor": 0.5,
+    "meltRunwayMonths": 1,
+    "crateRunwayMonths": 3,
+    "flowerRunwayMonths": 1,
+    "bridgeRoundRunwayMonths": 6,
+    "duelPairWindowS": 20,
+    "finalCircleDistricts": [
+      "dogpatch",
+      "mission-bay",
+      "potrero-hill"
+    ],
+    "forecast": "97% chance of sun.",
+    "win": "Raised a Series A in this market.",
+    "out": "Your calendar is full. Spectating is now the only available slot."
+  },
+  "vibesNight": {
+    "playersMin": 2,
+    "playersMax": 8,
+    "demoDurationS": 90,
+    "robotsPerDemo": 3,
+    "badRobotsPerDemo": 1,
+    "rivalBots": false,
+    "scoreAuthority": "simulation",
+    "awardAuthority": "playerVote",
+    "brief": "Run a clean three-robot demo. The simulation scores the work; players vote for the Vibes Award.",
+    "vote": "Vote for the demo you want to remember. You cannot vote for yourself.",
+    "tie": "Tied votes use a deterministic keyed-hash tie-break. The demo scores stay separate."
+  },
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:b1d8b438",
+    "reviewedBy": [],
+    "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
+  }
+}
