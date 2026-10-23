@@ -469,12 +469,15 @@ export class AgentLayer {
     this.lookOverride = looks;
   }
 
-  /** The non-person agents drawn last frame nearest (x, z), nearest first (look-dev). */
+  /**
+   * The robots of the last frame nearest (x, z), nearest first (look-dev): walking robots before
+   * road vehicles (a robotaxi is disabled, never toppled, by the sim).
+   */
   nearestRobots(x: number, z: number, n: number): number[] {
     const out: Array<{ id: number; d: number }> = [];
     for (const [, b] of this.pairs) {
       if (b.kind === "person") continue;
-      out.push({ id: b.id, d: Math.hypot(b.x - x, b.z - z) });
+      out.push({ id: b.id, d: Math.hypot(b.x - x, b.z - z) + (AGENT_SPEC[b.kind].road ? 1e6 : 0) });
     }
     return out.sort((p, q) => p.d - q.d).slice(0, n).map((p) => p.id);
   }
