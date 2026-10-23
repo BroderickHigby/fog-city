@@ -16,6 +16,10 @@ E2E_PORT=4196 pnpm e2e        # Playwright: tests/e2e/*.spec.ts
 E2E_PORT=4196 pnpm shots      # screenshots -> test-results/shots/index.html
 E2E_REQUIRE=all E2E_PORT=4196 pnpm e2e   # after integration: absent prerequisites fail, not skip
 pnpm build                    # the static web build for hosting -> dist/ (see "Static web build")
+pnpm world:pr                 # the world-continuity gate's per-PR suites alone (also inside pnpm test)
+pnpm world:nightly            # the gate's nightly tier: every street, wall, GLB, the far ring, the tour
+pnpm world:baseline           # lower the gate's ratchet after a fix (see "World-continuity gate")
+E2E_PORT=4196 pnpm tour       # the fixed screenshot tour -> test-results/tour/index.html
 ```
 
 One file or one test: `pnpm exec vitest run tests/sim`, `E2E_PORT=4196 pnpm e2e dev-world`,
@@ -213,6 +217,9 @@ sets its own (`it(name, fn, 60_000)`).
 | `determinism.spec.ts` | **Cross-engine determinism**, below. | `dev-city`, `sf` (per world); `engines` (Firefox, WebKit). `stepFrames()` is asserted present, not a skip |
 | `sf-world.spec.ts` | Data: the spawn is within 400 m of the Ferry Building, on a road carriageway and pointing along it; at least 10 buildings within 300 m and a tower over 100 m within 1 km. Browser: SF boots clean with the car at the spawn and draws; it boots from the citywide collider pack (`world.colliders.bin` fetched once, **not one `*.collider.json` request** in the page's log, `simInfo().colliders === "pack"`, more than 1,000 edge and shore wall segments); from Twin Peaks every far-LOD cell is loaded, more than three are drawn in the last frame (`renderInfo().farCells`, `farCellsDrawn`), and the camera sees at least 15 km; from the Embarcadero, tiles load, none fail, and more than 10 000 triangles are on screen; 10 s of full throttle along the spawn heading covers more than 30 m (20 m along the heading) and never ends inside a building; parked at the southern city limit facing out, the far terrain is stitched to the tiles' ground (`renderInfo().farSeamEdges`) and no sea-coloured pixels show below the horizon (the crack showed about 11,000). Landmarks: the Ferry Building entry is within 150 m of the clock tower and its model exists; the renderer fetched that model (HTTP 200); `renderInfo().landmarks` (models actually placed) reaches the number of `landmarks.json` entries whose model file exists, so another landmark cannot stand in for it; `landmarks()` (asserted present) has one entry per `landmarks.json` entry, `ferry-building` and `r-evolution` are reported loaded, every one with a model is in the scene, and the Ferry Building is placed within 150 m of the origin. Traffic: after 120 ticks `state.ext.agents` holds robotaxis, errand robots, sidewalk bots and people, a quarter of them have moved, `simInfo()` says the road graph was built; the renderer draws them (`renderInfo().agents`, with full models near the chase camera, the three robot kinds from their model files) in at most 27 agent draw calls, and the player car is `models/player-car.glb`. | `sf`; `landmarks`; `render-debug` (browser half of the landmark test, traffic test) |
 | `on-foot.spec.ts` | With real keys: F gets out of the stopped car, the walker is drawn (`renderInfo().walkers`), W walks while the car stays parked exactly where it was and the HUD shows walking speed "on foot", S walks back, F next to the car gets back in (no walker drawn), and W drives again. Boxed in by four other players' cars (joined through `stepFrames()` events, 2 m to each side and 5.2 m ahead and behind), F leaves the player in the car and `hint()` reads "No room to get out" on screen; once they leave, F gets out with no hint. | `foot` |
+| `car-pose.spec.ts` | World gate, per PR (W-19, W-09): a car joined (`player.join` through `stepFrames()`) on Filbert St at 31.5%, Twin Peaks Blvd and Kearny St is drawn with the sim's pitch (within 1 degree, a hard assertion since W-19 is fixed), and the gap between each wheel's lowest point and the drawn road under it is ratcheted (`G.carPose.*` in the baseline). Probes the scene through `?debug=1` (`tests/e2e/world-probe.ts`). | `sf` |
+| `far-ring.spec.ts` | World gate, **nightly only** (`tests/e2e/nightly.config.ts`; W-17): at `&radius=60`, the three worst near/far borders seen from each side (camera 75 m inside the streamed tile): straight-down probes and 20 degree rays over land that find the sea plane. | `sf` |
+| `world-tour.spec.ts` | World gate, **nightly only** and `pnpm tour`: the fixed screenshot tour of `world-tour.views.json` to `test-results/tour/`, each view checked (tiles settled, none failed, far cells loaded, no console error) and probed (lakes drawn as water, beaches as sand, parks green with foliage, landmarks as their models). | `sf` |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
 | `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider, lists every file written in parts at its size on disk and at most 14 MB (and says version 2 exactly when there are parts), and agrees with the build's report; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack, each of the pack's files (whole, or every part) fetched exactly once; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). The committed collider pack fits one file, so a second build (`test-results/web-build/split-site/`) lowers the part size to 5 MB so every run boots the split path in Chromium: the pack is written in parts (version 2 index, each part at its size on disk) that join and decode to `world.colliders.bin` byte for byte, the page boots SF from them and drives more than 30 m, fetching every part once and never the whole file, and with one part missing on the host the boot stops with `Failed to start: … part 1 of parts 0..N (….part1.txt): HTTP 404`. `WEB_BUILD_PUBLIC=<dir>` builds both from another `public/` directory. | `sf` |
 
@@ -295,6 +302,76 @@ SHOT="sf -669 677 45 -2 3" E2E_PORT=4196 pnpm shots --grep custom   # world x z 
 
 `x`, `z` are local metres (`src/geo/project.ts`), yaw a compass bearing in degrees, pitch in
 degrees (+ up), `up` metres above the ground there.
+
+## World-continuity gate (`tests/golden/world/`)
+
+The standing QA gate for the world (`docs/qa/world-continuity-gate.md`): buildings, terrain and
+hills, streets and structures, ground cover, the world edge, play continuity by car and on foot,
+and the San Francisco house kit, as about a hundred metrics measured on the committed world as
+the game boots it (`tests/helpers/world.ts`: the collider pack, `roads.json` and `boundary.json`
+through `buildWorld`; the real `stepCar`, `stepFoot` and `step()`; the GLBs decoded with
+meshopt in Node). Harness owns it; each metric's definition lives in
+`tests/helpers/world-gate/<suite>.ts`.
+
+- **Per PR** (Vitest project `world-pr`, part of `pnpm test` and `pnpm verify`):
+  `tests/golden/world/*.test.ts`: buildings, terrain, streets, cover, houses, edge, drive,
+  routes, foot, determinism, and the GLB checks on all 583 tiles (`glb`: parity, road surface,
+  ground through ribbons, double ribbons, seams, floating walls) and the far layer (`far`: ring,
+  coverage, hulls); and `tests/e2e/car-pose.spec.ts` in `pnpm e2e`.
+- **Nightly** (`pnpm world:nightly`: project `world-nightly` with one worker, then
+  `tests/e2e/nightly.config.ts`; `.github/workflows/world-nightly.yml`): every street in every
+  direction, every freeway and path, every wall rammed and the whole shore's water side, the ring
+  at radius 60 and the screenshot tour with its probes.
+- **The ratchet.** `tests/golden/world-qa-baseline.json` holds each metric's value at the
+  baseline build, its target, which way is better and the defects (W-01 to W-52, L-01 to L-15)
+  it tracks; each defect has a status. A metric worse than its baseline fails. A metric better by
+  more than 10% fails too (the baseline is stale: lower it in the same PR); a smaller improvement
+  prints a reminder. When every defect a metric tracks is `fixed`, its target is a hard assertion.
+  `tests/golden/world-qa-runs.json` lists the drive and walk runs that failed at the baseline;
+  any other run that fails is a regression. `tests/golden/world-baseline.test.ts` checks the
+  ratchet's rules and the file's shape (every blocker, high and medium defect tracked).
+- **After a fix:** run the suite (`pnpm world:pr`, or the nightly/e2e spec that measures the
+  metric), then `pnpm world:baseline`: it reads what the suites recorded in
+  `test-results/world-gate/` (they record before they judge, so a failing run records too),
+  lowers the baselines and failing-run lists, copies the metric definitions from the code, and
+  refuses anything worse unless named with `--accept-worse <id>`, and any definition that loosens
+  the gate (a looser target, a flipped direction, a later target wave, a move off the per-PR tier,
+  a metric no longer enforced) unless named with `--accept-looser <id>` (say why in the PR for
+  either). Each record is stamped with the commit it was measured on; the script skips records
+  from another commit or from before the working tree's latest change (`--include-stale` uses
+  them anyway), so rerun the suite after the last edit. Flip the defect's status to `fixed` by
+  hand in the same PR. A new metric: add it to its suite's module, run the suite once
+  (`WORLD_GATE_RECORD=1` records without asserting), then `pnpm world:baseline`.
+- **Reminders.** A metric better than its baseline by 10% or less passes with a reminder to lower
+  the baseline. Vitest's own reporters hide a passing test's output (the "minimal" reporter
+  Vitest picks under a coding agent drops it), so `tests/helpers/world-gate/reporter.ts` prints
+  every reminder together at the end of `pnpm test` and writes them to
+  `test-results/world-gate/reminders.txt`; the Playwright gate specs print theirs in the list
+  reporter's output.
+- **Reference fixtures** (`tests/helpers/world-gate/fixtures/`, with a README): parcel points,
+  Rec and Park outlines, lake surfaces, 1 m DEM profiles and the QA's sites, derived once from
+  the QA run's evidence; and the pinned 300-edge street sample (`drive-sample.json`), which
+  `node scripts/golden/world-sample.ts --write` refreshes from `roads.json`, on purpose only (a
+  sample recomputed on every run would shift when one edge is added or renamed). A pinned edge
+  gone from `roads.json` counts as a failed run.
+- **The screenshot tour** (`pnpm tour`, `E2E_PORT` as always): `test-results/tour/NN-view-mode.png`
+  and `index.html`, a contact sheet that shows the previous wave's shot beside each one when that
+  wave's tour folder is copied to `test-results/tour-previous/`. A person reviews it each wave.
+  `TOUR_VIEWS=5,7,lake-merced pnpm tour` shoots only those views (by number or id) to
+  `test-results/tour-pick/`, pictures only, for checking one fix.
+- **Browser probes.** The gate's specs read the scene through `?debug=1`
+  (`window.__fogcityView`, src/main.ts) in `tests/e2e/world-probe.ts`: vertical probes of the
+  topmost drawn surface and the drawn car's wheels, in plain JavaScript; never pixels or frame rate.
+  A probe sees what the renderer draws: a far cell does not count inside a tile that is in the
+  scene (the far layer's shader discards it there), and the tour flies over each probe's point
+  first so its tile is streamed in.
+- **Cost at 544f67c** (16 GB machine): `vitest run` with the per-PR world suites takes about
+  3 minutes on two workers (largest process 2.1 GB; at least 12 GB stayed free; the GLB and far
+  suites add about 35 s and 0.86 GB, the determinism suite peaks at 1.67 GB alone);
+  `car-pose.spec.ts` adds about 3 minutes to `pnpm e2e`; the nightly Vitest sweeps take about
+  30 minutes on one worker (0.9 GB; every street is 26,792 runs), the ring about 1 minute and the
+  tour about 50 minutes (85 shots; `index.json` records each shot's time). The nightly budget is
+  90 minutes (`docs/qa/world-continuity-gate.md`, "Differences from the plan").
 
 ## Writing browser tests
 
@@ -430,4 +507,7 @@ boots (`WEB_BUILD_PUBLIC=/path/to/public E2E_PORT=4298 pnpm exec playwright test
 | `test-results/shots/` | `pnpm shots` | cleared at the start of each shots run |
 | `test-results/playwright-shots/` | `pnpm shots` | artefacts of failed shots |
 | `test-results/web-build/` | `web-build.spec.ts` | the static builds it serves from `/fog/city/` (`site/`, and `split-site/` with the collider pack in parts), and `hosted-chase.png` |
+| `test-results/world-gate/` | the world gate's suites | each suite's measured values, failing runs, definitions and timings; read by `pnpm world:baseline` |
+| `test-results/tour/` | `pnpm tour`, `pnpm world:nightly` | the screenshot tour and its contact sheet; cleared at the start of each tour |
+| `test-results/tour-pick/` | `TOUR_VIEWS=... pnpm tour` | the picked tour views only |
 | `dist/` | `pnpm build` | the static web build (gitignored) |

@@ -92,10 +92,11 @@ const worldFilesCache = new Map<string, WorldFilesNode>();
  * The files a world's sim is built from, read from disk exactly as the game reads them
  * (src/io/world-load.ts): the collider pack when the manifest names one, else every tile's
  * collider JSON; the road graph and the boundary when the manifest names them. Cached per world
- * (the data is never mutated).
+ * (the data is never mutated); `cache: false` reads them afresh and keeps nothing, so a test that
+ * builds two whole-city worlds one after the other holds only one at a time.
  */
-export function loadWorldFiles(name: string): WorldFilesNode {
-  const hit = worldFilesCache.get(name);
+export function loadWorldFiles(name: string, cache = true): WorldFilesNode {
+  const hit = cache ? worldFilesCache.get(name) : undefined;
   if (hit) return hit;
   const dir = `public/tiles/${name}`;
   const manifest = readJson<WorldManifest>(`${dir}/manifest.json`);
@@ -107,7 +108,7 @@ export function loadWorldFiles(name: string): WorldFilesNode {
   const boundary = boundaryFile ? readJson<BoundaryFile>(`${dir}/${boundaryFile}`) : null;
   const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary);
   const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, colliders: files.colliders };
-  worldFilesCache.set(name, out);
+  if (cache) worldFilesCache.set(name, out);
   return out;
 }
 

@@ -1,0 +1,56 @@
+# The world-continuity gate's nightly tier (docs/qa/world-continuity-gate.md): every street
+# driven, every freeway and path, every wall rammed, the near/far ring and the screenshot tour
+# (about 70 to 90 minutes on one worker). Outside `pnpm verify`; the per-PR tier (including the
+# GLB and far-layer checks) runs in ci.yml's unit tests.
+name: World nightly
+
+on:
+  schedule:
+    # 02:37 UTC every day (off the hour so it is not queued behind every other scheduled job).
+    - cron: "37 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  world-nightly:
+    name: world gate, nightly
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      CI: "true"
+      E2E_PORT: "4173"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium with system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      # The Vitest sweeps (one worker), then the tour and the ring (tests/e2e/nightly.config.ts).
+      - name: World gate, nightly
+        run: pnpm world:nightly
+
+      - name: Upload the tour and the measurements
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: world-nightly-${{ github.run_attempt }}
+          path: |
+            test-results/tour/
+            test-results/world-gate/
+          retention-days: 30
+          if-no-files-found: warn
