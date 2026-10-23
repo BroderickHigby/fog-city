@@ -11,7 +11,8 @@
 //
 // and per instance (InstancedBufferAttribute on the part's geometry):
 //
-//   fcCue   vec2  brake lights 0/1, hazard/status flash 0/1 (agentCue in agent-lod.ts)
+//   fcCue   vec4  brake lights 0/1, hazard/status flash 0/1 (agentCue in agent-lod.ts), rust 0..1
+//                 and wetness 0..1 (the combat presentation, render-only: runtime-actors.ts)
 //   fcColA..fcColD vec3  people only: shirt, trousers, skin, hair
 //
 // Every agent material in the game models is untextured metallic-roughness PBR, so packing
@@ -162,10 +163,12 @@ export function mergePacked(list: readonly THREE.BufferGeometry[]): THREE.Buffer
 const VERTEX_PARS = /* glsl */ `
 attribute vec2 fcPbr;
 attribute vec4 fcEmit;
-attribute vec2 fcCue;
+attribute vec4 fcCue;
 uniform vec4 fcLightK;
 varying vec2 vFcPbr;
 varying vec3 vFcEmit;
+varying vec2 vFcCombat;
+varying vec3 vFcObj;
 #ifdef FC_SLOTS
 attribute vec4 fcSlot;
 attribute vec3 fcColA;
@@ -177,6 +180,8 @@ attribute vec3 fcColD;
 
 const VERTEX_MAIN = /* glsl */ `
   vFcPbr = fcPbr;
+  vFcCombat = fcCue.zw;
+  vFcObj = position;
   {
     float ch = fcEmit.w;
     float k = 0.0;
@@ -197,6 +202,43 @@ const VERTEX_MAIN = /* glsl */ `
 const FRAGMENT_PARS = /* glsl */ `
 varying vec2 vFcPbr;
 varying vec3 vFcEmit;
+varying vec2 vFcCombat;
+varying vec3 vFcObj;
+float fcAgHash( vec3 p ) {
+  p = fract( p * 0.3183099 + 0.1 );
+  p *= 17.0;
+  return fract( p.x * p.y * p.z * ( p.x + p.y + p.z ) );
+}
+float fcAgNoise( vec3 x ) {
+  vec3 i = floor( x );
+  vec3 f = fract( x );
+  f = f * f * ( 3.0 - 2.0 * f );
+  return mix( mix( mix( fcAgHash( i ), fcAgHash( i + vec3( 1, 0, 0 ) ), f.x ),
+                   mix( fcAgHash( i + vec3( 0, 1, 0 ) ), fcAgHash( i + vec3( 1, 1, 0 ) ), f.x ), f.y ),
+              mix( mix( fcAgHash( i + vec3( 0, 0, 1 ) ), fcAgHash( i + vec3( 1, 0, 1 ) ), f.x ),
+                   mix( fcAgHash( i + vec3( 0, 1, 1 ) ), fcAgHash( i + vec3( 1, 1, 1 ) ), f.x ), f.y ), f.z );
+}
+`;
+
+/**
+ * Rust (vFcCombat.x, 0..1): patches of orange-brown oxide that grow from seams and edges as the
+ * robot rusts and cover it whole when it seizes; matte and dull where they lie. Wet (y, 0..1):
+ * darker and glossier, as water darkens paint and fabric. Patches live in the model's own space
+ * (they stay put as it moves); the finer octave fades out before it can shimmer.
+ */
+const COMBAT_COLOR = /* glsl */ `
+  float fcRust = vFcCombat.x;
+  float fcRustCover = 0.0;
+  if ( fcRust > 0.001 ) {
+    vec3 q = vFcObj * 5.0;
+    float fine = 1.0 - smoothstep( 0.4, 1.2, length( fwidth( q ) ) );
+    float n = 0.65 * fcAgNoise( q ) + 0.35 * mix( 0.5, fcAgNoise( q * 3.7 + 11.0 ), fine );
+    float edge = 1.15 - 1.3 * fcRust;
+    fcRustCover = smoothstep( edge, edge + 0.12, n );
+    vec3 rustCol = mix( vec3( 0.20, 0.065, 0.02 ), vec3( 0.52, 0.20, 0.055 ), fcAgNoise( q * 2.3 + 5.0 ) );
+    diffuseColor.rgb = mix( diffuseColor.rgb, rustCol, fcRustCover );
+  }
+  diffuseColor.rgb *= 1.0 - 0.3 * vFcCombat.y;
 `;
 
 function patchAgentShader(shader: THREE.WebGLProgramParametersWithUniforms): void {
@@ -207,8 +249,12 @@ function patchAgentShader(shader: THREE.WebGLProgramParametersWithUniforms): voi
     .replace("#include <color_vertex>", `#include <color_vertex>\n${VERTEX_MAIN}`);
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", `#include <common>\n${FRAGMENT_PARS}`)
-    .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = vFcPbr.x;")
-    .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\n  metalnessFactor = vFcPbr.y;")
+    .replace("#include <color_fragment>", `#include <color_fragment>\n${COMBAT_COLOR}`)
+    .replace(
+      "#include <roughnessmap_fragment>",
+      "#include <roughnessmap_fragment>\n  roughnessFactor = mix( mix( vFcPbr.x, 0.92, fcRustCover ), 0.18, 0.75 * vFcCombat.y );",
+    )
+    .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\n  metalnessFactor = mix( vFcPbr.y, 0.1, fcRustCover );")
     .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance += vFcEmit;");
 }
 
@@ -217,7 +263,7 @@ export function packedMaterial(slots: boolean): THREE.MeshStandardMaterial {
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, name: slots ? "fc:agent-people" : "fc:agent" });
   if (slots) m.defines = { FC_SLOTS: "" };
   m.onBeforeCompile = patchAgentShader;
-  m.customProgramCacheKey = () => (slots ? "fc:agent-slots:v1" : "fc:agent:v1");
+  m.customProgramCacheKey = () => (slots ? "fc:agent-slots:v2" : "fc:agent:v2");
   return m;
 }
 

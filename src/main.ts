@@ -435,7 +435,7 @@ async function boot(): Promise<void> {
       }
     }
     view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
-    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
+    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha,dtFrame);
     audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
     const minute = gameMinuteOfDay(curr, clockStart);
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
