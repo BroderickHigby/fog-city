@@ -221,7 +221,8 @@ export function robotaxiBerth(cls: DodgeClass): number {
 }
 
 /** The dodge class of an ambient agent, or null for vehicles (robotaxis). */
-export function agentDodgeClass(a: Readonly<Pick<AgentState, "id" | "kind" | "runtimeId" | "protected" | "child" | "mobilityAid" | "posture">>): DodgeClass | null {
+export function agentDodgeClass(a: Readonly<Pick<AgentState, "id" | "kind" | "runtimeId" | "flying" | "protected" | "child" | "mobilityAid" | "posture">>): DodgeClass | null {
+  if (a.flying) return null;
   const kind: AgentKind = a.kind;
   if (kind === "robotaxi") return null;
   if (kind === "person") return (a.runtimeId !== undefined ? a.protected || a.child || a.mobilityAid || a.posture === "seated" || a.posture === "lying" : personIsChild(a.id)) ? "care" : "person";
@@ -517,6 +518,8 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
   // (An agent's circles lie within its half length of it.)
   const lim2 = lim + AGENT_SPEC.robotaxi.halfLength;
   for (const a of (after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) {
+    // Flying bodies do not shorten a ground vehicle's predicted reach.
+    if (a.flying) continue;
     if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim2 * lim2) continue;
     const cls = agentDodgeClass(a);
     if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;

@@ -210,14 +210,14 @@ const BAND_SLACK_M = 0.75;
 
 function obstaclesOf(prev: Readonly<SimState>): Obstacles {
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
-  const agentRound: Array<Circle & { road: boolean }> = [];
+  const agentRound: Array<Circle & { road: boolean; y:number; height:number }> = [];
   const taxiBoxes: Array<{ box: Box; y: number; height: number }> = [];
   for (const a of agents) {
     // People and animals: under the dodge's override (dodge.ts), never a car's obstacle.
     const cls = agentDodgeClass(a);
     const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
     const road = AGENT_SPEC[a.kind].road;
-    for (const c of agentCircles(a)) agentRound.push({ x: c.x, z: c.z, r: c.r, person, road });
+    for (const c of agentCircles(a)) agentRound.push({ x: c.x, z: c.z, r: c.r, person, road, y:a.y, height:a.height??1.8 });
     if (road) taxiBoxes.push({ box: { x: a.x, z: a.z, heading: a.heading, hl: (a.halfLength ?? ROBOTAXI_BODY.halfLength) + WALKER_SKIN_M, hw: (a.halfWidth ?? ROBOTAXI_BODY.halfWidth) + WALKER_SKIN_M }, y: a.y, height: a.height ?? ROBOTAXI_BODY.height });
   }
   const ids = sortedIds(prev.players);
@@ -240,9 +240,9 @@ function obstaclesOf(prev: Readonly<SimState>): Obstacles {
     // (In the car: the walker it would get out as, at the car's height.)
     const feet = onFoot ? p.foot!.y : p.car.y;
     const near = agentRound.filter((c) => (c.x - bx) * (c.x - bx) + (c.z - bz) * (c.z - bz) < NEAR_AGENT_M * NEAR_AGENT_M);
-    const car: Circle[] = near.filter((c) => !c.person).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
+    const car: Circle[] = near.filter((c) => !c.person && bandsMeet(p.car.y,CAR.bodyHeight,c.y,c.height,BAND_SLACK_M)).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
     // (A walker meets a robotaxi's drawn body, a box, not its circles.)
-    const walker: Circle[] = near.filter((c) => !c.road).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
+    const walker: Circle[] = near.filter((c) => !c.road && bandsMeet(feet,FOOT.height,c.y,c.height,BAND_SLACK_M)).map((c) => ({ x: c.x, z: c.z, r: c.r, person: c.person }));
     const boxes: Box[] = [];
     for (const other of ids) {
       if (other === id) continue;
@@ -282,6 +282,7 @@ function vehiclesReaching(world: World, prev: Readonly<SimState>, self: PlayerId
   const agents = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const robots: Circle[] = [];
   for (const a of agents) {
+    if (a.flying) continue;
     const cls = agentDodgeClass(a);
     if (cls === "errandRobot" || cls === "sidewalkBot" || cls === null) for (const c of agentCircles(a)) robots.push({ ...c, person: false });
   }

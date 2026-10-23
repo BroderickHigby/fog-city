@@ -91,7 +91,7 @@ import {
 } from "./roads.ts";
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
-import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts";
+import { cellKey, circleBlocked, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
@@ -207,6 +207,8 @@ export function personIsChild(id: number): boolean {
 export interface AgentState {
   /** Core physical proxies for lane-owned runtime actors stay out of ambient rendering/sensing. */
   runtimeId?: string;
+  /** Airborne runtime bodies retain altitude and do not use ground dodge motion. */
+  flying?: boolean;
   /** Physical controller memory for service vehicles. */
   vehicle?: import("./contract.ts").CarState;
   /** Claimed ambient body remains visible through the legacy read adapter. */
@@ -674,9 +676,10 @@ const WALKER_PREDICT_S: readonly number[] = [0.6, 1.2];
 /** Seconds ahead a moving robotaxi's position is projected (seen by walkers at the kerb). */
 const ROBOTAXI_PREDICT_S: readonly number[] = [1.0, 2.0];
 
-function agentObstacles(list: readonly AgentState[]): Obs[] {
+function agentObstacles(world: World, list: readonly AgentState[]): Obs[] {
   const out: Obs[] = [];
   for (const a of list) {
+    if (a.flying && a.y > surfaceHeight(world, a.x, a.z, a.y) + 2.5) continue;
     const spec = AGENT_SPEC[a.kind];
     const road = spec.road;
     if (road) {
@@ -1856,7 +1859,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
 
-  const obs = [...playerObstacles(prev), ...agentObstacles(ext.list)];
+  const obs = [...playerObstacles(prev), ...agentObstacles(world, ext.list)];
   const { hash, footHash, boxHash } = buildHashes(obs);
   const routes = new Map<number, Route>();
 
@@ -2011,7 +2014,7 @@ export function explainAgent(world: World, state: Readonly<SimState>, id: number
   const a = agentById(state, id);
   if (!g || !a) return null;
   const ext = state.ext[AGENTS_EXT_KEY] as AgentsExt;
-  const hash = buildHash([...playerObstacles(state), ...agentObstacles(ext.list)]);
+  const hash = buildHash([...playerObstacles(state), ...agentObstacles(world, ext.list)]);
   const pr = probe(g, a, hash, a.ghost > 0, []);
   const rem = remainingOnPath(g, a);
   let holder: number | null = null;
