@@ -55,3 +55,12 @@ Connect the existing deterministic agent policies to a runtime that proposes bou
 Validation: owned agents/combat subset 230 tests passed; runtime/placement/mode/navigation and forbidden-API pass 68 tests, plus typecheck. Real sidewalk data loads at 33,081 nodes and 58,007 edges. Core movement/service integration remains under validation, so this is a draft against `integrate/wave2`.
 
 Git push works. GitHub API operations have been blocked in this environment, so the coordinating session can open the draft PR. No merge to `main` or `integrate/wave1` is authorized or performed by this lane.
+
+## Service and authored-behavior checkpoint
+
+- Shared allocation/follower API `fd9715e` is incorporated. The new service coordinator dispatches vans onto clear directed roads 100–140 m away, sends follower controls to core, and unloads exactly two actors only after an observed stopped arrival. It reports late arrivals instead of treating a deadline as delivery.
+- The Muni coordinator accepts immutable `TransitLayer` data from the world loader. It schedules wrapped buses every ten game minutes near the Ferry Building, uses actual source stop IDs, emits Ferry passage only from a stopped physical body at that stop, and retires buses after they leave player fidelity. The actual data file is `public/tiles/sf/muni.json`; the world loader must supply it.
+- Runtime actors now expose authored `bag`, `statusLight`, `tellIds`, `tellIntensity` and `hiddenTellId` fields. Mission archetypes choose the correct model and goal table from the existing content. The Hot Desk snatcher pursues a grocery snatch and carries its authored empty-bag tell; the shopper carries groceries. Inventory events update bag state.
+- Good robots with a repair flag seek a real repair kiosk. `agentsCombatOptions` supplies the baseline twofold conversion cap required for forced updates.
+- Latest validation: **typecheck passed; 14 owned-agent/forbidden-API files, 194 tests passed**. The van and bus tests require observed arrival, reject timer-only success and replayed dispatch, and check wrap/source-stop data.
+- Core `b7c412c` now publishes the physical prepared-motion kernel. Merge and actual service-control acceptance tests are the next step; the passing controller tests do not establish physical 20-second delivery yet.

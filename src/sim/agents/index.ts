@@ -10,3 +10,6 @@ export { createAgentsSystem, agentsCombatOptions, missionActorBindings } from ".
 export { decodeMissionStage, planMissionActors } from "./mission-actors.ts";
 export { planModeRoster, type ModeRosterRequest } from "./mode-roster.ts";
 export { navigationFromPipeline, type PipelineSidewalks } from "./pipeline-navigation.ts";
+
+export { planServiceRuntime, threatRequestsOf } from "./service-runtime.ts";
+export { planTransitRuntime, type TransitLayer } from "./transit-runtime.ts";

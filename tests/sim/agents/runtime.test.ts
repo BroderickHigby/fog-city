@@ -139,3 +139,15 @@ describe("mission runtime admission",()=>{
     expect((sim.ext.robots as unknown as ReturnType<typeof createAgentsRuntime>).missionBindings["first:bad"]).toBe(actors[0]!.id);
   });
 });
+
+
+describe("authored mission behavior tells",()=>{
+  it("shows the thief's empty bag and uses its snatch goal instead of a generic forced update",()=>{
+    const sim=initial();
+    const runtime=planAgentRuntime(world,sim,{},{spawns:[spawn("thief",{archetype:"snatcher",level:1}),spawn("shopper",{numericId:11,archetype:"errandFootman",firmware:"good",z:-.5})]});
+    expect(runtime.actors.thief).toMatchObject({bag:"empty",tellIntensity:1});
+    expect(runtime.actors.thief!.tellIds).toContain("emptyBag");
+    expect(runtime.actors.shopper!.bag).toBe("full");
+    expect(runtime.attacks[0]?.kind).toBe("snatch");
+  });
+});
