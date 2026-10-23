@@ -186,7 +186,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave2-2026-10-23",
-    "contentHash": "fnv1a32:8bc26e24",
+    "contentHash": "fnv1a32:25e5e10b",
     "reviewedBy": [],
     "review": "Authored for the published UI request. Pending independent review; existing approved names reused."
   }

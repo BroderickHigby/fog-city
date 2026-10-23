@@ -642,7 +642,7 @@
         },
         {
           "id": "delivery",
-          "label": "R-Evolution binder delivery",
+          "label": "Binder delivery corner",
           "lat": 37.7934,
           "lon": -122.3948,
           "radiusM": 12
@@ -819,7 +819,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:c288cf4e",
+    "contentHash": "fnv1a32:07d2cb0b",
     "reviewedBy": [
       "root second-read at 88a9781"
     ],

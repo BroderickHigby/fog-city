@@ -99,3 +99,6 @@ A final authoritative activity settlement ordering fix and the newly identified 
 
 ### Final convergence intake
 Integrated the isolated full-hull service admission and legacy-taxi geometry fixes, runtime-walker vehicle clearance, and authoritative same-tick activity reward ordering. The activity regression covers immediate capture/restore and mode payout replay. Also integrated the completed offline AI/relay modules without changing the current gameplay composition, content, dependencies or UI. The final candidate now enters full typecheck, complete unit suite, production bundle and refreshed SF browser verification; final results are recorded with the tested immutable head in `/workspace/visual-review/final/`.
+
+### Full unit pass findings
+The first combined full unit run completed with 3,391 passing tests, one skipped test and two content-only failures. Replaced the checklist-blocked checkpoint caption with “Binder delivery corner” and refreshed its provenance hash. Also refreshed the UI catalog hash after adding the actionable refill error string. No simulation rules or locations changed. Targeted content checks and a production bundle are queued; a clean full verification rerun follows final browser-test intake.
