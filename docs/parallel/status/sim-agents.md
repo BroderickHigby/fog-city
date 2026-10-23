@@ -140,7 +140,10 @@ Fixes for `reviews/pr-9.md`, the wave-2 agents/player review of `integrate/wave2
 worker's requests. Branch merged with `integrate/wave2` (d2400e8) first; its unique code had
 already landed there.
 
-- **High, claimed ambient bodies never despawn:** fixed in 87e4ee1. `stepAgents` hands a claimed
+- **High, claimed ambient bodies never despawn:** fixed in 87e4ee1, together with integrate's
+  eb79039 (which retires ordinary actors in the despawn tier). What 87e4ee1 still adds after the
+  merge: a significant claimed body (kept by the runtime out of fidelity, so with no proposal)
+  goes back to ambient stepping instead of standing frozen; the test covers both paths. `stepAgents` hands a claimed
   body that got no runtime proposal this tick back to ambient stepping (`releaseClaimed`: claim
   metadata dropped, a connector onto its own sidewalk), or removes it when it cannot rejoin
   (road vehicle, more than 6 m off its sidewalk, a wall in the way). Released bodies count for
@@ -151,10 +154,11 @@ already landed there.
   `STIMULUS_REACH_SQ`) are skipped before the sight line; `observationSet` uses a per-tick 30 m
   cell index and an id map. State hashes are identical over 600 composed SF ticks. Composed SF
   bench (four players): 208 ms/tick before, 43.4 ms after (1,800 ticks); one player 17.7 to 15.7 ms.
-- **Medium, `Math.hypot` in `badRobotRate`:** fixed in 8ad3fdc. `src/sim/agents/bad-rate.ts`
-  computes the rate with `Math.sqrt` from the same data and projection; bit-identical where
-  hypot and sqrt agree (within 1e-12 elsewhere). `tests/sim/agents/bad-rate.test.ts` guards
-  `src/content/places.ts` against use from the sim. One line in Lane 2's `game-systems.ts`.
+- **Medium, `Math.hypot` in `badRobotRate`:** fixed. integrate's eb79039 changed `places.ts`
+  to `Math.sqrt`, so this branch's in-sim copy (8ad3fdc) was removed again in 4365c2b. The guard
+  stays: `tests/sim/agents/places-guard.test.ts` allows `src/sim` only data plus `badRobotRate`,
+  `protectedAreaAt` and `pointInPolygon` from `places.ts`, and checks them, their helpers and
+  `src/geo/project.ts` for engine-dependent maths.
 - **Medium, vans and buses not proven:** fixed in 2f369f8. Runtime vehicles moved by `stepCar`
   now get the car model's dodge reach at their own size (`dodge.ts carModelVehicle`), and the
   foot player's dodge sizes them by their hull (`step.ts`). New fuzz
@@ -164,8 +168,10 @@ already landed there.
   Lane 2's `dodge.ts` and `step.ts`.
 - **Low, scene clearance:** fixed in d8271b6 (box distance to vehicle hulls, with a test).
 - **Low, `prepareMotionBodies` find/findIndex:** fixed in d8271b6 (id indexes; Lane 2's `motion.ts`).
-- **Low, `SimEventKind.threatSpawn` in `service-runtime.ts`:** waits for PR #26, which adds the
-  constant; `integrate/wave2` does not have it yet.
+- **Low, `SimEventKind.threatSpawn` in `service-runtime.ts`:** fixed in 4365c2b, after PR #26 landed.
+- **Composed golden:** the `service` scenario of `tests/golden/composed-v8.json` is re-pinned in
+  ed5ef14: with the car-model van reach two bodies dive away from the arriving van (none before),
+  no contacts either way. The other scenarios are unchanged.
 - **Not in this PR:** `observedBodies`/`dodgeOverrideActive:false` (cosmetic now); blocked
   admission throwing in `motion.ts` (PR #26 defers it); Ambient Director staging (Lane 5); the
   per-sample `obstacles()` rebuild in `motion.ts` (Lane 2).
