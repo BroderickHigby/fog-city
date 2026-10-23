@@ -31,6 +31,7 @@ import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
+import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
@@ -216,7 +217,7 @@ async function boot(): Promise<void> {
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
-    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>(mission.wave??2)<=GAME_WAVE&&!completed.includes(mission.id));requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
+    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
@@ -455,7 +456,7 @@ async function boot(): Promise<void> {
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(mission?.status==="complete"){const next=[...MISSIONS].sort((a,b)=>(a.campaign??0)-(b.campaign??0)).find(candidate=>(candidate.wave??2)<=GAME_WAVE&&!mission.completedIds.includes(candidate.id));if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
     if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE);gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };

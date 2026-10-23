@@ -41,3 +41,6 @@ Validation: full typecheck; 23 input/command/save tests; 2 focused purchase test
 
 ## Mission interaction recovery
 Closing a mission dialog or signup no longer strands its active step. The objective card and phone both offer Continue while the interaction remains active. All five Chromium fixture tests passed, including dismiss/reopen through both entry points, gamepad signup, input suppression and IndexedDB reload.
+
+## Campaign handoff selector
+Automatic selection now filters authored campaign missions before ordering, so Hot Desk leads to Spill and the standalone Ramen Pitch fixture is never selected. The clean runtime remains wave 2. Three direct selector checks pass (initial, after Hot Desk, after both); the matching focused Vitest regression is queued behind the current full harness gate.
