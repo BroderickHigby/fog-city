@@ -39,6 +39,7 @@ export interface UiView {
   readonly scan?:ScanView;
   readonly map?:MapView;
   readonly vendor?:readonly VendorView[];
+  readonly vendorSiteId?:string;
   readonly bounties?:readonly BountyView[];
   readonly popups?:readonly PopupView[];
   readonly phoneApps?:readonly PhoneApp[];
@@ -47,7 +48,7 @@ export interface UiView {
 }
 export type UiCopy=(key:string,values?:Readonly<Record<string,string|number>>)=>string;
 export interface UiCallbacks {
-  readonly purchase?:(itemId:string)=>void;
+  readonly purchase?:(itemId:string,siteId?:string)=>void;
   readonly startup?:(kitId:string)=>void;
   readonly closeAd?:(popupId:string)=>void;
   readonly waypoint?:(point:MapPoint)=>void;

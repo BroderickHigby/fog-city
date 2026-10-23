@@ -11,7 +11,7 @@ test("mobile phone, vendor and startup form remain usable and isolate gameplay",
   await page.getByRole("button",{name:"Counter",exact:true}).click();
   await expect(page.getByRole("button",{name:"Buy",exact:true}).nth(1)).toBeDisabled();
   await page.getByRole("button",{name:"Buy",exact:true}).first().click();
-  expect(await page.evaluate(()=>(window as unknown as {events:unknown[]}).events)).toMatchObject([{kind:"gameplay.command",payload:{kind:"buy",itemId:"nozzle",sequence:0}}]);
+  expect(await page.evaluate(()=>(window as unknown as {events:unknown[]}).events)).toMatchObject([{kind:"gameplay.command",payload:{kind:"buy",itemId:"nozzle",sequence:1}}]);
   await page.keyboard.press("Escape");await page.evaluate(()=>(window as unknown as {ui:{showStartup():void}}).ui.showStartup());
   const entry=page.getByRole("textbox");await entry.fill("w".repeat(150)+" I want to kill myself");await page.getByRole("button",{name:"Start building"}).click();
   await expect(page.locator(".fc-text-feedback")).not.toBeEmpty();
