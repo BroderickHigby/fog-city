@@ -2,11 +2,15 @@
 //
 //   * edges: the outline of the built tiles, as polylines. "land" runs are where the world
 //     stops on dry ground (the southern city limit, where the last built tile meets Daly City
-//     or Brisbane): the sim needs a wall there, since beyond it there is no ground. "water"
+//     or Brisbane, or the county line itself inside a tile whose land beyond it is cut: W-42):
+//     the sim needs a wall there, since beyond it there is no ground or no city. "water"
 //     runs are where the outline crosses open water (the sea-wall and towing rules apply).
 //   * shore: the land/water contour inside the built tiles (marching squares on the 10 m
 //     ground lattice's water flags, simplified): the line for the sea-wall collider and the
 //     Bay-edge refill zone. Piers are land in the elevation model, so the shore runs round them.
+//     The inland lakes (landcover.ts, W-11) are water here too: each lake's own outline is a
+//     closed ring tagged with the lake's id, so the sim walls a car off Lake Merced as it does
+//     off the Bay. A lake whose water meets the sea's (a marsh's channel) joins the sea's line.
 //
 // Everything is on the global 10 m lattice, so the output is a pure function of the tiles.
 
@@ -28,6 +32,8 @@ export interface BoundaryEdge {
 export interface ShoreLine {
   closed: boolean;
   points: P2[];
+  /** The inland lake this closed ring goes round (its NHD id), when every water sample beside it is that lake's. */
+  lake?: string;
 }
 
 export interface BoundaryStats {
@@ -35,6 +41,9 @@ export interface BoundaryStats {
   waterEdgeM: number;
   shoreM: number;
   shoreLines: number;
+  /** Closed rings round an inland lake, and their length (part of shoreM). */
+  lakeRings: number;
+  lakeShoreM: number;
 }
 
 const CELLS = SAMPLES_PER_TILE - 1; // 50 lattice cells per tile side
@@ -61,6 +70,13 @@ function dropStraight(pts: P2[], closed: boolean): P2[] {
 export function buildBoundary(
   tiles: readonly TileRef[],
   fields: ReadonlyMap<string, Heightfield>,
+  /**
+   * Land the world stops short of inside a built tile, by lattice cell centre (the Daly City strip
+   * south of the county line, W-42): such a cell with a land corner is outside the outline.
+   */
+  cutLand?: (x: number, z: number) => boolean,
+  /** The inland lake (its id) whose water a lattice sample is, or null (W-11). */
+  lakeAt?: (x: number, z: number) => string | null,
 ): { edges: BoundaryEdge[]; shore: ShoreLine[]; stats: BoundaryStats } {
   if (TILE_SIZE_M / GROUND_CELL_M !== CELLS) throw new Error("boundary: tiles must be 50 lattice cells wide");
   const built = new Set(tiles.map((t) => `${t.ix},${t.iz}`));
@@ -71,24 +87,79 @@ export function buildBoundary(
     for (let k = 0; k < f.nz; k++) for (let i = 0; i < f.nx; i++) water.set(k2(t.ix * CELLS + i, t.iz * CELLS + k), f.water[k * f.nx + i]!);
   }
   const wAt = (gx: number, gz: number): number => water.get(k2(gx, gz))!;
+  // Lake water by lattice sample (the shore's wet side: sea or lake).
+  const lakeOf = new Map<string, string>();
+  if (lakeAt) {
+    for (const t of tiles) {
+      for (let k = 0; k <= CELLS; k++) {
+        for (let i = 0; i <= CELLS; i++) {
+          const gx = t.ix * CELLS + i, gz = t.iz * CELLS + k;
+          if (wAt(gx, gz) === 1) continue;
+          const id = lakeAt(gx * GROUND_CELL_M, gz * GROUND_CELL_M);
+          if (id !== null) lakeOf.set(k2(gx, gz), id);
+        }
+      }
+    }
+  }
+  const wetAt = (gx: number, gz: number): number => (wAt(gx, gz) === 1 || lakeOf.has(k2(gx, gz)) ? 1 : 0);
   const P = (gx: number, gz: number): P2 => [gx * GROUND_CELL_M, gz * GROUND_CELL_M];
 
-  // ---- Outline: unit lattice segments with the built tiles on the left.
+  // ---- Outline: unit lattice segments with the world's cells on the left. A cell is in the
+  // world when its tile is built and it is not cut land.
   interface Seg { from: [number, number]; to: [number, number]; kind: "land" | "water" }
   const segs: Seg[] = [];
+  const cut = new Map<string, boolean>();
+  const isCut = (cx: number, cz: number): boolean => {
+    if (!cutLand) return false;
+    const k = k2(cx, cz);
+    let v = cut.get(k);
+    if (v === undefined) {
+      const allWater = wAt(cx, cz) === 1 && wAt(cx + 1, cz) === 1 && wAt(cx, cz + 1) === 1 && wAt(cx + 1, cz + 1) === 1;
+      v = !allWater && cutLand((cx + 0.5) * GROUND_CELL_M, (cz + 0.5) * GROUND_CELL_M);
+      cut.set(k, v);
+    }
+    return v;
+  };
+  const inWorld = (cx: number, cz: number): boolean => built.has(`${Math.floor(cx / CELLS)},${Math.floor(cz / CELLS)}`) && !isCut(cx, cz);
+  const seg = (from: [number, number], to: [number, number]): void => {
+    segs.push({ from, to, kind: wAt(...from) === 1 && wAt(...to) === 1 ? "water" : "land" });
+  };
   const side = (x0: number, z0: number, dx: number, dz: number): void => {
     for (let s = 0; s < CELLS; s++) {
       const from: [number, number] = [x0 + dx * s, z0 + dz * s];
-      const to: [number, number] = [from[0] + dx, from[1] + dz];
-      segs.push({ from, to, kind: wAt(...from) === 1 && wAt(...to) === 1 ? "water" : "land" });
+      seg(from, [from[0] + dx, from[1] + dz]);
     }
   };
+  const hasCut = new Set<string>();
+  if (cutLand) {
+    for (const t of tiles) {
+      const X0 = t.ix * CELLS, Z0 = t.iz * CELLS;
+      let any = false;
+      for (let cz = Z0; cz < Z0 + CELLS && !any; cz++) for (let cx = X0; cx < X0 + CELLS && !any; cx++) any = isCut(cx, cz);
+      if (any) hasCut.add(`${t.ix},${t.iz}`);
+    }
+  }
   for (const t of [...tiles].sort((a, b) => a.iz - b.iz || a.ix - b.ix)) {
     const X0 = t.ix * CELLS, Z0 = t.iz * CELLS, X1 = X0 + CELLS, Z1 = Z0 + CELLS;
-    if (!built.has(`${t.ix},${t.iz - 1}`)) side(X1, Z0, -1, 0); // north edge, heading west
-    if (!built.has(`${t.ix - 1},${t.iz}`)) side(X0, Z0, 0, 1); // west edge, heading south
-    if (!built.has(`${t.ix},${t.iz + 1}`)) side(X0, Z1, 1, 0); // south edge, heading east
-    if (!built.has(`${t.ix + 1},${t.iz}`)) side(X1, Z1, 0, -1); // east edge, heading north
+    // Cell by cell where this tile or a neighbour has cut land; else by whole tile sides.
+    const cellwise = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => hasCut.has(`${t.ix + dx!},${t.iz + dz!}`));
+    if (!cellwise) {
+      if (!built.has(`${t.ix},${t.iz - 1}`)) side(X1, Z0, -1, 0); // north edge, heading west
+      if (!built.has(`${t.ix - 1},${t.iz}`)) side(X0, Z0, 0, 1); // west edge, heading south
+      if (!built.has(`${t.ix},${t.iz + 1}`)) side(X0, Z1, 1, 0); // south edge, heading east
+      if (!built.has(`${t.ix + 1},${t.iz}`)) side(X1, Z1, 0, -1); // east edge, heading north
+      continue;
+    }
+    // Every side between a world cell and one that is not.
+    for (let cz = Z0; cz < Z1; cz++) {
+      for (let cx = X0; cx < X1; cx++) {
+        if (!inWorld(cx, cz)) continue;
+        if (!inWorld(cx, cz - 1)) seg([cx + 1, cz], [cx, cz]);
+        if (!inWorld(cx - 1, cz)) seg([cx, cz], [cx, cz + 1]);
+        if (!inWorld(cx, cz + 1)) seg([cx, cz + 1], [cx + 1, cz + 1]);
+        if (!inWorld(cx + 1, cz)) seg([cx + 1, cz + 1], [cx + 1, cz]);
+      }
+    }
   }
   const out = new Map<string, Seg[]>();
   for (const s of segs) (out.get(k2(...s.from)) ?? out.set(k2(...s.from), []).get(k2(...s.from))!).push(s);
@@ -161,7 +232,7 @@ export function buildBoundary(
   for (const t of [...tiles].sort((a, b) => a.iz - b.iz || a.ix - b.ix)) {
     for (let cz = t.iz * CELLS; cz < (t.iz + 1) * CELLS; cz++) {
       for (let cx = t.ix * CELLS; cx < (t.ix + 1) * CELLS; cx++) {
-        const a = wAt(cx, cz), b = wAt(cx + 1, cz), c = wAt(cx + 1, cz + 1), d = wAt(cx, cz + 1);
+        const a = wetAt(cx, cz), b = wetAt(cx + 1, cz), c = wetAt(cx + 1, cz + 1), d = wetAt(cx, cz + 1);
         const sum = a + b + c + d;
         if (sum === 0 || sum === 4) continue;
         // Corners in order round the cell, with the lattice edge leaving each one.
@@ -214,7 +285,17 @@ export function buildBoundary(
     const closed = chain.length > 2 && chain[chain.length - 1] === chain[0];
     const pts = simplifyLine(chain.map(ptOf), SHORE_SIMPLIFY_M).map(([x, z]) => [r2(x), r2(z)] as P2);
     if (closed) pts.pop();
-    if (pts.length >= 2) shore.push({ closed, points: pts });
+    if (pts.length < 2) continue;
+    // Which water is beside it: the wet end of every lattice edge the line crosses.
+    const wet = new Set<string>();
+    for (const key of chain) {
+      const [gx, gz] = key.slice(1).split(",").map(Number) as [number, number];
+      const [ox, oz] = key[0] === "h" ? [gx + 1, gz] : [gx, gz + 1];
+      const [wx, wz] = wetAt(gx, gz) === 1 ? [gx, gz] : [ox, oz];
+      wet.add(wAt(wx, wz) === 1 ? "" : lakeOf.get(k2(wx, wz))!);
+    }
+    const lake = closed && wet.size === 1 && !wet.has("") ? [...wet][0]! : undefined;
+    shore.push(lake !== undefined ? { closed, points: pts, lake } : { closed, points: pts });
   }
   const key = (p: { points: P2[] }): string => `${p.points[0]![1].toFixed(2).padStart(12)} ${p.points[0]![0].toFixed(2).padStart(12)}`;
   shore.sort((a, b) => (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0));
@@ -225,6 +306,8 @@ export function buildBoundary(
     waterEdgeM: Math.round(edges.filter((e) => e.kind === "water").reduce((s, e) => s + polyLength(e.points, e.closed), 0)),
     shoreM: Math.round(shore.reduce((s, l) => s + polyLength(l.points, l.closed), 0)),
     shoreLines: shore.length,
+    lakeRings: shore.filter((l) => l.lake !== undefined).length,
+    lakeShoreM: Math.round(shore.filter((l) => l.lake !== undefined).reduce((s, l) => s + polyLength(l.points, l.closed), 0)),
   };
   return { edges, shore, stats };
 }

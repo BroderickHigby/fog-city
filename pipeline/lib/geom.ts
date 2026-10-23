@@ -300,3 +300,30 @@ export function hash32(s: string): number {
   }
   return h >>> 0;
 }
+
+/**
+ * Remove spikes: a vertex where the ring doubles back (the walls either side of it meet at less
+ * than maxDeg degrees) is dropped, repeatedly, while the ring keeps 3 vertices. A spike is a
+ * zero-width sliver no wall can stand on (DataSF draws some; a storefront could face into one).
+ */
+export function despike(ring: readonly P2[], maxDeg = 8): P2[] {
+  const cosMax = Math.cos((maxDeg * Math.PI) / 180);
+  let cur = ring.slice();
+  let changed = true;
+  while (changed && cur.length > 3) {
+    changed = false;
+    for (let i = 0; i < cur.length && cur.length > 3; i++) {
+      const a = cur[(i + cur.length - 1) % cur.length]!;
+      const b = cur[i]!;
+      const c = cur[(i + 1) % cur.length]!;
+      const ux = a[0] - b[0], uz = a[1] - b[1], vx = c[0] - b[0], vz = c[1] - b[1];
+      const lu = Math.hypot(ux, uz), lv = Math.hypot(vx, vz);
+      if (lu < 1e-9 || lv < 1e-9 || (ux * vx + uz * vz) / (lu * lv) > cosMax) {
+        cur.splice(i, 1);
+        changed = true;
+        i--;
+      }
+    }
+  }
+  return cur;
+}

@@ -42,10 +42,28 @@ export interface RenderInfo {
   farCells: number;
   farCellsDrawn: number;
   farTriangles: number;
-  /** Far quads at the city's outer edge stitched to the streamed tiles' ground (no crack at the city limit). */
-  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /**
+   * The graphics tier (src/render/gfx.ts): "default" (what the budget tests measure) or "high",
+   * what was asked for (?gfx=), why, and which high-tier features are on now (post-processing,
+   * the PBR detail and how many texture sets loaded, features the frame-rate governor dropped).
+   */
+  gfx: {
+    tier: "default" | "high";
+    requested: "default" | "high" | "auto";
+    reason: string;
+    post: boolean;
+    /** Planar water reflections near the showcase. */
+    reflections: boolean;
+    detail: boolean;
+    detailSets: number;
+    dropped: string[];
+    /** The Ferry Building showcase's street detail (src/render/showcase.ts) once built, else null. */
+    showcase: { crosswalks: number; stopBars: number; palms: number; trackM: number; paintQuads: number } | null;
+    /** The animated humanoid crowd and the skinned player body are in (else the placeholders draw). */
+    characters: { crowd: boolean; player: boolean };
+  };
 }
 
 export interface LandmarkInfo {
@@ -96,11 +114,15 @@ export interface DebugHandle {
   /** One entry per content/landmarks.json placement. */
   landmarks(): LandmarkInfo[];
   setNight(on: boolean): void;
+  /** The lighting: "golden" (the default day, 18:52), "noon" or "night" (also ?tod=). */
+  setTimeOfDay?(t: "golden" | "noon" | "night"): void;
   setCameraMode(mode: CameraModeName): void;
   /** Switch to the fly camera at (x, y, z) looking along compass yaw, pitch (degrees, + up). */
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;
   /** True when no tile is queued, loading or building. */
   tilesSettled(): boolean;
+  /** The ground height the renderer stands things on at (x, z), metres (screenshots, probes). */
+  groundHeight(x: number, z: number): number;
   /** The HUD hint on screen now ("" when none), e.g. "No room to get out". */
   hint(): string;
   /**

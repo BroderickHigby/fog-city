@@ -26,8 +26,8 @@
 //      each part is valid base64 on its own), each checked at most PACK_MAX_BYTES; the page
 //      fetches them concurrently, checks each part's size, joins them in order and decodes;
 //    - the world's JSON the game reads is copied as is: the manifest, the road graph and the
-//      data layers in RUNTIME_LAYERS (src/io/world-load.ts); the other layers (sidewalks,
-//      hydrants, ...) stay out until a feature reads them;
+//      data layers in RUNTIME_LAYERS (src/io/world-load.ts); the other layers (hydrants,
+//      fountains, ...) stay out until a feature reads them;
 //    - per-tile collider JSONs are not shipped (the game reads the collider pack);
 //    - assets.index.json maps every binary's logical path to {src, offset, length} and, for a
 //      src written in parts, lists them under parts[src] as [{src, bytes}] in join order. An
@@ -397,9 +397,12 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     }
   }
 
-  // Models: each its own file (a handful, loaded at boot).
+  // Models: each its own file (a handful, loaded at boot). The material textures under
+  // models/textures/ (WebP, and their index textures.json, read by the high graphics tier
+  // through the same bytes() call) are packed the same way.
   const modelsDir = join(pub, "models");
-  for (const f of walk(modelsDir).filter((p) => p.toLowerCase().endsWith(".glb"))) {
+  // The crowd's vertex-animation textures (humanoid-vat-*.bin) and their humanoid-vat.json too.
+  for (const f of walk(modelsDir).filter((p) => /\.(glb|webp|bin)$/i.test(p) || /[\\/](textures[\\/]textures|humanoid-vat)\.json$/.test(p))) {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
   }
 

@@ -1,0 +1,84 @@
+{
+ "version": 1,
+ "textures": {
+  "asphalt": {
+   "sizeM": 4.0,
+   "meanLinear": [
+    0.08172,
+    0.08172,
+    0.08499
+   ],
+   "albedo": "asphalt_albedo.webp",
+   "normal": "asphalt_normal.webp",
+   "orm": "asphalt_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "concrete": {
+   "sizeM": 3.0,
+   "meanLinear": [
+    0.39344,
+    0.38754,
+    0.37574
+   ],
+   "albedo": "concrete_albedo.webp",
+   "normal": "concrete_normal.webp",
+   "orm": "concrete_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "grass": {
+   "sizeM": 3.0,
+   "meanLinear": [
+    0.08618,
+    0.16301,
+    0.04846
+   ],
+   "albedo": "grass_albedo.webp",
+   "normal": "grass_normal.webp",
+   "orm": "grass_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "paint": {
+   "sizeM": 2.0,
+   "meanLinear": [
+    0.78,
+    0.7722,
+    0.7488
+   ],
+   "albedo": "paint_albedo.webp",
+   "normal": "paint_normal.webp",
+   "orm": "paint_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)",
+   "note": "orm R channel = paint coverage (wear mask), not AO"
+  },
+  "pavers": {
+   "sizeM": 2.4,
+   "meanLinear": [
+    0.20717,
+    0.20212,
+    0.19707
+   ],
+   "albedo": "pavers_albedo.webp",
+   "normal": "pavers_normal.webp",
+   "orm": "pavers_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "sandstone": {
+   "sizeM": 2.4,
+   "meanLinear": [
+    0.61497,
+    0.54553,
+    0.43643
+   ],
+   "albedo": "sandstone_albedo.webp",
+   "normal": "sandstone_normal.webp",
+   "orm": "sandstone_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  }
+ }
+}

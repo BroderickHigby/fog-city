@@ -11,6 +11,13 @@
         "east": -122.356,
         "demBlockTiles": 8
       },
+      "far": {
+        "$comment": "The far layer's reach (world QA W-17, W-40): far terrain and massing cover this box, past the citywide box to the north (the Marin headlands' ridgeline) and the south (San Bruno Mountain, 402 m). Only the DEM is downloaded for it.",
+        "north": 37.86,
+        "west": -122.516,
+        "south": 37.675,
+        "east": -122.356
+      },
       "areas": [
         {
           "id": "downtown",
@@ -80,6 +87,12 @@
         "crosswalks": "g9zy-srvv",
         "streetCleaning": "yhqp-riqs",
         "parking": "hi6h-neyh",
+        "recParks": "gtr9-ntp6",
+        "canopy": "ni2e-vpbg",
+        "parcelShapes": "acdm-wktn",
+        "waterbodies": "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12",
+        "federalLands": "https://services1.arcgis.com/fBc8EJBxQRMcHlei/arcgis/rest/services/NPS_Land_Resources_Division_Boundary_and_Tract_Data_Service/FeatureServer/2",
+        "federalUnits": ["GOGA", "SAFR"],
         "snapshotDate": "2026-10-20"
       },
       "probes": {

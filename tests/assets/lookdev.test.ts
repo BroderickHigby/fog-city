@@ -1,5 +1,5 @@
-// The look-dev renders for the art sign-off (assets/blender/lookdev/*.png): the wave-2 set
-// exists, each is a real image under 2 MB.
+// The look-dev renders for the art sign-off (assets/blender/lookdev/*.png): the wave-2 set and
+// the world-QA set exist, each is a real image under 2 MB.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -26,6 +26,10 @@ describe("look-dev renders", () => {
     ]) {
       expect(pngs).toContain(f);
     }
+  });
+
+  it("include the world-QA set: the house kit and the interim landmarks (W-24, W-25, W-27, W-38, W-49, W-50, W-33)", () => {
+    for (const f of ["10-house-kit.png", "11-landmarks.png", "12-landmarks-street.png"]) expect(pngs).toContain(f);
   });
 
   it.each(pngs)("%s is a drawn image under 2 MB with its script beside it", (f) => {

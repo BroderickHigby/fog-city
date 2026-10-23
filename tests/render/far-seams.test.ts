@@ -1,11 +1,9 @@
-// The far layer's seams (src/render/far-layer.ts): its terrain lattice is found among the hulls;
-// at the city's outer edge the far quads just outside are hidden and replaced by stitches whose
-// inner side follows the streamed tile's ground and whose outer side meets the far lattice (the
-// crack there showed the sea at the city limit); and the land at the far terrain's north and
-// south ends carries on as an apron.
+// The far layer's terrain (src/render/far-layer.ts): its lattice is found among the hulls, and
+// the land at the far terrain's north and south ends carries on as an apron.
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { APRON_ROWS_M, STITCH_BAND_M, STITCH_SINK_M, farApron, farTerrain, hideTriangles, outerSeams, stitchStrip, type FarTerrain } from "../../src/render/far-layer.ts";
+import { APRON_ROWS_M, farApron, farTerrain, tileGrid, type FarTerrain } from "../../src/render/far-layer.ts";
+import type { Manifest } from "../../src/render/types.ts";
 
 /**
  * A far cell like the pipeline's: a 100 m lattice over x 900..1200, z 9800..10200, two
@@ -47,9 +45,6 @@ function cell(height: (x: number, z: number) => number): { geo: THREE.BufferGeom
 }
 
 const farH = (x: number, _z: number): number => 5 + 0.02 * (x - 900);
-// The streamed tile's 10 m ground wiggles between the far lattice's points.
-const ground = (x: number, z: number): number => farH(x, z) + 0.6 * Math.sin(x / 7) + 0.3 * Math.cos(z / 11);
-const builtTile = (_ix: number, iz: number): boolean => iz < 20; // the city stops at z = 10000
 
 describe("far layer seams", () => {
   const { geo, matrix } = cell(farH);
@@ -63,59 +58,6 @@ describe("far layer seams", () => {
     const rim = [...t.edges.values()].filter((e) => e.n === 1).length;
     expect(rim).toBe(14);
     expect(t.points.get("1000,10000")!.y).toBeCloseTo(farH(1000, 10000), 5);
-  });
-
-  it("finds the far quads just outside the city's outer edge, and only those", () => {
-    const seams = outerSeams(t, { tileSizeM: 500, builtTile });
-    // The line z = 10000 is the outer edge (tiles north of it stream in, none south of it); the
-    // line x = 1000 has tiles on both sides north of z = 10000 and none south of it: no seam.
-    expect(seams.map((q) => `${q.a.x},${q.a.z}-${q.b.x},${q.b.z}`)).toEqual(["1000,10000-1100,10000", "1100,10000-1200,10000", "900,10000-1000,10000"]);
-    for (const q of seams) {
-      expect(q.a2.z).toBe(10100);
-      expect(q.b2.z).toBe(10100);
-      expect(q.tris).toHaveLength(2);
-    }
-  });
-
-  it("stitches each such quad to the tile's ground: every 10 m on the edge, a 10 m band, then the far lattice outside, facing up", () => {
-    const seams = outerSeams(t, { tileSizeM: 500, builtTile });
-    const s = stitchStrip(seams, ground, t.colorSize);
-    // Per seam: ten 10 m facets in the band (two triangles each) and one quad beyond it.
-    expect(s.positions.length / 9).toBe(seams.length * (10 * 2 + 2));
-    expect(s.colors.length / 4).toBe(s.positions.length / 3);
-    const p = s.positions;
-    const onEdge = new Set<number>();
-    for (let i = 0; i < p.length; i += 3) {
-      const [x, y, z] = [p[i]!, p[i + 1]!, p[i + 2]!];
-      if (z === 10000) {
-        // The inner side is the tile's ground, a hair below it.
-        expect(y).toBeCloseTo(ground(x, z) - STITCH_SINK_M, 5);
-        onEdge.add(x);
-      } else {
-        // Everything else lies on the far quad (a plane here: the far terrain is a slope in x).
-        expect([10000 + STITCH_BAND_M, 10100]).toContain(z);
-        expect(y).toBeCloseTo(farH(x, z), 4);
-      }
-    }
-    expect([...onEdge].sort((a, b) => a - b)).toEqual(Array.from({ length: 31 }, (_, i) => 900 + i * 10));
-    for (let i = 0; i < p.length; i += 9) {
-      const a = new THREE.Vector3(p[i], p[i + 1], p[i + 2]);
-      const n = new THREE.Vector3(p[i + 3], p[i + 4], p[i + 5]).sub(a).cross(new THREE.Vector3(p[i + 6], p[i + 7], p[i + 8]).sub(a));
-      expect(n.y, "faces up").toBeGreaterThan(0);
-    }
-  });
-
-  it("hides the replaced far quads: their triangles collapse to points", () => {
-    const { geo: g2, matrix: m2 } = cell(farH);
-    const t2 = farTerrain(g2, m2);
-    const seams = outerSeams(t2, { tileSizeM: 500, builtTile });
-    const tris = seams.flatMap((q) => q.tris);
-    hideTriangles(g2, tris);
-    const index = g2.getIndex()!;
-    for (const tr of tris) expect(new Set([index.getX(3 * tr), index.getX(3 * tr + 1), index.getX(3 * tr + 2)]).size).toBe(1);
-    // Every other triangle is untouched.
-    const kept = t2.tris.filter((tr) => !tris.includes(tr.t));
-    for (const tr of kept) expect(new Set([index.getX(3 * tr.t), index.getX(3 * tr.t + 1), index.getX(3 * tr.t + 2)]).size).toBe(3);
   });
 
   it("carries the land on past the far terrain's north and south ends, easing down, facing up", () => {
@@ -144,5 +86,22 @@ describe("far layer seams", () => {
     expect(minNorth).toBe(9800 - APRON_ROWS_M[APRON_ROWS_M.length - 1]!);
     // The first row is the edge itself.
     for (let i = 0; i < p.length; i += 3) if (p[i + 2] === 10200) expect(p[i + 1]).toBeCloseTo(farH(p[i]!, 0), 5);
+  });
+});
+describe("far layer tile grid", () => {
+  it("one mask texel per manifest tile, from ix/iz or the bbox", () => {
+    const m = {
+      version: 1,
+      world: "w",
+      spawn: { x: 0, z: 0, heading: 0 },
+      tiles: [
+        { id: "t-2_3", ix: -2, iz: 3, collider: "", glb: null },
+        { id: "t1_5", collider: "", glb: null, bbox: [500, 2500, 1000, 3000] },
+      ],
+    } as Manifest;
+    const g = tileGrid(m);
+    expect([g.ix0, g.iz0, g.nx, g.nz]).toEqual([-2, 3, 4, 3]);
+    expect(g.index.get("t-2_3")).toBe(0);
+    expect(g.index.get("t1_5")).toBe(2 * 4 + 3);
   });
 });

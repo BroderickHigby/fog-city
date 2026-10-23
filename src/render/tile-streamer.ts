@@ -20,8 +20,9 @@
 import * as THREE from "three";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
+import { groundSkirt, lakeSurface, type SimpleMesh } from "./ground-extras.ts";
 import type { TileCollider } from "../sim/world.ts";
-import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
+import { groundCutMaterial, materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
 import {
   assignEdgesToTiles,
@@ -31,8 +32,16 @@ import {
   nodeHalfWidth,
   streetTreeSpots,
   streetlightSpots,
+  type Spot,
 } from "./roads.ts";
+import { PropClearance } from "./prop-clearance.ts";
+import { boreCuts, boreMesh, quayFaces, shoreByTile, type ShoreSegment, type TunnelLike } from "./structures.ts";
+import { sidewalkMesh, sidewalksByTile, type SidewalkGraph, type SidewalkLine } from "./sidewalks.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
+import { decodeFronts, type FacadeMeshOut, type FrontRow, type LookFn } from "./house-kit.ts";
+import { applyHouseKit, kitGeometry } from "./house-kit-mesh.ts";
+import { buildShopfronts, mergePlacements, planHouseKit, type KitDoc, type ProtoLib, type ShopPlan, type StorefrontAnchor } from "./house-kit-props.ts";
+import { shopfrontFor } from "../content/storefronts.ts";
 import type { RoadContext } from "./tile-geometry.ts";
 import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
 import type { GroundFn, Manifest, ManifestTile, RoadEdge, RoadGraph } from "./types.ts";
@@ -45,6 +54,11 @@ export interface StreamerOptions {
   colliders: ReadonlyMap<string, TileCollider>;
   roads: RoadGraph | null;
   ground: GroundFn;
+  /**
+   * The ground as the tiles draw it (ground.ts makeDrawnGroundFn: each lattice cell's two
+   * triangles), for what the renderer stands on it itself (street props). Default: `ground`.
+   */
+  drawnGround?: GroundFn;
   materials: SharedMaterials;
   night: NightMaterials;
   radius?: number;
@@ -57,16 +71,31 @@ export interface StreamerOptions {
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
+  /** Called with each ground material a tile makes for itself (bores cut out), so it can wear the shared ground's detail. */
+  onGroundMaterial?: (m: THREE.MeshStandardMaterial) => void;
   /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
   onTileVisible?: (id: string, visible: boolean) => void;
-  /** Adjusts a ground mesh's vertex colours once when its tile loads (parks.ts). */
-  tintGround?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4) => void;
+  /**
+   * The inland lakes' water (W-11; Water.lakeMaterial). With it, every tile whose heightfield has
+   * lake samples gets a "lakes" mesh at their level (ground-extras.ts lakeSurface). The ground's
+   * own colours are the pipeline's ground classes and are never changed here.
+   */
+  lakeMaterial?: THREE.Material;
+  /** boundary.json's shore lines: quay faces where the land stands over the sea (structures.ts). */
+  shore?: ReadonlyArray<{ closed: boolean; lake?: unknown; points: ReadonlyArray<readonly number[]> }>;
   /**
    * When a tile's glb fails for good: that tile's own collider, fetched lazily, with the
    * building meta (use, year, stories) the fallback look reads; null when there is none (the
    * hosted build ships no per-tile colliders), and the tile is built from `colliders`.
    */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
+  /**
+   * The house kit's colours and materials per building (house-colours.ts houseLookFn: palettes by
+   * era and district, K3; landmarks, K10). Default: the tile's own colours.
+   */
+  houseLook?: LookFn;
+  /** The world's storefront anchors (storefronts.json, K5): shop glazing on their walls and a shopfront each. */
+  storefronts?: readonly StorefrontAnchor[] | null;
 }
 
 type TileState = "loading" | "building" | "ready" | "failed";
@@ -93,6 +122,30 @@ interface TileRecord {
   /** The tile's own collider (fallbackCollider), preferred over `colliders` for the fallback build. */
   collider?: TileCollider;
   error?: string;
+  /** Roads built here from the graph (they bring their own sidewalks), not from the glb. */
+  builtRoads: boolean;
+  /** The sidewalk bands are in the group. */
+  sidewalks: boolean;
+  /** What the house kit's geometry is built from (the glb's fronts and the facade pass). */
+  kitSrc?: { fronts: FrontRow[]; prep: FacadeMeshOut };
+  /** The house kit's meshes while the tile is near the camera (bays, stoops, mouldings, roof props, shopfronts). */
+  kit: THREE.Mesh[] | null;
+}
+
+/** The house kit's geometry is built for tiles this near the camera and dropped beyond KIT_DROP_M. */
+export const KIT_NEAR_M = 400;
+export const KIT_DROP_M = 600;
+
+export interface HouseKitStats {
+  /** Tiles with their kit built. */
+  tiles: number;
+  bays: number;
+  stoops: number;
+  rooflines: number;
+  roofProps: number;
+  shopfronts: number;
+  triangles: number;
+  drawCalls: number;
 }
 
 export interface StreamerStats {
@@ -115,6 +168,10 @@ export class TileStreamer {
   private readonly roadsByTile: Map<string, RoadEdge[]>;
   private readonly roadCtx: RoadContext | null;
   private readonly clearance: Map<string, number>;
+  private readonly propClearance: PropClearance;
+  private readonly roadById: Map<string, RoadEdge>;
+  private sidewalksByTile: Map<string, SidewalkLine[]> | null = null;
+  private readonly shoreByTile: Map<string, ShoreSegment[]> | null;
   private readonly records = new Map<string, TileRecord>();
   private queue: string[] = [];
   private inFlight = 0;
@@ -124,6 +181,13 @@ export class TileStreamer {
   private hiddenBuildings = new Set<string>();
   private loader: (url: string) => Promise<GLTF>;
   private nightVisible = false;
+  private kitLib: ProtoLib | null = null;
+  private kitDoc: KitDoc | null = null;
+  private shopsByTile: Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>> | null = null;
+  /** Every anchor by the tile its building's glb is in (an anchor across a border goes to both). */
+  private anchorsByTile: Map<string, StorefrontAnchor[]> | null = null;
+  private camX = NaN;
+  private camZ = NaN;
   radius: number;
   hysteresis: number;
 
@@ -139,6 +203,10 @@ export class TileStreamer {
     const edges = opts.roads?.edges ?? [];
     this.roadsByTile = assignEdgesToTiles(edges, this.bounds);
     this.clearance = opts.roads ? nodeClearance(opts.roads) : new Map();
+    this.propClearance = new PropClearance(edges, opts.colliders.values());
+    this.roadById = new Map(edges.map((e) => [e.id, e]));
+    this.shoreByTile = opts.shore ? shoreByTile(opts.shore, opts.manifest.tileSizeM ?? 500) : null;
+    if (opts.storefronts) this.indexStorefronts(opts.storefronts);
     this.roadCtx = opts.roads
       ? {
           ground: opts.ground,
@@ -205,11 +273,150 @@ export class TileStreamer {
 
   /** Call once per frame with the camera's ground position and a time budget for building work. */
   update(x: number, z: number, budgetMs = 4): void {
+    this.camX = x;
+    this.camZ = z;
     if (this.dirty || !(Math.abs(x - this.lastX) < RESELECT_M && Math.abs(z - this.lastZ) < RESELECT_M)) {
       this.reselect(x, z);
     }
     this.startLoads();
     this.pump(budgetMs);
+    this.updateKits(x, z);
+  }
+
+  /** The house-kit prototypes (house-kit-mesh.ts loadKitLib); near tiles get their kit from then on. */
+  setKitLib(lib: ProtoLib, doc: KitDoc): void {
+    this.kitLib = lib;
+    this.kitDoc = doc;
+    for (const r of this.records.values()) this.dropKit(r);
+  }
+
+  /** Group the storefront anchors by tile (called once, from the constructor). */
+  private indexStorefronts(anchors: readonly StorefrontAnchor[]): void {
+    const size = this.opts.manifest.tileSizeM ?? 500;
+    const shops = new Map<string, Array<{ anchor: StorefrontAnchor; plan: ShopPlan }>>();
+    const all = new Map<string, StorefrontAnchor[]>();
+    const tileAt = new Map(this.bounds.map((b) => [`${Math.floor((b.minX + 1) / size)},${Math.floor((b.minZ + 1) / size)}`, b.id]));
+    for (const a of anchors) {
+      const tx = Math.floor(a.x / size), tz = Math.floor(a.z / size);
+      const id = tileAt.get(`${tx},${tz}`);
+      // The anchor's wall may be in the neighbouring tile's glb: offer it to every tile within 2 m.
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const near = tileAt.get(`${tx + dx},${tz + dz}`);
+          if (!near) continue;
+          const b = this.bounds.find((t) => t.id === near)!;
+          if (a.x < b.minX - 2 || a.x > b.maxX + 2 || a.z < b.minZ - 2 || a.z > b.maxZ + 2) continue;
+          (all.get(near) ?? all.set(near, []).get(near)!).push(a);
+        }
+      }
+      if (!id) continue;
+      const plan = shopfrontFor(a);
+      if (!plan) continue;
+      (shops.get(id) ?? shops.set(id, []).get(id)!).push({ anchor: a, plan });
+    }
+    this.shopsByTile = shops;
+    this.anchorsByTile = all;
+  }
+
+  /** The house kit's totals over the tiles that have it built. */
+  houseKitStats(): HouseKitStats {
+    const st: HouseKitStats = { tiles: 0, bays: 0, stoops: 0, rooflines: 0, roofProps: 0, shopfronts: 0, triangles: 0, drawCalls: 0 };
+    for (const r of this.records.values()) {
+      if (!r.kit) continue;
+      st.tiles++;
+      for (const m of r.kit) {
+        const k = m.userData.kit as { bays?: number; stoops?: number; rooflines?: number; roofProps?: number; shopfronts?: number; triangles: number };
+        st.bays += k.bays ?? 0;
+        st.stoops += k.stoops ?? 0;
+        st.rooflines += k.rooflines ?? 0;
+        st.roofProps += k.roofProps ?? 0;
+        st.shopfronts += k.shopfronts ?? 0;
+        st.triangles += k.triangles;
+        st.drawCalls++;
+      }
+    }
+    return st;
+  }
+
+  /** Storefront anchors whose shopfront is built (for tests): id, x, z. */
+  shopfrontsBuilt(): Array<{ id: string; x: number; z: number }> {
+    const out: Array<{ id: string; x: number; z: number }> = [];
+    for (const r of this.records.values()) {
+      if (!r.kit || !this.shopsByTile) continue;
+      if (!r.kit.some((m) => m.name === "shopfronts")) continue;
+      for (const s of this.shopsByTile.get(r.id) ?? []) out.push({ id: s.anchor.id, x: s.anchor.x, z: s.anchor.z });
+    }
+    return out;
+  }
+
+  private tileDistance(id: string, x: number, z: number): number {
+    const b = this.bounds.find((t) => t.id === id);
+    if (!b) return Infinity;
+    return Math.hypot(Math.max(b.minX - x, 0, x - b.maxX), Math.max(b.minZ - z, 0, z - b.maxZ));
+  }
+
+  /** Build the kit of at most one near tile per call; drop the kits of tiles that went far. */
+  private updateKits(x: number, z: number): void {
+    if (!this.kitLib && !this.shopsByTile) return;
+    let built = false;
+    for (const r of this.records.values()) {
+      if (r.state !== "ready") continue;
+      const d = this.tileDistance(r.id, x, z);
+      if (r.kit && d > KIT_DROP_M) this.dropKit(r);
+      else if (!r.kit && !built && d <= KIT_NEAR_M) {
+        this.buildKit(r);
+        built = true;
+      }
+    }
+  }
+
+  /** True when every tile within KIT_NEAR_M of the camera has its kit (or the kit is off). */
+  kitsSettled(): boolean {
+    if (!this.kitLib && !this.shopsByTile) return true;
+    for (const r of this.records.values()) if (r.state === "ready" && !r.kit && this.tileDistance(r.id, this.camX, this.camZ) <= KIT_NEAR_M) return false;
+    return true;
+  }
+
+  private buildKit(rec: TileRecord): void {
+    rec.kit = [];
+    const mat = this.opts.materials.houseKit;
+    if (this.kitLib && this.kitDoc && rec.kitSrc) {
+      const collider = rec.collider ?? this.opts.colliders.get(rec.id);
+      const roofs = new Map((collider?.buildings ?? []).map((b) => [b.id, { footprint: b.footprint, topY: b.topY, baseY: b.baseY }]));
+      const { placements, stats } = planHouseKit(this.kitDoc, rec.kitSrc.fronts, rec.kitSrc.prep.frontWalls, rec.kitSrc.prep.frontDoors, rec.kitSrc.prep.buildings, roofs);
+      const merged = mergePlacements(this.kitLib, placements);
+      if (merged.triangles > 0) {
+        const mesh = new THREE.Mesh(kitGeometry(merged), mat);
+        mesh.name = "house-kit";
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.kit = { ...stats, triangles: merged.triangles };
+        rec.kit.push(mesh);
+      }
+    }
+    const shops = this.shopsByTile?.get(rec.id);
+    if (shops && shops.length > 0) {
+      const { mesh: sm, count } = buildShopfronts(shops);
+      if (sm.triangles > 0) {
+        const mesh = new THREE.Mesh(kitGeometry(sm), mat);
+        mesh.name = "shopfronts";
+        mesh.matrixAutoUpdate = false;
+        mesh.userData.kit = { shopfronts: count, triangles: sm.triangles };
+        rec.kit.push(mesh);
+      }
+    }
+    for (const m of rec.kit) {
+      rec.group.add(m);
+      m.updateMatrixWorld(true);
+    }
+  }
+
+  private dropKit(rec: TileRecord): void {
+    if (!rec.kit) return;
+    for (const m of rec.kit) {
+      rec.group.remove(m);
+      m.geometry.dispose();
+    }
+    rec.kit = null;
   }
 
   private reselect(x: number, z: number): void {
@@ -252,6 +459,9 @@ export class TileStreamer {
         glbLoaded: false,
         glbAttempts: 0,
         retryTimer: null,
+        builtRoads: false,
+        sidewalks: false,
+        kit: null,
       };
       rec.group.name = `tile:${id}`;
       rec.group.matrixAutoUpdate = false;
@@ -335,16 +545,27 @@ export class TileStreamer {
         else if (layer === "ground") {
           layers.ground = true;
           dropWaterTriangles(geo, mesh.matrixWorld);
-          this.opts.tintGround?.(geo, mesh.matrixWorld);
         } else if (layer === "road" || layer === "freeway") layers.roads = true;
         disposeMaterial(m);
+        if (layer === "ground") {
+          const cut = this.groundCut(rec);
+          if (cut) return cut;
+        }
         return materialFor(this.opts.materials, layer, { hasNormals: !!geo.getAttribute("normal"), hasUv: !!geo.getAttribute("uv") });
       });
       mesh.material = Array.isArray(mesh.material) ? next : next[0]!;
       // Building ranges: primitive extras (this repo) or node extras (pipeline).
-      const nodeRanges = (mesh.userData as { buildings?: unknown }).buildings;
+      const ud = mesh.userData as { buildings?: unknown; scenery?: unknown; fronts?: unknown };
+      const nodeRanges = ud.buildings ?? ud.scenery;
       if (!geo.userData.fcBuildings && Array.isArray(nodeRanges)) geo.userData.fcBuildings = nodeRanges;
       if (Array.isArray(geo.userData.fcBuildings)) rec.hideable.push(geo);
+      if (mats.some((m) => tileLayer(m.name, mesh.name) === "building")) {
+        // The house kit: per-wall frames, doors and garages, palette colours (house-kit.ts).
+        const bbox = rec.spec.bbox;
+        const fronts = bbox ? decodeFronts(ud.fronts, bbox[0], bbox[1]) : [];
+        const prep = applyHouseKit(geo, mesh.matrixWorld, (geo.userData.fcBuildings as Array<[string, number, number]> | undefined) ?? [], fronts, this.opts.houseLook, this.anchorsByTile?.get(rec.id));
+        if (prep && mesh.name === "buildings") rec.kitSrc = { fronts, prep };
+      }
     });
     root.traverse((o) => (o.matrixAutoUpdate = false));
     rec.group.add(root);
@@ -363,6 +584,7 @@ export class TileStreamer {
       return;
     }
     rec.state = "building";
+    rec.builtRoads = layers.roads;
     rec.gen = buildTileMeshes({
       collider,
       bounds: this.bounds.find((b) => b.id === rec.id)!,
@@ -406,7 +628,6 @@ export class TileStreamer {
         if (!data) return;
         const g = geometryFromMeshData(data);
         rec.geometries.push(g);
-        if (name === "ground") this.opts.tintGround?.(g, IDENTITY);
         const mesh = new THREE.Mesh(g, mat);
         mesh.name = name;
         mesh.matrixAutoUpdate = false;
@@ -414,13 +635,22 @@ export class TileStreamer {
         if (data.ranges.length > 0) rec.hideable.push(g);
       };
       add(meshes.ground, m.ground, "ground");
-      add(meshes.buildings, m.building, "buildings");
+      if (meshes.buildings) {
+        const before = rec.geometries.length;
+        add(meshes.buildings, m.building, "buildings");
+        const g = rec.geometries[before];
+        if (g) applyHouseKit(g, new THREE.Matrix4(), meshes.buildings.ranges, [], this.opts.houseLook);
+      }
       add(meshes.roads, m.road, "roads");
     }
-    // Street props from the road graph.
+    this.addGroundExtras(rec);
+    this.addSidewalks(rec);
+    // Street props from the road graph: on the ground, clear of every carriageway, building and
+    // water (W-44), never along a structure (a deck's or a bore's ground is not its surface).
     const edges = this.roadsByTile.get(rec.id) ?? [];
     if (edges.length > 0) {
-      const props = buildTileProps(streetlightSpots(edges, this.clearance), streetTreeSpots(edges, this.clearance), this.opts.ground, m, this.opts.night);
+      const spots = tilePropSpots(edges, this.clearance, this.propClearance);
+      const props = buildTileProps(spots.lamps, spots.trees, this.opts.drawnGround ?? this.opts.ground, m, this.opts.night);
       for (const o of props.nightOnly) o.visible = this.nightVisible;
       rec.props = props;
       rec.group.add(props.group);
@@ -432,6 +662,86 @@ export class TileStreamer {
     this.opts.parent.add(rec.group);
     this.opts.onTileVisible?.(rec.id, true);
     this.dirty = true;
+  }
+
+  /**
+   * The world's sidewalk graph (sidewalks.json; W-45): every tile whose roads came from its glb
+   * gets the bands of the sidewalks whose midpoint lies in it, now and when it loads later.
+   */
+  setSidewalks(graph: SidewalkGraph | null): void {
+    this.sidewalksByTile = graph ? sidewalksByTile(graph, this.opts.manifest.tileSizeM ?? 500) : null;
+    for (const r of this.records.values()) if (r.state === "ready") this.addSidewalks(r);
+  }
+
+  private addSidewalks(rec: TileRecord): void {
+    if (rec.sidewalks || rec.builtRoads || !this.sidewalksByTile) return;
+    rec.sidewalks = true;
+    const lines = this.sidewalksByTile.get(rec.id);
+    if (!lines || lines.length === 0) return;
+    const data = sidewalkMesh(lines, this.roadById, this.opts.drawnGround ?? this.opts.ground);
+    if (!data) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(data.normals, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(data.colors, 3));
+    g.setAttribute("uv", new THREE.BufferAttribute(data.uvs, 2));
+    g.setIndex(new THREE.BufferAttribute(data.indices, 1));
+    g.computeBoundingSphere();
+    g.computeBoundingBox();
+    rec.geometries.push(g);
+    const mesh = new THREE.Mesh(g, this.opts.materials.sidewalk);
+    mesh.name = "sidewalks";
+    mesh.matrixAutoUpdate = false;
+    mesh.receiveShadow = true;
+    rec.group.add(mesh);
+  }
+
+  /** The tile's bores (the collider's tunnels), or none. */
+  private tunnelsOf(rec: TileRecord): TunnelLike[] {
+    const c = (rec.collider ?? this.opts.colliders.get(rec.id)) as (TileCollider & { tunnels?: TunnelLike[] }) | undefined;
+    return c?.tunnels ?? [];
+  }
+
+  /** A ground material with the tile's bores cut out (structures.ts), owned by the tile; null when it has none. */
+  private groundCut(rec: TileRecord): THREE.Material | null {
+    const cuts = boreCuts(this.tunnelsOf(rec));
+    if (cuts.length === 0) return null;
+    const data = new Float32Array(cuts.length * 8);
+    cuts.forEach((c, i) => data.set([c.ax, c.az, c.bx, c.bz, c.halfW, c.ya, c.yb, 0], 8 * i));
+    const m = groundCutMaterial(data, cuts.length);
+    this.opts.onGroundMaterial?.(m);
+    rec.ownedMaterials.push(m);
+    return m;
+  }
+
+  /** Lakes at their level and the skirts under the ground's borders (ground-extras.ts), from the tile's heightfield. */
+  private addGroundExtras(rec: TileRecord): void {
+    const ground = (rec.collider ?? this.opts.colliders.get(rec.id))?.ground;
+    if (!ground) return;
+    const add = (name: string, data: SimpleMesh & { colors?: Float32Array }, mat: THREE.Material): void => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
+      g.setAttribute("normal", new THREE.BufferAttribute(data.normals, 3));
+      if (data.colors) g.setAttribute("color", new THREE.BufferAttribute(data.colors, 3));
+      g.setIndex(new THREE.BufferAttribute(data.indices, 1));
+      g.computeBoundingSphere();
+      g.computeBoundingBox();
+      rec.geometries.push(g);
+      const mesh = new THREE.Mesh(g, mat);
+      mesh.name = name;
+      mesh.matrixAutoUpdate = false;
+      rec.group.add(mesh);
+    };
+    const lakes = this.opts.lakeMaterial ? lakeSurface(ground) : null;
+    if (lakes) add("lakes", lakes, this.opts.lakeMaterial!);
+    const skirt = groundSkirt(ground);
+    if (skirt) add("ground-skirt", skirt, this.opts.materials.groundSkirt);
+    const tunnels = this.tunnelsOf(rec);
+    const bores = tunnels.length > 0 ? boreMesh(tunnels, this.opts.drawnGround ?? this.opts.ground) : null;
+    if (bores) add("tunnels", bores, this.opts.materials.tunnel);
+    const shore = this.shoreByTile?.get(rec.id);
+    const quays = shore ? quayFaces(shore, this.opts.drawnGround ?? this.opts.ground) : null;
+    if (quays) add("quays", quays, this.opts.materials.tunnel);
   }
 
   private applyHidden(rec: TileRecord): void {
@@ -468,6 +778,7 @@ export class TileStreamer {
     for (const mat of rec.ownedMaterials) mat.dispose();
     for (const t of rec.textures) t.dispose();
     rec.props?.dispose();
+    this.dropKit(rec);
     this.dirty = true;
   }
 
@@ -477,8 +788,19 @@ export class TileStreamer {
   }
 }
 
+/** A street whose whole length lies on the ground and carries traffic: props line it. */
+export function onGroundStreet(e: RoadEdge): boolean {
+  return !e.deck && !e.tunnel && !e.stairs && !e.pedestrian && !e.gradeSeparated;
+}
+
+/** A tile's lamps and street trees: along its streets on the ground, each spot clear of every carriageway, building and water. */
+export function tilePropSpots(edges: readonly RoadEdge[], nodeClear: ReadonlyMap<string, number>, clearance: PropClearance): { lamps: Spot[]; trees: Spot[] } {
+  const streets = edges.filter(onGroundStreet);
+  const ok = (s: Spot): boolean => clearance.clear(s.x, s.z);
+  return { lamps: streetlightSpots(streets, nodeClear).filter(ok), trees: streetTreeSpots(streets, nodeClear).filter(ok) };
+}
+
 const _v = new THREE.Vector3();
-const IDENTITY = new THREE.Matrix4();
 
 /**
  * Remove triangles whose three corners all lie on or below the water plane (y <= 0.02 in

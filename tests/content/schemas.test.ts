@@ -26,6 +26,8 @@ const V = {
   storefronts: compile("storefront-kit"),
   botTells: compile("bot-tells"),
   mission: compile("mission"),
+  housePalettes: compile("house-palettes"),
+  landmarkTags: compile("landmark-tags"),
 };
 
 /** Every content file and the schema it validates against. A new file without a schema fails. */
@@ -53,6 +55,8 @@ const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
   [/^content\/proper-words\.json$/, "proper-words"],
   [/^content\/startup-kits\.json$/, "startup-kits"],
   [/^content\/ui-copy\.json$/, "ui-copy"],
+  [/^content\/house-palettes\.json$/, "house-palettes"],
+  [/^content\/landmark-tags\.json$/, "landmark-tags"],
 ];
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -99,6 +103,44 @@ describe("schemas reject broken content", () => {
     const c = clone(k);
     c.types[0].naicsPrefixes.push("72-24");
     expect(V.storefronts(c)).toBe(false);
+    const d = clone(k);
+    delete d.types[0].shopfront;
+    expect(V.storefronts(d)).toBe(false); // every kit has its K5 shopfront
+    const e = clone(k);
+    e.types[1].shopfront.heightM = 6;
+    expect(V.storefronts(e)).toBe(false); // K5: 3.5 to 4.5 m
+    const f = clone(k);
+    f.types[1].awning.shape = "logoAwning";
+    expect(V.storefronts(f)).toBe(false);
+    const g = clone(k);
+    g.types[1].awning.colours.push("#FFD400");
+    expect(V.storefronts(g)).toBe(false); // lower-case hex
+  });
+
+  it("house palettes: upper-case hex, an override record without its parcel, an unknown key", () => {
+    const h = readJson<Json>("content/house-palettes.json");
+    const a = clone(h);
+    a.palettes.victorian.schemes[0].bodies[0] = "#6E99B8";
+    expect(V.housePalettes(a)).toBe(false);
+    const b = clone(h);
+    delete b.overrides[0].records[0].parcel;
+    expect(V.housePalettes(b)).toBe(false);
+    const c = clone(h);
+    c.rules[0].saturation = 0.5;
+    expect(V.housePalettes(c)).toBe(false);
+  });
+
+  it("landmark tags: a shop band, a point outside the city, a record that is not a collider id", () => {
+    const t = readJson<Json>("content/landmark-tags.json");
+    const a = clone(t);
+    a.landmarks[0].shopBand = true;
+    expect(V.landmarkTags(a)).toBe(false);
+    const b = clone(t);
+    b.landmarks[0].point.lat = 40.7;
+    expect(V.landmarkTags(b)).toBe(false);
+    const c = clone(t);
+    c.landmarks[0].records.push("City Hall");
+    expect(V.landmarkTags(c)).toBe(false);
   });
 
   it("bot tells: behaviour params are typed per kind, colour is not a behaviour, false tells mimic", () => {

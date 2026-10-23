@@ -10,7 +10,7 @@ import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
-import { parkShapes, tintParks } from "./parks.ts";
+import { makeDrawnGroundFn } from "./ground.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
@@ -18,13 +18,27 @@ import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
-import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
+import { DAY, NIGHT, NOON, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import type { LookFn } from "./house-kit.ts";
+import { loadKitLib } from "./house-kit-mesh.ts";
+import { parseKitDoc, type StorefrontAnchor } from "./house-kit-props.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
-import { Water } from "./water.ts";
+import { Water, WaterReflection } from "./water.ts";
+import { applyTriplanar, DetailMaterial, loadDetailSets, textureBytes, type DetailSet } from "./detail.ts";
+import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type GfxFeatures, type GfxRequest } from "./gfx.ts";
+import { PostChain } from "./post.ts";
+import { CrowdRig } from "./crowd.ts";
+import { PlayerBodies } from "./player-body.ts";
+import { buildShowcase, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+
+/** How far from the showcase's centre the camera may be for the Bay to mirror the city. */
+const REFLECT_REACH_M = 2500;
 
 export type { CameraMode } from "./cameras.ts";
+
+export type TimeOfDay = "golden" | "noon" | "night";
 
 export interface RenderOptions {
   /** Tile load radius around the camera, metres. */
@@ -37,6 +51,12 @@ export interface RenderOptions {
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
   landmarks: unknown;
+  /** public/models/house-kit/house-kit.json (the house kit's prototypes); null or absent: no kit geometry. */
+  houseKit?: unknown;
+  /** ?gfx=high|default|auto (gfx.ts); absent: auto. */
+  gfx?: GfxRequest;
+  /** ?gfxoff=post,shadows,detail,showcase: high-tier features to leave off (A/B comparisons). */
+  gfxOff?: readonly string[];
 }
 
 export interface WorldData {
@@ -45,14 +65,18 @@ export interface WorldData {
   colliders: ReadonlyMap<string, TileCollider>;
   roads: RoadGraph | null;
   ground: GroundFn;
+  /** boundary.json (its shore lines get quay faces), or null. */
+  boundary?: { shore: ReadonlyArray<{ closed: boolean; lake?: unknown; points: ReadonlyArray<readonly number[]> }> } | null;
   /** True when (x, y, z) is inside a building below its roof (camera pull-in). */
   occluded: (x: number, y: number, z: number) => boolean;
   /** Where glb bytes come from (loose files or the packed build). Omitted: fetch each URL. */
   assets?: Assets;
-  /** districts.json, parsed (its park polygons tint the ground green), or null. */
-  districts?: unknown;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
+  /** The house kit's colours and materials per building (house-colours.ts houseLookFn). */
+  houseLook?: LookFn;
+  /** storefronts.json's anchors (K5), or null. */
+  storefronts?: readonly StorefrontAnchor[] | null;
 }
 
 export interface RenderInfo {
@@ -87,13 +111,29 @@ export interface RenderInfo {
   farCellsDrawn: number;
   /** Triangles in the loaded far cells. */
   farTriangles: number;
-  /** Far quads at the city's outer edge stitched to the streamed tiles' ground. */
-  farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /** The graphics tier (gfx.ts), why, and which of its features are on now. */
+  gfx: {
+    tier: GfxChoice["tier"];
+    requested: GfxChoice["requested"];
+    reason: string;
+    post: boolean;
+    reflections: boolean;
+    detail: boolean;
+    detailSets: number;
+    dropped: string[];
+    /** The Ferry Building showcase's street detail (showcase.ts), once built. */
+    showcase: ShowcaseStats | null;
+    /** The animated crowd and the skinned player body are in (else the placeholders draw). */
+    characters: { crowd: boolean; player: boolean };
+  };
 }
 
 const SHADOW_HALF = 160;
+/** The high tier's shadow box (half side, metres) and map: crisper, and reaching the plaza's far side. */
+const SHADOW_HALF_HIGH = 140;
+const SHADOW_MAP_HIGH = 4096;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
@@ -127,6 +167,21 @@ export class SceneRenderer {
   private readonly envScene = new THREE.Scene();
   private readonly registry: ModelRegistry<THREE.Object3D>;
   private readonly shadows: boolean;
+  readonly gfx: GfxChoice;
+  private readonly features: GfxFeatures;
+  private post: PostChain | null = null;
+  private reflection: WaterReflection | null = null;
+  private readonly governor: GfxGovernor;
+  private detailSets = 0;
+  private showcase: Showcase | null = null;
+  /** How the ground's detail is applied (set once the texture sets land), and tile ground materials waiting for it. */
+  private groundDetail: ((m: THREE.MeshStandardMaterial) => void) | null = null;
+  private readonly groundWaiting: THREE.MeshStandardMaterial[] = [];
+  /** Landmark models placed before the texture sets landed, and the materials already dressed. */
+  private readonly landmarkWaiting: THREE.Object3D[] = [];
+  private readonly dressed = new WeakSet<THREE.Material>();
+  private landmarkSets: Map<string, DetailSet> | null = null;
+  private readonly drawnGround: (x: number, z: number) => number;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
   private headlightBase = 0;
@@ -146,35 +201,54 @@ export class SceneRenderer {
     this.container = container;
     this.ground = world.ground;
     this.water.setLevel(world.manifest.water?.y ?? 0);
-    this.shadows = opts.shadows;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.shadowMap.enabled = opts.shadows;
+    this.gfx = chooseTier(opts.gfx ?? "auto", probeCaps(this.renderer.getContext()));
+    this.features = featuresFor(this.gfx.tier, opts.shadows);
+    for (const k of opts.gfxOff ?? []) if (k in this.features) this.features[k as keyof GfxFeatures] = false;
+    // Only a tier the browser was given by auto steps down; ?gfx=high keeps every feature on.
+    this.governor = new GfxGovernor(this.gfx.tier === "high" && this.gfx.requested === "auto");
+    const high = this.gfx.tier === "high";
+    this.shadows = this.features.shadows;
+    this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // The post chain renders several times a frame: count the whole frame (reset in render()).
+    this.renderer.info.autoReset = !this.features.post;
     container.appendChild(this.renderer.domElement);
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
 
     this.scene.fog = this.fog;
     this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target, this.hemi, this.headlight, this.headlight.target);
     this.envScene.add(new Sky(900).mesh);
-    if (opts.shadows) {
+    if (this.shadows) {
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(2048, 2048);
+      const map = high ? SHADOW_MAP_HIGH : 2048;
+      const half = high ? SHADOW_HALF_HIGH : SHADOW_HALF;
+      this.sun.shadow.mapSize.set(map, map);
       const c = this.sun.shadow.camera;
-      c.left = -SHADOW_HALF;
-      c.right = SHADOW_HALF;
-      c.top = SHADOW_HALF;
-      c.bottom = -SHADOW_HALF;
+      c.left = -half;
+      c.right = half;
+      c.top = half;
+      c.bottom = -half;
       c.near = 1;
       c.far = 1600;
       this.sun.shadow.bias = -0.0004;
       this.sun.shadow.normalBias = 0.6;
+      // Soft edges (PCF with a wider kernel): the high tier's penumbra.
+      if (high) this.sun.shadow.radius = 3;
     }
 
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
+    if (this.features.post) this.post = new PostChain(this.renderer, this.scene, this.camera, opts.gfxOff ?? []);
+    if (this.features.reflections) {
+      const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.reflection = new WaterReflection(size.x >> 1, size.y >> 1);
+    }
+    this.drawnGround = makeDrawnGroundFn([...world.colliders.values()]);
+    if (this.features.detail) this.loadDetail(world.assets, world.roads);
 
     const gltf = new GLTFLoader();
     const assets = world.assets;
@@ -190,13 +264,10 @@ export class SceneRenderer {
     });
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
-    const parks = parkShapes(world.districts ?? null);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
-      tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
-      ground: world.ground,
     });
     this.scene.add(this.far.group);
 
@@ -207,21 +278,35 @@ export class SceneRenderer {
       colliders: world.colliders,
       roads: world.roads,
       ground: world.ground,
+      drawnGround: this.drawnGround,
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
       onReady: (g) => this.prepareShadows(g),
+      onGroundMaterial: (gm) => {
+        if (!this.features.detail) return;
+        if (this.groundDetail) this.groundDetail(gm);
+        else this.groundWaiting.push(gm);
+      },
       onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
-      tintGround: (geo, m) => tintParks(geo, m, parks),
+      lakeMaterial: this.water.lakeMaterial,
+      shore: world.boundary?.shore,
       fallbackCollider: world.fallbackCollider,
+      houseLook: world.houseLook,
+      storefronts: world.storefronts,
     });
     this.far.start();
+    // The house kit's prototypes (bays, stoops, mouldings, roof props): near tiles build their
+    // kit once they arrive; a prototype that fails to load is simply not drawn.
+    const kitDoc = parseKitDoc(opts.houseKit);
+    if (kitDoc) void loadKitLib(this.registry, kitDoc).then((lib) => this.streamer.setKitLib(lib, kitDoc));
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, opts.shadows);
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
+    if (this.features.characters) this.loadCharacters(world.assets);
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -230,6 +315,10 @@ export class SceneRenderer {
       (root) => {
         this.prepareShadows(root);
         this.lights.track(root);
+        if (this.features.detail) {
+          if (this.landmarkSets) this.dressLandmark(root);
+          else this.landmarkWaiting.push(root);
+        }
       },
     );
     this.scene.add(this.landmarks.group);
@@ -241,6 +330,94 @@ export class SceneRenderer {
     this.resize();
   }
 
+  /** The high tier's people: the animated crowd and the skinned player body; each keeps the placeholder if its files fail. */
+  private loadCharacters(assets: Assets | undefined): void {
+    const bytes = textureBytes(assets);
+    void CrowdRig.load(bytes, [400, 600], this.shadows)
+      .then((crowd) => {
+        this.agents.setCrowd(crowd);
+        this.charactersOn.crowd = true;
+      })
+      .catch((err) => console.warn("crowd: placeholder people kept:", err));
+    void PlayerBodies.load(bytes, this.shadows)
+      .then((bodies) => {
+        this.actors.setBodies(bodies);
+        this.charactersOn.player = true;
+      })
+      .catch((err) => console.warn("player body: placeholder kept:", err));
+  }
+
+  private readonly charactersOn = { crowd: false, player: false };
+
+  /** The high tier's PBR detail on the ground, roads and sidewalks (detail.ts); the materials recompile once when it lands. */
+  private loadDetail(assets: Assets | undefined, roads: RoadGraph | null): void {
+    const m = this.materials;
+    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    void loadDetailSets(textureBytes(assets), ["asphalt", "concrete", "grass", "pavers", "paint", "sandstone"], aniso).then((sets) => {
+      this.detailSets = sets.size;
+      this.landmarkSets = sets;
+      for (const root of this.landmarkWaiting.splice(0)) this.dressLandmark(root);
+      const asphalt = sets.get("asphalt");
+      const concrete = sets.get("concrete");
+      const grass = sets.get("grass");
+      const pavers = sets.get("pavers");
+      const paint = sets.get("paint");
+      const road = { albedo: 1, normalScale: 1, roughness: 1, ao: 0.6, farM: 160 };
+      if (asphalt) for (const mat of [m.roadUv, m.freewayUv, m.road]) new DetailMaterial(mat).apply(asphalt, road);
+      if (concrete) new DetailMaterial(m.sidewalk).apply(concrete, { albedo: 1, normalScale: 1, roughness: 1, ao: 0.7, farM: 120 });
+      if (!concrete) return;
+      // The Ferry Building showcase: paint, the F-line and palms, and pavers under its mask.
+      if (this.features.showcase && roads) {
+        this.showcase = buildShowcase(roads, this.drawnGround, {
+          paint: paint ? { orm: paint.orm, normal: paint.normal } : undefined,
+          concrete: { albedo: concrete.albedo.clone(), normal: concrete.normal.clone(), orm: concrete.orm.clone(), sizeM: concrete.info.sizeM },
+        });
+        this.prepareShadows(this.showcase.group);
+        // Paint, trackbed and rails lie on the road: they receive shadows but never cast them.
+        this.showcase.group.traverse((o) => {
+          if (/paint|trackbed|rails/.test(o.name)) o.castShadow = false;
+        });
+        this.scene.add(this.showcase.group);
+      }
+      // The shared ground and every tile's own ground (bores cut out under it) wear the same detail.
+      const mask = this.showcase?.mask ?? null;
+      this.groundDetail = (gm) => {
+        const d = new DetailMaterial(gm);
+        d.apply(concrete, { albedo: 0.8, normalScale: 0.8, roughness: 1, ao: 0.5, farM: 160, greyOnly: true }, grass);
+        if (pavers && mask) d.setMasked(pavers, mask, MASK_HALF_M);
+      };
+      this.groundDetail(m.ground);
+      for (const gm of this.groundWaiting.splice(0)) this.groundDetail(gm);
+    });
+  }
+
+  /**
+   * The high tier's stone on the landmark models (they carry no UVs): world-space triplanar detail
+   * on the materials named for sandstone (the Ferry Building, R-Evolution's plinth...), slate and
+   * concrete. Materials are shared between clones: each is dressed once.
+   */
+  private dressLandmark(root: THREE.Object3D): void {
+    const sets = this.landmarkSets;
+    if (!sets) return;
+    const sandstone = sets.get("sandstone");
+    const concrete = sets.get("concrete");
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const m = mat as THREE.MeshStandardMaterial;
+        if (!m.isMeshStandardMaterial || this.dressed.has(m)) continue;
+        const name = m.name.toLowerCase();
+        if (sandstone && /sandstone|stone|limestone|granite|plinth/.test(name)) {
+          applyTriplanar(m, sandstone, { albedo: 0.9, normalScale: 1.2, roughness: 0.8, ao: 0.8, farM: 260 });
+        } else if (concrete && /concrete|roof|slate|plaster|stucco/.test(name)) {
+          applyTriplanar(m, concrete, { albedo: 0.6, normalScale: 0.8, roughness: 0.6, ao: 0.6, farM: 200 });
+        } else continue;
+        this.dressed.add(m);
+      }
+    });
+  }
+
   private prepareShadows(root: THREE.Object3D): void {
     if (!this.shadows) return;
     root.traverse((o) => {
@@ -248,7 +425,7 @@ export class SceneRenderer {
       if (!m.isMesh) return;
       const name = m.name || m.parent?.name || "";
       m.receiveShadow = true;
-      m.castShadow = !/ground|road|pool/.test(name);
+      m.castShadow = !/ground|road|pool|sidewalk|lake/.test(name);
     });
   }
 
@@ -259,7 +436,21 @@ export class SceneRenderer {
   setNight(on: boolean): void {
     if (on === this.nightOn) return;
     this.nightOn = on;
-    this.applyPreset(on ? NIGHT : DAY);
+    this.applyPreset(on ? NIGHT : this.daylight);
+  }
+
+  /** The daylight look: golden hour (the default, 18:52) or midday; night stays the N key's. */
+  private daylight: LightingPreset = DAY;
+
+  /** "golden" (the default day), "noon" or "night" (?tod=, the debug handle). */
+  setTimeOfDay(t: TimeOfDay): void {
+    this.daylight = t === "noon" ? NOON : DAY;
+    this.nightOn = t === "night";
+    this.applyPreset(this.nightOn ? NIGHT : this.daylight);
+  }
+
+  get timeOfDay(): TimeOfDay {
+    return this.nightOn ? "night" : this.daylight === NOON ? "noon" : "golden";
   }
 
   private applyPreset(p: LightingPreset): void {
@@ -273,7 +464,10 @@ export class SceneRenderer {
     this.sun.intensity = p.sunIntensity;
     this.hemi.color.setHex(p.hemiSky);
     this.hemi.groundColor.setHex(p.hemiGround);
-    this.hemi.intensity = p.hemiIntensity;
+    // The high tier's shadows take the sun off whole streets: more sky and warmer bounce fill
+    // what they leave (the default tier has no shadows and keeps its balance).
+    const fill = this.shadows && this.gfx.tier === "high" ? 1.7 : 1;
+    this.hemi.intensity = p.hemiIntensity * fill;
     this.water.setBodyLight(p.water);
     this.water.setCityGlow(0xffb070, night * 0.09);
     fcUniforms.fcNight.value = night;
@@ -285,8 +479,9 @@ export class SceneRenderer {
     this.streamer.setNight(night > 0);
     this.lights.setNight(night);
     this.agents.setNight(night);
+    this.post?.setNight(night > 0);
     this.scene.environment = this.envFor(p);
-    this.scene.environmentIntensity = p.envIntensity;
+    this.scene.environmentIntensity = p.envIntensity * (fill > 1 ? 1.35 : 1);
   }
 
   /** Image-based lighting from the sky itself, generated once per preset. */
@@ -313,13 +508,18 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.streamer.kitsSettled() && this.far.settled();
   }
 
   resize(): void {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
+    this.post?.setSize(w, h);
+    if (this.reflection) {
+      const pr = this.renderer.getPixelRatio();
+      this.reflection.setSize(Math.round((w * pr) / 2), Math.round((h * pr) / 2));
+    }
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -354,6 +554,7 @@ export class SceneRenderer {
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
+    this.govern(frameSeconds);
     if (local) {
       const t = local.target;
       this.actors.hideFor(this.rig.mode === "first-person" ? local.id : null, t.onFoot ? "person" : "car");
@@ -407,8 +608,51 @@ export class SceneRenderer {
     }
   }
 
+  /** Within REFLECT_REACH_M of the showcase, above the water: the Bay mirrors the city. */
+  private renderReflection(): void {
+    const r = this.reflection;
+    if (!r) return;
+    const c = this.camera.position;
+    const level = this.water.seaLevel;
+    const on = Math.hypot(c.x - SHOWCASE.x, c.z - SHOWCASE.z) < REFLECT_REACH_M && c.y > level + 0.3;
+    if (!on) {
+      this.water.setReflection(r, 0);
+      return;
+    }
+    r.render(this.renderer, this.scene, this.camera, level, this.water.mesh);
+    this.water.setReflection(r, 1);
+  }
+
+  /** The high tier steps down when it cannot hold its frame rate (gfx.ts GfxGovernor). */
+  private govern(frameSeconds: number): void {
+    const drop = this.governor.frame(frameSeconds, !this.streamer.settled());
+    if (drop === "reflections" && this.reflection) {
+      this.water.setReflection(null, 0);
+      this.reflection.dispose();
+      this.reflection = null;
+      console.info("gfx: water reflections off (frame rate)");
+    } else if (drop === "post" && this.post) {
+      this.post.dispose();
+      this.post = null;
+      this.renderer.info.autoReset = true;
+      console.info("gfx: post-processing off (frame rate)");
+    } else if (drop === "shadows" && this.renderer.shadowMap.enabled) {
+      this.renderer.shadowMap.enabled = false;
+      this.sun.castShadow = false;
+      // Materials compiled with shadow maps recompile without them.
+      this.scene.traverse((o) => {
+        const mm = (o as THREE.Mesh).material;
+        if (mm) for (const x of Array.isArray(mm) ? mm : [mm]) x.needsUpdate = true;
+      });
+      console.info("gfx: shadows off (frame rate)");
+    }
+  }
+
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    if (!this.renderer.info.autoReset) this.renderer.info.reset();
+    this.renderReflection();
+    if (this.post) this.post.render();
+    else this.renderer.render(this.scene, this.camera);
     this.far.endFrame();
     this.framesSinceJump++;
     this.lastCalls = this.renderer.info.render.calls;
@@ -445,8 +689,19 @@ export class SceneRenderer {
     out.farCells = f.loaded;
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
-    out.farSeamEdges = f.seamEdges;
     out.cameraFar = this.camera.far;
+    out.gfx = {
+      tier: this.gfx.tier,
+      requested: this.gfx.requested,
+      reason: this.gfx.reason,
+      post: this.post !== null,
+      reflections: this.reflection !== null,
+      detail: this.features.detail,
+      detailSets: this.detailSets,
+      dropped: [...this.governor.dropped],
+      showcase: this.showcase?.stats ?? null,
+      characters: { ...this.charactersOn },
+    };
     return out;
   }
 
@@ -467,6 +722,9 @@ export class SceneRenderer {
     this.nightMats.pool.dispose();
     for (const e of this.envCache.values()) e.dispose();
     this.pmrem.dispose();
+    this.post?.dispose();
+    this.reflection?.dispose();
+    this.showcase?.dispose();
     this.renderer.dispose();
   }
 }
@@ -495,8 +753,8 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCells: 0,
   farCellsDrawn: 0,
   farTriangles: 0,
-  farSeamEdges: 0,
   cameraFar: 0,
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false } },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

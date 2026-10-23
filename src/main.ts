@@ -23,7 +23,7 @@
 // Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
 // move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
 
-import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
+import { houseKit as houseKitDoc, landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
 import { openAssets } from "./io/assets.ts";
 import { loadWorldFiles } from "./io/world-load.ts";
@@ -34,6 +34,10 @@ import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from 
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import { parseGfxRequest } from "./render/gfx.ts";
+import type { SidewalkGraph } from "./render/sidewalks.ts";
+import { HouseColours, houseLookFn, type DistrictsLike } from "./render/house-colours.ts";
+import type { StorefrontAnchor } from "./render/house-kit-props.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
   Action,
@@ -120,14 +124,6 @@ async function boot(): Promise<void> {
   const tLoad = performance.now();
   const files = await loadWorldFiles<Manifest>(assets, worldName);
   const loadMs = performance.now() - tLoad;
-  // Render-only data: the districts' park polygons tint the ground green. Never fatal.
-  const districtsFile = files.manifest.layers?.districts;
-  const districts: unknown = districtsFile
-    ? await assets.json<unknown>(base + districtsFile).catch((err: unknown) => {
-        console.warn(`[fog-city] districts ${districtsFile}: ${err instanceof Error ? err.message : String(err)}`);
-        return null;
-      })
-    : null;
   const { manifest, tiles } = files;
   const roads = files.roads as RoadGraph | null;
   // Once, at load: with the road graph the sim runs ambient traffic (state.ext.agents).
@@ -161,9 +157,28 @@ async function boot(): Promise<void> {
           return f ? assets.json<TileCollider>(base + f).catch(() => null) : Promise.resolve(null);
         }
       : undefined;
+  // The house kit's palettes (K3) pick by district: the districts layer is small and read before
+  // the first tile, so every tile picks its colours the same way. Never fatal: without it the
+  // palettes fall back to their district-free rules.
+  // The storefront anchors (K5) are read with them: a wall with an anchor is drawn as a shopfront.
+  const districtsFile = manifest.layers?.districts;
+  const storefrontsFile = manifest.layers?.storefronts;
+  const [districts, storefronts] = await Promise.all([
+    districtsFile ? assets.json<DistrictsLike>(base + districtsFile).catch(() => null) : null,
+    storefrontsFile
+      ? assets.json<{ storefronts: StorefrontAnchor[] }>(base + storefrontsFile).then(
+          (f) => f.storefronts,
+          (err: unknown) => {
+            console.warn(`[fog-city] storefronts ${storefrontsFile}: ${err instanceof Error ? err.message : String(err)}`);
+            return null;
+          },
+        )
+      : null,
+  ]);
+  const houseLook = houseLookFn(files.colliders === "pack" || worldName === "sf" ? new HouseColours(tiles, districts) : null);
   const view = new SceneRenderer(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
+    { manifest, base, colliders, roads, ground, occluded, assets, fallbackCollider, boundary: files.boundary, houseLook, storefronts },
     {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.get("shadows") === "1",
@@ -171,12 +186,27 @@ async function boot(): Promise<void> {
       maxPixelRatio: numParam(params, "pr") ?? 1.5,
       models: new Set(models),
       landmarks: landmarksDoc,
+      houseKit: houseKitDoc,
+      gfx: parseGfxRequest(params.get("gfx")),
+      gfxOff: (params.get("gfxoff") ?? "").split(",").filter(Boolean),
     },
   );
   // ?debug=1 exposes the renderer for poking at from the console. Never used by tests.
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
   const startCam = params.get("cam") as CameraMode | null;
   if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
+  // ?tod=noon|golden|night: the lighting (render-only; the HUD clock still follows the sim).
+  const tod = params.get("tod");
+  if (tod === "noon" || tod === "golden" || tod === "night") view.setTimeOfDay(tod);
+  // Render-only: the sidewalk bands (W-45), after boot so the 10 MB graph never delays the first
+  // frame. Never fatal: without it the streets have no pavement drawn, nothing else changes.
+  const sidewalksFile = manifest.layers?.sidewalks;
+  if (sidewalksFile) {
+    assets.json<SidewalkGraph>(base + sidewalksFile).then(
+      (g) => view.streamer.setSidewalks(g),
+      (err: unknown) => console.warn(`[fog-city] sidewalks ${sidewalksFile}: ${err instanceof Error ? err.message : String(err)}`),
+    );
+  }
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
@@ -283,9 +313,11 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    setTimeOfDay: (t) => view.setTimeOfDay(t),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
+    groundHeight: (x, z) => ground(x, z),
     hint: () => hud.hintText(),
     setAgentBags: (full) => view.agents.setBags(full),
   });

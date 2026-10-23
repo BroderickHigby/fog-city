@@ -8,6 +8,8 @@ export * from "./names.ts";
 export * from "./billboards.ts";
 export * from "./botTells.ts";
 export * from "./storefronts.ts";
+export * from "./housePalettes.ts";
+export * from "./landmarkTags.ts";
 export * from "./missions.ts";
 export * from "./lint.ts";
 export * from "./clearedNames.ts";
