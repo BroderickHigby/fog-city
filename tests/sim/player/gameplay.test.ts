@@ -85,10 +85,10 @@ describe("authored mission runtime",()=>{
 });
 
 describe("director and registered simulation",()=>{
- it("stages an encounter within 150m by 60 seconds for 20 seeds",()=>{
+ it("stages an encounter within 150m in the seeded 45–75 second window",()=>{
   const ctx=context({directorCards:[{id:"encounter",fromWave:2,radiusM:150,cooldownS:60,protectedAreas:false}]});
   for(let seed=1;seed<=20;seed++){
-   const first=stepActivities(createActivities(),ctx,0,createMissions(),seed);const next=stepActivities(freeze(first),ctx,2700,createMissions(),seed);const staged=next.events.find(e=>e.kind==="director.stage")!;expect(staged).toBeDefined();expect(staged.amount).toBeLessThanOrEqual(150);expect(JSON.parse(staged.detail).x).toBeLessThanOrEqual(150);
+   const first=stepActivities(createActivities(),ctx,0,createMissions(),seed);const due=first.players.p!.nextDirectorTick;expect(due).toBeGreaterThanOrEqual(2700);expect(due).toBeLessThanOrEqual(4500);const next=stepActivities(freeze(first),ctx,due,createMissions(),seed);const staged=next.events.find(e=>e.kind==="director.stage")!;expect(staged).toBeDefined();expect(staged.amount).toBeLessThanOrEqual(150);expect(JSON.parse(staged.detail).x).toBeLessThanOrEqual(150);
   }
  });
  it("requires authoritative activity facts and registers every owned extension deterministically",()=>{
