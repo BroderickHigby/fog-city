@@ -63,6 +63,8 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
       const members=[...new Set(definition.members)].sort(compare).flatMap(member=>place(member,next));result.groups[alias]=members;return members;
     }
     if(visited.has(alias))return [stable];visited.add(alias);
+    // Stable actors persist between stage observations; placement is only for new identities.
+    if(runtime?.actors[stable])return [stable];
     const profile=BOT_TELLS.archetypes.find(profile=>profile.id===definition.archetype);
     const taxi=definition.kind==="rogueTaxi"||definition.kind==="goodTaxi";
     const radius=taxi?1.1:.4;
@@ -82,7 +84,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
     }
     const spot=candidates.find(p=>clear(p.x,p.z,radius));
     if(!spot){result.blocked.push(alias);return [];}
-    result.actors.push({id:stable,model:taxi?"robotaxi":profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?"trundle":"footman",...(definition.archetype?{archetype:definition.archetype}:{}),...(definition.level?{level:definition.level}:{}),firmware:definition.kind==="goodRobot"||definition.kind==="goodTaxi"?"good":"bad",x:spot.x,y:groundHeight(world,spot.x,spot.z),z:spot.z,heading:0,radius,height:profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?.7:1.8,significant:true,...(definition.archetype==="UpdateRelay"?{rustScale:.2}:{})});
+    result.actors.push({id:stable,model:taxi?"robotaxi":profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?"trundle":"footman",...(definition.archetype?{archetype:definition.archetype}:{}),...(definition.level?{level:definition.level}:{}),firmware:definition.kind==="goodRobot"||definition.kind==="goodTaxi"?"good":"bad",x:spot.x,y:groundHeight(world,spot.x,spot.z),z:spot.z,heading:0,radius,height:profile?.model==="sidewalk-bot"||definition.archetype?.toLowerCase().includes("trundle")?.7:1.8,significant:true,...(definition.posted?{posted:true}:{}),...(definition.archetype==="UpdateRelay"?{rustScale:.2}:{})});
     return [stable];
   }
   for(const id of [...stage.actorIds].sort(compare))place(id,new Set());
