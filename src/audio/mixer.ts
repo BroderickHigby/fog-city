@@ -7,7 +7,7 @@
 // inside unlock(), which main.ts calls from the first pointerdown or keydown. A browser without
 // Web Audio gets silence; voice lines then show as subtitles and the game is unaffected.
 
-import { DUCK_ATTACK_S, DUCK_RELEASE_S, busGain, masterGain } from "./buses.ts";
+import { DUCK_ATTACK_S, DUCK_RELEASE_S, audible, busGain, masterGain } from "./buses.ts";
 import type { EffectCue, EffectSound } from "./cues.ts";
 import { MusicPlayer, type MusicContext, type MusicTrack } from "./music.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
@@ -104,7 +104,7 @@ export class GameAudio {
     }
     void this.ctx.resume().catch(() => {});
     this.unlocked = true;
-    this.music?.setEnabled(true);
+    this.music?.setEnabled(audible(this.prefs, "music"));
     if (this.wantSpray) this.startSpray();
   }
 
@@ -115,6 +115,8 @@ export class GameAudio {
   setPrefs(prefs: AudioPrefs): void {
     this.prefs = prefs;
     this.applyGains(false);
+    // Silent music stops streaming; turning it back up resumes where it was.
+    this.music?.setEnabled(this.unlocked && audible(prefs, "music"));
   }
 
   /** Back-compat: the master volume, 0..1. */
@@ -264,8 +266,8 @@ export class GameAudio {
     } catch {
       return;
     }
-    this.music.setEnabled(this.unlocked);
     if (this.musicContext) this.music.play(this.musicContext);
+    this.music.setEnabled(this.unlocked && audible(this.prefs, "music"));
   }
 
   private async decode(id: Sound): Promise<void> {

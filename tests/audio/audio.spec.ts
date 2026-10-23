@@ -109,6 +109,12 @@ test("real controls play Hot Desk with subtitles, contextual music, mixing and t
   await dialog.getByRole("checkbox", { name: "Mute effects" }).check();
   expect((await audio(page)).gains.effects).toBe(0);
   await dialog.getByRole("checkbox", { name: "Mute effects" }).uncheck();
+  // Muted music stops streaming; unmuted, the same track resumes.
+  await dialog.getByRole("checkbox", { name: "Mute music" }).check();
+  await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(true);
+  await dialog.getByRole("checkbox", { name: "Mute music" }).uncheck();
+  await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
+  expect((await audio(page)).music?.trackId).toBe("menu");
   await expect(dialog.getByText(/Now playing: "Midnight Drive" by congusbongus \(CC0 1\.0\)/)).toBeVisible();
   await page.screenshot({ path: "test-results/audio-settings.png" });
   expect((await audio(page)).voice.current).toBe(held);

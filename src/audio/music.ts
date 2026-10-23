@@ -134,14 +134,28 @@ export class MusicPlayer {
     return i === 0 ? this.decks[0] : this.decks[1];
   }
 
-  /** Music may start (after the user-gesture unlock) or must stop. */
+  /**
+   * Music may play (unlocked and audible) or must stop streaming (locked, or muted to silence).
+   * Re-enabling resumes the deck that was playing, where it was.
+   */
   setEnabled(on: boolean): void {
+    if (on === this.enabled) return;
     this.enabled = on;
-    if (!on) for (const d of this.decks) d.element.pause();
-    else if (this.playing) {
-      const ctx = this.playing;
+    if (!on) {
+      for (const d of this.decks) d.element.pause();
+      return;
+    }
+    const context = this.playing;
+    if (!context) return;
+    const deck = this.deck(this.active);
+    if (deck.track?.context === context && !this.failed.has(deck.track.id)) {
+      const t = this.ctx.currentTime;
+      deck.gain.gain.cancelScheduledValues(t);
+      deck.gain.gain.setValueAtTime(1, t);
+      void deck.element.play().catch(() => {});
+    } else {
       this.playing = null;
-      this.play(ctx);
+      this.play(context);
     }
   }
 
