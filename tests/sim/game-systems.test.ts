@@ -47,3 +47,20 @@ describe("composed gameplay runtime",()=>{
     expect(JSON.parse(JSON.stringify(state))).toEqual(state);
   });
 });
+
+describe("composition observation reuse",()=>{
+  it("keeps interleaved branches identical to fresh registries",()=>{
+    const world=buildWorld([]),shared=createGameSystems();
+    let a=createInitialState(world,51,["p"],{x:0,z:0,heading:0});
+    let b=a;
+    for(let tick=0;tick<30;tick++){
+      const drive={p:{throttle:1,steer:.2,brake:0,actions:0}};
+      const walk={p:{throttle:0,steer:0,brake:0,actions:Action.watch}};
+      const expectedA=step(world,a,drive,[],createGameSystems());
+      const expectedB=step(world,b,walk,[],createGameSystems());
+      a=step(world,a,drive,[],shared);
+      b=step(world,b,walk,[],shared);
+      expect(a).toEqual(expectedA);expect(b).toEqual(expectedB);
+    }
+  });
+});
