@@ -50,3 +50,55 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
 The test (`tests/assets/audio.test.ts`) decodes both formats with real Vorbis and MPEG decoders
 (`@wasm-audio-decoders/ogg-vorbis`, `mpg123-decoder`; wasm, no network), and checks the length,
 peak (audible, not clipped), the spray seam and the jingle's four notes in order.
+
+# Music (CC0, OpenGameArt)
+
+`node scripts/audio/build-music.ts` builds `public/audio/music/` from the sources in
+[`music-sources.json`](music-sources.json): it downloads each source once into
+`assets/audio/.cache/` (gitignored), refuses a file whose SHA-256 differs from the one recorded,
+normalises loudness (two-pass EBU R128 `loudnorm`, linear, to -18 LUFS, -1.5 dBTP) and encodes
+**Ogg Opus 80 kb/s (primary)** and **MP3 96 kb/s (fallback)**, stereo 48 kHz, bit-exact (a rebuild
+is byte-identical). `--offline` uses only the cache. `public/audio/music/manifest.json` lists each
+track with its context, credit and sizes; the page streams the one it needs through an `<audio>`
+element (nothing is preloaded) and crossfades on a context change (`src/audio/music.ts`).
+
+**Licence policy: CC0 only.** Every track below is released under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) on its OpenGameArt page, checked
+on 2026-10-23. Nothing that merely says "free" or "royalty-free" is used, and a derivative of
+another author's track (for example "Fast fight / battle music (looped)") was passed over.
+CC0 needs no attribution; the credits ship anyway (settings panel "Now playing", the build's
+`third-party-notices.txt` and the manifest).
+
+| File | Context | Title | Author | Source page | Licence | Length | Source SHA-256 |
+|---|---|---|---|---|---|---|---|
+| `music/drive.ogg` + `.mp3` | driving | Midnight Cruiser | Zane Little Music (https://opengameart.org/users/zane-little-music) | https://opengameart.org/content/midnight-cruiser | CC0 1.0 | 144.4 s | `be0285ba239d…` |
+| `music/foot.ogg` + `.mp3` | foot | Electronic Outlaw | Zane Little Music (https://opengameart.org/users/zane-little-music) | https://opengameart.org/content/electronic-outlaw | CC0 1.0 | 173.6 s | `798e3878aa34…` |
+| `music/mission.ogg` + `.mp3` | mission | Down to Business | Zane Little Music (https://opengameart.org/users/zane-little-music) | https://opengameart.org/content/down-to-business-day-25 | CC0 1.0 | 45.3 s | `3bb3f317fe8b…` |
+| `music/combat.ogg` + `.mp3` | combat | Invincibility [Loop] | Zane Little Music (https://opengameart.org/users/zane-little-music) | https://opengameart.org/content/invincibility-loop | CC0 1.0 | 25.6 s | `16f55af96284…` |
+| `music/menu.ogg` + `.mp3` | menu | Midnight Drive | congusbongus (https://opengameart.org/users/congusbongus) | https://opengameart.org/content/midnight-drive | CC0 1.0 | 203.6 s | `0cec2b4468bd…` |
+
+Total: 10 files, about 12.8 MB (well inside the build's 15 MB per file, 240 MB and 450 files).
+
+# Mission voices (ElevenLabs, held)
+
+`node scripts/audio/generate-voices.ts` writes `public/audio/voice/manifest.json`: every
+mission line (step lines, dialogue intros, question prompts and answer replies; 120 lines,
+8,304 characters) with its mission id, step id, line id, speaker, text, subtitle cues and file.
+With `--generate` it calls ElevenLabs at build time only (the key stays in the environment and
+never reaches the page, `dist/` or a log), caching each line by a hash of its text, voice and
+settings, and transcodes to mono Ogg Opus 40 kb/s. Casting is in [`voices.json`](voices.json):
+only ElevenLabs premade voices, one distinct voice per recurring speaker; the player is silent.
+
+**Account check, 2026-10-23** (`GET /v1/user/subscription`; tier and counts only):
+tier: free, 5,975 of 10,000 characters used.
+
+**Commercial-use basis.** ElevenLabs' help centre ("Can I publish the content I generate on the
+platform?", <https://help.elevenlabs.io/hc/en-us/articles/13313564601361>) says the free plan
+includes **no commercial licence** and may not be used for any commercial purpose (attribution
+does not change that), while every paid plan includes a commercial licence (Beta services
+excepted). A distributed game cannot rely on free-tier output, so **voice generation is held**:
+the script checks the tier first and stops on `free` (or any tier it does not know). Every line
+plays as timed subtitles meanwhile, through the same queue a voiced line uses. ElevenLabs Music
+is not used for the same reason. To voice the game: move the account to any paid tier, then run
+`node scripts/audio/generate-voices.ts --generate`. It spends at most 25 % of the remaining
+characters or 100,000, whichever is lower, and a rerun never regenerates a cached line.

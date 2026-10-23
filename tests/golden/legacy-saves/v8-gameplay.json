@@ -1,0 +1,695 @@
+{
+  "sourceCommit": "ff7db5b021db8e94551d667def8b9f345c28863b",
+  "simVersion": 8,
+  "wave": 3,
+  "hash": "87fd5ff0",
+  "state": {
+    "version": 8,
+    "tick": 120,
+    "seed": 71,
+    "rng": [
+      3652288105,
+      3074942026,
+      559024711,
+      83
+    ],
+    "players": {
+      "p": {
+        "id": "p",
+        "mode": "foot",
+        "car": {
+          "x": -11.422732020877145,
+          "y": 0,
+          "z": 11.099258529579808,
+          "heading": 0,
+          "speed": 0,
+          "steer": 0,
+          "hits": 0,
+          "lateral": 0,
+          "yawRate": 0,
+          "vy": 0,
+          "grounded": true,
+          "airTicks": 0,
+          "grip": 1,
+          "pitch": 0,
+          "roll": 0,
+          "sinceContact": 600,
+          "impactSpeed": 0,
+          "landingSpeed": 0,
+          "personBumps": 0,
+          "nearMisses": 0
+        },
+        "foot": {
+          "x": -26.422732020877145,
+          "y": 0,
+          "z": 11.099258529579808,
+          "heading": 1.2000000000000008,
+          "speed": 0,
+          "sprint": false,
+          "vy": 0,
+          "grounded": true,
+          "dodge": null
+        },
+        "exitPending": false
+      }
+    },
+    "ext": {
+      "robots": {
+        "version": 1,
+        "tick": 120,
+        "actors": {
+          "mission:hot-desk:shopper": {
+            "id": "mission:hot-desk:shopper",
+            "model": "footman",
+            "archetype": "errandFootman",
+            "firmware": "good",
+            "x": -79.26819606012818,
+            "y": 0,
+            "z": 99.71999343602097,
+            "heading": 0,
+            "radius": 0.4,
+            "height": 1.8,
+            "significant": true,
+            "numericId": 1,
+            "legacyId": null,
+            "speed": 1.6000000000002501,
+            "bornTick": 2,
+            "retired": false,
+            "converted": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "full",
+            "statusLight": "steady",
+            "tellIds": [
+              "fullBag",
+              "crossesOnWalk",
+              "apologisesOnBump"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null
+          },
+          "mission:hot-desk:thief": {
+            "id": "mission:hot-desk:thief",
+            "model": "footman",
+            "archetype": "snatcher",
+            "level": 1,
+            "firmware": "bad",
+            "x": -76.26819606014625,
+            "y": 0,
+            "z": 96.71999343603905,
+            "heading": 0,
+            "radius": 0.4,
+            "height": 1.8,
+            "significant": true,
+            "numericId": 2,
+            "legacyId": null,
+            "speed": 1.6000000000002501,
+            "bornTick": 2,
+            "retired": false,
+            "converted": false,
+            "brain": {
+              "id": 2,
+              "archetype": "footman",
+              "mode": "disguised",
+              "modeSinceTick": 2,
+              "lastTick": 120,
+              "waryUntilTick": 0,
+              "knowledge": [],
+              "closeWatches": [],
+              "windup": null,
+              "update": null,
+              "cooldownUntilTick": 0,
+              "fogChaseSinceTick": null,
+              "pendingUpdates": []
+            },
+            "intent": {
+              "movement": {
+                "kind": "errand",
+                "avoidFog": true
+              },
+              "action": {
+                "kind": "none"
+              },
+              "hideOneTell": false,
+              "sabotageActive": false,
+              "fogRustMultiplier": 1
+            },
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "disguised",
+            "bag": "empty",
+            "statusLight": "steady",
+            "tellIds": [
+              "tailFootman",
+              "rateSidewalk",
+              "emptyBag"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null
+          }
+        },
+        "missionBindings": {
+          "hot-desk:shopper": "mission:hot-desk:shopper",
+          "hot-desk:thief": "mission:hot-desk:thief"
+        },
+        "baseBadCount": 1,
+        "lastCombatTick": 119,
+        "attacks": [],
+        "proposals": [
+          {
+            "id": "mission:hot-desk:shopper",
+            "numericId": 1,
+            "legacyId": null,
+            "bodyKind": "robot",
+            "kind": "walker",
+            "x": -79.26819606012818,
+            "y": 0,
+            "z": 99.71999343602097,
+            "heading": 0,
+            "speed": 1.6,
+            "radius": 0.4,
+            "height": 1.8,
+            "sourceX": -79.26819606012818,
+            "sourceY": 0,
+            "sourceZ": 99.74666010268764
+          },
+          {
+            "id": "mission:hot-desk:thief",
+            "numericId": 2,
+            "legacyId": null,
+            "bodyKind": "robot",
+            "kind": "walker",
+            "x": -76.26819606014625,
+            "y": 0,
+            "z": 96.71999343603905,
+            "heading": 0,
+            "speed": 1.6,
+            "radius": 0.4,
+            "height": 1.8,
+            "sourceX": -76.26819606014625,
+            "sourceY": 0,
+            "sourceZ": 96.74666010270572
+          }
+        ],
+        "events": [],
+        "services": {
+          "version": 1,
+          "tick": 120,
+          "receiptFloor": 0,
+          "receipts": [],
+          "vehicles": {},
+          "events": []
+        },
+        "missionStages": {}
+      },
+      "clock": {
+        "version": 1,
+        "elapsedTicks": 120
+      },
+      "combat": {
+        "version": 1,
+        "tick": 120,
+        "rng": [
+          3652288105,
+          3074942026,
+          559024711,
+          83
+        ],
+        "nextId": 29,
+        "players": {
+          "p": {
+            "water": 7.199999999999999,
+            "salt": false,
+            "reserve": 0,
+            "cones": 3,
+            "balloons": 2,
+            "nextWaterTick": 126,
+            "nextConeTick": 0,
+            "nextFlowerTick": 0,
+            "nextGadgetTick": 0,
+            "nextGearTick": 0,
+            "gearUntil": 0,
+            "gear": "none",
+            "refillId": "",
+            "refillTicks": 0,
+            "scanId": "",
+            "scanTicks": 0,
+            "nextScanTick": 0,
+            "scan": null,
+            "previousMount": "foot",
+            "held": [],
+            "boost": "none",
+            "boostUntil": 0,
+            "lastParrotsTick": -3600,
+            "streakSequence": {},
+            "marks": []
+          }
+        },
+        "targets": {
+          "p": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "mission:hot-desk:shopper": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "mission:hot-desk:thief": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "player:p": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          }
+        },
+        "projectiles": [
+          {
+            "id": 23,
+            "kind": "water",
+            "ownerId": "p",
+            "x": -26.861043824443257,
+            "y": 0.0541374999999998,
+            "z": 17.3672853754012,
+            "vx": -0.9068520073782189,
+            "vy": -4.7415,
+            "vz": 12.968331405147694,
+            "distance": 6.283333333278042,
+            "range": 12,
+            "bornTick": 92,
+            "volume": 0.08,
+            "salt": false,
+            "vehicle": false,
+            "rustRate": 0.025
+          },
+          {
+            "id": 27,
+            "kind": "water",
+            "ownerId": "p",
+            "x": -26.610371052843814,
+            "y": 1.1986375,
+            "z": 11.20759152606052,
+            "vx": -11.258341918000129,
+            "vy": -0.1635,
+            "vz": 6.49997978884269,
+            "distance": 0.21666666666536044,
+            "range": 12,
+            "bornTick": 120,
+            "volume": 0.08,
+            "salt": false,
+            "vehicle": false,
+            "rustRate": 0.025
+          }
+        ],
+        "gadgets": [],
+        "attacks": [],
+        "attackSequence": {},
+        "events": [
+          {
+            "id": 28,
+            "tick": 120,
+            "kind": "weapon.water",
+            "sourceId": "p",
+            "targetId": "",
+            "amount": 0.08,
+            "detail": ""
+          }
+        ],
+        "pauseUntil": 0
+      },
+      "player": {
+        "version": 1,
+        "tick": 120,
+        "nextId": 1,
+        "players": {
+          "p": {
+            "status": "active",
+            "bridgeUntil": 0,
+            "resumeTick": 0,
+            "safehouseId": "",
+            "startupKitId": "",
+            "downRounds": 0,
+            "commandSequence": 0,
+            "watchingActorId": "",
+            "watchedTicks": 0
+          }
+        },
+        "events": []
+      },
+      "heat": {
+        "version": 1,
+        "tick": 120,
+        "nextId": 1,
+        "players": {
+          "p": {
+            "threat": 0,
+            "vcQuarters": 0,
+            "lastSeenTick": 1,
+            "lastAssociateSeenTick": 1,
+            "recentMelts": [],
+            "levelMelts": 0,
+            "spawnSequence": 0,
+            "commandSequence": 0,
+            "lastWashId": ""
+          }
+        },
+        "factCursors": {
+          "combat:combat": 28
+        },
+        "events": [],
+        "grantCursors": {
+          "p": 1
+        }
+      },
+      "missions": {
+        "version": 1,
+        "tick": 120,
+        "nextId": 2,
+        "players": {
+          "p": {
+            "missionId": "hot-desk",
+            "stepId": "watch",
+            "status": "active",
+            "startedTick": 1,
+            "stepStartedTick": 1,
+            "deadlineTick": 0,
+            "questionIndex": 0,
+            "objectiveCount": 0,
+            "objectiveIds": [],
+            "meters": {},
+            "completedIds": [],
+            "rewardedIds": [],
+            "retryFrom": "",
+            "outcome": "",
+            "commandSequence": 1,
+            "visits": 3,
+            "observed": {
+              "missionId": "hot-desk",
+              "startedTick": 1,
+              "watched": [],
+              "falsePositives": [],
+              "melted": [],
+              "dirty": false,
+              "commandSequence": 0,
+              "previousInteract": false
+            }
+          }
+        },
+        "factCursors": {
+          "combat:combat": 28
+        },
+        "events": [],
+        "parking": {
+          "tick": 120,
+          "nextSequence": 1,
+          "previousInteract": {
+            "p": false
+          },
+          "players": {}
+        }
+      },
+      "activities": {
+        "version": 1,
+        "tick": 120,
+        "nextId": 1,
+        "players": {
+          "p": {
+            "nextDirectorTick": 2820,
+            "directorRng": [
+              1179680614,
+              2600106887,
+              3361795863,
+              2326
+            ],
+            "activeCardId": "",
+            "cardUntilTick": 0,
+            "cardCooldowns": {},
+            "activeActivityId": "",
+            "activityStartedTick": 0,
+            "completedIds": [],
+            "commandSequence": 0,
+            "checkpointIndex": 0,
+            "objectiveCount": 0,
+            "cooldowns": {}
+          }
+        },
+        "factCursors": {
+          "combat:combat": 28
+        },
+        "events": []
+      },
+      "economy": {
+        "version": 1,
+        "tick": 120,
+        "nextId": 1,
+        "players": {
+          "p": {
+            "cashCents": 200000,
+            "runwayMonths": 18,
+            "reputation": 50,
+            "paidActorIds": [],
+            "ownedItemIds": [],
+            "ownedSiteIds": [
+              "fidi-desk",
+              "marina-garage",
+              "mission-bay-garage"
+            ],
+            "commandSequence": 0
+          }
+        },
+        "factCursors": {
+          "combat:combat": 28
+        },
+        "grantCursors": {
+          "missions": 1
+        },
+        "events": []
+      },
+      "progression": {
+        "version": 1,
+        "tick": 120,
+        "nextId": 1,
+        "players": {
+          "p": {
+            "xp": 0,
+            "rank": 1,
+            "tankTier": 0,
+            "flowTier": 0,
+            "scannerTier": 1,
+            "nozzle": "standard",
+            "gadget": "balloon",
+            "gear": "none",
+            "perks": [],
+            "streaks": [
+              "confidence"
+            ],
+            "streakPoints": 0,
+            "streakSequence": 0,
+            "banked": {},
+            "commandSequence": 0
+          }
+        },
+        "grantCursors": {
+          "missions": 1
+        },
+        "events": []
+      },
+      "agents": {
+        "nextId": 3,
+        "list": [
+          {
+            "id": 1,
+            "runtimeId": "mission:hot-desk:shopper",
+            "runtimeLegacy": false,
+            "kind": "errandRobot",
+            "x": -79.26819606012818,
+            "y": 0,
+            "z": 99.71999343602097,
+            "heading": 0,
+            "speed": 1.6000000000002501,
+            "radius": 0.4,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing",
+            "pitch": 0,
+            "vmax": 0,
+            "edge": "",
+            "dir": 1,
+            "lane": 0,
+            "s": 0,
+            "next": "",
+            "ndir": 1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 1,
+            "dodge": null
+          },
+          {
+            "id": 2,
+            "runtimeId": "mission:hot-desk:thief",
+            "runtimeLegacy": false,
+            "kind": "errandRobot",
+            "x": -76.26819606014625,
+            "y": 0,
+            "z": 96.71999343603905,
+            "heading": 0,
+            "speed": 1.6000000000002501,
+            "radius": 0.4,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing",
+            "pitch": 0,
+            "vmax": 0,
+            "edge": "",
+            "dir": 1,
+            "lane": 0,
+            "s": 0,
+            "next": "",
+            "ndir": 1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2,
+            "dodge": null
+          }
+        ]
+      },
+      "identities": {
+        "version": 1,
+        "nextId": 3,
+        "ids": {
+          "mission:hot-desk:shopper": 1,
+          "mission:hot-desk:thief": 2
+        }
+      }
+    }
+  }
+}
