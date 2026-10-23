@@ -47,7 +47,11 @@ export interface CombatPlayer extends Vec3 {
   roofCannon?: boolean;
   fog?: number;
 }
-export interface Wall { id: string; minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number }
+export interface Wall {
+  id: string; minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number;
+  /** Optional exact world footprint; bounds remain the broad phase. Context only, never saved. */
+  footprint?: readonly (readonly [number, number])[];
+}
 export interface RefillSource extends Vec3 { id: string; kind: "hydrant" | "fountain" | "bay" | "puddle" | "trunk"; radius: number; salt: boolean; ownerId?: string }
 export type AttackKind = "shove" | "snatch" | "ad-blast" | "phone-hack" | "handshake" | "forced-update";
 export interface AttackRequest { id: string; sequence: number; attackerId: string; targetId: string; kind: AttackKind }
