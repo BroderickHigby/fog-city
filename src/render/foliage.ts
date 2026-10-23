@@ -3,7 +3,7 @@
 // Slop New York's MIT-licensed foliage design (leaf sprays, coverage-preserving alpha mips,
 // instanced distance tiers), implemented here for Fog City's WebGL renderer.
 import * as THREE from "three";
-import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
 import { fcUniforms, injectUniforms } from "./materials.ts";
 
 export const FOLIAGE_NEAR_LIMIT = 192;
@@ -12,6 +12,13 @@ export const FOLIAGE_NEAR_M = 110;
 export const FOLIAGE_FAR_M = 1400;
 const REPICK_M = 12;
 const ALPHA_CUTOFF = 0.42;
+const LEAVES_PER_SPRAY = 46;
+/** Leaf cards per crown, near and far. */
+export const NEAR_CARDS = 140;
+export const FAR_CARDS = 40;
+/** The opaque inner crown, as a fraction of the crown's radius and height: gaps between cards show deep foliage, not sky. */
+const CORE_SCALE = 0.72;
+const CORE_COLOR = 0x46582f;
 type Species = 0 | 1;
 interface Placement { matrix: THREE.Matrix4; x: number; z: number; species: Species; tint: THREE.Color }
 interface TileTrees { placements: Placement[]; originals: Array<{ mesh: THREE.InstancedMesh; visible: boolean }> }
@@ -64,9 +71,10 @@ export function foliageMipmaps(base: Uint8Array, size: number): Array<{ data: Ui
 /** Generated leaf spray, including warm twigs and lighter midribs; no image downloads. */
 export function createLeafTexture(size = 256): THREE.DataTexture {
   const random = rng(0x1ea5), leaves: Array<{ x: number; y: number; a: number; rx: number; ry: number; shade: number }> = [];
-  for (let i = 0; i < 31; i++) {
-    const y = 0.12 + random() * 0.76, side = i % 2 ? 1 : -1;
-    leaves.push({ x: 0.5 + side * (0.09 + random() * 0.22), y, a: side * (0.5 + random() * 0.75), rx: 0.07 + random() * 0.028, ry: 0.105 + random() * 0.045, shade: 0.73 + random() * 0.38 });
+  // Dense enough that a crown of sprays reads as foliage rather than a lattice with sky through it.
+  for (let i = 0; i < LEAVES_PER_SPRAY; i++) {
+    const y = 0.1 + random() * 0.8, side = i % 2 ? 1 : -1;
+    leaves.push({ x: 0.5 + side * (0.05 + random() * 0.27), y, a: side * (0.5 + random() * 0.75), rx: 0.075 + random() * 0.03, ry: 0.11 + random() * 0.05, shade: 0.73 + random() * 0.38 });
   }
   const data = new Uint8Array(size * size * 4);
   for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
@@ -144,22 +152,40 @@ export function createFoliagePrototype(species: Species, far: boolean): Prototyp
     const end = new THREE.Vector3(Math.cos(angle) * reach, y, Math.sin(angle) * reach);
     bark.push(branch(start, end, far ? 0.055 : 0.075, 0.018, far ? 4 : 6));
   }
-  const count = far ? 16 : 112;
+  const count = far ? FAR_CARDS : NEAR_CARDS;
   const crownHeight = species === 0 ? 1.8 : 3.0;
+  // The inner crown: a low ellipsoid in dark leaf green, swaying with the leaves (it is in the
+  // bark mesh, so it is opaque and shadows).
+  const core = mergeVertices(new THREE.IcosahedronGeometry(1, far ? 0 : 1));
+  core.scale(radius * CORE_SCALE, crownHeight * CORE_SCALE, radius * CORE_SCALE);
+  core.translate(0, crownY, 0);
+  bark.push(colorGeometry(core, new THREE.Color(CORE_COLOR), 0.9));
+  const radial = new THREE.Vector3(), cardNormal = new THREE.Vector3();
   for (let i = 0; i < count; i++) {
     const angle = random() * Math.PI * 2, vertical = random() * 2 - 1;
     const ring = Math.sqrt(Math.max(0, 1 - vertical * vertical));
     const inward = 0.68 + random() * 0.32;
     const x = Math.cos(angle) * radius * ring * inward, z = Math.sin(angle) * radius * ring * inward;
     const y = crownY + vertical * crownHeight;
-    const size = far ? 1.8 : 0.82 + random() * 0.34;
+    const size = far ? 1.55 + random() * 0.3 : 0.82 + random() * 0.34;
     const geometry = new THREE.PlaneGeometry(size, size * 1.12);
     const normal = new THREE.Vector3(x * 0.55, (y - crownY) * 0.4 + 0.1, z * 0.55).normalize();
     if (normal.lengthSq() < 0.1) normal.set(0, 0, 1);
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal));
     geometry.rotateY((random() - 0.5) * 0.8);
     geometry.translate(x, y, z);
-    colorGeometry(geometry, new THREE.Color(species === 0 ? 0xb9c597 : 0x9fb291), 0.66 + random() * 0.36);
+    // Crown lighting: normals lean out from the crown's centre, so it shades as one soft volume
+    // rather than as many flat cards; cards deep in the crown and underneath are darker.
+    radial.set(x / radius, (y - crownY) / crownHeight, z / radius);
+    const depth = Math.min(1, radial.length());
+    radial.normalize();
+    const n = geometry.getAttribute("normal");
+    for (let v = 0; v < n.count; v++) {
+      cardNormal.fromBufferAttribute(n, v).multiplyScalar(0.35).addScaledVector(radial, 0.65).normalize();
+      n.setXYZ(v, cardNormal.x, cardNormal.y, cardNormal.z);
+    }
+    const ao = (0.6 + 0.4 * depth) * (0.78 + 0.22 * (vertical + 1) / 2);
+    colorGeometry(geometry, new THREE.Color(species === 0 ? 0xb9c597 : 0x9fb291), (0.72 + random() * 0.3) * ao);
     cards.push(geometry);
   }
   const result = { bark: combine(bark), leaves: combine(cards) };
