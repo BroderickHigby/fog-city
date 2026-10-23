@@ -68,6 +68,7 @@ export interface UiMountOptions {
   /** Share the host's keyboard when camera controls already use one. */
   readonly keyboard?:Keyboard;
   readonly saves?:SavePanelOptions;
+  readonly startupChoices?:readonly string[];
 }
 export interface MountedGameUI {
   readonly element:HTMLElement;

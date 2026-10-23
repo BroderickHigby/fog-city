@@ -18,9 +18,10 @@ describe("combined controls",()=>{
   });
   it("blocks and releases every device while typing",()=>{
     const pad:PadLike={connected:true,axes:[1,-1],buttons:Array.from({length:12},()=>({pressed:true,value:1}))};
-    const controls=new InputController(undefined,()=>[pad]);controls.setStick(1,-1);controls.setAction("fire",true);controls.setBlocked(true);
+    let pads:readonly(PadLike|null)[]=[pad];const controls=new InputController(undefined,()=>pads);controls.setStick(1,-1);controls.setAction("fire",true);controls.setBlocked(true);
     expect(controls.sample()).toEqual({throttle:0,steer:0,brake:0,actions:0});
-    controls.setAction("fire",true);controls.setBlocked(false);expect(controls.sample().throttle).toBe(1);
+    controls.setAction("fire",true);controls.setBlocked(false);expect(controls.sample().throttle).toBe(0);
+    pads=[];expect(controls.sample().actions).toBe(0);pads=[pad];expect(controls.sample().throttle).toBe(1);
   });
   it("ignores disconnected controllers and nonfinite joystick data",()=>{
     const controls=new InputController(undefined,()=>[{connected:false,axes:[1,-1],buttons:[]}]);controls.setStick(NaN,Infinity);

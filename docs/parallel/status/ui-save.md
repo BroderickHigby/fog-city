@@ -1,7 +1,7 @@
 # Lane 7: UI, audio and saves
 
 ## Now
-Wave-3 persistence checkpoint on `lane/ui-save/wave3`, stacked on the published wave-2 UI. Worktree: `/workspace/fog-city-ui`; the previous prototype remains untouched. Actual renderer integration runs separately in `/workspace/fog-city-play` on `lane/render-integration/wave2`.
+Wave-3 persistence checkpoint on `lane/ui-save/wave3`, stacked on the published wave-2 UI. Worktree: `/workspace/fog-city-ui`; the previous prototype remains untouched. Approved renderer integration runs separately in `/workspace/fog-city-play-clean` on `lane/render-integration/clean` (checkpoint `25d7aa8`). The older `/workspace/fog-city-play` checkout is disposable and must not be merged: it includes unreviewed world-pack history.
 
 ## Done
 - Read the lane rules, UI/save roadmap, input/HUD implementation and free-text safety contract.
@@ -15,17 +15,22 @@ Wave-3 persistence checkpoint on `lane/ui-save/wave3`, stacked on the published 
 - Added progression-only `SaveStore`: three manual slots plus autosave, schema/SIM_VERSION/content-hash metadata, corruption checksum, explicit migration hook, required host domain validation, confirmation-before-import, newest offline-cache selection and serialized writes. Whole simulations and transient actor fields are rejected.
 - Added IndexedDB and memory backends, a host-provided private-page backend interface, a mounted save/load/import/export panel and coalescing autosave helper. Save-domain tests and typecheck pass; IndexedDB reload browser test is authored and awaits the next permitted browser window.
 
+- Adversarial follow-up adds controller-only menu navigation, authored startup fallback choices, and a release barrier so held keys/pad buttons cannot fire or move after a menu closes. Gamepad feature-policy failures safely produce no input.
+- Autosave now preserves the existing slot at initial boot, catches capture errors, and coalesces writes to the latest durable checkpoint. Typecheck and 20 focused input/command/save tests pass.
+- Clean runtime `25d7aa8` mounts the real HUD, canonical player/combat projections, versioned save capture/restore and `createGameSystems({wave:2})`. Shared `buildLoadedWorld` loads gameplay, sidewalks and transit identically for browser/Node consumers; clean runtime typecheck and 21 focused tests pass.
+
 ## Next
-Finish actual SF browser play-through with the shared core composition; mount save controls with the player's whitelist projection/restore adapter, then later-wave apps and match panels.
+The independent integration harness is checking actual SF mission/purchase/refill play-through against the clean runtime. Port this UI-only adversarial follow-up after its current run; later-wave apps/match panels remain gated on functioning mode providers.
 
 ## Blocked on
-- Real player/mode projections and render mounting must come from the owning lanes.
+- Actual SF mission play-through and console-clean screenshots remain to be verified by the integration harness. The published approved SF manifest must receive reviewed gameplay metadata for authored refill sources.
+- Later-wave mode and online UI remain gated on functioning mode providers.
 - GitHub API access is unavailable in this environment; branches can still be pushed and PR text is recorded here.
 
 ## Requests for other lanes
-- Core: publish `createGameSystems` composition (main currently calls `step` without its optional systems argument).
-- Player: progression export/apply callback and later-wave app state; `playerView` projection is agreed.
-- Render: mount `mountGameUI`, update its presentation snapshot, combine sampled controls with the sim input frame, and call `dispose` on teardown. UI must never directly move sim bodies.
+- Core: `createGameSystems` is published and integrated in the clean runtime; no pending shared contract edits from this lane.
+- Player: canonical projections and durable save whitelist are integrated; later-wave app state remains an owner dependency.
+- Render: clean runtime mounts `mountGameUI` and combines sampled controls with the sim input frame. UI never directly moves sim bodies.
 
 ## Requests for Render-World / Assets
 - A DOM layer above the 3D canvas with pointer events only on controls and panels.
@@ -45,7 +50,7 @@ Title: `Saves: add versioned progression storage and import/export panel`
 Adds three-slot progression storage with autosave, IndexedDB fallback and a host-supplied private-page backend. Checksums detect corruption; import validates the record before asking for confirmation and never changes the running game directly. A mounted panel provides accessible save/load/import/export controls. The required domain validator and transient-state gate keep traffic, combat actors and raw simulation snapshots out of saves.
 
 ### Acceptance tests
-`pnpm typecheck` and `pnpm exec vitest run tests/save tests/ui/commands.test.ts --maxWorkers=2`: passed (6 tests). Earlier wave-2 browser tests passed (2 tests, 6.3s); the new IndexedDB reload test is pending the shared browser window. Actual SF rendering and gameplay validation remain separate integration work.
+`pnpm typecheck` and `pnpm exec vitest run tests/ui/controls.test.ts tests/ui/commands.test.ts tests/ui/menu-gamepad.test.ts tests/save --maxWorkers=2`: passed (20 tests). Earlier wave-2 browser tests passed (2 tests, 6.3s); the new IndexedDB reload test is pending the shared browser window. Actual SF rendering and gameplay validation remain separate integration work.
 
 ### Contract changes
 None authored in shared simulation files; shared requests are listed above.
