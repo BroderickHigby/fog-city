@@ -27,6 +27,7 @@ function validateContext(ctx: CombatContext): void {
   }
   for (const actor of ctx.actors) {
     if (!Number.isFinite(actor.radius) || actor.radius <= 0 || !Number.isFinite(actor.height) || actor.height <= 0) throw new Error("Combat actor dimensions must be positive");
+    if (actor.rustScale !== undefined && (!Number.isFinite(actor.rustScale) || actor.rustScale <= 0 || actor.rustScale > 1)) throw new Error("Combat objective rust scale must be in (0, 1]");
   }
   for (const player of ctx.players) {
     if (![0,1,2].includes(player.tankTier) || ![0,1].includes(player.flowTier) || ![1,2,3,4].includes(player.scannerTier)) throw new Error("Unknown combat upgrade tier");

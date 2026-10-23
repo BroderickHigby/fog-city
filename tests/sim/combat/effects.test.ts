@@ -33,6 +33,16 @@ function advanceSupport(s: CombatState, ctx: CombatContext, input: { scan?: bool
 }
 
 describe("combat rust and lifecycle", () => {
+  it("gives an armoured relay twenty seconds of starting stream without changing model defaults", () => {
+    const relay = actor({ model: "patrol", rustScale: 0.2 });
+    const s = state();
+    for (let n = 0; n < 199; n++) applyWaterHit(s, relay, water());
+    expect(s.targets.bot!.rust).toBeCloseTo(0.995, 10);
+    expect(s.targets.bot!.phase).toBe("active");
+    applyWaterHit(s, relay, water());
+    expect(s.targets.bot!.rust).toBeCloseTo(1, 10);
+    expect(s.targets.bot!.phase).toBe("seized");
+  });
   it("applies direct-water salt and model multipliers without changing actors", () => {
     const footman = freeze(actor());
     const s = state();

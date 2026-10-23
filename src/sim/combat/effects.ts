@@ -32,6 +32,9 @@ function distance3Squared(a: Vec3, b: Vec3): number {
 }
 
 function modelRate(actor: CombatActor): number {
+  // Explicit objective resistance replaces the model default. A relay at 0.2
+  // takes twenty seconds of the starting 0.25-rust/second stream.
+  if (actor.rustScale !== undefined) return Number.isFinite(actor.rustScale) && actor.rustScale > 0 && actor.rustScale <= 1 ? actor.rustScale : 0;
   if (actor.model === "patrol") return 0.5;
   if (actor.model === "drone") return 1.5;
   if (actor.model === "robotaxi") return 0.7;

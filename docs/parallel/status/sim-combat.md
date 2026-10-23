@@ -179,3 +179,7 @@ All six existing packaged-build tests pass with this patch plus the combat stack
 
 ### Scope
 One `index.html` line, isolated on the render compatibility branch. No combat, shared simulation, dependency or prototype changes. No integration or release branch was merged.
+
+## Objective resistance follow-up
+
+Shared `CombatActor.rustScale` is now validated in (0, 1] and overrides model resistance for authored objectives. The Update Relay at 0.2 requires twenty seconds of the starting stream; absent metadata preserves existing model behavior. Focused effects/system validation: 51 tests passed. Core shared contract dependency: 991aaff.
