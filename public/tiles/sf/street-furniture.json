@@ -3,7 +3,7 @@
 "world": "sf",
 "description": "Traffic signal poles and stop signs at junctions (render-only). heading: compass bearing (radians clockwise from north) the head or sign faces, toward the approaching traffic. group: signal phase group (0/1, one per axis). arm: mast-arm length over the lanes (m, 0 = none). ped: bearing of the pedestrian head, or null. allWay: every approach into the node is stop-controlled.",
 "snapshotDate": "2026-10-23",
-"attribution": "Junction paint, signals and stop signs: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2). Continental Crosswalks: SFMTA via DataSF (g9zy-srvv); Stop Signs: SFMTA via DataSF (4542-gpa3), ODC PDDL 1.0.",
+"attribution": "Junction paint, signals, stop signs and street signs: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2). Continental Crosswalks: SFMTA via DataSF (g9zy-srvv); Stop Signs: SFMTA via DataSF (4542-gpa3); Street Signs: SFMTA via DataSF (m48z-6ji4), ODC PDDL 1.0.",
 "signals": [
 {"id":"sig:n20203000:c8955000","node":"n20203000","x":793.28,"z":6047.8,"heading":0.6036,"group":0,"arm":0,"ped":null},
 {"id":"sig:n20203000:c5331201","node":"n20203000","x":803.28,"z":6054.94,"heading":1.6605,"group":1,"arm":0,"ped":null},

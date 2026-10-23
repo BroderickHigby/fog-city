@@ -663,6 +663,7 @@ committed files, so a world rebuild is followed by a street-detail rebuild.
 | Continental crosswalks | DataSF *Continental Crosswalks*, [`g9zy-srvv`](https://data.sfgov.org/resource/g9zy-srvv.json), SFMTA, PDDL 1.0. Intersection-level: nodes with at least one continental crosswalk. | `cnn`, `continental` |
 | Stop signs | DataSF *Stop Signs*, [`4542-gpa3`](https://data.sfgov.org/resource/4542-gpa3.json), SFMTA, PDDL 1.0. One row per sign: the node (`cnn`), the street it controls and the traffic direction it faces. | `cnn`, `street`, `x_street`, `st_facing`, `direction` |
 | Traffic signals | `signals.json` (SFMTA `ybh5-27n2`, see Gameplay data) | `node`, `kind` |
+| Street signs | DataSF *Street Signs*, [`m48z-6ji4`](https://data.sfgov.org/resource/m48z-6ji4.json), SFMTA, PDDL 1.0. In-service rows (`status_code = 'IS'`) of the categories STREET NAME, ONE WAY(RA/LA), STREET CLEANING, PARKING, PARKING:RPP, PARKING:NPRK ANY TIME and TOW (TANP ANY TIME). | `objectid`, `sign_category`, `legend`, `sign_support`, `streetname`, `corner_side_facing`, `cnn`, `shape` |
 
 ### Junction paint (`street-markings.json`)
 
@@ -722,6 +723,30 @@ drivable legs meet (freeway and ramp nodes are skipped): 7,439 junctions in sf.
   within 100 m (tested around Chestnut St).
 * Ids: `sig:<node>:<edge>`, `stop:<node>:<edge>`, stable across rebuilds (for knockable props).
 * sf result: 4,113 signal poles, 10,325 stop signs; 1.6 MB.
+
+### Street signs (`street-signs.json`)
+
+`pipeline/lib/street-signs.ts`, render-only.
+
+* **Corner posts.** A STREET NAME or ONE WAY row names its node (`cnn`) and corner
+  ("NORTH EAST CORNER, ..."). The rows on one corner share a post on the sidewalk where the two
+  nearest legs' lines, offset 1 m past the kerb, cross. Each **blade** is SF's white-on-green
+  street-name sign with the row's legend (up to three per post), lying along the leg it names.
+  A **one-way** sign lies along the one-way leg named by `streetname`, its arrow pointing the
+  way the traffic flows (from the road graph's direction, not the RA/LA code).
+* **Inferred blades.** The dataset lists blades at about 2,700 junctions. Every other junction
+  where two or more street names meet gets one post on its corner nearest north-east with every
+  name: an inference from the road graph, marked `inferred: true` (4,494 posts).
+* **Kerbside signs.** STREET CLEANING, PARKING (time limits), PARKING:RPP (permits),
+  PARKING:NPRK ANY TIME and TOW rows name their block (`cnn` = road edge) and side ("EAST
+  SIDE"). The post stands on that side's sidewalk at the row's point projected onto the block,
+  the sign facing along the street. The legend (hours, days) is not reproduced: each kind shows
+  a generic face (`src/render/street-signs.ts`).
+* Every post is stepped out until it is clear of every carriageway; a corner that cannot be
+  cleared within 12 m (some divided-street junctions) gets no post.
+* Ids: `corner:<node>:<k>` and `curb:<objectid>`.
+* sf result: 9,553 corner posts, 38,561 kerbside signs; 9,909 rows unplaced (no matching node
+  or block, or no clear spot); 4.8 MB.
 
 ## Gameplay data (the wave-2 spike)
 

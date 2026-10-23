@@ -38,6 +38,16 @@ export const STREET_DETAIL_DATASETS: readonly DatasetSpec[] = [
     select: "objectid,cnn,street,x_street,st_facing,direction",
     order: "objectid",
   },
+  {
+    key: "streetSigns",
+    id: "m48z-6ji4",
+    title: "Street Signs",
+    publisher: "SFMTA",
+    where:
+      "status_code = 'IS' AND shape IS NOT NULL AND sign_category IN ('STREET NAME', 'ONE WAY(RA)', 'ONE WAY(LA)', 'STREET CLEANING', 'PARKING', 'PARKING:RPP', 'PARKING:NPRK ANY TIME', 'TOW (TANP ANY TIME)')",
+    select: "objectid,sign_category,legend,sign_support,streetname,corner_side_facing,cnn,shape",
+    order: "objectid",
+  },
 ];
 
 export const LICENCE = "ODC PDDL 1.0";

@@ -17,6 +17,7 @@ import { jsonLines, jsonPretty } from "./lib/output.ts";
 import type { RoadGraph } from "./lib/roads.ts";
 import { downloadStreetDetail, streetDetailAttribution, writeSnapshot } from "./lib/street-detail-sources.ts";
 import { buildFurniture } from "./lib/street-furniture.ts";
+import { buildStreetSigns, type SignRow } from "./lib/street-signs.ts";
 import { buildMarkings, stopApproaches, type Junction, type MarkingStats } from "./lib/street-markings.ts";
 import { Ground } from "./lib/terrain.ts";
 import { STREET_DETAIL_INDEX } from "../src/render/street-markings.ts";
@@ -24,6 +25,7 @@ import { decodeWorldColliders } from "./lib/world-colliders.ts";
 
 export const MARKINGS_FILE = "street-markings.json";
 export const FURNITURE_FILE = "street-furniture.json";
+export const SIGNS_FILE = "street-signs.json";
 
 const STYLE_CODE = { continental: "c", standard: "s" } as const;
 
@@ -46,7 +48,7 @@ export function encodeJunction(j: Junction): Record<string, unknown> {
 
 export interface StreetDetailOutput {
   files: Record<string, string>;
-  stats: MarkingStats & { stopSigns: { matched: number; unmatched: number }; furniture: { signals: number; stopSigns: number } };
+  stats: MarkingStats & { stopSigns: { matched: number; unmatched: number }; furniture: { signals: number; stopSigns: number }; signs: ReturnType<typeof buildStreetSigns>["stats"] & { posts: number } };
 }
 
 export function buildStreetDetail(
@@ -73,8 +75,8 @@ export function buildStreetDetail(
   const furniture = buildFurniture(roads, junctions, signalPed, stops.approaches);
 
   const attribution = [
-    "Junction paint, signals and stop signs: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2).",
-    streetDetailAttribution(["continental", "stopSigns"]),
+    "Junction paint, signals, stop signs and street signs: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2).",
+    streetDetailAttribution(["continental", "stopSigns", "streetSigns"]),
   ];
   const markings = jsonLines(
     {
@@ -101,13 +103,27 @@ export function buildStreetDetail(
     },
     ["signals", "stopSigns"],
   );
+  const signs = buildStreetSigns(roads, junctions, (rows.streetSigns ?? []) as SignRow[]);
+  const signsFile = jsonLines(
+    {
+      version: 1,
+      world: manifest.world,
+      description:
+        "Street signs (render-only). corners: one post per junction corner with street-name blades (name as signed, heading: compass bearing the blade lies along, in [0, pi)) and one-way signs (bearing the arrow points); inferred: placed from the road names where SFMTA lists no blade. curb: kerbside regulation signs on their block's sidewalk, heading = bearing along the street, kind: cleaning | permit | time | noParking | tow (generic faces; legends are not reproduced).",
+      snapshotDate,
+      attribution: [attribution[0], streetDetailAttribution(["streetSigns"])].join(" "),
+      corners: signs.corners,
+      curb: signs.curb,
+    },
+    ["corners", "curb"],
+  );
   const index = jsonPretty({
     version: 1,
     world: manifest.world,
     description: "Street-detail layers (render-only): see docs/data-sources.md, Street detail.",
     snapshotDate,
     attribution,
-    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE },
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,
@@ -115,9 +131,11 @@ export function buildStreetDetail(
       stopBars: stats.stopBars,
       signalPoles: furniture.signals.length,
       stopSigns: furniture.stopSigns.length,
+      signPosts: signs.corners.length,
+      curbSigns: signs.curb.length,
     },
   });
-  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length } } };
+  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile, [SIGNS_FILE]: signsFile }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length }, signs: { ...signs.stats, posts: signs.corners.length } } };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -159,7 +177,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   console.log(
     `street detail ${flag("check") ? "check OK" : "wrote"} (${((Date.now() - t0) / 1000).toFixed(1)} s): ${s.junctions} junctions, ` +
       `${s.crosswalks.continental} continental + ${s.crosswalks.standard} standard crosswalks, ${s.stopBars} stop bars, ` +
-      `${s.furniture.signals} signal poles, ${s.furniture.stopSigns} stop signs; ` +
+      `${s.furniture.signals} signal poles, ${s.furniture.stopSigns} stop signs, ${s.signs.posts} sign posts (${s.signs.inferred} inferred), ${s.signs.curbRows} curb signs (${s.signs.unplaced} sign rows unplaced); ` +
       `stop signs ${s.stopSigns.matched} matched, ${s.stopSigns.unmatched} unmatched; skipped ${s.skipped.freeway} freeway, ${s.skipped.deck} deck nodes`,
   );
 }
