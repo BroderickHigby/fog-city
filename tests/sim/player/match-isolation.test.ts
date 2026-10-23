@@ -1,6 +1,7 @@
 import { expect,it } from "vitest";
 import { createInitialState,step } from "../../../src/sim/step.ts";
 import { createPlayerSystems } from "../../../src/sim/player/adapter.ts";
+import { applyModeSettlements } from "../../../src/sim/player/settlements.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 
 it("never applies free-roam missions, wallet or recovery to a match session",()=>{
@@ -16,5 +17,15 @@ it("never applies free-roam missions, wallet or recovery to a match session",()=
    const next=step(world,{...initial,ext:{modes}}, {},[],createPlayerSystems(()=>{throw new Error("Standalone mode reached free roam");}));
    expect(next.ext.economy).toBeUndefined();
   }
+ }
+});
+
+
+it("refuses payouts into active or finished match worlds",()=>{
+ const base=createInitialState(buildWorld([]),42,["p"],{x:0,z:0,heading:0});
+ const payouts=[{id:"test:p",playerId:"p",xp:500,cashCents:2500,achievements:["first-win"],factionClockMoves:1 as const}];
+ for(const modes of [{match:{phase:"active"}},{match:{phase:"finished"}},{kind:"crowd"},{kind:"royale"},{kind:"vibes"}]){
+  const state={...base,ext:{modes}};
+  expect(applyModeSettlements(state,payouts)).toBe(state);
  }
 });

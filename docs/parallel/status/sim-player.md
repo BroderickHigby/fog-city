@@ -86,3 +86,9 @@ These are measured mission reducers, not a claim that the physical boss is integ
 Wave-7 draft PR title: `Sim-Player: require observed teleoperation and finale scene outcomes`
 
 Wave-7 draft PR body: Later mission reducers now advance from accepted robot/body control, physical delivery interactions, owned joint rust, timed observation and an observed restored fleet. Scene requests are deterministic and retries clear attempt evidence without losing a previously witnessed entrance. The observed provider projects accepted controlled bodies and exposes visibility, phases and damage owners. Doom stops only after the actual fleet is restored. Validation: TypeScript and focused player/forbidden-API tests. Dedicated giant/fireboat physics and rendering remain explicitly unintegrated; this branch stays separate from the current wave-2 game.
+
+
+## Mode return audit
+The six registered free-roam reducers already return the existing state for active/finished match sessions and standalone crowd/royale/vibes instances, before calling the provider. This includes Doom progression, wallet, heat and mission penalties. `applyModeSettlements` now also refuses a match world; the host must restore its preserved free-roam snapshot and apply payouts on explicit return. Cancellation restores the preserved snapshot without payouts.
+
+The mode ledger belongs at `economy.settledModeIds`, not inside any player's wallet. UI has been notified to capture/restore that authoritative root field and include wide/microclimate in equipment validation. Faction payouts affect the root Doom state; durable Doom months/faction counts also need persistence while tick-based deadlines must be rebased in a fresh world.
