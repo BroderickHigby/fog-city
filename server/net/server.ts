@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { createServer, type IncomingMessage } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import { MAX_MESSAGE_BYTES, parseClientMessage, type ServerMessage, type WorldName } from "../../src/net/protocol.ts";
 import { Room } from "./room.ts";
@@ -9,6 +9,7 @@ import type { NetworkSimulation } from "../../src/net/simulation.ts";
 
 export interface RelayOptions {
   simulation?:NetworkSimulation;
+  handleHttp?:(request:IncomingMessage,response:ServerResponse)=>Promise<boolean>;
   loadWorld(name: WorldName): Promise<WorldBundle>;
   now?: () => number;
   automaticTicks?: boolean;
@@ -36,12 +37,22 @@ const loopback = (host: string | undefined): boolean => host === "127.0.0.1" || 
 export function createRelay(options: RelayOptions) {
   const now = options.now ?? Date.now;
   const rooms = new Map<string, Room>();
-  const server = createServer((req, res) => {
+  const server = createServer(async (req, res) => {
     if (req.method === "GET" && req.url === "/health") {
       res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
       res.end(JSON.stringify({ ok: true, rooms: rooms.size, connections: sockets.clients.size }));
-    } else { res.writeHead(404); res.end(); }
+    } else {
+      try {
+        if(options.handleHttp&&await options.handleHttp(req,res))return;
+        res.writeHead(404);res.end();
+      } catch {
+        if(!res.headersSent){res.writeHead(500,{"content-type":"application/json"});res.end('{"error":"request_failed"}');}
+        else res.destroy();
+      }
+    }
   });
+  server.requestTimeout=15_000;
+  server.headersTimeout=10_000;
   const sockets = new WebSocketServer({ noServer: true, maxPayload: MAX_MESSAGE_BYTES, perMessageDeflate: false });
   let creating = 0;
   const originAllowed = (req: IncomingMessage): boolean => {
