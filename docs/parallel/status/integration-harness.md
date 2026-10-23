@@ -1,7 +1,9 @@
 # Integration harness
 
 ## Now
-Full typecheck and unit verification passed on immutable `76fcc02`: **121 files, 2,975 tests passed**, with one existing opt-in content-generator test skipped (258.08 seconds). Current game candidate `7269504` adds the isolated campaign handoff, phone acknowledgement and full bus-hull admission corrections. Browser verification is paused while Core fixes a newly reproduced ambient pedestrian/taxi contact. The original prototype and other active worktrees are untouched.
+Current frozen runtime includes the reviewed bus admission, pedestrian/taxi clearance and same-tick activity reward-order fixes. Typecheck and **25 focused tests passed** on the current harness. Full campaign browser acceptance is running (`test-results/campaign-browser-v3.log`); it is not yet signed off. The last complete unit gate was **2,975 passed**, one existing opt-in skip on `76fcc02`; a final complete run is still required for the corrected runtime. The original prototype and other active worktrees are untouched.
+
+The bounded walking probe exposed a QA planner omission: its static route ignored accepted NPC bodies. It now uses full physical vehicle hulls, including explicit service dimensions, and walker bounds, with one bounded replan after a 120-tick stall. Recovery from the exact saved state reached the real signup objective after **6,376 input frames**, with **zero contacts and failures** (`test-results/walk-recovery-v2.log`, 144.26 seconds). This is recovery evidence, not a substitute for the active complete browser test.
 
 ## Done
 - Node and browser replay builders retain the authored gameplay, sidewalk and transit layers.
@@ -25,16 +27,30 @@ Full typecheck and unit verification passed on immutable `76fcc02`: **121 files,
 - The input driver now retains its immutable pre-step snapshot so later failures can be reproduced in one tick without replaying the whole route.
 
 ## Next
-1. Intake the isolated ambient-contact and same-tick activity reward-order fixes, then rerun the full unit gate.
-2. Verify Hot Desk completion / Spill acknowledgement through real controls and recorded UI commands.
-3. Complete all browser and hosted-production-build checks without lowering assertions.
+1. Finish Hot Desk, purchase and Spill acknowledgement through real controls and recorded UI commands.
+2. Rerun the full unit gate on the corrected runtime.
+3. Complete the remaining browser and hosted-production-build checks without lowering assertions.
 
 ## Blocked on
 - Firefox and WebKit are not installed. An official Playwright installation attempt failed with HTTP 403 `Domain forbidden` from `cdn.playwright.dev` and `playwright.download.prss.microsoft.com`; it stopped before downloading WebKit. This remains explicit missing cross-engine evidence. System Chromium continues to work through the local executable override.
 
 ## Requests for other lanes
-- Core / Agents: the later Fleet Week recovery producer still needs a physical ownership consumer and current controlled-actor identity.
 - UI: keep the read-only `commands()` log and shared `buildLoadedWorld()` API stable for replay verification.
+
+## Consolidated browser assertion map
+The pending campaign browser test now owns the first-purchase assertions previously in `sf-world.spec.ts`. Only the duplicate physical journey was removed; the suite still has 47 browser cases.
+
+| Check | Retained coverage in `campaign.spec.ts` |
+| --- | --- |
+| Real counter arrival | Production movement, controlled body within 18 m, speed below 0.3 m/s, exact Node/browser state equality |
+| Purchase accounting | Actual Counter/Buy controls, cash decreases exactly 60,000 cents, exactly one `tank-1`, exactly one recorded buy command |
+| Idempotency and capacity | Owned button disabled, HUD displays the 12 L capacity |
+| Replay | Purchase replays at its recorded tick; the complete mission and UI-command sequence replays to the same final hash |
+| Save | Purchased inventory and cash survive capture and restoration into the earlier snapshot |
+| Presentation | First- and third-person screenshots and no console/request errors |
+| Campaign | Real Watch, water melt, held 8 L refill, authored `travel:any` foot route, signup, physical hood cone, reward/unlocks, then Spill waits for real acknowledgement |
+
+Live-game replay factories accept `E2E_GAME_WAVE` (default 2); the combined later-wave UI sets 4. Pure cross-engine and unit fixtures retain their explicit wave-2 semantics.
 
 ## For the owner
 No release or protected integration branch is modified. First purchase and the first two missions are not yet signed off. Visual realism and real-hardware feel remain separate owner review items.
@@ -42,12 +58,12 @@ No release or protected integration branch is modified. First purchase and the f
 ## Draft pull request
 Base: `integrate/wave2`
 
-Title: `Harness: replay the composed game with authored world metadata`
+Title: `Verify the playable campaign, purchase persistence and composed-game replay`
 
 Body:
-The browser now runs registered gameplay systems and authored world layers, so replaying only base vehicle physics cannot reproduce its state. Pass the same explicit registry and all authored metadata through the replay harness, and add regressions that detect a missing registry or discarded navigation curves. Add a short composed-gameplay cross-engine scenario and require Chromium to execute even when its binary is supplied through a local override.
+Exercise Hot Desk, the first counter purchase and the Spill phone acknowledgement through production controls, with exact browser/replay state checks, persistent inventory and cash, mission rewards, and strict protected-contact assertions. Share the authored world layers and configurable game-system registry between the browser and Node replay. The route planner observes accepted physical bodies, uses their full collision dimensions, and stops or replans within a fixed budget.
 
-Validation: full typecheck and 2,975 unit tests passed on `76fcc02`; one existing opt-in content generator was skipped. Chromium dev boot, tick progress and nonblank-frame smoke passed. Final browser/hosted-build and input-only campaign acceptance remain pending; Firefox/WebKit installation was blocked by the environment's download-host policy. No harness contract or SIM_VERSION change. Reviewed Core/UI commits are integrated separately; no QA collider migration is included.
+Validation at this checkpoint: current typecheck and 25 focused checks passed; exact walking recovery reached signup with zero contacts/failures. Complete campaign browser acceptance is running; final full unit and remaining browser/hosted-build verification remain pending. Earlier full unit baseline: 2,975 passed and one existing opt-in skip. Firefox/WebKit installation was blocked by the environment's download-host policy. No harness contract or SIM_VERSION change; no QA collider migration is included.
 
 ## Compatibility review
 The visual checkpoint `ce41d92` was merged only into a disposable local comparison. It brought 1,449 changed paths versus the physical checkpoint, including a pack decoder with DECK/TUNL/SPAN/LAKE extensions. The approved `b7c412c` world/vehicle code does not consume those added surfaces. The binary header remains FCWC version 1, so this combination can load while lacking matching deck/tunnel/lake physics. The comparison is retained as `harness/qa-compatibility`; no broad comparison merge was pushed. The active branch uses the source-only UI and reviewed gameplay metadata instead.
