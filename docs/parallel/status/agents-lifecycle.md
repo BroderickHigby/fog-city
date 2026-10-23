@@ -31,3 +31,14 @@ Validation:
 
 This is a focused repair, not a full-game performance or release sign-off. Combined world,
 combat, campaign and browser verification belongs to the integration branch.
+
+## Legacy combat movement
+
+Ambient lane movement now consumes combat's existing movement constraints. A hood-cone
+speed cap limits the actual route distance advanced; a stopped actor cannot coast through
+the cap. Slow effects scale the desired cruise speed without mutating the saved normal
+cruise value, so movement resumes after combat releases the effect. Runtime-controlled
+vehicles use the corresponding Core motion hook.
+
+TypeScript and 26 focused legacy-agent, combat-movement and core replay tests passed.
+Combat owns the effect-expiration fix; this consumer preserves its existing API.
