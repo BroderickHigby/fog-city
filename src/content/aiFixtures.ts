@@ -2,8 +2,7 @@ import fixtures from "../../content/ai-fixtures.json" with { type: "json" };
 import { crisisCheck, crisisResponse } from "./crisis.ts";
 
 export const AI_FIXTURES = fixtures;
-export const REFUSALS = ["none", "off_topic", "real_person", "private_person", "punching_down", "sexual", "violent", "hateful", "self_harm"] as const;
-export type ContentRefusal = typeof REFUSALS[number];
+export type { Refusal as ContentRefusal } from "./kits.ts";
 
 /** Offline replay is explicit by fixture id. It never classifies arbitrary input as safe. */
 export function replayFixture(id: string): typeof fixtures.cases[number]["expected"] {

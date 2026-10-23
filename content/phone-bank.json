@@ -75,7 +75,7 @@
       "kind": "fogcast",
       "wave": 3,
       "context": "update",
-      "text": "We adjusted yesterday’s forecast to match yesterday’s weather."
+      "text": "We adjusted yesterday\u2019s forecast to match yesterday\u2019s weather."
     },
     {
       "id": "fogcast-boundary",
@@ -210,7 +210,7 @@
       "kind": "humblebrag",
       "wave": 4,
       "context": "miss",
-      "text": "Learned a lot from today’s demo. Most of it involved the carpet."
+      "text": "Learned a lot from today\u2019s demo. Most of it involved the carpet."
     },
     {
       "id": "humble-team",
@@ -274,7 +274,9 @@
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
     "contentHash": "fnv1a32:104ef6d9",
-    "reviewedBy": [],
-    "review": "Authored from the design. Pending independent content and gameplay review."
+    "reviewedBy": [
+      "root second-read at 88a9781"
+    ],
+    "review": "Root independently read every authored string at 88a9781 with no taste, identity or brand misuse issue. Adversarial inputs remain non-display fixtures."
   }
 }
