@@ -74,3 +74,8 @@ Validation: TypeScript and **81 tests across eight files passed**, including sev
 Consumed the core's persistent wide-nozzle and microclimate equipment contract, enabled the authored wide-nozzle purchase, mapped it into combat loadout state, and enabled switching between owned nozzles. Microclimate selection now reaches combat's implemented gear effect. The subscription renewal/cancellation flow remains a separate unfinished system; this checkpoint does not claim subscription billing is present.
 
 Latest validation: TypeScript and **82 tests across eight files passed**. Composed-core review also found that nearby off-reticle robots could steal Watch: `c0d5d0a` and `29b3705` now use a 15-degree aim cone and angular error before distance. The core owner has independently verified the same fix against an actual staged Hot Desk scene.
+
+## Mode return audit
+The six registered free-roam reducers already return the existing state for active/finished match sessions and standalone crowd/royale/vibes instances, before calling the provider. This includes Doom progression, wallet, heat and mission penalties. `applyModeSettlements` now also refuses a match world; the host must restore its preserved free-roam snapshot and apply payouts on explicit return. Cancellation restores the preserved snapshot without payouts.
+
+The mode ledger belongs at `economy.settledModeIds`, not inside any player's wallet. UI has been notified to capture/restore that authoritative root field and include wide/microclimate in equipment validation. Faction payouts affect the root Doom state; durable Doom months/faction counts also need persistence while tick-based deadlines must be rebased in a fresh world.
