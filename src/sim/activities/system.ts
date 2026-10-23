@@ -1,5 +1,5 @@
 import { nextU32,seedRng } from "../rng.ts";
-import { commands,distanceSquared,event,facts,sortedBodies } from "../player/common.ts";
+import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 function createOwn(seed:number,tick:number):PlayerActivities{return {nextDirectorTick:tick+2700,directorRng:seedRng(seed),activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0};}
@@ -20,7 +20,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&a.wave<=ctx.wave&&distanceSquared(body,a)<=a.radius*a.radius);
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&a.wave<=ctx.wave&&planarDistanceSquared(body,a)<=a.radius*a.radius);
    if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;event(state,"activity.started",body.id,activity.id);}
   }
   if(own.activeActivityId){
