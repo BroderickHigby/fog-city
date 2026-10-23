@@ -23,8 +23,8 @@
 // Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
 // parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
 // With shadows on (?shadows=1) every agent mesh casts and receives them.
-// Draw calls: robotaxi 5 near + 2, errand robot 6 + 2, sidewalk bot 3 + 2, people 3 + 2, and
-// one for the ground shadows of people dodging near the camera: at most 26, and an
+// Draw calls: robotaxi 5 near + 2, errand robot 7 + 2, sidewalk bot 3 + 2, people 3 + 2, and
+// one for the ground shadows of people dodging near the camera: at most 27, and an
 // InstancedMesh with no instances this frame is not drawn at all.
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
 
@@ -71,6 +71,8 @@ import {
   type PartSpec,
 } from "./agent-packing.ts";
 import { channelIntensities } from "./lights.ts";
+import { installRobotStatusLights } from "./robot-tells.ts";
+import type { RobotTellPresentation } from "../sim/robots/catalog.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
 
@@ -83,6 +85,7 @@ export class PartMesh {
   readonly triangles: number;
   count = 0;
   private readonly cue: THREE.InstancedBufferAttribute;
+  private readonly statusLight: THREE.InstancedBufferAttribute;
   private readonly cols: THREE.InstancedBufferAttribute[];
 
   constructor(geometry: THREE.BufferGeometry, material: THREE.Material, capacity: number, name: string, slots: boolean) {
@@ -95,6 +98,8 @@ export class PartMesh {
     this.cue = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2);
     this.cue.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute("fcCue", this.cue);
+    this.statusLight = new THREE.InstancedBufferAttribute(new Float32Array(capacity).fill(1), 1);
+    this.statusLight.setUsage(THREE.DynamicDrawUsage); g.setAttribute("fcStatusLight", this.statusLight);
     this.cols = [];
     if (slots) {
       for (const k of ["fcColA", "fcColB", "fcColC", "fcColD"]) {
@@ -116,13 +121,14 @@ export class PartMesh {
     this.count = 0;
   }
 
-  push(m: THREE.Matrix4, cue: Readonly<AgentCue> | null, look: Readonly<PersonLook> | null): boolean {
+  push(m: THREE.Matrix4, cue: Readonly<AgentCue> | null, look: Readonly<PersonLook> | null, statusLight = 1): boolean {
     const i = this.count;
     if (i >= this.capacity) return false;
     m.toArray(this.mesh.instanceMatrix.array as Float32Array, i * 16);
     const c = this.cue.array as Float32Array;
     c[i * 2] = cue ? cue.brake : 0;
     c[i * 2 + 1] = cue ? cue.flash : 0;
+    this.statusLight.setX(i, statusLight);
     if (look && this.cols.length === 4) {
       setRgb(this.cols[0]!, i, look.shirt);
       setRgb(this.cols[1]!, i, look.pants);
@@ -140,6 +146,7 @@ export class PartMesh {
     if (n === 0) return;
     flag(this.mesh.instanceMatrix, n * 16);
     flag(this.cue, n * 2);
+    flag(this.statusLight, n);
     for (const a of this.cols) flag(a, n * 3);
   }
 
@@ -337,6 +344,7 @@ export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly 
   ],
   errandRobot: [
     { name: "body", nodes: [], pivot: "root", channel: NONE },
+    { name: "head", nodes: ["head"], pivot: "node", channel: NONE },
     { name: "armL", nodes: ["arm_upper_L"], pivot: "node", channel: { type: "swing", gain: -0.8 } },
     { name: "armR", nodes: ["arm_upper_R"], pivot: "node", channel: { type: "swing", gain: 0.45 } },
     { name: "bagContents", nodes: ["bag_contents"], pivot: { part: "armR" }, channel: { type: "swing", gain: 0.45 }, bagContents: true },
@@ -425,6 +433,7 @@ export class AgentLayer {
   private windowTick = -Infinity;
   /** Errand robots' bags: full, empty, or (null) as each agent says. */
   private bags: boolean | null = null;
+  private tellCues: ReadonlyMap<number, RobotTellPresentation> = new Map();
   private poses: AgentPose[] = [];
   private ids = new Int32Array(0);
   private xs = new Float64Array(0);
@@ -443,6 +452,7 @@ export class AgentLayer {
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [], dodging: 0 };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
+    installRobotStatusLights(this.material);
     this.opts = { ...DEFAULT_TIERS, ...opts };
     this.shadows = shadows;
     this.capFar = instanceBudget(tierCapacity(TIER_FAR, this.opts, MAX_AGENTS), 1);
@@ -512,6 +522,8 @@ export class AgentLayer {
   setBags(full: boolean | null): void {
     this.bags = full;
   }
+
+  setTellCues(cues: ReadonlyMap<number, RobotTellPresentation>): void { this.tellCues = cues; }
 
   /** Scale the light channels for night (0 day .. 1 night). */
   setNight(night: number): void {
@@ -590,8 +602,8 @@ export class AgentLayer {
       if (cue.brakeUntil > held) this.brakeUntil.set(b.id, cue.brakeUntil);
       drawn++;
       if (b.kind === "person") {
-        personLook(b.id, this.look);
-        if (personIsChild(b.id)) this.look.scale *= CHILD_SCALE;
+        personLook(b.identitySeed ?? b.id, this.look);
+        if (personIsChild(b.id, b.identitySeed)) this.look.scale *= CHILD_SCALE;
         // A dodge: dived, leapt, tumbling or getting up (a leap is drawn along its arc).
         const dp = b.dodge ? personDodgePose(b.dodge, b.heading, alpha, time, this.personPose) : null;
         const px = dp && dp.x !== null ? dp.x : pose.x;
@@ -622,7 +634,7 @@ export class AgentLayer {
         this.drawNear(view, b, pose, cue, dt, rp ? rp.pitch : null, rp ? rp.roll : 0, rp ? rp.swing : null);
       } else {
         baseMatrix(pose.x, pose.y, pose.z, pose.heading, rp ? rp.pitch : pose.pitch, view.scale, _base, rp ? rp.roll : 0);
-        (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
+        (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null, this.tellCues.get(b.id)?.faceLight ?? 1);
       }
     }
     let calls = 0;
@@ -734,8 +746,9 @@ export class AgentLayer {
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
     baseMatrix(pose.x, pose.y, pose.z, pose.heading, pitch ?? pose.pitch, view.scale, _base, roll);
     const swing = dodgeSwing !== null ? dodgeSwing * ROBOT_SWING * 2 : Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
+    const tell = this.tellCues.get(b.id);
     for (const p of view.near) {
-      if (p.bagContents && !bagFull(b, this.bags)) continue;
+      if (p.bagContents && !(this.bags ?? tell?.bagFull ?? bagFull(b))) continue;
       let rx = 0;
       let ry = 0;
       switch (p.channel.type) {
@@ -753,7 +766,9 @@ export class AgentLayer {
         case "none":
           break;
       }
-      p.part.push(partMatrix(_base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null);
+      if (p.part.mesh.name.endsWith(":head") && tell?.headYaw !== null && tell?.headYaw !== undefined) ry = tell.headYaw;
+      if (p.part.mesh.name.endsWith(":armR") || p.bagContents) rx *= tell?.bagSwing ?? 1;
+      p.part.push(partMatrix(_base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null, tell?.faceLight ?? 1);
     }
   }
 

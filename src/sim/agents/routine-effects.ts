@@ -9,7 +9,8 @@ import { circleBlocked, meshGroundHeight, segmentBlocked, type World } from "../
 import { pathPoint, projectOnPath, walkPath } from "../roads.ts";
 import { finaleFootfallClear, type FinaleEffect, type FinaleLandingAck } from "../robots/finale.ts";
 import { robotAgentId } from "../robots/runtime.ts";
-import type { RuntimePhysicalBody } from "./runtime-state.ts";
+import { agentRuntimeSession, type RuntimePhysicalBody } from "./runtime-state.ts";
+import { createRuntimeVisualSensor } from "./runtime-sight.ts";
 import type { AgentRuntimeData } from "./runtime-system.ts";
 import { routineFinaleBodyClear, type RoutineRuntimeEffect, type RoutineRuntimeState } from "./routine-runtime.ts";
 
@@ -49,6 +50,7 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
   const old = source.effectState;
   if (old && (old.applied.length > 512 || old.bindings.length > 128 || old.terms.length > 128 || (old.carClaims?.length ?? 0) > 128 || (old.landingReceipts?.length ?? 0) > 2)) throw new Error("Invalid routine effect state budget");
   const effects = [...source.routineOutput.effects].sort((a, b) => compare(a.id, b.id));
+  const canSee = createRuntimeVisualSensor({ world, previous: after, state: after });
   const pendingIds = new Set(effects.map(e => e.id));
   const effectState: RoutineEffectState = {
     version: 1, acks: (old?.acks ?? []).filter(id => pendingIds.has(id)), applied: [...(old?.applied ?? [])],
@@ -59,6 +61,14 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
   const bodies = source.bodies.map(b => ({ ...b, dodge: b.dodge ? { ...b.dodge } : null }));
   const runtime: Runtime = { ...source, bodies, effectState, significantAgentIds: [...source.significantAgentIds], deliveredAgentIds: [...source.deliveredAgentIds] };
   let nextId = current.nextId;
+  let shedThisTick = 0;
+  const squareAmbientReserve = agentRuntimeSession(after)?.ambientMode === "squares-v1" ? (runtime.population?.ambient ?? 0) : 0;
+  const significantOccupancy = (): number => {
+    const physical = new Set(runtime.significantAgentIds);
+    for (const body of bodies) if (body.kind !== "animal" && body.model !== "van" && body.model !== "bus") physical.add(body.numericId);
+    return Math.max((runtime.population?.significant ?? 0) + shedThisTick, physical.size)
+      + (runtime.population?.reservedVanUnits ?? 0) + squareAmbientReserve;
+  };
   const combat: CombatState | undefined = after.ext.combat ? { ...after.ext.combat,
     targets: Object.fromEntries(sortedIds(after.ext.combat.targets).map(id => { const value = after.ext.combat!.targets[id]!; return [id, { ...value, wetHits: [...value.wetHits] }]; })),
     players: Object.fromEntries(sortedIds(after.ext.combat.players).map(id => { const value = after.ext.combat!.players[id]!; return [id, { ...value, marks: value.marks.map(mark => ({ ...mark })) }]; })),
@@ -85,7 +95,7 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
       x: body.x, y: body.y, z: body.z, heading: body.heading, speed: body.speed, radius: body.radius, height: body.height };
     const target = player.mode === "foot" && player.foot ? player.foot : player.car;
     return actor.firmware === "bad" && actor.protected !== true && actor.inFidelity !== false &&
-      movementLimit(combat, actor).canAttack && d2(body, target) <= 36 && !segmentBlocked(world, body.x, body.z, target.x, target.z);
+      movementLimit(combat, actor).canAttack && d2(body, target) <= 36 && canSee(body, target);
   };
   const atKiosk = (p: { x: number; z: number }): boolean => (world.gameplay?.anchors ?? []).some(a => a.kind === "repair-kiosk" && d2(a, p) <= 4);
   const protectors = (): { id: string; kind: "person" | "animal"; x: number; z: number; radius: number }[] => [
@@ -240,7 +250,7 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
     } else if (e.kind === "recruit.spot") {
       const player = combat?.players[e.playerId];
       const targetFirmware = targetBody && "firmware" in targetBody ? targetBody.firmware : undefined;
-      if (!player || !sourceBody || !targetBody || targetFirmware === "good" || targetFirmware === "none" || d2(sourceBody, targetBody) > 400 || segmentBlocked(world, sourceBody.x, sourceBody.z, targetBody.x, targetBody.z) || !Number.isSafeInteger(e.amount) || e.amount <= after.tick || e.amount > after.tick + 30 * TICK_HZ) continue;
+      if (!player || !sourceBody || !targetBody || targetFirmware === "good" || targetFirmware === "none" || d2(sourceBody, targetBody) > 400 || !canSee(sourceBody, targetBody) || !Number.isSafeInteger(e.amount) || e.amount <= after.tick || e.amount > after.tick + 30 * TICK_HZ) continue;
       player.marks = [...player.marks.filter(m => m.targetId !== e.targetId && m.untilTick > after.tick), { targetId: e.targetId, untilTick: e.amount, confidence: 1, hallucination: false }].slice(-64);
       ack(e);
     } else if (e.kind === "body.rebind") {
@@ -273,10 +283,11 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
         if (!waypoint || !routineFinaleBodyClear(finale.state.kind, waypoint, protectors()) || !finaleFootfallClear(finale.state.kind, waypoint, { tick: after.tick, complete: true, bodies: protectors() }, after.tick)) continue;
       }
       if (pending.kind === "shed-robots") {
-        if (runtime.significantAgentIds.length + source.routines.specials.length + source.routines.finales.length + pending.count > 2000) { effectState.diagnostics.push("finale-significant-capacity"); continue; }
+        if (significantOccupancy() + pending.count > 2000) { effectState.diagnostics.push("finale-significant-capacity"); continue; }
         const placed = spawnShed(world, nextId, pending, list, bodies, protectors());
         if (!placed) { effectState.diagnostics.push("finale-shed-awaits-safe-space"); continue; }
         nextId += placed.length; list.push(...placed);
+        shedThisTick += placed.length;
         runtime.significantAgentIds.push(...placed.map(a => a.id)); runtime.deliveredAgentIds.push(...placed.map(a => a.id));
       } else if (pending.kind === "restore-robots") {
         if (!combat || pending.robotIds.some(id => !physical(id))) { effectState.diagnostics.push("finale-restore-needs-physical-identities"); continue; }

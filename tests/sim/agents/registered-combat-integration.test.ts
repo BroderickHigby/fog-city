@@ -6,6 +6,7 @@ import { createInitialState, step as stepSim } from "../../../src/sim/step.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 import { enableAgentRuntime } from "../../../src/sim/agents/runtime-state.ts";
 import { completeAgentRuntimeOf, completeAgentRuntimeSystem } from "../../../src/sim/agents/runtime-registration.ts";
+import { initialTarget } from "../../../src/sim/combat/shared.ts";
 import { runtimeCombatSystem } from "../../../src/sim/agents/runtime-combat.ts";
 import { baselineRobotFirmware, robotRuntimeSystem, robotsRuntimeOf } from "../../../src/sim/robots/runtime-system.ts";
 
@@ -27,6 +28,7 @@ function robot(id: number, z: number): AgentState {
 }
 function scene(playerZ: number): SimState {
   const state = enableAgentRuntime(createInitialState(world, seed, ["p"], { x: 30, z: 30, heading: 0 }), { wave: 3 });
+  state.ext.robots!.catalogArchetypes = { [pusherId]: { bad: "updatePusher" } };
   state.players.p!.mode = "foot";
   state.players.p!.foot = makeFoot(0, 0, playerZ, 0);
   state.ext.agents = { nextId: Math.max(pusherId, helperId) + 1,
@@ -81,6 +83,57 @@ describe("registered robot/combat integration", () => {
     expect(state.ext.combat!.attacks.some(attack => attack.id === started.id)).toBe(false);
     expect(robotsRuntimeOf(state)!.metadata.find(entry => entry.agentId === helperId)?.firmware).toBe("good");
     expect(robotsRuntimeOf(state)!.metadata.find(entry => entry.agentId === pusherId)?.mode).toBe("wary");
+  });
+
+  it("starts its one full combat clock only after previously denied capacity becomes available", () => {
+    let state = scene(35);
+    state.ext.robots!.protectedArea = true;
+    for (let count = 0; count < 25; count++) {
+      state = tick(state);
+      expect(state.ext.combat!.attacks.filter(attack => attack.kind === "forced-update")).toEqual([]);
+      expect(robotsRuntimeOf(state)!.brain.robots.find(entry => entry.agentId === pusherId)?.brain?.update).toBeNull();
+    }
+    state.ext.robots!.protectedArea = false;
+    state = tick(state);
+    const accepted = state.ext.combat!.attacks.find(attack => attack.kind === "forced-update")!;
+    expect(accepted.startTick).toBe(26);
+    expect(accepted.resolveTick).toBe(accepted.startTick + 360);
+    let conversions = 0;
+    while (state.tick < accepted.resolveTick) {
+      state = tick(state);
+      const fresh = state.ext.combat!.events.filter(event => event.kind === "robot.converted" && event.targetId === `agent:${helperId}`);
+      if (state.tick < accepted.resolveTick) expect(fresh).toEqual([]);
+      conversions += fresh.length;
+    }
+    expect(conversions).toBe(1);
+    state = tick(state);
+    expect(robotsRuntimeOf(state)!.metadata.find(entry => entry.agentId === helperId)?.convertedTick).toBe(accepted.resolveTick);
+  });
+
+  it("starts a fresh full combat clock after a real pending channel is interrupted and readmitted", () => {
+    let state = tick(scene(35));
+    const interrupted = state.ext.combat!.attacks.find(attack => attack.kind === "forced-update")!;
+    for (let count = 0; count < 20; count++) state = tick(state);
+    state.ext.combat!.targets[`agent:${pusherId}`] = { ...(state.ext.combat!.targets[`agent:${pusherId}`] ?? initialTarget()), stoppedUntil: state.tick + 2 };
+    state = tick(state);
+    expect(state.ext.combat!.events.filter(event => event.kind === "update.interrupted")).toHaveLength(1);
+    expect(state.ext.combat!.attacks.some(attack => attack.id === interrupted.id)).toBe(false);
+    let accepted = state.ext.combat!.attacks.find(attack => attack.kind === "forced-update");
+    for (let count = 0; count < 90 && !accepted; count++) {
+      state = tick(state);
+      accepted = state.ext.combat!.attacks.find(attack => attack.kind === "forced-update");
+    }
+    expect(accepted).toBeDefined();
+    expect(accepted!.id).not.toBe(interrupted.id);
+    expect(accepted!.resolveTick - accepted!.startTick).toBe(360);
+    let conversions = 0;
+    while (state.tick < accepted!.resolveTick) {
+      state = tick(state);
+      const fresh = state.ext.combat!.events.filter(event => event.kind === "robot.converted" && event.targetId === `agent:${helperId}`);
+      if (state.tick < accepted!.resolveTick) expect(fresh).toEqual([]);
+      conversions += fresh.length;
+    }
+    expect(conversions).toBe(1);
   });
 
   it("resumes a pending registered channel from a JSON snapshot without restarting its timer", () => {

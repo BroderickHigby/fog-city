@@ -1,6 +1,6 @@
 // Associates retain a person identity and use a separate, stable vehicle body.
 // The caller hides bound riders from independent collision and rendering.
-import { DT, sortedIds } from "../contract.ts";
+import { DT, TICK_HZ, sortedIds } from "../contract.ts";
 import { AGENT_SPEC, ROBOTAXI_BODY } from "../agents.ts";
 import { boxBlocked, boxCrossedWall } from "../collide.ts";
 import type { Circle } from "../collide.ts";
@@ -14,12 +14,20 @@ import type { World } from "../world.ts";
 import { isTransportRoad, planTransportRoadRoute } from "./recruit-transport.ts";
 import type { RecruitTaxiRoute } from "./recruit-transport.ts";
 import type { RuntimePhysicalBody } from "./runtime-state.ts";
+import { associateApproach } from "./routines.ts";
 
 export const MAX_ASSOCIATE_TRANSPORTS = 24;
+export const ASSOCIATE_OWNER_MEMORY_TICKS = 10 * TICK_HZ;
+export interface AssociateOwnerMemory {
+  readonly playerId: string; readonly x: number; readonly z: number;
+  readonly observedTick: number; readonly expiresTick: number;
+}
 export type AssociateTransportMode = "scooter" | "car";
 export interface AssociateTransportEntry {
   readonly id: string;
   readonly ownerId: string;
+  /** Only direct sight refreshes this bounded record; absence never reveals a live pose. */
+  readonly memory?: AssociateOwnerMemory | null;
   readonly mode: AssociateTransportMode;
   readonly phase: "approach" | "driving" | "parked";
   readonly route: RecruitTaxiRoute | null;
@@ -122,6 +130,17 @@ function roadEntry(world: World, body: RuntimePhysicalBody, mode: AssociateTrans
   return selected ? { x: selected.x, z: selected.z, heading: selected.heading } : null;
 }
 
+function observeOwner(context: SimSystemContext, self: RuntimePhysicalBody, playerId: string): { x: number; z: number } | null {
+  const player = context.state.players[playerId];
+  if (!player) return null;
+  const point = player.mode === "foot" && player.foot ? player.foot : player.car;
+  const motion = associateApproach({ id: self.id, kind: "person", x: self.x, y: self.y, z: self.z, heading: self.heading, speed: self.speed,
+    operational: self.operational !== false, firmware: "none" },
+    { id: playerId, kind: "player", x: point.x, y: point.y, z: point.z, heading: point.heading, speed: point.speed,
+      operational: true, firmware: "none", lineOfSight: !segmentBlocked(context.world, self.x, self.z, point.x, point.z) }, self.kind === "vehicle");
+  return motion.reason === "no-observed-founder" ? null : { x: point.x, z: point.z };
+}
+
 function descriptor(body: RuntimePhysicalBody, mounted: boolean): Partial<CombatActor> {
   return { kind: "person", firmware: "none", protected: mounted,
     posture: mounted ? "seated" : "standing", occupied: mounted, obeysTraffic: true,
@@ -162,7 +181,7 @@ function drive(world: World, body: RuntimePhysicalBody, entry: AssociateTranspor
 /** Current rider and vehicle poses are authoritative. Missing routes never move actors. */
 export function stepAssociateTransport(context: SimSystemContext, previous: AssociateTransportState, input: AssociateTransportInput): AssociateTransportResult {
   const tick = context.state.tick;
-  if (!Number.isSafeInteger(tick) || tick < 0 || tick > Number.MAX_SAFE_INTEGER - 60 || !Number.isSafeInteger(previous.lastTick) || previous.lastTick < -1 || tick < previous.lastTick || previous.version !== 1 ||
+  if (!Number.isSafeInteger(tick) || tick < 0 || tick > Number.MAX_SAFE_INTEGER - ASSOCIATE_OWNER_MEMORY_TICKS || !Number.isSafeInteger(previous.lastTick) || previous.lastTick < -1 || tick < previous.lastTick || previous.version !== 1 ||
     previous.entries.length > MAX_ASSOCIATE_TRANSPORTS || !Number.isSafeInteger(input.nextActorId) || input.nextActorId < 0 ||
     !Number.isSafeInteger(input.remainingCapacity) || input.remainingCapacity < 0 || !Number.isInteger(context.state.seed)) throw new RangeError("Invalid associate transport state");
   const bodyIds = new Set<string>(), numericIds = new Set<number>();
@@ -185,6 +204,9 @@ export function stepAssociateTransport(context: SimSystemContext, previous: Asso
       !Number.isSafeInteger(entry.nextPlanTick) || entry.nextPlanTick < 0 || !Number.isFinite(entry.speed) || entry.speed < 0 ||
       !Number.isFinite(entry.distanceM) || entry.distanceM < 0 || (entry.target && !finitePoint(entry.target)) ||
       (entry.entryPoint && (!finitePoint(entry.entryPoint) || !Number.isFinite(entry.entryPoint.heading))) ||
+      (entry.memory && (!entry.memory.playerId || entry.memory.playerId !== entry.ownerId || !finitePoint(entry.memory) ||
+        !Number.isSafeInteger(entry.memory.observedTick) || entry.memory.observedTick < 0 || entry.memory.observedTick > previous.lastTick ||
+        !Number.isSafeInteger(entry.memory.expiresTick) || entry.memory.expiresTick !== entry.memory.observedTick + ASSOCIATE_OWNER_MEMORY_TICKS)) ||
       (entry.route && (!Number.isFinite(entry.route.path.len) || entry.route.path.len < entry.distanceM || !Number.isFinite(entry.route.speedLimit) || entry.route.speedLimit <= 0 ||
       entry.route.path.xs.length < 1 || entry.route.path.xs.length > 4096 || entry.route.path.xs.length !== entry.route.path.zs.length ||
       entry.route.path.xs.length !== entry.route.path.cum.length || !entry.route.path.xs.every(Number.isFinite) ||
@@ -213,28 +235,42 @@ export function stepAssociateTransport(context: SimSystemContext, previous: Asso
     if (!ownerId) {
       let best = Infinity;
       for (const id of sortedIds(context.state.players)) {
-        const owner = context.state.players[id]!, point = owner.mode === "foot" && owner.foot ? owner.foot : owner.car, distance = gap(original, point);
+        const point = observeOwner(context, original, id);
+        if (!point) continue;
+        const distance = gap(original, point);
         if (distance < best) { ownerId = id; best = distance; }
       }
     }
     const mode: AssociateTransportMode = entry?.mode ?? (original.model === "associate-car" ? "car" : original.model === "associate-scooter" ? "scooter" : hash32(context.state.seed, stringHash(original.id)) % 2 === 0 ? "car" : "scooter");
-    entry ??= { id: original.id, ownerId, mode, phase: "approach", route: null, distanceM: 0, entryPoint: null, target: null, nextPlanTick: tick, speed: 0, body: original, vehicle: null, blocked: null };
+    entry ??= { id: original.id, ownerId, memory: null, mode, phase: "approach", route: null, distanceM: 0, entryPoint: null, target: null, nextPlanTick: tick, speed: 0, body: original, vehicle: null, blocked: null };
     const owner = context.state.players[ownerId];
     let rider = original, vehicle = entry.vehicle ? output.get(entry.vehicle.id) ?? entry.vehicle : null;
+    let memory = entry.memory?.playerId === ownerId ? entry.memory : null;
+    const observation = tick === previous.lastTick ? null : observeOwner(context, vehicle ?? rider, ownerId);
+    if (observation) memory = { playerId: ownerId, ...observation, observedTick: tick, expiresTick: tick + ASSOCIATE_OWNER_MEMORY_TICKS };
+    entry = { ...entry, memory };
+    const known = memory && tick < memory.expiresTick ? memory : null;
     if (vehicle) output.set(vehicle.id, vehicle);
     const ignored = new Set(hidden); ignored.add(original.id); if (vehicle) ignored.add(vehicle.id);
     const obstacles = obstacleCircles(context, output.values(), ignored, (vehicle ?? rider).y, Math.max(rider.height, dimensions(mode).height));
     let justMounted = false;
     if (tick === previous.lastTick) {
       rider = entry.body; vehicle = entry.vehicle;
-    } else if (original.dodge !== null) {
+    } else if (original.dodge !== null || vehicle?.dodge != null) {
       entry = { ...entry, ownerId, body: original, speed: 0, blocked: "dodge" };
-      if (vehicle) vehicle = { ...vehicle, speed: 0 };
+      if (vehicle) {
+        vehicle = { ...vehicle, speed: 0 };
+        if (original.dodge === null) rider = carry(rider, vehicle);
+      }
     } else if (!owner) {
       rider = { ...rider, speed: 0 }; if (vehicle) vehicle = { ...vehicle, speed: 0 };
-      entry = { ...entry, ownerId, speed: 0, blocked: "missing-owner" };
+      entry = { ...entry, ownerId, speed: 0, blocked: ownerId ? "missing-owner" : "owner-unobserved" };
+    } else if (!known) {
+      rider = { ...rider, speed: 0 }; if (vehicle) vehicle = { ...vehicle, speed: 0 };
+      entry = { ...entry, ownerId, route: null, target: null, speed: 0, phase: vehicle ? "parked" : "approach",
+        blocked: memory ? "owner-memory-expired" : "owner-unobserved" };
     } else {
-      const target = owner.mode === "foot" && owner.foot ? owner.foot : owner.car;
+      const target = known;
       if (vehicle && entry.route && gap(vehicle, pathPoint(entry.route.path, entry.distanceM)) > 0.05) {
         entry = { ...entry, phase: "parked", route: null, distanceM: 0, speed: 0, nextPlanTick: tick };
       }

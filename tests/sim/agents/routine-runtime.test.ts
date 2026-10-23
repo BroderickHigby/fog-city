@@ -129,6 +129,23 @@ describe("registered later-wave routine runtime", () => {
     expect(JSON.stringify({ ctx, previous })).toBe(source);
     expect(JSON.parse(JSON.stringify(one.state))).toEqual(one.state);
   });
+  it("advances existing travel plans without changing earlier frozen snapshots", () => {
+    let initial = start();
+    let frame = stepRoutineRuntime(context(initial), createRoutineRuntime(), options);
+    const patrol = frame.state.specials.find(special => special.role === "patrol")!;
+    initial = { ...initial, ext: { ...initial.ext, robots: { ...initial.ext.robots!,
+      locomotion: [{ agentId: patrol.body.numericId, intent: { kind: "errand", avoidFog: false } }] } } };
+    const snapshots: { state: typeof frame.state; json: string }[] = [];
+    for (let tick = 1; tick <= 120; tick++) {
+      const previous = freeze(frame.state);
+      snapshots.push({ state: previous, json: JSON.stringify(previous) });
+      frame = stepRoutineRuntime(context({ ...initial, tick }), previous,
+        { ...options, bodies: freeze(frame.bodies), nextActorId: frame.nextActorId });
+    }
+    expect(snapshots.some(snapshot => snapshot.state.specials.some(special => special.plan !== null))).toBe(true);
+    for (const snapshot of snapshots) expect(JSON.stringify(snapshot.state)).toBe(snapshot.json);
+    expect(JSON.parse(JSON.stringify(frame.state))).toEqual(frame.state);
+  });
   it("rejects duplicate body identities independent of input order", () => {
     const body: RuntimePhysicalBody = { id: "animal:1", numericId: 1, kind: "animal", model: "dog", x: 0, y: 0, z: 0, previousX: 0, previousZ: 0, heading: 0, previousHeading: 0, speed: 0, radius: 0.3, halfLength: 0.3, halfWidth: 0.3, height: 0.5, dodge: null };
     expect(() => stepRoutineRuntime(context(start()), createRoutineRuntime(), { ...options, bodies: [body, { ...body, x: 10 }] })).toThrow(/Duplicate/);

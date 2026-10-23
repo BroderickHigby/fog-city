@@ -211,6 +211,45 @@ describe("physical recruit transport", () => {
     expect(restored.restorationArrivals).toEqual([]);
   });
 
+  it.each([false, true])("does not reuse another recruit's taxi after safehouse displacement and a late restore ACK (old snapshot: %s)", (oldSnapshot) => {
+    const world = roads(), config: RecruitTransportInput = { ...input([{ ...onLane(world), firmware: "bad" }],
+      [request("restore-at-safehouse")], player("foot", 50, 160)), safehouses: [{ id: "garage", x: 30, z: 120, radiusM: 5 }] };
+    const first = stepRecruitTransport(world, createRecruitTransportState(), config), taxi = first.state.taxis[0]!;
+    // Start from an observed stopped dropoff pose, not a timer or a destination teleport.
+    const riding: RecruitTransportState = { ...first.state, jobs: [{ ...first.state.jobs[0]!, phase: "riding",
+      body: { ...first.state.jobs[0]!.body, x: taxi.body.x, y: taxi.body.y + 0.3, z: taxi.body.z },
+      parentVehicleId: taxi.body.id, seat: 0 }], taxis: [{ ...taxi, route: null, leg: "dropoff" }] };
+    const atHouse = { ...config, effects: [], nextActorId: first.nextActorId,
+      safehouses: [{ id: "garage", x: taxi.body.x, z: taxi.body.z, radiusM: 5 }] };
+    const arrived = stepRecruitTransport(world, riding, { ...atHouse, tick: 1, bodies: [riding.jobs[0]!.body, taxi.body] });
+    expect(arrived.state.jobs[0]).toMatchObject({ phase: "awaiting-restoration", taxiId: null, parentVehicleId: null });
+    expect(arrived.state.taxis[0]!.recruitId).toBeNull();
+    const second = robot("agent:2", taxi.body.x + 25, taxi.body.z);
+    const reused = stepRecruitTransport(world, arrived.state, { ...atHouse, tick: 2, bodies: [...arrived.bodies, second],
+      effects: [request("hail-taxi", second.id)], nextActorId: arrived.nextActorId });
+    expect(reused.state.taxis[0]!.recruitId).toBe(second.id);
+    expect(reused.state.jobs[1]!.taxiId).toBe(taxi.id);
+    // Old version-1 saves retained the released cab id; they must also recover safely.
+    const prior: RecruitTransportState = oldSnapshot ? { ...reused.state, jobs: reused.state.jobs.map(job =>
+      job.recruitId === "agent:1" ? { ...job, taxiId: taxi.id, phase: "pending" as const, restorationArrival: null } : job) } : reused.state;
+    const bodies = reused.bodies.map(body => body.id === "agent:1"
+      ? { ...body, x: taxi.body.x + 60, z: taxi.body.z, firmware: "good" as const } : body);
+    const snapshot = JSON.stringify(prior);
+    const nextInput = { ...atHouse, tick: 3, bodies, nextActorId: reused.nextActorId,
+      restoredEffectIds: [request("restore-at-safehouse").id] };
+    const displaced = stepRecruitTransport(world, prior, nextInput);
+    const oldJob = displaced.state.jobs[0]!, newJob = displaced.state.jobs[1]!;
+    expect(oldJob.parentVehicleId).toBeNull();
+    expect(oldJob.taxiId).not.toBe(taxi.id);
+    expect(newJob.taxiId).toBe(taxi.id);
+    expect(displaced.state.taxis.find(value => value.id === taxi.id)!.recruitId).toBe(second.id);
+    expect(displaced.effectAcks).toEqual([]);
+    expect(displaced.restorationArrivals).toEqual([]);
+    expect(displaced.observations["agent:1"]?.restored).not.toBe(true);
+    expect(stepRecruitTransport(world, JSON.parse(snapshot) as RecruitTransportState, nextInput)).toEqual(displaced);
+    expect(JSON.stringify(prior)).toBe(snapshot);
+  });
+
   it("does not invent a safehouse or move a backup while none is supplied", () => {
     const world = roads(), config = input([onLane(world)], [request("restore-at-safehouse")], player("foot"));
     const first = stepRecruitTransport(world, createRecruitTransportState(), config);
@@ -248,6 +287,57 @@ describe("physical recruit transport", () => {
     const oldTaxi = initial.state.taxis[0]!.body, taxi = a.state.taxis[0]!.body;
     expect(Math.sqrt((taxi.x - oldTaxi.x) ** 2 + (taxi.z - oldTaxi.z) ** 2)).toBeLessThanOrEqual(12 / 60);
     expect(a.effectAcks).toEqual([]);
+  });
+
+  it("keeps capacity-denied taxi requests pending and retries when a shared slot becomes free", () => {
+    const world = roads(), config = { ...input([onLane(world)], [request("hail-taxi")], player("foot", 180, 120)), remainingSignificantCapacity: 0 };
+    const denied = stepRecruitTransport(world, createRecruitTransportState(), config);
+    expect(denied.state.taxis).toEqual([]);
+    expect(denied.state.jobs[0]).toMatchObject({ phase: "pending", taxiId: null, blocked: "significant-capacity" });
+    expect(denied.nextActorId).toBe(config.nextActorId);
+    expect(denied.effectAcks).toEqual([]);
+    const admitted = stepRecruitTransport(world, denied.state, { ...config, tick: 1, effects: [], bodies: denied.bodies, remainingSignificantCapacity: 1 });
+    expect(admitted.state.taxis).toHaveLength(1);
+    expect(admitted.state.jobs[0]!.taxiId).toBe(config.nextActorId);
+    expect(admitted.effectAcks).toEqual([]);
+  });
+
+  it("shares new taxi slots deterministically and does not spend a slot on a failed spawn", () => {
+    const world = roads(), a = onLane(world), b = { ...onLane(world), id: "agent:2", numericId: 2, x: 80 };
+    const config = { ...input([a, b], [request("hail-taxi"), request("hail-taxi", b.id)], player("foot", 180, 120)), remainingSignificantCapacity: 1 };
+    const first = stepRecruitTransport(world, createRecruitTransportState(), config);
+    const reversed = stepRecruitTransport(world, createRecruitTransportState(), { ...config, bodies: [b, a], effects: [...config.effects].reverse() });
+    expect(reversed).toEqual(first);
+    expect(first.state.taxis).toHaveLength(1);
+    expect(first.state.jobs[0]!.taxiId).not.toBeNull();
+    expect(first.state.jobs[1]).toMatchObject({ taxiId: null, blocked: "significant-capacity" });
+    const failedFirst = stepRecruitTransport(world, createRecruitTransportState(), { ...config, bodies: [{ ...a, x: 5000, z: 5000 }, b] });
+    expect(failedFirst.state.jobs[0]!.taxiId).toBeNull();
+    expect(failedFirst.state.jobs[1]!.taxiId).not.toBeNull();
+    expect(failedFirst.state.taxis).toHaveLength(1);
+  });
+
+  it("honors assigned and idle taxis when no new significant slot is available", () => {
+    const world = roads(), config = input([onLane(world)], [request("hail-taxi")], player("foot", 180, 120));
+    const first = stepRecruitTransport(world, createRecruitTransportState(), { ...config, remainingSignificantCapacity: 1 });
+    const taxi = first.state.taxis[0]!;
+    const moved = stepRecruitTransport(world, first.state, { ...config, tick: 1, effects: [], bodies: first.bodies,
+      nextActorId: first.nextActorId, remainingSignificantCapacity: 0 });
+    expect(moved.state.taxis[0]!.distanceM).toBeGreaterThan(taxi.distanceM);
+    expect(moved.nextActorId).toBe(first.nextActorId);
+    const idle: RecruitTransportState = { ...first.state, jobs: [], taxis: [{ ...taxi, recruitId: null, route: null, leg: null }] };
+    const b = robot("agent:2", taxi.body.x + 25, taxi.body.z);
+    const reused = stepRecruitTransport(world, idle, { ...config, tick: 1, effects: [request("hail-taxi", b.id)], bodies: [b, taxi.body],
+      nextActorId: first.nextActorId, remainingSignificantCapacity: 0 });
+    expect(reused.state.taxis).toHaveLength(1);
+    expect(reused.state.jobs[0]!.taxiId).toBe(taxi.id);
+    expect(reused.nextActorId).toBe(first.nextActorId);
+  });
+
+  it("rejects malformed shared capacity before changing transport state", () => {
+    for (const capacity of [-1, 0.5, NaN, Infinity]) {
+      expect(() => stepRecruitTransport(roads(), createRecruitTransportState(), { ...input(), remainingSignificantCapacity: capacity })).toThrow(RangeError);
+    }
   });
 
   it("rejects non-finite inputs before storing invalid transport state", () => {

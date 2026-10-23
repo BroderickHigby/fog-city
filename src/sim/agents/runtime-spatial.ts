@@ -10,7 +10,7 @@ import type { SimSystemContext } from "../system-contract.ts";
 import { circleBlocked, meshGroundHeight, nearbyBuildings, segmentBlocked } from "../world.ts";
 import type { World } from "../world.ts";
 import type { RobotMovementIntent } from "../robots/brain.ts";
-import { MAX_AMBIENT_AGENTS, MAX_SIGNIFICANT_AGENTS, planFidelity } from "./fidelity.ts";
+import { MAX_AMBIENT_AGENTS, MAX_SIGNIFICANT_AGENTS, planFidelity, prepareFidelityAnchors } from "./fidelity.ts";
 import type { FidelityAnchor, FidelityDecision } from "./fidelity.ts";
 import { advanceSidewalkRoute, buildFallbackSidewalkGraph, buildSidewalkGraph, shortestSidewalkRoute } from "./navigation.ts";
 import type { SidewalkCursor, SidewalkEdge, SidewalkGraph, SidewalkGraphInput, SidewalkRoute, SidewalkTraversal } from "./navigation.ts";
@@ -23,6 +23,7 @@ export const MAX_RUNTIME_PIGEONS = 16;
 export const MAX_RUNTIME_DOGS = 8;
 export const RUNTIME_LEASH_M = 2.2;
 export const MAX_SIDEWALK_JOIN_M = 4;
+export const STUCK_RECOVERY_TICKS = 120;
 
 export interface RuntimeRobotMotion { readonly id: number; readonly movement: RobotMovementIntent }
 export interface SpatialVehicleBody {
@@ -46,6 +47,9 @@ export interface RuntimeWalkerTrack {
   readonly phaseTicks: number;
   readonly lastTick: number;
   readonly reaction: ReactionState;
+  /** Absent unless measured motion is blocked; old snapshots need no defaults. */
+  readonly stalledTicks?: number;
+  readonly recovery?: { readonly retryTick: number };
 }
 
 export interface RuntimeAnimal {
@@ -324,7 +328,7 @@ function nearestSidewalk(index: ProjectionIndex, actor: { x: number; z: number; 
 
 function initialTrack(index: ProjectionIndex, actor: AgentState, seed: number, tick: number): RuntimeWalkerTrack {
   const projection = nearestSidewalk(index, actor);
-  const base = { id: actor.id, goalKey: "", decisions: 0, phaseTicks: hash32(seed, actor.id) % 60, lastTick: tick, reaction: IDLE_REACTION };
+  const base = { id: actor.id, goalKey: "", decisions: 0, phaseTicks: actor.identitySeed === undefined ? hash32(seed, actor.id) % 60 : actor.identitySeed % 60, lastTick: tick, reaction: IDLE_REACTION };
   if (!projection || projection.distanceM > MAX_SIDEWALK_JOIN_M) return { ...base, route: null, cursor: { stepIndex: 0, distanceM: 0 }, joining: true };
   const { edge, reverse } = projection;
   const step = { edgeId: edge.id, from: reverse ? edge.b : edge.a, to: reverse ? edge.a : edge.b, reverse };
@@ -361,7 +365,7 @@ function nextErrand(graph: SidewalkGraph, track: RuntimeWalkerTrack, actor: Agen
   if (forward.length > 0) options = forward;
   options.sort((a, b) => compareId(a.edgeId, b.edgeId));
   if (options.length === 0) return track;
-  const step = options[hash32(actor.rng, actor.id, track.decisions) % options.length]!;
+  const step = options[hash32(actor.rng, actor.identitySeed ?? actor.id, track.decisions) % options.length]!;
   return { ...track, route: { nodeIds: [step.from, step.to], steps: [step], lengthM: graph.edgeById.get(step.edgeId)!.path.len },
     cursor: { stepIndex: 0, distanceM: 0 }, decisions: track.decisions + 1, goalKey: "errand" };
 }
@@ -369,8 +373,8 @@ function nextErrand(graph: SidewalkGraph, track: RuntimeWalkerTrack, actor: Agen
 function routeForIntent(world: World, graph: SidewalkGraph, track: RuntimeWalkerTrack, actor: AgentState, intent: RobotMovementIntent,
   radius: number, blocked: (edge: SidewalkEdge) => boolean): RuntimeWalkerTrack {
   if (!track.route || intent.kind === "hold" || intent.kind === "errand") return track;
-  const destination = intent.kind === "pursue" ? intent.destination : intent.toward;
-  let target = intent.kind === "pursue" ? nearestSidewalkNode(graph, destination ?? actor) ?? undefined : undefined;
+  const destination = (intent.kind === "pursue" || intent.kind === "repair") ? intent.destination : intent.toward;
+  let target = (intent.kind === "pursue" || intent.kind === "repair") ? nearestSidewalkNode(graph, destination ?? actor) ?? undefined : undefined;
   if (intent.kind === "flee") {
     let best = Infinity;
     for (const node of sidewalkNodesWithin(graph, actor, 100)) {
@@ -397,6 +401,52 @@ function limitedTarget(from: { x: number; z: number }, target: { x: number; z: n
   const length = distance(from, target);
   if (length <= maxDistance || length === 0) return { x: target.x, z: target.z };
   return { x: from.x + (target.x - from.x) * maxDistance / length, z: from.z + (target.z - from.z) * maxDistance / length };
+}
+
+function clearStall(track: RuntimeWalkerTrack): RuntimeWalkerTrack {
+  if (track.stalledTicks === undefined) return track;
+  const { stalledTicks: _stalled, ...rest } = track;
+  return rest;
+}
+function clearRecovery(track: RuntimeWalkerTrack): RuntimeWalkerTrack {
+  const clean = clearStall(track);
+  if (clean.recovery === undefined) return clean;
+  const { recovery: _recovery, ...rest } = clean;
+  return rest;
+}
+function observeProgress(track: RuntimeWalkerTrack, requested: boolean, moved: number, run: boolean,
+  cadence: number, eligible: boolean, tick: number): RuntimeWalkerTrack {
+  if (!eligible || moved > 1e-6 || !requested) return clearStall(track);
+  if (!run || track.recovery) return track;
+  const stalledTicks = Math.min(STUCK_RECOVERY_TICKS, (track.stalledTicks ?? 0) + (track.stalledTicks === undefined ? 1 : cadence));
+  const step = track.route?.steps[track.cursor.stepIndex];
+  return stalledTicks < STUCK_RECOVERY_TICKS || !step ? { ...track, stalledTicks } :
+    { ...clearStall(track), recovery: { retryTick: tick } };
+}
+
+/** Retreat only along the current connected edge; then route around the obstruction. */
+function recoverWalker(world: World, graph: SidewalkGraph, actor: AgentState, track: RuntimeWalkerTrack,
+  travel: number, vehicles: readonly SpatialVehicleBody[], blocked: (edge: SidewalkEdge) => boolean, tick: number):
+  { track: RuntimeWalkerTrack; target: { x: number; z: number } } {
+  const hold = { x: actor.x, z: actor.z }, recovery = track.recovery!;
+  const occupied = currentPoint(graph, track);
+  if (track.joining || !occupied || distance(actor, occupied) > 1e-4) return { track: clearRecovery(track), target: hold };
+  const step = track.route?.steps[track.cursor.stepIndex], edge = step && graph.edgeById.get(step.edgeId);
+  if (!step || !edge || !track.route) return { track: clearRecovery(track), target: hold };
+  const unavailable = (candidate: SidewalkEdge): boolean => blocked(candidate) || candidate.path.xs.some((x, index) => index > 0 &&
+    blockReason(world, { x: candidate.path.xs[index - 1]!, z: candidate.path.zs[index - 1]! },
+      { x, z: candidate.path.zs[index]! }, AGENT_SPEC[actor.kind].radius, vehicles) !== null);
+  if (!unavailable(edge)) return { track: clearRecovery(track), target: hold };
+  if (track.cursor.distanceM > 1e-6) {
+    const along = Math.max(0, track.cursor.distanceM - travel), point = pathPoint(edge.path, step.reverse ? edge.path.len - along : along);
+    if (blockReason(world, actor, point, AGENT_SPEC[actor.kind].radius, vehicles)) return { track, target: hold };
+    return { track: { ...track, cursor: { ...track.cursor, distanceM: along } }, target: point };
+  }
+  if (tick < recovery.retryTick) return { track, target: hold };
+  const goal = track.route.nodeIds[track.route.nodeIds.length - 1]!;
+  const route = shortestSidewalkRoute(graph, step.from, goal, (candidate) => candidate.id === edge.id || unavailable(candidate));
+  if (route) return { track: { ...clearRecovery(track), route, cursor: { stepIndex: 0, distanceM: 0 }, goalKey: "", decisions: track.decisions + 1 }, target: hold };
+  return { track: { ...track, recovery: { ...recovery, retryTick: Math.min(Number.MAX_SAFE_INTEGER, tick + 60) } }, target: hold };
 }
 
 function validTrack(graph: SidewalkGraph, track: RuntimeWalkerTrack): boolean {
@@ -444,7 +494,8 @@ function validateInput(input: RuntimeSpatialInput): void {
   }
   const finitePoint = (point: { x: number; z: number } | null): boolean => point === null || [point.x, point.z].every(Number.isFinite);
   for (const { movement } of input.robotIntents ?? []) {
-    if ((movement.kind === "pursue" && (!finitePoint(movement.destination) || !Number.isFinite(movement.stopDistance) || movement.stopDistance < 0)) ||
+    if (((movement.kind === "pursue" || movement.kind === "repair") && (!movement.destination || !finitePoint(movement.destination) || !Number.isFinite(movement.stopDistance) || movement.stopDistance < 0)) ||
+      (movement.kind === "repair" && (typeof movement.kioskId !== "string" || movement.kioskId.length === 0)) ||
       (movement.kind === "flee" && (!finitePoint(movement.from) || !finitePoint(movement.toward))) ||
       (movement.kind === "hold" && !finitePoint(movement.face))) throw new Error("Invalid robot spatial intent");
   }
@@ -462,6 +513,8 @@ function validateInput(input: RuntimeSpatialInput): void {
       !Number.isSafeInteger(track.reaction.untilTick) || track.reaction.untilTick < 0 || !finitePoint(track.reaction.source)) {
       throw new Error("Invalid spatial walker state");
     }
+    if ((track.stalledTicks !== undefined && (!Number.isSafeInteger(track.stalledTicks) || track.stalledTicks < 1 || track.stalledTicks > STUCK_RECOVERY_TICKS)) ||
+      (track.recovery && (!Number.isSafeInteger(track.recovery.retryTick) || track.recovery.retryTick < 0))) throw new Error("Invalid walker recovery state");
     trackIds.add(track.id);
   }
   const animalIds = new Set<string>();
@@ -484,6 +537,8 @@ function validateInput(input: RuntimeSpatialInput): void {
  */
 export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialResult {
   validateInput(input);
+  const anchors = prepareFidelityAnchors(input.anchors);
+  if (anchors !== input.anchors) input = { ...input, anchors };
   const graph = input.navigation ?? createSpatialNavigation(input.context.world);
   const vehicles = runtimeVehicles(input);
   const previousActors = new Map(agentsOf(input.context.previous).map((actor) => [actor.id, actor]));
@@ -530,6 +585,7 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
       track = { ...rejoined, phaseTicks: track.phaseTicks, decisions: track.decisions, reaction: track.reaction };
       point = currentPoint(graph, track);
     }
+    if (track.joining || fresh.has(actor.id) || !previousActors.has(actor.id)) track = clearRecovery(track);
     const fidelity = planFidelity({ id: String(actor.id), x: base.x, z: base.z, significant: significant.has(actor.id), phaseTicks: track.phaseTicks }, input.anchors, input.context.state.tick);
     if (track.route === null && (fidelity.tier === "full" || fidelity.tier === "active") &&
       input.context.state.tick % 60 === track.phaseTicks) {
@@ -538,27 +594,42 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
       point = currentPoint(graph, track);
     }
     if (dodging.has(actor.id) || actor.dodge !== null || base.dodge !== null || actor.mode === "dive" || actor.mode === "recover") {
-      nextTracks.push({ ...track, joining: true });
+      nextTracks.push({ ...clearRecovery(track), joining: true });
       metadata.push({ id: actor.id, fidelity: fidelity.tier, override: false, movedM: distance(base, actor), joining: true, blockedBy: null, reaction: track.reaction.mode });
       return actor;
     }
     const radius = AGENT_SPEC[actor.kind].radius;
+    const intent = intents.get(actor.id) ?? { kind: "errand" as const, avoidFog: false };
     if (fidelity.tier === "abstract") {
       let target = { x: base.x, z: base.z };
       const elapsed = Math.max(DT, (input.context.state.tick - track.lastTick) * DT);
       const beforeAbstract = track;
       let blockedBy: SpatialBlock = null;
-      if (fidelity.run && track.route && !track.joining) {
-        const blocked = (edge: SidewalkEdge): boolean => edgeBlocked(edge, radius, false, true);
+      const wasRecovering = track.recovery !== undefined;
+      const blocked = (edge: SidewalkEdge): boolean => edgeBlocked(edge, radius, intent.avoidFog, true);
+      const stop = (intent.kind === "pursue" || intent.kind === "repair") && distance(base, intent.destination) <= intent.stopDistance;
+      if (fidelity.run && !wasRecovering && !track.joining && intent.kind !== "hold" && intent.kind !== "errand") {
+        track = routeForIntent(input.context.world, graph, track, base, intent, radius, blocked);
+      }
+      const requested = intent.kind !== "hold" && !stop && actor.vmax > 0 && track.route !== null && !track.joining &&
+        (track.cursor.stepIndex < track.route.steps.length || intent.kind === "errand");
+      if (stop || intent.kind === "hold" || actor.vmax <= 0 || track.joining) {
+        track = { ...clearRecovery(track), lastTick: input.context.state.tick };
+      }
+      if (fidelity.run && wasRecovering && requested) {
+        const recovered = recoverWalker(input.context.world, graph, base, track, Math.max(0, actor.vmax) * elapsed, staticVehicles,
+          blocked, input.context.state.tick);
+        track = { ...recovered.track, lastTick: input.context.state.tick }; target = recovered.target;
+      } else if (fidelity.run && requested && !wasRecovering && track.route) {
         let remaining = Math.max(0, actor.vmax) * elapsed;
         for (let hop = 0; hop < 64 && remaining > 1e-9; hop++) {
-          track = nextErrand(graph, track, actor, blocked);
+          if (intent.kind === "errand") track = nextErrand(graph, track, actor, blocked);
           if (track.cursor.stepIndex === track.route!.steps.length) break;
-          const advanced = advanceSidewalkRoute(graph, track.route!, track.cursor, remaining, (edge) => blocked(edge));
+          const advanced = advanceSidewalkRoute(graph, track.route!, track.cursor, remaining, blocked);
           target = advanced.point;
           remaining -= advanced.movedM;
           track = { ...track, cursor: advanced.cursor };
-          if (!advanced.finished || advanced.blockedEdgeId !== null) break;
+          if (!advanced.finished || advanced.blockedEdgeId !== null || intent.kind !== "errand") break;
         }
         track = { ...track, lastTick: input.context.state.tick };
       }
@@ -569,27 +640,43 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
           track = { ...beforeAbstract, lastTick: input.context.state.tick };
         }
       }
+      if (blockedBy === "leash") track = clearRecovery(track);
+      track = observeProgress(track, requested && !wasRecovering, distance(base, target), fidelity.run, fidelity.cadenceTicks,
+        intent.kind !== "hold" && blockedBy !== "leash" && previousActors.has(actor.id) && !fresh.has(actor.id), input.context.state.tick);
       const output = { ...actorWithPose(actor, base, target, graph, track, blockedBy, elapsed), y: meshGroundHeight(input.context.world, target.x, target.z) };
       nextTracks.push(track);
       metadata.push({ id: actor.id, fidelity: "abstract", override: distance(actor, output) > 1e-7,
         movedM: distance(base, output), joining: track.joining, blockedBy, reaction: track.reaction.mode });
       return output;
     }
-    const intent = intents.get(actor.id) ?? { kind: "errand" as const, avoidFog: false };
     const blockedEdge = (edge: SidewalkEdge): boolean => edgeBlocked(edge, radius, intent.avoidFog, false);
     let target: { x: number; z: number } = base;
     let proposedTrack = track;
     let blockedBy: SpatialBlock = null;
-    if (track.route && point && fidelity.tier !== "despawn") {
+    let requestedMotion = false;
+    const wasRecovering = track.recovery !== undefined;
+    const atIntentGoal = (intent.kind === "pursue" || intent.kind === "repair") && distance(base, intent.destination) <= intent.stopDistance;
+    if (wasRecovering && atIntentGoal) proposedTrack = clearRecovery(track);
+    else if (wasRecovering) {
+      const allowed = intent.kind !== "hold" && actor.vmax > 0 && fidelity.run &&
+        (intent.kind !== "errand" || track.reaction.untilTick <= input.context.state.tick || track.reaction.mode === "idle");
+      if (allowed) {
+        const recovered = recoverWalker(input.context.world, graph, base, track, Math.max(0, actor.vmax) * DT, vehicles, blockedEdge, input.context.state.tick);
+        target = recovered.target; proposedTrack = recovered.track;
+      }
+    } else if (track.route && point && fidelity.tier !== "despawn") {
       if (track.joining) {
+        requestedMotion = actor.vmax > 0 && distance(base, point) > 1e-6;
         const safeSnap = fresh.has(actor.id) && !previousActors.has(actor.id) && !blockReason(input.context.world, base, point, radius, vehicles);
         target = safeSnap ? point : limitedTarget(base, point, Math.max(0, actor.vmax) * DT);
         proposedTrack = { ...track, joining: distance(target, point) > 1e-6 };
       } else if (intent.kind !== "hold") {
         track = intent.kind === "errand" ? nextErrand(graph, track, actor, blockedEdge) : routeForIntent(input.context.world, graph, track, base, intent, radius, blockedEdge);
-        const stop = intent.kind === "pursue" && distance(base, intent.destination) <= intent.stopDistance;
+        const stop = (intent.kind === "pursue" || intent.kind === "repair") && distance(base, intent.destination) <= intent.stopDistance;
         const travelBudget = stop ? 0 : intent.kind === "errand" ? Math.min(distance(base, actor), Math.max(0, actor.vmax) * DT) : Math.max(0, actor.vmax) * DT;
+        requestedMotion = !stop && actor.vmax > 0 && (travelBudget > 1e-6 || intent.kind === "errand" && actor.mode === "go");
         if (track.route) {
+          requestedMotion &&= track.cursor.stepIndex < track.route.steps.length;
           const advanced = advanceSidewalkRoute(graph, track.route, track.cursor, travelBudget, (edge) => blockedEdge(edge));
           target = advanced.point;
           if (advanced.blockedEdgeId) blockedBy = "crosswalk";
@@ -598,20 +685,21 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
       }
     } else if (!track.route && fidelity.tier !== "despawn" && intent.kind === "errand") {
       target = actor;
+      requestedMotion = distance(base, actor) > 1e-6;
     }
     // Ordinary errands may react to sensed activity. A hold, pursuit or flee intent
     // remains authoritative, including a hold imposed by combat.
     const allowReaction = intent.kind === "errand";
     const stimuli = fidelity.run && allowReaction ? perceptions(input, base, vehicles) : [];
     const reaction = reactToPerception({ actor: { id: String(actor.id), kind: actor.kind === "person" ? "person" : "good-robot", x: base.x, z: base.z, wet: false,
-      child: actor.kind === "person" && personIsChild(actor.id) },
+      child: actor.kind === "person" && personIsChild(actor.id, actor.identitySeed) },
       state: track.reaction, stimuli, tick: input.context.state.tick, dodgeOverrideActive: false,
       routineVelocity: { vx: (target.x - base.x) / DT, vz: (target.z - base.z) / DT } });
     if (allowReaction) {
       const reacted = { x: base.x + reaction.movement.vx * DT, z: base.z + reaction.movement.vz * DT };
       if (distance(reacted, target) > 1e-6) {
         // Clamp only a changed reaction: the original target may be an authorized fresh snap.
-        proposedTrack = { ...track, joining: true };
+        proposedTrack = { ...clearRecovery(track), joining: true };
         target = limitedTarget(base, reacted, Math.max(0, actor.vmax) * DT);
       }
     }
@@ -624,6 +712,11 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
         target = base; blockedBy = "leash"; proposedTrack = { ...track, reaction: reaction.state };
       }
     }
+    const intentionalHold = intent.kind === "hold" || actor.vmax <= 0 || blockedBy === "leash" ||
+      (allowReaction && reaction.state.mode !== "idle" && reaction.state.untilTick > input.context.state.tick);
+    if (intentionalHold) proposedTrack = clearRecovery(proposedTrack);
+    proposedTrack = observeProgress(proposedTrack, requestedMotion && !wasRecovering, distance(base, target), fidelity.run, fidelity.cadenceTicks,
+      !intentionalHold && previousActors.has(actor.id) && !fresh.has(actor.id), input.context.state.tick);
     // Preserve the exact incoming object for a legal legacy move, not a second projection step.
     const override = distance(target, actor) > 1e-7;
     const output = override ? actorWithPose(actor, base, target, graph, proposedTrack, blockedBy) : actor;

@@ -106,7 +106,7 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
       gateWorld(world);
       const files = loadWorldFiles(world);
       const t0 = performance.now();
-      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined), {
+      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined, files.transit ?? undefined), {
         ticks,
         checkpointEvery: EVERY,
         seed: SEED,

@@ -6,9 +6,10 @@ import { AGENT_SPEC, agentsOf, rejoinAt, type AgentState } from "../agents.ts";
 import type { JsonObject } from "../extensions.ts";
 import { createRoutineRuntime, stepRoutineRuntime, type RoutineRuntimeState, type RoutineRuntimeStep } from "./routine-runtime.ts";
 import { agentRuntimeSession, runtimeRestoreSafehouses } from "./runtime-state.ts";
+import { runtimeReputations } from "./runtime-economy.ts";
 import { agentRuntimeSystem, agentsRuntimeOf, runtimeCombatActors, type AgentRuntimeData } from "./runtime-system.ts";
 import type { ThreatSpawnRequest } from "../gameplay-contract.ts";
-import type { RobotRuntimeMetadata } from "../robots/runtime-system.ts";
+import { robotMetadata } from "../robots/metadata.ts";
 import { movementLimit } from "../combat/system.ts";
 import { createRecruitTransportState, stepRecruitTransport, type RecruitTransportState } from "./recruit-transport.ts";
 import type { RuntimePhysicalBody } from "./runtime-state.ts";
@@ -61,8 +62,7 @@ export function runtimePlayerMotion(state: Readonly<SimState>, id: string, input
 
 function observedActors(context: SimSystemContext): CombatActor[] {
   const metadata: Record<string, Partial<CombatActor>> = {};
-  const robots = context.previous.ext.robots as unknown as { metadata?: RobotRuntimeMetadata[] } | undefined;
-  for (const item of robots?.metadata ?? []) metadata[item.actorId] = { firmware: item.firmware };
+  for (const item of robotMetadata(context.previous)) metadata[item.actorId] = { firmware: item.firmware };
   return [...contextFromState(context.world, context.state, { actorMetadata: metadata, extraActors: runtimeCombatActors(context.state) }).actors];
 }
 
@@ -104,16 +104,21 @@ export const completeAgentRuntimeSystem: SimSystem = {
     const routineState = prior?.routines ?? createRoutineRuntime(context.previous.tick);
     const legacy = new Map([...base.ext.agents!.list, ...(prior?.boundLegacyActors ?? [])].map(actor => [actor.id, actor]));
     const restoreSafehouses = runtimeRestoreSafehouses(base);
-    const previousMetadata = context.previous.ext.robots?.metadata;
-    const metadata = Array.isArray(previousMetadata) ? previousMetadata as unknown as RobotRuntimeMetadata[] : [];
+    const metadata = robotMetadata(context.previous);
+    const metadataById = new Map(metadata.map(item => [item.actorId, item]));
     const restored = context.previous.ext.robots?.restoredAgentIds;
     const legacyFirmware = (actor: AgentState): RuntimePhysicalBody["firmware"] => actor.kind === "person" ? "none" :
-      Array.isArray(restored) && restored.includes(actor.id) ? "good" : metadata.find(item => item.actorId === `agent:${actor.id}`)?.firmware;
+      Array.isArray(restored) && restored.includes(actor.id) ? "good" : metadataById.get(`agent:${actor.id}`)?.firmware;
+    const transportCapacity = session.ambientMode === "squares-v1"
+      ? Math.max(0, 2000 - data.population.significant - (data.population.reservedVanUnits ?? 0) - data.population.ambient)
+      : undefined;
     const transport = stepRecruitTransport(context.world, prior?.transport ?? createRecruitTransportState(), {
       tick: base.tick, players: base.players, bodies: [...data.bodies, ...[...legacy.values()].map(actor => legacyBody(actor, legacyFirmware(actor)))],
       effects: prior?.routines?.pendingEffects ?? [], nextActorId: base.ext.agents!.nextId,
       safehouses: restoreSafehouses, restoredEffectIds: prior?.effectState?.acks ?? [],
+      ...(transportCapacity !== undefined ? { remainingSignificantCapacity: transportCapacity } : {}),
     });
+    const addedTaxis = Math.max(0, transport.state.taxis.length - (prior?.transport?.taxis.length ?? 0));
     const bound = new Set(transport.state.jobs.filter(job => job.parentVehicleId !== null).map(job => job.recruitId));
     const transportedLegacy = new Map<number, AgentState>();
     const extraBodies: RuntimePhysicalBody[] = [];
@@ -135,19 +140,22 @@ export const completeAgentRuntimeSystem: SimSystem = {
       list: [...transportedLegacy.values()].sort((a, b) => a.id - b.id), runtime: transportData };
     const transported = { ...base, ext: { ...base.ext, agents: transportAgents } };
     const nextContext = { ...context, state: transported };
-    const rawRobots = context.previous.ext.robots as unknown as { metadata?: RobotRuntimeMetadata[]; reputations?: Record<string, number> } | undefined;
+    const rawRobots = context.previous.ext.robots as unknown as { reputations?: Record<string, number> } | undefined;
     const offers: Record<string, { playerId: string; offeredTick: number }> = {};
-    for (const item of rawRobots?.metadata ?? []) if (item.recruitOffer) offers[item.actorId] = item.recruitOffer;
+    for (const item of metadata) if (item.recruitOffer) offers[item.actorId] = item.recruitOffer;
     const result = stepRoutineRuntime(nextContext, routineState, {
       bodies: extraBodies, actors: observedActors(nextContext), nextActorId: transport.nextActorId,
-      reputations: rawRobots?.reputations ?? {}, recruitOffers: offers,
-      convertedIds: (rawRobots?.metadata ?? []).filter(item => item.convertedTick !== null).map(item => item.actorId),
+      reputations: runtimeReputations(context.previous, rawRobots?.reputations), recruitOffers: offers,
+      convertedIds: metadata.filter(item => item.convertedTick !== null).map(item => item.actorId),
       threatRequests: threatRequests(nextContext),
       effectAcks: [...(prior?.effectState?.acks ?? []), ...transport.effectAcks],
       recruitObservations: transport.observations,
       boundActorIds: [...bound], carriedBodies: transport.bodies.filter(body => bound.has(body.id)),
       conferenceCenter: { ...CONVENTION_CENTER, y: meshGroundHeight(context.world, CONVENTION_CENTER.x, CONVENTION_CENTER.z) },
-      remainingSignificantCapacity: Math.max(0, 2000 - data.population.significant - (data.population.reservedVanUnits ?? 0)),
+      // Square-spawned ambient bodies already reserve their eventual promotion slots.
+      // Later routine births must not consume those slots before this tick's combat.
+      remainingSignificantCapacity: Math.max(0, 2000 - data.population.significant - (data.population.reservedVanUnits ?? 0) - addedTaxis
+        - (session.ambientMode === "squares-v1" ? data.population.ambient : 0)),
     });
     // Calendar holds can undo only this tick's ordinary movement; final clearance still runs.
     const previousActors = new Map(agentsOf(context.previous).map(actor => [actor.id, actor]));

@@ -30,7 +30,8 @@ test("native 1080p runtime asset contact sheet", async ({ page }) => {
     const make = (kind: string) => ({ id: kind, kind, x: 0, y: 0, z: 0, heading: 0.35, speed: 1,
       mode: kind === "parrot" ? "fly" : "active", emote: kind === "footman" ? "wave" : "none" });
     layer.update({ actors: kinds.map(make) }, 180);
-    await Promise.all(["bus", "van", "robotaxi", "dog", "pigeon"].map(kind => registry.get("runtime:" + kind)));
+    await Promise.all(["bus", "van", "robotaxi", "dog", "pigeon", "heap"].map(kind => registry.get("runtime:" + kind)));
+    await Promise.all([registry.get("robot"), registry.get("sidewalk-bot")]);
     const stats: { kind: string; fileKinds: string[] }[] = [];
     for (let index = 0; index < kinds.length; index++) {
       const kind = kinds[index]!;
@@ -38,14 +39,22 @@ test("native 1080p runtime asset contact sheet", async ({ page }) => {
       layer.group.updateMatrixWorld(true);
       const bounds = new THREE.Box3();
       for (const child of layer.group.children) if (child.isInstancedMesh && child.visible) {
-        child.computeBoundingBox();
-        if (child.boundingBox) bounds.union(child.boundingBox.clone().applyMatrix4(child.matrixWorld));
+        // Packed joints are applied in the vertex shader, so raw geometry bounds omit
+        // their pivots. Fit the rest-pose vertices, then leave room for animation.
+        const positions = child.geometry.getAttribute("position"), joints = child.geometry.getAttribute("fcJoint");
+        const matrix = new THREE.Matrix4(), point = new THREE.Vector3(); child.getMatrixAt(0, matrix);
+        matrix.premultiply(child.matrixWorld);
+        for (let vertex = 0; vertex < positions.count; vertex++) {
+          point.fromBufferAttribute(positions, vertex);
+          if (joints) point.add(new THREE.Vector3(joints.getX(vertex), joints.getY(vertex), joints.getZ(vertex)));
+          bounds.expandByPoint(point.applyMatrix4(matrix));
+        }
       }
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
       const radius = Math.max(size.y, size.x / (480 / 216), size.z, 0.5) * 0.75;
       const camera = new THREE.OrthographicCamera(-radius * 480 / 216, radius * 480 / 216, radius, -radius, 0.01, radius * 30 + 10);
-      camera.position.copy(center).add(new THREE.Vector3(radius * 2.1, radius * 1.0, radius * 2.8)); camera.lookAt(center);
+      camera.position.copy(center).add(new THREE.Vector3(radius * 2.1, radius * 0.8, -radius * 2.8)); camera.lookAt(center);
       const col = index % 4, row = Math.floor(index / 4), y = 1080 - (row + 1) * 216;
       renderer.setViewport(col * 480, y, 480, 216); renderer.setScissor(col * 480, y, 480, 216);
       renderer.render(scene, camera);
@@ -56,7 +65,7 @@ test("native 1080p runtime asset contact sheet", async ({ page }) => {
   });
   expect(result.width).toBe(1920); expect(result.height).toBe(1080);
   expect(problems).toEqual([]);
-  for (const kind of ["bus", "van", "robotaxi", "dog", "pigeon"]) expect(result.stats.find(item => item.kind === kind)?.fileKinds).toContain(kind);
+  for (const kind of ["bus", "van", "robotaxi", "dog", "pigeon", "footman", "trundle", "sign-spinner", "heap"]) expect(result.stats.find(item => item.kind === kind)?.fileKinds).toContain(kind);
   mkdirSync(OUTPUT, { recursive: true });
   writeFileSync(join(OUTPUT, "runtime-gallery.json"), JSON.stringify(result, null, 2));
   await page.screenshot({ path: join(OUTPUT, "runtime-gallery-1080p.png") });

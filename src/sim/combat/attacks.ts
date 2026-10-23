@@ -1,4 +1,5 @@
 import { DT, FIDELITY_RADIUS, emit, initialTarget, newlyPressed, playerById } from "./shared.ts";
+import { createConversionScopeLedger } from "./conversion-scopes.ts";
 import type {
   AttackKind, AttackRequest, CombatActor, CombatContext, CombatInputs, CombatPlayer,
   CombatState, PendingAttack, RobotModel, TargetCombat, Vec3,
@@ -149,9 +150,30 @@ function finish(state: CombatState, attack: PendingAttack, reason: string, cance
  */
 export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: CombatInputs): void {
   const converted = new Set(state.events.filter(event => event.tick === state.tick && event.kind === ATTACK_EVENT.converted).map(event => event.targetId));
-  const baseBad = ctx.actors.filter(actor => actor.kind === "robot" && actor.firmware === "bad" && inFidelity(actor, ctx)).length;
+  const scopeLedger = createConversionScopeLedger(ctx.actors, ctx.conversionScopes);
+  const badIds = new Set(ctx.actors.filter(actor => actor.kind === "robot" && actor.firmware === "bad" && inFidelity(actor, ctx) &&
+    (!scopeLedger || scopeLedger.contains(actor.id))).map(actor => actor.id));
+  const baseBad = badIds.size;
   const cap = Number.isFinite(ctx.conversionCap) ? Math.max(0, Math.floor(ctx.conversionCap!)) : baseBad;
-  const canConvert = (targetId: string): boolean => !converted.has(targetId) && baseBad + converted.size < cap;
+  const reserved = new Set<string>();
+  let reservedNew = 0;
+  const reserveConversion = (targetId: string): void => {
+    if (!reserved.has(targetId)) {
+      reserved.add(targetId);
+      if (!badIds.has(targetId)) reservedNew++;
+    }
+    scopeLedger?.reserve(targetId);
+  };
+  const releaseConversion = (targetId: string): void => {
+    // A completed conversion still consumes capacity until the end of this tick.
+    if (converted.has(targetId)) return;
+    if (reserved.delete(targetId) && !badIds.has(targetId)) reservedNew--;
+    scopeLedger?.release(targetId);
+  };
+  if (scopeLedger) for (const targetId of [...converted].sort()) reserveConversion(targetId);
+  const canConvert = (targetId: string): boolean => scopeLedger ?
+    !reserved.has(targetId) && baseBad + reservedNew < cap && scopeLedger.allows(targetId) :
+    !converted.has(targetId) && baseBad + converted.size < cap;
   const retained: PendingAttack[] = [];
 
   for (const attack of [...state.attacks].sort(compare)) {
@@ -164,9 +186,15 @@ export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: Comb
       }
       retained.push(attack); continue;
     }
+    // Rebuild admissions from the current scopes in canonical order every tick.
+    // Reserve before validating the pair, then release an interrupted channel so
+    // a later valid channel or request can use that same slot immediately.
+    const scopedReservation = !!scopeLedger && attack.kind === "forced-update" && canConvert(attack.targetId);
+    if (scopedReservation) reserveConversion(attack.targetId);
     const pair = pairFor(state, ctx, attack);
     if (!pair || attack.kind === "phone-hack" && targetState(state, attack.attackerId).lastWaterTick >= attack.startTick ||
-        attack.kind === "forced-update" && !canConvert(attack.targetId)) {
+        attack.kind === "forced-update" && (scopeLedger ? !scopedReservation : !canConvert(attack.targetId))) {
+      if (scopedReservation) releaseConversion(attack.targetId);
       finish(state, attack, "interrupted", true); continue;
     }
     if (attack.active) {
@@ -226,6 +254,7 @@ export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: Comb
     const windup = Math.ceil(spec.windup * (Number.isFinite(scale) ? Math.max(1, Math.min(4, scale)) : 1));
     const resolveTick = state.tick + windup;
     const targetId = pair.target.player?.id ?? request.targetId;
+    if (scopeLedger && request.kind === "forced-update") reserveConversion(targetId);
     state.attacks.push({ id: request.id, kind: request.kind, attackerId: request.attackerId, targetId,
       startTick: state.tick, resolveTick, endTick: resolveTick + (request.kind === "ad-blast" ? AD_POPUP_TICKS : request.kind === "handshake" ? HANDSHAKE_TICKS : 0), presses: 0, active: false });
     emit(state, ATTACK_EVENT.windup, request.attackerId, targetId, windup, request.kind);

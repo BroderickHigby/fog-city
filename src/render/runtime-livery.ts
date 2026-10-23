@@ -22,6 +22,8 @@ const GLYPHS: Readonly<Record<string, readonly (readonly number[])[]>> = {
   Y: [[0, 0, 3, 4, 6, 0], [3, 4, 3, 8]],
   ".": [[3, 7.9, 3, 8]],
 };
+/** Original outline strokes shared by native livery and close-range geometric signs. */
+export function runtimeLetterStrokes(letter: string): readonly (readonly number[])[] { return GLYPHS[letter] ?? []; }
 type Ink = readonly [number, number, number];
 
 /** Native rasterization keeps the small legal line and large brand strokes equally crisp. */

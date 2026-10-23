@@ -34,7 +34,7 @@ const LIMIT = 1.2;
 const S = await import(join(root, "src/sim/index.ts"));
 const H = await import(join(root, "tests/helpers.ts"));
 const files = H.loadWorldFiles("sf");
-const world = S.buildWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined);
+const world = S.buildWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined, files.transit ?? undefined);
 const spawn = files.manifest.spawn as { x: number; z: number; heading: number };
 
 const PLACES: Array<{ x: number; z: number; heading: number }> = [

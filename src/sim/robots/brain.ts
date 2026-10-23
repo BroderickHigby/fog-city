@@ -99,6 +99,7 @@ export type RobotMovementIntent =
   | { readonly kind: "errand"; readonly avoidFog: boolean }
   | { readonly kind: "hold"; readonly face: BrainPoint | null; readonly avoidFog: boolean }
   | { readonly kind: "pursue"; readonly target: BrainTarget; readonly destination: BrainPoint; readonly stopDistance: number; readonly avoidFog: boolean }
+  | { readonly kind: "repair"; readonly kioskId: string; readonly destination: BrainPoint; readonly stopDistance: number; readonly avoidFog: boolean }
   | { readonly kind: "flee"; readonly from: BrainPoint | null; readonly toward: BrainPoint | null; readonly avoidFog: boolean };
 export type RobotActionIntent =
   | { readonly kind: "none" }

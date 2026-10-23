@@ -72,6 +72,8 @@ export interface RecruitTransportInput {
   readonly bodies: readonly RuntimePhysicalBody[];
   readonly effects: readonly RoutineRuntimeEffect[];
   readonly nextActorId: number;
+  /** Free shared significant slots for new taxis; existing vehicles never consume this budget. */
+  readonly remainingSignificantCapacity?: number;
   readonly safehouses?: readonly RecruitSafehouse[];
   /** Only the effect dispatcher supplies these after resetting combat and firmware. */
   readonly restoredEffectIds?: readonly string[];
@@ -327,7 +329,8 @@ function restorationArrival(job: RecruitTransportJob): RecruitRestorationArrival
 /** No route, seat, pickup, safehouse or safe exit means a bounded pending job and no ack. */
 export function stepRecruitTransport(world: World, previous: RecruitTransportState, input: RecruitTransportInput): RecruitTransportResult {
   if (!natural(input.tick) || !Number.isSafeInteger(previous.lastTick) || previous.lastTick < -1 ||
-    input.tick < previous.lastTick || !natural(input.nextActorId) || previous.version !== 1 ||
+    input.tick < previous.lastTick || !natural(input.nextActorId) ||
+    (input.remainingSignificantCapacity !== undefined && !natural(input.remainingSignificantCapacity)) || previous.version !== 1 ||
     previous.jobs.length > MAX_RECRUIT_TRANSPORT_JOBS || previous.taxis.length > MAX_RECRUIT_TAXIS || previous.receipts.length > MAX_RECEIPTS) throw new RangeError("Invalid recruit transport state or tick");
   const inputBodies = new Map<string, RuntimePhysicalBody>();
   const finiteBody = (body: RuntimePhysicalBody): boolean => finitePoint(body) && natural(body.numericId) &&
@@ -366,6 +369,7 @@ export function stepRecruitTransport(world: World, previous: RecruitTransportSta
   for (const house of safehouses) if (!finitePoint(house) || !house.id || (house.radiusM !== undefined && (!Number.isFinite(house.radiusM) || house.radiusM < 1 || house.radiusM > 30))) throw new RangeError("Invalid recruit safehouse");
   let nextActorId = Math.max(input.nextActorId, ...previous.taxis.map((taxi) => taxi.id + 1), ...input.bodies.map((body) => body.numericId + 1));
   if (input.tick === previous.lastTick) return result(previous, input, nextActorId, []);
+  let birthCapacity = input.remainingSignificantCapacity ?? MAX_RECRUIT_TAXIS;
   const jobs = new Map(previous.jobs.map((job) => [job.recruitId, { ...job, restorationArrival: job.restorationArrival ?? null, body: inputBodies.get(job.recruitId) ?? job.body }]));
   const taxis = previous.taxis.map((taxi) => {
     const body = inputBodies.get(taxi.body.id) ?? taxi.body;
@@ -458,30 +462,37 @@ export function stepRecruitTransport(world: World, previous: RecruitTransportSta
           }
           jobs.set(id, job); continue;
         }
-        job = { ...job, phase: "pending", restorationArrival: null, blocked: null };
+        job = { ...job, phase: "pending", taxiId: null, restorationArrival: null, blocked: null };
       }
       if (job.parentVehicleId === null && distance(job.body, house) <= radius && !circleBlocked(world, job.body.x, job.body.z, job.body.radius)) {
         job = { ...job, phase: "awaiting-restoration", restorationArrival: restorationArrival(job), blocked: "awaiting-restoration" };
         jobs.set(id, job); continue;
       }
     } else target = player.mode === "foot" && player.foot ? player.foot : player.car;
-    let taxiIndex = taxis.findIndex((taxi) => taxi.id === job.taxiId);
+    let taxiIndex = taxis.findIndex((taxi) => taxi.id === job.taxiId && taxi.recruitId === job.recruitId);
+    if (taxiIndex < 0 && job.parentVehicleId !== null) {
+      jobs.set(id, { ...job, blocked: "taxi-ownership-changed" }); diagnostics.push(`${id}:taxi-ownership-changed`); continue;
+    }
     if (taxiIndex < 0) {
+      job = { ...job, taxiId: null };
       // A blocked request stays live, but expensive world routing is retried on a
       // deterministic per-recruit phase rather than once for every rendered tick.
-      if (job.blocked !== null && (input.tick + job.body.numericId) % 60 !== 0) {
+      if (job.blocked !== null && job.blocked !== "significant-capacity" && (input.tick + job.body.numericId) % 60 !== 0) {
         jobs.set(id, job); diagnostics.push(`${id}:${job.blocked}`); continue;
+      }
+      if (birthCapacity === 0 && !taxis.some(taxi => taxi.recruitId === null)) {
+        jobs.set(id, { ...job, blocked: "significant-capacity" }); diagnostics.push(`${id}:significant-capacity`); continue;
       }
       const idleIndex = taxis.findIndex((taxi) => taxi.recruitId === null && planFrom(world, network(), taxi.body, job.body) !== null);
       if (idleIndex >= 0) {
         taxiIndex = idleIndex;
         taxis[taxiIndex] = { ...taxis[taxiIndex]!, recruitId: id, leg: "pickup", distanceM: 0, route: planFrom(world, network(), taxis[taxiIndex]!.body, job.body) };
-      } else if (taxis.length < MAX_RECRUIT_TAXIS && nextActorId < Number.MAX_SAFE_INTEGER) {
+      } else if (birthCapacity > 0 && taxis.length < MAX_RECRUIT_TAXIS && nextActorId < Number.MAX_SAFE_INTEGER) {
         const spawned = spawnTaxi(world, network(), job.body, nextActorId, circles(input, allBodies, hidden, new Set()));
-        if (spawned) { nextActorId++; taxiIndex = taxis.length; taxis.push(spawned); }
+        if (spawned) { nextActorId++; birthCapacity--; taxiIndex = taxis.length; taxis.push(spawned); }
       }
       if (taxiIndex < 0) {
-        const blocked = network().lanes.length === 0 ? "no-road-route" : nextActorId >= Number.MAX_SAFE_INTEGER ? "actor-id-capacity" :
+        const blocked = birthCapacity === 0 ? "significant-capacity" : network().lanes.length === 0 ? "no-road-route" : nextActorId >= Number.MAX_SAFE_INTEGER ? "actor-id-capacity" :
           taxis.length >= MAX_RECRUIT_TAXIS && taxis.every((taxi) => taxi.recruitId !== null) ? "taxi-capacity" : "no-safe-road-route";
         jobs.set(id, { ...job, blocked }); diagnostics.push(`${id}:${blocked}`); continue;
       }
@@ -508,7 +519,7 @@ export function stepRecruitTransport(world: World, previous: RecruitTransportSta
     if (taxi.body.speed === 0 && distance(taxi.body, target) <= radius) {
       const exited = safeExit(world, job.body, taxi.body, input, allBodies, hidden, taxi.body.id);
       if (exited && distance(exited, target) <= radius) {
-        job = { ...job, body: exited, parentVehicleId: null, seat: null,
+        job = { ...job, body: exited, parentVehicleId: null, seat: null, taxiId: null,
           phase: job.kind === "restore-at-safehouse" ? "awaiting-restoration" : "complete", blocked: null };
         if (job.kind === "restore-at-safehouse") job = { ...job, restorationArrival: restorationArrival(job), blocked: "awaiting-restoration" };
         taxi = { ...taxi, recruitId: null, route: null, leg: null, body: { ...taxi.body, speed: 0 } };

@@ -508,7 +508,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     next[id] = motion.owned ? motion.player : stepPlayer(world, motion.player, motion.input, obs);
   }
 
-  const agents = stepAgents(world, before, tick);
+  const agents = stepAgents(world, before, tick, { populate: agentRuntimeSession(before)?.ambientMode !== "squares-v1" });
   const moved: SimState = agents
     ? { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } }
     : { ...prev, tick, players: next };

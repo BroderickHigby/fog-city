@@ -411,3 +411,130 @@ describe("runtime spatial adapter", () => {
     expect(query(actor({ kind: "errandRobot", x: 20.1, edge: "" }), 0).goalKey).toBe("");
   });
 });
+
+
+describe("measured spatial stuck recovery", () => {
+  const detour = buildSidewalkGraph({ nodes: [{ id: "a", x: 0, z: 0 }, { id: "b", x: 10, z: 0 },
+    { id: "c", x: 0, z: 10 }, { id: "d", x: 10, z: 10 }], edges: [
+    { id: "blocked", a: "a", b: "b", kind: "crosswalk", points: [[0, 0], [10, 0]] },
+    { id: "detour-a", a: "a", b: "c", kind: "sidewalk", points: [[0, 0], [0, 10]] },
+    { id: "detour-b", a: "c", b: "d", kind: "sidewalk", points: [[0, 10], [10, 10]] },
+    { id: "detour-c", a: "d", b: "b", kind: "sidewalk", points: [[10, 10], [10, 0]] },
+  ] });
+  const motion = { kind: "pursue" as const, target: { kind: "player" as const, id: "p" }, destination: { x: 10, z: 0 }, stopDistance: 0, avoidFog: false };
+  const start = (): AgentState => actor({ kind: "errandRobot", x: 0, z: 0, edge: "", s: 0 });
+  function stalledFrame(body: AgentState, state: RuntimeSpatialState | undefined, tick: number, open = false) {
+    const previous = state ?? { version: 1 as const, animals: [], walkers: [{ id: body.id,
+      route: { nodeIds: ["a", "b"], steps: [{ edgeId: "blocked", from: "a", to: "b", reverse: false }], lengthM: 10 },
+      cursor: { stepIndex: 0, distanceM: body.x }, joining: false, goalKey: "pursue:b", decisions: 0,
+      phaseTicks: 0, lastTick: 0, reaction: { mode: "idle" as const, untilTick: 0, source: null } }] };
+    return stepRuntimeSpatial({ ...fixture([body], [body], tick), navigation: detour, previous,
+      robotIntents: [{ id: body.id, movement: motion }], canCross: () => open });
+  }
+  it("counts two seconds of requested zero progress before taking a connected detour", () => {
+    let body = start(), state: RuntimeSpatialState | undefined;
+    for (let tick = 1; tick <= 120; tick++) {
+      const result = stalledFrame(body, state, tick); body = result.actors[0]!; state = result.state;
+      expect(body.x).toBe(0); expect(body.z).toBe(0);
+      if (tick < 120) expect(state.walkers[0]!.recovery).toBeUndefined();
+    }
+    expect(state!.walkers[0]!.recovery?.retryTick).toBe(120);
+    for (let tick = 121; tick <= 126; tick++) {
+      const old = body, result = stalledFrame(body, state, tick); body = result.actors[0]!; state = result.state;
+      expect(Math.sqrt((body.x - old.x) ** 2 + (body.z - old.z) ** 2)).toBeLessThanOrEqual(body.vmax / 60 + 1e-7);
+    }
+    expect(body.z).toBeGreaterThan(0);
+    expect(state!.walkers[0]!.route!.steps[0]!.edgeId).toBe("detour-a");
+    expect(state!.walkers[0]!.recovery).toBeUndefined();
+    expect(state!.walkers[0]!.stalledTicks).toBeUndefined();
+  });
+  it("backs up along its occupied edge and resumes when that path reopens", () => {
+    let body = { ...start(), x: 4 }, state: RuntimeSpatialState | undefined;
+    for (let tick = 1; tick <= 121; tick++) {
+      const result = stalledFrame(body, state, tick); body = result.actors[0]!; state = result.state;
+    }
+    expect(body.x).toBeLessThan(4); expect(body.z).toBe(0);
+    const backed = body.x;
+    for (let tick = 122; tick <= 126; tick++) {
+      const old = body, result = stalledFrame(body, state, tick, true); body = result.actors[0]!; state = result.state;
+      expect(Math.abs(body.x - old.x)).toBeLessThanOrEqual(body.vmax / 60 + 1e-7);
+    }
+    expect(body.x).toBeGreaterThan(backed);
+    expect(state!.walkers[0]!.recovery).toBeUndefined();
+  });
+  it("does not turn holds or one late sample into a stuck incident and omits inactive fields", () => {
+    const body = start();
+    let state: RuntimeSpatialState | undefined;
+    for (let tick = 1; tick <= 125; tick++) state = stepRuntimeSpatial({ ...fixture([body], [body], tick), navigation: detour, previous: state,
+      robotIntents: [{ id: body.id, movement: { kind: "hold", face: null, avoidFog: false } }], canCross: () => false }).state;
+    expect(state!.walkers[0]!.stalledTicks).toBeUndefined(); expect(state!.walkers[0]!.recovery).toBeUndefined();
+    expect(JSON.stringify(state)).not.toContain("stalledTicks"); expect(JSON.stringify(state)).not.toContain("recovery");
+    const first = stalledFrame(body, undefined, 1), late = stalledFrame(body, first.state, 1000000);
+    expect(late.state.walkers[0]!.stalledTicks).toBe(2);
+    expect(late.state.walkers[0]!.recovery).toBeUndefined();
+  });
+  it("discards a stale recovery cursor after a dodge and rejoins without a jump", () => {
+    let body = { ...start(), x: 4 }, state: RuntimeSpatialState | undefined;
+    for (let tick = 1; tick <= 120; tick++) {
+      const result = stalledFrame(body, state, tick); body = result.actors[0]!; state = result.state;
+    }
+    expect(state!.walkers[0]!.recovery).not.toBeUndefined();
+    const diving = { ...body, z: 2, mode: "dive" as const };
+    const moved = stepRuntimeSpatial({ ...fixture([body], [diving], 121), navigation: detour, previous: state,
+      dodgeActorIds: [body.id], robotIntents: [{ id: body.id, movement: motion }] });
+    expect(moved.actors[0]).toBe(diving);
+    expect(moved.state.walkers[0]!.recovery).toBeUndefined();
+    const settled = { ...diving, mode: "go" as const };
+    const resumed = stepRuntimeSpatial({ ...fixture([settled], [settled], 122), navigation: detour, previous: moved.state,
+      robotIntents: [{ id: body.id, movement: motion }] });
+    expect(Math.sqrt((resumed.actors[0]!.x - settled.x) ** 2 + (resumed.actors[0]!.z - settled.z) ** 2))
+      .toBeLessThanOrEqual(body.vmax / 60 + 1e-7);
+  });
+  it("counts only scheduled observations at the active cadence", () => {
+    const body = start(), seed = stalledFrame(body, undefined, 1).state;
+    const { stalledTicks: _stalled, ...track } = seed.walkers[0]!;
+    let state: RuntimeSpatialState = { ...seed, walkers: [track] };
+    for (let tick = 1; tick <= 124; tick++) {
+      const result = stepRuntimeSpatial({ ...fixture([body], [body], tick), navigation: detour,
+        previous: state,
+        anchors: [{ id: "distant", x: 200, z: 0 }], robotIntents: [{ id: body.id, movement: motion }], canCross: () => false });
+      state = result.state;
+      if (tick < 124) expect(state.walkers[0]!.recovery).toBeUndefined();
+    }
+    expect(state!.walkers[0]!.recovery).not.toBeUndefined();
+  });
+  it("keeps abstract repair travel on its requested route and honors a hold", () => {
+    let body = start();
+    const first = stalledFrame(body, undefined, 1).state;
+    const { stalledTicks: _stalled, ...track } = first.walkers[0]!;
+    let state: RuntimeSpatialState = { ...first, walkers: [{ ...track, goalKey: "errand", lastTick: 0,
+      route: { nodeIds: ["a"], steps: [], lengthM: 0 }, cursor: { stepIndex: 0, distanceM: 0 } }] };
+    const repair = { kind: "repair" as const, kioskId: "kiosk-c", destination: { x: 0, z: 10 }, stopDistance: 0.1, avoidFog: true };
+    for (let tick = 60; tick <= 600; tick += 60) {
+      const result = stepRuntimeSpatial({ ...fixture([body], [body], tick), navigation: detour, previous: state,
+        anchors: [], significantActorIds: [body.id], robotIntents: [{ id: body.id, movement: repair }] });
+      body = result.actors[0]!; state = result.state;
+      expect(body.x).toBe(0);
+    }
+    expect(body.z).toBe(10);
+    expect(state.walkers[0]!.goalKey).toBe("repair:c");
+    const held = stepRuntimeSpatial({ ...fixture([body], [body], 660), navigation: detour, previous: state,
+      anchors: [], significantActorIds: [body.id], robotIntents: [{ id: body.id, movement: { kind: "hold", face: null, avoidFog: false } }] });
+    expect(held.actors[0]!.z).toBe(body.z);
+    expect(held.state.walkers[0]!.stalledTicks).toBeUndefined();
+  });
+
+  it("does not bank abstract travel during a long authoritative hold", () => {
+    const body = start(); let state = stalledFrame(body, undefined, 1).state;
+    for (let tick = 1; tick <= 600; tick++) {
+      state = stepRuntimeSpatial({ ...fixture([body], [body], tick), navigation: detour, previous: state,
+        anchors: [], significantActorIds: [body.id], robotIntents: [{ id: body.id, movement: { kind: "hold", face: null, avoidFog: false } }] }).state;
+    }
+    expect(state.walkers[0]!.lastTick).toBe(600);
+    const resumed = stepRuntimeSpatial({ ...fixture([body], [body], 660), navigation: detour, previous: state,
+      anchors: [], significantActorIds: [body.id], robotIntents: [{ id: body.id, movement: motion }] });
+    expect(resumed.actors[0]!.x).toBeCloseTo(1.5);
+    expect(resumed.actors[0]!.z).toBe(0);
+  });
+
+});

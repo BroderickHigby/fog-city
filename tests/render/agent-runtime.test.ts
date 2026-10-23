@@ -163,6 +163,22 @@ describe("runtime agent visuals", () => {
     render.dispose();
   });
 
+  it("shares the existing humanoid asset across runtime Footmen and sign-spinners", async () => {
+    const source = new THREE.Group(), shoulder = new THREE.Group(), material = new THREE.MeshStandardMaterial();
+    const geometry = new THREE.BoxGeometry(0.1, 0.6, 0.1); shoulder.name = "arm_upper_R"; shoulder.position.set(0.3, 1.4, 0);
+    shoulder.add(new THREE.Mesh(geometry, material)); source.add(shoulder);
+    let loads = 0;
+    const registry = new ModelRegistry<THREE.Object3D>({ load: async () => { loads++; return source; }, clone: root => root.clone(true), fallback: () => new THREE.Group() });
+    const render = createRuntimeAgentRenderer(new THREE.Scene(), { registry });
+    const actors = [actor("footman", "footman"), actor("spinner", "sign-spinner")];
+    render.update({ actors }, 0); await registry.get("robot"); render.update({ actors }, 1);
+    expect(loads).toBe(1); expect(render.info().fileKinds).toEqual(["footman", "sign-spinner"]);
+    expect(render.info().drawCalls).toBe(2);
+    const footman = meshes(render.group).find(mesh => mesh.visible && mesh.name.startsWith("runtime:footman:"))!;
+    const joints = footman.geometry.getAttribute("fcJoint"); expect(joints.getW(0)).toBe(9);
+    render.dispose(); geometry.dispose(); material.dispose();
+  });
+
   it("draws leash geometry between actual endpoints without counting another actor", () => {
     const render = createRuntimeAgentRenderer(new THREE.Scene());
     const from = new THREE.Vector3(1, 0.5, 2), to = new THREE.Vector3(3, 1.5, 2);

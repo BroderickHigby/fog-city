@@ -11,6 +11,7 @@ import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from ".
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { createRuntimeAgentRenderer, type RuntimeAgentRenderer } from "./agent-runtime.ts";
 import { hideRuntimeReplacements, runtimeVisualSnapshot } from "./runtime-snapshot.ts";
+import { robotTellFrame } from "./robot-tells.ts";
 import { FarLayer } from "./far-layer.ts";
 import { parkShapes, tintParks } from "./parks.ts";
 import type { Viewer } from "./agent-lod.ts";
@@ -407,6 +408,7 @@ export class SceneRenderer {
         ? { ...runtime.snapshot, actors: runtime.snapshot.actors.filter(actor => actor.id !== `player:${local.id}` && actor.id !== `player:${local.id}:puddle`) }
         : runtime.snapshot;
       this.runtimeAgents.update(runtimeView, renderedTick);
+      this.agents.setTellCues(robotTellFrame(this.sim.prev, this.sim.curr, this.sim.alpha));
       this.agents.update(hideRuntimeReplacements(this.sim.prev, runtime.legacyIdsToHide),
         hideRuntimeReplacements(this.sim.curr, runtime.legacyIdsToHide), this.sim.alpha, this.viewer, dtSeconds, this.time);
     }

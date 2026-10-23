@@ -136,7 +136,7 @@ async function boot(): Promise<void> {
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
   const tBuild = performance.now();
-  const world = buildWorld(tiles, files.roads, files.boundary, files.gameplay ?? undefined);
+  const world = buildWorld(tiles, files.roads, files.boundary, files.gameplay ?? undefined, files.transit ?? undefined);
   const buildMs = performance.now() - tBuild;
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
@@ -183,7 +183,7 @@ async function boot(): Promise<void> {
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = enableAgentRuntime(createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn), {
-    startGameMinute: clockStartMinute(bootedAtNight),
+    startGameMinute: clockStartMinute(bootedAtNight), worldName, ambientMode: "squares-v1",
   });
   let curr: SimState = prev;
   let paused = false;

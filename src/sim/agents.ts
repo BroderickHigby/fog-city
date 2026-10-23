@@ -199,13 +199,15 @@ export const ROBOTAXI_BODY = { halfLength: 2.5, halfWidth: 1.0, height: 1.6 } as
 /** About this share of the people (by id) are children: smaller, and given a wider berth by the dodge (src/sim/dodge.ts). */
 export const CHILD_PERCENT = 5;
 
-/** Is person agent `id` a child? Fixed by the id (no state, no RNG draw), so every client agrees. */
-export function personIsChild(id: number): boolean {
-  return hash32(id, 0x0c41d) % 100 < CHILD_PERCENT;
+/** Legacy identity by ID; procedural incarnations retain their canonical phenotype seed. */
+export function personIsChild(id: number, identitySeed = id): boolean {
+  return hash32(identitySeed, 0x0c41d) % 100 < CHILD_PERCENT;
 }
 
 export interface AgentState {
   id: number;
+  /** Present only on square-generated actors; independent of disposable numeric incarnation. */
+  identitySeed?: number;
   kind: AgentKind;
   x: number;
   y: number;
@@ -665,7 +667,7 @@ function agentObstacles(list: readonly AgentState[]): Obs[] {
       const hw = ROBOTAXI_BODY.halfWidth + grow;
       out.push({ x: a.x, z: a.z, r: Math.sqrt(hl * hl + hw * hw), id: a.id, player: false, road, onlyFor: "foot", box: { fx: dsin(a.heading), fz: -dcos(a.heading), hl, hw } });
     } else {
-      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child: a.kind === "person" && personIsChild(a.id) });
+      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child: a.kind === "person" && personIsChild(a.id, a.identitySeed) });
     }
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
@@ -1827,7 +1829,7 @@ export function initialAgents(world: World, state: Readonly<SimState>): { ext: A
  * Advance every agent one tick. Reads `prev` only (players and agents as of the previous
  * tick); returns the new agents and the new global RNG state.
  */
-export function stepAgents(world: World, prev: Readonly<SimState>, tick: number): { ext: AgentsExt; rng: RngState } | null {
+export function stepAgents(world: World, prev: Readonly<SimState>, tick: number, options: { populate?: boolean } = {}): { ext: AgentsExt; rng: RngState } | null {
   const g = world.roads;
   if (!g) return null;
   const ext = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined) ?? { nextId: 1, list: [] };
@@ -1953,7 +1955,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
 
   let out: AgentsExt = { nextId: ext.nextId, list };
   let rng = prev.rng;
-  if (tick % POP_INTERVAL === 0) {
+  if (options.populate !== false && tick % POP_INTERVAL === 0) {
     const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
     out = p.ext;
     rng = p.rng;

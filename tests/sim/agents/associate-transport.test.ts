@@ -8,7 +8,7 @@ import type { RoadsFile } from "../../../src/sim/roads.ts";
 import type { SimSystemContext } from "../../../src/sim/system-contract.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
 import type { World } from "../../../src/sim/world.ts";
-import { createAssociateTransportState, MAX_ASSOCIATE_TRANSPORTS, stepAssociateTransport } from "../../../src/sim/agents/associate-transport.ts";
+import { ASSOCIATE_OWNER_MEMORY_TICKS, createAssociateTransportState, MAX_ASSOCIATE_TRANSPORTS, stepAssociateTransport } from "../../../src/sim/agents/associate-transport.ts";
 import type { AssociateTransportInput, AssociateTransportResult, AssociateTransportState } from "../../../src/sim/agents/associate-transport.ts";
 import type { RuntimePhysicalBody } from "../../../src/sim/agents/runtime-state.ts";
 
@@ -23,7 +23,7 @@ function rider(world: World, id = "associate:1", mode: "car" | "scooter" = "car"
     x: point.x, y: 0, z: point.z, previousX: point.x, previousZ: point.z, heading: Math.PI / 2, previousHeading: Math.PI / 2,
     speed: 0, radius: 0.35, halfLength: 0.35, halfWidth: 0.35, height: 1.7, dodge: null };
 }
-function context(world: World, tick = 0, ownerX = 200, ownerZ = 18): SimSystemContext {
+function context(world: World, tick = 0, ownerX = 70, ownerZ = 18): SimSystemContext {
   const initial = createInitialState(world, 17, [], { x: 1000, z: 1000, heading: 0 });
   const state = { ...initial, tick, players: { p: { id: "p", mode: "foot" as const, car: makeCar(1000, 1000, 0, 0),
     foot: makeFoot(ownerX, 0, ownerZ, 0), exitPending: false } } };
@@ -99,8 +99,8 @@ describe("associate physical transport", () => {
 
   it("leaves a destination behind a one-way road pending instead of reversing or teleporting", () => {
     const world = roads("residential", true), person = rider(world, "associate:1", "car", 150);
-    const first = stepAssociateTransport(context(world, 0, 20), createAssociateTransportState(), input([person]));
-    const next = stepAssociateTransport(context(world, 1000000, 20), first.state, { ...input(first.bodies), nextActorId: first.nextActorId });
+    const first = stepAssociateTransport(context(world, 0, 130), createAssociateTransportState(), input([person]));
+    const next = stepAssociateTransport(context(world, 1000000, 130), first.state, { ...input(first.bodies), nextActorId: first.nextActorId });
     expect(next.state.entries[0]!.blocked).toBe("no-directed-road-route");
     expect(next.state.entries[0]!.vehicle).toMatchObject({ x: first.state.entries[0]!.vehicle!.x, z: first.state.entries[0]!.vehicle!.z, speed: 0 });
   });
@@ -159,6 +159,22 @@ describe("associate physical transport", () => {
     expect(result.nextActorId).toBe(100);
   });
 
+  it("holds a retained vehicle's authoritative dodge and resumes only after it clears", () => {
+    const world = roads(), first = stepAssociateTransport(context(world), createAssociateTransportState(), input([rider(world)]));
+    const moving = advance(world, first, 1), vehicle = moving.state.entries[0]!.vehicle!;
+    const dodge = { phase: "dive" as const, sx: vehicle.x, sz: vehicle.z, tx: vehicle.x + 1, tz: vehicle.z,
+      t: 0, dur: 30, peak: 0.4, hop: 0, leap: false };
+    const bodies = moving.bodies.map(body => body.id === vehicle.id ? { ...body, dodge } : body);
+    const held = advance(world, moving, 2, { bodies });
+    expect(held.state.entries[0]).toMatchObject({ blocked: "dodge", speed: 0, distanceM: moving.state.entries[0]!.distanceM });
+    expect(held.state.entries[0]!.vehicle).toMatchObject({ x: vehicle.x, z: vehicle.z, speed: 0, dodge });
+    expect(held.state.entries[0]!.body).toMatchObject({ x: vehicle.x, z: vehicle.z, speed: 0, dodge: null });
+    expect(held.nextActorId).toBe(moving.nextActorId);
+    const resumed = advance(world, held, 3, { bodies: held.bodies.map(body => body.id === vehicle.id ? { ...body, dodge: null } : body) });
+    expect(resumed.state.entries[0]!.distanceM).toBeGreaterThan(held.state.entries[0]!.distanceM);
+    expect(resumed.state.entries[0]!.vehicle!.dodge).toBeNull();
+  });
+
   it("does not allocate beyond supplied physical capacity and reuses an existing vehicle", () => {
     const world = roads(), person = rider(world);
     const blocked = stepAssociateTransport(context(world), createAssociateTransportState(), { ...input([person]), remainingCapacity: 0 });
@@ -183,6 +199,66 @@ describe("associate physical transport", () => {
     expect(JSON.stringify(first.state)).toBe(serialized);
     const replay = stepAssociateTransport(context(world, 1), next.state, { ...input(next.bodies), nextActorId: next.nextActorId });
     expect(replay.state).toEqual(next.state);
+  });
+
+  it("does not mount or choose a route to an owner who has never been observed", () => {
+    const world = roads(), person = rider(world);
+    const result = stepAssociateTransport(context(world, 0, 200), createAssociateTransportState(), input([person]));
+    expect(result.state.entries[0]).toMatchObject({ memory: null, target: null, route: null, vehicle: null, blocked: "owner-unobserved" });
+    expect(result.bodies[0]).toMatchObject({ x: person.x, z: person.z, speed: 0 });
+  });
+
+  it("uses the last observed position through occlusion without refreshing knowledge", () => {
+    const clear = roads(), person = rider(clear);
+    const first = stepAssociateTransport(context(clear), createAssociateTransportState(), input([person]));
+    const blocked = buildWorld([{ tileId: "screen", ground: null, buildings: [{ id: "screen", baseY: 0, topY: 10,
+      footprint: [[55, 4], [57, 4], [57, 25], [55, 25]] }] }]);
+    blocked.roads = clear.roads;
+    const a = stepAssociateTransport(context(blocked, 1, 60), first.state, { ...input(first.bodies), nextActorId: first.nextActorId });
+    const b = stepAssociateTransport(context(blocked, 1, 80), first.state, { ...input(first.bodies), nextActorId: first.nextActorId });
+    expect(a.state).toEqual(b.state);
+    expect(a.state.entries[0]?.memory).toMatchObject({ x: 70, z: 18, observedTick: 0 });
+    expect(a.state.entries[0]?.target).toEqual({ x: 70, z: 18 });
+  });
+
+  it("stops when owner knowledge expires and resumes only on a fresh observation", () => {
+    const world = roads(), person = rider(world);
+    const first = stepAssociateTransport(context(world), createAssociateTransportState(), input([person]));
+    const expired = stepAssociateTransport(context(world, ASSOCIATE_OWNER_MEMORY_TICKS, 200), first.state,
+      { ...input(first.bodies), nextActorId: first.nextActorId });
+    expect(expired.state.entries[0]).toMatchObject({ blocked: "owner-memory-expired", route: null, target: null, speed: 0 });
+    expect(expired.state.entries[0]?.vehicle).toMatchObject({ x: first.state.entries[0]!.vehicle!.x, z: first.state.entries[0]!.vehicle!.z });
+    const seen = stepAssociateTransport(context(world, ASSOCIATE_OWNER_MEMORY_TICKS + 1), expired.state,
+      { ...input(expired.bodies), nextActorId: expired.nextActorId });
+    expect(seen.state.entries[0]?.memory?.observedTick).toBe(ASSOCIATE_OWNER_MEMORY_TICKS + 1);
+    expect(seen.state.entries[0]?.target).toEqual({ x: 70, z: 18 });
+    expect(seen.state.entries[0]?.blocked).toBeNull();
+  });
+
+  it("chooses an initially visible owner instead of a hidden nearer player's live location", () => {
+    const clear = roads(), person = rider(clear);
+    const world = buildWorld([{ tileId: "screen", ground: null, buildings: [{ id: "screen", baseY: 0, topY: 10,
+      footprint: [[55, 4], [57, 4], [57, 25], [55, 25]] }] }]);
+    world.roads = clear.roads;
+    const base = context(world, 0, 60), player = base.state.players.p!;
+    const ctx = { ...base, state: { ...base.state, players: { ...base.state.players, q: { ...player, id: "q", foot: makeFoot(60, 0, -18, 0) } } } };
+    const result = stepAssociateTransport(ctx, createAssociateTransportState(), { ...input([person]), owners: [] });
+    expect(result.state.entries[0]?.ownerId).toBe("q");
+    expect(result.state.entries[0]?.memory).toMatchObject({ playerId: "q", x: 60, z: -18 });
+  });
+
+  it("rejects future or artificially extended memory and preserves restored memory on replay", () => {
+    const world = roads(), person = rider(world);
+    const first = stepAssociateTransport(context(world), createAssociateTransportState(), input([person]));
+    const entry = first.state.entries[0]!;
+    for (const memory of [{ ...entry.memory!, observedTick: 1 }, { ...entry.memory!, expiresTick: 99999 }]) {
+      expect(() => stepAssociateTransport(context(world, 1), { ...first.state, entries: [{ ...entry, memory }] }, input(first.bodies))).toThrow(RangeError);
+    }
+    const restored = JSON.parse(JSON.stringify(first.state)) as AssociateTransportState;
+    const a = stepAssociateTransport(context(world, 1, 200), restored, { ...input(first.bodies), nextActorId: first.nextActorId });
+    const b = stepAssociateTransport(context(world, 1, 220), restored, { ...input([...first.bodies].reverse()), nextActorId: first.nextActorId });
+    expect(a.state).toEqual(b.state);
+    expect(a.state.entries[0]?.memory).toEqual(first.state.entries[0]?.memory);
   });
 
   it("bounds tracked associates and rejects non-finite public state", () => {

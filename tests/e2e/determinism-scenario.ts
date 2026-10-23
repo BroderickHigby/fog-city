@@ -39,8 +39,8 @@ import {
  * buildWorld(tiles, roads, boundary): the road graph runs ambient traffic, the boundary walls
  * stop cars at the world's edge and shore. Node and the browser both build their world through this.
  */
-export function makeWorld(tiles: readonly TileCollider[], roads: unknown, boundary: unknown = null, gameplay: World["gameplay"] = undefined): World {
-  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, (boundary ?? null) as BoundaryFile | null, gameplay);
+export function makeWorld(tiles: readonly TileCollider[], roads: unknown, boundary: unknown = null, gameplay: World["gameplay"] = undefined, transit: World["transit"] = undefined): World {
+  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, (boundary ?? null) as BoundaryFile | null, gameplay, transit);
 }
 
 export interface ScenarioOptions {

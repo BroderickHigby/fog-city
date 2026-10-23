@@ -2,6 +2,7 @@ import { personIsChild, type AgentState } from "../sim/agents.ts";
 import type { RuntimePhysicalBody } from "../sim/agents/runtime-state.ts";
 import type { TargetCombat } from "../sim/combat-contract.ts";
 import type { DodgeState, SimState } from "../sim/contract.ts";
+import { robotMetadata } from "../sim/robots/metadata.ts";
 import type { RuntimeVisualActor, RuntimeVisualLink, RuntimeVisualSnapshot } from "./agent-runtime.ts";
 import { newPersonPose, newRobotPose, rigidDodgePose, robotDodgePose } from "./dodge-pose.ts";
 
@@ -116,7 +117,7 @@ export function runtimeVisualSnapshot(
   const playerIdsToHide = new Set<string>();
   if (robotState?.enabled !== true) return { snapshot: { actors: [], ...(viewer ? { viewer } : {}) }, legacyIdsToHide, playerIdsToHide, physicalCount: 0, dodging: 0 };
   const metadata = new Map<number, RobotMetadata>();
-  for (const value of list(robotState.metadata)) {
+  for (const value of robotMetadata(current).slice(0, 8192)) {
     const item = record(value);
     if (item && Number.isSafeInteger(item.agentId)) metadata.set(item.agentId as number, item as unknown as RobotMetadata);
   }
@@ -197,7 +198,7 @@ export function runtimeVisualSnapshot(
     const dog = visualById.get(animal.id)?.actor, owner = people.get(animal.ownerId as number);
     if (!dog || !owner) continue;
     const hand = pose(owner, beforeAgents.get(owner.id), alpha, "associate", current.tick);
-    const childScale = personIsChild(owner.id) ? 0.66 : 1;
+    const childScale = personIsChild(owner.id, owner.identitySeed) ? 0.66 : 1;
     links.push({ id: `${animal.id}:leash`, from: { x: dog.x + Math.sin(dog.heading) * 0.27, y: dog.y + 0.5, z: dog.z - Math.cos(dog.heading) * 0.27 },
       to: { x: hand.x + Math.cos(hand.heading) * 0.22 * childScale, y: hand.y + 1.02 * childScale, z: hand.z + Math.sin(hand.heading) * 0.22 * childScale } });
   }
@@ -205,7 +206,7 @@ export function runtimeVisualSnapshot(
     if (typeof id !== "number") continue;
     const person = people.get(id); if (!person) continue;
     const at = pose(person, beforeAgents.get(id), alpha, "associate", current.tick);
-    actors.push({ id: `agent:${id}:lanyard`, kind: "lanyard", ...at, scale: personIsChild(id) ? 0.66 : 1 });
+    actors.push({ id: `agent:${id}:lanyard`, kind: "lanyard", ...at, scale: personIsChild(id, person.identitySeed) ? 0.66 : 1 });
   }
   const renderedActors = actors.filter(actor => !carriedPuddles.has(actor.id)).sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   links.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);

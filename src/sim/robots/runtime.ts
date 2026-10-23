@@ -1,10 +1,13 @@
+import { robotCatalogGoalWeights, robotCatalogPresentation, robotCatalogProfile, robotCatalogProfileForSource, validateRobotCatalogSource, type RobotCatalogMetadata, type RobotCatalogProfile, type RobotCatalogSource, type RobotGoalConditions, type RobotTellObservation } from "./catalog.ts";
 import { Action, sortedIds, TICK_HZ } from "../contract.ts";
 import { dcos, dsin, PI } from "../dmath.ts";
 import type { SimSystemContext } from "../system-contract.ts";
-import { segmentBlocked } from "../world.ts";
+import { repairTravel, type RepairTravelDecision } from "../agents/repair-travel.ts";
+import { createRuntimeVisualSensor } from "../agents/runtime-sight.ts";
 import { ATTACK_EVENT, ATTACK_SPECS } from "../combat/attacks.ts";
 import { combatOf, movementLimit } from "../combat/system.ts";
-import type { AttackKind, AttackRequest, CombatActor, CombatEvent, PendingAttack, RobotModel, Vec3 } from "../combat/types.ts";
+import { createConversionScopeLedger } from "../combat/conversion-scopes.ts";
+import type { AttackKind, AttackRequest, CombatActor, CombatEvent, ConversionScope, PendingAttack, RobotModel, Vec3 } from "../combat/types.ts";
 import {
   createRobotBrain, stepRobotBrain, type RobotArchetype, type RobotBrainInput, type RobotBrainIntent, type RobotBrainState,
   type RobotBroadcast, type RobotGoal, type RobotMovementIntent, type RobotObservations,
@@ -15,6 +18,9 @@ export const MAX_RUNTIME_PLAYERS = 24;
 export type RobotSignificance = "rusted" | "scanned" | "converted" | "recruitable" | "mission" | "engaged";
 export interface RobotRecruitOffer { readonly playerId: string; readonly offeredTick: number }
 export interface RobotRuntimeEntry {
+  readonly tellPing?: RobotTellObservation;
+  /** Important identity reasons waiting for a population slot; never discarded. */
+  readonly deferredSignificance?: readonly RobotSignificance[];
   readonly agentId: number;
   readonly firmware: "good" | "bad";
   readonly model: RobotModel | null;
@@ -34,9 +40,19 @@ export interface RobotRuntimeState {
   readonly robots: readonly RobotRuntimeEntry[];
 }
 export interface RobotRuntimeOptions {
+  /** Authored ordinary-robot behavior; omitted preserves the standalone policy API. */
+  readonly catalog?: boolean;
+  readonly catalogLevel?: number;
+  readonly catalogArchetypes?: Readonly<Record<string, { readonly good?: string; readonly bad?: string }>>;
+  readonly catalogSources?: Readonly<Record<string, RobotCatalogSource>>;
+  /** Registered population admission; omitted leaves the standalone adapter unrestricted. */
+  readonly promotionBudget?: number;
+  readonly promotionExemptIds?: readonly number[];
   /** Current authoritative physical descriptors; this adapter never changes their poses. */
   readonly actors: readonly CombatActor[];
   readonly conversion: { readonly baseBadCount: number; readonly protectedArea: boolean };
+  /** Current local memberships; omitted retains the standalone scalar-cap contract. */
+  readonly conversionScopes?: readonly ConversionScope[];
   readonly fogDensity?: number;
   readonly fleetUpdate?: boolean;
   readonly wave?: 2 | 3 | 4 | 5;
@@ -55,7 +71,9 @@ export interface RobotAttackCancellation {
   readonly kind: AttackKind;
   readonly reason: "policy" | "inactive" | "retired";
 }
+export type RobotRepairTravel = Pick<RepairTravelDecision, "status" | "reason" | "kioskId">;
 export interface RobotLocomotion {
+  readonly repairTravel?: RobotRepairTravel;
   readonly agentId: number;
   readonly intent: RobotMovementIntent;
   readonly combat: { readonly maxSpeed: number | null; readonly scale: number; readonly blind: boolean; readonly canAttack: boolean };
@@ -68,7 +86,9 @@ export interface RobotRuntimeResult {
   readonly sourceId: string;
   readonly rescuerId: string | null;
 }
+export interface RobotRuntimeCatalog extends RobotCatalogMetadata { readonly agentId: number; readonly pendingGoalIds: readonly string[] }
 export interface RobotRuntimeStep {
+  readonly catalog: readonly RobotRuntimeCatalog[];
   readonly state: RobotRuntimeState;
   /** Fresh descriptors with persistent alignment and pursuit metadata applied. */
   readonly actors: readonly CombatActor[];
@@ -85,11 +105,18 @@ function compare(a: string, b: string): number { return a < b ? -1 : a > b ? 1 :
 function natural(value: number, label: string): void {
   if (!Number.isSafeInteger(value) || value < 0) throw new RangeError(label);
 }
+const MAX_ROBOT_ID_CACHE = 8192;
+const robotIds = new Map<string, number>();
 /** No suffix coercion, leading zero aliases, negative values, or foreign IDs. */
 export function robotAgentId(id: string): number | null {
+  const cached = robotIds.get(id);
+  if (cached !== undefined) return cached;
   if (!/^agent:(0|[1-9][0-9]*)$/.test(id)) return null;
   const value = Number(id.slice(6));
-  return Number.isSafeInteger(value) ? value : null;
+  if (!Number.isSafeInteger(value)) return null;
+  if (robotIds.size >= MAX_ROBOT_ID_CACHE) robotIds.delete(robotIds.keys().next().value!);
+  robotIds.set(id, value);
+  return value;
 }
 export function robotActorId(id: number): string { natural(id, "agent id"); return `agent:${id}`; }
 function archetype(model: RobotModel | undefined): RobotArchetype | null {
@@ -105,7 +132,8 @@ function cloneBrain(brain: RobotBrainState): RobotBrainState {
     windup: null, update: null, pendingUpdates: [] };
 }
 function cloneEntry(entry: RobotRuntimeEntry): RobotRuntimeEntry {
-  return { ...entry, lastPosition: { ...entry.lastPosition }, brain: entry.brain ? cloneBrain(entry.brain) : null,
+  return { ...entry, ...(entry.tellPing ? { tellPing: { ...entry.tellPing } } : {}),
+    ...(entry.deferredSignificance ? { deferredSignificance: [...entry.deferredSignificance] } : {}), lastPosition: { ...entry.lastPosition }, brain: entry.brain ? cloneBrain(entry.brain) : null,
     recruitOffer: entry.recruitOffer ? { ...entry.recruitOffer } : null, significant: [...entry.significant] };
 }
 function significant(entry: RobotRuntimeEntry, reason: RobotSignificance): RobotRuntimeEntry {
@@ -132,8 +160,25 @@ function normalizedPlayerTarget(id: string, actors: readonly CombatActor[]): str
 function sameRequest(pending: PendingAttack, desired: { kind: AttackKind; targetId: string }, actors: readonly CombatActor[]): boolean {
   return pending.kind === desired.kind && normalizedPlayerTarget(pending.targetId, actors) === normalizedPlayerTarget(desired.targetId, actors);
 }
-function visible(context: SimSystemContext, from: Vec3, to: Vec3, range = 30): boolean {
-  return distanceSq(from, to) <= range * range && !segmentBlocked(context.world, from.x, from.z, to.x, to.z);
+
+const catalogProfiles = new Map<string, RobotCatalogProfile | null>();
+function catalogProfile(seed: number, id: number, model: string, firmware: "good" | "bad", level: number, override?: string, source?: RobotCatalogSource): RobotCatalogProfile | null {
+  const key = source ? JSON.stringify(["source", source.seed, source.key, model, firmware, level, override]) : `${seed}:${id}:${model}:${firmware}:${level}:${override ?? ""}`;
+  if (catalogProfiles.has(key)) return catalogProfiles.get(key)!;
+  const profile = source ? robotCatalogProfileForSource(source, model, firmware, level, override) : robotCatalogProfile(seed, id, model, firmware, level, override);
+  if (profile) {
+    Object.freeze(profile.ownTellIds);
+    Object.freeze(profile.camouflageTellIds);
+    Object.freeze(profile.falseTellIds);
+    Object.freeze(profile);
+  }
+  if (catalogProfiles.size >= MAX_RUNTIME_ROBOTS) catalogProfiles.delete(catalogProfiles.keys().next().value!);
+  catalogProfiles.set(key, profile); return profile;
+}
+function inView(from: { x: number; z: number }, heading: number, target: { x: number; z: number }, range: number): boolean {
+  const square = distanceSq(from, target);
+  return square <= range * range && (square === 0 ||
+    (target.x - from.x) * dsin(heading) - (target.z - from.z) * dcos(heading) >= Math.sqrt(square) * dcos(50 * PI / 180));
 }
 
 interface IndexedRobot { readonly actor: CombatActor; readonly id: number; readonly order: number }
@@ -185,12 +230,32 @@ export function createRobotRuntime(tick = 0): RobotRuntimeState {
  */
 export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystemContext, options: RobotRuntimeOptions): RobotRuntimeStep {
   const tick = context.state.tick, combat = combatOf(context.previous);
+  const canSee = createRuntimeVisualSensor(context);
+  const visible = (from: Vec3, to: Vec3, range = 30): boolean => distanceSq(from, to) <= range * range && canSee(from, to);
   natural(tick, "runtime tick"); natural(options.conversion.baseBadCount, "base bad count");
   if (previous.version !== 1 || previous.tick !== context.previous.tick || tick !== previous.tick + 1) throw new Error("Robot runtime ticks must be consecutive");
   if (combat && combat.tick !== context.previous.tick) throw new Error("Robot runtime combat snapshot is stale");
   if (options.actors.length > MAX_RUNTIME_ROBOTS || previous.robots.length > MAX_RUNTIME_ROBOTS) throw new Error("Robot runtime capacity exceeded");
   const playerIds = sortedIds(context.state.players);
   if (playerIds.length > MAX_RUNTIME_PLAYERS) throw new Error("Robot runtime player capacity exceeded");
+  const level = options.catalogLevel ?? 1;
+  if (!Number.isInteger(level) || level < 1 || level > 5) throw new RangeError("Invalid robot catalog level");
+  if (options.catalog !== undefined && typeof options.catalog !== "boolean") throw new RangeError("Invalid robot catalog flag");
+  if (options.catalogArchetypes !== undefined && (!options.catalogArchetypes || typeof options.catalogArchetypes !== "object" || Array.isArray(options.catalogArchetypes))) throw new RangeError("Invalid robot catalog overrides");
+  const overrides = options.catalogArchetypes ?? {};
+  if (sortedIds(overrides).length > MAX_RUNTIME_ROBOTS) throw new RangeError("Robot catalog override capacity");
+  for (const id of sortedIds(overrides)) {
+    if (robotAgentId(`agent:${id}`) === null) throw new RangeError("Invalid catalog robot ID");
+    const value = overrides[id];
+    if (!value || typeof value !== "object" || Array.isArray(value) || [value.good, value.bad].some(id => id !== undefined && (typeof id !== "string" || !id || id.length > 128))) throw new RangeError("Invalid robot catalog override");
+  }
+  if (options.catalogSources !== undefined && !options.catalogSources) throw new RangeError("Invalid robot catalog sources");
+  const catalogSources = options.catalogSources ?? {};
+  if (typeof catalogSources !== "object" || Array.isArray(catalogSources) || sortedIds(catalogSources).length > MAX_RUNTIME_ROBOTS) throw new RangeError("Invalid robot catalog sources");
+  for (const id of sortedIds(catalogSources)) {
+    if (robotAgentId(`agent:${id}`) === null) throw new RangeError("Invalid catalog source robot ID");
+    validateRobotCatalogSource(catalogSources[id]!);
+  }
   const fog = options.fogDensity ?? 0;
   if (!Number.isFinite(fog) || fog < 0 || fog > 1) throw new RangeError("fog density");
   const actors = [...options.actors].sort((a, b) => compare(a.id, b.id)).map(actor => ({ ...actor }));
@@ -202,8 +267,29 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     actorIds.add(actor.id);
   }
   const retired = new Set(options.retiredIds ?? []), restored = new Set(options.restoredIds ?? []), mission = new Set(options.missionIds ?? []);
-  for (const list of [options.retiredIds, options.restoredIds, options.missionIds]) for (const id of list ?? []) natural(id, "runtime metadata id");
+  if ((options.promotionExemptIds?.length ?? 0) > MAX_RUNTIME_ROBOTS) throw new RangeError("Robot promotion exemption capacity");
+  for (const list of [options.retiredIds, options.restoredIds, options.missionIds, options.promotionExemptIds]) for (const id of list ?? []) natural(id, "runtime metadata id");
+  if (options.promotionBudget !== undefined) natural(options.promotionBudget, "robot promotion budget");
+  let promotionSlots = options.promotionBudget ?? MAX_RUNTIME_ROBOTS;
+  const exempt = new Set(options.promotionExemptIds ?? []);
+  const promote = (entry: RobotRuntimeEntry, reason: RobotSignificance): RobotRuntimeEntry => {
+    if (entry.significant.includes(reason)) return entry;
+    const deferred = entry.deferredSignificance ?? [];
+    if (entry.significant.length > 0 || exempt.has(entry.agentId) || promotionSlots > 0) {
+      if (entry.significant.length === 0 && !exempt.has(entry.agentId)) promotionSlots--;
+      const { deferredSignificance: _deferred, ...rest } = entry;
+      return significant(rest, reason);
+    }
+    return deferred.includes(reason) ? entry : { ...entry, deferredSignificance: [...deferred, reason].sort(compare) };
+  };
   const entries = new Map(previous.robots.filter(entry => !retired.has(entry.agentId)).map(entry => [entry.agentId, cloneEntry(entry)]));
+  for (const id of [...entries.keys()].sort((a, b) => a - b)) {
+    const entry = entries.get(id)!;
+    if (!actorById.has(robotActorId(id))) continue;
+    let promoted = entry;
+    for (const reason of entry.deferredSignificance ?? []) promoted = promote(promoted, reason);
+    entries.set(id, promoted);
+  }
   const present = new Set<number>();
   for (const actor of actors) {
     const id = robotAgentId(actor.id);
@@ -212,8 +298,8 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     let entry = entries.get(id) ?? newEntry(actor, id, tick);
     entry = { ...entry, model: actor.model ?? null, firmware: entry.convertedTick !== null && !restored.has(id) ? "bad" : actor.firmware,
       convertedTick: restored.has(id) ? null : entry.convertedTick, lastPosition: position(actor) };
-    if (mission.has(id)) entry = significant(entry, "mission");
-    if ((combat?.targets[actor.id]?.rust ?? 0) > 0) entry = significant(entry, "rusted");
+    if (mission.has(id)) entry = promote(entry, "mission");
+    if ((combat?.targets[actor.id]?.rust ?? 0) > 0) entry = promote(entry, "rusted");
     entries.set(id, entry);
   }
   const results: RobotRuntimeResult[] = [];
@@ -235,27 +321,27 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     let updated = entry;
     let resultKind: RobotRuntimeResult["kind"] | null = null, rescuerId: string | null = null;
     if (event.kind === ATTACK_EVENT.converted) {
-      updated = significant({ ...entry, firmware: "bad", convertedTick: event.tick, bountyUntilTick: event.tick + 60 * TICK_HZ, recruitOffer: null }, "converted");
+      updated = promote({ ...entry, firmware: "bad", convertedTick: event.tick, bountyUntilTick: event.tick + 60 * TICK_HZ, recruitOffer: null }, "converted");
       resultKind = "converted";
     } else if (event.kind === ATTACK_EVENT.interrupted) {
-      updated = significant(updated, "engaged");
+      updated = promote(updated, "engaged");
       const pusher = combat?.targets[event.sourceId];
       // Combat records the last actual water owner. No nearby player is guessed as rescuer.
       if (pusher && pusher.rust >= 0.2 && pusher.lastWaterTick === event.tick && playerIds.includes(pusher.sourceId)) rescuerId = pusher.sourceId;
       if (rescuerId && (options.reputations?.[rescuerId] ?? 0) >= 60 && updated.firmware === "good") {
-        updated = significant({ ...updated, recruitOffer: { playerId: rescuerId, offeredTick: event.tick } }, "recruitable");
+        updated = promote({ ...updated, recruitOffer: { playerId: rescuerId, offeredTick: event.tick } }, "recruitable");
       }
       resultKind = "interrupted";
     } else if (event.kind === "robot.seized" || event.kind === "robot.disabled") {
-      updated = significant(entry, "rusted"); resultKind = "seized";
+      updated = promote(entry, "rusted"); resultKind = "seized";
     } else if (event.kind === "scan.result") {
-      updated = significant(entry, "scanned"); resultKind = "scanned";
+      updated = promote(entry, "scanned"); resultKind = "scanned";
     }
     entries.set(id, updated);
     if (resultKind) results.push({ eventId: event.id, tick: event.tick, kind: resultKind, agentId: id, sourceId: event.sourceId, rescuerId });
   }
   // Keep interacted identities even after physical demotion; remove only disposable absentees.
-  for (const [id, entry] of entries) if (!present.has(id) && entry.significant.length === 0) entries.delete(id);
+  for (const [id, entry] of entries) if (!present.has(id) && entry.significant.length === 0 && !entry.deferredSignificance?.length) entries.delete(id);
   if (entries.size > MAX_RUNTIME_ROBOTS) throw new Error("Robot runtime significant capacity exceeded");
   for (const actor of actors) {
     const id = robotAgentId(actor.id), entry = id === null ? undefined : entries.get(id);
@@ -274,6 +360,11 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     broadcasts.push({ sourceId: source.agentId, sourcePosition: { x: source.lastPosition.x, z: source.lastPosition.z }, sourceSeized: true,
       emittedTick: event.tick, observedTick: target.observedTick, playerId: target.playerId, position: { x: target.x, z: target.z } });
   }
+  const lastPings = new Map<string, RobotTellObservation>();
+  for (const event of freshEvents) if (event.kind === "robot.wary") {
+    const body = playerBody(context, event.sourceId, true);
+    if (body) lastPings.set(event.targetId, { x: body.x, z: body.z, observedTick: event.tick });
+  }
   const sounds: RobotObservations["sounds"][number][] = [];
   for (const event of freshEvents) if (event.kind === "weapon.water") {
     const body = playerBody(context, event.sourceId, true);
@@ -285,7 +376,7 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     if ((input?.actions ?? 0) & Action.horn) sounds.push({ kind: "horn", playerId: id, x: body.x, z: body.z });
     if (!((input?.actions ?? 0) & Action.watch) || context.state.players[id]!.mode !== "foot" && Math.abs(body.speed) > 0.1) continue;
     const heading = input?.aimYaw ?? body.heading;
-    const candidates = nearbyRobots(sightIndex, body).filter(target => visible(context, body, target.actor));
+    const candidates = nearbyRobots(sightIndex, body).filter(target => visible(body, target.actor));
     candidates.sort((a, b) => distanceSq(body, a.actor) - distanceSq(body, b.actor) || a.id - b.id);
     const target = candidates.find(({ actor }) => {
       const distance = Math.sqrt(distanceSq(body, actor));
@@ -293,15 +384,25 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     });
     if (target) watchTargets.set(id, target.id);
   }
-  const activeIds = new Set<string>();
+  const activeIds = new Set<string>(), fidelityIds = new Set<string>();
   for (const actor of actors) {
     const near = playerIds.length > 0 ? playerIds.some(id => distanceSq(actor, playerBodies.get(id)!) <= 350 * 350) : actor.inFidelity === true;
-    if (actor.inFidelity !== false && near && (combat?.targets[actor.id]?.phase ?? "active") === "active") activeIds.add(actor.id);
+    if (actor.inFidelity !== false && near) {
+      fidelityIds.add(actor.id);
+      if ((combat?.targets[actor.id]?.phase ?? "active") === "active") activeIds.add(actor.id);
+    }
   }
   const badCount = actors.filter(actor => actor.kind === "robot" && actor.firmware === "bad" && activeIds.has(actor.id)).length;
   const conversionCap = options.conversion.baseBadCount * (options.conversion.protectedArea ? 1 : 2);
   const pendingAttacks = [...(combat?.attacks ?? [])].sort((a, b) => compare(a.attackerId, b.attackerId) || compare(a.id, b.id));
   const reservations = new Set(pendingAttacks.filter(attack => attack.kind === "forced-update").map(attack => attack.targetId));
+  const scopeLedger = createConversionScopeLedger(actors, options.conversionScopes);
+  const scopedBadCount = actors.filter(actor => actor.kind === "robot" && actor.firmware === "bad" && fidelityIds.has(actor.id)).length;
+  const continuingUpdates = new Set<string>();
+  // Scoped capacity is arbitrated after every source has made its current decision.
+  // An invalid earlier channel must not reserve room against a later valid one.
+  if (scopeLedger) reservations.clear();
+  const catalog: RobotRuntimeCatalog[] = [];
   const attacks: AttackRequest[] = [], cancellations: RobotAttackCancellation[] = [], locomotion: RobotLocomotion[] = [];
   const orderedEntries = [...entries.keys()].sort((a, b) => a - b);
   for (const id of orderedEntries) {
@@ -311,6 +412,8 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     const pending = pendingAttacks.find(attack => attack.attackerId === robotActorId(id));
     const limits = actor && combat ? movementLimit(combat, actor) : { maxSpeed: null, scale: 1, blind: false, canAttack: true };
     const operational = !!actor && activeIds.has(actor.id) && !actor.protected && !retired.has(id);
+    const profile = actor && options.catalog ? catalogProfile(context.state.seed, id, actor.model ?? "", entry.firmware, level, overrides[String(id)]?.[entry.firmware], catalogSources[String(id)]) : null;
+    let pendingGoalIds: readonly string[] = [];
     let decision: RobotBrainIntent | null = null;
     if (actor && operational && entry.firmware === "bad" && entry.brain) {
       const scans: RobotObservations["scans"][number][] = [];
@@ -326,18 +429,33 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
           if (distanceSq(actor, body) > SIGHT_CELL_M * SIGHT_CELL_M) continue;
           sight.push({ kind: "player", id: playerId, x: body.x, z: body.z, heading: body.heading,
             inVehicle: context.state.players[playerId]!.mode !== "foot", threatening: ((context.inputs[playerId]?.actions ?? 0) & Action.fire) !== 0,
-            lineOfSight: visible(context, actor, body) });
+            lineOfSight: visible(actor, body) });
         }
         for (const { actor: target, id: targetId } of nearbyRobots(sightIndex, actor)) {
           if (target.firmware === "none" || target.protected) continue;
           sight.push({ kind: "robot", id: targetId, x: target.x, z: target.z, alignment: target.firmware,
-            operational: activeIds.has(target.id), lineOfSight: visible(context, actor, target) });
+            operational: activeIds.has(target.id), lineOfSight: visible(actor, target) });
         }
       }
       const own = combat?.targets[actor.id];
-      const reservedCount = reservations.size - (pending?.kind === "forced-update" && reservations.has(pending.targetId) ? 1 : 0);
-      const weights = { ...options.goalWeights, ...((options.wave ?? 2) < 3 ? { phoneHack: 0 } : {}) };
+      const reservedCount = scopeLedger ? 0 : reservations.size - (pending?.kind === "forced-update" && reservations.has(pending.targetId) ? 1 : 0);
+      const perceived = sight.filter(target => target.lineOfSight && inView(actor, actor.heading, target, 30 * (1 - 0.6 * fog)));
+      const observedPlayers = perceived.filter((target): target is Extract<typeof target, { kind: "player" }> => target.kind === "player");
+      const conditions: RobotGoalConditions = {
+        unobserved: !observedPlayers.some(player => !player.inVehicle && inView(player, player.heading, actor, 20)),
+        playerInSight: observedPlayers.length > 0, playerFar: observedPlayers.length > 0 && observedPlayers.every(player => distanceSq(actor, player) > 400),
+        playerInCar: observedPlayers.some(player => player.inVehicle),
+        goodRobotNear: perceived.some(target => target.kind === "robot" && target.alignment === "good" && target.operational && distanceSq(actor, target) <= 100),
+        meleeSlotFree: true, meleeSlotsFull: false, fog: fog > 0,
+      };
+      const weightsFor = (mode: RobotBrainState["mode"], slots = 2): Readonly<Partial<Record<RobotGoal, number>>> => {
+        const goals = profile ? robotCatalogGoalWeights(profile, mode, options.wave ?? 2,
+          { ...conditions, meleeSlotFree: slots > 0, meleeSlotsFull: slots === 0 }) : null;
+        pendingGoalIds = goals?.pendingGoalIds ?? [];
+        return { ...goals?.weights, ...options.goalWeights, ...((options.wave ?? 2) < 3 ? { phoneHack: 0 } : {}) };
+      };
       const policyState = { ...cloneBrain(entry.brain), cooldownUntilTick: entry.cooldownUntilTick };
+      let weights = weightsFor(policyState.mode);
       const policyInput: RobotBrainInput = {
         tick, self: { x: actor.x, z: actor.z, heading: actor.heading, rust: own?.rust ?? 0, fogDensity: fog,
           shoved: freshEvents.some(event => event.kind === ATTACK_EVENT.knockdown && event.targetId === actor.id) },
@@ -349,6 +467,14 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
         meleeSlotsAvailable: 2,
       };
       let stepped = stepRobotBrain(policyState, policyInput);
+      if (profile && stepped.state.mode !== policyState.mode) {
+        weights = weightsFor(stepped.state.mode);
+        stepped = stepRobotBrain(policyState, { ...policyInput, goalWeights: weights });
+      }
+      if (profile && stepped.state.mode === "disguised" && stepped.intent.movement.kind === "pursue" &&
+          !["forcedUpdate", "shove", "grocerySnatch", "adBlast", "phoneHack", "handshake"].some(goal => (weights[goal as RobotGoal] ?? 0) > 0)) {
+        stepped = { ...stepped, intent: { ...stepped.intent, movement: { kind: "errand", avoidFog: stepped.intent.movement.avoidFog }, sabotageActive: false } };
+      }
       const firstChoice = desiredAttack(stepped.intent);
       if (firstChoice && robotAgentId(firstChoice.targetId) !== null &&
           firstChoice.kind !== "shove" && firstChoice.kind !== "snatch" && firstChoice.kind !== "forced-update") {
@@ -359,7 +485,10 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
         const occupied = pendingAttacks.filter(attack => attack.attackerId !== actor.id && ATTACK_SPECS[attack.kind].melee &&
           normalizedPlayerTarget(attack.targetId, actors) === firstChoice.targetId).length +
           attacks.filter(attack => ATTACK_SPECS[attack.kind].melee && attack.targetId === firstChoice.targetId).length;
-        if (occupied > 0) stepped = stepRobotBrain(policyState, { ...policyInput, meleeSlotsAvailable: Math.max(0, 2 - occupied) });
+        if (occupied > 0) {
+          const slots = Math.max(0, 2 - occupied);
+          stepped = stepRobotBrain(policyState, { ...policyInput, goalWeights: weightsFor(stepped.state.mode, slots), meleeSlotsAvailable: slots });
+        }
       }
       entry = { ...entry, brain: cloneBrain(stepped.state) };
       decision = stepped.intent;
@@ -367,10 +496,11 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
     const desired = decision && limits.canAttack ? desiredAttack(decision) : null;
     const deliveredPopup = pending?.active && pending.kind === "ad-blast";
     const continuing = !!pending && (deliveredPopup || !!desired && sameRequest(pending, desired, actors));
+    if (continuing && pending?.kind === "forced-update") continuingUpdates.add(pending.id);
     if (pending && !continuing) {
       cancellations.push({ attackId: pending.id, attackerId: pending.attackerId, targetId: pending.targetId, kind: pending.kind,
         reason: retired.has(id) ? "retired" : operational ? "policy" : "inactive" });
-      if (pending.kind === "forced-update") reservations.delete(pending.targetId);
+      if (pending.kind === "forced-update" && !scopeLedger) reservations.delete(pending.targetId);
     }
     if (desired && !pending && tick >= entry.cooldownUntilTick && actor && operational && ATTACK_SPECS[desired.kind].models.includes(actor.model!)) {
       // Combat accepts only shove/snatch/update against robots. Other robot-targeted brain
@@ -380,15 +510,28 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
         const sequence = Math.max(entry.sequence, combat?.attackSequence[actor.id] ?? 0) + 1;
         natural(sequence, "attack sequence");
         attacks.push({ id: `${actor.id}/attack/${sequence}`, sequence, attackerId: actor.id, targetId: desired.targetId, kind: desired.kind });
-        entry = significant({ ...entry, sequence }, "engaged");
-        if (desired.kind === "forced-update") reservations.add(desired.targetId);
+        if (!scopeLedger || desired.kind !== "forced-update") entry = promote({ ...entry, sequence }, "engaged");
+        if (desired.kind === "forced-update" && !scopeLedger) reservations.add(desired.targetId);
       }
     }
     if (actor) {
       const stopped = !operational || limits.maxSpeed === 0 || continuing && pending?.kind === "forced-update";
+      const repair = repairTravel(context.world, actor, combat?.targets[actor.id]);
       locomotion.push({ agentId: id, intent: stopped ? { kind: "hold", face: null, avoidFog: options.fleetUpdate !== true } :
-        decision?.movement ?? { kind: "errand", avoidFog: options.fleetUpdate !== true }, combat: { ...limits } });
+        repair.movement ?? decision?.movement ?? { kind: "errand", avoidFog: options.fleetUpdate !== true }, combat: { ...limits },
+        ...(repair.status !== "inactive" ? { repairTravel: { status: repair.status, reason: repair.reason, kioskId: repair.kioskId } } : {}) });
       actor.pursuing = decision?.fogRustMultiplier === 3;
+    }
+    if (actor && profile) {
+      const tellPing = lastPings.get(actor.id) ?? entry.tellPing;
+      if (tellPing && tick - tellPing.observedTick <= 2 * TICK_HZ) entry = { ...entry, tellPing };
+      else if (entry.tellPing) { const { tellPing: _expired, ...rest } = entry; entry = rest; }
+      const watchedTarget = entry.brain?.knowledge.filter(value => value.channel === "sight")
+        .sort((a, b) => b.observedTick - a.observedTick || compare(a.playerId, b.playerId))[0];
+      catalog.push({ agentId: id, pendingGoalIds,
+        ...robotCatalogPresentation(profile, { tick, x: actor.x, z: actor.z, heading: actor.heading,
+          hideOneTell: decision?.hideOneTell ?? false, sabotageActive: decision?.sabotageActive ?? false,
+          watchedTarget, pingTarget: entry.tellPing }) });
     }
     entries.set(id, entry);
   }
@@ -396,6 +539,42 @@ export function stepRobotRuntime(previous: RobotRuntimeState, context: SimSystem
   for (const pending of pendingAttacks) if (retired.has(robotAgentId(pending.attackerId) ?? -1) && !(pending.active && pending.kind === "ad-blast")) {
     cancellations.push({ attackId: pending.id, attackerId: pending.attackerId, targetId: pending.targetId, kind: pending.kind, reason: "retired" });
   }
+  if (scopeLedger) {
+    const cancelled = new Set(cancellations.map(item => item.attackId));
+    const admit = (targetId: string): boolean => {
+      if (scopedBadCount + reservations.size >= conversionCap || !scopeLedger.allows(targetId)) return false;
+      reservations.add(targetId); scopeLedger.reserve(targetId); return true;
+    };
+    // Match combat's pending-channel priority before considering new requests.
+    for (const pending of pendingAttacks) if (pending.kind === "forced-update" && !cancelled.has(pending.id) &&
+        (!continuingUpdates.has(pending.id) || !admit(pending.targetId))) {
+      cancellations.push({ attackId: pending.id, attackerId: pending.attackerId, targetId: pending.targetId, kind: pending.kind, reason: "policy" });
+    }
+    const acceptedIds = new Set([...attacks].sort((a, b) => compare(a.attackerId, b.attackerId) || compare(a.id, b.id))
+      .filter(attack => attack.kind !== "forced-update" || admit(attack.targetId)).map(attack => attack.id));
+    const deniedSources = new Set(attacks.filter(attack => attack.kind === "forced-update" && !acceptedIds.has(attack.id)).map(attack => attack.attackerId));
+    // A denied proposal has no physical channel to hold for. Resume the ordinary
+    // errand while the local population is full; combat holds remain authoritative.
+    for (let index = 0; index < locomotion.length; index++) {
+      const motion = locomotion[index]!;
+      if (deniedSources.has(robotActorId(motion.agentId)) && motion.intent.kind === "hold" && motion.combat.maxSpeed !== 0) {
+        locomotion[index] = { ...motion, intent: { kind: "errand", avoidFog: motion.intent.avoidFog } };
+      }
+    }
+    for (let index = 0; index < catalog.length; index++) if (deniedSources.has(robotActorId(catalog[index]!.agentId))) {
+      catalog[index] = { ...catalog[index]!, sabotageActive: false };
+    }
+    for (const id of deniedSources) {
+      const actor = actorById.get(id);
+      if (actor) actor.pursuing = false;
+    }
+    const accepted = attacks.filter(attack => acceptedIds.has(attack.id));
+    for (const attack of accepted) if (attack.kind === "forced-update") {
+      const id = robotAgentId(attack.attackerId), entry = id === null ? undefined : entries.get(id);
+      if (entry) entries.set(id!, promote({ ...entry, sequence: attack.sequence }, "engaged"));
+    }
+    attacks.splice(0, attacks.length, ...accepted);
+  }
   return { state: { version: 1, tick, lastCombatEventId, robots: [...entries.values()].sort((a, b) => a.agentId - b.agentId) },
-    actors, attacks, cancellations, locomotion, results, conversionCap };
+    actors, attacks, cancellations, locomotion, results, conversionCap, catalog };
 }

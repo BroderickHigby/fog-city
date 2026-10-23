@@ -407,6 +407,8 @@ describe("the web build's out directory", () => {
 });
 
 describe("world files through the asset layer", () => {
+  const transit = { version: 1, world: "fixture", routes: [{ id: "bus-out", line: "1", mode: "bus", direction: "outbound", night: false,
+    lengthM: 20, paths: [[[0, 0], [20, 0]]] }], stops: [{ id: "stop-a", x: 0, y: 0, z: 0, routes: ["bus-out"] }] };
   const gameplay: GameplayWorldData = { version: 1, world: "fixture", sourceSnapshot: "unit-test",
     refills: [{ id: "fountain", kind: "fountain", x: 3, y: 0, z: 4, radius: 2, salt: false }],
     anchors: [{ id: "repair", kind: "repair-kiosk", x: 5, y: 0, z: 6, roadNodeId: "node", districtId: "district" }],
@@ -419,6 +421,26 @@ describe("world files through the asset layer", () => {
         return structuredClone(files[path]) as T;
       } };
   }
+
+  it("loads named source transit into the same world used by the physical fleet", async () => {
+    const files = await loadWorldFiles(memoryAssets({
+      "tiles/fixture/manifest.json": { spawn: { x: 0, z: 0, heading: 0 }, tiles: [], layers: { transit: "muni.json" } },
+      "tiles/fixture/muni.json": transit,
+    }), "fixture");
+    expect(files.transit).toEqual(transit);
+    const world = buildWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined, files.transit ?? undefined);
+    expect(world.transit?.routes[0]?.id).toBe("bus-out");
+    expect(world.transit?.stops[0]?.id).toBe("stop-a");
+  });
+
+  it("names a missing or corrupt required transit layer instead of silently substituting data", async () => {
+    const manifest = { spawn: { x: 0, z: 0, heading: 0 }, tiles: [], layers: { transit: "muni.json" } };
+    await expect(loadWorldFiles(memoryAssets({ "tiles/fixture/manifest.json": manifest }), "fixture"))
+      .rejects.toThrow("transit muni.json: missing tiles/fixture/muni.json");
+    await expect(loadWorldFiles(memoryAssets({ "tiles/fixture/manifest.json": manifest,
+      "tiles/fixture/muni.json": { ...transit, version: 99 } }), "fixture"))
+      .rejects.toThrow("transit muni.json: Invalid fleet transit layer");
+  });
 
   it("loads named gameplay metadata and supplies it to the deterministic world", async () => {
     const files = await loadWorldFiles(memoryAssets({
@@ -436,6 +458,7 @@ describe("world files through the asset layer", () => {
       "tiles/fixture/manifest.json": { spawn: { x: 0, z: 0, heading: 0 }, tiles: [] },
     }), "fixture");
     expect(files.gameplay).toBeNull();
+    expect(files.transit).toBeNull();
     expect(buildWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined).gameplay).toBeUndefined();
   });
 
@@ -538,6 +561,8 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
         expect(world.colliders).toBe("pack");
         expect(world.tiles.length).toBe(world.manifest.tiles.length);
         expect(world.roads).not.toBeNull();
+        expect(world.transit?.routes).toHaveLength(135);
+        expect(world.transit?.stops).toHaveLength(3260);
         const glb = Object.keys(index.files).find((f) => f.startsWith("tiles/sf/") && f.endsWith(".glb"))!;
         expect(sha(await assets.bytes(glb))).toBe(sha(readFileSync(join(ROOT, "public", glb))));
         expect(sha(await assets.bytes("models/player-car.glb"))).toBe(sha(readFileSync(join(ROOT, "public", "models", "player-car.glb"))));

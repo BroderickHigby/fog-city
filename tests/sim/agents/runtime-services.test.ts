@@ -128,6 +128,37 @@ describe("physical service fleet", () => {
     expect(state.vehicles[0]!.x).toBeGreaterThan(stopped + 10);
   });
 
+  it("ignores an overhead parrot but preserves ground-level and legacy obstacle protection", () => {
+    const world = roadWorld();
+    for (const band of [{ y: 8, height: 0.5, blocked: false }, { y: 0, height: 1.8, blocked: true }, { blocked: true },
+      { y: NaN, height: 0.5, blocked: true }, { y: 8, height: NaN, blocked: true },
+      { y: 8, height: 0, blocked: true }, { y: 8, height: -1, blocked: true }]) {
+      let state = step(world, createFleetState(1000), 0, { requests: [request()] }).state;
+      const first = state.vehicles[0]!;
+      const obstacle: FleetObstacle = { id: "same-xz", x: 65, z: first.z, radius: 0.4, person: true,
+        ...("y" in band ? { y: band.y, height: band.height } : {}) };
+      let delivered = false;
+      for (let tick = 1; tick <= 1200; tick++) {
+        const next = step(world, state, tick, { obstacles: [obstacle] }); state = next.state;
+        if (next.disembarks.length) { delivered = true; break; }
+      }
+      expect(delivered).toBe(!band.blocked);
+      if (band.blocked) expect(state.vans.jobs[0]!.arrivalTick).toBeNull();
+    }
+  });
+
+  it("checks obstacle height against each candidate road pose on elevated ground", () => {
+    const geometry = roadWorld().roads;
+    const world = buildWorld([{ tileId: "high", buildings: [], ground: { x0: -100, z0: -100, cellSizeM: 500,
+      nx: 2, nz: 2, heights: [8, 8, 8, 8] } }]);
+    world.roads = geometry;
+    let state = step(world, createFleetState(1000), 0, { requests: [request()] }).state;
+    const obstacle: FleetObstacle = { id: "ground-bird", x: 65, z: state.vehicles[0]!.z, radius: 0.4, person: true, y: 8, height: 0.5 };
+    for (let tick = 1; tick <= 500; tick++) state = step(world, state, tick, { obstacles: [obstacle] }).state;
+    expect(state.vehicles[0]!.x).toBeLessThan(65 - 2.6 - 0.4 - 0.75);
+    expect(state.vehicles[0]!.speed).toBe(0);
+  });
+
   it("rejects unsafe building routes and disconnected roads instead of spawning at the player", () => {
     const world = roadWorld();
     const blocked = buildWorld([{ tileId: "test", buildings: [{ id: "wall", baseY: 0, topY: 20, footprint: [[90, -20], [110, -20], [110, 20], [90, 20]] }], ground: null }]);

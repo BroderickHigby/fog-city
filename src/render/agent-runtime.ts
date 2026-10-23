@@ -4,7 +4,7 @@ import { channelRatio, lightChannel } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { mergeRuntimeRestPose, packAuthoredRuntimeParts } from "./runtime-packing.ts";
 import { installRuntimeRigging, mergeRuntimeAnimatedParts } from "./runtime-rigging.ts";
-import { runtimeLiveryPixels } from "./runtime-livery.ts";
+import { runtimeLetterStrokes, runtimeLiveryPixels } from "./runtime-livery.ts";
 export { RUNTIME_LIVERY_WIDTH, RUNTIME_LIVERY_HEIGHT, RUNTIME_LIVERY_COPY, runtimeLiveryPixels } from "./runtime-livery.ts";
 
 /** Runtime rendering consumes copies of poses; it never reads or advances a simulation. */
@@ -110,6 +110,28 @@ class Builder {
     return this.shape(new THREE.BoxGeometry(1, 1, 1), at, size, material, rotation);
   }
 
+  wedge(at: Vec, size: Vec, material: PackedSurface, front = 0.3): this {
+    const geometry = new THREE.BoxGeometry(1, 1, 1), positions = geometry.getAttribute("position");
+    for (let index = 0; index < positions.count; index++) if (positions.getY(index) > 0 && positions.getZ(index) < 0) positions.setY(index, front - 0.5);
+    geometry.computeVertexNormals(); return this.shape(geometry, at, size, material, [0, 0, 0]);
+  }
+
+  word(copy: string, at: Vec, height: number, material: PackedSurface, back = false): this {
+    const advance = height * 0.82, width = Math.max(0, copy.length * advance - height * 0.19), stroke = height * 0.075;
+    let x = -width / 2;
+    for (const letter of copy) {
+      for (const path of runtimeLetterStrokes(letter)) for (let index = 2; index < path.length; index += 2) {
+        const x0 = x + path[index - 2]! * height * 0.105, y0 = -path[index - 1]! * height / 8;
+        const x1 = x + path[index]! * height * 0.105, y1 = -path[index + 1]! * height / 8;
+        const dx = x1 - x0, dy = y1 - y0, side = back ? 1 : -1;
+        this.box([at[0] + (x0 + x1) * 0.5 * side, at[1] + (y0 + y1) * 0.5, at[2]],
+          [Math.hypot(dx, dy) + stroke, stroke, height * 0.05], material, [0, 0, Math.atan2(dy, dx * side)]);
+      }
+      x += advance;
+    }
+    return this;
+  }
+
   round(at: Vec, size: Vec, material: PackedSurface, rotation: Vec = [0, 0, 0]): this {
     return this.shape(new THREE.SphereGeometry(0.5, 16, 10), at, size, material, rotation);
   }
@@ -153,13 +175,21 @@ function bird(kind: "pigeon" | "parrot", low: boolean): Model {
     .box([0, 0.33, -0.25], [0.055, 0.04, 0.09], AMBER)
     .box([0, 0.16, 0.27], [0.09, 0.035, parrot ? 0.28 : 0.16], feathers, [0.25, 0, 0]);
   if (!low) {
+    b.round([0, 0.205, -0.105], [0.155, 0.19, 0.14], chest);
+    if (parrot) b.round([0, 0.363, -0.18], [0.145, 0.125, 0.1], RED)
+      .wedge([0, 0.318, -0.25], [0.075, 0.085, 0.09], surface(0xd6b993, 0.7), 0.7);
     for (const s of [-1, 1]) {
       b.round([s * 0.073, 0.365, -0.19], [0.018, 0.021, 0.018], RUBBER)
+        .round([s * 0.079, 0.368, -0.193], [0.006, 0.007, 0.007], WHITE)
         .cylinder([s * 0.045, 0.07, 0.01], [0.018, 0.14, 0.018], RED)
         .box([s * 0.045, 0.008, -0.03], [0.035, 0.015, 0.095], DARK);
     }
-    b.part([-0.085, 0.27, 0.01], "left-wing").round([-0.13, 0.2, 0.07], [0.065, 0.17, 0.29], feathers);
-    b.part([0.085, 0.27, 0.01], "right-wing").round([0.13, 0.2, 0.07], [0.065, 0.17, 0.29], feathers);
+    for (const side of [-1, 1]) {
+      b.part([side * 0.085, 0.27, 0.01], side < 0 ? "left-wing" : "right-wing")
+        .round([side * 0.13, 0.2, 0.07], [0.065, 0.17, 0.29], feathers);
+      for (let feather = 0; feather < 6; feather++) b.box([side * (0.13 + feather * 0.003), 0.185 - feather * 0.009, 0.04 + feather * 0.037],
+        [0.069, 0.009, 0.12], parrot ? surface(feather % 2 ? 0x305c41 : 0x477447, 0.9) : feathers, [0.22, 0, 0]);
+    }
   }
   return b.finish(1, 85, 300);
 }
@@ -186,28 +216,106 @@ function dog(low: boolean): Model {
   return b.finish(1, 100, 350);
 }
 
+function patrolUnit(low: boolean): Model {
+  const b = new Builder(), graphite = surface(0x303b3e, 0.4, 0.4);
+  b.wedge([0, 0.44, 0.04], [0.62, 0.48, 1.24], graphite, 0.4)
+    .box([0, 0.16, 0], [0.5, 0.18, 1.04], DARK)
+    .box([0, 0.39, -0.6], [0.42, 0.075, 0.04], GLASS)
+    .box([0, 0.395, -0.624], [0.25, 0.018, 0.015], CYAN);
+  for (const side of [-1, 1]) {
+    b.box([side * 0.29, 0.22, 0], [0.13, 0.34, 0.92], RUBBER);
+    for (const z of [-0.45, 0.45]) b.cylinder([side * 0.29, 0.22, z], [0.34, 0.13, 0.34], RUBBER, [0, 0, Math.PI / 2]);
+    if (!low) {
+      for (const z of [-0.44, -0.22, 0, 0.22, 0.44]) b.cylinder([side * 0.364, 0.22, z], [0.22, 0.025, 0.22], STEEL, [0, 0, Math.PI / 2])
+        .cylinder([side * 0.381, 0.22, z], [0.075, 0.014, 0.075], DARK, [0, 0, Math.PI / 2]);
+      for (let z = -0.48; z <= 0.48; z += 0.12) b.box([side * 0.29, 0.402, z], [0.14, 0.025, 0.035], DARK);
+      b.box([side * 0.322, 0.53, 0.15], [0.016, 0.14, 0.47], DARK);
+      for (let slot = 0; slot < 5; slot++) b.box([side * 0.335, 0.53, -0.03 + slot * 0.08], [0.014, 0.09, 0.015], STEEL);
+    }
+  }
+  // A fold-out lectern, not a mast or weapon: the visible face is a terms display.
+  b.cylinder([0, 0.73, 0.1], [0.075, 0.44, 0.075], STEEL)
+    .box([0, 0.94, -0.03], [0.53, 0.32, 0.085], graphite, [-0.18, 0, 0])
+    .box([0, 0.945, -0.085], [0.46, 0.24, 0.02], GLASS)
+    .box([0, 0.815, -0.1], [0.56, 0.04, 0.12], STEEL);
+  if (!low) {
+    b.word("TERMS", [0, 1.02, -0.1], 0.065, WHITE)
+      .word("MOAT", [0, 0.615, 0.668], 0.06, CYAN, true);
+    for (let line = 0; line < 3; line++) b.box([0, 0.9 - line * 0.028, -0.103], [0.28 - line * 0.04, 0.008, 0.009], CYAN);
+    b.box([0, 0.675, 0.38], [0.35, 0.04, 0.18], DARK)
+      .round([0, 0.71, 0.39], [0.07, 0.045, 0.07], AMBER);
+  }
+  return b.finish(1, 140, 650);
+}
+
+function tidyUnit(low: boolean): Model {
+  const b = new Builder(), paint = surface(0xd7ded8, 0.53, 0.12), blue = surface(0x356775, 0.42, 0.28);
+  b.box([0, 0.33, 0.04], [0.6, 0.46, 0.63], paint)
+    .wedge([0, 0.54, 0.05], [0.59, 0.18, 0.61], paint, 0.65)
+    .box([0, 0.135, 0.04], [0.62, 0.17, 0.65], DARK)
+    .box([0, 0.47, -0.285], [0.42, 0.105, 0.04], GLASS)
+    .box([0, 0.476, -0.31], [0.24, 0.022, 0.015], CYAN);
+  for (const side of [-1, 1]) {
+    for (const z of [-0.18, 0.28]) {
+      b.cylinder([side * 0.31, 0.16, z], [0.29, 0.105, 0.29], RUBBER, [0, 0, Math.PI / 2]);
+      if (!low) b.cylinder([side * 0.371, 0.16, z], [0.145, 0.018, 0.145], STEEL, [0, 0, Math.PI / 2]);
+    }
+    b.box([side * 0.35, 0.35, -0.43], [0.065, 0.12, 0.42], blue)
+      .box([side * 0.35, 0.47, -0.48], [0.05, 0.29, 0.39], paint)
+      .box([side * 0.35, 0.635, -0.48], [0.07, 0.025, 0.41], AMBER);
+    if (!low) {
+      b.box([side * 0.31, 0.39, 0.13], [0.018, 0.17, 0.32], blue);
+      for (let slot = 0; slot < 4; slot++) b.box([side * 0.327, 0.38, 0.01 + slot * 0.07], [0.012, 0.095, 0.012], DARK);
+      b.cylinder([side * 0.27, 0.58, -0.51], [0.06, 0.045, 0.06], STEEL, [0, 0, Math.PI / 2]);
+    }
+  }
+  b.box([0, 0.3, -0.53], [0.69, 0.07, 0.48], STEEL)
+    .cylinder([0, 0.255, -0.74], [0.12, 0.65, 0.12], RUBBER, [0, 0, Math.PI / 2]);
+  if (!low) {
+    for (const side of [-1, 1]) b.round([side * 0.29, 0.075, -0.49], [0.3, 0.08, 0.3], DARK);
+    b.box([0, 0.65, 0.19], [0.25, 0.05, 0.23], blue)
+      .cylinder([0, 0.715, 0.19], [0.11, 0.09, 0.11], AMBER)
+      .box([0, 0.385, 0.366], [0.3, 0.16, 0.016], blue);
+    for (let stripe = -1; stripe <= 1; stripe++) b.box([stripe * 0.075, 0.385, 0.379], [0.024, 0.12, 0.012], WHITE, [0, 0, -0.25]);
+  }
+  return b.finish(1, 140, 650);
+}
+
+function spinnerBoard(low: boolean): Part[] {
+  const b = new Builder();
+  b.part([0, 1.02, -0.3], "sign").box([0, 1.02, -0.38], [1.02, 0.66, 0.07], DARK)
+    .box([0, 1.02, -0.424], [0.93, 0.56, 0.018], GREEN)
+    .box([0, 1.02, -0.335], [0.93, 0.56, 0.018], GREEN);
+  if (!low) {
+    for (const back of [false, true]) {
+      const z = back ? -0.319 : -0.443;
+      b.word("AI", [0, 1.21, z], 0.31, WHITE, back)
+        .word("MOAT", [0, 0.87, z], 0.063, DARK, back);
+    }
+    for (const x of [-0.48, 0.48]) for (const y of [0.72, 1.32]) b.round([x, y, -0.435], [0.026, 0.026, 0.012], STEEL);
+  }
+  return b.finish().parts;
+}
+
 function robot(kind: "footman" | "trundle" | "patrol" | "tidy" | "sign-spinner", low: boolean): Model {
-  const b = new Builder(), patrol = kind === "patrol", tidy = kind === "tidy", trundle = kind === "trundle";
-  if (trundle || tidy) {
+  if (kind === "patrol") return patrolUnit(low);
+  if (kind === "tidy") return tidyUnit(low);
+  const b = new Builder(), trundle = kind === "trundle";
+  if (trundle) {
     b.round([0, 0.4, 0], [0.72, 0.64, 0.78], SHELL)
       .box([0, 0.18, 0], [0.62, 0.2, 0.67], DARK)
       .box([0, 0.59, -0.34], [0.4, 0.12, 0.04], GLASS)
-      .box([0, 0.595, -0.365], [0.26, 0.025, 0.016], tidy ? AMBER : CYAN);
+      .box([0, 0.595, -0.365], [0.26, 0.025, 0.016], CYAN);
     for (const s of [-1, 1]) b.cylinder([s * 0.34, 0.18, 0], [0.28, 0.09, 0.28], RUBBER, [0, 0, Math.PI / 2]);
-    if (!low && tidy) {
-      b.box([0, 0.31, -0.58], [0.8, 0.1, 0.35], STEEL)
-        .cylinder([0, 0.17, -0.69], [0.25, 0.62, 0.25], DARK, [0, 0, Math.PI / 2]);
-      for (const s of [-1, 1]) b.box([s * 0.34, 0.6, 0.1], [0.08, 0.43, 0.43], AMBER);
-    }
     return b.finish(1, 130, 500);
   }
-  const h = patrol ? 1.12 : 0.94;
-  b.round([0, h, 0], [patrol ? 0.66 : 0.54, 0.64, 0.34], patrol ? DARK : SHELL)
+  const h = 0.94;
+  b.round([0, h, 0], [0.54, 0.64, 0.34], SHELL)
     .cylinder([0, h + 0.4, 0], [0.12, 0.18, 0.12], DARK)
     .round([0, h + 0.62, 0], [0.38, 0.34, 0.32], SHELL)
     .box([0, h + 0.63, -0.15], [0.28, 0.12, 0.04], GLASS)
     .box([0, h + 0.64, -0.178], [0.18, 0.028, 0.013], CYAN)
-    .box([0, h - 0.13, -0.18], [0.3, 0.09, 0.035], patrol ? AMBER : CYAN)
+    .box([0, h - 0.13, -0.18], [0.3, 0.09, 0.035], CYAN)
     .round([0, h - 0.4, 0], [0.39, 0.19, 0.3], DARK);
   if (!low) {
     for (const s of [-1, 1]) {
@@ -224,10 +332,7 @@ function robot(kind: "footman" | "trundle" | "patrol" | "tidy" | "sign-spinner",
       .round([s * 0.14, 0.1, -0.075], [0.2, 0.15, 0.34], DARK);
   }
   if (kind === "sign-spinner") {
-    b.part([0, h + 0.08, -0.3], "sign")
-      .box([0, h + 0.08, -0.36], [0.92, 0.58, 0.07], GREEN)
-      .box([0, h + 0.08, -0.402], [0.78, 0.04, 0.012], WHITE)
-      .box([0, h + 0.2, -0.402], [0.58, 0.04, 0.012], WHITE);
+    const model = b.finish(1, 140, 650); model.parts.push(...spinnerBoard(low)); return model;
   }
   return b.finish(1, 140, 650);
 }
@@ -301,11 +406,21 @@ function drone(low: boolean): Model {
     .box([0, -0.35, -0.066], [0.97, 0.48, 0.018], CYAN)
     .box([0, -0.35, 0.066], [0.97, 0.48, 0.018], CYAN);
   if (!low) {
+    b.box([0, 0.125, 0], [0.34, 0.045, 0.28], DARK)
+      .box([0, -0.67, 0], [1.2, 0.055, 0.15], STEEL)
+      .box([0, -0.35, -0.079], [0.9, 0.43, 0.01], surface(0x172e35, 0.35, 0.2))
+      .box([0, -0.35, 0.079], [0.9, 0.43, 0.01], surface(0x172e35, 0.35, 0.2));
+    for (const back of [false, true]) b.word("MOAT", [0, -0.25, back ? 0.091 : -0.091], 0.16, WHITE, back)
+      .word("LABS", [0, -0.47, back ? 0.091 : -0.091], 0.065, CYAN, back);
+    for (const side of [-1, 1]) b.cylinder([side * 0.4, -0.035, 0], [0.025, 0.19, 0.025], STEEL)
+      .round([side * 0.24, 0.09, -0.17], [0.075, 0.05, 0.07], side < 0 ? RED : CYAN);
     for (const s of [-1, 1]) for (const z of [-0.38, 0.38]) {
-      b.box([s * 0.35, 0.12, z * 0.6], [0.75, 0.045, 0.055], STEEL, [0, s * z, 0]);
+      b.part().box([s * 0.35, 0.12, z * 0.6], [0.75, 0.045, 0.055], STEEL, [0, s * z, 0]);
+      b.ring([s * 0.62, 0.21, z], [0.65, 0.65, 0.65], DARK, [Math.PI / 2, 0, 0]);
       b.part([s * 0.62, 0.17, z], "rotor")
         .cylinder([s * 0.62, 0.17, z], [0.12, 0.1, 0.12], DARK)
-        .box([s * 0.62, 0.23, z], [0.57, 0.017, 0.06], RUBBER);
+        .box([s * 0.62, 0.23, z], [0.57, 0.017, 0.06], RUBBER)
+        .box([s * 0.62, 0.23, z], [0.06, 0.017, 0.57], RUBBER);
     }
   }
   return b.finish(1, 130, 650);
@@ -324,7 +439,19 @@ function associate(low: boolean): Model {
         .round([s * 0.29, 0.81, 0], [0.11, 0.14, 0.11], skin);
     }
     b.box([0.29, 0.84, -0.055], [0.08, 0.13, 0.025], DARK)
-      .box([0, 1.59, -0.126], [0.19, 0.025, 0.023], DARK);
+      .box([0, 1.59, -0.126], [0.19, 0.025, 0.023], DARK)
+      .wedge([0, 1.66, -0.139], [0.045, 0.07, 0.064], skin, 0.5)
+      .box([-0.055, 1.73, -0.122], [0.035, 0.014, 0.014], DARK)
+      .box([0.055, 1.73, -0.122], [0.035, 0.014, 0.014], DARK)
+      .box([0, 1.71, -0.133], [0.17, 0.012, 0.018], STEEL)
+      .box([0, 1.22, -0.159], [0.012, 0.25, 0.012], DARK);
+    for (const side of [-1, 1]) {
+      b.box([side * 0.104, 1.39, -0.15], [0.087, 0.28, 0.036], suit, [0, 0, side * 0.25])
+        .box([side * 0.25, 0.99, -0.055], [0.13, 0.04, 0.13], WHITE)
+        .box([side * 0.11, 1.06, -0.151], [0.095, 0.016, 0.018], DARK);
+    }
+    b.box([0.115, 1.31, -0.178], [0.082, 0.071, 0.017], WHITE)
+      .box([0.115, 1.327, -0.19], [0.06, 0.012, 0.01], CYAN);
   }
   for (const s of [-1, 1]) {
     b.part([s * 0.115, 0.91, 0], s < 0 ? "left-leg" : "right-leg")
@@ -337,14 +464,27 @@ function associate(low: boolean): Model {
 function colossus(kind: "walker" | "finale", low: boolean): Model {
   const b = new Builder(), finale = kind === "finale";
   if (!finale) {
-    b.box([0, 2.1, 0], [2.5, 0.75, 4.9], SHELL)
-      .round([0, 2.6, -1.6], [1.4, 0.75, 1.3], DARK)
-      .box([0, 2.59, -2.24], [0.9, 0.13, 0.05], CYAN);
-    for (const s of [-1, 1]) for (const z of [-1.8, 1.8]) {
-      b.part([s * 1.22, 2.05, z], s * z < 0 ? "left-leg" : "right-leg")
-        .cylinder([s * 1.33, 1.24, z], [0.31, 1.7, 0.31], DARK)
-        .round([s * 1.35, 1.2, z], [0.43, 0.43, 0.43], AMBER)
-        .box([s * 1.4, 0.16, z - 0.12], [0.63, 0.28, 0.88], STEEL);
+    b.box([0, 2.1, 0], [2.5, 0.54, 7.2], SHELL)
+      .box([0, 2.44, 0], [2.25, 0.12, 6.8], DARK)
+      .wedge([0, 2.47, -2.4], [1.7, 0.46, 1.5], DARK, 0.5)
+      .box([0, 2.39, -3.17], [1.18, 0.12, 0.04], CYAN);
+    for (const s of [-1, 1]) {
+      b.box([s * 1.2, 2.29, 0], [0.12, 0.44, 6.65], STEEL);
+      if (!low) {
+        b.box([s * 1.27, 2.55, 0.1], [0.075, 0.13, 6.8], DARK);
+        for (let bay = -2; bay <= 2; bay++) {
+          b.box([s * 1.28, 2.3, bay * 1.05], [0.09, 0.1, 1.15], DARK, [bay % 2 ? 0.29 : -0.29, 0, 0])
+            .box([s * 1.28, 2.63, bay * 1.05], [0.08, 0.1, 0.42], AMBER);
+        }
+      }
+    }
+    for (const s of [-1, 1]) for (const z of [-2, 2]) {
+      // Combat's weak points are fixed at x±1.5,z±2,y0.5 relative to the body.
+      b.cylinder([s * 1.43, 1.18, z], [0.28, 1.64, 0.28], DARK)
+        .round([s * 1.5, 0.5, z], [0.47, 0.4, 0.47], AMBER)
+        .box([s * 1.5, 0.15, z], [0.72, 0.3, 0.86], STEEL);
+      if (!low) b.cylinder([s * 1.43, 1.42, z], [0.4, 0.45, 0.4], SHELL)
+        .box([s * 1.5, 0.31, z], [0.5, 0.055, 0.65], DARK);
     }
     return b.finish(1, 300, 1500);
   }
@@ -367,9 +507,22 @@ function colossus(kind: "walker" | "finale", low: boolean): Model {
   }
   if (!low) {
     b.part();
+    b.round([0, 4.87, 0.03], [0.86, 0.5, 0.77], DARK)
+      .box([-0.16, 4.73, -0.376], [0.14, 0.06, 0.035], DARK)
+      .box([0.16, 4.73, -0.376], [0.14, 0.06, 0.035], DARK)
+      .box([0, 4.55, -0.388], [0.22, 0.018, 0.025], STEEL);
+    for (let rib = 0; rib < 5; rib++) b.ring([0, 4.04 + rib * 0.055, 0], [0.75, 0.62, 0.75], DARK, [Math.PI / 2, 0, 0]);
     for (let row = 0; row < 5; row++) for (let col = -2; col <= 2; col++) {
-      b.box([col * 0.22, 2.67 + row * 0.22, -0.35], [0.12, 0.14, 0.055], (row + col) % 3 ? STEEL : CYAN);
+      const x = col * 0.22, y = 2.67 + row * 0.22;
+      b.box([x, y, -0.35], [0.18, 0.19, 0.06], (row + col) % 3 ? surface(0x354246, 0.57, 0.4) : DARK)
+        .box([x, y + 0.04, -0.386], [0.09, 0.025, 0.012], (row + col) % 4 ? STEEL : CYAN)
+        .box([x - 0.055, y - 0.03, -0.389], [0.025, 0.052, 0.012], DARK);
     }
+    for (const side of [-1, 1]) for (let row = 0; row < 6; row++) {
+      b.box([side * 0.38, 1.25 + row * 0.15, 0.06], [0.09, 0.09, 0.29], surface(0x354246, 0.6, 0.36))
+        .box([side * 0.12, 0.2 + row * 0.105, -0.095], [0.1, 0.07, 0.045], STEEL);
+    }
+    b.box([0, 3.8, 0.33], [1.03, 0.17, 0.13], DARK);
   }
   return b.finish(100, 2200, 10000);
 }
@@ -442,8 +595,11 @@ interface Batch { model: Model; parts: BatchPart[]; count: number; kind: Runtime
 
 const FILE_MODELS: Partial<Record<RuntimeVisualKind, string>> = {
   van: "models/moat-van.glb", bus: "models/muni-bus.glb", dog: "models/dog.glb",
-  pigeon: "models/pigeon.glb", robotaxi: "models/robotaxi.glb",
+  pigeon: "models/pigeon.glb", robotaxi: "models/robotaxi.glb", footman: "models/errand-robot.glb",
+  trundle: "models/sidewalk-bot.glb", "sign-spinner": "models/errand-robot.glb", heap: "models/heap-mixed.glb",
 };
+const EXISTING_MODEL_KEYS: Partial<Record<RuntimeVisualKind, string>> = { footman: "robot", "sign-spinner": "robot", trundle: "sidewalk-bot" };
+const HUMANOID_JOINTS = { arm_upper_L: "left-arm", arm_upper_R: "right-arm", leg_upper_L: "left-leg", leg_upper_R: "right-leg" } as const;
 
 /** Preserve authored geometry while batching compatible surfaces at their animated joints. */
 function authoredModel(root: THREE.Object3D, kind: RuntimeVisualKind, materials: Set<THREE.Material>, livery: () => THREE.Texture): Model {
@@ -458,7 +614,17 @@ function authoredModel(root: THREE.Object3D, kind: RuntimeVisualKind, materials:
   };
   const parts = packAuthoredRuntimeParts(root, { material,
     // The live owner-to-collar line replaces the authored rest-pose leash.
-    omit: source => kind === "dog" && /leash/i.test(source.name) });
+    omit: source => kind === "dog" && /leash/i.test(source.name) || kind === "heap" && /puddle/i.test(source.name) ||
+      kind === "sign-spinner" && /^bag(?:_|$)/i.test(source.name),
+    joint: kind === "footman" || kind === "sign-spinner" ? (source, modelRoot) => {
+      let selected: { object: THREE.Object3D; animation: Animation } | null = null;
+      for (let node: THREE.Object3D | null = source; node && node !== modelRoot; node = node.parent) {
+        const animation: Animation | undefined = HUMANOID_JOINTS[node.name as keyof typeof HUMANOID_JOINTS];
+        if (animation) selected = { object: node, animation };
+      }
+      return selected;
+    } : undefined });
+  if (kind === "sign-spinner") parts.push(...spinnerBoard(false));
   return { parts, scale: 1, detailDistance: kind === "dog" || kind === "pigeon" ? 100 : 190,
     visibilityDistance: kind === "dog" || kind === "pigeon" ? 650 : 1000 };
 }
@@ -495,8 +661,8 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
     const path = FILE_MODELS[kind];
     if (!path || !options.registry || requested.has(kind)) return;
     requested.add(kind);
-    const key = `runtime:${kind}`;
-    options.registry.register(key, path);
+    const key = EXISTING_MODEL_KEYS[kind] ?? `runtime:${kind}`;
+    if (!EXISTING_MODEL_KEYS[kind]) options.registry.register(key, path);
     void options.registry.get(key).then(result => { if (!disposed && result.source === "file") authored.set(kind, result.model); });
   }
 

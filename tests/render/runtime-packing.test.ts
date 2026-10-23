@@ -53,6 +53,16 @@ describe("runtime authored geometry packing", () => {
     dispose(parts); geometry.dispose(); paint.dispose(); head.dispose(); tail.dispose();
   });
 
+  it("accepts explicit authored limb bindings without changing geometry or pivots", () => {
+    const root = new THREE.Group(), shoulder = new THREE.Group(), geometry = new THREE.BoxGeometry(0.1, 0.6, 0.1);
+    const material = new THREE.MeshStandardMaterial(); shoulder.position.set(0.3, 1.4, 0);
+    const hand = new THREE.Mesh(geometry, material); hand.position.y = -0.3; shoulder.add(hand); root.add(shoulder);
+    const parts = packAuthoredRuntimeParts(root, { joint: () => ({ object: shoulder, animation: "right-arm" }) });
+    expect(parts).toHaveLength(1); expect(parts[0]!.animation).toBe("right-arm");
+    expect(parts[0]!.pivot).toEqual([0.3, 1.4, 0]); expect(triangleCount(parts)).toBe(12);
+    dispose(parts); geometry.dispose(); material.dispose();
+  });
+
   it("respects material groups and keeps transparent/custom emission surfaces separate", () => {
     const root = new THREE.Group(), geometry = new THREE.BoxGeometry(1, 1, 1);
     const opaque = new THREE.MeshStandardMaterial({ color: 0x7799aa }), transparent = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.4 });

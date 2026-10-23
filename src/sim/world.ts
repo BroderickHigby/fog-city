@@ -7,6 +7,7 @@ import { buildWalls, type BoundaryFile, type Walls } from "./boundary.ts";
 import { TILE_SIZE_M } from "../geo/project.ts";
 import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 import type { GameplayWorldData } from "./gameplay-world.ts";
+import type { FleetTransitLayer } from "./transit.ts";
 
 export interface BuildingCollider {
   id: string;
@@ -45,6 +46,8 @@ export interface TileCollider {
 export interface World {
   /** Optional immutable gameplay layer supplied by the world loader. */
   gameplay?: Readonly<GameplayWorldData>;
+  /** Optional source transit routes and stops, shared by Node and browser clients. */
+  transit?: Readonly<FleetTransitLayer>;
   /** Tiles in ascending id order. */
   tiles: TileCollider[];
   /** Derived: cellKey(gx, gz) of GROUND_CELL m cells -> tiles whose heightfield overlaps the cell, ascending id order. */
@@ -103,7 +106,7 @@ function tileAligned(sorted: readonly TileCollider[]): Map<number, Heightfield> 
  * 1.6 to 2.3 s for the citywide set (583 tiles, 187k buildings, 15.7k road edges). Callers on
  * a UI thread should build once at load (or in a worker), not per frame.
  */
-export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null, boundary: BoundaryFile | null = null, gameplay?: Readonly<GameplayWorldData>): World {
+export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null, boundary: BoundaryFile | null = null, gameplay?: Readonly<GameplayWorldData>, transit?: Readonly<FleetTransitLayer>): World {
   const sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0));
   const cells = new Map<number, BuildingCollider[]>();
   const boxLists = new Map<number, number[]>();
@@ -158,6 +161,7 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
     walls: null,
   };
   if (gameplay) world.gameplay = gameplay;
+  if (transit) world.transit = transit;
   if (roads) {
     world.roads = buildRoadGraph(roads, { blocked: (x, z, r) => circleBlocked(world, x, z, r) });
   }

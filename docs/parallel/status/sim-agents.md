@@ -39,9 +39,35 @@ The corresponding earlier 24-anchor p95 was 506.563 ms and peak JSON was 1,974,3
 
 Additional correctness fixes include good-robot reactions respecting movement limits; Patrol using actual sensory memory and cancelling Terms on disable/restore; physical rogue-taxi arrival; independent robot-body emote/tell presentation; and overlapping population caps rechecked after final clearance. The asset audit is in [sim-agents-assets.md](sim-agents-assets.md).
 
-## Open lane acceptance work
+## Current integration pass (QA complete)
 
-The current checkpoint still has known lane-owned gaps: local/protected conversion scopes, content goal/tell wiring, good-robot travel to authored repair kiosks, sensory memory for associates, two-second stuck recovery, and the exact 100 m square/epoch ambient regeneration contract. Draft fixes are being developed on this branch. Existing runtime support or passing tests must not be presented as completion of those missing behaviors.
+The working tree now connects per-player conversion scopes (including protected SF districts), authored robot goals and seven implemented tells, travel to real repair kiosks, associate sensory memory, two-second blocked-movement recovery, owned-safehouse/reputation adapters and source Muni routes. Muni service follows a bounded local segment and a legal road return; it is not a reproduction of every complete Muni line. Unsupported catalog goals/tells remain explicitly pending. A repair arrival does not itself invent healing or a restoration acknowledgement.
+
+Recorded combat microclimate spheres now occlude visual observations, including robot/recruit sightings, without changing sound or remembered positions. This is a consumer of actual recorded gadgets; weather and gadget activation are still separate dependencies. Large external sight rays use a bounded collider scan instead of enumerating empty world cells.
+
+The new 100 m square/epoch population path uses a serialized `ambientMode: "squares-v1"` marker. The live entry point, benchmark and integrated browser replay select that path. Active squares keep their entry bucket across reloads and time-bucket changes; after leaving every radius, they use the current bucket on re-entry. Compact provenance drives appearance, child/adult classification, firmware, catalog, speed, RNG and route choices. Numeric IDs survive while live or significant; a disposed ambient actor gets a new monotonic ID on regeneration, so obsolete combat records cannot reattach. Existing sessions keep their previous population rules. Initial legacy residents are retained until naturally disposed; subsequent births use the square source.
+
+Wet/rust/scan/recruit evidence is promoted before pruning. New ambient residents reserve promotion capacity within the shared 2,000-agent limit. Taxi, routine and finale births respect those slots and pending van deliveries. Capacity-denied requests remain pending without false acknowledgements. Parked cars remain spawn obstacles even when their owners are on foot. Already over-budget imported snapshots retain explicit capacity diagnostics; the reserve guarantee is for normally admitted populations.
+
+Metadata compaction reconstructs descriptions from their existing owners while retaining tick-local observations. Transforming the captured 24-anchor state reduced JSON from 1,643,210 to 1,410,970 bytes with exact metadata equality. The final fresh-runtime sample, including square provenance and the service fixes, passes the 1.5 MB snapshot limit at all three tested scales. CPU performance remains failing:
+
+| Active player anchors | Median step ms | p95 step ms | Peak JSON bytes |
+| --- | ---: | ---: | ---: |
+| 1 | 3.078 | 4.947 | 113,370 |
+| 4 | 9.376 | 11.882 | 336,073 |
+| 24 | 58.541 | 67.625 | 1,397,264 |
+
+These are 180 measured + 10 warm-up ticks on real SF, seed 7. Complete final state replay matches at each scale, with zero final body overlaps, contacts or counter resets. The 0.7 ms four-anchor target is still unmet; this is not a production performance sign-off.
+
+The extended idle service run found a real queue behind a parked car and airborne birds incorrectly blocking road traffic. Dispatch now considers checked parallel lanes before spawning, ground traffic tests actual height bands, and return routing preserves the chosen lane's position. The final 1,500 + 60 warm-up tick run delivers two units in **16.72 seconds** against the unchanged 20-second deadline, with three physical buses, exact replay and zero overlaps/contacts. Occupied routes may still legitimately miss a deadline; no arrival is fabricated.
+
+The runtime art pass replaces placeholder Patrol/Tidy/drone/finale geometry, reuses additional authored robot/heap models, and retains shared materials and joints. Its updated native-1080p contact sheet passes, as do 26 focused art tests. The final Chromium run also passes the live-scene rendering budgets.
+
+Final unit validation: **150 files passed; 3,351 tests passed, one skipped**, 110.79 seconds. The skipped case is the opt-in `UPDATE_BANNED_PAIRS` content-regeneration command, not a missing gameplay check. Final typecheck passed. The earlier head-light assertion was corrected to check the independently turning authored head; status-light geometry was retained.
+
+Final Chromium validation: **35/35 passed**, 4.7 minutes, including 1,800-tick integrated Node/browser parity, real-SF driving/clearance and ordinary/split packed builds served from a sub-path. The report-only software FPS probe was excluded; this is not a hardware frame-rate claim. Firefox/WebKit remain blocked as described below.
+
+The final driving soak ran **1,800 measured + 60 warm-up ticks**, matched complete replay state, delivered two units on time, observed four moving buses, and recorded zero contacts, overlaps or counter resets. The durable machine-readable results, including failed CPU budgets and pending production gates, are in [sim-agents.json](../results/sim-agents.json). Raw run logs are retained locally in `test-results/quality/lane3/`.
 
 ## External and cross-lane dependencies
 

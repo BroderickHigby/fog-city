@@ -32,6 +32,7 @@ function distance3Squared(a: Vec3, b: Vec3): number {
 }
 
 function modelRate(actor: CombatActor): number {
+  if (Number.isFinite(actor.rustScale) && actor.rustScale! > 0 && actor.rustScale! <= 1) return actor.rustScale!;
   if (actor.model === "patrol") return 0.5;
   if (actor.model === "drone") return 1.5;
   if (actor.model === "robotaxi") return 0.7;

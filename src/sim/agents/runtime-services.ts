@@ -4,8 +4,11 @@ import { boxBlocked, boxCrossedWall, type Circle } from "../collide.ts";
 import { circleBlocked, meshGroundHeight, type World } from "../world.ts";
 import { connector, connectorPath, dirIndex, lanePath, makePath, pathPoint, projectOnPath, subPath, walkPath, type Dir, type Path, type RoadEdgeInfo } from "../roads.ts";
 import { toLocal } from "../../geo/project.ts";
-import { createBusServiceState, createVanServiceState, stepBusServices, stepVanServices, type AdWrapSlot, type BusRetirement, type BusRoute, type BusServiceState, type ServiceIntent, type ServiceRoadLeg, type ThreatVanRequest, type VanRetirement, type VanRouteCandidate, type VanServiceState, type VehicleProgress } from "./services.ts";
+import { createBusServiceState, createVanServiceState, stepBusServices, stepVanServices, VAN_RESPONSE_TICKS, type AdWrapSlot, type BusRetirement, type BusRoute, type BusServiceState, type ServiceIntent, type ServiceRoadLeg, type ThreatVanRequest, type VanRetirement, type VanRouteCandidate, type VanServiceState, type VehicleProgress } from "./services.ts";
 import { authoredStandbyDepots } from "./authored-depots.ts";
+import { MUNI_ROAD_STOP_RADIUS_M, muniLocalCandidates } from "./muni-services.ts";
+import type { MuniFallbackReason, MuniLocalSegment } from "./muni-services.ts";
+import { parseFleetTransitLayer, type FleetTransitLayer } from "../transit.ts";
 
 export const FLEET_ACCELERATION = 6;
 export const FLEET_BRAKING = 10;
@@ -22,7 +25,8 @@ export const DEFAULT_FLEET_DEPOTS: readonly FleetDepot[] = [
   { id: "depot-bridge", kind: "depot", ...toLocal(37.787, -122.3884) },
   { id: "depot-mission-bay", kind: "depot", ...toLocal(37.77, -122.387) },
 ];
-export interface FleetObstacle { id: string; x: number; z: number; radius: number; person: boolean }
+export interface FleetObstacle { id: string; x: number; z: number; radius: number; person: boolean; y?: number; height?: number }
+interface BandedCircle extends Circle { y?: number; height?: number }
 export interface FleetSection { edgeId: string; policyEdgeId: number; direction: Dir; fromM: number; toM: number; speedLimitMps: number; oneWay: boolean }
 export interface FleetRoute { id: string; path: Path; sections: FleetSection[]; policyLegs: ServiceRoadLeg[]; entryAfterLeg: number; entryM: number; expectedTravelTicks: number; cruiseSpeedMps: number }
 export interface FleetVehicle {
@@ -34,10 +38,20 @@ export interface FleetVehicle {
   blocked: boolean; adWrapSlot: AdWrapSlot | null;
 }
 export interface FleetDelivery { requestId: number; vehicleId: number }
+export interface FleetBusService {
+  source: "muni" | "authored-fallback";
+  extent: "local-segment" | "local-loop";
+  sourceRouteId: string | null;
+  sourceStopIds: string[];
+  /** Legs after this boundary are an explicit legal return, not source-route geometry. */
+  returnAfterLeg: number | null;
+  fallbackReason: MuniFallbackReason | null;
+}
 export interface FleetState {
   lastTick: number; nextActorId: number; vans: VanServiceState; buses: BusServiceState;
   vehicles: FleetVehicle[]; busRoute: FleetRoute | null; busPolicy: BusRoute | null;
   pendingDeliveries: FleetDelivery[];
+  busService?: FleetBusService | null;
 }
 export interface FleetActor {
   id: number; kind: "van" | "bus"; x: number; y: number; z: number; heading: number; speed: number;
@@ -59,7 +73,7 @@ const dimensions = (kind: "van" | "bus"): { hl: number; hw: number } => kind ===
  * reserve the returned nextActorId in the ambient actor allocator before spawning more.
  */
 export function createFleetState(firstActorId: number): FleetState {
-  return { lastTick: -1, nextActorId: firstActorId, vans: createVanServiceState(firstActorId), buses: createBusServiceState(firstActorId), vehicles: [], busRoute: null, busPolicy: null, pendingDeliveries: [] };
+  return { lastTick: -1, nextActorId: firstActorId, vans: createVanServiceState(firstActorId), buses: createBusServiceState(firstActorId), vehicles: [], busRoute: null, busPolicy: null, busService: null, pendingDeliveries: [] };
 }
 
 function network(world: World): Network {
@@ -101,7 +115,8 @@ function join(lane: Lane, next: Lane): Path {
 /** Dijkstra states are directed lanes, so a cheapest arrival from the wrong direction
  * cannot hide a legal turn. Immediate U-turns are excluded; closed loops still work.
  */
-function laneRoute(net: Network, start: Projection, target: Projection): Lane[] | null {
+function laneRoute(net: Network, start: Projection, target: Projection, allowed: (lane: Lane) => boolean = () => true): Lane[] | null {
+  if (!allowed(start.lane) || !allowed(target.lane)) return null;
   if (start.lane.key === target.lane.key && target.s > start.s + 0.1) return [start.lane];
   const queue: { lane: Lane; cost: number }[] = [{ lane: start.lane, cost: 0 }];
   const distance = new Map<string, number>([[start.lane.key, 0]]);
@@ -122,7 +137,7 @@ function laneRoute(net: Network, start: Projection, target: Projection): Lane[] 
       return route;
     }
     for (const next of net.outgoing.get(current.lane.to) ?? []) {
-      if (next.edge.id === current.lane.edge.id || done.has(next.key)) continue;
+      if (next.edge.id === current.lane.edge.id || done.has(next.key) || !allowed(next)) continue;
       const cost = current.cost + next.path.len + join(current.lane, next).len;
       const old = distance.get(next.key);
       if (old !== undefined && old <= cost) continue;
@@ -134,8 +149,8 @@ function laneRoute(net: Network, start: Projection, target: Projection): Lane[] 
   return null;
 }
 
-function partsFor(net: Network, start: Projection, target: Projection, cruise: number): Part[] | null {
-  const route = laneRoute(net, start, target);
+function partsFor(net: Network, start: Projection, target: Projection, cruise: number, allowed?: (lane: Lane) => boolean): Part[] | null {
+  const route = laneRoute(net, start, target, allowed);
   if (route === null) return null;
   const parts: Part[] = [];
   for (let i = 0; i < route.length; i++) {
@@ -216,29 +231,147 @@ function poseAt(path: Path, distanceM: number): { x: number; z: number; heading:
   return { x: p.x, z: p.z, heading: datan2(p.tx, -p.tz) };
 }
 
-function vanCandidate(world: World, net: Network, request: ThreatVanRequest, depots: readonly FleetDepot[], obstacles: readonly FleetObstacle[]): { route: FleetRoute; policy: VanRouteCandidate } | null {
-  const targets: Projection[] = [];
-  const circles = obstacleCircles(obstacles, [], -1);
-  for (const projection of projections(net, request.player, 12, 4)) for (const offset of [0, -8, 8, -10, 10]) {
-    const s = Math.max(0, Math.min(projection.lane.path.len, projection.s + offset));
-    const pose = poseAt(projection.lane.path, s);
-    const dx = pose.x - request.player.x; const dz = pose.z - request.player.z;
-    const distance = Math.sqrt(dx * dx + dz * dz);
-    if (distance <= 12 && !boxBlocked(world, { ...pose, ...dimensions("van") }, meshGroundHeight(world, pose.x, pose.z), circles)) targets.push({ ...projection, s, distance });
+function trafficOnRoute(world: World, route: FleetRoute, obstacles: readonly FleetObstacle[], vehicles: readonly FleetVehicle[]): boolean {
+  const circles = obstacleCircles(obstacles.filter(obstacle => !obstacle.person), vehicles, -1);
+  const dim = dimensions("van");
+  for (let distance = 0; distance <= route.path.len + 1; distance += 1) {
+    const point = pathPoint(route.path, Math.min(distance, route.path.len));
+    for (const circle of circlesAt(circles, meshGroundHeight(world, point.x, point.z), 2.1)) {
+      const dx = circle.x - point.x, dz = circle.z - point.z;
+      const along = Math.max(0, Math.abs(dx * point.tx + dz * point.tz) - dim.hl);
+      const across = Math.max(0, Math.abs(dx * point.tz - dz * point.tx) - dim.hw);
+      if (along * along + across * across < circle.r * circle.r) return true;
+    }
   }
+  return false;
+}
+function vanCandidate(world: World, net: Network, request: ThreatVanRequest, depots: readonly FleetDepot[], obstacles: readonly FleetObstacle[], vehicles: readonly FleetVehicle[]): { route: FleetRoute; policy: VanRouteCandidate } | null {
+  const targets: Projection[] = [];
+  const circles = obstacleCircles(obstacles, vehicles, -1);
+  const addTargets = (projection: Projection): Projection[] => {
+    const result: Projection[] = [];
+    for (const offset of [0, -8, 8, -10, 10]) {
+      const s = Math.max(0, Math.min(projection.lane.path.len, projection.s + offset));
+      const pose = poseAt(projection.lane.path, s);
+      const dx = pose.x - request.player.x; const dz = pose.z - request.player.z;
+      const distance = Math.sqrt(dx * dx + dz * dz);
+      if (distance <= 12 && !boxBlocked(world, { ...pose, ...dimensions("van") }, meshGroundHeight(world, pose.x, pose.z), circlesAt(circles, meshGroundHeight(world, pose.x, pose.z), 2.1))) result.push({ ...projection, s, distance });
+    }
+    return result;
+  };
+  for (const projection of projections(net, request.player, 12, 4)) targets.push(...addTargets(projection));
   const choices: { route: FleetRoute; policy: VanRouteCandidate }[] = [];
-  for (const depot of [...depots].sort((a, b) => compare(a.id, b.id))) for (const origin of projections(net, depot, DEPOT_ROAD_ACCESS_M, 2)) for (const target of targets) {
+  const add = (depot: FleetDepot, origin: Projection, target: Projection): void => {
     const parts = partsFor(net, origin, target, VAN_SPEED);
-    if (parts === null) continue;
+    if (parts === null) return;
     const entry = entryDistance(mergedPath(parts), request.player);
-    if (entry === null) continue;
+    if (entry === null) return;
     const route = physicalRoute(world, `van:${request.id}:${depot.id}:${origin.lane.key}:${target.lane.key}`, parts, "van", entry);
-    if (route === null || route.entryAfterLeg >= route.policyLegs.length) continue;
+    if (route === null || route.entryAfterLeg >= route.policyLegs.length) return;
     const start = pathPoint(route.path, 0); const finish = pathPoint(route.path, route.path.len); const entering = pathPoint(route.path, route.entryM);
     choices.push({ route, policy: { id: route.id, requestId: request.id, depotId: depot.id, depotKind: depot.kind, origin: { x: start.x, z: start.z, nodeId: 0 }, target: { x: finish.x, z: finish.z, nodeId: route.policyLegs.length }, entry: { x: entering.x, z: entering.z, nodeId: route.entryAfterLeg }, entryAfterLeg: route.entryAfterLeg, legs: route.policyLegs, cruiseSpeedMps: route.cruiseSpeedMps, expectedTravelTicks: route.expectedTravelTicks } });
+  };
+  const origins: { depot: FleetDepot; origin: Projection }[] = [];
+  for (const depot of [...depots].sort((a, b) => compare(a.id, b.id))) for (const origin of projections(net, depot, DEPOT_ROAD_ACCESS_M, 2)) {
+    origins.push({ depot, origin });
+    for (const target of targets) add(depot, origin, target);
   }
-  choices.sort((a, b) => a.route.expectedTravelTicks - b.route.expectedTravelTicks || compare(a.route.id, b.route.id));
-  return choices[0] ?? null;
+  const order = (a: typeof choices[number], b: typeof choices[number]): number => a.route.expectedTravelTicks - b.route.expectedTravelTicks || compare(a.route.id, b.route.id);
+  choices.sort(order);
+  const clear = choices.find(choice => choice.route.expectedTravelTicks <= VAN_RESPONSE_TICKS && !trafficOnRoute(world, choice.route, obstacles, vehicles));
+  if (clear) return clear;
+  // A dispatch may start on another checked lane at the same depot access road.
+  // The complete route remains on that lane; an already spawned van never jumps lanes.
+  const alternate: typeof choices = [];
+  for (const { depot, origin } of origins) {
+    const edge = origin.lane.edge, dir = origin.lane.dir, side = dirIndex(dir);
+    for (let lane = 1; lane < edge.laneCount[side]; lane++) {
+      if (!edge.laneSafe[side][lane]) continue;
+      const path = lanePath(edge, dir, lane), atDepot = projectOnPath(path, depot.x, depot.z), atPlayer = projectOnPath(path, request.player.x, request.player.z);
+      if (atDepot.dist > DEPOT_ROAD_ACCESS_M || atPlayer.dist > 12 || atPlayer.s <= atDepot.s) continue;
+      const directed: Lane = { ...origin.lane, key: `${edge.id}:${dir}:lane${lane}`, path };
+      const from: Projection = { lane: directed, s: atDepot.s, distance: atDepot.dist };
+      for (const target of addTargets({ lane: directed, s: atPlayer.s, distance: atPlayer.dist })) {
+        const oldLength = choices.length; add(depot, from, target);
+        if (choices.length > oldLength) alternate.push(choices[choices.length - 1]!);
+      }
+    }
+  }
+  alternate.sort(order);
+  return alternate.find(choice => choice.route.expectedTravelTicks <= VAN_RESPONSE_TICKS && !trafficOnRoute(world, choice.route, obstacles, vehicles)) ?? choices.sort(order)[0] ?? null;
+}
+
+interface BusCandidate { route: FleetRoute; policy: BusRoute; service: FleetBusService }
+function copyBusCandidate(candidate: BusCandidate | null): BusCandidate | null {
+  if (!candidate) return null;
+  const route: FleetRoute = { ...candidate.route, path: { ...candidate.route.path, xs: [...candidate.route.path.xs],
+    zs: [...candidate.route.path.zs], cum: [...candidate.route.path.cum], ...(candidate.route.path.bez ? { bez: [...candidate.route.path.bez] } : {}) },
+    sections: candidate.route.sections.map(section => ({ ...section })), policyLegs: candidate.route.policyLegs.map(leg => ({ ...leg })) };
+  return { route, policy: { ...candidate.policy, origin: { ...candidate.policy.origin }, legs: candidate.policy.legs.map(leg => ({ ...leg })),
+    stops: candidate.policy.stops.map(stop => ({ ...stop })), adWrapSlot: { ...candidate.policy.adWrapSlot } },
+    service: { ...candidate.service, sourceStopIds: [...candidate.service.sourceStopIds] } };
+}
+const muniPlans = new WeakMap<World, WeakMap<FleetTransitLayer, { x: number; z: number; candidate: BusCandidate | null; reason: MuniFallbackReason | null }>>();
+const busLane = (lane: Lane): boolean => !["freeway", "ramp", "motorway", "motorway_link", "rail_only", "rail", "railway", "tram"].includes(lane.edge.kind);
+function sourceDirection(projection: Projection, source: Path, at: number): boolean {
+  const road = pathPoint(projection.lane.path, projection.s), published = pathPoint(source, at);
+  return road.tx * published.tx + road.tz * published.tz >= 0.5;
+}
+function followsSource(parts: readonly Part[], source: Path): boolean {
+  let previous = -20;
+  for (const part of parts) for (let s = 0; s <= part.path.len + 10; s += 10) {
+    const point = pathPoint(part.path, Math.min(s, part.path.len)), projection = projectOnPath(source, point.x, point.z);
+    if (projection.dist > 45 || projection.s + 20 < previous) return false;
+    previous = Math.max(previous, projection.s);
+  }
+  return true;
+}
+function sourceBusCandidate(world: World, net: Network, segment: MuniLocalSegment): BusCandidate | null {
+  const [startStop, endStop] = segment.stops;
+  const starts = projections(net, startStop, MUNI_ROAD_STOP_RADIUS_M, 8)
+    .filter(value => busLane(value.lane) && sourceDirection(value, segment.sourcePath, 0)).slice(0, 3);
+  const ends = projections(net, endStop, MUNI_ROAD_STOP_RADIUS_M, 8)
+    .filter(value => busLane(value.lane) && sourceDirection(value, segment.sourcePath, segment.sourcePath.len)).slice(0, 3);
+  for (const start of starts) for (const end of ends) {
+    const forward = partsFor(net, start, end, BUS_SPEED, busLane);
+    if (!forward || !followsSource(forward, segment.sourcePath)) continue;
+    const returning = partsFor(net, end, start, BUS_SPEED, busLane);
+    if (!returning) continue;
+    const route = physicalRoute(world, segment.sourceRouteId, [...forward, ...returning], "bus");
+    if (!route) continue;
+    route.policyLegs[route.policyLegs.length - 1]!.toNode = 0;
+    const origin = pathPoint(route.path, 0), returnAfterLeg = forward.length;
+    const policy: BusRoute = { id: segment.sourceRouteId, source: "muni", origin: { x: origin.x, z: origin.z, nodeId: 0 },
+      legs: route.policyLegs, cruiseSpeedMps: BUS_SPEED, expectedTravelTicks: route.expectedTravelTicks,
+      headwayGameMinutes: 10, firstDepartureMinute: 0,
+      stops: [{ id: startStop.id, nodeId: 0, afterLeg: 0, dwellTicks: 60 },
+        { id: endStop.id, nodeId: returnAfterLeg, afterLeg: returnAfterLeg, dwellTicks: 60 },
+        { id: startStop.id, nodeId: 0, afterLeg: route.policyLegs.length, dwellTicks: 60 }],
+      adWrapSlot: { slotId: `muni:${segment.sourceRouteId}:wrap`, surface: "left-right-rear", contentKey: null } };
+    return { route, policy, service: { source: "muni", extent: "local-segment", sourceRouteId: segment.sourceRouteId,
+      sourceStopIds: [startStop.id, endStop.id], returnAfterLeg, fallbackReason: null } };
+  }
+  return null;
+}
+function muniBusCandidate(world: World, net: Network, transit: Readonly<FleetTransitLayer> | null | undefined,
+  ferry: { x: number; z: number }): { candidate: BusCandidate | null; reason: MuniFallbackReason | null } {
+  let layer: FleetTransitLayer | null = null;
+  try { if (transit) layer = parseFleetTransitLayer(transit); }
+  catch { return { candidate: null, reason: "transit-invalid" }; }
+  const local = muniLocalCandidates(layer, ferry);
+  if (!layer || local.fallbackReason) return { candidate: null, reason: local.fallbackReason };
+  let cache = muniPlans.get(world);
+  if (!cache) { cache = new WeakMap(); muniPlans.set(world, cache); }
+  const old = cache.get(layer);
+  if (old && old.x === ferry.x && old.z === ferry.z) return { candidate: copyBusCandidate(old.candidate), reason: old.reason };
+  let candidate: BusCandidate | null = null;
+  for (const segment of local.segments) {
+    candidate = sourceBusCandidate(world, net, segment);
+    if (candidate) break;
+  }
+  const reason = candidate ? null : "no-legal-local-segment";
+  cache.set(layer, { ...ferry, candidate, reason });
+  return { candidate: copyBusCandidate(candidate), reason };
 }
 
 function busCandidate(world: World, net: Network, ferry: { x: number; z: number }): { route: FleetRoute; policy: BusRoute } | null {
@@ -256,17 +389,22 @@ function busCandidate(world: World, net: Network, ferry: { x: number; z: number 
   return null;
 }
 
-function vehicleCircles(vehicle: FleetVehicle): Circle[] {
+function vehicleCircles(vehicle: FleetVehicle): BandedCircle[] {
   if (!vehicle.spawned) return [];
   const dim = dimensions(vehicle.kind);
   const p = pathPoint(vehicle.route.path, vehicle.distanceM);
-  return [-1, 0, 1].map((sign) => ({ x: vehicle.x + p.tx * sign * (dim.hl - dim.hw), z: vehicle.z + p.tz * sign * (dim.hl - dim.hw), r: dim.hw + FLEET_CLEARANCE, person: vehicle.kind === "bus" }));
+  return [-1, 0, 1].map((sign) => ({ x: vehicle.x + p.tx * sign * (dim.hl - dim.hw), z: vehicle.z + p.tz * sign * (dim.hl - dim.hw), r: dim.hw + FLEET_CLEARANCE, person: vehicle.kind === "bus", y: vehicle.y, height: vehicle.kind === "bus" ? 3.2 : 2.1 }));
 }
 
-function obstacleCircles(obstacles: readonly FleetObstacle[], vehicles: readonly FleetVehicle[], except: number): Circle[] {
-  const result: Circle[] = obstacles.map((o) => ({ x: o.x, z: o.z, r: o.radius + FLEET_CLEARANCE, person: o.person }));
+function obstacleCircles(obstacles: readonly FleetObstacle[], vehicles: readonly FleetVehicle[], except: number): BandedCircle[] {
+  const result: BandedCircle[] = obstacles.map((o) => ({ x: o.x, z: o.z, r: o.radius + FLEET_CLEARANCE, person: o.person, ...(o.y !== undefined ? { y: o.y } : {}), ...(o.height !== undefined ? { height: o.height } : {}) }));
   for (const vehicle of vehicles) if (vehicle.id !== except) result.push(...vehicleCircles(vehicle));
   return result;
+}
+
+function circlesAt(circles: readonly BandedCircle[], y: number, height: number): Circle[] {
+  return circles.filter(circle => circle.y === undefined || circle.height === undefined || !Number.isFinite(circle.y) ||
+    !Number.isFinite(circle.height) || circle.height <= 0 || (circle.y < y + height && circle.y + circle.height > y));
 }
 
 function advance(world: World, vehicle: FleetVehicle, obstacles: readonly FleetObstacle[], vehicles: readonly FleetVehicle[]): void {
@@ -285,13 +423,13 @@ function advance(world: World, vehicle: FleetVehicle, obstacles: readonly FleetO
   let blocked = false;
   for (let s = vehicle.distanceM; s <= lookahead + 0.25; s += 0.25) {
     const pose = poseAt(vehicle.route.path, Math.min(s, lookahead));
-    if (boxBlocked(world, { ...pose, ...dim }, meshGroundHeight(world, pose.x, pose.z), circles)) { blocked = true; break; }
+    if (boxBlocked(world, { ...pose, ...dim }, meshGroundHeight(world, pose.x, pose.z), circlesAt(circles, meshGroundHeight(world, pose.x, pose.z), vehicle.kind === "bus" ? 3.2 : 2.1))) { blocked = true; break; }
   }
   if (blocked) speed = Math.max(0, vehicle.speed - FLEET_BRAKING * DT);
   const nextDistance = Math.min(vehicle.stopAtDistanceM, vehicle.distanceM + speed * DT);
   const pose = poseAt(vehicle.route.path, nextDistance);
   const box = { ...pose, ...dim };
-  if (boxBlocked(world, box, meshGroundHeight(world, pose.x, pose.z), circles) || boxCrossedWall(world, box, vehicle)) { vehicle.speed = 0; vehicle.blocked = true; return; }
+  if (boxBlocked(world, box, meshGroundHeight(world, pose.x, pose.z), circlesAt(circles, meshGroundHeight(world, pose.x, pose.z), vehicle.kind === "bus" ? 3.2 : 2.1)) || boxCrossedWall(world, box, vehicle)) { vehicle.speed = 0; vehicle.blocked = true; return; }
   vehicle.distanceM = nextDistance;
   vehicle.x = pose.x; vehicle.z = pose.z; vehicle.heading = pose.heading; vehicle.y = meshGroundHeight(world, pose.x, pose.z);
   vehicle.speed = remaining <= speed * DT + 0.00001 ? 0 : speed;
@@ -321,7 +459,7 @@ function unloadPositions(world: World, vehicle: FleetVehicle, obstacles: readonl
   const circles = obstacleCircles(obstacles, vehicles, -1);
   const result: { x: number; z: number }[] = [];
   for (const p of candidates) {
-    if (circleBlocked(world, p.x, p.z, 0.4) || circles.some((c) => { const dx = c.x - p.x; const dz = c.z - p.z; return dx * dx + dz * dz < (c.r + 0.4) * (c.r + 0.4); }) || result.some((q) => (p.x - q.x) * (p.x - q.x) + (p.z - q.z) * (p.z - q.z) < 2.25)) continue;
+    if (circleBlocked(world, p.x, p.z, 0.4) || circlesAt(circles, meshGroundHeight(world, p.x, p.z), 1.8).some((c) => { const dx = c.x - p.x; const dz = c.z - p.z; return dx * dx + dz * dz < (c.r + 0.4) * (c.r + 0.4); }) || result.some((q) => (p.x - q.x) * (p.x - q.x) + (p.z - q.z) * (p.z - q.z) < 2.25)) continue;
     result.push({ x: p.x, z: p.z });
     if (result.length === 2) return result;
   }
@@ -335,6 +473,7 @@ function unloadPositions(world: World, vehicle: FleetVehicle, obstacles: readonl
 export function stepFleet(world: World, previous: Readonly<FleetState>, input: {
   tick: number; gameMinute: number; requests: readonly ThreatVanRequest[];
   obstacles: readonly FleetObstacle[]; depots?: readonly FleetDepot[]; ferry?: { x: number; z: number };
+  transit?: Readonly<FleetTransitLayer> | null;
 }): { state: FleetState; nextActorId: number; actors: FleetActor[]; bodies: FleetBody[]; disembarks: FleetDisembark[]; diagnostics: string[] } {
   if (!Number.isSafeInteger(input.tick) || input.tick < 0) throw new RangeError("Invalid fleet tick");
   if (input.tick <= previous.lastTick) return { state: previous as FleetState, nextActorId: previous.nextActorId, actors: previous.vehicles.filter((v) => v.spawned).map(actor), bodies: [], disembarks: [], diagnostics: [] };
@@ -352,7 +491,7 @@ export function stepFleet(world: World, previous: Readonly<FleetState>, input: {
   state.vehicles = state.vehicles.filter((vehicle) => {
     if (!vehicle.retiring || vehicle.distanceM < vehicle.stopAtDistanceM - 0.01 || vehicle.speed !== 0) return true;
     if (vehicle.kind === "van") vanRetirements.push({ vehicleId: vehicle.id, requestId: vehicle.requestId!, tick: input.tick });
-    else busRetirements.push({ vehicleId: vehicle.id, routeId: previous.busRoute!.id, tick: input.tick });
+    else busRetirements.push({ vehicleId: vehicle.id, routeId: previous.buses.runs.find(run => run.vehicleId === vehicle.id)?.route.id ?? vehicle.route.id, tick: input.tick });
     return false;
   });
   const observations: VehicleProgress[] = state.vehicles.filter((v) => v.spawned && !v.retiring).map((v) => ({ vehicleId: v.id, routeId: v.route.id, tick: input.tick, distanceM: v.distanceM, stopped: v.speed === 0 }));
@@ -361,18 +500,27 @@ export function stepFleet(world: World, previous: Readonly<FleetState>, input: {
   const candidates: VanRouteCandidate[] = [];
   for (const request of [...input.requests].sort((a, b) => a.id - b.id)) {
     if (previous.vans.receipts.some((r) => r.id === request.id) || request.id <= previous.vans.requestIdFloor) continue;
-    const candidate = vanCandidate(world, getNetwork(), request, depots, input.obstacles);
+    const candidate = vanCandidate(world, getNetwork(), request, depots, input.obstacles, state.vehicles);
     if (candidate !== null) { candidates.push(candidate.policy); routeMap.set(candidate.route.id, candidate.route); }
     else diagnostics.push(`van:${request.id}:no-road-route`);
   }
-  if (state.busRoute === null && (previous.lastTick < 0 || input.tick % 60 === 0)) {
-    const candidate = busCandidate(world, getNetwork(), input.ferry ?? { x: 0, z: 0 });
-    if (candidate !== null) { state.busRoute = candidate.route; state.busPolicy = candidate.policy; }
-    else diagnostics.push("bus:no-ferry-loop");
+  const transit = input.transit ?? world.transit;
+  if ((state.busRoute === null || (state.busPolicy?.source === "authored-fallback" && transit)) && (previous.lastTick < 0 || input.tick % 60 === 0)) {
+    const ferry = input.ferry ?? { x: 0, z: 0 }, sourced = muniBusCandidate(world, getNetwork(), transit, ferry);
+    if (sourced.candidate) {
+      state.busRoute = sourced.candidate.route; state.busPolicy = sourced.candidate.policy; state.busService = sourced.candidate.service;
+    } else {
+      diagnostics.push(`bus:muni:${sourced.reason}`);
+      const fallback = state.busPolicy?.source === "authored-fallback" ? { route: state.busRoute!, policy: state.busPolicy } : busCandidate(world, getNetwork(), ferry);
+      if (fallback) {
+        state.busRoute = fallback.route; state.busPolicy = fallback.policy;
+        state.busService = { source: "authored-fallback", extent: "local-loop", sourceRouteId: null, sourceStopIds: [], returnAfterLeg: null, fallbackReason: sourced.reason };
+      } else diagnostics.push("bus:no-ferry-loop");
+    }
   }
   if (state.busRoute !== null) routeMap.set(state.busRoute.id, state.busRoute);
   const vans = stepVanServices({ ...previous.vans, nextVehicleId: state.nextActorId }, { tick: input.tick, requests: input.requests, routes: candidates, observations, retirements: vanRetirements });
-  const buses = stepBusServices({ ...previous.buses, nextVehicleId: vans.state.nextVehicleId }, { tick: input.tick, gameMinute: input.gameMinute, routes: [], fallbackRoutes: state.busPolicy === null ? [] : [state.busPolicy], observations, retirements: busRetirements });
+  const buses = stepBusServices({ ...previous.buses, nextVehicleId: vans.state.nextVehicleId }, { tick: input.tick, gameMinute: input.gameMinute, routes: state.busPolicy?.source === "muni" ? [state.busPolicy] : [], fallbackRoutes: state.busPolicy?.source === "authored-fallback" ? [state.busPolicy] : [], observations, retirements: busRetirements });
   state.vans = vans.state; state.buses = buses.state; state.nextActorId = buses.state.nextVehicleId;
   for (const intent of [...vans.intents, ...buses.intents]) {
     if (intent.kind === "spawn-van" || intent.kind === "spawn-bus") {
@@ -403,6 +551,15 @@ export function stepFleet(world: World, previous: Readonly<FleetState>, input: {
         vehicle.returnAttemptTick = input.tick;
         const target = vehicle.kind === "van" ? depots.find((d) => d.id === vehicle.depotId) : input.ferry ?? { x: 0, z: 0 };
         const sources = projections(getNetwork(), vehicle, 0.000001, 2);
+        if (sources.length === 0 && vehicle.kind === "van") {
+          const section = vehicle.route.sections.find(section => section.toM >= vehicle.distanceM) ?? vehicle.route.sections[vehicle.route.sections.length - 1];
+          const outer = section && getNetwork().lanes.find(lane => lane.edge.id === section.edgeId && lane.dir === section.direction);
+          if (outer) for (let lane = 1; lane < outer.edge.laneCount[dirIndex(outer.dir)]; lane++) {
+            if (!outer.edge.laneSafe[dirIndex(outer.dir)][lane]) continue;
+            const path = lanePath(outer.edge, outer.dir, lane), at = projectOnPath(path, vehicle.x, vehicle.z);
+            if (at.dist <= 0.000001) sources.push({ lane: { ...outer, key: `${outer.edge.id}:${outer.dir}:lane${lane}`, path }, s: at.s, distance: at.dist });
+          }
+        }
         const targets = target === undefined ? [] : projections(getNetwork(), target, DEPOT_ROAD_ACCESS_M, 4);
         let returning: FleetRoute | null = null;
         for (const source of sources) for (const end of targets) {
@@ -414,7 +571,7 @@ export function stepFleet(world: World, previous: Readonly<FleetState>, input: {
         else { vehicle.blocked = true; diagnostics.push(`vehicle:${vehicle.id}:no-return-route`); }
       }
     }
-    if (!vehicle.spawned && !vehicle.retiring && !boxBlocked(world, { x: vehicle.x, z: vehicle.z, heading: vehicle.heading, ...dimensions(vehicle.kind) }, vehicle.y, obstacleCircles(input.obstacles, state.vehicles, vehicle.id))) vehicle.spawned = true;
+    if (!vehicle.spawned && !vehicle.retiring && !boxBlocked(world, { x: vehicle.x, z: vehicle.z, heading: vehicle.heading, ...dimensions(vehicle.kind) }, vehicle.y, circlesAt(obstacleCircles(input.obstacles, state.vehicles, vehicle.id), vehicle.y, vehicle.kind === "bus" ? 3.2 : 2.1))) vehicle.spawned = true;
   }
   state.vehicles.sort((a, b) => a.id - b.id);
   const actors = state.vehicles.filter((v) => v.spawned).map(actor);

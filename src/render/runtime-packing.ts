@@ -16,6 +16,7 @@ export interface RuntimeAuthoredPackingOptions {
   /** Return a renderer-owned material, for example a clone with the live bus livery. */
   material?: (source: THREE.Material) => THREE.Material;
   omit?: (mesh: THREE.Mesh) => boolean;
+  joint?: (mesh: THREE.Mesh, root: THREE.Object3D) => { object: THREE.Object3D; animation: RuntimeRigidAnimation } | null;
 }
 
 /** Only surfaces reproduced exactly by the existing packed PBR shader can share a draw. */
@@ -70,7 +71,7 @@ function packSurface(source: THREE.BufferGeometry, material: THREE.MeshStandardM
 export function packAuthoredRuntimeParts(root: THREE.Object3D, options: RuntimeAuthoredPackingOptions = {}): RuntimeRigidPart[] {
   root.updateWorldMatrix(true, true);
   const inverse = root.matrixWorld.clone().invert(), parts: RuntimeRigidPart[] = [];
-  const buckets = new Map<THREE.Object3D, { pivot: readonly [number, number, number]; animation: "fixed" | "wheel"; geometries: THREE.BufferGeometry[] }>();
+  const buckets = new Map<THREE.Object3D, { pivot: readonly [number, number, number]; animation: RuntimeRigidAnimation; geometries: THREE.BufferGeometry[] }>();
   root.traverse(object => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh || !mesh.geometry?.getAttribute("position") || options.omit?.(mesh)) return;
@@ -80,11 +81,13 @@ export function packAuthoredRuntimeParts(root: THREE.Object3D, options: RuntimeA
       // all belong to the outer wheel group and must rotate about the same pivot.
       if (/^wheel_/i.test(parent.name)) joint = parent;
     }
+    const assigned = options.joint?.(mesh, root);
+    if (assigned) joint = assigned.object;
     const point = joint === root ? new THREE.Vector3() : new THREE.Vector3().setFromMatrixPosition(inverse.clone().multiply(joint.matrixWorld));
     const pivot: readonly [number, number, number] = [point.x, point.y, point.z];
     const transform = new THREE.Matrix4().makeTranslation(-point.x, -point.y, -point.z).multiply(inverse.clone().multiply(mesh.matrixWorld));
     let bucket = buckets.get(joint);
-    if (!bucket) { bucket = { pivot, animation: joint === root ? "fixed" : "wheel", geometries: [] }; buckets.set(joint, bucket); }
+    if (!bucket) { bucket = { pivot, animation: assigned?.animation ?? (joint === root ? "fixed" : "wheel"), geometries: [] }; buckets.set(joint, bucket); }
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const total = mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count;
     const groups = Array.isArray(mesh.material) ? mesh.geometry.groups : [{ start: 0, count: total, materialIndex: 0 }];

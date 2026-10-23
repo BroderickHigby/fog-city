@@ -1,3 +1,8 @@
+import { robotMetadata, storeRobotMetadata, type RobotRuntimeMetadata } from "./metadata.ts";
+export type { RobotRuntimeMetadata } from "./metadata.ts";
+import { runtimeReputations } from "../agents/runtime-economy.ts";
+import { ambientProfilesOf } from "../agents/ambient-runtime.ts";
+import type { RobotCatalogSource } from "./catalog.ts";
 import { agentsOf, type AgentKind } from "../agents.ts";
 import { sortedIds, type SimState } from "../contract.ts";
 import type { JsonObject } from "../extensions.ts";
@@ -5,37 +10,29 @@ import { hash32 } from "../rng.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { contextFromState, type CombatActorMetadata } from "../combat/adapter.ts";
 import { combatOf } from "../combat/system.ts";
-import type { CombatActor, TargetCombat } from "../combat/types.ts";
+import type { CombatActor } from "../combat/types.ts";
 import { agentRuntimeSession, type AgentRuntimeSession } from "../agents/runtime-state.ts";
 import { agentsRuntimeOf, runtimeCombatActors } from "../agents/runtime-system.ts";
+import { MAX_SIGNIFICANT_AGENTS } from "../agents/fidelity.ts";
+import { deriveRobotConversionScopes } from "./conversion-scopes.ts";
 import {
-  createRobotRuntime, MAX_RUNTIME_PLAYERS, MAX_RUNTIME_ROBOTS, robotActorId, robotAgentId, stepRobotRuntime,
-  type RobotRecruitOffer, type RobotRuntimeEntry, type RobotRuntimeState, type RobotRuntimeStep,
+  createRobotRuntime, MAX_RUNTIME_ROBOTS, robotActorId, robotAgentId, stepRobotRuntime,
+  type RobotRuntimeState, type RobotRuntimeStep,
 } from "./runtime.ts";
 
-export interface RobotRuntimeMetadata {
-  readonly agentId: number;
-  readonly actorId: string;
-  readonly present: boolean;
-  readonly firmware: "good" | "bad";
-  readonly baselineFirmware: "good" | "bad";
-  readonly mode: NonNullable<RobotRuntimeEntry["brain"]>["mode"] | null;
-  readonly phase: TargetCombat["phase"] | null;
-  readonly rust: number | null;
-  readonly convertedTick: number | null;
-  readonly bountyUntilTick: number;
-  readonly recruitOffer: RobotRecruitOffer | null;
-  readonly significant: RobotRuntimeEntry["significant"];
-}
 export interface RobotBaselineFirmware { readonly agentId: number; readonly firmware: "good" | "bad" }
 
 /** The body owners already persist pose; old full actor snapshots remain readable. */
-export type StoredRobotActor = Omit<CombatActor, "x" | "y" | "z" | "heading" | "speed"> &
-  Partial<Pick<CombatActor, "x" | "y" | "z" | "heading" | "speed">>;
+export type StoredRobotActor = Omit<CombatActor, "x" | "y" | "z" | "heading" | "speed" | "radius" | "height"> &
+  Partial<Pick<CombatActor, "x" | "y" | "z" | "heading" | "speed" | "radius" | "height">>;
 
-export function storeRobotActor(actor: CombatActor): StoredRobotActor {
+export function storeRobotActor(actor: CombatActor, body?: Pick<CombatActor, "radius" | "height"> & Pick<Partial<CombatActor>, "pursuing">): StoredRobotActor {
   const { x: _x, y: _y, z: _z, heading: _heading, speed: _speed, ...description } = actor;
-  return description;
+  const stored: StoredRobotActor = description;
+  if (body && body.radius === actor.radius) delete stored.radius;
+  if (body && body.height === actor.height) delete stored.height;
+  if (body && actor.pursuing === false && body.pursuing !== true) delete stored.pursuing;
+  return stored;
 }
 
 /** The root stays compatible with the serialized session and other agent-owned fields. */
@@ -49,6 +46,8 @@ export interface RobotsRuntimeData extends AgentRuntimeSession {
   readonly conversionCap: number;
   readonly baselines: readonly RobotBaselineFirmware[];
   readonly metadata: readonly RobotRuntimeMetadata[];
+  /** Compact storage only; accessors keep the full semantic metadata view. */
+  readonly metadataVersion?: 1;
   /** Body-owner compatibility projection for retention before its next movement pass. */
   readonly significantAgentIds: readonly number[];
   readonly robotSignificantAgentIds: readonly number[];
@@ -68,7 +67,7 @@ export function robotsRuntimeOf(state: Readonly<SimState>): RobotsRuntimeData | 
       !Array.isArray(value.brain.robots) || !Array.isArray(value.actors) || !Array.isArray(value.attacks) ||
       !Array.isArray(value.cancellations) || !Array.isArray(value.locomotion) || !Array.isArray(value.results) ||
       !Array.isArray(value.metadata) || !Array.isArray(value.robotSignificantAgentIds)) return null;
-  return value as RobotsRuntimeData;
+  return value.metadataVersion === 1 ? { ...value, metadata: robotMetadata(state) } as RobotsRuntimeData : value as RobotsRuntimeData;
 }
 
 /** Stable initial firmware. Conversion/restore metadata has precedence over this baseline. */
@@ -82,19 +81,6 @@ function ids(value: unknown, label: string): number[] {
     throw new RangeError(`Invalid ${label}`);
   }
   return [...new Set(value as number[])].sort((a, b) => a - b);
-}
-function reputations(value: unknown): Record<string, number> {
-  if (value === undefined) return {};
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw new RangeError("Invalid robot reputation context");
-  const record = value as Record<string, unknown>, output: Record<string, number> = {};
-  const players = sortedIds(record);
-  if (players.length > MAX_RUNTIME_PLAYERS) throw new RangeError("Robot reputation context capacity exceeded");
-  for (const id of players) {
-    const reputation = record[id];
-    if (typeof reputation !== "number" || !Number.isFinite(reputation) || reputation < 0 || reputation > 100) throw new RangeError("Invalid robot reputation");
-    Object.defineProperty(output, id, { value: reputation, enumerable: true, configurable: true, writable: true });
-  }
-  return output;
 }
 function withinFidelity(actor: CombatActor, context: SimSystemContext): boolean {
   if (actor.inFidelity === false) return false;
@@ -124,10 +110,16 @@ export const robotRuntimeSystem: SimSystem = {
     const agents = agentsRuntimeOf(context.state);
     const delivered = new Set(agents?.deliveredAgentIds ?? []);
     const actorMetadata: Record<string, CombatActorMetadata> = {};
+    const ambientProfiles = ambientProfilesOf(context.state);
+    const ambientById = new Map(ambientProfiles.map(profile => [profile.id, profile]));
+    const catalogSources: Record<string, RobotCatalogSource> = {};
+    for (const profile of ambientProfiles) catalogSources[String(profile.id)] = { seed: profile.seed, key: profile.key };
     const baselines = new Map<number, "good" | "bad">((previousData?.baselines ?? []).map(entry => [entry.agentId, entry.firmware]));
     for (const agent of [...agentsOf(context.state)].sort((a, b) => a.id - b.id)) {
       if (agent.kind === "person") continue;
-      const base = baselines.get(agent.id) ?? (delivered.has(agent.id) ? "bad" : baselineRobotFirmware(context.state.seed, agent.id, agent.kind));
+      const profileFirmware = ambientById.get(agent.id)?.firmware;
+      const base = baselines.get(agent.id) ?? (delivered.has(agent.id) ? "bad" :
+        profileFirmware === "good" || profileFirmware === "bad" ? profileFirmware : baselineRobotFirmware(context.state.seed, agent.id, agent.kind));
       baselines.set(agent.id, base);
       actorMetadata[robotActorId(agent.id)] = { firmware: restored.has(agent.id) ? "good" : base };
     }
@@ -152,33 +144,50 @@ export const robotRuntimeSystem: SimSystem = {
     if (typeof fogDensity !== "number" || !Number.isFinite(fogDensity) || fogDensity < 0 || fogDensity > 1) throw new RangeError("Invalid runtime fog density");
     const fleetUpdate = raw.fleetUpdate === true;
     const protectedArea = raw.protectedArea === true;
-    const reputationContext = reputations(raw.reputations);
+    const reputationContext = runtimeReputations(context.previous, raw.reputations);
+    const promotionExemptIds = [...new Set([...(agents?.significantAgentIds ?? []),
+      ...extras.map(actor => robotAgentId(actor.id)).filter((id): id is number => id !== null)])].sort((a, b) => a - b);
+    const existingSignificant = agents?.population.significant ?? previous.robots.filter(entry => entry.significant.length > 0).length;
+    const promotionBudget = Math.max(0, MAX_SIGNIFICANT_AGENTS - existingSignificant - (agents?.population.reservedVanUnits ?? 0));
+    const conversionScopes = deriveRobotConversionScopes(context.world, sortedIds(context.state.players).map(id => {
+      const player = context.state.players[id]!, body = player.mode === "foot" && player.foot ? player.foot : player.car;
+      return { id, x: body.x, z: body.z };
+    }), actors, [...baselines].map(([agentId, firmware]) => ({ agentId, firmware })), protectedArea, session.worldName);
     const result = stepRobotRuntime(previous, context, {
-      actors, conversion: { baseBadCount, protectedArea }, fogDensity, fleetUpdate,
+      catalog: true, catalogSources, catalogLevel: raw.catalogLevel as number | undefined,
+      catalogArchetypes: raw.catalogArchetypes as unknown as Parameters<typeof stepRobotRuntime>[2]["catalogArchetypes"],
+      promotionBudget, promotionExemptIds,
+      actors, conversion: { baseBadCount, protectedArea }, conversionScopes, fogDensity, fleetUpdate,
       wave: Math.min(session.wave, 5) as 2 | 3 | 4 | 5,
       missionIds: agents?.significantAgentIds ?? [], restoredIds: restoredAgentIds, retiredIds: retiredAgentIds,
       reputations: reputationContext,
     });
     const combat = combatOf(context.previous);
     const present = new Set(result.actors.map(actor => actor.id));
+    const physicalDescriptions = new Map(describedActors.map(actor => [actor.id, actor]));
+    const presentations = new Map(result.catalog.map(item => [item.agentId, item]));
+    const repairs = new Map(result.locomotion.filter(item => item.repairTravel).map(item => [item.agentId, item.repairTravel!]));
     const metadata: RobotRuntimeMetadata[] = result.state.robots.map(entry => {
       const actorId = robotActorId(entry.agentId), target = combat?.targets[actorId];
-      return { agentId: entry.agentId, actorId, present: present.has(actorId), firmware: entry.firmware,
+      return { ...presentations.get(entry.agentId), agentId: entry.agentId, actorId, present: present.has(actorId), firmware: entry.firmware,
+        ...(entry.deferredSignificance?.length ? { deferredSignificance: entry.deferredSignificance } : {}),
         baselineFirmware: baselines.get(entry.agentId) ?? "good",
         mode: entry.brain?.mode ?? null, phase: target?.phase ?? (combat ? "active" : null), rust: target?.rust ?? (combat ? 0 : null),
         convertedTick: entry.convertedTick, bountyUntilTick: entry.bountyUntilTick,
-        recruitOffer: entry.recruitOffer ? { ...entry.recruitOffer } : null, significant: [...entry.significant] };
+        recruitOffer: entry.recruitOffer ? { ...entry.recruitOffer } : null, repairTravel: repairs.get(entry.agentId) ?? null, significant: [...entry.significant] };
     });
     const significantAgentIds = result.state.robots.filter(entry => entry.significant.length > 0).map(entry => entry.agentId);
     // A later authoritative conversion supersedes an earlier restore acknowledgement.
     const retainedRestores = restoredAgentIds.filter(id => !result.results.some(event => event.kind === "converted" && event.agentId === id));
     const output: RobotsRuntimeData = {
-      ...session, brain: result.state, actors: result.actors.map(storeRobotActor), attacks: result.attacks, cancellations: result.cancellations,
+      ...session, brain: result.state, actors: result.actors.map(actor => storeRobotActor(actor, physicalDescriptions.get(actor.id))), attacks: result.attacks, cancellations: result.cancellations,
       locomotion: result.locomotion, results: result.results, conversionCap: result.conversionCap, metadata,
       baselines: result.state.robots.map(entry => ({ agentId: entry.agentId, firmware: baselines.get(entry.agentId) ?? "good" })),
       significantAgentIds, robotSignificantAgentIds: significantAgentIds,
       restoredAgentIds: retainedRestores, retiredAgentIds, fogDensity, fleetUpdate, protectedArea, reputations: reputationContext,
     };
-    return { ...context.state, ext: { ...context.state.ext, robots: { ...raw, ...output } as unknown as JsonObject } };
+    const described = { ...raw, ...output };
+    const stored = { ...described, metadataVersion: 1, metadata: storeRobotMetadata(context.state.seed, { ...described, catalogSources }) };
+    return { ...context.state, ext: { ...context.state.ext, robots: stored as unknown as JsonObject } };
   },
 };

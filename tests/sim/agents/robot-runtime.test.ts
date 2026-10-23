@@ -63,6 +63,13 @@ describe("robot runtime adapter", () => {
     expect(result.attacks).toEqual([]);
   });
 
+  it("keeps ID parsing exact after the bounded cache has churned", () => {
+    for (let id = 0; id < MAX_RUNTIME_ROBOTS * 3; id++) expect(robotAgentId(`agent:${id}`)).toBe(id);
+    expect(robotAgentId("agent:0")).toBe(0);
+    expect(robotAgentId("agent:9007199254740991")).toBe(Number.MAX_SAFE_INTEGER);
+    for (const id of ["agent:00", "agent:01", "agent:+1", "agent:1.0", "agent:9007199254740992", "other:1"]) expect(robotAgentId(id)).toBeNull();
+  });
+
   it("is pure with frozen inputs, preserves bodies and is invariant to actor order", () => {
     const actors = [actor(10), actor(2, { firmware: "good", z: -2 })];
     const state = initial(undefined, actors), context = system(state), runtime = createRobotRuntime();

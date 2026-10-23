@@ -56,6 +56,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
   }
   return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),
+    ...(options.conversionScopes!==undefined?{conversionScopes:options.conversionScopes}:{}),
     ...(options.fog!==undefined?{fog:options.fog}:{}),...(options.rain!==undefined?{rain:options.rain}:{}),...(options.night!==undefined?{night:options.night}:{}),
     ...(options.mode?{mode:options.mode}:{}),...(options.safeLots?{safeLots:options.safeLots}:{}),...(options.streaks?{streaks:options.streaks}:{}),
     ...(options.rivalPlayerIds?{rivalPlayerIds:options.rivalPlayerIds}:{}),

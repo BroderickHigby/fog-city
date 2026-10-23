@@ -52,7 +52,7 @@ const drive = args.includes("--drive"), checkClearance = args.includes("--check-
 if (!Number.isFinite(maxP95) || maxP95 < 0) throw new Error("Invalid --max-p95-ms");
 
 const files = loadWorldFiles(worldName);
-const world = buildWorld(files.tiles, files.roads as RoadsFile | null, files.boundary, files.gameplay ?? undefined);
+const world = buildWorld(files.tiles, files.roads as RoadsFile | null, files.boundary, files.gameplay ?? undefined, files.transit ?? undefined);
 
 interface Placement { x: number; z: number; heading: number }
 function placements(count: number): Placement[] {
@@ -90,7 +90,7 @@ function initial(count: number): { state: SimState; ids: string[] } {
     const id = ids[i]!; const point = points[i]!;
     players[id] = { ...players[id]!, car: makeCar(point.x, point.z, point.heading, meshGroundHeight(world, point.x, point.z)) };
   }
-  state = enableAgentRuntime({ ...state, players }, { wave, startGameMinute: 0 });
+  state = enableAgentRuntime({ ...state, players }, { wave, startGameMinute: 0, worldName, ambientMode: "squares-v1" });
   return { state, ids };
 }
 

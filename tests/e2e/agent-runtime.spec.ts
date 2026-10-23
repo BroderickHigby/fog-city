@@ -56,7 +56,7 @@ async function integratedRuntimeTrace(paths: RuntimeModulePaths): Promise<Runtim
   }
   const world = sim.buildWorld([{ tileId: "runtime-grid", buildings, ground: null }], { version: 1, nodes, edges });
   let state = session.enableAgentRuntime(sim.createInitialState(world, seed, ["p1", "p2", "p3"], { x: -10, z: 0, heading: -sim.PI / 2 }), {
-    wave: 4, startGameMinute: 179, startWeekday: 2,
+    wave: 4, startGameMinute: 179, startWeekday: 2, ambientMode: "squares-v1",
   });
   state.players.p1!.car = sim.makeCar(-10, 0, -sim.PI / 2);
   state.players.p2!.mode = "foot";

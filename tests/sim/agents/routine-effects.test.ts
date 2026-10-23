@@ -3,6 +3,7 @@ import { Action, type SimState } from "../../../src/sim/contract.ts";
 import { createInitialState } from "../../../src/sim/index.ts";
 import { initialTarget } from "../../../src/sim/combat/shared.ts";
 import { createCombatState } from "../../../src/sim/combat/system.ts";
+import type { Gadget } from "../../../src/sim/combat-contract.ts";
 import { enableAgentRuntime, type RuntimePhysicalBody } from "../../../src/sim/agents/runtime-state.ts";
 import { createRoutineRuntime, stepRoutineRuntime, type RoutineRuntimeEffect, type RoutineRuntimeState } from "../../../src/sim/agents/routine-runtime.ts";
 import { finalizeRoutineEffects, recordRoutineLandingReceipts, type RoutineEffectState, type RoutineRestorationArrival } from "../../../src/sim/agents/routine-effects.ts";
@@ -102,6 +103,41 @@ describe("physical routine effect finalization", () => {
     const accepted = finalizeRoutineEffects(world, out, next, { p: { throttle: 0, steer: 0, brake: 0, actions: Action.interact } });
     expect(accepted.ext.combat!.targets.p!.stoppedUntil).toBe(accepted.tick);
   });
+  it("cancels an in-flight terms windup when newly recorded fog blocks its current sight", () => {
+    const f = fixture(), r = runtime(f.after), patrol = { ...body(1102, 98), model: "patrol" };
+    const request = effect("patrol.terms", patrol.id, "p", "p");
+    r.bodies.push(patrol); r.routineOutput.effects = [request];
+    const started = finalizeRoutineEffects(world, f.before, f.after);
+    expect(runtime(started).effectState.terms).toHaveLength(1);
+    const obscured = JSON.parse(JSON.stringify(started)) as SimState; obscured.tick++;
+    obscured.ext.combat!.gadgets = [{ id: 1, kind: "microclimate", ownerId: "p", x: 99, y: 0, z: 0,
+      radius: 0.5, untilTick: 1000, targetId: "", progress: 0, boost: "salt" }] as unknown as Gadget[];
+    const cancelled = finalizeRoutineEffects(world, started, obscured);
+    expect(runtime(cancelled).effectState.terms).toEqual([]);
+    expect(runtime(cancelled).effectState.events).toContainEqual(expect.objectContaining({ kind: "patrol.terms-cancelled" }));
+    expect(cancelled.ext.combat!.targets.p!.stoppedUntil).toBe(0);
+    expect(runtime(cancelled).effectState.acks).toContain(request.id);
+    let out = cancelled;
+    for (let i = 0; i < 60; i++) {
+      const next = JSON.parse(JSON.stringify(out)) as SimState; next.tick++;
+      out = finalizeRoutineEffects(world, out, next);
+    }
+    expect(out.ext.combat!.targets.p!.stoppedUntil).toBe(0);
+  });
+  it("keeps a recruit spot pending through new fog and marks only after the ray clears", () => {
+    const f = fixture(), r = runtime(f.after), recruit = { ...body(1102, 90), firmware: "good" as const }, target = body(1103, 94);
+    const request = effect("recruit.spot", recruit.id, target.id, "p", 1801);
+    r.bodies.push(recruit, target); r.routineOutput.effects = [request];
+    f.after.ext.combat!.gadgets = [{ id: 1, kind: "microclimate", ownerId: "p", x: 92, y: 0, z: 0,
+      radius: 0.5, untilTick: 2, targetId: "", progress: 0, boost: "salt" }] as unknown as Gadget[];
+    const denied = finalizeRoutineEffects(world, f.before, f.after);
+    expect(denied.ext.combat!.players.p!.marks).toEqual([]);
+    expect(runtime(denied).effectState.acks).not.toContain(request.id);
+    const next = JSON.parse(JSON.stringify(denied)) as SimState; next.tick++;
+    const spotted = finalizeRoutineEffects(world, denied, next);
+    expect(spotted.ext.combat!.players.p!.marks).toContainEqual(expect.objectContaining({ targetId: target.id }));
+    expect(runtime(spotted).effectState.acks).toContain(request.id);
+  });
   it("leaves transport requests unacknowledged until the transport owner acts", () => {
     const f = fixture([effect("recruit.board", "agent:99", "", "p", 1)]);
     const out = finalizeRoutineEffects(world, f.before, f.after);
@@ -136,5 +172,31 @@ describe("physical routine effect finalization", () => {
     runtime(out).bodies.find(b => b.id === walker.id)!.x = 0;
     runtime(out).bodies.push({ ...body(1201, 2), kind: "person", firmware: "none" });
     expect(runtime(recordRoutineLandingReceipts(world, out)).effectState.landingReceipts).toEqual([]);
+  });
+  it("keeps finale shedding pending when ambient or arriving vans reserve the last slots", () => {
+    for (const reserve of [{ ambient: 1, reservedVanUnits: 0 }, { ambient: 0, reservedVanUnits: 1 }]) {
+      const f = fixture(), r = runtime(f.after);
+      f.after = enableAgentRuntime(f.after, { ambientMode: "squares-v1" });
+      const route: FinaleRoute = { id: "shed", waypoints: [{ id: "foot", x: 0, z: 0, phase: "patrol", footprint: { kind: "circle", radius: 1 }, windupTicks: 60, shedRobots: 2 }] };
+      const pending = { id: "shed:1", kind: "shed-robots" as const, count: 2, x: 0, z: 0 };
+      const finale = { ...createFinaleState({ kind: "walker", route, position: { x: 0, z: 0 }, tick: 1 }), pendingEffects: [pending] };
+      const walker = { ...body(1200, 0), model: "walker", radius: 3 };
+      r.bodies.push(walker);
+      r.routines.finales.push({ body: walker, route, state: finale, landingId: null, applied: [] });
+      r.routineOutput.effects = [{ ...effect("finale.shed-robots", walker.id), id: pending.id }];
+      Object.assign(r, { population: { significant: 1998, ...reserve } });
+      const denied = finalizeRoutineEffects(world, f.before, f.after);
+      expect(runtime(denied).effectState.diagnostics).toContain("finale-significant-capacity");
+      expect(runtime(denied).effectState.acks).not.toContain(pending.id);
+      expect(denied.ext.agents!.nextId).toBe(f.after.ext.agents!.nextId);
+      expect(runtime(denied).routines.finales[0]!.state.pendingEffects).toEqual([pending]);
+
+      Object.assign(runtime(denied), { population: { significant: 1997, ...reserve } });
+      const next = { ...denied, tick: denied.tick + 1 };
+      const resumed = finalizeRoutineEffects(world, denied, next);
+      expect(runtime(resumed).effectState.diagnostics).not.toContain("finale-significant-capacity");
+      expect(runtime(resumed).effectState.acks).toContain(pending.id);
+      expect(resumed.ext.agents!.nextId).toBe(f.after.ext.agents!.nextId + 2);
+    }
   });
 });

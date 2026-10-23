@@ -93,7 +93,19 @@ function anchorRadius(anchor: FidelityAnchor): number {
   return Math.max(0, Math.min(ACTIVE_FIDELITY_M, anchor.radiusM ?? ACTIVE_FIDELITY_M));
 }
 
-function sortedAnchors(anchors: ReadonlyArray<FidelityAnchor>): FidelityAnchor[] {
+const preparedAnchors = new WeakSet<ReadonlyArray<FidelityAnchor>>();
+
+/** Immutable validated snapshot shared by all bodies in one simulation frame. */
+export function prepareFidelityAnchors(anchors: ReadonlyArray<FidelityAnchor>): ReadonlyArray<FidelityAnchor> {
+  if (preparedAnchors.has(anchors)) return anchors;
+  const result = sortedAnchors(anchors).map(anchor => Object.freeze({ ...anchor }));
+  Object.freeze(result);
+  preparedAnchors.add(result);
+  return result;
+}
+
+function sortedAnchors(anchors: ReadonlyArray<FidelityAnchor>): ReadonlyArray<FidelityAnchor> {
+  if (preparedAnchors.has(anchors)) return anchors;
   if (anchors.length > MAX_FIDELITY_ANCHORS) throw new Error("Fidelity anchor capacity exceeded");
   const result = [...anchors].sort((a, b) => compareId(a.id, b.id));
   for (let i = 0; i < result.length; i++) {

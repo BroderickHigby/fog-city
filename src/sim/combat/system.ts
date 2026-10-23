@@ -22,6 +22,7 @@ function validateContext(ctx: CombatContext): void {
     }
   }
   for (const actor of ctx.actors) {
+    if (actor.rustScale !== undefined && (!Number.isFinite(actor.rustScale) || actor.rustScale <= 0 || actor.rustScale > 1)) throw new Error("Combat rust rate must be greater than zero through one");
     if (!Number.isFinite(actor.radius) || actor.radius <= 0 || !Number.isFinite(actor.height) || actor.height <= 0) throw new Error("Combat actor dimensions must be positive");
   }
   for (const player of ctx.players) {

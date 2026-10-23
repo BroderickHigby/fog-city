@@ -117,11 +117,13 @@ describe("agent models, packed", () => {
     for (const p of m.parts) expect(boundsOf(p.geometry!).translate(p.pivot).max.y, p.name).toBeLessThan(1.54);
   });
 
-  it("keeps the lights as packed channels: head, tail and status on the robotaxi body", () => {
+  it("keeps packed light channels on their owning rig parts", () => {
     expect([...channels(part(packed.robotaxi!, "body").geometry)].sort()).toEqual([0, 1, 2, 3]);
     expect(channels(part(packed.robotaxi!, "wheelFL").geometry)).toEqual(new Set([0]));
     expect(channels(part(packed.robotaxi!, "doorR").geometry)).toEqual(new Set([0]));
-    expect(channels(part(packed.errandRobot!, "body").geometry).has(3)).toBe(true); // light_face
+    // The face follows the independent tell-driven head joint; the torso does not glow.
+    expect(channels(part(packed.errandRobot!, "head").geometry).has(3)).toBe(true); // light_face
+    expect(channels(part(packed.errandRobot!, "body").geometry).has(3)).toBe(false);
     expect(channels(part(packed.sidewalkBot!, "body").geometry).has(3)).toBe(true); // light_face (wave 1: light_eyes)
   });
 

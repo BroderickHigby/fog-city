@@ -1,5 +1,6 @@
 import { nearestSidewalkNode } from "./navigation-index.ts";
 import { routineSpawnCandidates } from "./routine-spawn.ts";
+import { createRuntimeVisualSensor } from "./runtime-sight.ts";
 import { Action, DT, TICK_HZ, sortedIds, type PlayerState } from "../contract.ts";
 import { carCircles, stepCar } from "../car.ts";
 import { agentCircles } from "../agents.ts";
@@ -13,6 +14,7 @@ import { circleBlocked, meshGroundHeight, segmentBlocked, type World } from "../
 import { lanePath, walkPath, pathPoint, projectOnPath, type Path } from "../roads.ts";
 import { createFinaleState, stepFinale, finaleFootfallClear, type FinaleEffect, type FinaleLandingAck, type FinaleRoute, type FinaleState } from "../robots/finale.ts";
 import { robotAgentId, type RobotLocomotion } from "../robots/runtime.ts";
+import { robotMetadata } from "../robots/metadata.ts";
 import { agentRuntimeSession, runtimeGameMinute, type RuntimePhysicalBody } from "./runtime-state.ts";
 import {
   allocateSwarm, conferenceDensity, createBoxInState, createCalendarRoutines,
@@ -34,7 +36,7 @@ export const ROGUE_TAXI_ARRIVAL_M = 1;
 export const ROGUE_TAXI_TURN_RATE = 1.2;
 const MAX_PENDING_EFFECTS = 128;
 type Role = "drone" | "patrol" | "tidy" | "sign-spinner" | "associate" | "thief" | "rogue-taxi" | "parrot";
-interface TravelPlan { goal: RoutinePoint; points: RoutinePoint[]; index: number }
+interface TravelPlan { readonly goal: RoutinePoint; readonly points: readonly RoutinePoint[]; readonly index: number }
 interface SpecialState {
   body: RuntimePhysicalBody; role: Role; ownerId: string; plan: TravelPlan | null;
   drone: DroneState | null; boxIn: BoxInState | null; tidy: TidyState | null;
@@ -44,6 +46,10 @@ interface SpecialState {
   nextPlanTick?: number;
   planGoal?: RoutinePoint;
   patrolGoal?: RoutinePoint;
+  /** Sparse, consecutive measured blockage; intentional holds never accumulate it. */
+  stalledTicks?: number;
+  stalledAt?: { tick: number; x: number; z: number };
+  recovery?: { untilTick: number; target: RoutinePoint };
 }
 interface ControlledBody { playerId: string; model: "footman" | "trundle"; state: RobotBodyState }
 interface FinaleRuntime { body: RuntimePhysicalBody; route: FinaleRoute; state: FinaleState; landingId: string | null; applied: string[] }
@@ -183,20 +189,60 @@ function routePoints(world: World, graph: SidewalkGraph | null, body: RuntimePhy
   if (!segmentBlocked(world, end.x, end.z, goal.x, goal.z)) points.push(p3(goal));
   return points.length <= 2048 ? points : null;
 }
-function moveSpecial(world: World, graph: SidewalkGraph | null, special: SpecialState, motion: RoutineMotion, all: readonly RuntimePhysicalBody[], actors: readonly CombatActor[], tick: number): SpecialState {
+function clearRoutineStall(special: SpecialState): SpecialState {
+  if (special.stalledTicks === undefined && special.stalledAt === undefined && special.recovery === undefined) return special;
+  const { stalledTicks: _ticks, stalledAt: _at, recovery: _recovery, ...cleared } = special;
+  return cleared;
+}
+function recoverRoutineStep(world: World, special: SpecialState, motion: RoutineMotion, moved: RuntimePhysicalBody, all: readonly RuntimePhysicalBody[], actors: readonly CombatActor[], tick: number): SpecialState {
+  const meaningful = motion.speedMps > 0.05 && d2(special.body, motion.target) > 0.0625;
+  if (!meaningful || d2(special.body, moved) > 0.000001) return { ...clearRoutineStall(special), body: moved };
+  const last = special.stalledAt, consecutive = last !== undefined && last.tick < tick && d2(last, special.body) <= 0.000001;
+  // A retained request can run at a lower fidelity cadence. Count elapsed sim ticks,
+  // not calls; observed holds, dodges and fidelity exits clear this record below.
+  const stalledTicks = consecutive ? (special.stalledTicks ?? 0) + tick - last.tick : 1;
+  let blocked: SpecialState = { ...special, body: moved, stalledTicks, stalledAt: { tick, x: moved.x, z: moved.z } };
+  if (stalledTicks < 2 * TICK_HZ) return blocked;
+  const dx = motion.target.x - moved.x, dz = motion.target.z - moved.z, length = Math.sqrt(dx * dx + dz * dz);
+  const forwardX = length > 0.001 ? dx / length : dsin(moved.heading), forwardZ = length > 0.001 ? dz / length : -dcos(moved.heading);
+  const turn = moved.numericId % 2 === 0 ? 1 : -1;
+  const directions = [[-forwardX, -forwardZ], [-forwardZ * turn, forwardX * turn], [forwardZ * turn, -forwardX * turn]];
+  for (const direction of directions) {
+    const target = { x: moved.x + direction[0]! * 0.75, y: moved.y, z: moved.z + direction[1]! * 0.75 };
+    if (segmentBlocked(world, moved.x, moved.z, target.x, target.z) || !safeSpot(world, moved, target, all, actors)) continue;
+    const next = directMove(world, moved, target, Math.min(1, motion.speedMps), all, actors, airborne(special.role));
+    if (d2(next, moved) <= 0.000001) continue;
+    blocked = { ...clearRoutineStall(blocked), body: next, plan: null, nextPlanTick: tick + 45, recovery: { untilTick: tick + 45, target } };
+    return blocked;
+  }
+  // No safe backoff exists. Keep the body still and invalidate only its route.
+  // The normal one-second planning guard bounds the next attempt's work.
+  return { ...clearRoutineStall(blocked), plan: null, nextPlanTick: tick + TICK_HZ, planGoal: p3(motion.target) };
+}
+function moveSpecial(world: World, graph: SidewalkGraph | null, special: SpecialState, motion: RoutineMotion, all: readonly RuntimePhysicalBody[], actors: readonly CombatActor[], tick: number, fidelityRun: boolean): SpecialState {
   const body = special.body;
-  if (motion.kind === "hold" || motion.speedMps <= 0) return { ...special, body: { ...body, speed: 0 } };
-  if (airborne(special.role)) return { ...special, body: directMove(world, body, motion.target, motion.speedMps, all, actors, true) };
+  if (motion.kind === "hold" || motion.speedMps <= 0 || body.dodge) return { ...clearRoutineStall(special), body: { ...body, speed: 0 } };
+  if (!fidelityRun) special = clearRoutineStall(special);
+  if (fidelityRun && special.recovery && tick <= special.recovery.untilTick && d2(body, special.recovery.target) > 0.0001) {
+    return { ...special, body: directMove(world, body, special.recovery.target, Math.min(1, motion.speedMps), all, actors, airborne(special.role)) };
+  }
+  if (special.recovery) special = { ...clearRoutineStall(special), plan: null, nextPlanTick: tick };
+  if (airborne(special.role)) {
+    const moved = directMove(world, body, motion.target, motion.speedMps, all, actors, true);
+    return fidelityRun ? recoverRoutineStep(world, special, motion, moved, all, actors, tick) : { ...special, body: moved };
+  }
   let plan = special.plan;
   if (!plan || d2(plan.goal, motion.target) > 9 || plan.index >= plan.points.length) {
-    if ((special.nextPlanTick ?? 0) > tick && special.planGoal && d2(special.planGoal, motion.target) <= 9) return { ...special, body: { ...body, speed: 0 } };
+    if ((special.nextPlanTick ?? 0) > tick && special.planGoal && d2(special.planGoal, motion.target) <= 9) return { ...clearRoutineStall(special), body: { ...body, speed: 0 } };
     const points = routePoints(world, graph, body, motion.target);
     plan = points ? { goal: p3(motion.target), points, index: 0 } : null;
     special = { ...special, planGoal: p3(motion.target), nextPlanTick: points ? tick : tick + TICK_HZ };
   }
-  if (!plan) return { ...special, body: { ...body, speed: 0 }, plan: null };
+  if (!plan) return { ...clearRoutineStall(special), body: { ...body, speed: 0 }, plan: null };
   while (plan.index < plan.points.length - 1 && d2(body, plan.points[plan.index]!) < 0.25) plan = { ...plan, index: plan.index + 1 };
-  return { ...special, plan, body: directMove(world, body, plan.points[plan.index]!, motion.speedMps, all, actors) };
+  special = { ...special, plan };
+  const moved = directMove(world, body, plan.points[plan.index]!, motion.speedMps, all, actors);
+  return fidelityRun ? recoverRoutineStep(world, special, motion, moved, all, actors, tick) : { ...special, body: moved };
 }
 function spawn(world: World, id: number, role: Role, ownerId: string, near: RoutinePoint, bodies: readonly RuntimePhysicalBody[], actors: readonly CombatActor[]): SpecialState | null {
   const kind = roleKind(role), hl = kind === "vehicle" ? 2.2 : role === "patrol" ? 0.7 : 0.35;
@@ -247,6 +293,7 @@ export function createRoutineRuntime(tick = 0): RoutineRuntimeState {
 /** Called before the final clearance pass. No action here licenses later movement. */
 export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineRuntimeState, options: RoutineRuntimeOptions): RoutineRuntimeStep {
   const tick = context.state.tick, session = agentRuntimeSession(context.state);
+  const canSee = createRuntimeVisualSensor(context);
   if (previous.version !== 1 || tick !== context.previous.tick + 1 || previous.tick !== context.previous.tick || !Number.isSafeInteger(options.nextActorId) || options.nextActorId < 0 || options.bodies.length > 2800 || options.actors.length > 4096 || previous.specials.length > MAX_ROUTINE_BODIES) throw new Error("Invalid routine runtime context");
   if (new Set(options.bodies.map(b => b.id)).size !== options.bodies.length || new Set(options.actors.map(a => a.id)).size !== options.actors.length) throw new Error("Duplicate routine runtime actor");
   if (options.remainingSignificantCapacity !== undefined && (!Number.isSafeInteger(options.remainingSignificantCapacity) || options.remainingSignificantCapacity < 0)) throw new RangeError("Invalid significant capacity");
@@ -257,7 +304,7 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
     if (carried || current.x !== old.x || current.y !== old.y || current.z !== old.z) { externallyMoved.add(old.id); return preserveBody(current); }
     return copyBody(current);
   };
-  const state: RoutineRuntimeState = { ...previous, tick, initializedOwners: [...previous.initializedOwners], specials: previous.specials.map(s => ({ ...s, body: ownBody(s.body), plan: s.plan ? { ...s.plan, points: s.plan.points.map(p3), goal: p3(s.plan.goal) } : null })), recruits: previous.recruits.map(r => ({ ...r })), controlled: previous.controlled.map(c => ({ ...c })), finales: previous.finales.map(f => ({ ...f, body: ownBody(f.body), applied: [...f.applied] })), eventCursors: previous.eventCursors.map(e => ({ ...e })), threatReceipts: [...previous.threatReceipts], pendingEffects: previous.pendingEffects.filter(e => !options.effectAcks?.includes(e.id)).map(e => ({ ...e, position: e.position ? p3(e.position) : null })) };
+  const state: RoutineRuntimeState = { ...previous, tick, initializedOwners: [...previous.initializedOwners], specials: previous.specials.map(s => ({ ...s, body: ownBody(s.body), plan: s.plan })), recruits: previous.recruits.map(r => ({ ...r })), controlled: previous.controlled.map(c => ({ ...c })), finales: previous.finales.map(f => ({ ...f, body: ownBody(f.body), applied: [...f.applied] })), eventCursors: previous.eventCursors.map(e => ({ ...e })), threatReceipts: [...previous.threatReceipts], pendingEffects: previous.pendingEffects.filter(e => !options.effectAcks?.includes(e.id)).map(e => ({ ...e, position: e.position ? p3(e.position) : null })) };
   let nextActorId = options.nextActorId;
   let remainingCapacity = options.remainingSignificantCapacity ?? 2000;
   if (options.spawnBudget !== undefined && (!Number.isSafeInteger(options.spawnBudget) || options.spawnBudget < 0 || options.spawnBudget > 128)) throw new RangeError("Invalid routine spawn budget");
@@ -391,12 +438,14 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
     for (const unit of eligible) if (unit.kind === "robot" && unit.firmware === "bad" && unit.operational && d2(unit, owner) <= 120 * 120 && !assigned.some(a => a.id === unit.id)) swarmSuppressedIds.push(unit.id);
   }
 
+  const observedById = new Map(actors.map(actor => [actor.id, actor]));
+  const priorRobotMetadata = new Map(robotMetadata(context.previous).map(item => [item.actorId, item]));
+  const priorRobots = context.previous.ext.robots as unknown as { restoredAgentIds?: number[] } | undefined;
   for (let i = 0; i < state.specials.length; i++) {
     let special = state.specials[i]!;
-    if (boundIds.has(special.body.id)) { state.specials[i] = special; continue; }
-    const observed = actors.find(a => a.id === special.body.id);
-    const priorRobots = context.previous.ext.robots as unknown as { metadata?: { actorId: string; firmware: "good" | "bad" }[]; restoredAgentIds?: number[] } | undefined;
-    const persistentFirmware = priorRobots?.metadata?.find(m => m.actorId === special.body.id)?.firmware;
+    if (boundIds.has(special.body.id)) { state.specials[i] = clearRoutineStall(special); continue; }
+    const observed = observedById.get(special.body.id);
+    const persistentFirmware = priorRobotMetadata.get(special.body.id)?.firmware;
     if (persistentFirmware) special.body.firmware = persistentFirmware;
     else if (observed && special.body.firmware === undefined) special.body.firmware = observed.firmware;
     const converted = context.previous.ext.combat?.events?.some(e => e.tick === context.previous.tick && e.kind === "robot.converted" && e.targetId === special.body.id);
@@ -412,13 +461,13 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
         special.theft = { ...special.theft, phase: "recoverable", lastTick: tick };
         queue(effect(`${self.id}/release/${special.theft.sequence}`, "theft.release", self.id, special.stolenOwnerId, `car:${special.stolenOwnerId}`, null, special.theft.sequence));
       }
-      special.body.speed = 0; state.specials[i] = special; continue;
+      special.body.speed = 0; state.specials[i] = clearRoutineStall(special); continue;
     }
-    if (externallyMoved.has(special.body.id)) { state.specials[i] = special; continue; }
-    if (holdIds.has(self.id)) { special.body.speed = 0; state.specials[i] = special; continue; }
+    if (externallyMoved.has(special.body.id)) { state.specials[i] = clearRoutineStall(special); continue; }
+    if (holdIds.has(self.id)) { special.body.speed = 0; state.specials[i] = clearRoutineStall(special); continue; }
     let motion: RoutineMotion = { kind: "hold", target: p3(self), speedMps: 0, reason: "idle" };
     if (special.role === "drone" && special.drone) {
-      const visible = !segmentBlocked(context.world, self.x, self.z, owner.x, owner.z);
+      const visible = canSee(self, owner);
       const result = stepDrone(special.drone, { tick, self, groundY: meshGroundHeight(context.world, self.x, self.z), observedTarget: { ...owner, lineOfSight: visible } });
       special.drone = result.state; motion = result.motion;
       if (result.blast) attackRequests.push({ id: `${self.id}/drone/${++special.attackSequence}`, sequence: special.attackSequence, attackerId: self.id, targetId: owner.id, kind: "ad-blast" });
@@ -463,7 +512,7 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
       }
       const toTarget = target ? Math.sqrt(d2(self, target)) : 0;
       const seen = !!target && (toTarget === 0 || (target.x - self.x) * dsin(self.heading) - (target.z - self.z) * dcos(self.heading) >= toTarget * dcos(0.8726646259971648)) &&
-        !segmentBlocked(context.world, self.x, self.z, target.x, target.z);
+        canSee(self, target);
       const terms = target?.kind === "player" && limits.canAttack && seen ? patrolTerms(self, [{ ...target, lineOfSight: true }]) : null;
       if (terms && tick >= special.nextTermsTick) { queue(effect(`${self.id}/terms/${tick}`, "patrol.terms", self.id, target!.id, terms.targetId)); special.nextTermsTick = tick + 10 * TICK_HZ; }
     } else if (special.role === "sign-spinner") {
@@ -474,7 +523,7 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
       const p = context.state.players[special.ownerId]!;
       const blockingGoal = { x: owner.x + dsin(owner.heading) * 10, y: owner.y, z: owner.z - dcos(owner.heading) * 10 };
       const reachedGoal = d2(self, blockingGoal) <= ROGUE_TAXI_ARRIVAL_M * ROGUE_TAXI_ARRIVAL_M;
-      const result = stepBoxIn(special.boxIn, { tick, self, target: p.mode === "vehicle" ? { ...owner, kind: "vehicle", occupiedByTarget: true, lineOfSight: !segmentBlocked(context.world, self.x, self.z, owner.x, owner.z) } : null, reachedGoal });
+      const result = stepBoxIn(special.boxIn, { tick, self, target: p.mode === "vehicle" ? { ...owner, kind: "vehicle", occupiedByTarget: true, lineOfSight: canSee(self, owner) } : null, reachedGoal });
       special.boxIn = result.state; motion = result.motion;
       const limits = context.previous.ext.combat && observed ? movementLimit(context.previous.ext.combat, observed) : null;
       const speed = Math.min(motion.speedMps * (limits?.scale ?? 1), limits?.maxSpeed ?? motion.speedMps);
@@ -543,7 +592,7 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
       const angle = index * 0.7853981633974483;
       motion = { kind: "route", target: { x: swarmOwner.x + dcos(angle) * radius, y: swarmOwner.y, z: swarmOwner.z + dsin(angle) * radius }, speedMps: 1.8, reason: `swarm-${swarm.role}` };
     } else if (swarmSuppressedIds.includes(self.id) && motion.reason !== "patrol-flee") motion = { kind: "hold", target: p3(self), speedMps: 0, reason: "swarm-capacity" };
-    if (special.role !== "rogue-taxi" && !(special.role === "thief" && special.theft?.phase === "driving")) special = moveSpecial(context.world, graph, special, motion, [...bodies, ...state.specials.map(s => s.body)], actors, tick);
+    if (special.role !== "rogue-taxi" && !(special.role === "thief" && special.theft?.phase === "driving")) special = moveSpecial(context.world, graph, special, motion, [...bodies, ...state.specials.map(s => s.body)], actors, tick, observed?.inFidelity === true || observed?.inFidelity !== false && players.some(id => { const anchor = observedPlayer(context, id); return anchor !== null && d2(self, anchor) <= 350 * 350; }));
     if (special.carryingHeapId) {
       const at = { x: special.body.x, y: special.body.y + 0.4, z: special.body.z };
       actorMetadata[special.carryingHeapId] = { ...at, speed: special.body.speed };
@@ -553,17 +602,18 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
   }
 
   if (session.wave >= 4) {
+    // All players consume the same immutable observation snapshot this frame.
+    const observed = actors.map(a => ({ ...combatActor(a, context.state), boarded: options.recruitObservations?.[a.id]?.boardedSequence !== undefined, boardedSequence: options.recruitObservations?.[a.id]?.boardedSequence, melted: context.previous.ext.combat?.targets[a.id]?.phase === "heap", restored: options.recruitObservations?.[a.id]?.restored ?? false }));
     for (const playerId of players) {
       const owner = observedPlayer(context, playerId)!;
       const old = state.recruits.find(r => r.playerId === playerId) ?? { playerId, state: createRecruitState() };
       const candidates = actors.filter(a => options.recruitOffers?.[a.id]?.playerId === playerId).map(a => ({ ...combatActor(a, context.state), interruptedUpdate: true, accepted: d2(a, owner) <= 16 && (accepted.get(playerId)?.has(a.id) === true || ((context.inputs[playerId]?.actions ?? 0) & Action.interact) !== 0) }));
-      const observed = actors.map(a => ({ ...combatActor(a, context.state), boarded: options.recruitObservations?.[a.id]?.boardedSequence !== undefined, boardedSequence: options.recruitObservations?.[a.id]?.boardedSequence, melted: context.previous.ext.combat?.targets[a.id]?.phase === "heap", restored: options.recruitObservations?.[a.id]?.restored ?? false }));
       const rep = reputation(options, playerId);
       // No roster and no actor eligible to join means this tick cannot consume sight.
       const needsSight = old.state.roster.length > 0 || rep >= 60 && candidates.some(candidate =>
         candidate.kind === "robot" && candidate.firmware === "good" && candidate.operational && candidate.interruptedUpdate && candidate.accepted);
       const visibleBadRobots = needsSight ? actors.map(a => ({ ...combatActor(a, context.state),
-        lineOfSight: !segmentBlocked(context.world, owner.x, owner.z, a.x, a.z) })) : [];
+        lineOfSight: canSee(owner, a) })) : [];
       const result = stepRecruits(old.state, { tick, owner, reputation: rep, candidates, observations: observed,
         visibleBadRobots, seatCapacity: 3, ownerInVehicle: context.state.players[playerId]!.mode === "vehicle" });
       const index = state.recruits.findIndex(r => r.playerId === playerId); if (index < 0) state.recruits.push({ playerId, state: result.state }); else state.recruits[index] = { playerId, state: result.state };
@@ -720,7 +770,7 @@ function weakPointActors(finale: FinaleRuntime): CombatActor[] {
     return { id: `${b.id}/weak/${point.id}`, kind: "robot", model: "walker", firmware: exposed ? "bad" : "none",
       x: b.x + lateral * dcos(b.heading) - longitudinal * dsin(b.heading), y: b.y + height,
       z: b.z + lateral * dsin(b.heading) + longitudinal * dcos(b.heading), heading: b.heading, speed: b.speed,
-      radius: boss ? index < 2 ? 4 : 6 : 0.6, height: boss ? index < 2 ? 10 : 12 : 1, rustScale: 0.3 };
+      radius: boss ? index < 2 ? 4 : 6 : 0.6, height: boss ? index < 2 ? 10 : 12 : 1, rustScale: 1 };
   });
 }
 

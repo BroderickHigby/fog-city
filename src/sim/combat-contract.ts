@@ -25,7 +25,7 @@ export interface CombatActor extends Vec3 {
   sheltered?: boolean;
   pursuing?: boolean;
   inFidelity?: boolean;
-  /** Optional model resistance multiplier, finite and greater than 0 through 1. */
+  /** Optional explicit resistance rate overriding the model default; finite, greater than 0 through 1. */
   rustScale?: number;
 }
 export type Mount = "foot" | "vehicle" | "running-board" | "roof";
@@ -68,6 +68,12 @@ export interface CombatInput {
   boost?: "salt" | "pressure" | "wide";
 }
 export type CombatInputs = Readonly<Record<string, Readonly<CombatInput>>>;
+/** Every containing scope must have room before a good robot can be converted. */
+export interface ConversionScope {
+  readonly id: string;
+  readonly actorIds: readonly string[];
+  readonly cap: number;
+}
 export interface CombatContext {
   wave?: CombatWave;
   actors: readonly CombatActor[];
@@ -82,6 +88,8 @@ export interface CombatContext {
   fog?: number;
   rain?: number;
   conversionCap?: number;
+  /** Absent preserves the legacy scalar cap; an explicit empty list denies conversion. */
+  conversionScopes?: readonly ConversionScope[];
   rivalPlayerIds?: Readonly<Record<string, readonly string[]>>;
   mode?: "free-roam" | "clean-streets" | "fog-royale" | "other-pvp";
 }

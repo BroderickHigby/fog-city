@@ -42,7 +42,8 @@ function expandTargets(state: SimState): SimState {
 }
 function compact(state: SimState): SimState {
   const actors = state.ext.robots!.actors as unknown as CombatActor[];
-  return { ...state, ext: { ...state.ext, robots: { ...state.ext.robots!, actors: actors.map(storeRobotActor) } as never,
+  const physical = new Map(contextFromState(world, state).actors.map(value => [value.id, value]));
+  return { ...state, ext: { ...state.ext, robots: { ...state.ext.robots!, actors: actors.map(value => storeRobotActor(value, physical.get(value.id))) } as never,
     combat: pruneDefaultCombatTargets(state.ext.combat!) } };
 }
 function materialContext(ctx: CombatContext): Omit<CombatContext, "groundHeight"> {
@@ -57,11 +58,21 @@ describe("runtime snapshot storage", () => {
     expect(small.ext.robots!.actors as unknown[]).not.toHaveLength(0);
     for (const entry of small.ext.robots!.actors as unknown as Record<string, unknown>[]) {
       for (const key of ["x", "y", "z", "heading", "speed"]) expect(Object.hasOwn(entry, key)).toBe(false);
-      expect(entry.radius).toBeGreaterThan(0);
-      expect(entry.height).toBeGreaterThan(0);
+      expect(Object.hasOwn(entry, "radius")).toBe(false);
+      expect(Object.hasOwn(entry, "height")).toBe(false);
     }
     const custom = { ...context(full).actors[0]!, custom: { retained: true } };
     expect(storeRobotActor(custom)).toMatchObject({ custom: { retained: true } });
+    const derived = storeRobotActor(custom, custom);
+    expect(derived).toMatchObject({ custom: { retained: true } });
+    expect(Object.hasOwn(derived, "radius")).toBe(false);
+    expect(Object.hasOwn(derived, "height")).toBe(false);
+    const falsePursuit = { ...custom, pursuing: false };
+    expect(Object.hasOwn(storeRobotActor(falsePursuit, custom), "pursuing")).toBe(false);
+    expect(storeRobotActor(falsePursuit, { ...custom, pursuing: true }).pursuing).toBe(false);
+    expect(storeRobotActor({ ...custom, pursuing: true }, custom).pursuing).toBe(true);
+    expect(storeRobotActor(custom, { radius: custom.radius + 1, height: custom.height + 1 }))
+      .toMatchObject({ radius: custom.radius, height: custom.height });
     expect(JSON.stringify(full)).toBe(saved);
     const robot = robotRuntimeSystem.step({ world, previous: full, state: { ...full, tick: 1 }, inputs: {}, events: [] });
     expect(robotsRuntimeOf(robot)!.actors.every(value => !Object.hasOwn(value, "x"))).toBe(true);

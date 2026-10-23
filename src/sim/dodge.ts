@@ -240,10 +240,10 @@ export function robotaxiBerth(cls: DodgeClass): number {
 }
 
 /** The dodge class of an ambient agent, or null for vehicles (robotaxis). */
-export function agentDodgeClass(a: Readonly<Pick<AgentState, "id" | "kind">>): DodgeClass | null {
+export function agentDodgeClass(a: Readonly<Pick<AgentState, "id" | "kind" | "identitySeed">>): DodgeClass | null {
   const kind: AgentKind = a.kind;
   if (kind === "robotaxi") return null;
-  if (kind === "person") return personIsChild(a.id) ? "care" : "person";
+  if (kind === "person") return personIsChild(a.id, a.identitySeed) ? "care" : "person";
   return kind;
 }
 

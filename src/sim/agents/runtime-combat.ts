@@ -7,6 +7,7 @@ import { initialTarget } from "../combat/shared.ts";
 import type { StoredRobotActor } from "../robots/runtime-system.ts";
 import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
 import type { RobotAttackCancellation, RobotRuntimeStep } from "../robots/runtime.ts";
+import { deriveRobotConversionScopes, type RobotConversionBaseline } from "../robots/conversion-scopes.ts";
 import { agentRuntimeSession } from "./runtime-state.ts";
 import { runtimeCombatActors } from "./runtime-system.ts";
 import { completeAgentRuntimeOf } from "./runtime-registration.ts";
@@ -128,7 +129,11 @@ export function runtimeCombatContext(context: SimSystemContext): CombatContext {
     conversionCap: output?.conversionCap ?? 0,
     refills: runtimeRefills(context.world),
   });
-  return mapped;
+  const rawBaselines = context.state.ext.robots?.baselines;
+  if (!Array.isArray(rawBaselines)) return { ...mapped, conversionScopes: [] };
+  const conversionScopes = deriveRobotConversionScopes(context.world, mapped.players.map(player => ({ id: player.id, x: player.x, z: player.z })),
+    mapped.actors, rawBaselines as unknown as readonly RobotConversionBaseline[], context.state.ext.robots?.protectedArea === true, session.worldName);
+  return { ...mapped, conversionScopes };
 }
 
 /** Combat owns wind-up clocks, water physics, rust and reward events. */

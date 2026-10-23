@@ -13,6 +13,7 @@
 
 import { decodeColliderPack, type BoundaryFile, type RoadsFile, type TileCollider } from "../sim/index.ts";
 import type { GameplayWorldData } from "../sim/gameplay-world.ts";
+import { parseFleetTransitLayer, type FleetTransitLayer } from "../sim/transit.ts";
 import type { Assets } from "./assets.ts";
 
 /**
@@ -21,7 +22,7 @@ import type { Assets } from "./assets.ts";
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay", "transit"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
@@ -29,7 +30,7 @@ export interface WorldManifestLike {
   tiles: ReadonlyArray<{ id: string; collider: string }>;
   roads?: string | null;
   worldColliders?: string;
-  layers?: { boundary?: string; gameplay?: string } & Record<string, string | undefined>;
+  layers?: { boundary?: string; gameplay?: string; transit?: string } & Record<string, string | undefined>;
 }
 
 export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
@@ -40,6 +41,7 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   boundary: BoundaryFile | null;
   /** Optional static gameplay anchors/refills/territory data named by the manifest. */
   gameplay: GameplayWorldData | null;
+  transit: FleetTransitLayer | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
 }
@@ -54,7 +56,9 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
   roads: RoadsFile | null,
   boundary: BoundaryFile | null,
   gameplay: GameplayWorldData | null = null,
+  transit: FleetTransitLayer | null = null,
 ): WorldFiles<M> {
+  const transitData = transit === null ? null : parseFleetTransitLayer(transit);
   if ("pack" in colliders) {
     const pack = decodeColliderPack(colliders.pack);
     const ids = pack.tiles.map((t) => t.tileId);
@@ -62,9 +66,9 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
     if (ids.length !== want.length || ids.some((id, i) => id !== want[i])) {
       throw new Error(`collider pack ${manifest.worldColliders}: its ${ids.length} tiles are not the manifest's ${want.length}`);
     }
-    return { manifest, tiles: pack.tiles, roads, boundary, gameplay, colliders: "pack" };
+    return { manifest, tiles: pack.tiles, roads, boundary, gameplay, transit: transitData, colliders: "pack" };
   }
-  return { manifest, tiles: colliders.json, roads, boundary, gameplay, colliders: "json" };
+  return { manifest, tiles: colliders.json, roads, boundary, gameplay, transit: transitData, colliders: "json" };
 }
 
 function named(what: string, file: string, err: unknown): Error {
@@ -79,7 +83,8 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
   const roadsFile = manifest.roads ?? null;
   const boundaryFile = manifest.layers?.boundary ?? null;
   const gameplayFile = manifest.layers?.gameplay ?? null;
-  const [colliders, roads, boundary, gameplay] = await Promise.all([
+  const transitFile = manifest.layers?.transit ?? null;
+  const [colliders, roads, boundary, gameplay, transit] = await Promise.all([
     packFile
       ? assets.bytes(base + packFile).then(
           (pack) => ({ pack }),
@@ -103,6 +108,11 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
           throw named("gameplay", gameplayFile, err);
         })
       : Promise.resolve(null),
+    transitFile
+      ? assets.json<unknown>(base + transitFile).then(parseFleetTransitLayer).catch((err: unknown) => {
+          throw named("transit", transitFile, err);
+        })
+      : Promise.resolve(null),
   ]);
-  return assembleWorldFiles(manifest, colliders, roads, boundary, gameplay);
+  return assembleWorldFiles(manifest, colliders, roads, boundary, gameplay, transit);
 }

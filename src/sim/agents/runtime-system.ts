@@ -1,4 +1,4 @@
-import { AGENT_SPEC, agentCircles, agentsOf, type AgentState, type AgentsExt } from "../agents.ts";
+import { AGENT_SPEC, ROBOTAXI_BODY, agentCircles, agentsOf, type AgentState, type AgentsExt } from "../agents.ts";
 import { DT, sortedIds, type SimState } from "../contract.ts";
 import type { CombatActor } from "../combat-contract.ts";
 import type { JsonObject, JsonValue } from "../extensions.ts";
@@ -9,14 +9,16 @@ import { pathPoint, projectOnPath, walkPath } from "../roads.ts";
 import type { ThreatSpawnRequest } from "../gameplay-contract.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import type { World } from "../world.ts";
-import type { RobotLocomotion } from "../robots/runtime.ts";
+import { robotAgentId, type RobotLocomotion } from "../robots/runtime.ts";
+import { robotMetadata } from "../robots/metadata.ts";
 import type { RobotMovementIntent } from "../robots/brain.ts";
 import type { SidewalkGraph } from "./navigation.ts";
 import { createSpatialNavigation, stepRuntimeSpatial, type RuntimeAnimal, type RuntimeSpatialState } from "./runtime-spatial.ts";
 import { createFleetState, stepFleet, type FleetDepot, type FleetObstacle, type FleetState } from "./runtime-services.ts";
 import { agentRuntimeSession, runtimeGameMinute, type RuntimePhysicalBody } from "./runtime-state.ts";
 import { MAX_ACTIVE_VANS, SERVICE_REQUEST_RETENTION_TICKS, VAN_RESPONSE_TICKS, type ThreatVanRequest } from "./services.ts";
-import { ACTIVE_FIDELITY_M, MAX_AMBIENT_AGENTS, MAX_AMBIENT_PER_ANCHOR, MAX_SIGNIFICANT_AGENTS, planFidelity, type FidelityAnchor } from "./fidelity.ts";
+import { ACTIVE_FIDELITY_M, MAX_AMBIENT_AGENTS, MAX_AMBIENT_PER_ANCHOR, MAX_SIGNIFICANT_AGENTS, planFidelity, prepareFidelityAnchors, type FidelityAnchor } from "./fidelity.ts";
+import { ambientProfilesOf, expandAmbientProfiles, readAmbientState, stepAmbientRuntime, type RuntimeAmbientProfile, type RuntimeAmbientState } from "./ambient-runtime.ts";
 
 export const MAX_RUNTIME_REQUEST_KEYS = 128;
 export const MAX_RUNTIME_SIGNIFICANT = MAX_SIGNIFICANT_AGENTS;
@@ -42,6 +44,7 @@ export interface AgentRuntimeData {
   events: AgentRuntimeEvent[]; diagnostics: string[];
   /** Additional same-key reducers own these JSON payloads; the base reducer carries them. */
   routines?: unknown; routineOutput?: unknown; effectState?: unknown; transport?: unknown;
+  ambient?: RuntimeAmbientState;
 }
 type RuntimeAgentsExt = AgentsExt & { runtime: AgentRuntimeData };
 export interface AgentRuntimeOptions {
@@ -58,6 +61,42 @@ function numbers(value: unknown): number[] {
   return Array.isArray(value) ? value.filter((id): id is number => Number.isSafeInteger(id) && id >= 0).sort((a, b) => a - b) : [];
 }
 const compare = (a: string, b: string): number => a < b ? -1 : a > b ? 1 : 0;
+
+/** Interactions resolved after the prior population pass must be pinned before pruning. */
+function earlyPromotions(previous: Readonly<SimState>, old: AgentRuntimeData, eligible: ReadonlySet<number>, significant: ReadonlySet<number>, capacity: number): { accepted: number[]; rejected: number[] } {
+  const candidates = new Set<number>();
+  const add = (actorId: unknown): void => {
+    if (typeof actorId !== "string") return;
+    const id = robotAgentId(actorId);
+    if (id !== null && eligible.has(id) && !significant.has(id)) candidates.add(id);
+  };
+  const combat = previous.ext.combat;
+  if (combat) {
+    for (const actorId of sortedIds(combat.targets)) {
+      const target = combat.targets[actorId]!;
+      // Initial targets have rust0, no wet history, active phase and negative lastWaterTick.
+      // Historical interaction fields count even once their visible effect has expired.
+      if (target.rust > 0 || target.lastWaterTick >= 0 || target.wetUntil > 0 || target.wetHits.length > 0 ||
+          target.blindUntil > 0 || target.stoppedUntil > 0 || !["active", "cleared"].includes(target.phase)) add(actorId);
+    }
+    const interactions = new Set(["scan.result", "robot.converted", "update.interrupted", "robot.seized", "robot.disabled", "person.wet", "robot.repair", "robot.knockdown", "robot.inventory"]);
+    for (const event of combat.events) if (event.tick <= previous.tick && interactions.has(event.kind)) add(event.targetId);
+    for (const attack of combat.attacks) if (attack.startTick <= previous.tick && attack.endTick > previous.tick) { add(attack.attackerId); add(attack.targetId); }
+  }
+  const routines = record(old.routines);
+  if (Array.isArray(routines?.recruits)) for (const value of routines.recruits) {
+    const roster = record(record(value)?.state)?.roster;
+    if (Array.isArray(roster)) for (const recruit of roster) add(record(recruit)?.id);
+  }
+  const transport = record(old.transport);
+  if (Array.isArray(transport?.jobs)) for (const job of transport.jobs) add(record(job)?.recruitId);
+  if (Array.isArray(routines?.finales)) for (const value of routines.finales) {
+    const absorbed = record(record(value)?.state)?.absorbedRobotIds;
+    if (Array.isArray(absorbed)) for (const actorId of absorbed) add(actorId);
+  }
+  const ids = [...candidates].sort((a, b) => a - b), room = Math.max(0, capacity - significant.size);
+  return { accepted: ids.slice(0, room), rejected: ids.slice(room) };
+}
 
 export function agentsRuntimeOf(state: Readonly<SimState>): AgentRuntimeData | null {
   const raw = record(state.ext.agents)?.runtime;
@@ -160,15 +199,15 @@ function requestsFrom(context: SimSystemContext, previous: AgentRuntimeData): { 
 function obstacles(context: SimSystemContext, actors: readonly AgentState[], previous: AgentRuntimeData): FleetObstacle[] {
   const result: FleetObstacle[] = [];
   for (const actor of actors) {
-    for (const [index, circle] of agentCircles(actor).entries()) result.push({ id: `agent:${actor.id}:${index}`, x: circle.x, z: circle.z, radius: circle.r, person: actor.kind !== "robotaxi" });
+    for (const [index, circle] of agentCircles(actor).entries()) result.push({ id: `agent:${actor.id}:${index}`, x: circle.x, z: circle.z, radius: circle.r, person: actor.kind !== "robotaxi", y: actor.y, height: actor.kind === "robotaxi" ? ROBOTAXI_BODY.height : actor.kind === "sidewalkBot" ? 0.7 : 1.8 });
   }
   for (const id of sortedIds(context.state.players)) {
     const player = context.state.players[id]!;
-    result.push({ id: `player-car:${id}`, x: player.car.x, z: player.car.z, radius: 2.75, person: false });
-    if (player.mode === "foot" && player.foot) result.push({ id: `player-foot:${id}`, x: player.foot.x, z: player.foot.z, radius: 0.35, person: true });
+    result.push({ id: `player-car:${id}`, x: player.car.x, z: player.car.z, radius: 2.75, person: false, y: player.car.y, height: 1.6 });
+    if (player.mode === "foot" && player.foot) result.push({ id: `player-foot:${id}`, x: player.foot.x, z: player.foot.z, radius: 0.35, person: true, y: player.foot.y, height: 1.8 });
   }
   for (const body of previous.bodies) if (!body.id.startsWith("fleet:")) result.push({ id: body.id, x: body.x, z: body.z,
-    radius: body.kind === "vehicle" ? Math.sqrt(body.halfLength * body.halfLength + body.halfWidth * body.halfWidth) : body.radius, person: body.kind !== "vehicle" });
+    radius: body.kind === "vehicle" ? Math.sqrt(body.halfLength * body.halfLength + body.halfWidth * body.halfWidth) : body.radius, person: body.kind !== "vehicle", y: body.y, height: body.height });
   return result;
 }
 
@@ -198,7 +237,7 @@ function robotMotions(state: Readonly<SimState>): { id: number; movement: RobotM
   for (const raw of locomotion) {
     const value = record(raw);
     const intent = record(value?.intent);
-    if (!value || !Number.isSafeInteger(value.agentId) || !intent || !["hold", "errand", "pursue", "flee"].includes(String(intent.kind))) continue;
+    if (!value || !Number.isSafeInteger(value.agentId) || !intent || !["hold", "errand", "pursue", "flee", "repair"].includes(String(intent.kind))) continue;
     const motion = raw as RobotLocomotion;
     if (seen.has(motion.agentId)) continue;
     seen.add(motion.agentId);
@@ -235,10 +274,10 @@ function combatLimitedActors(actors: readonly AgentState[], previous: Readonly<S
   });
 }
 
-function badRobots(actors: readonly AgentState[], previous: Readonly<SimState>): Set<number> {
-  const firmware = new Map<number, string>();
+function badRobots(actors: readonly AgentState[], previous: Readonly<SimState>, profiles: readonly RuntimeAmbientProfile[] = ambientProfilesOf(previous)): Set<number> {
+  const firmware = new Map<number, string>(profiles.map(profile => [profile.id, profile.firmware]));
   const robots = record(previous.ext.robots);
-  for (const list of [robots?.baselines, robots?.metadata]) if (Array.isArray(list)) for (const value of list) {
+  for (const list of [robots?.baselines, robotMetadata(previous)]) if (Array.isArray(list)) for (const value of list) {
     const item = record(value);
     if (item && Number.isSafeInteger(item.agentId) && (item.firmware === "good" || item.firmware === "bad")) firmware.set(item.agentId as number, item.firmware);
   }
@@ -263,7 +302,7 @@ function inAnchor(point: { x: number; z: number }, anchor: FidelityAnchor): bool
   return dx * dx + dz * dz <= radius * radius;
 }
 
-function population(actors: readonly AgentState[], significant: ReadonlySet<number>, anchors: readonly FidelityAnchor[], old: AgentRuntimeData, tick: number, bad: ReadonlySet<number>, reserved: readonly { x: number; z: number }[] = []): { actors: AgentState[]; badBaselines: RuntimeBadBaseline[] } {
+function population(actors: readonly AgentState[], significant: ReadonlySet<number>, anchors: readonly FidelityAnchor[], old: AgentRuntimeData, tick: number, bad: ReadonlySet<number>, reserved: readonly { x: number; z: number }[] = [], ambientLimit = MAX_AMBIENT_AGENTS): { actors: AgentState[]; badBaselines: RuntimeBadBaseline[] } {
   const stable = new Set(old.population.ambientIds);
   const rank = (a: AgentState, b: AgentState): number => Number(stable.has(b.id)) - Number(stable.has(a.id)) || a.id - b.id;
   const candidates = actors.filter(actor => !significant.has(actor.id) && planFidelity({ id: String(actor.id), x: actor.x, z: actor.z, significant: false }, anchors, tick).tier !== "despawn").sort(rank);
@@ -273,7 +312,7 @@ function population(actors: readonly AgentState[], significant: ReadonlySet<numb
   const selected = new Map<number, AgentState>();
   const hasRoom = (actor: AgentState): boolean => coverage.get(actor.id)!.every(index => counts[index]! < MAX_AMBIENT_PER_ANCHOR);
   const add = (actor: AgentState): void => {
-    if (selected.has(actor.id) || selected.size + reserved.length >= MAX_AMBIENT_AGENTS || !hasRoom(actor)) return;
+    if (selected.has(actor.id) || selected.size + reserved.length >= Math.min(MAX_AMBIENT_AGENTS, ambientLimit) || !hasRoom(actor)) return;
     selected.set(actor.id, actor);
     for (const index of coverage.get(actor.id)!) counts[index] = counts[index]! + 1;
   };
@@ -345,7 +384,8 @@ function nearestAnchor(point: { x: number; z: number }, anchors: readonly Fideli
 export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): SimSystem {
   const navigation = new WeakMap<World, SidewalkGraph>();
   return { key: "agents", step(context): SimState {
-    if (!agentRuntimeSession(context.state)) return context.state;
+    const session = agentRuntimeSession(context.state);
+    if (!session) return context.state;
     const current = context.state.ext.agents ?? { nextId: 0, list: [] };
     const old = agentsRuntimeOf(context.previous) ?? initialRuntime(current.nextId, runtimeGameMinute(context.previous));
     if (old.tick >= context.state.tick) return context.state;
@@ -355,14 +395,18 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
     const significant = new Set([...old.significantAgentIds, ...numbers(robotState?.significantAgentIds), ...numbers(robotState?.robotSignificantAgentIds)].filter((id) => !retired.has(id) && legacyIds.has(id)));
     const extraSignificant = old.population.extraSignificant ?? 0;
     if (!Number.isSafeInteger(extraSignificant) || extraSignificant < 0 || significant.size + extraSignificant > MAX_RUNTIME_SIGNIFICANT) throw new Error("Significant agent capacity exceeded");
+    const promotionCapacity = Math.max(0, MAX_RUNTIME_SIGNIFICANT - extraSignificant - (old.population.reservedVanUnits ?? 0));
+    const promotions = earlyPromotions(context.previous, old, new Set([...legacyIds].filter(id => !retired.has(id))), significant, promotionCapacity);
+    for (const id of promotions.accepted) significant.add(id);
     const incoming = current.list.filter((actor) => !retired.has(actor.id));
     for (const actor of agentsOf(context.previous)) if (significant.has(actor.id) && !incoming.some((candidate) => candidate.id === actor.id)) incoming.push(actor);
-    const anchors = sortedIds(context.state.players).map((id) => {
+    const anchors = prepareFidelityAnchors(sortedIds(context.state.players).map((id) => {
       const player = context.state.players[id]!; const position = player.mode === "foot" && player.foot ? player.foot : player.car;
       return { id, x: position.x, z: position.z };
-    });
-    const bad = badRobots(incoming, context.previous);
-    const list = population(incoming, significant, anchors, old, context.state.tick, bad).actors;
+    }));
+    let bad = badRobots(incoming, context.previous);
+    const admissionLimit = Math.max(0, MAX_RUNTIME_SIGNIFICANT - significant.size - extraSignificant - (old.population.reservedVanUnits ?? 0));
+    let list = population(incoming, significant, anchors, old, context.state.tick, bad, [], admissionLimit).actors;
     const requestData = requestsFrom(context, old);
     const liveVans = old.fleet.vans.jobs.filter((job) => job.vehicleId !== null && job.retiredTick === null).length;
     const reservedUnits = (old.fleet.vans.jobs.filter((job) => job.vehicleId !== null && job.status !== "delivered" && job.retiredTick === null).length + old.fleet.pendingDeliveries.length) * 2;
@@ -389,7 +433,17 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
       else if (queuedVanRequests.length < MAX_RUNTIME_REQUEST_KEYS) queuedVanRequests.push({ ...entry, request: updated });
       else reject(entry, "backlog-capacity");
     }
-    const firstId = Math.max(current.nextId, old.fleet.nextActorId, ...list.map((actor) => actor.id + 1), ...old.animalIds.map((animal) => animal.id + 1), ...old.bodies.map((body) => body.numericId + 1));
+    let firstId = Math.max(current.nextId, old.fleet.nextActorId, ...list.map((actor) => actor.id + 1), ...old.animalIds.map((animal) => animal.id + 1), ...old.bodies.map((body) => body.numericId + 1));
+    let graph = options.navigation ?? navigation.get(context.world);
+    if (!graph) { graph = createSpatialNavigation(context.world); navigation.set(context.world, graph); }
+    const ambientStep = session.ambientMode === "squares-v1" ? stepAmbientRuntime({ world: context.world, state: context.state,
+      previous: readAmbientState(old.ambient), anchors, actors: list, significant, extras: old.bodies, nextId: firstId,
+      // Accepted vans own their delivery slots before any disposable birth is admitted.
+      ambientLimit: Math.max(0, admissionLimit - acceptedRequests.length * 2), reserved: old.bodies.filter(body => body.kind === "animal" || body.model === "bus"), navigation: graph }) : null;
+    if (ambientStep) {
+      list = ambientStep.actors; firstId = ambientStep.nextId;
+      bad = badRobots(list, context.previous, expandAmbientProfiles(ambientStep.state, context.state.seed));
+    }
     const fleet = stepFleet(context.world, { ...old.fleet, nextActorId: firstId }, { tick: context.state.tick, gameMinute: runtimeGameMinute(context.state), requests: acceptedRequests,
       obstacles: obstacles(context, list, old), ...(options.depots ? { depots: options.depots } : {}), ...(options.ferry ? { ferry: options.ferry } : {}) });
     for (const request of acceptedRequests) {
@@ -398,7 +452,7 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
     }
     const activeRequestKeys = [...(old.activeRequestKeys ?? old.requests), ...acceptedKeys].filter((key) => fleet.state.vans.jobs.some((job) => job.requestId === key.numericId && job.vehicleId !== null && job.retiredTick === null)).sort((a, b) => a.numericId - b.numericId);
     const delivered = new Set(old.deliveredAgentIds.filter((id) => !retired.has(id)));
-    const fresh: number[] = [];
+    const fresh: number[] = [...(ambientStep?.freshIds ?? [])];
     for (const delivery of fleet.disembarks) {
       const ids: number[] = [];
       for (const unit of delivery.units) {
@@ -411,24 +465,30 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
       events.push({ id: `van-disembark:${delivery.requestId}`, tick: context.state.tick, kind: "van.disembark", playerId: request?.playerId ?? "", requestId: delivery.requestId,
         sourceRequestId: request?.key ?? "", vehicleId: delivery.vehicleId, unitIds: ids, reason: null });
     }
-    let graph = options.navigation ?? navigation.get(context.world);
-    if (!graph) { graph = createSpatialNavigation(context.world); navigation.set(context.world, graph); }
     const previousBodies = new Map(old.bodies.map((body) => [body.id, body]));
-    const previousSpatial: RuntimeSpatialState = { ...old.spatial, animals: old.spatial.animals.map((animal) => {
+    const previousSpatial: RuntimeSpatialState = { ...old.spatial, walkers: [...old.spatial.walkers, ...(ambientStep?.freshTracks ?? [])], animals: old.spatial.animals.map((animal) => {
       const body = previousBodies.get(animal.id);
       return body ? { ...animal, x: body.x, y: body.y, z: body.z, heading: body.heading, speed: body.speed } : animal;
     }) };
+    const reservedVanUnits = (fleet.state.vans.jobs.filter((job) => job.vehicleId !== null && job.status !== "delivered" && job.retiredTick === null).length + fleet.state.pendingDeliveries.length) * 2;
+    const ambientLimit = Math.max(0, MAX_RUNTIME_SIGNIFICANT - significant.size - extraSignificant - reservedVanUnits);
+    const availableAnimals = Math.max(0, ambientLimit - list.filter(actor => !significant.has(actor.id)).length - fleet.actors.filter(actor => actor.kind === "bus").length);
+    const requestedAnimals = options.animalLimit ?? { pigeons: 16, dogs: 8 };
+    const animalLimit = session.ambientMode === "squares-v1" ? {
+      dogs: Math.min(requestedAnimals.dogs, availableAnimals),
+      pigeons: Math.min(requestedAnimals.pigeons, Math.max(0, availableAnimals - Math.min(requestedAnimals.dogs, availableAnimals))),
+    } : options.animalLimit;
     const spatial = stepRuntimeSpatial({ context, actors: combatLimitedActors(list, context.previous), anchors, navigation: graph, previous: previousSpatial, robotIntents: robotMotions(context.previous), significantActorIds: [...significant].sort((a, b) => a - b), freshSpawnIds: fresh,
       vehicles: [...fleet.bodies.map((body) => ({ id: `fleet:${body.id}`, x: body.x, z: body.z, previousX: body.previousX, previousZ: body.previousZ, halfLength: body.halfLength, halfWidth: body.halfWidth, speed: body.speed })),
         ...old.bodies.filter((body) => body.kind === "vehicle" && !body.id.startsWith("fleet:")).map((body) => ({ id: body.id, x: body.x, z: body.z, previousX: body.x, previousZ: body.z, halfLength: body.halfLength, halfWidth: body.halfWidth, speed: body.speed }))],
-      ...(options.animalLimit ? { animalLimit: options.animalLimit } : {}) });
+      ...(animalLimit ? { animalLimit } : {}) });
     const originalSpeeds = new Map(list.map((actor) => [actor.id, actor.vmax]));
     const buses = fleet.actors.filter((actor) => actor.kind === "bus");
     const reservedAnimals = spatial.animals.map((animal) => {
       const body = previousBodies.get(animal.id);
       return body?.dodge ? { ...animal, x: body.x, z: body.z } : animal;
     });
-    const selected = population(spatial.actors.map((actor) => ({ ...actor, vmax: originalSpeeds.get(actor.id) ?? actor.vmax })), significant, anchors, old, context.state.tick, bad, [...reservedAnimals, ...buses]);
+    const selected = population(spatial.actors.map((actor) => ({ ...actor, vmax: originalSpeeds.get(actor.id) ?? actor.vmax })), significant, anchors, old, context.state.tick, bad, [...reservedAnimals, ...buses], ambientLimit);
     const finalActors = selected.actors;
     const finalIds = new Set(finalActors.map((actor) => actor.id));
     let nextId = fleet.nextActorId;
@@ -464,9 +524,10 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
       significantAgentIds: [...significant].filter((id) => actorIds.has(id)).sort((a, b) => a - b), deliveredAgentIds: [...delivered].filter((id) => actorIds.has(id)).sort((a, b) => a - b), events,
       lanyardPersonIds: finalActors.filter((actor) => actor.kind === "person" && conferenceAt(old, nearestAnchor(actor, anchors)).active).map((actor) => actor.id),
       population: { ambient: ambientCount, significant: significant.size + extraSignificant, extraSignificant,
-        reservedVanUnits: (fleet.state.vans.jobs.filter((job) => job.vehicleId !== null && job.status !== "delivered" && job.retiredTick === null).length + fleet.state.pendingDeliveries.length) * 2,
+        reservedVanUnits,
         robots: ambient.filter((actor) => actor.kind !== "person").length + buses.length, people: ambient.filter((actor) => actor.kind === "person").length, badRobots: ambient.filter((actor) => actor.kind !== "person" && bad.has(actor.id)).length, ambientIds: ambient.map((actor) => actor.id), perAnchor, badBaselines: selected.badBaselines },
-      diagnostics: [...fleet.diagnostics, `population:ambient=${ambientCount}:significant=${significant.size + extraSignificant}`, ...(queuedVanRequests.length ? ["van:significant-capacity"] : [])] };
+      diagnostics: [...fleet.diagnostics, `population:ambient=${ambientCount}:significant=${significant.size + extraSignificant}`, ...(queuedVanRequests.length ? ["van:significant-capacity"] : []), ...promotions.rejected.map(id => `promotion-capacity:${id}`)],
+      ...(ambientStep ? { ambient: { ...ambientStep.state, profiles: ambientStep.state.profiles.filter(profile => finalIds.has(profile.id)) } } : {}) };
     const ext: RuntimeAgentsExt = { ...current, nextId, list: finalActors, runtime };
     return { ...context.state, ext: { ...context.state.ext, agents: ext } };
   } };
@@ -483,10 +544,10 @@ export function enforceAgentRuntimePopulation(state: Readonly<SimState>): SimSta
   const previousSignificant = new Set(old.significantAgentIds);
   const extraSignificant = old.population.extraSignificant ?? 0;
   const significant = new Set([...previousSignificant, ...numbers(robotState?.significantAgentIds), ...numbers(robotState?.robotSignificantAgentIds)].filter(id => previousSignificant.has(id) || actorIds.has(id)));
-  const anchors = sortedIds(state.players).map(id => {
+  const anchors = prepareFidelityAnchors(sortedIds(state.players).map(id => {
     const player = state.players[id]!; const point = player.mode === "foot" && player.foot ? player.foot : player.car;
     return { id, x: point.x, z: point.z };
-  });
+  }));
   const byBody = new Map(old.bodies.map(body => [body.id, body]));
   let animals = old.spatial.animals.map(animal => {
     const body = byBody.get(animal.id);
@@ -496,8 +557,9 @@ export function enforceAgentRuntimePopulation(state: Readonly<SimState>): SimSta
   const bad = badRobots(actors, state);
   let ambient = actors.filter(actor => !significant.has(actor.id));
   const occupied = [...ambient, ...animals, ...buses];
-  const overflow = occupied.length > MAX_AMBIENT_AGENTS || anchors.some(anchor => occupied.filter(point => inAnchor(point, anchor)).length > MAX_AMBIENT_PER_ANCHOR);
-  const selection = overflow ? population(actors, significant, anchors, old, state.tick, bad, [...animals, ...buses]) : { actors: [...actors], badBaselines: old.population.badBaselines };
+  const ambientLimit = Math.max(0, MAX_RUNTIME_SIGNIFICANT - significant.size - extraSignificant - (old.population.reservedVanUnits ?? 0));
+  const overflow = occupied.length > Math.min(MAX_AMBIENT_AGENTS, ambientLimit) || anchors.some(anchor => occupied.filter(point => inAnchor(point, anchor)).length > MAX_AMBIENT_PER_ANCHOR);
+  const selection = overflow ? population(actors, significant, anchors, old, state.tick, bad, [...animals, ...buses], ambientLimit) : { actors: [...actors], badBaselines: old.population.badBaselines };
   const retained = new Set(selection.actors.map(actor => actor.id));
   const removed = new Set(actors.filter(actor => !retained.has(actor.id)).map(actor => actor.id));
   animals = animals.filter(animal => animal.ownerId === null || retained.has(animal.ownerId));
@@ -523,7 +585,8 @@ export function enforceAgentRuntimePopulation(state: Readonly<SimState>): SimSta
       badRobots: ambient.filter(actor => actor.kind !== "person" && bad.has(actor.id)).length, ambientIds: ambient.map(actor => actor.id),
       perAnchor: anchors.map(anchor => ({ id: anchor.id, count: [...ambient, ...animals, ...buses].filter(point => inAnchor(point, anchor)).length })), badBaselines: selection.badBaselines },
     diagnostics: [...old.diagnostics.filter(value => !value.startsWith("population:ambient=")), `population:ambient=${total}:significant=${significant.size + extraSignificant}`],
-    ...(routineOutput === undefined ? {} : { routineOutput }) };
+    ...(routineOutput === undefined ? {} : { routineOutput }),
+    ...(old.ambient ? { ambient: { ...old.ambient, profiles: old.ambient.profiles.filter(profile => retained.has(profile.id)) } } : {}) };
   const robots: JsonObject = { ...state.ext.robots! };
   if (removedNames.size > 0) {
     const keep = (value: JsonValue): boolean => {
