@@ -52,6 +52,7 @@ export const Action = {
   emote: 1 << 8,
   watch: 1 << 9,
   altFire: 1 << 10,
+  gear: 1 << 11,
 } as const;
 
 /** Shared names for recorded facts and derived gameplay events; payloads stay plain JSON. */
