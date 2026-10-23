@@ -1,6 +1,7 @@
 // Record a composed gameplay save with another checkout's own code. This retains its
 // real state and source revision so migration coverage does not invent a legacy shape.
-// node scripts/golden/gameplay-save.ts /path/to/old-checkout > tests/golden/legacy-saves/v7-gameplay.json
+// node scripts/golden/gameplay-save.ts /path/to/old-checkout [wave] > tests/golden/legacy-saves/v7-gameplay.json
+// (v8-gameplay.json was recorded at wave 3, the production wave of that release.)
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 
@@ -12,7 +13,8 @@ const M = await import(resolve(root, "src/sim/missions/system.ts"));
 const mission = C.MISSIONS.find((value: { id: string }) => value.id === "hot-desk");
 const opening = mission.steps.find((value: { type: string }) => value.type === "trigger");
 const at = M.missionPlace(opening.event.place);
-const world = S.buildWorld([]), systems = S.createGameSystems({ wave: 2 });
+const wave = Number(process.argv[3] ?? 2);
+const world = S.buildWorld([]), systems = S.createGameSystems({ wave });
 let state = S.createInitialState(world, 71, ["p"], { x: at.x + 15, z: at.z, heading: 0 });
 state = { ...state, players: { p: { ...state.players.p, mode: "foot", foot: S.makeFoot(at.x, 0, at.z, 0) } } };
 for (let tick = 1; tick <= 120; tick++) {
@@ -21,4 +23,4 @@ for (let tick = 1; tick <= 120; tick++) {
   const events = tick === 1 ? [{ tick, kind: "gameplay.command", playerId: "p", payload: { sequence: 1, kind: "mission-start", targetId: "hot-desk" } }] : [];
   state = S.step(world, state, { p: input }, events, systems);
 }
-process.stdout.write(JSON.stringify({ sourceCommit, simVersion: S.SIM_VERSION, hash: S.hashState(state), state }, null, 2) + "\n");
+process.stdout.write(JSON.stringify({ sourceCommit, simVersion: S.SIM_VERSION, ...(wave !== 2 ? { wave } : {}), hash: S.hashState(state), state }, null, 2) + "\n");

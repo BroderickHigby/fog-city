@@ -131,6 +131,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
  *  - v7 -> v8: gameplay behavior changes without a required field rewrite. Preserve the
  *    complete saved state, including active missions, combat effects and future extensions.
+ *  - v8 -> v10 (v9 is the structural world's reserved stamp): unlimited water changes behaviour
+ *    only; every saved field is kept.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -138,7 +140,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if ([2, 3, 4, 5, 6].includes(s.version)) {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
-  if (s.version === 7) return { ...s, version: 8 };
+  if (s.version === 7) return upgradeState({ ...s, version: 8 });
+  if (s.version === 8) return { ...s, version: 10 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

@@ -19,7 +19,11 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-export const SIM_VERSION = 8;
+// v9 is reserved for the structural world (World stream) and is never written by this chain.
+// v10: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
+// reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
+// a v8 save keeps its saved water value, which no longer limits the stream.
+export const SIM_VERSION = 10;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
