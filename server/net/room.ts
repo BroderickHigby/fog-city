@@ -2,7 +2,7 @@ import { createInitialState, hashState, NEUTRAL_INPUT, step, type SimEvent, type
 import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, ROOM_LIFETIME_MS, type Frame, type NetworkCommand, type ServerMessage, type Snapshot } from "../../src/net/protocol.ts";
 import { SIM_VERSION } from "../../src/sim/contract.ts";
 import type { WorldBundle } from "./world.ts";
-import { baseSimulation, type NetworkSimulation } from "../../src/net/simulation.ts";
+import { gameplaySimulation, type NetworkSimulation } from "../../src/net/simulation.ts";
 
 export interface Peer { send(message: ServerMessage): void; close(code: string): void }
 interface Member { peer: Peer; queue: Array<{ seq: number; input: SimInput }>; seq: number; ack: number; name: string; commandSequence:number }
@@ -20,7 +20,7 @@ export class Room {
   private events: SimEvent[] = [];
   private readonly simulation:NetworkSimulation;
 
-  constructor(code: string, bundle: WorldBundle, now: number, seed: number,simulation:NetworkSimulation=baseSimulation) {
+  constructor(code: string, bundle: WorldBundle, now: number, seed: number,simulation:NetworkSimulation=gameplaySimulation) {
     this.code = code;
     this.bundle = bundle;
     this.expiresAt = now + ROOM_LIFETIME_MS;

@@ -4,6 +4,8 @@ import { worldLoader } from "../../server/net/world.ts";
 import { MAX_PREDICTION_TICKS, type ServerMessage } from "../../src/net/protocol.ts";
 import { Prediction } from "../../src/net/prediction.ts";
 import { hashState, type SimInput } from "../../src/sim/index.ts";
+import { baseSimulation } from "../../src/net/simulation.ts";
+import { buildWorld } from "../../src/sim/world.ts";
 import { ROOT } from "../helpers.ts";
 
 describe("authoritative rollback with delayed inputs", () => {
@@ -36,8 +38,10 @@ describe("authoritative rollback with delayed inputs", () => {
   });
 
   it("converges two clients through 2 simulated minutes of 100ms jitter, divergence and corrupt snapshots", async () => {
-    const bundle = await worldLoader(`${ROOT}/public`)("dev");
-    const room = new Room("ABCDEFGHIJ", bundle, 0, 77);
+    // Keep the long transport stress test independent of city AI cost. The real
+    // composition is exercised separately in gameplay-parity and browser replays.
+    const bundle = {name:"dev" as const,world:buildWorld([]),spawn:{x:0,z:0,heading:0},fingerprint:"0".repeat(64)};
+    const room = new Room("ABCDEFGHIJ", bundle, 0, 77,baseSimulation);
     let tick = 0, seed = 318, resyncs = 0;
     const random = (): number => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) % 7; };
     type Delivery = { at: number; run(): void };
@@ -55,7 +59,7 @@ describe("authoritative rollback with delayed inputs", () => {
         resyncs++;
         const snapshot = { type: "snapshot" as const, ...structuredClone(room.snapshot()) };
         schedule(down[i]!, lastDown, i, () => client.receive(snapshot));
-      });
+      },baseSimulation);
       clients.push(client);
       const peer: Peer = { close() { throw new Error("unexpected close"); }, send(message: ServerMessage) {
         if (message.type === "error") throw new Error(message.message);

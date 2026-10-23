@@ -7,7 +7,7 @@ import { loadWorldFiles } from "../helpers.ts";
 describe("world identity on insecure LAN origins", () => {
   it("matches SHA-256 without depending on browser Web Crypto", async () => {
     const files = loadWorldFiles("dev");
-    const expected = createHash("sha256").update(canonicalJson({ version: SIM_VERSION, spawn: files.manifest.spawn, tiles: files.tiles, roads: files.roads, boundary: files.boundary })).digest("hex");
+    const expected = createHash("sha256").update(canonicalJson({ version: SIM_VERSION, spawn: files.manifest.spawn, tiles: files.tiles, roads: files.roads, boundary: files.boundary, gameplay:null,sidewalks:null,transit:null })).digest("hex");
     expect(await worldFingerprint(files)).toBe(expected);
     const changed = structuredClone(files);
     changed.manifest.spawn.x += 1;
@@ -15,5 +15,6 @@ describe("world identity on insecure LAN origins", () => {
     const changedGeometry = structuredClone(files);
     changedGeometry.tiles[0]!.buildings[0]!.topY += 1;
     expect(await worldFingerprint(changedGeometry)).not.toBe(expected);
+    for(const field of ["gameplay","sidewalks","transit"])expect(await worldFingerprint({...files,[field]:{revision:1}})).not.toBe(expected);
   });
 });
