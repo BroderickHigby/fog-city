@@ -1,6 +1,6 @@
-import { DT, type SimState } from "./contract.ts";
+import { DT, type SimState, type SimInput, type CarState } from "./contract.ts";
 import { AGENT_SPEC, type AgentState } from "./agents.ts";
-import { carBox } from "./car.ts";
+import { carBox, makeCar, stepCar } from "./car.ts";
 import { boxBlocked, boxCrossedWall, type Box, type Circle } from "./collide.ts";
 import { boxDistance } from "./dodge.ts";
 import { dcos, dsin, wrapAngle, clamp } from "./dmath.ts";
@@ -11,6 +11,7 @@ export interface AgentMotionProposal {
   numericId: number;
   legacyId: number | null;
   kind: "walker" | "vehicle" | "flying";
+  controls?: Readonly<SimInput>;
   bodyKind?: "robot" | "person" | "animal";
   protected?: boolean;
   child?: boolean;
@@ -130,7 +131,20 @@ function conflictingVehicleIntents(bodies:readonly AgentState[],motions:Readonly
 /** Bounded desired steps use world collision; final vehicle clearance runs afterwards. */
 export function applyMotionBodies(world: World, state: SimState, motions: readonly AgentMotionProposal[]): SimState {
   if (!motions.length || !state.ext.agents) return state;
-  const byId = new Map(motions.filter(m => m.kind !== "flying").map(m => [m.numericId,m]));
+  const physicalCars=new Map<number,CarState>();
+  const effective=motions.map(motion=>{
+    if(motion.kind!=="vehicle"||!motion.controls)return motion;
+    const body=state.ext.agents!.list.find(a=>a.id===motion.numericId);if(!body)return motion;
+    const controls=motion.controls;
+    const finite=(value:number,min:number,max:number)=>Number.isFinite(value)?clamp(value,min,max):0;
+    const input={throttle:finite(controls.throttle,-1,1),steer:finite(controls.steer,-1,1),brake:finite(controls.brake,0,1),actions:0};
+    const previous=body.vehicle??makeCar(body.x,body.z,body.heading,body.y);
+    const car=stepCar(world,{...previous,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:body.speed},input);
+    physicalCars.set(body.id,car);
+    const dx=car.x-body.x,dz=car.z-body.z;
+    return {...motion,x:car.x,y:car.y,z:car.z,heading:car.heading,speed:Math.sqrt(dx*dx+dz*dz)/DT};
+  });
+  const byId = new Map(effective.filter(m => m.kind !== "flying").map(m => [m.numericId,m]));
   const vehicleConflicts=conflictingVehicleIntents(state.ext.agents.list,byId);
   const list = state.ext.agents.list.map(body => {
     const motion = byId.get(body.id);
@@ -154,8 +168,10 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
         if(occupied(world,state,motion,box.x,body.y,box.z,box.heading)||boxCrossedWall(world,box,body))blocked=true;
       }
     }
-    return { ...body, x:blocked?body.x:x,z:blocked?body.z:z,y:blocked?body.y:y,
-      heading:blocked?body.heading:body.heading+turn,speed:blocked?0:allowed/DT };
+    const car=physicalCars.get(body.id),heading=blocked?body.heading:body.heading+turn;
+    return { ...body, x:blocked?body.x:x,z:blocked?body.z:z,y:blocked?body.y:y,heading,
+      speed:blocked?0:car?car.speed:allowed/DT,
+      ...(car?{vehicle:blocked?{...car,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:0,lateral:0,yawRate:0}:{...car,x,z,y,heading}}:{}) };
   });
   return { ...state, ext:{...state.ext,agents:{...state.ext.agents,list}} };
 }

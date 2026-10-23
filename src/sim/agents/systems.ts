@@ -1,5 +1,4 @@
 import type { SimState } from "../contract.ts";
-import type { JsonObject } from "../extensions.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { planTransitRuntime } from "./transit-runtime.ts";
 import { planServiceRuntime } from "./service-runtime.ts";
@@ -16,7 +15,7 @@ export interface AgentsSystem extends SimSystem {
   prepare(context: SimSystemContext): { state: SimState; motions: readonly AgentMotionProposal[]; retirements: readonly string[] };
 }
 function withRuntime(state: SimState, runtime: ReturnType<typeof planAgentRuntime>): SimState {
-  return { ...state, ext: { ...state.ext, robots: runtime as unknown as JsonObject } };
+  return { ...state, ext: { ...state.ext, robots: runtime } };
 }
 
 /** The core calls prepare before movement, accepts proposals through clearance, then step. */
