@@ -67,10 +67,10 @@ export function restoreProgression(fresh:SimState,data:ProgressionDocument,playe
   const activity=snapshot.activities.players[playerId];if(!activity)throw new SaveError("invalid","Initialize player systems before restoring");
   const copy=<T>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
   return {...fresh,ext:{...fresh.ext,
-    economy:{...snapshot.economy,players:{...snapshot.economy.players,[playerId]:{...createWallet(),...copy(wallet)}}} as unknown as JsonObject,
-    progression:{...snapshot.progression,players:{...snapshot.progression.players,[playerId]:{...createProgressionPlayer(),...copy(progression)}}} as unknown as JsonObject,
-    player:{...snapshot.player,players:{...snapshot.player.players,[playerId]:{...createPlayerStatus(),...copy(player),status:"active",bridgeUntil:0,resumeTick:0}}} as unknown as JsonObject,
-    missions:{...snapshot.missions,players:{...snapshot.missions.players,[playerId]:{...createMissionProgress(),...copy(mission)}}} as unknown as JsonObject,
-    activities:{...snapshot.activities,players:{...snapshot.activities.players,[playerId]:{...activity,...copy(activities),activeCardId:"",activeActivityId:"",cardUntilTick:0}}} as unknown as JsonObject,
+    economy:{...snapshot.economy,players:{...snapshot.economy.players,[playerId]:{...createWallet(),...copy(wallet)}}} as unknown as typeof snapshot.economy,
+    progression:{...snapshot.progression,players:{...snapshot.progression.players,[playerId]:{...createProgressionPlayer(),...copy(progression)}}} as unknown as typeof snapshot.progression,
+    player:{...snapshot.player,players:{...snapshot.player.players,[playerId]:{...createPlayerStatus(),...copy(player),status:"active",bridgeUntil:0,resumeTick:0}}} as unknown as typeof snapshot.player,
+    missions:{...snapshot.missions,players:{...snapshot.missions.players,[playerId]:{...createMissionProgress(),...copy(mission)}}} as unknown as typeof snapshot.missions,
+    activities:{...snapshot.activities,players:{...snapshot.activities.players,[playerId]:{...activity,...copy(activities),activeCardId:"",activeActivityId:"",cardUntilTick:0}}} as unknown as typeof snapshot.activities,
   }};
 }

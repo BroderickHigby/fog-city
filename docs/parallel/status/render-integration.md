@@ -1,7 +1,7 @@
 # Render integration
 
 ## Now
-`lane/render-integration/clean` in `/workspace/fog-city-play-clean` applies only UI/input/save/main/presentation source changes to approved kernel `b7c412c`. No pipeline, public tile, or top-level simulation changes are included. The original prototype and disposable Ferry merge remain untouched.
+`lane/render-integration/clean` in `/workspace/fog-city-play-clean` applies only UI/input/save/main/presentation source changes to approved core `a86ac61` (including kernel `b7c412c`). No pipeline or public tile changes are included, and shared simulation changes come only from the published core. The original prototype and disposable Ferry merge remain untouched.
 
 ## Done
 - Applied the isolated UI/save/runtime commits to the approved kernel renderer. This branch does not assume Ferry-only graphics APIs.
@@ -11,9 +11,11 @@
 - UI projection throttles to 10 Hz; GPS uses cached adjacency and a heap rather than repeatedly scanning all edges.
 - Loads optional gameplay metadata and passes it into the shared world.
 - Settings mounts the actual save panel; canonical capture/restore whitelists durable player fields, retains settled-mode payout IDs and restores into a fresh initialized world. Added a read-only defensive-copy command log for the browser harness.
+- Uses the published `createGameSystems({wave:2})` composition and renders accepted runtime actors through existing models, including bag/light tells and rust height changes.
+- `buildLoadedWorld(files)` is the shared pure world builder; browser/Node callers supply optional raw gameplay, pipeline sidewalks and transit. Missing declared layers fail the load. Keyboard U, gamepad and touch bind the shared gear bit.
 
 ## Validation
-The source changes passed typecheck and 8 persistence/canonical restore tests in the disposable integration tree; the clean-kernel check is pending. UI2 has 12 focused control/command tests passing. Actual SF canvas booted in the disposable Ferry merge and produced `test-results/sf-hud.png`; it is reference evidence only. High-GFX software rendering saturated the browser during interaction, so that bounded run was stopped. The next functional run uses this clean branch and a smaller viewport.
+The source changes passed typecheck and 8 persistence/canonical restore tests in the disposable integration tree. The first clean check found the kernel's required dodge field and newly typed extension records; both adapters are corrected, and the final clean check is queued. UI2 has 12 focused control/command tests passing. Actual SF canvas booted in the disposable Ferry merge and produced `test-results/sf-hud.png`; it is reference evidence only. High-GFX software rendering saturated the browser during interaction, so that bounded run was stopped. The next functional run uses this clean branch and a smaller viewport.
 
 ## Next
 Merge final `createGameSystems` composition, connect accepted runtime actors and transit/sidewalk metadata, separately add reviewed gameplay data to the approved manifest, then run actual SF movement/exit/phone/spray/refill and a mission loop. Capture final screenshots and console results.

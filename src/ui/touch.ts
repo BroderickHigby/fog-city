@@ -12,7 +12,7 @@ export function createTouchControls(doc:Document,controller:InputController,copy
   stick.addEventListener("pointerdown",down);stick.addEventListener("pointermove",move);for(const type of ["pointerup","pointercancel","lostpointercapture"])stick.addEventListener(type,release);
   cleanups.push(()=>{stick.removeEventListener("pointerdown",down);stick.removeEventListener("pointermove",move);for(const type of ["pointerup","pointercancel","lostpointercapture"])stick.removeEventListener(type,release);release();});
   const buttons=doc.createElement("div");buttons.className="fc-touch-actions";
-  for(const action of ["fire","scan","watch","cone","gadget","interact","enterExit","brake","altFire"] satisfies VirtualAction[]){
+  for(const action of ["fire","scan","watch","cone","gadget","interact","enterExit","brake","altFire","gear"] satisfies VirtualAction[]){
     const button=doc.createElement("button");button.type="button";button.textContent=copy(`ui.controls.${action}`);let held:number|undefined;
     const start=(e:PointerEvent)=>{if(held!==undefined)return;e.preventDefault();held=e.pointerId;button.setPointerCapture(e.pointerId);controller.setAction(action,true);};
     const end=()=>{held=undefined;controller.setAction(action,false);};
