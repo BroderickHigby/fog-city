@@ -12023,6 +12023,7 @@
     "signals": "signals.json",
     "streetCleaning": "street-cleaning.json",
     "parking": "parking.json",
-    "storefronts": "storefronts.json"
+    "storefronts": "storefronts.json",
+    "gameplay": "gameplay.json"
   }
 }
