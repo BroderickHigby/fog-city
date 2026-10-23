@@ -1,5 +1,5 @@
 // Render-only SF street foliage: London-plane style broadleaf and Monterey cypress.
-// Source placements remain the existing street-tree instance matrices. The approach follows
+// Source placements remain the existing street-tree and baked land-cover instance matrices. The approach follows
 // Slop New York's MIT-licensed foliage design (leaf sprays, coverage-preserving alpha mips,
 // instanced distance tiers), implemented here for Fog City's WebGL renderer.
 import * as THREE from "three";
@@ -13,10 +13,19 @@ export const FOLIAGE_FAR_M = 1400;
 const REPICK_M = 12;
 const ALPHA_CUTOFF = 0.42;
 type Species = 0 | 1;
-interface Placement { matrix: THREE.Matrix4; x: number; z: number; species: Species; tint: THREE.Color }
+interface Placement { matrix: THREE.Matrix4; x: number; z: number; species: Species; tint: THREE.Color; unitPrototype: boolean }
 interface TileTrees { placements: Placement[]; originals: Array<{ mesh: THREE.InstancedMesh; visible: boolean }> }
 interface Tier { bark: THREE.InstancedMesh; leaves: THREE.InstancedMesh; capacity: number }
 interface Prototype { bark: THREE.BufferGeometry; leaves: THREE.BufferGeometry }
+
+/** Baked land-cover GLBs use a unit-height, unit-crown prototype; street props use metres. */
+function sourceSpecies(name: string): { species: Species; unitPrototype: boolean } | null {
+  if (name === "street-trees-0") return { species: 0, unitPrototype: false };
+  if (name === "street-trees-1") return { species: 1, unitPrototype: false };
+  if (name === "foliage-broadleaf") return { species: 0, unitPrototype: true };
+  if (name === "foliage-conifer") return { species: 1, unitPrototype: true };
+  return null;
+}
 
 function rng(seed: number): () => number {
   let n = seed >>> 0;
@@ -193,6 +202,7 @@ export class FoliageLayer {
   readonly group = new THREE.Group();
   private readonly tiles = new Map<string, TileTrees>();
   private readonly tiers: Tier[][] = [];
+  private readonly unitPrototype: THREE.Matrix4[] = [];
   private readonly leafTexture = createLeafTexture();
   private readonly barkMaterial = windMaterial(new THREE.MeshStandardMaterial({ name: "sf-tree-bark", vertexColors: true, roughness: 0.94, metalness: 0 }));
   private readonly leafMaterial = windMaterial(new THREE.MeshStandardMaterial({ name: "sf-tree-leaves", vertexColors: true, map: this.leafTexture,
@@ -212,6 +222,11 @@ export class FoliageLayer {
       const speciesTiers: Tier[] = [];
       for (let far = 0; far < 2; far++) {
         const prototype = createFoliagePrototype(species as Species, far === 1);
+        // Each LOD has different leaf cards but represents the same source crown and height.
+        // Keep their per-LOD correction with the prototype rather than scaling world positions.
+        const bounds = prototype.bark.boundingBox!.clone().union(prototype.leaves.boundingBox!);
+        const width = Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z);
+        this.unitPrototype.push(new THREE.Matrix4().makeScale(1 / width, 1 / bounds.max.y, 1 / width));
         const capacity = far ? FOLIAGE_FAR_LIMIT : FOLIAGE_NEAR_LIMIT;
         const bark = new THREE.InstancedMesh(prototype.bark, this.barkMaterial, capacity);
         const leaves = new THREE.InstancedMesh(prototype.leaves, this.leafMaterial, capacity);
@@ -232,7 +247,9 @@ export class FoliageLayer {
     const record: TileTrees = { placements: [], originals: [] };
     root.traverse(object => {
       const mesh = object as THREE.InstancedMesh;
-      if (!mesh.isInstancedMesh || !/^street-trees-[01]$/.test(mesh.name)) return;
+      if (!mesh.isInstancedMesh) return;
+      const source = sourceSpecies(mesh.name);
+      if (!source) return;
       record.originals.push({ mesh, visible: mesh.visible });
       const matrix = new THREE.Matrix4(), tint = new THREE.Color();
       for (let i = 0; i < mesh.count; i++) {
@@ -240,7 +257,7 @@ export class FoliageLayer {
         const elements = matrix.elements;
         if (!elements.every(Number.isFinite)) continue;
         if (mesh.instanceColor) mesh.getColorAt(i, tint); else tint.setRGB(1, 1, 1);
-        record.placements.push({ matrix: matrix.clone(), x: elements[12]!, z: elements[14]!, species: mesh.name.endsWith("1") ? 1 : 0, tint: tint.clone() });
+        record.placements.push({ matrix: matrix.clone(), x: elements[12]!, z: elements[14]!, species: source.species, tint: tint.clone(), unitPrototype: source.unitPrototype });
       }
       mesh.visible = false;
     });
@@ -272,7 +289,10 @@ export class FoliageLayer {
       const tier = this.tiers[placement.species]![tierIndex]!;
       const count = counts[placement.species]![tierIndex]!;
       if (count >= tier.capacity || (!near && this.farCount >= FOLIAGE_FAR_LIMIT)) continue;
-      tier.bark.setMatrixAt(count, placement.matrix); tier.leaves.setMatrixAt(count, placement.matrix);
+      const matrix = placement.unitPrototype
+        ? placement.matrix.clone().multiply(this.unitPrototype[placement.species * 2 + tierIndex]!)
+        : placement.matrix;
+      tier.bark.setMatrixAt(count, matrix); tier.leaves.setMatrixAt(count, matrix);
       tier.leaves.setColorAt(count, placement.tint); tier.bark.setColorAt(count, placement.tint);
       counts[placement.species]![tierIndex] = count + 1;
       if (near) this.nearCount++; else this.farCount++;

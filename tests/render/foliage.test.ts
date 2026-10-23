@@ -39,7 +39,7 @@ describe("SF foliage", () => {
     expect(() => foliageMipmaps(new Uint8Array(4), 3)).toThrow();
   });
 
-  it("replaces only named street tree instances and preserves world positions", () => {
+  it("replaces named street tree instances and preserves world positions", () => {
     const source = tile(); const layer = new FoliageLayer();
     layer.addTile(source.group); layer.update(100, -50);
     expect(source.trees.visible).toBe(false);
@@ -50,6 +50,51 @@ describe("SF foliage", () => {
     layer.removeTile("sample"); layer.update(100, -50);
     expect(source.trees.visible).toBe(true); expect(layer.info.near).toBe(0);
     layer.dispose();
+  });
+
+  it("replaces baked land-cover trees at their recorded crown width and height without moving their roots", () => {
+    const group = new THREE.Group(); group.name = "tile:baked"; group.position.set(250, 0, -250);
+    const layer = new FoliageLayer();
+    const expected: THREE.InstancedMesh[] = [];
+    for (const [species, name] of ["foliage-broadleaf", "foliage-conifer"].entries()) {
+      const tree = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 1);
+      tree.name = name;
+      tree.setMatrixAt(0, new THREE.Matrix4().makeScale(4, 12, 4).setPosition(10 + species * 20, 3, 40));
+      tree.setColorAt(0, new THREE.Color(0.75, 0.8, 0.9));
+      expected.push(tree); group.add(tree);
+    }
+    const other = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 1);
+    other.name = "foliage-unknown"; group.add(other);
+    layer.addTile(group); layer.update(260, -210);
+    expect(layer.info).toEqual({ near: 2, far: 0, draws: 4 });
+    expect(other.visible).toBe(true);
+    const boundsAt = (species: number, tier: number) => {
+      const bark = layer.group.getObjectByName(`sf:foliage:${species}:${tier}:bark`) as THREE.InstancedMesh;
+      const leaves = layer.group.getObjectByName(`sf:foliage:${species}:${tier}:leaves`) as THREE.InstancedMesh;
+      const matrix = new THREE.Matrix4(); bark.getMatrixAt(0, matrix);
+      expect(new THREE.Vector3().setFromMatrixPosition(matrix).toArray()).toEqual([260 + species * 20, 3, -210]);
+      const tint = new THREE.Color(); leaves.getColorAt(0, tint);
+      expect(tint.r).toBeCloseTo(0.75); expect(tint.g).toBeCloseTo(0.8); expect(tint.b).toBeCloseTo(0.9);
+      return bark.geometry.boundingBox!.clone().union(leaves.geometry.boundingBox!).applyMatrix4(matrix);
+    };
+    for (const species of [0, 1]) {
+      expect(expected[species]!.visible).toBe(false);
+      const bounds = boundsAt(species, 0);
+      expect(bounds.max.y).toBeCloseTo(15);
+      expect(Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z)).toBeCloseTo(4);
+    }
+    // Re-indexing a ready tile must not duplicate trees or lose the original visibility.
+    layer.addTile(group); layer.update(260, -210);
+    expect(layer.info.near).toBe(2);
+    layer.update(800, -210);
+    expect(layer.info).toEqual({ near: 0, far: 2, draws: 4 });
+    for (const species of [0, 1]) {
+      const bounds = boundsAt(species, 1);
+      expect(bounds.max.y).toBeCloseTo(15);
+      expect(Math.max(bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z)).toBeCloseTo(4);
+    }
+    layer.dispose();
+    for (const tree of expected) expect(tree.visible).toBe(true);
   });
 
   it("keeps nearest trees detailed, bounds near counts, and restores originals on disposal", () => {

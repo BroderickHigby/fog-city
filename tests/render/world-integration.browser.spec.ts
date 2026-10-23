@@ -24,6 +24,7 @@ test("new-world houses, Ferry detail and structural materials preserve the runni
   await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.tilesSettled!(), null, { timeout: 180_000 });
   const info = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!() as unknown as {
     houseKit: { tiles: number; triangles: number }; showcase: { palms: number; paintQuads: number; trackM: number }; detailSets: number;
+    foliage: { near: number; far: number };
   });
   expect(info.houseKit.tiles).toBeGreaterThan(0);
   expect(info.houseKit.triangles).toBeGreaterThan(0);
@@ -31,6 +32,7 @@ test("new-world houses, Ferry detail and structural materials preserve the runni
   expect(info.showcase.paintQuads).toBeGreaterThan(0);
   expect(info.showcase.trackM).toBeGreaterThan(100);
   expect(info.detailSets).toBe(4);
+  expect(info.foliage.near + info.foliage.far).toBeGreaterThan(0);
   await frames(page, 2);
   await page.screenshot({ path: "test-results/world-integration-ferry.png" });
 
