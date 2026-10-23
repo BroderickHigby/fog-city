@@ -38,7 +38,7 @@ export function verdict(feature: Feature, value: unknown): Record<string, Json> 
 export function outputStrings(v: Record<string, Json>): string[] { return [v.reaction, v.paraphrase, v.line].filter((s): s is string => typeof s === "string"); }
 export function outputSafe(v: Record<string, Json>, feature: Feature, input: string, knownWords: ReadonlySet<string>, forbiddenTokens: readonly string[]): boolean {
   for (const text of outputStrings(v)) {
-    if (crisisCheck(text) || lintText(text).length || forbiddenTokens.some((token) => token && text.toLocaleLowerCase("en-US").includes(token.toLocaleLowerCase("en-US")))) return false;
+    if (/[<>]/u.test(text) || crisisCheck(text) || lintText(text).length || forbiddenTokens.some((token) => token && text.toLocaleLowerCase("en-US").includes(token.toLocaleLowerCase("en-US")))) return false;
     if (feature === "ai-02" || feature === "explain-to-mom") {
       const out = new Set(normaliseSentence(text).match(/[a-z]+/g) ?? []);
       for (const token of normaliseSentence(input).match(/[a-z]+/g) ?? []) if (!knownWords.has(token) && out.has(token)) return false;

@@ -8,7 +8,7 @@ describe("AI HTTP adapter",()=>{
  it("mounts fixed routes with bounded JSON and ignores forwarded peer identities",async()=>{
   const service=createAiService(),handler=createAiHttpHandler(service);
   const server=createServer((req,res)=>{void handler(req,res).then(handled=>{if(!handled){res.writeHead(404);res.end();}})});
-  await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
+  await new Promise<void>((resolve,reject)=>{server.once("error",reject);server.listen(0,"127.0.0.1",()=>{server.off("error",reject);resolve();});});
   const origin=`http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   try {
    const method=await fetch(origin+"/api/ai/session");expect(method.status).toBe(405);
