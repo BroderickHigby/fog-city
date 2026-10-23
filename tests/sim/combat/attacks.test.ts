@@ -153,10 +153,10 @@ describe("bad-robot attack channels", () => {
     expect(ctx.actors.filter(actor => actor.firmware === "bad")).toHaveLength(2);
   });
 
-  it("does not convert outside fidelity, without a supplied cap, or after the target moves away", () => {
-    for (const variation of ["outside", "missing-cap", "range"] as const) {
+  it("does not convert outside fidelity, at the supplied cap, or after the target moves away", () => {
+    for (const variation of ["outside", "cap-reached", "range"] as const) {
       const actors = [robot(), robot("helper", { firmware: "good", z: 2, inFidelity: variation !== "outside" })];
-      const ctx = context(actors, { attacks: [request("forced-update", { targetId: "helper" })], ...(variation === "missing-cap" ? {} : { conversionCap: 2 }) });
+      const ctx = context(actors, { attacks: [request("forced-update", { targetId: "helper" })], conversionCap: variation === "cap-reached" ? 1 : 2 });
       const state = fresh(ctx);
       tick(state, ctx);
       const changed = variation === "range" ? { ...ctx, actors: [robot(), robot("helper", { firmware: "good", z: 12 })] } : ctx;
@@ -236,7 +236,7 @@ describe("bad-robot attack channels", () => {
       const ctx = context(undefined, { wave: 3, attacks: [request("phone-hack")] });
       const state = fresh(ctx); const events = frames(state, ctx, 31);
       expect(events.filter(e => e.kind === ATTACK_EVENT.runway)).toMatchObject([{ amount: -0.1 / 60 }]);
-      if (reason === "water") state.targets.bad!.lastWaterTick = state.tick;
+      if (reason === "water") state.targets.bad!.lastDirectWaterTick = state.tick;
       if (reason === "gear") { state.players.p!.gear = "airplane"; state.players.p!.gearUntil = 1000; }
       const changed = reason === "range" ? { ...ctx, players: [player({ z: -5 })] } : ctx;
       const ended = tick(state, changed);

@@ -4,6 +4,7 @@ import { seedRng } from "../rng.ts";
 import { stepAttacks } from "./attacks.ts";
 import { applyWaterHit, stepSupport, tickEffects } from "./effects.ts";
 import { advanceProjectile } from "./physics.ts";
+import { waterShot } from "./weapons.ts";
 import { capacity, emit, initialPlayer, initialTarget, MAX_PROJECTILES, newlyPressed, protectedActor, safeAngle, sortedActors, sortedPlayers, targetOf } from "./shared.ts";
 import type { CombatActor, CombatContext, CombatInputs, CombatPlayer, CombatState, PlayerCombat, Projectile, TargetCombat } from "./types.ts";
 
@@ -67,27 +68,33 @@ function aim(player: CombatPlayer, yaw: number|undefined, pitch: number|undefine
 function spawn(state: CombatState, player: CombatPlayer, kind: Projectile["kind"], yaw: number, pitch: number, speed: number, range: number, volume: number, rustRate: number, verticalSpeed?: number): void {
   const cp=dcos(pitch), fx=dsin(yaw), fz=-dcos(yaw);
   const own=state.players[player.id]!;
+  const inheritedSpeed=kind==="cone" && player.mount!=="foot" ? player.speed : 0;
+  const vx=fx*speed*cp+dsin(player.heading)*inheritedSpeed;
+  const vz=fz*speed*cp-dcos(player.heading)*inheritedSpeed;
+  // Cone range describes the throw relative to its moving carrier. Preserve its
+  // flight-time budget after adding the carrier's world-space velocity.
+  const worldRange=inheritedSpeed!==0 ? range*Math.sqrt(vx*vx+vz*vz)/speed : range;
   state.projectiles.push({
     id:state.nextId++,kind,ownerId:player.id,x:player.x,y:player.y+1.2,z:player.z,
-    vx:fx*speed*cp,vy:verticalSpeed ?? dsin(pitch)*speed,vz:fz*speed*cp,
-    distance:0,range,bornTick:state.tick,volume,salt:own.salt,
+    vx,vy:verticalSpeed ?? dsin(pitch)*speed,vz,
+    distance:0,range:worldRange,bornTick:state.tick,volume,salt:own.salt,
     vehicle:player.mount!=="foot",rustRate,
   });
 }
 
-/** Foot blaster and base cone. Other firing positions are enabled by their later-wave adapter. */
+/** Firing positions and upgrades are selected by the wave-gated weapon rules. */
 function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInputs): void {
   for (const player of sortedPlayers(ctx)) {
     const input=inputs[player.id]??{}, own=state.players[player.id]!;
     const direction=aim(player,input.aimYaw,input.aimPitch);
-    if (input.fire && player.mount==="foot" && state.tick>=own.nextWaterTick && !input.refill && state.pauseUntil<=state.tick) {
-      const volume=(player.flowTier===1?1.2:0.8)/10;
-      if (own.water+1e-10>=volume && state.projectiles.length<MAX_PROJECTILES) {
-        own.water=Math.max(0,own.water-volume);
-        own.nextWaterTick=state.tick+6;
-        spawn(state,player,"water",direction.yaw,direction.pitch,player.flowTier===1?16:13,player.nozzle==="pressure"?18:12,volume,player.flowTier===1?0.035:0.025);
-        emit(state,"weapon.water",player.id,"",volume);
-      }
+    const shot=waterShot(state,player,input,ctx);
+    if (shot && state.projectiles.length<MAX_PROJECTILES) {
+      own[shot.supply]=Math.max(0,own[shot.supply]-shot.volume);
+      own.nextWaterTick=state.tick+shot.rateTicks;
+      state.projectiles.push({id:state.nextId++,kind:"water",ownerId:player.id,x:player.x,y:shot.spawnHeight,z:player.z,
+        vx:shot.direction.x*shot.speed,vy:shot.direction.y*shot.speed,vz:shot.direction.z*shot.speed,
+        distance:0,range:shot.range,bornTick:state.tick,volume:shot.volume,salt:shot.salt,vehicle:shot.vehicle,rustRate:shot.rustRate});
+      emit(state,"weapon.water",player.id,"",shot.volume);
     }
     if (newlyPressed(own,"cone",input.cone===true) && own.cones>0 && state.tick>=own.nextConeTick && state.projectiles.length<MAX_PROJECTILES) {
       own.cones-=1;
@@ -171,7 +178,7 @@ export function combatInput(input: Readonly<SimInput>): CombatInputs[string] {
 }
 
 /** Null means unrestricted acceleration. Agent lane applies a non-null cap before movement; this function does not mutate its body. */
-export function movementLimit(state:Readonly<CombatState>,actor:CombatActor):{maxSpeed:number|null;scale:number;blind:boolean;canAttack:boolean} {
+export function movementLimit(state:Readonly<CombatState>,actor:Pick<CombatActor,"id"|"playerId">):{maxSpeed:number|null;scale:number;blind:boolean;canAttack:boolean} {
   const target=state.targets[actor.id];
   const canonical=actor.playerId?state.targets[actor.playerId]:undefined;
   if (!target && !canonical) return {maxSpeed:null,scale:1,blind:false,canAttack:true};
@@ -181,6 +188,7 @@ export function movementLimit(state:Readonly<CombatState>,actor:CombatActor):{ma
     const cap=target.pullOverSpeed*clamp((target.pullOverTick-state.tick)/180,0,1);
     maxSpeed=maxSpeed===null?cap:Math.min(maxSpeed,cap);
   }
-  const immobilized=constraints.some(target=>target.phase!=="active" || target.stoppedUntil>state.tick && target.pullOverTick===0);
-  return {maxSpeed:immobilized?0:maxSpeed,scale:immobilized?0:Math.min(...constraints.map(target=>target.slowUntil>state.tick?Math.min(.5,target.movementScale):target.movementScale)),blind:constraints.some(target=>target.blindUntil>state.tick),canAttack:constraints.every(target=>target.phase==="active" && target.blindUntil<=state.tick && target.stoppedUntil<=state.tick && target.distractedUntil<=state.tick)};
+  const decelerating=(target:TargetCombat)=>target.phase==="disabled" && target.pullOverTick>state.tick;
+  const immobilized=constraints.some(target=>target.phase!=="active" && !decelerating(target) || target.stoppedUntil>state.tick && target.pullOverTick===0);
+  return {maxSpeed:immobilized?0:maxSpeed,scale:immobilized?0:Math.min(...constraints.map(target=>decelerating(target)?1:target.slowUntil>state.tick?Math.min(.5,target.movementScale):target.movementScale)),blind:constraints.some(target=>target.blindUntil>state.tick),canAttack:constraints.every(target=>target.phase==="active" && target.blindUntil<=state.tick && target.stoppedUntil<=state.tick && target.distractedUntil<=state.tick)};
 }

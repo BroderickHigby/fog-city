@@ -58,6 +58,7 @@ export function applyRust(state: CombatState, actor: CombatActor, amount: number
   if (target.phase !== "active") return;
 
   target.lastWaterTick = state.tick;
+  if (direct) target.lastDirectWaterTick = state.tick;
   target.sourceId = sourceId;
   const scaledAmount = amount * (scaleModel ? modelRate(actor) : 1);
   // Occupied taxis never cross the wrong-target threshold or seize. Their riders
@@ -122,7 +123,8 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
     let target = state.targets[actor.id];
     if (target?.phase === "cleared") continue;
     if ((ctx.wave ?? 2) >= 3 && actor.firmware === "bad" && robotActor(actor) && !actor.sheltered && !protectedActor(actor)) {
-      const fog = ctx.night && (ctx.fog ?? 0) > 0.6 ? 0.01 * (actor.pursuing ? 3 : 1) : 0;
+      const localFog = ctx.fogAt?.(actor.x, actor.z) ?? ctx.fog ?? 0;
+      const fog = ctx.night && Number.isFinite(localFog) && localFog > 0.6 ? 0.01 * (actor.pursuing ? 3 : 1) : 0;
       const rain = EFFECTS.rainRustPerSecond * clamp(ctx.rain ?? 0, 0, 1);
       if (fog + rain > 0) {
         applyRust(state, actor, (fog + rain) * DT, "environment", false);
@@ -130,6 +132,11 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
       }
     }
     if (!target) continue;
+    if (target.phase === "active" && target.pullOverTick > 0 && target.stoppedUntil > 0 && state.tick >= target.stoppedUntil) {
+      target.pullOverTick = 0;
+      target.pullOverSpeed = 0;
+      target.stoppedUntil = 0;
+    }
     target.wetHits = target.wetHits.filter(tick => tick >= state.tick - EFFECTS.wetHitSpan);
     if (target.phase === "active") {
       if (target.rust > 0 && target.rust < EFFECTS.permanentRust && state.tick - target.lastWaterTick >= EFFECTS.dryDelay) {
@@ -158,7 +165,7 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
         emit(state, "robot.heap", target.sourceId, actor.id, 1, actor.model ?? "robot");
       }
     }
-    if (target.phase === "heap" && (actor.inFidelity === false ||
+    if ((ctx.wave ?? 2) < 3 && target.phase === "heap" && (actor.inFidelity === false ||
       players.length > 0 && players.every(player => distance2(player, actor) > FIDELITY_RADIUS * FIDELITY_RADIUS))) {
       target.phase = "cleared";
       target.heightScale = 0;

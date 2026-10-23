@@ -41,4 +41,11 @@ describe("exact combat wall footprints",()=>{
   expect(wall.footprint).toEqual(notch.footprint);
   expect(segmentWallFraction({x:3,y:2,z:3},{x:3,y:2,z:5},wall)).toBeNull();
  });
+ it("leaves a spanning structure's underside open to combat rays",()=>{
+  const world=buildWorld([{tileId:"span",ground:null,buildings:[{id:"span",baseY:0,underY:4,topY:6,footprint:[[-2,-2],[2,-2],[2,2],[-2,2]]}]}]);
+  const state=createInitialState(buildWorld([]),1,["p"],{x:0,z:3,heading:0});
+  const wall=contextFromState(world,state).walls.find(w=>w.id==="span")!;
+  expect(lineOfSight({x:0,y:1,z:3},{x:0,y:1,z:-3},[wall])).toBe(true);
+  expect(lineOfSight({x:0,y:5,z:3},{x:0,y:5,z:-3},[wall])).toBe(false);
+ });
 });

@@ -187,6 +187,14 @@ describe("combat rust and lifecycle", () => {
     expect(s.events.filter(event => event.kind === "robot.seized")).toHaveLength(1);
   });
 
+  it("retains distant heaps for Tidy from wave three onward",()=>{
+    const s=state(), bot=actor({x:400,z:0,inFidelity:false});
+    applyRust(s,bot,10,"p1",true);s.tick=120;
+    tickEffects(s,context([bot],player(),{wave:3}));
+    expect(s.targets.bot).toMatchObject({phase:"heap",puddle:true});
+    expect(s.events.some(event=>event.kind==="robot.heap-cleared")).toBe(false);
+  });
+
   it("gates ambient rust by wave, darkness, exposure, and firmware", () => {
     const p = player();
     const bad = actor(), pursuing = actor({ id: "chasing", pursuing: true }), sheltered = actor({ id: "roofed", sheltered: true }), good = actor({ id: "good", firmware: "good" });
@@ -462,21 +470,28 @@ describe("scanner", () => {
     expect(s.players.p1!.scan).not.toBeNull();
   });
 
-  it.each([1, 2, 3, 4] as const)("tier %i matches its table over ten thousand seeded scans", tier => {
-    const p = player({ scannerTier: tier, perks: ["quiet"] });
-    const s = state(p, 731 + tier), ctx = context([actor({ subtlety: 3 })], p);
-    let correct = 0, correctConfidence = 0, wrongConfidence = 0;
-    for (let n = 0; n < 10000; n++) {
-      s.tick += 1; s.players.p1!.scanId = "bot"; s.players.p1!.scanTicks = 59;
-      stepSupport(s, ctx, { p1: { scan: true } });
-      const result = s.players.p1!.scan!;
-      if (result.bad) { correct += 1; correctConfidence += result.confidence; }
-      else wrongConfidence += result.confidence;
-      s.events = [];
-    }
-    expect(Math.abs(correct / 10000 - scanAccuracy(tier, 3))).toBeLessThan(0.02);
-    expect(Math.abs(correctConfidence / correct - wrongConfidence / (10000 - correct))).toBeLessThan(0.8);
-    expect(scanAccuracy(tier, 1)).toBe(Math.min(1, scanAccuracy(tier, 3) + 0.1));
-    expect(scanAccuracy(tier, 5)).toBeCloseTo(scanAccuracy(tier, 3) - 0.1, 12);
-  });
+  const scanTable = [
+    [0.80, 0.75, 0.70, 0.65, 0.60],
+    [0.90, 0.85, 0.80, 0.75, 0.70],
+    [1.00, 0.95, 0.90, 0.85, 0.80],
+    [1.00, 1.00, 0.95, 0.90, 0.85],
+  ] as const;
+  for (const tier of [1, 2, 3, 4] as const) for (const subtlety of [1, 2, 3, 4, 5] as const) {
+    it(`tier ${tier}, subtlety ${subtlety} matches the literal table over ten thousand seeded scans`, () => {
+      const expected = scanTable[tier - 1]![subtlety - 1]!;
+      const p = player({ scannerTier: tier, perks: ["quiet"] });
+      const s = state(p, 731 + tier * 7 + subtlety), ctx = context([actor({ subtlety })], p);
+      let correct = 0, correctConfidence = 0, wrongConfidence = 0;
+      for (let n = 0; n < 10000; n++) {
+        s.tick += 1; s.players.p1!.scanId = "bot"; s.players.p1!.scanTicks = 59;
+        stepSupport(s, ctx, { p1: { scan: true } });
+        const result = s.players.p1!.scan!;
+        if (result.bad) { correct += 1; correctConfidence += result.confidence; }
+        else wrongConfidence += result.confidence;
+        s.events = [];
+      }
+      expect(Math.abs(correct / 10000 - expected)).toBeLessThan(0.02);
+      if (correct > 0 && correct < 10000) expect(Math.abs(correctConfidence / correct - wrongConfidence / (10000 - correct))).toBeLessThan(0.8);
+    });
+  }
 });
