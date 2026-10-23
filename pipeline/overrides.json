@@ -1,5 +1,5 @@
 {
-  "$comment": "Per-building corrections to what the June 2010 LiDAR survey (behind the DataSF footprint heights) saw. Each entry sets exactly one of heightM (a roof height: a public record for a building completed after the survey, or, with placeholder: true, a stand-in plinth until a landmark model replaces the record; a placeholder keeps no storeys, use or units) and keepTower: true (the LiDAR tower stands although the spike check would drop it: a real steeple over a nave the roll counts as one storey; the build fails if no tower results). Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying. World QA W-04: an entry with add: true adds a building the 2016 footprint layer does not have, from its parcel's polygon (pipeline/lib/newer.ts; id 201006.99xxxxx, never a DataSF id): heightM is its roof, podiumM with towerFraction a podium and its tower, at and sizeM a rectangle cut out of a large lot; the records it stands on are retired.",
+  "$comment": "Per-building corrections to what the June 2010 LiDAR survey (behind the DataSF footprint heights) saw. Each entry sets exactly one of heightM (a roof height: a public record for a building completed after the survey, or, with placeholder: true, a stand-in plinth until a landmark model replaces the record; a placeholder keeps no storeys, use or units) and keepTower: true (the LiDAR tower stands although the spike check would drop it: a real steeple over a nave the roll counts as one storey; the build fails if no tower results), and standing: true (the record still stands although a street re-dated after the LiDAR crosses it: the clearance's redeveloped-land rule leaves it alone). Pipeline config only: names here are provenance, never shipped into tiles. Keyed by sf16_bldgid; parcel is checked so a footprint id change fails the build loudly instead of silently mis-applying. World QA W-04: an entry with add: true adds a building the 2016 footprint layer does not have, from its parcel's polygon (pipeline/lib/newer.ts; id 201006.99xxxxx, never a DataSF id): heightM is its roof, podiumM with towerFraction a podium and its tower, at and sizeM a rectangle cut out of a large lot; the records it stands on are retired.",
   "buildings": [
     {
       "id": "201006.0000548",
@@ -109,6 +109,13 @@
       "year": 2019,
       "use": "Commercial Misc",
       "source": "W-04. Completed 2019; an arena about 40 m tall on the Mission Bay block (parcel 8722022's lot, 8722021). The footprint layer predates it (a parking lot in 2010). A 120 x 150 m block at the QA report's point stands in for the arena's rounded bowl; the lot's two office buildings are not added (no storeys in the roll)."
+    },
+    {
+      "id": "201006.0000003",
+      "parcel": "3794028",
+      "label": "The ballpark at China Basin",
+      "standing": true,
+      "source": "Opened 2000, still standing (the 2010 LiDAR footprint is the ballpark). Berry St (cnn 2951000, added 1998, altered 2017) ends inside its footprint, and the parcel carries no year built, so the redeveloped-land rule (clearance.ts step 2) dropped it; content/landmark-tags.json tags it."
     }
   ]
 }

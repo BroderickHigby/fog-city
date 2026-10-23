@@ -464,14 +464,15 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   // buildings over a bore an underside.
   lap("roads");
   const tunnels = findTunnels(graph, heightAnywhere, (lat, lon) => toLocal(lat, lon));
-  const cleared = clearCorridors(built.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs });
+  const standing = new Set(overrides.filter((o) => o.standing).map((o) => o.id));
+  const cleared = clearCorridors(built.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs, standing });
   lap("clearance");
   // The records under a landmark probe keep their one prism: the landmark replaces them whole.
   const probed = new Set((cfg.probes?.points ?? []).flatMap((pr) => probeBuildings(pr, cleared.buildings).buildings));
   const terraced = terraceBuildings(cleared.buildings, ground, (b) => probed.has(b.id));
   lap("terraces");
   // Terracing lifts roofs that were under the hill: clear the corridors once more for those.
-  const recleared = clearCorridors(terraced.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs });
+  const recleared = clearCorridors(terraced.buildings, graph, raw.streetDates, ground, { skip: tunnels.skip, keepCentreline: tunnels.edges, optionalStairs, standing });
   lap("clearance again");
   // Decks (W-03, W-07, W-12, W-14): freeway viaducts, overpasses, creek bridges; and the freeway
   // bores they line through their zones (W-02). Before the undersides, which read the final bores.

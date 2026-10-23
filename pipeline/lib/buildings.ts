@@ -105,6 +105,10 @@ export function isLidarSpike(towerAreaM2: number, podiumM: number, towerM: numbe
  *     building that is not drawn.
  *   - keepTower: true: the LiDAR tower stands although the spike check would drop it (a real
  *     steeple over a low nave). The build fails if the building ends up without a tower.
+ *   - standing: true: the record still stands although a street re-dated after the LiDAR crosses
+ *     it, so the clearance's redeveloped-land rule (clearance.ts step 2) leaves it (and its tower)
+ *     alone; a street through it is cut out of it in step 4 like any other. For a hand-checked
+ *     building whose parcel carries no year built (the ballpark at China Basin, opened 2000).
  */
 export interface Override {
   id: string;
@@ -113,6 +117,7 @@ export interface Override {
   heightM?: number;
   placeholder?: boolean;
   keepTower?: boolean;
+  standing?: boolean;
   source: string;
   /**
    * W-04: true when this entry adds a building the footprint layer (a 2016 snapshot) does not
@@ -135,7 +140,7 @@ export interface Override {
   retire?: "overlap" | "lot";
 }
 
-/** Throws unless every override sets exactly one of heightM and keepTower (and placeholder only with heightM). */
+/** Throws unless every override sets exactly one of heightM, keepTower and standing (and placeholder only with heightM). */
 export function checkOverrides(overrides: readonly Override[]): void {
   const seen = new Set<string>();
   for (const o of overrides) {
@@ -149,7 +154,7 @@ export function checkOverrides(overrides: readonly Override[]): void {
     }
     const height = typeof o.heightM === "number" && Number.isFinite(o.heightM) && o.heightM > 0;
     if (o.heightM !== undefined && !height) throw new Error(`override ${o.id} (${o.label}): heightM must be a positive number of metres`);
-    if (height === (o.keepTower === true)) throw new Error(`override ${o.id} (${o.label}): set exactly one of heightM and keepTower`);
+    if ([height, o.keepTower === true, o.standing === true].filter(Boolean).length !== 1) throw new Error(`override ${o.id} (${o.label}): set exactly one of heightM, keepTower and standing`);
     if (o.placeholder && !height) throw new Error(`override ${o.id} (${o.label}): placeholder needs heightM`);
   }
 }

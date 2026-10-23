@@ -357,6 +357,11 @@ export interface ClearanceOptions {
   keepCentreline?: ReadonlySet<string>;
   /** Stairways from layers otherwise excluded (UPROW, PAPER): dropped if they run through buildings. */
   optionalStairs?: ReadonlySet<string>;
+  /**
+   * Records that still stand (overrides.json standing): never stale in step 2. A record split
+   * after the override (terraces: "<id>-s<n>") counts as its source record.
+   */
+  standing?: ReadonlySet<string>;
 }
 
 /**
@@ -419,6 +424,9 @@ export function clearCorridors(
   // or an override added (meta.outline: a 2025 parcel or a hand-checked block) is current, never
   // stale: what of it stands in a corridor is cut or spanned in step 4 like any other record.
   const isAdded = (b: Building): boolean => b.meta.outline !== undefined || (b.meta.towerOf !== undefined && list[index.get(b.meta.towerOf) ?? -1]?.meta.outline !== undefined);
+  const standing = opts.standing ?? new Set<string>();
+  const stands = (id: string | undefined): boolean => id !== undefined && standing.has(id.replace(/-(tower|s\d+)$/, ""));
+  const isStanding = (b: Building): boolean => stands(b.id) || stands(b.meta.towerOf);
   for (const e of graph.edges) {
     if (corridorRadius(e) === 0) continue;
     const d = dateOf.get(e.cnn);
@@ -429,7 +437,7 @@ export function clearCorridors(
     }
     for (const [i, n] of inside) {
       const b = list[i];
-      if (!b || n < STALE_INSIDE_M || !isNewer(d, b) || isAdded(b)) continue;
+      if (!b || n < STALE_INSIDE_M || !isNewer(d, b) || isAdded(b) || isStanding(b)) continue;
       // A podium's tower goes with it; a tower alone takes its podium (both are the old building).
       if (b.meta.towerOf !== undefined) {
         const pi = index.get(b.meta.towerOf);

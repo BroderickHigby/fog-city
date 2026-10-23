@@ -112,5 +112,8 @@ describe("buildings newer than the footprint layer (W-04)", () => {
     expect(all.some((b) => b.id === "201006.9900004")).toBe(true);
     const rep = readJson<{ clearance: { staleDropped: string[] } }>("public/tiles/sf/report.json");
     expect(rep.clearance.staleDropped.filter((id) => /^201006\.9/.test(id))).toEqual([]);
+    // The ballpark (an overrides.json standing record, Berry St ending inside it) is never stale.
+    expect(rep.clearance.staleDropped).not.toContain("201006.0000003");
+    expect(all.some((b) => b.id === "201006.0000003" || b.id.startsWith("201006.0000003-"))).toBe(true);
   });
 });
