@@ -27,7 +27,7 @@ describe("water weapon configuration", () => {
     const p = player();
     const shot = waterShot(state(p), p, { fire: true, aimPitch: 0 }, context(p))!;
     expect(shot).toMatchObject({ speed: 13, range: 12, volume: 0.08, rustRate: 0.025, rateTicks: 6,
-      spawnHeight: 1.2, supply: "water", salt: false, vehicle: false });
+      spawnHeight: 1.2, supply: "water", salt: false, vehicle: false, spreadRadians: 0, pellets: 1 });
     expect(shot.direction.x).toBeCloseTo(0, 8);
     expect(shot.direction.y).toBeCloseTo(0, 8);
     expect(shot.direction.z).toBeCloseTo(-1, 8);
@@ -138,6 +138,18 @@ describe("water weapon configuration", () => {
     expect(waterShot(s, p, { fire: true }, ctx)).toBeNull();
   });
 
+  it.each(["seized", "slumping", "heap", "disabled", "cleared"] as const)("rejects the %s phase on either a canonical target or its actor alias", phase => {
+    const p = player();
+    const canonical = state(p);
+    canonical.targets[p.id] = { ...initialTarget(), phase };
+    expect(waterShot(canonical, p, { fire: true }, context(p))).toBeNull();
+    const aliased = state(p);
+    aliased.targets["body:p1"] = { ...initialTarget(), phase };
+    const ctx = context(p, { actors: [{ id: "body:p1", playerId: p.id, kind: "player", x: 0, y: 0, z: 0,
+      heading: 0, speed: 0, radius: 0.3, height: 1.8, firmware: "none" }] });
+    expect(waterShot(aliased, p, { fire: true }, ctx)).toBeNull();
+  });
+
   it("uses active pressure and salt boosts without applying expired or future-wave upgrades", () => {
     const p = player({ nozzle: "pressure" });
     const pressure = state(p, { boost: "pressure", boostUntil: 20 });
@@ -145,6 +157,26 @@ describe("water weapon configuration", () => {
     expect(waterShot(pressure, p, { fire: true }, context(p, { wave: 3 }))?.range).toBe(18);
     expect(waterShot(state(p, { boost: "pressure", boostUntil: 10 }), p, { fire: true }, context(p, { wave: 4 }))?.range).toBe(18);
     expect(waterShot(state(p, { boost: "salt", boostUntil: 20 }), p, { fire: true }, context(p, { wave: 4 }))?.salt).toBe(true);
+  });
+
+  it("widens active wave-four shots into three pellets without multiplying total flow or rust", () => {
+    const p = player({ nozzle: "pressure" });
+    const base = waterShot(state(p, { salt: true }), p, { fire: true }, context(p, { wave: 4 }))!;
+    const wide = waterShot(state(p, { salt: true, boost: "wide", boostUntil: 20 }), p, { fire: true }, context(p, { wave: 4 }))!;
+    expect(wide.pellets).toBe(3);
+    expect(wide.spreadRadians).toBeCloseTo(12 * PI / 180, 12);
+    expect(wide.volume).toBe(base.volume);
+    expect(wide.rustRate).toBe(base.rustRate);
+    expect(wide.range).toBe(base.range);
+    expect(wide.salt).toBe(base.salt);
+  });
+
+  it("removes the wide fan exactly at expiry and never enables it before wave four", () => {
+    const p = player();
+    const expired = waterShot(state(p, { boost: "wide", boostUntil: 10 }), p, { fire: true }, context(p, { wave: 4 }))!;
+    const early = waterShot(state(p, { boost: "wide", boostUntil: 20 }), p, { fire: true }, context(p, { wave: 3 }))!;
+    expect(expired).toMatchObject({ pellets: 1, spreadRadians: 0 });
+    expect(early).toMatchObject({ pellets: 1, spreadRadians: 0 });
   });
 
   it("bounds nonfinite or enormous input aim without nonfinite direction components", () => {
