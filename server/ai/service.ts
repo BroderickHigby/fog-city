@@ -102,6 +102,9 @@ export function createAiService(options: AiOptions = {}) {
   }
   function finish(session: Conversation, turn: number, record: TurnRecord, value: AiResponse): AiResponse {
     if (record.result) return record.result;
+    value.body.resolutionId=createHmac("sha256",secret).update(`${session.id}:${turn}`).digest("base64url");
+    const freeze=(object:unknown):void=>{if(object&&typeof object==="object"){for(const child of Object.values(object))freeze(child);Object.freeze(object);}};
+    freeze(value);
     record.result = value; record.abort.abort();
     if (session.next === turn) session.next++;
     record.resolve(value); return value;

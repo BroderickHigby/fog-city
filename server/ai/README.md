@@ -23,3 +23,5 @@ The service stores no transcript. Redacted input exists only while an in-flight 
 
 Draft PR title: Add offline AI session and validation boundary
 Draft PR body: Adds fixed AI routes with signed invite-only sessions, strict DTOs, crisis and output gates, quota reservations, idempotent turns, timeout handling and an explicit offline fixture provider. Provider use defaults off and requires matching evaluation records. No external API client, credentials or deployment changes are included. The host mounts the exported HTTP adapter.
+
+Validation: TypeScript and all 24 AI tests passed, including the real loopback HTTP adapter. Loopback binding required the test command to run outside the workspace network sandbox; no external network destination was used. The tests cover forged/cross-account sessions, closed DTOs, age and consent gates, evaluation requirements, duplicate/late results, crisis priority, output and echo rejection, quotas, metadata expiry, immutable results and request-size/IP handling.
