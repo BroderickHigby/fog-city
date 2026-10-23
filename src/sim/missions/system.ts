@@ -43,7 +43,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
    if(step.type==="trigger"){
     if(step.event.clock&&ctx.hour!==undefined&&ctx.minute!==undefined){const [hour,minute]=step.event.clock.split(":").map(Number);if(ctx.hour*60+ctx.minute<(hour??0)*60+(minute??0))return;}
-    return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+    return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
    }
    if(step.type==="goto"){
     own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60);
