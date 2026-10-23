@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { buildWorldFiles } from "./lib/build.ts";
 import type { Override } from "./lib/buildings.ts";
 import { loadWorldConfig } from "./lib/config.ts";
+import { loadLandcoverConfig } from "./lib/landcover.ts";
 import { downloadAll } from "./lib/sources.ts";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -35,11 +36,13 @@ async function main(): Promise<void> {
   const cfg = loadWorldConfig(ROOT, world);
   const overrides = (JSON.parse(readFileSync(join(ROOT, "pipeline/overrides.json"), "utf8")) as { buildings: Override[] }).buildings;
   log(`world ${world}: ${cfg.areas.length} areas (${cfg.areas.map((a) => a.id).join(", ")})`);
-  const raw = await downloadAll(cfg, { cacheDir, offline: flag("offline"), refresh: flag("refresh"), log });
+  const addLots = overrides.filter((o) => o.add && o.parcel).map((o) => o.parcel!);
+  const raw = await downloadAll(cfg, { cacheDir, offline: flag("offline"), refresh: flag("refresh"), log }, addLots);
   log(`inputs: ${raw.buildings.length} footprints, ${raw.streets.length} street segments, ${raw.parcels.length} parcels, ${raw.businesses.length} businesses, ${raw.dems.length} DEMs (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   if (flag("fetch-only")) return;
 
-  const { files, report } = await buildWorldFiles(cfg, raw, overrides);
+  const landcover = cfg.citywide ? loadLandcoverConfig(ROOT) : undefined;
+  const { files, report } = await buildWorldFiles(cfg, raw, overrides, { landcover });
   let total = 0;
   for (const b of files.values()) total += b.byteLength;
   log(`built ${files.size} files, ${(total / 1e6).toFixed(2)} MB (${((Date.now() - t0) / 1000).toFixed(1)} s)`);

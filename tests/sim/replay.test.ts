@@ -74,9 +74,9 @@ function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes
   return { state: s, hashes };
 }
 
-describe("SIM_VERSION 4", () => {
-  it("is 4", () => {
-    expect(SIM_VERSION).toBe(7);
+describe("legacy dodge replay under structural-world physics", () => {
+  it("uses the structural-world simulation version", () => {
+    expect(SIM_VERSION).toBe(8);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {

@@ -45,11 +45,24 @@ export interface CitywideConfig {
   demBlockTiles: number;
 }
 
+/**
+ * The far layer's reach (world QA W-17, W-40): far terrain and massing cover this lat/lon box,
+ * which may run past the citywide box (the Marin headlands' ridgeline, San Bruno Mountain).
+ * The DEM is downloaded for it in the citywide blocks; buildings and streets are not.
+ */
+export interface FarConfig {
+  north: number;
+  west: number;
+  south: number;
+  east: number;
+}
+
 export interface WorldConfig {
   id: string;
   title: string;
   areas: Area[];
   citywide?: CitywideConfig;
+  far?: FarConfig;
   spawn: SpawnConfig;
   probes?: { points: Probe[] };
   sources: {
@@ -67,6 +80,16 @@ export interface WorldConfig {
     crosswalks?: string;
     streetCleaning?: string;
     parking?: string;
+    /** Ground cover (world QA W-11, W-18, W-34): Rec and Park properties and the Urban Tree Canopy (DataSF ids). */
+    recParks?: string;
+    canopy?: string;
+    /** Parcel polygons (DataSF "Parcels – Active and Retired"): footprints for buildings newer than the 2016 footprint layer (W-04). */
+    parcelShapes?: string;
+    /** USGS NHD large-scale waterbodies (ArcGIS MapServer layer URL): inland lake outlines (W-11). */
+    waterbodies?: string;
+    /** National Park Service unit boundaries (ArcGIS FeatureServer layer URL) and the unit codes to read: GGNRA open space (W-18). */
+    federalLands?: string;
+    federalUnits?: string[];
     /** The day the cached downloads were taken (DataSF reloads daily; a refresh is a deliberate PR). */
     snapshotDate?: string;
   };

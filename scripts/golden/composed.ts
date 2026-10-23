@@ -1,4 +1,4 @@
-// Record or check the composed-path golden, tests/golden/composed-v7.json: the checkpoint hashes
+// Record or check the composed-path golden for the active simulation version: checkpoint hashes
 // of each scenario in tests/helpers/composed-golden.ts, stepped through createGameSystems().
 //
 //   node scripts/golden/composed.ts            run every scenario and compare with the pins
@@ -8,9 +8,10 @@
 // SIM_VERSION when that change also changes the state format.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { SIM_VERSION } from "../../src/sim/contract.ts";
 import { recordComposedGolden, type ComposedGolden } from "../../tests/helpers/composed-golden.ts";
 
-const file = join(import.meta.dirname, "../../tests/golden/composed-v7.json");
+const file = join(import.meta.dirname, `../../tests/golden/composed-v${SIM_VERSION}.json`);
 const golden = recordComposedGolden();
 const text = JSON.stringify(golden, null, 2) + "\n";
 if (process.argv.includes("--update")) {

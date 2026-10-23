@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "qa/world-integration: structural world surfaces and v8 contract",
+  "simVersion": 8,
+  "hashes": [
+    "35013cf8",
+    "da268101",
+    "866a4040",
+    "c34c496b",
+    "fd1a9767"
+  ]
+}

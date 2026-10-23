@@ -128,10 +128,13 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    combination, the wave-2 v6 interface on v2 bodies), so no step may assume which fields a
  *    stamp implies. Unknown ext keys are kept; ext.dodge stays absent (every counter 0) until
  *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
+ *  - v7 -> v8: structural surfaces change stepping, but no saved fields change. Preserve the
+ *    complete state and let the next tick select the supported deck, bore or ground surface.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
   if (s.version === 1) return upgradeState(upgradeV1(s));
+  if (s.version === 7) return { ...s, version: 8 };
   if ([2, 3, 4, 5, 6].includes(s.version)) {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }

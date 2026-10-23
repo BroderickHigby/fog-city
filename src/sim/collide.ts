@@ -1,14 +1,15 @@
 // Collision queries for bodies that move through the static world: an oriented rectangle
 // (cars) and a circle (people on foot), against building footprints (any polygon, concave
 // included), the world's edge and shore walls (boundary.ts) and dynamic obstacle
-// circles/boxes. Pure functions; deterministic iteration.
+// circles/boxes. Cars also meet the cars-only barriers round the stairways (World.barriers);
+// walkers do not. Pure functions; deterministic iteration.
 //
 // Walls are lines with no thickness, so they are checked against motion: each point of a body
 // is followed from where it was at the start of the tick (the reference pose) to where it is
 // now, and a point whose path crossed a wall goes back to the side it came from. A body is
 // therefore held on whichever side of a wall it started, land or water.
 
-import { circleWallPush, wallKeepSide, wallSide, wallsNear, type WallSegment } from "./boundary.ts";
+import { circleWallPush, wallKeepSide, wallSide, wallsNear, type WallSegment, type WallSet } from "./boundary.ts";
 import { dcos, dsin } from "./dmath.ts";
 import { blocksBand, closestOnBoundary, nearbyBuildings, outwardNormal, pointInPolygon, type World } from "./world.ts";
 
@@ -225,6 +226,14 @@ function boxWallPush(
   return best > 0 ? [px, pz] : null;
 }
 
+/** The walls a car meets: the world's edge and shore walls and the cars-only barriers (stairways). */
+function carWalls(world: World): WallSet[] {
+  const out: WallSet[] = [];
+  if (world.walls) out.push(world.walls);
+  if (world.barriers) out.push(world.barriers);
+  return out;
+}
+
 /** Wall-only passes after the main ones: at a corner, pushes out of one wall can leave a point just across the other. */
 const WALL_SETTLE_PASSES = 12;
 
@@ -233,12 +242,15 @@ const WALL_SETTLE_PASSES = 12;
  * poseSamples) and not been sent back? The car undoes a move that leaves one (car.ts).
  */
 export function boxCrossedWall(world: World, box: Readonly<Box>, ref: Readonly<Pose>): boolean {
-  if (!world.walls) return false;
+  const sets = carWalls(world);
+  if (sets.length === 0) return false;
   const fx = dsin(box.heading);
   const fz = -dcos(box.heading);
   const refPts = poseSamples(ref, box.hl, box.hw);
-  for (const k of wallsNear(world.walls, box.x, box.z, box.hl + box.hw + 1)) {
-    if (boxWallPush(box.x, box.z, fx, fz, -fz, fx, box.hl, box.hw, world.walls.segments[k]!, refPts, false)) return true;
+  for (const ws of sets) {
+    for (const k of wallsNear(ws, box.x, box.z, box.hl + box.hw + 1)) {
+      if (boxWallPush(box.x, box.z, fx, fz, -fz, fx, box.hl, box.hw, ws.segments[k]!, refPts, false)) return true;
+    }
   }
   return false;
 }
@@ -365,7 +377,8 @@ export function resolveBox(
   let heldX = 0;
   let heldZ = 0;
   const reach = box.hl + box.hw + 1;
-  const refPts = world.walls ? poseSamples(ref, box.hl, box.hw) : [];
+  const sets = carWalls(world);
+  const refPts = sets.length > 0 ? poseSamples(ref, box.hl, box.hw) : [];
   for (let pass = 0; pass < 4; pass++) {
     let best: [number, number] | null = null;
     let bestD2 = 0;
@@ -383,9 +396,9 @@ export function resolveBox(
         bestIsWall = false;
       }
     }
-    if (world.walls) {
-      for (const k of wallsNear(world.walls, x, z, reach)) {
-        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!, refPts);
+    for (const ws of sets) {
+      for (const k of wallsNear(ws, x, z, reach)) {
+        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, ws.segments[k]!, refPts);
         if (!p) continue;
         const d2 = p[0] * p[0] + p[1] * p[1];
         if (d2 > bestD2) {
@@ -441,17 +454,19 @@ export function resolveBox(
     if (bestIsPerson) bestPersonDepth = Math.max(bestPersonDepth, bestD2);
     else bestOtherDepth = Math.max(bestOtherDepth, bestD2);
   }
-  if (world.walls) {
+  if (sets.length > 0) {
     for (let pass = 0; pass < WALL_SETTLE_PASSES; pass++) {
       let best: [number, number] | null = null;
       let bestD2 = 0;
-      for (const k of wallsNear(world.walls, x, z, reach)) {
-        const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!, refPts, false);
-        if (!p) continue;
-        const d2 = p[0] * p[0] + p[1] * p[1];
-        if (d2 > bestD2) {
-          bestD2 = d2;
-          best = p;
+      for (const ws of sets) {
+        for (const k of wallsNear(ws, x, z, reach)) {
+          const p = boxWallPush(x, z, fx, fz, rx, rz, box.hl, box.hw, ws.segments[k]!, refPts, false);
+          if (!p) continue;
+          const d2 = p[0] * p[0] + p[1] * p[1];
+          if (d2 > bestD2) {
+            bestD2 = d2;
+            best = p;
+          }
         }
       }
       if (!best) break;
@@ -480,9 +495,9 @@ export function boxBlocked(world: World, box: Readonly<Box>, y: number, circles:
     if (!blocksBand(b, y, top)) continue;
     if (boxPolygonPush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, b.footprint)) return true;
   }
-  if (world.walls) {
-    for (const k of wallsNear(world.walls, box.x, box.z, box.hl + box.hw + 1)) {
-      if (wallInBox(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, world.walls.segments[k]!)) return true;
+  for (const ws of carWalls(world)) {
+    for (const k of wallsNear(ws, box.x, box.z, box.hl + box.hw + 1)) {
+      if (wallInBox(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, ws.segments[k]!)) return true;
     }
   }
   for (const c of circles) if (boxCirclePush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, c)) return true;

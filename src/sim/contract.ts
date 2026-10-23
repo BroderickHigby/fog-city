@@ -17,7 +17,9 @@
 // v7: bring the reviewed gravity/roof support and no-contact dodge into wave 2.
 // Older QA/dodge branches used overlapping 3/4/5 stamps; migration preserves existing
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
-export const SIM_VERSION = 7;
+// v8: consume structural world surfaces and collider-pack extensions: deck/bore floors,
+// stair barriers and inland water. Saved fields are unchanged; physical replays are versioned.
+export const SIM_VERSION = 8;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/storefront-kit",
   "title": "Storefront types by business category (content/storefronts.json). Unnamed: iconography only.",
-  "description": "Maps a NAICS code (the pipeline's storefront anchors carry the business registry's self-reported code) to a storefront kit: a sign shape and street props. The longest matching prefix wins (storefrontFor in src/content/storefronts.ts). Signs carry no text and no names: the sign slot is reserved, signText stays null.",
+  "description": "Maps a NAICS code (the pipeline's storefront anchors carry the business registry's self-reported code) to a storefront kit: the glazed shopfront bay, an awning shape by category, an empty sign slot with an icon-only sign shape, and street props (house kit K5). The longest matching prefix wins (storefrontFor in src/content/storefronts.ts). Signs carry no text and no names: the sign slot is reserved, signText stays null.",
   "type": "object",
   "required": ["version", "types", "noStorefrontPrefixes", "provenance"],
   "additionalProperties": false,
@@ -12,20 +12,35 @@
     "$comment": { "type": "string" },
     "noStorefrontPrefixes": {
       "description": "Codes that never get a kit even though a broader prefix matches (non-store retail, caterers). Mirrors the pipeline's exclusions.",
-      "type": "array", "items": { "$ref": "#/$defs/naics" }
+      "type": "array",
+      "items": { "$ref": "#/$defs/naics" }
     },
     "types": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "label", "naicsPrefixes", "signShape", "signSlot", "props", "signText"],
+        "required": ["id", "label", "naicsPrefixes", "categories", "signShape", "signSlot", "shopfront", "awning", "props", "signText"],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z][a-zA-Z]*$" },
           "label": { "type": "string" },
-          "naicsPrefixes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/naics" } },
-          "naicsNote": { "type": "string", "description": "Which NAICS vintage each prefix comes from, and why it is here." },
+          "naicsPrefixes": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/$defs/naics" }
+          },
+          "naicsNote": {
+            "type": "string",
+            "description": "Which NAICS vintage each prefix comes from, and why it is here."
+          },
+          "categories": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "description": "The pipeline's coarse category values (pipeline/lib/storefronts.ts categoryOf) this kit serves; tests/content/storefronts.test.ts checks every committed anchor's kit lists its category.",
+            "items": { "type": "string", "pattern": "^[a-z][a-z-]*$" }
+          },
           "signShape": { "$ref": "#/$defs/signShape" },
           "signSlot": {
             "type": "object",
@@ -33,14 +48,73 @@
             "required": ["mount", "widthM", "heightM"],
             "additionalProperties": false,
             "properties": {
-              "mount": { "enum": ["fascia", "blade", "window", "awningValance", "pole"] },
+              "mount": {
+                "enum": ["fascia", "blade", "window", "awningValance", "pole"]
+              },
               "widthM": { "type": "number", "exclusiveMinimum": 0, "maximum": 8 },
               "heightM": { "type": "number", "exclusiveMinimum": 0, "maximum": 3 }
             }
           },
-          "props": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/prop" } },
+          "shopfront": {
+            "type": "object",
+            "description": "The instanced glazed bay drawn at each anchor (house kit K5: a 5 m bay, 3.5 to 4.5 m tall).",
+            "required": ["bayWidthM", "heightM", "glazing", "stallRiserM", "door", "transom", "frames"],
+            "additionalProperties": false,
+            "properties": {
+              "bayWidthM": { "type": "number", "minimum": 4, "maximum": 6 },
+              "heightM": { "type": "number", "minimum": 3.5, "maximum": 4.5 },
+              "glazing": {
+                "type": "number",
+                "minimum": 0.3,
+                "maximum": 0.9,
+                "description": "Share of the bay that is glass."
+              },
+              "stallRiserM": {
+                "type": "number",
+                "minimum": 0.2,
+                "maximum": 1.2,
+                "description": "Solid stall riser under the window."
+              },
+              "door": {
+                "enum": ["side", "centre", "recessed"]
+              },
+              "transom": { "type": "boolean" },
+              "frames": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/hex" },
+                "description": "Mullion, door and stall-riser colours; one is picked per anchor."
+              }
+            }
+          },
+          "awning": {
+            "type": "object",
+            "description": "The awning shape by category; a colour is picked per anchor. Shape none has depth 0 and no colours.",
+            "required": ["shape", "depthM", "colours"],
+            "additionalProperties": false,
+            "properties": {
+              "shape": { "$ref": "#/$defs/awningShape" },
+              "depthM": { "type": "number", "minimum": 0, "maximum": 8 },
+              "colours": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": { "$ref": "#/$defs/hex" }
+              },
+              "stripe": { "$ref": "#/$defs/hex", "description": "The second colour of a striped awning." }
+            }
+          },
+          "props": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "$ref": "#/$defs/prop" }
+          },
           "nightGlow": { "type": "boolean", "description": "The sign or a prop is lit after dark." },
-          "signText": { "description": "Reserved for later. Must be null for now: storefronts are unnamed.", "type": "null" }
+          "signText": {
+            "description": "Reserved for later. Must be null for now: storefronts are unnamed.",
+            "type": "null"
+          }
         }
       }
     }
@@ -48,26 +122,13 @@
   "$defs": {
     "provenance": {
       "type": "object",
-      "required": [
-        "source",
-        "authorSession",
-        "contentHash",
-        "reviewedBy",
-        "review"
-      ],
+      "required": ["source", "authorSession", "contentHash", "reviewedBy", "review"],
       "additionalProperties": false,
       "properties": {
         "source": {
-          "enum": [
-            "agent",
-            "batch",
-            "human"
-          ]
+          "enum": ["agent", "batch", "human"]
         },
-        "authorSession": {
-          "type": "string",
-          "minLength": 4
-        },
+        "authorSession": { "type": "string", "minLength": 4 },
         "contentHash": {
           "type": "string",
           "pattern": "^fnv1a32:[0-9a-f]{8}$",
@@ -75,37 +136,83 @@
         },
         "reviewedBy": {
           "type": "array",
-          "items": {
-            "type": "string"
-          },
+          "items": { "type": "string" },
           "description": "Reviewing agent sessions and, for sampled drops, the sample ids."
         },
-        "review": {
-          "type": "string"
-        }
+        "review": { "type": "string" }
       },
       "description": "A copy of schemas/provenance.schema.json, inlined because tests/schemas/schemas.test.ts compiles this schema on its own; tests/content/provenance.test.ts keeps the copy equal."
     },
     "naics": { "type": "string", "pattern": "^[0-9]{2,6}$" },
     "signShape": {
-      "description": "neonPanel: a glowing tube panel in the window, shaped like a beer glass; fasciaBand: a flat blank band above the door; cupBlade: a projecting blade sign shaped like a coffee cup; breadBlade: a projecting loaf-shaped blade; barberPole: the striped spinning pole is the sign; scissorsBlade: a projecting scissors-and-comb blade; projectingCross: a lit cross on a bracket; hangerBlade: a projecting coat-hanger blade; awningValance: the sign is the awning's front flap.",
-      "enum": ["neonPanel", "fasciaBand", "cupBlade", "breadBlade", "barberPole", "scissorsBlade", "projectingCross", "hangerBlade", "awningValance"]
+      "description": "neonPanel: a glowing tube panel in the window, shaped like a beer glass; fasciaBand: a flat blank band above the door; cupBlade: a projecting blade sign shaped like a coffee cup; breadBlade: a projecting loaf-shaped blade; barberPole: the striped spinning pole is the sign; scissorsBlade: a projecting scissors-and-comb blade; projectingCross: a lit cross on a bracket; hangerBlade: a projecting coat-hanger blade; awningValance: the sign is the awning's front flap.; takeoutBoxBlade: a projecting takeout-box blade; bottleBlade: a projecting bottle blade; polishBlade: a projecting nail-polish-bottle blade; shirtBlade: a projecting shirt blade; keyBlade: a projecting key-shaped blade; plugBlade: a projecting plug blade; lampBlade: a projecting lamp blade; bookBlade: a projecting open-book blade; wheelBlade: a projecting wheel blade; dropPanel: a pole sign with a drop icon over a blank price board.",
+      "enum": [
+        "neonPanel",
+        "fasciaBand",
+        "cupBlade",
+        "breadBlade",
+        "barberPole",
+        "scissorsBlade",
+        "projectingCross",
+        "hangerBlade",
+        "awningValance",
+        "takeoutBoxBlade",
+        "bottleBlade",
+        "polishBlade",
+        "shirtBlade",
+        "keyBlade",
+        "plugBlade",
+        "lampBlade",
+        "bookBlade",
+        "wheelBlade",
+        "dropPanel"
+      ]
     },
     "prop": {
       "description": "Street-level dressing the renderer places at the shopfront. Assets build one generic model per prop.",
       "enum": [
-        "beerNeonPanel", "tintedWindow", "barStools",
-        "tablecloths", "awning", "sidewalkTables", "menuStand",
-        "aFrameBlank", "cupSign", "pastryCase",
-        "stripedAwning", "produceCrates", "hangingSalami", "deliCounter",
-        "breadWindow", "queueRail",
-        "barberPole", "barberChairWindow",
-        "salonChairWindow", "mirrorWall",
-        "washingMachines", "foldingTable",
-        "garmentRack", "pharmacyCross", "shelvedWindow",
+        "beerNeonPanel",
+        "tintedWindow",
+        "barStools",
+        "tablecloths",
+        "awning",
+        "sidewalkTables",
+        "menuStand",
+        "aFrameBlank",
+        "cupSign",
+        "pastryCase",
+        "stripedAwning",
+        "produceCrates",
+        "hangingSalami",
+        "deliCounter",
+        "breadWindow",
+        "queueRail",
+        "barberPole",
+        "barberChairWindow",
+        "salonChairWindow",
+        "mirrorWall",
+        "washingMachines",
+        "foldingTable",
+        "garmentRack",
+        "pharmacyCross",
+        "shelvedWindow",
         "flowerBuckets",
-        "displayWindow", "doorMat"
+        "displayWindow",
+        "doorMat",
+        "menuBoardWindow",
+        "polishShelfWindow",
+        "mannequinWindow",
+        "toolRack",
+        "bookCart",
+        "tireStack",
+        "fuelCanopy",
+        "pumpIsland"
       ]
+    },
+    "hex": { "type": "string", "pattern": "^#[0-9a-f]{6}$", "description": "sRGB colour, lower-case hex." },
+    "awningShape": {
+      "description": "none: no awning; slope: a sloped fabric awning; striped: a sloped awning in two colours; scalloped: a sloped awning with a scalloped valance; box: a boxed awning with closed sides; quarterRound: a curved dome awning; flatCanopy: a flat metal canopy on tie rods; canopy: a free-standing canopy over a forecourt (fuel).",
+      "enum": ["none", "slope", "striped", "scalloped", "box", "quarterRound", "flatCanopy", "canopy"]
     }
   }
 }
