@@ -69,6 +69,8 @@ export interface UiMountOptions {
   readonly keyboard?:Keyboard;
   readonly saves?:SavePanelOptions;
   readonly startupChoices?:readonly string[];
+  /** Audio settings panel (src/ui/audio-settings.ts), shown in the pause screen and phone settings. */
+  readonly audioSettings?:(doc:Document)=>{element:HTMLElement;dispose():void};
 }
 export interface MountedGameUI {
   readonly element:HTMLElement;

@@ -20,10 +20,14 @@
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
 // v9 is reserved for the structural world (World stream) and is never written by this chain.
-// v10: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
+// v10: wave-3 weather (src/sim/fog): seeded marine layer, winter rain, wet-road traction, rain
+// puddles, shelter, the King tide's flooded promenade, rain breaking phone hacks and the
+// per-shot wet rule. ext.fog gains its typed shape; an upgraded v8 save keeps every field and
+// the fog reducer fills ext.fog on its first tick.
+// v11: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
 // reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
-// a v8 save keeps its saved water value, which no longer limits the stream.
-export const SIM_VERSION = 10;
+// a v10 save keeps its saved water value, which no longer limits the stream.
+export const SIM_VERSION = 11;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

@@ -110,6 +110,8 @@ export interface AgentRuntimeOptions {
   fog?: number;
   /** Position-specific weather/fog; core supplies the authoritative sample. */
   fogAt?: (x:number,z:number)=>number;
+  /** Where weather sends a bad robot standing at (x, z) (shelter from rain, inland off a flooded promenade), or null. */
+  weatherRefuge?: (x:number,z:number)=>{x:number;z:number}|null;
   /** Core owns player-controlled bodies, so autonomous brains never propose motion for them. */
   controlledActorIds?: readonly string[];
   conversionCap?: number;
@@ -314,7 +316,14 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const updating=(activeCombat(sim)?.attacks??[]).some(attack=>attack.kind==="forced-update"&&attack.targetId===actor.id);
   const frozen=Boolean(effect&&effect.phase!=="active"||updating);
   let speed=frozen?0:wanted.speed*(effect?.movementScale??1);
-  let goal=wanted.goal;
+  let goal=wanted.goal,direct=false;
+  // Bad firmware has no splash seal: in the rain an idle bad robot heads for shelter (a tell),
+  // and on a King-tide day it keeps off the flooded waterfront. Chases and flight still win, and
+  // authored mission and scene bodies (significant) keep their scripts.
+  if(actor.firmware==="bad"&&!actor.significant&&!wanted.goal&&intent?.movement?.kind!=="hold"&&options.weatherRefuge){
+    const refuge=options.weatherRefuge(actor.x,actor.z);
+    if(refuge){const d=distance(actor,refuge);goal=d>.4?refuge:null;speed=d>.4?Math.min(speed,1.6):0;direct=d<10;}
+  }
   if(effect?.repair&&actor.firmware==="good"){
     const kiosks=(world.gameplay?.anchors??[]).filter(anchor=>anchor.kind==="repair-kiosk").sort((a,b)=>distance(actor,a)-distance(actor,b)||compare(a.id,b.id));
     const kiosk=kiosks[0];if(kiosk){goal=distance(actor,kiosk)>2?kiosk:null;speed=goal?Math.min(speed,.9):0;}
@@ -347,7 +356,8 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     }
   }
   if(speed<=0||frozen||actor.posted){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
-  if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"){
+  // (The last few metres to a shelter leave the sidewalk line for the wall or the stop itself.)
+  if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"&&!direct){
     const node=goal?nearestSidewalkNode(graph,goal):actor.goalNode;
     if(!actor.route||actor.goalNode!==node||actor.cursor.stepIndex>=actor.route.steps.length){
       const start=nearestSidewalkNode(graph,actor);
