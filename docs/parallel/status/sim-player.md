@@ -53,9 +53,10 @@ The four remaining failures are outside this continuation's diff:
 
 The last three failures reproduce on untouched `59fbfe0`; the content failure is present in
 the published wave-4 dependency. These failures prevent a green full `pnpm verify` result.
-All 16 Chromium/Firefox/WebKit determinism checks passed on the first reconciliation; a
-final rerun against the equipment merge is in progress. Independent adversarial review
-found no remaining blocker after the documented authority, deadline and cursor fixes.
+All **16 Chromium/Firefox/WebKit determinism checks passed on the final equipment merge**
+(1.7 minutes). They cover Node/browser hashes, running-game render isolation, and multiplayer
+replay. Independent adversarial review found no remaining blocker after the documented
+authority, deadline and cursor fixes.
 
 Use one shared heavy-process lock; do not run another browser/build suite alongside these:
 
