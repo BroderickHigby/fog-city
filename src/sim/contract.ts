@@ -13,10 +13,11 @@
 // grip, pitch, roll, sinceContact, impactSpeed, landingSpeed, personBumps); PlayerState
 // gained foot + exitPending; ext.agents holds ambient traffic (src/sim/agents.ts).
 // upgradeState() in step.ts lifts a v1 state to v2.
-// v6 (wave 2): optional aim, additional actions and typed extension/system interfaces.
-// Versions 3–5 belong to the pending QA/dodge integrations, whose migrations must land
-// with their implementations; they are not silently interpreted as v2 states.
-export const SIM_VERSION = 6;
+// v6: optional aim, actions and typed subsystem interfaces.
+// v7: bring the reviewed gravity/roof support and no-contact dodge into wave 2.
+// Older QA/dodge branches used overlapping 3/4/5 stamps; migration preserves existing
+// fields and supplies only missing vertical/dodge fields before advancing to v7.
+export const SIM_VERSION = 7;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -51,6 +52,7 @@ export const Action = {
   emote: 1 << 8,
   watch: 1 << 9,
   altFire: 1 << 10,
+  gear: 1 << 11,
 } as const;
 
 /** Shared names for recorded facts and derived gameplay events; payloads stay plain JSON. */
@@ -120,14 +122,47 @@ export interface CarState {
   impactSpeed: number;
   /** Downward speed relative to the ground (m/s) at the most recent landing; 0 if none yet. */
   landingSpeed: number;
-  /** Bumps into people. People are never hurt (the car just stops); scoring may charge for it. */
+  /**
+   * Contacts with people. Since v4 cars never collide with people (they dive out of the way,
+   * and the clearance override places anyone still beside a moving car outside it), so this
+   * counts a person found inside the car's body before the override moved them: it stays 0.
+   */
   personBumps: number;
+  // ---- v4 additions ----
+  /** People, animals and robots that dived (or were leapt) out of this car's way: for scoring and barks. */
+  nearMisses: number;
+}
+
+/**
+ * v4: a body getting out of a vehicle's way (src/sim/dodge.ts): a dive to a clear spot, then a
+ * moment to recover. While it lasts the body ignores its own controls (a player) or its path (an
+ * agent), and its y includes the hop.
+ */
+export interface DodgeState {
+  /** "dive": in the air, from (sx, sz) to (tx, tz); "recover": landed, getting up. */
+  phase: "dive" | "recover";
+  sx: number;
+  sz: number;
+  tx: number;
+  tz: number;
+  /** Ticks into this phase, and the phase's length in ticks. */
+  t: number;
+  dur: number;
+  /** Peak height of the hop, metres. */
+  peak: number;
+  /** Height above the ground now, metres (0 while recovering). */
+  hop: number;
+  /**
+   * The clearance override put it at (tx, tz) at once: a superhuman leap (renderers draw it as
+   * a big hop over the arc). Otherwise it moves from (sx, sz) to (tx, tz) over the dive.
+   */
+  leap: boolean;
 }
 
 /** A player on foot. Present only while PlayerState.mode === "foot". */
 export interface FootState {
   x: number;
-  /** Ground height under the walker's feet. */
+  /** Height of the walker's feet: on the ground (or a roof) while grounded, in the air while falling. */
   y: number;
   z: number;
   /** Compass bearing, radians, clockwise from north (-z). */
@@ -136,6 +171,14 @@ export interface FootState {
   speed: number;
   /** True while sprinting (brake held). */
   sprint: boolean;
+  // ---- v3 additions ----
+  /** Vertical velocity, m/s, + = up: the ground's rise along the walk while grounded, gravity while falling. */
+  vy: number;
+  /** Feet on the ground (or a roof). False while falling, after walking off a drop. */
+  grounded: boolean;
+  // ---- v4 additions ----
+  /** Diving out of a car's way (or getting up after it), else null. */
+  dodge: DodgeState | null;
 }
 
 export interface PlayerState {
