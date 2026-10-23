@@ -11,6 +11,11 @@ describe("combined controls",()=>{
     expect(controls.sample().actions).toBe(Action.fire|Action.cone);expect(controls.sample().actions).toBe(Action.fire);
     controls.setAction("fire",false);expect(controls.sample().actions).toBe(0);
   });
+  it("keeps refill interaction held for the complete fill duration",()=>{
+    const controls=new InputController(undefined,()=>[]);controls.setAction("interact",true);
+    for(let tick=0;tick<180;tick++)expect(controls.sample().actions&Action.interact).toBe(Action.interact);
+    controls.setAction("interact",false);expect(controls.sample().actions&Action.interact).toBe(0);
+  });
   it("blocks and releases every device while typing",()=>{
     const pad:PadLike={connected:true,axes:[1,-1],buttons:Array.from({length:12},()=>({pressed:true,value:1}))};
     const controls=new InputController(undefined,()=>[pad]);controls.setStick(1,-1);controls.setAction("fire",true);controls.setBlocked(true);
@@ -43,11 +48,11 @@ describe("typed input boundary",()=>{
 });
 describe("gentle aim assist",()=>{
   it("never selects protected, hidden or friendly targets",()=>{
-    const targets=[{id:"a",x:0,z:10,visible:true,robot:true,protected:true},{id:"b",x:0,z:10,visible:false,robot:true},{id:"c",x:0,z:10,visible:true,robot:false}];
+    const targets=[{id:"a",x:0,z:-10,visible:true,robot:true,protected:true},{id:"b",x:0,z:-10,visible:false,robot:true},{id:"c",x:0,z:-10,visible:true,robot:false}];
     expect(assistedAim({x:0,z:0},0,targets)).toBe(0);
   });
   it("keeps assistance within its six degree limit",()=>{
-    const target={id:"a",x:1,z:10,visible:true,robot:true};
-    expect(Math.abs(assistedAim({x:0,z:0},0,[target],true))).toBeLessThanOrEqual(Math.PI/30);
+    const target={id:"a",x:1.7,z:-10,visible:true,robot:true};
+    expect(assistedAim({x:0,z:0},0,[target],true)).toBeCloseTo(Math.PI/30);
   });
 });
