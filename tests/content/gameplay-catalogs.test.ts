@@ -5,6 +5,8 @@ import { enumeratePaths, validateMission, type Mission } from "../../src/content
 import { INSTANCES, PROTECTED_AREAS, polygonsIntersect } from "../../src/content/places.ts";
 import { AI_FIXTURES, fixturePresentation, interviewDelta, replayFixture } from "../../src/content/aiFixtures.ts";
 import { crisisCheck } from "../../src/content/crisis.ts";
+import { lintDocument } from "../../src/content/lint.ts";
+import { CLEARED } from "../../src/content/clearedNames.ts";
 
 describe("published campaign", () => {
   it("has one mission per chapter and grades every Office Hours outcome without trapping progression", () => {
@@ -63,6 +65,12 @@ describe("economy, mode and activity contracts", () => {
 });
 
 describe("offline AI fixtures", () => {
+  it("exempts only adversarial inputs and continues to reject unsafe expected replies", () => {
+    const fixture = { cases: [{ input: "Nike", expected: { reply: "Nike" } }] };
+    const issues = lintDocument("content/ai-fixtures.json", fixture, CLEARED);
+    expect(issues.some((issue) => issue.path === "cases.0.input")).toBe(false);
+    expect(issues.some((issue) => issue.path === "cases.0.expected.reply")).toBe(true);
+  });
   it("covers every refusal, injection path, and input boundary without network access", () => {
     expect(new Set(AI_FIXTURES.cases.map((c) => c.expected.refusal))).toEqual(new Set(["none","off_topic","real_person","private_person","punching_down","sexual","violent","hateful","self_harm"]));
     for (const category of ["tag_breakout","classifier_injection","pii","brand","timeout","provider_refusal"]) expect(AI_FIXTURES.cases.some((c) => c.category === category)).toBe(true);

@@ -244,7 +244,7 @@ export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | 
   const nameFields = NAME_FIELDS.filter((f) => f.file.test(rel));
   walk(doc, [], (path, s) => {
     const at = path.join(".");
-    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || at === e.path || at.startsWith(`${e.path}.`);
+    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || matches(e.path, path.slice(0, e.path.split(".").length));
     if (fileExempt.some((e) => e.rules === undefined && under(e))) return;
     const skipRules = new Set(fileExempt.filter((e) => e.rules !== undefined && under(e)).flatMap((e) => e.rules ?? []));
     const key = path[path.length - 1] ?? "";
