@@ -396,10 +396,17 @@ function stepRefused(world:World,actor:RuntimeActor,goal:{x:number;z:number},spe
 
 /** Can a walker go straight from where it stands to (x, z): no facade on the way, never nearer a vehicle than its berth? */
 function walkableTo(world:World,actor:RuntimeActor,x:number,z:number,vehicles:readonly DetourBox[]):boolean{
-  const r=actor.radius,dx=x-actor.x,dz=z-actor.z,l=Math.sqrt(dx*dx+dz*dz),n=Math.max(1,Math.ceil(l/.25));
+  const r=actor.radius,dx=x-actor.x,dz=z-actor.z,l=Math.sqrt(dx*dx+dz*dz);
   if(segmentBlocked(world,actor.x,actor.z,x,z))return false;
-  for(let i=1;i<=n;i++){
-    const px=actor.x+dx*i/n,pz=actor.z+dz*i/n;
+  if(l<1e-9)return true;
+  // Finely over the first steps (a corner can clip the very next tick's step and not a longer one),
+  // then every 0.2 m.
+  const at:number[]=[];
+  for(let d=.02;d<Math.min(l,.3);d+=.02)at.push(d);
+  for(let d=.3;d<l;d+=.2)at.push(d);
+  at.push(l);
+  for(const d of at){
+    const px=actor.x+dx/l*d,pz=actor.z+dz/l*d;
     if(circleBlocked(world,px,pz,r))return false;
     if(vehicles.some(v=>{const g=boxGap(px,pz,v);return g<r+.2&&g<boxGap(actor.x,actor.z,v);}))return false;
   }
