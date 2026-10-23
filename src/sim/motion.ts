@@ -5,6 +5,7 @@ import { boxBlocked, boxCrossedWall, type Box, type Circle } from "./collide.ts"
 import { boxDistance } from "./dodge.ts";
 import { dcos, dsin, wrapAngle, clamp } from "./dmath.ts";
 import { circleBlocked, segmentBlocked, surfaceHeight, type World } from "./world.ts";
+import { movementLimit } from "./combat/system.ts";
 
 export interface AgentMotionProposal {
   id: string;
@@ -23,6 +24,15 @@ export interface AgentMotionProposal {
   sourceX: number; sourceY: number; sourceZ: number;
 }
 export type ObservedBody = Pick<AgentMotionProposal, "id" | "x" | "y" | "z" | "heading" | "speed">;
+
+/** Runtime bodies and their legacy adapter alias must obey the same combat effects. */
+function combatRestriction(state: Readonly<SimState>, motion: AgentMotionProposal): { cap: number; scale: number } {
+  const combat = state.ext.combat;
+  if (!combat) return { cap: Infinity, scale: 1 };
+  const own = movementLimit(combat, { id: motion.id });
+  const alias = motion.id === `agent:${motion.numericId}` ? own : movementLimit(combat, { id: `agent:${motion.numericId}` });
+  return { cap: Math.min(own.maxSpeed ?? Infinity, alias.maxSpeed ?? Infinity), scale: Math.min(own.scale, alias.scale) };
+}
 
 function boxesTouch(a:Box,b:Box):boolean {
   const afx=dsin(a.heading),afz=-dcos(a.heading),bfx=dsin(b.heading),bfz=-dcos(b.heading);
@@ -136,14 +146,33 @@ function conflictingVehicleIntents(bodies:readonly AgentState[],motions:Readonly
 export function applyMotionBodies(world: World, state: SimState, motions: readonly AgentMotionProposal[]): SimState {
   if (!motions.length || !state.ext.agents) return state;
   const physicalCars=new Map<number,CarState>();
+  const restricted = new Set<number>();
   const effective=motions.map(motion=>{
-    if(motion.kind!=="vehicle"||!motion.controls)return motion;
+    const restriction = combatRestriction(state, motion);
+    if (Number.isFinite(restriction.cap) || restriction.scale !== 1) restricted.add(motion.numericId);
+    const cap = restriction.scale <= 0 ? 0 : restriction.cap;
+    if(motion.kind!=="vehicle"||!motion.controls) {
+      const speed = Math.min(Math.abs(motion.speed) * restriction.scale, cap);
+      return speed === Math.abs(motion.speed) ? motion : { ...motion, speed };
+    }
     const body=state.ext.agents!.list.find(a=>a.id===motion.numericId);if(!body)return motion;
     const controls=motion.controls;
     const finite=(value:number,min:number,max:number)=>Number.isFinite(value)?clamp(value,min,max):0;
-    const input={throttle:finite(controls.throttle,-1,1),steer:finite(controls.steer,-1,1),brake:finite(controls.brake,0,1),actions:0};
+    const input={throttle:finite(controls.throttle,-1,1)*restriction.scale,steer:finite(controls.steer,-1,1),brake:finite(controls.brake,0,1),actions:0};
     const previous=body.vehicle??makeCar(body.x,body.z,body.heading,body.y);
-    const car=stepCar(world,{...previous,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:body.speed},input);
+    const speedCap = restriction.scale < 1 ? Math.min(cap, CAR.maxSpeed * restriction.scale) : cap;
+    if (speedCap === 0) {
+      physicalCars.set(body.id, { ...previous, x: body.x, y: body.y, z: body.z, heading: body.heading, speed: 0, lateral: 0, yawRate: 0 });
+      return { ...motion, x: body.x, y: body.y, z: body.z, heading: body.heading, speed: 0 };
+    }
+    const startSpeed = clamp(body.speed, -speedCap, speedCap);
+    const car=stepCar(world,{...previous,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:startSpeed},input);
+    if (Number.isFinite(speedCap)) {
+      const dx = car.x - body.x, dz = car.z - body.z, travel = Math.sqrt(dx * dx + dz * dz);
+      const ratio = travel > 0 ? Math.min(1, speedCap * DT / travel) : 1;
+      car.x = body.x + dx * ratio; car.z = body.z + dz * ratio;
+      car.speed = clamp(car.speed, -speedCap, speedCap); car.lateral *= ratio;
+    }
     physicalCars.set(body.id,car);
     const dx=car.x-body.x,dz=car.z-body.z;
     return {...motion,x:car.x,y:car.y,z:car.z,heading:car.heading,speed:Math.sqrt(dx*dx+dz*dz)/DT};
@@ -158,7 +187,7 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     const motion = byId.get(body.id);
     if (!motion || body.dodge) return body;
     const dx = motion.x-body.x,dz = motion.z-body.z,length = Math.sqrt(dx*dx+dz*dz);
-    const allowed = Math.min(length, Math.abs(motion.speed)*DT + 1e-6);
+    const allowed = Math.min(length, Math.abs(motion.speed)*DT + (restricted.has(body.id) ? 0 : 1e-6));
     const x = body.x + (length>0?dx/length*allowed:0), z = body.z + (length>0?dz/length*allowed:0);
     let blocked = vehicleConflicts.has(body.id) || motion.kind!=="vehicle" && (circleBlocked(world,x,z,motion.radius) || segmentBlocked(world,body.x,body.z,x,z));
     if (motion.kind === "walker") for (const vehicle of vehicleBoxes) {

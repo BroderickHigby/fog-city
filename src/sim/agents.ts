@@ -1970,11 +1970,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
       list.push(a);
       continue;
     }
-    const limit = prev.ext.combat ? movementLimit(prev.ext.combat, {
-      id: a.runtimeId ?? `agent:${a.id}`, kind: a.kind === "person" ? "person" : "robot",
-      x: a.x, y: a.y, z: a.z, heading: a.heading, speed: a.speed,
-      radius: AGENT_SPEC[a.kind].radius, height: a.height ?? 1.8, firmware: "none",
-    }) : undefined;
+    const limit = prev.ext.combat ? movementLimit(prev.ext.combat, { id: a.runtimeId ?? `agent:${a.id}` }) : undefined;
     const n = stepAgent(ctx, a, dt, limit);
     if (!n) continue;
     // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.

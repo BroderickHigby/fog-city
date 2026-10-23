@@ -39,6 +39,7 @@ import { prepareSystems, runSystems, SYSTEMS } from "./systems.ts";
 import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
 import { releaseActorIds } from "./identity.ts";
+import { movementLimit } from "./combat/system.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -372,6 +373,29 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   return { ...p, car, exitPending };
 }
 
+/** Apply physical movement limits without swallowing combat or interaction inputs. */
+function stepPlayerWithEffects(world: World, player: PlayerState, input: SimInput, obs: ReturnType<typeof obstaclesOf>, state: Readonly<SimState>): PlayerState {
+  const combat = state.ext.combat;
+  if (!combat) return stepPlayer(world, player, input, obs);
+  const limit = movementLimit(combat, { id: `player:${player.id}`, playerId: player.id });
+  if (limit.maxSpeed === null && limit.scale === 1) return stepPlayer(world, player, input, obs);
+  const foot = player.mode === "foot" && player.foot;
+  const naturalCap = limit.scale < 1 ? (foot ? (input.brake ? FOOT.sprint : FOOT.walk) : CAR.maxSpeed) * limit.scale : Infinity;
+  const cap = Math.max(0, Math.min(limit.maxSpeed ?? Infinity, naturalCap));
+  const body = foot || player.car;
+  const limited = { ...body, speed: clamp(body.speed, -cap, cap) };
+  const before = foot ? { ...player, foot: limited as FootState } : { ...player, car: { ...limited, lateral: cap === 0 ? 0 : player.car.lateral } as CarState };
+  const controls = { ...input, throttle: cap === 0 ? 0 : input.throttle * limit.scale, steer: cap === 0 ? 0 : input.steer, brake: cap === 0 ? (foot ? 0 : 1) : input.brake };
+  const next = stepPlayer(world, before, controls, obs);
+  // Enter/exit placement still uses the normal clearance solver; constrain subsequent travel.
+  if (next.mode !== player.mode) return next;
+  const nextBody = next.mode === "foot" && next.foot ? next.foot : next.car;
+  const dx = nextBody.x - body.x, dz = nextBody.z - body.z, distance = Math.sqrt(dx * dx + dz * dz);
+  const ratio = distance > 0 ? Math.min(1, cap * DT / distance) : 1;
+  const accepted = { ...nextBody, x: body.x + dx * ratio, z: body.z + dz * ratio, speed: clamp(nextBody.speed, -cap, cap) };
+  return next.mode === "foot" ? { ...next, foot: accepted as FootState } : { ...next, car: { ...accepted, lateral: next.car.lateral * ratio } as CarState };
+}
+
 /**
  * Advance the world by one fixed tick (DT). Pure: returns a new state.
  * `events` must all carry tick === prev.tick + 1. `systems` defaults to the static SYSTEMS
@@ -405,7 +429,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const before: SimState = { ...admitted, tick:prev.tick };
   const obs = obstaclesOf(before);
   const next: Record<PlayerId, PlayerState> = {};
-  for (const id of sortedIds(players)) next[id] = stepPlayer(world, players[id]!, sanitized[id]!, obs);
+  for (const id of sortedIds(players)) next[id] = stepPlayerWithEffects(world, players[id]!, sanitized[id]!, obs, before);
   const controlled = new Set(prepared.motions.map(motion=>motion.numericId));
   const agents = stepAgents(world, before, tick, controlled);
   const moved: SimState = agents
