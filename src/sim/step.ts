@@ -4,6 +4,7 @@ import {
   SIM_VERSION,
   sortedIds,
   type CarState,
+  type FootState,
   type InputFrame,
   type PlayerId,
   type PlayerState,
@@ -13,12 +14,12 @@ import {
   type Spawn,
 } from "./contract.ts";
 import { clamp } from "./dmath.ts";
-import { carBox, carCircles, makeCar, stepCar } from "./car.ts";
+import { carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt } from "./agents.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
-import { groundHeight, type World } from "./world.ts";
+import { meshGroundHeight, type World } from "./world.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -33,11 +34,13 @@ export function sanitizeInput(i: Readonly<SimInput>): SimInput {
   };
 }
 
-function spawnPlayer(world: World, id: PlayerId, s: Spawn): PlayerState {
+/** A new player in a car at the spawn, or at the nearest clear spot to it (clearCarSpot): never overlapping a building, a wall or another car (`others`). */
+function spawnPlayer(world: World, id: PlayerId, s: Spawn, others: ReadonlyArray<Readonly<Box>>): PlayerState {
+  const p = clearCarSpot(world, s.x, s.z, s.heading, others);
   return {
     id,
     mode: "vehicle",
-    car: makeCar(s.x, s.z, s.heading, groundHeight(world, s.x, s.z)),
+    car: makeCar(p.x, p.z, s.heading, meshGroundHeight(world, p.x, p.z)),
     foot: null,
     exitPending: false,
   };
@@ -51,7 +54,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
   const players: Record<PlayerId, PlayerState> = {};
   [...playerIds].sort().forEach((id, n) => {
     // Side by side so multiplayer spawns do not overlap.
-    players[id] = spawnPlayer(world, id, { x: spawn.x + n * 4, z: spawn.z, heading: spawn.heading });
+    const others = sortedIds(players).map((pid) => carBox(players[pid]!.car));
+    players[id] = spawnPlayer(world, id, { x: spawn.x + n * 4, z: spawn.z, heading: spawn.heading }, others);
   });
   const state: SimState = { version: SIM_VERSION, tick: 0, seed, rng: seedRng(seed), players, ext: {} };
   if (!world.roads) return state;
@@ -59,10 +63,21 @@ export function createInitialState(world: World, seed: number, playerIds: readon
   return { ...state, rng: pop.rng, ext: { ...state.ext, [AGENTS_EXT_KEY]: pop.ext } };
 }
 
-/** Lift a saved state from an older SIM_VERSION to this one. Pure. */
+/**
+ * Lift a saved state from an older SIM_VERSION to this one, one version at a time. Pure.
+ *  - v1 -> v2: cars gain the handling fields (at rest), players gain foot (none) and exitPending.
+ *  - v2 -> v3: a walker gains vy 0 and grounded true (standing where it was saved).
+ *  - v3 -> v4: no field changes (decks, tunnels and stairs barriers are world data).
+ */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
-  if (s.version !== 1) throw new Error(`cannot upgrade sim state version ${s.version}`);
+  if (s.version === 1) return upgradeState(upgradeV1(s));
+  if (s.version === 2) return upgradeState(upgradeV2(s));
+  if (s.version === 3) return upgradeV3(s);
+  throw new Error(`cannot upgrade sim state version ${s.version}`);
+}
+
+function upgradeV1(s: Readonly<SimState>): SimState {
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(s.players)) {
     const p = s.players[id]!;
@@ -75,7 +90,26 @@ export function upgradeState(s: Readonly<SimState>): SimState {
       exitPending: false,
     };
   }
-  return { ...s, version: SIM_VERSION, players };
+  return { ...s, version: 2, players };
+}
+
+function upgradeV2(s: Readonly<SimState>): SimState {
+  const players: Record<PlayerId, PlayerState> = {};
+  for (const id of sortedIds(s.players)) {
+    const p = s.players[id]!;
+    // A v2 walker has exactly the v2 fields; it stood on the ground.
+    const f = p.foot as Omit<FootState, "vy" | "grounded"> | null;
+    players[id] = { ...p, foot: f ? { x: f.x, y: f.y, z: f.z, heading: f.heading, speed: f.speed, sprint: f.sprint, vy: 0, grounded: true } : null };
+  }
+  return { ...s, version: 3, players };
+}
+
+/**
+ * v3 -> v4: no field changes. A v3 body stood on the ground or a roof, both still surfaces at
+ * v4, so it stays where it was saved; the next tick finds a deck or bore floor under it.
+ */
+function upgradeV3(s: Readonly<SimState>): SimState {
+  return { ...s, version: 4 };
 }
 
 /** What every body collides with this tick, built from the previous state. */
@@ -174,7 +208,8 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     if (e.tick !== tick) throw new Error(`event ${e.kind} is for tick ${e.tick}, stepping to ${tick}`);
     if (e.kind === "player.join" && e.playerId && !players[e.playerId]) {
       const s = (e.payload ?? {}) as Partial<Spawn>;
-      players[e.playerId] = spawnPlayer(world, e.playerId, { x: s.x ?? 0, z: s.z ?? 0, heading: s.heading ?? 0 });
+      const others = sortedIds(players).map((id) => carBox(players[id]!.car));
+      players[e.playerId] = spawnPlayer(world, e.playerId, { x: s.x ?? 0, z: s.z ?? 0, heading: s.heading ?? 0 }, others);
     } else if (e.kind === "player.leave" && e.playerId) {
       delete players[e.playerId];
     }

@@ -13,7 +13,19 @@
 // grip, pitch, roll, sinceContact, impactSpeed, landingSpeed, personBumps); PlayerState
 // gained foot + exitPending; ext.agents holds ambient traffic (src/sim/agents.ts).
 // upgradeState() in step.ts lifts a v1 state to v2.
-export const SIM_VERSION = 2;
+// v3 (qa/sim): FootState gained vy and grounded: the walker has gravity, a fall state, and
+// cannot climb a slope steeper than 1:1 over more than a metre. Cars, walkers and agents stand
+// on the drawn ground (each lattice cell's two triangles, src/sim/world.ts meshGroundHeight)
+// instead of a bilinear blend, roofs within a step of a body's feet are part of it, and
+// collision pushes are capped per tick: v2 replays diverge. upgradeState() lifts v1 and v2
+// states to v3.
+// v4 (qa/sim, world QA W-02/W-03/W-11/W-12/W-13/W-14): bodies stand on the surface surfaceAt
+// picks (src/sim/world.ts): the ground, the highest deck at or below them, a tunnel bore's floor
+// (under its ceiling), or a roof within a step. Decks have rails and bores have walls, agents
+// ride their edge's deck or bore floor, and cars meet barriers round the stairways. No field
+// changes; v3 replays on worlds with decks, tunnels or stairs diverge. upgradeState() lifts
+// v1, v2 and v3 states to v4.
+export const SIM_VERSION = 4;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -100,7 +112,7 @@ export interface CarState {
 /** A player on foot. Present only while PlayerState.mode === "foot". */
 export interface FootState {
   x: number;
-  /** Ground height under the walker's feet. */
+  /** Height of the walker's feet: on the ground (or a roof) while grounded, in the air while falling. */
   y: number;
   z: number;
   /** Compass bearing, radians, clockwise from north (-z). */
@@ -109,6 +121,11 @@ export interface FootState {
   speed: number;
   /** True while sprinting (brake held). */
   sprint: boolean;
+  // ---- v3 additions ----
+  /** Vertical velocity, m/s, + = up: the ground's rise along the walk while grounded, gravity while falling. */
+  vy: number;
+  /** Feet on the ground (or a roof). False while falling, after walking off a drop. */
+  grounded: boolean;
 }
 
 export interface PlayerState {

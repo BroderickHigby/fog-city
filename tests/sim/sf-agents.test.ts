@@ -14,6 +14,7 @@ import {
   hashState,
   pointInPolygon,
   nearbyBuildings,
+  UNDER_CLEARANCE_M,
   step,
   type RoadsFile,
   type SimState,
@@ -59,12 +60,17 @@ describe.skipIf(!present)("agents on the real SF world", () => {
       if (t + 1 === REPLAY) atReplay = hashState(s);
       if (t % 5 !== 0) continue;
       for (const a of agentsOf(s)) {
-        for (const b of nearbyBuildings(world, a.x, a.z, 1)) if (pointInPolygon(a.x, a.z, b.footprint)) bad.push(`#${a.id} in ${b.id}`);
+        // (A structure spanning the street or a bore, its underside UNDER_CLEARANCE_M or more
+        // over the agent's road surface, is passed under.)
+        for (const b of nearbyBuildings(world, a.x, a.z, 1)) {
+          if (b.underY !== undefined && b.underY - a.y >= UNDER_CLEARANCE_M) continue;
+          if (pointInPolygon(a.x, a.z, b.footprint)) bad.push(`#${a.id} in ${b.id}`);
+        }
         const sp = AGENT_SPEC[a.kind];
         if (sp.road) {
           const o = sp.halfLength - sp.halfWidth;
-          for (const k of [-1, 1]) if (circleBlocked(world, a.x + dsin(a.heading) * o * k, a.z - dcos(a.heading) * o * k, sp.halfWidth * 0.79)) bad.push(`robotaxi #${a.id} body`);
-        } else if (circleBlocked(world, a.x, a.z, sp.radius * 0.79)) bad.push(`#${a.id} body`);
+          for (const k of [-1, 1]) if (circleBlocked(world, a.x + dsin(a.heading) * o * k, a.z - dcos(a.heading) * o * k, sp.halfWidth * 0.79, a.y)) bad.push(`robotaxi #${a.id} body`);
+        } else if (circleBlocked(world, a.x, a.z, sp.radius * 0.79, a.y)) bad.push(`#${a.id} body`);
       }
     }
     expect(bad.slice(0, 5)).toEqual([]);
