@@ -92,8 +92,12 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
       continue;
     }
     if (motion.kind === "flying") continue;
-    if (motion.legacyId !== null) throw new Error("Controlled legacy actor is missing");
-    if (occupied(world,{...state,ext:{...state.ext,agents:{...ext,list}}},motion,motion.sourceX,motion.sourceY,motion.sourceZ,motion.heading)) throw new Error("Actor spawn is blocked or overlaps a vehicle/body");
+    // Gameplay conditions, not errors: an ambient body that left the population since the
+    // proposal was planned, or a spawn point a body or wall now occupies. The proposal is
+    // rejected for this tick and nothing is admitted; the owning system still holds the actor
+    // without a body (mission staging waits for one) and proposes it again next tick.
+    if (motion.legacyId !== null) continue;
+    if (occupied(world,{...state,ext:{...state.ext,agents:{...ext,list}}},motion,motion.sourceX,motion.sourceY,motion.sourceZ,motion.heading)) continue;
     list.push({ id: motion.numericId, runtimeId: motion.id, runtimeLegacy:false, kind: motion.kind === "vehicle" ? "robotaxi" : motion.bodyKind === "robot" ? "errandRobot" : "person",
       x: motion.sourceX, y: motion.sourceY, z: motion.sourceZ, heading: motion.heading, speed: 0, radius: motion.radius, height: motion.height,
       protected:motion.bodyKind === "animal" || motion.protected === true || motion.bodyKind === undefined,

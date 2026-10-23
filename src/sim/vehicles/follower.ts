@@ -228,6 +228,9 @@ export function followerRoute(world: World, body: FollowerBody, target: Follower
   return out.filter((point, i) => i === 0 || point[0] !== out[i - 1]![0] || point[1] !== out[i - 1]![1]);
 }
 
+/** A pose change larger than this between two ticks is a relocation, not driving. */
+export const TELEPORT_M = 50;
+
 export function createFollowerState(body: FollowerBody): FollowerState {
   return { version: 1, route: [], goalX: body.x, goalZ: body.z, lastX: body.x, lastZ: body.z, distanceM: 0, blockedTicks: 0, reverseTicks: 0, reversals: 0 };
 }
@@ -241,14 +244,17 @@ export function stepVehicleFollower(world: World, body: FollowerBody, previous: 
     const advance = (target.speed ?? 0) * lead, heading = target.heading ?? 0;
     target = { ...target, x: target.x + dsin(heading) * advance, z: target.z - dcos(heading) * advance };
   }
-  const moved = distance(body, { x: previous.lastX, z: previous.lastZ });
-  if (moved > 50) throw new Error("Follower observed an unacknowledged teleport");
+  // A body that jumped more than TELEPORT_M since the last tick was relocated by its owner
+  // (a respawn, a correction or a loaded save): start afresh from where it is now, without
+  // counting the jump as travel or as progress, instead of failing the tick.
+  const jump = distance(body, { x: previous.lastX, z: previous.lastZ }), teleported = jump > TELEPORT_M;
+  const moved = teleported ? 0 : jump;
   const dist = distance(body, target), atGoal = dist <= stopDistance + 0.15, arrived = atGoal && Math.abs(body.speed) < 0.3;
-  const blockedTicks = arrived || moved > 0.015 ? 0 : previous.blockedTicks + 1;
+  const blockedTicks = arrived || teleported || moved > 0.015 ? 0 : previous.blockedTicks + 1;
   const beginReverse = blockedTicks >= 180 && previous.reverseTicks === 0;
-  const reverseTicks = beginReverse ? 90 : Math.max(0, previous.reverseTicks - 1);
+  const reverseTicks = beginReverse ? 90 : teleported ? 0 : Math.max(0, previous.reverseTicks - 1);
   let route = previous.route.map(point => [...point] as [number, number]);
-  if (!route.length || distance(target, { x: previous.goalX, z: previous.goalZ }) > 12 || beginReverse || previous.reverseTicks === 1) {
+  if (teleported || !route.length || distance(target, { x: previous.goalX, z: previous.goalZ }) > 12 || beginReverse || previous.reverseTicks === 1) {
     route = goal.route ? goal.route.map(point => [point[0], point[1]]) : followerRoute(world, body, target);
     if (goal.kind === "park-across-lane" && route.length > 1) {
       const heading = (goal.laneHeading ?? target.heading ?? 0) + 1.5707963267948966;

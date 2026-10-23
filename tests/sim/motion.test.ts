@@ -27,12 +27,24 @@ describe("core movement acceptance", () => {
     expect(before.ext).toEqual({});
     expect(observed).toBe(1);
   });
-  it("bounds untrusted desired displacement and rejects vehicle-overlapping spawns", () => {
+  it("bounds untrusted desired displacement and defers vehicle-overlapping spawns", () => {
     const system: SimSystem = { key:"robots",prepare:ctx=>({state:ctx.state,motions:[motion({z:-500})]}),step:ctx=>ctx.state };
     const next=step(world,initial(),{},[],[system]);
     expect(Math.abs(next.ext.agents!.list[0]!.z-10)).toBeLessThanOrEqual(.021);
-    const overlapping: SimSystem={...system,prepare:ctx=>({state:ctx.state,motions:[motion({sourceX:0,sourceZ:0})]})};
-    expect(()=>step(world,initial(),{},[],[overlapping])).toThrow("overlaps");
+    // A spawn on the player's car is a gameplay condition: the tick completes, nothing is
+    // admitted, and the same proposal is admitted once its spot is clear.
+    const overlapping: SimSystem={...system,prepare:ctx=>({state:ctx.state,motions:[motion({sourceX:0,sourceZ:0,x:0,z:0})]})};
+    const blocked=step(world,initial(),{},[],[overlapping]);
+    expect(blocked.tick).toBe(1);
+    expect(blocked.ext.agents?.list??[]).toHaveLength(0);
+    const moved=step(world,blocked,{},[],[overlapping]);
+    expect(moved.ext.agents?.list??[]).toHaveLength(0);
+    const parked={...blocked,players:{p1:{...blocked.players.p1!,car:{...blocked.players.p1!.car,x:40}}}};
+    expect(step(world,parked,{},[],[overlapping]).ext.agents!.list.map(body=>body.runtimeId)).toEqual(["mission:spill:robot"]);
+  });
+  it("skips a controlled ambient body that has already left the population", () => {
+    const state=prepareMotionBodies(world,initial(),[motion({id:"agent:100",legacyId:100})]);
+    expect(state.ext.agents?.list??[]).toHaveLength(0);
   });
   it("retires a physical proxy without recycling its numeric ID", () => {
     const spawn:SimSystem={key:"robots",prepare:ctx=>({state:ctx.state,motions:[motion()]}),step:ctx=>ctx.state};
@@ -60,7 +72,7 @@ describe("core movement acceptance", () => {
     const ready=prepareMotionBodies(w,initial(),[m]);
     const next=applyMotionBodies(w,ready,[{...m,heading:Math.PI/2}]);
     expect(next.ext.agents!.list[0]!.heading).toBe(0);
-    expect(()=>prepareMotionBodies(w,initial(),[{...m,sourceX:10.1}])).toThrow("spawn");
+    expect(prepareMotionBodies(w,initial(),[{...m,sourceX:10.1}]).ext.agents!.list).toHaveLength(0);
   });
   it("holds service vehicles before their full hull overlaps a player car",()=>{
     const m=motion({kind:"vehicle",sourceX:0,x:0,sourceZ:5,z:4.2,radius:1.6,height:1.5,halfLength:2.2,halfWidth:.95,speed:48});
