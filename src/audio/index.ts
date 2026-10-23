@@ -7,6 +7,8 @@ import type { Mission } from "../content/missions.ts";
 import type { SimState } from "../sim/contract.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { agentsOf } from "../sim/agents.ts";
+import { hornGain, type HornBlast } from "./horn.ts";
+import { panOf } from "./cues.ts";
 import { isTextEntry } from "../input/keyboard.ts";
 import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
@@ -48,7 +50,6 @@ export interface AudioDebugInfo {
   musicContext: MusicContext | null;
   musicTrack: string | null;
   station: string;
-  horn: boolean;
   music: { trackId: string; paused: boolean; src: string } | null;
   musicTracks: number;
   effectsLoaded: number;
@@ -68,10 +69,10 @@ export interface GameAudioDirector {
   unlock(): void;
   update(frame: AudioFrame): void;
   /**
-   * The local player's horn button is held: call every tick or frame while it is. The horn
-   * sounds while calls keep coming (released ~150 ms after the last), only in a car.
+   * One horn blast (src/audio/horn.ts hornBlasts, per stepped frame): any player's, heard from
+   * the local player, through the effects bus. Presentation only.
    */
-  horn(): void;
+  playHorn(blast: HornBlast): void;
   /** Tune the car radio (M / Shift+M call this): +1 next station, -1 previous. */
   tuneRadio(step: number): RadioStation;
   /** The player answered a dialogue question (UI callback): the speaker replies. */
@@ -88,8 +89,6 @@ export interface GameAudioDirector {
 /** Combat events that mean the local player is in a robot fight. */
 const FIGHT_EVENTS = new Set(["robot.seized", "robot.slumping", "robot.heap", "robot.knockdown", "robot.alert", "robot.blinded", "player.stumble", "player.handshake"]);
 const VOICE_EVENT_LOG = 64;
-/** The horn keeps sounding this long after the last horn() call (frames under load are slow). */
-const HORN_HOLD_MS = 150;
 
 declare global {
   interface Window {
@@ -121,7 +120,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let musicContext: MusicContext | null = null;
   let musicTrack: string | null = null;
   let now = 0;
-  let hornUntil = Number.NEGATIVE_INFINITY;
+  let listener = { x: 0, z: 0, heading: 0 };
   let inCar = false;
   let paused = false;
   const clock = (): number => (typeof performance !== "undefined" ? performance.now() : now);
@@ -183,9 +182,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const onFoot = player?.mode === "foot" && !!player.foot;
       inCar = !!player && !onFoot;
       paused = frame.paused;
-      mixer.setHorn(!frame.paused && inCar && clock() < hornUntil);
       const body = onFoot ? player!.foot! : player?.car;
-      const listener = { x: body?.x ?? 0, z: body?.z ?? 0, heading: body?.heading ?? 0 };
+      listener = { x: body?.x ?? 0, z: body?.z ?? 0, heading: body?.heading ?? 0 };
       const combat = state.ext.combat;
       // Effects.
       const spraying = !frame.paused && !!combat?.projectiles.some((p) => p.ownerId === playerId && p.kind === "water" && p.bornTick >= combat.tick - 12);
@@ -219,8 +217,9 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.setVoiceActive(queue.speaking());
       subtitles.update(queue.subtitle(), prefs.get().subtitles);
     },
-    horn() {
-      hornUntil = clock() + HORN_HOLD_MS;
+    playHorn(blast) {
+      if (paused) return;
+      mixer.playHorn(hornGain(blast, listener), panOf(listener, blast.x, blast.z), blast.inVehicle);
     },
     tuneRadio,
     answered(questionId, answerId) {
@@ -253,7 +252,6 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         musicContext,
         musicTrack,
         station: prefs.get().station,
-        horn: m.horn,
         music: m.music,
         musicTracks: tracks.length,
         effectsLoaded: m.effectsLoaded,

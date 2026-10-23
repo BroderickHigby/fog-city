@@ -24,9 +24,9 @@ and "the horn button doesn't work".
   - A station picker is in settings, and the station persists.
   - On foot, the music follows combat, a timed mission step, or the on-foot track.
 - **Horns** (synthesized in `assets/audio/generate.py`):
-  - The player's dual-tone horn loops while H (pad L3) is held. It plays in a car only.
+  - One horn path: #31's `hornBlasts(frame, state)` (H, pad L3 or the touch button, any player) feeds `audio.playHorn(blast)`. That plays the synthesized dual-tone sample through the effects bus (volume and mute apply, one unlock): about 0.42 s in a car, or an octave up for the pocket air horn on foot. #31's separate `HornVoice` synth and its second AudioContext are removed.
   - A robotaxi in agent mode `honk` plays an original, polite electronic chirp, distance-attenuated, at most once per car per 4 s.
-  - `audio.horn()` is the hook: one line in `src/main.ts`, coordinated with the Player-feel stream.
+  - `tests/e2e/player-feel.spec.ts` now checks the director's horn counter instead of counting `OscillatorNode.start` calls, as agreed with the Player-feel stream.
 
 ## ElevenLabs: why voices are held
 
