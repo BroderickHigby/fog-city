@@ -28,7 +28,7 @@ export class RelayClient {
   private readonly worldName: WorldName;
   private readonly fingerprint: string;
   private actions = 0;
-  private commandSequence=0;
+  private commandSequence=1;
 
   constructor(world: World, worldName: WorldName, fingerprint: string, options: ClientOptions) {
     this.options = options;
@@ -63,7 +63,7 @@ export class RelayClient {
           if (message.world !== this.worldName || message.fingerprint !== this.fingerprint) throw new Error("World versions do not match.");
           this.info.code = message.code;
           this.info.playerId = message.playerId;
-          this.commandSequence=0;
+          this.commandSequence=1;
         }
         this.prediction.receive(message);
         this.info.status = this.prediction.recovering ? "recovering" : "connected";

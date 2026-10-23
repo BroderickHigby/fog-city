@@ -35,7 +35,7 @@ export class Room {
     const id = `p${this.nextId++}`;
     const used = new Set([...this.members.values()].map((m) => m.name));
     const name = NAME_PARTS.find((n) => !used.has(n))!;
-    this.members.set(id, { peer, queue: [], seq: 0, ack: 0, name,commandSequence:-1 });
+    this.members.set(id, { peer, queue: [], seq: 0, ack: 0, name,commandSequence:0 });
     this.events.push({ tick: this.state.tick + 1, kind: "player.join", playerId: id, payload: this.bundle.spawn });
     this.lastActive = now;
     peer.send({ type: "welcome", version: NET_VERSION, simVersion: SIM_VERSION, world: this.bundle.name,

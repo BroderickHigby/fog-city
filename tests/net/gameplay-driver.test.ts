@@ -16,8 +16,8 @@ it("runs the same gameplay driver and authenticated commands in relay and predic
   const client=new Prediction(world,()=>{throw new Error("unexpected divergence");},simulation);
   const room=new Room("ABCDEFGHJK",bundle,0,7,simulation);
   const id=room.join({close(){},send(message){if(message.type!=="error")client.receive(structuredClone(message));}},0);
-  room.command(id,{sequence:0,kind:"mission-start",targetId:"hot-desk"});
-  expect(()=>room.command(id,{sequence:0,kind:"mission-start",targetId:"hot-desk"})).toThrow(/sequence/);
+  room.command(id,{sequence:1,kind:"mission-start",targetId:"hot-desk"});
+  expect(()=>room.command(id,{sequence:1,kind:"mission-start",targetId:"hot-desk"})).toThrow(/sequence/);
   const first=room.tick(1);
   expect(first.events.find(e=>e.kind==="gameplay.command")?.playerId).toBe(id);
   for(let tick=2;tick<=120;tick++)room.tick(tick);
