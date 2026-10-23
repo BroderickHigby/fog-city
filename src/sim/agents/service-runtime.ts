@@ -1,4 +1,4 @@
-import type { SimInput, SimState } from "../contract.ts";
+import { SimEventKind, type SimInput, type SimState } from "../contract.ts";
 import type { ThreatSpawnRequest } from "../gameplay-contract.ts";
 import { isGameplayId } from "../gameplay-contract.ts";
 import { MOAT_SITES } from "../../content/places.ts";
@@ -49,7 +49,7 @@ export function threatRequestsOf(sim:Readonly<SimState>):ThreatSpawnRequest[]{
   const result:ThreatSpawnRequest[]=[];
   for(const raw of events){
     if(!raw||typeof raw!=="object")continue;
-    const event=raw as {kind?:unknown;payload?:unknown};if(event.kind!=="threat.spawn"||!event.payload||typeof event.payload!=="object")continue;
+    const event=raw as {kind?:unknown;payload?:unknown};if(event.kind!==SimEventKind.threatSpawn||!event.payload||typeof event.payload!=="object")continue;
     const request=event.payload as ThreatSpawnRequest;
     if(!isGameplayId(request.id)||!isGameplayId(request.playerId)||!sim.players[request.playerId]||!Number.isSafeInteger(request.requestTick)||request.requestTick<0||request.requestTick>sim.tick||!request.player||![request.player.x,request.player.z].every(Number.isFinite)||!Number.isSafeInteger(request.unitCount)||request.unitCount<1||request.unitCount>32)continue;
     if(request.kind==="van"&&request.threat===2&&request.unitCount===2||["drone","patrol","swarm","taxi"].includes(request.kind)&&[3,4,5].includes(request.threat))result.push(request);

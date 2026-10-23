@@ -14,7 +14,6 @@ import {
 import type { SimSystem } from "../../../src/sim/system-contract.ts";
 import { allocateActorIds } from "../../../src/sim/identity.ts";
 import { fogDensity } from "../../../src/sim/fog/index.ts";
-import { badRobotRateAt } from "../../../src/sim/agents/bad-rate.ts";
 import { agentsRuntimeOf, type RuntimeSpawn } from "../../../src/sim/agents/runtime.ts";
 import { createAgentsSystem } from "../../../src/sim/agents/systems.ts";
 import type { TransitLayer } from "../../../src/sim/agents/transit-runtime.ts";
@@ -60,7 +59,7 @@ function composed(spawns: readonly RuntimeSpawn[]): readonly SimSystem[] {
   if (!spawns.length) return game;
   const agents = createAgentsSystem((context) => ({
     wave: 2, graph: context.world.sidewalks, transit: context.world.transit, protectedArea: () => false,
-    badRateAt: badRobotRateAt, fog: fogDensity(context.world, context.state, 0, 0), spawns: [...spawns],
+    fog: fogDensity(context.world, context.state, 0, 0), spawns: [...spawns],
   }), allocateActorIds);
   return game.map((system) => system.key === agents.key ? agents : system);
 }

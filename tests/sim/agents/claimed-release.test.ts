@@ -1,6 +1,7 @@
-// Ambient bodies the agents runtime claims near a player go back to ambient stepping when they
-// leave its fidelity range (agents.ts releaseClaimed), so they walk on or despawn instead of
-// standing frozen forever and piling up until the runtime's actor budget throws.
+// Ambient bodies the agents runtime claims near a player leave it with its fidelity range: an
+// ordinary one retires (runtime.ts, the despawn tier), a significant one with no proposal goes
+// back to ambient stepping (agents.ts releaseClaimed). Either way none stands frozen forever or
+// piles up until the runtime's actor budget throws.
 import { describe, expect, it } from "vitest";
 import {
   DESPAWN_RANGE_M, MAX_AGENTS_TOTAL, POP_INTERVAL, createGameSystems, createInitialState, makeCar,
@@ -32,20 +33,30 @@ describe("claimed ambient bodies leave the runtime with fidelity", () => {
   const world = gridCity();
   const systems = [createAgentsSystem(() => ({ services: false }), allocateActorIds)];
 
-  it("walk on under ambient stepping once the player is out of range, then despawn far away", () => {
+  it("ordinary ones retire, significant ones walk on under ambient stepping, and all despawn far away", () => {
     let s = run(world, createInitialState(world, 5, ["p"], { x: 150, z: 150, heading: 0 }), 90, systems);
     const held = claimed(s);
     expect(held.length).toBeGreaterThan(5);
     const heldIds = new Set(held.map((a) => a.id));
+    // Half of them significant (as wet or rusted bodies are): the runtime keeps their records
+    // out of fidelity, and with no proposal their bodies go back to ambient stepping.
+    const significant = new Set(held.filter((_, i) => i % 2 === 0).map((a) => a.id));
+    const runtime = agentsRuntimeOf(s)!;
+    const actors = { ...runtime.actors };
+    for (const id of significant) actors[`agent:${id}`] = { ...actors[`agent:${id}`]!, significant: true };
+    s = { ...s, ext: { ...s.ext, robots: { ...runtime, actors } as unknown as SimState["ext"]["robots"] } };
 
     // Out of fidelity (more than ACTIVE_FIDELITY_M from every one of them), inside the despawn range.
     s = moveTo(world, s, 150, -480);
     for (const a of held) expect(nearestPlayer(s, a)).toBeGreaterThan(ACTIVE_FIDELITY_M);
     s = run(world, s, 2, systems);
     expect(claimed(s)).toEqual([]);
-    const before = new Map(legacy(s).filter((a) => heldIds.has(a.id)).map((a) => [a.id, a]));
-    expect(before.size).toBeGreaterThan(held.length / 2);
-    for (const a of before.values()) expect(a.radius === undefined && a.protected === undefined && a.posture === undefined).toBe(true);
+    const present = (s.ext.agents?.list ?? []).filter((a) => heldIds.has(a.id));
+    // Ordinary bodies retire with their runtime record; none is left frozen.
+    expect(present.filter((a) => !significant.has(a.id))).toEqual([]);
+    const before = new Map(present.map((a) => [a.id, a]));
+    expect(before.size).toBeGreaterThan(significant.size / 2);
+    for (const a of before.values()) expect(a.runtimeId === undefined && a.radius === undefined && a.protected === undefined && a.posture === undefined).toBe(true);
     s = run(world, s, 120, systems);
     expect(claimed(s)).toEqual([]);
     const moved = [...before.values()].filter((a) => {
