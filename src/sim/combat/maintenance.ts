@@ -15,7 +15,7 @@ function eligible(state: CombatState, ctx: CombatContext, request: MaintenanceRe
   const worker = actors.get(request.workerId), actor = actors.get(request.actorId), target = state.targets[request.actorId];
   if (!worker || !actor || !target || actor.id === worker.id || worker.kind !== "robot" || worker.model !== "tidy" || worker.firmware !== "good" || worker.inFidelity !== true || protectedActor(worker) || !Number.isFinite(worker.speed) || Math.abs(worker.speed) > MAINTENANCE.maxWorkerSpeed) return false;
   const workerState = state.targets[worker.id];
-  if ((workerState?.phase ?? "active") !== "active" || (workerState?.stoppedUntil ?? 0) > state.tick || (workerState?.blindUntil ?? 0) > state.tick || actor.kind !== "robot" || protectedActor(actor) || actor.model === "robotaxi" && actor.occupied || !near(worker, actor)) return false;
+  if ((workerState?.phase ?? "active") !== "active" || (workerState?.stoppedUntil ?? 0) > state.tick || (workerState?.blindUntil ?? 0) > state.tick || actor.kind !== "robot" || actor.inFidelity !== true || protectedActor(actor) || actor.model === "robotaxi" && actor.occupied || !near(worker, actor)) return false;
   if (!lineOfSight({ x: worker.x, y: worker.y + 0.3, z: worker.z }, { x: actor.x, y: actor.y + 0.3, z: actor.z }, ctx.walls)) return false;
   if (request.kind === "collect-heap") return target.phase === "heap";
   const kiosk = ctx.maintenanceKiosks?.find((k) => k.id === request.kioskId);

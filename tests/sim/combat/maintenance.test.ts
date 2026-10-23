@@ -40,7 +40,7 @@ describe("Tidy maintenance", () => {
   });
 
   it("never collects protected bodies or occupied taxis", () => {
-    for (const patch of [{ protected: true }, { kind: "person" as const }, { model: "robotaxi" as const, occupied: true }]) {
+    for (const patch of [{ inFidelity: false }, { inFidelity: undefined }, { protected: true }, { kind: "person" as const }, { model: "robotaxi" as const, occupied: true }]) {
       const ctx = { ...context(), actors: [worker(), actor("heap", patch)] };
       expect(run(heap(ctx), ctx, 180).targets.heap!.phase).toBe("heap");
     }
