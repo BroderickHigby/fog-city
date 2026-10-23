@@ -29,6 +29,8 @@
 //      data layers in RUNTIME_LAYERS (src/io/world-load.ts); the other layers (sidewalks,
 //      hydrants, ...) stay out until a feature reads them;
 //    - per-tile collider JSONs are not shipped (the game reads the collider pack);
+//    - public/audio/ (effects, music, voice lines and their manifests) is copied as plain
+//      .ogg/.mp3/.json files: the page streams them through <audio> by URL;
 //    - assets.index.json maps every binary's logical path to {src, offset, length} and, for a
 //      src written in parts, lists them under parts[src] as [{src, bytes}] in join order. An
 //      index with parts is version 2, one without stays version 1 (the shape builds wrote before
@@ -246,7 +248,7 @@ export function checkHostLimits(dir: string): { problems: string[]; files: numbe
 }
 
 /** The top-level names a build writes into its out directory. */
-const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models", "textures", "third-party-notices.txt"]);
+const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models", "textures", "audio", "third-party-notices.txt"]);
 
 /** `p` itself, or a path inside it. */
 function within(p: string, dir: string): boolean {
@@ -293,8 +295,9 @@ export function outDirRefusal(out: string, publicDir: string, forceClean = false
     for (const e of readdirSync(out, { withFileTypes: true }).sort((p, q) => (p.name < q.name ? -1 : 1))) {
       if (stray.length >= 3) break;
       const isDir = e.isDirectory();
-      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models" || e.name === "textures")) stray.push(e.name);
+      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models" || e.name === "textures" || e.name === "audio")) stray.push(e.name);
       else if (e.name === "assets") look(join(out, e.name), e.name, served);
+      else if (e.name === "audio") look(join(out, e.name), e.name, (n) => /\.(ogg|mp3|json)$/.test(n));
       else if (isDir) look(join(out, e.name), e.name, (n) => n.endsWith(".json") || n.endsWith(".txt"));
     }
   }
@@ -419,6 +422,18 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     }
   }
 
+  // Audio ships as plain files (.ogg/.mp3/.json are served as is): src/audio fetches effects and
+  // the manifests by URL and streams music and voice lines through <audio> (src/audio/index.ts).
+  const audioDir = join(pub, "audio");
+  if (existsSync(audioDir)) {
+    for (const f of walk(audioDir).filter((p) => /\.(ogg|mp3|json)$/.test(p)).sort()) {
+      const bytes = readFileSync(f);
+      write(join(out, relative(pub, f)), bytes);
+      if (f.endsWith(".json")) jsonBytes += bytes.byteLength;
+      else rawBinaryBytes += bytes.byteLength;
+    }
+  }
+
   const byKey = <T>(r: Record<string, T>): Record<string, T> => Object.fromEntries(Object.entries(r).sort((p, q) => (p[0] < q[0] ? -1 : p[0] > q[0] ? 1 : 0)));
   // Version 1 when nothing is split: the same index builds wrote before parts existed.
   const index: WebIndex =
@@ -434,7 +449,8 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     ["Fog City civilian car", "assets/imports/civilian-car/LICENSE.txt"],
   ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");
   write(join(out, "third-party-notices.txt"), notices +
-    "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n");
+    "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n" +
+    "\nMusic: CC0 1.0 tracks from OpenGameArt.org. See audio/music/manifest.json for each title, author and source page.\n");
 
   const check = checkHostLimits(out);
   if (check.problems.length > 0) throw new Error(`the build breaks the host's limits:\n  ${check.problems.join("\n  ")}`);
