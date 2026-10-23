@@ -62,6 +62,14 @@ export const SimEventKind = {
   robotMelted: "robot.melted",
   updateInterrupted: "update.interrupted",
   playerDown: "player.down",
+  /** A recorded player command (gameplay-contract.ts GameplayCommandEvent): ids and integers only. */
+  gameplayCommand: "gameplay.command",
+  /**
+   * Heat asking the agents runtime for pursuers (gameplay-contract.ts ThreatSpawnRequest). Derived
+   * by the heat reducer into ext.heat.events rather than recorded, but named here so emitter and
+   * consumer cannot drift apart. Its payload carries ids and integers only (whole metres).
+   */
+  threatSpawn: "threat.spawn",
 } as const;
 export type KnownSimEventKind = typeof SimEventKind[keyof typeof SimEventKind];
 

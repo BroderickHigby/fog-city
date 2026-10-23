@@ -1,4 +1,4 @@
-import type { PlayerId, SimEvent } from "./contract.ts";
+import type { PlayerId, SimEvent, SimEventKind } from "./contract.ts";
 import type { JsonObject } from "./extensions.ts";
 
 export interface Position { x: number; y: number; z: number }
@@ -26,7 +26,7 @@ export interface GameplayCommand {
 }
 export type GameplayCommandPayload = Omit<GameplayCommand, "playerId">;
 export interface GameplayCommandEvent extends SimEvent {
-  kind: "gameplay.command";
+  kind: typeof SimEventKind.gameplayCommand;
   playerId: PlayerId;
   payload: GameplayCommandPayload;
 }
@@ -57,7 +57,16 @@ interface ThreatSpawnBase {
   id: string;
   requestTick: number;
   playerId: PlayerId;
+  /**
+   * Where the player was when heat rose, rounded to whole metres (threatSpawnPosition), so the
+   * payload holds integers only and replays, saves and netcode carry no float bits.
+   */
   player: { x: number; z: number };
+}
+/** The integer position a threat.spawn payload carries: whole metres, ties away from zero. */
+export function threatSpawnPosition(body: Readonly<{ x: number; z: number }>): { x: number; z: number } {
+  const whole = (v: number): number => (v < 0 ? -Math.round(-v) : Math.round(v)) || 0;
+  return { x: whole(body.x), z: whole(body.z) };
 }
 export type ThreatSpawnRequest = ThreatSpawnBase & (
   { kind: "van"; threat: 2; unitCount: 2 }
