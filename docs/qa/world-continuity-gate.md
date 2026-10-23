@@ -390,7 +390,7 @@ difference is listed with its reason.
 
 | Metric | Suite (cadence) | Tracks | Baseline at 544f67c | Target | State | What it measures |
 |---|---|---|---|---|---|---|
-| `A.accounting.keptMatchesRecords` | buildings (pr) | pass check | 0 | <= 0 footprints | enforced | |report.json kept - footprint records in the colliders| (the report and the tiles agree) |
+| `A.accounting.keptMatchesRecords` | buildings (pr) | pass check | 0 | <= 0 footprints | enforced | |report.json kept - unique source footprints in the colliders| (the report and the tiles agree) |
 | `A.accounting.unexplained` | buildings (pr) | pass check | 0 | <= 0 footprints | enforced | source footprint parts neither kept nor dropped for a counted reason (report.json) |
 | `A.facade.firstStoreyOffStreet` | buildings (pr) | W-29 | 0.111 | <= 0.01 share of street-facing records | ratchet | street-facing buildings whose first-storey line (meta.streetY, else baseY) is more than 1.5 m off the ground at the wall nearest the street |
 | `A.facade.storeys5m` | buildings (pr) | W-15 | 0.611 | <= 0.02 share of residential records | ratchet | residential records the GLB draws with storeys of 5 m or more (_FACADE storey height) |
@@ -513,7 +513,7 @@ difference is listed with its reason.
 | `B.seams.maxStep` | terrain (pr) | pass check | 0 | <= 0 m | enforced | largest height difference on a tile border (every 2.5 m) between the two neighbours' lattices |
 | `B.summits.fails` | terrain (pr) | pass check | 0 | <= 0 summits | enforced | of 25 named summits, those whose sim ground maximum within 150 m is not within 1 m of the 3DEP DEM maximum (the published heights differ from the DEM by up to 47 m for known reasons and are listed in the details) |
 | `G.carPose.pitchErrorDeg` | car-pose (e2e) | W-19 | 0 | <= 1 deg | enforced | on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's |
-| `G.carPose.wheelGapM` | car-pose (e2e) | W-09 | 3.9 | <= 0.1 m | ratchet | on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon) |
+| `G.carPose.wheelGapM` | car-pose (e2e) | W-09 | 0.37 | <= 0.1 m | ratchet | on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon) |
 | `G.far.cellsDrawnFromTwinPeaks` | car-pose (e2e) | W-20 | 13 | >= 4 far cells | enforced | from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles) |
 | `N.freeways.airborneRuns` | freeways-all (nightly) | W-03 | 96 | <= 0 runs | ratchet | freeway and ramp runs at 25 m/s airborne for more than 0.3 s (draped viaducts launching the car) |
 | `N.freeways.hardLandings` | freeways-all (nightly) | W-03 | 76 | <= 0 runs | ratchet | freeway and ramp runs with a landing harder than 3 m/s |

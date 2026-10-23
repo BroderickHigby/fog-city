@@ -1,0 +1,100 @@
+{
+  "result": {
+    "sim": {
+      "seed": 1,
+      "playerIds": [
+        "p1"
+      ],
+      "roads": true,
+      "agents": 333,
+      "colliders": "pack",
+      "walls": 6353,
+      "assets": "packed",
+      "boot": {
+        "loadMs": 822.5,
+        "buildMs": 1543.2999999998137,
+        "readyMs": 4155.0999999996275
+      }
+    },
+    "render": {
+      "drawCalls": 382,
+      "triangles": 3760371,
+      "tilesLoaded": 4,
+      "cameraMode": "fly",
+      "night": false,
+      "tilesPending": 0,
+      "tilesTotal": 581,
+      "tilesFailed": 0,
+      "landmarks": 14,
+      "fps": 0.16621235290206743,
+      "pixelRatio": 1,
+      "shadows": true,
+      "agents": 311,
+      "agentsNear": 4,
+      "agentsTotal": 333,
+      "agentDrawCalls": 14,
+      "agentsDodging": 0,
+      "agentModels": [
+        "robotaxi",
+        "errandRobot",
+        "sidewalkBot"
+      ],
+      "playerCarsFromFile": 1,
+      "walkers": 0,
+      "farCellsTotal": 26,
+      "farCells": 26,
+      "farCellsDrawn": 12,
+      "farTriangles": 588859,
+      "cameraFar": 20000,
+      "gfx": {
+        "tier": "high",
+        "requested": "high",
+        "reason": "asked for ?gfx=high",
+        "post": true,
+        "reflections": true,
+        "detail": true,
+        "detailSets": 6,
+        "dropped": [],
+        "showcase": {
+          "crosswalks": 359,
+          "stopBars": 237,
+          "palms": 41,
+          "trackM": 314,
+          "paintQuads": 2685
+        },
+        "characters": {
+          "crowd": true,
+          "player": true
+        }
+      }
+    },
+    "campaign": {
+      "players": {
+        "p1": {
+          "missionId": "hot-desk",
+          "stepId": "arrive",
+          "entered": 61,
+          "question": 0,
+          "watchTicks": 0,
+          "cash": 0,
+          "completed": [],
+          "unlocks": [],
+          "meters": {},
+          "sequence": 1,
+          "status": "active",
+          "line": {
+            "speaker": "cofounder",
+            "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones. only the bad ones, ideally"
+          },
+          "threat": 0,
+          "unseenTicks": 60,
+          "counted": [],
+          "reply": ""
+        }
+      },
+      "actors": {}
+    },
+    "radio": "♫ Neon Tide · Radio on"
+  },
+  "errors": []
+}

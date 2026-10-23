@@ -32,3 +32,17 @@ Fresh PR refs were fetched again during QA. #9 advanced to `b7a5fab` (measured n
 ## Full regression result
 
 The full Vitest run completed in 422 seconds: **3,557 passed, 91 failed, one skipped across 183 files**. All failures are in the same inherited release-blocking areas: 89 world-gate assertions and two missing-ballpark assertions. No unit failure was reported in the new aiming, checkpoint, UI, combat, pause, campaign or networking code. This is a red full-suite result, not a release certificate. The earlier 97 failures included six intake issues repaired in the previous integration; the remaining 91 are still open.
+
+Private multiplayer passed again (34 seconds): two browser contexts created/joined a room, observed remote movement, left and rejoined with no page errors. The rebuilt production bundle also passed its 1920×1080 smoke capture, with all three time presets, loaded HD characters and radio, and zero browser/HTTP errors. [Screenshot and visual limitations](../shots/active-gameplay/README.md).
+
+The steep-street browser probe measured **0° model/simulation pitch error**, 13 far cells from Twin Peaks, and a maximum wheel/road gap of **0.37 m** (previous baseline 3.9 m). Its first run failed the mandatory stale-baseline check because the gap improved by 91%, not because it regressed. `world:baseline` accepted exactly this stricter 3.9→0.37 change, with no refusals or loosened target; old unrelated measurements were skipped. All three captured metrics pass re-judgment against that updated baseline. W-09 remains open because the 0.1 m target has not yet been reached.
+
+## Final browser and cleanup record
+
+The complete Chromium suite finished in 14.2 minutes: **35 passed, four skipped, one failed**. The one failure was the stale wheel-gap baseline described above; all captured car-pose metrics were re-judged successfully after the stricter baseline update. No runtime assertion was removed. The four skipped pure-simulation checks use a bundled-browser installation detector; a separate run with `E2E_REQUIRE=engines` explicitly uses the available system Chromium instead.
+
+The passing browser coverage includes recorded mouse aim, valid and unavailable IndexedDB storage, running-game Node/browser determinism and multiplayer replay, driving/camera controls, real-SF pedestrian dodge rendering, foot entry/exit and blocked exit, HD assets and time presets, meshopt decode, landmark placement, traffic models, citywide collider loading, far skyline, southern city edge, and the production bundle served from a sub-path. The injected roadless-world 404 is an intentional passing error-path test. The software performance probe completed without asserting a GPU frame-rate claim.
+
+After the final input/visibility cleanup, TypeScript and **25 targeted tests in six files** passed again. The implementation under browser test is `d246095`; subsequent changes are QA records, screenshots and the stricter baseline. No live deployment or main merge was performed.
+
+The explicit system-Chromium rerun passed **all four pure-simulation checks** in 18.6 seconds: dmath/hash digest and recorded multiplayer scenarios for dev, dev-city and SF. Firefox and WebKit were not installed and were not certified. No browser check remains silently skipped in the Chromium coverage reported here; the initial four skipped cases have that separate passing result.

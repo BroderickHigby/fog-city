@@ -1771,7 +1771,7 @@
    "desc": "on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's"
   },
   "G.carPose.wheelGapM": {
-   "baseline": 3.9,
+   "baseline": 0.37,
    "target": 0.1,
    "better": "lower",
    "unit": "m",
