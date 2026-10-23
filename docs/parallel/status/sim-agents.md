@@ -2,9 +2,9 @@
 
 ## Now
 
-Wave-2 policy implementation is pushed to `lane/sim-agents/wave2`, based on `integrate/wave1` at `2deafc912ea0971440b541e800158b258c548275`. Runtime registration awaits lane 2's interface. This is not a completed or integrated wave-2 game.
+The existing policy implementation at `083f685` is preserved in `/workspace/fog-city-agents`. Shared core `9a6a107` and combat `ef74fe5` are merged. The wave-2 runtime now exposes `createAgentsSystem(provider)` with pre-movement proposals, accepted-pose observation, stable firmware/protection metadata, sensory brain inputs and monotonic shared combat requests. Core is implementing the final movement/clearance hook; production registration and actual service-body acceptance remain in progress.
 
-The existing playable prototype in `/workspace/fog-city` is preserved. This lane uses the separate `/workspace/fog-city-lane3` checkout and edits only its owned directories.
+The existing prototype in `/workspace/fog-city` remains untouched. Only owned agent/robot directories and this status file are edited.
 
 ## Done
 
@@ -54,3 +54,23 @@ Lane 2's wave-2 interface PR, typed extension slots, migration, event definition
 **Contract changes: none.** No top-level sim file, schema, sim version, renderer, world data or golden file changed. The checked-in integration contract reports version 2, despite the handoff's anticipated version 4/5; lane 2 must allocate the actual next version.
 
 The six-second unopposed update passes as a policy test. A real threat-2 van bringing two units within 20 seconds, a wrapped bus physically passing the Ferry Building every ten game minutes, zero vehicle-person contacts, cross-engine parity on all four engines, performance at full population and final visual quality remain integration acceptance gates. These are not implied by passing pure-policy tests. No wave work was merged into `main` or `integrate/wave1`, and the world-QA gate is unchanged.
+
+## Runtime integration checkpoint
+
+- Added `runtime.ts` and `createAgentsSystem` in the owned registration file. Each proposal contains source and desired poses; the planner never changes a physical body itself. Rejected movement preserves the old route cursor.
+- `agentsCombatOptions` supplies classifications for existing bodies and distinct extra actors, avoiding duplicate combat identities. Empty-tank fire does not become hostility; observations use emitted combat events and actual line of sight. Scan alerts are delivered only to their target.
+- Attack requests start once per windup with a monotonic per-actor sequence. The combat reducer owns all damage, durations and conversion effects. Actual conversion events update firmware and acknowledge channels.
+- Targeted runtime tests: 9 passed. They cover immutable/serializable state, ID collisions, accepted positions, sensory authority, attack idempotency, abstract exclusions, protected animals, detached dog handling, bounded drone ascent and actor-order replay. The larger owned-agent/combat subset passed: 13 files, 230 tests. Typecheck and 12 runtime/mission placement tests also passed before the final content-default wiring; a targeted recheck of that wiring is queued under the shared lock.
+- Remaining acceptance: core pre-movement and final dodge integration; real graph/Muni adapters and steering service bodies; mission actor bindings; wave-3 onward behaviors; integrated acceptance/performance/browser checks. No claim of a finished game or zero-contact integration is made yet.
+
+## Draft pull request text
+
+Title: `feat(agents): connect deterministic actor policies to core and combat`
+
+Body:
+
+Connect the existing sidewalk, reaction, fidelity and bad-robot policies to a stateful runtime adapter. The runtime supplies stable classifications and sensory facts, proposes bounded movement for core clearance, observes accepted body positions and emits monotonic combat requests without scheduling attack effects itself. Shared core/combat branches are merged; the original prototype is excluded.
+
+Validation: targeted runtime tests (9 passed); existing policy replay evidence above. Core movement/service integration and broader validation are still in progress, so open this as a draft against `integrate/wave2`.
+
+- Handoff checkpoint: default density/protected-area queries now reuse `src/content/places.ts`; final targeted typecheck/test rerun is pending the shared lock. Mission placement exposes stable blueprints and crew bindings, with road-only taxi candidates.
