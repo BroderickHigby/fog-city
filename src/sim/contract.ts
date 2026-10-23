@@ -23,7 +23,11 @@
 // src/sim/overtake.ts) and walkers walk round one in their way (RuntimeActor.detour,
 // src/sim/agents/detour.ts). Both fields are optional and absent from older saves, so the
 // upgrade only restamps. (9 is reserved for the structural world integration.)
-export const SIM_VERSION = 10;
+// v11 (city life): the game composition scales ambient densities by district and hour
+// (content/city-life.json; AgentsRuntimeState.density) and stages the Ambient Director's cards
+// as street incidents (src/sim/agents/incidents.ts; AgentsRuntimeState.incidents/nextIncident).
+// All new fields are optional: the upgrade only restamps.
+export const SIM_VERSION = 11;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

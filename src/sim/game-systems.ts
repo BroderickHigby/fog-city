@@ -12,18 +12,22 @@ import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gam
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatWave } from "./combat-contract.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
+import { CITY_DIRECTOR_CARDS, CITY_LIFE, populationScale } from "../content/cityLife.ts";
 
 export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
 
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v10.json pins this path.
+ * tests/golden/composed-v11.json pins this path.
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
   const protectedArea=options.protectedArea??((x:number,z:number)=>{const p=toLatLon(x,z);return Boolean(protectedAreaAt([p.lat,p.lon]));});
   const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,
+    // City life (content/city-life.json): ambient density by district and hour, and the director's incidents.
+    densityAt:(x:number,z:number)=>{const p=toLatLon(x,z);return populationScale([p.lat,p.lon],gameTime(context.state).hour);},
+    director:{cards:CITY_DIRECTOR_CARDS,stageM:CITY_LIFE.director.stageM,maxActive:3},
     badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return badRobotRate([p.lat,p.lon]);},
     fog:fogDensity(context.world,context.state,0,0),
     fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z),

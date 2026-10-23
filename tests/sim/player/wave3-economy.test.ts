@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { CITY_LIFE } from "../../../src/content/cityLife.ts";
+/** The director's idle window in ticks (content/city-life.json; 45–75 s before the owner asked for more action). */
+const IDLE_TICKS=CITY_LIFE.director.idleWindowS.map(s=>s*60) as [number,number];
 import { createHeat, createHeatStatus, stepHeat } from "../../../src/sim/heat/system.ts";
 import { createActivities, stepActivities } from "../../../src/sim/activities/system.ts";
 import { createMissions } from "../../../src/sim/missions/system.ts";
@@ -21,12 +24,12 @@ describe("wave-3 ambient and economy integration",()=>{
     const awarded=stepHeat(createHeat(),context(),6,[],[grant]);expect(awarded.players.p!.vcQuarters).toBe(4);
     expect(stepHeat(awarded,context(),7,[],[grant]).players.p!.vcQuarters).toBe(4);
   });
-  it("spreads first director arrivals through 45–75 seconds and excludes protected places",()=>{
+  it("spreads first director arrivals through city-life idles and excludes protected places",()=>{
     const starts=new Set<number>();
     for(let seed=0;seed<30;seed++){
       const ctx=context({directorCards:[{id:"card",fromWave:3,radiusM:100,cooldownS:60,protectedAreas:false}],observations:[{playerId:"p",seenByBad:false,seenByAssociate:false,associateWithin200:false,protectedArea:true,fog:0}]});
       const initial=stepActivities(createActivities(),ctx,0,createMissions(),seed),due=initial.players.p!.nextDirectorTick;
-      starts.add(due);expect(due).toBeGreaterThanOrEqual(2700);expect(due).toBeLessThanOrEqual(4500);
+      starts.add(due);expect(due).toBeGreaterThanOrEqual(IDLE_TICKS[0]);expect(due).toBeLessThanOrEqual(IDLE_TICKS[1]);
       expect(stepActivities(initial,ctx,due,createMissions(),seed).events).toEqual([]);
     }
     expect(starts.size).toBeGreaterThan(20);

@@ -15,8 +15,8 @@ describe("v7 composed gameplay save migration (to v8 and on to the current versi
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    // v8 and v10 (city life) add no required fields: the save is restamped, nothing else.
-    expect(SIM_VERSION).toBe(10);
+    // v8, v10 and v11 (city life) add no required fields: the save is restamped, nothing else.
+    expect(SIM_VERSION).toBe(11);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);

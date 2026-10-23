@@ -8,7 +8,7 @@ import {pendingMissionStages} from "./mission-staging.ts";
 import {incidentPlace,planIncident,stageRequests,type Incident} from "./incidents.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
-  agentsRuntimeOf, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
+  agentsRuntimeOf, fallbackGraph, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
   runtimeAttackRequests, type AgentRuntimeOptions, type AgentMotionProposal,
 } from "./runtime.ts";
 
@@ -95,7 +95,7 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
       if(incident.actorIds.some(actorId=>previousRuntime!.actors[actorId]&&!previousRuntime!.actors[actorId]!.retired))incidents[id]=incident;
     }
     if(allocate&&options.director){
-      const graph=options.graph??context.world.sidewalks;
+      const graph=options.graph??context.world.sidewalks??fallbackGraph(context.world);
       for(const request of stageRequests(state)){
         const player=state.players[request.playerId],card=options.director.cards.find(c=>c.id===request.cardId);
         if(!player||!card||!graph)continue;

@@ -479,7 +479,7 @@ function queueAttack(state:AgentsRuntimeState,actor:RuntimeActor,intent:RobotBra
 }
 
 const graphCache=new WeakMap<World,SidewalkGraph>();
-function fallbackGraph(world:World):SidewalkGraph|undefined{
+export function fallbackGraph(world:World):SidewalkGraph|undefined{
   if(!world.roads)return undefined;
   let graph=graphCache.get(world);
   if(!graph){graph=buildFallbackSidewalkGraph(world.roads);graphCache.set(world,graph);}

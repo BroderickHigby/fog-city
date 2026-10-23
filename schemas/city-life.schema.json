@@ -57,7 +57,7 @@
       "type": "array",
       "minItems": 1,
       "maxItems": 20,
-      "items": { "$ref": "fog-city/director-cards#/$defs/card" }
+      "items": { "$ref": "director-cards#/$defs/card" }
     }
   },
   "$defs": {

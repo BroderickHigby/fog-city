@@ -100,7 +100,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_016EZ6L7tmyK2MnsHG59Dc1v",
-    "contentHash": "fnv1a32:00000000",
+    "contentHash": "fnv1a32:0d44f255",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
   }
