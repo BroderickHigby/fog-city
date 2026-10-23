@@ -137,6 +137,28 @@ does not change that), while every paid plan includes a commercial licence (Beta
 excepted). A distributed game cannot rely on free-tier output, so **voice generation is held**:
 the script checks the tier first and stops on `free` (or any tier it does not know). Every line
 plays as timed subtitles meanwhile, through the same queue a voiced line uses. ElevenLabs Music
-is not used for the same reason. To voice the game: move the account to any paid tier, then run
-`node scripts/audio/generate-voices.ts --generate`. It spends at most 25 % of the remaining
+is not used for the same reason. To voice the game, use a key from an account on a paid tier (see "Generating the voices" below). It spends at most 25 % of the remaining
 characters or 100,000, whichever is lower, and a rerun never regenerates a cached line.
+
+## Generating the voices
+
+The script reads the key from **`FOGCITY_ELEVENLABS_API_KEY` first**, then `ELEVENLABS_API_KEY`
+(the first one set wins). Use the game-specific variable for a key meant just for Fog City, so
+nobody has to change the shared `daringly` production secret in Doppler. The key in the cloud
+sessions' environment (`ELEVENLABS_API_KEY`) belongs to a separate free account, so its run stops at
+the licence check.
+
+From a checkout, with the paid account's key (for example from `daringly.env.local`):
+
+```sh
+export FOGCITY_ELEVENLABS_API_KEY=…            # the paid account's key; never commit it
+node scripts/audio/generate-voices.ts --generate --dry-run   # optional: check the tier and the plan
+node scripts/audio/generate-voices.ts --generate
+git add public/audio/voice/ assets/audio/voices.json
+git commit -m "Audio: generated mission and inner voices"
+```
+
+It logs which variable the key came from (never the value), the tier and character counts, and
+each line it generates. It refuses a tier without a commercial licence, spends at most 25 % of the
+remaining characters or 100,000, and never regenerates a cached line. All 291 lines are about
+15,200 characters. Needs Node 22.18+, pnpm dependencies installed and ffmpeg with libopus.
