@@ -5,6 +5,7 @@ import {
   AGENTS_EXT_KEY,
   AGENT_KINDS,
   AGENT_SPEC,
+  ROBOTAXI_BODY,
   CAR,
   DESPAWN_RANGE_M,
   GHOST_AFTER_TICKS,
@@ -212,6 +213,10 @@ describe("movement invariants over a long run (grid city, 4000 ticks)", () => {
           const dl = Math.max(0, Math.abs(ox * -fz + oz * fx) - AGENT_SPEC.robotaxi.halfWidth);
           const df = Math.max(0, Math.abs(ox * fx + oz * fz) - AGENT_SPEC.robotaxi.halfLength);
           if (Math.hypot(dl, df) < AGENT_SPEC[A.kind].radius - 0.15) failures.push(`t${k.tick} walker #${A.id} inside robotaxi #${T.id} overlap`);
+          // Nor into its drawn body at all (ROBOTAXI_BODY: walkers keep off it, robotaxis keep their berth).
+          const bl = Math.max(0, Math.abs(ox * -fz + oz * fx) - ROBOTAXI_BODY.halfWidth);
+          const bf = Math.max(0, Math.abs(ox * fx + oz * fz) - ROBOTAXI_BODY.halfLength);
+          if (Math.hypot(bl, bf) < AGENT_SPEC[A.kind].radius) failures.push(`t${k.tick} walker #${A.id} touches robotaxi #${T.id}'s drawn body (overlap)`);
         }
       }
       // 4. Robotaxi bodies never overlap.

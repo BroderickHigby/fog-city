@@ -39,7 +39,9 @@
 //    DESPAWN_RANGE_M from every player are removed; each area whose centre is within
 //    ACTIVE_RANGE_M of a player and below budget gains up to SPAWN_PER_POP agents of each kind,
 //    placed with state.rng on its roads at least SPAWN_MIN_PLAYER_M from every player (no
-//    pop-in in view). The initial state fills every active area to budget. Nearer areas fill
+//    pop-in in view) and SPAWN_VEHICLE_CLEAR_M clear of every vehicle's body (a player's parked
+//    car included; a new robotaxi clear of everyone on foot), so nobody appears inside or
+//    against one. The initial state fills every active area to budget. Nearer areas fill
 //    first. Each area belongs to its nearest player (ties: the lower player id), and so does
 //    each agent: one player's surroundings hold at most MAX_AGENTS agents, the whole state
 //    MAX_AGENTS_TOTAL, so a second player across town gets their own traffic instead of
@@ -54,8 +56,13 @@
 //  - All decisions read the previous state only (players and agents as of the last tick),
 //    so the order agents are processed in cannot change the result; agents are still
 //    processed in ascending id order.
+//
+// The dodge (v4, src/sim/dodge.ts): an agent with a DodgeState is diving out of a vehicle's
+// way or getting up after it. stepAgents leaves it exactly as it is (dodge.ts moves it), and
+// when it has recovered it walks on from where it landed (rejoinAt: a connector back onto its
+// sidewalk a little ahead), never jumping back to its line.
 
-import { DT, sortedIds, type RngState, type SimState } from "./contract.ts";
+import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import {
@@ -68,6 +75,8 @@ import {
   endNode,
   lanePath,
   makePath,
+  offsetAdvance,
+  offsetPoint,
   pathPoint,
   sameCorner,
   sideIndex,
@@ -87,8 +96,12 @@ import { cellKey, circleBlocked, roadSurfaceHeight, type World } from "./world.t
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
 
-/** What the agent is doing, for renderers (brake lights, hazards, a horn) and tests. */
-export type AgentMode = "go" | "yield" | "wait" | "honk" | "dwell";
+/**
+ * What the agent is doing, for renderers (brake lights, hazards, a horn, a dive) and tests.
+ * v4: "dive" (leaping out of a vehicle's way) and "recover" (getting up after it), with the
+ * details in AgentState.dodge.
+ */
+export type AgentMode = "go" | "yield" | "wait" | "honk" | "dwell" | "dive" | "recover";
 
 export interface AgentSpec {
   /** Drives on lanes (true) or walks on sidewalks (false). */
@@ -175,6 +188,22 @@ export const AGENT_SPEC: Readonly<Record<AgentKind, AgentSpec>> = {
   },
 };
 
+/**
+ * A robotaxi's body as people meet it: a box covering the drawn Meander (4.98 x 1.92 m, 1.53 m tall), a little
+ * longer than the AGENT_SPEC box traffic spaces itself by. Walkers keep clear of it, robotaxis
+ * keep their berth from people by it, and the dodge (src/sim/dodge.ts) counts contacts and
+ * clearance against it.
+ */
+export const ROBOTAXI_BODY = { halfLength: 2.5, halfWidth: 1.0, height: 1.6 } as const;
+
+/** About this share of the people (by id) are children: smaller, and given a wider berth by the dodge (src/sim/dodge.ts). */
+export const CHILD_PERCENT = 5;
+
+/** Is person agent `id` a child? Fixed by the id (no state, no RNG draw), so every client agrees. */
+export function personIsChild(id: number): boolean {
+  return hash32(id, 0x0c41d) % 100 < CHILD_PERCENT;
+}
+
 export interface AgentState {
   id: number;
   kind: AgentKind;
@@ -219,6 +248,8 @@ export interface AgentState {
   mode: AgentMode;
   /** Per-agent PRNG state (rng.ts nextU32Word). */
   rng: number;
+  /** v4: diving out of a vehicle's way, or getting up after it (src/sim/dodge.ts), else null. */
+  dodge: DodgeState | null;
 }
 
 /** state.ext.agents */
@@ -298,6 +329,40 @@ export function agentPath(world: World, a: Readonly<AgentState>): Path | null {
   return basePath(g.edges[ei]!, a);
 }
 
+/** A walker back from a dodge rejoins its sidewalk at least this far ahead of where it landed, metres. */
+export const REJOIN_AHEAD_M = 1.5;
+
+/**
+ * Where a walker done with a dodge (dodge.ts), standing at (x, z), carries on from, and which
+ * way it then faces. Standing on its current path (sidewalk or connector): its s there. Anywhere
+ * else (beside its path, or past either end of it, where no s and lat reach and walking on from
+ * the nearest end would make it jump): a connector from where it stands back onto its sidewalk,
+ * ahead of it by REJOIN_AHEAD_M or by how far off it is (whichever is more, so it rejoins at 45
+ * degrees or less), so it walks back on its own line, never off to the side of it. Null without
+ * a road graph or a known edge.
+ */
+export function rejoinAt(world: World, a: Readonly<AgentState>, x: number, z: number): Pick<AgentState, "s" | "lat" | "conn" | "resume" | "heading"> | null {
+  const g = world.roads;
+  const path = agentPath(world, a);
+  const ei = g ? g.edgeIndex.get(a.edge) : undefined;
+  if (!g || !path || ei === undefined) return null;
+  const p = projectOnPath(path, x, z);
+  if (p.dist <= 0.01) {
+    const q = pathPoint(path, p.s);
+    return { s: p.s, lat: 0, conn: a.conn, resume: a.resume, heading: datan2(q.tx, -q.tz) };
+  }
+  const lane = basePath(g.edges[ei]!, a);
+  const pl = projectOnPath(lane, x, z);
+  const s1 = clamp(pl.s + Math.max(REJOIN_AHEAD_M, pl.dist), 0, lane.len);
+  const t = pathPoint(lane, s1);
+  const dx = t.x - x;
+  const dz = t.z - z;
+  const l = Math.sqrt(dx * dx + dz * dz);
+  const ux = l > 1e-6 ? dx / l : t.tx;
+  const uz = l > 1e-6 ? dz / l : t.tz;
+  return { s: 0, lat: 0, conn: connector(x, z, ux, uz, t.x, t.z, t.tx, t.tz, 0.9), resume: s1, heading: datan2(ux, -uz) };
+}
+
 /** The obstacle circles of one agent (robotaxis are two circles, walkers one). */
 export function agentCircles(a: Readonly<AgentState>): Array<{ x: number; z: number; r: number }> {
   const spec = AGENT_SPEC[a.kind];
@@ -334,11 +399,40 @@ interface Obs {
    * crosses); walkers look at robotaxis' (to wait at the kerb for a gap). Never their own kind's.
    */
   predicted?: boolean;
+  /** Someone on foot (a walker or a player's walker): robotaxis give them PERSON_BERTH_M more room. */
+  foot?: boolean;
+  /** A child (personIsChild): a robotaxi keeps its child's berths from them (ROBOTAXI_SLOW_BERTH_CHILD_M). */
+  child?: boolean;
+  /**
+   * Seen only by robotaxis ("road") or only by walkers ("foot"): a robotaxi is two circles to
+   * other robotaxis (how traffic spaces itself) and its drawn body, a box, to walkers.
+   */
+  onlyFor?: "road" | "foot";
 }
 
 interface Body {
   x: number;
   z: number;
+}
+
+/** The obstacle hash (buildHash) and, in the same pass, the ones on foot and the vehicle boxes walkers meet (Ctx.footHash, Ctx.boxHash). */
+function buildHashes(obs: readonly Obs[]): { hash: Map<number, Obs[]>; footHash: Map<number, Obs[]>; boxHash: Map<number, Obs[]> } {
+  const hash = new Map<number, Obs[]>();
+  const footHash = new Map<number, Obs[]>();
+  const boxHash = new Map<number, Obs[]>();
+  const put = (m: Map<number, Obs[]>, k: number, o: Obs): void => {
+    let l = m.get(k);
+    if (!l) m.set(k, (l = []));
+    l.push(o);
+  };
+  for (const o of obs) {
+    const k = cellKey(Math.floor(o.x / HASH_CELL), Math.floor(o.z / HASH_CELL));
+    put(hash, k, o);
+    if (o.predicted === true) continue;
+    if (o.foot === true) put(footHash, k, o);
+    if (o.box !== undefined && o.onlyFor !== "road") put(boxHash, k, o);
+  }
+  return { hash, footHash, boxHash };
 }
 
 function buildHash(obs: readonly Obs[]): Map<number, Obs[]> {
@@ -414,9 +508,143 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
       road: false,
       box: { fx: dsin(c.heading), fz: -dcos(c.heading), hl: CAR.halfLength, hw: CAR.halfWidth },
     });
-    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false });
+    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false, foot: true });
   }
   return out;
+}
+
+/**
+ * Robotaxis yield to anyone on foot (people, robots, a player's walker) whose body comes within
+ * their probe plus this much more: their body keeps the dodge's margin (dodge.ts, 0.75 m) and a
+ * little slack from a walker's, so nobody needs to dive out of a robotaxi's way in normal
+ * traffic (the dodge is still there, on top, for when it does).
+ */
+export const PERSON_BERTH_M = 0.6;
+
+/**
+ * A robotaxi's berth from anyone on foot, by its drawn body (ROBOTAXI_BODY), metres. While
+ * anyone is within ROBOTAXI_SLOW_BERTH_M (a child ROBOTAXI_SLOW_BERTH_CHILD_M: the dodge's
+ * margins, dodge.ts) of it, now or anywhere along its route until it could stop as the dodge
+ * predicts, it goes no faster than ROBOTAXI_CREEP_MPS (below the speed at which the dodge sees a
+ * vehicle as a threat), so nobody ever has to dive out of the way of a robotaxi driving as it
+ * should. And it does not set off while anyone is within ROBOTAXI_STOP_BERTH_M (a child
+ * ROBOTAXI_STOP_BERTH_CHILD_M: the override's clearance, 0.3 m and 0.6 m, plus what a creep step
+ * reaches, and BERTH_SLACK_M more) of it, nor
+ * move on if this step would bring its body within that of anyone, closer than they are now:
+ * edging past or swinging round a hairpin it never sets the override off. It waits, or creeps
+ * past people waiting beside it.
+ */
+export const ROBOTAXI_SLOW_BERTH_M = 0.75;
+export const ROBOTAXI_SLOW_BERTH_CHILD_M = 1.25;
+export const ROBOTAXI_STOP_BERTH_M = 0.33;
+export const ROBOTAXI_STOP_BERTH_CHILD_M = 0.63;
+export const ROBOTAXI_CREEP_MPS = 0.9;
+/** Walkers keep this much further from a moving robotaxi's drawn body than from a stopped one's, metres. */
+export const WALKER_TAXI_BERTH_M = 0.4;
+/** A robotaxi slower than this is stopped for the walkers' berth, m/s. */
+const TAXI_STOPPED_MPS = 0.05;
+/** The largest radius of any obstacle (a robotaxi's box with the walkers' berth): the probe's hash query covers it. */
+const OBS_RADIUS_MAX =
+  Math.sqrt(
+    (ROBOTAXI_BODY.halfLength + WALKER_TAXI_BERTH_M) * (ROBOTAXI_BODY.halfLength + WALKER_TAXI_BERTH_M) +
+      (ROBOTAXI_BODY.halfWidth + WALKER_TAXI_BERTH_M) * (ROBOTAXI_BODY.halfWidth + WALKER_TAXI_BERTH_M),
+  ) + 0.1;
+
+/** The berth's poses along the route are this far apart (STOP_STEP_M over the step itself), metres, and it keeps this much more, metres. */
+const BERTH_STEP_M = 0.1;
+const STOP_STEP_M = 0.02;
+/** berthLimit first looks along the route this often, metres (and finer only when someone is near it). */
+const COARSE_STEP_M = 0.5;
+const BERTH_SLACK_M = 0.05;
+/** How hard the dodge counts on a robotaxi braking, m/s^2, and after how long (dodge.ts ROBOTAXI_BRAKE_MPS2, ROBOTAXI_REACT_S). */
+const DODGE_TAXI_BRAKE = 6;
+const DODGE_TAXI_REACT_S = 2 * DT;
+
+/**
+ * The speed limit a robotaxi's berth sets (ROBOTAXI_SLOW_BERTH_M and ROBOTAXI_STOP_BERTH_M), from
+ * everyone on foot as of the previous tick: Infinity (no one near), ROBOTAXI_CREEP_MPS (someone
+ * within the slow berth of its body now or at any pose along its route until it could stop as
+ * the dodge predicts it, braking at 6 m/s^2 after two ticks from the speed it may have after
+ * this step of `dt` seconds), or 0 (this step, and the two ticks after it, would bring its body
+ * within the stop berth of someone, closer than now). The body is swept along the route, so a
+ * rear swinging in on a hairpin counts.
+ */
+function berthLimit(c: Ctx, a: Readonly<AgentState>, dt: number): number {
+  const spec = AGENT_SPEC[a.kind];
+  const v = a.speed + spec.accel * dt;
+  const ahead = Math.min(14, v * (dt + DODGE_TAXI_REACT_S) + (v * v) / (2 * DODGE_TAXI_BRAKE) + 0.25);
+  const step = v * (dt + DODGE_TAXI_REACT_S) + 0.05;
+  const reach = ROBOTAXI_BODY.halfLength + ahead + ROBOTAXI_SLOW_BERTH_CHILD_M + 1;
+  queryHash(c.footHash, a.x, a.z, reach, c.scratch);
+  const near: Obs[] = [];
+  for (const o of c.scratch) {
+    const dx = o.x - a.x;
+    const dz = o.z - a.z;
+    if (dx * dx + dz * dz <= (reach + o.r) * (reach + o.r)) near.push(o);
+  }
+  if (near.length === 0) return Infinity;
+  const segs = routeOf(c.routes, c.g, a);
+  // First the route every COARSE_STEP_M: the body at any pose lies within half that and its half
+  // diagonal of one of those points, so someone farther than that plus the slow berth from all of
+  // them is clear of every pose (most people on the pavement beside a lane): no finer look.
+  const coarse: number[] = [];
+  for (let d = COARSE_STEP_M; d < ahead - 1e-9; d += COARSE_STEP_M) coarse.push(d);
+  coarse.push(ahead);
+  const cps = agentRouteAt(c.world, a, coarse, segs);
+  const halfDiag = Math.sqrt(ROBOTAXI_BODY.halfLength * ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth * ROBOTAXI_BODY.halfWidth);
+  let any = false;
+  for (const o of near) {
+    const slow = (o.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M;
+    const lim = slow + o.r + halfDiag + COARSE_STEP_M / 2 + 0.02;
+    let close = (o.x - a.x) * (o.x - a.x) + (o.z - a.z) * (o.z - a.z) < lim * lim;
+    for (let i = 0; !close && i < cps.length; i++) {
+      const q = cps[i]!;
+      close = (o.x - q.x) * (o.x - q.x) + (o.z - q.z) * (o.z - q.z) < lim * lim;
+    }
+    if (close) {
+      any = true;
+      break;
+    }
+  }
+  // (A route that ends short of `ahead`, at a dead end: the finer look below handles it.)
+  if (!any && cps.length === coarse.length) return Infinity;
+  const poses: Array<{ x: number; z: number; hx: number; hz: number; d: number }> = [{ x: a.x, z: a.z, hx: dsin(a.heading), hz: -dcos(a.heading), d: 0 }];
+  // Every STOP_STEP_M over this step (and two ticks), exactly where that ends, then every
+  // BERTH_STEP_M on to where it could stop.
+  const ds: number[] = [];
+  for (let d = STOP_STEP_M; d < step - 1e-9; d += STOP_STEP_M) ds.push(d);
+  ds.push(step);
+  for (let d = step + BERTH_STEP_M; d < ahead + 1e-9; d += BERTH_STEP_M) ds.push(d);
+  for (const q of agentRouteAt(c.world, a, ds, segs)) {
+    const l = Math.sqrt(q.tx * q.tx + q.tz * q.tz);
+    if (l > 1e-9) poses.push({ x: q.x, z: q.z, hx: q.tx / l, hz: q.tz / l, d: q.d });
+  }
+  const clear = (o: Obs, p: { x: number; z: number; hx: number; hz: number }): number => {
+    // From the walker's body to the box (ROBOTAXI_BODY) at this pose.
+    const ox = o.x - p.x;
+    const oz = o.z - p.z;
+    const along = ox * p.hx + oz * p.hz;
+    const lat = -ox * p.hz + oz * p.hx;
+    const el = Math.max(0, (lat < 0 ? -lat : lat) - ROBOTAXI_BODY.halfWidth);
+    const ef = Math.max(0, (along < 0 ? -along : along) - ROBOTAXI_BODY.halfLength);
+    return Math.sqrt(el * el + ef * ef) - o.r;
+  };
+  let limit = Infinity;
+  for (const o of near) {
+    // (A hair more than each berth: the poses are BERTH_STEP_M apart, the dodge's closer.)
+    const slow = (o.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M;
+    const stop = (o.child ? ROBOTAXI_STOP_BERTH_CHILD_M : ROBOTAXI_STOP_BERTH_M) + BERTH_SLACK_M;
+    const now = clear(o, poses[0]!);
+    // Someone within the stop berth already: it does not set off, or stops (moving at all, it
+    // would be a moving vehicle within the override's clearance of them).
+    if (now < stop) return 0;
+    for (const p of poses) {
+      const d = clear(o, p);
+      if (p.d > 0 && p.d <= step + 1e-9 && d < stop && d < now - 1e-6) return 0;
+      if (d < slow) limit = ROBOTAXI_CREEP_MPS;
+    }
+  }
+  return limit;
 }
 
 /** Seconds ahead a moving walker's position is projected (seen by robotaxis). */
@@ -429,12 +657,21 @@ function agentObstacles(list: readonly AgentState[]): Obs[] {
   for (const a of list) {
     const spec = AGENT_SPEC[a.kind];
     const road = spec.road;
-    for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road });
+    if (road) {
+      // To robotaxis, its two circles; to walkers, its drawn body (with a berth while it moves).
+      for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, onlyFor: "road" });
+      const grow = a.speed > TAXI_STOPPED_MPS ? WALKER_TAXI_BERTH_M : 0;
+      const hl = ROBOTAXI_BODY.halfLength + grow;
+      const hw = ROBOTAXI_BODY.halfWidth + grow;
+      out.push({ x: a.x, z: a.z, r: Math.sqrt(hl * hl + hw * hw), id: a.id, player: false, road, onlyFor: "foot", box: { fx: dsin(a.heading), fz: -dcos(a.heading), hl, hw } });
+    } else {
+      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child: a.kind === "person" && personIsChild(a.id) });
+    }
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
       const hz = -dcos(a.heading);
       for (const t of road ? ROBOTAXI_PREDICT_S : WALKER_PREDICT_S) {
-        out.push({ x: a.x + hx * a.speed * t, z: a.z + hz * a.speed * t, r: spec.radius, id: a.id, player: false, road, predicted: true });
+        out.push({ x: a.x + hx * a.speed * t, z: a.z + hz * a.speed * t, r: spec.radius, id: a.id, player: false, road, predicted: true, foot: !road });
       }
     }
   }
@@ -602,17 +839,35 @@ function turnSpeed(cp: readonly number[], cruise: number): number {
 
 const HALF_PI_LOCAL = 1.5707963267948966;
 
-interface Seg {
+export interface Seg {
   path: Path;
   from: number;
   /** Lateral shift applied to points on this segment (walkers' sidestep, current segment only). */
   lat: number;
 }
 
-/** The route ahead of an agent: current path, then the planned connector and next path. */
-function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Seg[] {
+/**
+ * The route ahead of an agent (routeAhead): the segments it has worked out, and the planned
+ * connector and next path it adds only when a walk along the route gets past them (most walks,
+ * a walker's look-ahead, a robotaxi on a long lane, end on the path the agent is on).
+ */
+export interface Route {
+  segs: Seg[];
+  pending: { g: RoadGraph; a: Readonly<AgentState>; lane: Path } | null;
+}
+
+/**
+ * The route ahead of an agent (routeAhead), for callers that ask agentRouteAt about the same
+ * agent more than once in a tick (the dodge's prediction and reach of a robotaxi): one route walk.
+ */
+export function agentRouteSegs(world: World, a: Readonly<AgentState>): Route {
+  return world.roads ? routeAhead(world.roads, a) : { segs: [], pending: null };
+}
+
+/** The route ahead of an agent: current path, then the planned connector and next path (segAt adds those when needed). */
+function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Route {
   const ei = g.edgeIndex.get(a.edge);
-  if (ei === undefined) return [];
+  if (ei === undefined) return { segs: [], pending: null };
   const e = g.edges[ei]!;
   const lane = basePath(e, a);
   const segs: Seg[] = [];
@@ -622,12 +877,60 @@ function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Seg[] {
   } else {
     segs.push({ path: lane, from: a.s, lat: a.lat });
   }
-  const plan = planNext(g, a);
-  if (plan) {
-    segs.push({ path: connectorPath(makeConnector(lane, plan.path, AGENT_SPEC[a.kind].road ? 0.56 : 0.9)), from: 0, lat: 0 });
-    segs.push({ path: plan.path, from: 0, lat: 0 });
+  return { segs, pending: { g, a, lane } };
+}
+
+/** Segment i of a route (adding the planned connector and next path when the walk needs them), or null past its end. */
+function segAt(r: Route, i: number): Seg | null {
+  if (i >= r.segs.length && r.pending) {
+    const { g, a, lane } = r.pending;
+    r.pending = null;
+    const plan = planNext(g, a);
+    if (plan) {
+      r.segs.push({ path: connectorPath(makeConnector(lane, plan.path, AGENT_SPEC[a.kind].road ? 0.56 : 0.9)), from: 0, lat: 0 });
+      r.segs.push({ path: plan.path, from: 0, lat: 0 });
+    }
   }
-  return segs;
+  return r.segs[i] ?? null;
+}
+
+/**
+ * Points along the route ahead of an agent (its current lane, sidewalk or connector, then the
+ * planned connector and next lane), every `step` metres from where it is for up to `dist`
+ * metres: position, unit tangent, and the distance along the route. Fewer at a dead end. The
+ * dodge (dodge.ts) predicts a robotaxi along it, since that is exactly where it will drive.
+ */
+export function agentRoute(world: World, a: Readonly<AgentState>, dist: number, step: number): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
+  const ds: number[] = [];
+  for (let d = 0; d <= dist + 1e-9; d += step) ds.push(d);
+  return agentRouteAt(world, a, ds);
+}
+
+/**
+ * The agent's pose (position and unit tangent, the way it will face there) at each distance in
+ * `ds` (ascending, metres) along the route it will take: exactly where it will be and how it will
+ * face, as stepAgent will put it (no interpolation across a bend). Stops where the known route
+ * ends.
+ */
+export function agentRouteAt(world: World, a: Readonly<AgentState>, ds: readonly number[], route: Route | null = null): Array<{ x: number; z: number; tx: number; tz: number; d: number }> {
+  const g = world.roads;
+  const out: Array<{ x: number; z: number; tx: number; tz: number; d: number }> = [];
+  if (!g) return out;
+  route ??= routeAhead(g, a);
+  let si = 0;
+  let base = 0;
+  for (const d of ds) {
+    let sg = segAt(route, si);
+    while (sg && d - base > sg.path.len - sg.from) {
+      base += Math.max(0, sg.path.len - sg.from);
+      sg = segAt(route, ++si);
+    }
+    if (!sg) break;
+    const q = pathPoint(sg.path, sg.from + d - base);
+    const o = offsetPoint(sg.path, sg.from + d - base, sg.lat);
+    out.push({ x: o.x, z: o.z, tx: q.tx, tz: q.tz, d });
+  }
+  return out;
 }
 
 interface Hit {
@@ -644,16 +947,16 @@ interface ProbeResult {
   second: Hit | null;
 }
 
-/** Look ahead along the route for obstacles this agent must yield to. */
+/** Look ahead along the route (from `routes`, the tick's route walks, when given) for obstacles this agent must yield to. */
 function probe(
   g: RoadGraph,
   a: Readonly<AgentState>,
   hash: Map<number, Obs[]>,
   ignoreRobotaxis: boolean,
   scratch: Obs[],
+  routes: Map<number, Route> | null = null,
 ): ProbeResult {
   const spec = AGENT_SPEC[a.kind];
-  const segs = routeAhead(g, a);
   const step = spec.road ? 1.5 : 0.5;
   const start = spec.road ? 0.8 : 0.2;
   const look = spec.road ? spec.halfLength + Math.max(6, (a.speed * a.speed) / 6 + 4) : spec.halfLength + 2.5;
@@ -663,12 +966,13 @@ function probe(
   // Everything the look-ahead could touch lies within `look` of the agent (paths are never
   // shorter than straight lines): gather those once, then test each probe point against them.
   const reach = look + pr + 2.5;
-  queryHash(hash, a.x, a.z, reach, scratch);
+  queryHash(hash, a.x, a.z, reach + OBS_RADIUS_MAX - 2.5, scratch);
   const near: Obs[] = [];
   const hx = dsin(a.heading);
   const hz = -dcos(a.heading);
   for (const o of scratch) {
     if (o.id === a.id) continue;
+    if (o.onlyFor !== undefined && o.onlyFor !== (spec.road ? "road" : "foot")) continue;
     if (o.road && ignoreRobotaxis) continue;
     if (o.predicted && o.road === spec.road) continue;
     const dx = o.x - a.x;
@@ -678,23 +982,23 @@ function probe(
     near.push(o);
   }
   if (near.length === 0) return { first: null, second: null };
+  const route = routes ? routeOf(routes, g, a) : routeAhead(g, a);
   let si = 0;
   let base = 0; // distance already covered by earlier segments
-  for (let d = start; d <= look && si < segs.length; d += step) {
+  for (let d = start; d <= look; d += step) {
     // Advance to the segment containing distance d.
-    while (si < segs.length && d - base > segs[si]!.path.len - segs[si]!.from) {
-      base += Math.max(0, segs[si]!.path.len - segs[si]!.from);
-      si++;
+    let sg = segAt(route, si);
+    while (sg && d - base > sg.path.len - sg.from) {
+      base += Math.max(0, sg.path.len - sg.from);
+      sg = segAt(route, ++si);
     }
-    if (si >= segs.length) break;
-    const sg = segs[si]!;
+    if (!sg) break;
     const q = pathPoint(sg.path, sg.from + d - base);
-    const px = q.x - q.tz * sg.lat;
-    const pz = q.z + q.tx * sg.lat;
+    const { x: px, z: pz } = offsetPoint(sg.path, sg.from + d - base, sg.lat);
     for (const o of near) {
       const dx = o.x - px;
       const dz = o.z - pz;
-      const lim = pr + o.r;
+      const lim = pr + o.r + (spec.road && o.foot ? PERSON_BERTH_M : 0);
       if (dx * dx + dz * dz >= lim * lim) continue;
       let gap: number;
       if (o.box) {
@@ -885,6 +1189,12 @@ interface Ctx {
   world: World;
   g: RoadGraph;
   hash: Map<number, Obs[]>;
+  /** The same obstacles, only those on foot (not predicted): what a robotaxi's berth is kept from. */
+  footHash: Map<number, Obs[]>;
+  /** Only the vehicle boxes walkers meet (players' cars, robotaxis' drawn bodies): what nearerVehicle checks. */
+  boxHash: Map<number, Obs[]>;
+  /** The route ahead of each agent this tick (routeAhead, once per agent: routeOf). */
+  routes: Map<number, Route>;
   /** Look-ahead results by agent id; filled for every stepping agent, and on demand (probeOf). */
   probes: Map<number, ProbeResult>;
   byId: Map<number, AgentState>;
@@ -906,10 +1216,50 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   const have = c.probes.get(id);
   if (have) return have;
   const a = c.byId.get(id);
-  if (!a || a.dwell > 0) return undefined;
-  const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch);
+  if (!a || a.dwell > 0 || a.dodge !== null) return undefined;
+  const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch, c.routes);
   c.probes.set(id, p);
   return p;
+}
+
+/** The route ahead of agent a (as of the previous tick), walked once per tick. */
+function routeOf(routes: Map<number, Route>, g: RoadGraph, a: Readonly<AgentState>): Route {
+  let r = routes.get(a.id);
+  if (!r) {
+    r = routeAhead(g, a);
+    routes.set(a.id, r);
+  }
+  return r;
+}
+
+/** A walker never steps closer than this to a vehicle's body (a robotaxi's drawn one, a player's car), metres. */
+export const WALKER_VEHICLE_GAP_M = 0.1;
+
+/**
+ * Would walker a's step to (x, z) bring its body within WALKER_VEHICLE_GAP_M of a vehicle's body
+ * (a robotaxi's drawn body, a player's car, as of the previous tick), closer than it is now?
+ */
+function nearerVehicle(c: Ctx, a: Readonly<AgentState>, x: number, z: number): boolean {
+  const r = AGENT_SPEC[a.kind].radius;
+  queryHash(c.boxHash, x, z, OBS_RADIUS_MAX + r + 1, c.scratch);
+  for (const o of c.scratch) {
+    if (!o.box) continue;
+    // (A moving robotaxi's walker box carries the walkers' berth: measure its drawn body.)
+    const hl = o.road ? ROBOTAXI_BODY.halfLength : o.box.hl;
+    const hw = o.road ? ROBOTAXI_BODY.halfWidth : o.box.hw;
+    const gap = (px: number, pz: number): number => {
+      const ox = px - o.x;
+      const oz = pz - o.z;
+      const along = ox * o.box!.fx + oz * o.box!.fz;
+      const lat = -ox * o.box!.fz + oz * o.box!.fx;
+      const el = Math.max(0, (lat < 0 ? -lat : lat) - hw);
+      const ef = Math.max(0, (along < 0 ? -along : along) - hl);
+      return Math.sqrt(el * el + ef * ef) - r;
+    };
+    const after = gap(x, z);
+    if (after < WALKER_VEHICLE_GAP_M && after < gap(a.x, a.z) - 1e-9) return true;
+  }
+  return false;
 }
 
 /**
@@ -1023,6 +1373,14 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
       limitedByObstacle = true;
     }
   }
+  // Someone on foot near it: it creeps past (below the dodge's threat speed), or waits.
+  if (spec.road) {
+    const lim = berthLimit(c, a, dt);
+    if (lim < target) {
+      target = lim;
+      limitedByObstacle = true;
+    }
+  }
 
   // Walkers sidestep oncoming walkers; relax back to the keep-right line otherwise.
   let lat = a.lat;
@@ -1040,8 +1398,12 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   else speed = Math.max(target, speed - Math.max(spec.decel, 9) * dt);
   if (speed < 0.02) speed = 0;
 
-  // Advance along the route.
-  let s = a.s + speed * dt;
+  // Advance along the route. A walker sidestepped off its line walks the offset line at its own
+  // pace (roads.ts offsetAdvance: the outside of a bend is the longer way round), also over a hop
+  // onto the next path, where s - len is then the distance still to walk. At lat 0 (and for
+  // robotaxis) this is plain arc length.
+  const paced = !spec.road && lat !== 0;
+  let s = paced ? offsetAdvance(a.conn ? connectorPath(a.conn) : cur, a.s, lat, speed * dt) : a.s + speed * dt;
   let edge = a.edge;
   let dir = a.dir;
   let lane = a.lane;
@@ -1061,7 +1423,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
     const len = conn ? connectorPath(conn).len : curPath.len;
     if (s < len) break;
     if (conn) {
-      s = s - len + resume;
+      s = paced ? offsetAdvance(curPath, resume, lat, s - len) : s - len + resume;
       resume = 0;
       conn = null;
       // Walkers let go of the node at once; a robotaxi holds it until its tail is clear.
@@ -1087,7 +1449,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
       continue;
     }
     const cp = makeConnector(curPath, plan.path, spec.road ? 0.56 : 0.9);
-    s -= len;
+    if (paced) s = offsetAdvance(connectorPath(cp), 0, lat, s - len);
+    else s -= len;
     resume = 0;
     node = g.nodes[endNode(curEdge, dir)]!.id;
     edge = plan.edge.id;
@@ -1110,8 +1473,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   // Pose on the (possibly new) path.
   const path = conn ? connectorPath(conn) : curPath;
   const q = pathPoint(path, s);
-  const x = q.x - q.tz * lat;
-  const z = q.z + q.tx * lat;
+  const { x, z } = offsetPoint(path, s, lat);
   const heading = datan2(q.tx, -q.tz);
 
   // Blocked: stopped (robotaxi) or reduced to a shuffle (walker) by something in the way,
@@ -1123,8 +1485,9 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   let wait = blocked ? a.wait + ticks : spec.road || speed > 0.6 * cruise ? 0 : Math.max(0, a.wait - ticks);
   // On a safe lane (roads.ts LANE_SAFE_M) a robotaxi cannot touch a building: skip the check.
   const safe = spec.road && conn === null && curEdge.laneSafe[dirIndex(dir)][lane] === true;
-  if (!safe && bodyBlocked(c.world, a.kind, edge, x, z, heading)) {
-    // Refuse the move: stay put and wait.
+  if ((!safe && bodyBlocked(c.world, a.kind, edge, x, z, heading)) || (!spec.road && nearerVehicle(c, a, x, z))) {
+    // Refuse the move: stay put and wait. (A walker never steps or sidesteps closer than
+    // WALKER_VEHICLE_GAP_M to a vehicle's body: the dodge counts that close as in its way.)
     wait = a.wait + ticks;
     if (spec.road && wait > ROBOTAXI_STUCK_TICKS) return null;
     if (!spec.road && wait > WALKER_TURN_TICKS) return turnAround(c, { ...a, rng });
@@ -1183,9 +1546,7 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
   const back: Dir = a.dir === 1 ? -1 : 1;
   if (!e.walkClear[dirIndex(back)][sideIndex(a.lane)]) return { ...a, wait: 0, speed: 0 };
   const from = a.conn ? connectorPath(a.conn) : basePath(e, a);
-  const p = pathPoint(from, a.s);
-  const px = p.x - p.tz * a.lat;
-  const pz = p.z + p.tx * a.lat;
+  const { x: px, z: pz } = offsetPoint(from, a.s, a.lat);
   const to = walkPath(e, back, a.lane);
   const s1 = clamp(projectOnPath(to, px, pz).s + 1.0, 0, to.len);
   const q = pathPoint(to, s1);
@@ -1244,6 +1605,66 @@ function pickPiece(cum: readonly number[], u: number): number {
   return lo;
 }
 
+/**
+ * A new agent keeps at least this far from a vehicle's body (every player's car, parked or
+ * driven, and every robotaxi's drawn body), or a new robotaxi's body from anyone on foot, metres:
+ * the dodge's widest override clearance (0.6 m, src/sim/dodge.ts) and a little more, so nobody
+ * appears inside or against a vehicle (a contact, or a leap out of it).
+ */
+export const SPAWN_VEHICLE_CLEAR_M = 0.7;
+
+/** Distance from (px, pz) to a box centred at (x, z) facing (fx, fz) with half extents hl, hw (0 inside). */
+function boxGap(px: number, pz: number, x: number, z: number, fx: number, fz: number, hl: number, hw: number): number {
+  const ox = px - x;
+  const oz = pz - z;
+  const along = ox * fx + oz * fz;
+  const lat = -ox * fz + oz * fx;
+  const el = Math.max(0, (lat < 0 ? -lat : lat) - hw);
+  const ef = Math.max(0, (along < 0 ? -along : along) - hl);
+  return Math.sqrt(el * el + ef * ef);
+}
+
+/** Every player's car (driven, or parked while they are on foot): spawns keep clear of them. */
+export interface CarSpot {
+  x: number;
+  z: number;
+  fx: number;
+  fz: number;
+}
+
+export function playerCars(state: Readonly<SimState>): CarSpot[] {
+  return sortedIds(state.players).map((id) => {
+    const c = state.players[id]!.car;
+    return { x: c.x, z: c.z, fx: dsin(c.heading), fz: -dcos(c.heading) };
+  });
+}
+
+/** Is a new agent of this kind at (x, z) facing (hx, hz) clear of every vehicle (and, a robotaxi, of everyone on foot) by SPAWN_VEHICLE_CLEAR_M? */
+function spawnClearOfVehicles(kind: AgentKind, x: number, z: number, hx: number, hz: number, others: readonly AgentState[], cars: readonly CarSpot[]): boolean {
+  const spec = AGENT_SPEC[kind];
+  if (!spec.road) {
+    const need = spec.radius + SPAWN_VEHICLE_CLEAR_M;
+    for (const c of cars) if (boxGap(x, z, c.x, c.z, c.fx, c.fz, CAR.halfLength, CAR.halfWidth) < need) return false;
+    for (const o of others) {
+      if (!AGENT_SPEC[o.kind].road) continue;
+      if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) > 64) continue;
+      if (boxGap(x, z, o.x, o.z, dsin(o.heading), -dcos(o.heading), ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth) < need) return false;
+    }
+    return true;
+  }
+  // A robotaxi: its drawn body clear of every player's car (by both bodies' half diagonals) and of everyone on foot.
+  const carDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
+  const taxiDiag = Math.sqrt(ROBOTAXI_BODY.halfLength * ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth * ROBOTAXI_BODY.halfWidth);
+  const lim = carDiag + taxiDiag + 0.5;
+  for (const c of cars) if ((c.x - x) * (c.x - x) + (c.z - z) * (c.z - z) < lim * lim) return false;
+  for (const o of others) {
+    if (AGENT_SPEC[o.kind].road) continue;
+    if ((o.x - x) * (o.x - x) + (o.z - z) * (o.z - z) > 64) continue;
+    if (boxGap(o.x, o.z, x, z, hx, hz, ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth) < AGENT_SPEC[o.kind].radius + SPAWN_VEHICLE_CLEAR_M) return false;
+  }
+  return true;
+}
+
 function trySpawn(
   world: World,
   g: RoadGraph,
@@ -1254,6 +1675,7 @@ function trySpawn(
   others: readonly AgentState[],
   bodies: readonly Body[],
   minPlayerDist: number,
+  cars: readonly CarSpot[],
 ): [AgentState | null, RngState] {
   const spec = AGENT_SPEC[kind];
   const pieces = spec.road ? area.drive : area.walk;
@@ -1289,6 +1711,7 @@ function trySpawn(
     const heading = datan2(q.tx, -q.tz);
     if (bodyBlocked(world, kind, e.id, q.x, q.z, heading)) continue;
     if (minDist2(bodies, q.x, q.z) < minPlayerDist * minPlayerDist) continue;
+    if (!spawnClearOfVehicles(kind, q.x, q.z, q.tx, q.tz, others, cars)) continue;
     let clash = false;
     for (const o of others) {
       const os = AGENT_SPEC[o.kind];
@@ -1330,6 +1753,7 @@ function trySpawn(
       ghost: 0,
       mode: "go",
       rng: arng,
+      dodge: null,
     };
     return [agent, r];
   }
@@ -1347,6 +1771,7 @@ export function populate(
   bodies: readonly Body[],
   seed: number,
   initial: boolean,
+  cars: readonly CarSpot[] = [],
 ): { ext: AgentsExt; rng: RngState } {
   const g = world.roads;
   if (!g || bodies.length === 0) return { ext, rng };
@@ -1388,7 +1813,7 @@ export function populate(
       let add = Math.min(Math.max(0, want - have), Math.max(0, room.get(kind)!));
       if (!initial) add = Math.min(add, SPAWN_PER_POP);
       for (let i = 0; i < add && owned[owner]! < MAX_AGENTS && list.length < MAX_AGENTS_TOTAL; i++) {
-        const [agent, r2] = trySpawn(world, g, ar, kind, r, nextId, list, bodies, minPlayer);
+        const [agent, r2] = trySpawn(world, g, ar, kind, r, nextId, list, bodies, minPlayer, cars);
         r = r2;
         if (!agent) continue;
         list.push(agent);
@@ -1403,7 +1828,7 @@ export function populate(
 
 /** Initial ambient population for a new state (empty when the world has no roads). */
 export function initialAgents(world: World, state: Readonly<SimState>): { ext: AgentsExt; rng: RngState } {
-  return populate(world, { nextId: 1, list: [] }, state.rng, playerBodies(state), state.seed, true);
+  return populate(world, { nextId: 1, list: [] }, state.rng, playerBodies(state), state.seed, true, playerCars(state));
 }
 
 /**
@@ -1418,7 +1843,8 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   if (bodies.length === 0) return { ext, rng: prev.rng };
 
   const obs = [...playerObstacles(prev), ...agentObstacles(ext.list)];
-  const hash = buildHash(obs);
+  const { hash, footHash, boxHash } = buildHashes(obs);
+  const routes = new Map<number, Route>();
 
   // Who steps this tick, and by how much.
   const stepDt = new Map<number, number>();
@@ -1432,8 +1858,8 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   const probes = new Map<number, ProbeResult>();
   const scratch: Obs[] = [];
   for (const a of ext.list) {
-    if (!stepDt.has(a.id) || a.dwell > 0) continue;
-    probes.set(a.id, probe(g, a, hash, a.ghost > 0, scratch));
+    if (!stepDt.has(a.id) || a.dwell > 0 || a.dodge !== null) continue;
+    probes.set(a.id, probe(g, a, hash, a.ghost > 0, scratch, routes));
   }
 
   // Junctions (nodes with 3+ streets): who holds each one (claimed at the line, crossing, or
@@ -1517,11 +1943,12 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   }
   const byId = new Map<number, AgentState>();
   for (const a of ext.list) byId.set(a.id, a);
-  const ctx: Ctx = { world, g, hash, probes, byId, scratch, holders, holding, road, winners };
+  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
-    if (dt === undefined) {
+    // Not stepping this tick, or diving out of a vehicle's way (dodge.ts moves it).
+    if (dt === undefined || a.dodge !== null) {
       list.push(a);
       continue;
     }
@@ -1535,7 +1962,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number)
   let out: AgentsExt = { nextId: ext.nextId, list };
   let rng = prev.rng;
   if (tick % POP_INTERVAL === 0) {
-    const p = populate(world, out, rng, bodies, prev.seed, false);
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
     out = p.ext;
     rng = p.rng;
   }

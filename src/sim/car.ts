@@ -129,6 +129,7 @@ export function makeCar(x: number, z: number, heading: number, y = 0): CarState 
     impactSpeed: 0,
     landingSpeed: 0,
     personBumps: 0,
+    nearMisses: 0,
   };
 }
 
@@ -151,10 +152,19 @@ export const CLEAR_SPOT_WATER_RADIUS_M = 150;
  * nearest dry one, out to CLEAR_SPOT_WATER_RADIUS_M), in a fixed order (so every client picks
  * the same).
  * A car placed overlapping a footprint would otherwise be pushed out of it (at most
- * CAR.maxPush a tick). When nothing within reach is clear, the requested spot.
+ * CAR.maxPush a tick). `keepOff`: more round bodies its body must not overlap (step.ts: people,
+ * animals and players on foot grown by the dodge's clearance, robots, robotaxis), so a car never
+ * appears on top of anyone. When nothing within reach is clear, the requested spot.
  */
-export function clearCarSpot(world: World, x: number, z: number, heading: number, others: ReadonlyArray<Readonly<Box>> = []): { x: number; z: number } {
-  const circles: Circle[] = others.flatMap((b) => carCircles(b));
+export function clearCarSpot(
+  world: World,
+  x: number,
+  z: number,
+  heading: number,
+  others: ReadonlyArray<Readonly<Box>> = [],
+  keepOff: readonly Circle[] = [],
+): { x: number; z: number } {
+  const circles: Circle[] = [...others.flatMap((b) => carCircles(b)), ...keepOff];
   const shore = world.walls?.shore ?? null;
   const fx = dsin(heading);
   const fz = -dcos(heading);
@@ -279,8 +289,10 @@ const RAIL_CORNERS: ReadonlyArray<readonly [number, number]> = [
 ];
 
 /**
- * Advance one car by one tick. `obstacles` are circles the car cannot pass through (agents,
- * people, other cars), positioned as of the previous tick.
+ * Advance one car by one tick. `obstacles` are circles the car cannot pass through (robots,
+ * other cars), positioned as of the previous tick. Since v4 step() never passes people or
+ * animals here: they are not obstacles to a car (they dive out of its way, src/sim/dodge.ts). A
+ * circle marked `person` still stops the car and counts in personBumps, for callers that ask.
  */
 export function stepCar(
   world: World,
@@ -592,5 +604,6 @@ export function stepCar(
     impactSpeed,
     landingSpeed,
     personBumps,
+    nearMisses: c.nearMisses,
   };
 }

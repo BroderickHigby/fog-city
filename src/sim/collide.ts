@@ -515,6 +515,46 @@ function circleBoxPush(x: number, z: number, r: number, b: Readonly<Box>): [numb
   return p ? [-p[0], -p[1]] : null;
 }
 
+/** Does a circle overlap any of the boxes? */
+export function circleInBoxes(x: number, z: number, r: number, boxes: ReadonlyArray<Readonly<Box>>): boolean {
+  for (const b of boxes) {
+    const dx = b.x - x;
+    const dz = b.z - z;
+    const lim = b.hl + b.hw + r;
+    if (dx * dx + dz * dz > lim * lim) continue;
+    if (circleBoxPush(x, z, r, b)) return true;
+  }
+  return false;
+}
+
+/**
+ * Push a circle out of every box, with no cap (up to four passes, deepest first). `clear` is
+ * false when it is still in one after them (wedged between two).
+ */
+export function pushOutOfBoxes(x: number, z: number, r: number, boxes: ReadonlyArray<Readonly<Box>>): { x: number; z: number; clear: boolean } {
+  for (let pass = 0; pass < 4; pass++) {
+    let best: [number, number] | null = null;
+    let bestD2 = 0;
+    for (const b of boxes) {
+      const dx = b.x - x;
+      const dz = b.z - z;
+      const lim = b.hl + b.hw + r;
+      if (dx * dx + dz * dz > lim * lim) continue;
+      const p = circleBoxPush(x, z, r, b);
+      if (!p) continue;
+      const d2 = p[0] * p[0] + p[1] * p[1];
+      if (d2 > bestD2) {
+        bestD2 = d2;
+        best = p;
+      }
+    }
+    if (!best) return { x, z, clear: true };
+    x += best[0];
+    z += best[1];
+  }
+  return { x, z, clear: !circleInBoxes(x, z, r, boxes) };
+}
+
 /** The vertical band of a body for building checks (blocksBand): feet plus the step it may climb, to the top of its head. */
 export interface Band {
   bottom: number;
