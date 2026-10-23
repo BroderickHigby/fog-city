@@ -1978,8 +1978,10 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   let rng = prev.rng;
   if (tick % POP_INTERVAL === 0) {
     const physical = out.list.filter(a => a.runtimeId !== undefined);
-    const p = populate(world, { ...out,list:out.list.filter(a => a.runtimeId === undefined) }, rng, bodies, prev.seed, false, playerCars(prev));
-    out = physical.length ? { ...p.ext,list:[...p.ext.list,...physical].sort((a,b)=>a.id-b.id) } : p.ext;
+    // Claimed legacy bodies still occupy the ambient population budget. Counting
+    // only unclaimed rows refills the same slots every population tick.
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
+    out = physical.length ? { ...p.ext,list:[...p.ext.list.filter(a=>a.runtimeId===undefined),...physical].sort((a,b)=>a.id-b.id) } : p.ext;
     rng = p.rng;
   }
   return { ext: out, rng };
