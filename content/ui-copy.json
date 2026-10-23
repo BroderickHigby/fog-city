@@ -79,6 +79,7 @@
     "ui.controls.phone": "Phone",
     "ui.controls.altFire": "Lob flowers",
     "ui.controls.gear": "Use gear",
+    "ui.controls.horn": "Horn",
     "ui.controls.streak": "Call a Hype reward",
     "ui.controls.breakFree": "Let go",
     "ui.controls.closeAd": "Close advert",
@@ -200,7 +201,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:ae5a0242",
+    "contentHash": "fnv1a32:c1907b67",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }
