@@ -1,12 +1,12 @@
 {
   "sourceInput": "wave1-v2.json",
-  "sourcePhysics": "work/impacts/car-vs-car (v11: cars shove robotaxis; segment 4 has two car-taxi hits)",
+  "sourcePhysics": "impacts stream: cars shove robotaxis (the last segment has car-taxi hits)",
   "simVersion": 11,
   "hashes": [
     "f0dae7e4",
     "bb9801a7",
     "0249feec",
     "8c6a9545",
-    "2cc49249"
+    "5a20bc3b"
   ]
 }

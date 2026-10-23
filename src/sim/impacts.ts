@@ -31,7 +31,7 @@
 
 import { DT, sortedIds, type CarState, type PlayerId, type SimState } from "./contract.ts";
 import { approach, clamp, datan2, dcos, dsin, wrapAngle } from "./dmath.ts";
-import { CAR, bodyHit, carCircles, spinKick, type CarContact } from "./car.ts";
+import { CAR, bodyAfter, bodyHit, carCircles, spinKick, type CarContact } from "./car.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, SPAWN_MIN_PLAYER_M, agentCircles, type AgentState, type AgentsExt } from "./agents.ts";
@@ -282,8 +282,10 @@ function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obs
     }
     const body = res.circle?.body;
     if (body) {
-      if (contacts.some((k) => k.key === body.key)) {
-        const vn = (vx - body.vx) * res.nx + (vz - body.vz) * res.nz;
+      const hit = contacts.find((k) => k.key === body.key);
+      if (hit) {
+        const bv = bodyAfter(body, hit);
+        const vn = (vx - bv.vx) * res.nx + (vz - bv.vz) * res.nz;
         if (vn < 0) {
           vx -= vn * res.nx;
           vz -= vn * res.nz;

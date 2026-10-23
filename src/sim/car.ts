@@ -215,6 +215,11 @@ export function bodyHit(
   return { vx: self.vx + jx / self.mass, vz: self.vz + jz / self.mass, kick, contact: { key: body.key, j, nx, nz, jt, tx, tz, x: px, z: pz, speed: -vn } };
 }
 
+/** A body's velocity once it has taken the opposite of contact `k`'s impulse. */
+export function bodyAfter(body: Readonly<ImpactBody>, k: Readonly<CarContact>): { vx: number; vz: number } {
+  return { vx: body.vx - (k.j * k.nx + k.jt * k.tx) / body.mass, vz: body.vz - (k.j * k.nz + k.jt * k.tz) / body.mass };
+}
+
 /**
  * The spin (rad/s, + = clockwise) an impulse (jx, jz) at offset (ox, oz) from a body's centre
  * gives it (a point's velocity from yaw rate w is w * (-oz, ox)), scaled by CAR.spinGain and capped.
@@ -468,15 +473,18 @@ export function stepCar(
     if (body) {
       // Another car or a robotaxi: momentum is exchanged once a tick; after that the car only
       // stops closing on it (it moves at the body's velocity along the normal).
-      const rvx = vx - body.vx;
-      const rvz = vz - body.vz;
+      // (After the exchange the body moves at its new velocity: bodyAfter.)
+      const hit = contacts.find((k) => k.key === body.key);
+      const bv = hit ? bodyAfter(body, hit) : body;
+      const rvx = vx - bv.vx;
+      const rvz = vz - bv.vz;
       const vn = rvx * res.nx + rvz * res.nz;
       if (vn < 0) {
         if (-vn > impact) {
           impact = -vn;
           impactPerson = false;
         }
-        if (contacts.some((k) => k.key === body.key)) {
+        if (hit) {
           vx -= vn * res.nx;
           vz -= vn * res.nz;
         } else {
