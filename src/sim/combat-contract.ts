@@ -37,8 +37,8 @@ export interface CombatPlayer extends Vec3 {
   tankTier: 0 | 1 | 2;
   flowTier: 0 | 1;
   scannerTier: 1 | 2 | 3 | 4;
-  nozzle?: "standard" | "pressure";
-  gear?: "boots" | "airplane" | "none";
+  nozzle?: "standard" | "pressure" | "wide";
+  gear?: "boots" | "airplane" | "microclimate" | "none";
   gadget?: "balloon" | "sprinkler" | "speaker";
   perks?: readonly ("quiet" | "stealth" | "marine" | "brackish" | "whisperer" | "lean")[];
   trunk?: boolean;
@@ -48,6 +48,7 @@ export interface Wall { id: string; minX: number; maxX: number; minY: number; ma
 export interface RefillSource extends Vec3 { id: string; kind: "hydrant" | "fountain" | "bay" | "puddle" | "trunk"; radius: number; salt: boolean; ownerId?: string }
 export type AttackKind = "shove" | "snatch" | "ad-blast" | "phone-hack" | "handshake" | "forced-update";
 export interface AttackRequest { id: string; sequence: number; attackerId: string; targetId: string; kind: AttackKind }
+export interface MaintenanceRequest { id: string; sequence: number; kind: "collect-heap" | "restore"; actorId: string; workerId: string; kioskId?: string }
 export interface StreakGrant { sequence: number; playerId: string; kind: StreakKind }
 export type StreakKind = "confidence" | "parrots" | "tensor" | "blimp" | "hydrants" | "agi";
 export interface CombatInput {
@@ -75,6 +76,8 @@ export interface CombatContext {
   refills: readonly RefillSource[];
   walls: readonly Wall[];
   attacks?: readonly AttackRequest[];
+  maintenance?: readonly MaintenanceRequest[];
+  maintenanceKiosks?: readonly (Vec3 & { id: string })[];
   groundHeight?: (x: number, z: number) => number;
   safeLots?: readonly (Vec3 & { id: string; radius: number })[];
   streaks?: readonly StreakGrant[];
@@ -98,7 +101,7 @@ export interface PlayerCombat {
   nextGadgetTick: number;
   nextGearTick: number;
   gearUntil: number;
-  gear: "boots" | "airplane" | "none";
+  gear: "boots" | "airplane" | "microclimate" | "none";
   refillId: string;
   refillTicks: number;
   scanId: string;
@@ -154,7 +157,7 @@ export interface Projectile extends Vec3 {
 }
 export interface Gadget extends Vec3 {
   id: number;
-  kind: "sprinkler" | "speaker" | "parrots" | "tensor" | "blimp" | "hydrants";
+  kind: "sprinkler" | "speaker" | "parrots" | "tensor" | "blimp" | "hydrants" | "microclimate";
   ownerId: string;
   untilTick: number;
   targetId: string;
@@ -175,6 +178,8 @@ export interface CombatState {
   gadgets: Gadget[];
   attacks: PendingAttack[];
   attackSequence: Record<string, number>;
+  /** Absent in earlier combat saves; an empty cursor map until first maintenance. */
+  maintenanceSequence?: Record<string, number>;
   events: CombatEvent[];
   pauseUntil: number;
 }
