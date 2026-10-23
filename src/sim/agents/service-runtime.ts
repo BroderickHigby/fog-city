@@ -4,11 +4,11 @@ import { isGameplayId } from "../gameplay-contract.ts";
 import { MOAT_SITES } from "../../content/places.ts";
 import { toLocal } from "../../geo/project.ts";
 import { AGENT_SPEC, ROBOTAXI_BODY } from "../agents.ts";
-import { carBox } from "../car.ts";
+import { CAR, carBox } from "../car.ts";
 import { boxBlocked, type Box } from "../collide.ts";
 import { boxDistance } from "../dodge.ts";
 import { datan2, dcos, dsin } from "../dmath.ts";
-import { circleBlocked, groundHeight, segmentBlocked, type World } from "../world.ts";
+import { circleBlockedBand, groundHeight, roadSurfaceHeight, surfaceHeight, type World } from "../world.ts";
 import { lanePath, pathPoint, projectOnPath } from "../roads.ts";
 import { createFollowerState, stepVehicleFollower, type FollowerState } from "../vehicles/follower.ts";
 import { agentsRuntimeOf } from "./runtime.ts";
@@ -57,18 +57,18 @@ export function threatRequestsOf(sim:Readonly<SimState>):ThreatSpawnRequest[]{
   return result.sort((a,b)=>a.requestTick-b.requestTick||compare(a.id,b.id));
 }
 
-interface RoadPoint {x:number;z:number;heading:number}
-export interface ServiceBlocker {x:number;z:number;radius?:number;heading?:number;halfLength?:number;halfWidth?:number}
+interface RoadPoint {x:number;z:number;heading:number;y?:number;edgeId?:string}
+export interface ServiceBlocker {x:number;z:number;y?:number;height?:number;radius?:number;heading?:number;halfLength?:number;halfWidth?:number}
 /** Physical bodies, parked cars and walking players all block a new service body. */
 export function serviceBlockersOf(sim:Readonly<SimState>,pending:readonly ServiceBlocker[]=[]):ServiceBlocker[]{
   const blockers:ServiceBlocker[]=(sim.ext.agents?.list??[]).map(actor=>actor.kind==="robotaxi"
-    ?{...actor,halfLength:actor.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:actor.halfWidth??ROBOTAXI_BODY.halfWidth}
-    :{...actor,radius:actor.radius??AGENT_SPEC[actor.kind].radius});
-  const runtime=agentsRuntimeOf(sim);
-  if(runtime)for(const id of Object.keys(runtime.actors).sort()){const actor=runtime.actors[id]!;if(!actor.retired&&actor.legacyId===null)blockers.push(actor);}
+    ?{...actor,height:actor.height??ROBOTAXI_BODY.height,halfLength:actor.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:actor.halfWidth??ROBOTAXI_BODY.halfWidth}
+    :{...actor,height:actor.height??1.8,radius:actor.radius??AGENT_SPEC[actor.kind].radius});
+  // Runtime records may be abstract or still waiting for physical admission.
+  // Their accepted bodies are already above; new batch reservations are below.
   for(const id of Object.keys(sim.players).sort()){
-    const player=sim.players[id]!,box=carBox(player.car);blockers.push({...box,halfLength:box.hl,halfWidth:box.hw});
-    if(player.mode==="foot"&&player.foot)blockers.push({...player.foot,radius:.35});
+    const player=sim.players[id]!,box=carBox(player.car);blockers.push({...box,y:player.car.y,height:CAR.bodyHeight,halfLength:box.hl,halfWidth:box.hw});
+    if(player.mode==="foot"&&player.foot)blockers.push({...player.foot,height:1.8,radius:.35});
   }
   return [...blockers,...pending];
 }
@@ -83,11 +83,14 @@ function boxesOverlap(a:Box,b:Box):boolean{
 }
 /** Match physical admission geometry before allocating an actor or publishing its spawn. */
 export function serviceEntryClear(world:World,point:RoadPoint,actors:readonly ServiceBlocker[],halfLength=2.7,halfWidth=1.1,height=2.4):boolean{
-  const box={...point,hl:halfLength,hw:halfWidth},y=groundHeight(world,point.x,point.z);
+  const box={...point,hl:halfLength,hw:halfWidth},y=point.y??(point.edgeId?roadSurfaceHeight(world,point.edgeId,point.x,point.z):surfaceHeight(world,point.x,point.z,groundHeight(world,point.x,point.z)));
   if(boxBlocked(world,box,y+.5,[],y+height))return false;
-  return actors.every(actor=>actor.halfLength!==undefined&&actor.halfWidth!==undefined
+  return actors.every(actor=>!verticalOverlap(y,height,actor)|| (actor.halfLength!==undefined&&actor.halfWidth!==undefined
     ?!boxesOverlap(box,{...actor,heading:actor.heading??0,hl:actor.halfLength,hw:actor.halfWidth})
-    :boxDistance(actor.x,actor.z,box.x,box.z,dsin(box.heading),-dcos(box.heading),box.hl,box.hw)>=(actor.radius??.4)+.1);
+    :boxDistance(actor.x,actor.z,box.x,box.z,dsin(box.heading),-dcos(box.heading),box.hl,box.hw)>=(actor.radius??.4)+.1));
+}
+function verticalOverlap(y:number,height:number,actor:ServiceBlocker):boolean{
+  return actor.y===undefined||actor.height===undefined||y<actor.y+actor.height+.1&&actor.y<y+height+.1;
 }
 export function serviceRoadPoint(world:World,target:{x:number;z:number},minimum:number,maximum:number,preferred:number,actors:readonly ServiceBlocker[],halfLength=2.7,halfWidth=1.1,accept?:(point:RoadPoint)=>boolean,height=2.4):RoadPoint|null{
   let best:RoadPoint|null=null,score=Infinity,key="";
@@ -99,13 +102,14 @@ export function serviceRoadPoint(world:World,target:{x:number;z:number},minimum:
       if(minimum===0)positions.push(projectOnPath(path,target.x,target.z).s);
       else for(let at=0;at<=path.len;at+=10)positions.push(at);
       for(const at of positions){
-        const p=pathPoint(path,at),d=distance(p,target);if(d<minimum||d>maximum||circleBlocked(world,p.x,p.z,1.4)||actors.some(actor=>distance(actor,p)<halfLength+(actor.radius??.4)+.5))continue;
+        const p=pathPoint(path,at),d=distance(p,target),y=roadSurfaceHeight(world,edge.id,p.x,p.z);
+        if(d<minimum||d>maximum||circleBlockedBand(world,p.x,p.z,1.4,y+.5,y+height)||actors.some(actor=>verticalOverlap(y,height,actor)&&distance(actor,p)<halfLength+(actor.radius??.4)+.5))continue;
         const heading=datan2(p.tx,-p.tz),fx=dsin(heading),fz=-dcos(heading),rx=dcos(heading),rz=dsin(heading);
-        if(!serviceEntryClear(world,{...p,heading},actors,halfLength,halfWidth,height))continue;
+        if(!serviceEntryClear(world,{...p,y,edgeId:edge.id,heading},actors,halfLength,halfWidth,height))continue;
         const corners=[[-1,-1],[-1,1],[1,1],[1,-1]].map(([f,r])=>({x:p.x+f!*halfLength*fx+r!*halfWidth*rx,z:p.z+f!*halfLength*fz+r!*halfWidth*rz}));
-        if(corners.some(c=>circleBlocked(world,c.x,c.z,.15))||corners.some((c,i)=>segmentBlocked(world,c.x,c.z,corners[(i+1)%4]!.x,corners[(i+1)%4]!.z)))continue;
+        if(corners.some(c=>circleBlockedBand(world,c.x,c.z,.15,y+.5,y+height)))continue;
         const candidateScore=Math.abs(d-preferred),candidateKey=`${edge.id}:${dir}:${at}`;
-        if(candidateScore<score||candidateScore===score&&compare(candidateKey,key)<0){const point={x:p.x,z:p.z,heading};if(accept&&!accept(point))continue;score=candidateScore;key=candidateKey;best=point;}
+        if(candidateScore<score||candidateScore===score&&compare(candidateKey,key)<0){const point={x:p.x,y,z:p.z,heading,edgeId:edge.id};if(accept&&!accept(point))continue;score=candidateScore;key=candidateKey;best=point;}
       }
     }
   }
@@ -142,7 +146,8 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
     if(!origin||!target){emit("service.blocked",{id,requestId:request.id},0,"no-valid-road-entry");continue;}
     const test=stepVehicleFollower(world,{...origin,speed:0},createFollowerState({...origin,speed:0}),{kind:"pursue",target,stopDistance:1,maxSpeed:13});
     if(test.status==="no-route"){emit("service.blocked",{id,requestId:request.id},0,"no-directed-route");continue;}
-    state.vehicles[id]={id,model:"van",requestId:request.id,requestTick:request.requestTick,playerId:request.playerId,phase:"driving",origin:{...origin,y:groundHeight(world,origin.x,origin.z)},destination:target,depot:depotFor(origin),follower:createFollowerState({...origin,speed:0}),deliveredTick:null,retiredTick:null};
+    const destination={x:target.x,z:target.z,heading:target.heading};
+    state.vehicles[id]={id,model:"van",requestId:request.id,requestTick:request.requestTick,playerId:request.playerId,phase:"driving",origin:{x:origin.x,y:origin.y??groundHeight(world,origin.x,origin.z),z:origin.z,heading:origin.heading},destination,depot:depotFor(origin),follower:createFollowerState({...origin,speed:0}),deliveredTick:null,retiredTick:null};
     planned.push({...origin,halfLength:2.7,halfWidth:1.1});
     emit("service.dispatched",state.vehicles[id]!,2);
   }
