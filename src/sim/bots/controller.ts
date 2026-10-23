@@ -105,7 +105,7 @@ export function planRivalBotInputs(world:World,sim:Readonly<SimState>,previous:R
    if(seenIds.has(target.id)){
     if((target.status==="bad"||target.rival)&&memory.role!=="spotter"){
      memory.goal="spray";
-     if(distance(body,target)<=(player.mode==="vehicle"?7:12)){if(clearFireCorridor(body,target,sensed.visible))action|=Action.fire;goal={x:body.x,z:body.z};}
+     if(distance(body,target)<=(target.rival?18:player.mode==="vehicle"?7:12)){if(clearFireCorridor(body,target,sensed.visible))action|=target.rival?Action.altFire:Action.fire;goal={x:body.x,z:body.z};}
     }else if(memory.role==="spotter"&&target.status==="bad"){
      memory.goal="scan";action|=Action.watch;if(distance(body,target)<=20)goal={x:body.x,z:body.z};
     }else if(target.kind==="robot"&&target.status==="unknown"){

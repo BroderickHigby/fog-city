@@ -13,6 +13,10 @@ function perception(actors:BotVisibleActor[]){return [{playerId:"bot",actors,ref
 function scan(sim:ReturnType<typeof initial>,bad:boolean){sim.ext.combat!.players.bot!.scan={targetId:"r",bad,confidence:1,tick:sim.tick};}
 function freeze<T>(data:T):T{if(data&&typeof data==="object"){for(const value of Object.values(data))freeze(value);Object.freeze(data);}return data;}
 describe("rival founder controller",()=>{
+ it("lobs flowers at a visible rival founder instead of spraying water",()=>{
+  const sim=initial(),plan=planRivalBotInputs(world,sim,createRivalBotState({bot:"hunter"}),perception([robot({id:"player:other",kind:"player",rival:true,z:-15})]));
+  expect(plan.inputs.bot!.actions&Action.altFire).toBeTruthy();expect(plan.inputs.bot!.actions&Action.fire).toBe(0);
+ });
  it("scans an unknown robot and fires only after this player's accepted bad scan",()=>{
   const sim=initial(),state=createRivalBotState({bot:"hunter"});const first=planRivalBotInputs(world,sim,state,perception([robot()]));
   expect(first.inputs.bot!.actions&Action.scan).toBeTruthy();expect(first.inputs.bot!.actions&Action.fire).toBe(0);
