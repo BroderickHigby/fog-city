@@ -10,6 +10,8 @@ import { MISSIONS } from "../../content/catalog.ts";
 import type { MissionState } from "../player/types.ts";
 import type { MissionParkingWorld } from "./mechanics/runtime.ts";
 import type { ParkingBay, ParkingRule, CleaningRule } from "./mechanics/parking.ts";
+import { checkParking } from "./mechanics/parking.ts";
+import type { SimState } from "../contract.ts";
 
 const cache = new WeakMap<World, { rules: readonly ParkingRule[]; bays: Map<string, ParkingBay[]> }>();
 
@@ -74,4 +76,22 @@ export function buildMissionParkingWorld(context: SimSystemContext, rules: reado
     clock: { isoWeekday: calendar.weekday || 7, minute: calendar.hour * 60 + calendar.minute, weekOfMonth: Math.ceil(calendar.day / 7), holiday },
     vehicles: Object.keys(context.state.players).sort().map(playerId => { const car = context.state.players[playerId]!.car; return { playerId, x:car.x, y:car.y, z:car.z, heading:car.heading, speed:car.speed, lateral:car.lateral, halfLength:CAR.halfLength, halfWidth:CAR.halfWidth, height:CAR.bodyHeight }; }),
   };
+}
+
+/** Navigation hint only: success still requires the accepted physical body in the reducer. */
+export function missionParkingDestination(world: World, state: SimState, playerId: string): { x: number; z: number } | undefined {
+  const own = state.players[playerId];
+  if (!own) return undefined;
+  const parking = buildMissionParkingWorld({ world, state, previous: state, inputs: {}, events: [] }, world.parking?.rules ?? [], world.streetCleaning?.rules ?? []);
+  const progress = state.ext.missions?.players[playerId];
+  const target = parking.targets.find(value => value.missionId === progress?.missionId && value.stepId === progress?.stepId);
+  const vehicle = parking.vehicles.find(value => value.playerId === playerId);
+  if (!target || !vehicle) return undefined;
+  const legal = parking.bays.filter(bay => target.bayIds.includes(bay.id) && checkParking(
+    { ...vehicle, x: bay.x, y: bay.y, z: bay.z, heading: bay.heading, speed: 0, lateral: 0 },
+    bay, { ...parking, requests: [] }, state.tick, target.expectedStayMinutes,
+  ).legal);
+  legal.sort((a, b) => (a.x-own.car.x)*(a.x-own.car.x)+(a.z-own.car.z)*(a.z-own.car.z)-((b.x-own.car.x)*(b.x-own.car.x)+(b.z-own.car.z)*(b.z-own.car.z)) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const bay = legal[0];
+  return bay ? { x: bay.x, z: bay.z } : undefined;
 }
