@@ -55,7 +55,7 @@ describe("registered combat system", () => {
     const second = step(world, freeze(first), {}, [], [earlier, combat]);
     expect(second.ext.combat?.tick).toBe(2);
     expect(second.ext.future).toEqual({ keep: [1, true] });
-    expect(second.ext.robots).toEqual({ ready: true });
+    expect(second.ext.futureReady).toEqual({ ready: true });
     expect(previous.ext.combat).toBeUndefined();
     expect(() => canonicalJson(second)).not.toThrow();
   });
@@ -146,4 +146,10 @@ describe("registered combat system", () => {
     });
     expect(unsafe.id).toBe("forged");
   });
+  it("keeps inherited metadata from changing actor classification",()=>{
+    const metadata=Object.create({firmware:"bad",kind:"robot",id:"forged"});
+    const context=contextFromState(world,initial(),{actorMetadata:{"player:p":metadata}});
+    expect(context.actors.find(actor=>actor.id==="player:p")).toMatchObject({id:"player:p",kind:"player",firmware:"none",playerId:"p"});
+  });
+
 });

@@ -37,4 +37,29 @@ describe("closed-loop vehicle follower", () => {
     expect(state.reversals).toBe(0);
     expect(state.blockedTicks).toBe(0);
   });
+  it("settles a near-goal stop without entering a deadband reverse loop",()=>{
+    const world=buildWorld([]);
+    let body=makeCar(0,0,0),state=createFollowerState(body),status="driving";
+    for(let tick=0;tick<300;tick++){
+      const result=stepVehicleFollower(world,body,state,{kind:"pursue",target:{x:0,z:-2.25},stopDistance:2});
+      status=result.status;state=result.state;body=stepCar(world,body,result.input);
+    }
+    expect(status).toBe("arrived");
+    expect(state.reversals).toBe(0);
+    expect(Math.abs(body.speed)).toBeLessThan(.3);
+  });
+
+  it("brakes a full-speed service approach before passing its stop",()=>{
+    const world=buildWorld([]);
+    let body=makeCar(-117.5,1.75,Math.PI/2),state=createFollowerState(body),status="driving";
+    for(let tick=0;tick<1200;tick++){
+      const result=stepVehicleFollower(world,body,state,{kind:"pursue",target:{x:0,z:1.75},stopDistance:1,maxSpeed:13});
+      status=result.status;state=result.state;body=stepCar(world,body,result.input);
+    }
+    expect(status).toBe("arrived");
+    expect(Math.sqrt(body.x*body.x+(body.z-1.75)*(body.z-1.75))).toBeLessThan(1.16);
+    expect(Math.abs(body.speed)).toBeLessThan(.3);
+    expect(state.reversals).toBe(0);
+  });
+
 });

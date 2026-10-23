@@ -45,9 +45,16 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
     protectedArea,fog:context=>fogDensity(context.world,context.state,0,0)});
+  let cachedObservation:{context:SimSystemContext;value:ReturnType<typeof observed>}|undefined;
   const gameplay=(context:SimSystemContext)=>{
+    const previous=cachedObservation?.context;
+    // The six reducers observe the same immutable tick. A branch/replay gets a
+    // different previous or input identity and is always recomputed.
+    if(previous&&previous.previous===context.previous&&previous.world===context.world&&previous.inputs===context.inputs&&previous.events===context.events&&previous.state.tick===context.state.tick&&previous.state.players===context.state.players&&previous.state.ext.agents===context.state.ext.agents&&previous.state.ext.robots===context.state.ext.robots&&previous.state.ext.combat===context.state.ext.combat&&previous.state.ext.clock===context.state.ext.clock)return cachedObservation!.value;
     const calendar=gameTime(context.state);
-    return {...observed(context),day:calendar.dayIndex,month:calendar.month};
+    const value={...observed(context),day:calendar.dayIndex,month:calendar.month,hour:calendar.hour,minute:calendar.minute};
+    cachedObservation={context,value};
+    return value;
   };
   return Object.freeze([createClockSystem(),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),createModesSystem(options.matchContext,options.advanced)]);
 }
