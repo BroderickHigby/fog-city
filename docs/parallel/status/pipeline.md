@@ -2,7 +2,7 @@
 
 ## Now
 
-Building the gameplay-world handoff on `lane/pipeline/wave2`, starting from the published core interface `9a6a107`. The original prototype is untouched. Existing city geometry and licensed source layers are reused; the integration base already contains 583 built SF tiles, 33,081 sidewalk nodes, 58,007 sidewalk edges, 4,223 hydrants, 285 fountains, 135 transit patterns and 3,260 stops.
+Publishing the gameplay-world handoff on `lane/pipeline/wave2`, starting from the published core interface `9a6a107`. The original prototype is untouched. Existing city geometry and licensed source layers are reused; the integration base already contains 583 built SF tiles, 33,081 sidewalk nodes, 58,007 sidewalk edges, 4,223 hydrants, 285 fountains, 135 transit patterns and 3,260 stops.
 
 ## Done
 
@@ -10,10 +10,14 @@ Building the gameplay-world handoff on `lane/pipeline/wave2`, starting from the 
 - Created an isolated worktree at `/workspace/fog-city-pipeline`.
 - Audited existing layer shapes and pinned `2026-10-20` source snapshots.
 - Identified that the practical wave-2 gap is an indexed, provider-ready gameplay layer and safe anchors, rather than missing citywide tile generation.
+- Added `gameplay.json` (2.52 MB): 583 tile indices, 5,205 refill interactions, 807 procedural service/activity candidates, and all 10 design territory rows.
+- Kept complete sidewalk endpoint references at tile seams, including segments crossing a tile without either endpoint inside it. Indexed transit segments by geometric intersection.
+- Added an offline index rebuild/check command and connected the same generator to the full build.
+- Synthetic seam, determinism, safety and malformed-ID tests plus the existing build-fixture pass (40 tests).
 
 ## Next
 
-Publish the exact additive gameplay schema to Lane 2, implement deterministic per-tile indexing and safe refill/garage/repair/activity anchors, validate coverage and byte-for-byte regeneration, then certify later territory steps against the existing city.
+Merge Lane 2's published schema/types, validate the committed world against it, push the wave-2 checkpoint, then coordinate reviewed QA geometry before later-wave physical certification.
 
 ## Blocked on
 
@@ -22,7 +26,7 @@ Publish the exact additive gameplay schema to Lane 2, implement deterministic pe
 
 ## Requests for other lanes
 
-- Lane 2: add `manifest.layers.gameplay` and the agreed gameplay JSON schema/shared types. Retain the existing sidewalk/transit files and ID formats.
+- Lane 2: shared schema/types published in `8c6dff9`; incorporating them for schema verification. Retain the existing sidewalk/transit files and ID formats.
 - Lane 3: consume existing sidewalk nodes/edges, mapping `crossing` to the policy's crosswalk kind; retain node elevation in physical body placement. Request optional stairs/signal fields before final schema publication.
 - Lane 5: consume deterministic safe anchor candidates; progression and unlock rules belong to the player lane.
 - Lane R: keep the world QA gate and reviewed geometry integration authoritative; this lane does not raise budgets or bypass the gate.
@@ -30,3 +34,17 @@ Publish the exact additive gameplay schema to Lane 2, implement deterministic pe
 ## For the owner
 
 No new paid services, unknown-license sources, or tile-budget changes are proposed. The source inventory already records PDDL/public-domain datasets and procedural fallbacks. GitHub API access is blocked in this environment; branch pushes and complete draft PR text will be supplied here.
+
+## Draft pull request
+
+Title: Pipeline: index city gameplay data and safe service anchors
+
+Base: `integrate/wave2`; branch: `lane/pipeline/wave2`.
+
+Body:
+
+The committed city already had sidewalks, transit and water-source layers, but no tile-indexed gameplay handoff. Add a deterministic `gameplay.json` layer with complete sidewalk crossings, transit references, safe fresh/salt refill points and procedural service/activity candidates. Preserve original source IDs and geometry; publish design territory coverage without activating districts.
+
+The full builder emits the layer, and an offline command rebuilds it from existing committed data without downloads or tile regeneration. Placement checks exclude water, building footprints and traffic lanes; candidate services remain subject to content progression and driving-route validation. The world QA geometry gate remains open and this change does not claim bridge/tunnel/stair readiness.
+
+Validation: synthetic seam/determinism/safety cases and existing build-fixture tests pass; shared-schema, committed-world, budget and byte-identity checks recorded below when complete.
