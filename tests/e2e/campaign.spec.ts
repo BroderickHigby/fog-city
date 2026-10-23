@@ -17,12 +17,11 @@ function plan(driver: CampaignDriver, run: () => void): void {
   }
 }
 
-const CAMPAIGN_VIEWPORT = { width: 960, height: 540 };
-/** Pure Node planning does not need a full-size software-rasterized canvas. */
-async function planWithoutRasterLoad(page: Page, driver: CampaignDriver, run: () => void): Promise<void> {
+/** Keep SwiftShader idle while Node plans; restore the real viewport even on failure. */
+async function quietRenderer<T>(page: Page, run: () => T): Promise<T> {
   await page.setViewportSize({ width: 1, height: 1 });
-  try { plan(driver, run); }
-  finally { await page.setViewportSize(CAMPAIGN_VIEWPORT); }
+  try { return run(); }
+  finally { await page.setViewportSize({ width: 960, height: 540 }); }
 }
 
 async function feed(page: Page, driver: CampaignDriver): Promise<void> {
@@ -37,7 +36,7 @@ async function feed(page: Page, driver: CampaignDriver): Promise<void> {
   expect(canonicalJson(actual ?? await simState(page))).toBe(canonicalJson(driver.state));
 }
 
-test.use({ viewport: CAMPAIGN_VIEWPORT });
+test.use({ viewport: { width: 960, height: 540 } });
 test("Hot Desk and the first purchase complete through real controls, then Spill waits for acknowledgement", async ({ page }) => {
   test.setTimeout(1_200_000);
   const problems = await bootWorld(page, "sf", "&radius=300&pr=0.75");
@@ -49,7 +48,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   const { world } = loadWorld("sf", { roads: true });
   const initial = await simState(page);
   const first = new CampaignDriver(world, initial, "p1", e2eGameSystems());
-  await planWithoutRasterLoad(page, first, () => first.hotDeskToSignup());
+  await quietRenderer(page, () => plan(first, () => first.hotDeskToSignup()));
   console.info(`Campaign planned through signup: ${first.frames.length} input frames`);
   await feed(page, first);
   console.info("Campaign browser reached signup with exact replay state");
@@ -91,7 +90,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
   const beforeCone = await simState(page);
   const second = new CampaignDriver(world, beforeCone, "p1", e2eGameSystems());
-  await planWithoutRasterLoad(page, second, () => second.coneHotDeskSpot());
+  await quietRenderer(page, () => plan(second, () => second.coneHotDeskSpot()));
   console.info(`Campaign completion planned: ${second.frames.length} input frames`);
   await feed(page, second);
   await page.waitForFunction(() => {
@@ -126,7 +125,8 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
     { frames: second.frames },
     p1Chunk(final.tick - second.state.tick),
   ], initial.tick, commands);
-  expect(hashState(replay(world, initial, recorded, e2eGameSystems()).final)).toBe(hashState(final));
+  const replayHash = await quietRenderer(page, () => hashState(replay(world, initial, recorded, e2eGameSystems()).final));
+  expect(replayHash).toBe(hashState(final));
   console.info("Campaign full replay hash matched");
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("chase"));
   await frames(page, 2);
