@@ -362,7 +362,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     if (!manifest.worldColliders) throw new Error(`world ${world} has no collider pack (manifest.worldColliders): the hosted build ships no per-tile colliders`);
     // JSON as is: the manifest, the road graph and the data layers the game reads.
     const present = new Set(readdirSync(dir));
-    const jsonFiles = [...new Set(["manifest.json", manifest.roads, ...RUNTIME_LAYERS.map((l) => manifest.layers?.[l])])]
+    const jsonFiles = [...new Set(["manifest.json", manifest.roads, ...(present.has("storefronts.json") ? ["storefronts.json"] : []), ...RUNTIME_LAYERS.map((l) => manifest.layers?.[l])])]
       .filter((f): f is string => typeof f === "string" && f.length > 0)
       .sort();
     for (const f of jsonFiles) {
