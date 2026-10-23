@@ -355,6 +355,8 @@ function drive(kind: SoakDriver, start: SoakStart, s: SimState, ds: DriverState)
 export interface SoakOptions {
   /** Ticks at which a player joins with their car asked for on the person nearest the driver's car. */
   joins?: readonly number[];
+  /** Called after every step with the state before and after it (dodge-motion.ts measures bodies with it). */
+  onTick?: (before: SimState, after: SimState) => void;
 }
 
 /** A player.join for the step to `s.tick + 1`, with the car asked for on the person nearest p1's car. */
@@ -422,7 +424,9 @@ export function soak(world: World, start: SoakStart, driver: SoakDriver, ticks: 
     const before = s.players.p1!.car;
     const o0 = dodgeExtOf(s).overrides;
     const k = opts.joins ? opts.joins.indexOf(t) : -1;
+    const prevState = s;
     s = step(world, s, { p1: drive(driver, start, s, ds) }, k >= 0 ? joinOnCrowd(s, k) : []);
+    opts.onTick?.(prevState, s);
     if (k >= 0) joined++;
     if (dodgeExtOf(s).overrides !== o0) {
       // Whose: any body leapt this tick farther than 8 m from the player's car was a robotaxi's doing.
