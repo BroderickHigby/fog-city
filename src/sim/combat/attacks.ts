@@ -191,6 +191,7 @@ export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: Comb
       emit(state, ATTACK_EVENT.inventory, attack.attackerId, attack.targetId, -1, "groceries");
     } else if (attack.kind === "forced-update") {
       converted.add(attack.targetId);
+      targetState(state, attack.targetId).converted = true;
       emit(state, ATTACK_EVENT.converted, attack.attackerId, attack.targetId, 1, "forced-update");
       emit(state, ATTACK_EVENT.bounty, attack.attackerId, attack.targetId, 3600, "conversion");
     } else {

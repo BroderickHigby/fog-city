@@ -59,5 +59,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     ...(options.fog!==undefined?{fog:options.fog}:{}),...(options.rain!==undefined?{rain:options.rain}:{}),...(options.night!==undefined?{night:options.night}:{}),
     ...(options.mode?{mode:options.mode}:{}),...(options.safeLots?{safeLots:options.safeLots}:{}),...(options.streaks?{streaks:options.streaks}:{}),
     ...(options.rivalPlayerIds?{rivalPlayerIds:options.rivalPlayerIds}:{}),
+    ...(options.maintenance?{maintenance:options.maintenance}:{}),
+    ...(options.maintenanceKiosks?{maintenanceKiosks:options.maintenanceKiosks}:{}),
   };
 }

@@ -44,6 +44,7 @@ function recordedInputs(frame: InputFrame, ctx: CombatContext, state: CombatStat
       scan: (recorded.actions & Action.scan) !== 0,
       cone: (recorded.actions & Action.cone) !== 0,
       altFire: (recorded.actions & Action.altFire) !== 0,
+      gear: (recorded.actions & Action.gear) !== 0,
     };
     if (recorded.aimYaw !== undefined) input.aimYaw = recorded.aimYaw;
     if (recorded.aimPitch !== undefined) input.aimPitch = recorded.aimPitch;

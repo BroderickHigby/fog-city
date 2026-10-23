@@ -129,3 +129,7 @@ Draft PR title: `Core: retain claimed actors in population budgets and reuse obs
 Base: `integrate/wave2` · Head: `lane/core/perf`
 Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/perf?expand=1>
 Body: Count runtime-owned legacy actors when replenishing ambient population, preventing duplicate replacements without surrendering movement ownership. Reuse the unchanged observation snapshot across gameplay reducers and verify interleaved replay branches. Includes population and replay regression tests. Actual-SF profiling is still in progress; this branch does not claim the final simulation budget or visual quality target.
+
+## Integrated AGI pause adaptation
+
+The later combat branch is reconciled with the physical prepare/observe kernel: a pause processes recorded membership and sanitized inputs, then runs only combat. It skips preparation, body admission, movement and dodge until the pause expires. Normal ticks keep the existing physical path. The updated boundary regression checks that preparation remains paused through tick 180 and resumes at tick 181. New integrated validation is pending; the old pre-kernel pause test count does not validate this adaptation.

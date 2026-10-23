@@ -391,6 +391,10 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const sanitized: Record<PlayerId, SimInput> = {};
   for (const id of sortedIds(players)) sanitized[id] = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
   const prior: SimState = { ...prev, players };
+  // Pause retains membership and sanitized inputs while freezing preparation and motion.
+  if ((prev.ext.combat?.pauseUntil ?? 0) > prev.tick) {
+    return runSystems({world,previous:prior,state:{...prior,tick},inputs:sanitized,events},systems.filter(system=>system.key==="combat"));
+  }
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick},inputs:sanitized,events }, systems);
   const admitted = prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements);
   const before: SimState = { ...admitted, tick:prev.tick };

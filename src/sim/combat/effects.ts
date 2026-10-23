@@ -1,6 +1,7 @@
 import { clamp, dcos, dsin } from "../dmath.ts";
 import { nextFloat } from "../rng.ts";
 import { lineOfSight } from "./physics.ts";
+import { fogAtPoint } from "./microclimate.ts";
 import {
   capacity, distance2, DT, emit, FIDELITY_RADIUS, protectedActor, robotActor,
   safeAngle, sortedActors, sortedPlayers, targetOf,
@@ -32,6 +33,9 @@ function distance3Squared(a: Vec3, b: Vec3): number {
 }
 
 function modelRate(actor: CombatActor): number {
+  // Explicit objective resistance replaces the model default. A relay at 0.2
+  // takes twenty seconds of the starting 0.25-rust/second stream.
+  if (actor.rustScale !== undefined) return Number.isFinite(actor.rustScale) && actor.rustScale > 0 && actor.rustScale <= 1 ? actor.rustScale : 0;
   if (actor.model === "patrol") return 0.5;
   if (actor.model === "drone") return 1.5;
   if (actor.model === "robotaxi") return 0.7;
@@ -121,11 +125,12 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
   for (const actor of sortedActors(ctx)) {
     let target = state.targets[actor.id];
     if (target?.phase === "cleared") continue;
-    if ((ctx.wave ?? 2) >= 3 && actor.firmware === "bad" && robotActor(actor) && !actor.sheltered && !protectedActor(actor)) {
-      const fog = ctx.night && (ctx.fog ?? 0) > 0.6 ? 0.01 * (actor.pursuing ? 3 : 1) : 0;
-      const rain = EFFECTS.rainRustPerSecond * clamp(ctx.rain ?? 0, 0, 1);
+    if ((ctx.wave ?? 2) >= 3 && actor.firmware === "bad" && robotActor(actor) && !protectedActor(actor)) {
+      const microclimate = fogAtPoint(state, actor);
+      const fog = Math.max(microclimate ? 0.03 : 0, !actor.sheltered && ctx.night && (ctx.fog ?? 0) > 0.6 ? 0.01 * (actor.pursuing ? 3 : 1) : 0);
+      const rain = actor.sheltered ? 0 : EFFECTS.rainRustPerSecond * clamp(ctx.rain ?? 0, 0, 1);
       if (fog + rain > 0) {
-        applyRust(state, actor, (fog + rain) * DT, "environment", false);
+        applyRust(state, actor, (fog + rain) * DT, microclimate?.ownerId ?? "environment", false, !microclimate);
         target = state.targets[actor.id];
       }
     }
@@ -158,7 +163,7 @@ export function tickEffects(state: CombatState, ctx: CombatContext): void {
         emit(state, "robot.heap", target.sourceId, actor.id, 1, actor.model ?? "robot");
       }
     }
-    if (target.phase === "heap" && (actor.inFidelity === false ||
+    if ((ctx.wave ?? 2) < 3 && target.phase === "heap" && (actor.inFidelity === false ||
       players.length > 0 && players.every(player => distance2(player, actor) > FIDELITY_RADIUS * FIDELITY_RADIUS))) {
       target.phase = "cleared";
       target.heightScale = 0;
