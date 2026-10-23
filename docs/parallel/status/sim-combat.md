@@ -1,7 +1,7 @@
 # Lane 4: Sim-Combat
 
 ## Now
-Working ahead on `lane/sim-combat/wave5`, with wave-2 shared-interface intake `ef74fe5` merged through the wave chain. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. The separate core pause `4ffe076` is merged on wave 4 and later. Combined type/unit/browser verification is running on this branch. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
+Combat waves 2–5 are implemented and pushed, with wave-2 shared-interface intake `ef74fe5` merged through the wave chain. Combat imports Lane 2's authoritative shared contract and exposes its registered factory. The separate core pause `4ffe076` is merged on wave 4 and later. Combined verification found a pre-existing packaged-page favicon request outside the deployment sub-path; a separate render fix is being prepared and tested. The handoff rules are on `docs/parallel-handoff` at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
 
 ## Done
 - Inspected the handoff, current shared simulation, and combat design.
@@ -22,12 +22,13 @@ Working ahead on `lane/sim-combat/wave5`, with wave-2 shared-interface intake `e
 - Intake validation: typecheck and all 110 wave-2 combat tests passed across five files. `git diff --check` and a direct Node registered-step smoke also passed. Seven new owned tests cover registration, unrelated extension preservation, sanitized controls, explicit input overrides, refill selection and metadata identity.
 
 ## Next
-Complete combined verification, publish the wave-5 checkpoint and hand the data/render/control requests to their owning lanes.
+Complete packaged-build verification with the separate favicon fix, publish the replay baseline and hand the data/render/control requests to their owning lanes.
 
 ## Blocked on
 - Production registration still needs current actor/world/loadout providers. `createCombatSystem` is ready, but no default provider invents classifications or water sources. Controls without a recorded shared action/value (gear, selected streak, close-ad, break-free, placement and boost) still require provider inputs from the owning lanes.
 - GitHub API CONNECT returns HTTP 403. Git push works; owner can open the draft PR using the title/body below.
 - Browser melt rendering and live play remain pending the renderer and actor integration. Unit simulation results do not establish visual quality or frame rate.
+- Packaged-page verification needs the separate favicon fix: the unchanged `index.html` lets Chromium request `/favicon.ico`, which fails the sub-path and no-404 assertions. The combat lane does not include that render-owned HTML change.
 
 ## Requests for other lanes
 - Lane 2 (`systems.ts`): configure `createCombatSystem(provider)` with the real actor/world/loadout providers. The factory maps published recorded actions/aim and calls the pure reducer after movement. `ext.combat` has its own version 1 and tracks the simulation tick. Preserve it in saves/replays. Own the browser melt acceptance test. Shared contract intake is complete; later shared changes remain Lane 2-owned.
@@ -39,6 +40,7 @@ Complete combined verification, publish the wave-5 checkpoint and hand the data/
 - Lane 8: supply content keys for wet/scan/melt dialogue rather than deriving text in simulation.
 
 ## Requests for Render-World / Assets
+- Review the separate `fix/favicon-subpath` patch: an explicit data favicon avoids the browser's root-relative `/favicon.ico` fallback on `/fog/city/` deployments. This is the only observed packaged-build failure.
 - Render `projectiles`, `targets[id].rust`, `phase`, `phaseTick`, `heightScale` and `puddle`. Seized starts at age 0, slumping at 30 ticks, heap/30% height at 120; `cleared` is invisible. Robotaxis disable/pull over and never melt.
 - Draw water/splashes/wet decals and heap props. Use source/target IDs to attach readable attack windups, popups, cone blindness and scan results.
 - Prove Footman and Trundle drawn heights <=40% within two seconds of seizure in Lane 2's browser gate. Simulation coverage alone is insufficient.
@@ -152,3 +154,11 @@ Lane 6 supplies mode/rivals and clears combat state between matches; Lane 5 cons
 
 ### For the owner to judge
 Review as a stacked draft above wave 4. These are sim changes; final presentation and feel remain an integrated-game review.
+
+## Combined verification
+- Typecheck: passing on the core/combat integration.
+- Full Vitest suite: 82 files, 2,713 passed, one skipped (2026-10-23). The added replay-baseline test and real registered-pause cases also pass in a subsequent seven-test run; final typecheck passes. Command: `pnpm exec vitest run --maxWorkers=2`.
+- New combat Node/Chromium parity: 2,000 ticks, 33 per-second hashes and final canonical state identical; final hash `1a8363b9`, no page errors. Scenario exercises six authorized rewards, scan/refill/cone/balloon/flowers and melt, with a protected corridor remaining unaffected. Portable runner: `CHROMIUM_PATH=/usr/bin/chromium node tests/sim/combat/browser-parity.mjs`.
+- Full Playwright suite on the combat branch: 30 passed, two favicon-related packaged-build failures, two serial dependants not run, eight skipped because Firefox/WebKit are absent. Node/Chromium determinism, SF/dev boot, driving, on-foot, tiles, landmarks, traffic, skyline and boundary checks pass. The unchanged assertions are being rerun against the isolated favicon fix; cloud browser configuration stays outside the repository.
+- Independent final integration review found no additional actionable defect after the documented fixes.
+- Visible combat acceptance remains pending: the live renderer must consume these fields and the production provider must supply actors, world sources and recorded loadouts. Existing-world browser checks and sim parity do not substitute for that gate.
