@@ -4,7 +4,43 @@ import type { CombatActor, CombatContext, Projectile, Vec3, Wall } from "./types
 export const PROJECTILE_GRAVITY = 9.81;
 const CONTACT_EPSILON = 1e-10;
 
-/** First contact along the closed segment, with 0 meaning it starts inside the box. */
+function inFootprint(x:number,z:number,polygon:readonly (readonly [number,number])[]):boolean {
+  let inside=false;
+  for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+    const [ax,az]=polygon[j]!,[bx,bz]=polygon[i]!;
+    const cross=(x-ax)*(bz-az)-(z-az)*(bx-ax);
+    if(Math.abs(cross)<=CONTACT_EPSILON&&x>=Math.min(ax,bx)-CONTACT_EPSILON&&x<=Math.max(ax,bx)+CONTACT_EPSILON&&z>=Math.min(az,bz)-CONTACT_EPSILON&&z<=Math.max(az,bz)+CONTACT_EPSILON)return true;
+    if((az>z)!==(bz>z)&&x<(bx-ax)*(z-az)/(bz-az)+ax)inside=!inside;
+  }
+  return inside;
+}
+
+/** Exact first contact with a possibly concave polygon during the clipped height interval. */
+function footprintFraction(a:Vec3,b:Vec3,polygon:readonly (readonly [number,number])[],enter:number,exit:number):number|null {
+  const dx=b.x-a.x,dz=b.z-a.z;
+  if(inFootprint(a.x+dx*enter,a.z+dz*enter,polygon))return enter;
+  let first:number|null=null;
+  for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+    const [ax,az]=polygon[j]!,[bx,bz]=polygon[i]!,ex=bx-ax,ez=bz-az,ox=ax-a.x,oz=az-a.z;
+    const determinant=dx*ez-dz*ex;
+    let contact:number|null=null;
+    if(Math.abs(determinant)>CONTACT_EPSILON){
+      const t=(ox*ez-oz*ex)/determinant,u=(ox*dz-oz*dx)/determinant;
+      if(t>=enter-CONTACT_EPSILON&&t<=exit+CONTACT_EPSILON&&u>=-CONTACT_EPSILON&&u<=1+CONTACT_EPSILON)contact=Math.max(enter,Math.min(exit,t));
+    }else if(Math.abs(ox*dz-oz*dx)<=CONTACT_EPSILON){
+      const length=dx*dx+dz*dz;
+      if(length>0){
+        const ta=(ox*dx+oz*dz)/length,tb=((bx-a.x)*dx+(bz-a.z)*dz)/length;
+        const low=Math.max(enter,Math.min(ta,tb)),high=Math.min(exit,Math.max(ta,tb));
+        if(low<=high)contact=low;
+      }
+    }
+    if(contact!==null&&(first===null||contact<first))first=contact;
+  }
+  return first;
+}
+
+/** First contact with a closed box, or its exact extruded footprint when supplied. */
 export function segmentWallFraction(a: Vec3, b: Vec3, wall: Wall): number | null {
   let enter = 0;
   let exit = 1;
@@ -25,7 +61,10 @@ export function segmentWallFraction(a: Vec3, b: Vec3, wall: Wall): number | null
     exit = Math.min(exit, Math.max(first, second));
     if (enter > exit) return null;
   }
-  return enter;
+  if(!wall.footprint)return enter;
+  // Invalid optional geometry falls back to the enclosing wall rather than opening a hole.
+  if(wall.footprint.length<3||wall.footprint.some(point=>point.length!==2||!Number.isFinite(point[0])||!Number.isFinite(point[1])))return enter;
+  return footprintFraction(a,b,wall.footprint,enter,exit);
 }
 
 /**

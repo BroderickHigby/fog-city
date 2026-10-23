@@ -50,7 +50,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
   for (const player of players) for (const building of nearbyBuildings(world,player.x,player.z,40)) {
     if (seen.has(building.id)) continue;
     seen.add(building.id);
-    walls.push({id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1]))});
+    walls.push({id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1])),footprint:building.footprint});
   }
   return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),
