@@ -116,3 +116,18 @@ The canonical Hot Desk approach could crash when a second timed Ferry bus spawne
 Validation: typecheck, 16 targeted tests and 75 portable-API checks pass. Replaying the exact saved SF tick-1200 state through the game systems now reaches tick 1201 with a clear second-bus entry and matching runtime/physical actor counts.
 
 Follow-up: service admission now takes missing legacy taxi dimensions from shared `ROBOTAXI_BODY` (half-length 2.5 m, half-width 1.0 m), matching the drawn body and core clearance. Explicit bus/van dimensions remain unchanged. Typecheck and 17 service/transit/admission regressions pass, including the taxi's outer length and width.
+
+## Hot Desk parked actor and durable staging repair
+
+Isolated branch `lane/sim-agents/mission-retry`, from frozen `984fa70`. The Hot Desk `spot` stage had no eligible traffic-lane sample inside its authored 15 m radius, so its one-shot request created a squatter binding without a body and then disappeared.
+
+- Staged taxis may use a collision-validated stationary placement inside the original authored radius. Full drawn hulls, accepted bodies, parked cars, walking players and reserved spawns are checked, along with a clear, nearly level hood approach. No driving route or movement permission is inferred from that placement.
+- Pending stage descriptions persist separately from actors. At most 64 requests are retained; at most two are attempted per tick, each no more than once per 30 ticks. Retries allocate only clear missing actors, keep accepted members, and finish only after actual physical admission. No pending description is exposed as a combat actor.
+- Reset, departure, missing progress and superseding stages cancel stale retries. A legacy save with an existing binding but an absent active-objective actor can recover only from one unambiguous authored stage. Retired actors remain terminal.
+- Placement uses accepted physical poses rather than stale abstract runtime actors. Shared taxi dimensions and normal core admission remain authoritative.
+
+Validation: TypeScript and **5 files / 97 tests** pass, including blocked one-shot retry, partial roster retention, duplicate prevention, cancellation, legacy-save recovery, normal runtime/service integration and portable APIs. Both exact short SF replays pass: the real signup command from tick 13715, and the previously stuck cone state from 13731, each run for 32 ticks. They admit `mission:hot-desk:squatter` as physical ID 810 at the original stage center, stationary and good, with zero contacts/failures. The harness owns the subsequent real-input cone completion check and full campaign acceptance.
+
+Draft PR title: `fix(agents): retain blocked mission stages and safely park objective taxis`
+
+Draft PR body: The Hot Desk squatter stage could disappear because the authored parking area contained no routable lane sample. Admit a stationary objective taxi only at a full-hull-validated local position with hood access, and retain bounded stage retries until physical admission. Recover an already-stuck save from its active objective and existing binding without inventing progress. Typecheck and 97 focused tests pass; exact pre-signup and stuck-cone SF states now admit the canonical taxi with zero contacts/failures. Full-route acceptance remains with the integration harness.
