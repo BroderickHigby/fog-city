@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createWorldEvents, doomModifiers, factionOf, moveDoomClock, stepWorldEvents } from "../../../src/sim/activities/world-events.ts";
-import { createActivities, stepActivities } from "../../../src/sim/activities/system.ts";
-import { createMissions } from "../../../src/sim/missions/system.ts";
+import { createWorldEvents, stepWorldEvents } from "../../../src/sim/activities/world-events.ts";
+import { createDoomClock, doomEffects, factionFor, moveDoomClock, stepDoomClock } from "../../../src/sim/progression/doom-clock.ts";
 import { createEconomy, stepEconomy } from "../../../src/sim/economy/system.ts";
 import { createHeat, stepHeat } from "../../../src/sim/heat/system.ts";
 import { createPlayerSystems, gameplaySnapshot, combatLoadout, playerView } from "../../../src/sim/player/adapter.ts";
-import { createProgressionPlayer } from "../../../src/sim/progression/system.ts";
+import { createProgression, createProgressionPlayer } from "../../../src/sim/progression/system.ts";
 import { applyModeSettlements } from "../../../src/sim/player/settlements.ts";
 import { createInitialState, step } from "../../../src/sim/step.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
@@ -16,8 +15,8 @@ const body = { id: "p", x: 0, y: 0, z: 0, mode: "foot" as const, speed: 0 };
 function ctx(overrides: Partial<GameplayContext> = {}): GameplayContext {
   return { ...DEFAULT_CATALOG, wave: 4, bodies: [body], observations: [], actors: [], facts: [], commands: [], day: 1, month: 1, ...overrides };
 }
-function fact(sequence: number, tick: number, actorId: string, source: GameplayFact["source"] = "world"): GameplayFact {
-  return { id: `contracts:${sequence}`, source, sequence, tick, playerId: "p", actorId, kind: "faction.contract-completed" };
+function fact(sequence: number, tick: number, playerId = "p", source: GameplayFact["source"] = "world"): GameplayFact {
+  return { id: `activities:${sequence}`, source, sequence, tick, playerId, actorId: "faction-pauser", kind: "faction.pauser-completed" };
 }
 function grant(id: number, tick: number): GameplayEvent {
   return { id, tick, kind: "streak.grant", playerId: "p", targetId: "agi", amount: 1, detail: "" };
@@ -27,95 +26,126 @@ function freeze<T>(value: T): T {
   return value;
 }
 
-describe("shared Doom Clock and event lifecycle", () => {
+describe("canonical Doom Clock and event lifecycle", () => {
   it("drifts on absolute game days, never on repeated ticks, missing dates or a backward calendar", () => {
-    const start = stepWorldEvents(undefined, ctx({ gameDay: 4 }), 1).state;
+    const start = stepDoomClock(createDoomClock(), ctx({ gameDay: 4 }), 1).state;
     const snapshot = JSON.stringify(start);
-    const next = stepWorldEvents(freeze(start), ctx({ gameDay: 8 }), 2).state;
-    expect(next.doom.months).toBe(20);
+    const next = stepDoomClock(freeze(start), ctx({ gameDay: 8 }), 2).state;
+    expect(next.months).toBe(20);
     expect(JSON.stringify(start)).toBe(snapshot);
-    expect(stepWorldEvents(next, ctx({ gameDay: 8 }), 2).state).toBe(next);
-    expect(stepWorldEvents(next, ctx({ gameDay: 6 }), 3).state.doom.months).toBe(20);
-    expect(stepWorldEvents(next, ctx(), 3).state.doom.months).toBe(20);
+    expect(stepDoomClock(next, ctx({ gameDay: 8 }), 2).state).toBe(next);
+    expect(stepDoomClock(next, ctx({ gameDay: 6 }), 3).state.months).toBe(20);
+    expect(stepDoomClock(next, ctx({ day: Number.NaN }), 3).state.months).toBe(20);
   });
 
-  it("handles long calendar gaps in bounded work and expires the old chime", () => {
-    const first = stepWorldEvents(undefined, ctx({ gameDay: 0 }), 0).state;
-    const result = stepWorldEvents(first, ctx({ gameDay: 24_001 }), 1);
-    const next = result.state;
-    expect(result.emissions.some(e => e.kind === "doom.agi")).toBe(false);
-    expect(next.doom.resets).toBe(1000);
-    expect(next.doom.months).toBe(23);
-    expect(next.doom.phase).toBe("normal");
-    expect(next.doom.pauseUntilTick).toBe(0);
+  it("handles long calendar gaps in bounded work and expires the historical chime", () => {
+    const first = stepDoomClock(createDoomClock(), ctx({ gameDay: 0 }), 0).state;
+    const result = stepDoomClock(first, ctx({ gameDay: 24_001 }), 1);
+    expect(result.events.some(e => e.kind === "world.agi-achieved")).toBe(false);
+    expect(result.state.resets).toBe(1000);
+    expect(result.state.winters).toBe(0);
+    expect(result.state.months).toBe(23);
+    expect(result.state.pausedUntil).toBe(0);
   });
 
-  it("applies authored, world-confirmed faction contracts once and never trusts arbitrary completion", () => {
-    const context = ctx({ factionContracts: [{ id: "pause", faction: "pausers", wave: 4, cashCents: 25000 }], facts: [fact(1, 1, "pause", "combat"), fact(2, 1, "unknown"), fact(3, 1, "pause")] });
-    const first = stepWorldEvents(undefined, context, 1);
-    expect(first.state.doom.months).toBe(27);
-    expect(factionOf(first.state.doom.factions.p)).toBe("pausers");
-    expect(first.emissions.filter(e => e.kind === "activity.cash").map(e => e.amount)).toEqual([25000]);
-    const again = stepWorldEvents(first.state, { ...context, facts: [fact(4, 2, "pause")] }, 2);
-    expect(again.state.doom.months).toBe(27);
-    expect(again.emissions).toEqual([]);
+  it("preserves legacy clock state and defaults its missing tick/grant cursors", () => {
+    const legacy = { months: 20, lastDay: 2, resets: 4, winters: 1, pausedUntil: 0,
+      winterUntilDay: -1, factions: { p: { pauser: 2, accelerator: 1 } }, factCursors: {} };
+    const next = stepDoomClock(freeze(legacy), ctx({ gameDay: 3 }), 10);
+    expect(next.state.months).toBe(19);
+    expect(next.state.resets).toBe(4);
+    expect(factionFor(next.state, "p")).toBe("pauser");
+    expect(stepDoomClock(JSON.parse(JSON.stringify(next.state)), ctx({ gameDay: 3 }), 11).state.months).toBe(19);
   });
 
-  it("reaches both boundaries, resets to 24 and expires the one-day effects", () => {
-    const base = createWorldEvents().doom;
-    const winter = moveDoomClock({ ...base, months: 45, lastGameDay: 10 }, 3, 5);
-    expect(winter.doom).toMatchObject({ months: 24, resets: 1, phase: "winter", phaseUntilDay: 11 });
-    expect(doomModifiers(winter.doom).robotSpeedFactor).toBe(0.9);
-    const expired = stepWorldEvents({ ...createWorldEvents(), doom: winter.doom, tick: 5 }, ctx({ gameDay: 11 }), 6).state;
-    expect(expired.doom.phase).toBe("normal");
-    const midnight = moveDoomClock({ ...base, months: 3 }, -3, 90);
-    expect(midnight.doom).toMatchObject({ months: 24, resets: 1, phase: "agi", pauseUntilTick: 270 });
-    expect(midnight.emissions.filter(e => e.kind === "doom.agi")).toHaveLength(1);
+  it("counts each measured completion once but allows a later run of the same activity", () => {
+    const first = stepDoomClock(createDoomClock(), ctx({ facts: [fact(1, 1)] }), 1);
+    expect(first.state.months).toBe(27);
+    const repeat = stepDoomClock(first.state, ctx({ facts: [fact(1, 2)] }), 2);
+    expect(repeat.state.months).toBe(27);
+    expect(repeat.events).toEqual([]);
+    const later = stepDoomClock(repeat.state, ctx({ facts: [fact(2, 3)] }), 3);
+    expect(later.state.months).toBe(30);
+    expect(later.state.factions.p).toEqual({ pauser: 2, accelerator: 0 });
+    expect(later.events.some(e => e.kind.includes("cash"))).toBe(false);
   });
 
-  it("keeps slash-bearing player and contract identities separate", () => {
-    const result = stepWorldEvents(undefined, ctx({
+  it("does not accept a combat fact as a faction completion", () => {
+    const next = stepDoomClock(createDoomClock(), ctx({ facts: [fact(1, 1, "p", "combat")] }), 1);
+    expect(next.state.months).toBe(24);
+    expect(next.state.factions).toEqual({});
+  });
+
+  it("reaches both boundaries immediately and keeps winter separate from AGI resets", () => {
+    const base = createDoomClock();
+    const winter = moveDoomClock({ ...base, months: 45, lastDay: 10 }, 3, 5);
+    expect(winter.state).toMatchObject({ months: 24, resets: 0, winters: 1, winterUntilDay: 11 });
+    expect(doomEffects(winter.state, 10, 6).robotSpeedMultiplier).toBe(0.9);
+    expect(doomEffects(winter.state, 11, 6).robotSpeedMultiplier).toBe(1);
+    const midnight = moveDoomClock({ ...base, months: 1 }, -1, 90);
+    expect(midnight.state).toMatchObject({ months: 24, resets: 1, winters: 0, pausedUntil: 270 });
+    expect(midnight.events.filter(e => e.kind === "world.agi-achieved")).toHaveLength(1);
+  });
+
+  it("expires winter by tick when no calendar is available, and never rewinds an expired date", () => {
+    const winter = moveDoomClock({ ...createDoomClock(), months: 47 }, 1, 10).state;
+    expect(doomEffects(winter, Number.NaN, 11).robotSpeedMultiplier).toBe(0.9);
+    expect(doomEffects(winter, Number.NaN, 10 + 86400).robotSpeedMultiplier).toBe(1);
+    const dated = { ...winter, lastDay: 12, winterUntilDay: 11 };
+    expect(doomEffects(dated, 9, 11).robotSpeedMultiplier).toBe(1);
+  });
+
+  it("keeps slash-bearing player identities separate", () => {
+    const result = stepDoomClock(createDoomClock(), ctx({
       bodies: [{ ...body, id: "a" }, { ...body, id: "a/b" }],
-      factionContracts: [
-        { id: "b/c", faction: "pausers", wave: 4, cashCents: 100 },
-        { id: "c", faction: "accelerators", wave: 4, cashCents: 200 },
-      ],
-      facts: [{ ...fact(1, 1, "b/c"), playerId: "a" }, { ...fact(2, 1, "c"), playerId: "a/b" }],
+      facts: [fact(1, 1, "a"), { ...fact(2, 1, "a/b"), kind: "faction.accelerator-completed" }],
     }), 1);
-    expect(result.state.doom.factions.a).toEqual({ pausers: 1, accelerators: 0 });
-    expect(result.state.doom.factions["a/b"]).toEqual({ pausers: 0, accelerators: 1 });
-    expect(result.emissions.filter(e => e.kind === "activity.cash").map(e => [e.playerId, e.amount])).toEqual([["a", 100], ["a/b", 200]]);
+    expect(result.state.factions.a).toEqual({ pauser: 1, accelerator: 0 });
+    expect(result.state.factions["a/b"]).toEqual({ pauser: 0, accelerator: 1 });
+    expect(result.state.months).toBe(24);
   });
 
   it("keeps match-local AGI out of free roam and deduplicates a free-roam streak", () => {
-    const local = stepWorldEvents(undefined, ctx({ mode: "botSweep" }), 1, [grant(1, 1)]);
-    expect(local.state.doom.resets).toBe(0);
-    const first = stepWorldEvents(undefined, ctx(), 1, [grant(1, 1)]);
-    expect(first.state.doom.resets).toBe(1);
-    expect(stepWorldEvents(first.state, ctx(), 2, [grant(1, 2)]).state.doom.resets).toBe(1);
+    const local = stepDoomClock(createDoomClock(), ctx({ mode: "botSweep" }), 1, [grant(1, 1)]);
+    expect(local.state.resets).toBe(0);
+    const first = stepDoomClock(createDoomClock(), ctx(), 1, [grant(1, 1)]);
+    expect(first.state.resets).toBe(1);
+    expect(stepDoomClock(first.state, ctx(), 2, [grant(1, 2)]).state.resets).toBe(1);
+    expect(stepDoomClock(first.state, ctx(), 2, [grant(2, 2)]).state.resets).toBe(2);
+  });
+
+  it("ignores malformed and future streak grants without poisoning the producer cursor", () => {
+    const next = stepDoomClock(createDoomClock(), ctx(), 1, [grant(NaN, 1), grant(100, 2), grant(1, 1)]);
+    expect(next.state.streakCursor).toBe(1);
+    expect(next.state.resets).toBe(1);
   });
 
   it("announces Conference Week transitions once and rejects a backward week", () => {
     const first = stepWorldEvents(undefined, ctx({ gameWeek: 2 }), 1);
     expect(first.state.conferenceWeek).toBe(true);
     expect(first.emissions.filter(e => e.kind === "world.conference")).toHaveLength(1);
-    const same = stepWorldEvents(first.state, ctx({ gameWeek: 2 }), 2);
-    expect(same.emissions).toEqual([]);
-    const back = stepWorldEvents(same.state, ctx({ gameWeek: 1 }), 3);
+    expect(stepWorldEvents(first.state, ctx({ gameWeek: 2 }), 2).emissions).toEqual([]);
+    const back = stepWorldEvents(first.state, ctx({ gameWeek: 1 }), 2);
     expect(back.state.conferenceWeek).toBe(true);
-    const off = stepWorldEvents(back.state, ctx({ gameWeek: 3 }), 4);
-    expect(off.state.conferenceWeek).toBe(false);
+    expect(stepWorldEvents(back.state, ctx({ gameWeek: 3 }), 3).state.conferenceWeek).toBe(false);
+    expect(first.state).not.toHaveProperty("doom");
+  });
+
+  it("Conference Week ignores faction facts and never pays a duplicate activity reward", () => {
+    const next = stepWorldEvents(undefined, ctx({ gameWeek: 0, facts: [fact(1, 1)] }), 1);
+    expect(next.emissions).toEqual([]);
+    expect(next.state).toEqual({ ...createWorldEvents(), tick: 1, lastGameWeek: 0 });
   });
 
   it("carries a winning faction move out of a match exactly once", () => {
     const world = buildWorld([]), state = createInitialState(world, 7, ["p"], { x: 0, z: 0, heading: 0 });
-    const activities = createActivities();
-    activities.worldEvents!.doom.factions.p = { pausers: 2, accelerators: 0 };
-    state.ext.activities = activities as unknown as NonNullable<typeof state.ext.activities>;
+    const progression = createProgression();
+    progression.doom.factions.p = { pauser: 2, accelerator: 0 };
+    state.ext.progression = progression as unknown as NonNullable<typeof state.ext.progression>;
     const original = JSON.stringify(state);
     const payout = { id: "match:1", playerId: "p", xp: 550, cashCents: 100, achievements: [], factionClockMoves: 1 as const };
     const first = applyModeSettlements(freeze(state), [payout]);
-    expect(gameplaySnapshot({ state: first }).activities.worldEvents!.doom.months).toBe(25);
+    expect(gameplaySnapshot({ state: first }).progression.doom.months).toBe(25);
     expect(applyModeSettlements(first, [payout])).toEqual(first);
     expect(JSON.stringify(state)).toBe(original);
   });
@@ -151,7 +181,7 @@ describe("player-system wiring and perk effects", () => {
     const first = step(world, freeze(initial), {}, [], systems);
     const one = step(world, first, {}, [], createPlayerSystems(() => ({ ...context, gameDay: 24 })));
     const two = step(world, one, {}, [], createPlayerSystems(() => ({ ...context, gameDay: 24 })));
-    expect(gameplaySnapshot({ state: one }).activities.worldEvents!.doom.resets).toBe(1);
+    expect(gameplaySnapshot({ state: one }).progression.doom.resets).toBe(1);
     expect(gameplaySnapshot({ state: two }).heat.players.p!.vcQuarters).toBe(4);
     expect(step(world, one, {}, [], createPlayerSystems(() => ({ ...context, gameDay: 24 })))).toEqual(two);
     expect(() => JSON.stringify(two)).not.toThrow();
@@ -159,7 +189,7 @@ describe("player-system wiring and perk effects", () => {
 
   it("exposes one shared AGI event to every player's heat exactly once", () => {
     const context = ctx({ bodies: [body, { ...body, id: "q" }] });
-    const event: GameplayEvent = { id: 1, tick: 1, kind: "doom.agi", playerId: "p", targetId: "", amount: 1, detail: "" };
+    const event: GameplayEvent = { id: 1, tick: 1, kind: "world.agi-achieved", playerId: "p", targetId: "", amount: 1, detail: "" };
     const first = stepHeat(createHeat(), context, 2, [], [], [event]);
     expect(first.players.p!.vcQuarters).toBe(4);
     expect(first.players.q!.vcQuarters).toBe(4);

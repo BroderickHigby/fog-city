@@ -2,6 +2,7 @@ import { clamp } from "../dmath.ts";
 import { commands, event, sortedBodies } from "../player/common.ts";
 import { rankForXp as contentRankForXp, PROGRESSION } from "../../content/gameplay.ts";
 import type { GameplayContext, GameplayEvent, Progression, ProgressionState } from "../player/types.ts";
+import { createDoomClock, stepDoomClock } from "./doom-clock.ts";
 import { loadoutSlots, normalizeLoadoutChoice, normalizeStreakId, STREAK_REWARDS, streakPointsFor, streakResetsOn } from "./rules.ts";
 export { STREAK_COST } from "./rules.ts";
 
@@ -9,7 +10,7 @@ export function createProgressionPlayer(): Progression {
   return { xp: 0, rank: 1, tankTier: 0, flowTier: 0, scannerTier: 1, nozzle: "standard", gadget: "balloon", gear: "none", perks: [], streaks: ["confidence"], streakPoints: 0, streakSequence: 0, banked: {}, earnedStreaks: [], commandSequence: 0, achievements: [] };
 }
 export function createProgression(tick = 0): ProgressionState {
-  return { version: 1, tick, nextId: 1, players: {}, grantCursors: {}, events: [] };
+  return { version: 1, tick, nextId: 1, players: {}, grantCursors: {}, events: [], doom: createDoomClock() };
 }
 export function rankForXp(xp: number): number { return contentRankForXp(xp); }
 export function conversionCap(localBaseCount: number, inFidelity: boolean, protectedArea = false): number {
@@ -46,7 +47,7 @@ function normalizePlayer(old: Progression, ctx: GameplayContext): Progression {
     ...old, xp: nonnegative(old.xp), rank, streakPoints, perks, streaks, banked, earnedStreaks,
     gadget: gadget?.kind === "gadget" && (ctx.wave < 4 || rank >= gadget.rank || gadget.value === "balloon") ? gadget.value : "balloon",
     gear: gear?.kind === "gear" && (ctx.wave < 4 || rank >= gear.rank) ? gear.value : "none",
-    achievements: [...old.achievements],
+    achievements: [...(old.achievements ?? [])],
   };
 }
 
@@ -132,5 +133,22 @@ export function stepProgression(previous: ProgressionState, ctx: GameplayContext
       }
     }
   }
+  // Activities are trusted local producers; keep their event IDs as the replay identity.
+  const activityFacts = (groups.activities ?? [])
+    .filter((grant) => Number.isSafeInteger(grant.id) && grant.id > 0
+      && Number.isSafeInteger(grant.tick) && grant.tick >= 0 && grant.tick <= tick
+      && ctx.bodies.some((body) => body.id === grant.playerId)
+      && (grant.kind === "faction.pauser-completed" || grant.kind === "faction.accelerator-completed"))
+    .map((grant) => ({
+      id: `activities:${grant.id}`, sequence: grant.id, source: "world" as const,
+      tick, playerId: grant.playerId, kind: grant.kind,
+      ...(grant.targetId ? { actorId: grant.targetId } : {}), detail: grant.detail,
+    }));
+  // Streak calls must reach the clock in their grant tick, after command deduplication.
+  // Only the local activity producer owns clock facts; outside observations must not
+  // advance its replay cursor, even when their event kind is otherwise harmless.
+  const doom = stepDoomClock(previous.doom ?? createDoomClock(), { ...ctx, facts: activityFacts }, tick, state.events);
+  state.doom = doom.state;
+  if (ctx.wave >= 4) for (const change of doom.events) event(state, change.kind, change.playerId, "", change.amount);
   return state;
 }

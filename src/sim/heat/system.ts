@@ -32,11 +32,11 @@ export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,gran
  for(const [source,group] of [["player",grants],["missions",missionGrants],["world",worldGrants]] as const)for(const grant of [...group].sort((a,b)=>a.id-b.id))if(grant.id>(state.grantCursors[source]??0)&&grant.tick<=tick){state.grantCursors[source]=grant.id;accepted.push(grant);}
  for(const body of sortedBodies(ctx)){
   const own=state.players[body.id]!, observation=ctx.observations.find(o=>o.playerId===body.id), fog=(observation?.fog??0)>.4;
-  for(const grant of accepted.filter(e=>e.playerId===body.id||e.kind==="doom.agi")){
+  for(const grant of accepted.filter(e=>e.playerId===body.id||e.kind==="world.agi-achieved")){
    if(grant.kind==="player.down"){own.threat=0;own.vcQuarters=Math.min(20,own.vcQuarters+4);}
    if(grant.kind==="player.bridge")own.vcQuarters=Math.min(20,own.vcQuarters+4);
    if(grant.kind==="player.acqui-hired"){own.threat=0;own.vcQuarters=0;}
-   if(grant.kind==="doom.agi")own.vcQuarters=Math.min(20,own.vcQuarters+4);
+   if(grant.kind==="world.agi-achieved")own.vcQuarters=Math.min(20,own.vcQuarters+4);
    if(grant.kind==="mission.vc")own.vcQuarters=clamp(own.vcQuarters+4*grant.amount,0,20);
   }
   const wash=ctx.sites.find(site=>site.kind==="carWash"&&site.wave<=ctx.wave&&Math.abs(body.speed)<=3&&distanceSquared(body,site)<=site.radius*site.radius);

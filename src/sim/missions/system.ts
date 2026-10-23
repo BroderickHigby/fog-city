@@ -3,6 +3,7 @@ import { toLocal } from "../../geo/project.ts";
 import type { Mission,Place,Step } from "../../content/missions.ts";
 import { commands,distanceSquared,event,facts,sortedBodies,validId } from "../player/common.ts";
 import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionState,PlayerGameplayState } from "../player/types.ts";
+import { observeMission } from "./observed.ts";
 
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
@@ -10,7 +11,7 @@ export function missionPlace(place:Place):{x:number;y:number;z:number}{return {.
 function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)*(place.radiusM??25);}
 function initial(mission:Mission):string{return mission.start??mission.steps[0]?.id??"";}
 function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
-function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
+function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
 export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState):MissionState {
@@ -26,7 +27,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     const earlier=wanted&&eligible.some(m=>(m.campaign??0)>0&&(m.campaign??0)<(wanted.campaign??0)&&!own.completedIds.includes(m.id));
     if(wanted&&!earlier)start(own,wanted,tick);
    }
-   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";enter(own,own.retryFrom,tick);}
+   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";delete own.observed;enter(own,own.retryFrom,tick);}
   }
   if(own.status==="idle"){
    const mission=eligible.find(m=>!own.completedIds.includes(m.id));const first=mission?.steps.find(s=>s.id===initial(mission));
@@ -41,7 +42,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   if(player.events.some(e=>e.playerId===body.id&&e.kind==="player.acqui-hired")){own.status="retry";own.retryFrom=mission?initial(mission):"";own.deadlineTick=tick+1;}
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
    if(step.type==="trigger"){
-    if(step.event.clock&&ctx.hour!==undefined&&ctx.minute!==undefined){const [hour,minute]=step.event.clock.split(":").map(Number);if(ctx.hour!==hour||ctx.minute!==minute)return;}
+    if(step.event.clock&&ctx.hour!==undefined&&ctx.minute!==undefined){const [hour,minute]=step.event.clock.split(":").map(Number);if(ctx.hour*60+ctx.minute<(hour??0)*60+(minute??0))return;}
     return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
    }
    if(step.type==="goto"){
@@ -63,6 +64,9 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
    if(step.type==="branch"){const value=own.meters[step.meter]??0;return step.cases.find(c=>(c.min===undefined||value>=c.min)&&(c.max===undefined||value<=c.max))?.next??step.default;}
    if(step.type==="form")return ctx.validKitIds.includes(player.players[body.id]?.startupKitId??"")||requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
    if(step.type==="objective"){
+    const measured=observeMission(own.observed,mission,step,ctx,body.id,tick,own.stepStartedTick,incoming);own.observed=measured.state;
+    for(const request of measured.requests)event(state,request.kind,body.id,request.targetId,0,request.detail);
+    if(measured.complete){if(step.objective.kind==="event")event(state,step.objective.event!,body.id,mission.id);return step.next;}
     const objective=step.objective;const observation=ctx.observations.find(o=>o.playerId===body.id);const target=objective.actor?(observation?.actorBindings?.[objective.actor]??`mission:${mission.id}:${objective.actor}`):undefined;
     const kind=objective.kind as string;const required=Math.max(1,objective.count??1);let complete=false;
     if(kind==="watch")complete=observation?.watchingActorId===target&&(observation?.watchedTicks??0)>=(objective.seconds??3)*60;
@@ -74,8 +78,12 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
      const expected=kind==="event"?(objective as typeof objective&{event?:string}).event:mapping[kind];
      const members=objective.actor?mission.actors?.[objective.actor]?.members:undefined;
      const targets=members?.map(alias=>observation?.actorBindings?.[alias]??`mission:${mission.id}:${alias}`)??(target?[target]:[]);
-     for(const fact of incoming)if(expected&&fact.kind===expected&&(!targets.length||targets.includes(fact.actorId??""))&&!own.objectiveIds.includes(fact.id)){own.objectiveIds.push(fact.id);own.objectiveCount++;}
-     complete=own.objectiveCount>=required;
+     // Observed story objectives own their measured completion. A provider fact with the
+     // same name cannot bypass that check; external mechanic producers retain the fallback.
+     if(!measured.handled){
+      for(const fact of incoming)if(expected&&fact.kind===expected&&(!targets.length||targets.includes(fact.actorId??""))&&!own.objectiveIds.includes(fact.id)){own.objectiveIds.push(fact.id);own.objectiveCount++;}
+      complete=own.objectiveCount>=required;
+     }
     }
     if(complete)return step.next;
     if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}

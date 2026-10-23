@@ -60,7 +60,7 @@ export function normalizeLoadoutChoice(id: string): LoadoutChoice | null {
   if (perk) return { kind: "perk", value: perk.id, rank: 1 };
   const streak = normalizeStreakId(id);
   if (streak && STREAK_REWARDS.some((row) => row.runtimeId === streak)) return { kind: "streak", value: streak, rank: 1 };
-  // Wide nozzles and Microclimate are authored but not supported by the current combat contract.
+  // Wide nozzles and Microclimate have shared types, but their combat runtime has not landed.
   return null;
 }
 
