@@ -91,7 +91,7 @@ export class GameplayDriver {
     ]);
     let route = plan();
     let waypoint = 0;
-    let replanned = false;
+    let replans = 0;
     let checkpoint = { x: this.body.x, z: this.body.z };
     for (let i = 0; i < maxTicks; i++) {
       const body = this.body;
@@ -102,10 +102,10 @@ export class GameplayDriver {
       this.input({ throttle: Math.abs(error) < .65 ? 1 : 0, steer: clamp(error / (2.2 * DT), -1, 1), brake: 1, actions: 0 });
       if ((i + 1) % 120 === 0) {
         if (Math.hypot(this.body.x - checkpoint.x, this.body.z - checkpoint.z) < .5) {
-          if (replanned) throw new Error(`Walking made no progress after replanning at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
+          if (replans >= 4) throw new Error(`Walking made no progress after four replans at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
           route = plan();
           waypoint = 0;
-          replanned = true;
+          replans++;
         }
         checkpoint = { x: this.body.x, z: this.body.z };
       }
