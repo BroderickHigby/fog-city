@@ -19,12 +19,17 @@ polish). The coordinator assigned it on 2026-10-23. Approach, slice and targets:
 ## Now
 | PR | Branch | State |
 |---|---|---|
-| (opening) | `work/visual/ferry-slice` | Slice harness, GPU memory accounting, renderer decision and target, baseline shots |
-| (next, first) | `work/visual/bottom-blur` | Owner bug: the lower ~40% of the screen is soft on foot |
-| (next) | `work/visual/lighting` | N8AO (pinned), a 4096² shadow map centred ahead of the camera on the high tier |
-| #33 | `work/visual/combat` | Rust, wetness, topple-and-squash collapse, heap puddles, water splashes; render-only |
-| #34 | `work/visual/avatar` | The player body eases its turns; hair is cut out instead of blended |
-| #35 | `work/visual/weather` | Light from the game clock; fog, rain, wet roads, puddles and King tide (stacked on #29) |
+| #39 | `work/visual/ferry-slice` | Slice harness, GPU memory accounting, renderer decision and target, baseline shots, this file |
+| #33 | `work/visual/combat` | Rust, wetness, topple-and-squash collapse (≤ 40% height in 2 s), heap puddles, splashes |
+| #34 | `work/visual/avatar` | The player eases its turns; hair is cut out, not blended |
+| #35 | `work/visual/weather` | Light from the game clock; fog, rain, wet roads, puddles, King tide |
+| #43 | `work/visual/trees` | Crowns read as foliage, not see-through cards |
+| (opening) | `work/visual/night` | Dim underlit night clouds, readable night ambient, 8 street-lamp point lights (high tier), calmer office windows |
+| (opening) | `work/visual/crowd` | The 24 nearest pedestrians are skinned Rocketbox adults (12 characters, MIT) |
+| (opening) | `work/visual/blaster` | The player holds the water blaster while spraying; the stream leaves its nozzle (stacked on #34) |
+| (waiting on evidence) | `work/visual/bottom-blur` | Owner's bottom-of-screen blur: not reproducible in SwiftShader; screenshot, place and browser requested |
+| (needs the owner) | — | Robotaxi: the owner's "EV SUV with a roof pod" contradicts design.md and the Assets track's robotaxi tests; (a) refine the Meander or (b) a design change, asked of the coordinator |
+| (next) | `work/visual/lighting` | N8AO (pinned), a 4096² shadow map centred ahead of the camera |
 
 ## Owner priorities (coordinator, 2026-10-23 22:05–22:20)
 1. The bottom-of-screen blur (bug, its own PR, first).
