@@ -26,6 +26,9 @@ import { loadKitLib } from "./house-kit-mesh.ts";
 import { parseKitDoc, type StorefrontAnchor } from "./house-kit-props.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
+import { DetailMaterial, loadDetailSets, textureBytes } from "./detail.ts";
+import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type GfxFeatures, type GfxRequest } from "./gfx.ts";
+import { PostChain } from "./post.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -42,6 +45,10 @@ export interface RenderOptions {
   landmarks: unknown;
   /** public/models/house-kit/house-kit.json (the house kit's prototypes); null or absent: no kit geometry. */
   houseKit?: unknown;
+  /** ?gfx=high|default|auto (gfx.ts); absent: auto. */
+  gfx?: GfxRequest;
+  /** ?gfxoff=post,shadows,detail,showcase: high-tier features to leave off (A/B comparisons). */
+  gfxOff?: readonly string[];
 }
 
 export interface WorldData {
@@ -98,9 +105,14 @@ export interface RenderInfo {
   farTriangles: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /** The graphics tier (gfx.ts), why, and which of its features are on now. */
+  gfx: { tier: GfxChoice["tier"]; requested: GfxChoice["requested"]; reason: string; post: boolean; detail: boolean; detailSets: number; dropped: string[] };
 }
 
 const SHADOW_HALF = 160;
+/** The high tier's shadow box (half side, metres) and map: crisper, and reaching the plaza's far side. */
+const SHADOW_HALF_HIGH = 140;
+const SHADOW_MAP_HIGH = 4096;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
@@ -134,6 +146,11 @@ export class SceneRenderer {
   private readonly envScene = new THREE.Scene();
   private readonly registry: ModelRegistry<THREE.Object3D>;
   private readonly shadows: boolean;
+  readonly gfx: GfxChoice;
+  private readonly features: GfxFeatures;
+  private post: PostChain | null = null;
+  private readonly governor: GfxGovernor;
+  private detailSets = 0;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
   private headlightBase = 0;
@@ -153,35 +170,49 @@ export class SceneRenderer {
     this.container = container;
     this.ground = world.ground;
     this.water.setLevel(world.manifest.water?.y ?? 0);
-    this.shadows = opts.shadows;
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.shadowMap.enabled = opts.shadows;
+    this.gfx = chooseTier(opts.gfx ?? "auto", probeCaps(this.renderer.getContext()));
+    this.features = featuresFor(this.gfx.tier, opts.shadows);
+    for (const k of opts.gfxOff ?? []) if (k in this.features) this.features[k as keyof GfxFeatures] = false;
+    // Only a tier the browser was given by auto steps down; ?gfx=high keeps every feature on.
+    this.governor = new GfxGovernor(this.gfx.tier === "high" && this.gfx.requested === "auto");
+    const high = this.gfx.tier === "high";
+    this.shadows = this.features.shadows;
+    this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // The post chain renders several times a frame: count the whole frame (reset in render()).
+    this.renderer.info.autoReset = !this.features.post;
     container.appendChild(this.renderer.domElement);
     this.pmrem = new THREE.PMREMGenerator(this.renderer);
 
     this.scene.fog = this.fog;
     this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target, this.hemi, this.headlight, this.headlight.target);
     this.envScene.add(new Sky(900).mesh);
-    if (opts.shadows) {
+    if (this.shadows) {
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(2048, 2048);
+      const map = high ? SHADOW_MAP_HIGH : 2048;
+      const half = high ? SHADOW_HALF_HIGH : SHADOW_HALF;
+      this.sun.shadow.mapSize.set(map, map);
       const c = this.sun.shadow.camera;
-      c.left = -SHADOW_HALF;
-      c.right = SHADOW_HALF;
-      c.top = SHADOW_HALF;
-      c.bottom = -SHADOW_HALF;
+      c.left = -half;
+      c.right = half;
+      c.top = half;
+      c.bottom = -half;
       c.near = 1;
       c.far = 1600;
       this.sun.shadow.bias = -0.0004;
       this.sun.shadow.normalBias = 0.6;
+      // Soft edges (PCF with a wider kernel): the high tier's penumbra.
+      if (high) this.sun.shadow.radius = 3;
     }
 
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
+    if (this.features.post) this.post = new PostChain(this.renderer, this.scene, this.camera, opts.gfxOff ?? []);
+    if (this.features.detail) this.loadDetail(world.assets);
 
     const gltf = new GLTFLoader();
     const assets = world.assets;
@@ -253,6 +284,22 @@ export class SceneRenderer {
     this.resize();
   }
 
+  /** The high tier's PBR detail on the ground, roads and sidewalks (detail.ts); the materials recompile once when it lands. */
+  private loadDetail(assets: Assets | undefined): void {
+    const m = this.materials;
+    const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
+    void loadDetailSets(textureBytes(assets), ["asphalt", "concrete", "grass"], aniso).then((sets) => {
+      this.detailSets = sets.size;
+      const asphalt = sets.get("asphalt");
+      const concrete = sets.get("concrete");
+      const grass = sets.get("grass");
+      const road = { albedo: 1, normalScale: 1, roughness: 1, ao: 0.6, farM: 160 };
+      if (asphalt) for (const mat of [m.roadUv, m.freewayUv, m.road]) new DetailMaterial(mat).apply(asphalt, road);
+      if (concrete) new DetailMaterial(m.sidewalk).apply(concrete, { albedo: 1, normalScale: 1, roughness: 1, ao: 0.7, farM: 120 });
+      if (concrete) new DetailMaterial(m.ground).apply(concrete, { albedo: 0.8, normalScale: 0.8, roughness: 1, ao: 0.5, farM: 160, greyOnly: true }, grass);
+    });
+  }
+
   private prepareShadows(root: THREE.Object3D): void {
     if (!this.shadows) return;
     root.traverse((o) => {
@@ -297,6 +344,7 @@ export class SceneRenderer {
     this.streamer.setNight(night > 0);
     this.lights.setNight(night);
     this.agents.setNight(night);
+    this.post?.setNight(night > 0);
     this.scene.environment = this.envFor(p);
     this.scene.environmentIntensity = p.envIntensity;
   }
@@ -332,6 +380,7 @@ export class SceneRenderer {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
+    this.post?.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -366,6 +415,7 @@ export class SceneRenderer {
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
+    this.govern(frameSeconds);
     if (local) {
       const t = local.target;
       this.actors.hideFor(this.rig.mode === "first-person" ? local.id : null, t.onFoot ? "person" : "car");
@@ -419,8 +469,30 @@ export class SceneRenderer {
     }
   }
 
+  /** The high tier steps down when it cannot hold its frame rate (gfx.ts GfxGovernor). */
+  private govern(frameSeconds: number): void {
+    const drop = this.governor.frame(frameSeconds, !this.streamer.settled());
+    if (drop === "post" && this.post) {
+      this.post.dispose();
+      this.post = null;
+      this.renderer.info.autoReset = true;
+      console.info("gfx: post-processing off (frame rate)");
+    } else if (drop === "shadows" && this.renderer.shadowMap.enabled) {
+      this.renderer.shadowMap.enabled = false;
+      this.sun.castShadow = false;
+      // Materials compiled with shadow maps recompile without them.
+      this.scene.traverse((o) => {
+        const mm = (o as THREE.Mesh).material;
+        if (mm) for (const x of Array.isArray(mm) ? mm : [mm]) x.needsUpdate = true;
+      });
+      console.info("gfx: shadows off (frame rate)");
+    }
+  }
+
   render(): void {
-    this.renderer.render(this.scene, this.camera);
+    if (!this.renderer.info.autoReset) this.renderer.info.reset();
+    if (this.post) this.post.render();
+    else this.renderer.render(this.scene, this.camera);
     this.far.endFrame();
     this.framesSinceJump++;
     this.lastCalls = this.renderer.info.render.calls;
@@ -458,6 +530,15 @@ export class SceneRenderer {
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
     out.cameraFar = this.camera.far;
+    out.gfx = {
+      tier: this.gfx.tier,
+      requested: this.gfx.requested,
+      reason: this.gfx.reason,
+      post: this.post !== null,
+      detail: this.features.detail,
+      detailSets: this.detailSets,
+      dropped: [...this.governor.dropped],
+    };
     return out;
   }
 
@@ -478,6 +559,7 @@ export class SceneRenderer {
     this.nightMats.pool.dispose();
     for (const e of this.envCache.values()) e.dispose();
     this.pmrem.dispose();
+    this.post?.dispose();
     this.renderer.dispose();
   }
 }
@@ -507,6 +589,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, detail: false, detailSets: 0, dropped: [] },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

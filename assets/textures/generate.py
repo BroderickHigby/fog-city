@@ -1,4 +1,4 @@
-"""Procedural PBR texture sets for the Ferry Building showcase -> public/textures/<set>_{albedo,normal,orm}.webp
+"""Procedural PBR texture sets for the Ferry Building showcase -> public/models/textures/<set>_{albedo,normal,orm}.webp
 
 Generated only (no photographs; WebP, never JPEG: the privacy test bans JPEG bytes in public/): every map is synthesised from seeded noise, so the sets are
 reproducible byte for byte (numpy + Pillow, fixed seeds, no threads in the maths). All maps tile
@@ -10,7 +10,7 @@ by construction) and every stamp, crack and joint wraps around the edges.
   orm     glTF packing: R ambient occlusion, G roughness, B metalness
 
 Each set covers SIZE_M metres per repeat (the renderer reads TEXTURES[name].sizeM from
-public/textures/textures.json, which this script writes).
+public/models/textures/textures.json, which this script writes).
 
   python3 assets/textures/generate.py            # every set
   python3 assets/textures/generate.py asphalt    # one set
@@ -24,7 +24,7 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "public", "textures")
+OUT = os.path.join(ROOT, "public", "models", "textures")
 N = 1024
 
 
@@ -107,7 +107,8 @@ def save(name, albedo, normal, ao, rough, metal=None, size_m=1.0, meta=None):
     orm = np.stack([ao, rough, m], -1)
     o8 = (np.clip(orm, 0, 1) * 255 + 0.5).astype(np.uint8)
     Image.fromarray(o8, "RGB").save(os.path.join(OUT, f"{name}_orm.webp"), quality=90, method=6)
-    entry = {"sizeM": size_m, "albedo": f"{name}_albedo.webp", "normal": f"{name}_normal.webp", "orm": f"{name}_orm.webp", "source": "generated: assets/textures/generate.py", "licence": "project-owned (procedural, no photographs)"}
+    mean = [round(float(v), 5) for v in np.clip(albedo, 0, 1).reshape(-1, 3).mean(0)]
+    entry = {"sizeM": size_m, "meanLinear": mean, "albedo": f"{name}_albedo.webp", "normal": f"{name}_normal.webp", "orm": f"{name}_orm.webp", "source": "generated: assets/textures/generate.py", "licence": "project-owned (procedural, no photographs)"}
     entry.update(meta or {})
     print(f"[fc] wrote textures/{name} ({size_m} m per repeat)")
     return entry
@@ -162,7 +163,8 @@ def asphalt():
 
 
 def concrete():
-    """Broom-finished sidewalk concrete with scoring joints every 1.5 m (2 x 2 slabs per 3 m repeat), gum spots, stains."""
+    """Broom-finished sidewalk concrete, 3 m per repeat: grain, broom streaks, gum spots, stains. No joints: the
+    sidewalk shader scores them every 1.5 m along the walk line, which world-mapped texture cannot follow."""
     r = rng(202)
     size = 3.0
     px_m = size / N
@@ -176,14 +178,14 @@ def concrete():
     u = np.arange(N) / N
     j1 = np.minimum(np.abs(((u * 2) % 1.0) - 0.0), np.abs(((u * 2) % 1.0) - 1.0)) * (size / 2)  # metres to nearest joint
     jx = np.clip(1 - j1 / 0.006, 0, 1)
-    joint = np.maximum(jx[None, :], jx[:, None])
+    joint = np.maximum(jx[None, :], jx[:, None]) * 0.0  # kept for the slab maths; drawn by the shader
     h = h - joint * 0.006
     # Slab-to-slab tone: each 1.5 m slab a slightly different pour.
     slab = np.zeros((N, N))
     half = N // 2
     for i in range(2):
         for k in range(2):
-            slab[i * half:(i + 1) * half, k * half:(k + 1) * half] = r.normal(0, 0.05)
+            slab[i * half:(i + 1) * half, k * half:(k + 1) * half] = r.normal(0, 0.05) * 0.0
     gum = np.zeros((N, N))
     for _ in range(40):
         y, x = r.integers(0, N, 2)
@@ -288,7 +290,27 @@ def paint():
     return save("paint", albedo, normal_map(h / px_m, 1.0), cover, rough, size_m=size, meta={"note": "orm R channel = paint coverage (wear mask), not AO"})
 
 
-SETS = {"asphalt": asphalt, "concrete": concrete, "pavers": pavers, "sandstone": sandstone, "paint": paint}
+def grass():
+    """Mown park lawn, 3 m per repeat: blades as fine streaks, clover patches, worn and dry spots."""
+    r = rng(606)
+    size = 3.0
+    px_m = size / N
+    blades = spectral(r, N, 0.1, lo=250, hi=512)
+    clump = spectral(r, N, 1.0, lo=20, hi=160)
+    patch = spectral(r, N, 2.0, lo=2, hi=20)
+    dry = norm01(np.clip(spectral(r, N, 2.2, lo=1, hi=10) - 0.7, 0, None))
+    h = blades * 0.004 + clump * 0.006
+    lum = 1 + 0.25 * blades + 0.15 * clump
+    green = np.array([0.075, 0.16, 0.045])
+    straw = np.array([0.22, 0.2, 0.09])
+    base = green[None, None, :] * (1 + 0.12 * patch[..., None])
+    albedo = (base * (1 - dry[..., None] * 0.6) + straw[None, None, :] * dry[..., None] * 0.6) * lum[..., None]
+    rough = np.clip(0.88 + 0.05 * blades, 0.7, 0.98)
+    ao = cavity_ao(h, 3, 60)
+    return save("grass", albedo, normal_map(h / px_m, 0.6), ao, rough, size_m=size)
+
+
+SETS = {"asphalt": asphalt, "concrete": concrete, "pavers": pavers, "sandstone": sandstone, "paint": paint, "grass": grass}
 
 if __name__ == "__main__":
     names = sys.argv[1:] or list(SETS)

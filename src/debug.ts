@@ -44,6 +44,12 @@ export interface RenderInfo {
   farTriangles: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /**
+   * The graphics tier (src/render/gfx.ts): "default" (what the budget tests measure) or "high",
+   * what was asked for (?gfx=), why, and which high-tier features are on now (post-processing,
+   * the PBR detail and how many texture sets loaded, features the frame-rate governor dropped).
+   */
+  gfx: { tier: "default" | "high"; requested: "default" | "high" | "auto"; reason: string; post: boolean; detail: boolean; detailSets: number; dropped: string[] };
 }
 
 export interface LandmarkInfo {

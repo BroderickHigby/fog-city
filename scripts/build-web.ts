@@ -397,9 +397,11 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     }
   }
 
-  // Models: each its own file (a handful, loaded at boot).
+  // Models: each its own file (a handful, loaded at boot). The material textures under
+  // models/textures/ (WebP, and their index textures.json, read by the high graphics tier
+  // through the same bytes() call) are packed the same way.
   const modelsDir = join(pub, "models");
-  for (const f of walk(modelsDir).filter((p) => p.toLowerCase().endsWith(".glb"))) {
+  for (const f of walk(modelsDir).filter((p) => /\.(glb|webp)$/i.test(p) || /[\\/]textures[\\/]textures\.json$/.test(p))) {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
   }
 

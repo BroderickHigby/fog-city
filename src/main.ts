@@ -34,6 +34,7 @@ import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from 
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { Hud, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import { parseGfxRequest } from "./render/gfx.ts";
 import type { SidewalkGraph } from "./render/sidewalks.ts";
 import { HouseColours, houseLookFn, type DistrictsLike } from "./render/house-colours.ts";
 import type { StorefrontAnchor } from "./render/house-kit-props.ts";
@@ -186,6 +187,8 @@ async function boot(): Promise<void> {
       models: new Set(models),
       landmarks: landmarksDoc,
       houseKit: houseKitDoc,
+      gfx: parseGfxRequest(params.get("gfx")),
+      gfxOff: (params.get("gfxoff") ?? "").split(",").filter(Boolean),
     },
   );
   // ?debug=1 exposes the renderer for poking at from the console. Never used by tests.

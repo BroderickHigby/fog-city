@@ -67,7 +67,7 @@ export function photoSignature(b: Uint8Array): string | null {
 
 const IMAGE_FILE = /\.(png|webp|gif|bmp|tiff?|avif|ktx2|exr|hdr)$/i;
 /** The Assets track's folders, where every image must be the output of a script in the repo. */
-const ASSET_DIRS = /^(assets|public\/models|public\/audio|public\/textures)\//;
+const ASSET_DIRS = /^(assets|public\/models|public\/audio)\//;
 /** Images drawn by a script elsewhere (repo-relative image path -> the script that writes it). */
 const GENERATED: Record<string, string> = {
   "public/models/humanoid-impostor.png": "assets/blender/models/humanoid_impostor.py",
@@ -80,15 +80,15 @@ function generatorOf(rel: string): string | null {
   // a look-dev render: its script beside it, the name with underscores (assets/blender/README.md)
   const m = /^(assets\/blender\/lookdev)\/([^/]+)\.png$/.exec(rel);
   if (m) return `${m[1]}/${m[2]!.replace(/-/g, "_")}.py`;
-  // a material texture set: assets/textures/generate.py writes public/textures/<set>_<map>.webp
-  if (/^public\/textures\/[a-z0-9]+_(albedo|normal|orm)\.webp$/.test(rel)) return "assets/textures/generate.py";
+  // a material texture set: assets/textures/generate.py writes public/models/textures/<set>_<map>.webp
+  if (/^public\/models\/textures\/[a-z0-9]+_(albedo|normal|orm)\.webp$/.test(rel)) return "assets/textures/generate.py";
   return null;
 }
 
 /** Whether `script` names the image `rel` (by file name, or a texture set by its SETS entry). */
 function scriptNames(script: string, rel: string): boolean {
   const src = readFileSync(join(ROOT, script), "utf8");
-  const set = /^public\/textures\/([a-z0-9]+)_(?:albedo|normal|orm)\.webp$/.exec(rel)?.[1];
+  const set = /^public\/models\/textures\/([a-z0-9]+)_(?:albedo|normal|orm)\.webp$/.exec(rel)?.[1];
   return set ? src.includes(`"${set}": ${set}`) : src.includes(rel.split("/").pop()!);
 }
 
@@ -123,8 +123,8 @@ describe("privacy: the likeness reference photos never enter the repository", ()
     expect(orphans).toEqual([]);
     expect(generatorOf("assets/blender/lookdev/photo-crop.png")).toBe("assets/blender/lookdev/photo_crop.py");
     expect(generatorOf("public/models/face.png")).toBeNull();
-    expect(generatorOf("public/textures/asphalt_normal.webp")).toBe("assets/textures/generate.py");
-    expect(generatorOf("public/textures/face.webp")).toBeNull();
+    expect(generatorOf("public/models/textures/asphalt_normal.webp")).toBe("assets/textures/generate.py");
+    expect(generatorOf("public/models/textures/face.webp")).toBeNull();
   });
 
   it("recognises what it looks for", () => {
