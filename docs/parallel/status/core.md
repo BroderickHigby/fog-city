@@ -145,3 +145,17 @@ Performance candidate follow-up: merged the agents lane's tested `fc64776` exact
 Combined later candidate: merged `f9ca263` performance work into the mode seam while preserving the newer rival flower control. Provider options and observation reuse coexist. The current physical-step pause adaptation passed its no-prepare/180-tick/resume checks. **Typecheck and 105 tests across six files passed** on the combined seam (mode hooks, pause, gameplay, population, bots and purity). Carried the separately verified own-property metadata hardening afterward (eight adapter tests passed).
 
 The immutable wave-2 performance candidate was measured with consistent SF loaders: 211 actors, median 6.794 ms/tick and p95 12.767 ms/tick; the same 600-tick SF driving probe fell from 51.430 s to 5.734 s with zero contacts/failures/hits/person bumps. Full browser gating remains with the harness; these timings do not replace it.
+
+## Accepted recovery and calendar effects
+
+- Branch `lane/core/world-effects` is a later checkpoint based on `f20d53d`; the frozen wave-2 gate is unchanged.
+- The typed optional `ext.vehicles` keeps durable player/economy event cursors. Missing cursor fields initialize without changing historical recorded inputs.
+- Owner-validated respawn events place the player at a clear safehouse location before ordinary movement and final clearance. Pending vehicle exit state is cleared. The movement kernel now reads the prepared player pose, so accepted placement survives the next movement phase.
+- Accepted sleep advances the shared calendar by eight game hours once. Concurrent sleeps share that advance. Acqui-hire returns the player to the FiDi safehouse the next morning. Match instances ignore these free-roam effects.
+- Validation: **typecheck and 95 tests across four files passed**, covering the new effects, mode hooks, pause and forbidden APIs; a final **seven tests across two files passed** for prepared respawn/exit reset and canonical composition/replay behavior.
+- Recovery of mission vehicles and remote-control ownership remain deferred. This checkpoint does not claim those mission paths are complete. No new features will be added before the current playable integration and browser gate converge.
+
+Draft PR title: `Core: apply accepted recovery positions and calendar advances`
+Base: `lane/core/mode-seam` · Head: `lane/core/world-effects`
+Open: <https://github.com/BroderickHigby/fog-city/compare/lane/core/mode-seam...lane/core/world-effects?expand=1>
+Body: Apply safehouse recovery before the normal physical step and retain the accepted pose through movement. Consume owner-validated player and economy events once to handle sleep and next-morning acqui-hire recovery, while leaving match instances unaffected. Persist bounded source cursors in the optional vehicles extension. Typecheck, 95 focused tests, and seven final recovery/composition tests passed. Mission vehicle transfers and teleoperation remain separate follow-up work.

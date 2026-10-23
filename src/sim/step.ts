@@ -400,7 +400,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const before: SimState = { ...admitted, tick:prev.tick };
   const obs = obstaclesOf(before);
   const next: Record<PlayerId, PlayerState> = {};
-  for (const id of sortedIds(players)) next[id] = stepPlayer(world, players[id]!, sanitized[id]!, obs);
+  for (const id of sortedIds(players)) next[id] = stepPlayer(world, before.players[id]!, sanitized[id]!, obs);
   const controlled = new Set(prepared.motions.map(motion=>motion.numericId));
   const agents = stepAgents(world, before, tick, controlled);
   const moved: SimState = agents

@@ -3,6 +3,8 @@ import { toLatLon } from "../geo/project.ts";
 import { sortedIds } from "./contract.ts";
 import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { fogDensity } from "./fog/index.ts";
+import { createWorldEffectsSystem } from "./vehicles/world-effects.ts";
+import { DEFAULT_CATALOG } from "./player/catalog.ts";
 import { allocateActorIds } from "./identity.ts";
 import { createAgentsSystem, agentsCombatOptions, type AgentRuntimeProvider } from "./agents/systems.ts";
 import { createCombatSystem } from "./combat/systems.ts";
@@ -56,5 +58,5 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     cachedObservation={context,value};
     return value;
   };
-  return Object.freeze([createClockSystem(),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),createModesSystem(options.matchContext,options.advanced)]);
+  return Object.freeze([createClockSystem(),createWorldEffectsSystem({sites:DEFAULT_CATALOG.sites,wave}),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),createModesSystem(options.matchContext,options.advanced)]);
 }
