@@ -27,6 +27,7 @@ import { houseKit as houseKitDoc, landmarks as landmarksDoc, models } from "virt
 import { installDebugHandle } from "./debug.ts";
 import { openAssets } from "./io/assets.ts";
 import { loadWorldFiles } from "./io/world-load.ts";
+import { mountLobby } from "./net/lobby.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
@@ -207,7 +208,8 @@ async function boot(): Promise<void> {
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
-  let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
+  let localPlayerId = LOCAL_PLAYER;
+  let prev: SimState = createInitialState(world, SEED, [localPlayerId], manifest.spawn);
   let curr: SimState = prev;
   let paused = false;
   let acc = 0;
@@ -216,10 +218,21 @@ async function boot(): Promise<void> {
   const clockStart = clockStartMinute(bootedAtNight);
 
   const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
+    if (multiplayer.active()) throw new Error("Local stepping is unavailable during multiplayer.");
     prev = curr;
     curr = step(world, curr, frame, events);
   };
-  const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
+  const advance = (input: SimInput): void => {
+    if (multiplayer.active()) multiplayer.sample(input);
+    else advanceFrame({ [localPlayerId]: input });
+  };
+  let offlineState = curr;
+  const multiplayer = mountLobby(world, files, worldName, {
+    onConnecting: () => { offlineState = curr; paused = false; keyboard.clearActions(); },
+    onFocus: () => keyboard.release(),
+    onState: (state, id) => { prev = curr; curr = state; localPlayerId = id; local.id = id; },
+    onDisconnect: () => { curr = prev = offlineState; localPlayerId = LOCAL_PLAYER; local.id = LOCAL_PLAYER; acc = 0; last = performance.now(); },
+  });
 
   // Reused every frame: no allocation in the render loop.
   const poses = new Map<string, PlayerPoses>();
@@ -235,7 +248,7 @@ async function boot(): Promise<void> {
     return p;
   };
   const target: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false };
-  const local = { id: LOCAL_PLAYER, target };
+  const local = { id: localPlayerId, target };
   const fly: FlyInput = { ...NO_FLY_INPUT };
   const drag = { x: 0, y: 0 };
   let playersKey = "";
@@ -342,9 +355,9 @@ async function boot(): Promise<void> {
           advance({ ...NEUTRAL_INPUT });
         } else {
           const input = keyboard.sample();
-          const before = curr.players[LOCAL_PLAYER];
+          const before = curr.players[localPlayerId];
           advance(input);
-          const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
+          const hint = exitHint(before, curr.players[localPlayerId], (input.actions & Action.enterExit) !== 0);
           if (hint) hud.hint(hint, now);
         }
         acc -= DT;
@@ -392,7 +405,7 @@ async function boot(): Promise<void> {
         f.alpha = alpha;
       }
       view.setFoot(id, onFoot ? P.foot : null);
-      if (id === LOCAL_PLAYER) {
+      if (id === localPlayerId) {
         // The camera and HUD follow the body the player controls (activeBody), interpolated.
         const src = onFoot ? P.foot : c;
         target.x = src.x;
@@ -405,11 +418,11 @@ async function boot(): Promise<void> {
     }
     view.setSim(prev, curr, alpha);
     const minute = gameMinuteOfDay(curr, clockStart);
-    view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
+    view.frame(dtFrame, curr.players[localPlayerId] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
 
     const info = view.info(renderInfo);
-    const me = curr.players[LOCAL_PLAYER];
+    const me = curr.players[localPlayerId];
     hudData.speedMps = me ? activeBody(me).speed : 0;
     hudData.x = target.x;
     hudData.z = target.z;

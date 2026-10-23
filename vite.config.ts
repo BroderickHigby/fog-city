@@ -65,7 +65,7 @@ function fogcityAssets(): Plugin {
 export default defineConfig({
   base: "./",
   plugins: [fogcityAssets()],
-  server: { host: "127.0.0.1" },
+  server: { host: "127.0.0.1", proxy: { "/relay": { target: process.env.RELAY_URL ?? "ws://127.0.0.1:8787", ws: true } } },
   preview: { host: "127.0.0.1" },
   build: { target: "es2023", sourcemap: true, copyPublicDir: false, chunkSizeWarningLimit: 2000 },
 });

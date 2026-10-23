@@ -23,7 +23,8 @@
     "world:baseline": "node scripts/golden/world-baseline.ts",
     "tour": "playwright test --config tests/e2e/tour.config.ts",
     "server": "node server/main.ts",
-    "test:net": "vitest run tests/net tests/server/net --maxWorkers=2"
+    "test:net": "vitest run tests/net tests/server/net --maxWorkers=2",
+    "e2e:net": "playwright test --config tests/e2e/net.config.ts"
   },
   "dependencies": {
     "@noble/hashes": "1.8.0",

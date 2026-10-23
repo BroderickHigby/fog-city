@@ -16,7 +16,7 @@ export class Keyboard {
       if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
     });
     target.addEventListener("keyup", (e) => this.held.delete(e.code));
-    target.addEventListener("blur", () => this.held.clear());
+    target.addEventListener("blur", () => this.release());
   }
 
   private onPress(code: string): void {
@@ -53,6 +53,13 @@ export class Keyboard {
   /** Discard one-shot sim actions pressed so far (used while the fly camera owns the keys). */
   clearActions(): void {
     this.pressed = 0;
+  }
+
+  /** A form taking focus owns subsequent keyups too, so release controls when focus enters it. */
+  release(): void {
+    this.held.clear();
+    this.pressed = 0;
+    this.uiPresses = [];
   }
 
   /** Render-only key presses since the last call (e.g. "KeyC" camera, "KeyN" night). */
