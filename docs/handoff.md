@@ -43,9 +43,13 @@ draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped
      re-dated after the 2010 LiDAR crosses its footprint, and the 2000 stadium counts as older. Exempt
      landmark records (content/landmark-tags.json) from the stale rule, regenerate, and `--check`.
      tests/content/landmark-tags.test.ts fails on it (ballpark; storefront anchors on civic landmarks).
+     These are the only unit failures on PR #3 (8ab7286 onwards), noted in a PR comment. 100 other
+     records are on the same list, several of them low-id downtown records, so audit the list before
+     the regeneration. pipeline/.cache is empty in a fresh container, so the regeneration needs a
+     full SF open-data download (data.sfgov.org is reachable).
   7. **Saints Peter and Paul was terrace-split** into 201006.0001265 and -s1..-s4, so the L-04 probe
      sits 5.2 m inside the main record, not 16 m. Update the tag's records and its test to the
-     terraced records.
+     terraced records. Done on qa/housekit (9097ba6, with the provenance hash in 98ffcc6).
   Fixed on qa/housekit (c067f44): landmark-sites.json and the landmark models are rebuilt on the
   regenerated world (tests/assets: 398 pass).
 - Still to do: an independent reviewer judges the saved shots against the spec, with an
@@ -54,7 +58,7 @@ draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped
   fix the confirmed findings and run the full suite.
 - Ferry showcase status (feature/ferry-showcase, draft PR #3): the auto high tier with a governor;
   N8AO, bloom, 4K shadows and planar Bay reflections; CC0 Poly Haven ground and stone; crosswalks
-  and kerbs; the F-line and palms; ez-tree trees; the VAT crowd and the skinned player; noon, golden
+  and kerbs; the F-line and palms; ez-tree trees with a near and a far build (about 424k triangles for the 90 drawn); the VAT crowd and the skinned player; noon, golden
   and night lighting; the 415 Mission tower and the pyramid's window rows. Shots are in
   docs/shots/ferry-showcase/ on that branch.
 - Tooling: there is no Blender binary in the container, and download.blender.org is blocked. Blender
