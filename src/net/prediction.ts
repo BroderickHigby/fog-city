@@ -34,6 +34,12 @@ export class Prediction {
       this.playerId = message.playerId;
       this.seq = message.ack[this.playerId] ?? 0;
       this.pending = [];
+      // A welcome starts a different session: its tick can precede the old room's.
+      this.confirmed = null;
+      this.state = null;
+      this.players = {};
+      this.recovering = false;
+      this.corrections = 0;
       this.snapshot(message);
       return;
     }

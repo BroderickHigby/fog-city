@@ -6,7 +6,7 @@ it does not complete Bot Sweep or change the world-continuity gate's status.
 ## Passed
 
 - TypeScript check, including `server/`.
-- 56 tests across eight files: relay protocol, real loopback sockets, client prediction,
+- 57 tests across eight files: relay protocol, real loopback sockets, client prediction,
   scheduler, world identity, backpressure, keyboard focus and existing browser-harness tests.
 - Two simulated minutes of two-client play with up to 100 ms jitter, delayed input, intentional
   client-state corruption and an invalid snapshot. Both clients end at the exact server hash;

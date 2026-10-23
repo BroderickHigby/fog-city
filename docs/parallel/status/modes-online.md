@@ -24,7 +24,7 @@ commit containing this status file, for Lane R and Lane 7 to review independentl
 - Separate coordinator integration hooks provide a minimal lobby and two-browser proof;
   these are proposed to their owning lanes rather than a replacement for their UI work.
 
-Validation: 56 network/control/harness tests pass; private rooms pass two-context Chromium
+Validation: 57 network/control/harness tests pass; private rooms pass two-context Chromium
 flows in both `dev` and real `sf`; the container builds and its health/room handshake pass.
 Evidence: `docs/qa/2026-10-23-multiplayer-foundation.md`. No new simulation fields, event kinds
 or SIM_VERSION changes.

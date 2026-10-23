@@ -7,6 +7,34 @@ import { hashState, type SimInput } from "../../src/sim/index.ts";
 import { ROOT } from "../helpers.ts";
 
 describe("authoritative rollback with delayed inputs", () => {
+  it("starts a new room timeline when a client instance reconnects", async () => {
+    const bundle = await worldLoader(`${ROOT}/public`)("dev");
+    const client = new Prediction(bundle.world, () => {});
+    const peer: Peer = {
+      close() {},
+      send(message) {
+        if (message.type === "error") throw new Error(message.message);
+        client.receive(structuredClone(message));
+      },
+    };
+    const oldRoom = new Room("ABCDEFGHIJ", bundle, 0, 11);
+    const oldId = oldRoom.join(peer, 0);
+    for (let tick = 0; tick < 120; tick++) oldRoom.tick(tick * 1000 / 60);
+    expect(client.confirmed?.tick).toBe(120);
+    client.predict({ throttle: 1, steer: 0, brake: 0, actions: 0 });
+    oldRoom.leave(oldId, 2000);
+
+    const newRoom = new Room("KLMNOPQRST", bundle, 2000, 22);
+    newRoom.join(peer, 2000);
+    newRoom.tick(2000);
+    expect(client.confirmed?.seed).toBe(22);
+    expect(client.confirmed?.tick).toBe(1);
+    expect(hashState(client.state)).toBe(hashState(newRoom.state));
+    expect(client.pending).toHaveLength(0);
+    expect(client.recovering).toBe(false);
+    expect(client.predict({ throttle: 0, steer: 0, brake: 0, actions: 0 })?.seq).toBe(1);
+  });
+
   it("converges two clients through 2 simulated minutes of 100ms jitter, divergence and corrupt snapshots", async () => {
     const bundle = await worldLoader(`${ROOT}/public`)("dev");
     const room = new Room("ABCDEFGHIJ", bundle, 0, 77);
