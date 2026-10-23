@@ -94,7 +94,7 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("menu");
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
   expect((await audio(page)).music?.src).toMatch(/audio\/music\/menu\.(ogg|mp3)$/);
-  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(5);
+  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(7);
   // The paused game holds the line, and the dialog covers the subtitles.
   const held = (await audio(page)).voice.current;
   // Settings: the music slider by keyboard, subtitles off by click; both apply at once.
