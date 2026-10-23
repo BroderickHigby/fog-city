@@ -40,7 +40,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   own.commandSequence=Math.max(own.commandSequence,...requests.map(c=>c.sequence),0);
   if(player.events.some(e=>e.playerId===body.id&&e.kind==="player.acqui-hired")){own.status="retry";own.retryFrom=mission?initial(mission):"";own.deadlineTick=tick+1;}
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
-   if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+   if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
    if(step.type==="goto"){
     own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60);
     if(near(ctx,body.id,step.target)&&(!step.travel||step.travel==="any"||step.travel===body.mode))return step.next;
