@@ -72,8 +72,8 @@ A missing Firefox or WebKit is not a failure: those tests skip and say why (unle
 where browsers live (`/opt/pw-browsers` on the agent machines, `~/.cache/ms-playwright` by
 default).
 
-Live-game replays use `E2E_GAME_WAVE` (default `2`) to match the page's enabled gameplay
-systems. A combined wave-4 build should run them with `E2E_GAME_WAVE=4`. Pure cross-engine
+Live-game replays use `E2E_GAME_WAVE` (default `4`) to match the page's enabled gameplay
+systems. This combined wave-4 build uses that default; set `E2E_GAME_WAVE` explicitly when checking another enabled wave. Pure cross-engine
 fixtures keep their explicit wave-2 scenario independently of the live page.
 
 ## Prerequisites, skips and E2E_REQUIRE
