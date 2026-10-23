@@ -207,6 +207,8 @@ export function personIsChild(id: number): boolean {
 export interface AgentState {
   /** Core physical proxies for lane-owned runtime actors stay out of ambient rendering/sensing. */
   runtimeId?: string;
+  /** Physical controller memory for service vehicles. */
+  vehicle?: import("./contract.ts").CarState;
   /** Claimed ambient body remains visible through the legacy read adapter. */
   runtimeLegacy?: boolean;
   radius?: number;

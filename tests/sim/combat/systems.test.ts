@@ -44,11 +44,11 @@ describe("registered combat system", () => {
     expect(step(world, previous, {}).ext.combat).toBeUndefined();
     freeze(previous);
     const earlier: SimSystem = { key: "robots", step: system => ({
-      ...system.state, ext: { ...system.state.ext, robots: { ready: true } },
+      ...system.state, ext: { ...system.state.ext, futureReady: { ready: true } },
     }) };
     const combat = createCombatSystem(system => {
       expect(system.state.tick).toBe(system.previous.tick + 1);
-      expect(system.state.ext.robots).toEqual({ ready: true });
+      expect(system.state.ext.futureReady).toEqual({ ready: true });
       return { context: contextFromState(system.world, system.state) };
     });
     const first = step(world, previous, {}, [], [combat, earlier]);

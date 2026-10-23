@@ -125,6 +125,8 @@ export interface TargetCombat {
   heightScale: number;
   puddle: boolean;
   repair: boolean;
+  /** Set by a completed forced update; maintenance may restore converted helpers. */
+  converted?: boolean;
   penalized: boolean;
   wetHits: number[];
   wetUntil: number;

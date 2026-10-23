@@ -2,75 +2,65 @@
 
 ## Now
 
-The existing policy implementation at `083f685` is preserved in `/workspace/fog-city-agents`. Shared core `9a6a107` and combat `ef74fe5` are merged. The wave-2 runtime now exposes `createAgentsSystem(provider)` with pre-movement proposals, accepted-pose observation, stable firmware/protection metadata, sensory brain inputs and monotonic shared combat requests. Core is implementing the final movement/clearance hook; production registration and actual service-body acceptance remain in progress.
+Worktree: `/workspace/fog-city-agents`, branch `lane/sim-agents/wave2`. The original prototype in `/workspace/fog-city` remains untouched. Existing policy commit `083f685` is preserved, with shared core `9a6a107` and combat `ef74fe5` merged.
 
-The existing prototype in `/workspace/fog-city` remains untouched. Only owned agent/robot directories and this status file are edited.
+Published runtime checkpoints: `975ab09` adds the runtime and mission placement; `950f47c` supplies portable arithmetic and retirements; `8b896c4` uses the shared foot factory in the fixture. Core has taken these into its wave-2 candidate. This remains integration work, not a completed wave-2 game.
 
-## Done
+## Implemented
 
-- Read the published lane handoff at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
-- Final remote check found the newly published `integrate/wave2` at the same base commit, `2deafc912ea0971440b541e800158b258c548275`; fetched it and confirmed this branch is up to date. No `lane/core/*` interface branch is published.
-- Installed pinned dependencies with a frozen lockfile.
-- `9d9025f`: recorded ownership and prerequisites.
-- `512beaf`: explicit and road-derived sidewalk graphs, deterministic route proposals, bounded fidelity scheduling, stable ambient identity and promotion, perceived reactions, pigeons and leashed dogs.
-- `9766bf6`: graph-backed van dispatch planning, deduplicated requests, observed arrivals, exactly-once disembarkation, bus timetables and stop/dwell policies. Both services retain physical capacity until retirement is acknowledged.
-- `f1bb14a`: sensory robot knowledge and state transitions, bounded memory, attack wind-ups, interrupted six-second forced updates, generation-safe completion acknowledgements, public policy exports and replay checks.
-- Independent review covered invalid inputs, capacity leaks, repeated requests, observation authority, ordering and state bounds. Review findings were fixed before final unit validation.
+- Existing sidewalk routing, fidelity, reactions, robot brain, van dispatch and bus timetable policies remain intact.
+- `createAgentsSystem(provider, allocateActorIds)` prepares bounded movement proposals before physics, observes the actual accepted bodies afterward, and reports retired body IDs. Core owns physical acceptance and final person clearance.
+- `runtimeCombatActors` and `agentsCombatOptions` provide stable firmware/protection metadata and actual positions. Legacy bodies are described through metadata rather than duplicated. Extra bodies have centrally allocated numeric IDs.
+- Sensing uses line of sight and actual combat events. An empty-tank fire button creates no hostility. A scan alert reaches its actual target. Shared combat owns all attack durations and effects; the runtime emits one monotonic request per windup and consumes authoritative conversion events.
+- Default population density and protected-area conversion checks reuse `src/content/places.ts`. Unknown legacy people remain protected until the core's child metadata is adopted. Animals are always protected; detached dogs hold safely.
+- `decodeMissionStage` and `planMissionActors` produce stable `mission:<missionId>:<alias>` identities, clear placements, crew expansion and bindings. Taxis require valid road candidates. The optional allocator lets the registered system admit stage actors automatically.
+- `planModeRoster` produces 120 base robots plus the armoured Update Relay for Bot Sweep, with 10 + 4/player bad base units; Clean Streets has 30 bad units among 120. All placements must lie in the approved instance predicate. Relay rust resistance is 0.2.
+- `navigationFromPipeline` consumes the existing sidewalk dataset, preserves source IDs, retains height/signal metadata, joins authored interior curve vertices to their endpoint nodes, and can restrict routing to loaded tile nodes.
 
 ## Verification
 
-- Typecheck: passed on the implementation commits.
-- Full unit suite: **74 files passed; 2,573 tests passed, 1 skipped**. Includes the new policy suites and forbidden-API check. No golden files changed.
-- Policy replay: **Node 24.19.0 and Chromium 154.0.8037.57 match at all 30 checkpoints across 1,800 ticks**. Covers brain, reactions, navigation and fidelity; report at `test-results/lane3/browser-parity.json`.
-- Existing Chromium browser suite: **30 passed, 2 failed, 2 did not run** in five minutes. The failures are the normal and split-pack hosted-build checks: Chromium requests `/favicon.ico`, outside `/fog/city/`, and receives 404. Their dependent serial tests consequently did not run. `index.html`, `scripts/build-web.ts` and `tests/e2e/web-build.spec.ts` are unchanged from the integration base. The full verification gate is **not green**.
-- Passed browser coverage includes Node/game determinism, multiplayer replay, controls, collision/exit behavior, SF mesh decoding, landmarks, traffic rendering, skyline, city-edge continuity, packed-build host limits and collider-pack splitting. The report-only software-rendering probe completed for all three worlds with no probe errors; this does not establish real-device FPS or the cost of unregistered policies.
-- The initial `pnpm verify` completed typecheck and units, then stopped before browser tests because the external browser-config helper used a `.ts` extension incompatible with its ESM context. The corrected `.mts` helper was used for the completed browser-stage rerun, with one worker and system Chromium.
-- Firefox and WebKit: not installed or run. The pinned browser installation failed with HTTP 403 `Domain forbidden` from the browser download hosts. Integrated wave-2 clearance, van delivery and Ferry bus passage: not validated because these policies are not yet wired into the runtime.
+- Earlier policy-only work: 2,573 unit tests passed; Node/Chromium policy replay matched at 30 checkpoints over 1,800 ticks. This is historical evidence for the policies, not proof of integrated runtime behavior.
+- Current owned agents plus wave-2 combat subset: **13 files, 230 tests passed**.
+- Latest runtime, mission placement, mode rosters, pipeline navigation and forbidden-API check: **5 files, 68 tests passed**; typecheck passed.
+- The real `public/tiles/sf/sidewalks.json` loads through the new adapter: **33,081 nodes, 58,007 edges, 28,134 crossings**.
+- Automatic mission-stage admission, portable APIs and runtime retention passed a follow-up: **3 files, 63 tests**, plus typecheck.
+- Heavy checks use `/tmp/fog.lock`, `NODE_OPTIONS=--max-old-space-size=8192` and at most two Vitest workers. No new full browser run was started in this lane.
 
-Heavy checks use `/tmp/fog.lock` and `NODE_OPTIONS=--max-old-space-size=8192`. The browser override is outside the repository; no shared test configuration was edited.
+The previous hosted favicon failure was fixed independently by the rendering lane; the lane does not weaken those assertions. Core's new movement and dodge integration still needs runtime acceptance/clearance tests before a zero-contact claim. No golden files were changed.
 
-Local evidence: `/tmp/fog-city-lane3-verify.log`, `/tmp/fog-city-lane3-e2e.log`, `test-results/perf.json`, and both hosted-build failure directories under `test-results/playwright/` (screenshots, traces and error context). These generated files are not committed. CI results could not be queried through the blocked GitHub API.
+## Remaining
 
-## Next
-
-After the rendering lane fixes the hosted-page icon, rerun the hosted-build checks and their dependent serial tests. When lane 2 publishes its interface, reconcile the policy types with its typed extensions, register the adapters, and run the integrated acceptance tests and clearance soak. Open a draft PR into `integrate/wave2` once GitHub API access is available. Move to wave 3 after the wave-2 runtime is accepted.
-
-## Blocked on
-
-Lane 2's wave-2 interface PR, typed extension slots, migration, event definitions, movement hooks and vehicle/body classifications. Runtime registration is pending that interface. Lane R's hosted-page icon defect currently fails the browser gate. Draft PR creation against the newly published target was attempted with `gh pr create`, but `POST https://api.github.com/graphql` returned `Forbidden`; no PR was created. Git pushes succeed. The environment draft now permits the GitHub API and pinned browser-download hosts, but those changes require environment publication before they apply.
+1. Merge core's prepared-motion, stable identity, observed-body and final dodge checkpoint; run actual registered runtime acceptance tests.
+2. Connect the static world loader to `navigationFromPipeline` and use the loaded tile set.
+3. Connect shared threat requests and the existing van/bus policies to actual steering follower bodies, measured route progress, disembarkation and safe retirement. A policy timer alone is not delivery proof.
+4. Continue wave-3 through wave-8 behaviors: drones, rogue taxi/swarm/patrol/associates, Tidy/restore, calendar behaviors, recruits/parrots, robot-body control and finale evacuation/boss actors.
+5. Run integrated performance, deterministic replay and browser checks with the coordinating lane.
 
 ## Requests for other lanes
 
-- **Lane 2 — `src/sim/contract.ts`, `src/sim/systems.ts`, serialization/migration and vehicle adapters:** publish typed policy state, authoritative observations/events and monotonic day/clock inputs; reserve numeric actor/vehicle IDs centrally; map stable ambient spawn identities to runtime IDs; reserve shared attack/conversion capacity in stable actor order; register movement before final `stepDodge`; include vans, buses, people and animals in swept clearance, spawn, join and exit checks. Feed actual vehicle progress and safe-retirement acknowledgements back to services. Keep abstract actors out of combat and sensing. Register the parity fixture with the shared cross-engine harness.
-- **Lane 1 — sidewalk and Muni world data:** publish connected sidewalk/crossing graphs, route geometry, Ferry stop IDs and physically feasible departure headways. Lane 3 supplies deterministic road-offset routing and a validated authored bus-route fallback.
-- **Lane 4 — combat event adapter:** supply observed rust/wet/melt, operational state and interruptions; apply requested effects only after global capacity arbitration; acknowledge completed forced updates with `{targetId, completedTick}`. Protected people and animals must remain outside water effects.
-- **Lane 5 — threat event adapter:** publish validated, monotonically identified `threat.spawn` requests with stable creation ticks. Core/service observations, not the request producer, confirm arrival. Route candidates must support the approximately 120 m entry and 20 s response deadline.
-- **Lane R / Assets — `src/render/` agent adapters and `src/debug.ts`:** draw original agent and service-vehicle models with walking, idle, wary/alert, flee, wind-up, forced update, animal startle, van delivery and bus stop/dwell states; expose bounded debug views via `window.__fogcity`. Buses expose an ad-wrap slot. Draw policy intent without advancing sim state or moving bodies after clearance.
-- **Lane R — `index.html`:** declare a valid inline or subpath-relative icon in a host-permitted format so Chromium does not probe `/favicon.ico` at the origin root. Keep both hosted-build path/HTTP-status assertions intact; rerun `tests/e2e/web-build.spec.ts` after the fix. This is outside lane 3's ownership.
-- **Lane 8 — content:** supply bark keys, behavior tells and bus-wrap content without changing policy decisions.
-
-## For the owner
-
-**Contract changes: none.** No top-level sim file, schema, sim version, renderer, world data or golden file changed. The checked-in integration contract reports version 2, despite the handoff's anticipated version 4/5; lane 2 must allocate the actual next version.
-
-The six-second unopposed update passes as a policy test. A real threat-2 van bringing two units within 20 seconds, a wrapped bus physically passing the Ferry Building every ten game minutes, zero vehicle-person contacts, cross-engine parity on all four engines, performance at full population and final visual quality remain integration acceptance gates. These are not implied by passing pure-policy tests. No wave work was merged into `main` or `integrate/wave1`, and the world-QA gate is unchanged.
-
-## Runtime integration checkpoint
-
-- Added `runtime.ts` and `createAgentsSystem` in the owned registration file. Each proposal contains source and desired poses; the planner never changes a physical body itself. Rejected movement preserves the old route cursor.
-- `agentsCombatOptions` supplies classifications for existing bodies and distinct extra actors, avoiding duplicate combat identities. Empty-tank fire does not become hostility; observations use emitted combat events and actual line of sight. Scan alerts are delivered only to their target.
-- Attack requests start once per windup with a monotonic per-actor sequence. The combat reducer owns all damage, durations and conversion effects. Actual conversion events update firmware and acknowledge channels.
-- Targeted runtime tests: 9 passed. They cover immutable/serializable state, ID collisions, accepted positions, sensory authority, attack idempotency, abstract exclusions, protected animals, detached dog handling, bounded drone ascent and actor-order replay. The larger owned-agent/combat subset passed: 13 files, 230 tests. Typecheck and 12 runtime/mission placement tests also passed before the final content-default wiring; a targeted recheck of that wiring is queued under the shared lock.
-- Remaining acceptance: core pre-movement and final dodge integration; real graph/Muni adapters and steering service bodies; mission actor bindings; wave-3 onward behaviors; integrated acceptance/performance/browser checks. No claim of a finished game or zero-contact integration is made yet.
+- **Core:** publish the prepared-motion checkpoint and stable allocator; include extra body width/length, accepted poses and retirements in the clearance path. The factory can accept `allocateActorIds` directly. Legacy child metadata comes from `personIsChild`; unknown subjects must remain protected. Publish the vehicle follower interface and measured progress/retirement observations.
+- **Pipeline/world loader:** load the existing sidewalk graph with the actual tile node set; the adapter now matches its interior-point semantics. Supply physically valid transit route geometry and Ferry stop IDs.
+- **Combat:** publish validated monotonic Tidy collect/restore requests; agents will not reset combat rust or phases directly. Parrot lure events will become agent movement toward a 15 m stand-off radius.
+- **Player:** shared `ThreatSpawnRequest` string identities and mission stage events are the source of spawns. Mission bindings use the stable IDs above; crew objectives resolve member aliases. Service arrival is acknowledged only after actual measured body progress.
+- **Rendering:** draw extra actors from `ext.robots.actors` where `legacyId === null`, not retired and in full/active fidelity. State has model, firmware, accepted pose, reaction, behavior and brain state. Models include animals, service vehicles, drones, Patrol, Tidy, associates, sign-spinners and Walker. Render proposals never move the sim.
 
 ## Draft pull request text
 
-Title: `feat(agents): connect deterministic actor policies to core and combat`
+Title: `feat(agents): connect actor policies, mission spawns and combat runtime`
 
 Body:
 
-Connect the existing sidewalk, reaction, fidelity and bad-robot policies to a stateful runtime adapter. The runtime supplies stable classifications and sensory facts, proposes bounded movement for core clearance, observes accepted body positions and emits monotonic combat requests without scheduling attack effects itself. Shared core/combat branches are merged; the original prototype is excluded.
+Connect the existing deterministic agent policies to a runtime that proposes bounded movement before physics, observes accepted body poses and supplies real classifications and sensory facts to combat. Add stable mission actor placement, approved mode roster blueprints and an adapter for the existing sidewalk dataset. The original prototype is excluded.
 
-Validation: targeted runtime tests (9 passed); existing policy replay evidence above. Core movement/service integration and broader validation are still in progress, so open this as a draft against `integrate/wave2`.
+Validation: owned agents/combat subset 230 tests passed; runtime/placement/mode/navigation and forbidden-API pass 68 tests, plus typecheck. Real sidewalk data loads at 33,081 nodes and 58,007 edges. Core movement/service integration remains under validation, so this is a draft against `integrate/wave2`.
 
-- Handoff checkpoint: default density/protected-area queries now reuse `src/content/places.ts`; final targeted typecheck/test rerun is pending the shared lock. Mission placement exposes stable blueprints and crew bindings, with road-only taxi candidates.
+Git push works. GitHub API operations have been blocked in this environment, so the coordinating session can open the draft PR. No merge to `main` or `integrate/wave1` is authorized or performed by this lane.
+
+## Service and authored-behavior checkpoint
+
+- Shared allocation/follower API `fd9715e` is incorporated. The new service coordinator dispatches vans onto clear directed roads 100–140 m away, sends follower controls to core, and unloads exactly two actors only after an observed stopped arrival. It reports late arrivals instead of treating a deadline as delivery.
+- The Muni coordinator accepts immutable `TransitLayer` data from the world loader. It schedules wrapped buses every ten game minutes near the Ferry Building, uses actual source stop IDs, emits Ferry passage only from a stopped physical body at that stop, and retires buses after they leave player fidelity. The actual data file is `public/tiles/sf/muni.json`; the world loader must supply it.
+- Runtime actors now expose authored `bag`, `statusLight`, `tellIds`, `tellIntensity` and `hiddenTellId` fields. Mission archetypes choose the correct model and goal table from the existing content. The Hot Desk snatcher pursues a grocery snatch and carries its authored empty-bag tell; the shopper carries groceries. Inventory events update bag state.
+- Good robots with a repair flag seek a real repair kiosk. `agentsCombatOptions` supplies the baseline twofold conversion cap required for forced updates.
+- Latest validation: **typecheck passed; 14 owned-agent/forbidden-API files, 194 tests passed**. The van and bus tests require observed arrival, reject timer-only success and replayed dispatch, and check wrap/source-stop data.
+- Core `b7c412c` now publishes the physical prepared-motion kernel. Merge and actual service-control acceptance tests are the next step; the passing controller tests do not establish physical 20-second delivery yet.
