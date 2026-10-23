@@ -133,3 +133,39 @@ Validation: TypeScript and **5 files / 97 tests** pass, including blocked one-sh
 Draft PR title: `fix(agents): retain blocked mission stages and safely park objective taxis`
 
 Draft PR body: The Hot Desk squatter stage could disappear because the authored parking area contained no routable lane sample. Admit a stationary objective taxi only at a full-hull-validated local position with hood access, and retain bounded stage retries until physical admission. Recover an already-stuck save from its active objective and existing binding without inventing progress. Typecheck and 97 focused tests pass; exact pre-signup and stuck-cone SF states now admit the canonical taxi with zero contacts/failures. Full-route acceptance remains with the integration harness.
+
+## PR #9 review fixes (23 Oct 2026)
+
+Fixes for `reviews/pr-9.md`, the wave-2 agents/player review of `integrate/wave2` and the core
+worker's requests. Branch merged with `integrate/wave2` (d2400e8) first; its unique code had
+already landed there.
+
+- **High, claimed ambient bodies never despawn:** fixed in 87e4ee1. `stepAgents` hands a claimed
+  body that got no runtime proposal this tick back to ambient stepping (`releaseClaimed`: claim
+  metadata dropped, a connector onto its own sidewalk), or removes it when it cannot rejoin
+  (road vehicle, more than 6 m off its sidewalk, a wall in the way). Released bodies count for
+  `populate`'s budgets and despawn range. The runtime drops a stale route when a body comes back.
+  `tests/sim/agents/claimed-release.test.ts` fails on the old code. Minimal change to Lane 2's
+  `src/sim/agents.ts`.
+- **High, composed-path cost:** fixed in 96513c9. Players past the widest reaction radius (40 m,
+  `STIMULUS_REACH_SQ`) are skipped before the sight line; `observationSet` uses a per-tick 30 m
+  cell index and an id map. State hashes are identical over 600 composed SF ticks. Composed SF
+  bench (four players): 208 ms/tick before, 43.4 ms after (1,800 ticks); one player 17.7 to 15.7 ms.
+- **Medium, `Math.hypot` in `badRobotRate`:** fixed in 8ad3fdc. `src/sim/agents/bad-rate.ts`
+  computes the rate with `Math.sqrt` from the same data and projection; bit-identical where
+  hypot and sqrt agree (within 1e-12 elsewhere). `tests/sim/agents/bad-rate.test.ts` guards
+  `src/content/places.ts` against use from the sim. One line in Lane 2's `game-systems.ts`.
+- **Medium, vans and buses not proven:** fixed in 2f369f8. Runtime vehicles moved by `stepCar`
+  now get the car model's dodge reach at their own size (`dodge.ts carModelVehicle`), and the
+  foot player's dodge sizes them by their hull (`step.ts`). New fuzz
+  `tests/sim/agents/runtime-no-touch-fuzz.test.ts`: 24 scenes through `createGameSystems()` with
+  vans, buses, children, dogs with owners, seated and mobility-aid people: 0 contacts, min
+  clearance from a moving van or bus 1.069 m (0.777 m with the old reach). Minimal changes to
+  Lane 2's `dodge.ts` and `step.ts`.
+- **Low, scene clearance:** fixed in d8271b6 (box distance to vehicle hulls, with a test).
+- **Low, `prepareMotionBodies` find/findIndex:** fixed in d8271b6 (id indexes; Lane 2's `motion.ts`).
+- **Low, `SimEventKind.threatSpawn` in `service-runtime.ts`:** waits for PR #26, which adds the
+  constant; `integrate/wave2` does not have it yet.
+- **Not in this PR:** `observedBodies`/`dodgeOverrideActive:false` (cosmetic now); blocked
+  admission throwing in `motion.ts` (PR #26 defers it); Ambient Director staging (Lane 5); the
+  per-sample `obstacles()` rebuild in `motion.ts` (Lane 2).
