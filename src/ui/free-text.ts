@@ -35,6 +35,7 @@ export interface FreeTextOptions<T> {
   readonly resolve:(text:string)=>T;
   readonly accept:(value:T)=>void;
   readonly crisis?:(active:boolean)=>void;
+  readonly choices?:readonly string[];
 }
 export interface FreeTextControl { readonly element:HTMLElement; focus():void; clear():void; dispose():void }
 
@@ -48,9 +49,9 @@ export function createFreeTextBox<T>(doc:Document,options:FreeTextOptions<T>):Fr
   const submit=doc.createElement("button");submit.type="submit";submit.textContent=options.submitLabel;
   const feedback=doc.createElement("div");feedback.className="fc-text-feedback";feedback.setAttribute("role","status");feedback.setAttribute("aria-live","polite");
   label.append(input);form.append(label,submit,feedback);
-  const onSubmit=(event:Event)=>{
-    event.preventDefault();feedback.replaceChildren();
-    const result=gateText(options.id,input.value);
+  const accept=(raw:string)=>{
+    feedback.replaceChildren();
+    const result=gateText(options.id,raw);
     if(result.kind==="crisis") {
       options.crisis?.(true);
       for(const line of result.response.lines){const p=doc.createElement("p");p.textContent=line;feedback.append(p);}
@@ -62,6 +63,8 @@ export function createFreeTextBox<T>(doc:Document,options:FreeTextOptions<T>):Fr
     options.accept(options.resolve(result.text));
     input.value="";
   };
+  for(const value of options.choices??[]){const choice=doc.createElement("button");choice.type="button";choice.textContent=value;choice.addEventListener("click",()=>accept(value));form.append(choice);}
+  const onSubmit=(event:Event)=>{event.preventDefault();accept(input.value);};
   form.addEventListener("submit",onSubmit);
   return {element:form,focus:()=>input.focus(),clear:()=>{input.value="";feedback.replaceChildren();},dispose:()=>{form.removeEventListener("submit",onSubmit);input.value="";form.remove();}};
 }

@@ -18,8 +18,9 @@ export class Keyboard {
 
   private readonly target: Window;
   private readonly blocked: () => boolean;
+  private suspended = false;
   private readonly keydown = (e: KeyboardEvent): void => {
-    if (this.blocked() || isTextEntry(e.target)) return;
+    if (this.suspended || this.blocked() || isTextEntry(e.target) || e.repeat && !this.held.has(e.code)) return;
     if (!this.held.has(e.code)) this.onPress(e.code);
     this.held.add(e.code);
     if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
@@ -48,7 +49,7 @@ export class Keyboard {
 
   /** Input for the next sim tick. Consumes one-shot actions. */
   sample(): SimInput {
-    if (this.blocked()) { this.releaseAll(); return { throttle: 0, steer: 0, brake: 0, actions: 0 }; }
+    if (this.suspended || this.blocked()) { this.releaseAll(); return { throttle: 0, steer: 0, brake: 0, actions: 0 }; }
     let actions = this.pressed;
     for (const code of this.held) actions |= HELD[code] ?? 0;
     const input: SimInput = {
@@ -72,6 +73,7 @@ export class Keyboard {
   }
 
   releaseAll(): void { this.held.clear(); this.pressed = 0; this.uiPresses = []; }
+  setBlocked(value: boolean): void { this.suspended = value; if(value)this.releaseAll(); }
 
   dispose(): void {
     this.releaseAll();
