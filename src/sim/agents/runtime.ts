@@ -9,7 +9,7 @@ import type { AgentMotionProposal as CoreAgentMotionProposal } from "../motion.t
 import { groundHeight, segmentBlocked, type World } from "../world.ts";
 import type { AttackKind, AttackRequest, CombatActor, CombatState } from "../combat-contract.ts";
 import { createRobotBrain, stepRobotBrain, type RobotBrainState, type RobotBrainIntent, type RobotObservations, type BrainTarget, type RobotGoal } from "../robots/brain.ts";
-import { buildFallbackSidewalkGraph, shortestSidewalkRoute, advanceSidewalkRoute, type SidewalkGraph, type SidewalkRoute, type SidewalkCursor } from "./navigation.ts";
+import { buildFallbackSidewalkGraph, nearestSidewalkNode, shortestSidewalkRoute, advanceSidewalkRoute, type SidewalkGraph, type SidewalkRoute, type SidewalkCursor } from "./navigation.ts";
 import { planFidelity, type FidelityAnchor } from "./fidelity.ts";
 import type { TransitLayer, TransitRuntimeState } from "./transit-runtime.ts";
 import type { AdWrapSlot } from "./services.ts";
@@ -267,13 +267,6 @@ function nearbyNodes(graph:SidewalkGraph,point:{x:number;z:number},radius:number
   for(let x=Math.floor((point.x-radius)/NODE_CELL);x<=Math.floor((point.x+radius)/NODE_CELL);x++)for(let z=Math.floor((point.z-radius)/NODE_CELL);z<=Math.floor((point.z+radius)/NODE_CELL);z++)for(const node of index.get(`${x},${z}`)??[])if(distance(node,point)<=radius)result.push(node);
   return result.sort((a,b)=>compare(a.id,b.id));
 }
-function nearestNode(graph:SidewalkGraph,point:{x:number;z:number}):string{
-  let best="",d=Infinity;
-  // Most moving bodies have a nearby graph node; a full scan is only a remote-spawn fallback.
-  const local=nearbyNodes(graph,point,75);
-  for(const node of local.length?local:graph.nodes){const next=distance(node,point);if(next<d||next===d&&compare(node.id,best)<0){d=next;best=node.id;}}
-  return best;
-}
 
 function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,others:RuntimeActor[]):{goal:{x:number;z:number}|null;speed:number}{
   const movement=intent?.movement;
@@ -335,9 +328,9 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   }
   if(speed<=0||frozen||actor.posted){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
   if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"){
-    const node=goal?nearestNode(graph,goal):actor.goalNode;
+    const node=goal?nearestSidewalkNode(graph,goal):actor.goalNode;
     if(!actor.route||actor.goalNode!==node||actor.cursor.stepIndex>=actor.route.steps.length){
-      const start=nearestNode(graph,actor);
+      const start=nearestSidewalkNode(graph,actor);
       const candidates=goal?[node]:nearbyNodes(graph,actor,60).filter(n=>n.id!==start).map(n=>n.id);
       if(candidates.length){
         const end=candidates[hash(`${actor.id}:${sim.tick>>9}`)%candidates.length]!;
