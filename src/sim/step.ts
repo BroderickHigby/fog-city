@@ -121,13 +121,16 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  * Lift a saved state from an older SIM_VERSION to this one, one version at a time. Pure.
  *  - v1 -> v2: cars gain the handling fields (at rest), players gain foot (none) and exitPending.
  *  - v2 -> v3: a walker gains vy 0 and grounded true (standing where it was saved).
- *  - v3 -> v4: cars gain nearMisses 0, walkers and ambient agents dodge null (nobody mid-dive);
+ *  - v3 through v6: preserve intermediate contracts and repair missing physical fields.
+ *  - v6 -> v7: repair saves written with an older body shape under a newer version.
  *    ext.dodge stays absent (every counter 0) until the first dive.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
   if (s.version === 1) return upgradeState(upgradeV1(s));
-  if ([2, 3, 4, 5, 6].includes(s.version)) return upgradeLegacyFields(s);
+  if ([2, 3, 4, 5, 6].includes(s.version)) {
+    return upgradeState(upgradeLegacyFields(s, s.version + 1));
+  }
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -147,7 +150,7 @@ function upgradeV1(s: Readonly<SimState>): SimState {
   return { ...s, version: 2, players };
 }
 
-function upgradeLegacyFields(s: Readonly<SimState>): SimState {
+function upgradeLegacyFields(s: Readonly<SimState>, version: number): SimState {
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(s.players)) {
     const p = s.players[id]!;
@@ -158,7 +161,7 @@ function upgradeLegacyFields(s: Readonly<SimState>): SimState {
   const ext = { ...s.ext };
   const agents = ext[AGENTS_EXT_KEY];
   if (agents) ext[AGENTS_EXT_KEY] = { ...agents, list: agents.list.map(a => ({ ...a, dodge: a.dodge ?? null })) };
-  return { ...s, version: SIM_VERSION, players, ext };
+  return { ...s, version, players, ext };
 }
 
 /** What every body collides with this tick, built from the previous state. */
@@ -391,7 +394,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const sanitized: Record<PlayerId, SimInput> = {};
   for (const id of sortedIds(players)) sanitized[id] = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
   const prior: SimState = { ...prev, players };
-  const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick},inputs:sanitized,events }, systems);
+  const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
   const admitted = prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements);
   const before: SimState = { ...admitted, tick:prev.tick };
   const obs = obstaclesOf(before);
@@ -401,7 +404,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const agents = stepAgents(world, before, tick, controlled);
   const moved: SimState = agents
     ? { ...admitted, tick, players: next, rng: agents.rng, ext: { ...admitted.ext, [AGENTS_EXT_KEY]: agents.ext } }
-    : { ...admitted, tick, players: next };
+    : { ...admitted, tick, players: next, ext: { ...admitted.ext } };
   const physical = applyMotionBodies(world, moved, prepared.motions);
   const cleared = stepDodge(world, before, physical);
   return runSystems({ world, previous: before, state: cleared, inputs: sanitized, events, observedBodies:observedMotionBodies(cleared,prepared.motions) }, systems);
