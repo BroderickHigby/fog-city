@@ -401,7 +401,8 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   // models/textures/ (WebP, and their index textures.json, read by the high graphics tier
   // through the same bytes() call) are packed the same way.
   const modelsDir = join(pub, "models");
-  for (const f of walk(modelsDir).filter((p) => /\.(glb|webp)$/i.test(p) || /[\\/]textures[\\/]textures\.json$/.test(p))) {
+  // The crowd's vertex-animation textures (humanoid-vat-*.bin) and their humanoid-vat.json too.
+  for (const f of walk(modelsDir).filter((p) => /\.(glb|webp|bin)$/i.test(p) || /[\\/](textures[\\/]textures|humanoid-vat)\.json$/.test(p))) {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
   }
 

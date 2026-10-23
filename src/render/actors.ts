@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
+import type { PlayerBodies } from "./player-body.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
 import { drawnHop, newPersonPose, personDodgePose, type DodgeLike } from "./dodge-pose.ts";
 import { packedMaterial } from "./agent-packing.ts";
@@ -244,8 +245,16 @@ export class Actors {
   }
 
   /** Players drawn on foot last frame. */
+  /** The high tier's skinned player bodies (player-body.ts): walkers are drawn by them from now on. */
+  private bodies: PlayerBodies | null = null;
+
+  setBodies(bodies: PlayerBodies): void {
+    this.bodies = bodies;
+    this.group.add(bodies.group);
+  }
+
   get walkers(): number {
-    return this.people.body.count;
+    return (this.bodies?.drawn ?? 0) + this.people.body.count;
   }
 
   private adopt(v: PlayerView, car: THREE.Object3D, source: "file" | "fallback"): void {
@@ -361,6 +370,7 @@ export class Actors {
   update(dt: number): void {
     this.clock += dt;
     this.people.begin();
+    this.bodies?.begin();
     for (const [id, v] of this.players) {
       const w = v.walker;
       if (!w) continue;
@@ -372,11 +382,17 @@ export class Actors {
       v.gait = advanceGait(v.gait, dist, STRIDE_M);
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
-      const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
-      const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) : null;
-      this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
+      // The skinned model has walk/run clips but no dodge clip. Keep the existing
+      // articulated dive and recovery until the high-tier model supports them.
+      if (this.bodies && !w.dodge) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt);
+      else {
+        const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
+        const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) : null;
+        this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
+      }
     }
     this.people.end();
+    this.bodies?.end();
   }
 
   /** Hide one player's own body (first-person view), or nobody. */
@@ -396,6 +412,7 @@ export class Actors {
   dispose(): void {
     this.remove(new Set());
     this.people.dispose();
+    this.bodies?.dispose();
     this.peopleMaterial.dispose();
   }
 }

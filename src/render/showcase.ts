@@ -230,7 +230,7 @@ function paintMaterial(orm: THREE.Texture, normal: THREE.Texture): THREE.MeshSta
         "#include <color_fragment>",
         `#include <color_fragment>
   vec3 fcPo = texture2D( fcPaintO, fcPaintW.xz * 0.5 ).rgb;
-  if ( fcPo.r < 0.42 ) discard;
+  if ( fcPo.r < 0.22 ) discard;
   diffuseColor.rgb *= 0.86 + 0.14 * fcPo.r;`,
       )
       .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = fcPo.g;");
