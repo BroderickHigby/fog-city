@@ -30,6 +30,7 @@ const ABSENT = "public/tiles/sf/manifest.json is absent: the pipeline has not pr
 /** Spawn must be this close to the origin (the Ferry Building clock tower), metres. */
 const SPAWN_RADIUS_M = 400;
 
+
 interface LandmarksDoc {
   landmarks: Array<{ id: string; model: string; lat: number; lon: number; headingDeg: number }>;
 }
@@ -292,14 +293,14 @@ test.describe("sf world: in the browser", () => {
     expect(problems).toEqual([]);
   });
 
-  test("the far skyline is drawn beyond the streamed tiles: from Twin Peaks, every far cell loaded and some on screen", async () => {
+  test("the far skyline is drawn beyond the streamed tiles: from Twin Peaks, the current region is loaded and on screen", async () => {
     // 40 tiles stream in around Twin Peaks and every frame draws ~740k triangles: under
     // SwiftShader on a loaded machine that takes minutes of wall time, never a frame-rate claim.
     test.setTimeout(420_000);
     const have = await features(page);
     gate("render-debug", have.renderInfo && have.flyTo, "window.__fogcity.renderInfo() or flyTo() is missing");
     const { manifest } = loadWorldFiles("sf");
-    const far = (manifest as { far?: unknown[] }).far ?? [];
+    const far = (manifest as { far?: Array<{ bbox?: [number, number, number, number] }> }).far ?? [];
     expect(far.length, "manifest.far cells").toBeGreaterThan(20);
     // Twin Peaks, 50 m over the summit, looking north-east at downtown 6.6 km away.
     await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.flyTo!(-4756, 330, 4562, 46, -6));
@@ -307,7 +308,20 @@ test.describe("sf world: in the browser", () => {
     await frames(page, 3);
     const r = (await renderInfo(page))!;
     expect(r.farCellsTotal, "far cells the renderer knows").toBe(far.length);
-    expect(r.farCells, "far cells loaded into the scene").toBe(far.length);
+    if (r.farBudget?.radius !== null && r.farBudget?.radius !== undefined) {
+      const radius = r.farBudget.radius;
+      const wanted = far.filter(({ bbox: b }) => {
+        if (!b) return true;
+        const dx = Math.max(Math.min(b[0], b[2]) + 4756, -4756 - Math.max(b[0], b[2]), 0);
+        const dz = Math.max(Math.min(b[1], b[3]) - 4562, 4562 - Math.max(b[1], b[3]), 0);
+        return Math.hypot(dx, dz) <= radius;
+      }).length;
+      expect(r.farBudget, "the requested software-renderer region has no outstanding or failed loads").toMatchObject({ queued: 0, loading: 0, failed: 0 });
+      expect(r.farCells, "every cell in the bounded current region is loaded").toBeGreaterThanOrEqual(Math.min(24, wanted));
+      expect(r.farCells, "the software skyline cache stays inside its cell budget").toBeLessThanOrEqual(24);
+    } else {
+      expect(r.farCells, "native GPUs retain the full skyline").toBe(far.length);
+    }
     expect(r.farCellsDrawn ?? 0, "far cells drawn in the last frame").toBeGreaterThan(3);
     expect(r.farTriangles ?? 0, "far-LOD triangles loaded").toBeGreaterThan(100_000);
     expect(r.cameraFar ?? 0, "camera far plane, m").toBeGreaterThanOrEqual(15_000);

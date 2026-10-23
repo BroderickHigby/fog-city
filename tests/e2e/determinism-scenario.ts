@@ -14,6 +14,7 @@ import {
   buildWorld,
   canonicalJson,
   createInitialState,
+  createGameSystems,
   datan,
   datan2,
   dcos,
@@ -33,14 +34,25 @@ import {
   type RoadsFile,
   type TileCollider,
   type World,
+  type GameplayWorldData,
 } from "../../src/sim/index.ts";
+import { navigationFromPipeline, type PipelineSidewalks } from "../../src/sim/agents/pipeline-navigation.ts";
+import type { TransitLayer } from "../../src/sim/agents/transit-runtime.ts";
 
 /**
  * buildWorld(tiles, roads, boundary): the road graph runs ambient traffic, the boundary walls
  * stop cars at the world's edge and shore. Node and the browser both build their world through this.
  */
-export function makeWorld(tiles: readonly TileCollider[], roads: unknown, boundary: unknown = null): World {
-  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, (boundary ?? null) as BoundaryFile | null);
+export interface ScenarioWorldLayers {
+  gameplay?:GameplayWorldData|null;
+  sidewalks?:PipelineSidewalks|null;
+  transit?:TransitLayer|null;
+}
+export function makeWorld(tiles: readonly TileCollider[], roads: unknown, boundary: unknown = null,layers:ScenarioWorldLayers={}): World {
+  const world=buildWorld(tiles, (roads ?? null) as RoadsFile | null, (boundary ?? null) as BoundaryFile | null,layers.gameplay??undefined);
+  if(layers.sidewalks)world.sidewalks=navigationFromPipeline(layers.sidewalks).graph;
+  if(layers.transit)world.transit=layers.transit;
+  return world;
 }
 
 export interface ScenarioOptions {
@@ -51,6 +63,8 @@ export interface ScenarioOptions {
   seed: number;
   /** The world's spawn (manifest.spawn). */
   spawn: Spawn;
+  /** Exercise the same explicit gameplay registry as the shipped browser. */
+  gameplay?: boolean;
 }
 
 export interface ScenarioStats {
@@ -198,6 +212,7 @@ function agentCount(s: SimState): number {
 
 /** Run the scenario on `world`. Pure apart from its own locals: same arguments, same result. */
 export function runScenario(world: World, opts: ScenarioOptions): ScenarioResult {
+  const systems = opts.gameplay ? createGameSystems() : undefined;
   let state = createInitialState(world, opts.seed, ["p1", "p2", "p3"], opts.spawn);
   const drivers = new Map<PlayerId, Driver>();
   const checkpoints: string[] = [];
@@ -213,7 +228,7 @@ export function runScenario(world: World, opts: ScenarioOptions): ScenarioResult
       frame[id] = scripted ?? drive(d, id === "p3");
     }
     const prev = state;
-    state = step(world, prev, frame, eventsFor(t + 1, prev.tick + 1, opts.spawn));
+    state = step(world, prev, frame, eventsFor(t + 1, prev.tick + 1, opts.spawn), systems);
 
     for (const id of sortedIds(state.players)) {
       seen.add(id);

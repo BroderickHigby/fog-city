@@ -34,6 +34,7 @@ export interface RenderInfoLike {
   farCellsTotal?: number;
   farCells?: number;
   farCellsDrawn?: number;
+  farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
   farTriangles?: number;
   farSeamEdges?: number;
   /** The camera's far plane, metres. */
@@ -49,6 +50,8 @@ export interface Handle {
   ready: true;
   world: string;
   state(): SimState;
+  /** Read-only recorded UI commands, returned as a copy by the game. */
+  commands?(): readonly SimEvent[];
   hash(): string;
   pause(): void;
   resume(): void;
@@ -298,6 +301,7 @@ export interface PokeRun {
   afterHash: string;
   /** Ticks the loop ran: after.tick - before.tick. */
   ran: number;
+  commands: readonly SimEvent[];
 }
 
 /**
@@ -355,7 +359,8 @@ export async function pokeThenRun(page: Page, poke: Poke, minTicks = 36): Promis
   await frames(page, 2);
   const after = await simState(page);
   const afterHash = await simHash(page);
-  return { before, after, afterHash, ran: after.tick - before.tick };
+  const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands?.() ?? []);
+  return { before, after, afterHash, ran: after.tick - before.tick, commands };
 }
 
 /** Smallest signed difference between two compass headings, radians. */
