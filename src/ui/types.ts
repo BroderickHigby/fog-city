@@ -1,4 +1,5 @@
 import type { SimInput } from "../sim/contract.ts";
+import type { LookInput } from "../input/aim.ts";
 import type { Keyboard } from "../input/keyboard.ts";
 import type { LocalModeChoice, LocalModeOption, MatchUiView } from "./modes.ts";
 import type { SavePanelOptions } from "./save-panel.ts";
@@ -75,12 +76,14 @@ export interface UiMountOptions {
   readonly keyboard?:Keyboard;
   readonly saves?:SavePanelOptions;
   readonly startupChoices?:readonly string[];
+  readonly pointerTarget?:HTMLElement;
   readonly localModes?:readonly LocalModeOption[];
 }
 export interface MountedGameUI {
   readonly element:HTMLElement;
   update(view:UiView):void;
   sampleInput():SimInput;
+  sampleLook():LookInput;
   setPhoneOpen(open:boolean):void;
   setVendorOpen(open:boolean):void;
   showStartup():void;

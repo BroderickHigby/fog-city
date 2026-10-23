@@ -72,3 +72,8 @@ Verification: combined full typecheck passed. The settlement→save→restore→
 Latest draft PR title: `Game: connect local Bot Sweep and Clean Streets to the HUD`
 
 Latest draft PR body: Adds playable local-match entry and results to the phone, driven by the shared deterministic match runner and physical roster. The city simulation is retained independently; cancellation restores it and explicit return applies validated payouts once. Saves capture city progress during matches, and the persisted payout ledger prevents duplicate rewards after reload. Includes controller menu support, authored signup choices, canonical vendor eligibility and a settlement round-trip regression. Validation and remaining browser proof are recorded above.
+
+## Recorded aim follow-up
+Worktree `/workspace/fog-city-aim`, branch `lane/input-aim/wave4`. Canvas drag and the right stick produce bounded aimYaw/aimPitch fields on recorded SimInput. Chase and first-person cameras follow those same angles; left mouse sprays, middle mouse / gamepad Back recenters, and touch canvas drag aims without firing. Fly camera input is drained separately. Pointer cancellation and UI disposal release fire, while modal barriers suppress look input.
+
+Validation: typecheck and 15 focused input/aim tests passed, including recorded-angle bounds, first-person bearing, modal suppression and pointer cancellation. The accepted source-only visual commits are included. Final combined verification follows the arena and Watch ownership patches; actual native-GPU frame rate has not been measured. Private relay transport is not exposed by a lobby UI in this candidate.

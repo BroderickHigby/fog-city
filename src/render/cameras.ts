@@ -14,6 +14,9 @@ export interface CameraTarget {
   heading: number;
   speed: number;
   onFoot: boolean;
+  /** Explicit recorded weapon aim, when the player controls the view. */
+  lookYaw?:number;
+  lookPitch?:number;
 }
 
 export interface FlyInput {
@@ -103,6 +106,9 @@ export class CameraRig {
   update(dt: number, t: CameraTarget, input: Readonly<FlyInput>): void {
     const fx = Math.sin(t.heading);
     const fz = -Math.cos(t.heading);
+    const aiming=Number.isFinite(t.lookYaw)&&Number.isFinite(t.lookPitch);
+    const yaw=aiming?t.lookYaw!:t.heading,pitch=aiming?t.lookPitch!:0;
+    const lx=Math.sin(yaw),lz=-Math.cos(yaw),cp=Math.cos(pitch),sy=Math.sin(pitch);
     if (this.mode === "fly") {
       const f = this.fly;
       f.yaw += input.yaw;
@@ -135,6 +141,7 @@ export class CameraRig {
         this.camera.position.set(t.x - rx * 0.36 + fx * 0.1, t.y + 1.3, t.z - rz * 0.36 + fz * 0.1);
         this.camera.lookAt(this.camera.position.x + fx * 30, t.y + 0.4, this.camera.position.z + fz * 30);
       }
+      if(aiming)this.camera.lookAt(this.camera.position.x+lx*cp*30,this.camera.position.y+sy*30,this.camera.position.z+lz*cp*30);
       this.init = false;
       return;
     }
@@ -142,18 +149,19 @@ export class CameraRig {
     const speed = Math.abs(t.speed);
     const dist = t.onFoot ? 4.4 : 8.2 + Math.min(speed, 30) * 0.09;
     const height = t.onFoot ? 2.0 : 3.1 + Math.min(speed, 30) * 0.02;
-    _desired.set(t.x - fx * dist, t.y + height, t.z - fz * dist);
+    _desired.set(t.x - lx * dist, t.y + height - (aiming?sy*dist:0), t.z - lz * dist);
     // Pull in towards the target when the arm would end inside a building.
     if (this.occluded(_desired.x, _desired.y, _desired.z)) {
       for (const k of PULL_IN) {
-        const x = t.x - fx * dist * k;
-        const z = t.z - fz * dist * k;
+        const x = t.x - lx * dist * k;
+        const z = t.z - lz * dist * k;
         const y = t.y + height * (0.6 + 0.4 * k);
         _desired.set(x, y, z);
         if (!this.occluded(x, y, z)) break;
       }
     }
-    _look.set(t.x + fx * 5, t.y + (t.onFoot ? 1.4 : 1.25), t.z + fz * 5);
+    if(aiming)_look.set(t.x+lx*cp*30,t.y+1.2+sy*30,t.z+lz*cp*30);
+    else _look.set(t.x + fx * 5, t.y + (t.onFoot ? 1.4 : 1.25), t.z + fz * 5);
     if (!this.init) {
       this.pos.copy(_desired);
       this.lookAt.copy(_look);

@@ -28,9 +28,12 @@ import { installDebugHandle } from "./debug.ts";
 import { openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
+import { AimController, NO_LOOK } from "./input/aim.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, LOCAL_MODES, type LocalModeChoice, type MapPoint } from "./ui/index.ts";
+import { nextCampaignMission } from "./ui/campaign.ts";
+import { loadoutForMatch } from "./ui/loadout.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
@@ -77,7 +80,7 @@ import {
 
 const LOCAL_PLAYER = "p1";
 const SEED = 1;
-const GAME_WAVE = 2;
+const GAME_WAVE = 4;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
@@ -199,6 +202,7 @@ async function boot(): Promise<void> {
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
+  const aim=new AimController();
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
   let cityState:SimState|null=null;
@@ -216,7 +220,7 @@ async function boot(): Promise<void> {
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const captureCity=()=>captureProgression(cityState??curr,LOCAL_PLAYER);
   const autosave=new Autosave(saveStore,captureCity);
-  const resetFrame=()=>{prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();audio.reset(curr.ext.combat);};
+  const resetFrame=()=>{prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();aim.reset();audio.reset(curr.ext.combat);};
   const leaveLocalMatch=(settle:boolean)=>{
     if(!cityState)return;
     const result=localMatchView(curr),saved=cityState;
@@ -233,18 +237,18 @@ async function boot(): Promise<void> {
       const body=activeBody(own),profile=gameplaySnapshot({state:curr}).progression.players[LOCAL_PLAYER];
       const ledger=(curr.ext.economy as unknown as {settledModeIds?:string[]}|undefined)?.settledModeIds??[];
       const match=createLocalMatch(world,{id:`local-${ledger.length}-${++localMatchSequence}`,mode,seed:hash32(SEED,localMatchSequence),playerId:LOCAL_PLAYER,spawn:{x:body.x,z:body.z,heading:body.heading},
-        loadouts:profile?{[LOCAL_PLAYER]:{nozzle:profile.nozzle,gadget:profile.gadget,gear:profile.gear,perks:[...profile.perks],streaks:[...profile.streaks],cosmetics:[]}}:{}});
+        loadouts:profile?{[LOCAL_PLAYER]:loadoutForMatch(profile)}:{}});
       cityState=JSON.parse(JSON.stringify(curr)) as SimState;curr=match;modeError=undefined;resetFrame();return true;
     }catch{modeError=uiText("ui.common.error");return false;}
   };
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const gameUI=mountGameUI(container,{copy:uiText,keyboard,localModes:LOCAL_MODES,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",saves:{store:saveStore,capture:captureCity,restore:data=>{
+  const gameUI=mountGameUI(container,{copy:uiText,keyboard,localModes:LOCAL_MODES,pointerTarget:view.renderer.domElement,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",saves:{store:saveStore,capture:captureCity,restore:data=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
     cityState=null;modeError=undefined;curr=restoreProgression(fresh,clean,LOCAL_PLAYER);resetFrame();
-    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>(mission.wave??2)<=GAME_WAVE&&!completed.includes(mission.id));requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
+    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
     startMode:startLocalMatch,cancelMode:()=>leaveLocalMatch(false),returnFromMode:()=>leaveLocalMatch(true),
@@ -379,7 +383,7 @@ async function boot(): Promise<void> {
     const dtFrame = Math.min(frameS, MAX_FRAME_S);
     last = now;
     for (const code of keyboard.takeUiPresses()) {
-      if (code === "KeyC") view.rig.cycle();
+      if (code === "KeyC") {view.rig.cycle();aim.reset();}
       else if (code === "KeyV") view.rig.toggleFly();
       else if (code === "KeyN") view.setNight(!view.night);
     }
@@ -389,6 +393,9 @@ async function boot(): Promise<void> {
       pointer.takeDrag(drag);
       pointer.takeWheel();
     }
+    const meForAim=curr.players[LOCAL_PLAYER];
+    const lookInput=gameUI.sampleLook();
+    if(meForAim)aim.update(activeBody(meForAim).heading,!paused&&!flying?lookInput:NO_LOOK,dtFrame);
     if (!paused) {
       acc += dtFrame;
       while (acc >= DT) {
@@ -397,7 +404,8 @@ async function boot(): Promise<void> {
           keyboard.clearActions();
           advance({ ...NEUTRAL_INPUT });
         } else {
-          const input = gameUI.sampleInput();
+          const input = gameUI.sampleInput(),aimPose=aim.current();
+          if(aimPose){input.aimYaw=aimPose.yaw;input.aimPitch=aimPose.pitch;}
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
           const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
@@ -456,6 +464,7 @@ async function boot(): Promise<void> {
         target.heading = src.heading;
         target.onFoot = onFoot;
         target.speed = onFoot ? P.foot.speed : c.speed;
+        target.lookYaw=aim.current()?.yaw;target.lookPitch=aim.current()?.pitch;
       }
     }
     view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
@@ -484,7 +493,7 @@ async function boot(): Promise<void> {
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!cityState)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(!cityState&&mission?.status==="complete"){const next=[...MISSIONS].sort((a,b)=>(a.campaign??0)-(b.campaign??0)).find(candidate=>(candidate.wave??2)<=GAME_WAVE&&!mission.completedIds.includes(candidate.id));if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(!cityState&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
     if(now>=nextUiUpdate){
       nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE),match=localMatchView(curr);
       const payout=match?.payouts.find(row=>row.playerId===LOCAL_PLAYER);
