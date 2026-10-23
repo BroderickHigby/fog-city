@@ -70,11 +70,15 @@ describe("L-04: Saints Peter and Paul", () => {
   const near = recordsNear(sspp.point.lat, sspp.point.lon);
   const byId = new Map(near.map((r) => [r.id, r]));
 
-  it("the probe resolves to the church, 201006.0001265, and its spire record, 16 m inside its walls", () => {
+  it("the probe resolves to the church, 201006.0001265, and its spire record, well inside its walls", () => {
     const res = resolveProbe(sspp.point, near);
     expect(res.buildings).toEqual(["201006.0001265", "201006.0001265-tower"]);
     expect(res.nearestM).toBe(0);
-    expect(res.insideByM).toBeGreaterThan(15);
+    // The regenerated world terraces the church (W-28): its four strips (-s1..-s4, pieceOf the
+    // church, tagged with it) took the slope's ends, so the main record is 17.8 m across and its
+    // deepest point is 5.9 m from a wall; the probe stands 5.2 m in (16.5 m before terracing).
+    expect(res.insideByM).toBeGreaterThan(4.5);
+    for (const k of [1, 2, 3, 4]) expect(byId.get(`201006.0001265-s${k}`)?.meta?.pieceOf).toBe("201006.0001265");
   });
 
   it("201006.0001265 is the church: a non-residential hall of the 1920s with a spire rising over 50 m, the tallest record within 150 m", () => {

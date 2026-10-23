@@ -55,7 +55,7 @@
       "shopBand": false,
       "storefronts": false,
       "publishedHeightM": 58,
-      "note": "Saints Peter and Paul Church, 666 Filbert St (built 1924; the roll says 1922). L-04: pipeline/areas.json probes it at 37.8003,-122.4104, by Union St at the south edge of Washington Square, about 140 m south of the church, which resolves to 201006.0003946 (a 1914 apartment building 9.1 m away; the point is in no record). This point is 16.5 m inside 201006.0001265, whose -tower record is the spires (57.8 m tall). Twin spires 191 ft."
+      "note": "Saints Peter and Paul Church, 666 Filbert St (built 1924; the roll says 1922). L-04: pipeline/areas.json probes it at 37.8003,-122.4104, by Union St at the south edge of Washington Square, about 140 m south of the church, which resolves to 201006.0003946 (a 1914 apartment building 9.1 m away; the point is in no record). This point is 5.2 m inside 201006.0001265 (16.5 m before the regenerated world terraced the church into the main record and four strips, -s1..-s4, pieceOf it and tagged with it), whose -tower record is the spires (57.8 m tall). Twin spires 191 ft."
     },
     {
       "id": "palace-of-fine-arts",
