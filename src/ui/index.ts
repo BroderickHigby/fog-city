@@ -5,3 +5,4 @@ export { gameplayCallbacks, createGameplayDispatcher } from "./commands.ts";
 export { route, nearestNode } from "./navigation.ts";
 export { mountSavePanel, type SavePanelOptions } from "./save-panel.ts";
 export type * from "./types.ts";
+export { LOCAL_MODES, matchTime, type LocalModeChoice, type LocalModeOption, type MatchUiView } from "./modes.ts";

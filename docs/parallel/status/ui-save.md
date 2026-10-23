@@ -54,3 +54,12 @@ Adds three-slot progression storage with autosave, IndexedDB fallback and a host
 
 ### Contract changes
 None authored in shared simulation files; shared requests are listed above.
+
+## Local mode UI checkpoint (wave 4 branch)
+Worktree: `/workspace/fog-city-ui-modes`; branch: `lane/ui-modes/wave4`, based on clean gameplay `25d7aa8` with the controller follow-up. Adds a host-enabled Playlists menu for local Bot Sweep/Clean Streets, immutable match HUD data and an explicit result/return panel. The UI emits start/cancel/return callbacks; it does not create simulation state or payouts. The runtime host will preserve free-roam by value, run the isolated match driver, and settle validated rewards once on explicit return. Save/autosave must capture preserved free-roam while a match is active.
+
+Draft PR title: `UI: add local match menu, status HUD and result screen`
+
+Draft PR body: Adds controller-accessible local mode selection and match result presentation behind an explicit host enablement option. Runtime integration follows the canonical local-match API; no outcome or reward is injected by this UI. Existing free-roam UI remains on the clean renderer branch.
+
+Validation for the local UI scaffold: full typecheck and 14 focused controller/command tests pass. The module uses existing authored copy keys and plain text DOM nodes. Actual mode creation, play-through, cancellation and settlement await the published runtime API and integration checks.

@@ -1,5 +1,6 @@
 import type { SimInput } from "../sim/contract.ts";
 import type { Keyboard } from "../input/keyboard.ts";
+import type { LocalModeChoice, LocalModeOption, MatchUiView } from "./modes.ts";
 import type { SavePanelOptions } from "./save-panel.ts";
 
 /** Presentation snapshots are supplied by the owning simulation lanes. */
@@ -47,6 +48,8 @@ export interface UiView {
   readonly popups?:readonly PopupView[];
   readonly phoneApps?:readonly PhoneApp[];
   readonly airPlaneMode?:boolean;
+  readonly match?:MatchUiView;
+  readonly modeError?:string;
   readonly performance?:{readonly fps:number;readonly drawCalls:number;readonly triangles:number;readonly simMs?:number};
 }
 export type UiCopy=(key:string,values?:Readonly<Record<string,string|number>>)=>string;
@@ -58,6 +61,9 @@ export interface UiCallbacks {
   readonly pause?:(paused:boolean)=>void;
   readonly app?:(app:PhoneApp)=>void;
   readonly interaction?:(choiceId:string)=>void;
+  readonly startMode?:(mode:LocalModeChoice)=>boolean;
+  readonly cancelMode?:()=>void;
+  readonly returnFromMode?:()=>void;
 }
 export interface UiMountOptions {
   readonly copy:UiCopy;
@@ -69,6 +75,7 @@ export interface UiMountOptions {
   readonly keyboard?:Keyboard;
   readonly saves?:SavePanelOptions;
   readonly startupChoices?:readonly string[];
+  readonly localModes?:readonly LocalModeOption[];
 }
 export interface MountedGameUI {
   readonly element:HTMLElement;
