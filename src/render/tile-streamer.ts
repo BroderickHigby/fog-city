@@ -736,7 +736,6 @@ export class TileStreamer {
   /** Lakes at their level and the skirts under the ground's borders (ground-extras.ts), from the tile's heightfield. */
   private addGroundExtras(rec: TileRecord): void {
     const ground = (rec.collider ?? this.opts.colliders.get(rec.id))?.ground;
-    if (!ground) return;
     const add = (name: string, data: SimpleMesh & { colors?: Float32Array }, mat: THREE.Material): void => {
       const g = new THREE.BufferGeometry();
       g.setAttribute("position", new THREE.BufferAttribute(data.positions, 3));
@@ -751,9 +750,9 @@ export class TileStreamer {
       mesh.matrixAutoUpdate = false;
       rec.group.add(mesh);
     };
-    const lakes = this.opts.lakeMaterial ? lakeSurface(ground) : null;
+    const lakes = ground && this.opts.lakeMaterial ? lakeSurface(ground) : null;
     if (lakes) add("lakes", lakes, this.opts.lakeMaterial!);
-    const skirt = groundSkirt(ground);
+    const skirt = ground ? groundSkirt(ground) : null;
     if (skirt) add("ground-skirt", skirt, this.opts.materials.groundSkirt);
     const tunnels = this.tunnelsOf(rec);
     const bores = tunnels.length > 0 ? boreMesh(tunnels, this.opts.drawnGround ?? this.opts.ground) : null;
