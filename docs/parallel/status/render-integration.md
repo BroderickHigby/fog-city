@@ -10,9 +10,10 @@
 - Added runtime-actor presentation adapter for accepted poses, visible bag/light tells and combat height changes.
 - UI projection throttles to 10 Hz; GPS uses cached adjacency and a heap rather than repeatedly scanning all edges.
 - Loads optional gameplay metadata and passes it into the shared world.
+- Settings mounts the actual save panel; canonical capture/restore whitelists durable player fields, retains settled-mode payout IDs and restores into a fresh initialized world. Added a read-only defensive-copy command log for the browser harness.
 
 ## Validation
-Initial integration typecheck and 10 scoped UI tests passed before runtime-presentation additions. UI2 has 12 focused control/command tests passing. Actual SF canvas booted in Chromium and produced `test-results/sf-hud.png`. High-GFX software rendering saturated the browser during interaction; that bounded run was stopped to release the shared lock for core validation. The next functional run uses the default tier and smaller viewport on the same renderer branch.
+Integration typecheck passed. UI2 has 12 focused control/command tests passing; persistence plus canonical restore tests pass (8 tests). Actual SF canvas booted in Chromium and produced `test-results/sf-hud.png`. High-GFX software rendering saturated the browser during interaction; that bounded run was stopped to release the shared lock for core validation. The next functional run uses the default tier and smaller viewport on the same renderer branch.
 
 ## Next
 Merge final `createGameSystems` composition, connect accepted runtime actors and transit/sidewalk metadata, mount progression-only save controls, then run actual SF movement/exit/phone/spray/refill and a mission loop. Capture final screenshots and console results.

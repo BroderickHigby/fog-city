@@ -82,6 +82,8 @@ export interface DebugHandle {
   ready: true;
   world: string;
   state(): SimState;
+  /** Defensive copies of recorded UI commands, for browser replay checks. */
+  commands?(): readonly SimEvent[];
   hash(): string;
   pause(): void;
   resume(): void;

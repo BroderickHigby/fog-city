@@ -34,6 +34,12 @@ import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
+import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
+import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
+import { contentHash } from "./content/barks.ts";
+import { VENDOR } from "./content/vendor.ts";
+import { STARTUP_KITS } from "./content/kits.ts";
+import { DEFAULT_CATALOG } from "./sim/player/catalog.ts";
 import { createCombatSystem, contextFromState } from "./sim/combat/index.ts";
 import { createPlayerSystems, gameplaySnapshot, combatLoadout } from "./sim/player/adapter.ts";
 import { MISSIONS } from "./content/catalog.ts";
@@ -195,8 +201,18 @@ async function boot(): Promise<void> {
   let last = performance.now();
   let waypoint:MapPoint|undefined;
   let queuedEvents:SimEvent[]=[];
-  const send=createGameplayDispatcher({playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>queuedEvents.push(event)});
-  const gameUI=mountGameUI(container,{copy:uiText,keyboard,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",callbacks:{
+  const recordedCommands:SimEvent[]=[];
+  const send=createGameplayDispatcher({playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>{queuedEvents.push(event);recordedCommands.push(event);}});
+  const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
+  const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
+  const gameUI=mountGameUI(container,{copy:uiText,keyboard,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
+    const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
+    const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
+    const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
+    const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
+    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
+    const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=MISSIONS.find(mission=>!completed.includes(mission.id));if(next)send({kind:"mission-start",targetId:next.id});
+  }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;},
@@ -289,6 +305,7 @@ async function boot(): Promise<void> {
   installDebugHandle({
     world: worldName,
     state: () => curr,
+    commands:()=>JSON.parse(JSON.stringify(recordedCommands)) as SimEvent[],
     hash: () => hashState(curr),
     pause: () => {
       paused = true;
@@ -438,6 +455,7 @@ async function boot(): Promise<void> {
     hudData.minuteOfDay = minute;
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
+    const progress=gameplaySnapshot({state:curr});autosave.observe(curr.tick,JSON.stringify([progress.missions.players[LOCAL_PLAYER]?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint);gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };

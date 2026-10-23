@@ -6,6 +6,7 @@ import { createFreeTextBox, type FreeTextControl } from "./free-text.ts";
 import { drawMap } from "./minimap.ts";
 import { UI_STYLES } from "./styles.ts";
 import { createTouchControls } from "./touch.ts";
+import { mountSavePanel } from "./save-panel.ts";
 import type { MountedGameUI, PhoneApp, UiMountOptions, UiView } from "./types.ts";
 
 const APPS:readonly PhoneApp[]=["map","botBounty","botCheck","ride","radio","fogcast","messages","bank","playlists","settings"];
@@ -16,6 +17,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const style=doc.createElement("style");style.textContent=UI_STYLES;root.append(style);
   let view:UiView|undefined,modal:"phone"|"vendor"|"startup"|"pause"|"interaction"|undefined,app:PhoneApp|undefined,previousFocus:HTMLElement|null=null,freeText:FreeTextControl|undefined,disposed=false,panelStamp="",crisis=false,interactionId="";
   const keyboard=options.keyboard??new Keyboard(win,()=>!!modal||isTextEntry(doc.activeElement));const controls=new InputController(keyboard);
+  let savePanel:ReturnType<typeof mountSavePanel>|undefined;
   function node<K extends keyof HTMLElementTagNameMap>(tag:K,className?:string,text?:string):HTMLElementTagNameMap[K]{const element=doc.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
   function button(label:string,fn:()=>void){const b=node("button",undefined,label);b.type="button";b.addEventListener("click",fn);return b;}
   const hud=node("div","fc-hud"),cluster=node("div","fc-cluster"),tools=node("div","fc-tools");
@@ -37,6 +39,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(!modal)previousFocus?.focus();
   }
   function renderPanel():void {
+    savePanel?.dispose();savePanel=undefined;
     layer.hidden=!modal;if(!modal){freeText?.dispose();freeText=undefined;layer.replaceChildren();return;}
     freeText?.dispose();freeText=undefined;
     const dialog=node("section","fc-dialog");dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");dialog.tabIndex=-1;
@@ -71,6 +74,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       content.append(node("p",undefined,copy(view?.scan?(view.scan.bad?"ui.hud.scanBad":"ui.hud.scanGood"):"ui.hud.scanUnknown")));
       if(view?.scan)content.append(node("strong",undefined,copy("ui.hud.scanConfidence",{confidence:Math.round(bounded(view.scan.confidence,0,1)*100)})));
     }else if(app==="bank")content.append(node("strong",undefined,formatMoney(view?.cashCents??0)));
+    else if(app==="settings"&&options.saves){savePanel=mountSavePanel(doc,copy,options.saves);content.append(savePanel.element);}
     else content.append(node("p",undefined,copy("ui.common.empty")));
     dialog.append(content);
   }
@@ -107,5 +111,5 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     // Never replace a focused form while sim snapshots arrive.
     if(modal&&modal!=="startup"&&modal!=="interaction"){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents]);if(stamp!==panelStamp){panelStamp=stamp;const active=doc.activeElement as HTMLElement|null;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }
-  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
+  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();savePanel?.dispose();if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
 }
