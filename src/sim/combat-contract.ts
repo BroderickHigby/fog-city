@@ -49,6 +49,7 @@ export interface RefillSource extends Vec3 { id: string; kind: "hydrant" | "foun
 export type AttackKind = "shove" | "snatch" | "ad-blast" | "phone-hack" | "handshake" | "forced-update";
 export interface AttackRequest { id: string; sequence: number; attackerId: string; targetId: string; kind: AttackKind }
 export interface MaintenanceRequest { id: string; sequence: number; kind: "collect-heap" | "restore"; actorId: string; workerId: string; kioskId?: string }
+export interface MaintenanceChannel extends MaintenanceRequest { startedTick: number; lastTick: number }
 export interface StreakGrant { sequence: number; playerId: string; kind: StreakKind }
 export type StreakKind = "confidence" | "parrots" | "tensor" | "blimp" | "hydrants" | "agi";
 export interface CombatInput {
@@ -180,6 +181,7 @@ export interface CombatState {
   attackSequence: Record<string, number>;
   /** Absent in earlier combat saves; an empty cursor map until first maintenance. */
   maintenanceSequence?: Record<string, number>;
+  maintenanceChannels?: Record<string, MaintenanceChannel>;
   events: CombatEvent[];
   pauseUntil: number;
 }
