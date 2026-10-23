@@ -1,0 +1,230 @@
+{
+ "source": "QA terrain c4: 25 named summits, the 3DEP DEM maximum within 150 m (demMaxM) and the published height",
+ "summits": [
+  {
+   "name": "Twin Peaks North (Eureka)",
+   "at": [
+    37.7546,
+    -122.446749
+   ],
+   "publishedM": 275.5,
+   "demMaxM": 278.17
+  },
+  {
+   "name": "Twin Peaks South (Noe)",
+   "at": [
+    37.751724,
+    -122.447684
+   ],
+   "publishedM": 277.4,
+   "demMaxM": 280.56
+  },
+  {
+   "name": "Mount Davidson",
+   "at": [
+    37.738345,
+    -122.454784
+   ],
+   "publishedM": 281.9,
+   "demMaxM": 284
+  },
+  {
+   "name": "Mount Sutro",
+   "at": [
+    37.7581,
+    -122.457392
+   ],
+   "publishedM": 277.7,
+   "demMaxM": 278.42
+  },
+  {
+   "name": "Mount Olympus",
+   "at": [
+    37.76335,
+    -122.445543
+   ],
+   "publishedM": 173.7,
+   "demMaxM": 171.59
+  },
+  {
+   "name": "Buena Vista Park",
+   "at": [
+    37.767785,
+    -122.441543
+   ],
+   "publishedM": 173.4,
+   "demMaxM": 174.93
+  },
+  {
+   "name": "Corona Heights",
+   "at": [
+    37.764939,
+    -122.438738
+   ],
+   "publishedM": 155.4,
+   "demMaxM": 151.54
+  },
+  {
+   "name": "Tank Hill",
+   "at": [
+    37.757854,
+    -122.44967
+   ],
+   "publishedM": 198.1,
+   "demMaxM": 245.52
+  },
+  {
+   "name": "Bernal Heights",
+   "at": [
+    37.7432,
+    -122.415109
+   ],
+   "publishedM": 132,
+   "demMaxM": 141.91
+  },
+  {
+   "name": "Potrero Hill",
+   "at": [
+    37.75787,
+    -122.398898
+   ],
+   "publishedM": 91.4,
+   "demMaxM": 99
+  },
+  {
+   "name": "Nob Hill",
+   "at": [
+    37.793476,
+    -122.415086
+   ],
+   "publishedM": 114.6,
+   "demMaxM": 114.23
+  },
+  {
+   "name": "Russian Hill (north summit, Greenwich/Hyde)",
+   "at": [
+    37.80151,
+    -122.4201
+   ],
+   "publishedM": 89.6,
+   "demMaxM": 99.24
+  },
+  {
+   "name": "Russian Hill (south summit, Vallejo/Jones)",
+   "at": [
+    37.79819,
+    -122.41478
+   ],
+   "publishedM": 89.6,
+   "demMaxM": 109.9
+  },
+  {
+   "name": "Telegraph Hill",
+   "at": [
+    37.802309,
+    -122.4058
+   ],
+   "publishedM": 86.6,
+   "demMaxM": 91.58
+  },
+  {
+   "name": "Lone Mountain",
+   "at": [
+    37.779315,
+    -122.45134
+   ],
+   "publishedM": 136.6,
+   "demMaxM": 126.49
+  },
+  {
+   "name": "Rincon Hill",
+   "at": [
+    37.785615,
+    -122.392157
+   ],
+   "publishedM": 30.5,
+   "demMaxM": 36.21
+  },
+  {
+   "name": "Strawberry Hill (GG Park)",
+   "at": [
+    37.768545,
+    -122.4757
+   ],
+   "publishedM": 125.6,
+   "demMaxM": 130.36
+  },
+  {
+   "name": "Grand View Park",
+   "at": [
+    37.75619,
+    -122.4718
+   ],
+   "publishedM": 203,
+   "demMaxM": 204
+  },
+  {
+   "name": "McLaren Park (McLaren Ridge)",
+   "at": [
+    37.719816,
+    -122.419795
+   ],
+   "publishedM": 157,
+   "demMaxM": 155.06
+  },
+  {
+   "name": "Hunters Point hill (Hunters Point Ridge)",
+   "at": [
+    37.732296,
+    -122.381367
+   ],
+   "publishedM": 83.8,
+   "demMaxM": 81.61
+  },
+  {
+   "name": "Lands End (Lincoln Heights, Legion of Honor)",
+   "at": [
+    37.784725,
+    -122.500516
+   ],
+   "publishedM": 115.8,
+   "demMaxM": 116.67
+  },
+  {
+   "name": "Fort Funston bluffs (Battery Davis)",
+   "at": [
+    37.718045,
+    -122.503237
+   ],
+   "publishedM": 61,
+   "demMaxM": 70.2
+  },
+  {
+   "name": "Bayview Hill",
+   "at": [
+    37.71509,
+    -122.39348
+   ],
+   "publishedM": 152.4,
+   "demMaxM": 142.17
+  },
+  {
+   "name": "Forest Hill",
+   "at": [
+    37.747775,
+    -122.464851
+   ],
+   "publishedM": 243.8,
+   "demMaxM": 232.25
+  },
+  {
+   "name": "Yerba Buena Island",
+   "at": [
+    37.810014,
+    -122.36451
+   ],
+   "publishedM": null,
+   "demMaxM": 104.84
+  }
+ ]
+}

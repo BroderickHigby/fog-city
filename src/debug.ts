@@ -31,6 +31,8 @@ export interface RenderInfo {
   agentsTotal: number;
   /** Draw calls the agents took last frame. */
   agentDrawCalls: number;
+  /** Agents drawn in a dodge pose last frame: diving out of a car's way, leaping, getting up, skidding. */
+  agentsDodging: number;
   /** Agent kinds drawn from their model files ("robotaxi", "errandRobot", "sidewalkBot"). */
   agentModels: string[];
   /** Players whose car is models/player-car.glb (not the procedural stand-in). */

@@ -1,0 +1,2386 @@
+{
+ "build": "544f67c",
+ "measuredOn": "2026-10-21",
+ "note": "The world-continuity gate's ratchet (docs/qa/world-continuity-gate.md). Every metric was measured at 544f67c (integrate/wave1) by the suites in tests/golden/world/ and the gate's e2e specs. A PR may not make a metric worse; one that improves it lowers its baseline (pnpm world:baseline). A defect marked fixed makes every metric that tracks only fixed defects a hard assertion at its target. Statuses are edited by hand, in the PR that fixes the defect.",
+ "defects": {
+  "L-01": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "23 duplicate and 24 coplanar-roof footprint pairs z-fight.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-02": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Wall bottoms float 5 to 25 cm above the drawn ground on 38 buildings.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-03": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Two buildings straddle the south edge and hang over the void: 201006.0017547 by 118.6 m (37.705434,-122.462201) and 0008708 by 16.4 m (37.705490,-122.416322).",
+   "targetWave": null,
+   "note": "QA at 54ee728: open (now behind the wall; visual only)"
+  },
+  "L-04": {
+   "severity": "low",
+   "status": "open",
+   "owner": "content",
+   "title": "The saints-peter-and-paul probe in `pipeline/areas.json` points 143 m away, at 201006.0003946. The church is 201006.0001265 and its -tower. (Coit is in W-27.)",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-05": {
+   "severity": "low",
+   "status": "partly",
+   "owner": "render",
+   "title": "If a tile GLB fails, the collider fallback extrudes from baseY - 1 m: 51,328 hillside buildings would float, 5,172 of them by more than 3 m.",
+   "targetWave": null,
+   "note": "QA at 54ee728: partly (head retries a failed GLB once after 1.5 s; the fallback is unchanged)"
+  },
+  "L-06": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "The DEM is requested at about 4 x 5 m although USGS serves 1 m. With the 10 m lattice, cliffs, cuts and retaining walls are rounded off by up to 6.6 m (lattice) and 9.3 m (request).",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-07": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "2 to 4 m notches in road ribbons at sharp polyline bends.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-08": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline + assets",
+   "title": "Alcatraz exists only as far terrain, flattened by 9 to 13 m, with no buildings.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-09": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "10.1% of the sidewalk graph (3,560 edges) lies inside footprints. No runtime code reads `sidewalks.json` yet.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-10": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Boulevards are drawn narrower than their corridors; alley and residential kerbs run into buildings.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-11": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "9 ribbon seams open by more than 2 cm (max 0.27 m at t-5_5/t-5_6); 4 junction caps are unmatched across seams.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-12": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Treasure Island and YBI are unreachable by road (wave 8). There are 26 components, 7 one-way sinks, and one-way edges that dead-end at the county line.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-13": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "About 1 ha of sim land is drawn as water (Mission Creek shoreline, t0_4). The 10 m staircase is in W-35.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-14": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "48% of 1,641,534 corners split a window; 21,321 window rows are sliced by the roofline; 29,524 ground-floor windows are clipped at the 0.8 m mask.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open"
+  },
+  "L-15": {
+   "severity": "low",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "485 low-rise houses carry a box centred on the roof, rising 3 to 12 m.",
+   "targetWave": null,
+   "note": "QA at 54ee728: open (not recounted at head, where the condo rule added 64 tower records)"
+  },
+  "W-01": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Real streets walled by building footprints",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-02": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Tunnels draped over the hills (Broadway impassable)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-03": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Freeways on the bare ground: the car is stopped by buildings on the freeway, launches, drives through houses",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (traffic part fixed)"
+  },
+  "W-04": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Post-2010 blocks and towers missing",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-05": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Buried hillside buildings: invisible underground walls, cars teleported out, hill through the roof",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-06": {
+   "severity": "blocker",
+   "status": "partly",
+   "owner": "sim",
+   "title": "The water side of every shore wall launches cars 50 to 1,612 m into the sky",
+   "targetWave": 1,
+   "note": "Partly fixed at 544f67c (de02d2f, two-sided walls): the 1,612 m launches are gone, but 98 of 1,182 sampled water-side approaches still rise more than 1 m (up to 8.94 m) (E.launch.*). QA at 54ee728: open (new at head)."
+  },
+  "W-07": {
+   "severity": "blocker",
+   "status": "open",
+   "owner": "sim + pipeline",
+   "title": "I-280 ends in invisible sea walls at Mission Creek and Islais Creek",
+   "targetWave": 1,
+   "note": "QA at 54ee728: open (new at head)"
+  },
+  "W-08": {
+   "severity": "blocker",
+   "status": "fixed",
+   "owner": "sim",
+   "title": "No world edge: cars and walkers leave the world, 181 to 201 m drop at the county line, open water is a solid floor",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed (residual: W-06, W-21); the gate keeps its acceptance test as a hard assertion."
+  },
+  "W-09": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Car sinks into the drawn road (ribbon vs sim ground)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-10": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Ground mesh pokes through road ribbons",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-11": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + render + sim",
+   "title": "Inland lakes are dry, drivable land; at head they are also painted lawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (worse)"
+  },
+  "W-12": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Bridges over Mission Creek and Islais Creek dip to sea level",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-13": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + sim",
+   "title": "Piers: sheds stand in the water, pier roads at y=0",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-14": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Streets crossing freeways, rail cuts and creeks launch the car",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-15": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "Houses drawn with 5 to 8 m storeys",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-16": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Phantom LiDAR towers: 68 m on 1st St, 65 m block on Fort Point",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-17": {
+   "severity": "high",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "Streaming-ring seam: near and far terrain step up to 21.5 m and the sea shows through",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new visible at head)"
+  },
+  "W-18": {
+   "severity": "high",
+   "status": "partly",
+   "owner": "pipeline + render",
+   "title": "Ground cover: parks bare grey, no foliage, beaches and lakes painted lawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: partly"
+  },
+  "W-19": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "render",
+   "title": "Car drawn level on hills",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed; the gate keeps its acceptance test as a hard assertion."
+  },
+  "W-20": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "render",
+   "title": "Far LOD not drawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed (new defects W-17, W-40, W-41); the gate keeps its acceptance test as a hard assertion."
+  },
+  "W-21": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "sim + pipeline",
+   "title": "Gaps cut in the sea wall for pier and bridge roads let cars and walkers out onto the Bay",
+   "targetWave": 2,
+   "note": "Fixed at 544f67c (de02d2f, kerbed corridors over water): 0 of 156 car turn runs and 0 sprinting walkers leave a corridor (E.gaps.*). QA at 54ee728: open (new at head)."
+  },
+  "W-22": {
+   "severity": "high",
+   "status": "open",
+   "owner": "sim",
+   "title": "Render ground (triangles) and sim ground (bilinear) disagree off-road by up to 4.37 m",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-23": {
+   "severity": "high",
+   "status": "open",
+   "owner": "sim",
+   "title": "Ramming a building on a hill launches the car",
+   "targetWave": 2,
+   "note": "Open at 544f67c: the push unit test passes (E.push.excessLiftMps 0), but 211 of 360 seeded hill rams still leave the car airborne over 0.3 s or lift it over 0.5 m (F.ram.launches). QA at 54ee728: open."
+  },
+  "W-24": {
+   "severity": "high",
+   "status": "open",
+   "owner": "assets",
+   "title": "Golden Gate Bridge and Bay Bridge absent; approaches end at the shore",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-25": {
+   "severity": "high",
+   "status": "open",
+   "owner": "assets + pipeline",
+   "title": "Sutro Tower absent: three 3 m plinths, no model",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new at head)"
+  },
+  "W-26": {
+   "severity": "high",
+   "status": "fixed",
+   "owner": "pipeline",
+   "title": "Sutro Tower drawn as a solid 231 m slab",
+   "targetWave": 2,
+   "note": "QA at 54ee728: fixed (replaced by W-25); the gate keeps its acceptance test as a hard assertion."
+  },
+  "W-27": {
+   "severity": "high",
+   "status": "open",
+   "owner": "assets + pipeline",
+   "title": "Hero landmarks read as office boxes; Dragon Gate and Sutro Baths absent; Coit 20% short",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-28": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Large hillside buildings are one flat prism over up to 30 m of relief",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-29": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "First-storey line from the centroid's ground, not the street",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-30": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Self-intersecting tower rings draw double roofs and slabs outside walls",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-31": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "10 m lattice bumps on cross-slope roads; no 2 m road-profile pass",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-32": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Junction ribbons overlap and z-fight",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-33": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Stairways dropped, or drawn as smooth ramps the car drives",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-34": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline + render",
+   "title": "Beaches are grey; at head some are painted lawn",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-35": {
+   "severity": "medium",
+   "status": "partly",
+   "owner": "pipeline + render",
+   "title": "No seawall drawn; the shoreline is a 10 m staircase; the Embarcadero promenade ramps into the Bay",
+   "targetWave": 2,
+   "note": "QA at 54ee728: partly"
+  },
+  "W-36": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Cracks of 5 to 60 cm between row houses",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-37": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline + content",
+   "title": "One facade class, washed-out palette, Painted Ladies like any row",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-38": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline + assets",
+   "title": "Every roof flat at the LiDAR ridge height: no gables, parapets, cornices or rooftop kit",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-39": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "33 public stairways and paths blocked on foot by footprints",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (first measured at head)"
+  },
+  "W-40": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "No far terrain beyond the south-edge tiles t-16_21, t-4_21, t-3_21 and t7_-5; the city edge floats over the sea",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-41": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Far skyline pops when tiles stream in (hulls up to 122 m too tall; 690 records with no hull)",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open (new visible at head)"
+  },
+  "W-42": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "1,356 Daly City buildings on a strip south of the county line with no streets",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-43": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "pipeline",
+   "title": "Lombard: the centreline cuts into 201006.0021655 at the top approach",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-44": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "Street trees and lamps stand in roadways and inside buildings",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-45": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "No sidewalks drawn anywhere in the sf world",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-46": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render + pipeline",
+   "title": "Facades have no front: the same grid on fronts, party walls and rear walls",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-47": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "Storefronts are not rendered",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-48": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render",
+   "title": "No garage doors on the Sunset, Richmond and Marina rows",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-49": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render + assets",
+   "title": "No bay windows",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-50": {
+   "severity": "medium",
+   "status": "open",
+   "owner": "render + assets",
+   "title": "No stoops or entry stairs; blank plinths up to a storey tall",
+   "targetWave": 2,
+   "note": "QA at 54ee728: open"
+  },
+  "W-51": {
+   "severity": "medium",
+   "status": "partly",
+   "owner": "sim",
+   "title": "A car placed overlapping a footprint launches 144 to 178 m (respawn, teleport, mission placement)",
+   "targetWave": 2,
+   "note": "Partly fixed at 544f67c (de02d2f, no lift from pushes): a placed car rises at most 0.34 m, but is still pushed out of a footprint by up to 23.2 m in one tick (F.placement.maxJumpM). QA at 54ee728: open."
+  },
+  "W-52": {
+   "severity": "medium",
+   "status": "partly",
+   "owner": "sim",
+   "title": "The walker has no vertical state: any drop is a one-tick teleport",
+   "targetWave": 2,
+   "note": "QA at 54ee728: partly"
+  }
+ },
+ "metrics": {
+  "A.accounting.keptMatchesRecords": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "|report.json colliderPack.buildings - building records in the colliders| (the report and the tiles agree)"
+  },
+  "A.accounting.unexplained": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "footprints",
+   "defects": [],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "source footprint parts neither kept nor dropped for a counted reason (report.json)"
+  },
+  "A.facade.firstStoreyOffStreet": {
+   "baseline": 0.013,
+   "target": 0.01,
+   "better": "lower",
+   "unit": "share of street-facing records",
+   "defects": [
+    "W-29"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "street-facing buildings whose first-storey line (meta.streetY, else baseY) is more than 1.5 m off the ground at the wall nearest the street"
+  },
+  "A.facade.storeys5m": {
+   "baseline": 0,
+   "target": 0.02,
+   "better": "lower",
+   "unit": "share of residential records",
+   "defects": [
+    "W-15"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "residential records the GLB draws with storeys of 5 m or more (_FACADE storey height)"
+  },
+  "A.ground.lowAboveGround": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-05"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "records 4 m or taller whose roof stands less than 2 m above the highest ground under them"
+  },
+  "A.ground.relief10": {
+   "baseline": 2,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-28"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "drawn parts with more than 10 m of ground relief under one roof"
+  },
+  "A.ground.roofUnderGround": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-05"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "records with the ground above the roof anywhere inside the footprint (1 m raster)"
+  },
+  "A.ground.wallBottomAboveGround": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "L-03"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "records whose wall bottom (meta.footY) is more than 0.3 m above the lowest ground along their walls (0.5 m samples; spans, which have an underside, excluded)"
+  },
+  "A.landmark.bridgesMissing": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "landmarks",
+   "defects": [
+    "W-24"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "of golden-gate-bridge and bay-bridge-west, entries missing from content/landmarks.json"
+  },
+  "A.landmark.coitHeightError": {
+   "baseline": 0,
+   "target": 0.05,
+   "better": "lower",
+   "unit": "share of 64 m",
+   "defects": [
+    "W-27"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "Coit Tower's height against the published 64 m"
+  },
+  "A.landmark.heroWithoutShape": {
+   "baseline": 1,
+   "target": 0,
+   "better": "lower",
+   "unit": "landmarks",
+   "defects": [
+    "W-27"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "hero landmarks (Transamerica, Coit, Saints Peter and Paul, Palace of Fine Arts, City Hall, Grace Cathedral, Mission Dolores, the Conservatory, Dragon Gate, Sutro Baths) with neither a model nor an interim shape without the office window grid"
+  },
+  "A.landmark.sutroAreaTallestM": {
+   "baseline": 13.68,
+   "target": 20,
+   "better": "lower",
+   "unit": "m above ground",
+   "defects": [
+    "W-26"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "the tallest footprint record (any id) with its centroid or a corner within 60 m of Sutro Tower (37.7552,-122.4528), above the ground at its centroid: the plinths and the tower's equipment buildings, never the solid 231 m slab"
+  },
+  "A.landmark.sutroTowerTopM": {
+   "baseline": 298.15,
+   "target": 290,
+   "better": "higher",
+   "unit": "m above ground",
+   "defects": [
+    "W-25"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "a sutro-tower landmark at 37.7552,-122.4528 whose model top is 290 m or more above its ground"
+  },
+  "A.newer.cells3": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "100 m cells",
+   "defects": [
+    "W-04"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "100 m cells holding 3 or more of those unmatched parcel points (a missing block)"
+  },
+  "A.newer.missionRockTall": {
+   "baseline": 3,
+   "target": 4,
+   "better": "higher",
+   "unit": "records",
+   "defects": [
+    "W-04"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "records 40 m or taller in the Mission Rock box (37.7740-37.7765, -122.3905..-122.3875)"
+  },
+  "A.newer.publishedHeightFails": {
+   "baseline": 2,
+   "target": 0,
+   "better": "lower",
+   "unit": "towers",
+   "defects": [
+    "W-04"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "towers whose tallest record within 30 m is not within 10% of the published height (Salesforce, Transamerica, 555 California, One Rincon Hill, 250 Howard, The Avery, 706 Mission, 33 Tehama, Fifteen Fifty)"
+  },
+  "A.newer.unmatched": {
+   "baseline": 0,
+   "target": 10,
+   "better": "lower",
+   "unit": "parcel points",
+   "defects": [
+    "W-04"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "post-2015 assessor parcel points with storeys and no building record within 25 m"
+  },
+  "A.pack.recordMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "building records whose collider-pack copy differs from the tile JSON (footprint, baseY, topY)"
+  },
+  "A.phantom.fortPointHeight": {
+   "baseline": 15.56,
+   "target": 25,
+   "better": "lower",
+   "unit": "m above ground",
+   "defects": [
+    "W-16"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "Fort Point (201006.0000856 and its tower): roof above the ground at the centroid (the LiDAR caught the bridge deck above it)"
+  },
+  "A.phantom.tallOnStreet": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-16"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "records more than 30 m tall standing on a surface street's centreline (no underside clearing the road)"
+  },
+  "A.rings.coplanarRoofs": {
+   "baseline": 11,
+   "target": 0,
+   "better": "lower",
+   "unit": "pairs",
+   "defects": [
+    "L-01"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "overlapping footprint pairs (2 m2 or more) whose roofs are within 0.1 m: z-fighting roofs"
+  },
+  "A.rings.duplicates": {
+   "baseline": 26,
+   "target": 0,
+   "better": "lower",
+   "unit": "pairs",
+   "defects": [
+    "L-01"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "footprint pairs overlapping by 90% or more of the smaller one (0.5 m raster; a podium, or a terrace piece or span of it, and its own tower excluded)"
+  },
+  "A.rings.nonSimple": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "rings",
+   "defects": [
+    "W-30"
+   ],
+   "targetWave": null,
+   "suite": "buildings",
+   "cadence": "pr",
+   "desc": "footprint and tower rings that cross themselves (double roofs, slabs outside the walls)"
+  },
+  "B.coverage.badTiles": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "tiles",
+   "defects": [],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "built tiles without a finite 51x51 heightfield and water mask on the 500 m grid"
+  },
+  "B.grades.famousFails": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "blocks",
+   "defects": [],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "famous steep blocks whose steepest 10 m on the drivable surface is outside the published grade's tolerance (Filbert, 22nd, Jones, Duboce, Fillmore)"
+  },
+  "B.grades.hillsideLatticeFails": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "roads",
+   "defects": [
+    "W-31"
+   ],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "hillside-crossing roads (Vermont c13216002, Twin Peaks Blvd c12770000, Vasquez c13186101, Kensington c7806001) whose steepest 10 m exceeds the 1 m DEM's by more than 5 points or whose grade break exceeds it by more than 10"
+  },
+  "B.groundParity.max": {
+   "baseline": 1.122,
+   "target": 0.02,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-22"
+   ],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "largest |sim ground - drawn ground| at the same 10,000 points"
+  },
+  "B.groundParity.p99": {
+   "baseline": 0.256,
+   "target": 0.02,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-22"
+   ],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "99th percentile of |sim ground - drawn ground| at 10,000 seeded land points (the drawn ground splits each 10 m cell into two triangles; the sim is bilinear)"
+  },
+  "B.lakes.dryHa": {
+   "baseline": 78.3,
+   "target": 0,
+   "better": "lower",
+   "unit": "ha",
+   "defects": [
+    "W-11"
+   ],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "lake surface (the same eight lakes) that is dry land, hectares (one lattice vertex = 0.01 ha)"
+  },
+  "B.lakes.minWaterShare": {
+   "baseline": 0,
+   "target": 0.9,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-11"
+   ],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "the smallest share, over Lake Merced, Stow, Spreckels, Pine, Elk Glen, Laguna Honda, the Palace lagoon and the Crissy marsh, of the lake's lattice vertices that are water at the lake's level"
+  },
+  "B.seams.maxStep": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "m",
+   "defects": [],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "largest height difference on a tile border (every 2.5 m) between the two neighbours' lattices"
+  },
+  "B.summits.fails": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "summits",
+   "defects": [],
+   "targetWave": null,
+   "suite": "terrain",
+   "cadence": "pr",
+   "desc": "of 25 named summits, those whose sim ground maximum within 150 m is not within 1 m of the 3DEP DEM maximum (the published heights differ from the DEM by up to 47 m for known reasons and are listed in the details)"
+  },
+  "C.bridges.dippingDecks": {
+   "baseline": 3,
+   "target": 0,
+   "better": "lower",
+   "unit": "bridges",
+   "defects": [
+    "W-12"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of the 3rd St, 4th St, 3rd St (Islais) and Illinois St creek bridges, those whose road surface dips more than 0.2 m below the lower bank (no deck)"
+  },
+  "C.clearance.carriagewayEdges": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "edges",
+   "defects": [
+    "W-01"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "surface street edges with a centreline sample within 0.95 m (the car's half width) of a footprint whose roof is over 0.5 m above the road and whose underside is under road + 4.5 m"
+  },
+  "C.clearance.lombardEdges": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "edges",
+   "defects": [
+    "W-43"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of Lombard St c8448000 (the crooked block) and c8449000 (the approach from Hyde), edges whose centreline passes within 0.95 m of a house"
+  },
+  "C.clearance.pedestrianEdges": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "edges",
+   "defects": [
+    "W-39"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "pedestrian edges (stairways, paths) with a centreline sample within 0.75 m of a blocking footprint"
+  },
+  "C.freeway.insideFootprintsM": {
+   "baseline": 113,
+   "target": 0,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "metres of freeway and ramp centreline inside footprints that block its surface"
+  },
+  "C.freeway.maxGradePct": {
+   "baseline": 345.06,
+   "target": 6,
+   "better": "lower",
+   "unit": "%",
+   "defects": [
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "steepest 10 m along any freeway (ramps excluded) on its drivable surface"
+  },
+  "C.freeway.separatedCrossingsShare": {
+   "baseline": 0.423,
+   "target": 1,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-03",
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "share of street-over-freeway crossings where the freeway's surface and the street's are at least 5 m apart (a deck or a cut, not an at-grade junction)"
+  },
+  "C.piers.buildingsOnWater": {
+   "baseline": 59,
+   "target": 0,
+   "better": "lower",
+   "unit": "buildings",
+   "defects": [
+    "W-13"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "buildings at least half over open water with no deck under them (baseY under 1 m)"
+  },
+  "C.piers.streetsAtSeaLevel": {
+   "baseline": 1,
+   "target": 0,
+   "better": "lower",
+   "unit": "streets",
+   "defects": [
+    "W-13"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of Al Scoma Way, Pier 45 Vly, Pier 50 Vly and Unnamed 42, pier streets with road surface under 0.5 m (no pier deck)"
+  },
+  "C.profile.edgesWithoutProfile": {
+   "baseline": 1,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of drivable edges",
+   "defects": [
+    "W-09",
+    "W-31"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "drivable edges without a 2 m road profile in roads.json (one surface for the sim and the drawn ribbon)"
+  },
+  "C.props.lampsOnRoad": {
+   "baseline": 0.095,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of streetlights",
+   "defects": [
+    "W-44"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "streetlights standing on a road ribbon (+0.5 m), from the renderer's streetlightSpots"
+  },
+  "C.props.treesInBuildings": {
+   "baseline": 0.057,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of street trees",
+   "defects": [
+    "W-44"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "street trees standing inside a building footprint"
+  },
+  "C.props.treesOnRoad": {
+   "baseline": 0.045,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of street trees",
+   "defects": [
+    "W-44"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "street trees standing on a road ribbon (+0.5 m), from the renderer's streetTreeSpots"
+  },
+  "C.sidewalks.tilesWithoutSidewalks": {
+   "baseline": 547,
+   "target": 0,
+   "better": "lower",
+   "unit": "tiles",
+   "defects": [
+    "W-45"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "tiles with streets whose GLB draws no sidewalk geometry (no sidewalks node)"
+  },
+  "C.stairs.carDrivable": {
+   "baseline": 1,
+   "target": 0,
+   "better": "lower",
+   "unit": "stairways",
+   "defects": [
+    "W-33"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of those present, stairways the car can drive end to end (the steps are drawn and driven as a smooth ramp)"
+  },
+  "C.stairs.missing": {
+   "baseline": 1,
+   "target": 0,
+   "better": "lower",
+   "unit": "stairways",
+   "defects": [
+    "W-33"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of the Filbert, Greenwich, Lyon, 16th Ave, Vulcan and Harry St stairways, those with no pedestrian edge in roads.json"
+  },
+  "C.stairs.notMarkedStairs": {
+   "baseline": 1,
+   "target": 0,
+   "better": "lower",
+   "unit": "stairways",
+   "defects": [
+    "W-33"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of those present, stairways whose edges are not marked as stairs"
+  },
+  "C.tunnels.broadwayAbovePortalLineM": {
+   "baseline": 8.16,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-02"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "how far the Broadway Tunnel's road surface rises above the straight line between its ends (it is draped over Russian Hill)"
+  },
+  "C.tunnels.insideFootprintsM": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-02"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "metres of Broadway, Stockton and Toll Plaza tunnel centreline inside footprints that block the road surface"
+  },
+  "C.tunnels.unflagged": {
+   "baseline": 2,
+   "target": 0,
+   "better": "lower",
+   "unit": "tunnels",
+   "defects": [
+    "W-02"
+   ],
+   "targetWave": null,
+   "suite": "streets",
+   "cadence": "pr",
+   "desc": "of Broadway, Stockton, Toll Plaza, MacArthur, YBI and the two Presidio Parkway tunnels, those whose road edges are not all flagged as tunnels"
+  },
+  "D.beaches.sandShare": {
+   "baseline": 0.771,
+   "target": 0.9,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-34"
+   ],
+   "targetWave": null,
+   "suite": "cover",
+   "cadence": "pr",
+   "desc": "share of the Ocean, Baker, China and Crissy beaches (land within 80 m of the sea, up to 8 m) drawn as sand"
+  },
+  "D.foliage.parkTilesShare": {
+   "baseline": 1,
+   "target": 1,
+   "better": "higher",
+   "unit": "share of tiles",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "cover",
+   "cadence": "pr",
+   "desc": "share of the tiles over Golden Gate Park, the Presidio, McLaren, Lincoln Park, Buena Vista, Glen Canyon, Sutro Forest and Mt Davidson whose GLB has a foliage node"
+  },
+  "D.lakes.drawnGrassHa": {
+   "baseline": 0.09,
+   "target": 0,
+   "better": "lower",
+   "unit": "ha",
+   "defects": [
+    "W-11"
+   ],
+   "targetWave": null,
+   "suite": "cover",
+   "cadence": "pr",
+   "desc": "lake surface (the eight hydro-flattened lakes) drawn as grass"
+  },
+  "D.parks.greenShare": {
+   "baseline": 0.882,
+   "target": 0.9,
+   "better": "higher",
+   "unit": "share of park land",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "cover",
+   "cadence": "pr",
+   "desc": "share of Rec and Park land (lattice vertices in the 255 properties) drawn as grass or forest"
+  },
+  "D.parks.propertiesUnder10pct": {
+   "baseline": 17,
+   "target": 0,
+   "better": "lower",
+   "unit": "properties",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "cover",
+   "cadence": "pr",
+   "desc": "Rec and Park properties less than 10% of whose land is drawn green"
+  },
+  "D.shore.drawnGrassHa": {
+   "baseline": 67.86,
+   "target": 0,
+   "better": "lower",
+   "unit": "ha",
+   "defects": [
+    "W-18",
+    "W-34"
+   ],
+   "targetWave": null,
+   "suite": "cover",
+   "cadence": "pr",
+   "desc": "shore land 1.5 to 8 m high within 80 m of the sea drawn as grass (beaches and bluffs painted lawn)"
+  },
+  "E.freeway.i280Stops": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "drives",
+   "defects": [
+    "W-07",
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "of I-280 northbound and southbound driven end to end at 25 m/s, drives that stop before the end"
+  },
+  "E.freeway.landEdgesCrossingWalls": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "edges",
+   "defects": [
+    "W-07"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "freeway (gradeSeparated) edges with both ends on land, crossing no more than 300 m of water, whose centreline crosses a wall (I-280 at the creeks)"
+  },
+  "E.gaps.carRunsOffCorridor": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "car runs (10 and 25 m/s, turning 30/60/90 deg either way on each road over water) that get more than 1 m outside the road's corridor on the water side"
+  },
+  "E.gaps.maxOutOnWaterM": {
+   "baseline": 0,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "the farthest those cars get outside the corridor on the water side"
+  },
+  "E.gaps.shoreCutOutsideCorridorsM": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "metres of the boundary's shore lines (sampled every metre) that no shore wall covers and that lie outside every road corridor (an open gap with no kerbs)"
+  },
+  "E.gaps.turnRuns": {
+   "baseline": 240,
+   "target": 156,
+   "better": "higher",
+   "unit": "runs",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "car turn runs measured off the roads over water (12 per corridor and direction with a dry start 25 m before it); fewer means corridors went missing and the three gap metrics above lost their population"
+  },
+  "E.gaps.walkerRunsOffCorridor": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-21"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "sprinting walkers turning off a road over water who get more than 1 m outside its corridor on the water side"
+  },
+  "E.launch.maxRiseM": {
+   "baseline": 0.74,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-06"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "the highest any of those cars rose above the ground"
+  },
+  "E.launch.sampleLaunches": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-06"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "of cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s (a fixed sample of 200 shore points), runs that rise over 1 m or jump more than speed*DT + 0.5 m in a tick"
+  },
+  "E.net.buildingsWithoutStreet": {
+   "baseline": 138,
+   "target": 0,
+   "better": "lower",
+   "unit": "buildings",
+   "defects": [
+    "W-42"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "buildings with no drivable street within about 150 m (the Daly City strip south of the county line), unless their tile is listed as scenery-only (manifest.sceneryOnly)"
+  },
+  "E.net.districtMinReach": {
+   "baseline": 0.962,
+   "target": 0.95,
+   "better": "higher",
+   "unit": "share of nodes",
+   "defects": [],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "the lowest share, over mainland districts, of a district's street nodes a car can reach from the spawn (one-way streets obeyed)"
+  },
+  "E.net.mainlandLargestShare": {
+   "baseline": 0.995,
+   "target": 0.97,
+   "better": "higher",
+   "unit": "share of nodes",
+   "defects": [],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "share of the mainland's drivable street nodes (freeways, ramps and paths left out) in its largest connected piece"
+  },
+  "E.net.outlineCoverFails": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "10 m pieces",
+   "defects": [],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once (a south edge past the county line: the walls inside its tile, crossed an odd number of times going north, W-42)"
+  },
+  "E.net.seamDeadEnds": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "nodes",
+   "defects": [],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "road ends that stop exactly on a tile seam between two built tiles (a road cut by the tiling)"
+  },
+  "E.push.excessLiftMps": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "m/s",
+   "defects": [
+    "W-06",
+    "W-23",
+    "W-51"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "unit: the most a car pushed out of a building onto a 3 m bank, placed overlapping a footprint, or scraping a wall on a cross slope rises faster than |v| * grade + 1 m/s"
+  },
+  "E.walls.sampleEscapes": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "ram tests",
+   "defects": [
+    "W-08"
+   ],
+   "targetWave": null,
+   "suite": "edge",
+   "cadence": "pr",
+   "desc": "ram tests (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) from a fixed sample of 92 wall starts that cross a real wall or leave the built tiles"
+  },
+  "F.bridges.failingRuns": {
+   "baseline": 13,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-12"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "drives over the 3rd St, 4th St, 3rd St (Islais) and Illinois St bridges, both ways at 15 and 25 m/s, that dip below the lower abutment - 0.2 m, leave the ground or stop"
+  },
+  "F.buried.carMaxJumpM": {
+   "baseline": 0.5,
+   "target": 0.5,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-05"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "cars driven at the 31 buried-roof sites: the most one tick moves a car beyond speed * DT (teleported out of a buried footprint)"
+  },
+  "F.buried.walkerLowWallStops": {
+   "baseline": 30,
+   "target": 0,
+   "better": "lower",
+   "unit": "sites",
+   "defects": [
+    "W-05"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "buried-roof sites where a walker is stopped by a wall less than 2.5 m tall (an invisible wall at roof level)"
+  },
+  "F.crossings.airborneRuns": {
+   "baseline": 70,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "street-over-freeway crossings, each driven straight at 15 m/s, that leave the car airborne for more than 0.2 s (trenches and humps)"
+  },
+  "F.crossings.richlandAirS": {
+   "baseline": 0,
+   "target": 0.2,
+   "better": "lower",
+   "unit": "s",
+   "defects": [
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "Richland Ave over I-280 (c11011002) at 16 and 20 m/s both ways: the longest airborne interval"
+  },
+  "F.determinism.hashMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "checkpoints",
+   "defects": [],
+   "targetWave": null,
+   "suite": "determinism",
+   "cadence": "pr",
+   "desc": "60 s of step() with two players and traffic, twice from the collider pack and once from the per-tile JSON colliders: 600-tick state hashes that differ"
+  },
+  "F.lake.mercedDrivenM": {
+   "baseline": 780,
+   "target": 10,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-11"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "metres a car drives across South Lake Merced's flattened surface (it should be stopped or towed at the water's edge)"
+  },
+  "F.named.runsStopped": {
+   "baseline": 3,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-01",
+    "W-02",
+    "W-12",
+    "W-14",
+    "W-43"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "runs over the named streets (1st St, Howard, Kearny, Upper Market, Battery, Elk, Houston, Crescent, Mason, Winston, Walnut, the Broadway, Stockton and Toll Plaza tunnels, Lombard, the creek bridges, Richland, Twin Peaks Blvd, Filbert, Vermont), each allowed direction at the posted speed, that do not reach the end"
+  },
+  "F.placement.maxJumpM": {
+   "baseline": 0.5,
+   "target": 0.5,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-51"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "the same placements: the most one tick moves the car beyond speed * DT (pushed out of a footprint in one tick)"
+  },
+  "F.placement.maxRiseM": {
+   "baseline": 1.69,
+   "target": 0.5,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-51"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "a car placed at each of the 58 start-blocked street starts and at the 8 multiplayer spawn slots, then driven off: the most it rises above the ground"
+  },
+  "F.ram.launches": {
+   "baseline": 81,
+   "target": 0,
+   "better": "lower",
+   "unit": "rams",
+   "defects": [
+    "W-23"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "of 360 seeded rams at 25 m/s into buildings on 15%+ ground (Russian Hill, west of Twin Peaks, Bernal), those that leave the car airborne over 0.3 s or lift it over 0.5 m"
+  },
+  "F.routes.belowSurfaceM": {
+   "baseline": 0.404,
+   "target": 0.1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-22"
+   ],
+   "targetWave": null,
+   "suite": "routes",
+   "cadence": "pr",
+   "desc": "on those routes: the deepest the car goes below the surface under it"
+  },
+  "F.routes.maxAirborneS": {
+   "baseline": 0.8,
+   "target": 0.8,
+   "better": "lower",
+   "unit": "s",
+   "defects": [
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "routes",
+   "cadence": "pr",
+   "desc": "on those routes: the longest airborne interval (real crests like Filbert allow up to 0.8 s at 25 m/s)"
+  },
+  "F.routes.maxJumpM": {
+   "baseline": 0.004,
+   "target": 0.5,
+   "better": "lower",
+   "unit": "m",
+   "defects": [],
+   "targetWave": null,
+   "suite": "routes",
+   "cadence": "pr",
+   "desc": "on those routes: the most one tick moves the car beyond speed * DT"
+  },
+  "F.routes.rerunHashMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "checkpoints",
+   "defects": [],
+   "targetWave": null,
+   "suite": "routes",
+   "cadence": "pr",
+   "desc": "a route driven twice with step(): state hashes that differ at the 600-tick checkpoints"
+  },
+  "F.routes.seamStepM": {
+   "baseline": 0.004,
+   "target": 0.1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [],
+   "targetWave": null,
+   "suite": "routes",
+   "cadence": "pr",
+   "desc": "on those routes: the largest jump in the car's height change at a tile seam"
+  },
+  "F.routes.stopped": {
+   "baseline": 3,
+   "target": 0,
+   "better": "lower",
+   "unit": "routes",
+   "defects": [
+    "W-01",
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "routes",
+   "cadence": "pr",
+   "desc": "of the 11 closed-loop routes (Filbert up and Lombard down, California over Nob Hill, Market to Twin Peaks, 22nd St, Fillmore, Vermont, Great Hwy, 19th Ave, JFK Dr, 3rd St, a diagonal across the city), driven with the full step() (no ambient traffic), those held by a building or a wall before the end"
+  },
+  "F.sample.runsStopped": {
+   "baseline": 3,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-01"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id at 544f67c, pinned in tests/helpers/world-gate/fixtures/drive-sample.json; each allowed direction) that do not reach the end, or whose edge is gone from roads.json"
+  },
+  "F.tunnels.failingRuns": {
+   "baseline": 5,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-02"
+   ],
+   "targetWave": null,
+   "suite": "drive",
+   "cadence": "pr",
+   "desc": "drives through the Broadway, Stockton and Toll Plaza tunnels at 25 m/s that hit something, leave the ground or stray more than 1 m from the straight portal-to-portal line"
+  },
+  "F.walk.routesFailing": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "walks",
+   "defects": [
+    "W-39"
+   ],
+   "targetWave": null,
+   "suite": "foot",
+   "cadence": "pr",
+   "desc": "walks that fail: Filbert St up at 1.0 m/s or better, the Lyon St and Filbert steps both ways, 22nd St up, a seam on a slope, Pemberton Pl and Cottage Row both ways"
+  },
+  "F.walker.verticalFails": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "checks",
+   "defects": [
+    "W-52"
+   ],
+   "targetWave": null,
+   "suite": "foot",
+   "cadence": "pr",
+   "desc": "unit: walking off a 3 m drop takes at least 0.7 s to land; a walker cannot climb a slope steeper than 100% taller than 1 m"
+  },
+  "G.carPose.pitchErrorDeg": {
+   "baseline": 0,
+   "target": 1,
+   "better": "lower",
+   "unit": "deg",
+   "defects": [
+    "W-19"
+   ],
+   "targetWave": null,
+   "suite": "car-pose",
+   "cadence": "e2e",
+   "desc": "on Filbert, Twin Peaks Blvd and Kearny: the drawn car's pitch against the sim's"
+  },
+  "G.carPose.wheelGapM": {
+   "baseline": 0.37,
+   "target": 0.1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "car-pose",
+   "cadence": "e2e",
+   "desc": "on the same streets: the largest gap between a wheel's lowest point and the drawn road under it (the car sinks into the ribbon)"
+  },
+  "G.far.cellsDrawnFromTwinPeaks": {
+   "baseline": 13,
+   "target": 4,
+   "better": "higher",
+   "unit": "far cells",
+   "defects": [
+    "W-20"
+   ],
+   "targetWave": null,
+   "suite": "car-pose",
+   "cadence": "e2e",
+   "desc": "from Twin Peaks looking north-east: far-LOD cells drawn in the last frame (the skyline beyond the streamed tiles)"
+  },
+  "G.farRing.seaThroughProbes": {
+   "baseline": 72,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far-ring",
+   "cadence": "e2e-nightly",
+   "desc": "at radius 60, at the three worst near/far borders seen from each side: straight-down probes 2 m either side and 20-degree rays from the streamed side, over sim land every 5 m, that find the sea plane or nothing"
+  },
+  "G.tour.beachesNotSand": {
+   "baseline": 2,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-34"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes on Ocean Beach and Baker Beach whose drawn surface is not sand"
+  },
+  "G.tour.lakesNotWater": {
+   "baseline": 3,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-11"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes at Stow Lake, Spreckels Lake and Lake Merced whose drawn surface is not water"
+  },
+  "G.tour.landmarksMissing": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-24",
+    "W-25",
+    "W-27"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes at Coit Tower, Sutro Tower, the Golden Gate Bridge and the Bay Bridge whose topmost drawn surface is not that landmark's model"
+  },
+  "G.tour.parksNotGreen": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes in Golden Gate Park, Dolores Park, Buena Vista, Glen Canyon and Mt Davidson whose drawn ground is not green"
+  },
+  "G.tour.parksWithoutFoliage": {
+   "baseline": 4,
+   "target": 0,
+   "better": "lower",
+   "unit": "probes",
+   "defects": [
+    "W-18"
+   ],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour probes in Golden Gate Park, Buena Vista, Mt Davidson and the Presidio with no foliage drawn within 60 m"
+  },
+  "G.tour.viewProblems": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "views",
+   "defects": [],
+   "targetWave": null,
+   "suite": "world-tour",
+   "cadence": "e2e-nightly",
+   "desc": "tour views whose tiles did not settle, failed to load, had no far cell, or logged a console error"
+  },
+  "H.bays.anchorShare": {
+   "baseline": 0,
+   "target": 0.9,
+   "better": "higher",
+   "unit": "share of candidates",
+   "defects": [
+    "W-49"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "bay-window anchors drawn (GLB extras \"bays\") against the street-facing houses from 1925 or earlier"
+  },
+  "H.cracks.sampleBoxPairs": {
+   "baseline": 205,
+   "target": 0,
+   "better": "lower",
+   "unit": "pairs",
+   "defects": [
+    "W-36"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "row-house pairs 5 to 60 cm apart (cracks opened by simplification) in the Sunset, Mission, Marina and Russian Hill sample boxes"
+  },
+  "H.garages.anchorShare": {
+   "baseline": 0,
+   "target": 0.9,
+   "better": "higher",
+   "unit": "share of candidates",
+   "defects": [
+    "W-48"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "garage-door anchors drawn (GLB extras \"garages\") against the street-facing 1920-1960 houses of the Sunset, West of Twin Peaks, Outer Richmond, Excelsior and Marina rows"
+  },
+  "H.palette.pre1915SaturatedShare": {
+   "baseline": 0,
+   "target": 0.3,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-37"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "share of pre-1915 houses drawn with a wall colour of saturation 0.3 or more (Victorian and Edwardian colours, not one pastel class)"
+  },
+  "H.roofs.shapedShare": {
+   "baseline": 0,
+   "target": 0.8,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-38"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "share of single-family houses whose drawn roof is not one flat slab (roof vertices span more than 0.5 m: gables, hips, parapets)"
+  },
+  "H.seawall.embarcaderoRampShare": {
+   "baseline": 0.914,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of shore samples",
+   "defects": [
+    "W-35"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "Embarcadero shore samples (every 10 m, Pier 39 to the ballpark) where the promenade, 2.5 m or higher 10 m inland, falls below 2 m within 1 m of the shore line (a ramp into the Bay, no quay face)"
+  },
+  "H.stoops.blankBandOver2_5m": {
+   "baseline": 65,
+   "target": 0,
+   "better": "lower",
+   "unit": "houses",
+   "defects": [
+    "W-50"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "street-facing houses whose drawn first-storey line stands more than 2.5 m above the street at their front (a blank plinth with no stoop, entry or garage storey)"
+  },
+  "H.storefronts.shopBandShare": {
+   "baseline": 0.084,
+   "target": 0.95,
+   "better": "higher",
+   "unit": "share of anchors",
+   "defects": [
+    "W-47"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "share of the storefront anchors (storefronts.json) whose wall is drawn with shop glazing"
+  },
+  "H.walls.frontClassedShare": {
+   "baseline": 0.841,
+   "target": 0.9,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-46"
+   ],
+   "targetWave": null,
+   "suite": "houses",
+   "cadence": "pr",
+   "desc": "share of residential records with a wall drawn as the street front (_FACADE.w = 170), so fronts, party walls and rear walls differ"
+  },
+  "N.far.farAboveNearKm": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "km",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack)"
+  },
+  "N.far.lowHullsP99M": {
+   "baseline": 6.56,
+   "target": 5,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-41"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "the 99th percentile of |far hull roof - roof| for records under 30 m"
+  },
+  "N.far.outerLandUncovered": {
+   "baseline": 39,
+   "target": 0,
+   "better": "lower",
+   "unit": "samples",
+   "defects": [
+    "W-40"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea)"
+  },
+  "N.far.recordsWithoutHull": {
+   "baseline": 315,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-41"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "records with no far hull or cluster over their centroid"
+  },
+  "N.far.ringStepMaxM": {
+   "baseline": 1.11,
+   "target": 2,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "the largest such step"
+  },
+  "N.far.ringStepP99M": {
+   "baseline": 0.91,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring)"
+  },
+  "N.far.sanBrunoSummitErrorM": {
+   "baseline": 27.54,
+   "target": 10,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-40",
+    "W-17"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it)"
+  },
+  "N.far.tallHullsOff3m": {
+   "baseline": 110,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [
+    "W-41"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in)"
+  },
+  "N.far.uncoveredTilesMinShare": {
+   "baseline": 0,
+   "target": 0.95,
+   "better": "higher",
+   "unit": "share",
+   "defects": [
+    "W-40"
+   ],
+   "targetWave": null,
+   "suite": "far",
+   "cadence": "pr",
+   "desc": "the lowest far-terrain coverage of t-16_21, t-4_21, t-3_21 and t7_-5 (land beside the built tiles that has no far terrain)"
+  },
+  "N.freeways.airborneRuns": {
+   "baseline": 96,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "freeways-all",
+   "cadence": "nightly",
+   "desc": "freeway and ramp runs at 25 m/s airborne for more than 0.3 s (draped viaducts launching the car)"
+  },
+  "N.freeways.hardLandings": {
+   "baseline": 76,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-03"
+   ],
+   "targetWave": null,
+   "suite": "freeways-all",
+   "cadence": "nightly",
+   "desc": "freeway and ramp runs with a landing harder than 3 m/s"
+  },
+  "N.freeways.stuckRuns": {
+   "baseline": 17,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-03",
+    "W-07"
+   ],
+   "targetWave": null,
+   "suite": "freeways-all",
+   "cadence": "nightly",
+   "desc": "freeway and ramp runs that stop before the end (buildings on the freeway, sea walls)"
+  },
+  "N.glb.doubleRibbonShare": {
+   "baseline": 0.053,
+   "target": 0.005,
+   "better": "lower",
+   "unit": "share of road area",
+   "defects": [
+    "W-32"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight)"
+  },
+  "N.glb.floatingWallBottoms": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "buildings",
+   "defects": [
+    "L-02",
+    "L-03"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "buildings (not towers on their podiums, nor spans with an underside) whose drawn wall bottoms stand more than 0.05 m above the drawn ground, where no neighbour's wall stands up to them (shared walls are not drawn); at 544f67c only the two south-edge records over the void (L-03)"
+  },
+  "N.glb.freewayUnderGroundShare": {
+   "baseline": 0.027,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of freeway area",
+   "defects": [
+    "W-03",
+    "W-10"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "freeway ribbon area (1 m raster) under the drawn ground"
+  },
+  "N.glb.groundSeamMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "vertices",
+   "defects": [],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks)"
+  },
+  "N.glb.groundThroughRoadsShare": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of road area",
+   "defects": [
+    "W-10"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "road ribbon area (0.5 m raster) where the drawn ground is more than 0.02 m above the ribbon"
+  },
+  "N.glb.parityMismatches": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "records",
+   "defects": [],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes)"
+  },
+  "N.glb.roadSunkShare": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "share of samples",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road)"
+  },
+  "N.glb.roadSurfaceMaxM": {
+   "baseline": 6.6,
+   "target": 0.05,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "the largest |drawn road top - sim surface| over the same samples"
+  },
+  "N.glb.roadSurfaceP99M": {
+   "baseline": 0.029,
+   "target": 0.05,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-09"
+   ],
+   "targetWave": null,
+   "suite": "glb",
+   "cadence": "pr",
+   "desc": "the 99th percentile of |drawn road top - sim surface| over the same samples"
+  },
+  "N.paths.walksBlocked": {
+   "baseline": 77,
+   "target": 0,
+   "better": "lower",
+   "unit": "walks",
+   "defects": [
+    "W-39"
+   ],
+   "targetWave": null,
+   "suite": "paths-all",
+   "cadence": "nightly",
+   "desc": "walks along every pedestrian edge (stairways, paths), both ways, with stepFoot, that do not reach the end"
+  },
+  "N.streets.airborneRuns": {
+   "baseline": 84,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-14"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "street runs airborne for 0.5 s or more at the posted speed (no real SF crest is listed yet)"
+  },
+  "N.streets.districtMinReachedShare": {
+   "baseline": 0.843,
+   "target": 0.995,
+   "better": "higher",
+   "unit": "share of runs",
+   "defects": [
+    "W-01"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "the lowest share, over districts, of street runs that reach their end"
+  },
+  "N.streets.mainlandStartBlocked": {
+   "baseline": 47,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-01",
+    "W-51"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "mainland street runs whose start (and every start up to 20 m in) overlaps a footprint"
+  },
+  "N.streets.mainlandStuck": {
+   "baseline": 385,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-01"
+   ],
+   "targetWave": null,
+   "suite": "streets-all",
+   "cadence": "nightly",
+   "desc": "mainland street runs (every surface edge, each allowed direction, at the posted speed up to 20 m/s) that stop before the end"
+  },
+  "N.walls.escapes": {
+   "baseline": 0,
+   "target": 0,
+   "better": "lower",
+   "unit": "ram tests",
+   "defects": [
+    "W-08"
+   ],
+   "targetWave": null,
+   "suite": "walls-all",
+   "cadence": "nightly",
+   "desc": "ram tests from all 771 dry wall starts every 100 m (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) that cross a real wall or leave the built tiles"
+  },
+  "N.walls.launches": {
+   "baseline": 668,
+   "target": 0,
+   "better": "lower",
+   "unit": "runs",
+   "defects": [
+    "W-06"
+   ],
+   "targetWave": null,
+   "suite": "walls-all",
+   "cadence": "nightly",
+   "desc": "cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s, every 50 m of shore, that rise over 1 m or jump more than speed*DT + 0.5 m in a tick"
+  },
+  "N.walls.maxRiseM": {
+   "baseline": 22.04,
+   "target": 1,
+   "better": "lower",
+   "unit": "m",
+   "defects": [
+    "W-06"
+   ],
+   "targetWave": null,
+   "suite": "walls-all",
+   "cadence": "nightly",
+   "desc": "the highest any of those cars rose above the ground"
+  }
+ }
+}

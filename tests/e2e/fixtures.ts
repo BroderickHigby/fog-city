@@ -26,6 +26,8 @@ export interface RenderInfoLike {
   agentsNear?: number;
   agentsTotal?: number;
   agentDrawCalls?: number;
+  /** Agents drawn in a dodge pose last frame. */
+  agentsDodging?: number;
   agentModels?: string[];
   /** Players whose car is models/player-car.glb, and players drawn on foot. */
   playerCarsFromFile?: number;

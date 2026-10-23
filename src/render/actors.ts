@@ -1,7 +1,8 @@
 // Players as the renderer draws them: a car per player (models/player-car.glb when present,
 // else an original procedural hatchback), its body pitched and rolled as the sim says and
 // its wheels rolling (rotation.x -= distance / radius) and steering; and, while the player is
-// on foot, the walker, drawn by the same person builder as the crowd (person.ts) and walking.
+// on foot, the walker, drawn by the same person builder as the crowd (person.ts) and walking,
+// or diving out of a car's way and getting up again (dodge-pose.ts, from FootState.dodge).
 // Car lights are light_* materials: NightLights scales them with the rest of the city.
 // Each player has a colour from their id (playerColorIndex): the first keeps the model's own
 // paint, the others get the GLB's recolourable `paint` material cloned in their colour, so
@@ -11,6 +12,7 @@ import * as THREE from "three";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
 import type { PlayerBodies } from "./player-body.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
+import { drawnHop, newPersonPose, personDodgePose, type DodgeLike } from "./dodge-pose.ts";
 import { packedMaterial } from "./agent-packing.ts";
 import type { NightLights } from "./lights.ts";
 import { hashString } from "./hash.ts";
@@ -29,6 +31,9 @@ export interface CarPose extends Pose {
 /** A walker between two ticks. */
 export interface WalkerPose extends Pose {
   speed: number;
+  /** Diving out of a car's way or getting up (FootState.dodge), and the fraction of a tick since that state. */
+  dodge?: DodgeLike | null;
+  alpha?: number;
 }
 
 /**
@@ -212,6 +217,9 @@ export class Actors {
   private readonly shadows: boolean;
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
+  private readonly divePose = newPersonPose();
+  /** Render clock, seconds (a dodge's startled shake). */
+  private clock = 0;
 
   constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false) {
     this.registry = registry;
@@ -368,6 +376,7 @@ export class Actors {
 
   /** Per frame, after setCar/setFoot: draws the walkers. */
   update(dt: number): void {
+    this.clock += dt;
     this.people.begin();
     this.bodies?.begin();
     for (const [id, v] of this.players) {
@@ -381,9 +390,13 @@ export class Actors {
       v.gait = advanceGait(v.gait, dist, STRIDE_M);
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
-      const wy = w.y + (this.lift ? this.lift(w.x, w.z) : 0);
-      if (this.bodies) this.bodies.add(id, w.x, wy, w.z, w.heading, w.speed, dt);
-      else this.people.add(w.x, wy, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
+      const lift = this.lift ? this.lift(w.x, w.z) : 0;
+      const dp = w.dodge ? personDodgePose(w.dodge, w.heading, w.alpha ?? 1, this.clock, this.divePose) : null;
+      const ground = w.dodge ? w.y - drawnHop(w.dodge, w.alpha ?? 1) + lift : null;
+      // The skinned body (high tier) walks; a dive (the dodge's comic leap) is drawn by the
+      // placeholder rig, which has the dive pose.
+      if (this.bodies && !dp) this.bodies.add(id, w.x, w.y + lift, w.z, w.heading, w.speed, dt);
+      else this.people.add(dp && dp.x !== null ? dp.x : w.x, w.y + lift, dp && dp.z !== null ? dp.z : w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount, dp, ground);
     }
     this.people.end();
     this.bodies?.end();

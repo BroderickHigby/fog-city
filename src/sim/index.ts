@@ -9,5 +9,6 @@ export * from "./collide.ts";
 export * from "./car.ts";
 export * from "./foot.ts";
 export * from "./agents.ts";
+export * from "./dodge.ts";
 export * from "./step.ts";
 export * from "./serialize.ts";

@@ -61,6 +61,18 @@ Sizes: **S** ≈ one agent session, **M** ≈ 2–4 sessions, **L** ≈ 5+ sessi
   Plaza, the 6th St corridor, the Division St / 13th St corridor) are exempt from the activity and
   bounty-template counts and must have no mode instance. A bounty in any protected area is a single
   robot from the baseline population, as `design.md` says.
+- **The world-continuity gate gates every territory step and wave.** No territory step and no
+  wave merges until both hold (`docs/qa/world-continuity-gate.md`):
+  - the gate passes: the per-PR world suites are green with no metric worse than its baseline in
+    `tests/golden/world-qa-baseline.json`, the nightly tier (`pnpm world:nightly`) has passed on
+    the candidate, and the screenshot tour (`pnpm tour`) has been reviewed and signed in the QA
+    note;
+  - no verified blocker, high or medium world defect (`docs/qa/world-qa-status.md`) is open: each
+    is fixed, with its id flipped to `fixed` in the baseline so its acceptance test is a hard
+    assertion from then on.
+
+  After each round of fixes the world is audited again (the six dimensions and a completeness
+  critic) until an audit finds nothing new; new findings join the baseline and the tour.
 - **Budgets gate every territory step.** Each tile is at most about 1.5 MB on disk; the shipped
   world, the boot collider bytes and the far-LOD layer each have a total in
   `tests/pipeline/budgets.json`. A step does not merge while any budget test fails.
@@ -129,6 +141,24 @@ Map per building) are gone: use `nearbyBuildings`, or `world.cells` (numeric `ce
 (`src/sim/boundary.ts`: two-sided, with `onWater` and `inCorridor`); `resolveBox` and
 `resolveCircleAll` take the body's start-of-tick pose so walls act on motion. Recorded sf
 replays from before these walls diverge (the world changed, not the state format).
+
+## Realism track (runs beside the waves; owner request 2026-10-22)
+Make the city look as close to a current-generation game as a browser allows, proved on the Ferry
+Building showcase (feature/ferry-showcase) and then rolled out citywide in branches by asset class
+(realism/streets, realism/buildings, realism/characters, realism/vehicles, realism/nature). Reuse
+open-licence assets first (CC0 preferred: Poly Haven and ambientCG materials, HDRIs and models;
+MIT/CC-BY with attribution logged; never NC or editorial-only) and model in Blender only what has
+no usable source or is a San Francisco landmark. No photographs of people or of real SF facades;
+the privacy test's JPEG ban stands (convert to WebP or KTX2).
+**Acceptance:**
+- Default tier unchanged and within every budget test.
+- High (and later ultra) tiers chosen automatically, with a governor that steps down under 30 fps.
+- Every shipped texture or model logged with its source, author and licence, as in
+  `public/models/textures/textures.json` and `assets/textures/README.md`.
+- The static build inside the host's limits; an optional streamed pack for ultra assets if needed.
+- No continuity regression: the world gate is unchanged, zero vehicle-person contact holds, and
+  nothing new stands on a carriageway.
+- Screenshots per step in `docs/shots/` for the owner, who judges the look.
 
 ## Wave 2 — Bot Hunt is a game
 **Playable result:** start at the Ferry Building, drive to a bounty, read a bad Footman's tells,

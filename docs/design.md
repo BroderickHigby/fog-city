@@ -301,8 +301,8 @@ fee", and both meters reset.
 
 ### Threat (robot heat), 0–5 warning lights
 Each level brings guaranteed arrivals. Moat Labs vans are dispatched from Moat Labs HQ or a depot
-and enter the fidelity radius about 120 m from you; this is delivery, not spread. Vans obey the
-person-clearance override like every vehicle.
+and enter the fidelity radius about 120 m from you; this is delivery, not spread. People dive out
+of a van's way, and the person-clearance override holds for it, like every vehicle.
 
 | Level | Raised by | What comes |
 |---|---|---|
@@ -393,21 +393,74 @@ ACQUI-HIRED.
   A calendar test asserts that every event-gated activity is available at least once per 3 real
   hours of play, every full event happens at least once per 12, and every mission that needs an
   event completes from any start date.
-- **Vehicles never hurt people. Enforced in the sim:**
+- **Vehicles never hurt people. Enforced in the sim** (the owner's Crazy Taxi rule, decision log
+  2026-10-21: you can never hit a person; they always jump out of the way):
   - Every human is on the person collision layer, which no vehicle or prop can touch: NPC people,
     remote players' and bots' avatars, associates, anyone on foot, on a scooter or e-bike (the
     rider and vehicle count as a person, not a vehicle), or on a running board. Animals share the
-    layer.
-  - The person-clearance override: any vehicle with a person or animal in its swept path within
-    its stopping distance + 2 m brakes to a stop, whatever its tuning. Occupied cable cars and
-    buses count as people for the override. Pedestrians hop aside (slapstick dives, GTA-style).
+    layer. People and animals are not obstacles to cars: a car is never stopped, slowed or
+    deflected by one.
+  - **The dive** (`src/sim/dodge.ts`): every person, animal and robot, and every player on foot,
+    watches every vehicle (player cars, robotaxis, every AI vehicle). A vehicle's swept footprint is
+    predicted 0.6–1.5 s ahead (once it moves at 1 m/s or more) from its speed, velocity and yaw rate (a drift or a handbrake turn
+    counts, and a sliding car straightening out along its nose; a player's car also the hardest
+    turn its tyres allow, its footprint widening with time because it can steer anywhere; an AI
+    vehicle along its route, braking for people as it does). Anyone within 0.75 m of it (1.25 m for children and anyone seated, lying down or using
+    a mobility aid) dives Crazy Taxi style: to the side of the path they are on, or the other side
+    when theirs is blocked by a building, a wall, a kerb rail or water; never into another
+    vehicle's path, another body or another diver's landing; at 7–9 m/s with a hop (faster when a
+    car reaches them late), then about a second to get up and walk back to their line (never a
+    jump back onto it). A dive's line is walked over the ground the body is on: a player standing
+    on a roof or a deck dives along it or drops off its edge. A dive under way is checked every
+    tick and re-aimed or cut short when its line or landing no longer holds, and a dive step never
+    ends inside a vehicle's reach (below). Robots skid or hop aside. Animals scatter the same way
+    (pigeons flutter up, the dog bounds) when animal agents arrive: none walk the streets yet.
+  - **The person-clearance override**, which no tuning removes: after the vehicles move each tick,
+    anyone still within 0.3 m (0.6 m for the vulnerable) of a moving vehicle's *reach* (everywhere
+    its body can be by the next tick: its body at the middle of its next step grown by half its
+    travel, its speed change and its turn, by any overlap that can shove it (out of another car,
+    or out of a building it was placed in), and, when it can touch a wall, a building or another
+    car on that step, by the turn its nose makes toward its slide as it scrapes; a robotaxi near
+    anyone: its exact poses along its route; a vehicle counts
+    as moving when any point of its body moves, so a car at a standstill that is still spinning
+    counts), within 0.02 m of a stopped one's, or inside any vehicle's body, is put at the nearest
+    free spot outside every vehicle's reach and out of its path (a superhuman leap, drawn as a big
+    hop; a short one as a stumble-hop aside). Since no vehicle can then reach anyone before the
+    next tick's dodge, nobody is ever inside one: the contact count (`personBumps`, `ext.dodge`)
+    stays 0 by construction. The leap always finds a spot (along lines the body could walk, then
+    with any drop, then over a building, then anywhere outside the vehicles; the last two are
+    counted as failures, which must stay 0). It is counted, with every near miss
+    (`CarState.nearMisses`, for scoring and barks). AI vehicles (robotaxis, vans, buses) also
+    still brake for anyone in their path, with a berth that keeps them 0.75 m from people's
+    bodies ahead; a robotaxi goes no faster than a 0.9 m/s creep (below the 1 m/s at which the
+    dodge treats a vehicle as a threat) while anyone is within 0.75 m (a child 1.25 m) of its
+    drawn body now or anywhere along its route until it could stop, so nobody has to dive out of
+    the way of one driving as it should, and it does not set off, or move closer, while anyone
+    is within 0.33 m (a child 0.63 m), so it never sets the override off. Walkers never step within 0.1 m
+    of a vehicle's body and keep further from a moving robotaxi. A robotaxi is measured by its
+    drawn body (`ROBOTAXI_BODY`), not the circles traffic spaces it by. The dive is on top of all
+    that.
+    Occupied cable cars and buses count as people for the override.
+  - **Nothing puts anyone in a vehicle's way.** Getting out of a car never puts the player in a
+    vehicle's body or reach (a robotaxi's drawn body included) or in front of a moving one: they
+    get out on the first free side, or wait in the car until the vehicle has gone. A vehicle's
+    body is a hard limit for a player on foot: no push (a person bumping into them) moves them
+    into one, and nobody lands a dive or a leap on a player on foot. A player's own parked car is
+    never a threat to them, but it is solid: their dives and leaps go round it. A player who joins
+    gets their car placed clear of everyone on foot; the population refill never spawns anyone
+    within 0.7 m of a vehicle's body (a parked car included).
+  - **Heights.** A vehicle is in nobody's way who cannot be at its height: someone on a roof over
+    the street, or under a deck a car drives across, neither dives nor is leapt (the threat looks
+    at where the vehicle's wheels can be along its predicted path; the override at where they can
+    be by the next tick), and a walker on a roof meets no car parked below it. A leap stands its
+    body on what its line reached (a step it climbed, a street it dropped to).
   - Pedestrians cross only at crosswalks, during their signal phase, with gap acceptance: they
     never step out in front of a vehicle whose stopping distance exceeds the gap. Dodging comes
     before the override. The `?bench=` summary reports override activations per minute; the target
     is at most 1 per minute of normal driving.
-  - If contact ever happens, it is a gentle push that stops the car dead.
   - Drops, cones, sprinklers and props spawn only on spots with no people.
-  - A no-brakes contract fails the moment the override fires, instead of hitting anyone.
+  - A no-brakes contract fails the moment the override fires (someone had to be leapt clear),
+    instead of anyone being hit.
   - **Jumps.** An airborne car cannot brake, so the crest detector stores each crest's landing
     envelope at the maximum tuned speed. While a player vehicle within 150 m heads at a crest,
     people and animals path out of the envelope and nothing spawns inside it. If anyone is still
@@ -848,7 +901,7 @@ The Ferry Building clock face shows the time to AGI, starting at "two years away
 - Contracts start and end inside their wave's tiles: e.g. carry the cardigan committee's
   900-page safety binder from the Ferry Building to R-Evolution without going over 12 mph (Pauser,
   wave 4 on wave-1 tiles); rush a rack of Tensor Bricks from Pier 70 to SoMa with the brakes
-  "decel-coded" (Accelerator; the person-clearance override fails the contract).
+  "decel-coded" (Accelerator; a person-clearance override fails the contract).
 - The two announcer pools get equal line counts; a content test checks it.
 
 ## Navigation and UI
@@ -962,8 +1015,9 @@ until the name search.
 - **Blaster upgrades:** tank, flow, nozzles (stream, Wide for groups, Pressure Washer for range),
   scanner tiers (tier 2 from mission 3), the car's trunk tank, the Roof Cannon (wave 4).
 - **Vibe-coded tuning** at the Pier 70 prompt bench: you play prompt cards on your car. "Make it
-  faster" gives +30% top speed and −60% brake force (the person-clearance override still stops the
-  car, and crest envelopes are computed at this speed; neither can be tuned away). "Review the
+  faster" gives +30% top speed and −60% brake force (people still dive clear and the
+  person-clearance override still holds, and crest envelopes are computed at this speed; none of it
+  can be tuned away). "Review the
   diff" costs 30 s and shows the real stat changes; "Accept all" is free and hides the side
   effects. "Make it safer" adds a speed governor nobody asked for.
 - **Recruits:** a good robot whose forced update you interrupted may offer to join (reputation ≥
@@ -1291,3 +1345,31 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
   melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
   look-dev strip per model for the owner's sign-off.
+- 2026-10-21 · **The Crazy Taxi rule** (owner request: "make the people always jump out of the way of cars so they
+  cant get run over. like in crazy taxi you can't ever hit a person"). People, animals and robots dive out of every
+  vehicle's predicted path (0.75 m margin; 1.25 m for children and anyone seated, lying down or using a mobility aid),
+  and a person-clearance override that no tuning removes puts anyone still within 0.3 m of a moving vehicle (0.6 m
+  for the vulnerable) at the nearest free spot outside it. Cars are never stopped, slowed or deflected by people: the
+  earlier rule that a car stops dead at a person is replaced. AI vehicles keep braking for people, with a berth that
+  keeps them 0.75 m clear. Near misses are counted per car for scoring and barks. Sim contract v4 on its
+  branch, v5 once merged after qa/sim's v4 (`src/sim/dodge.ts`); the no-touch fuzz and the clearance soak are the gate (`docs/testing.md`).
+  Hardened the same day after an adversarial review found ways to touch someone (a player standing on a deck a car
+  drove onto; people in a corner as a car drifted in, bounced off a wall or spun at a standstill; robotaxis measured
+  by circles that missed their corners): the override now keeps people clear of a vehicle's reach over its next step,
+  so contact is impossible by construction; dives walk roofs and decks, are rechecked every tick and never step into a
+  vehicle's reach; the override always finds a spot; robotaxis are measured by their drawn body, creep past anyone
+  within the dodge's margin of their path and wait for anyone within 0.33 m. The dive is drawn as a comic leap that
+  is flat only well off the ground, flips tucked in the air and lands on its feet (never lying on the road, never
+  upended; a person drawn in one piece at range, who cannot tuck, swings down onto their feet instead of flipping);
+  it is drawn higher than the sim's hop, with a soft shadow on the ground under it, so the air beneath it shows from
+  any camera. Every reproduction is a permanent test, and a seeded optimiser hunts for a touching driver nightly.
+- 2026-10-22 · **The Crazy Taxi rule, round 3** (second adversarial review). The reviewers raised the contact count
+  through ordinary play rather than placements: getting out of a car beside a robotaxi (the exit spot ignored its
+  drawn body, and the override then leapt the player into their own car, over and over) or as another car passed; a
+  person overlapping a player on foot shoving them into a parked car; the population refill spawning people inside a
+  parked player car; a join placing a car on someone. Each now keeps its body out of every vehicle by construction
+  (exits wait for a passing car, vehicle bodies are hard limits for walkers, nobody lands on a walker, own cars are
+  solid, spawns and joins keep clear), and contacts need overlapping heights (roofs, decks). The dodge's cost was cut
+  to well under half its extra (vehicles worked out only near someone, one route walk per robotaxi, coarse berth
+  checks: `docs/testing.md` "Sim bench"). The cross-engine run now fires the override too. Sim contract v4 is
+  unchanged in shape (still unreleased on this branch); its pinned replays held.

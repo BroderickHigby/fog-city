@@ -13,7 +13,27 @@
 // grip, pitch, roll, sinceContact, impactSpeed, landingSpeed, personBumps); PlayerState
 // gained foot + exitPending; ext.agents holds ambient traffic (src/sim/agents.ts).
 // upgradeState() in step.ts lifts a v1 state to v2.
-export const SIM_VERSION = 2;
+// v3 (qa/sim): FootState gained vy and grounded: the walker has gravity, a fall state, and
+// cannot climb a slope steeper than 1:1 over more than a metre. Cars, walkers and agents stand
+// on the drawn ground (each lattice cell's two triangles, src/sim/world.ts meshGroundHeight)
+// instead of a bilinear blend, roofs within a step of a body's feet are part of it, and
+// collision pushes are capped per tick: v2 replays diverge. upgradeState() lifts v1 and v2
+// states to v3.
+// v4 (qa/sim, world QA W-02/W-03/W-11/W-12/W-13/W-14): bodies stand on the surface surfaceAt
+// picks (src/sim/world.ts): the ground, the highest deck at or below them, a tunnel bore's floor
+// (under its ceiling), or a roof within a step. Decks have rails and bores have walls, agents
+// ride their edge's deck or bore floor, and cars meet barriers round the stairways. No field
+// changes; v3 replays on worlds with decks, tunnels or stairs diverge. upgradeState() lifts
+// v1, v2 and v3 states to v4.
+// v5 (feature/dodge, the owner's Crazy Taxi rule, 2026-10-21; numbered 4 on its branch, renumbered
+// 5 when it merged after qa/sim's v4): nobody is ever run over. People, animals, robots and
+// players on foot dive out of a vehicle's predicted path (src/sim/dodge.ts), and a clearance
+// override places anyone still beside a moving vehicle outside it; cars never collide with
+// people. CarState gained nearMisses; FootState gained dodge (a DodgeState or null); every
+// ambient agent gained dodge too (src/sim/agents.ts AgentState), and ext.dodge holds the
+// counters. v4 replays diverge (cars no longer stop at people). upgradeState() lifts v1 to v4
+// states to v5.
+export const SIM_VERSION = 5;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -93,14 +113,47 @@ export interface CarState {
   impactSpeed: number;
   /** Downward speed relative to the ground (m/s) at the most recent landing; 0 if none yet. */
   landingSpeed: number;
-  /** Bumps into people. People are never hurt (the car just stops); scoring may charge for it. */
+  /**
+   * Contacts with people. Since v5 cars never collide with people (they dive out of the way,
+   * and the clearance override places anyone still beside a moving car outside it), so this
+   * counts a person found inside the car's body before the override moved them: it stays 0.
+   */
   personBumps: number;
+  // ---- v5 additions (feature/dodge) ----
+  /** People, animals and robots that dived (or were leapt) out of this car's way: for scoring and barks. */
+  nearMisses: number;
+}
+
+/**
+ * v5: a body getting out of a vehicle's way (src/sim/dodge.ts): a dive to a clear spot, then a
+ * moment to recover. While it lasts the body ignores its own controls (a player) or its path (an
+ * agent), and its y includes the hop.
+ */
+export interface DodgeState {
+  /** "dive": in the air, from (sx, sz) to (tx, tz); "recover": landed, getting up. */
+  phase: "dive" | "recover";
+  sx: number;
+  sz: number;
+  tx: number;
+  tz: number;
+  /** Ticks into this phase, and the phase's length in ticks. */
+  t: number;
+  dur: number;
+  /** Peak height of the hop, metres. */
+  peak: number;
+  /** Height above the ground now, metres (0 while recovering). */
+  hop: number;
+  /**
+   * The clearance override put it at (tx, tz) at once: a superhuman leap (renderers draw it as
+   * a big hop over the arc). Otherwise it moves from (sx, sz) to (tx, tz) over the dive.
+   */
+  leap: boolean;
 }
 
 /** A player on foot. Present only while PlayerState.mode === "foot". */
 export interface FootState {
   x: number;
-  /** Ground height under the walker's feet. */
+  /** Height of the walker's feet: on the ground (or a roof) while grounded, in the air while falling. */
   y: number;
   z: number;
   /** Compass bearing, radians, clockwise from north (-z). */
@@ -109,6 +162,14 @@ export interface FootState {
   speed: number;
   /** True while sprinting (brake held). */
   sprint: boolean;
+  // ---- v3 additions ----
+  /** Vertical velocity, m/s, + = up: the ground's rise along the walk while grounded, gravity while falling. */
+  vy: number;
+  /** Feet on the ground (or a roof). False while falling, after walking off a drop. */
+  grounded: boolean;
+  // ---- v5 additions (feature/dodge) ----
+  /** Diving out of a car's way (or getting up after it), else null. */
+  dodge: DodgeState | null;
 }
 
 export interface PlayerState {

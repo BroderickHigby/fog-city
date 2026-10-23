@@ -112,10 +112,15 @@ describe("determinism scenario", () => {
   const dev = loadWorldFiles("dev");
   const opts = { ticks: 3600, checkpointEvery: 15, seed: 20261020, spawn: dev.manifest.spawn };
 
-  it("is a strong test: several players, joins and leaves, steering and collisions", () => {
+  it("is a strong test: several players, joins and leaves, steering and collisions, dives and the dodge's override", () => {
     const r = runScenario(makeWorld(dev.tiles, dev.roads), opts);
     expect(r.checkpoints).toHaveLength(opts.ticks / opts.checkpointEvery);
-    expect(r.stats.playersSeen).toEqual(["p1", "p2", "p3", "p4", "p5"]);
+    expect(r.stats.playersSeen).toEqual(["p1", "p2", "p3", "p4", "p5", "p6", "p7"]);
+    // The override episode (p7 creeping into p6 on foot) fires, and nobody is touched.
+    const dodge = (JSON.parse(r.finalJson) as { ext: { dodge?: { overrides: number; dives: number; contacts: number } } }).ext.dodge;
+    expect(dodge?.overrides).toBeGreaterThan(0);
+    expect(dodge?.dives).toBeGreaterThan(0);
+    expect(dodge?.contacts).toBe(0);
     expect(r.stats.hits).toBeGreaterThan(0);
     expect(r.stats.turned).toBeGreaterThan(5);
     expect(r.stats.maxSpeed).toBeGreaterThan(15);
@@ -151,12 +156,12 @@ describe("the running-game replay (replay.ts, recordSession)", () => {
       [26, "player.join", "p3"],
       [26, "player.join", "p2"],
     ]);
-    expect(events.map((e) => e.tick)).toEqual([26, 26, 25 + 120, 25 + 1500]);
+    expect(events.map((e) => e.tick)).toEqual([26, 26, 25 + 120, 25 + 600, 25 + 600, 25 + 1500]);
     // step() throws on an event for the wrong tick, so this also proves the stamping.
     const r = replay(world, s0, chunks);
     expect(r.hashes).toHaveLength(30);
     expect(r.final.tick).toBe(25 + 1800);
-    expect(Object.keys(r.final.players).sort()).toEqual(["p1", "p3", "p4"]);
+    expect(Object.keys(r.final.players).sort()).toEqual(["p1", "p3", "p4", "p6", "p7"]);
     expect(r.final.players.p1!.car.hits, "p1's script rams the dev wall").toBeGreaterThan(0);
   });
 
