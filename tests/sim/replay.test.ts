@@ -135,19 +135,19 @@ describe("SIM_VERSION 5", () => {
     } as unknown as SimState;
     // (A v2 car has no v5 field.)
     for (const p of Object.values(v2.players)) delete (p.car as Partial<typeof p.car>).nearMisses;
-    const v4 = upgradeState(v2);
-    expect(v4.version).toBe(5);
-    expect(v4.players.a!.foot).toEqual({ x: 3, y: 1.5, z: -4, heading: 0.2, speed: 1.2, sprint: false, vy: 0, grounded: true, dodge: null });
-    expect(v4.players.b!.foot).toBeNull();
-    expect(v4.players.b!.car).toEqual({ ...v2.players.b!.car, nearMisses: 0 });
-    expect(v4.ext).toEqual(v2.ext);
-    expect(v4.tick).toBe(77);
-    expect(upgradeState(v4)).toBe(v4);
+    const v5 = upgradeState(v2);
+    expect(v5.version).toBe(5);
+    expect(v5.players.a!.foot).toEqual({ x: 3, y: 1.5, z: -4, heading: 0.2, speed: 1.2, sprint: false, vy: 0, grounded: true, dodge: null });
+    expect(v5.players.b!.foot).toBeNull();
+    expect(v5.players.b!.car).toEqual({ ...v2.players.b!.car, nearMisses: 0 });
+    expect(v5.ext).toEqual(v2.ext);
+    expect(v5.tick).toBe(77);
+    expect(upgradeState(v5)).toBe(v5);
     // Plain JSON, and it steps.
-    expect(JSON.parse(canonicalJson(v4))).toEqual(v4);
-    expect(() => step(loadDevWorldWithRoads().world, v4, {})).not.toThrow();
+    expect(JSON.parse(canonicalJson(v5))).toEqual(v5);
+    expect(() => step(loadDevWorldWithRoads().world, v5, {})).not.toThrow();
     // A version from the future is refused.
-    expect(() => upgradeState({ ...v4, version: 6 })).toThrow();
+    expect(() => upgradeState({ ...v5, version: 6 })).toThrow();
   });
 
   it("upgradeState lifts a real v4 state (players, a walker, traffic) to exactly the v5 state it came from, less what v4 never had", () => {
@@ -237,10 +237,10 @@ describe("SIM_VERSION 5", () => {
 });
 
 /** hashState every 300 ticks of the dev-world replay above, recorded at SIM_VERSION 5. */
-const PINNED_DEV: string[] = [];
+const PINNED_DEV: string[] = ["83d8b588", "fd69f71b", "7b348a74", "eb198438", "04f3b6f0"];
 
 /** hashState every 300 ticks of surfaceReplay, recorded at SIM_VERSION 5. */
-const PINNED_SURFACES: string[] = [];
+const PINNED_SURFACES: string[] = ["a1e10f51", "5f261bfd", "96f7cd50", "db6dfc26"];
 
 /** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 5. */
-const PINNED_DODGE: string[] = [];
+const PINNED_DODGE: string[] = ["f99a5746", "563f1a0d", "d49d8041", "bc09e3b1", "3649ed35", "6c213153"];
