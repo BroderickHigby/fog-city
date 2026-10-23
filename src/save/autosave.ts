@@ -18,5 +18,5 @@ export class Autosave {
     if(checkpoint===this.checkpoint&&tick-this.lastTick<18000)return;
     this.lastTick=tick;this.checkpoint=checkpoint;this.flush();
   }
-  flush():void {if(this.pending){this.dirty=true;return;}this.dirty=false;this.pending=this.store.save("auto",this.capture()).catch(this.failed).finally(()=>{this.pending=undefined;if(this.dirty)this.flush();});}
+  flush():void {if(this.pending){this.dirty=true;return;}this.dirty=false;let data:ProgressionDocument;try{data=this.capture();}catch(error){this.failed(error);return;}this.pending=this.store.save("auto",data).catch(this.failed).finally(()=>{this.pending=undefined;if(this.dirty)this.flush();});}
 }

@@ -1,10 +1,10 @@
 # Render integration
 
 ## Now
-`lane/render-integration/wave2` in `/workspace/fog-city-play` joins the published Ferry showcase renderer, shared combat/player systems, gameplay map and mounted UI. The original prototype is untouched.
+`lane/render-integration/clean` in `/workspace/fog-city-play-clean` applies only UI/input/save/main/presentation source changes to approved kernel `b7c412c`. No pipeline, public tile, or top-level simulation changes are included. The original prototype and disposable Ferry merge remain untouched.
 
 ## Done
-- Merged renderer `f3c845a`, UI `de58606`, player `9c4cc8d`, gameplay data `1f41c22`; merge resolutions retain both storefronts and gameplay layers.
+- Applied the isolated UI/save/runtime commits to the approved kernel renderer. This branch does not assume Ferry-only graphics APIs.
 - Mounted immutable HUD/phone/vendor/mission panels with recorded ID-only commands and a shared keyboard.
 - Added pooled water/cone/flower projectiles, existing audio samples, actual tank capacities and hold-to-refill controls.
 - Added runtime-actor presentation adapter for accepted poses, visible bag/light tells and combat height changes.
@@ -13,15 +13,15 @@
 - Settings mounts the actual save panel; canonical capture/restore whitelists durable player fields, retains settled-mode payout IDs and restores into a fresh initialized world. Added a read-only defensive-copy command log for the browser harness.
 
 ## Validation
-Integration typecheck passed. UI2 has 12 focused control/command tests passing; persistence plus canonical restore tests pass (8 tests). Actual SF canvas booted in Chromium and produced `test-results/sf-hud.png`. High-GFX software rendering saturated the browser during interaction; that bounded run was stopped to release the shared lock for core validation. The next functional run uses the default tier and smaller viewport on the same renderer branch.
+The source changes passed typecheck and 8 persistence/canonical restore tests in the disposable integration tree; the clean-kernel check is pending. UI2 has 12 focused control/command tests passing. Actual SF canvas booted in the disposable Ferry merge and produced `test-results/sf-hud.png`; it is reference evidence only. High-GFX software rendering saturated the browser during interaction, so that bounded run was stopped. The next functional run uses this clean branch and a smaller viewport.
 
 ## Next
-Merge final `createGameSystems` composition, connect accepted runtime actors and transit/sidewalk metadata, mount progression-only save controls, then run actual SF movement/exit/phone/spray/refill and a mission loop. Capture final screenshots and console results.
+Merge final `createGameSystems` composition, connect accepted runtime actors and transit/sidewalk metadata, separately add reviewed gameplay data to the approved manifest, then run actual SF movement/exit/phone/spray/refill and a mission loop. Capture final screenshots and console results.
 
 ## Draft PR
 Base: `integrate/wave2`
 
-Head: `lane/render-integration/wave2`
+Head: `lane/render-integration/clean`
 
 Title: `Game: mount progression HUD and controls in the SF renderer`
 
