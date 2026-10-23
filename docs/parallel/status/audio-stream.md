@@ -28,6 +28,25 @@ and "the horn button doesn't work".
   - A robotaxi in agent mode `honk` plays an original, polite electronic chirp, distance-attenuated, at most once per car per 4 s.
   - `audio.horn()` is the hook: one line in `src/main.ts`, coordinated with the Player-feel stream.
 
+## Follow-up: the player's inner voice (`work/audio/inner-voice`, stacked on the radio PR)
+
+Owner feedback: "the voice should talk just like in GTA … it kind of just tells you what to do".
+
+- `src/audio/inner-voice.ts` builds a finite bank of 168 lines (6,312 characters) from the mission
+  data. The lines cover:
+  - going to a place, rushed when the timer is 300 s or less;
+  - the start place of a mission;
+  - reminders while still far away;
+  - each objective kind;
+  - low water;
+  - a fresh "bad" scan ("That bot's acting sketchy.");
+  - a win or a retry.
+- Variants rotate least-recently-used, and each situation has a cooldown, with a 6 s gap between
+  asides. It speaks at the lowest priority, behind the cofounder's lines.
+- The player is cast as Chris, a premade voice distinct from the cofounder.
+- Subtitles only until the ElevenLabs tier allows generation. The manifest already lists every
+  line: 288 in total, 14,616 characters.
+
 ## ElevenLabs: why voices are held
 
 `GET /v1/user/subscription` on 2026-10-23 (only tier and counts logged): **tier free**, 5,975 of

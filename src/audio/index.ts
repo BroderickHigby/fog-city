@@ -11,6 +11,9 @@ import { isTextEntry } from "../input/keyboard.ts";
 import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
+import { capacity } from "../sim/combat/shared.ts";
+import type { CombatPlayer } from "../sim/combat-contract.ts";
+import { InnerVoice } from "./inner-voice.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
 import { audible } from "./buses.ts";
@@ -20,7 +23,7 @@ import { MissionVoice } from "./mission-voice.ts";
 import { MUSIC_MANIFEST_PATH, MusicContextTracker, type MusicContext, type MusicManifestFile, type MusicTrack } from "./music.ts";
 import { AudioPrefsStore, type AudioPrefs } from "./prefs.ts";
 import { VOICE_MANIFEST_PATH, type VoiceManifest } from "./voice-lines.ts";
-import { VoiceQueue, type SubtitleView, type VoiceQueueEvent } from "./voice-queue.ts";
+import { PRIORITY, VoiceQueue, type SubtitleView, type VoiceQueueEvent } from "./voice-queue.ts";
 
 export { GameAudio } from "./mixer.ts";
 export { AudioPrefsStore } from "./prefs.ts";
@@ -112,6 +115,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     },
   });
   const missionVoice = new MissionVoice(queue, options.missions);
+  const inner = new InnerVoice(options.missions);
   const cues = new EffectCueTracker();
   const musicTracker = new MusicContextTracker();
   const subtitles: MountedSubtitles = mountSubtitles(options.host);
@@ -201,7 +205,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         lastFightEvent = e.id;
         if (FIGHT_EVENTS.has(e.kind) && (e.sourceId === playerId || e.targetId === playerId)) fight = true;
       }
-      const missions = gameplaySnapshot({ state }).missions.players[playerId];
+      const snapshot = gameplaySnapshot({ state });
+      const missions = snapshot.missions.players[playerId];
       const mission = missions ? options.missions.find((m) => m.id === missions.missionId) : undefined;
       const step = mission?.steps.find((s) => s.id === missions?.stepId);
       const missionUrgent = missions?.status === "active" && !!step && ((step.type === "goto") || (step.type === "objective" && step.timeLimitS !== undefined));
@@ -215,6 +220,18 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       // Voices and subtitles.
       queue.setPaused(frame.paused, frame.nowMs);
       missionVoice.observe(missions, frame.nowMs);
+      if (!frame.paused && missions) {
+        // The player's inner voice, behind (and interrupted by) the mission's own lines.
+        const own = combat?.players[playerId], progression = snapshot.progression.players[playerId];
+        const tank = progression ? capacity({ tankTier: progression.tankTier, perks: progression.perks } as unknown as CombatPlayer) : 0;
+        const line = inner.observe({
+          missionId: missions.missionId, stepId: missions.stepId, status: missions.status, visits: missions.visits,
+          player: body ? { x: body.x, z: body.z } : null,
+          water: own && tank > 0 ? own.water / tank : null,
+          badScanTick: own?.scan?.bad ? own.scan.tick : null,
+        }, frame.nowMs / 1000);
+        if (line) queue.enqueue({ ...missionVoice.item(line, "inner"), priority: PRIORITY.ambient }, frame.nowMs);
+      }
       queue.update(frame.nowMs);
       mixer.setVoiceActive(queue.speaking());
       subtitles.update(queue.subtitle(), prefs.get().subtitles);
@@ -228,6 +245,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     },
     restore(state) {
       missionVoice.reset();
+      inner.reset();
       cues.reset(state?.ext.combat);
       lastFightEvent = state?.ext.combat?.events.reduce((m, e) => Math.max(m, e.id), 0) ?? 0;
       musicTracker.reset();

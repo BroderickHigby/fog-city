@@ -1,6 +1,7 @@
 // node scripts/audio/generate-voices.ts [--generate] [--dry-run]
 //
-// Mission voices: writes public/audio/voice/manifest.json (every mission line with its id,
+// Mission voices: writes public/audio/voice/manifest.json (every mission line, and every line of
+// the player's inner voice (src/audio/inner-voice.ts), with its id,
 // speaker, text, subtitle cues and file) and, with --generate, synthesises missing lines with
 // ElevenLabs. Build-time only: the API key never reaches the page, dist/ or a log.
 //
@@ -29,6 +30,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MISSIONS } from "../../src/content/catalog.ts";
+import { innerVoiceLines } from "../../src/audio/inner-voice.ts";
 import {
   estimateDurationS, missionVoiceLines, subtitleCues, voiceHashInput,
   type SpeakerVoice, type VoiceLine, type VoiceManifest, type VoiceManifestLine, type VoiceSettings,
@@ -76,7 +78,12 @@ export const lineHash = (line: Pick<VoiceLine, "text">, voiceId: string, setting
 export const fileFor = (hash: string): string => `audio/voice/${hash.slice(0, 20)}.ogg`;
 
 /** Lines in order, each with the hash and file it would have; silent speakers have no hash. */
-export function plan(casting: Casting, lines: readonly VoiceLine[] = missionVoiceLines(MISSIONS)): Array<{ line: VoiceLine; hash: string; file: string | null; voice: SpeakerVoice }> {
+/** Every line the game can speak: the mission lines, then the player's inner voice. */
+export function allVoiceLines(): VoiceLine[] {
+  return [...missionVoiceLines(MISSIONS), ...innerVoiceLines(MISSIONS)];
+}
+
+export function plan(casting: Casting, lines: readonly VoiceLine[] = allVoiceLines()): Array<{ line: VoiceLine; hash: string; file: string | null; voice: SpeakerVoice }> {
   return lines.map((line) => {
     const voice = casting.speakers[line.speaker];
     if (!voice) throw new Error(`${line.id}: speaker "${line.speaker}" has no casting in assets/audio/voices.json`);
