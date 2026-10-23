@@ -4,7 +4,7 @@
 import { ORIGIN, TILE_SIZE_M, toLatLon, toLocal } from "../../src/geo/project.ts";
 import type { Spawn } from "../../src/sim/contract.ts";
 import { buildBoundary, type BoundaryStats } from "./boundary.ts";
-import { buildBuildings, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
+import { buildBuildings, dropEnclosedDuplicates, minGroundUnder, type Building, type BuildingStats, type Override } from "./buildings.ts";
 import { candidateTiles, tileRef, worldTiles, type Probe, type TileRef, type WorldConfig } from "./config.ts";
 import { assignTiles, buildDistricts, DistrictIndex, type District } from "./districts.ts";
 import { bearing, centroid, cleanRing, clipSegment, distToRing, distToSegment, dropCollinear, interiorPoint, isSimpleRing, pointInRing, r2, signedArea, type P2 } from "./geom.ts";
@@ -89,6 +89,8 @@ export interface Report {
   overridesApplied: string[];
   /** Buildings newer than the footprint layer (newer.ts, W-04). */
   newer: NewerStats;
+  /** Records dropped as the same building outlined twice: inside a larger record and no taller (buildings.ts dropEnclosedDuplicates, L-01). */
+  enclosed: { dropped: number; ids: string[] };
   /** The Daly City strip's scenery records (W-42): count, the first ids, every tile they stand in, how many a built tile's glb draws (node buildings-scenery), and the strip's records kept solid in a road's pocket (towers not counted). */
   farOnly: { records: number; ids: string[]; tiles: string[]; drawnInTiles: number; keptNear: number };
   /** Ground cover: lakes, classes, trees (landcover.ts, W-11, W-18, W-34). */
@@ -447,6 +449,9 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     const gone = (b: Building): boolean => newer.retired.has(b.id) || (b.meta.towerOf !== undefined && newer.retired.has(b.meta.towerOf));
     built.buildings = [...built.buildings.filter((b) => !gone(b)), ...newer.added].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   }
+  // The same building outlined twice (L-01): a record inside a larger one and no taller.
+  const enclosed = dropEnclosedDuplicates(built.buildings);
+  built.buildings = enclosed.buildings;
   lap("buildings");
   const { stats: bStats, overridesApplied } = built;
   const { graph, stats: rStats, optionalStairs } = buildRoads(raw.streets, candidates, heightAnywhere, waterAnywhere);
@@ -484,7 +489,10 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
   lap("tunnels");
   // Two-tier records after every pass: a tower stands on its podium record's roof; a tower whose
   // podium a pass removed goes with it.
-  const reconciled = reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground));
+  // Once more on the final records (L-01): the passes re-ground roofs, so a record can end up
+  // inside a larger one and no taller only now.
+  const enclosedLate = dropEnclosedDuplicates(reconcileTowers(bored.buildings, (ring) => minGroundUnder(ring, ground)));
+  const reconciled = enclosedLate.buildings;
 
   // The Daly City strip (W-42, docs/design.md decision log 2026-10-21): records south of the
   // county line, in no San Francisco neighbourhood, never make a tile built. Inside the last built
@@ -1052,6 +1060,7 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     decks: decked.stats,
     overridesApplied,
     newer: newer.stats,
+    enclosed: { dropped: enclosed.dropped.length + enclosedLate.dropped.length, ids: [...enclosed.dropped, ...enclosedLate.dropped].sort() },
     farOnly: { records: farOnly.length, ids: farOnly.map((b) => b.id).slice(0, 20), tiles: [...new Set(farOnly.map((b) => b.tile))].sort(), drawnInTiles: [...sceneryByTile.values()].reduce((n, l) => n + l.length, 0), keptNear: keepNear.size },
     landcover: landcover ? landcover.stats : null,
     roads: rStats,

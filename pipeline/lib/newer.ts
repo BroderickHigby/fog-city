@@ -32,6 +32,8 @@ export const LARGE_LOT_M2 = 2500;
 export const TOWER_MIN_STORIES = 12;
 export const PODIUM_STORIES = 6;
 export const TOWER_SHARE = 0.35;
+/** A lot whose free part encloses footprints (holes) covering more than this share of it is left alone: those are buildings of their own, not fragments of the new one. */
+export const MAX_HOLE_SHARE = 0.25;
 /** Parcel outlines are simplified to this tolerance (m). */
 export const PARCEL_SIMPLIFY_M = 0.25;
 
@@ -52,6 +54,8 @@ export interface NewerStats {
   twoTier: number;
   overridesAdded: string[];
   retired: string[];
+  /** Records standing wholly inside a new building's lot (its free part's holes), retired with it. */
+  enclosedRetired: string[];
 }
 
 const num = (s: string | undefined): number => (s === undefined || s === "" ? NaN : Number(s));
@@ -80,8 +84,12 @@ function lotRing(shape: RawParcelShape["shape"]): P2[] | null {
   return r;
 }
 
-/** The free parts of a ring (less the given footprints), largest first, each clockwise-negative. */
-function freePart(ring: readonly P2[], others: readonly (readonly P2[])[]): P2[] | null {
+/**
+ * The largest free part of a ring (less the given footprints), clockwise-negative, and its holes:
+ * the footprints standing wholly inside it, touching none of its edges. A record's footprint is
+ * one ring, so the new record covers its holes (L-01): the caller retires what stands in them.
+ */
+function freePart(ring: readonly P2[], others: readonly (readonly P2[])[]): { ring: P2[]; holes: P2[][] } | null {
   let parts;
   try {
     parts = differenceRings(ring, others);
@@ -93,7 +101,7 @@ function freePart(ring: readonly P2[], others: readonly (readonly P2[])[]): P2[]
   let r = dropCollinear(cleanRing(best.outer), 0.02);
   if (r.length < 3 || !isSimpleRing(r)) return null;
   if (signedArea(r) > 0) r = r.reverse();
-  return r;
+  return { ring: r, holes: best.holes };
 }
 
 /** A rectangle of `size` [across, along] centred at c, aligned with the ring's longest edge. */
@@ -233,7 +241,7 @@ export function newerBuildings(
   ground: Ground,
   tiles: ReadonlySet<string>,
 ): { added: Building[]; retired: Set<string>; stats: NewerStats } {
-  const stats: NewerStats = { candidates: 0, missing: 0, lots: 0, lotsCovered: 0, lotsNoStories: 0, lotsNoShape: 0, added: 0, twoTier: 0, overridesAdded: [], retired: [] };
+  const stats: NewerStats = { candidates: 0, missing: 0, lots: 0, lotsCovered: 0, lotsNoStories: 0, lotsNoShape: 0, added: 0, twoTier: 0, overridesAdded: [], retired: [], enclosedRetired: [] };
   const idx = new FootprintIndex(existing);
   const shapeOf = new Map<string, RawParcelShape>();
   for (const s of shapes) if (!shapeOf.has(s.blklot) || s.active) shapeOf.set(s.blklot, s);
@@ -322,12 +330,23 @@ export function newerBuildings(
     }
     const lotBox = bbox(lot);
     const others = [...idx.onRing(lot).map((b) => b.footprint), ...newRings.filter((r) => overlapsBox(bbox(r), lotBox))];
-    const ring = freePart(lot, others);
+    const free = freePart(lot, others);
+    const ring = free?.ring;
     const lotArea = Math.abs(signedArea(lot));
-    if (!ring || Math.abs(signedArea(ring)) < MIN_FREE_SHARE * lotArea) {
+    const holeArea = free ? free.holes.reduce((a, h) => a + Math.abs(signedArea(h)), 0) : 0;
+    if (!free || !ring || Math.abs(signedArea(ring)) < MIN_FREE_SHARE * lotArea || holeArea > MAX_HOLE_SHARE * Math.abs(signedArea(ring))) {
       stats.lotsCovered++;
       continue;
     }
+    // The footprints in its holes stand inside the new building (an older or partial outline of
+    // the same site: two 4-storey fragments on a 4,400 m2 lot of 141 units): they are retired, or
+    // they would stand as duplicates inside it (L-01).
+    const enclosed = free.holes.length
+      ? idx.onRing(lot).filter((b) => {
+          const p = interiorPoint(b.footprint);
+          return free.holes.some((h) => pointInRing(p[0], p[1], h));
+        })
+      : [];
     const area = Math.abs(signedArea(ring));
     // Storeys: the most any parcel on the lot lists (condominium units list their own floors).
     const condo = l.parcels.length >= 3;
@@ -368,11 +387,16 @@ export function newerBuildings(
     );
     if (!recs) continue;
     if (twoTier) stats.twoTier++;
+    for (const b of enclosed) {
+      retired.add(b.id);
+      stats.enclosedRetired.push(b.id);
+    }
     added.push(...recs);
     newRings.push(ring);
     stats.added++;
   }
   stats.retired = [...retired].sort();
+  stats.enclosedRetired.sort();
   added.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { added, retired, stats };
 }
