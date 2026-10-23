@@ -91,7 +91,7 @@ import {
 } from "./roads.ts";
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
-import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts";
+import { cellKey, circleBlocked, meshGroundHeight, segmentBlocked, type World } from "./world.ts";
 
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
@@ -376,6 +376,42 @@ export function rejoinAt(world: World, a: Readonly<AgentState>, x: number, z: nu
   const ux = l > 1e-6 ? dx / l : t.tx;
   const uz = l > 1e-6 ? dz / l : t.tz;
   return { s: 0, lat: 0, conn: connector(x, z, ux, uz, t.x, t.z, t.tx, t.tz, 0.9), resume: s1, heading: datan2(ux, -uz) };
+}
+
+/** A released ambient body further than this off its own sidewalk is removed, not walked back, metres. */
+export const RELEASE_REJOIN_M = 6;
+
+/**
+ * An ambient body the agents runtime claimed (runtimeLegacy) but did not propose a move for this
+ * tick: it has left the runtime's fidelity range. Handed back to ambient stepping, with its
+ * claim metadata dropped, on a connector onto its own sidewalk (rejoinAt), so it also counts for
+ * the despawn range again. Removed instead (null) when it cannot rejoin cleanly: a road vehicle,
+ * no known edge, more than RELEASE_REJOIN_M off its sidewalk, or a wall in the way back.
+ */
+export function releaseClaimed(world: World, a: Readonly<AgentState>): AgentState | null {
+  const g = world.roads;
+  if (!g || AGENT_SPEC[a.kind].road) return null;
+  const rest: AgentState = { ...a };
+  delete rest.runtimeId;
+  delete rest.runtimeLegacy;
+  delete rest.vehicle;
+  delete rest.radius;
+  delete rest.height;
+  delete rest.halfLength;
+  delete rest.halfWidth;
+  delete rest.protected;
+  delete rest.child;
+  delete rest.mobilityAid;
+  delete rest.posture;
+  const ei = g.edgeIndex.get(rest.edge);
+  if (ei === undefined) return null;
+  const lane = basePath(g.edges[ei]!, rest);
+  const pl = projectOnPath(lane, rest.x, rest.z);
+  if (pl.dist > RELEASE_REJOIN_M) return null;
+  const t = pathPoint(lane, clamp(pl.s + Math.max(REJOIN_AHEAD_M, pl.dist), 0, lane.len));
+  if (segmentBlocked(world, rest.x, rest.z, t.x, t.z)) return null;
+  const at = rejoinAt(world, rest, rest.x, rest.z);
+  return at ? { ...rest, ...at } : null;
 }
 
 /** The obstacle circles of one agent (robotaxis are two circles, walkers one). */
@@ -1852,7 +1888,15 @@ export function initialAgents(world: World, state: Readonly<SimState>): { ext: A
 export function stepAgents(world: World, prev: Readonly<SimState>, tick: number, controlled: ReadonlySet<number> = new Set()): { ext: AgentsExt; rng: RngState } | null {
   const g = world.roads;
   if (!g) return null;
-  const ext = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined) ?? { nextId: 1, list: [] };
+  const held = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined) ?? { nextId: 1, list: [] };
+  // Claimed ambient bodies with no runtime move this tick have left its fidelity range: they
+  // return to ambient stepping (releaseClaimed). One mid-dodge waits until the dodge ends.
+  const released = held.list.some((a) => a.runtimeLegacy === true && a.runtimeId !== undefined && a.dodge === null && !controlled.has(a.id));
+  const ext: AgentsExt = released ? { nextId: held.nextId, list: held.list.flatMap((a) => {
+    if (a.runtimeLegacy !== true || a.runtimeId === undefined || a.dodge !== null || controlled.has(a.id)) return [a];
+    const back = releaseClaimed(world, a);
+    return back ? [back] : [];
+  }) } : held;
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
 

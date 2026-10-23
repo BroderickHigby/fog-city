@@ -433,7 +433,11 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
     if(actor.retired)continue;
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
     if(actor.legacyId!==null&&!presentLegacy.has(actor.legacyId)){actor.fidelity="abstract";continue;}
-    const fidelity=planFidelity(actor,anchors,sim.tick);actor.fidelity=fidelity.tier;
+    const fidelity=planFidelity(actor,anchors,sim.tick);
+    // An ambient body back from outside fidelity was moved by ambient stepping meanwhile
+    // (agents.ts releaseClaimed): its old sidewalk route no longer starts where it stands.
+    if(fidelity.allowCombat&&actor.legacyId!==null&&(actor.fidelity==="abstract"||actor.fidelity==="despawn")){actor.route=null;actor.cursor={stepIndex:0,distanceM:0};actor.goalNode="";}
+    actor.fidelity=fidelity.tier;
     if(!fidelity.allowCombat)continue;
     let intent:RobotBrainIntent|undefined=actor.intent??undefined;
     if(actor.firmware==="bad"&&!vehicle(actor.model)&&phase(sim,actor.id)==="active"&&(fidelity.run||actor.brain?.windup||actor.brain?.update)){
