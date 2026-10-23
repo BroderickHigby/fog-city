@@ -16,19 +16,27 @@
 //  - Vertical: the car follows the ground while the ground is above its ballistic path; when
 //    the ground falls away faster than gravity (cresting a hill fast) it flies, keeps its
 //    horizontal velocity, has no traction, and lands when the ground comes back up. Its
-//    vertical speed on the ground is the ground's rise along its own travel: never the height
-//    gained by being pushed sideways (out of a wall or a building), and never more than
-//    maxClimbGrade times its speed, so nothing but a crest launches it.
+//    vertical speed on the ground is the ground's slope under its wheels along its velocity:
+//    never the height gained by being pushed sideways (out of a wall or a building) or placed
+//    on higher ground, and never more than maxClimbGrade times its speed, so nothing but a
+//    crest launches it. While it touches a wall, a building or a body it stays on the ground
+//    (unless it meets a real drop), and wall friction slows a vertical slide along a wall as
+//    it slows the horizontal one. The ground includes a roof the wheels reach (within
+//    ROOF_STEP_M of them): a car that gets onto a roof drives on it and off its edge.
 //  - Collision: the body is an oriented rectangle pushed out of building footprints and
-//    obstacle circles in small substeps. Velocity into the surface is removed (a little
+//    obstacle circles in small substeps, by at most CAR.maxPush a tick beyond its own travel
+//    (so a car placed overlapping a footprint eases out over a few ticks instead of jumping).
+//    A building blocks it between its wheels plus ROOF_STEP_M and the top of its body (it
+//    passes under a structure with a higher underside). Velocity into the surface is removed (a little
 //    bounce on hard hits) and scraping friction slows the slide, so the car slides along
 //    walls. A hit is counted once per impact event: a contact that starts at least
 //    hitCooldown ticks after the previous one, at hitMinSpeed or more into the surface.
 
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
-import { boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
-import { groundHeight, type World } from "./world.ts";
+import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
+import { segmentCrossesWall } from "./boundary.ts";
+import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
 export const CAR = {
   /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
@@ -76,6 +84,14 @@ export const CAR = {
   suspension: 0.08,
   /** On the ground the car rises at most this many metres per metre travelled (a steeper lattice step is climbed, not launched from). */
   maxClimbGrade: 1,
+  /** Top of the body above the wheels' contact point, metres: it passes under a structure whose underside is higher. */
+  bodyHeight: 1.5,
+  /**
+   * Most the car is pushed out of buildings and bodies in one tick, metres, on top of its own
+   * travel: a car placed overlapping a footprint, or left in one, leaves it over a few ticks
+   * instead of jumping out (walls are not capped: they only undo this tick's own crossing).
+   */
+  maxPush: 0.5,
   hitMinSpeed: 2,
   hitCooldown: 30,
   restitution: 0.1,
@@ -113,12 +129,53 @@ export function makeCar(x: number, z: number, heading: number, y = 0): CarState 
     impactSpeed: 0,
     landingSpeed: 0,
     personBumps: 0,
+    nearMisses: 0,
   };
 }
 
 /** The car's collision rectangle. */
 export function carBox(c: Readonly<Pick<CarState, "x" | "z" | "heading">>): Box {
   return { x: c.x, z: c.z, heading: c.heading, hl: CAR.halfLength, hw: CAR.halfWidth };
+}
+
+/** How far from a requested spot clearCarSpot looks for room, metres. */
+export const CLEAR_SPOT_RADIUS_M = 30;
+
+/**
+ * Where to put a car asked for at (x, z) facing `heading` (a spawn, a join, a respawn or a
+ * teleport): there, when its body is clear of every building, wall and other car (`others`);
+ * else the nearest clear spot on rings 1 m apart out to CLEAR_SPOT_RADIUS_M, reached from the
+ * requested spot without crossing a wall, in a fixed order (so every client picks the same).
+ * A car placed overlapping a footprint would otherwise be pushed out of it (at most
+ * CAR.maxPush a tick). `keepOff`: more round bodies its body must not overlap (step.ts: people,
+ * animals and players on foot grown by the dodge's clearance, robots, robotaxis), so a car never
+ * appears on top of anyone. When nothing within reach is clear, the requested spot.
+ */
+export function clearCarSpot(
+  world: World,
+  x: number,
+  z: number,
+  heading: number,
+  others: ReadonlyArray<Readonly<Box>> = [],
+  keepOff: readonly Circle[] = [],
+): { x: number; z: number } {
+  const circles: Circle[] = [...others.flatMap((b) => carCircles(b)), ...keepOff];
+  const clear = (px: number, pz: number): boolean => {
+    const y = meshGroundHeight(world, px, pz);
+    return !boxBlocked(world, { x: px, z: pz, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, y + ROOF_STEP_M, circles, y + CAR.bodyHeight);
+  };
+  if (clear(x, z)) return { x, z };
+  for (let r = 1; r <= CLEAR_SPOT_RADIUS_M; r++) {
+    const n = 8 * r;
+    for (let k = 0; k < n; k++) {
+      const a = heading + (2 * Math.PI * k) / n;
+      const px = x + dsin(a) * r;
+      const pz = z - dcos(a) * r;
+      if (segmentCrossesWall(world.walls, x, z, px, pz)) continue;
+      if (clear(px, pz)) return { x: px, z: pz };
+    }
+  }
+  return { x, z };
 }
 
 /** Three circles covering the car, for other bodies that treat it as an obstacle. */
@@ -133,27 +190,34 @@ export function carCircles(c: Readonly<Pick<CarState, "x" | "z" | "heading">>): 
   ];
 }
 
-/** Mean ground height under the four wheel positions and the slopes (rise per metre) forward and to the right. */
+/**
+ * Mean surface height under the four wheel positions and the slopes (rise per metre) forward
+ * and to the right. The surface is the ground, or a roof the wheels reach (surfaceHeight) for
+ * a car whose wheels are at `feet` (default: below every roof, so the bare ground).
+ */
 export function sampleGround(
   world: World,
   x: number,
   z: number,
   heading: number,
+  feet = -Infinity,
 ): { h: number; slopeF: number; slopeR: number } {
   const fx = dsin(heading);
   const fz = -dcos(heading);
   const rx = -fz;
   const rz = fx;
-  const hF = groundHeight(world, x + fx * CAR.axle, z + fz * CAR.axle);
-  const hB = groundHeight(world, x - fx * CAR.axle, z - fz * CAR.axle);
-  const hR = groundHeight(world, x + rx * CAR.track, z + rz * CAR.track);
-  const hL = groundHeight(world, x - rx * CAR.track, z - rz * CAR.track);
+  const hF = surfaceHeight(world, x + fx * CAR.axle, z + fz * CAR.axle, feet);
+  const hB = surfaceHeight(world, x - fx * CAR.axle, z - fz * CAR.axle, feet);
+  const hR = surfaceHeight(world, x + rx * CAR.track, z + rz * CAR.track, feet);
+  const hL = surfaceHeight(world, x - rx * CAR.track, z - rz * CAR.track, feet);
   return { h: (hF + hB + hR + hL) / 4, slopeF: (hF - hB) / (2 * CAR.axle), slopeR: (hR - hL) / (2 * CAR.track) };
 }
 
 /**
- * Advance one car by one tick. `obstacles` are circles the car cannot pass through (agents,
- * people, other cars), positioned as of the previous tick.
+ * Advance one car by one tick. `obstacles` are circles the car cannot pass through (robots,
+ * other cars), positioned as of the previous tick. Since v4 step() never passes people or
+ * animals here: they are not obstacles to a car (they dive out of its way, src/sim/dodge.ts). A
+ * circle marked `person` still stops the car and counts in personBumps, for callers that ask.
  */
 export function stepCar(
   world: World,
@@ -165,7 +229,7 @@ export function stepCar(
   const h0 = c.heading;
   const f0x = dsin(h0);
   const f0z = -dcos(h0);
-  const g0 = sampleGround(world, c.x, c.z, h0);
+  const g0 = sampleGround(world, c.x, c.z, h0, c.y);
   const onGround = c.y - g0.h <= CAR.suspension;
 
   let speed = c.speed;
@@ -263,18 +327,25 @@ export function stepCar(
   vz = speed * fz + lateral * rz;
   const travel = Math.sqrt(vx * vx + vz * vz) * DT;
   const n = clamp(Math.ceil(travel / 0.3), 1, 6);
-  const colY = c.y + 0.5;
+  // Buildings block the body between its wheels plus the step it can climb onto a roof, and
+  // its top (it passes under a structure higher than that).
+  const colY = c.y + ROOF_STEP_M;
+  const topY = c.y + CAR.bodyHeight;
   // Walls hold each point of the body on the side it was on at the start of the tick.
   const ref = { x: c.x, z: c.z, heading: h0 };
   let touched = false;
   let impact = 0;
   let impactPerson = false;
+  // Speed removed into walls and buildings this tick (their normal impulse, per unit mass).
+  let scrape = 0;
+  let pushLeft: number = CAR.maxPush;
   for (let i = 0; i < n; i++) {
     const lastX = x;
     const lastZ = z;
     x += (vx * DT) / n;
     z += (vz * DT) / n;
-    const res = resolveBox(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, colY, obstacles, ref);
+    const res = resolveBox(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, colY, obstacles, ref, pushLeft, topY);
+    pushLeft -= res.pushed;
     if (!res.hit) continue;
     x = res.x;
     z = res.z;
@@ -308,6 +379,7 @@ export function stepCar(
         impact = -vn;
         impactPerson = res.person;
       }
+      if (!res.person) scrape += -vn;
       const e = -vn > CAR.restitutionMin ? CAR.restitution : 0;
       const tx = vx - vn * res.nx;
       const tz = vz - vn * res.nz;
@@ -338,21 +410,31 @@ export function stepCar(
   speed = vx * fx + vz * fz;
   lateral = vx * rx + vz * rz;
 
-  // Vertical: ballistic unless the ground holds the car up.
-  const g1 = sampleGround(world, x, z, heading);
-  const vyB = c.vy - G * DT;
+  // Vertical: ballistic unless the ground (or a roof the wheels reach) holds the car up.
+  const g1 = sampleGround(world, x, z, heading, c.y);
+  // Friction at a wall acts on the vertical slide too: a car that flies into a wall or a
+  // building does not carry on rising (or falling) along it at full speed (the same Coulomb
+  // coefficient as the horizontal scrape, on the speed the impact removed).
+  const vy0 = scrape > 0 ? approach(c.vy, 0, CAR.wallFriction * scrape) : c.vy;
+  const vyB = vy0 - G * DT;
   const yB = c.y + vyB * DT;
   let y: number;
   let vy: number;
   let landingSpeed = c.landingSpeed;
-  // The ground's rise over the tick along the car's own travel. After a collision push the car
-  // moved partly sideways, so measure from one tick back along its final velocity instead of
-  // from where it started: a push onto a bank never turns the bank's height into lift.
-  const hFrom = touched ? sampleGround(world, x - vx * DT, z - vz * DT, heading).h : g0.h;
+  // The ground's rate of rise under the car: its slope under the wheels along the velocity,
+  // never the height change over the tick. A collision push moves the car sideways (out of a
+  // building, back from a wall) without it driving there, and a roof edge or a placement can
+  // put it on higher ground at once; none of that is climbing, so none of it becomes lift.
   const climb = Math.sqrt(vx * vx + vz * vz) * CAR.maxClimbGrade;
-  const rise = (g1.h - hFrom) / DT;
+  const rise = speed * g1.slopeF + lateral * g1.slopeR;
   const groundRate = rise > climb ? climb : rise;
-  if (yB <= g1.h) {
+  // In contact with something and on the ground at the start of the tick, the car stays on the
+  // ground, its vertical speed the slope's along its new velocity: a hit that stops it on an
+  // uphill does not carry it on upward, and a push (or a hit that turns it downhill) that
+  // carries it over ground falling faster than gravity would follow is not a crest. A drop
+  // steeper than maxClimbGrade over the tick's travel and push (a roof edge) is still fallen off.
+  const held = touched && onGround && g1.h >= g0.h - CAR.maxClimbGrade * (travel + (CAR.maxPush - pushLeft)) - 1e-9;
+  if (yB <= g1.h || held) {
     y = g1.h;
     vy = groundRate;
   } else {
@@ -405,5 +487,6 @@ export function stepCar(
     impactSpeed,
     landingSpeed,
     personBumps,
+    nearMisses: c.nearMisses,
   };
 }

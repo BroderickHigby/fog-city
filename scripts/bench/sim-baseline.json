@@ -1,0 +1,26 @@
+{
+  "machine": "Intel(R) Xeon(R) Processor @ 2.10GHz x4, linux x64, node v22.22.0",
+  "recorded": "2026-10-22",
+  "results": [
+    {
+      "scenario": "single",
+      "ticks": 1800,
+      "meanMs": 2.53,
+      "p50": 2.16,
+      "p95": 4.547,
+      "p99": 5.632,
+      "max": 11.219,
+      "agentsMean": 430
+    },
+    {
+      "scenario": "multi",
+      "ticks": 1800,
+      "meanMs": 5.335,
+      "p50": 5.327,
+      "p95": 8.153,
+      "p99": 9.267,
+      "max": 101.355,
+      "agentsMean": 1024
+    }
+  ]
+}

@@ -44,7 +44,7 @@ export function gameplayCommandFromEvent(event: Readonly<SimEvent>): GameplayCom
   const payload = event.payload;
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   const p = payload as Record<string, unknown>;
-  if (!Number.isSafeInteger(p.sequence) || (p.sequence as number) < 0 || !GAMEPLAY_COMMAND_KINDS.includes(p.kind as GameplayCommandKind)) return null;
+  if (!Number.isSafeInteger(p.sequence) || (p.sequence as number) < 1 || !GAMEPLAY_COMMAND_KINDS.includes(p.kind as GameplayCommandKind)) return null;
   for (const key of Object.keys(p)) if (key !== "sequence" && key !== "kind" && !ID_FIELDS.includes(key as typeof ID_FIELDS[number])) return null;
   for (const key of ID_FIELDS) if (p[key] !== undefined && !isGameplayId(p[key])) return null;
   const command: GameplayCommand = { sequence: p.sequence as number, kind: p.kind as GameplayCommandKind, playerId: event.playerId };

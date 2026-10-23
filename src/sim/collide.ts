@@ -10,7 +10,7 @@
 
 import { circleWallPush, wallKeepSide, wallSide, wallsNear, type WallSegment } from "./boundary.ts";
 import { dcos, dsin } from "./dmath.ts";
-import { closestOnBoundary, nearbyBuildings, pointInPolygon, type World } from "./world.ts";
+import { blocksBand, closestOnBoundary, nearbyBuildings, outwardNormal, pointInPolygon, type World } from "./world.ts";
 
 /** A round obstacle: an agent, a walker, or a slice of another car. */
 export interface Circle {
@@ -39,6 +39,8 @@ export interface BoxResolve {
   nz: number;
   /** The deepest push came from a person. */
   person: boolean;
+  /** Length of the pushes out of buildings and circles that were applied (at most maxPush). */
+  pushed: number;
 }
 
 const EPS = 1e-4;
@@ -98,8 +100,10 @@ function boxPolygonPush(
     const push = d + hw;
     if (push * push > bestD2) {
       bestD2 = push * push;
-      const ux = d > 1e-9 ? (c.x - cx) / d : rx;
-      const uz = d > 1e-9 ? (c.z - cz) / d : rz;
+      // On the boundary itself the way out is the nearest edge's outward normal.
+      const out = d > 1e-6 ? null : outwardNormal(cx, cz, poly);
+      const ux = out ? out.x : (c.x - cx) / d;
+      const uz = out ? out.z : (c.z - cz) / d;
       px = ux * push;
       pz = uz * push;
     }
@@ -322,10 +326,17 @@ function boxCirclePush(
 }
 
 /**
- * Push an oriented box out of every building it overlaps below `y` (roof height check), out of
- * every obstacle circle, and back across every wall it crossed since `ref` (where it was at the
- * start of the tick; the box itself when omitted, so no wall pushes). Up to four passes,
+ * Push an oriented box out of every building that blocks it (one whose roof is above `y`, the
+ * bottom of the body's collision band, and whose underside, when it has one, is below `top`),
+ * out of every obstacle circle, and back across every wall it crossed since `ref` (where it was
+ * at the start of the tick; the box itself when omitted, so no wall pushes). Up to four passes,
  * deepest overlap first.
+ *
+ * `maxPush` caps the total push out of buildings and circles (not walls, which only ever send
+ * points back across a line they crossed this tick): a body that starts deep inside a footprint
+ * (placed there, or a roof it stood on gone from under it) leaves it over several ticks instead
+ * of jumping out in one. While the budget is spent the overlap still counts as a hit, with the
+ * direction it would have been pushed, so the caller stops driving into it.
  */
 export function resolveBox(
   world: World,
@@ -333,6 +344,8 @@ export function resolveBox(
   y: number,
   circles: readonly Circle[] = [],
   ref: Readonly<Pose> = box,
+  maxPush = Infinity,
+  top = Infinity,
 ): BoxResolve {
   const fx = dsin(box.heading);
   const fz = -dcos(box.heading);
@@ -346,14 +359,20 @@ export function resolveBox(
   let person = false;
   let bestPersonDepth = 0;
   let bestOtherDepth = 0;
+  let budget = maxPush;
+  let pushed = 0;
+  // Direction of a push the spent budget held back (counts as the contact normal if nothing moved).
+  let heldX = 0;
+  let heldZ = 0;
   const reach = box.hl + box.hw + 1;
   const refPts = world.walls ? poseSamples(ref, box.hl, box.hw) : [];
   for (let pass = 0; pass < 4; pass++) {
     let best: [number, number] | null = null;
     let bestD2 = 0;
     let bestIsPerson = false;
+    let bestIsWall = false;
     for (const b of nearbyBuildings(world, x, z, reach)) {
-      if (y >= b.topY || b.topY <= b.baseY) continue;
+      if (!blocksBand(b, y, top)) continue;
       const p = boxPolygonPush(x, z, fx, fz, rx, rz, box.hl, box.hw, b.footprint);
       if (!p) continue;
       const d2 = p[0] * p[0] + p[1] * p[1];
@@ -361,6 +380,7 @@ export function resolveBox(
         bestD2 = d2;
         best = p;
         bestIsPerson = false;
+        bestIsWall = false;
       }
     }
     if (world.walls) {
@@ -372,6 +392,7 @@ export function resolveBox(
           bestD2 = d2;
           best = p;
           bestIsPerson = false;
+          bestIsWall = true;
         }
       }
     }
@@ -387,13 +408,35 @@ export function resolveBox(
         bestD2 = d2;
         best = p;
         bestIsPerson = c.person;
+        bestIsWall = false;
       }
     }
     if (!best) break;
-    x += best[0];
-    z += best[1];
-    tx += best[0];
-    tz += best[1];
+    let px = best[0];
+    let pz = best[1];
+    if (!bestIsWall) {
+      const len = Math.sqrt(bestD2);
+      if (budget <= 0) {
+        // Held: the overlap is a contact, but the body does not move this pass.
+        hit = true;
+        heldX = px / len;
+        heldZ = pz / len;
+        if (bestIsPerson) bestPersonDepth = Math.max(bestPersonDepth, bestD2);
+        else bestOtherDepth = Math.max(bestOtherDepth, bestD2);
+        break;
+      }
+      if (len > budget) {
+        px *= budget / len;
+        pz *= budget / len;
+      }
+      const used = len > budget ? budget : len;
+      budget -= used;
+      pushed += used;
+    }
+    x += px;
+    z += pz;
+    tx += px;
+    tz += pz;
     hit = true;
     if (bestIsPerson) bestPersonDepth = Math.max(bestPersonDepth, bestD2);
     else bestOtherDepth = Math.max(bestOtherDepth, bestD2);
@@ -422,17 +465,19 @@ export function resolveBox(
   }
   person = hit && bestPersonDepth > bestOtherDepth;
   const tl = Math.sqrt(tx * tx + tz * tz);
-  return { x, z, hit, nx: tl > 1e-12 ? tx / tl : 0, nz: tl > 1e-12 ? tz / tl : 0, person };
+  const nx = tl > 1e-12 ? tx / tl : heldX;
+  const nz = tl > 1e-12 ? tz / tl : heldZ;
+  return { x, z, hit, nx, nz, person, pushed };
 }
 
-/** Does an oriented box overlap any building (below y), wall or circle? */
-export function boxBlocked(world: World, box: Readonly<Box>, y: number, circles: readonly Circle[] = []): boolean {
+/** Does an oriented box overlap any building that blocks the band from y to top (blocksBand), any wall or any circle? */
+export function boxBlocked(world: World, box: Readonly<Box>, y: number, circles: readonly Circle[] = [], top = Infinity): boolean {
   const fx = dsin(box.heading);
   const fz = -dcos(box.heading);
   const rx = -fz;
   const rz = fx;
   for (const b of nearbyBuildings(world, box.x, box.z, box.hl + box.hw + 1)) {
-    if (y >= b.topY || b.topY <= b.baseY) continue;
+    if (!blocksBand(b, y, top)) continue;
     if (boxPolygonPush(box.x, box.z, fx, fz, rx, rz, box.hl, box.hw, b.footprint)) return true;
   }
   if (world.walls) {
@@ -455,10 +500,60 @@ function circleBoxPush(x: number, z: number, r: number, b: Readonly<Box>): [numb
   return p ? [-p[0], -p[1]] : null;
 }
 
+/** Does a circle overlap any of the boxes? */
+export function circleInBoxes(x: number, z: number, r: number, boxes: ReadonlyArray<Readonly<Box>>): boolean {
+  for (const b of boxes) {
+    const dx = b.x - x;
+    const dz = b.z - z;
+    const lim = b.hl + b.hw + r;
+    if (dx * dx + dz * dz > lim * lim) continue;
+    if (circleBoxPush(x, z, r, b)) return true;
+  }
+  return false;
+}
+
+/**
+ * Push a circle out of every box, with no cap (up to four passes, deepest first). `clear` is
+ * false when it is still in one after them (wedged between two).
+ */
+export function pushOutOfBoxes(x: number, z: number, r: number, boxes: ReadonlyArray<Readonly<Box>>): { x: number; z: number; clear: boolean } {
+  for (let pass = 0; pass < 4; pass++) {
+    let best: [number, number] | null = null;
+    let bestD2 = 0;
+    for (const b of boxes) {
+      const dx = b.x - x;
+      const dz = b.z - z;
+      const lim = b.hl + b.hw + r;
+      if (dx * dx + dz * dz > lim * lim) continue;
+      const p = circleBoxPush(x, z, r, b);
+      if (!p) continue;
+      const d2 = p[0] * p[0] + p[1] * p[1];
+      if (d2 > bestD2) {
+        bestD2 = d2;
+        best = p;
+      }
+    }
+    if (!best) return { x, z, clear: true };
+    x += best[0];
+    z += best[1];
+  }
+  return { x, z, clear: !circleInBoxes(x, z, r, boxes) };
+}
+
+/** The vertical band of a body for building checks (blocksBand): feet plus the step it may climb, to the top of its head. */
+export interface Band {
+  bottom: number;
+  top: number;
+}
+
 /**
  * Push a circle (a walker) out of buildings, boxes (cars) and other circles, and keep it r
  * clear of every wall on the side it was on at (x0, z0), the start of the tick (default: where
  * it is). Up to four passes. Returns the corrected position and whether anything was touched.
+ *
+ * `band`: only buildings that block it count (blocksBand); default every building at any
+ * height. `maxPush` caps the total push out of buildings, boxes and circles (walls are never
+ * capped), so a body that starts inside a footprint leaves it over several ticks.
  */
 export function resolveCircleAll(
   world: World,
@@ -469,27 +564,47 @@ export function resolveCircleAll(
   circles: readonly Circle[],
   x0: number = x,
   z0: number = z,
+  band: Readonly<Band> = { bottom: -Infinity, top: Infinity },
+  maxPush = Infinity,
 ): { x: number; z: number; hit: boolean } {
   let hit = false;
+  let budget = maxPush;
+  /** Move by (dx, dz) out of a body, within the budget. */
+  const shove = (dx: number, dz: number): void => {
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (len > budget) {
+      const k = budget / len;
+      dx *= k;
+      dz *= k;
+    }
+    budget -= len > budget ? budget : len;
+    x += dx;
+    z += dz;
+  };
   for (let pass = 0; pass < 4; pass++) {
     let moved = false;
     for (const b of nearbyBuildings(world, x, z, r + 1)) {
-      if (b.topY <= b.baseY) continue;
+      if (!blocksBand(b, band.bottom, band.top)) continue;
       const inside = pointInPolygon(x, z, b.footprint);
       const c = closestOnBoundary(x, z, b.footprint);
       if (!inside && c.d2 >= r * r) continue;
+      hit = true;
+      if (budget <= 0) continue;
       const d = Math.sqrt(c.d2);
       // Outward unit normal at the closest boundary point: inside, from us through the wall;
       // outside, from the wall to us.
-      let ux = d > 1e-9 ? (inside ? c.x - x : x - c.x) / d : 1;
-      let uz = d > 1e-9 ? (inside ? c.z - z : z - c.z) / d : 0;
-      if (d <= 1e-9) {
-        ux = 1;
-        uz = 0;
+      let ux: number;
+      let uz: number;
+      if (d > 1e-6) {
+        ux = (inside ? c.x - x : x - c.x) / d;
+        uz = (inside ? c.z - z : z - c.z) / d;
+      } else {
+        // On the boundary itself: out along the nearest edge's normal.
+        const out = outwardNormal(x, z, b.footprint);
+        ux = out.x;
+        uz = out.z;
       }
-      x = c.x + ux * (r + EPS);
-      z = c.z + uz * (r + EPS);
-      hit = true;
+      shove(c.x + ux * (r + EPS) - x, c.z + uz * (r + EPS) - z);
       moved = true;
     }
     if (world.walls) {
@@ -530,9 +645,9 @@ export function resolveCircleAll(
       if (dx * dx + dz * dz > lim * lim) continue;
       const p = circleBoxPush(x, z, r, b);
       if (!p) continue;
-      x += p[0];
-      z += p[1];
       hit = true;
+      if (budget <= 0) continue;
+      shove(p[0], p[1]);
       moved = true;
     }
     for (const c of circles) {
@@ -541,12 +656,12 @@ export function resolveCircleAll(
       const lim = r + c.r;
       const d2 = dx * dx + dz * dz;
       if (d2 >= lim * lim) continue;
+      hit = true;
+      if (budget <= 0) continue;
       const d = Math.sqrt(d2);
       const ux = d > 1e-9 ? dx / d : 1;
       const uz = d > 1e-9 ? dz / d : 0;
-      x = c.x + ux * (lim + EPS);
-      z = c.z + uz * (lim + EPS);
-      hit = true;
+      shove(c.x + ux * (lim + EPS) - x, c.z + uz * (lim + EPS) - z);
       moved = true;
     }
     if (!moved) break;
