@@ -157,7 +157,17 @@ export function colliderRecords(gw: GameWorld): SfRecord[] {
 export function colliderJsonTiles(gw: Pick<GameWorld, "name" | "manifest">): TileCollider[] {
   return gw.manifest.tiles.map((t) => {
     const c = readJson<TileCollider & { buildings: Array<BuildingCollider & { meta?: unknown }> }>(`public/tiles/${gw.name}/${t.collider}`);
-    return { tileId: c.tileId, ground: c.ground, buildings: c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY })) };
+    // What the sim reads (src/sim/pack.ts carries the same): buildings with their undersides, and
+    // the tile's decks, tunnels and movable spans; the pipeline's meta stays out.
+    const out: TileCollider = {
+      tileId: c.tileId,
+      ground: c.ground,
+      buildings: c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY, ...(b.underY !== undefined ? { underY: b.underY } : {}) })),
+    };
+    if (c.decks) out.decks = c.decks;
+    if (c.tunnels) out.tunnels = c.tunnels;
+    if (c.movable) out.movable = c.movable;
+    return out;
   });
 }
 
