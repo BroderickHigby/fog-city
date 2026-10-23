@@ -28,8 +28,44 @@ export const TERRACE_RELIEF_M = 3.5;
 export const TERRACE_MIN_WIDTH_M = 3;
 /** At most this many strips per footprint. */
 export const TERRACE_MAX_STRIPS = 24;
-/** Every roof stands at least this far above the highest ground under its record. */
+/**
+ * Every roof stands at least this far above the highest ground under its record, and above the
+ * highest ground a walker stands on at its walls (within ROOF_RIM_M outside them): a wall lower
+ * than this is an invisible step a walker cannot climb (W-05).
+ */
 export const ROOF_CLEAR_M = 2.5;
+/** How far outside a footprint's walls a walker stands against them: its radius (0.35 m, src/sim/foot.ts) and a margin. */
+export const ROOF_RIM_M = 0.5;
+
+/**
+ * The highest drawn ground (mesh) or sim ground (bilinear) just outside a ring: every 1 m along
+ * each edge and at each vertex, ROOF_RIM_M out along the edge's outward normal. On a hillside
+ * the ground at the uphill wall's foot, where a walker stops, is higher than any under the roof.
+ * -Infinity where no ground covers the rim.
+ */
+export function rimMax(ring: readonly P2[], ground: Ground, d = ROOF_RIM_M): number {
+  const n = ring.length;
+  // Outward is to the right of travel for a counter-clockwise ring (positive signed area), left otherwise.
+  const out = signedArea(ring) > 0 ? 1 : -1;
+  let max = -Infinity;
+  const take = (x: number, z: number): void => {
+    const h = ground.heightAt(x, z);
+    const hm = ground.meshHeightAt(x, z);
+    if (h !== null && h > max) max = h;
+    if (hm !== null && hm > max) max = hm;
+  };
+  for (let i = 0; i < n; i++) {
+    const a = ring[i]!;
+    const b = ring[(i + 1) % n]!;
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L < 1e-9) continue;
+    const nx = ((b[1] - a[1]) / L) * out * d;
+    const nz = (-(b[0] - a[0]) / L) * out * d;
+    const k = Math.max(1, Math.ceil(L));
+    for (let j = 0; j <= k; j++) take(a[0] + ((b[0] - a[0]) * j) / k + nx, a[1] + ((b[1] - a[1]) * j) / k + nz);
+  }
+  return max;
+}
 
 export interface GroundRange {
   min: number;
@@ -328,7 +364,7 @@ export function terraceBuildings(buildings: readonly Building[], ground: Ground,
       if (z < z0) z0 = z;
       if (z > z1) z1 = z;
     }
-    const bound = ground.boxBounds(x0, z0, x1, z1);
+    const bound = ground.boxBounds(x0 - ROOF_RIM_M, z0 - ROOF_RIM_M, x1 + ROOF_RIM_M, z1 + ROOF_RIM_M);
     if (bound && bound.max - bound.min <= TERRACE_MIN_RELIEF_M && b.topY >= bound.max + ROOF_CLEAR_M) {
       out.push(b);
       continue;
@@ -340,7 +376,7 @@ export function terraceBuildings(buildings: readonly Building[], ground: Ground,
     }
     const height = b.meta.heightM;
     if (range.max - range.min <= TERRACE_MIN_RELIEF_M) {
-      const minTop = r2(range.max + ROOF_CLEAR_M);
+      const minTop = r2(Math.max(range.max, rimMax(b.footprint, ground)) + ROOF_CLEAR_M);
       if (b.topY < minTop) {
         stats.roofsRaised++;
         out.push({ ...b, topY: minTop, meta: { ...b.meta, footY: Math.min(b.meta.footY, Math.floor((range.min - 0.05) * 100) / 100) } });
@@ -352,7 +388,7 @@ export function terraceBuildings(buildings: readonly Building[], ground: Ground,
     const pieces = splitStrips(b.footprint, range, ground, stats, 0, [0]);
     if (pieces.length < 2) {
       // The clipper gave nothing usable: keep one record, roof clear of the hill.
-      const minTop = r2(range.max + ROOF_CLEAR_M);
+      const minTop = r2(Math.max(range.max, rimMax(b.footprint, ground)) + ROOF_CLEAR_M);
       if (b.topY < minTop) stats.roofsRaised++;
       out.push({ ...b, topY: Math.max(b.topY, minTop) });
       continue;
@@ -378,7 +414,7 @@ export function terraceBuildings(buildings: readonly Building[], ground: Ground,
       const h = ground.heightAt(at[0], at[1]) ?? p.range.mean;
       const baseY = Math.floor(h * 100) / 100;
       const footY = Math.min(baseY, Math.floor((p.range.min - 0.05) * 100) / 100);
-      const topY = r2(Math.max(baseY + MIN_HEIGHT_M, p.range.mean + height, p.range.max + ROOF_CLEAR_M));
+      const topY = r2(Math.max(baseY + MIN_HEIGHT_M, p.range.mean + height, Math.max(p.range.max, rimMax(p.ring, ground)) + ROOF_CLEAR_M));
       const id = i === primary ? b.id : `${base}-s${nextPiece(base)}`;
       // heightM stays the building's measured height; each piece's roof is its own topY.
       const meta = { ...b.meta, footY };
