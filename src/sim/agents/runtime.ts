@@ -373,16 +373,31 @@ function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor
 export const WALKER_STALL_TICKS=240;
 const WALKER_STALL_M=.3;
 
-/** The first point of a walker's route ahead (0.5 to 8 m) where its body fits and that it can walk straight to, with its cursor. */
+/** Sideways shifts tried off a sidewalk line that hugs a facade, metres (+ = right of the route). */
+const FACADE_SHIFTS_M:readonly number[]=[0,.3,-.3,.6,-.6,1,-1,1.5,-1.5];
+
+/**
+ * Where a walker heads when its route line runs too close to a facade for its body: the first
+ * point ahead on the route (0.5 to 8 m), or beside it (FACADE_SHIFTS_M, away from the wall), where
+ * the body fits and that it can walk straight to, with the route cursor at that point.
+ */
 function clearAhead(world:World,graph:SidewalkGraph,actor:RuntimeActor,isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number;cursor:SidewalkCursor}|null{
   const r=actor.radius;
+  const fits=(x:number,z:number)=>{
+    const dx=x-actor.x,dz=z-actor.z,l=Math.sqrt(dx*dx+dz*dz),n=Math.max(1,Math.ceil(l/.25));
+    if(segmentBlocked(world,actor.x,actor.z,x,z))return false;
+    for(let i=1;i<=n;i++)if(circleBlocked(world,actor.x+dx*i/n,actor.z+dz*i/n,r))return false;
+    return true;
+  };
   for(let d=.5;d<=8;d+=.5){
     const p=advanceSidewalkRoute(graph,actor.route!,actor.cursor,d,edge=>isBlocked(edge));
     if(p.blockedEdgeId!==null)return null;
-    const dx=p.point.x-actor.x,dz=p.point.z-actor.z,l=Math.sqrt(dx*dx+dz*dz),n=Math.max(1,Math.ceil(l/.25));
-    let ok=!segmentBlocked(world,actor.x,actor.z,p.point.x,p.point.z);
-    for(let i=1;i<=n&&ok;i++)ok=!circleBlocked(world,actor.x+dx*i/n,actor.z+dz*i/n,r);
-    if(ok)return {x:p.point.x,z:p.point.z,cursor:p.cursor};
+    const q=advanceSidewalkRoute(graph,actor.route!,actor.cursor,d+.25,edge=>isBlocked(edge)).point;
+    const tx=q.x-p.point.x,tz=q.z-p.point.z,tl=Math.sqrt(tx*tx+tz*tz);
+    for(const shift of tl>1e-6?FACADE_SHIFTS_M:[0]){
+      const x=p.point.x-tz/tl*shift*(tl>1e-6?1:0),z=p.point.z+tx/tl*shift*(tl>1e-6?1:0);
+      if(fits(x,z))return {x,z,cursor:p.cursor};
+    }
     if(p.finished)return null;
   }
   return null;
