@@ -17,6 +17,13 @@ function plan(driver: CampaignDriver, run: () => void): void {
   }
 }
 
+/** Keep SwiftShader idle while Node plans; restore the real viewport even on failure. */
+async function quietRenderer<T>(page: Page, run: () => T): Promise<T> {
+  await page.setViewportSize({ width: 1, height: 1 });
+  try { return run(); }
+  finally { await page.setViewportSize({ width: 960, height: 540 }); }
+}
+
 async function feed(page: Page, driver: CampaignDriver): Promise<void> {
   let actual: SimState | undefined;
   for (let at = 0; at < driver.frames.length; at += 500) {
@@ -41,7 +48,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   const { world } = loadWorld("sf", { roads: true });
   const initial = await simState(page);
   const first = new CampaignDriver(world, initial, "p1", e2eGameSystems());
-  plan(first, () => first.hotDeskToSignup());
+  await quietRenderer(page, () => plan(first, () => first.hotDeskToSignup()));
   console.info(`Campaign planned through signup: ${first.frames.length} input frames`);
   await feed(page, first);
   console.info("Campaign browser reached signup with exact replay state");
@@ -83,7 +90,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
   const beforeCone = await simState(page);
   const second = new CampaignDriver(world, beforeCone, "p1", e2eGameSystems());
-  plan(second, () => second.coneHotDeskSpot());
+  await quietRenderer(page, () => plan(second, () => second.coneHotDeskSpot()));
   console.info(`Campaign completion planned: ${second.frames.length} input frames`);
   await feed(page, second);
   await page.waitForFunction(() => {
@@ -118,7 +125,8 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
     { frames: second.frames },
     p1Chunk(final.tick - second.state.tick),
   ], initial.tick, commands);
-  expect(hashState(replay(world, initial, recorded, e2eGameSystems()).final)).toBe(hashState(final));
+  const replayHash = await quietRenderer(page, () => hashState(replay(world, initial, recorded, e2eGameSystems()).final));
+  expect(replayHash).toBe(hashState(final));
   console.info("Campaign full replay hash matched");
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("chase"));
   await frames(page, 2);
