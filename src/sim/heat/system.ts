@@ -6,7 +6,7 @@ export function createHeat(tick=0):HeatState{return {version:1,tick,nextId:1,pla
 function raise(state:HeatState,id:string,level:number,ctx:GameplayContext):void {
  const own=state.players[id]!;const next=Math.min(ctx.wave>=3?5:2,level);if(next<=own.threat)return;own.threat=next;own.levelMelts=0;own.lastSeenTick=state.tick;
  event(state,"threat.changed",id,"",next);
- if(next>=2){const body=ctx.bodies.find(b=>b.id===id)!;const kind=next===2?"van":next===3?"drone":next===4?"swarm":"patrol";const out=event(state,"threat.spawn",id,"",next===4?8:next===5?4:2,kind);out.payload={id:`heat:${id}:${++own.spawnSequence}`,kind,unitCount:out.amount,requestTick:state.tick,playerId:id,player:{x:body.x,z:body.z},threat:next as 2|3|4|5};}
+ if(next>=2){const body=ctx.bodies.find(b=>b.id===id)!;const kind=next===2?"van":next===3?"drone":next===4?"swarm":"patrol";const out=event(state,"threat.spawn",id,"",next===4?8:next===5?4:2,kind),base={id:`heat:${id}:${++own.spawnSequence}`,requestTick:state.tick,playerId:id,player:{x:body.x,z:body.z}};out.payload=next===2?{...base,kind:"van",unitCount:2,threat:2}:{...base,kind:next===3?"drone":next===4?"swarm":"patrol",unitCount:out.amount,threat:next as 3|4|5};}
 }
 export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[]):HeatState {
  const state:HeatState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};
