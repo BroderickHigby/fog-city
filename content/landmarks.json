@@ -52,7 +52,7 @@
       "id": "sutro-tower",
       "model": "models/sutro-tower.glb",
       "lat": 37.7552405,
-      "lon": -122.4528639,
+      "lon": -122.452856,
       "headingDeg": 0,
       "scale": 1,
       "replacesBuildingIds": [
