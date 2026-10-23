@@ -70,6 +70,8 @@ export interface RuntimeActor extends RuntimeSpawn {
   hiddenTellId: string | null;
   /** v10: walking round a stopped vehicle to (x, z), where its route carries on from `cursor` (detour.ts). */
   detour?: { x: number; z: number; cursor: SidewalkCursor; until: number } | null;
+  /** v10: where and when it last made progress while wanting to walk (WALKER_STALL_TICKS). */
+  stall?: { x: number; z: number; tick: number };
 }
 
 export interface AgentMotionProposal extends CoreAgentMotionProposal {
@@ -319,10 +321,10 @@ function stoppedVehicles(sim:Readonly<SimState>):DetourBox[]{
 function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor:RuntimeActor,speed:number,stopped:readonly DetourBox[],isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number}|null{
   const r=actor.radius;
   const within=(reach:number)=>stopped.filter(b=>Math.abs(b.x-actor.x)<=reach+b.hl+b.hw&&Math.abs(b.z-actor.z)<=reach+b.hl+b.hw);
-  // Nothing standing still within reach of the next DETOUR_LOOK_M of route: the common case, no route walk.
+  // Nothing standing still within reach of the next DETOUR_LOOK_M of route and no detour under way:
+  // the common case, no route walk.
   if(!actor.route||(!actor.detour&&!within(DETOUR_LOOK_M+r+.2).length)){actor.detour=null;return null;}
   const boxes=within(DETOUR_REJOIN_M+r+DETOUR_CLEAR_M+1);
-  if(!boxes.length){actor.detour=null;return null;}
   const walkable=(ax:number,az:number,bx:number,bz:number)=>!segmentBlocked(world,ax,az,bx,bz)&&!circleBlocked(world,bx,bz,r);
   const blocking=(tx:number,tz:number)=>{
     // The first stopped vehicle the straight line to (tx, tz) runs into.
@@ -342,6 +344,7 @@ function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor
     return way;
   }
   actor.detour=null;
+  if(!boxes.length)return null;
   // Is the next stretch of route into a stopped vehicle's body?
   let box:DetourBox|null=null,from=0;
   for(let d=.5;d<=DETOUR_LOOK_M&&!box;d+=.5){
@@ -361,6 +364,25 @@ function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor
       actor.detour={x:p.point.x,z:p.point.z,cursor:p.cursor,until:sim.tick+DETOUR_TICKS};
       return way;
     }
+    if(p.finished)return null;
+  }
+  return null;
+}
+
+/** A walker that has not moved WALKER_STALL_M in this many ticks while wanting to walk picks a new way. */
+export const WALKER_STALL_TICKS=240;
+const WALKER_STALL_M=.3;
+
+/** The first point of a walker's route ahead (0.5 to 8 m) where its body fits and that it can walk straight to, with its cursor. */
+function clearAhead(world:World,graph:SidewalkGraph,actor:RuntimeActor,isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number;cursor:SidewalkCursor}|null{
+  const r=actor.radius;
+  for(let d=.5;d<=8;d+=.5){
+    const p=advanceSidewalkRoute(graph,actor.route!,actor.cursor,d,edge=>isBlocked(edge));
+    if(p.blockedEdgeId!==null)return null;
+    const dx=p.point.x-actor.x,dz=p.point.z-actor.z,l=Math.sqrt(dx*dx+dz*dz),n=Math.max(1,Math.ceil(l/.25));
+    let ok=!segmentBlocked(world,actor.x,actor.z,p.point.x,p.point.z);
+    for(let i=1;i<=n&&ok;i++)ok=!circleBlocked(world,actor.x+dx*i/n,actor.z+dz*i/n,r);
+    if(ok)return {x:p.point.x,z:p.point.z,cursor:p.cursor};
     if(p.finished)return null;
   }
   return null;
@@ -414,14 +436,19 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
-  if(speed<=0||frozen||actor.posted){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
+  if(speed<=0||frozen||actor.posted){delete actor.stall;state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
   if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"){
-    const node=goal?nearestSidewalkNode(graph,goal):actor.goalNode;
+    // A walker that has wanted to walk for WALKER_STALL_TICKS without getting anywhere picks a
+    // new way (a corner it cannot get round, a crossing that never clears): it never stands frozen.
+    let stalled=false;
+    if(!actor.stall||distance(actor,actor.stall)>WALKER_STALL_M)actor.stall={x:actor.x,z:actor.z,tick:sim.tick};
+    else if(sim.tick-actor.stall.tick>=WALKER_STALL_TICKS){stalled=true;actor.route=null;actor.detour=null;actor.stall={x:actor.x,z:actor.z,tick:sim.tick};}
+    const node=goal&&!stalled?nearestSidewalkNode(graph,goal):actor.goalNode;
     if(!actor.route||actor.goalNode!==node||actor.cursor.stepIndex>=actor.route.steps.length){
       const start=nearestSidewalkNode(graph,actor);
       const candidates=goal?[node]:nearbyNodes(graph,actor,60).filter(n=>n.id!==start).map(n=>n.id);
       if(candidates.length){
-        const end=candidates[hash(`${actor.id}:${sim.tick>>9}`)%candidates.length]!;
+        const end=candidates[hash(`${actor.id}:${stalled?sim.tick:sim.tick>>9}`)%candidates.length]!;
         const route=shortestSidewalkRoute(graph,start,end);
         actor.route=route;actor.cursor={stepIndex:0,distanceM:0};actor.goalNode=end;actor.detour=null;
       }
@@ -432,6 +459,12 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       else{
         const next=advanceSidewalkRoute(graph,actor.route,actor.cursor,speed*DT,edge=>Boolean(options.crossingBlocked?.(edge.id)));
         goal=next.point;actor.pendingCursor=next.cursor;
+        // A sidewalk line that runs too close to a facade for this body: walk straight to the first
+        // point of the route ahead with room for it (as a detour, so the route carries on from there).
+        if(circleBlocked(world,goal.x,goal.z,actor.radius)||segmentBlocked(world,actor.x,actor.z,goal.x,goal.z)){
+          const ahead=clearAhead(world,graph,actor,edge=>Boolean(options.crossingBlocked?.(edge.id)));
+          if(ahead){goal={x:ahead.x,z:ahead.z};actor.pendingCursor=null;actor.detour={...ahead,until:sim.tick+DETOUR_TICKS};}
+        }
       }
     }
   }
