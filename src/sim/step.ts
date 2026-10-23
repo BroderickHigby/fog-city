@@ -39,6 +39,7 @@ import { meshGroundHeight, type World } from "./world.ts";
 import { prepareSystems, runSystems, SYSTEMS } from "./systems.ts";
 import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
+import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
 
@@ -132,11 +133,12 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
  *  - v7 -> v8: gameplay behavior changes without a required field rewrite. Preserve the
  *    complete saved state, including active missions, combat effects and future extensions.
- *  - v8 -> v11 (impacts.ts): cars shove, spin and dent other cars and robotaxis instead of
+ *  - v8 -> v10 (v9 is the structural world's reserved stamp): weather changes behaviour only.
+ *    Every saved field is kept; ext.fog, when absent, is created by the fog reducer.
+ *  - v10 -> v11 (impacts.ts): cars shove, spin and dent other cars and robotaxis instead of
  *    stopping against them as at a wall. Every new field is optional (ext.impacts absent until
- *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v8 save
- *    loads unchanged. (9 and 10 are taken by the structural world and weather streams; when
- *    they land this step follows theirs: 10 -> 11 needs no rewrite either.)
+ *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v10 save
+ *    loads unchanged.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -145,7 +147,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
-  if (s.version === 8) return { ...s, version: 11 };
+  if (s.version === 8) return upgradeState({ ...s, version: 10 });
+  if (s.version === 10) return { ...s, version: 11 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -382,7 +385,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   if (exitPending && canExit(p.car)) return getOut(p.car);
   // While an exit is pending the car brakes to a stop by itself, then the player gets out.
   const drive: SimInput = exitPending ? { throttle: 0, steer: 0, brake: 1, actions: input.actions } : input;
-  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? [], contacts);
+  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? [], tractionAt(world, obs.prev, p.car.x, p.car.z), contacts);
   if (exitPending && canExit(car)) return getOut(car);
   return { ...p, car, exitPending };
 }

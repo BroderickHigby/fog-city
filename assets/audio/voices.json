@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "note": "Mission voice casting for scripts/audio/generate-voices.ts. Only ElevenLabs premade (ElevenLabs-owned) voices are cast: no community or cloned voice, so no real person's likeness. The player stays silent (subtitles only).",
+  "account": {
+    "checked": "2026-10-23",
+    "tier": "free",
+    "characterCount": 5975,
+    "characterLimit": 10000,
+    "commercialUse": false,
+    "basis": "ElevenLabs help centre, 'Can I publish the content I generate on the platform?': the free plan includes no commercial licence and may not be used for any commercial purpose (attribution does not change that); every paid plan includes a commercial licence (Beta services excepted). https://help.elevenlabs.io/hc/en-us/articles/13313564601361"
+  },
+  "hold": "Voice generation is held: the ElevenLabs account is on the free tier, which grants no commercial licence, so its output cannot ship in a distributed game. Upgrade to any paid tier, then run `node scripts/audio/generate-voices.ts --generate`. Until then every mission line plays as timed subtitles.",
+  "settings": {
+    "modelId": "eleven_multilingual_v2",
+    "stability": 0.45,
+    "similarityBoost": 0.75,
+    "style": 0.35,
+    "useSpeakerBoost": true,
+    "outputFormat": "mp3_44100_128"
+  },
+  "speakers": {
+    "cofounder": {
+      "name": "Your cofounder",
+      "voiced": true,
+      "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+      "voiceName": "Laura",
+      "why": "Sunny, quirky, a little sassy: the deadpan-cheerful cofounder who texts in lowercase and never panics on camera."
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "voiced": true,
+      "voiceId": "SAz9YHcvj6GT2YYXdXww",
+      "voiceName": "River",
+      "why": "Calm, neutral, informative: BotBounty's dispatcher bot, unbothered by anything."
+    },
+    "host": {
+      "name": "Desk host",
+      "voiced": true,
+      "voiceId": "cgSgspJ2msm6clMCkdW9",
+      "voiceName": "Jessica",
+      "why": "Bright, playful coworking host selling hot desks with total sincerity."
+    },
+    "slotsworth": {
+      "name": "Slotsworth",
+      "voiced": true,
+      "voiceId": "onwK4e9ZLuTAKqWW03F9",
+      "voiceName": "Daniel",
+      "why": "Formal British broadcaster: Ramen's AI scheduling agent, far too grand for calendar invites."
+    },
+    "philosopher": {
+      "name": "The Philosopher",
+      "voiced": true,
+      "voiceId": "pqHfZKP75CvOlQylNhV4",
+      "voiceName": "Bill",
+      "why": "Wise, mature, unhurried: the VC partner who asks what your startup means."
+    },
+    "metrics": {
+      "name": "The Metrics One",
+      "voiced": true,
+      "voiceId": "pNInz6obpgDQGcFmaJgB",
+      "voiceName": "Adam",
+      "why": "Brash, firm tenor: the partner who only wants the numbers."
+    },
+    "vibes": {
+      "name": "The Vibes Partner",
+      "voiced": true,
+      "voiceId": "IKne3meq5aSn9XLyUdCD",
+      "voiceName": "Charlie",
+      "why": "Hyped, energetic: the partner who invests on vibes."
+    },
+    "frontDesk": {
+      "name": "Front Desk",
+      "voiced": true,
+      "voiceId": "XrExE9yKIg1WjnnlVkGX",
+      "voiceName": "Matilda",
+      "why": "Upbeat professional alto for Ramen's lobby robot."
+    },
+    "player": {
+      "name": "You",
+      "voiced": false,
+      "voiceId": null,
+      "voiceName": null,
+      "why": "The player character stays silent: subtitles only."
+    }
+  },
+  "unused": {
+    "ELEVENLABS_VOICE_ID": "Set in the environment but not in the account's voice list and of unverified identity (it could be a personal clone, and the owner dropped the likeness request), so it is not cast."
+  }
+}

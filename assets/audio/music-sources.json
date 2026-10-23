@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "retrieved": "2026-10-23",
+  "policy": "CC0 only: each page was checked to list CC0 among its licences, and the CC0 grant is the one Fog City relies on. Nothing that merely says 'free' or 'royalty-free' is used.",
+  "tracks": [
+    {
+      "id": "drive",
+      "context": "driving",
+      "title": "Midnight Cruiser",
+      "author": "Zane Little Music",
+      "authorUrl": "https://opengameart.org/users/zane-little-music",
+      "page": "https://opengameart.org/content/midnight-cruiser",
+      "source": "https://opengameart.org/sites/default/files/midnight_cruiser_0.mp3",
+      "sourceSha256": "be0285ba239d85c47c6a0de6466123e3fe8dbc4ad4d9419ccd224ab8ea2b54fc",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pageLicences": ["CC0"],
+      "why": "Lively jazz-funk fusion: a sunny, bouncy drive along the Embarcadero."
+    },
+    {
+      "id": "foot",
+      "context": "foot",
+      "title": "Electronic Outlaw",
+      "author": "Zane Little Music",
+      "authorUrl": "https://opengameart.org/users/zane-little-music",
+      "page": "https://opengameart.org/content/electronic-outlaw",
+      "source": "https://opengameart.org/sites/default/files/electronic_outlaw.wav",
+      "sourceSha256": "798e3878aa34a5b3cab56ba768d9af6ce986b0b612c9cec0423bcacd6eb7baa9",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pageLicences": ["CC0"],
+      "why": "Driving electronic groove at about 136 BPM for walking and robot hunting on foot."
+    },
+    {
+      "id": "mission",
+      "context": "mission",
+      "title": "Down to Business",
+      "author": "Zane Little Music",
+      "authorUrl": "https://opengameart.org/users/zane-little-music",
+      "page": "https://opengameart.org/content/down-to-business-day-25",
+      "source": "https://opengameart.org/sites/default/files/down_to_business.wav",
+      "sourceSha256": "3bb3f317fe8b666ce8363a1632952fbba1a580653695e4084b4dc9c4acb41a7f",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pageLicences": ["CC0"],
+      "why": "\"Hard business 80's synth\": the startup-satire mission bed."
+    },
+    {
+      "id": "combat",
+      "context": "combat",
+      "title": "Invincibility [Loop]",
+      "author": "Zane Little Music",
+      "authorUrl": "https://opengameart.org/users/zane-little-music",
+      "page": "https://opengameart.org/content/invincibility-loop",
+      "source": "https://opengameart.org/sites/default/files/invincible.ogg",
+      "sourceSha256": "16f55af96284d961cc287a15571cbb0820cd3fdb9754ba8953145780d7825e02",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pageLicences": ["CC0"],
+      "why": "Short, frantic power-up loop for water-blaster fights with bad robots."
+    },
+    {
+      "id": "menu",
+      "context": "menu",
+      "title": "Midnight Drive",
+      "author": "congusbongus",
+      "authorUrl": "https://opengameart.org/users/congusbongus",
+      "page": "https://opengameart.org/content/midnight-drive",
+      "source": "https://opengameart.org/sites/default/files/midnight_drive.ogg",
+      "sourceSha256": "0cec2b4468bd7e6ebc9ad0de21cdba7ada6260680d1c9e05bc8f5c733cf3e23f",
+      "licence": "CC0 1.0",
+      "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "pageLicences": ["CC0"],
+      "why": "Upbeat synthwave (MilkyTracker) under the pause menu, phone and settings."
+    }
+  ]
+}
