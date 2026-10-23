@@ -89,3 +89,10 @@ Remaining integration dependencies: arena isolation, Watch following recorded ai
 Three fixes are complete: chase orientation now exactly follows recorded aim after positional smoothing; `ProgressionSession` preserves validated profile-v2 data across later captures; existing autosaves are recoverable via Load/Export in Settings. Typecheck and ten focused aim/profile/settlement/campaign/loadout checks passed, and all six Chromium fixture checks passed, including explicit autosave recovery and mission dialog reopening. The reviewer rechecked the fixes without finding another critical gap.
 
 Final integration includes core weather/recovery `078188a`, source-only visual wave 9, isolated arena/refill admission `5e7447e`, and the mission phone-ack guard. The high-rank fixture now supplies a real authored refill. Missing arena water displays the authorized actionable copy. Waiting only on the owner's Watch direction fix before final combined tests and actual SF image capture.
+
+### Combined San Francisco proof (before final simulation fixes)
+The combined `lane/input-aim/wave4` candidate at `28a8570` includes the isolated bus admission repair, canonical pipeline test expectations, arena isolation, Watch aim, recovery/weather, source-only visual polish and all UI/save changes. Full typecheck and 71 focused tests in 22 files passed.
+
+The actual SF Chromium check passed in 1.2 minutes using ordinary drive/brake/exit, right-drag aim, spray, phone and Playlists controls. Bot Sweep started with 121 accepted actors; the probe recorded no page or console errors. Clean screenshots and `command-state-proof.json` are under `/workspace/visual-review/final/`. These images show the current stylized renderer; native GPU frame rate and AAA visual fidelity are not claimed.
+
+A final authoritative activity settlement ordering fix and the newly identified NPC contact fix are pending. They will be consumed before the final full unit gate and preview handoff. Private relay transport remains API-only here; no online lobby UI is enabled.
