@@ -116,3 +116,11 @@ Validation: focused migration/interface/physics/purity, calendar/identity/follow
 - Integrated agent services/transit `31b4079` and player real-event normalization `e857ab4` + `4d32239` (local equivalents `e41f1f5` + `6f459ab`).
 - Validation: **typecheck passed; 102 tests across 7 files passed**, including authored Hot Desk stage→accepted actor→held Watch objective, held interact→actual refill, physical service controls, agent runtime/service/transit regressions, event attribution and forbidden APIs.
 - Still pending: visible renderer composition, real-SF service/mission driving and full browser/parity checks. The existing world pack remains FCWC v1; no QA v4 deck/tunnel geometry has been imported.
+
+## Later-mode composition seam (draft)
+
+Branch `lane/core/mode-seam`, based on `e98c471`, adds optional `agents`, `combat`, `matchContext` and `advanced` providers to `createGameSystems`. Agent providers extend static world defaults; combat providers supply mode/rival/carry-in settings while `contextFromState` retains authoritative body identity and position. A configured `createModesSystem` is part of the canonical registry. The `bot-sweep` combat mode name is reserved. This branch is separate from the wave-2 freeze; focused typecheck and integration tests are queued.
+
+Draft PR title: `Core: expose configured agent, combat and match providers`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/mode-seam?expand=1>
+Body: Add optional provider hooks to the canonical game registry so playable mode adapters can inject their roster, rival mapping and carried equipment through the same body acceptance path. Preserve default free-roam behavior and register the configured modes reducer. Adds a real composition test for accepted actors, equipment and match advancement. Validation status is recorded above; no frozen wave-2 or main branch change.
