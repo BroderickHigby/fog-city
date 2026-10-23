@@ -10,14 +10,15 @@ import * as THREE from "three";
 import type { Spot } from "./roads.ts";
 
 /** ez-tree presets used for the city's street trees (London plane and ash read alike at street scale). */
-const VARIANTS: ReadonlyArray<{ preset: string; seed: number; scale: number }> = [
-  { preset: "Ash Medium", seed: 11, scale: 0.5 },
-  { preset: "Oak Medium", seed: 23, scale: 0.48 },
-  { preset: "Aspen Medium", seed: 37, scale: 0.55 },
+const VARIANTS: ReadonlyArray<{ preset: string; seed: number; heightM: number }> = [
+  { preset: "Ash Medium", seed: 11, heightM: 11 },
+  { preset: "Oak Medium", seed: 23, heightM: 12 },
+  { preset: "Aspen Medium", seed: 37, heightM: 10 },
 ];
 
 /** Trees drawn per variant: the nearest to the camera (three variants: 90 trees, about 1M triangles). */
 export const NEAR_PER_VARIANT = 30;
+export const MAX_TREE_TRIANGLES = 14_000;
 const REPICK_M = 15;
 
 interface Variant {
@@ -25,6 +26,16 @@ interface Variant {
   leaves: THREE.InstancedMesh;
   scale: number;
   triangles: number;
+}
+
+/** The generator's wind shader bypasses instanceMatrix; use standard PBR instancing. */
+export function instancedTreeMaterial(source: THREE.MeshPhongMaterial): THREE.MeshStandardMaterial {
+  if (source.map) source.map.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.MeshStandardMaterial({
+    name: source.name, color: source.color.clone(), map: source.map,
+    normalMap: source.normalMap, aoMap: source.aoMap,
+    side: source.side, alphaTest: source.alphaTest, roughness: 0.9, metalness: 0,
+  });
 }
 
 export class StreetTrees {
@@ -51,15 +62,22 @@ export class StreetTrees {
       tree.loadPreset(v.preset);
       tree.options.seed = v.seed;
       // Lighter than the presets: street trees are seen at 10-150 m, not in close-up.
-      const b = tree.options.branch as unknown as { sections: Record<string, number>; segments: Record<string, number> };
+      const b = tree.options.branch as unknown as { sections: Record<string, number>; segments: Record<string, number>; children: Record<string, number> };
       for (const k of Object.keys(b.sections)) b.sections[k] = Math.max(1, Math.round(b.sections[k]! * 0.6));
       for (const k of Object.keys(b.segments)) b.segments[k] = Math.max(3, Math.round(b.segments[k]! * 0.7));
       const leaves = tree.options.leaves as unknown as { count: number; size: number };
       leaves.count = Math.max(4, Math.round(leaves.count * 0.55));
       leaves.size *= 1.25;
       tree.generate();
+      for (let pass = 0; tree.triangleCount > MAX_TREE_TRIANGLES && pass < 4; pass++) {
+        for (const k of Object.keys(b.children)) b.children[k] = Math.max(1, Math.floor(b.children[k]! * 0.7));
+        leaves.size *= 1.07;
+        tree.generate();
+      }
+      if (tree.triangleCount > MAX_TREE_TRIANGLES) throw new Error(`Tree geometry exceeds ${MAX_TREE_TRIANGLES} triangles`);
+      const height = new THREE.Box3().setFromObject(tree).getSize(new THREE.Vector3()).y;
       const parts = [tree.branchesMesh, tree.leavesMesh].map((m) => {
-        const im = new THREE.InstancedMesh(m.geometry, m.material, capacity);
+        const im = new THREE.InstancedMesh(m.geometry, instancedTreeMaterial(m.material as THREE.MeshPhongMaterial), capacity);
         im.count = 0;
         im.castShadow = shadows;
         im.receiveShadow = shadows;
@@ -68,7 +86,7 @@ export class StreetTrees {
       });
       parts[0]!.name = `showcase:trees:${v.preset}:bark`;
       parts[1]!.name = `showcase:trees:${v.preset}:leaves`;
-      variants.push({ bark: parts[0]!, leaves: parts[1]!, scale: v.scale, triangles: tree.triangleCount });
+      variants.push({ bark: parts[0]!, leaves: parts[1]!, scale: v.heightM / Math.max(height, 0.1), triangles: tree.triangleCount });
     }
     return new StreetTrees(variants, capacity);
   }

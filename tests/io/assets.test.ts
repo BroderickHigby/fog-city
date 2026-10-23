@@ -437,6 +437,7 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
       const opts = { worlds: ["sf"], level: 1, skipVite: true, partMaxBytes: PART_LIMIT };
       const report = await buildWeb({ out: join(dir, "a"), ...opts });
       const index = JSON.parse(readFileSync(join(dir, "a", "assets.index.json"), "utf8")) as WebIndex;
+      expect(readFileSync(join(dir, "a", "models", "ez-tree-license.txt"), "utf8")).toContain("Copyright (c) 2024 Daniel Greenheck");
       expect(index.version).toBe(2);
       const colliderSrc = index.files["tiles/sf/world.colliders.bin"]!.src;
       expect(colliderSrc).toBe(`tiles/sf/world.colliders.bin${ENCODED_SUFFIX}`);

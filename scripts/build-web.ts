@@ -406,6 +406,11 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
   }
 
+  // Third-party notices remain directly readable in the packed distribution.
+  for (const file of walk(modelsDir).filter(p => /-license\.txt$/i.test(p))) {
+    write(join(out, relative(pub, file)), readFileSync(file));
+  }
+
   for (const file of walk(join(pub, "audio")).filter(p => /\.(ogg|mp3|json)$/i.test(p))) {
     single(relative(pub,file).split("\\").join("/"),new Uint8Array(readFileSync(file)));
   }
