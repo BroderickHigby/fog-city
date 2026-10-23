@@ -282,10 +282,10 @@ def paint():
     r = rng(505)
     size = 2.0
     px_m = size / N
-    wear = spectral(r, N, 1.3, lo=3, hi=180)
-    pits = np.clip(spectral(r, N, 0.2, lo=150, hi=500) - 1.1, 0, None)
-    cover = np.clip(0.5 + 0.55 * wear, 0, 1)
-    cover = np.clip((cover - 0.18) / 0.5, 0, 1) * (1 - np.clip(pits * 2, 0, 1))
+    # Mostly sound paint: broad scuffs where tyres cross it (low frequencies only) and a few chips.
+    wear = spectral(r, N, 2.0, lo=2, hi=40)
+    pits = np.clip(spectral(r, N, 0.2, lo=150, hi=500) - 2.2, 0, None)
+    cover = np.clip((0.75 + 0.35 * wear - 0.2) / 0.25, 0, 1) * (1 - np.clip(pits * 3, 0, 1))
     grit = spectral(r, N, 0.4, lo=100, hi=500)
     g = 0.78 * (1 + 0.05 * grit)
     albedo = np.stack([g, g * 0.99, g * 0.96], -1)

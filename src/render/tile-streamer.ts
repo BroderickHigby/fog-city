@@ -71,6 +71,11 @@ export interface StreamerOptions {
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
+  /**
+   * The high tier's street trees (trees.ts): given a tile's street-tree spots, takes the ones it
+   * draws itself and returns the rest, which the tile's props draw as before.
+   */
+  treeSpots?: (trees: readonly Spot[]) => Spot[];
   /** The high tier's raised sidewalks (showcase.ts kerbAt): how far each band stands over the gutter. */
   kerbAt?: GroundFn;
   /** Called with each ground material a tile makes for itself (bores cut out), so it can wear the shared ground's detail. */
@@ -652,7 +657,8 @@ export class TileStreamer {
     const edges = this.roadsByTile.get(rec.id) ?? [];
     if (edges.length > 0) {
       const spots = tilePropSpots(edges, this.clearance, this.propClearance);
-      const props = buildTileProps(spots.lamps, spots.trees, this.opts.drawnGround ?? this.opts.ground, m, this.opts.night);
+      const trees = this.opts.treeSpots ? this.opts.treeSpots(spots.trees) : spots.trees;
+      const props = buildTileProps(spots.lamps, trees, this.opts.drawnGround ?? this.opts.ground, m, this.opts.night);
       for (const o of props.nightOnly) o.visible = this.nightVisible;
       rec.props = props;
       rec.group.add(props.group);

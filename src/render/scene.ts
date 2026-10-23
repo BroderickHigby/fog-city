@@ -31,7 +31,9 @@ import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type G
 import { PostChain } from "./post.ts";
 import { CrowdRig } from "./crowd.ts";
 import { PlayerBodies } from "./player-body.ts";
-import { buildShowcase, kerbAt, KerbLift, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import { StreetTrees } from "./trees.ts";
+import { buildShowcase, inShowcase, kerbAt, KerbLift, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import type { Spot } from "./roads.ts";
 import { sidewalkBandTriangles, sidewalksByTile, type SidewalkGraph } from "./sidewalks.ts";
 
 /** How far from the showcase's centre the camera may be for the Bay to mirror the city. */
@@ -128,6 +130,8 @@ export interface RenderInfo {
     showcase: ShowcaseStats | null;
     /** The animated crowd and the skinned player body are in (else the placeholders draw). */
     characters: { crowd: boolean; player: boolean };
+    /** Street trees the showcase draws with ez-tree (trees.ts). */
+    trees: number;
   };
 }
 
@@ -288,8 +292,12 @@ export class SceneRenderer {
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
-      onReady: (g) => this.prepareShadows(g),
+      onReady: (g) => {
+        this.prepareShadows(g);
+        if (this.features.showcase) this.takeFoliage(g);
+      },
       kerbAt: this.features.showcase ? kerbAt : undefined,
+      treeSpots: this.features.showcase ? (spots) => this.takeTrees(spots) : undefined,
       onGroundMaterial: (gm) => {
         if (!this.features.detail) return;
         if (this.groundDetail) this.groundDetail(gm);
@@ -313,6 +321,15 @@ export class SceneRenderer {
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
     if (this.features.characters) this.loadCharacters(world.assets);
+    if (this.features.showcase) {
+      void StreetTrees.load(this.shadows)
+        .then((t) => {
+          this.trees = t;
+          t.add(this.treesWaiting.splice(0));
+          this.scene.add(t.group);
+        })
+        .catch((err) => console.warn("street trees: tile props keep their trees:", err));
+    }
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -347,6 +364,55 @@ export class SceneRenderer {
     const lift = new KerbLift(sidewalkBandTriangles(lines, this.roadsById));
     this.agents.setLift(lift.at);
     this.actors.setLift(lift.at);
+  }
+
+  /** The showcase's street trees (trees.ts), once generated; spots that arrive before wait. */
+  private trees: StreetTrees | null = null;
+  private readonly treesWaiting: Array<Spot & { y: number }> = [];
+
+  /**
+   * The tiles' park and plaza trees (the glb's instanced "foliage" nodes): inside the showcase they
+   * are hidden and their positions go to the ez-tree instances; elsewhere they stay as they are.
+   */
+  private takeFoliage(group: THREE.Group): void {
+    const mine: Array<Spot & { y: number }> = [];
+    const m = new THREE.Matrix4();
+    const p = new THREE.Vector3();
+    group.traverse((o) => {
+      const im = o as THREE.InstancedMesh;
+      if (!im.isInstancedMesh) return;
+      const mat = Array.isArray(im.material) ? im.material[0] : im.material;
+      if (!/foliage|tree/i.test(`${im.name} ${o.parent?.name ?? ""} ${mat?.name ?? ""}`)) return;
+      let inside = 0;
+      for (let i = 0; i < im.count; i++) {
+        im.getMatrixAt(i, m);
+        p.setFromMatrixPosition(m).applyMatrix4(im.matrixWorld);
+        if (!inShowcase(p.x, p.z)) continue;
+        inside++;
+        const v = (Math.abs(Math.sin(p.x * 12.9898 + p.z * 78.233)) * 43758.5453) % 1;
+        mine.push({ x: p.x, z: p.z, heading: 0, v, y: this.drawnGround(p.x, p.z) });
+      }
+      // A node wholly inside the showcase is hidden; one straddling its edge stays (its trees beyond the edge would vanish).
+      if (inside > 0 && inside === im.count) im.visible = false;
+    });
+    if (mine.length === 0) return;
+    if (this.trees) this.trees.add(mine);
+    else this.treesWaiting.push(...mine);
+  }
+
+  /** The street-tree spots inside the showcase go to the ez-tree instances; the rest stay props. */
+  private takeTrees(spots: readonly Spot[]): Spot[] {
+    const keep: Spot[] = [];
+    const mine: Array<Spot & { y: number }> = [];
+    for (const s of spots) {
+      if (!inShowcase(s.x, s.z)) keep.push(s);
+      else mine.push({ ...s, y: this.drawnGround(s.x, s.z) + kerbAt(s.x, s.z) });
+    }
+    if (mine.length > 0) {
+      if (this.trees) this.trees.add(mine);
+      else this.treesWaiting.push(...mine);
+    }
+    return keep;
   }
 
   /** The high tier's people: the animated crowd and the skinned player body; each keeps the placeholder if its files fail. */
@@ -609,6 +675,7 @@ export class SceneRenderer {
     this.sun.position.set(sx + this.sunDir.x * 800, this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    this.trees?.update(cam.x, cam.z);
     this.landmarks.update(minuteOfDay);
   }
 
@@ -720,6 +787,7 @@ export class SceneRenderer {
       dropped: [...this.governor.dropped],
       showcase: this.showcase?.stats ?? null,
       characters: { ...this.charactersOn },
+      trees: this.trees?.count ?? 0,
     };
     return out;
   }
@@ -773,7 +841,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
-  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false } },
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false }, trees: 0 },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
