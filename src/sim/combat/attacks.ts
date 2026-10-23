@@ -133,7 +133,7 @@ function finish(state: CombatState, attack: PendingAttack, reason: string, cance
 export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: CombatInputs): void {
   const converted = new Set(state.events.filter(event => event.tick === state.tick && event.kind === ATTACK_EVENT.converted).map(event => event.targetId));
   const baseBad = ctx.actors.filter(actor => actor.kind === "robot" && actor.firmware === "bad" && inFidelity(actor, ctx)).length;
-  const cap = Number.isFinite(ctx.conversionCap) ? Math.max(0, Math.floor(ctx.conversionCap!)) : baseBad;
+  const cap = Number.isFinite(ctx.conversionCap) ? Math.max(0, Math.floor(ctx.conversionCap!)) : baseBad * 2;
   const canConvert = (targetId: string): boolean => !converted.has(targetId) && baseBad + converted.size < cap;
   const retained: PendingAttack[] = [];
 
@@ -148,7 +148,7 @@ export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: Comb
       retained.push(attack); continue;
     }
     const pair = pairFor(state, ctx, attack);
-    if (!pair || attack.kind === "phone-hack" && targetState(state, attack.attackerId).lastWaterTick >= attack.startTick ||
+    if (!pair || attack.kind === "phone-hack" && (targetState(state, attack.attackerId).lastDirectWaterTick ?? -1) >= attack.startTick ||
         attack.kind === "forced-update" && !canConvert(attack.targetId)) {
       finish(state, attack, "interrupted", true); continue;
     }

@@ -68,10 +68,16 @@ function aim(player: CombatPlayer, yaw: number|undefined, pitch: number|undefine
 function spawn(state: CombatState, player: CombatPlayer, kind: Projectile["kind"], yaw: number, pitch: number, speed: number, range: number, volume: number, rustRate: number, verticalSpeed?: number): void {
   const cp=dcos(pitch), fx=dsin(yaw), fz=-dcos(yaw);
   const own=state.players[player.id]!;
+  const inheritedSpeed=kind==="cone" && player.mount!=="foot" ? player.speed : 0;
+  const vx=fx*speed*cp+dsin(player.heading)*inheritedSpeed;
+  const vz=fz*speed*cp-dcos(player.heading)*inheritedSpeed;
+  // Cone range describes the throw relative to its moving carrier. Preserve its
+  // flight-time budget after adding the carrier's world-space velocity.
+  const worldRange=inheritedSpeed!==0 ? range*Math.sqrt(vx*vx+vz*vz)/speed : range;
   state.projectiles.push({
     id:state.nextId++,kind,ownerId:player.id,x:player.x,y:player.y+1.2,z:player.z,
-    vx:fx*speed*cp,vy:verticalSpeed ?? dsin(pitch)*speed,vz:fz*speed*cp,
-    distance:0,range,bornTick:state.tick,volume,salt:own.salt,
+    vx,vy:verticalSpeed ?? dsin(pitch)*speed,vz,
+    distance:0,range:worldRange,bornTick:state.tick,volume,salt:own.salt,
     vehicle:player.mount!=="foot",rustRate,
   });
 }
@@ -172,7 +178,7 @@ export function combatInput(input: Readonly<SimInput>): CombatInputs[string] {
 }
 
 /** Null means unrestricted acceleration. Agent lane applies a non-null cap before movement; this function does not mutate its body. */
-export function movementLimit(state:Readonly<CombatState>,actor:CombatActor):{maxSpeed:number|null;scale:number;blind:boolean;canAttack:boolean} {
+export function movementLimit(state:Readonly<CombatState>,actor:Pick<CombatActor,"id"|"playerId">):{maxSpeed:number|null;scale:number;blind:boolean;canAttack:boolean} {
   const target=state.targets[actor.id];
   const canonical=actor.playerId?state.targets[actor.playerId]:undefined;
   if (!target && !canonical) return {maxSpeed:null,scale:1,blind:false,canAttack:true};
@@ -182,6 +188,7 @@ export function movementLimit(state:Readonly<CombatState>,actor:CombatActor):{ma
     const cap=target.pullOverSpeed*clamp((target.pullOverTick-state.tick)/180,0,1);
     maxSpeed=maxSpeed===null?cap:Math.min(maxSpeed,cap);
   }
-  const immobilized=constraints.some(target=>target.phase!=="active" || target.stoppedUntil>state.tick && target.pullOverTick===0);
-  return {maxSpeed:immobilized?0:maxSpeed,scale:immobilized?0:Math.min(...constraints.map(target=>target.slowUntil>state.tick?Math.min(.5,target.movementScale):target.movementScale)),blind:constraints.some(target=>target.blindUntil>state.tick),canAttack:constraints.every(target=>target.phase==="active" && target.blindUntil<=state.tick && target.stoppedUntil<=state.tick && target.distractedUntil<=state.tick)};
+  const decelerating=(target:TargetCombat)=>target.phase==="disabled" && target.pullOverTick>state.tick;
+  const immobilized=constraints.some(target=>target.phase!=="active" && !decelerating(target) || target.stoppedUntil>state.tick && target.pullOverTick===0);
+  return {maxSpeed:immobilized?0:maxSpeed,scale:immobilized?0:Math.min(...constraints.map(target=>decelerating(target)?1:target.slowUntil>state.tick?Math.min(.5,target.movementScale):target.movementScale)),blind:constraints.some(target=>target.blindUntil>state.tick),canAttack:constraints.every(target=>target.phase==="active" && target.blindUntil<=state.tick && target.stoppedUntil<=state.tick && target.distractedUntil<=state.tick)};
 }

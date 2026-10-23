@@ -5,7 +5,8 @@ import type { CombatActor, CombatContext, CombatPlayer, CombatState } from "./ty
 export function sightRange(state:Readonly<CombatState>,ctx:CombatContext,observer:CombatActor,target?:CombatPlayer):number {
   const effect=state.targets[observer.id];
   if (effect && (effect.phase!=="active" || effect.blindUntil>state.tick)) return 0;
-  const fog=(ctx.wave??2)>=3 && Number.isFinite(ctx.fog)?clamp(ctx.fog!,0,1):0;
+  const sample=ctx.fogAt?.(observer.x,observer.z)??ctx.fog;
+  const fog=(ctx.wave??2)>=3 && Number.isFinite(sample)?clamp(sample!,0,1):0;
   const marine=fog>.4 && target?.perks?.includes("marine") ? .5:1;
   return 30*(1-.6*fog)*marine;
 }

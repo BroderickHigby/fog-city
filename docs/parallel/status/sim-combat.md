@@ -96,3 +96,18 @@ Lane 1/2: publish per-location weather, puddles and King-tide salt sources. Lane
 
 ### For the owner to judge
 Draft sim behavior; visible stream, weather and NPC reactions require rendering/agent integration.
+# Reviewed wave-three integration repair — 23 October 2026
+
+Integrated the reviewed wave-three combat head into the current wave-two core and renderer without importing later-wave branches. The combat changes preserve current actor adapters, world footprints and the existing explicit game-system registry.
+
+- Cones thrown from a vehicle inherit its horizontal velocity and retain their relative flight budget. A moving-car versus moving-taxi test now exercises a real projectile hit, the 180-tick deceleration, the temporary stop and release at the 600-tick deadline.
+- Coned taxis clear their stop constraint when it expires. Empty rusted taxis decelerate before remaining disabled instead of stopping instantaneously.
+- Direct water records a separate optional timestamp. Rain and fog still affect rust and drying but do not interrupt a phone hack; direct spray still interrupts. Older saved targets may omit the timestamp.
+- Combat contexts accept an optional spatial `fogAt` function, used at the affected actor's position for rust and sight. The adapter forwards it; the scalar fog value remains a fallback.
+- Forced updates default to twice the local bad-robot count when no explicit cap is supplied. Explicit capacity and fidelity limits remain enforced.
+- Combat wall geometry respects a spanning structure's underside, allowing shots underneath bridges and overhanging structures while retaining facade blocking.
+- Scanner coverage now samples 10,000 scans for each of twenty literal tier/subtlety table entries. A seeded, varied 40-scene crowd test drives real water particles into protected people and animals and verifies they and the robot behind them remain unaffected.
+
+Validation: TypeScript passed. All **247 tests across ten files** passed for the complete combat suite plus the forbidden-API check, with two workers under the shared heavy-job lock. The final result is in `/tmp/fog-combat-review-tests.log`.
+
+Integration still required from the owning lanes: Core/Agents must apply `movementLimit` to physical actor movement, and Core must supply spatial fog samples in its composed provider. The reducer tests are not a claim of live-game movement or a full campaign pass. The new optional timestamp changes a sprayed target's serialized state; the integration owner must account for that in the next simulation-version/golden boundary.
