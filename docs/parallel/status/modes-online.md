@@ -107,3 +107,7 @@ Draft PR body: Add bounded local arenas, ordinary simulated robot objectives and
 The local-playable branch includes `5e8bf5b` as `e7f08eb`: full service-vehicle hull checks, player foot/car blockers, shared pending-spawn clearance and safe deferred retries. This fixes the second Ferry bus overlap found by the canonical Hot Desk probe without bringing in later threat dispatch, flight or Tidy features.
 
 Validation after intake: TypeScript and **8 files / 39 tests** pass, covering service/transit admission, physical van/bus behavior, local playable matches, session isolation, bounded arenas and Crowd rules. Existing real-SF roster and UI validation above remains separate evidence.
+
+Final convergence intake: `c9b4b98` aligns legacy taxi admission with the drawn `ROBOTAXI_BODY`; `bc30b99` sweeps runtime walkers against every vehicle hull; `50e57fd` settles activity rewards before publishing completion. These are included without later feature expansion.
+
+Final branch validation: TypeScript and **5 files / 19 tests** pass for activity reward ordering, local playable/session behavior, runtime walker clearance and service admission. The earlier pre-order contact batch also passed 27 focused tests. This standalone branch lacks the save host, so its activity regression keeps the real delivery producer, immediate wallet/XP settlement, 120 later ticks and duplicate mode-payout rejection; serialized save/restore proof remains in the combined build.
