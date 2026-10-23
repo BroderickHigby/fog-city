@@ -120,11 +120,23 @@ describe("runtime render snapshot", () => {
       foot: { x: 10, y: 1, z: 4, heading: 0, speed: 1.6, sprint: false, dodge: null, vy: 0, grounded: true } };
     previous.players.p1 = { ...current.players.p1, foot: { ...current.players.p1.foot!, x: 8 } };
     const runtime = current.ext.agents as unknown as { runtime: Record<string, unknown> };
-    runtime.runtime.routineOutput = { actorMetadata: { "player:p1": { kind: "robot", robotBody: true, model: "trundle" } } };
+    runtime.runtime.routineOutput = { actorMetadata: { "player:p1": { kind: "robot", robotBody: true, model: "trundle",
+      robotEmote: "wave", robotTells: ["battery-overdraw"] } } };
     const result = runtimeVisualSnapshot(freeze(previous), freeze(current), 0.5);
     expect([...result.playerIdsToHide]).toEqual(["p1"]);
-    expect(result.snapshot.actors).toEqual([expect.objectContaining({ id: "player:p1", kind: "trundle", x: 9, y: 1, z: 4 })]);
+    expect(result.snapshot.actors).toEqual([expect.objectContaining({ id: "player:p1", kind: "trundle", x: 9, y: 1, z: 4,
+      emote: "wave", tells: ["battery-overdraw"] })]);
     expect(result.physicalCount).toBe(0);
+  });
+
+  it("shows the rogue taxi's horn cue only from its authoritative arrival metadata", () => {
+    const taxi = { ...body("rogue:1"), kind: "vehicle" as const, model: "robotaxi" };
+    const current = state(6, [], [taxi]);
+    const runtime = current.ext.agents as unknown as { runtime: Record<string, unknown> };
+    runtime.runtime.routineOutput = { actorMetadata: { "rogue:1": { honking: true } } };
+    expect(runtimeVisualSnapshot(state(5), current, 1).snapshot.actors[0]!.mode).toBe("honk");
+    runtime.runtime.routineOutput = { actorMetadata: { "rogue:1": { honking: false } } };
+    expect(runtimeVisualSnapshot(state(5), current, 1).snapshot.actors[0]!.mode).toBe("idle");
   });
 
   it("attaches one heap to Tidy's cradle and removes the carried puddle", () => {

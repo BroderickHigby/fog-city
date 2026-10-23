@@ -5,7 +5,8 @@ import { bodyDistance, dodgeExtOf, stepDodge, vehicleOfAgent, zoneDistance, type
 import { makeFoot } from "../../../src/sim/foot.ts";
 import { createInitialState } from "../../../src/sim/step.ts";
 import { MAX_CLEARANCE_BODIES, stepAgentRuntimeDodge, type ClearedRuntimeBody } from "../../../src/sim/agents/runtime-clearance.ts";
-import type { RuntimePhysicalBody } from "../../../src/sim/agents/runtime-state.ts";
+import { enableAgentRuntime, type RuntimePhysicalBody } from "../../../src/sim/agents/runtime-state.ts";
+import { agentsRuntimeOf, createAgentRuntimeSystem, type AgentRuntimeData } from "../../../src/sim/agents/runtime-system.ts";
 import { deepFreeze } from "../../helpers.ts";
 import { emptyWorld } from "../fixtures.ts";
 
@@ -54,6 +55,41 @@ describe("runtime bodies in the one final dodge pass", () => {
     const before = state([], [agent(3)]);
     const after = next(before);
     expect(stepAgentRuntimeDodge(world, before, after)).toEqual(stepDodge(world, before, after));
+  });
+
+  it("recaps actual anchor coverage after a real dodge crosses the 300m boundary", () => {
+    const people = [agent(1, 300.1, 0), ...Array.from({ length: 60 }, (_, i) => agent(100 + i, 0, 30)),
+      ...Array.from({ length: 59 }, (_, i) => agent(200 + i, 450, 30))];
+    const initial = enableAgentRuntime(createInitialState(world, 831, ["p", "q"], { x: 0, z: 0, heading: 0 }), { wave: 2 });
+    initial.players.q!.car.x = 600;
+    initial.ext.agents = { nextId: 10_001, list: people };
+    const ready = createAgentRuntimeSystem({ animalLimit: { pigeons: 0, dogs: 0 } }).step({
+      world, previous: initial, state: { ...initial, tick: 1 }, inputs: {}, events: [],
+    });
+    const van = body(10_000, "vehicle", { model: "van", x: 301, previousX: 301,
+      halfLength: 2.6, halfWidth: 1.1, radius: 1.1, height: 2.1 });
+    const ext: AgentsExt & { runtime: AgentRuntimeData } = { ...ready.ext.agents!, runtime: { ...agentsRuntimeOf(ready)!, bodies: [van] } };
+    const before = { ...ready, ext: { ...ready.ext, agents: ext } };
+    const coverage = (value: SimState, x: number): number => value.ext.agents!.list.filter(person =>
+      (person.x - x) * (person.x - x) + person.z * person.z <= 300 * 300).length;
+    expect(coverage(before, 0)).toBe(60);
+    expect(coverage(before, 600)).toBe(60);
+    const snapshot = JSON.stringify(before);
+    const result = stepAgentRuntimeDodge(world, before, next(before));
+    const moved = result.ext.agents!.list.find(person => person.id === 1)!;
+    expect(moved).toBeDefined();
+    expect(moved.x).toBeLessThan(300);
+    expect(moved.dodge?.leap).toBe(true);
+    expect(dodgeExtOf(result).overrides).toBeGreaterThan(0);
+    expect(bodyDistance(asVehicle(van), moved.x, moved.z)).toBeGreaterThanOrEqual(0.3);
+    expect(result.ext.agents!.list).toHaveLength(119);
+    const runtime = agentsRuntimeOf(result)!;
+    for (const anchor of runtime.population.perAnchor) {
+      expect(anchor.count).toBe(coverage(result, anchor.id === "p" ? 0 : 600));
+      expect(anchor.count).toBeLessThanOrEqual(60);
+    }
+    expect(runtime.population.ambientIds).toEqual(result.ext.agents!.list.map(person => person.id));
+    expect(JSON.stringify(before)).toBe(snapshot);
   });
 
   it("uses the full 9m bus and the observed displacement, without any road target", () => {

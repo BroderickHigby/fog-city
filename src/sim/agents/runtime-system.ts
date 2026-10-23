@@ -1,6 +1,7 @@
 import { AGENT_SPEC, agentCircles, agentsOf, type AgentState, type AgentsExt } from "../agents.ts";
 import { DT, sortedIds, type SimState } from "../contract.ts";
 import type { CombatActor } from "../combat-contract.ts";
+import type { JsonObject, JsonValue } from "../extensions.ts";
 import { combatOf, movementLimit } from "../combat/system.ts";
 import { datan2 } from "../dmath.ts";
 import { hash32 } from "../rng.ts";
@@ -15,7 +16,7 @@ import { createSpatialNavigation, stepRuntimeSpatial, type RuntimeAnimal, type R
 import { createFleetState, stepFleet, type FleetDepot, type FleetObstacle, type FleetState } from "./runtime-services.ts";
 import { agentRuntimeSession, runtimeGameMinute, type RuntimePhysicalBody } from "./runtime-state.ts";
 import { MAX_ACTIVE_VANS, SERVICE_REQUEST_RETENTION_TICKS, VAN_RESPONSE_TICKS, type ThreatVanRequest } from "./services.ts";
-import { MAX_AMBIENT_AGENTS, MAX_AMBIENT_PER_ANCHOR, MAX_SIGNIFICANT_AGENTS, planFidelity, type FidelityAnchor } from "./fidelity.ts";
+import { ACTIVE_FIDELITY_M, MAX_AMBIENT_AGENTS, MAX_AMBIENT_PER_ANCHOR, MAX_SIGNIFICANT_AGENTS, planFidelity, type FidelityAnchor } from "./fidelity.ts";
 
 export const MAX_RUNTIME_REQUEST_KEYS = 128;
 export const MAX_RUNTIME_SIGNIFICANT = MAX_SIGNIFICANT_AGENTS;
@@ -256,56 +257,84 @@ function conferenceAt(old: AgentRuntimeData, anchor: FidelityAnchor | null): { a
   return { active: true, multiplier: conference.badRateMultiplier === 1.5 ? 1.5 : 1 };
 }
 
+function inAnchor(point: { x: number; z: number }, anchor: FidelityAnchor): boolean {
+  const radius = Math.max(0, Math.min(ACTIVE_FIDELITY_M, anchor.radiusM ?? ACTIVE_FIDELITY_M));
+  const dx = point.x - anchor.x; const dz = point.z - anchor.z;
+  return dx * dx + dz * dz <= radius * radius;
+}
+
 function population(actors: readonly AgentState[], significant: ReadonlySet<number>, anchors: readonly FidelityAnchor[], old: AgentRuntimeData, tick: number, bad: ReadonlySet<number>, reserved: readonly { x: number; z: number }[] = []): { actors: AgentState[]; badBaselines: RuntimeBadBaseline[] } {
-  const keep = actors.filter((actor) => significant.has(actor.id));
-  const badBaselines: RuntimeBadBaseline[] = [];
-  const stable = new Set(old.population?.ambientIds ?? []);
+  const stable = new Set(old.population.ambientIds);
   const rank = (a: AgentState, b: AgentState): number => Number(stable.has(b.id)) - Number(stable.has(a.id)) || a.id - b.id;
-  let count = 0;
-  const pools = new Map<string, AgentState[]>();
-  for (const actor of actors) {
-    if (significant.has(actor.id) || planFidelity({ id: String(actor.id), x: actor.x, z: actor.z, significant: false }, anchors, tick).tier === "despawn") continue;
-    let nearest = anchors[0]; let nearestDistance = Infinity;
-    for (const anchor of anchors) {
-      const distance = (actor.x - anchor.x) * (actor.x - anchor.x) + (actor.z - anchor.z) * (actor.z - anchor.z);
-      if (distance < nearestDistance) { nearest = anchor; nearestDistance = distance; }
+  const candidates = actors.filter(actor => !significant.has(actor.id) && planFidelity({ id: String(actor.id), x: actor.x, z: actor.z, significant: false }, anchors, tick).tier !== "despawn").sort(rank);
+  const coverage = new Map(candidates.map(actor => [actor.id, anchors.map((anchor, index) => inAnchor(actor, anchor) ? index : -1).filter(index => index >= 0)]));
+  const owners = new Map(candidates.map(actor => [actor.id, nearestAnchor(actor, anchors)!.id]));
+  const counts = anchors.map(anchor => reserved.filter(point => inAnchor(point, anchor)).length);
+  const selected = new Map<number, AgentState>();
+  const hasRoom = (actor: AgentState): boolean => coverage.get(actor.id)!.every(index => counts[index]! < MAX_AMBIENT_PER_ANCHOR);
+  const add = (actor: AgentState): void => {
+    if (selected.has(actor.id) || selected.size + reserved.length >= MAX_AMBIENT_AGENTS || !hasRoom(actor)) return;
+    selected.set(actor.id, actor);
+    for (const index of coverage.get(actor.id)!) counts[index] = counts[index]! + 1;
+  };
+  // Match fidelity's every-covering-anchor admission, retaining established IDs first.
+  // Pair robots and people so two formerly separate crowds keep their mix on overlap.
+  for (const existing of [true, false]) {
+    const robots = candidates.filter(actor => stable.has(actor.id) === existing && actor.kind !== "person");
+    const people = candidates.filter(actor => stable.has(actor.id) === existing && actor.kind === "person");
+    for (let index = 0; index < Math.max(robots.length, people.length); index++) {
+      if (robots[index]) add(robots[index]!);
+      if (people[index]) add(people[index]!);
     }
-    if (!nearest) continue;
-    const pool = pools.get(nearest.id) ?? [];
-    pool.push(actor); pools.set(nearest.id, pool);
   }
+  const badBaselines: RuntimeBadBaseline[] = [];
+  const changes: { id: string; wanted: number; raw: number }[] = [];
   for (const anchor of anchors) {
-    const pool = pools.get(anchor.id) ?? [];
-    const robots = pool.filter((actor) => actor.kind !== "person").sort(rank);
-    const people = pool.filter((actor) => actor.kind === "person").sort(rank);
-    const reservedHere = reserved.filter((point) => nearestAnchor(point, anchors)?.id === anchor.id).length;
-    const capacity = Math.max(0, Math.min(MAX_AMBIENT_PER_ANCHOR - reservedHere, MAX_AMBIENT_AGENTS - count - reserved.length));
-    const robotSlots = Math.min(robots.length, Math.max(Math.ceil(capacity / 2), capacity - people.length));
+    const robots = [...selected.values()].filter(actor => owners.get(actor.id) === anchor.id && actor.kind !== "person");
     const conference = conferenceAt(old, anchor);
-    const priorBaseline = old.population.badBaselines?.find((item) => item.id === anchor.id);
-    const leavingConference = priorBaseline?.boosted === true && conference.multiplier === 1;
-    const baseline = (conference.active || leavingConference) && priorBaseline && priorBaseline.slots > 0 ? Math.round(priorBaseline.count * robotSlots / priorBaseline.slots) : robots.slice(0, robotSlots).filter((actor) => bad.has(actor.id)).length;
-    badBaselines.push({ id: anchor.id, slots: robotSlots, count: baseline, boosted: conference.multiplier > 1 });
-    let chosen: AgentState[];
-    if (conference.multiplier > 1 || leavingConference) {
-      const badPool = robots.filter((actor) => bad.has(actor.id));
-      const goodPool = robots.filter((actor) => !bad.has(actor.id));
-      const target = Math.min(robotSlots, badPool.length, Math.ceil(baseline * conference.multiplier));
-      chosen = badPool.splice(0, target);
-      chosen.push(...goodPool.splice(0, robotSlots - chosen.length));
-      chosen.push(...badPool.splice(0, robotSlots - chosen.length));
-    } else chosen = robots.slice(0, robotSlots);
-    chosen.push(...people.splice(0, capacity - chosen.length));
-    keep.push(...chosen); count += chosen.length;
+    const prior = old.population.badBaselines?.find(value => value.id === anchor.id);
+    const preserve = conference.active || prior?.boosted === true;
+    const baseline = Math.min(robots.length, preserve && prior && prior.slots > 0 ? Math.round(prior.count * robots.length / prior.slots) : robots.filter(actor => bad.has(actor.id)).length);
+    badBaselines.push({ id: anchor.id, slots: robots.length, count: baseline, boosted: conference.multiplier > 1 });
+    if (preserve) {
+      const raw = Math.min(robots.length, baseline * conference.multiplier);
+      changes.push({ id: anchor.id, wanted: Math.floor(raw), raw });
+    }
   }
-  return { actors: keep.sort((a, b) => a.id - b.id), badBaselines };
+  // Distribute fractional targets once across owners, avoiding 1.5x rounding inflation.
+  let extra = Math.ceil(changes.reduce((sum, change) => sum + change.raw, 0)) - changes.reduce((sum, change) => sum + change.wanted, 0);
+  for (const change of [...changes].sort((a, b) => (b.raw - b.wanted) - (a.raw - a.wanted) || compare(a.id, b.id))) if (extra > 0 && change.wanted < change.raw) { change.wanted++; extra--; }
+  for (const change of changes) {
+    const robots = [...selected.values()].filter(actor => owners.get(actor.id) === change.id && actor.kind !== "person");
+    const present = robots.filter(actor => bad.has(actor.id)).length;
+    if (present === change.wanted) continue;
+    const needBad = present < change.wanted;
+    const replacements = candidates.filter(actor => owners.get(actor.id) === change.id && actor.kind !== "person" && bad.has(actor.id) === needBad && !selected.has(actor.id));
+    const victims = robots.filter(actor => bad.has(actor.id) !== needBad).sort((a, b) => rank(b, a));
+    let remaining = Math.abs(change.wanted - present);
+    for (const replacement of replacements) {
+      if (remaining === 0) break;
+      for (let index = 0; index < victims.length; index++) {
+        const victim = victims[index]!;
+        for (const covered of coverage.get(victim.id)!) counts[covered] = counts[covered]! - 1;
+        if (hasRoom(replacement)) {
+          selected.delete(victim.id); selected.set(replacement.id, replacement);
+          for (const covered of coverage.get(replacement.id)!) counts[covered] = counts[covered]! + 1;
+          victims.splice(index, 1); remaining--; break;
+        }
+        for (const covered of coverage.get(victim.id)!) counts[covered] = counts[covered]! + 1;
+      }
+    }
+  }
+  return { actors: [...actors.filter(actor => significant.has(actor.id)), ...selected.values()].sort((a, b) => a.id - b.id), badBaselines };
 }
 
 function nearestAnchor(point: { x: number; z: number }, anchors: readonly FidelityAnchor[]): FidelityAnchor | null {
-  let nearest: FidelityAnchor | null = null; let best = 300 * 300;
+  let nearest: FidelityAnchor | null = null; let best = Infinity;
   for (const anchor of anchors) {
+    if (!inAnchor(point, anchor)) continue;
     const distance = (point.x - anchor.x) * (point.x - anchor.x) + (point.z - anchor.z) * (point.z - anchor.z);
-    if (distance < best || (distance === best && nearest === null)) { nearest = anchor; best = distance; }
+    if (distance < best) { nearest = anchor; best = distance; }
   }
   return nearest;
 }
@@ -395,7 +424,11 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
       ...(options.animalLimit ? { animalLimit: options.animalLimit } : {}) });
     const originalSpeeds = new Map(list.map((actor) => [actor.id, actor.vmax]));
     const buses = fleet.actors.filter((actor) => actor.kind === "bus");
-    const selected = population(spatial.actors.map((actor) => ({ ...actor, vmax: originalSpeeds.get(actor.id) ?? actor.vmax })), significant, anchors, old, context.state.tick, bad, [...spatial.animals, ...buses]);
+    const reservedAnimals = spatial.animals.map((animal) => {
+      const body = previousBodies.get(animal.id);
+      return body?.dodge ? { ...animal, x: body.x, z: body.z } : animal;
+    });
+    const selected = population(spatial.actors.map((actor) => ({ ...actor, vmax: originalSpeeds.get(actor.id) ?? actor.vmax })), significant, anchors, old, context.state.tick, bad, [...reservedAnimals, ...buses]);
     const finalActors = selected.actors;
     const finalIds = new Set(finalActors.map((actor) => actor.id));
     let nextId = fleet.nextActorId;
@@ -423,7 +456,7 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
     const actorIds = finalIds;
     const ambient = finalActors.filter((actor) => !significant.has(actor.id));
     const ambientCount = ambient.length + animals.length + buses.length;
-    const perAnchor = anchors.map((anchor) => ({ id: anchor.id, count: [...ambient, ...animals, ...buses].filter((point) => nearestAnchor(point, anchors)?.id === anchor.id).length }));
+    const perAnchor = anchors.map((anchor) => ({ id: anchor.id, count: [...ambient, ...animals, ...buses].filter((point) => inAnchor(point, anchor)).length }));
     const runtime: AgentRuntimeData = { ...old, version: 1, tick: context.state.tick, spatial: { ...spatial.state, walkers: spatial.state.walkers.filter((track) => finalIds.has(track.id)), animals }, fleet: { ...fleet.state, nextActorId: nextId }, bodies, animalIds,
       requests: requestData.keys, nextRequestId: requestData.nextId, requestTickFloor: requestData.floor,
       activeRequestKeys,
@@ -437,6 +470,75 @@ export function createAgentRuntimeSystem(options: AgentRuntimeOptions = {}): Sim
     const ext: RuntimeAgentsExt = { ...current, nextId, list: finalActors, runtime };
     return { ...context.state, ext: { ...context.state.ext, agents: ext } };
   } };
+}
+
+/** Recheck actual final poses after shared dodge; significant actors are never trimmed. */
+export function enforceAgentRuntimePopulation(state: Readonly<SimState>): SimState {
+  if (!agentRuntimeSession(state)) return state as SimState;
+  const old = agentsRuntimeOf(state);
+  if (!old) return state as SimState;
+  const actors = agentsOf(state);
+  const actorIds = new Set(actors.map(actor => actor.id));
+  const robotState = record(state.ext.robots);
+  const previousSignificant = new Set(old.significantAgentIds);
+  const extraSignificant = old.population.extraSignificant ?? 0;
+  const significant = new Set([...previousSignificant, ...numbers(robotState?.significantAgentIds), ...numbers(robotState?.robotSignificantAgentIds)].filter(id => previousSignificant.has(id) || actorIds.has(id)));
+  const anchors = sortedIds(state.players).map(id => {
+    const player = state.players[id]!; const point = player.mode === "foot" && player.foot ? player.foot : player.car;
+    return { id, x: point.x, z: point.z };
+  });
+  const byBody = new Map(old.bodies.map(body => [body.id, body]));
+  let animals = old.spatial.animals.map(animal => {
+    const body = byBody.get(animal.id);
+    return body ? { ...animal, x: body.x, y: body.y, z: body.z, heading: body.heading, speed: body.speed } : animal;
+  });
+  const buses = old.bodies.filter(body => body.model === "bus");
+  const bad = badRobots(actors, state);
+  let ambient = actors.filter(actor => !significant.has(actor.id));
+  const occupied = [...ambient, ...animals, ...buses];
+  const overflow = occupied.length > MAX_AMBIENT_AGENTS || anchors.some(anchor => occupied.filter(point => inAnchor(point, anchor)).length > MAX_AMBIENT_PER_ANCHOR);
+  const selection = overflow ? population(actors, significant, anchors, old, state.tick, bad, [...animals, ...buses]) : { actors: [...actors], badBaselines: old.population.badBaselines };
+  const retained = new Set(selection.actors.map(actor => actor.id));
+  const removed = new Set(actors.filter(actor => !retained.has(actor.id)).map(actor => actor.id));
+  animals = animals.filter(animal => animal.ownerId === null || retained.has(animal.ownerId));
+  const animalKeys = new Set(animals.map(animal => animal.id));
+  const oldAnimalKeys = new Set(old.animalIds.map(animal => animal.key));
+  const removedNames = new Set([...removed].map(id => `agent:${id}`));
+  for (const id of oldAnimalKeys) if (!animalKeys.has(id)) removedNames.add(id);
+  ambient = selection.actors.filter(actor => !significant.has(actor.id));
+  const total = ambient.length + animals.length + buses.length;
+  const metadata = record(record(old.routineOutput)?.actorMetadata);
+  let routineOutput = old.routineOutput;
+  if (metadata && removedNames.size > 0) {
+    const nextMetadata: Record<string, unknown> = {};
+    for (const id of sortedIds(metadata)) if (!removedNames.has(id)) nextMetadata[id] = metadata[id];
+    routineOutput = { ...record(old.routineOutput), actorMetadata: nextMetadata };
+  }
+  const runtime: AgentRuntimeData = { ...old, bodies: old.bodies.filter(body => !oldAnimalKeys.has(body.id) || animalKeys.has(body.id)),
+    spatial: { ...old.spatial, walkers: old.spatial.walkers.filter(walker => retained.has(walker.id)), animals },
+    animalIds: old.animalIds.filter(animal => animalKeys.has(animal.key)),
+    significantAgentIds: [...significant].sort((a, b) => a - b), lanyardPersonIds: old.lanyardPersonIds.filter(id => retained.has(id)),
+    population: { ...old.population, ambient: total, significant: significant.size + extraSignificant,
+      robots: ambient.filter(actor => actor.kind !== "person").length + buses.length, people: ambient.filter(actor => actor.kind === "person").length,
+      badRobots: ambient.filter(actor => actor.kind !== "person" && bad.has(actor.id)).length, ambientIds: ambient.map(actor => actor.id),
+      perAnchor: anchors.map(anchor => ({ id: anchor.id, count: [...ambient, ...animals, ...buses].filter(point => inAnchor(point, anchor)).length })), badBaselines: selection.badBaselines },
+    diagnostics: [...old.diagnostics.filter(value => !value.startsWith("population:ambient=")), `population:ambient=${total}:significant=${significant.size + extraSignificant}`],
+    ...(routineOutput === undefined ? {} : { routineOutput }) };
+  const robots: JsonObject = { ...state.ext.robots! };
+  if (removedNames.size > 0) {
+    const keep = (value: JsonValue): boolean => {
+      const entry = record(value);
+      if (!entry) return true;
+      if (typeof entry.agentId === "number" && removed.has(entry.agentId)) return false;
+      const id = typeof entry.actorId === "string" ? entry.actorId : typeof entry.id === "string" ? entry.id : "";
+      return !removedNames.has(id);
+    };
+    for (const key of ["actors", "baselines", "metadata", "locomotion"]) if (Array.isArray(robots[key])) robots[key] = (robots[key] as JsonValue[]).filter(keep);
+    const brain = robots.brain;
+    if (brain !== null && typeof brain === "object" && !Array.isArray(brain) && Array.isArray(brain.robots)) robots.brain = { ...brain, robots: brain.robots.filter(keep) };
+  }
+  const agents: RuntimeAgentsExt = { ...state.ext.agents!, list: selection.actors, runtime };
+  return { ...state, ext: { ...state.ext, robots, agents } };
 }
 
 export const agentRuntimeSystem = createAgentRuntimeSystem();

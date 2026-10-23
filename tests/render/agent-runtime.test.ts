@@ -21,16 +21,40 @@ describe("runtime agent visuals", () => {
     render.dispose();
   });
 
-  it("pools each rigid part across actors and reuses buffers on later frames", () => {
+  it("pools one animated draw across actors and reuses buffers on later frames", () => {
     const render = createRuntimeAgentRenderer(new THREE.Scene());
     const actors = Array.from({ length: 30 }, (_, n) => actor(`dog:${n}`, "dog", n));
     render.update({ actors }, 10);
     const before = [...render.group.children];
     expect(render.info().drawn).toBe(30);
-    expect(render.info().drawCalls).toBe(5);
+    expect(render.info().drawCalls).toBe(1);
     render.update({ actors }, 20);
     expect(render.group.children).toEqual(before);
     expect(meshes(render.group).every(mesh => mesh.count === 30)).toBe(true);
+    render.dispose();
+  });
+
+  it("preserves independent gaits and flight state inside a single shared animated draw", () => {
+    const render = createRuntimeAgentRenderer(new THREE.Scene());
+    render.update({ actors: [{ ...actor("bird:ground", "pigeon"), speed: 0 }, { ...actor("bird:air", "pigeon"), speed: 2, mode: "fly" }] }, 30);
+    expect(render.info()).toMatchObject({ drawn: 2, drawCalls: 1 });
+    const geometry = meshes(render.group)[0]!.geometry, rig = geometry.getAttribute("fcRig");
+    expect(new Set([rig.getW(0), rig.getW(1)])).toEqual(new Set([0, 1]));
+    expect(new Set([rig.getY(0), rig.getY(1)])).toEqual(new Set([0, 1]));
+    const joints = geometry.getAttribute("fcJoint");
+    expect(new Set(Array.from({ length: joints.count }, (_, index) => joints.getW(index)))).toEqual(new Set([0, 3, 4]));
+    render.dispose();
+  });
+
+  it("renders controlled-robot wave joints and battery tells without extra draws", () => {
+    const render = createRuntimeAgentRenderer(new THREE.Scene());
+    render.update({ actors: [{ ...actor("player:robot", "footman"), emote: "wave", tells: ["battery-overdraw"] }] }, 30);
+    expect(render.info().drawCalls).toBe(1);
+    const geometry = meshes(render.group)[0]!.geometry;
+    expect(geometry.getAttribute("fcGesture").getX(0)).toBe(1);
+    expect(geometry.getAttribute("fcCue").getY(0)).toBeGreaterThan(0);
+    const joints = geometry.getAttribute("fcJoint");
+    expect(new Set(Array.from({ length: joints.count }, (_, index) => joints.getW(index)))).toEqual(new Set([0, 1, 2, 8, 9]));
     render.dispose();
   });
 
@@ -51,6 +75,16 @@ describe("runtime agent visuals", () => {
     render.update({ actors: [actor("bus", "bus", 5000)], viewer: { x: 0, z: 0 } }, 0);
     expect(render.info().drawn).toBe(0);
     expect(meshes(render.group).every(mesh => !mesh.visible)).toBe(true);
+    render.dispose();
+  });
+
+  it("batches distant rigid models into one rest-pose draw per kind", () => {
+    const render = createRuntimeAgentRenderer(new THREE.Scene());
+    const kinds: RuntimeVisualKind[] = ["dog", "bus", "van", "robotaxi", "footman", "sign-spinner", "walker"];
+    render.update({ actors: kinds.flatMap(kind => Array.from({ length: 20 }, (_, index) => actor(`${kind}:${index}`, kind, 350))),
+      viewer: { x: 0, z: 0 } }, 0);
+    expect(render.info()).toMatchObject({ drawn: 140, near: 0, drawCalls: kinds.length });
+    expect(meshes(render.group).filter(mesh => mesh.visible).every(mesh => mesh.count === 20)).toBe(true);
     render.dispose();
   });
 
@@ -156,8 +190,8 @@ describe("runtime agent visuals", () => {
     const pixels = texture.image.data;
     if (pixels === null) throw new Error("Runtime livery has no pixel data");
     expect(pixels.length).toBe(2048 * RUNTIME_LIVERY_HEIGHT * 4);
-    const x = Math.round(2048 * 0.4), y = Math.round(RUNTIME_LIVERY_HEIGHT * (1 - 0.68));
-    expect(Array.from(pixels.slice((y * 2048 + x) * 4, (y * 2048 + x) * 4 + 4))).toEqual([250, 250, 250, 255]);
+    const x = 112, y = 100; // interior of the first original vector-letter stroke
+    expect(Array.from(pixels.slice((y * 2048 + x) * 4, (y * 2048 + x) * 4 + 4))).toEqual([238, 243, 236, 255]);
     expect(sourceMaterial.map).toBeNull();
     render.dispose(); geometry.dispose(); sourceMaterial.dispose();
   });
@@ -177,11 +211,25 @@ describe("runtime agent visuals", () => {
     const actors = Object.freeze([Object.freeze({ ...actor("bird", "pigeon"), mode: "fly" })]);
     const snapshot = Object.freeze({ actors });
     render.update(snapshot, 0);
-    const initial = meshes(render.group).map(mesh => Array.from(mesh.instanceMatrix.array));
+    const part = meshes(render.group)[0]!, material = part.material as THREE.Material;
+    const library = THREE.ShaderLib.standard;
+    const shader = { uniforms: THREE.UniformsUtils.clone(library.uniforms), vertexShader: library.vertexShader,
+      fragmentShader: library.fragmentShader, defines: {} } as THREE.WebGLProgramParametersWithUniforms;
+    material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
+    // The shared draw keeps base matrices stable; the actual bound shader uniform advances
+    // the independent wing joints using each instance's phase and flight flag.
+    const time = shader.uniforms.fcRuntimeTime!;
+    expect(shader.vertexShader).toContain("sin(fcRuntimeTime * 28.0 + fcRig.x)");
+    expect(part.geometry.getAttribute("fcRig").getW(0)).toBe(1);
+    const animationState = () => ({ time: time.value as number,
+      matrices: meshes(render.group).map(mesh => Array.from(mesh.instanceMatrix.array)),
+      instances: meshes(render.group).map(mesh => Array.from(mesh.geometry.getAttribute("fcRig").array)) });
+    const initial = animationState();
     render.update(snapshot, 10);
-    expect(meshes(render.group).map(mesh => Array.from(mesh.instanceMatrix.array))).not.toEqual(initial);
+    expect(time.value).toBe(10 / 60);
+    expect(animationState()).not.toEqual(initial);
     render.update(snapshot, 0);
-    expect(meshes(render.group).map(mesh => Array.from(mesh.instanceMatrix.array))).toEqual(initial);
+    expect(animationState()).toEqual(initial);
     expect(actors[0]!.x).toBe(0);
     render.dispose(); render.dispose();
     expect(scene.children).toHaveLength(0);

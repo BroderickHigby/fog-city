@@ -75,8 +75,10 @@ export interface RenderInfo {
   agentsNear: number;
   /** Agents in the sim state the renderer was given. */
   agentsTotal: number;
-  /** Draw calls the agents took last frame. */
+  /** Combined legacy and runtime agent draw calls, including runtime decorations. */
   agentDrawCalls: number;
+  /** Legacy ambient agent layer only; retains its independent instancing budget. */
+  legacyAgentDrawCalls?: number;
   /** Agents drawn in a dodge pose last frame (diving, leaping, getting up, skidding). */
   agentsDodging: number;
   /** Agent kinds drawn from their model files (the rest use box stand-ins). */
@@ -466,6 +468,7 @@ export class SceneRenderer {
     out.agentsNear = a.near + runtime.bodiesNear;
     out.agentsTotal = this.sim?.curr.ext.agents?.list.length ?? a.total;
     out.agentDrawCalls = a.drawCalls + runtime.drawCalls;
+    out.legacyAgentDrawCalls = a.drawCalls;
     out.agentsDodging = a.dodging + this.runtimeDodging;
     out.agentModels = a.models;
     out.runtimeAgents = runtime.bodiesDrawn;
@@ -528,6 +531,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   agentsNear: 0,
   agentsTotal: 0,
   agentDrawCalls: 0,
+  legacyAgentDrawCalls: 0,
   agentsDodging: 0,
   agentModels: [],
   runtimeAgents: 0,

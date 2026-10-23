@@ -2,6 +2,10 @@ import * as THREE from "three";
 import { agentUniforms, mergePacked, packedMaterial, packGeometry, type PackedSurface } from "./agent-packing.ts";
 import { channelRatio, lightChannel } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
+import { mergeRuntimeRestPose, packAuthoredRuntimeParts } from "./runtime-packing.ts";
+import { installRuntimeRigging, mergeRuntimeAnimatedParts } from "./runtime-rigging.ts";
+import { runtimeLiveryPixels } from "./runtime-livery.ts";
+export { RUNTIME_LIVERY_WIDTH, RUNTIME_LIVERY_HEIGHT, RUNTIME_LIVERY_COPY, runtimeLiveryPixels } from "./runtime-livery.ts";
 
 /** Runtime rendering consumes copies of poses; it never reads or advances a simulation. */
 export interface RuntimeVisualActor {
@@ -20,6 +24,8 @@ export interface RuntimeVisualActor {
   readonly visible?: boolean;
   readonly speed?: number;
   readonly scale?: number;
+  readonly emote?: string;
+  readonly tells?: readonly string[];
 }
 
 export interface RuntimeVisualSnapshot {
@@ -66,7 +72,7 @@ export interface RuntimeAgentRenderOptions {
 }
 
 type Vec = readonly [number, number, number];
-type Animation = "fixed" | "left-leg" | "right-leg" | "left-wing" | "right-wing" | "rotor" | "wheel" | "sign";
+type Animation = "fixed" | "left-leg" | "right-leg" | "left-wing" | "right-wing" | "rotor" | "wheel" | "sign" | "left-arm" | "right-arm";
 interface Part {
   geometry: THREE.BufferGeometry; pivot: Vec; animation: Animation;
   rest?: THREE.Matrix4; material?: THREE.Material | THREE.Material[]; draws?: number;
@@ -205,11 +211,12 @@ function robot(kind: "footman" | "trundle" | "patrol" | "tidy" | "sign-spinner",
     .round([0, h - 0.4, 0], [0.39, 0.19, 0.3], DARK);
   if (!low) {
     for (const s of [-1, 1]) {
-      b.round([s * 0.31, h + 0.17, 0], [0.2, 0.2, 0.2], STEEL)
+      b.part([s * 0.31, h + 0.17, 0], s < 0 ? "left-arm" : "right-arm")
+        .round([s * 0.31, h + 0.17, 0], [0.2, 0.2, 0.2], STEEL)
         .cylinder([s * 0.34, h - 0.1, 0], [0.13, 0.44, 0.13], SHELL)
         .round([s * 0.34, h - 0.35, -0.03], [0.14, 0.14, 0.14], DARK);
     }
-    b.box([0, h, 0.23], [0.36, 0.48, 0.16], DARK);
+    b.part().box([0, h, 0.23], [0.36, 0.48, 0.16], DARK);
   }
   for (const s of [-1, 1]) {
     b.part([s * 0.14, h - 0.38, 0], s < 0 ? "left-leg" : "right-leg")
@@ -430,7 +437,7 @@ function canonicalKind(kind: string): RuntimeVisualKind | null {
   }
 }
 
-interface BatchPart extends Part { mesh: THREE.InstancedMesh; cues: THREE.InstancedBufferAttribute; triangles: number }
+interface BatchPart extends Part { mesh: THREE.InstancedMesh; cues: THREE.InstancedBufferAttribute; rig: THREE.InstancedBufferAttribute; gesture: THREE.InstancedBufferAttribute; triangles: number }
 interface Batch { model: Model; parts: BatchPart[]; count: number; kind: RuntimeVisualKind; low: boolean; source: "file" | "procedural" }
 
 const FILE_MODELS: Partial<Record<RuntimeVisualKind, string>> = {
@@ -438,35 +445,9 @@ const FILE_MODELS: Partial<Record<RuntimeVisualKind, string>> = {
   pigeon: "models/pigeon.glb", robotaxi: "models/robotaxi.glb",
 };
 
-export const RUNTIME_LIVERY_WIDTH = 2048;
-export const RUNTIME_LIVERY_HEIGHT = Math.round(RUNTIME_LIVERY_WIDTH / (4.22 / 0.74));
-const LIVERY_CIRCLES = [[0.11, 0.52, 0.36, 1, 0.85, 0.35], [0.17, 0.40, 0.22, 1, 0.45, 0.3]] as const;
-const LIVERY_BARS = [[0.62, 0.74, 0.86], [0.42, 0.50, 0.74], [0.26, 0.33, 0.66]] as const;
-
-/** Re-render the source's abstract circles/bars at native near-view resolution. */
-export function runtimeLiveryPixels(): { width: number; height: number; data: Uint8Array } {
-  const width = RUNTIME_LIVERY_WIDTH, height = RUNTIME_LIVERY_HEIGHT;
-  const data = new Uint8Array(width * height * 4);
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    const u = x / width, v = 1 - y / height;
-    let r = 0.12 + 0.55 * u, g = 0.20 + 0.35 * (1 - u) + 0.1 * v, b = 0.55 + 0.35 * v;
-    for (const [cx, cy, radius, cr, cg, cb] of LIVERY_CIRCLES) {
-      if (((u - cx) * width / height) ** 2 + (v - cy) ** 2 < radius * radius) { r = cr; g = cg; b = cb; }
-    }
-    for (const [y0, y1, x1] of LIVERY_BARS) {
-      if (u > 0.30 && u < x1 && v > y0 && v < y1) r = g = b = 0.98;
-    }
-    const offset = (y * width + x) * 4;
-    data[offset] = Math.round(r * 255); data[offset + 1] = Math.round(g * 255);
-    data[offset + 2] = Math.round(b * 255); data[offset + 3] = 255;
-  }
-  return { width, height, data };
-}
-
-/** Share loaded vertex buffers/textures, retaining each authored mesh's material and pivot. */
+/** Preserve authored geometry while batching compatible surfaces at their animated joints. */
 function authoredModel(root: THREE.Object3D, kind: RuntimeVisualKind, materials: Set<THREE.Material>, livery: () => THREE.Texture): Model {
-  root.updateMatrixWorld(true);
-  const inverse = root.matrixWorld.clone().invert(), parts: Part[] = [], cloned = new Map<THREE.Material, THREE.Material>();
+  const cloned = new Map<THREE.Material, THREE.Material>();
   const material = (source: THREE.Material): THREE.Material => {
     const existing = cloned.get(source); if (existing) return existing;
     const copy = source.clone();
@@ -475,27 +456,9 @@ function authoredModel(root: THREE.Object3D, kind: RuntimeVisualKind, materials:
     }
     cloned.set(source, copy); materials.add(copy); return copy;
   };
-  root.traverse(object => {
-    const source = object as THREE.Mesh;
-    if (!source.isMesh || !source.geometry?.getAttribute("position")) return;
-    if (kind === "dog" && /leash/i.test(source.name)) return; // the live owner-to-collar line replaces the authored rest-pose leash
-    const geometry = new THREE.BufferGeometry();
-    for (const [name, attribute] of Object.entries(source.geometry.attributes)) geometry.setAttribute(name, attribute);
-    geometry.setIndex(source.geometry.index);
-    for (const group of source.geometry.groups) geometry.addGroup(group.start, group.count, group.materialIndex);
-    geometry.boundingBox = source.geometry.boundingBox?.clone() ?? null;
-    geometry.boundingSphere = source.geometry.boundingSphere?.clone() ?? null;
-    const transform = inverse.clone().multiply(source.matrixWorld);
-    let wheel: THREE.Object3D | null = null;
-    for (let parent: THREE.Object3D | null = source; parent && parent !== root; parent = parent.parent) {
-      if (/^wheel_/i.test(parent.name)) { wheel = parent; break; }
-    }
-    const point = wheel ? new THREE.Vector3().setFromMatrixPosition(inverse.clone().multiply(wheel.matrixWorld)) : new THREE.Vector3();
-    const rest = new THREE.Matrix4().makeTranslation(-point.x, -point.y, -point.z).multiply(transform);
-    const mats = Array.isArray(source.material) ? source.material.map(material) : material(source.material);
-    parts.push({ geometry, pivot: [point.x, point.y, point.z], animation: wheel ? "wheel" : "fixed", rest,
-      material: mats, draws: Array.isArray(mats) ? Math.max(1, geometry.groups.length) : 1 });
-  });
+  const parts = packAuthoredRuntimeParts(root, { material,
+    // The live owner-to-collar line replaces the authored rest-pose leash.
+    omit: source => kind === "dog" && /leash/i.test(source.name) });
   return { parts, scale: 1, detailDistance: kind === "dog" || kind === "pigeon" ? 100 : 190,
     visibilityDistance: kind === "dog" || kind === "pigeon" ? 650 : 1000 };
 }
@@ -507,11 +470,14 @@ function idPhase(id: string): number {
   return (h % 4096) / 4096 * Math.PI * 2;
 }
 
-/** All transforms are local scratch state; this module has no clock, timers, network or asset requests. */
+/** All transforms are local scratch state; ticks and optional asset access come from the caller. */
 export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, options: RuntimeAgentRenderOptions = {}): RuntimeAgentRenderer {
   const capacity = Math.max(1, Math.min(2048, Math.floor(Number.isFinite(options.maxActors) ? options.maxActors! : 256)));
   const group = new THREE.Group(); group.name = "runtime-agents"; scene.add(group);
-  const material = packedMaterial(false), batches = new Map<string, Batch>();
+  const material = packedMaterial(false), batches = new Map<string, Batch>(), clock = { value: 0 };
+  const depthMaterial = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  const distanceMaterial = new THREE.MeshDistanceMaterial();
+  for (const pass of [material, depthMaterial, distanceMaterial]) installRuntimeRigging(pass, clock);
   const authored = new Map<RuntimeVisualKind, THREE.Object3D>(), requested = new Set<RuntimeVisualKind>(), authoredMaterials = new Set<THREE.Material>();
   let liveryTexture: THREE.DataTexture | null = null;
   const base = new THREE.Matrix4(), local = new THREE.Matrix4(), matrix = new THREE.Matrix4();
@@ -554,16 +520,29 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
     const candidate = loaded ? authoredModel(loaded, kind, authoredMaterials, livery) : null;
     const fromFile = candidate !== null && candidate.parts.length > 0;
     if (candidate && !fromFile) authored.delete(kind);
-    const model = fromFile ? candidate : buildModel(kind, low);
+    let model = fromFile ? candidate : buildModel(kind, low);
+    if (low) {
+      const parts = mergeRuntimeRestPose(model.parts);
+      for (const part of model.parts) part.geometry.dispose();
+      model = { ...model, parts };
+    }
+    const animated = mergeRuntimeAnimatedParts(model.parts);
+    for (const part of model.parts) if (!part.material) part.geometry.dispose();
+    model = { ...model, parts: animated };
     const parts = model.parts.map(part => {
       const cues = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2);
       cues.setUsage(THREE.DynamicDrawUsage); part.geometry.setAttribute("fcCue", cues);
+      const rig = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
+      rig.setUsage(THREE.DynamicDrawUsage); part.geometry.setAttribute("fcRig", rig);
+      const gesture = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+      gesture.setUsage(THREE.DynamicDrawUsage); part.geometry.setAttribute("fcGesture", gesture);
       const mesh = new THREE.InstancedMesh(part.geometry, part.material ?? material, capacity);
       mesh.name = `runtime:${key}:${part.animation}`; mesh.count = 0; mesh.visible = false; mesh.frustumCulled = false;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.castShadow = options.shadows === true; mesh.receiveShadow = options.shadows === true;
+      if (!part.material) { mesh.customDepthMaterial = depthMaterial; mesh.customDistanceMaterial = distanceMaterial; }
       group.add(mesh);
-      return { ...part, mesh, cues, triangles: (part.geometry.index?.count ?? part.geometry.getAttribute("position").count) / 3 };
+      return { ...part, mesh, cues, rig, gesture, triangles: (part.geometry.index?.count ?? part.geometry.getAttribute("position").count) / 3 };
     });
     const batch: Batch = { model, parts, count: 0, kind, low, source: fromFile ? "file" : "procedural" }; batches.set(key, batch); return batch;
   }
@@ -571,6 +550,7 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
   function update(snapshot: RuntimeVisualSnapshot, tick: number): void {
     if (disposed) throw new Error("Runtime agent renderer has been disposed");
     if (!Number.isFinite(tick)) throw new RangeError("Runtime visual tick must be finite");
+    clock.value = tick / 60;
     for (const batch of batches.values()) batch.count = 0;
     for (const material of authoredMaterials) {
       const light = material as THREE.MeshStandardMaterial, channel = lightChannel(light.name);
@@ -631,7 +611,8 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
       base.compose(pos.set(actor.x + pivotOffset.x, actor.y + bob + pivotOffset.y, actor.z + pivotOffset.z), q, scale.set(actorScale, actorScale * height, actorScale));
       const rust = Math.max(0, Math.min(1, Number.isFinite(actor.rust) ? actor.rust! : 0));
       color.copy(clean).lerp(rusty, rust * 0.8);
-      const alert = kind === "weak-point" || actor.mode === "attack" || actor.mode === "alerted" || actor.mode === "windup" || actor.mode === "forced-update";
+      const alert = kind === "weak-point" || actor.mode === "attack" || actor.mode === "alerted" || actor.mode === "windup" || actor.mode === "forced-update" || actor.mode === "honk" ||
+        actor.tells?.some(tell => tell === "battery-overdraw" || tell === "battery-calibrating") === true;
       for (const part of batch.parts) {
         let rx = 0, ry = 0, rz = 0;
         if (part.animation === "left-leg") rx = gait;
@@ -645,6 +626,8 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
         if (part.rest) local.multiply(part.rest);
         matrix.multiplyMatrices(base, local); part.mesh.setMatrixAt(index, matrix); part.mesh.setColorAt(index, color);
         part.cues.setXY(index, 0, alert ? 0.45 + Math.sin(time * 8) * 0.2 : 0);
+        part.rig.setXYZW(index, phase, moving, speed, flight ? 1 : 0);
+        part.gesture.setX(index, actor.emote === "wave" ? 1 : 0);
       }
       drawn++; if (!low) near++;
       if (!["puddle", "weak-point", "leash", "lanyard"].includes(kind)) { bodiesDrawn++; if (!low) bodiesNear++; }
@@ -661,6 +644,8 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
         part.mesh.instanceMatrix.clearUpdateRanges(); part.mesh.instanceMatrix.addUpdateRange(0, batch.count * 16); part.mesh.instanceMatrix.needsUpdate = true;
         if (part.mesh.instanceColor) { part.mesh.instanceColor.clearUpdateRanges(); part.mesh.instanceColor.addUpdateRange(0, batch.count * 3); part.mesh.instanceColor.needsUpdate = true; }
         part.cues.clearUpdateRanges(); part.cues.addUpdateRange(0, batch.count * 2); part.cues.needsUpdate = true;
+        part.rig.clearUpdateRanges(); part.rig.addUpdateRange(0, batch.count * 4); part.rig.needsUpdate = true;
+        part.gesture.clearUpdateRanges(); part.gesture.addUpdateRange(0, batch.count); part.gesture.needsUpdate = true;
       }
     }
     info = { drawn, bodiesDrawn, near, bodiesNear, dropped, invalid, drawCalls, triangles, kinds: kinds.sort(), fileKinds: fileKinds.sort() };
@@ -669,7 +654,7 @@ export function createRuntimeAgentRenderer(scene: THREE.Scene | THREE.Group, opt
   function dispose(): void {
     if (disposed) return; disposed = true; scene.remove(group);
     for (const batch of batches.values()) disposeBatch(batch);
-    batches.clear(); material.dispose();
+    batches.clear(); material.dispose(); depthMaterial.dispose(); distanceMaterial.dispose();
     for (const material of authoredMaterials) material.dispose();
     liveryTexture?.dispose(); liveryTexture = null;
     authoredMaterials.clear(); authored.clear();

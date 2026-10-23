@@ -266,8 +266,13 @@ test.describe("sf world: in the browser", () => {
     expect(r.agents ?? 0, "agents drawn").toBeGreaterThan(0);
     expect(r.agentsNear ?? 0, "agents drawn with their full model near the chase camera").toBeGreaterThan(0);
     expect([...(r.agentModels ?? [])].sort(), "agent kinds drawn from their model files").toEqual(["errandRobot", "robotaxi", "sidewalkBot"]);
-    // Instanced: the draw-call cost does not grow with the number of agents.
-    expect(r.agentDrawCalls ?? 0, "agent draw calls").toBeLessThanOrEqual(27);
+    // Keep the original ambient layer's budget; runtime services, animals and robot states
+    // now share the documented combined character budget (docs/design.md, Performance).
+    expect(r.legacyAgentDrawCalls, "legacy agent draw calls reported").toBeDefined();
+    expect(r.runtimeAgentDrawCalls, "runtime agent draw calls reported").toBeDefined();
+    expect(r.legacyAgentDrawCalls!, "legacy agent draw calls").toBeLessThanOrEqual(27);
+    expect(r.agentDrawCalls, "combined calls include both layers").toBe(r.legacyAgentDrawCalls! + r.runtimeAgentDrawCalls!);
+    expect(r.agentDrawCalls ?? 0, "combined agent draw calls").toBeLessThanOrEqual(40);
     expect(r.playerCarsFromFile, "the player car is models/player-car.glb").toBe(1);
     for (const m of ["robotaxi", "errand-robot", "sidewalk-bot", "player-car"]) {
       const got = responses.filter((x) => x.path === `/models/${m}.glb`);

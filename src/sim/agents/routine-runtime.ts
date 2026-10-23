@@ -1,3 +1,5 @@
+import { nearestSidewalkNode } from "./navigation-index.ts";
+import { routineSpawnCandidates } from "./routine-spawn.ts";
 import { Action, DT, TICK_HZ, sortedIds, type PlayerState } from "../contract.ts";
 import { carCircles, stepCar } from "../car.ts";
 import { agentCircles } from "../agents.ts";
@@ -5,11 +7,12 @@ import { boxBlocked, boxCrossedWall, type Circle } from "../collide.ts";
 import { datan2, dcos, dsin, clamp, wrapAngle } from "../dmath.ts";
 import { isGameplayId, type ThreatSpawnRequest } from "../gameplay-contract.ts";
 import type { CombatActor, AttackRequest, RobotModel } from "../combat-contract.ts";
+import { movementLimit } from "../combat/system.ts";
 import type { SimSystemContext } from "../system-contract.ts";
 import { circleBlocked, meshGroundHeight, segmentBlocked, type World } from "../world.ts";
 import { lanePath, walkPath, pathPoint, projectOnPath, type Path } from "../roads.ts";
 import { createFinaleState, stepFinale, finaleFootfallClear, type FinaleEffect, type FinaleLandingAck, type FinaleRoute, type FinaleState } from "../robots/finale.ts";
-import { robotAgentId } from "../robots/runtime.ts";
+import { robotAgentId, type RobotLocomotion } from "../robots/runtime.ts";
 import { agentRuntimeSession, runtimeGameMinute, type RuntimePhysicalBody } from "./runtime-state.ts";
 import {
   allocateSwarm, conferenceDensity, createBoxInState, createCalendarRoutines,
@@ -17,7 +20,7 @@ import {
   parrotFlock, patrolTerms, signSpinnerPose, stepBoxIn, stepCalendarRoutines, stepDrone,
   stepRecruits, stepRobotBody, stepTheft, stepTidy,
   type BoxInState, type CalendarRoutineState, type DroneState, type RecruitState, type RobotBodyState,
-  type RoutineActor, type RoutineMotion, type RoutinePoint, type TheftState, type TidyState,
+  type RoutineActor, type RoutineMotion, type RoutinePoint, type TheftState, type TidyState, type RobotEmote,
 } from "./routines.ts";
 import { buildFallbackSidewalkGraph, shortestSidewalkRoute, type SidewalkGraph } from "./navigation.ts";
 import { createAssociateTransportState, stepAssociateTransport, type AssociateRiderBinding, type AssociateTransportState } from "./associate-transport.ts";
@@ -27,6 +30,8 @@ import { deriveWalkerPatrolRoute } from "./walker-route.ts";
 // Twenty-four players can each have the six baseline roles and an eight-unit swarm.
 // The shared significant population budget still caps all later-wave bodies together.
 export const MAX_ROUTINE_BODIES = 512;
+export const ROGUE_TAXI_ARRIVAL_M = 1;
+export const ROGUE_TAXI_TURN_RATE = 1.2;
 const MAX_PENDING_EFFECTS = 128;
 type Role = "drone" | "patrol" | "tidy" | "sign-spinner" | "associate" | "thief" | "rogue-taxi" | "parrot";
 interface TravelPlan { goal: RoutinePoint; points: RoutinePoint[]; index: number }
@@ -38,6 +43,7 @@ interface SpecialState {
   theftRoute?: RecruitTaxiRoute | null;
   nextPlanTick?: number;
   planGoal?: RoutinePoint;
+  patrolGoal?: RoutinePoint;
 }
 interface ControlledBody { playerId: string; model: "footman" | "trundle"; state: RobotBodyState }
 interface FinaleRuntime { body: RuntimePhysicalBody; route: FinaleRoute; state: FinaleState; landingId: string | null; applied: string[] }
@@ -77,9 +83,14 @@ export interface RoutineRuntimeOptions {
   /** Optional deterministic warm-up budget for controlled fixtures; production defaults4. */
   spawnBudget?: number;
 }
+export type RoutineActorMetadata = Partial<CombatActor> & {
+  readonly robotEmote?: RobotEmote;
+  readonly robotTells?: readonly string[];
+  readonly honking?: boolean;
+};
 export interface RoutineRuntimeStep {
   state: RoutineRuntimeState; bodies: RuntimePhysicalBody[]; nextActorId: number;
-  actorMetadata: Record<string, Partial<CombatActor>>; attackRequests: AttackRequest[]; finaleWeakPoints: CombatActor[];
+  actorMetadata: Record<string, RoutineActorMetadata>; attackRequests: AttackRequest[]; finaleWeakPoints: CombatActor[];
   effects: RoutineRuntimeEffect[]; playerOverrides: Record<string, PlayerState>; restoreIds: number[];
   diagnostics: string[]; conference: ReturnType<typeof conferenceDensity> & { center?: RoutinePoint; radiusM?: number };
   swarmAssignments: { actorId: string; playerId: string; role: "melee" | "ranged" }[];
@@ -159,15 +170,7 @@ function directMove(world: World, body: RuntimePhysicalBody, goal: RoutinePoint,
 }
 function routePoints(world: World, graph: SidewalkGraph | null, body: RuntimePhysicalBody, goal: RoutinePoint): RoutinePoint[] | null {
   if (!graph || graph.nodes.length === 0) return null;
-  const nearest = (p: { x: number; z: number }) => {
-    let best = graph.nodes[0]!, bestDistance = d2(best, p);
-    for (let i = 1; i < graph.nodes.length; i++) {
-      const candidate = graph.nodes[i]!, distance = d2(candidate, p);
-      if (distance < bestDistance || distance === bestDistance && cmp(candidate.id, best.id) < 0) { best = candidate; bestDistance = distance; }
-    }
-    return best;
-  };
-  const start = nearest(body), end = nearest(goal);
+  const start = nearestSidewalkNode(graph, body)!, end = nearestSidewalkNode(graph, goal)!;
   if (segmentBlocked(world, body.x, body.z, start.x, start.z)) return null;
   const route = shortestSidewalkRoute(graph, start.id, end.id, edge => edge.kind === "stairs");
   if (!route) return null;
@@ -200,18 +203,7 @@ function spawn(world: World, id: number, role: Role, ownerId: string, near: Rout
   const body: RuntimePhysicalBody = { id: `agent:${id}`, numericId: id, kind, model: roleModel(role), ...p3(near), previousX: near.x, previousZ: near.z, heading: 0, previousHeading: 0, speed: 0, radius: kind === "vehicle" ? 1.1 : 0.4, halfLength: hl, halfWidth: kind === "vehicle" ? 0.95 : 0.35, height: role === "drone" || role === "parrot" ? 0.5 : 1.6, dodge: null };
   body.firmware = role === "tidy" ? "good" : role === "associate" || role === "parrot" ? "none" : "bad";
   body.operational = true;
-  const candidates: RoutinePoint[] = [];
-  for (const edge of world.roads?.edges ?? []) {
-    if (kind === "vehicle" && (!edge.drivable || edge.laneCount[0] === 0)) continue;
-    if (kind !== "vehicle" && !edge.walkable) continue;
-    const path = kind === "vehicle" ? lanePath(edge, 1, 0) : walkPath(edge, 1, 1);
-    for (const offset of [0.25, 0.5, 0.75]) {
-      const p = pathPoint(path, path.len * offset);
-      const height = meshGroundHeight(world, p.x, p.z) + (role === "drone" ? 6 : role === "parrot" ? 7 : 0);
-      if (d2(p, near) >= ((15) * (15)) && d2(p, near) <= ((150) * (150))) candidates.push({ x: p.x, y: height, z: p.z });
-    }
-  }
-  candidates.sort((a, b) => d2(a, near) - d2(b, near) || a.x - b.x || a.z - b.z);
+  const candidates = routineSpawnCandidates(world, near, kind === "vehicle" ? "vehicle" : "walking", role === "drone" ? 6 : role === "parrot" ? 7 : 0);
   const at = candidates.find(p => safeSpot(world, body, p, bodies, actors));
   if (!at) return null;
   return { body: { ...body, ...at, previousX: at.x, previousZ: at.z, district: districtFor(world, at) }, role, ownerId, plan: null,
@@ -278,7 +270,7 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
     landingReceipts?: FinaleLandingAck[];
   } } } | undefined;
   const physicalReceipts = priorRuntime?.runtime?.effectState;
-  const actorMetadata: Record<string, Partial<CombatActor>> = {}, attackRequests: AttackRequest[] = [], finaleWeakPoints: CombatActor[] = [], playerOverrides: Record<string, PlayerState> = {}, restoreIds: number[] = [], diagnostics: string[] = [];
+  const actorMetadata: Record<string, RoutineActorMetadata> = {}, attackRequests: AttackRequest[] = [], finaleWeakPoints: CombatActor[] = [], playerOverrides: Record<string, PlayerState> = {}, restoreIds: number[] = [], diagnostics: string[] = [];
   const swarmAssignments: RoutineRuntimeStep["swarmAssignments"] = [], swarmSuppressedIds: string[] = [];
   let associateRiderBindings: AssociateRiderBinding[] = [];
   state.swarms = (previous.swarms ?? []).map(s => ({ ...s })).filter(s => playersInState(context).includes(s.playerId) && tick - s.lastRequestTick <= 120 * TICK_HZ);
@@ -431,20 +423,68 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
       special.drone = result.state; motion = result.motion;
       if (result.blast) attackRequests.push({ id: `${self.id}/drone/${++special.attackSequence}`, sequence: special.attackSequence, attackerId: self.id, targetId: owner.id, kind: "ad-blast" });
     } else if (special.role === "patrol") {
-      motion = { kind: "follow", target: p3(owner), speedMps: d2(self, owner) > 25 ? 1.8 : 0, reason: "patrol-follow" };
-      const terms = patrolTerms(self, [{ ...owner, lineOfSight: !segmentBlocked(context.world, self.x, self.z, owner.x, owner.z) }]);
-      if (terms && tick >= special.nextTermsTick) { queue(effect(`${self.id}/terms/${tick}`, "patrol.terms", self.id, owner.id, terms.targetId)); special.nextTermsTick = tick + 10 * TICK_HZ; }
+      const rawMotions = context.previous.ext.robots?.locomotion;
+      const policy = Array.isArray(rawMotions) ? (rawMotions as unknown as readonly RobotLocomotion[]).find(item => item.agentId === special.body.numericId)?.intent : undefined;
+      const limits = context.previous.ext.combat ? movementLimit(context.previous.ext.combat, observed ?? {
+        id: self.id, kind: "robot", firmware: self.firmware, model: "patrol", x: self.x, y: self.y, z: self.z,
+        heading: self.heading, speed: self.speed, radius: special.body.radius, height: special.body.height,
+      }) : { maxSpeed: null, scale: 1, blind: false, canAttack: true };
+      const speed = Math.min(1.8 * limits.scale, limits.maxSpeed ?? 1.8);
+      if (policy?.kind === "pursue") {
+        const target = { ...policy.destination, y: meshGroundHeight(context.world, policy.destination.x, policy.destination.z) };
+        motion = { kind: "route", target, speedMps: d2(self, target) <= policy.stopDistance * policy.stopDistance ? 0 : speed, reason: "patrol-memory" };
+      } else if (policy?.kind === "flee") {
+        let destination = policy.toward;
+        if (!destination && policy.from) {
+          const dx = self.x - policy.from.x, dz = self.z - policy.from.z, distance = Math.sqrt(dx * dx + dz * dz);
+          destination = distance > 1e-8 ? { x: self.x + dx / distance * 20, z: self.z + dz / distance * 20 } :
+            { x: self.x - dsin(self.heading) * 20, z: self.z + dcos(self.heading) * 20 };
+        }
+        if (destination) motion = { kind: "route", target: { ...destination, y: meshGroundHeight(context.world, destination.x, destination.z) }, speedMps: speed, reason: "patrol-flee" };
+      } else if (policy?.kind === "hold") {
+        if (policy.face && d2(self, policy.face) > 1e-8) special.body.heading = datan2(policy.face.x - self.x, self.z - policy.face.z);
+      } else if (policy?.kind === "errand" && graph) {
+        // A local street patrol is independent of the owner's unseen current position.
+        let goal = special.patrolGoal;
+        if (!goal || d2(self, goal) < 0.25) {
+          const node = nearestSidewalkNode(graph, self);
+          const choices = node ? (graph.outgoing.get(node.id) ?? []).filter(edge => graph.edgeById.get(edge.edgeId)?.kind !== "stairs") : [];
+          const next = choices.length ? graph.nodeById.get(choices[special.body.numericId % choices.length]!.to) : undefined;
+          if (next) { goal = { x: next.x, y: meshGroundHeight(context.world, next.x, next.z), z: next.z }; special = { ...special, patrolGoal: goal }; }
+        }
+        if (goal) motion = { kind: "route", target: goal, speedMps: speed, reason: "patrol-route" };
+      }
+      if (limits.maxSpeed === 0) motion = { kind: "hold", target: p3(self), speedMps: 0, reason: "combat" };
+      let target: RoutineActor | null = null;
+      if (policy?.kind === "pursue") {
+        const chase = policy.target;
+        if (chase.kind === "player") target = observedPlayer(context, chase.id);
+        else { const observed = actors.find(a => robotAgentId(a.id) === chase.id); if (observed) target = combatActor(observed, context.state); }
+      }
+      const toTarget = target ? Math.sqrt(d2(self, target)) : 0;
+      const seen = !!target && (toTarget === 0 || (target.x - self.x) * dsin(self.heading) - (target.z - self.z) * dcos(self.heading) >= toTarget * dcos(0.8726646259971648)) &&
+        !segmentBlocked(context.world, self.x, self.z, target.x, target.z);
+      const terms = target?.kind === "player" && limits.canAttack && seen ? patrolTerms(self, [{ ...target, lineOfSight: true }]) : null;
+      if (terms && tick >= special.nextTermsTick) { queue(effect(`${self.id}/terms/${tick}`, "patrol.terms", self.id, target!.id, terms.targetId)); special.nextTermsTick = tick + 10 * TICK_HZ; }
     } else if (special.role === "sign-spinner") {
       special.body.heading = signSpinnerPose(special.body.numericId, tick).angle;
       actorMetadata[self.id] = { heading: special.body.heading };
     } else if (special.role === "associate") motion = { kind: "hold", target: p3(self), speedMps: 0, reason: "associate-transport-owner" };
     else if (special.role === "rogue-taxi" && special.boxIn) {
       const p = context.state.players[special.ownerId]!;
-      const result = stepBoxIn(special.boxIn, { tick, self, target: p.mode === "vehicle" ? { ...owner, kind: "vehicle", occupiedByTarget: true, lineOfSight: !segmentBlocked(context.world, self.x, self.z, owner.x, owner.z) } : null, reachedGoal: false });
+      const blockingGoal = { x: owner.x + dsin(owner.heading) * 10, y: owner.y, z: owner.z - dcos(owner.heading) * 10 };
+      const reachedGoal = d2(self, blockingGoal) <= ROGUE_TAXI_ARRIVAL_M * ROGUE_TAXI_ARRIVAL_M;
+      const result = stepBoxIn(special.boxIn, { tick, self, target: p.mode === "vehicle" ? { ...owner, kind: "vehicle", occupiedByTarget: true, lineOfSight: !segmentBlocked(context.world, self.x, self.z, owner.x, owner.z) } : null, reachedGoal });
       special.boxIn = result.state; motion = result.motion;
-      // Vehicle steering is supplied below; the direct sidewalk mover never drives a taxi.
-      const roadGoal = roadSteeringTarget(context.world, special.body, motion.target);
-      special.body = directMove(context.world, special.body, roadGoal, motion.speedMps, [...bodies, ...state.specials.map(s => s.body)], actors);
+      const limits = context.previous.ext.combat && observed ? movementLimit(context.previous.ext.combat, observed) : null;
+      const speed = Math.min(motion.speedMps * (limits?.scale ?? 1), limits?.maxSpeed ?? motion.speedMps);
+      // The final metre is approached physically; a route endpoint never acknowledges arrival.
+      const roadGoal = d2(self, blockingGoal) <= 64 ? blockingGoal : roadSteeringTarget(context.world, special.body, blockingGoal);
+      const remaining = Math.sqrt(d2(self, blockingGoal));
+      special.body = limits?.maxSpeed === 0 ? { ...special.body, speed: 0 } : steerRogueTaxi(context.world, special.body, roadGoal,
+        Math.min(speed, Math.sqrt(12 * Math.max(0, remaining - 0.3))), result.state.phase === "hold" ? result.desiredHeading : null,
+        [...bodies, ...state.specials.map(s => s.body)], actors);
+      actorMetadata[self.id] = { ...actorMetadata[self.id], honking: result.honk && limits?.canAttack !== false };
       motion = { kind: "hold", target: p3(special.body), speedMps: 0, reason: "road-follower-applied" };
     } else if (special.role === "tidy" && special.tidy) {
       special.carryingHeapId = physicalReceipts?.bindings?.find(binding => binding.tidyId === self.id)?.heapId ?? null;
@@ -497,12 +537,12 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
     }
     if (holdIds.has(self.id)) motion = { kind: "hold", target: p3(self), speedMps: 0, reason: "calendar" };
     const swarm = swarmAssignments.find(a => a.actorId === self.id), swarmOwner = swarm && observedPlayer(context, swarm.playerId);
-    if (swarm && swarmOwner && ["patrol", "sign-spinner"].includes(special.role)) {
+    if (swarm && swarmOwner && special.role === "sign-spinner") {
       const index = swarmAssignments.filter(a => a.playerId === swarm.playerId).findIndex(a => a.actorId === self.id);
       const radius = swarm.role === "melee" ? 1.8 : 8;
       const angle = index * 0.7853981633974483;
       motion = { kind: "route", target: { x: swarmOwner.x + dcos(angle) * radius, y: swarmOwner.y, z: swarmOwner.z + dsin(angle) * radius }, speedMps: 1.8, reason: `swarm-${swarm.role}` };
-    } else if (swarmSuppressedIds.includes(self.id)) motion = { kind: "hold", target: p3(self), speedMps: 0, reason: "swarm-capacity" };
+    } else if (swarmSuppressedIds.includes(self.id) && motion.reason !== "patrol-flee") motion = { kind: "hold", target: p3(self), speedMps: 0, reason: "swarm-capacity" };
     if (special.role !== "rogue-taxi" && !(special.role === "thief" && special.theft?.phase === "driving")) special = moveSpecial(context.world, graph, special, motion, [...bodies, ...state.specials.map(s => s.body)], actors, tick);
     if (special.carryingHeapId) {
       const at = { x: special.body.x, y: special.body.y + 0.4, z: special.body.z };
@@ -518,7 +558,14 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
       const old = state.recruits.find(r => r.playerId === playerId) ?? { playerId, state: createRecruitState() };
       const candidates = actors.filter(a => options.recruitOffers?.[a.id]?.playerId === playerId).map(a => ({ ...combatActor(a, context.state), interruptedUpdate: true, accepted: d2(a, owner) <= 16 && (accepted.get(playerId)?.has(a.id) === true || ((context.inputs[playerId]?.actions ?? 0) & Action.interact) !== 0) }));
       const observed = actors.map(a => ({ ...combatActor(a, context.state), boarded: options.recruitObservations?.[a.id]?.boardedSequence !== undefined, boardedSequence: options.recruitObservations?.[a.id]?.boardedSequence, melted: context.previous.ext.combat?.targets[a.id]?.phase === "heap", restored: options.recruitObservations?.[a.id]?.restored ?? false }));
-      const result = stepRecruits(old.state, { tick, owner, reputation: reputation(options, playerId), candidates, observations: observed, visibleBadRobots: actors.map(a => ({ ...combatActor(a, context.state), lineOfSight: !segmentBlocked(context.world, owner.x, owner.z, a.x, a.z) })), seatCapacity: 3, ownerInVehicle: context.state.players[playerId]!.mode === "vehicle" });
+      const rep = reputation(options, playerId);
+      // No roster and no actor eligible to join means this tick cannot consume sight.
+      const needsSight = old.state.roster.length > 0 || rep >= 60 && candidates.some(candidate =>
+        candidate.kind === "robot" && candidate.firmware === "good" && candidate.operational && candidate.interruptedUpdate && candidate.accepted);
+      const visibleBadRobots = needsSight ? actors.map(a => ({ ...combatActor(a, context.state),
+        lineOfSight: !segmentBlocked(context.world, owner.x, owner.z, a.x, a.z) })) : [];
+      const result = stepRecruits(old.state, { tick, owner, reputation: rep, candidates, observations: observed,
+        visibleBadRobots, seatCapacity: 3, ownerInVehicle: context.state.players[playerId]!.mode === "vehicle" });
       const index = state.recruits.findIndex(r => r.playerId === playerId); if (index < 0) state.recruits.push({ playerId, state: result.state }); else state.recruits[index] = { playerId, state: result.state };
       for (const intent of result.intents) {
         if (intent.kind === "follow") {
@@ -575,7 +622,8 @@ export function stepRoutineRuntime(context: SimSystemContext, previous: RoutineR
       at = { ...at, x: moved.x, y: moved.y, z: moved.z, heading: result.heading, speed: moved.speed };
     }
     playerOverrides[control.playerId] = { ...p, foot: at };
-    actorMetadata[proxy.id] = { ...at, kind: "robot", firmware: "bad", model: control.model, robotBody: true, playerId: control.playerId };
+    actorMetadata[proxy.id] = { ...at, kind: "robot", firmware: "bad", model: control.model, robotBody: true, playerId: control.playerId,
+      robotEmote: result.emote, robotTells: [...result.tells] };
   }
 
   for (const finale of state.finales) {
@@ -696,6 +744,22 @@ function nearestDepot(world: World, from: RoutinePoint): RoutinePoint | null {
   const sites = (world.gameplay?.anchors ?? []).filter(a => a.kind === "garage-candidate" || a.kind === "repair-kiosk").sort((a, b) => d2(a, from) - d2(b, from) || cmp(a.id, b.id));
   return sites[0] ? p3(sites[0]) : null;
 }
+function steerRogueTaxi(world: World, body: RuntimePhysicalBody, goal: RoutinePoint, requestedSpeed: number, parkingHeading: number | null,
+  bodies: readonly RuntimePhysicalBody[], actors: readonly CombatActor[]): RuntimePhysicalBody {
+  if (body.dodge) return { ...body, speed: 0 };
+  const distance = Math.sqrt(d2(body, goal));
+  const moving = parkingHeading === null && requestedSpeed > 0 && distance > 1e-8;
+  const desiredHeading = parkingHeading ?? (moving ? datan2(goal.x - body.x, body.z - goal.z) : body.heading);
+  const heading = wrapAngle(body.heading + clamp(wrapAngle(desiredHeading - body.heading), -ROGUE_TAXI_TURN_RATE * DT, ROGUE_TAXI_TURN_RATE * DT));
+  const speed = moving ? Math.min(requestedSpeed, Math.max(0, body.speed) + 4 * DT) : 0;
+  const travel = Math.min(distance, speed * DT);
+  const at = { x: body.x + dsin(heading) * travel, z: body.z - dcos(heading) * travel, y: body.y };
+  at.y = meshGroundHeight(world, at.x, at.z);
+  const candidate = { ...body, ...at, heading, speed: travel / DT };
+  if (!safeSpot(world, candidate, at, bodies, actors) ||
+      boxCrossedWall(world, { ...at, heading, hl: body.halfLength, hw: body.halfWidth }, body)) return { ...body, speed: 0 };
+  return candidate;
+}
 function roadSteeringTarget(world: World, from: { x: number; z: number; heading: number }, destination: RoutinePoint): RoutinePoint {
   let best: { path: Path; s: number; score: number } | null = null;
   for (const edge of world.roads?.edges ?? []) for (const dir of [1, -1] as const) {
@@ -706,6 +770,8 @@ function roadSteeringTarget(world: World, from: { x: number; z: number; heading:
     if (!best || score < best.score) best = { path, s: projection.s, score };
   }
   if (!best) return p3(destination);
-  const p = pathPoint(best.path, Math.min(best.path.len, best.s + 8));
+  const stop = projectOnPath(best.path, destination.x, destination.z);
+  const end = stop.dist <= 3 && stop.s >= best.s ? stop.s : best.path.len;
+  const p = pathPoint(best.path, Math.min(end, best.s + 8));
   return { x: p.x, y: meshGroundHeight(world, p.x, p.z), z: p.z };
 }

@@ -5,6 +5,7 @@ import { circleBlocked, meshGroundHeight, type World } from "../world.ts";
 import { connector, connectorPath, dirIndex, lanePath, makePath, pathPoint, projectOnPath, subPath, walkPath, type Dir, type Path, type RoadEdgeInfo } from "../roads.ts";
 import { toLocal } from "../../geo/project.ts";
 import { createBusServiceState, createVanServiceState, stepBusServices, stepVanServices, type AdWrapSlot, type BusRetirement, type BusRoute, type BusServiceState, type ServiceIntent, type ServiceRoadLeg, type ThreatVanRequest, type VanRetirement, type VanRouteCandidate, type VanServiceState, type VehicleProgress } from "./services.ts";
+import { authoredStandbyDepots } from "./authored-depots.ts";
 
 export const FLEET_ACCELERATION = 6;
 export const FLEET_BRAKING = 10;
@@ -343,7 +344,7 @@ export function stepFleet(world: World, previous: Readonly<FleetState>, input: {
   const unloadingObstacles = [...input.obstacles];
   const vanRetirements: VanRetirement[] = [];
   const busRetirements: BusRetirement[] = [];
-  const depots = input.depots ?? DEFAULT_FLEET_DEPOTS;
+  const depots = input.depots ?? [...DEFAULT_FLEET_DEPOTS, ...authoredStandbyDepots(world)];
   let net: Network | null = null;
   const getNetwork = (): Network => net ?? (net = network(world));
   state.vehicles.sort((a, b) => a.id - b.id);

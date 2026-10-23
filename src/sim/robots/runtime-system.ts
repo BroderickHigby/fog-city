@@ -29,10 +29,19 @@ export interface RobotRuntimeMetadata {
 }
 export interface RobotBaselineFirmware { readonly agentId: number; readonly firmware: "good" | "bad" }
 
+/** The body owners already persist pose; old full actor snapshots remain readable. */
+export type StoredRobotActor = Omit<CombatActor, "x" | "y" | "z" | "heading" | "speed"> &
+  Partial<Pick<CombatActor, "x" | "y" | "z" | "heading" | "speed">>;
+
+export function storeRobotActor(actor: CombatActor): StoredRobotActor {
+  const { x: _x, y: _y, z: _z, heading: _heading, speed: _speed, ...description } = actor;
+  return description;
+}
+
 /** The root stays compatible with the serialized session and other agent-owned fields. */
 export interface RobotsRuntimeData extends AgentRuntimeSession {
   readonly brain: RobotRuntimeState;
-  readonly actors: RobotRuntimeStep["actors"];
+  readonly actors: readonly StoredRobotActor[];
   readonly attacks: RobotRuntimeStep["attacks"];
   readonly cancellations: RobotRuntimeStep["cancellations"];
   readonly locomotion: RobotRuntimeStep["locomotion"];
@@ -156,7 +165,7 @@ export const robotRuntimeSystem: SimSystem = {
       const actorId = robotActorId(entry.agentId), target = combat?.targets[actorId];
       return { agentId: entry.agentId, actorId, present: present.has(actorId), firmware: entry.firmware,
         baselineFirmware: baselines.get(entry.agentId) ?? "good",
-        mode: entry.brain?.mode ?? null, phase: target?.phase ?? null, rust: target?.rust ?? null,
+        mode: entry.brain?.mode ?? null, phase: target?.phase ?? (combat ? "active" : null), rust: target?.rust ?? (combat ? 0 : null),
         convertedTick: entry.convertedTick, bountyUntilTick: entry.bountyUntilTick,
         recruitOffer: entry.recruitOffer ? { ...entry.recruitOffer } : null, significant: [...entry.significant] };
     });
@@ -164,7 +173,7 @@ export const robotRuntimeSystem: SimSystem = {
     // A later authoritative conversion supersedes an earlier restore acknowledgement.
     const retainedRestores = restoredAgentIds.filter(id => !result.results.some(event => event.kind === "converted" && event.agentId === id));
     const output: RobotsRuntimeData = {
-      ...session, brain: result.state, actors: result.actors, attacks: result.attacks, cancellations: result.cancellations,
+      ...session, brain: result.state, actors: result.actors.map(storeRobotActor), attacks: result.attacks, cancellations: result.cancellations,
       locomotion: result.locomotion, results: result.results, conversionCap: result.conversionCap, metadata,
       baselines: result.state.robots.map(entry => ({ agentId: entry.agentId, firmware: baselines.get(entry.agentId) ?? "good" })),
       significantAgentIds, robotSignificantAgentIds: significantAgentIds,

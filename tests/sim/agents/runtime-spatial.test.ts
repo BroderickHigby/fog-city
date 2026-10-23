@@ -331,4 +331,83 @@ describe("runtime spatial adapter", () => {
       navigation: crossing, robotIntents, canCross });
     expect(calls).toBe(2);
   });
+
+  it("keeps signals, fog, and vehicle sweeps dynamic after warming static edge clearance", () => {
+    const crossing = buildSidewalkGraph({ nodes: [{ id: "a", x: 0, z: 0 }, { id: "b", x: 10, z: 0 }, { id: "c", x: 20, z: 0 }],
+      edges: [{ id: "ab", a: "a", b: "b", kind: "sidewalk", roadId: "street", points: [[0, 0], [10, 0]] },
+        { id: "bc", a: "b", b: "c", kind: "crosswalk", points: [[10, 0], [20, 0]] }] });
+    const world = worldWith();
+    let tick = 0;
+    const route = (extra: Partial<RuntimeSpatialInput> = {}) => {
+      const value = actor({ kind: "errandRobot", x: 9.9 });
+      return stepRuntimeSpatial({ ...fixture([value], [value], ++tick, world), navigation: crossing,
+        robotIntents: [{ id: 1, movement: { kind: "pursue", target: { kind: "player", id: "p" },
+          destination: { x: 20, z: 0 }, stopDistance: 1, avoidFog: true } }], ...extra }).state.walkers[0]!.route!.nodeIds;
+    };
+    expect(route({ canCross: () => true, fogDensity: () => 0 })).toContain("c");
+    expect(route({ canCross: () => false })).not.toContain("c");
+    expect(route({ canCross: () => true })).toContain("c");
+    expect(route({ fogDensity: x => x > 10 ? 0.1 : 0 })).not.toContain("c");
+    expect(route({ fogDensity: () => 0 })).toContain("c");
+    const van = { id: "van", x: 15, z: 0, previousX: 15, previousZ: 0, halfLength: 1, halfWidth: 0.5, speed: 0 };
+    expect(route({ vehicles: [van] })).not.toContain("c");
+    expect(route({ vehicles: [{ ...van, z: 20, previousZ: 20 }] })).toContain("c");
+  });
+
+  it("isolates static edge clearance by world, edge identity, and body radius", () => {
+    const nodes = [{ id: "a", x: 0, z: 0 }, { id: "b", x: 10, z: 0 }, { id: "c", x: 20, z: 0 }];
+    const makeGraph = (detour: boolean) => buildSidewalkGraph({ nodes, edges: [
+      { id: "ab", a: "a", b: "b", kind: "sidewalk", roadId: "street", points: [[0, 0], [10, 0]] },
+      { id: "bc", a: "b", b: "c", kind: "crosswalk", points: detour ? [[10, 0], [15, 5], [20, 0]] : [[10, 0], [20, 0]] },
+    ] });
+    const direct = makeGraph(false), empty = worldWith(), blocked = worldWith([rectangle(14, -1, 16, 1)]);
+    const grazing = worldWith([rectangle(14, 0.4, 16, 0.6)]);
+    let tick = 0;
+    const route = (world: World, navigation = direct, kind: AgentState["kind"] = "errandRobot") => {
+      const value = actor({ kind, x: 9.9 });
+      return stepRuntimeSpatial({ ...fixture([value], [value], ++tick, world), navigation,
+        robotIntents: [{ id: 1, movement: { kind: "pursue", target: { kind: "player", id: "p" },
+          destination: { x: 20, z: 0 }, stopDistance: 1, avoidFog: false } }] }).state.walkers[0]!.route!.nodeIds;
+    };
+    expect(route(empty)).toContain("c");
+    expect(route(blocked)).not.toContain("c");
+    expect(route(blocked, makeGraph(true))).toContain("c");
+    expect(route(grazing, direct, "person")).toContain("c");
+    expect(route(grazing, direct, "errandRobot")).not.toContain("c");
+    expect(route(grazing, direct, "person")).toContain("c");
+  });
+
+  it("rejects static disconnections before repeated dynamic route searches without storing a retry delay", () => {
+    const navigation = buildSidewalkGraph({ nodes: [{ id: "a", x: 0, z: 0 }, { id: "b", x: 10, z: 0 },
+      { id: "e", x: 10, z: 10 }, { id: "c", x: 30, z: 0 }, { id: "d", x: 40, z: 0 }], edges: [
+      { id: "ab", a: "a", b: "b", kind: "sidewalk", roadId: "street", points: [[0, 0], [10, 0]] },
+      { id: "be", a: "b", b: "e", kind: "crosswalk", points: [[10, 0], [10, 10]] },
+      { id: "cd", a: "c", b: "d", kind: "sidewalk", points: [[30, 0], [40, 0]] },
+    ] });
+    const world = worldWith(), value = actor({ kind: "errandRobot", x: 9.9 });
+    let calls = 0;
+    const query = () => stepRuntimeSpatial({ ...fixture([value], [value], 1, world), navigation,
+      canCross: () => { calls++; return true; }, robotIntents: [{ id: 1, movement: { kind: "pursue", target: { kind: "player", id: "p" },
+        destination: { x: 40, z: 0 }, stopDistance: 1, avoidFog: false } }] });
+    const cold = query(), warm = query();
+    expect(warm).toEqual(cold);
+    expect(cold.state.walkers[0]!.goalKey).toBe("");
+    expect(calls).toBe(0);
+    expect(JSON.stringify(warm.state)).not.toMatch(/retry|component/);
+  });
+
+  it("keeps stair routes and directed search authoritative within a weak component", () => {
+    const navigation = buildSidewalkGraph({ nodes: [{ id: "a", x: 0, z: 0 }, { id: "b", x: 10, z: 0 },
+      { id: "c", x: 20, z: 0 }, { id: "d", x: 30, z: 0 }], edges: [
+      { id: "ab", a: "a", b: "b", kind: "sidewalk", roadId: "street", points: [[0, 0], [10, 0]] },
+      { id: "bc", a: "b", b: "c", kind: "stairs", bidirectional: false, points: [[10, 0], [20, 0]] },
+      { id: "cd", a: "c", b: "d", kind: "sidewalk", points: [[20, 0], [30, 0]] },
+    ] });
+    const world = worldWith();
+    const query = (value: AgentState, target: number) => stepRuntimeSpatial({ ...fixture([value], [value], 1, world), navigation,
+      robotIntents: [{ id: 1, movement: { kind: "pursue", target: { kind: "player", id: "p" },
+        destination: { x: target, z: 0 }, stopDistance: 1, avoidFog: false } }] }).state.walkers[0]!;
+    expect(query(actor({ kind: "errandRobot", x: 9.9 }), 30).route!.nodeIds).toContain("d");
+    expect(query(actor({ kind: "errandRobot", x: 20.1, edge: "" }), 0).goalKey).toBe("");
+  });
 });

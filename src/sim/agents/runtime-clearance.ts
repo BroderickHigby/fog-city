@@ -6,6 +6,7 @@ import { stepDodge, type AgentDodgeGeometry } from "../dodge.ts";
 import { FOOT } from "../foot.ts";
 import type { World } from "../world.ts";
 import type { RuntimePhysicalBody } from "./runtime-state.ts";
+import { enforceAgentRuntimePopulation } from "./runtime-system.ts";
 
 /** Matches the bounded actor input accepted by the runtime orchestration layer. */
 export const MAX_CLEARANCE_BODIES = 2800;
@@ -102,7 +103,7 @@ export function stepAgentRuntimeDodge(world: World, before: Readonly<SimState>, 
   const store = runtime(after);
   if (!store) return stepDodge(world, before, after);
   if (!Array.isArray(store.bodies)) throw new RangeError("Invalid runtime clearance bodies");
-  if (store.bodies.length === 0) return stepDodge(world, before, after);
+  if (store.bodies.length === 0) return enforceAgentRuntimePopulation(stepDodge(world, before, after));
   const base = after.ext.agents as RuntimeExt;
   const previousBase = before.ext.agents as RuntimeExt | undefined;
   const previousLegacyIds = new Set((previousBase?.list ?? []).map(body => body.id));
@@ -177,6 +178,6 @@ export function stepAgentRuntimeDodge(world: World, before: Readonly<SimState>, 
     }) } } : {}),
   };
   const finalAgents: RuntimeExt = { ...base, list: base.list.map((body) => byId.get(body.id)!), runtime: finalStore };
-  return { ...cleared, ext: { ...cleared.ext, agents: finalAgents } };
+  return enforceAgentRuntimePopulation({ ...cleared, ext: { ...cleared.ext, agents: finalAgents } });
 }
 

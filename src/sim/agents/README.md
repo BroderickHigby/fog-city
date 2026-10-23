@@ -1,48 +1,59 @@
-# Wave-2 agent policies
+# Agent runtime
 
-These modules prepare the lane-3 behavior systems. They are independently executable policies, not a registration of new actors in the running game. The shared wave-2 interface and its `systems.ts` stubs were not available when this branch was prepared. No top-level sim file, schema, version, renderer, or world data is changed here.
+Lane 3 supplies the deterministic population, service vehicles, robot decisions and later-wave routines. The public game enables this runtime; old recordings remain opt-in so their motion stays compatible.
 
-Import the APIs from `src/sim/agents/index.ts`, or import a module directly:
+```ts
+import { enableAgentRuntime } from "./runtime-state.ts";
+
+const live = enableAgentRuntime(saved, {
+  wave: 8,
+  startGameMinute: 720,
+  startWeekday: 0,
+  // Supply only real authored/purchased restoration sites.
+  restoreSafehouses: [],
+});
+const next = step(world, live, inputs, recordedEvents);
+```
+
+The shared schema is `SIM_VERSION = 7`. `upgradeState` completes legacy ground/dodge fields and preserves unknown extensions. Runtime state is serialized below `ext.agents.runtime`; robot observations/results and the activation marker are below `ext.robots`. Never copy the earlier prototype's incompatible `ext.game` into these slots.
+
+## Modules
 
 | Module | Responsibility |
 | --- | --- |
-| `navigation.ts` | Explicit sidewalk graphs, the road-offset fallback, deterministic shortest routes and route proposals |
-| `fidelity.ts` | Sim-anchor scheduling, reproducible ambient identity, promotion, and abstract offscreen progress |
-| `reactions.ts` | Helpful robot, person, pigeon and leashed-dog reaction intents |
-| `../robots/brain.ts` | Sensory knowledge, behavior states, bounded attack wind-ups and interrupted forced updates |
-| `services.ts` | Idempotent van requests and observed arrivals; bus timetable and stop policies |
+| `navigation.ts`, `fidelity.ts`, `reactions.ts` | Sidewalk graph/routing, bounded population scheduling, sensory reactions |
+| `runtime-spatial.ts` | Physical sidewalk handoff, protected pigeons and leashed dogs |
+| `services.ts`, `runtime-services.ts` | Timetabled buses and dispatched vans, physical routes, safe unloading and retirement |
+| `runtime-system.ts` | Registered population/fleet stage and shared numeric ID allocation |
+| `../robots/brain.ts`, `../robots/runtime*.ts` | Robot knowledge, decisions, retained firmware and combat requests |
+| `routines.ts`, `routine-runtime.ts` | Drones, box-in, Patrol, swarm, theft, Tidy, calendar routines, recruits, robot-body control and finales |
+| `recruit-transport.ts`, `associate-transport.ts` | Actual seats, journeys, arrivals and separate rider/vehicle identities |
+| `runtime-combat.ts` | Authoritative water/attack integration, cancellation and shared swarm limits |
+| `runtime-clearance.ts`, `routine-effects.ts` | Final mixed-body clearance, physical effects and post-clearance receipts |
+| `runtime-registration.ts` | Composes the complete agent stage |
+| `walker-route.ts`, `../robots/finale.ts` | Checked Walker patrols and body/joint/footfall progression |
 
-## Integration order
+## Tick ownership
 
-The core lane must supply the final adapter and state migration. Its per-tick order should be:
+1. Move players and legacy road agents, with runtime obstacles included in spawn/join/exit checks.
+2. Compose population, physical fleet/transport and routines. Use prior authoritative observations; one owner moves each body.
+3. Run robot decisions, then combat. Combat owns wind-up clocks, rust and conversion completion.
+4. Apply validated physical effects and restoration. Arrival is separate from a completed firmware reset.
+5. Run one final mixed-body clearance pass. Record landing receipts afterward without moving anything.
 
-1. Read prior-state actors and validated events. Allocate numeric runtime IDs centrally. An ambient identity is a stable spawn key, not permission to replace a live actor's numeric ID.
-2. Construct sensory observations using actual line-of-sight and authoritative prior-state positions. Do not mark an occluded actor as visible, update remembered positions from hidden state, or turn a camera location into a fidelity anchor.
-3. Run the lane-owned policies in stable actor order. Reserve conversion and melee capacity as intents are accepted, so simultaneous policies cannot independently oversubscribe a shared cap.
-4. Apply accepted locomotion through the shared sidewalk/vehicle follower and collision system. Service arrival/stop observations must describe its resulting progress; a deadline or a timetable is never a substitute for physical arrival.
-5. Apply authorized combat effects through the combat lane. A policy only requests an effect; it does not change another robot's alignment, rust, health or rewards itself.
-6. Run the existing final `stepDodge(world, before, moved)` pass. Do not move any physical actor afterward.
+Camera position never acts as a simulation anchor. Hidden riders retain their identity but have no independent collision/draw body. A timetable, elapsed deadline or requested waypoint is never an arrival acknowledgement. Failed routes and missing safehouses remain explicit pending/rejected results. Significant actors and reserved van unload slots share the 2,000-actor cap; ambient limits remain 60 per anchor and 800 total.
 
-An agent already controlled by a dive/clearance override must keep that motion authority. New vans and buses must be represented in the same swept footprint, vertical-band, spawn, join and exit-clearance checks as existing vehicles. People and animals need the appropriate protected-body classifications before they appear in the live world. A policy-only test cannot prove those integration guarantees.
-
-## Existing runtime adapter
-
-The current integration branch's `src/sim/agents.ts` uses numeric IDs and the `ext.agents` list. Its `errandRobot` maps to the brain's `footman` archetype and `sidewalkBot` maps to `trundle`; do not rename the existing serialized kinds to adopt the policy API. The road graph is static world data. Policy state belongs in a typed, migrated extension chosen by core; it must not silently replace `ext.agents` or the separately developed prototype's `ext.game`.
-
-Keep significant actors when they leave active regions. Promote wet, rusted, scanned, recruited, converted or mission actors before population handoff/despawn, and handle a refused promotion explicitly so an interacted actor cannot silently disappear at the population cap. Keep their route, identity, random state and phase when promoting or handing them back to full detail. Abstract actors must not attack, convert, receive new sensory knowledge or award rewards. Van request IDs and their creation ticks must be stable across retries. Timetable minute values must be monotonic across midnight; convert the shared day/clock before calling the scheduler.
-
-Service vehicle IDs are reservations from the core allocator, not a separate global ID space. Confirm retirement only after the shared vehicle system has safely removed the physical body; a completed or timed-out job retains its vehicle slot until that acknowledgement. Confirm forced-update completion with both `targetId` and `completedTick`, after the combat lane has applied it, so delayed acknowledgements cannot consume a newer completion.
+`threat.spawn` uses the shared gameplay contract. `agents.recruit`, `agents.robot-body.start` and `agents.finale.start` are recorded, sequenced commands; their payloads are validated. A boss route must have all required phases and real clearance. Without an authored Walker route, threat 5 can derive a checked patrol from known world geometry. Unknown ground produces no invented route.
 
 ## Validation
 
-From this checkout, with its dependencies installed:
+Source `/workspace/.fog-city/activate.sh` in this environment. Serialize heavy work:
 
 ```bash
 NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock pnpm typecheck
-NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock pnpm exec vitest run tests/sim/agents --maxWorkers=2
-NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock node tests/sim/agents/browser-parity.ts
+NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock pnpm exec vitest run --maxWorkers=2
+NODE_OPTIONS=--max-old-space-size=8192 E2E_PORT=5483 flock /tmp/fog.lock pnpm e2e --config /workspace/.fog-city/lane3.playwright.config.mts --workers=1 --project=chromium
+NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock node scripts/bench/agent-runtime.ts --world sf --anchors 1,4,24 --ticks 180 --warmup 10 --max-p95-ms 0.7 --max-state-bytes 1500000
 ```
 
-The parity runner uses installed Chromium (or `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`), compares 30 checkpoints over 1,800 policy ticks against Node, and writes `test-results/lane3/browser-parity.json`. It does not register the policies in the live simulation or validate physical clearance.
-
-Core owns the final registration, migrations, cross-engine suite, golden updates and combined vehicle/person clearance soak. Lane R owns visible assets and animation; lane 4 owns rust and effect application. Requests and current verification results are recorded in `docs/parallel/status/sim-agents.md`.
+`tests/e2e/agent-runtime.spec.ts` compares Node/browser hashes and complete state over 1,800 integrated ticks. The benchmark supports `--drive --check-clearance --replay` and `--require-services`; a failed gate returns nonzero. Software rendering does not establish real-device FPS or final art quality. See `docs/parallel/status/sim-agents.md` for actual results, dependencies and known failures.

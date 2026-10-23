@@ -26,6 +26,8 @@ export interface RenderInfoLike {
   agentsNear?: number;
   agentsTotal?: number;
   agentDrawCalls?: number;
+  legacyAgentDrawCalls?: number;
+  runtimeAgentDrawCalls?: number;
   /** Agents drawn in a dodge pose last frame. */
   agentsDodging?: number;
   agentModels?: string[];

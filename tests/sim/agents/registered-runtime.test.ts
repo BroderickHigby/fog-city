@@ -6,7 +6,7 @@ import { buildWorld, type World } from "../../../src/sim/world.ts";
 import { pathPoint, walkPath, type RoadsFile } from "../../../src/sim/roads.ts";
 import { createCombatState } from "../../../src/sim/combat/system.ts";
 import { agentRuntimeSession, enableAgentRuntime, type RuntimePhysicalBody } from "../../../src/sim/agents/runtime-state.ts";
-import { agentsRuntimeOf, createAgentRuntimeSystem, MAX_RUNTIME_REQUEST_KEYS, runtimeCombatActors, runtimePhysicalBodies, type AgentRuntimeData } from "../../../src/sim/agents/runtime-system.ts";
+import { agentsRuntimeOf, createAgentRuntimeSystem, enforceAgentRuntimePopulation, MAX_RUNTIME_REQUEST_KEYS, runtimeCombatActors, runtimePhysicalBodies, type AgentRuntimeData } from "../../../src/sim/agents/runtime-system.ts";
 
 function roadWorld(): World {
   const nodes = [{ id: "a", x: 0, z: 0 }, { id: "b", x: 240, z: 0 }, { id: "c", x: 240, z: 120 }, { id: "d", x: 0, z: 120 }];
@@ -154,6 +154,144 @@ describe("registered agent runtime", () => {
     const outside = system.step({ world, previous: distant, state: { ...distant, tick: 2, ext: { ...distant.ext, agents: { ...distant.ext.agents!, list } } }, inputs: {}, events: [] });
     expect(agentsRuntimeOf(outside)?.population.badRobots).toBe(10);
     expect(agentsRuntimeOf(outside)?.lanyardPersonIds).toEqual([]);
+  });
+
+  it("counts every overlapping anchor while preserving significant actors outside the ambient budget", () => {
+    const world = buildWorld([]);
+    const list = Array.from({ length: 240 }, (_, i) => actor(i + 1, i % 2 === 0 ? -20 : 20, 0, i < 120 ? "errandRobot" : "person"));
+    list.push(actor(500, 0, 0));
+    const base = fixture(world, list);
+    const previous = { ...base, players: {
+      p: { ...base.players.p!, car: { ...base.players.p!.car, x: -100, z: 0 } },
+      q: { ...base.players.p!, id: "q", car: { ...base.players.p!.car, x: 100, z: 0 } },
+    }, ext: { ...base.ext, robots: { ...base.ext.robots!, significantAgentIds: [500] } } };
+    const result = createAgentRuntimeSystem(options).step({ world, previous, state: { ...previous, tick: 1 }, inputs: {}, events: [] });
+    const runtime = agentsRuntimeOf(result)!;
+    const ambient = agentsOf(result).filter(value => value.id !== 500);
+    expect(ambient).toHaveLength(60);
+    expect(runtime.population.significant).toBe(1);
+    expect(agentsOf(result).some(value => value.id === 500)).toBe(true);
+    for (const player of [result.players.p!, result.players.q!]) {
+      expect(ambient.filter(value => (value.x - player.car.x) ** 2 + (value.z - player.car.z) ** 2 <= 300 ** 2)).toHaveLength(60);
+    }
+    expect(runtime.population.perAnchor).toEqual([{ id: "p", count: 60 }, { id: "q", count: 60 }]);
+  });
+
+  it("keeps stable identities when overlap ownership moves and input order reverses", () => {
+    const world = buildWorld([]);
+    const list = Array.from({ length: 120 }, (_, i) => actor(i + 100, -20, 0, i < 60 ? "errandRobot" : "person"));
+    const base = fixture(world, list);
+    const previous = { ...base, players: {
+      p: { ...base.players.p!, car: { ...base.players.p!.car, x: 0, z: 0 } },
+      q: { ...base.players.p!, id: "q", car: { ...base.players.p!.car, x: 100, z: 0 } },
+    } };
+    const system = createAgentRuntimeSystem(options);
+    const first = system.step({ world, previous, state: { ...previous, tick: 1 }, inputs: {}, events: [] });
+    const ids = agentsOf(first).map(value => value.id);
+    const fresh = Array.from({ length: 80 }, (_, i) => actor(i + 1, -120, 0, i < 40 ? "errandRobot" : "person"));
+    const moved = { ...first, tick: 2, players: {
+      p: { ...first.players.p!, car: { ...first.players.p!.car, x: -100 } },
+      q: { ...first.players.q!, car: { ...first.players.q!.car, x: 0 } },
+    }, ext: { ...first.ext, agents: { ...first.ext.agents!, list: [...list, ...fresh] } } };
+    const result = system.step({ world, previous: first, state: moved, inputs: {}, events: [] });
+    expect(agentsOf(result).map(value => value.id)).toEqual(ids);
+    const reversed = { ...moved, players: { q: moved.players.q, p: moved.players.p }, ext: { ...moved.ext, agents: { ...moved.ext.agents, list: [...moved.ext.agents.list].reverse() } } };
+    const replay = createAgentRuntimeSystem(options).step({ world, previous: first, state: reversed, inputs: {}, events: [] });
+    expect(agentsOf(replay).map(value => value.id)).toEqual(ids);
+  });
+
+  it("reserves animals against every overlapping anchor's ambient budget", () => {
+    const world = roadWorld();
+    const list = Array.from({ length: 180 }, (_, i) => actor(i + 1, 100 + i % 2, 9, i < 90 ? "errandRobot" : "person"));
+    const base = fixture(world, list);
+    const previous = { ...base, players: { ...base.players, q: { ...base.players.p!, id: "q", car: { ...base.players.p!.car, x: 160 } } } };
+    const result = createAgentRuntimeSystem({ ...options, animalLimit: { pigeons: 4, dogs: 0 } }).step({ world, previous, state: { ...previous, tick: 1 }, inputs: {}, events: [] });
+    const runtime = agentsRuntimeOf(result)!;
+    expect(runtime.spatial.animals).toHaveLength(4);
+    expect(runtime.population.ambient).toBe(60);
+    expect(runtime.population.perAnchor).toEqual([{ id: "p", count: 60 }, { id: "q", count: 60 }]);
+    for (const player of [result.players.p!, result.players.q!]) {
+      const actual = [...agentsOf(result), ...runtime.spatial.animals].filter(value => (value.x - player.car.x) ** 2 + (value.z - player.car.z) ** 2 <= 300 ** 2);
+      expect(actual).toHaveLength(60);
+    }
+  });
+
+  it("keeps the Conference Week multiplier and its baseline when anchors overlap", () => {
+    const world = buildWorld([]);
+    const list = Array.from({ length: 200 }, (_, i) => actor(i + 1, i % 2 === 0 ? 160 : 220, 0, i < 100 ? "errandRobot" : "person"));
+    const base = fixture(world, list);
+    const metadata = list.filter(value => value.kind !== "person").map(value => ({ agentId: value.id, firmware: value.id % 3 === 0 ? "bad" : "good" }));
+    const previous = { ...base, players: { ...base.players, q: { ...base.players.p!, id: "q", car: { ...base.players.p!.car, x: 200 } } },
+      ext: { ...base.ext, robots: { ...base.ext.robots!, metadata } } };
+    const system = createAgentRuntimeSystem(options);
+    const normal = system.step({ world, previous, state: { ...previous, tick: 1 }, inputs: {}, events: [] });
+    const runtime = agentsRuntimeOf(normal)!;
+    const active = { ...normal, ext: { ...normal.ext, agents: { ...normal.ext.agents!, runtime: { ...runtime, routineOutput: { conference: { badRateMultiplier: 1.5, lanyardCrowd: true } } } } } };
+    const boosted = system.step({ world, previous: active, state: { ...active, tick: 2, ext: { ...active.ext, agents: { ...active.ext.agents!, list } } }, inputs: {}, events: [] });
+    expect(runtime.population.badRobots).toBe(10);
+    expect(agentsRuntimeOf(boosted)?.population.badRobots).toBe(15);
+    expect(agentsRuntimeOf(boosted)?.population.perAnchor.every(value => value.count <= 60)).toBe(true);
+    const ended = { ...boosted, ext: { ...boosted.ext, agents: { ...boosted.ext.agents!, runtime: { ...agentsRuntimeOf(boosted)!, routineOutput: { conference: { badRateMultiplier: 1, lanyardCrowd: false } } } } } };
+    const restored = system.step({ world, previous: ended, state: { ...ended, tick: 3, ext: { ...ended.ext, agents: { ...ended.ext.agents!, list } } }, inputs: {}, events: [] });
+    expect(agentsRuntimeOf(restored)?.population.badRobots).toBe(10);
+  });
+
+  it("keeps people, robots and Conference quotas when separate crowds enter overlap", () => {
+    const world = buildWorld([]);
+    const list = Array.from({ length: 240 }, (_, i) => actor(i + 1, i % 2 === 0 ? -100 : 100, 0, i < 120 ? "errandRobot" : "person"));
+    const base = fixture(world, list);
+    const metadata = list.filter(value => value.kind !== "person").map(value => ({ agentId: value.id, firmware: value.id % 3 === 0 ? "bad" : "good" }));
+    const previous = { ...base, players: {
+      p: { ...base.players.p!, car: { ...base.players.p!.car, x: -400, z: 0 } },
+      q: { ...base.players.p!, id: "q", car: { ...base.players.p!.car, x: 400, z: 0 } },
+    }, ext: { ...base.ext, robots: { ...base.ext.robots!, metadata } } };
+    const system = createAgentRuntimeSystem(options);
+    const separated = system.step({ world, previous, state: { ...previous, tick: 1 }, inputs: {}, events: [] });
+    expect(agentsRuntimeOf(separated)?.population.ambient).toBe(120);
+    const active = { ...separated, players: {
+      p: { ...separated.players.p!, car: { ...separated.players.p!.car, x: -50 } },
+      q: { ...separated.players.q!, car: { ...separated.players.q!.car, x: 50 } },
+    }, ext: { ...separated.ext, agents: { ...separated.ext.agents!, runtime: { ...agentsRuntimeOf(separated)!, routineOutput: { conference: { badRateMultiplier: 1.5, lanyardCrowd: true } } } } } };
+    const merged = system.step({ world, previous: active, state: { ...active, tick: 2, ext: { ...active.ext, agents: { ...active.ext.agents!, list } } }, inputs: {}, events: [] });
+    expect(agentsRuntimeOf(merged)?.population).toMatchObject({ ambient: 60, robots: 30, people: 30, badRobots: 15 });
+    expect(agentsRuntimeOf(merged)?.population.perAnchor).toEqual([{ id: "p", count: 60 }, { id: "q", count: 60 }]);
+    expect(agentsRuntimeOf(merged)?.population.badBaselines.map(value => value.count)).toEqual([5, 5]);
+  });
+
+  it("recaps final boundary-crossing poses and prunes walkers, metadata and orphaned dogs", () => {
+    const world = buildWorld([]);
+    const list = [
+      ...Array.from({ length: 60 }, (_, i) => actor(i + 100, 0, 0, i < 30 ? "errandRobot" : "person")),
+      ...Array.from({ length: 60 }, (_, i) => actor(i + 200, 300.1, 0, i < 30 ? "errandRobot" : "person")),
+    ];
+    const base = fixture(world, list);
+    const previous = { ...base, players: {
+      p: { ...base.players.p!, car: { ...base.players.p!.car, x: 0, z: 0 } },
+      q: { ...base.players.p!, id: "q", car: { ...base.players.p!.car, x: 600, z: 0 } },
+    } };
+    const first = createAgentRuntimeSystem(options).step({ world, previous, state: { ...previous, tick: 1 }, inputs: {}, events: [] });
+    const runtime = agentsRuntimeOf(first)!;
+    const dog = { id: "dog:259", kind: "dog" as const, x: 299.9, y: 0, z: 0, heading: 0, speed: 0, radius: 0.3, protected: true as const, wet: false as const,
+      ownerId: 259, leashM: 2.2, edgeId: null, distanceM: 0, direction: 1 as const, phaseTicks: 0, rng: 1, reaction: { mode: "idle" as const, untilTick: 0, source: null } };
+    const dogBody: RuntimePhysicalBody = { id: dog.id, numericId: 1000, kind: "animal", model: "dog", x: dog.x, y: 0, z: 0, previousX: 300.1, previousZ: 0, heading: 0, previousHeading: 0, speed: 0, radius: .3, halfLength: .3, halfWidth: .3, height: .5, dodge: null };
+    const crossed = { ...first, ext: { ...first.ext, agents: { ...first.ext.agents!, list: agentsOf(first).map(value => value.id === 259 ? { ...value, x: 299.9 } : value),
+      runtime: { ...runtime, bodies: [dogBody], spatial: { ...runtime.spatial, animals: [dog] }, animalIds: [{ key: dog.id, id: 1000, lastSeenTick: 1 }], routineOutput: { actorMetadata: { "agent:259": { firmware: "good" } } } } },
+      robots: { ...first.ext.robots!, actors: [{ id: dog.id, kind: "animal" }], metadata: list.map(value => ({ agentId: value.id, actorId: `agent:${value.id}` })),
+        locomotion: list.map(value => ({ agentId: value.id })), baselines: list.map(value => ({ agentId: value.id })),
+        brain: { version: 1, tick: 1, robots: list.map(value => ({ agentId: value.id })) } } } };
+    const result = enforceAgentRuntimePopulation(crossed);
+    const next = agentsRuntimeOf(result)!;
+    const retained = new Set(agentsOf(result).map(value => value.id));
+    expect(retained.has(259)).toBe(false);
+    expect(next.population.perAnchor.every(value => value.count <= 60)).toBe(true);
+    expect(next.spatial.walkers.every(value => retained.has(value.id))).toBe(true);
+    expect(next.spatial.animals).toEqual([]);
+    expect(next.animalIds).toEqual([]);
+    expect(next.bodies).toEqual([]);
+    expect(result.ext.robots!.actors).toEqual([]);
+    expect(result.ext.robots!.metadata).toEqual(expect.not.arrayContaining([expect.objectContaining({ agentId: 259 })]));
+    expect(result.ext.robots!.locomotion).toEqual(expect.not.arrayContaining([expect.objectContaining({ agentId: 259 })]));
+    expect((next.routineOutput as { actorMetadata: Record<string, unknown> }).actorMetadata["agent:259"]).toBeUndefined();
   });
 
   it("caps global ambient population at 800 across 24 independent anchors", () => {

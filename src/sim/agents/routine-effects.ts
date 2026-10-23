@@ -3,7 +3,8 @@ import { rejoinAt, type AgentState, type AgentsExt } from "../agents.ts";
 import { datan2 } from "../dmath.ts";
 import { hash32 } from "../rng.ts";
 import { initialTarget } from "../combat/shared.ts";
-import type { CombatState } from "../combat-contract.ts";
+import type { CombatActor, CombatState } from "../combat-contract.ts";
+import { movementLimit } from "../combat/system.ts";
 import { circleBlocked, meshGroundHeight, segmentBlocked, type World } from "../world.ts";
 import { pathPoint, projectOnPath, walkPath } from "../roads.ts";
 import { finaleFootfallClear, type FinaleEffect, type FinaleLandingAck } from "../robots/finale.ts";
@@ -12,7 +13,7 @@ import type { RuntimePhysicalBody } from "./runtime-state.ts";
 import type { AgentRuntimeData } from "./runtime-system.ts";
 import { routineFinaleBodyClear, type RoutineRuntimeEffect, type RoutineRuntimeState } from "./routine-runtime.ts";
 
-interface RoutineOutput { effects: readonly RoutineRuntimeEffect[]; actorMetadata: Readonly<Record<string, { x?: number; y?: number; z?: number; speed?: number; heading?: number }>> }
+interface RoutineOutput { effects: readonly RoutineRuntimeEffect[]; actorMetadata: Readonly<Record<string, Partial<CombatActor>>> }
 interface HeapBinding { heapId: string; tidyId: string }
 interface TermsWindup { id: string; actorId: string; playerId: string; startedTick: number; activeUntil: number }
 export interface RoutineEffectState {
@@ -68,6 +69,24 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
   const players = { ...after.players };
   const legacy = (id: string): AgentState | undefined => list.find(a => a.id === robotAgentId(id));
   const physical = (id: string): AgentState | RuntimePhysicalBody | undefined => legacy(id) ?? bodies.find(b => b.id === id);
+  const robotActors = Array.isArray(after.ext.robots?.actors) ? after.ext.robots.actors as unknown as readonly CombatActor[] : [];
+  const robotById = new Map(robotActors.map(actor => [actor.id, actor]));
+  const restoredIds = Array.isArray(after.ext.robots?.restoredAgentIds) ? after.ext.robots.restoredAgentIds : [];
+  const termsAllowed = (actorId: string, playerId: string): boolean => {
+    const body = physical(actorId), player = players[playerId];
+    if (!combat || !body || !("model" in body) || body.kind !== "robot" || body.model !== "patrol" || body.operational === false || !player) return false;
+    const robot = robotById.get(actorId), routine = source.routineOutput!.actorMetadata[actorId];
+    const id = robotAgentId(actorId);
+    // Match the combat wrapper's metadata precedence, using the current physical pose.
+    // Explicit restoration also applies when this frame still has a stale bad descriptor.
+    const firmware = id !== null && (restored.has(id) || restoredIds.includes(id)) ? "good" :
+      robot?.firmware ?? routine?.firmware ?? body.firmware ?? "none";
+    const actor: CombatActor = { ...robot, ...routine, id: actorId, kind: "robot", model: "patrol", firmware,
+      x: body.x, y: body.y, z: body.z, heading: body.heading, speed: body.speed, radius: body.radius, height: body.height };
+    const target = player.mode === "foot" && player.foot ? player.foot : player.car;
+    return actor.firmware === "bad" && actor.protected !== true && actor.inFidelity !== false &&
+      movementLimit(combat, actor).canAttack && d2(body, target) <= 36 && !segmentBlocked(world, body.x, body.z, target.x, target.z);
+  };
   const atKiosk = (p: { x: number; z: number }): boolean => (world.gameplay?.anchors ?? []).some(a => a.kind === "repair-kiosk" && d2(a, p) <= 4);
   const protectors = (): { id: string; kind: "person" | "animal"; x: number; z: number; radius: number }[] => [
     ...list.filter(a => a.kind === "person").map(a => ({ id: `agent:${a.id}`, kind: "person" as const, x: a.x, z: a.z, radius: 0.35 })),
@@ -83,10 +102,22 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
       return b.id !== id && b.kind === "vehicle" && d2(b, p) <= clearance * clearance && Math.abs(b.y - p.y) < b.height;
     });
   };
-  const ack = (effect: RoutineRuntimeEffect): void => {
+  const ack = (effect: RoutineRuntimeEffect, kind = effect.kind): void => {
     if (!effectState.acks.includes(effect.id)) effectState.acks.push(effect.id);
     if (!effectState.applied.includes(effect.id)) effectState.applied.push(effect.id);
-    effectState.events.push({ id: effect.id, tick: after.tick, kind: effect.kind, actorId: effect.actorId, targetId: effect.targetId });
+    effectState.events.push({ id: effect.id, tick: after.tick, kind, actorId: effect.actorId, targetId: effect.targetId });
+  };
+  const cancelTerms = (id: string, actorId: string, playerId: string): void => {
+    const terms = effectState.terms.find(term => term.id === id);
+    const target = combat?.targets[playerId];
+    if (terms && terms.activeUntil > after.tick && target?.stoppedUntil === terms.activeUntil) {
+      // This reducer can release its own stop, but never shorten a stronger unrelated stop.
+      target.stoppedUntil = Math.max(after.tick, ...effectState.terms.filter(term => term.id !== id && term.playerId === playerId).map(term => term.activeUntil));
+    }
+    effectState.terms = effectState.terms.filter(term => term.id !== id);
+    const pending = effects.find(effect => effect.id === id);
+    if (pending && !effectState.applied.includes(id)) ack(pending, "patrol.terms-cancelled");
+    else effectState.events.push({ id: `${id}/cancelled`, tick: after.tick, kind: "patrol.terms-cancelled", actorId, targetId: playerId });
   };
   const applyPose = (id: string, p: { x: number; y: number; z: number }, speed = 0): boolean => {
     const body = physical(id);
@@ -139,7 +170,9 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
     if (!active && player?.mode === "foot") players[playerId] = { ...player, car: { ...player.car, speed: 0, lateral: 0, yawRate: 0 } };
     return active;
   });
-  for (const terms of effectState.terms) {
+  for (const terms of [...effectState.terms]) {
+    if (terms.activeUntil > 0 && terms.activeUntil <= after.tick) continue;
+    if (!termsAllowed(terms.actorId, terms.playerId)) { cancelTerms(terms.id, terms.actorId, terms.playerId); continue; }
     if (terms.activeUntil > after.tick && ((inputs[terms.playerId]?.actions ?? 0) & Action.interact) !== 0 && combat?.targets[terms.playerId]) {
       combat.targets[terms.playerId]!.stoppedUntil = after.tick;
       terms.activeUntil = after.tick;
@@ -219,10 +252,8 @@ export function finalizeRoutineEffects(world: World, before: Readonly<SimState>,
       if (combat.targets[`player:${e.playerId}`]) combat.targets[`player:${e.playerId}`] = initialTarget();
       ack(e);
     } else if (e.kind === "patrol.terms") {
-      const player = after.players[e.playerId];
-      if (!player || !sourceBody || !combat) continue;
-      const p = player.mode === "foot" && player.foot ? player.foot : player.car;
-      if (d2(sourceBody, p) > 36) { effectState.terms = effectState.terms.filter(t => t.id !== e.id); continue; }
+      if (!termsAllowed(e.actorId, e.playerId)) { cancelTerms(e.id, e.actorId, e.playerId); continue; }
+      if (!combat) continue;
       let windup = effectState.terms.find(t => t.id === e.id);
       if (!windup) { windup = { id: e.id, actorId: e.actorId, playerId: e.playerId, startedTick: after.tick, activeUntil: 0 }; effectState.terms.push(windup); }
       if (((inputs[e.playerId]?.actions ?? 0) & Action.interact) !== 0) { effectState.terms = effectState.terms.filter(t => t.id !== e.id); ack(e); continue; }

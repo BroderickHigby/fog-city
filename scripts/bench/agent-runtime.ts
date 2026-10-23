@@ -1,7 +1,8 @@
 // Full registered agent/runtime benchmark against committed world data.
 // Run alone: NODE_OPTIONS=--max-old-space-size=8192 flock /tmp/fog.lock \
 //   node scripts/bench/agent-runtime.ts --world sf --anchors 1,4,24 --ticks 1200
-// --replay repeats each scenario and requires identical final canonical state.
+// --replay compares complete final canonical state, not only its 32-bit summary hash.
+// --state-output PATH writes final states keyed by anchor count in one canonical JSON file.
 // Timing covers step() only; JSON measurement and invariant checks run outside it.
 import { writeFileSync } from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -11,13 +12,15 @@ import { createInitialState, step } from "../../src/sim/step.ts";
 import { buildWorld, meshGroundHeight, type World } from "../../src/sim/world.ts";
 import { CAR, makeCar } from "../../src/sim/car.ts";
 import { boxBlocked } from "../../src/sim/collide.ts";
-import { datan2 } from "../../src/sim/dmath.ts";
+import { datan2, dcos, dsin } from "../../src/sim/dmath.ts";
 import { lanePath, pathPoint, type RoadsFile } from "../../src/sim/roads.ts";
-import { agentsOf } from "../../src/sim/agents.ts";
+import { AGENT_SPEC, ROBOTAXI_BODY, agentsOf } from "../../src/sim/agents.ts";
 import { agentsRuntimeOf, runtimePhysicalBodies } from "../../src/sim/agents/runtime-system.ts";
 import { enableAgentRuntime, type AgentRuntimeWave } from "../../src/sim/agents/runtime-state.ts";
-import { hashState } from "../../src/sim/serialize.ts";
-import type { InputFrame, SimEvent, SimState } from "../../src/sim/contract.ts";
+import { canonicalJson, hashState } from "../../src/sim/serialize.ts";
+import { boxDistance } from "../../src/sim/dodge.ts";
+import { FOOT } from "../../src/sim/foot.ts";
+import { Action, type InputFrame, type SimEvent, type SimState } from "../../src/sim/contract.ts";
 
 const args = process.argv.slice(2);
 function option(name: string, fallback: string): string {
@@ -44,6 +47,8 @@ if (anchorCounts.length === 0 || anchorCounts.some((value) => !Number.isInteger(
 const maxP95 = Number(option("max-p95-ms", "0"));
 const maxStateBytes = integer("max-state-bytes", 0, 0, 100000000);
 const requireServices = args.includes("--require-services");
+const stateOutput = option("state-output", "");
+const drive = args.includes("--drive"), checkClearance = args.includes("--check-clearance");
 if (!Number.isFinite(maxP95) || maxP95 < 0) throw new Error("Invalid --max-p95-ms");
 
 const files = loadWorldFiles(worldName);
@@ -92,31 +97,88 @@ function initial(count: number): { state: SimState; ids: string[] } {
 interface FleetCounts {
   requestsSent: number; requestsMapped: number; maxQueued: number; spawnedVans: number; deliveredRequests: number;
   rejectedRequests: number; onTimeArrivals: number; lateArrivals: number; retiredVans: number;
-  spawnedBuses: number; busStops: number; retiredBuses: number; progressedVehicles: number; maxPhysical: number;
+  spawnedBuses: number; busStops: number; retiredBuses: number; progressedVehicles: number; progressedBuses: number; progressedVans: number; maxPhysical: number;
   maxDistanceM: number; fifoStable: boolean;
 }
+interface GeometryContact { bodyId: string; vehicleId: string; gapM: number }
+interface ClearanceChecks {
+  checkedFrames: number; overlapFrames: number; counterResets: number; peakContacts: number; peakPersonBumps: number;
+  firstOverlap: (GeometryContact & { tick: number }) | null;
+}
+
+/** Independent post-step footprint check. It does not substitute for a swept-motion proof. */
+function firstGeometryContact(state: SimState): GeometryContact | null {
+  const circles: { id: string; x: number; y: number; z: number; r: number; height: number }[] = [];
+  const vehicles: { id: string; x: number; y: number; z: number; fx: number; fz: number; hl: number; hw: number; height: number; extent: number }[] = [];
+  const addVehicle = (id: string, pose: { x: number; y: number; z: number; heading: number }, hl: number, hw: number, height: number): void => {
+    vehicles.push({ id, x: pose.x, y: pose.y, z: pose.z, fx: dsin(pose.heading), fz: -dcos(pose.heading), hl, hw, height, extent: Math.sqrt(hl * hl + hw * hw) });
+  };
+  for (const id of Object.keys(state.players).sort()) {
+    const player = state.players[id]!;
+    addVehicle(`car:${id}`, player.car, CAR.halfLength, CAR.halfWidth, CAR.bodyHeight);
+    if (player.mode === "foot" && player.foot) circles.push({ id: `player:${id}`, ...player.foot, r: FOOT.radius, height: FOOT.height });
+  }
+  for (const actor of agentsOf(state)) {
+    if (actor.kind === "robotaxi") addVehicle(`agent:${actor.id}`, actor, ROBOTAXI_BODY.halfLength, ROBOTAXI_BODY.halfWidth, ROBOTAXI_BODY.height);
+    else if (actor.kind === "person") circles.push({ id: `agent:${actor.id}`, x: actor.x, y: actor.y, z: actor.z, r: AGENT_SPEC.person.radius, height: FOOT.height });
+  }
+  for (const body of runtimePhysicalBodies(state)) {
+    if (body.kind === "vehicle") addVehicle(body.id, body, body.halfLength, body.halfWidth, body.height);
+    else if (body.kind === "person" || body.kind === "animal") circles.push({ id: body.id, x: body.x, y: body.y, z: body.z, r: body.radius, height: body.height });
+  }
+  for (const body of circles) for (const vehicle of vehicles) {
+    if (body.y + body.height <= vehicle.y + 1e-6 || vehicle.y + vehicle.height <= body.y + 1e-6 ||
+      Math.abs(body.x - vehicle.x) > vehicle.extent + body.r || Math.abs(body.z - vehicle.z) > vehicle.extent + body.r) continue;
+    const gapM = boxDistance(body.x, body.z, vehicle.x, vehicle.z, vehicle.fx, vehicle.fz, vehicle.hl, vehicle.hw) - body.r;
+    if (gapM < -1e-6) return { bodyId: body.id, vehicleId: vehicle.id, gapM };
+  }
+  return null;
+}
+
 interface Result {
   world: string; anchors: number; wave: number; seed: number; ticks: number; warmup: number;
   medianMs: number; p95Ms: number; maxMs: number; jsonBytes: number; peakJsonBytes: number;
   peakAmbient: number; peakSignificant: number; peakReservedVanUnits: number; peakBodies: number; finitePoses: boolean; boundedPopulation: boolean;
-  fleet: FleetCounts; finalHash: string; replay: "not-run" | "matched"; violations: string[];
+  storageBytes?: Record<string, number>; clearanceContacts: number; personBumps: number; clearance: ClearanceChecks; fleet: FleetCounts; finalHash: string; replay: "not-run" | "matched"; violations: string[];
 }
 
-function run(count: number, timed: boolean): Result {
+function run(count: number, timed: boolean): { result: Result; state: SimState; canonicalState: string } {
   const setup = initial(count);
   let state = setup.state;
   const inputs: InputFrame = Object.fromEntries(setup.ids.map((id) => [id, { throttle: 0, steer: 0, brake: 1, actions: 0 }]));
-  for (let i = 0; i < warmup; i++) state = step(world, state, inputs);
   const times: number[] = [];
   const violations: string[] = [];
   const addViolation = (message: string): void => { if (violations.length < 8 && !violations.includes(message)) violations.push(message); };
   const countFleet: FleetCounts = { requestsSent: 0, requestsMapped: 0, maxQueued: 0, spawnedVans: 0, deliveredRequests: 0, rejectedRequests: 0,
-    onTimeArrivals: 0, lateArrivals: 0, retiredVans: 0, spawnedBuses: 0, busStops: 0, retiredBuses: 0, progressedVehicles: 0, maxPhysical: 0, maxDistanceM: 0, fifoStable: true };
+    onTimeArrivals: 0, lateArrivals: 0, retiredVans: 0, spawnedBuses: 0, busStops: 0, retiredBuses: 0, progressedVehicles: 0, progressedBuses: 0, progressedVans: 0, maxPhysical: 0, maxDistanceM: 0, fifoStable: true };
   const seenVans = new Set<number>(); const seenBuses = new Set<number>(); const seenArrivals = new Set<number>(); const seenRetired = new Set<number>();
-  const seenDisembarks = new Set<number>(); const seenRejected = new Set<number>(); const progressed = new Set<number>();
+  const seenDisembarks = new Set<number>(); const seenRejected = new Set<number>();
+  const progressedBuses = new Set<number>(), progressedVans = new Set<number>();
+  const priorVehiclePoses = new Map<number, { x: number; z: number; spawned: boolean }>();
+  const observedDistance = new Map<number, number>();
   const busStops = new Map<number, number>(); const distanceByRoute = new Map<string, number>();
   let previousBuses = new Set<number>(); let lastDispatched = -1;
   let peakJsonBytes = 0; let peakAmbient = 0; let peakSignificant = 0; let peakReservedVanUnits = 0; let peakBodies = 0; let finitePoses = true; let boundedPopulation = true;
+  const clearance: ClearanceChecks = { checkedFrames: 0, overlapFrames: 0, counterResets: 0, peakContacts: 0, peakPersonBumps: 0, firstOverlap: null };
+  let priorContacts = 0, priorBumps = 0;
+  const checkClearanceFrame = (): void => {
+    if (!checkClearance) return;
+    clearance.checkedFrames++;
+    const contacts = (state.ext.dodge as { contacts?: number } | undefined)?.contacts ?? 0;
+    const bumps = setup.ids.reduce((sum, id) => sum + state.players[id]!.car.personBumps, 0);
+    if (!Number.isSafeInteger(contacts) || contacts < 0 || !Number.isSafeInteger(bumps) || bumps < 0) addViolation("invalid-clearance-counter");
+    if (contacts < priorContacts || bumps < priorBumps) { clearance.counterResets++; addViolation("clearance-counter-reset"); }
+    priorContacts = contacts; priorBumps = bumps;
+    clearance.peakContacts = Math.max(clearance.peakContacts, contacts); clearance.peakPersonBumps = Math.max(clearance.peakPersonBumps, bumps);
+    if (contacts !== 0 || bumps !== 0) addViolation("person-clearance-contact");
+    const overlap = firstGeometryContact(state);
+    if (overlap) {
+      clearance.overlapFrames++;
+      clearance.firstOverlap ??= { ...overlap, tick: state.tick };
+      addViolation("post-step-body-overlap");
+    }
+  };
+  for (let i = 0; i < warmup; i++) { state = step(world, state, inputs); checkClearanceFrame(); }
   for (let i = 0; i < ticks; i++) {
     const tick = state.tick + 1;
     const events: SimEvent[] = [];
@@ -127,9 +189,18 @@ function run(count: number, timed: boolean): Result {
       events.push({ kind: "threat.spawn", tick, payload }, { kind: "threat.spawn", tick, payload });
       countFleet.requestsSent++;
     }
+    if (drive) {
+      for (const [index, id] of setup.ids.entries()) {
+        const phase = (i + index * 37) % 600;
+        const input = { throttle: phase > 550 ? 0 : 0.8, steer: phase % 200 < 100 ? 0.25 : -0.25,
+          brake: phase > 550 ? 1 : 0, actions: phase === 599 ? Action.enterExit : phase % 180 < 15 ? Action.fire : 0 };
+        (inputs as Record<string, typeof input>)[id] = input;
+      }
+    }
     const start = timed ? performance.now() : 0;
     state = step(world, state, inputs, events);
     if (timed) times.push(performance.now() - start);
+    checkClearanceFrame();
     const runtime = agentsRuntimeOf(state);
     if (!runtime) { addViolation("runtime-not-registered"); continue; }
     const bodies = runtimePhysicalBodies(state);
@@ -148,7 +219,14 @@ function run(count: number, timed: boolean): Result {
       const key = `${vehicle.id}:${vehicle.route.id}`;
       const previousDistance = distanceByRoute.get(key) ?? 0;
       if (vehicle.distanceM < previousDistance) addViolation("vehicle-route-progress-reversed");
-      if (vehicle.spawned && vehicle.distanceM > 0.1) progressed.add(vehicle.id);
+      const prior = priorVehiclePoses.get(vehicle.id);
+      if (prior?.spawned && vehicle.spawned) {
+        const dx = vehicle.x - prior.x, dz = vehicle.z - prior.z;
+        const moved = (observedDistance.get(vehicle.id) ?? 0) + Math.sqrt(dx * dx + dz * dz);
+        observedDistance.set(vehicle.id, moved);
+        if (moved > 0.1) (vehicle.kind === "bus" ? progressedBuses : progressedVans).add(vehicle.id);
+      }
+      priorVehiclePoses.set(vehicle.id, { x: vehicle.x, z: vehicle.z, spawned: vehicle.spawned });
       countFleet.maxDistanceM = Math.max(countFleet.maxDistanceM, vehicle.distanceM);
       distanceByRoute.set(key, vehicle.distanceM);
     }
@@ -176,32 +254,49 @@ function run(count: number, timed: boolean): Result {
     if (i % 30 === 0 || i === ticks - 1) peakJsonBytes = Math.max(peakJsonBytes, Buffer.byteLength(JSON.stringify(state)));
   }
   countFleet.spawnedVans = seenVans.size; countFleet.spawnedBuses = seenBuses.size; countFleet.deliveredRequests = seenDisembarks.size;
-  countFleet.rejectedRequests = seenRejected.size; countFleet.retiredVans = seenRetired.size; countFleet.progressedVehicles = progressed.size;
+  countFleet.rejectedRequests = seenRejected.size; countFleet.retiredVans = seenRetired.size; countFleet.progressedBuses = progressedBuses.size; countFleet.progressedVans = progressedVans.size;
+  countFleet.progressedVehicles = progressedBuses.size + progressedVans.size;
   if (!countFleet.fifoStable) addViolation("van-dispatch-order-changed");
   if (maxStateBytes > 0 && peakJsonBytes > maxStateBytes) addViolation("snapshot-budget-exceeded");
   if (requireServices) {
-    if (countFleet.spawnedBuses === 0 || countFleet.progressedVehicles === 0) addViolation("no-observed-bus-service");
+    if (countFleet.spawnedBuses === 0 || countFleet.progressedBuses === 0) addViolation("no-observed-bus-service");
     if (countFleet.deliveredRequests === 0 || countFleet.onTimeArrivals === 0) addViolation("no-observed-on-time-van-delivery");
   }
+  const dodge = state.ext.dodge as { contacts?: number } | undefined;
+  const clearanceContacts = dodge?.contacts ?? 0;
+  const personBumps = setup.ids.reduce((sum, id) => sum + state.players[id]!.car.personBumps, 0);
   times.sort((a, b) => a - b);
   const quantile = (fraction: number): number => timed ? Number((times[Math.min(times.length - 1, Math.floor(times.length * fraction))] ?? 0).toFixed(3)) : 0;
   const p95Ms = quantile(0.95);
   if (timed && maxP95 > 0 && p95Ms > maxP95) addViolation("p95-budget-exceeded");
-  return { world: worldName, anchors: count, wave, seed, ticks, warmup, medianMs: quantile(0.5), p95Ms, maxMs: quantile(1), jsonBytes: Buffer.byteLength(JSON.stringify(state)), peakJsonBytes,
-    peakAmbient, peakSignificant, peakReservedVanUnits, peakBodies, finitePoses, boundedPopulation, fleet: countFleet, finalHash: hashState(state), replay: "not-run", violations };
+  const runtime = agentsRuntimeOf(state);
+  const robots = state.ext.robots;
+  const storageBytes = args.includes("--inspect-state") ? Object.fromEntries(Object.entries({
+    players: state.players, legacyAgents: state.ext.agents?.list, spatial: runtime?.spatial, fleet: runtime?.fleet,
+    bodies: runtime?.bodies, routines: runtime?.routines, routineOutput: runtime?.routineOutput,
+    robotBrain: robots?.brain, robotActors: robots?.actors, robotMetadata: robots?.metadata, combat: state.ext.combat,
+  }).map(([key, value]) => [key, Buffer.byteLength(JSON.stringify(value ?? null))])) : undefined;
+  const canonicalState = canonicalJson(state);
+  const result: Result = { world: worldName, anchors: count, wave, seed, ticks, warmup, medianMs: quantile(0.5), p95Ms, maxMs: quantile(1), jsonBytes: Buffer.byteLength(JSON.stringify(state)), peakJsonBytes,
+    peakAmbient, peakSignificant, peakReservedVanUnits, peakBodies, finitePoses, boundedPopulation, ...(storageBytes ? { storageBytes } : {}), clearanceContacts, personBumps, clearance, fleet: countFleet, finalHash: hashState(state), replay: "not-run", violations };
+  return { result, state, canonicalState };
 }
 
 const results: Result[] = [];
+const states: Record<string, SimState> = {};
 for (const count of anchorCounts) {
-  const result = run(count, true);
+  const measured = run(count, true);
+  const result = measured.result;
+  if (stateOutput) states[String(count)] = measured.state;
   if (args.includes("--replay")) {
     const replay = run(count, false);
-    if (result.finalHash !== replay.finalHash) result.violations.push("replay-hash-mismatch");
+    if (measured.canonicalState !== replay.canonicalState) result.violations.push("replay-state-mismatch");
     else result.replay = "matched";
   }
   results.push(result);
   console.log(JSON.stringify(result));
 }
+if (stateOutput) writeFileSync(resolve(stateOutput), canonicalJson({ world: worldName, wave, seed, ticks, warmup, states }) + "\n");
 const output = option("output", "");
 if (output) writeFileSync(resolve(output), JSON.stringify({ results }, null, 2) + "\n");
 if (results.some((result) => result.violations.length > 0)) process.exitCode = 1;

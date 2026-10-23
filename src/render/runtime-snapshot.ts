@@ -132,6 +132,8 @@ export function runtimeVisualSnapshot(
   }
   const actors: RuntimeVisualActor[] = [];
   const links: RuntimeVisualLink[] = [];
+  const runtime = record(record(current.ext.agents)?.runtime);
+  const bodyMetadata = record(record(runtime?.routineOutput)?.actorMetadata);
   let physicalCount = 0, dodging = 0;
   const priorExtras = new Map(extras(previous).map(body => [body.id, body]));
   for (const body of extras(current)) {
@@ -139,7 +141,8 @@ export function runtimeVisualSnapshot(
     const model = body.model === "person" ? "associate" : body.model;
     const transformed = pose(body, priorExtras.get(body.id), alpha, model, current.tick);
     const combat = target(current, body.id);
-    actors.push(...visualParts(body.id, model, transformed, combat, body.dodge?.phase === "dive" && body.kind === "animal" ? "fly" : windups.get(body.id) ?? "idle"));
+    const mode = record(bodyMetadata?.[body.id])?.honking === true ? "honk" : windups.get(body.id) ?? "idle";
+    actors.push(...visualParts(body.id, model, transformed, combat, body.dodge?.phase === "dive" && body.kind === "animal" ? "fly" : mode));
     physicalCount++; if (body.dodge) dodging++;
   }
   const beforeWeakPoints = new Map(weakPoints(previous).map(point => [point.id, point]));
@@ -149,8 +152,6 @@ export function runtimeVisualSnapshot(
     actors.push({ id: point.id, kind: "weak-point", ...pose(point, beforeWeakPoints.get(point.id), alpha, "weak-point", current.tick),
       scale: point.radius * 2, rust: Math.max(0, Math.min(1, number(combat?.rust))), mode: "weak-point" });
   }
-  const runtime = record(record(current.ext.agents)?.runtime);
-  const bodyMetadata = record(record(runtime?.routineOutput)?.actorMetadata);
   for (const playerId of Object.keys(current.players).sort()) {
     const id = `player:${playerId}`, data = record(bodyMetadata?.[id]);
     const player = current.players[playerId]!;
@@ -158,8 +159,10 @@ export function runtimeVisualSnapshot(
         player.mode !== "foot" || !player.foot || !finitePose(player.foot)) continue;
     const before = previous.players[playerId];
     const combat = target(current, id) ?? target(current, playerId);
+    const emote = typeof data.robotEmote === "string" ? data.robotEmote : "none";
+    const tells = list(data.robotTells).filter((tell): tell is string => typeof tell === "string").slice(0, 8);
     actors.push(...visualParts(id, data.model, pose(player.foot, before?.mode === "foot" ? before.foot ?? undefined : undefined,
-      alpha, data.model, current.tick), combat, windups.get(id) ?? "idle"));
+      alpha, data.model, current.tick), combat, windups.get(id) ?? "idle").map(actor => actor.kind === data.model ? { ...actor, emote, tells } : actor));
     playerIdsToHide.add(playerId);
   }
   const beforeAgents = new Map((previous.ext.agents?.list ?? []).map(agent => [agent.id, agent]));

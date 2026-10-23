@@ -1,3 +1,4 @@
+import { nearestSidewalkNode, sidewalkNodesWithin } from "./navigation-index.ts";
 // Runtime adapter for the pure spatial policies. The caller owns registration and final dodge.
 import { Action, DT, sortedIds } from "../contract.ts";
 import { AGENT_SPEC, ROBOTAXI_BODY, agentsOf, personIsChild } from "../agents.ts";
@@ -165,15 +166,82 @@ function buildingBlocks(world: World, from: { x: number; z: number }, to: { x: n
   return false;
 }
 
-function blockReason(world: World, from: { x: number; z: number }, to: { x: number; z: number }, radius: number,
-  vehicles: ReadonlyArray<SpatialVehicleBody>, crossing = false): SpatialBlock {
-  if (buildingBlocks(world, from, to, radius)) return "building";
+function vehicleBlocks(from: { x: number; z: number }, to: { x: number; z: number }, radius: number,
+  vehicles: ReadonlyArray<SpatialVehicleBody>, crossing = false): boolean {
   for (const vehicle of vehicles) {
     const envelope = Math.sqrt(square(vehicle.halfLength) + square(vehicle.halfWidth)) + radius +
       (crossing ? 2 + square(Math.abs(vehicle.speed)) / 14 : 0);
-    if (segmentDistanceSq(from, to, { x: vehicle.previousX, z: vehicle.previousZ }, vehicle) <= envelope * envelope) return "vehicle";
+    if (segmentDistanceSq(from, to, { x: vehicle.previousX, z: vehicle.previousZ }, vehicle) <= envelope * envelope) return true;
   }
-  return null;
+  return false;
+}
+
+function blockReason(world: World, from: { x: number; z: number }, to: { x: number; z: number }, radius: number,
+  vehicles: ReadonlyArray<SpatialVehicleBody>, crossing = false): SpatialBlock {
+  if (buildingBlocks(world, from, to, radius)) return "building";
+  return vehicleBlocks(from, to, radius, vehicles, crossing) ? "vehicle" : null;
+}
+
+// World collision geometry and graph edges are immutable. Dynamic traffic, signals, and
+// fog never enter this cache; graph replacement or a different world gets its own result.
+const staticEdgeBlocks = new WeakMap<World, WeakMap<SidewalkEdge, Map<number, boolean>>>();
+function edgeBuildingBlocks(world: World, edge: SidewalkEdge, radius: number): boolean {
+  let byEdge = staticEdgeBlocks.get(world);
+  if (!byEdge) { byEdge = new WeakMap(); staticEdgeBlocks.set(world, byEdge); }
+  let byRadius = byEdge.get(edge);
+  if (!byRadius) { byRadius = new Map(); byEdge.set(edge, byRadius); }
+  const cached = byRadius.get(radius);
+  if (cached !== undefined) return cached;
+  for (let i = 1; i < edge.path.xs.length; i++) {
+    const from = { x: edge.path.xs[i - 1]!, z: edge.path.zs[i - 1]! };
+    const to = { x: edge.path.xs[i]!, z: edge.path.zs[i]! };
+    if (buildingBlocks(world, from, to, radius)) { byRadius.set(radius, true); return true; }
+  }
+  byRadius.set(radius, false);
+  return false;
+}
+
+
+// A weak component deliberately ignores direction: different labels prove that even the
+// directed search cannot reach its target; equal labels still require the normal search.
+// Radius is bounded to the finite AGENT_SPEC radii at the private call site.
+const staticComponents = new WeakMap<World, WeakMap<SidewalkGraph, Map<number, ReadonlyMap<string, number>>>>();
+function staticComponentLabels(world: World, graph: SidewalkGraph, radius: number): ReadonlyMap<string, number> {
+  let byGraph = staticComponents.get(world);
+  if (!byGraph) { byGraph = new WeakMap(); staticComponents.set(world, byGraph); }
+  let byRadius = byGraph.get(graph);
+  if (!byRadius) { byRadius = new Map(); byGraph.set(graph, byRadius); }
+  const cached = byRadius.get(radius);
+  if (cached) return cached;
+  const nodeIndex = new Map(graph.nodes.map((node, index) => [node.id, index]));
+  const parent = graph.nodes.map((_, index) => index), sizes = graph.nodes.map(() => 1);
+  const rootOf = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]!]!;
+      index = parent[index]!;
+    }
+    return index;
+  };
+  for (const edge of graph.edges) {
+    if (edgeBuildingBlocks(world, edge, radius)) continue;
+    const a = nodeIndex.get(edge.a), b = nodeIndex.get(edge.b);
+    if (a === undefined || b === undefined) continue;
+    let ra = rootOf(a), rb = rootOf(b);
+    if (ra === rb) continue;
+    if (sizes[ra]! < sizes[rb]!) { const swap = ra; ra = rb; rb = swap; }
+    parent[rb] = ra;
+    sizes[ra] = sizes[ra]! + sizes[rb]!;
+  }
+  const labels = new Map(graph.nodes.map((node, index) => [node.id, rootOf(index)]));
+  byRadius.set(radius, labels);
+  return labels;
+}
+
+function staticallyConnected(world: World, graph: SidewalkGraph, radius: number, start: string, target: string): boolean {
+  if (start === target) return true;
+  const labels = staticComponentLabels(world, graph, radius);
+  const component = labels.get(start);
+  return component !== undefined && labels.get(target) === component;
 }
 
 function runtimeVehicles(input: RuntimeSpatialInput): SpatialVehicleBody[] {
@@ -221,7 +289,10 @@ interface ProjectionIndex {
   readonly walking: ReadonlyArray<SidewalkEdge>;
   readonly byRoad: ReadonlyMap<string, ReadonlyArray<SidewalkEdge>>;
 }
+const projectionCache = new WeakMap<SidewalkGraph, ProjectionIndex>();
 function projectionIndex(graph: SidewalkGraph): ProjectionIndex {
+  const cached = projectionCache.get(graph);
+  if (cached) return cached;
   const walking: SidewalkEdge[] = [];
   const byRoad = new Map<string, SidewalkEdge[]>();
   for (const edge of graph.edges) {
@@ -232,7 +303,9 @@ function projectionIndex(graph: SidewalkGraph): ProjectionIndex {
     list.push(edge);
     byRoad.set(edge.roadId, list);
   }
-  return { walking, byRoad };
+  const index = { walking, byRoad };
+  projectionCache.set(graph, index);
+  return index;
 }
 function nearestSidewalk(index: ProjectionIndex, actor: { x: number; z: number; heading: number; edge?: string }): Projection | null {
   const matching = actor.edge ? index.byRoad.get(actor.edge) : undefined;
@@ -266,12 +339,14 @@ function currentPoint(graph: SidewalkGraph, track: RuntimeWalkerTrack): { x: num
 function traversalBlocked(input: RuntimeSpatialInput, edge: SidewalkEdge, radius: number,
   vehicles: ReadonlyArray<SpatialVehicleBody>, avoidFog: boolean): boolean {
   if (edge.kind === "crosswalk" && input.canCross && !input.canCross(edge.id, input.context.state.tick)) return true;
+  if (edgeBuildingBlocks(input.context.world, edge, radius)) return true;
+  // Static safety has already passed; these changing inputs are still checked each tick.
+  if (!(avoidFog && input.fogDensity) && (edge.kind !== "crosswalk" || vehicles.length === 0)) return false;
   for (let i = 1; i < edge.path.xs.length; i++) {
     const from = { x: edge.path.xs[i - 1]!, z: edge.path.zs[i - 1]! };
     const to = { x: edge.path.xs[i]!, z: edge.path.zs[i]! };
     if ((avoidFog && input.fogDensity && (input.fogDensity(from.x, from.z) > 0.05 || input.fogDensity(to.x, to.z) > 0.05)) ||
-      buildingBlocks(input.context.world, from, to, radius) ||
-      (edge.kind === "crosswalk" && blockReason(input.context.world, from, to, radius, vehicles, true))) return true;
+      (edge.kind === "crosswalk" && vehicleBlocks(from, to, radius, vehicles, true))) return true;
   }
   return false;
 }
@@ -291,24 +366,25 @@ function nextErrand(graph: SidewalkGraph, track: RuntimeWalkerTrack, actor: Agen
     cursor: { stepIndex: 0, distanceM: 0 }, decisions: track.decisions + 1, goalKey: "errand" };
 }
 
-function routeForIntent(graph: SidewalkGraph, track: RuntimeWalkerTrack, actor: AgentState, intent: RobotMovementIntent,
-  blocked: (edge: SidewalkEdge) => boolean): RuntimeWalkerTrack {
+function routeForIntent(world: World, graph: SidewalkGraph, track: RuntimeWalkerTrack, actor: AgentState, intent: RobotMovementIntent,
+  radius: number, blocked: (edge: SidewalkEdge) => boolean): RuntimeWalkerTrack {
   if (!track.route || intent.kind === "hold" || intent.kind === "errand") return track;
-  let candidates = graph.nodes;
-  if (intent.kind === "flee") candidates = graph.nodes.filter((node) => distance(node, actor) <= 100);
   const destination = intent.kind === "pursue" ? intent.destination : intent.toward;
-  let target = candidates[0];
-  let best = Infinity;
-  for (const node of candidates) {
-    let score = destination ? distance(node, destination) : distance(node, actor);
-    if (intent.kind === "flee" && intent.from) score -= distance(node, intent.from) * 2;
-    if (!target || score < best || (score === best && node.id < target.id)) { target = node; best = score; }
+  let target = intent.kind === "pursue" ? nearestSidewalkNode(graph, destination ?? actor) ?? undefined : undefined;
+  if (intent.kind === "flee") {
+    let best = Infinity;
+    for (const node of sidewalkNodesWithin(graph, actor, 100)) {
+      let score = destination ? distance(node, destination) : distance(node, actor);
+      if (intent.from) score -= distance(node, intent.from) * 2;
+      if (!target || score < best || (score === best && node.id < target.id)) { target = node; best = score; }
+    }
   }
   if (!target) return track;
   const goalKey = `${intent.kind}:${target.id}`;
   if (track.goalKey === goalKey && track.cursor.stepIndex < track.route.steps.length) return track;
   const current = track.route.steps[track.cursor.stepIndex];
   const start = current?.to ?? track.route.nodeIds[track.route.nodeIds.length - 1]!;
+  if (!staticallyConnected(world, graph, radius, start, target.id)) return track;
   const tail = shortestSidewalkRoute(graph, start, target.id, (edge) => blocked(edge));
   if (!tail) return track;
   const steps: SidewalkTraversal[] = current ? [current, ...tail.steps] : [...tail.steps];
@@ -510,7 +586,7 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
         target = safeSnap ? point : limitedTarget(base, point, Math.max(0, actor.vmax) * DT);
         proposedTrack = { ...track, joining: distance(target, point) > 1e-6 };
       } else if (intent.kind !== "hold") {
-        track = intent.kind === "errand" ? nextErrand(graph, track, actor, blockedEdge) : routeForIntent(graph, track, base, intent, blockedEdge);
+        track = intent.kind === "errand" ? nextErrand(graph, track, actor, blockedEdge) : routeForIntent(input.context.world, graph, track, base, intent, radius, blockedEdge);
         const stop = intent.kind === "pursue" && distance(base, intent.destination) <= intent.stopDistance;
         const travelBudget = stop ? 0 : intent.kind === "errand" ? Math.min(distance(base, actor), Math.max(0, actor.vmax) * DT) : Math.max(0, actor.vmax) * DT;
         if (track.route) {
@@ -523,15 +599,21 @@ export function stepRuntimeSpatial(input: RuntimeSpatialInput): RuntimeSpatialRe
     } else if (!track.route && fidelity.tier !== "despawn" && intent.kind === "errand") {
       target = actor;
     }
-    const stimuli = fidelity.run ? perceptions(input, base, vehicles) : [];
+    // Ordinary errands may react to sensed activity. A hold, pursuit or flee intent
+    // remains authoritative, including a hold imposed by combat.
+    const allowReaction = intent.kind === "errand";
+    const stimuli = fidelity.run && allowReaction ? perceptions(input, base, vehicles) : [];
     const reaction = reactToPerception({ actor: { id: String(actor.id), kind: actor.kind === "person" ? "person" : "good-robot", x: base.x, z: base.z, wet: false,
       child: actor.kind === "person" && personIsChild(actor.id) },
-      state: track.reaction, stimuli: intents.has(actor.id) ? [] : stimuli, tick: input.context.state.tick, dodgeOverrideActive: false,
+      state: track.reaction, stimuli, tick: input.context.state.tick, dodgeOverrideActive: false,
       routineVelocity: { vx: (target.x - base.x) / DT, vz: (target.z - base.z) / DT } });
-    if (!intents.has(actor.id)) {
+    if (allowReaction) {
       const reacted = { x: base.x + reaction.movement.vx * DT, z: base.z + reaction.movement.vz * DT };
-      if (distance(reacted, target) > 1e-6) proposedTrack = { ...track, joining: true };
-      target = reacted;
+      if (distance(reacted, target) > 1e-6) {
+        // Clamp only a changed reaction: the original target may be an authorized fresh snap.
+        proposedTrack = { ...track, joining: true };
+        target = limitedTarget(base, reacted, Math.max(0, actor.vmax) * DT);
+      }
     }
     proposedTrack = { ...proposedTrack, reaction: reaction.state, lastTick: input.context.state.tick };
     if (intent.kind === "hold") { target = base; proposedTrack = { ...track, reaction: reaction.state }; }

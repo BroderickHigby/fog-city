@@ -1,8 +1,10 @@
 import { Action, sortedIds, type SimState } from "../contract.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
-import type { CombatActor, CombatContext, CombatInputs, CombatState, RefillSource } from "../combat-contract.ts";
+import type { CombatActor, CombatContext, CombatInputs, CombatState, RefillSource, TargetCombat } from "../combat-contract.ts";
 import { contextFromState } from "../combat/adapter.ts";
 import { combatOf, stepCombatSystem } from "../combat/system.ts";
+import { initialTarget } from "../combat/shared.ts";
+import type { StoredRobotActor } from "../robots/runtime-system.ts";
 import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
 import type { RobotAttackCancellation, RobotRuntimeStep } from "../robots/runtime.ts";
 import { agentRuntimeSession } from "./runtime-state.ts";
@@ -24,12 +26,33 @@ function runtimeRefills(world: World): readonly RefillSource[] {
   return sources;
 }
 
-type RobotOutput = Pick<RobotRuntimeStep, "actors" | "attacks" | "cancellations" | "conversionCap">;
+type RobotOutput = Pick<RobotRuntimeStep, "attacks" | "cancellations" | "conversionCap"> & { readonly actors: readonly StoredRobotActor[] };
 
 function robotOutput(state: Readonly<SimState>): RobotOutput | null {
   const value = state.ext.robots as unknown as Partial<RobotOutput> | undefined;
   return value && Array.isArray(value.actors) && Array.isArray(value.attacks) && Array.isArray(value.cancellations) &&
     typeof value.conversionCap === "number" ? value as RobotOutput : null;
+}
+
+const DEFAULT_TARGET = initialTarget();
+const DEFAULT_TARGET_KEYS = Object.keys(DEFAULT_TARGET).sort() as (keyof TargetCombat)[];
+
+/** Missing targets already expand to initialTarget in the combat owner and readers. */
+export function pruneDefaultCombatTargets(combat: CombatState): CombatState {
+  const targets: CombatState["targets"] = {};
+  let omitted = false;
+  for (const id of sortedIds(combat.targets)) {
+    const target = combat.targets[id]!;
+    // Preserve extensions and every non-default field, including expired timer history.
+    const pristine = Object.keys(target).length === DEFAULT_TARGET_KEYS.length && DEFAULT_TARGET_KEYS.every((key) => {
+      const expected = DEFAULT_TARGET[key];
+      const value = target[key];
+      return Array.isArray(expected) ? Array.isArray(value) && value.length === 0 : value === expected;
+    });
+    if (pristine) omitted = true;
+    else Object.defineProperty(targets, id, { value: target, enumerable: true, configurable: true, writable: true });
+  }
+  return omitted ? { ...combat, targets } : combat;
 }
 
 /** A cancelled channel cannot finish while the actor changes its decision that tick. */
@@ -133,6 +156,8 @@ export const runtimeCombatSystem: SimSystem = {
       }
       next = { ...next, ext: { ...next.ext, combat } };
     }
-    return next;
+    const combat = next.ext.combat!;
+    const compact = pruneDefaultCombatTargets(combat);
+    return compact === combat ? next : { ...next, ext: { ...next.ext, combat: compact } };
   },
 };
