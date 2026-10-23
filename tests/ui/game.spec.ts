@@ -20,7 +20,9 @@ test("SF scene mounts the gameplay HUD, drives, opens phone, exits and sprays",a
   await expect(page.getByRole("dialog")).toBeVisible();await page.screenshot({path:"test-results/sf-phone.png"});await page.keyboard.press("Escape");
   await page.keyboard.press("KeyF");await expect.poll(async()=>page.evaluate(()=>window.__fogcity!.state().players.p1!.mode),{timeout:30000}).toBe("foot");
   const water=await page.evaluate(()=>window.__fogcity!.state().ext.combat?.players.p1?.water??0);expect(water).toBeGreaterThan(0);
-  await page.keyboard.down("KeyE");await expect.poll(async()=>page.evaluate(()=>window.__fogcity!.state().ext.combat?.players.p1?.water??Infinity),{timeout:30000}).toBeLessThan(water);
+  // Water is unlimited (2026-10-23): holding spray fires real particles and the tank never drops.
+  await page.keyboard.down("KeyE");await expect.poll(async()=>page.evaluate(()=>(window.__fogcity!.state().ext.combat?.projectiles??[]).filter(p=>p.kind==="water"&&p.ownerId==="p1").length),{timeout:30000}).toBeGreaterThan(0);
+  expect(await page.evaluate(()=>window.__fogcity!.state().ext.combat?.players.p1?.water)).toBe(water);await expect(page.locator(".fc-cluster")).toContainText("∞");
   await page.screenshot({path:"test-results/sf-spray.png"});await page.keyboard.up("KeyE");
   expect(errors).toEqual([]);
 });
