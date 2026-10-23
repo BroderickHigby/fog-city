@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 export const BLASTER_FILE = "models/water-blaster.glb";
-/** The wand stays out this long after the last shot (seconds). */
+/** The wand stays out this long after the player's last water has landed (seconds). */
 export const BLASTER_HOLD_S = 1.5;
 /** How far a shot kicks the wand back along the stream (metres), and how fast it settles (1/s). */
 export const KICK_M = 0.045;
@@ -115,9 +115,10 @@ export class HeldBlasters {
       h.dir.set(spray.dirX, spray.dirY, spray.dirZ);
       if (h.dir.lengthSq() < 1e-8) h.dir.set(0, 0, -1).applyQuaternion(body.getWorldQuaternion(_wq));
       h.dir.normalize();
-      if (spray.shot) { h.sinceShotS = 0; h.kick = 1; }
-    }
-    h.sinceShotS += Math.max(0, dt);
+      // Out while the player's water is in the air, and BLASTER_HOLD_S after the last of it.
+      h.sinceShotS = 0;
+      if (spray.shot) h.kick = 1;
+    } else h.sinceShotS += Math.max(0, dt);
     h.kick *= Math.exp(-KICK_RATE * Math.max(0, dt));
     const out = h.sinceShotS < BLASTER_HOLD_S;
     h.tank.visible = out;
