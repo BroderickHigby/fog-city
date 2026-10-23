@@ -62,3 +62,13 @@ Local play and deterministic state are the review target. Online deployment rema
 - Match deadlines survive skipped global pause ticks. Payout `cashCents` is capped at 7,500 cents per elapsed minute and has a stable settlement ID.
 - Rooms remain private, four-player, thirty-minute invitation rooms. Client controls and commands cannot submit player identity, chat, positions or arbitrary simulation events.
 - Advanced mode IDs currently fail closed until their rule modules and drivers land.
+
+## Wave 7: Hide in the Crowd rule checkpoint
+
+The standalone `createCrowdState` / `stepCrowd` reducer validates hider and spotter roles, three active tasks, continuous timed interactions, delayed corner pings, six-minute halves, role swaps, limited scans, visible burst/flicker cues, survival points and ten-second replacement requests. A replacement requires a new core-approved body at least150m from Spotters; a melted body cannot be reattached. Pauses stop the logical clock. The movement owner must apply `crowdSpeedLimit`, supply accepted robot bodies and deliver these cues to bot perception. This is not yet a playable browser mode.
+
+Validation: TypeScript plus54tests (6modecases and48deterministic API checks) passed.
+
+Draft PR title: `Modes: implement deterministic Hide in the Crowd rules`
+Base: `integrate/wave7` when published; currently stacked on the tested wave4foundation.
+Body: Adds task, scan, score, role-swap and reconnect rules for robot-body Hide in the Crowd. Uses observed poses and core-approved replacement bodies; does not permit proximity-only respawn. Browser and bot adapters remain explicit integration gates.
