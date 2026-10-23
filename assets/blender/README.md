@@ -660,3 +660,23 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 - founder-default, the player's default look, was matched by eye to the project owner's
   reference photos, which are kept outside the repo; no image data from them is in any file
   (see founder-default, Privacy).
+
+## Integrated structural-world assets
+
+The structural-world renderer also ships the original generated house-kit and interim
+landmark models from the Ferry Building line. Their editable sources are retained in
+`models/house_kit.py`, `models/bridges.py`, `models/sutro_tower.py` and
+`models/landmarks_interim.py`; placement provenance is in `data/landmark-sites.json`
+and `tools/landmark-sites.ts`. The generic player remains the licensed Rocketbox asset
+and is not replaced by these city assets.
+
+The `golden-gate-bridge.glb`, Bay Bridge and other interim landmarks contain no copied
+text, signs, logos or lettering. Named landmarks remain covered by the project's
+pre-release legal checklist; this integration records their technical provenance and
+geometry checks, rather than claiming that review is complete. The fuller landmark
+models and their world alignment must be rechecked whenever generated terrain changes.
+
+The new facade shader uses the house-kit wall classes and palette data together. House
+prototypes, storefront anchors and PBR texture metadata are included by the static
+packer. Material scans are CC0 and listed under `public/models/textures/textures.json`;
+the current shared surface scans and their notices remain intact.
