@@ -15,8 +15,9 @@ function atRank(rank: number, overrides: Partial<Progression> = {}): Progression
 function grant(id: number, kind = "bounty.paid", overrides: Partial<GameplayEvent> = {}): GameplayEvent {
   return { id, tick: 1, kind, playerId: "p", targetId: "bad", amount: 0, detail: "", ...overrides };
 }
-function choose(state: ProgressionState, itemId: string, sequence = 1): ProgressionState {
-  return stepProgression(state, context({ commands: [{ playerId: "p", kind: "loadout", itemId, sequence }] }), sequence, {});
+function choose(state: ProgressionState, itemId: string, sequence = 1,
+  ownedByPlayer: Readonly<Record<string, readonly string[]>> = {}): ProgressionState {
+  return stepProgression(state, context({ commands: [{ playerId: "p", kind: "loadout", itemId, sequence }] }), sequence, {}, ownedByPlayer);
 }
 function freeze<T>(v: T): T {
   if (v && typeof v === "object") { Object.freeze(v); for (const child of Object.values(v)) freeze(child); }
@@ -75,8 +76,8 @@ describe("wave 4 authored loadout gates", () => {
     expect(first.players.p!.perks).toEqual(["marine-layer"]);
     expect(choose(first, "marine-layer", 2).players.p!.perks).toEqual([]);
   });
-  it("rejects unknown, prototype-like and unimplemented choices without consuming a slot", () => {
-    for (const id of ["constructor", "__proto__", "unknown", "microclimate", "wide-nozzle"]) {
+  it("rejects unknown and prototype-like choices without consuming a slot", () => {
+    for (const id of ["constructor", "__proto__", "unknown", "unknown-nozzle"]) {
       expect(normalizeLoadoutChoice(id)).toBeNull();
       const next = choose(atRank(30), id);
       expect(next.players.p!.perks).toEqual([]);
@@ -88,6 +89,44 @@ describe("wave 4 authored loadout gates", () => {
     const ctx = context({ items: [{ id: "pressure-nozzle", kind: "nozzle", wave: 4, rank: 1, priceCents: 300000, effect: {} }] });
     expect(stepProgression(atRank(19), ctx, 1, { economy: [grant(1, "vendor.purchased", { targetId: "pressure-nozzle" })] }).players.p!.nozzle).toBe("standard");
     expect(stepProgression(atRank(20), ctx, 1, { economy: [grant(1, "vendor.purchased", { targetId: "pressure-nozzle" })] }).players.p!.nozzle).toBe("pressure");
+  });
+  for (const [canonical, legacy] of [["wide-nozzle", "wide"], ["pressure-nozzle", "pressure"]] as const) {
+    it(`${canonical} and ${legacy} both require authored rank and the player's ownership`, () => {
+      const rank = PROGRESSION.upgrades.find((item) => item.id === canonical)!.rank;
+      expect(normalizeLoadoutChoice(canonical)).toEqual(normalizeLoadoutChoice(legacy));
+      for (const commandId of [canonical, legacy]) {
+        expect(choose(atRank(rank), commandId).players.p!.nozzle).toBe("standard");
+        expect(choose(atRank(rank), commandId, 1, { other: [canonical] }).players.p!.nozzle).toBe("standard");
+        for (const ownedId of [canonical, legacy]) {
+          expect(choose(atRank(rank - 1), commandId, 1, { p: [ownedId] }).players.p!.nozzle).toBe("standard");
+          expect(choose(atRank(rank), commandId, 1, { p: [ownedId] }).players.p!.nozzle).toBe(legacy);
+        }
+      }
+    });
+  }
+  it("allows the standard nozzle without a purchase and preserves equipped nozzles across saves", () => {
+    for (const standard of ["standard-nozzle", "standard"]) {
+      const base = choose(atRank(30, { nozzle: "wide" }), standard);
+      expect(base.players.p!.nozzle).toBe("standard");
+      const equipped = choose(base, "wide-nozzle", 2, { p: ["wide-nozzle"] });
+      const restored = stepProgression(JSON.parse(JSON.stringify(equipped)) as ProgressionState, context(), 3, {});
+      expect(restored.players.p!.nozzle).toBe("wide");
+    }
+  });
+  it("applies purchased wide nozzles only at their authored rank, even through a legacy item ID", () => {
+    for (const id of ["wide-nozzle", "wide"]) {
+      const ctx = context({ items: [{ id, kind: "nozzle", wave: 4, rank: 1, priceCents: 150000, effect: {} }] });
+      const groups = { economy: [grant(1, "vendor.purchased", { targetId: id })] };
+      expect(stepProgression(atRank(7), ctx, 1, groups).players.p!.nozzle).toBe("standard");
+      expect(stepProgression(atRank(8), ctx, 1, groups).players.p!.nozzle).toBe("wide");
+    }
+  });
+  it("selects authored Microclimate gear and preserves it across save normalization", () => {
+    expect(normalizeLoadoutChoice("microclimate")).toEqual({ kind: "gear", value: "microclimate", rank: 1 });
+    const selected = choose(atRank(1), "microclimate");
+    expect(selected.players.p!.gear).toBe("microclimate");
+    const restored = stepProgression(JSON.parse(JSON.stringify(selected)) as ProgressionState, context(), 2, {});
+    expect(restored.players.p!.gear).toBe("microclimate");
   });
 });
 

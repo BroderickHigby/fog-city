@@ -21,9 +21,18 @@ const GADGET_RUNTIME: Readonly<Record<string, Progression["gadget"]>> = {
 const GEAR_ALIAS: Readonly<Record<string, string>> = {
   none: "none", boots: "rubber-boots", "rubber-boots": "rubber-boots",
   airplane: "airplane-mode", "airplane-mode": "airplane-mode",
+  microclimate: "microclimate",
 };
 const GEAR_RUNTIME: Readonly<Record<string, Progression["gear"]>> = {
-  none: "none", "rubber-boots": "boots", "airplane-mode": "airplane",
+  none: "none", "rubber-boots": "boots", "airplane-mode": "airplane", microclimate: "microclimate",
+};
+const NOZZLE_ALIAS: Readonly<Record<string, string>> = {
+  standard: "standard-nozzle", "standard-nozzle": "standard-nozzle",
+  wide: "wide-nozzle", "wide-nozzle": "wide-nozzle",
+  pressure: "pressure-nozzle", "pressure-nozzle": "pressure-nozzle",
+};
+const NOZZLE_RUNTIME: Readonly<Record<string, Progression["nozzle"]>> = {
+  "standard-nozzle": "standard", "wide-nozzle": "wide", "pressure-nozzle": "pressure",
 };
 const PERK_ALIAS: Readonly<Record<string, string>> = {
   marine: "marine-layer", quiet: "do-not-disturb", stealth: "stealth-mode",
@@ -42,6 +51,7 @@ export const STREAK_COST: Readonly<Record<string, number>> = Object.freeze(Objec
 export const STREAK_REWARDS = STREAKS.rewards.map((reward) => ({ ...reward, runtimeId: normalizeStreakId(reward.id)! }));
 
 export type LoadoutChoice =
+  | { kind: "nozzle"; value: Progression["nozzle"]; rank: number; requiresOwnership: boolean }
   | { kind: "gadget"; value: Progression["gadget"]; rank: number }
   | { kind: "gear"; value: Progression["gear"]; rank: number }
   | { kind: "perk"; value: string; rank: number }
@@ -49,6 +59,10 @@ export type LoadoutChoice =
 
 /** All aliases go through the same catalog lookup and therefore the same unlock gate. */
 export function normalizeLoadoutChoice(id: string): LoadoutChoice | null {
+  const nozzleId = own(NOZZLE_ALIAS, id);
+  if (nozzleId === "standard-nozzle") return { kind: "nozzle", value: "standard", rank: 1, requiresOwnership: false };
+  const nozzle = PROGRESSION.upgrades.find((row) => row.id === nozzleId && row.kind === "nozzle");
+  if (nozzle) return { kind: "nozzle", value: NOZZLE_RUNTIME[nozzle.id]!, rank: nozzle.rank, requiresOwnership: true };
   const gadget = LOADOUTS.gadgets.find((row) => row.id === own(GADGET_ALIAS, id));
   if (gadget) return { kind: "gadget", value: GADGET_RUNTIME[gadget.id]!, rank: gadget.rank };
   const gearId = own(GEAR_ALIAS, id);
@@ -60,7 +74,6 @@ export function normalizeLoadoutChoice(id: string): LoadoutChoice | null {
   if (perk) return { kind: "perk", value: perk.id, rank: 1 };
   const streak = normalizeStreakId(id);
   if (streak && STREAK_REWARDS.some((row) => row.runtimeId === streak)) return { kind: "streak", value: streak, rank: 1 };
-  // Wide nozzles and Microclimate have shared types, but their combat runtime has not landed.
   return null;
 }
 

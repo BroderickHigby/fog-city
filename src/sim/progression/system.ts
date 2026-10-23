@@ -20,6 +20,7 @@ const nonnegative = (value: number): number => Number.isFinite(value) ? clamp(va
 
 function normalizePlayer(old: Progression, ctx: GameplayContext): Progression {
   const rank = ctx.wave >= 4 ? rankForXp(old.xp) : 1;
+  const nozzle = normalizeLoadoutChoice(old.nozzle);
   const gadget = normalizeLoadoutChoice(old.gadget);
   const gear = normalizeLoadoutChoice(old.gear);
   const perks = [...new Set(old.perks.flatMap((id) => {
@@ -45,6 +46,7 @@ function normalizePlayer(old: Progression, ctx: GameplayContext): Progression {
   }
   return {
     ...old, xp: nonnegative(old.xp), rank, streakPoints, perks, streaks, banked, earnedStreaks,
+    nozzle: nozzle?.kind === "nozzle" && (ctx.wave < 4 || rank >= nozzle.rank) ? nozzle.value : "standard",
     gadget: gadget?.kind === "gadget" && (ctx.wave < 4 || rank >= gadget.rank || gadget.value === "balloon") ? gadget.value : "balloon",
     gear: gear?.kind === "gear" && (ctx.wave < 4 || rank >= gear.rank) ? gear.value : "none",
     achievements: [...(old.achievements ?? [])],
@@ -68,7 +70,9 @@ function resetPoints(own: Progression): void {
 }
 
 /** Permanent upgrades, score accounting and banked tactical grants have one authoritative owner. */
-export function stepProgression(previous: ProgressionState, ctx: GameplayContext, tick: number, groups: Readonly<Record<string, readonly GameplayEvent[]>>): ProgressionState {
+export function stepProgression(previous: ProgressionState, ctx: GameplayContext, tick: number,
+  groups: Readonly<Record<string, readonly GameplayEvent[]>>,
+  ownedByPlayer: Readonly<Record<string, readonly string[]>> = {}): ProgressionState {
   const state: ProgressionState = { ...previous, tick, players: {}, grantCursors: { ...previous.grantCursors }, events: [] };
   for (const body of sortedBodies(ctx)) state.players[body.id] = normalizePlayer(previous.players[body.id] ?? createProgressionPlayer(), ctx);
   for (const source of Object.keys(groups).sort()) {
@@ -92,14 +96,14 @@ export function stepProgression(previous: ProgressionState, ctx: GameplayContext
       if (grant.kind === "vendor.purchased") {
         const item = ctx.items.find((item) => item.id === grant.targetId);
         if (!item) continue;
-        const catalogRank = PROGRESSION.upgrades.find((row) => row.id === item.id)?.rank ?? 1;
+        const choice = normalizeLoadoutChoice(item.id);
+        const catalogRank = Math.max(PROGRESSION.upgrades.find((row) => row.id === item.id)?.rank ?? 1, choice?.rank ?? 1);
         const currentRank = ctx.wave >= 4 ? rankForXp(own.xp) : 1;
         if (currentRank < Math.max(item.rank ?? 1, ctx.wave >= 4 ? catalogRank : 1)) continue;
         if (item.kind === "tank") own.tankTier = Math.max(own.tankTier, clamp(item.tier ?? 0, 0, 2)) as 0 | 1 | 2;
         if (item.kind === "flow") own.flowTier = Math.max(own.flowTier, clamp(item.tier ?? 0, 0, 1)) as 0 | 1;
         if (item.kind === "scanner") own.scannerTier = Math.max(own.scannerTier, clamp(item.tier ?? 1, 1, 4)) as 1 | 2 | 3 | 4;
-        if (item.id === "pressure-nozzle") own.nozzle = "pressure";
-        const choice = normalizeLoadoutChoice(item.id);
+        if (item.kind === "nozzle" && choice?.kind === "nozzle") own.nozzle = choice.value;
         if (item.kind === "perk" && choice?.kind === "perk" && !own.perks.includes(choice.value)) own.perks.push(choice.value);
       }
     }
@@ -121,6 +125,13 @@ export function stepProgression(previous: ProgressionState, ctx: GameplayContext
       if (command.kind !== "loadout" || !command.itemId || ctx.wave < 4) continue;
       const choice = normalizeLoadoutChoice(command.itemId);
       if (!choice || own.rank < choice.rank) continue;
+      if (choice.kind === "nozzle") {
+        const owned = !choice.requiresOwnership || (ownedByPlayer[body.id] ?? []).some((id) => {
+          const item = normalizeLoadoutChoice(id);
+          return item?.kind === "nozzle" && item.value === choice.value;
+        });
+        if (owned) own.nozzle = choice.value;
+      }
       if (choice.kind === "gadget") own.gadget = choice.value;
       if (choice.kind === "gear") own.gear = choice.value;
       if (choice.kind === "perk") {

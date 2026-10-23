@@ -107,7 +107,7 @@ export function makeGameplaySystem(key:"player"|"heat"|"missions"|"economy"|"pro
    :key==="heat"?stepHeat(own.heat,ctx,tick,own.player.events,own.missions.events,own.progression.events)
    :key==="missions"?stepMissions(own.missions,ctx,tick,own.heat,own.player)
    :key==="economy"?stepEconomy(own.economy,ctx,tick,own.missions.events,own.heat,own.player.events,own.activities.events,ranks,perks)
-   :key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events})
+   :key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events},Object.fromEntries(Object.keys(own.economy.players).sort().map(id=>[id,own.economy.players[id]!.ownedItemIds])))
    :stepActivities(own.activities,ctx,tick,own.missions,context.state.seed);
   const stored=prepared?{...result,mechanics:prepared.mechanics,mechanicFacts:prepared.facts,boardingIntents:prepared.boardingIntents}:result;
   return {...context.state,ext:{...context.state.ext,[key]:stored}};
