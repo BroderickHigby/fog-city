@@ -11,10 +11,11 @@ import { createMissions,stepMissions } from "../missions/system.ts";
 import { createEconomy,stepEconomy } from "../economy/system.ts";
 import { createProgression,createProgressionPlayer,stepProgression } from "../progression/system.ts";
 import { doomEffects,factionFor } from "../progression/doom-clock.ts";
+import { restorationFacts,type AcceptedRestoration } from "../activities/repair.ts";
 import { createActivities,stepActivities } from "../activities/system.ts";
 import { DEFAULT_CATALOG } from "./catalog.ts";
 import { finiteContext,distanceSquared } from "./common.ts";
-import type { GameplayContext,GameplaySnapshot,GameplayFact,GameplayBody,GameplayEvent } from "./types.ts";
+import type { GameplayContext,GameplaySnapshot,GameplayFact,GameplayBody,GameplayEvent,GameplaySite } from "./types.ts";
 export type GameplayProvider=(context:SimSystemContext)=>GameplayContext;
 
 export function gameplaySnapshot(context:Pick<SimSystemContext,"state">):GameplaySnapshot {
@@ -57,6 +58,8 @@ export interface ObservedGameplayOptions {
  calendar?:(context:SimSystemContext)=>{day:number;month:number;hour:number;minute:number};
  recoveredVehicleIds?:(context:SimSystemContext)=>Readonly<Record<string,readonly string[]>>;
  controlledActorIds?:(context:SimSystemContext)=>Readonly<Record<string,string>>;
+ repairSites?:(context:SimSystemContext)=>readonly GameplaySite[];
+ restorations?:(context:SimSystemContext)=>readonly AcceptedRestoration[];
 }
 /** Adapt observed actor bodies, never planned destinations, into mission and reward facts. */
 export function createObservedGameplayProvider(options:ObservedGameplayOptions):GameplayProvider {
@@ -73,7 +76,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
    const watchingActorId=candidates[0]?.id;const old=previous.player.players[body.id];
    return {playerId:body.id,seenByBad:actors.some(a=>a.firmware==="bad"&&(context.state.ext.combat?.targets[a.id]?.alerted||(previous.heat.players[body.id]?.threat??0)>0)&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&distanceSquared(body,a)<=40000),fog:options.fog?.(context)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
   });
-  return {...base,...options.calendar?.(context)??{},wave:options.wave??2,bodies,observations,actorBodies:actors,rustByActor:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.rust])),recoveredVehicleIds:options.recoveredVehicleIds?.(context)??{},controlledActorIds,visibleActorIds:Object.fromEntries(bodies.map(body=>[body.id,actors.filter(actor=>visible(body,actor,1500)).map(actor=>actor.id)])),lookHeadingByPlayer:Object.fromEntries(bodies.map(body=>{const player=context.state.players[body.id]!,pose=actors.find(a=>a.id===controlledActorIds[body.id])??(player.mode==="foot"&&player.foot?player.foot:player.car);return [body.id,Number.isFinite(context.inputs[body.id]?.aimYaw)?context.inputs[body.id]!.aimYaw!:pose.heading];})),actorPhases:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.phase])),damageOwnerIds:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.sourceId])),facts:[...base.facts,...options.facts?.(context)??[]],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
+  return {...base,...options.calendar?.(context)??{},wave:options.wave??2,bodies,observations,sites:options.repairSites?[...base.sites.filter(site=>site.kind!=="repairKiosk"),...options.repairSites(context)]:base.sites,actorBodies:actors,rustByActor:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.rust])),recoveredVehicleIds:options.recoveredVehicleIds?.(context)??{},controlledActorIds,visibleActorIds:Object.fromEntries(bodies.map(body=>[body.id,actors.filter(actor=>visible(body,actor,1500)).map(actor=>actor.id)])),lookHeadingByPlayer:Object.fromEntries(bodies.map(body=>{const player=context.state.players[body.id]!,pose=actors.find(a=>a.id===controlledActorIds[body.id])??(player.mode==="foot"&&player.foot?player.foot:player.car);return [body.id,Number.isFinite(context.inputs[body.id]?.aimYaw)?context.inputs[body.id]!.aimYaw!:pose.heading];})),actorPhases:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.phase])),damageOwnerIds:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.sourceId])),facts:[...base.facts,...options.facts?.(context)??[],...restorationFacts(options.restorations?.(context)??[])],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
  };
 }
 export function isMatchInstance(state:Pick<SimSystemContext["state"],"ext">):boolean {

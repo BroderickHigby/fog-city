@@ -98,3 +98,11 @@ The mode ledger belongs at `economy.settledModeIds`, not inside any player's wal
 Published the canonical `player/sites.ts` helper `canInteractAtSite(body, site)`: authored sites are horizontal map locations, with the existing 3 m/s interaction cap. Vendor/property/sleep/repair and car-wash checks use the helper. Hill activity starts and route checkpoints likewise use horizontal distance because their authored `y=0` is a placeholder, not a terrain elevation. Actual combat/actor interactions retain full physical distance. This fixes visible nearby vendor buttons refusing a purchase on elevated ground and unreachable hill route markers.
 
 Latest validation: TypeScript and **97 tests across ten files passed**, including all player tests and the repository forbidden-API checks. New checks cover elevated-ground purchases, rejected distant/fast interactions, an uphill route, match settlement refusal, teleoperation control ownership and retry-safe finale evidence.
+
+
+## Attributed repair bridge (later integration)
+The apology producer retains bounded claims from the actual `robot.repair` combat event, requires a fresh interaction near that same good robot, and emits `activity.repair-request` with the actual kiosk ID. Only an attributed `actor.restored` event emitted after accepted body readmission can become `repair.accepted`; raw work-timer and autonomous Tidy events cannot award reputation. The player must be observed accompanying the robot and at its actual kiosk when restoration is accepted. Requests are repeated with a stable ID while pending; reward and completion occur once.
+
+Core must provide `ObservedGameplayOptions.repairSites` from `world.gameplay.anchors` (`repair-kiosk`, grounded poses), and `restorations` from agent runtime events. Static catalog kiosk IDs are not interchangeable with pipeline IDs. Lane 3 has implemented matching request attribution for its Tidy lifecycle. Wave 2 still needs the separate physical good-robot limp/escort-to-kiosk path; this bridge does not spawn early Tidy or claim that the wave-2 apology loop is complete.
+
+Repair bridge validation: TypeScript and **102 tests across eleven files passed**, including ownership mismatch, missing/incorrect acceptance, abandoned escort, raw timer rejection, and once-only reputation through the actual activities/economy reducers.

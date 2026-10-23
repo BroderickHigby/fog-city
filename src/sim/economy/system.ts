@@ -43,6 +43,7 @@ export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:numbe
  for(const grant of activities){
   if(grant.id<=(state.grantCursors.activities??0))continue;state.grantCursors.activities=grant.id;
   const wallet=state.players[grant.playerId];if(wallet&&grant.kind==="activity.cash")pay(wallet,grant.amount);
+  if(wallet&&grant.kind==="repair.reputation")wallet.reputation=clamp(wallet.reputation+clamp(grant.amount,0,5),0,100);
  }
  for(const body of sortedBodies(ctx)) {
   const wallet=state.players[body.id]!;

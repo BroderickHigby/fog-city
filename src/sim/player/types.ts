@@ -1,4 +1,5 @@
 import type { RngState } from "../contract.ts";
+import type { RepairTourState } from "../activities/repair.ts";
 import type { Mission } from "../../content/missions.ts";
 import type { DoomClockState } from "../progression/doom-clock.ts";
 import type { MissionObservedState } from "../missions/observed.ts";
@@ -23,6 +24,6 @@ export interface MissionProgress { missionId:string; stepId:string; status:"idle
 export interface MissionState { version:1; tick:number; nextId:number; players:Record<string,MissionProgress>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface Progression { xp:number; rank:number; tankTier:0|1|2; flowTier:0|1; scannerTier:1|2|3|4; nozzle:"standard"|"pressure"|"wide"; gadget:"balloon"|"sprinkler"|"speaker"; gear:"none"|"boots"|"airplane"|"microclimate"; perks:string[]; streaks:string[]; streakPoints:number; streakSequence:number; banked:Record<string,number>; commandSequence:number; achievements:string[] }
 export interface ProgressionState { version:1; tick:number; nextId:number; players:Record<string,Progression>; grantCursors:Record<string,number>; events:GameplayEvent[];doom:DoomClockState }
-export interface PlayerActivities { nextDirectorTick:number; directorRng:RngState; activeCardId:string; cardUntilTick:number; cardCooldowns:Record<string,number>; activeActivityId:string; activityStartedTick:number; completedIds:string[]; commandSequence:number; checkpointIndex:number; objectiveCount:number; cooldowns:Record<string,number>;ruleFailed:boolean }
+export interface PlayerActivities { nextDirectorTick:number; directorRng:RngState; activeCardId:string; cardUntilTick:number; cardCooldowns:Record<string,number>; activeActivityId:string; activityStartedTick:number; completedIds:string[]; commandSequence:number; checkpointIndex:number; objectiveCount:number; cooldowns:Record<string,number>;ruleFailed:boolean;repairTour?:RepairTourState }
 export interface ActivitiesState { version:1; tick:number; nextId:number; players:Record<string,PlayerActivities>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface GameplaySnapshot { player:PlayerGameplayState; economy:EconomyState; heat:HeatState; missions:MissionState; progression:ProgressionState; activities:ActivitiesState }

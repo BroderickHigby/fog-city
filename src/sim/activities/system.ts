@@ -1,4 +1,5 @@
 import { nextU32,seedRng } from "../rng.ts";
+import { stepRepairTour } from "./repair.ts";
 import { Action } from "../contract.ts";
 import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
@@ -10,6 +11,9 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
  for(const body of sortedBodies(ctx)){
   let hash=seed;for(const char of body.id)hash=(Math.imul(hash,31)+char.charCodeAt(0))>>>0;
   const old=previous.players[body.id]??createOwn(hash,tick);const own:PlayerActivities={...createOwn(hash,tick),...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds],cooldowns:{...old.cooldowns}};state.players[body.id]=own;
+  const repair=stepRepairTour(own.repairTour,ctx,body.id,tick,incoming,`apology:${tick}:${state.nextId}`);own.repairTour=repair.state;
+  if(repair.request)event(state,"activity.repair-request",body.id,repair.request.actorId,0,JSON.stringify(repair.request));
+  if(repair.completed){event(state,"repair.completed",body.id,repair.completed.actorId,0,repair.completed.requestId);event(state,"repair.reputation",body.id,repair.completed.actorId,5,repair.completed.requestId);}
   const missionActive=missions.players[body.id]?.status==="active";const observation=ctx.observations.find(o=>o.playerId===body.id);
   if(missionActive||own.activeActivityId)own.nextDirectorTick=tick+2700;
   if(own.activeCardId&&tick>=own.cardUntilTick)own.activeCardId="";
@@ -29,7 +33,8 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    if(activity?.maxSpeedMps!==undefined&&Math.abs(body.speed)>activity.maxSpeedMps)own.ruleFailed=true;
    if(incoming.some(f=>f.playerId===body.id&&f.kind==="activity.ruleFailed"&&f.actorId===activity?.id))own.ruleFailed=true;
    const checkpoint=activity?.checkpoints?.[own.checkpointIndex];if(checkpoint&&planarDistanceSquared(body,checkpoint)<=checkpoint.radius*checkpoint.radius)own.checkpointIndex++;
-   for(const fact of incoming)if(activity&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount++;
+   if(activity?.kind==="repair"&&repair.completed)own.objectiveCount++;
+   for(const fact of incoming)if(activity&&activity.kind!=="repair"&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount++;
    const routeComplete=own.checkpointIndex>=(activity?.checkpoints?.length??0);
    // Route trials derive their completion from the accepted player trajectory. A
    // photo/relic request only succeeds at the final marked location after the route.
