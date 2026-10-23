@@ -159,3 +159,17 @@ Draft PR title: `Core: keep runtime walkers outside every vehicle hull`
 Base: `integrate/wave2` · Head: `lane/core/contact-fix`
 Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/contact-fix?expand=1>
 Body: Prevent runtime-controlled pedestrians from stepping into parked NPC taxis or service vehicles before final clearance runs. Sweep against the full physical hull, use the drawn legacy taxi defaults, and preserve height separation and escape from old overlaps. Typecheck and 120 focused tests passed. The actual Hot Desk contact snapshot now replays with zero contacts/failures through 120 further ticks. Keep the strict zero-contact gate; full route and browser checks run on the combined candidate.
+
+## Exact building walls for combat
+
+- Isolated branch `lane/core/combat-wall-fix` starts from current harness `21a1f3c` (including the recorded cone failure).
+- The real cone muzzle at `(-683.74698, 8.77519, 541.36113)` stood outside building `201006.0000770` but inside its bounding rectangle. Combat incorrectly ended every cone on its birth tick as a wall hit in that open concave notch.
+- `Wall.footprint` optionally carries the immutable world polygon. Bounds still provide the broad phase; the narrow phase intersects the exact closed polygon extruded through the clipped height interval. Rectangle-only fixtures retain their old behavior, and invalid optional polygons fall back to the enclosing wall. Projectile, sight and attack rays share the same test.
+- `SIM_VERSION` remains unchanged: `Wall` lives only in ephemeral `CombatContext`; this adds no serialized state or recorded-input field. Old box-only contexts remain supported.
+- Validation: **typecheck and 135 tests across four files passed**, plus a final **five-test geometry rerun** covering the requested diagonal height-clipping cases. Tests cover rotated footprints, concave notches, actual facades, tangencies, collinear edges, vertical/zero-length paths, above/below clearance, invalid polygons and adapter propagation.
+- The exact saved cone-stage state now completes Hot Desk at tick **14313** after **574 normal input frames**, with **zero contacts and zero failures**. Full browser and aggregate QA remain on the combined final candidate.
+
+Draft PR title: `Core: use exact building footprints for combat wall contacts`
+Base: `integrate/wave2` · Head: `lane/core/combat-wall-fix`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/combat-wall-fix?expand=1>
+Body: Fix cones and other combat rays being blocked in open corners of rotated or concave buildings. Preserve bounding-box broad phase and legacy box-only walls, then use the original footprint for exact height-clipped contact. Sight and attack rays share the same geometry. This context-only addition needs no saved-state version change. Typecheck and135 targeted tests passed; the saved Hot Desk cone endpoint completes through normal inputs with zero physical contacts/failures.
