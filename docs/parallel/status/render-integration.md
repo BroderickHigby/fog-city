@@ -28,3 +28,8 @@ Head: `lane/render-integration/clean`
 Title: `Game: mount progression HUD and controls in the SF renderer`
 
 Body: Connect the published SF renderer to shared gameplay systems and immutable UI projections. Player actions become recorded ID-only commands; the HUD exposes missions, water, cash, navigation and nearby vendors. Adds bounded projectile/audio presentation while preserving the existing renderer assets. Final core composition and actual-play validation are in progress.
+
+## Save audit follow-up
+Canonical save capture now reads `economy.settledModeIds` at the extension root and restores the ledger to that root, preventing a repeated match payout after reload. Advanced nozzle/gear enums are accepted. Optional durable Doom clock fields (months, resets, winters, stopped and faction counts) survive reload, while deadlines/cursors reset against the fresh world's calendar. Existing saves without those fields remain valid.
+
+Validation: full typecheck and three focused canonical progression save tests passed. No changes to the simulation, world data or renderer accompany this fix.
