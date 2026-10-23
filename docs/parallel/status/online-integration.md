@@ -8,6 +8,8 @@ Validation: TypeScript and all 66 network/service tests pass on the combined bra
 
 The relay and prediction now default to the same composed game systems. Server world loading includes authored gameplay, sidewalk and transit data. The world fingerprint includes those inputs, so clients with different gameplay metadata cannot silently join the same room. Network commands start at sequence 1, matching the authoritative command reducer.
 
+The tested core performance checkpoint `f9ca263` is now included. After this merge, 84 checks across actual gameplay parity, world fingerprints and simulation purity pass. The earlier full set of 66 loopback/network/service tests remains recorded above; hosting and an in-game network lobby are still outside this branch.
+
 Draft PR title: `Online: run matching gameplay and world data on the relay and prediction`
 
 Draft PR body: Runs the same composed game systems on the private relay and client prediction, loads authored gameplay/navigation/transit layers on the server, and fingerprints all deterministic world inputs. Mounts the fixed, session-bound AI routes with scripted fallbacks and live providers disabled. All 66 offline/loopback tests pass, including actual gameplay hash parity and delayed-input transport recovery. Hosting and live-provider configuration remain unconfigured.
