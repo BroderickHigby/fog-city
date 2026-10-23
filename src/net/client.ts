@@ -1,7 +1,8 @@
 // One connection to the relay: lobby state, the seat token for rejoining, and the match timeline.
-// Works with the browser WebSocket and Node's global WebSocket alike (the relay tests use it).
+// The transport is a seam (src/net/transport.ts): a WebSocket in the game and the relay tests.
 import { SIM_VERSION, type SimInput, type World } from "../sim/index.ts";
 import { MatchTimeline } from "./match.ts";
+import { webSocketTransport, type ConnectTransport, type RelayTransport } from "./transport.ts";
 import { ERRORS, NET_VERSION, type ErrorCode, type Hello, type Member, type NetModeId, type NetworkCommand, type Results, type RoomPhase, type ServerMessage, type WorldName } from "./protocol.ts";
 
 export type ConnectionStatus = "offline" | "connecting" | "connected" | "reconnecting" | "error";
@@ -35,6 +36,8 @@ export interface ClientOptions {
   onResults?(results: Results, playerId: string): void;
   /** Reconnect attempts after an unexpected drop, with backoff. */
   reconnectAttempts?: number;
+  /** Defaults to a WebSocket. */
+  transport?: ConnectTransport;
   now?: () => number;
 }
 
@@ -44,7 +47,7 @@ const FORGET_SEAT = new Set<ErrorCode>(["room_missing", "room_expired", "seat_mi
 export class RelayClient {
   readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null };
   match: MatchTimeline | null = null;
-  private socket: WebSocket | null = null;
+  private socket: RelayTransport | null = null;
   private seat: Seat | null = null;
   private readonly options: ClientOptions;
   private actions = 0;
@@ -84,7 +87,7 @@ export class RelayClient {
   sample(input: SimInput): void {
     this.actions |= input.actions;
     const match = this.match;
-    if (!match || this.info.phase !== "match" || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+    if (!match || this.info.phase !== "match" || !this.socket?.open) return;
     const control = { ...input, actions: this.actions };
     const seq = match.sample(control);
     if (seq === null) return;
@@ -103,34 +106,37 @@ export class RelayClient {
     if (this.socket || this.disposed) return;
     this.leaving = false;
     this.set(this.info.code && hello.action === "rejoin" ? "reconnecting" : "connecting", hello.action === "rejoin" ? "Rejoining your room…" : "Connecting…");
-    let socket: WebSocket;
-    try { socket = new WebSocket(this.options.url); } catch { this.set("error", "The multiplayer server address is invalid."); return; }
+    let socket: RelayTransport | null = null;
+    const connect = this.options.transport ?? webSocketTransport;
+    try {
+      socket = connect(this.options.url, {
+        onOpen: () => {
+          const message: Hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: this.options.worldName, fingerprint: this.options.fingerprint, action: hello.action };
+          if (hello.code) message.code = hello.code;
+          if (hello.token) message.token = hello.token;
+          socket?.send(JSON.stringify(message));
+        },
+        onMessage: (text) => {
+          if (this.socket !== socket) return;
+          try { this.receive(JSON.parse(text) as ServerMessage); }
+          catch { this.set("error", "The server sent incompatible game data."); socket?.close(); }
+        },
+        onClose: () => {
+          if (this.socket !== socket) return;
+          this.socket = null;
+          this.stopPing();
+          if (this.leaving || this.disposed) return;
+          if (this.seat && this.attempts < (this.options.reconnectAttempts ?? 8) && (this.info.status !== "error" || RECONNECTABLE.has(this.lastError))) {
+            const delay = Math.min(8000, 500 * 2 ** this.attempts++);
+            this.set("reconnecting", "Connection lost. Reconnecting…");
+            this.retryTimer = setTimeout(() => { this.retryTimer = null; if (this.seat) this.rejoin(this.seat); }, delay);
+            return;
+          }
+          if (this.info.status !== "error") this.set("offline", "Disconnected.");
+        },
+      });
+    } catch { this.set("error", "The multiplayer server address is invalid."); return; }
     this.socket = socket;
-    socket.addEventListener("open", () => {
-      const message: Hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: this.options.worldName, fingerprint: this.options.fingerprint, action: hello.action };
-      if (hello.code) message.code = hello.code;
-      if (hello.token) message.token = hello.token;
-      socket.send(JSON.stringify(message));
-    });
-    socket.addEventListener("message", (event) => {
-      if (this.socket !== socket) return;
-      let message: ServerMessage;
-      try { message = JSON.parse(String(event.data)) as ServerMessage; this.receive(message); }
-      catch { this.set("error", "The server sent incompatible game data."); socket.close(); }
-    });
-    socket.addEventListener("close", () => {
-      if (this.socket !== socket) return;
-      this.socket = null;
-      this.stopPing();
-      if (this.leaving || this.disposed) return;
-      if (this.seat && this.attempts < (this.options.reconnectAttempts ?? 8) && (this.info.status !== "error" || RECONNECTABLE.has(this.lastError))) {
-        const delay = Math.min(8000, 500 * 2 ** this.attempts++);
-        this.set("reconnecting", "Connection lost. Reconnecting…");
-        this.retryTimer = setTimeout(() => { this.retryTimer = null; if (this.seat) this.rejoin(this.seat); }, delay);
-        return;
-      }
-      if (this.info.status !== "error") this.set("offline", "Disconnected.");
-    });
   }
 
   private lastError = "";
@@ -184,7 +190,7 @@ export class RelayClient {
 
   private forget(): void { this.seat = null; this.options.onSeat(null); }
   private send(value: unknown): void {
-    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    if (!this.socket?.open) return;
     this.socket.send(JSON.stringify(value));
   }
   private startPing(): void {

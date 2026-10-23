@@ -1,5 +1,11 @@
 # Multiplayer stream status
 
+**All checks pass (2026-10-23):** the two-browser e2e against a locally started relay, the relay
+abuse-limit tests, the mode/protocol unit tests and the full unit suite; single-player boots
+cleanly with no relay. Ready for the coordinator to set up Fly.io (`fly.toml`, `server/README.md`).
+Host decision received: relay on Fly.io; the earlier Vercel-Functions/SSE transport request was
+withdrawn and is not built.
+
 Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-botsweep` (from `origin/integrate/wave2` `ff7db5b`).
 
 ## What is playable now
@@ -73,20 +79,26 @@ Low: name-rejection now uses generated names only; command ids go through
   step identically (the modes system is inert outside a match instance); match states are new and
   checked by `SIM_VERSION` + `NET_VERSION` in the hello. The World stream keeps 9.
 
+## Transport seam
+
+`src/net/transport.ts`: `RelayTransport` / `ConnectTransport`; `webSocketTransport` is the default
+for the game; `RelayClient` takes `transport` so tests can substitute one.
+
 ## Edits outside my areas (hook-up lines)
 
 - `src/main.ts`: mount the lobby; draw the relay match instead of the city while one runs
   (render variables `shown`/`shownPrev`/`me_`); `restoreSave` extracted for autosave restore.
 - `src/sim/game-systems.ts`: additive `agents`, `combat`, `modes` options (defaults unchanged).
 - `vite.config.ts`: `define __FOGCITY_RELAY_URL__` from `RELAY_URL`.
+- `fly.toml` (repository root), `.dockerignore`.
 - `tsconfig.json`: include `server`. `package.json`/lockfile: `ws@8.22.0`, `@types/ws@8.18.2`, `pnpm relay`.
 - `docs/testing.md`: one row for `multiplayer.spec.ts`.
 
 ## Not done / needs the owner
 
-- **No deployment** (by instruction). Fly.io or Render work with `server/deploy/Dockerfile`
-  (examples in `server/deploy/*.example`); Durable Objects/Vercel do not fit as is
-  (`server/README.md`). The Docker daemon is absent here: the image's file set was reproduced and
+- **No deployment** (by instruction). Fly.io is chosen: `fly.toml` + `server/deploy/Dockerfile`;
+  env vars in `server/README.md` (`ALLOWED_ORIGINS`, `CLIENT_IP_HEADER=fly-client-ip`, limits);
+  the Vercel static build needs `RELAY_URL=wss://<app>.fly.dev/relay`. The Docker daemon is absent here: the image's file set was reproduced and
   booted instead (same world fingerprint as the browser).
 - Not exercised in a browser: real WAN latency/packet loss (the client flow control, catch-up
   budget and "behind" snapshots cover slow devices; SwiftShader runs ~10 sim ticks/s and the e2e

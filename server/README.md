@@ -56,6 +56,8 @@ rateLimited, invalid }`. `mismatches` counts clients whose state hash differed f
 
 ## How a match works
 
+- **Transport.** `src/net/transport.ts` is the seam: the game uses a WebSocket to this relay;
+  tests run the relay in-process on loopback and can pass any transport with the same semantics.
 - **Lobby.** `create` makes a room with an 8-character code from a CSPRNG; `join` takes a seat
   (`p1`…`p4`) with a generated name (never free text) and a secret rejoin token the page keeps
   in `sessionStorage`. Everyone readies up; the host (lowest seat) starts.
@@ -85,11 +87,15 @@ docker run --rm -p 8787:8787 -e ALLOWED_ORIGINS=https://your-game.example fog-ci
 
 | Host | Fit |
 |---|---|
-| Fly.io | Good: long-lived WebSockets, Docker, one always-on machine. Example: `server/deploy/fly.toml.example`. |
+| Fly.io (chosen) | Long-lived WebSockets, Docker, one always-on machine: `fly.toml` at the repository root. |
 | Render | Good: Docker web service with WebSockets. Example: `server/deploy/render.yaml.example`. |
 | Any VM / container host | Good: run the image behind TLS (Caddy, nginx) that forwards WebSocket upgrades. |
 | Cloudflare Durable Objects | Needs a port: the relay runs the full Node sim and loads a ~0.9 GB world, above a Durable Object's memory limit. |
 | Vercel | Not suitable for the relay: functions cannot hold WebSocket connections. Fine for the static game. |
+
+On Fly.io (the owner's choice): `fly launch --no-deploy --copy-config` (keeps `fly.toml`), set
+`ALLOWED_ORIGINS` in `fly.toml` or `fly secrets`, `fly deploy`, then build the static game on Vercel
+with the project environment variable `RELAY_URL=wss://<app>.fly.dev/relay`.
 
 After deploying: set `ALLOWED_ORIGINS` (and `CLIENT_IP_HEADER` behind the host's proxy), check
 `GET /health`, rebuild the static game with `RELAY_URL=wss://<host>/relay`, then run the

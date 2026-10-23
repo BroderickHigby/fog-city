@@ -1,5 +1,6 @@
-# Fly.io example (not deployed). Copy to fly.toml at the repository root, set app, then:
-#   fly launch --no-deploy --copy-config && fly deploy
+# Fly.io config for the relay (server/README.md). Nothing in this repository deploys it: the
+# coordinator sets up the app with the owner, then `fly deploy` from the repository root.
+# Set ALLOWED_ORIGINS to the static game's origin(s) before the first deploy.
 app = "fog-city-relay"
 primary_region = "sjc"
 

@@ -91,6 +91,30 @@ describe("relay lobby", () => {
   });
 });
 
+describe("relay transport seam", () => {
+  it("runs the lobby over any transport with WebSocket semantics (here the ws package's client)", async () => {
+    const h = await relay();
+    const { WebSocket: WsSocket } = await import("ws");
+    const { RelayClient } = await import("../../../src/net/client.ts");
+    const { WORLD } = await import("./harness.ts");
+    const sent: string[] = [];
+    const infos: Array<{ phase: string; code: string }> = [];
+    const custom = new RelayClient({ url: h.url, world: WORLD, worldName: "dev", fingerprint: FINGERPRINT, reconnectAttempts: 0, onChange: (i) => infos.push(i), onSeat: () => {},
+      transport: (url, handlers) => {
+        const ws = new WsSocket(url);
+        ws.on("open", () => handlers.onOpen()); ws.on("message", (d) => handlers.onMessage(String(d))); ws.on("close", () => handlers.onClose());
+        return { get open() { return ws.readyState === WsSocket.OPEN; }, send: (t) => { sent.push(t); ws.send(t); }, close: () => ws.close() };
+      } });
+    open.push({ client: custom, infos: [], seat: { value: null }, results: 0 });
+    custom.create();
+    await until(() => infos.at(-1)?.phase === "lobby");
+    expect(JSON.parse(sent[0]!)).toMatchObject({ type: "hello", action: "create" });
+    expect(infos.at(-1)!.code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+    custom.leave();
+    await until(() => h.relay.rooms.size === 0 || [...h.relay.rooms.values()].every((r) => r.closed));
+  });
+});
+
 describe("relay versions", () => {
   it("refuses a client whose SIM_VERSION or protocol differs, naming the reason", async () => {
     const h = await relay();
