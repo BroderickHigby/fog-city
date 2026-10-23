@@ -8,7 +8,7 @@ export interface SimPrepareResult { state: SimState; motions: readonly AgentMoti
 /** Phase order follows dependencies. Existing ambient movement happens before these hooks. */
 export const SYSTEM_ORDER: readonly ExtensionKey[] = Object.freeze([
   "identities", "clock", "fog", "vehicles", "agents", "robots", "combat", "player", "heat", "missions",
-  "economy", "progression", "activities", "modes", "bots",
+  "activities", "economy", "progression", "modes", "bots",
 ]);
 
 export interface SimSystemContext {
