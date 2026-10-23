@@ -1,4 +1,4 @@
-// v8 -> v10 (city life): a real v8 save (recorded by the v8 sim at integrate/wave2 ff7db5b,
+// v8 -> v10 (weather) -> v11 (city life): a real v8 save (recorded by the v8 sim at integrate/wave2 ff7db5b,
 // tests/golden/legacy-saves/v8-parked-car.json) of a robotaxi honking behind a car parked in its
 // lane. The upgrade only restamps (the new fields are optional), and the upgraded save steps on:
 // the robotaxi backs up, goes round the car and merges back, the same after a JSON round trip.
@@ -17,7 +17,7 @@ describe("v8 save of a robotaxi held behind a parked car", () => {
     expect(hashState(old)).toBe(saved.hash);
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(10);
+    expect(SIM_VERSION).toBe(11);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
