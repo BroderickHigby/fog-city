@@ -31,7 +31,8 @@
 // collide with people. CarState gained nearMisses; FootState gained dodge (a DodgeState or
 // null); every ambient agent gained dodge too (src/sim/agents.ts AgentState), and ext.dodge
 // holds the counters. Both v4 branches upgrade to v5; fields already present are retained.
-export const SIM_VERSION = 5;
+// v6 integrates wave-two aim, actions and typed systems without losing v3-v5 migrations.
+export const SIM_VERSION = 6;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -48,6 +49,10 @@ export interface SimInput {
   brake: number;
   /** Bitmask of one-shot actions pressed this tick (see Action). */
   actions: number;
+  /** Optional compass bearing in radians; absent in legacy logs (use body heading). */
+  aimYaw?: number;
+  /** Optional pitch in radians, positive upwards; absent uses the weapon's default. */
+  aimPitch?: number;
 }
 
 export const Action = {
@@ -55,7 +60,27 @@ export const Action = {
   fire: 1 << 1,
   scan: 1 << 2,
   horn: 1 << 3,
+  gadget: 1 << 4,
+  cone: 1 << 5,
+  interact: 1 << 6,
+  streak: 1 << 7,
+  emote: 1 << 8,
+  watch: 1 << 9,
+  altFire: 1 << 10,
 } as const;
+
+/** Shared names for recorded facts and derived gameplay events; payloads stay plain JSON. */
+export const SimEventKind = {
+  playerJoin: "player.join",
+  playerLeave: "player.leave",
+  robotMelted: "robot.melted",
+  updateInterrupted: "update.interrupted",
+  playerDown: "player.down",
+} as const;
+export type KnownSimEventKind = typeof SimEventKind[keyof typeof SimEventKind];
+
+/** The known subset; SimEvent also accepts future recorded event names. */
+export type KnownSimEvent = SimEvent & { kind: KnownSimEventKind };
 
 export const NEUTRAL_INPUT: Readonly<SimInput> = Object.freeze({ throttle: 0, steer: 0, brake: 0, actions: 0 });
 
@@ -191,7 +216,7 @@ export interface SimState {
    * Extension slots for later systems (robots, missions, scoring, ...). Each owning
    * system adds exactly one key. Values must be plain JSON.
    */
-  ext: Record<string, unknown>;
+  ext: import("./extensions.ts").SimExtensions;
 }
 
 export interface Spawn {

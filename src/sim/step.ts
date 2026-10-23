@@ -14,7 +14,7 @@ import {
   type SimState,
   type Spawn,
 } from "./contract.ts";
-import { clamp } from "./dmath.ts";
+import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
 import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar } from "./car.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
@@ -35,18 +35,24 @@ import {
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
 import { meshGroundHeight, type World } from "./world.ts";
+import { runSystems, SYSTEMS } from "./systems.ts";
+import type { SimSystem } from "./system-contract.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
 }
 
 export function sanitizeInput(i: Readonly<SimInput>): SimInput {
-  return {
+  const input: SimInput = {
     throttle: clamp(finiteOr0(i.throttle), -1, 1),
     steer: clamp(finiteOr0(i.steer), -1, 1),
     brake: clamp(finiteOr0(i.brake), 0, 1),
     actions: (i.actions | 0) >>> 0,
   };
+  // Missing/non-finite aim stays absent so pre-wave-2 input logs keep body-heading aim.
+  if (Number.isFinite(i.aimYaw)) input.aimYaw = wrapAngle(i.aimYaw! % TAU);
+  if (Number.isFinite(i.aimPitch)) input.aimPitch = clamp(i.aimPitch!, -HALF_PI, HALF_PI);
+  return input;
 }
 
 /**
@@ -123,7 +129,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 1) return upgradeState(upgradeV1(s));
   if (s.version === 2) return upgradeState(upgradeV2(s));
   if (s.version === 3) return upgradeState(upgradeV3(s));
-  if (s.version === 4) return upgradeV4(s);
+  if (s.version === 4) return upgradeState(upgradeV4(s));
+  if (s.version === 5) return { ...s, version: SIM_VERSION };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -387,7 +394,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
  * Advance the world by one fixed tick (DT). Pure: returns a new state.
  * `events` must all carry tick === prev.tick + 1.
  */
-export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = []): SimState {
+export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = [], systems: readonly SimSystem[] = SYSTEMS): SimState {
   const tick = prev.tick + 1;
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(prev.players)) players[id] = prev.players[id]!;
@@ -409,8 +416,10 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const before: SimState = { ...prev, players };
   const obs = obstaclesOf(before);
   const next: Record<PlayerId, PlayerState> = {};
+  const sanitized: Record<PlayerId, SimInput> = {};
   for (const id of sortedIds(players)) {
     const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
+    sanitized[id] = input;
     next[id] = stepPlayer(world, players[id]!, input, obs);
   }
 
@@ -419,7 +428,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     ? { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } }
     : { ...prev, tick, players: next };
   // Everybody out of the vehicles' way (dodge.ts), after every vehicle has moved.
-  return stepDodge(world, before, moved);
+  return runSystems({ world, previous: before, state: stepDodge(world, before, moved), inputs: sanitized, events }, systems);
 }
 
 /** The body a player controls right now: the walker on foot, else the car. For cameras, HUDs and AI. */

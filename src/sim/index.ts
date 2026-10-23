@@ -12,3 +12,6 @@ export * from "./agents.ts";
 export * from "./dodge.ts";
 export * from "./step.ts";
 export * from "./serialize.ts";
+export * from "./extensions.ts";
+export * from "./system-contract.ts";
+export * from "./systems.ts";
