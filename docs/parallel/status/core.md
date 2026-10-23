@@ -169,3 +169,17 @@ Body: Apply safehouse recovery before the normal physical step and retain the ac
 - Wave 2 keeps zero fog. Rain exposure and the King-tide forecast are data interfaces; this checkpoint does not claim rain handling or new tidal geometry.
 
 Additional PR description: integrate the existing deterministic weather module into the later playable campaign, including position-specific observations and the authored Marine Layer night request. Keep mode provider hooks and the measured observation cache. Validation: typecheck plus 103 tests across six files passed. No changes are made to the frozen wave-2 gate.
+
+## Real-route pedestrian contact fix
+
+- Isolated branch `lane/core/contact-fix`, based on corrected harness `7269504`.
+- At Hot Desk tick 3078, runtime person 224 stepped from 0.325502 m clearance to 0.298938 m from stopped legacy taxi 198, penetrating its 0.3 m radius by about 1.062 mm. Runtime walker acceptance checked player cars but omitted ambient/service vehicle hulls; final dodge correctly counted the resulting contact.
+- Runtime walkers now sweep their bounded step against all actual vehicle hulls. Legacy taxis use the drawn `ROBOTAXI_BODY` defaults; explicit van/bus dimensions and parked player cars are preserved. Height bands avoid unrelated stacked surfaces, and an already overlapping body can move away. Strict contact counters and the final dodge phase are unchanged.
+- Validation: **typecheck and 120 tests across four files passed**. The new side/front regressions both reproduced a contact before the change. Tests also cover long service hulls, parked player cars and escape from an existing overlap.
+- The exact saved 3077 state plus its next input now reaches tick 3078 with **zero contacts and zero failures**, then remains at zero for 120 additional ticks through 3198. Full route/browser re-verification belongs to the updated immutable integration candidate.
+- Dependency alignment: Agents owns the corresponding planner fallback to `ROBOTAXI_BODY` so spawn planning and core admission use the same legacy taxi bounds.
+
+Draft PR title: `Core: keep runtime walkers outside every vehicle hull`
+Base: `integrate/wave2` · Head: `lane/core/contact-fix`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/contact-fix?expand=1>
+Body: Prevent runtime-controlled pedestrians from stepping into parked NPC taxis or service vehicles before final clearance runs. Sweep against the full physical hull, use the drawn legacy taxi defaults, and preserve height separation and escape from old overlaps. Typecheck and 120 focused tests passed. The actual Hot Desk contact snapshot now replays with zero contacts/failures through 120 further ticks. Keep the strict zero-contact gate; full route and browser checks run on the combined candidate.
