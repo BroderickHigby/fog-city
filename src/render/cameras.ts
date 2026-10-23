@@ -6,6 +6,8 @@ import * as THREE from "three";
 import type { GroundFn } from "./types.ts";
 
 export type CameraMode = "chase" | "first-person" | "fly";
+/** Height-aware support query so a camera inside a bore stays below the hill above it. */
+export type CameraGroundFn = (x: number, z: number, nearY: number) => number;
 
 export interface CameraTarget {
   x: number;
@@ -38,7 +40,7 @@ export class CameraRig {
   readonly camera: THREE.PerspectiveCamera;
   mode: CameraMode = "chase";
   /** The mode to return to when leaving fly. */
-  private ground: GroundFn;
+  private cameraGround: CameraGroundFn;
   private occluded: (x: number, y: number, z: number) => boolean;
   private beforeFly: Exclude<CameraMode, "fly"> = "chase";
   private pos = new THREE.Vector3();
@@ -46,9 +48,9 @@ export class CameraRig {
   private init = false;
   readonly fly = { x: 0, y: 30, z: 0, yaw: 0, pitch: -0.2, speed: 45 };
 
-  constructor(camera: THREE.PerspectiveCamera, ground: GroundFn, occluded: (x: number, y: number, z: number) => boolean = () => false) {
+  constructor(camera: THREE.PerspectiveCamera, ground: GroundFn, occluded: (x: number, y: number, z: number) => boolean = () => false, cameraGround?: CameraGroundFn) {
     this.camera = camera;
-    this.ground = ground;
+    this.cameraGround = cameraGround ?? ground;
     this.occluded = occluded;
   }
 
@@ -118,7 +120,7 @@ export class CameraRig {
       f.x += (dx * input.forward + rx * input.right) * v;
       f.y += (dy * input.forward + input.up) * v;
       f.z += (dz * input.forward + rz * input.right) * v;
-      f.y = Math.max(f.y, this.ground(f.x, f.z) + 0.5);
+      f.y = Math.max(f.y, this.cameraGround(f.x, f.z, f.y) + 0.5);
       this.camera.position.set(f.x, f.y, f.z);
       this.camera.lookAt(f.x + dx, f.y + dy, f.z + dz);
       this.init = false;
@@ -162,7 +164,7 @@ export class CameraRig {
       this.pos.lerp(_desired, 1 - Math.exp(-dt * 5.5));
       this.lookAt.lerp(_look, 1 - Math.exp(-dt * 12));
     }
-    const minY = this.ground(this.pos.x, this.pos.z) + 1.0;
+    const minY = this.cameraGround(this.pos.x, this.pos.z, this.pos.y) + 1.0;
     if (this.pos.y < minY) this.pos.y = minY;
     this.camera.position.copy(this.pos);
     this.camera.lookAt(this.lookAt);

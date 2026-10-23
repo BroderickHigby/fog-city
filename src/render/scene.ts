@@ -12,7 +12,7 @@ import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
 import { parkShapes, tintParks } from "./parks.ts";
 import type { Viewer } from "./agent-lod.ts";
-import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
+import { CameraRig, type CameraGroundFn, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
 import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
@@ -63,6 +63,8 @@ export interface WorldData {
   colliders: ReadonlyMap<string, TileCollider>;
   roads: RoadGraph | null;
   ground: GroundFn;
+  /** Optional support surface near the camera's height (for tunnels and elevated roads). */
+  cameraGround?: CameraGroundFn;
   /** True when (x, y, z) is inside a building below its roof (camera pull-in). */
   occluded: (x: number, y: number, z: number) => boolean;
   /** Where glb bytes come from (loose files or the packed build). Omitted: fetch each URL. */
@@ -330,7 +332,7 @@ export class SceneRenderer {
       },
     );
     this.scene.add(this.landmarks.group);
-    this.rig = new CameraRig(this.camera, world.ground, world.occluded);
+    this.rig = new CameraRig(this.camera, world.ground, world.occluded, world.cameraGround);
 
     // Keep unclipped direct rendering on devices without floating-point color targets.
     if ((opts.quality ?? !software) && this.renderer.extensions.has("EXT_color_buffer_float")) {
