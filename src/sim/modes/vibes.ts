@@ -38,7 +38,7 @@ function demo(s:VibesState,ctx:VibesContext):void {
     score.calledId=input.calledId;const amount=input.calledId===cast.badId?VIBES_RULES.correctCall:VIBES_RULES.wrongCall;
     score.score+=amount;emit(s,"vibes.call",id,input.calledId,amount);
   }
-  const facts=[...(ctx.combatEvents??[])].filter(e=>(e.tick>s.lastCombatTick||e.tick===s.lastCombatTick&&e.id>s.lastCombatId)&&e.tick>=s.presenterStartTick&&e.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
+  const facts=[...(ctx.combatEvents??[])].filter(e=>Number.isSafeInteger(e.id)&&e.id>0&&Number.isSafeInteger(e.tick)&&e.tick>=0&&(e.tick>s.lastCombatTick||e.tick===s.lastCombatTick&&e.id>s.lastCombatId)&&e.tick>=s.presenterStartTick&&e.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
   const seen=new Set<string>();
   for(const e of facts){
     const key=`${e.tick}:${e.id}`;if(seen.has(key)||e.sourceId!==id)continue;seen.add(key);

@@ -61,7 +61,7 @@ function attachUnits(s:CrowdState,ctx:CrowdContext):void {
   }
 }
 function combat(s:CrowdState,ctx:CrowdContext):void {
-  const events=[...(ctx.combatEvents??[])].filter(event=>(event.tick>s.lastCombatTick||event.tick===s.lastCombatTick&&event.id>(s.lastCombatId??-1))&&event.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
+  const events=[...(ctx.combatEvents??[])].filter(event=>Number.isSafeInteger(event.id)&&event.id>0&&Number.isSafeInteger(event.tick)&&event.tick>=0&&(event.tick>s.lastCombatTick||event.tick===s.lastCombatTick&&event.id>(s.lastCombatId??-1))&&event.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
   const seen=new Set<string>();
   for(const event of events){
     const key=`${event.tick}:${event.id}`;if(seen.has(key))continue;seen.add(key);

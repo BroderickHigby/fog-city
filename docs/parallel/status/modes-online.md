@@ -82,3 +82,9 @@ Adversarial follow-up: ordinary robot scans now spend charges and return noisy r
 Draft PR title: `Modes: add Vibes Night demos, voting and keyed award results`
 Base: `integrate/wave8` when published; stacked on the reviewed earlier mode rules.
 Body: Implements simulation-owned demo scoring, locked votes and server-only keyed ties. Separates presentation roasts from gameplay and binds external award facts to the active match request. Validation: fiveVibes cases passed plus cross-mode/determinism suite.
+
+## Integrated rule adapters
+
+The registered modes system now supports fresh, separate Crowd, Royale and Vibes instances through explicit context providers. Only six named loadout fields cross into a match; financial and unrelated-player fields are dropped. All three modes emit stable settlement IDs only once on completion. Providers still own approved instance geometry, actor casts, authoritative awards, bot controls and confirmed physical attachments.
+
+Adversarial fixes also accept a real bot-associate duel loss immediately, preserve +1/+3 Royale runway rewards above the starting18months, and reject one-founder online wins. Final validation: TypeScript and86tests across7mode/determinism files passed.

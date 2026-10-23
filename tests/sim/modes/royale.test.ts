@@ -83,6 +83,15 @@ describe("Fog Royale rewards and recovery", () => {
     state = advance(state, 1200);
     expect(state.duels[0]!.associateId).toMatch(/^associate:/);
     expect(state.players.a!.status).toBe("duel"); expect(state.pendingRedeploys).toEqual([]);
+    state=stepRoyale(state,context(state.tick+1,{duelResults:[{sequence:1,duelId:state.duels[0]!.id,winnerId:state.duels[0]!.associateId}]})).state;
+    expect(state.players.a!.status).toBe("spectating");expect(state.result?.winners).toEqual(["b"]);
+  });
+
+  it("awards extra runway above the starting balance and requires an actual opposing founder",()=>{
+    const cfg=config();cfg.crates=[{id:"cloud",kind:"cloud-credit",x:0,y:0,z:0}];
+    const state=stepRoyale(createRoyale(cfg),context(1,{inputs:{a:{crateId:"cloud"}}})).state;
+    expect(state.players.a!.runway).toBe(21);
+    expect(()=>createRoyale({...cfg,playerIds:["a"]})).toThrow();
   });
 
   it("deduplicates combat IDs within a tick but accepts a later tick after an ID reset", () => {

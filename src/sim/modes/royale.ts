@@ -49,7 +49,7 @@ export function createRoyale(config: RoyaleConfig): RoyaleState {
   const landmarks = [...config.finalLandmarks].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   if (landmarks.some((l) => !validId(l.id) || !validCircle(l) || Math.sqrt(distanceSq(l, config.initialCircle)) + l.radius > config.initialCircle.radius + 1e-6) || new Set(landmarks.map((l) => l.id)).size !== landmarks.length) throw new Error("Royale final circles must be nested inside the built arena");
   const ids = [...config.playerIds].sort();
-  if (!ids.length || ids.length > ROYALE_RULES.maxPlayers || new Set(ids).size !== ids.length || ids.some((id) => !validId(id)) || config.solo && ids.length !== 1) throw new Error("Invalid Royale founders");
+  if (ids.length < (config.solo ? 1 : 2) || ids.length > ROYALE_RULES.maxPlayers || new Set(ids).size !== ids.length || ids.some((id) => !validId(id)) || config.solo && ids.length !== 1) throw new Error("Invalid Royale founders");
   const humanIds = new Set(ids);
   if (config.solo) for (let i = 0; i < 7; i++) { const id = `royale-bot:${i}`; if (humanIds.has(id)) throw new Error("Reserved Royale bot ID"); ids.push(id); }
   const last = landmarks[hash(`${config.id}:${config.seed}`) % landmarks.length]!;
@@ -81,9 +81,9 @@ function combat(state: RoyaleState, context: RoyaleContext): void {
     if (event.tick < state.lastCombatTick || event.tick === state.lastCombatTick && event.id <= state.lastCombatId) continue;
     state.lastCombatTick = event.tick; state.lastCombatId = event.id;
     const source = state.players[event.sourceId], target = state.players[event.targetId];
-    if (event.kind === "player.runway" && target?.status === "active" && Number.isFinite(event.amount)) target.runway = clamp(target.runway + event.amount, 0, 18);
+    if (event.kind === "player.runway" && target?.status === "active" && Number.isFinite(event.amount)) target.runway = clamp(target.runway + event.amount, 0, 1000);
     if (event.kind === "pvp.score" && event.detail === "flower" && source?.status === "active") { source.score += 150; emit(state, "royale.score", source.id, "", 150, "flower"); }
-    if (event.kind === "robot.heap" && source?.status === "active" && context.badRobotIds?.includes(event.targetId) && validId(event.targetId) && !state.players[event.targetId] && !state.creditedBad.includes(event.targetId)) { state.creditedBad.push(event.targetId); source.runway = Math.min(18, source.runway + 1); source.score += 100; emit(state, "royale.score", source.id, event.targetId, 100, "melt"); }
+    if (event.kind === "robot.heap" && source?.status === "active" && context.badRobotIds?.includes(event.targetId) && validId(event.targetId) && !state.players[event.targetId] && !state.creditedBad.includes(event.targetId)) { state.creditedBad.push(event.targetId); source.runway = Math.min(1000, source.runway + 1); source.score += 100; emit(state, "royale.score", source.id, event.targetId, 100, "melt"); }
   }
 }
 
@@ -100,7 +100,7 @@ function recoveries(state: RoyaleState, context: RoyaleContext, circle: RoyaleCi
   for (const result of [...(context.duelResults ?? [])].sort((a, b) => a.sequence - b.sequence)) {
     if (!Number.isSafeInteger(result.sequence) || result.sequence <= state.lastDuelSequence) continue;
     const duel = state.duels.find((d) => d.id === result.duelId && !d.complete);
-    if (!duel || !duel.players.includes(result.winnerId)) continue;
+    if (!duel || !duel.players.includes(result.winnerId) && (!duel.associateId || result.winnerId !== duel.associateId)) continue;
     state.lastDuelSequence = result.sequence; duel.complete = true;
     for (const id of duel.players) {
       if (id === result.winnerId) requestRedeploy(state, id, circle, context);
@@ -180,7 +180,7 @@ export function stepRoyale(previous: RoyaleState, context: RoyaleContext): Royal
     if (crate && distanceSq(point, crate) + (point.y - crate.y) * (point.y - crate.y) <= 9) {
       crate.claimedBy = id; player.score += 50;
       if (crate.kind === "fleece") player.fleeceUntil = state.elapsedTicks + ROYALE_RULES.fleeceTicks;
-      else player.runway = Math.min(18, player.runway + 3);
+      else player.runway = Math.min(1000, player.runway + 3);
       emit(state, "royale.crate", id, crate.id, 50, crate.kind);
     }
   }
