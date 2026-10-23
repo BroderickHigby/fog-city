@@ -102,7 +102,8 @@ const xz = (p: LatLon): XZ => toLocal(p[0], p[1]);
 export function distanceM(a: LatLon, b: LatLon): number {
   const pa = xz(a);
   const pb = xz(b);
-  return Math.hypot(pa.x - pb.x, pa.z - pb.z);
+  const dx = pa.x - pb.x, dz = pa.z - pb.z;
+  return Math.sqrt(dx * dx + dz * dz);
 }
 
 /** Even-odd rule; a point on an edge may land either side. */
@@ -123,7 +124,8 @@ function segDist(p: XZ, a: XZ, b: XZ): number {
   const dz = b.z - a.z;
   const len2 = dx * dx + dz * dz;
   const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2));
-  return Math.hypot(p.x - (a.x + t * dx), p.z - (a.z + t * dz));
+  const ex = p.x - (a.x + t * dx), ez = p.z - (a.z + t * dz);
+  return Math.sqrt(ex * ex + ez * ez);
 }
 
 /** Distance from a point to a polygon: 0 inside, else to the nearest edge. */

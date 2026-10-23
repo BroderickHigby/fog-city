@@ -179,6 +179,8 @@ function event(state:AgentsRuntimeState,kind:AgentRuntimeEvent["kind"],actorId:s
 function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:AgentRuntimeOptions):AgentsRuntimeState{
   const state:AgentsRuntimeState={...previous,tick:sim.tick,actors:{},attacks:[],proposals:[],events:[]};
   const known=new Set<string>();
+  const bound=new Set(Object.keys(previous.missionBindings).map(key=>previous.missionBindings[key]!));
+  const embodied=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId??`agent:${actor.id}`));
   for(const agent of [...agentsOf(sim)].sort((a,b)=>a.id-b.id)){
     const id=`agent:${agent.id}`, old=previous.actors[id];known.add(id);
     state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
@@ -187,7 +189,15 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
     if(known.has(spawn.id))throw new Error("Duplicate runtime actor ID");known.add(spawn.id);
     state.actors[spawn.id]=previous.actors[spawn.id]?{...previous.actors[spawn.id]!}:initialize(spawn,sim.tick,null);
   }
-  for(const id of keys(previous.actors))if(!known.has(id)&&(previous.actors[id]!.significant||previous.actors[id]!.legacyId===null))state.actors[id]={...previous.actors[id]!,fidelity:previous.actors[id]!.legacyId===null?previous.actors[id]!.fidelity:"abstract"};
+  for(const id of keys(previous.actors)){
+    const old=previous.actors[id]!;
+    if(known.has(id)||old.retired&&!bound.has(id)&&!embodied.has(id))continue;
+    if(old.significant||old.legacyId===null)state.actors[id]={...old,
+      // A significant ambient actor can return after its physical body was
+      // culled. Its stable ID survives; it now needs normal physical admission.
+      ...(old.legacyId!==null&&!embodied.has(id)?{legacyId:null}:{}),
+      fidelity:old.legacyId===null?old.fidelity:"abstract"};
+  }
   for(const observed of options.observedBodies??[]){const actor=state.actors[observed.id];if(actor&&[observed.x,observed.y,observed.z,observed.heading,observed.speed??0].every(Number.isFinite))Object.assign(actor,observed);}
   if(keys(state.actors).length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
   const numericIds=new Set<number>();
@@ -307,6 +317,10 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   }
   if(actor.model==="person"||animal(actor.model)||actor.firmware==="good"){
     const stimuli:PerceivedStimulus[]=people.flatMap(player=>{
+      // No reaction observes beyond 40 m. Reject distant players before the
+      // building-footprint visibility query, which dominates citywide costs.
+      const dx=actor.x-player.x,dz=actor.z-player.z;
+      if(dx*dx+dz*dz>1600)return [];
       const input=inputs[player.id],seen=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
       const observed:PerceivedStimulus[]=[];
       if(distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
@@ -403,6 +417,11 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
     if(actor.legacyId!==null&&!presentLegacy.has(actor.legacyId)){actor.fidelity="abstract";continue;}
     const fidelity=planFidelity(actor,anchors,sim.tick);actor.fidelity=fidelity.tier;
+    if(fidelity.tier==="despawn"){
+      actor.retired=true;actor.intent=null;
+      event(state,"actor.retired",actor.id,"outside-fidelity");
+      continue;
+    }
     if(!fidelity.allowCombat)continue;
     let intent:RobotBrainIntent|undefined=actor.intent??undefined;
     if(actor.firmware==="bad"&&!vehicle(actor.model)&&phase(sim,actor.id)==="active"&&(fidelity.run||actor.brain?.windup||actor.brain?.update)){

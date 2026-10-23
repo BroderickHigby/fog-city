@@ -1977,11 +1977,12 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   let out: AgentsExt = { nextId: ext.nextId, list };
   let rng = prev.rng;
   if (tick % POP_INTERVAL === 0) {
-    const physical = out.list.filter(a => a.runtimeId !== undefined);
     // Claimed legacy bodies still occupy the ambient population budget. Counting
-    // only unclaimed rows refills the same slots every population tick.
+    // only unclaimed rows refills the same slots every population tick. They must
+    // also obey the same distance cull: restoring every claimed body afterwards
+    // leaves a trail of frozen pedestrians as the player travels across the city.
     const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
-    out = physical.length ? { ...p.ext,list:[...p.ext.list.filter(a=>a.runtimeId===undefined),...physical].sort((a,b)=>a.id-b.id) } : p.ext;
+    out = p.ext;
     rng = p.rng;
   }
   return { ext: out, rng };
