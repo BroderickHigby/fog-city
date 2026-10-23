@@ -22,12 +22,13 @@ describe("mission actor placement",()=>{
     expect(Math.hypot(result.actors[0]!.x-result.actors[1]!.x,result.actors[0]!.z-result.actors[1]!.z)).toBeGreaterThan(1.3);
     expect(planMissionActors(world,state,{...stage,actorIds:[...stage.actorIds].reverse()})).toEqual(result);
   });
-  it("expands crews once and reports cycles and unavailable road placement",()=>{
+  it("expands crews once, reports cycles and safely parks a staged taxi without a road",()=>{
     const input={...stage,actorIds:["crew","car"],definitions:{...stage.definitions,crew:{kind:"crew" as const,members:["bad","good","bad"]},car:{kind:"rogueTaxi" as const}}};
     const result=planMissionActors(world,state,input);
-    expect(result.actors).toHaveLength(2);
+    expect(result.actors).toHaveLength(3);
     expect(result.groups.crew).toEqual(["mission:first:bad","mission:first:good"]);
-    expect(result.blocked).toEqual(["car"]);
+    expect(result.blocked).toEqual([]);
+    expect(result.actors.find(actor=>actor.id==="mission:first:car")).toMatchObject({model:"robotaxi",halfLength:2.5,halfWidth:1});
     expect(planMissionActors(world,state,{...input,definitions:{...input.definitions,crew:{kind:"crew",members:["crew"]}}}).blocked).toContain("crew");
   });
 });
