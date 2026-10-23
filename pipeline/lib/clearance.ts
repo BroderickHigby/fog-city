@@ -65,7 +65,10 @@ export interface ClearanceStats {
 
 interface Corridor {
   edge: RoadEdge;
+  /** The corridor's largest radius along the edge. */
   r: number;
+  /** The radius at each 1 m sample (corridorRadii), or null where it is the edge's constant radius. */
+  radii: number[] | null;
 }
 
 const isNewer = (d: RawStreetDate | undefined, b: Building): boolean => {
@@ -79,6 +82,48 @@ export function corridorRadius(e: RoadEdge): number {
   if (e.gradeSeparated || e.kind === "freeway" || e.kind === "ramp") return 0;
   if (e.pedestrian) return WALK_R;
   return !e.oneway && e.lanes >= 2 ? CAR_LANE_R : CAR_R;
+}
+
+/** The sim car's half width and half length (src/sim/car.ts CAR): the body that sweeps a bend. */
+const CAR_HALF_W = 0.95;
+const CAR_HALF_L = 2.2;
+/** A bend's radius is measured from the centreline's turn over this far either side of a sample, metres. */
+export const BEND_SPAN_M = 3;
+/** At most this much extra corridor on a bend, metres. */
+export const BEND_MAX_M = 1.5;
+
+/**
+ * Extra corridor on a bend of radius R (metres) of a street's centreline: how far the outer
+ * front corner of a car turning about its rear axle (how a car, and its driver, takes a bend:
+ * the wheels track the bend and the nose swings out) sweeps beyond the half width it covers on
+ * the straight. sqrt((R + w)^2 + L^2) - R - w for a body of half width w and length L.
+ */
+export function bendWidening(R: number): number {
+  if (!(R > 0) || !Number.isFinite(R)) return 0;
+  const L = 2 * CAR_HALF_L;
+  return Math.min(BEND_MAX_M, Math.hypot(R + CAR_HALF_W, L) - R - CAR_HALF_W);
+}
+
+/**
+ * The corridor radius at each of an edge's 1 m samples (samples(points, 1) order): r, plus
+ * bendWidening of the centreline's local radius (its turn between the chords BEND_SPAN_M before
+ * and after the sample). The hairpins of Lombard St (radius 3 to 4 m) get about 1.5 m more; a
+ * straight street gets r.
+ */
+export function corridorRadii(points: readonly P2[], r: number): number[] {
+  const pts = samples(points, 1);
+  const k = BEND_SPAN_M;
+  return pts.map((p, i) => {
+    const a = pts[Math.max(0, i - k)]!;
+    const b = pts[Math.min(pts.length - 1, i + k)]!;
+    const ax = p.x - a.x, az = p.z - a.z, bx = b.x - p.x, bz = b.z - p.z;
+    const la = Math.hypot(ax, az), lb = Math.hypot(bx, bz);
+    if (la < 0.5 || lb < 0.5) return r;
+    const turn = Math.abs(Math.atan2(ax * bz - az * bx, ax * bx + az * bz));
+    if (turn < 1e-6) return r;
+    // Two chords of length la and lb turning by `turn` lie on a circle of radius (la + lb) / 2 / turn.
+    return r + bendWidening((la + lb) / 2 / turn);
+  });
 }
 
 /** Points every `step` metres along a polyline, with their arc length and unit direction. */
@@ -299,24 +344,34 @@ function reregister(e: RoadEdge, r: number, grid: BuildingGrid, ground: Ground):
   return after < before ? simple : null;
 }
 
-/** The corridor of an edge near a box, as polygons (only the part of the centreline near it). */
-function corridorNear(e: RoadEdge, r: number, box: [number, number, number, number], skip?: (s: number) => boolean): Poly[] {
-  const pad = r + 2;
+/**
+ * The corridor of an edge near a box, as polygons (only the part of the centreline near it):
+ * the centreline buffered by `r`, and where `radii` widens it on a bend, a disc of the wider
+ * radius at each 1 m sample there.
+ */
+function corridorNear(e: RoadEdge, r: number, box: [number, number, number, number], skip?: (s: number) => boolean, radii: readonly number[] | null = null): Poly[] {
+  let rMax = r;
+  for (const q of radii ?? []) if (q > rMax) rMax = q;
+  const pad = rMax + 2;
   const pts = samples(e.points, 1);
   const runs: P2[][] = [];
+  const discs: Array<{ p: P2; r: number }> = [];
   let cur: P2[] | null = null;
-  for (const p of pts) {
+  pts.forEach((p, k) => {
     const inBox = p.x >= box[0] - pad && p.x <= box[2] + pad && p.z >= box[1] - pad && p.z <= box[3] + pad && !skip?.(p.s);
     if (inBox) {
       if (!cur) runs.push((cur = []));
       cur.push([p.x, p.z]);
+      const rk = radii?.[k] ?? r;
+      if (rk > r + 0.01) discs.push({ p: [p.x, p.z], r: rk });
     } else cur = null;
-  }
+  });
   const polys: Poly[] = [];
   for (const run of runs) {
     if (run.length === 1) run.push([run[0]![0] + 0.01, run[0]![1]]);
     polys.push(...bufferPolyline(simplifyLine(run, 0.02), r));
   }
+  for (const d of discs) polys.push(...bufferPolyline([d.p, [d.p[0] + 0.01, d.p[1]]], d.r));
   return polys;
 }
 
@@ -488,25 +543,30 @@ export function clearCorridors(
   }
 
   // ---- 4. Spans and cuts for whatever still stands in a corridor.
+  // Streets get their bend widening here (corridorRadii); paths keep WALK_R.
   const corridorsOf = new Map<number, Corridor[]>();
   for (const e of graph.edges) {
     const r = corridorRadius(e);
     if (r === 0) continue;
+    const radii = e.pedestrian ? null : corridorRadii(e.points, r);
     const sk = skipFor(e);
     const hit = new Set<number>();
-    for (const p of samples(e.points, 1)) {
-      if (sk?.(p.s)) continue;
+    samples(e.points, 1).forEach((p, k) => {
+      if (sk?.(p.s)) return;
+      const rk = radii?.[k] ?? r;
       const g = ground.heightAt(p.x, p.z) ?? 0;
-      for (const i of grid.near(p.x, p.z, r + 0.5)) {
+      for (const i of grid.near(p.x, p.z, rk + 0.5)) {
         const b = list[i];
         if (!b || hit.has(i) || !blocks(b, g)) continue;
-        if (signedDist(p.x, p.z, b.footprint) < r) hit.add(i);
+        if (signedDist(p.x, p.z, b.footprint) < rk) hit.add(i);
       }
-    }
+    });
+    let rMax = r;
+    for (const q of radii ?? []) if (q > rMax) rMax = q;
     for (const i of hit) {
       let l = corridorsOf.get(i);
       if (!l) corridorsOf.set(i, (l = []));
-      l.push({ edge: e, r });
+      l.push({ edge: e, r: rMax, radii });
     }
   }
   const used = new Map<string, number>();
@@ -546,7 +606,7 @@ export function clearCorridors(
     let inPolys: Poly[];
     let outPolys: Poly[];
     try {
-      const corr = unionPolys(corridorsOf.get(i)!.flatMap((c) => corridorNear(c.edge, c.r, [x0, z0, x1, z1], skipFor(c.edge))));
+      const corr = unionPolys(corridorsOf.get(i)!.flatMap((c) => corridorNear(c.edge, corridorRadius(c.edge), [x0, z0, x1, z1], skipFor(c.edge), c.radii)));
       inPolys = intersectPolys(b.footprint, corr);
       outPolys = differencePolys(b.footprint, corr);
     } catch {
