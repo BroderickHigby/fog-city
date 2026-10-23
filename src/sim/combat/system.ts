@@ -7,6 +7,7 @@ import { applyWaterHit, stepSupport, tickEffects } from "./effects.ts";
 import { advanceProjectile } from "./physics.ts";
 import { waterShot } from "./weapons.ts";
 import { holdCombatTimers } from "./pause.ts";
+import { applyFlowerHit, launchFlowers } from "./flowers.ts";
 import { capacity, emit, initialPlayer, initialTarget, MAX_PROJECTILES, newlyPressed, protectedActor, safeAngle, sortedActors, sortedPlayers, targetOf } from "./shared.ts";
 import type { CombatActor, CombatContext, CombatInputs, CombatPlayer, CombatState, PlayerCombat, Projectile, TargetCombat } from "./types.ts";
 
@@ -26,6 +27,7 @@ function validateContext(ctx: CombatContext): void {
   }
   for (const actor of ctx.actors) {
     if (!Number.isFinite(actor.radius) || actor.radius <= 0 || !Number.isFinite(actor.height) || actor.height <= 0) throw new Error("Combat actor dimensions must be positive");
+    if (actor.rustScale !== undefined && (!Number.isFinite(actor.rustScale) || actor.rustScale <= 0 || actor.rustScale > 1)) throw new Error("Combat objective rust scale must be in (0, 1]");
   }
   for (const player of ctx.players) {
     if (![0,1,2].includes(player.tankTier) || ![0,1].includes(player.flowTier) || ![1,2,3,4].includes(player.scannerTier)) throw new Error("Unknown combat upgrade tier");
@@ -134,6 +136,7 @@ function particles(state:CombatState,ctx:CombatContext):void {
     if (moved.hit) {
       if (projectile.kind==="water") applyWaterHit(state,moved.hit,projectile);
       if (projectile.kind==="cone") coneHit(state,moved.projectile,moved.hit);
+      if (projectile.kind==="flower") applyFlowerHit(state,ctx,moved.projectile,moved.hit);
     }
     if (moved.hit || moved.landed || moved.blocked || moved.expired) {
       if (projectile.kind==="balloon") {
@@ -164,6 +167,7 @@ export function stepCombat(prev: Readonly<CombatState>, ctx: CombatContext, inpu
   if (state.pauseUntil<=state.tick) {
   stepSupport(state,ctx,inputs);
   fireWeapons(state,ctx,inputs);
+  launchFlowers(state,ctx,inputs);
   particles(state,ctx);
   tickEffects(state,ctx);
   stepAttacks(state,ctx,inputs);
