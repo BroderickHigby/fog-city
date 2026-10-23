@@ -20,7 +20,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&a.wave<=ctx.wave&&distanceSquared(body,a)<=a.radius**2);
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&a.wave<=ctx.wave&&distanceSquared(body,a)<=a.radius*a.radius);
    if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;event(state,"activity.started",body.id,activity.id);}
   }
   if(own.activeActivityId){

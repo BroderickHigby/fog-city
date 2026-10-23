@@ -4,7 +4,7 @@ import type { GameplayBody,GameplayCommand,GameplayContext,GameplayEvent,Gamepla
 export const MAX_HISTORY=4096;
 export const TICKS=60;
 export function compare(a:string,b:string):number{return a<b?-1:a>b?1:0;}
-export function distanceSquared(a:Position,b:Position):number {return (a.x-b.x)**2+(a.y-b.y)**2+(a.z-b.z)**2;}
+export function distanceSquared(a:Position,b:Position):number {const x=a.x-b.x,y=a.y-b.y,z=a.z-b.z;return x*x+y*y+z*z;}
 export function bodyOf(ctx:GameplayContext,id:string):GameplayBody|undefined{return ctx.bodies.find(body=>body.id===id);}
 export function sortedBodies(ctx:GameplayContext):GameplayBody[]{return [...ctx.bodies].sort((a,b)=>compare(a.id,b.id));}
 export function validId(id:unknown):id is string{return typeof id==="string"&&id.length>0&&id.length<=128&&!Object.hasOwn(Object.prototype,id)&&id!=="prototype";}
