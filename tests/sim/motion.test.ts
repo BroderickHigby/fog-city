@@ -79,6 +79,15 @@ describe("core movement acceptance", () => {
     expect(()=>prepareMotionBodies(world,initial(),[motion({speed:1e12})])).toThrow("Invalid");
   });
 
+  it("keeps runtime walkers on their shore side and rejects wall-overlapping admission",()=>{
+    const shore=buildWorld([],null,{version:1,edges:[],shore:[{closed:false,points:[[-200,0],[200,0]]}]});
+    const state=createInitialState(shore,1,["p"],{x:0,z:-10,heading:0});
+    const crossing=motion({sourceX:10,x:10,sourceZ:-.41,z:.59,speed:60});
+    const ready=prepareMotionBodies(shore,state,[crossing]);
+    expect(applyMotionBodies(shore,ready,[crossing]).ext.agents!.list[0]!.z).toBe(-.41);
+    expect(()=>prepareMotionBodies(shore,state,[{...crossing,sourceZ:-.2}])).toThrow("spawn");
+  });
+
 });
 
 describe("service vehicle controls",()=>{

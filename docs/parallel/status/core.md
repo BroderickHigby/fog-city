@@ -133,3 +133,18 @@ Body: Count runtime-owned legacy actors when replenishing ambient population, pr
 ## Integrated AGI pause adaptation
 
 The later combat branch is reconciled with the physical prepare/observe kernel: a pause processes recorded membership and sanitized inputs, then runs only combat. It skips preparation, body admission, movement and dodge until the pause expires. Normal ticks keep the existing physical path. The updated boundary regression checks that preparation remains paused through tick 180 and resumes at tick 181. New integrated validation is pending; the old pre-kernel pause test count does not validate this adaptation.
+
+Performance candidate follow-up: merged the agents lane's tested `fc64776` exact spatial nearest-node index and current runtime reuse, retained population fix `f6f8357`, and applied an authorized combat adapter allowlist copy (avoids cloning then deleting body fields). The adapter still ignores metadata identity/position overrides. Updated a leftover test assertion from the earlier typed-extension fixture migration. Combined **typecheck and 100 tests across 7 files passed**, including exact navigation queries, actual service movement, population ownership, metadata protection, replay branches and purity. A new consistent-world timed probe is still required before claiming the frame budget.
+
+## Airborne physical acceptance and shoreline follow-up
+
+- Branch: `lane/core/flight`, based on the reviewed performance checkpoint `bbd39e5`. This is a later-wave change and is not part of the frozen wave-2 gate.
+- Flying proposals now admit physical bodies, keep their accepted altitude through observation, bound climb/descent to 2 m/s, and check the occupied vertical band against buildings and other bodies. Simultaneous conflicting paths are held. Ground cars can pass under high drones, and ground dodge never writes a flying body back to terrain height.
+- Ground runtime walkers now reject shore/world-wall overlap on admission and reject wall-crossing steps. The regression includes a destination beyond the wall whose endpoint itself is clear.
+- Validation: **typecheck passed; 120 tests across 4 files passed**, including flight, motion, dodge and forbidden APIs. The existing frozen candidate is unchanged.
+- Requests for other lanes: Agents should enable `allowFlying` only after this physical change is integrated and remove its drone-only 2D building prefilter so core evaluates altitude clearance. Renderer/mission code should continue using observed accepted poses.
+
+Draft PR title: `Core: accept airborne actor motion and contain runtime walkers at world walls`
+Base: `integrate/wave2` · Head: `lane/core/flight`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/flight?expand=1>
+Body: Admit and observe bounded flying bodies through the shared physics kernel, preserving altitude and testing vertical building/body clearance. Keep high drones out of ground vehicle prediction and hold simultaneous conflicting paths. Also enforce shoreline/world walls for runtime walker admission and movement. Typecheck and 120 flight/movement/dodge/purity tests passed. This change is staged after the frozen wave-2 candidate; no merge to main or integrate/wave1 is included.
