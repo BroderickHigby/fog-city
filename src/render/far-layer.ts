@@ -28,6 +28,7 @@ import { TILE_SIZE_M } from "../geo/project.ts";
 import { fcUniforms, injectUniforms } from "./materials.ts";
 import { disposeObject } from "./tile-streamer.ts";
 import type { Manifest } from "./types.ts";
+import { selectFarCells, type FarBudget } from "./far-selection.ts";
 
 export interface FarCell {
   id: string;
@@ -48,6 +49,8 @@ export interface FarLayerOptions {
   load: (url: string) => Promise<GLTF>;
   /** Cells loaded at once. */
   maxConcurrent?: number;
+  /** CPU-renderer fallback only; omitted keeps the full native-GPU skyline. */
+  budget?: FarBudget;
   /** Adjusts a cell's vertex colours once when it loads; `terrain` tells lattice vertices from hulls. */
   tint?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => void;
 }
@@ -71,6 +74,9 @@ export interface FarInfo {
   triangles: number;
   /** Far quads at the city's outer edge replaced by stitches to the streamed tiles' ground (outerSeams). */
   seamEdges: number;
+  queued: number;
+  loading: number;
+  radius: number | null;
 }
 
 /** A stitch's inner side runs this far below the streamed tile's ground (so the tile wins the depth test). */
@@ -413,7 +419,11 @@ export class FarLayer {
   private readonly mask: THREE.DataTexture;
   private readonly maskData: Uint8Array;
   private readonly maskIndex: Map<string, number>;
-  private readonly roots: THREE.Object3D[] = [];
+  private readonly roots = new Map<string, { root: THREE.Object3D; triangles: number; seams: number }>();
+  private readonly loading = new Set<string>();
+  private readonly failedIds = new Set<string>();
+  private focusX = 0;
+  private focusZ = 0;
   private loaded = 0;
   private failed = 0;
   private triangles = 0;
@@ -469,36 +479,68 @@ export class FarLayer {
     this.ends = { northZ, southZ };
   }
 
-  /** Start loading every cell (a few at a time). Idempotent. */
+  /** Start near-first loading. Native GPUs eventually load every cell. */
   start(): void {
     if (this.started) return;
     this.started = true;
-    const queue = this.cells.slice();
-    const next = (): void => {
-      const cell = queue.shift();
-      if (!cell || this.disposed) return;
+    this.pump();
+  }
+
+  private wanted(retain = false): FarCell[] {
+    const budget = this.opts.budget;
+    return selectFarCells(this.cells, this.focusX, this.focusZ,
+      budget ? retain ? budget.retainRadius : budget.radius : Infinity, budget?.maxCells);
+  }
+
+  private pump(): void {
+    if (!this.started || this.disposed) return;
+    if (!this.opts.budget && this.loaded + this.failed >= this.cells.length) return;
+    const queue = this.wanted().filter(cell => !this.roots.has(cell.id) && !this.loading.has(cell.id) && !this.failedIds.has(cell.id));
+    for (const cell of queue) {
+      if (this.loading.size >= (this.opts.maxConcurrent ?? 4)) break;
+      this.loading.add(cell.id);
       this.opts.load(this.opts.base + cell.glb).then(
         (gltf) => {
+          this.loading.delete(cell.id);
           this.add(cell, gltf);
-          next();
+          this.pump();
         },
         (err: unknown) => {
+          this.loading.delete(cell.id);
+          this.failedIds.add(cell.id);
           this.failed++;
           console.warn(`[fog-city] far cell ${cell.id}: ${err instanceof Error ? err.message : String(err)}`);
-          next();
+          this.pump();
         },
       );
-    };
-    for (let i = 0; i < (this.opts.maxConcurrent ?? 4); i++) next();
+    }
+  }
+
+  /** Follow travel in the CPU fallback, unloading old regions before requesting the new ones. */
+  update(x: number, z: number): void {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+    this.focusX = x; this.focusZ = z;
+    if (this.opts.budget) {
+      const keep = new Set(this.wanted(true).map(cell => cell.id));
+      for (const [id, entry] of this.roots) if (!keep.has(id)) {
+        this.drop(entry.root);
+        this.triangles -= entry.triangles;
+        this.seamEdges -= entry.seams;
+        this.roots.delete(id);
+      }
+      this.loaded = this.roots.size;
+    }
+    this.pump();
   }
 
   private add(cell: FarCell, gltf: GLTF): void {
     const root = gltf.scene;
-    if (this.disposed) {
+    if (this.disposed || this.opts.budget && !this.wanted(true).some(wanted => wanted.id === cell.id)) {
       disposeObject(root);
       return;
     }
     root.name = `far:${cell.id}`;
+    const beforeTriangles = this.triangles, beforeSeams = this.seamEdges;
     root.updateMatrixWorld(true);
     root.traverse((o) => {
       o.matrixAutoUpdate = false;
@@ -517,7 +559,7 @@ export class FarLayer {
       };
     });
     this.addSeams(root);
-    this.roots.push(root);
+    this.roots.set(cell.id, { root, triangles: this.triangles - beforeTriangles, seams: this.seamEdges - beforeSeams });
     this.group.add(root);
     this.loaded++;
   }
@@ -575,24 +617,25 @@ export class FarLayer {
   }
 
   info(): FarInfo {
-    return { total: this.cells.length, loaded: this.loaded, failed: this.failed, drawn: this.drawnLast, triangles: this.triangles, seamEdges: this.seamEdges };
+    const queued = (this.opts.budget ? this.wanted() : this.cells).filter(cell => !this.roots.has(cell.id) && !this.loading.has(cell.id) && !this.failedIds.has(cell.id)).length;
+    return { total: this.cells.length, loaded: this.loaded, failed: this.failed, drawn: this.drawnLast, triangles: this.triangles, seamEdges: this.seamEdges,
+      queued, loading: this.loading.size, radius: this.opts.budget?.radius ?? null };
   }
 
-  /** True once every cell has loaded or failed. */
+  /** True once the current region (the whole skyline on native GPUs) has loaded or failed. */
   settled(): boolean {
-    return !this.started || this.loaded + this.failed >= this.cells.length;
+    return !this.started || (this.opts.budget ? this.wanted() : this.cells).every(cell => this.roots.has(cell.id) || this.failedIds.has(cell.id));
+  }
+
+  private drop(root: THREE.Object3D): void {
+    root.removeFromParent();
+    root.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); });
   }
 
   dispose(): void {
     this.disposed = true;
-    for (const r of this.roots) {
-      r.removeFromParent();
-      r.traverse((o) => {
-        const mesh = o as THREE.Mesh;
-        if (mesh.isMesh) mesh.geometry.dispose();
-      });
-    }
-    this.roots.length = 0;
+    for (const { root } of this.roots.values()) this.drop(root);
+    this.roots.clear();
     this.material.dispose();
     this.mask.dispose();
   }

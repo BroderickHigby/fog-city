@@ -23,6 +23,7 @@ import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
+import { softwareFarBudget } from "./far-selection.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -91,9 +92,13 @@ export interface RenderInfo {
   farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /** CPU-renderer fallback diagnostics; native GPUs have no radius limit. */
+  farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
 }
 
 const SHADOW_HALF = 160;
+const SHADOW_MAP_SIZE = 2048;
+const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
@@ -161,7 +166,7 @@ export class SceneRenderer {
     this.envScene.add(new Sky(900).mesh);
     if (opts.shadows) {
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(2048, 2048);
+      this.sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
       const c = this.sun.shadow.camera;
       c.left = -SHADOW_HALF;
       c.right = SHADOW_HALF;
@@ -191,12 +196,16 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
+    const gl = this.renderer.getContext();
+    const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
+    const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
       ground: world.ground,
+      budget: softwareFarBudget(rendererName),
     });
     this.scene.add(this.far.group);
 
@@ -383,12 +392,14 @@ export class SceneRenderer {
     this.sky.follow(this.camera);
     this.water.follow(this.camera);
     // Keep the sun light (and its shadow box) centred near the camera.
-    const sx = Math.round(cam.x / 20) * 20;
-    const sz = Math.round(cam.z / 20) * 20;
+    // Move in texel-sized steps, rather than visibly jumping twenty metres.
+    const sx = Math.round(cam.x / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
+    const sz = Math.round(cam.z / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
     this.sun.target.position.set(sx, 0, sz);
     this.sun.position.set(sx + this.sunDir.x * 800, this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    this.far.update(cam.x, cam.z);
     this.landmarks.update(minuteOfDay);
   }
 
@@ -446,6 +457,7 @@ export class SceneRenderer {
     out.farCellsDrawn = f.drawn;
     out.farTriangles = f.triangles;
     out.farSeamEdges = f.seamEdges;
+    out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
     out.cameraFar = this.camera.far;
     return out;
   }
