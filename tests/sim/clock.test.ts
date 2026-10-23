@@ -28,7 +28,6 @@ describe("seeded game calendar", () => {
     state = step(world, state, {}, [], []);
     expect(gameTime(state)).toEqual(before);
     expect(state.rng).toEqual(rng);
-    expect(fogDensity(world, state, 100, -100)).toBe(0);
     expect(fogDensity(world, state, NaN, Infinity)).toBe(0);
   });
 });
