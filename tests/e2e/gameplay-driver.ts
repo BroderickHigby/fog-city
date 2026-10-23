@@ -2,21 +2,25 @@
 // every change to a body, mission or wallet still goes through the production step function.
 import {
   Action, DT, carBox, circleInBoxes, clamp, datan2, dodgeExtOf, segmentBlocked, segmentCrossesWall, circleBlocked, groundHeight,
-  createGameSystems, createFollowerState, stepVehicleFollower, step, wrapAngle,
-  type Box, type InputFrame, type SimInput, type SimState, type World,
+  AGENT_SPEC, ROBOTAXI_BODY, createGameSystems, createFollowerState, stepVehicleFollower, step, wrapAngle,
+  type Box, type InputFrame, type SimInput, type SimState, type SimSystem, type World,
 } from "../../src/sim/index.ts";
 
 export interface Point { x: number; z: number }
 export class GameplayDriver {
   readonly frames: InputFrame[] = [];
-  readonly systems = createGameSystems();
+  readonly systems: readonly SimSystem[];
   readonly world: World;
   readonly playerId: string;
   state: SimState;
-  constructor(world: World, state: SimState, playerId = "p1") {
+  /** Retain the immutable pre-step snapshot so a safety failure is a one-tick reproduction. */
+  previousState: SimState;
+  constructor(world: World, state: SimState, playerId = "p1", systems = createGameSystems()) {
     this.world = world;
     this.state = state;
+    this.previousState = state;
     this.playerId = playerId;
+    this.systems = systems;
   }
   get body() {
     const player = this.state.players[this.playerId]!;
@@ -25,6 +29,7 @@ export class GameplayDriver {
   input(input: SimInput): void {
     const frame = { [this.playerId]: input };
     this.frames.push(frame);
+    this.previousState = this.state;
     this.state = step(this.world, this.state, frame, [], this.systems);
     const clearance = dodgeExtOf(this.state);
     if (clearance.contacts !== 0 || clearance.failures !== 0) {
@@ -57,32 +62,71 @@ export class GameplayDriver {
   driveTo(target: Point, stopDistance = 15, maxTicks = 7200): void {
     if (this.state.players[this.playerId]!.mode !== "vehicle") throw new Error("Driver needs the player's car");
     let follower = createFollowerState(this.body);
+    let checkpoint = { x: this.body.x, z: this.body.z, hits: this.state.players[this.playerId]!.car.hits };
     for (let i = 0; i < maxTicks; i++) {
       const next = stepVehicleFollower(this.world, this.body, follower, { kind: "pursue", target, stopDistance, maxSpeed: 12 });
       follower = next.state;
       if (next.status === "arrived") return;
       this.input(next.input);
+      if ((i + 1) % 120 === 0) {
+        const travelled = Math.hypot(this.body.x - checkpoint.x, this.body.z - checkpoint.z);
+        const hits = this.state.players[this.playerId]!.car.hits;
+        if (travelled < 1 || hits > checkpoint.hits && travelled < 12) {
+          throw new Error(`Driving made no safe progress at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
+        }
+        checkpoint = { x: this.body.x, z: this.body.z, hits };
+      }
     }
     throw new Error(`Driving timed out at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
   }
   walkTo(target: Point, stopDistance = 3, maxTicks = 15000): void {
     this.onFoot();
-    const cars = Object.keys(this.state.players).sort().map(id => carBox(this.state.players[id]!.car));
-    const route = walkingRoute(this.world, this.body, target, stopDistance, cars);
+    const plan = () => walkingRoute(this.world, this.body, target, stopDistance, [
+      ...observedVehicleBoxes(this.state),
+      ...(this.state.ext.agents?.list ?? []).filter(actor => actor.kind !== "robotaxi").map(actor => ({
+        x: actor.x, z: actor.z, heading: 0,
+        hl: actor.radius ?? AGENT_SPEC[actor.kind].radius,
+        hw: actor.radius ?? AGENT_SPEC[actor.kind].radius,
+      })),
+    ]);
+    let route = plan();
     let waypoint = 0;
+    let replanned = false;
+    let checkpoint = { x: this.body.x, z: this.body.z };
     for (let i = 0; i < maxTicks; i++) {
       const body = this.body;
       if (Math.hypot(body.x - target.x, body.z - target.z) <= stopDistance) { this.hold(12); return; }
-      while (waypoint < route.length - 1 && Math.hypot(body.x - route[waypoint]!.x, body.z - route[waypoint]!.z) < 1) waypoint++;
+      while (waypoint < route.length - 1 && Math.hypot(body.x - route[waypoint]!.x, body.z - route[waypoint]!.z) < .35) waypoint++;
       const goal = route[waypoint]!;
       const error = wrapAngle(datan2(goal.x - body.x, -(goal.z - body.z)) - body.heading);
       this.input({ throttle: Math.abs(error) < .65 ? 1 : 0, steer: clamp(error / (2.2 * DT), -1, 1), brake: 1, actions: 0 });
+      if ((i + 1) % 120 === 0) {
+        if (Math.hypot(this.body.x - checkpoint.x, this.body.z - checkpoint.z) < .5) {
+          if (replanned) throw new Error(`Walking made no progress after replanning at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
+          route = plan();
+          waypoint = 0;
+          replanned = true;
+        }
+        checkpoint = { x: this.body.x, z: this.body.z };
+      }
     }
     throw new Error(`Walking timed out at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
   }
 }
 
-/** Small bounded A* on committed ground geometry; this does not move any game body. */
+/** Accepted physical traffic, including full-size service vehicles and legacy taxis. */
+export function observedVehicleBoxes(state: SimState): Box[] {
+  return [
+    ...Object.keys(state.players).sort().map(id => carBox(state.players[id]!.car)),
+    ...(state.ext.agents?.list ?? []).filter(actor => actor.kind === "robotaxi").map(actor => ({
+      x: actor.x, z: actor.z, heading: actor.heading,
+      hl: actor.halfLength ?? ROBOTAXI_BODY.halfLength,
+      hw: actor.halfWidth ?? ROBOTAXI_BODY.halfWidth,
+    })),
+  ];
+}
+
+/** Small bounded A* on committed ground geometry and observed traffic; never moves a body. */
 function walkingRoute(world: World, start: Point, target: Point, stopDistance: number, cars: readonly Box[]): Point[] {
   const size = 2, padding = 80;
   const minX = Math.min(start.x, target.x) - padding, maxX = Math.max(start.x, target.x) + padding;

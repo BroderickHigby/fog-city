@@ -16,13 +16,13 @@
 //    and fed to the game frame by frame, compared with Node chunk by chunk.
 
 import { existsSync } from "node:fs";
+import { e2eGameSystems } from "./game-systems.ts";
 import { chromium, expect, firefox, test, webkit, type Page } from "@playwright/test";
 import {
   Action,
   NEUTRAL_INPUT,
   canonicalJson,
   createInitialState,
-  createGameSystems,
   sortedIds,
   step,
   type SimInput,
@@ -213,7 +213,7 @@ test.describe("cross-engine determinism: the running game", () => {
       return { state: handle.state(), hash: handle.hash(), commands: handle.commands() };
     }, chunk);
     const chunks = withRecordedCommands([chunk], initial.tick, final.commands);
-    const matched = matchGame("dev", initial, chunks, [final.hash], final.state, createGameSystems());
+    const matched = matchGame("dev", initial, chunks, [final.hash], final.state, e2eGameSystems());
     expect(matched.match, matched.tried.join("\n")).toBeDefined();
     expect(final.state.ext.clock?.elapsedTicks).toBe(initial.tick + 120);
     expect(problems).toEqual([]);
@@ -257,7 +257,7 @@ test.describe("cross-engine determinism: the running game", () => {
       // Node steps the same snapshot with the same inputs: the manifest's construction first.
       const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands?.() ?? []);
       const recorded = withRecordedCommands(chunks, s0.tick, commands);
-      const m = matchGame(world, s0, recorded, gameHashes, gameFinal,createGameSystems());
+      const m = matchGame(world, s0, recorded, gameHashes, gameFinal,e2eGameSystems());
       expect(
         m.match,
         `the game and Node parted (chunks: ${chunks.length}; loop runs after pokes: ${runs.join(", ")}):\n${m.tried.join("\n")}`,
@@ -272,7 +272,7 @@ test.describe("cross-engine determinism: the running game", () => {
       // Informational: can a fresh client rebuild the game's boot state from (world, seed, players, spawn)?
       const files = loadWorldFiles(world);
       let boot = createInitialState(m.match!.world, s0.seed, sortedIds(s0.players), files.manifest.spawn);
-      const systems=createGameSystems();
+      const systems=e2eGameSystems();
       while (boot.tick < s0.tick) boot = step(m.match!.world, boot, {}, [],systems);
       const bootJson = canonicalJson(boot);
       const s0Json = canonicalJson(s0);
@@ -321,7 +321,7 @@ test.describe("cross-engine determinism: the running game", () => {
 
       const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands?.() ?? []);
       const recorded = withRecordedCommands(chunks, s0.tick, commands);
-      const m = matchGame(world, s0, recorded, gameHashes, gameFinal,createGameSystems());
+      const m = matchGame(world, s0, recorded, gameHashes, gameFinal,e2eGameSystems());
       expect(m.match, `the game and Node parted:\n${m.tried.join("\n")}`).toBeDefined();
 
       // The session must exercise the sim, or equality proves little.

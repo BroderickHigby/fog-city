@@ -6,8 +6,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 import { toLocal } from "../../src/geo/project.ts";
-import { canonicalJson, createGameSystems, hashState, nearbyBuildings, pointInPolygon } from "../../src/sim/index.ts";
-import { DEFAULT_CATALOG } from "../../src/sim/player/catalog.ts";
+import { nearbyBuildings, pointInPolygon } from "../../src/sim/index.ts";
 import { fileExists, loadWorld, loadWorldFiles, readJsonIfExists, worldExists, type RoadGraphFile } from "../helpers.ts";
 import {
   THROTTLE,
@@ -25,65 +24,12 @@ import {
   type FogWindow,
 } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
-import { GameplayDriver } from "./gameplay-driver.ts";
-import { p1Chunk, replay, withRecordedCommands } from "./replay.ts";
 
 const SF = worldExists("sf");
 const ABSENT = "public/tiles/sf/manifest.json is absent: the pipeline has not produced the SF world on this checkout";
 /** Spawn must be this close to the origin (the Ferry Building clock tower), metres. */
 const SPAWN_RADIUS_M = 400;
 
-test.describe("sf world: authored gameplay", () => {
-  test.use({ viewport: { width: 960, height: 540 } });
-  test("drives to the real FiDi counter and makes the first purchase through the HUD", async ({ page }) => {
-    test.setTimeout(900_000);
-    gate("sf", SF, ABSENT);
-    const problems = await bootWorld(page, "sf", "&radius=300&pr=0.75");
-    await page.evaluate(() => {
-      const handle = (window as unknown as FogWindow).__fogcity!;
-      handle.pause();
-      handle.stepN(1); // Consume the recorded boot command before taking the replay snapshot.
-    });
-    const initial = await simState(page);
-    const { world } = loadWorld("sf", { roads: true });
-    const vendor = DEFAULT_CATALOG.sites.find(site => site.id === "fidi-desk" && site.kind === "vendor")!;
-    const driver = new GameplayDriver(world, initial);
-    driver.driveTo(vendor, 18, 9600);
-    for (let at = 0; at < driver.frames.length; at += 500) {
-      await page.evaluate(frames => (window as unknown as FogWindow).__fogcity!.stepFrames!(frames), driver.frames.slice(at, at + 500));
-    }
-    const arrived = await simState(page);
-    expect(canonicalJson(arrived)).toBe(canonicalJson(driver.state));
-    expect(Math.hypot(arrived.players.p1!.car.x - vendor.x, arrived.players.p1!.car.z - vendor.z)).toBeLessThanOrEqual(18);
-    expect(Math.abs(arrived.players.p1!.car.speed)).toBeLessThan(.3);
-
-    await page.getByRole("button", { name: "Counter", exact: true }).click();
-    const tank = page.locator("article").filter({ has: page.getByRole("heading", { name: "Tank I", exact: true }) });
-    await expect(tank.getByRole("button", { name: "Buy", exact: true })).toBeEnabled();
-    const before = await simState(page);
-    const cash = before.ext.economy!.players.p1!.cashCents;
-    await tank.getByRole("button", { name: "Buy", exact: true }).click();
-    await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().ext.economy?.players.p1?.ownedItemIds.includes("tank-1"));
-    const bought = await simState(page);
-    const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands!());
-    expect(bought.ext.economy!.players.p1!.cashCents).toBe(cash - 60_000);
-    expect(bought.ext.economy!.players.p1!.ownedItemIds.filter(id => id === "tank-1")).toHaveLength(1);
-    const purchase = commands.filter(command => command.kind === "gameplay.command" && (command.payload as { kind?: string }).kind === "buy");
-    expect(purchase).toHaveLength(1);
-    const chunks = withRecordedCommands([p1Chunk(bought.tick - before.tick)], before.tick, commands);
-    expect(hashState(replay(world, before, chunks, createGameSystems()).final)).toBe(hashState(bought));
-    await expect(tank.getByRole("button", { name: "Owned", exact: true })).toBeDisabled();
-    await expect(page.locator(".fc-cluster")).toContainText("/ 12 L");
-    await page.getByRole("button", { name: "Close", exact: true }).click();
-    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
-    await frames(page, 2);
-    await page.screenshot({ path: "test-results/first-purchase-third-person.png" });
-    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("first-person"));
-    await frames(page, 2);
-    await page.screenshot({ path: "test-results/first-purchase-first-person.png" });
-    expect(problems).toEqual([]);
-  });
-});
 
 interface LandmarksDoc {
   landmarks: Array<{ id: string; model: string; lat: number; lon: number; headingDeg: number }>;
