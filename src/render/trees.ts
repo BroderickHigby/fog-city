@@ -57,7 +57,23 @@ export class StreetTrees {
       leaves.count = Math.max(4, Math.round(leaves.count * 0.55));
       leaves.size *= 1.25;
       tree.generate();
-      const parts = [tree.branchesMesh, tree.leavesMesh].map((m) => {
+      // ez-tree's leaf material bends its vertices for wind in a shader that ignores instancing
+      // (every instance's leaves would draw at the origin): the leaves get a standard material with
+      // the same texture instead, alpha-tested and two-sided. The bark keeps its material.
+      const src = (Array.isArray(tree.leavesMesh.material) ? tree.leavesMesh.material[0] : tree.leavesMesh.material) as THREE.MeshStandardMaterial;
+      const leafMat = new THREE.MeshStandardMaterial({
+        name: `fc:tree-leaves:${v.preset}`,
+        map: src.map ?? null,
+        color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
+        alphaTest: 0.5,
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+        metalness: 0,
+      });
+      const parts = [
+        { geometry: tree.branchesMesh.geometry, material: tree.branchesMesh.material },
+        { geometry: tree.leavesMesh.geometry, material: leafMat },
+      ].map((m) => {
         const im = new THREE.InstancedMesh(m.geometry, m.material, capacity);
         im.count = 0;
         im.castShadow = shadows;
