@@ -374,6 +374,11 @@ export class AgentLayer {
   /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
   private brakeUntil = new Map<number, number>();
   private readonly look = newLook();
+  /**
+   * Look-dev only (debug handle previewCombatLook): per agent id, a combat look drawn instead of
+   * the decorated one. Never set in play; the sim never sees it.
+   */
+  private lookOverride: ReadonlyMap<number, VisualCombat & { height?: number }> | null = null;
   /** Rust-stained water pooled under each heap (the sim's puddle): a flat, glossy disc. */
   private readonly puddles: THREE.InstancedMesh;
   private puddleCount = 0;
@@ -459,6 +464,21 @@ export class AgentLayer {
     this.bags = full;
   }
 
+  /** Look-dev only: draw these agents with these combat looks (null: as the sim says). */
+  setCombatLookOverride(looks: ReadonlyMap<number, VisualCombat & { height?: number }> | null): void {
+    this.lookOverride = looks;
+  }
+
+  /** The non-person agents drawn last frame nearest (x, z), nearest first (look-dev). */
+  nearestRobots(x: number, z: number, n: number): number[] {
+    const out: Array<{ id: number; d: number }> = [];
+    for (const [, b] of this.pairs) {
+      if (b.kind === "person") continue;
+      out.push({ id: b.id, d: Math.hypot(b.x - x, b.z - z) });
+    }
+    return out.sort((p, q) => p.d - q.d).slice(0, n).map((p) => p.id);
+  }
+
   /** Scale the light channels for night (0 day .. 1 night). */
   setNight(night: number): void {
     const [h, t, s] = channelIntensities(night);
@@ -533,7 +553,9 @@ export class AgentLayer {
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
       const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, moved, time, held, this.cue);
       if((b as AgentState&{visualFlash?:boolean}).visualFlash)cue.flash=Math.sin(time*9)>0?1:0;
-      const combat = visualCombat(b);
+      const override = this.lookOverride?.get(b.id);
+      const combat = override ?? visualCombat(b);
+      const height = override?.height ?? visualHeight(b);
       cue.rust = combat.rust;
       cue.wet = combat.wet;
       if (cue.brakeUntil > held) this.brakeUntil.set(b.id, cue.brakeUntil);
@@ -552,7 +574,7 @@ export class AgentLayer {
         continue;
       }
       const view = this.kinds.get(b.kind)!;
-      if (combat.topple >= 1 && visualHeight(b) > 0.05 && this.puddleCount < PUDDLES_MAX) {
+      if (combat.topple >= 1 && height > 0.05 && this.puddleCount < PUDDLES_MAX) {
         const r = AGENT_SPEC[b.kind].radius * 1.8;
         _m.compose(_p.set(pose.x, pose.y + 0.03, pose.z), _q.identity(), _s.set(r, 1, r * 0.8));
         this.puddles.setMatrixAt(this.puddleCount++, _m);
@@ -563,7 +585,7 @@ export class AgentLayer {
         this.drawNear(view, b, pose, cue, dt);
       } else {
         baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
-        collapse(_base, b, combat);
+        collapse(_base, b, combat, height);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
       }
     }
@@ -670,7 +692,8 @@ export class AgentLayer {
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
     baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
-    collapse(_base, b, visualCombat(b));
+    const override = this.lookOverride?.get(b.id);
+    collapse(_base, b, override ?? visualCombat(b), override?.height ?? visualHeight(b));
     // A seized robot's limbs and wheels stop where they are.
     const swing = cue.rust && cue.rust >= 1 ? 0 : Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
@@ -756,9 +779,9 @@ const _rz = new THREE.Matrix4();
  * (the sim's height scale), ending on its side as a heap. Applied in model space, after the
  * placement matrix.
  */
-function collapse(base: THREE.Matrix4, a: Readonly<AgentState>, c: Readonly<VisualCombat>): void {
+function collapse(base: THREE.Matrix4, a: Readonly<AgentState>, c: Readonly<VisualCombat>, height: number): void {
   if (c.topple > 0) base.multiply(_rz.makeRotationZ((a.id % 2 === 0 ? 1 : -1) * TOPPLE_RAD * c.topple * c.topple * (3 - 2 * c.topple)));
-  base.scale(_s.set(1, visualHeight(a), 1));
+  base.scale(_s.set(1, height, 1));
 }
 
 function visualHeight(a:Readonly<AgentState>):number {const scale=(a as AgentState&{visualHeightScale?:number}).visualHeightScale;return typeof scale==="number"&&Number.isFinite(scale)?Math.max(.05,Math.min(1,scale)):1;}

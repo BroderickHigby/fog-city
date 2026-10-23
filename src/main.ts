@@ -342,6 +342,7 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    previewCombatLook: (stages) => view.previewCombatLook(stages),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
