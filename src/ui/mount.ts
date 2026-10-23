@@ -44,7 +44,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     title.id="fc-dialog-title";dialog.setAttribute("aria-labelledby",title.id);header.append(title,button(copy("ui.common.close"),()=>setModal(undefined)));dialog.append(header);
     if(modal==="phone")renderPhone(dialog);
     if(modal==="vendor")for(const item of view?.vendor??[]){
-      const card=node("article","fc-card"),footer=node("footer"),buy=button(copy(item.owned?"ui.vendor.owned":"ui.vendor.buy"),()=>callbacks.purchase?.(item.id));buy.disabled=item.owned||!item.available||(view?.cashCents??0)<item.priceCents;
+      const card=node("article","fc-card"),footer=node("footer"),buy=button(copy(item.owned?"ui.vendor.owned":"ui.vendor.buy"),()=>callbacks.purchase?.(item.id,view?.vendorSiteId));buy.disabled=item.owned||!item.available||(view?.cashCents??0)<item.priceCents;
       card.append(node("h2",undefined,item.title),node("p",undefined,item.description));footer.append(node("strong",undefined,formatMoney(item.priceCents)),buy);card.append(footer);
       if(buy.disabled&&!item.owned)card.append(node("p",undefined,item.reason??copy(item.available?"ui.vendor.insufficient":"ui.vendor.unavailable")));dialog.append(card);
     }
