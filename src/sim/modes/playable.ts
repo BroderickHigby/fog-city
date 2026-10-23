@@ -3,6 +3,7 @@ import { activeBody, step } from "../step.ts";
 import { createGameSystems } from "../game-systems.ts";
 import { allocateActorIds } from "../identity.ts";
 import { groundHeight, type World } from "../world.ts";
+import { circleHitsWall, inCorridor, onWater } from "../boundary.ts";
 import { planModeRoster } from "../agents/mode-roster.ts";
 import { agentsCombatOptions } from "../agents/systems.ts";
 import { agentsRuntimeOf, type RuntimeSpawn } from "../agents/runtime.ts";
@@ -32,10 +33,14 @@ function playable(state:Readonly<SimState>):PlayableMatch|undefined {
   return (state.ext.modes as unknown as {playable?:PlayableMatch}|undefined)?.playable;
 }
 function excluded(x:number,z:number):boolean {const p=toLatLon(x,z);return Boolean(protectedAreaAt([p.lat,p.lon]));}
+function distanceSquared(a:{x:number;z:number},b:{x:number;z:number}):number {const x=a.x-b.x,z=a.z-b.z;return x*x+z*z;}
+function dryArenaPoint(world:World,x:number,z:number):boolean {
+  return !world.walls||!circleHitsWall(world.walls,x,z,.5)&&(!onWater(world.walls.shore,x,z)||inCorridor(world.walls,x,z));
+}
 
 /** A separate, locally playable instance. It never accepts or copies a free-roam wallet. */
 export function createLocalMatch(world:World,config:LocalMatchConfig):SimState {
-  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(config.id)||excluded(config.spawn.x,config.spawn.z))throw new Error("Choose an arena outside excluded areas");
+  if(!/^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/.test(config.id)||excluded(config.spawn.x,config.spawn.z)||!dryArenaPoint(world,config.spawn.x,config.spawn.z))throw new Error("Choose a dry arena outside excluded areas");
   const botId=`rival:${config.id}`;
   if(config.playerId===botId)throw new Error("Reserved rival identity");
   const players=config.mode==="cleanStreets"?[config.playerId,botId]:[config.playerId];
@@ -43,7 +48,7 @@ export function createLocalMatch(world:World,config:LocalMatchConfig):SimState {
   let state=createMatchSession(world,{id:config.id,mode:config.mode,seed:config.seed,players,...(config.mode==="botSweep"?{relayId}:{})},config.spawn,config.loadouts);
   const center={x:config.spawn.x,y:groundHeight(world,config.spawn.x,config.spawn.z),z:config.spawn.z},radius=120;
   const roster=planModeRoster(world,state,{id:config.id,mode:config.mode==="botSweep"?"bot-sweep":"clean-streets",playerCount:players.length,center,radius,
-    contains:(x,z)=>(x-center.x)**2+(z-center.z)**2<=radius*radius&&!excluded(x,z)},world.sidewalks);
+    contains:(x,z)=>distanceSquared({x,z},center)<=radius*radius&&!excluded(x,z)&&dryArenaPoint(world,x,z)},world.sidewalks);
   // Missing objectives cannot turn an unbuilt arena into an automatic win.
   if(roster.blocked.length||roster.actors.length!==(config.mode==="botSweep"?121:120))throw new Error("This location has insufficient clear space for the match");
   const reserved=allocateActorIds(state,roster.actors.map(actor=>actor.id));state=reserved.state;
@@ -80,12 +85,12 @@ export function stepLocalMatch(world:World,state:Readonly<SimState>,inputs:Input
   const runtime=agentsRuntimeOf(state),combat=contextFromState(world,state,{...agentsCombatOptions(state),wave:4});
   const observations:BotObservation[]=sortedIds(local.bots.bots).map(id=>{
     const body=activeBody(state.players[id]!);
-    const actors=combat.actors.filter(actor=>actor.playerId!==id&&(actor.x-body.x)**2+(actor.z-body.z)**2<=40*40)
-      .sort((a,b)=>(a.x-body.x)**2+(a.z-body.z)**2-((b.x-body.x)**2+(b.z-body.z)**2)||(a.id<b.id?-1:1)).slice(0,256)
+    const actors=combat.actors.filter(actor=>actor.playerId!==id&&distanceSquared(actor,body)<=40*40)
+      .sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)).slice(0,256)
       .map(actor=>({id:actor.id,kind:actor.kind,x:actor.x,y:actor.y,z:actor.z,visible:true,operational:actor.kind==="player"||state.ext.combat?.targets[actor.id]?.phase===undefined||state.ext.combat.targets[actor.id]!.phase==="active",height:actor.height,
         // Behaviour can raise suspicion, but hidden firmware never enters bot observations.
         suspicion:runtime?.actors[actor.id]?.behavior==="attack"?1:0,rival:!!actor.playerId&&session.match.players[actor.playerId]?.team!==session.match.players[id]?.team}));
-    const refills=[...(world.gameplay?.refills??[])].sort((a,b)=>(a.x-body.x)**2+(a.z-body.z)**2-((b.x-body.x)**2+(b.z-body.z)**2)||(a.id<b.id?-1:1)).slice(0,64);
+    const refills=[...(world.gameplay?.refills??[])].sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)).slice(0,64);
     return {playerId:id,actors,refills,objective:local.center,paused:session.match.players[id]!.downUntil>state.tick};
   });
   const plan=planRivalBotInputs(world,state,local.bots,observations);
