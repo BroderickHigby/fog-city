@@ -20,7 +20,7 @@ A cold citywide download (empty cache) took 227 s on 2026-10-20 (about 300 MB of
 responses, 196 cached files), with at most 3 requests in flight (`pipeline/lib/fetch.ts`:
 the citywide download runs datasets in parallel under that cap; an area download awaits
 each request before the next). DataSF often answers HTTP 425 "Too Early" in long runs;
-408/425/429/5xx are retried up to 9 times with exponential backoff capped at 60 s. A warm
+408/425/428/429/5xx are retried up to 9 times with exponential backoff capped at 60 s. A warm
 build (from cache, `--offline`) takes 42–49 s on one core (measured 2026-10-20 after the
 wave-1/wave-2 reconciliation). Raw responses are cached in `pipeline/.cache/http/`
 (gitignored, one file per URL plus a `.url` sidecar naming it). `data.sfgov.org` now
