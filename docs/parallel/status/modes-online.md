@@ -88,3 +88,17 @@ Body: Implements simulation-owned demo scoring, locked votes and server-only key
 The registered modes system now supports fresh, separate Crowd, Royale and Vibes instances through explicit context providers. Only six named loadout fields cross into a match; financial and unrelated-player fields are dropped. All three modes emit stable settlement IDs only once on completion. Providers still own approved instance geometry, actor casts, authoritative awards, bot controls and confirmed physical attachments.
 
 Adversarial fixes also accept a real bot-associate duel loss immediately, preserve +1/+3 Royale runway rewards above the starting18months, and reject one-founder online wins. Final validation: TypeScript and86tests across7mode/determinism files passed.
+# Playable local match integration
+
+Branch: `lane/modes-playable/wave5`.
+
+`createLocalMatch`, `stepLocalMatch` and `localMatchView` now provide a fresh Bot Sweep or Clean Streets instance without copying free-roam finances. The actual 120-robot roster and Bot Sweep relay enter through the shared allocator and physical preparation. Clean Streets includes a rival founder driven by visible observations, completed scans, normal movement and flower alt-fire. Respawns use the normal clearance-checked player join path. Finished matches expose the existing stable payout IDs for the profile owner to settle after returning to the saved city state.
+
+The integration rejects arenas without room for every objective and excluded areas. The UI host is in the separate UI lane. Advanced mode rule modules remain separate from this local launcher; this change does not claim playable Royale, Crowd or Vibes integration.
+
+Validation: 53 tests across all mode rules, local composition, rival control and core hooks pass. Includes real actor admission, bot exit/movement, deterministic replay, return-state isolation, respawn placement, correct flower input and update-interruption attribution. Combined TypeScript, SF arena boot and UI browser tests are next. Performance fixes and AGI pause adaptation will be consumed from the core lane before final integration.
+
+Draft PR title: `Modes: connect local Bot Sweep and Clean Streets to physical gameplay`
+
+Draft PR body: Add isolated local match creation, ordinary simulated robot objectives and a perception-driven rival founder. Preserve the saved city, return stable settlement IDs, and route respawns through core clearance. Fix rival flower input and update-interruption attribution. Local mode/core tests pass; final integrated UI and real-SF validation are tracked in this status.
+

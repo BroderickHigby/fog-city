@@ -19,7 +19,15 @@ export const defaultMatchContext:MatchContextProvider=context=>{
       .sort((a,b)=>a.d-b.d||(a.target<b.target?-1:a.target>b.target?1:0))[0];
     if(candidate)inputs[id]={reviveTarget:candidate.target};
   }
-  return {tick:context.state.tick,positions,inputs,combatEvents:context.state.ext.combat?.events??[]};
+  const combat=context.state.ext.combat;
+  const combatEvents=(combat?.events??[]).map(event=>{
+    if(event.kind!=="update.interrupted"||session?.match.players[event.sourceId])return event;
+    const blind=combat?.events.find(hit=>hit.kind==="robot.blinded"&&hit.tick===event.tick&&hit.targetId===event.sourceId);
+    const effect=combat?.targets[event.sourceId];
+    const sourceId=blind?.sourceId??(effect&&effect.phase!=="active"?effect.sourceId:"");
+    return sourceId&&session?.match.players[sourceId]?{...event,sourceId}:event;
+  });
+  return {tick:context.state.tick,positions,inputs,combatEvents};
 };
 export function createModesSystem(provider:MatchContextProvider=defaultMatchContext,advanced:AdvancedModeProviders={}):SimSystem {
   return {key:"modes",step(context){
