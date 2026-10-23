@@ -6,7 +6,7 @@ import { modeSessionOf } from "../../../src/sim/modes/session.ts";
 import { agentsRuntimeOf } from "../../../src/sim/agents/runtime.ts";
 import { defaultMatchContext } from "../../../src/sim/modes/systems.ts";
 
-const world=buildWorld([]);
+const world=buildWorld([],null,null,{version:1,world:"fixture",sourceSnapshot:"test",refills:[{id:"water",kind:"hydrant",x:0,y:0,z:10,radius:3,salt:false}],anchors:[],tiles:[],territories:[]});
 const config={id:"local-1",mode:"botSweep" as const,seed:7,playerId:"p1",spawn:{x:0,z:0,heading:0}};
 describe("local playable match composition",()=>{
   it("admits every objective through physical actor preparation and keeps free-roam state absent",()=>{
