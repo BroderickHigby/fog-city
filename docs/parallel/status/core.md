@@ -145,3 +145,17 @@ Performance candidate follow-up: merged the agents lane's tested `fc64776` exact
 Combined later candidate: merged `f9ca263` performance work into the mode seam while preserving the newer rival flower control. Provider options and observation reuse coexist. The current physical-step pause adaptation passed its no-prepare/180-tick/resume checks. **Typecheck and 105 tests across six files passed** on the combined seam (mode hooks, pause, gameplay, population, bots and purity). Carried the separately verified own-property metadata hardening afterward (eight adapter tests passed).
 
 The immutable wave-2 performance candidate was measured with consistent SF loaders: 211 actors, median 6.794 ms/tick and p95 12.767 ms/tick; the same 600-tick SF driving probe fell from 51.430 s to 5.734 s with zero contacts/failures/hits/person bumps. Full browser gating remains with the harness; these timings do not replace it.
+
+## Real-route pedestrian contact fix
+
+- Isolated branch `lane/core/contact-fix`, based on corrected harness `7269504`.
+- At Hot Desk tick 3078, runtime person 224 stepped from 0.325502 m clearance to 0.298938 m from stopped legacy taxi 198, penetrating its 0.3 m radius by about 1.062 mm. Runtime walker acceptance checked player cars but omitted ambient/service vehicle hulls; final dodge correctly counted the resulting contact.
+- Runtime walkers now sweep their bounded step against all actual vehicle hulls. Legacy taxis use the drawn `ROBOTAXI_BODY` defaults; explicit van/bus dimensions and parked player cars are preserved. Height bands avoid unrelated stacked surfaces, and an already overlapping body can move away. Strict contact counters and the final dodge phase are unchanged.
+- Validation: **typecheck and 120 tests across four files passed**. The new side/front regressions both reproduced a contact before the change. Tests also cover long service hulls, parked player cars and escape from an existing overlap.
+- The exact saved 3077 state plus its next input now reaches tick 3078 with **zero contacts and zero failures**, then remains at zero for 120 additional ticks through 3198. Full route/browser re-verification belongs to the updated immutable integration candidate.
+- Dependency alignment: Agents owns the corresponding planner fallback to `ROBOTAXI_BODY` so spawn planning and core admission use the same legacy taxi bounds.
+
+Draft PR title: `Core: keep runtime walkers outside every vehicle hull`
+Base: `integrate/wave2` · Head: `lane/core/contact-fix`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/contact-fix?expand=1>
+Body: Prevent runtime-controlled pedestrians from stepping into parked NPC taxis or service vehicles before final clearance runs. Sweep against the full physical hull, use the drawn legacy taxi defaults, and preserve height separation and escape from old overlaps. Typecheck and 120 focused tests passed. The actual Hot Desk contact snapshot now replays with zero contacts/failures through 120 further ticks. Keep the strict zero-contact gate; full route and browser checks run on the combined candidate.
