@@ -29,7 +29,7 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
 | `rust-creak` | 1.30 s | no | a robot's rust passes 0.5 (it slows), and again at `seized` |
 | `melt-fizz` | 2.20 s | no | `slumping` starts; it runs through the slump into the heap |
 | `moat-jingle` | 1.70 s | no | a bad robot hums it (tell, subtlety 3); Moat Labs vans and ads |
-| `horn` | 0.50 s | yes | the player's car horn, looped while H (pad L3) is held, with a 12 ms attack and 60 ms release at playback. Loop the `.ogg` |
+| `horn` | 0.50 s | yes | every horn blast (H, pad L3 or the touch button; `src/audio/horn.ts`): looped for 0.42 s with a 12 ms attack and 60 ms release, or an octave up for 0.26 s for the pocket air horn on foot, heard from any player within 60 m. Loop the `.ogg` |
 | `robotaxi-horn` | 0.62 s | no | a robotaxi honks (agent mode `honk`, a player blocking it): at most once per car per 4 s, distance-attenuated |
 
 ## How each one is made
@@ -45,7 +45,7 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
   gliding upward.
 - **horn**: two reed-like tones a major third apart (400 and 500 Hz, the usual dual-trumpet car
   horn interval), eight harmonics each with odd ones stronger, soft-clipped and shaped by a fixed
-  brassy EQ. Every component completes whole cycles in 0.5 s, so the loop is seamless.
+  brassy EQ. Every component completes whole cycles in 0.5 s, so the loop is seamless and a blast of any length has no click.
 - **robotaxi-horn**: an original, deliberately polite double chirp: two short soft-square tones
   rising a fifth (C6 then G6), each with a tiny pitch blip on its attack. It honks like it is asking
   permission; it copies no real vehicle's horn.

@@ -46,8 +46,6 @@ export class GameAudio {
   private active: ActiveEffect[] = [];
   private spray: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
   private wantSpray = false;
-  private hornLoop: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
-  private wantHorn = false;
   private music: MusicPlayer | null = null;
   private musicTracks: readonly MusicTrack[] = [];
   private musicTrack: string | null | undefined = undefined;
@@ -139,34 +137,36 @@ export class GameAudio {
     this.music?.play(trackId);
   }
 
-  /** The player's horn: sounds while held (a short attack and release, no click). */
-  setHorn(held: boolean): void {
-    if (held === this.wantHorn) return;
-    this.wantHorn = held;
+  /**
+   * One horn blast through the effects bus: the car horn sample for `length` seconds (it is a
+   * seamless loop, so any length works), or an octave up for the pocket air horn on foot.
+   */
+  playHorn(gain: number, pan: number, inVehicle: boolean): void {
     const ctx = this.ctx, bus = this.buses.get("effects"), buffer = this.buffers.get("horn");
-    if (held) {
-      if (this.hornLoop || !ctx || !bus || !buffer || !this.unlocked) return;
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.75, ctx.currentTime + 0.012);
-      source.connect(gain);
-      gain.connect(bus);
-      source.start();
-      this.hornLoop = { source, gain };
-      this.played.set("horn", (this.played.get("horn") ?? 0) + 1);
-    } else if (this.hornLoop && ctx) {
-      const { source, gain } = this.hornLoop;
-      this.hornLoop = null;
-      const t = ctx.currentTime;
-      gain.gain.cancelScheduledValues(t);
-      gain.gain.setValueAtTime(gain.gain.value, t);
-      gain.gain.linearRampToValueAtTime(0, t + 0.06);
-      try { source.stop(t + 0.07); } catch { /* already stopped */ }
-      source.onended = () => gain.disconnect();
+    if (!ctx || !bus || !buffer || !this.unlocked || gain <= 0) return;
+    const t = ctx.currentTime, length = inVehicle ? 0.42 : 0.26, level = 0.8 * Math.min(1, gain);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.playbackRate.value = inVehicle ? 1 : 2;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level, t + 0.012);
+    env.gain.setValueAtTime(level, t + length - 0.06);
+    env.gain.linearRampToValueAtTime(0, t + length);
+    let tail: AudioNode = env;
+    if (typeof ctx.createStereoPanner === "function") {
+      const p = ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan));
+      env.connect(p);
+      tail = p;
     }
+    source.connect(env);
+    tail.connect(bus);
+    source.onended = () => tail.disconnect();
+    source.start(t);
+    source.stop(t + length + 0.01);
+    this.played.set("horn", (this.played.get("horn") ?? 0) + 1);
   }
 
   setSpray(on: boolean): void {
@@ -178,7 +178,6 @@ export class GameAudio {
 
   /** Pause or resume all sound with the game's pause (music keeps playing under the menu). */
   setPaused(paused: boolean): void {
-    if (paused) this.setHorn(false);
     if (paused) this.stopSpray();
     else if (this.wantSpray) this.startSpray();
   }
@@ -261,14 +260,13 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; horn: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
       effectsLoaded: this.buffers.size,
       effectsPlayed: Object.fromEntries(this.played),
       spray: this.spray !== null,
-      horn: this.hornLoop !== null,
       music: this.music?.nowPlaying() ?? null,
       ducked: this.ducked,
       gains: {
@@ -282,7 +280,6 @@ export class GameAudio {
 
   dispose(): void {
     this.stopSpray();
-    this.setHorn(false);
     for (const a of this.active) this.stopEffect(a);
     this.music?.dispose();
     this.music = null;

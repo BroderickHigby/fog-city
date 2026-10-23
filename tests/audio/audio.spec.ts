@@ -1,6 +1,6 @@
 // The game's audio in a real browser, driven by real keyboard and pointer input: subtitles show
 // the opening mission lines; the first key unlocks audio; music follows the context (menu, the
-// car radio with M / Shift+M tuning, combat on foot) and streams; the horn sounds while H is held; the settings panel changes and persists the mix; driving into
+// car radio with M / Shift+M tuning, combat on foot) and streams; H sounds the horn; the settings panel changes and persists the mix; driving into
 // the Ferry Building plaza advances Hot Desk, and its next lines play as voice (ducking the music)
 // or, when the file is missing, retry and fall back to subtitles that show even with subtitles
 // turned off. Voice files are not generated yet (ElevenLabs is held on a free tier), so the
@@ -136,12 +136,10 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect(radio).toContainText("Runway FM 88.5", { timeout: 30_000 });
   await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("drive");
   await page.screenshot({ path: "test-results/audio-radio.png" });
-  // The horn sounds while H is held, and stops when it is released.
-  await page.keyboard.down("KeyH");
-  await expect.poll(async () => (await audio(page)).horn, { timeout: 30_000 }).toBe(true);
-  expect((await audio(page)).effectsPlayed.horn ?? 0).toBeGreaterThan(0);
-  await page.keyboard.up("KeyH");
-  await expect.poll(async () => (await audio(page)).horn, { timeout: 30_000 }).toBe(false);
+  // H sounds one horn blast through the effects bus (src/audio/horn.ts reads the stepped input).
+  const hornsBefore = (await audio(page)).effectsPlayed.horn ?? 0;
+  await page.keyboard.press("KeyH");
+  await expect.poll(async () => (await audio(page)).effectsPlayed.horn ?? 0, { timeout: 30_000 }).toBe(hornsBefore + 1);
   await driveTo(page, PLAZA, 30);
   await expect.poll(async () => mission(page), { timeout: 120_000 }).not.toBe("hot-desk:arrive");
 

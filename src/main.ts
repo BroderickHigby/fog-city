@@ -20,7 +20,7 @@
 //   &cam=chase|first-person|fly  starting camera
 //
 // Keys: WASD/arrows drive (or walk), Space brake (sprint on foot); F enter/exit, E fire,
-// Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
+// Q scan, H horn (sim actions; src/audio/horn.ts sounds it). Render only: C chase/first-person, V free fly camera (WASD
 // move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
@@ -35,6 +35,7 @@ import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
+import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
 import { contentHash } from "./content/barks.ts";
@@ -249,6 +250,9 @@ async function boot(): Promise<void> {
     const tick=curr.tick+1,pending=queuedEvents.filter(event=>event.tick===tick);
     queuedEvents=queuedEvents.filter(event=>event.tick>tick);
     curr = step(world, curr, frame, [...events,...pending],systems);
+    // Every horn in the stepped frame sounds (keys, pad and touch all set Action.horn).
+    const me = curr.players[LOCAL_PLAYER];
+    if (me) for (const blast of hornBlasts(frame, curr)) audio.playHorn(blast);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -374,7 +378,6 @@ async function boot(): Promise<void> {
           advance({ ...NEUTRAL_INPUT });
         } else {
           const input = gameUI.sampleInput();
-          if (input.actions & Action.horn) audio.horn();
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
           const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
