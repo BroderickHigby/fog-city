@@ -55,6 +55,7 @@ export interface ObservedGameplayOptions {
  protectedArea?:(x:number,z:number)=>boolean;
  associateIds?:(context:SimSystemContext)=>readonly string[];
  calendar?:(context:SimSystemContext)=>{day:number;month:number;hour:number;minute:number};
+ recoveredVehicleIds?:(context:SimSystemContext)=>Readonly<Record<string,readonly string[]>>;
 }
 /** Adapt observed actor bodies, never planned destinations, into mission and reward facts. */
 export function createObservedGameplayProvider(options:ObservedGameplayOptions):GameplayProvider {
@@ -69,7 +70,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
    const watchingActorId=candidates[0]?.id;const old=previous.player.players[body.id];
    return {playerId:body.id,seenByBad:actors.some(a=>a.firmware==="bad"&&(context.state.ext.combat?.targets[a.id]?.alerted||(previous.heat.players[body.id]?.threat??0)>0)&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&distanceSquared(body,a)<=40000),fog:options.fog?.(context)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
   });
-  return {...base,...options.calendar?.(context)??{},wave:options.wave??2,observations,facts:[...base.facts,...options.facts?.(context)??[]],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
+  return {...base,...options.calendar?.(context)??{},wave:options.wave??2,observations,actorBodies:actors,rustByActor:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.rust])),recoveredVehicleIds:options.recoveredVehicleIds?.(context)??{},facts:[...base.facts,...options.facts?.(context)??[]],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
  };
 }
 export function isMatchInstance(state:Pick<SimSystemContext["state"],"ext">):boolean {
