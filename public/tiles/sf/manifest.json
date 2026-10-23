@@ -12134,9 +12134,9 @@
     "hydrants": "hydrants.json",
     "fountains": "fountains.json",
     "transit": "muni.json",
+    "gameplay": "gameplay.json",
     "signals": "signals.json",
     "streetCleaning": "street-cleaning.json",
-    "parking": "parking.json",
-    "gameplay": "gameplay.json"
+    "parking": "parking.json"
   }
 }

@@ -21,6 +21,14 @@ describe("committed SF gameplay handoff", () => {
     expect(data.tiles.map((t) => t.id).sort()).toEqual(manifest.tiles.map((t) => t.id).sort());
   });
 
+  it("publishes canonical layer order and report counts", () => {
+    const keys=Object.keys(manifest.layers);
+    expect(keys.indexOf("gameplay")).toBe(keys.indexOf("transit")+1);
+    const report=readJson<{layers:Record<string,number>}>("public/tiles/sf/report.json");
+    expect(report.layers.gameplayRefills).toBe(data.refills.length);
+    expect(report.layers.gameplayAnchors).toBe(data.anchors.length);
+  });
+
   it("contains no dangling IDs and includes both endpoints with every indexed crossing", () => {
     const refs = {
       sidewalkNodes: new Set(walk.nodes.map((n) => n.id)),

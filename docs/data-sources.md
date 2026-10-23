@@ -658,8 +658,8 @@ is under `public/tiles/sf/`, local metres, one record per line, with a schema in
 | Parking regulations | DataSF *Parking regulations (except non-metered color curb)*, [`hi6h-neyh`](https://data.sfgov.org/resource/hi6h-neyh.json), SFMTA, PDDL 1.0 | `parking.json`: 7,773 rules matched to the nearest street edge (by the regulation line's midpoint, within 25 m) and side: kind, days, minutes, hour limit, permit areas | — |
 | Sidewalks | DataSF *Sidewalk Widths (2014)*, [`4g86-grxu`](https://data.sfgov.org/resource/4g86-grxu.json), PDDL 1.0: widths only | `sidewalks.json` (procedural, above) | **Used:** offset from road edges |
 | Stairs (walk-only edges) | The streets dataset's `UPROW` layer (mostly stairways), PDDL 1.0 | Not yet: `UPROW` is dropped from the road graph | Wave 3 (the Lyon St steps are wave 4) |
-| Car-wash anchors | *Registered Business Locations* `g8m3-pdis` (NAICS 811192), PDDL 1.0 | Not yet | Procedural kiosks |
-| Repair-kiosk anchors | No dataset | Not yet | Procedural, near garages |
+| Car-wash anchors | Sidewalk/road graph, derived from DataSF PDDL layers | Procedural candidate anchors in `gameplay.json`; not surveyed businesses | Runtime/content approval before activation |
+| Repair-kiosk anchors | Sidewalk/road graph, derived from DataSF PDDL layers | Procedural candidate anchors in `gameplay.json`; not surveyed facilities | Runtime/content approval before activation |
 | Curb ramps, street trees | DataSF `ch9w-7kih` and `tkzw-k3nq`, PDDL 1.0 | Not used yet (accessibility routing, props) | — |
 
 ## What the sim and renderer must change
