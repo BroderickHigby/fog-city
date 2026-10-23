@@ -10,6 +10,7 @@ import { createHeat,stepHeat } from "../heat/system.ts";
 import { createMissions,stepMissions } from "../missions/system.ts";
 import { createEconomy,stepEconomy } from "../economy/system.ts";
 import { createProgression,createProgressionPlayer,stepProgression } from "../progression/system.ts";
+import { doomEffects,factionFor } from "../progression/doom-clock.ts";
 import { createActivities,stepActivities } from "../activities/system.ts";
 import { DEFAULT_CATALOG } from "./catalog.ts";
 import { finiteContext,distanceSquared } from "./common.ts";
@@ -33,7 +34,8 @@ export function combatFacts(events:readonly CombatEvent[],combat?:Pick<CombatSta
   if(kind.startsWith("player.")){playerId=e.targetId;actorId=e.sourceId;}
   if(kind==="update.interrupted"){
    actorId=e.sourceId;
-   playerId=events.find(hit=>hit.tick===e.tick&&hit.kind==="robot.blinded"&&hit.targetId===e.sourceId)?.sourceId??combat?.targets[e.sourceId]?.sourceId??"";
+   const target=combat?.targets[e.sourceId];
+   playerId=events.find(hit=>hit.tick===e.tick&&hit.kind==="robot.blinded"&&hit.targetId===e.sourceId)?.sourceId??(target&&target.lastWaterTick>=e.tick-1?target.sourceId:"");
   }
   return [{id:`combat:${e.id}`,source:"combat" as const,sequence:e.id,tick:e.tick,kind,playerId,actorId,amount:e.amount,detail:e.detail}];
  });
@@ -42,7 +44,8 @@ export const defaultGameplayProvider:GameplayProvider=context=>{
  const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=player.mode==="foot"&&player.foot?player.foot:player.car;return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
  const clock=context.state.ext.clock as {day?:number;month?:number}|undefined;
- return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
+ const doom=gameplaySnapshot(context).progression.doom;
+ return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions])),doomPayFactor:doom?doomEffects(doom,clock?.day??1,context.state.tick).bountyMultiplier:1};
 };
 export interface ObservedGameplayOptions {
  wave?:number;
@@ -62,9 +65,9 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
   const observations=base.bodies.map(body=>{
    const player=context.state.players[body.id]!,pose=player.mode==="foot"&&player.foot?player.foot:player.car;
    const isWatching=!!((context.inputs[body.id]?.actions??0)&Action.watch);
-   const candidates=isWatching?actors.filter(actor=>actor.kind==="robot"&&visible(body,actor,30)&&((actor.x-body.x)*dsin(pose.heading)-(actor.z-body.z)*dcos(pose.heading))>0).sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)):[];
+   const candidates=isWatching?actors.filter(actor=>{const x=actor.x-body.x,z=actor.z-body.z,forward=x*dsin(pose.heading)-z*dcos(pose.heading);return actor.kind==="robot"&&visible(body,actor,30)&&forward>0&&forward*forward>=(x*x+z*z)*.5;}).sort((a,b)=>distanceSquared(a,body)-distanceSquared(b,body)||(a.id<b.id?-1:1)):[];
    const watchingActorId=candidates[0]?.id;const old=previous.player.players[body.id];
-   return {playerId:body.id,seenByBad:actors.some(a=>a.firmware==="bad"&&context.state.ext.combat?.targets[a.id]?.alerted&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&visible(body,a,200)),fog:options.fog?.(context)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
+   return {playerId:body.id,seenByBad:actors.some(a=>a.firmware==="bad"&&(context.state.ext.combat?.targets[a.id]?.alerted||(previous.heat.players[body.id]?.threat??0)>0)&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&distanceSquared(body,a)<=40000),fog:options.fog?.(context)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
   });
   return {...base,...options.calendar?.(context)??{},wave:options.wave??2,observations,facts:[...base.facts,...options.facts?.(context)??[]],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
  };
@@ -91,6 +94,7 @@ export function gameplayEvents(snapshot:GameplaySnapshot,key:ExtensionKey):reado
 export function playerView(snapshot:GameplaySnapshot,playerId:string){
  const wallet=snapshot.economy.players[playerId],heat=snapshot.heat.players[playerId],mission=snapshot.missions.players[playerId];
  const profile=snapshot.progression.players[playerId]??createProgressionPlayer(),player=snapshot.player.players[playerId];
- return {cashCents:wallet?.cashCents??200000,runwayMonths:wallet?.runwayMonths??18,reputation:wallet?.reputation??50,threat:heat?.threat??0,vcStars:(heat?.vcQuarters??0)/4,ownedItemIds:wallet?.ownedItemIds??[],rank:profile.rank,xp:profile.xp,streakPoints:profile.streakPoints,streaks:[...profile.streaks],status:player?.status??"active",bridgeUntil:player?.bridgeUntil??0,activeMission:mission&&mission.missionId?{id:mission.missionId,stepId:mission.stepId,status:mission.status,deadlineTick:mission.deadlineTick,objective:mission.stepId}:null};
+ const doom=snapshot.progression.doom;
+ return {cashCents:wallet?.cashCents??200000,runwayMonths:wallet?.runwayMonths??18,reputation:wallet?.reputation??50,threat:heat?.threat??0,vcStars:(heat?.vcQuarters??0)/4,ownedItemIds:wallet?.ownedItemIds??[],rank:profile.rank,xp:profile.xp,streakPoints:profile.streakPoints,streaks:[...profile.streaks],status:player?.status??"active",bridgeUntil:player?.bridgeUntil??0,doomMonths:doom?.months??24,faction:doom?factionFor(doom,playerId):"unaffiliated",activeMission:mission&&mission.missionId?{id:mission.missionId,stepId:mission.stepId,status:mission.status,deadlineTick:mission.deadlineTick,objective:mission.stepId}:null};
 }
 export function canUseCombat(snapshot:GameplaySnapshot,playerId:string):boolean{return (snapshot.player.players[playerId]?.status??"active")==="active";}

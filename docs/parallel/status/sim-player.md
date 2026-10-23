@@ -49,3 +49,16 @@ The continuing branch `lane/sim-player/wave3` consumes reviewed content catalogs
 Latest focused validation: TypeScript and **66 tests across four files passed**, including 15 player tests and the repository's deterministic forbidden-API checks. This includes real combat event-name normalization, authored XP/scanner unlocks, mode payout replay protection, and activity route/cooldown checks.
 
 Remaining work is explicit: parking/bell/cable-car mechanics come from the mechanics lane and still need production request wiring; later mission-specific facts and cinematics cannot be inferred from content alone. Doom/faction runtime, subscription billing, foil/cargo physics, and activity-specific encounter producers remain incomplete. Wide-nozzle sales are withheld until combat supports the persistent nozzle, rather than charging for no effect. Core owns respawn/clock/body application; player emits the recovery requests.
+
+## Wave-4 clock and mode isolation
+Added `progression/doom-clock.ts`: 24-month initial clock, one-month daily hype drift, idempotent ±3-month faction contracts, AGI reset with a 180-tick pause request, and one-day AI Winter effects. The Pauser and Accelerator contracts now use authored physical routes, timers and rewards; the Pauser's 12 mph rule is enforced against accepted body speed. Their observed completion events move the clock. `doomEffects` exposes bounty/bad-rate/speed/ad/associate/pause outputs for core/render consumers, and mode wins apply their faction movement once at settlement.
+
+Actual combat integration corrections: player damage is owned by the event target, and forced-update interruption is attributed to the cone/water owner rather than the attacking robot. Refill and cone events are normalized from combat's real vocabulary. Stale earlier water ownership does not claim unrelated later interruptions.
+
+`isMatchInstance` recognizes match sessions and standalone crowd/royale/vibes states. All free-roam reducers are bypassed while in those instances, so a Royale bell result cannot trigger free-roam ACQUI-HIRED or wallet/mission penalties.
+
+Latest verification: TypeScript plus **73 tests across seven files passed** (player scenarios and the repository deterministic forbidden-API checks). Work is isolated from the uncommitted prototype; only lane-owned implementation/tests/status are in the owned commits. Dependency commits are authored by the core/content/mechanics lanes.
+
+Wave-4 PR title: `Sim-Player: connect faction routes, Doom Clock and safe mode returns`
+
+Wave-4 PR body: Faction deliveries now complete from accepted routes and enforce the Pauser speed cap, then move a persisted Doom Clock with daily drift, AGI and AI Winter state. Mode rewards settle once into the restored profile, and free-roam reducers skip all recognized match instances. This also fixes real combat damage/interruption attribution and upgrades the gameplay projection. Validation: TypeScript and 73 focused/determinism tests. Core still applies the exposed world effects and recovery proposals; specialized mission staging, cinematic/boss, subscription and foil/cargo interactions remain separate integration work.

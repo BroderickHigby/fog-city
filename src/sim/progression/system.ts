@@ -1,10 +1,11 @@
 import { clamp } from "../dmath.ts";
 import { commands,event,sortedBodies } from "../player/common.ts";
 import { rankForXp as contentRankForXp,LOADOUTS,PROGRESSION } from "../../content/gameplay.ts";
+import { createDoomClock,stepDoomClock } from "./doom-clock.ts";
 import type { GameplayContext,GameplayEvent,Progression,ProgressionState } from "../player/types.ts";
 
 export function createProgressionPlayer():Progression{return {xp:0,rank:1,tankTier:0,flowTier:0,scannerTier:1,nozzle:"standard",gadget:"balloon",gear:"none",perks:[],streaks:["confidence"],streakPoints:0,streakSequence:0,banked:{},commandSequence:0,achievements:[]};}
-export function createProgression(tick=0):ProgressionState{return {version:1,tick,nextId:1,players:{},grantCursors:{},events:[]};}
+export function createProgression(tick=0):ProgressionState{return {version:1,tick,nextId:1,players:{},grantCursors:{},events:[],doom:createDoomClock()};}
 export const STREAK_COST:Readonly<Record<string,number>>={confidence:300,parrots:500,tensor:700,blimp:900,hydrants:1200,agi:2500};
 const STREAK_IDS:Readonly<Record<string,string>>={"confidence-score":"confidence","buzzword-parrots":"parrots","tensor-brick-drop":"tensor","blimp-impressions":"blimp","open-hydrants":"hydrants","agi-allegedly":"agi"};
 export function rankForXp(xp:number):number{return contentRankForXp(xp);}
@@ -12,7 +13,10 @@ export function conversionCap(localBaseCount:number,inFidelity:boolean,protected
 /** Permanent upgrades and tactical grants have one authoritative owner. */
 export function stepProgression(previous:ProgressionState,ctx:GameplayContext,tick:number,groups:Readonly<Record<string,readonly GameplayEvent[]>>):ProgressionState {
  const state:ProgressionState={...previous,tick,players:{},grantCursors:{...previous.grantCursors},events:[]};
- for(const body of sortedBodies(ctx)){const old=previous.players[body.id]??createProgressionPlayer();state.players[body.id]={...old,perks:[...old.perks],streaks:[...old.streaks],banked:{...old.banked}};}
+ const activityFacts=(groups.activities??[]).filter(e=>e.kind==="faction.pauser-completed"||e.kind==="faction.accelerator-completed").map(e=>({id:`activities:${e.id}`,sequence:e.id,source:"world" as const,tick,playerId:e.playerId,kind:e.kind}));
+ const doom=stepDoomClock(previous.doom??createDoomClock(),{...ctx,facts:[...ctx.facts,...activityFacts]},tick);state.doom=doom.state;
+ if(ctx.wave>=4)for(const change of doom.events)event(state,change.kind,change.playerId,"",change.amount);
+ for(const body of sortedBodies(ctx)){const old=previous.players[body.id]??createProgressionPlayer();state.players[body.id]={...createProgressionPlayer(),...old,achievements:[...(old.achievements??[])],perks:[...old.perks],streaks:[...old.streaks],banked:{...old.banked}};}
  for(const source of Object.keys(groups).sort())for(const grant of [...groups[source]!].sort((a,b)=>a.id-b.id)){
   if(grant.id<=(state.grantCursors[source]??0))continue;state.grantCursors[source]=grant.id;const own=state.players[grant.playerId];if(!own)continue;
   if(grant.kind==="bounty.paid"){const actor=ctx.actors.find(a=>a.id===grant.targetId);own.xp+=50*clamp(actor?.subtlety??1,1,5);own.streakPoints+=(actor?.armoured?200:100)+(actor?.caughtInAct?50:0);}
