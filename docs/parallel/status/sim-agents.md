@@ -9,7 +9,7 @@ The existing playable prototype in `/workspace/fog-city` is preserved. This lane
 ## Done
 
 - Read the published lane handoff at `38065dd3c48970ab42c97d2bb0d104eee403ed7c`.
-- Rechecked remote refs after pushing the implementation: neither `integrate/wave2` nor `lane/core/*` is published.
+- Final remote check found the newly published `integrate/wave2` at the same base commit, `2deafc912ea0971440b541e800158b258c548275`; fetched it and confirmed this branch is up to date. No `lane/core/*` interface branch is published.
 - Installed pinned dependencies with a frozen lockfile.
 - `9d9025f`: recorded ownership and prerequisites.
 - `512beaf`: explicit and road-derived sidewalk graphs, deterministic route proposals, bounded fidelity scheduling, stable ambient identity and promotion, perceived reactions, pigeons and leashed dogs.
@@ -33,11 +33,11 @@ Local evidence: `/tmp/fog-city-lane3-verify.log`, `/tmp/fog-city-lane3-e2e.log`,
 
 ## Next
 
-After the rendering lane fixes the hosted-page icon, rerun the hosted-build checks and their dependent serial tests. When lane 2 publishes its interface, reconcile the policy types with its typed extensions, register the adapters, and run the integrated acceptance tests and clearance soak. Open a draft PR into `integrate/wave2` once that target and GitHub API access are available. Move to wave 3 after the wave-2 runtime is accepted.
+After the rendering lane fixes the hosted-page icon, rerun the hosted-build checks and their dependent serial tests. When lane 2 publishes its interface, reconcile the policy types with its typed extensions, register the adapters, and run the integrated acceptance tests and clearance soak. Open a draft PR into `integrate/wave2` once GitHub API access is available. Move to wave 3 after the wave-2 runtime is accepted.
 
 ## Blocked on
 
-Lane 2's wave-2 interface PR, typed extension slots, migration, event definitions, movement hooks and vehicle/body classifications. Runtime registration is pending that interface. Lane R's hosted-page icon defect currently fails the browser gate. The GitHub API request returned `Forbidden`, so no draft PR has been created; the Git push succeeded. The required PR target is also absent. The environment draft now permits the GitHub API and pinned browser-download hosts, but those changes require environment publication before they apply.
+Lane 2's wave-2 interface PR, typed extension slots, migration, event definitions, movement hooks and vehicle/body classifications. Runtime registration is pending that interface. Lane R's hosted-page icon defect currently fails the browser gate. Draft PR creation against the newly published target was attempted with `gh pr create`, but `POST https://api.github.com/graphql` returned `Forbidden`; no PR was created. Git pushes succeed. The environment draft now permits the GitHub API and pinned browser-download hosts, but those changes require environment publication before they apply.
 
 ## Requests for other lanes
 
