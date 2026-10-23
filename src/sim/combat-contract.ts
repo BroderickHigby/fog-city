@@ -23,6 +23,8 @@ export interface CombatActor extends Vec3 {
   obeysTraffic?: boolean;
   occupied?: boolean;
   sheltered?: boolean;
+  /** Local density, with context.fog retained as a compatibility fallback. */
+  fog?: number;
   pursuing?: boolean;
   inFidelity?: boolean;
   /** Optional model resistance multiplier, finite and greater than 0 through 1. */
@@ -43,6 +45,7 @@ export interface CombatPlayer extends Vec3 {
   perks?: readonly ("quiet" | "stealth" | "marine" | "brackish" | "whisperer" | "lean")[];
   trunk?: boolean;
   roofCannon?: boolean;
+  fog?: number;
 }
 export interface Wall { id: string; minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number }
 export interface RefillSource extends Vec3 { id: string; kind: "hydrant" | "fountain" | "bay" | "puddle" | "trunk"; radius: number; salt: boolean; ownerId?: string }
