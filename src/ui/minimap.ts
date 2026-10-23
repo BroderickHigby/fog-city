@@ -12,6 +12,7 @@ export function drawMap(canvas:HTMLCanvasElement,view:UiView,size=180,heading=vi
   c.lineCap="round";c.strokeStyle="#64777a";c.lineWidth=size/50;
   for(const edge of map?.edges??[]){
     const from=nodes.get(edge.from),to=nodes.get(edge.to);if(!from||!to)continue;
+    if(Math.max(from.x,to.x)<center.x-radius*1.5||Math.min(from.x,to.x)>center.x+radius*1.5||Math.max(from.z,to.z)<center.z-radius*1.5||Math.min(from.z,to.z)>center.z+radius*1.5)continue;
     const a=point(from),b=point(to);c.beginPath();c.moveTo(a.x,a.z);c.lineTo(b.x,b.z);c.stroke();
   }
   if(map?.waypoint){

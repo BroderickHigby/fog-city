@@ -19,6 +19,7 @@ export interface BountyView { readonly id:string; readonly title:string; readonl
 export interface ObjectiveView { readonly id:string; readonly title:string; readonly detail:string; readonly remainingTicks?:number; readonly complete?:boolean }
 export interface PopupView { readonly id:string; readonly title:string; readonly detail:string }
 export interface ScanView { readonly targetId:string; readonly bad:boolean; readonly confidence:number }
+export interface InteractionView { readonly id:string;readonly title:string;readonly detail:string;readonly startup?:boolean;readonly choices:readonly {readonly id:string;readonly label:string}[] }
 export type PhoneApp="map"|"botBounty"|"botCheck"|"ride"|"radio"|"fogcast"|"messages"|"bank"|"playlists"|"settings";
 export interface UiView {
   readonly tick:number;
@@ -36,6 +37,7 @@ export interface UiView {
   readonly threat:number;
   readonly vcStars?:number;
   readonly objective?:ObjectiveView;
+  readonly interaction?:InteractionView;
   readonly scan?:ScanView;
   readonly map?:MapView;
   readonly vendor?:readonly VendorView[];
@@ -54,6 +56,7 @@ export interface UiCallbacks {
   readonly waypoint?:(point:MapPoint)=>void;
   readonly pause?:(paused:boolean)=>void;
   readonly app?:(app:PhoneApp)=>void;
+  readonly interaction?:(choiceId:string)=>void;
 }
 export interface UiMountOptions {
   readonly copy:UiCopy;
