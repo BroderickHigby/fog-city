@@ -1,0 +1,46 @@
+{
+ "version": 1,
+ "textures": {
+  "asphalt": {
+   "sizeM": 4.0,
+   "albedo": "asphalt_albedo.webp",
+   "normal": "asphalt_normal.webp",
+   "orm": "asphalt_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "concrete": {
+   "sizeM": 3.0,
+   "albedo": "concrete_albedo.webp",
+   "normal": "concrete_normal.webp",
+   "orm": "concrete_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "paint": {
+   "sizeM": 2.0,
+   "albedo": "paint_albedo.webp",
+   "normal": "paint_normal.webp",
+   "orm": "paint_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)",
+   "note": "orm R channel = paint coverage (wear mask), not AO"
+  },
+  "pavers": {
+   "sizeM": 2.4,
+   "albedo": "pavers_albedo.webp",
+   "normal": "pavers_normal.webp",
+   "orm": "pavers_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  },
+  "sandstone": {
+   "sizeM": 2.4,
+   "albedo": "sandstone_albedo.webp",
+   "normal": "sandstone_normal.webp",
+   "orm": "sandstone_orm.webp",
+   "source": "generated: assets/textures/generate.py",
+   "licence": "project-owned (procedural, no photographs)"
+  }
+ }
+}
