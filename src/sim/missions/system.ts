@@ -7,10 +7,10 @@ import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionStat
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 export function missionPlace(place:Place):{x:number;y:number;z:number}{return {...toLocal(place.lat,place.lon),y:0};}
-function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)**2;}
+function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)*(place.radiusM??25);}
 function initial(mission:Mission):string{return mission.start??mission.steps[0]?.id??"";}
 function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
-function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;for(const [key,meter] of Object.entries(mission.meters))if(validId(key))progress.meters[key]=meter.start;enter(progress,initial(mission),tick);}
+function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
 export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState):MissionState {
@@ -40,7 +40,10 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   own.commandSequence=Math.max(own.commandSequence,...requests.map(c=>c.sequence),0);
   if(player.events.some(e=>e.playerId===body.id&&e.kind==="player.acqui-hired")){own.status="retry";own.retryFrom=mission?initial(mission):"";own.deadlineTick=tick+1;}
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
-   if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+   if(step.type==="trigger"){
+    if(step.event.clock&&ctx.hour!==undefined&&ctx.minute!==undefined){const [hour,minute]=step.event.clock.split(":").map(Number);if(ctx.hour!==hour||ctx.minute!==minute)return;}
+    return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack"||c.kind==="mission-start")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+   }
    if(step.type==="goto"){
     own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60);
     if(near(ctx,body.id,step.target)&&(!step.travel||step.travel==="any"||step.travel===body.mode))return step.next;
@@ -58,7 +61,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     return own.questionIndex>=step.questions.length?step.next:undefined;
    }
    if(step.type==="branch"){const value=own.meters[step.meter]??0;return step.cases.find(c=>(c.min===undefined||value>=c.min)&&(c.max===undefined||value<=c.max))?.next??step.default;}
-   if(step.type==="form")return requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
+   if(step.type==="form")return ctx.validKitIds.includes(player.players[body.id]?.startupKitId??"")||requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
    if(step.type==="objective"){
     const objective=step.objective;const observation=ctx.observations.find(o=>o.playerId===body.id);const target=objective.actor?(observation?.actorBindings?.[objective.actor]??`mission:${mission.id}:${objective.actor}`):undefined;
     const kind=objective.kind as string;const required=Math.max(1,objective.count??1);let complete=false;

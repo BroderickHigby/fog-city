@@ -1,0 +1,763 @@
+{
+  "authority": "Only observed gameplay facts complete objectives; client requests never award a payout.",
+  "definitions": [
+    {
+      "id": "soma-delivery",
+      "kind": "delivery",
+      "wave": 2,
+      "objective": {
+        "event": "delivery.completed",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 7500,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "pickup",
+          "label": "4th St at Folsom St",
+          "lat": 37.78202,
+          "lon": -122.40116,
+          "radiusM": 12
+        },
+        {
+          "id": "delivery",
+          "label": "Folsom St delivery corner",
+          "lat": 37.7794,
+          "lon": -122.398,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "embarcadero-coning",
+      "kind": "coning",
+      "wave": 2,
+      "objective": {
+        "event": "cone.placed",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 5000,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "curb",
+          "label": "Ferry Building plaza curb",
+          "lat": 37.7947,
+          "lon": -122.3942,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "downtown-kiosk",
+      "kind": "repair",
+      "wave": 2,
+      "objective": {
+        "event": "repair.completed",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 0,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "kiosk",
+          "label": "Union Square repair kiosk",
+          "lat": 37.7879,
+          "lon": -122.407,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "search-and-park",
+      "kind": "parking",
+      "wave": 3,
+      "objective": {
+        "event": "parking.legalStop",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 7500,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "arrive",
+          "label": "Pier 70 parking approach",
+          "lat": 37.7605,
+          "lon": -122.3874,
+          "radiusM": 12
+        },
+        {
+          "id": "park",
+          "label": "Signed space on Illinois St",
+          "lat": 37.761,
+          "lon": -122.3872,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "office-hours",
+      "kind": "interview",
+      "wave": 3,
+      "objective": {
+        "event": "demo.robotPresented",
+        "count": 1
+      },
+      "timeLimitS": 900,
+      "reward": {
+        "cashCents": 30000,
+        "xp": 500
+      },
+      "repeatable": true,
+      "cooldownS": 720,
+      "checkpoints": [
+        {
+          "id": "door",
+          "label": "Ramen house at Pier 70",
+          "lat": 37.7608,
+          "lon": -122.385,
+          "radiusM": 20
+        }
+      ]
+    },
+    {
+      "id": "plain-words",
+      "kind": "washBoards",
+      "wave": 3,
+      "objective": {
+        "event": "board.washed",
+        "count": 20
+      },
+      "timeLimitS": 300,
+      "reward": {
+        "cashCents": 20000,
+        "xp": 300
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "south",
+          "label": "Columbus Ave at Broadway",
+          "lat": 37.7982,
+          "lon": -122.4075,
+          "radiusM": 12
+        },
+        {
+          "id": "square",
+          "label": "Washington Square",
+          "lat": 37.8008,
+          "lon": -122.4103,
+          "radiusM": 12
+        },
+        {
+          "id": "north",
+          "label": "Columbus Ave at Bay St",
+          "lat": 37.8051,
+          "lon": -122.4153,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "embarcadero-sprint",
+      "kind": "timeTrial",
+      "wave": 3,
+      "objective": {
+        "event": "race.finished",
+        "count": 1
+      },
+      "timeLimitS": 150,
+      "reward": {
+        "cashCents": 15000,
+        "xp": 200
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "start",
+          "label": "Ferry Building plaza",
+          "lat": 37.7954,
+          "lon": -122.394,
+          "radiusM": 12
+        },
+        {
+          "id": "middle",
+          "label": "The Embarcadero at Harrison",
+          "lat": 37.7894,
+          "lon": -122.3884,
+          "radiusM": 12
+        },
+        {
+          "id": "finish",
+          "label": "Mission Bay waterfront",
+          "lat": 37.778,
+          "lon": -122.389,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "hill-delivery",
+      "kind": "delivery",
+      "wave": 3,
+      "objective": {
+        "event": "delivery.completed",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 22500,
+        "xp": 250
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "pickup",
+          "label": "Hyde at Union",
+          "lat": 37.7985,
+          "lon": -122.4195,
+          "radiusM": 12
+        },
+        {
+          "id": "drop",
+          "label": "Lombard at Leavenworth",
+          "lat": 37.802,
+          "lon": -122.4185,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "coit-recon",
+      "kind": "recon",
+      "wave": 3,
+      "objective": {
+        "event": "recon.signalFound",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 15000,
+        "xp": 200
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "start",
+          "label": "Coit Tower path entrance",
+          "lat": 37.8016,
+          "lon": -122.4058,
+          "radiusM": 12
+        },
+        {
+          "id": "view",
+          "label": "Coit Tower overlook",
+          "lat": 37.8024,
+          "lon": -122.4058,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "pitch-window",
+      "kind": "pitch",
+      "wave": 4,
+      "objective": {
+        "event": "pitch.windowCompleted",
+        "count": 1
+      },
+      "timeLimitS": 300,
+      "reward": {
+        "cashCents": 30000,
+        "xp": 400
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "picnic",
+          "label": "Marina Green",
+          "lat": 37.806,
+          "lon": -122.439,
+          "radiusM": 20
+        }
+      ]
+    },
+    {
+      "id": "presidio-loop",
+      "kind": "timeTrial",
+      "wave": 4,
+      "objective": {
+        "event": "race.finished",
+        "count": 1
+      },
+      "timeLimitS": 210,
+      "reward": {
+        "cashCents": 22000,
+        "xp": 250
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "start",
+          "label": "Presidio Main Post",
+          "lat": 37.799,
+          "lon": -122.458,
+          "radiusM": 12
+        },
+        {
+          "id": "coast",
+          "label": "Crissy Field",
+          "lat": 37.8058,
+          "lon": -122.4556,
+          "radiusM": 12
+        },
+        {
+          "id": "finish",
+          "label": "Presidio Main Post return",
+          "lat": 37.7993,
+          "lon": -122.4585,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "bench-tuning",
+      "kind": "tuning",
+      "wave": 4,
+      "objective": {
+        "event": "tuning.reviewed",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 0,
+        "xp": 100
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "bench",
+          "label": "Pier 70 tuning bench",
+          "lat": 37.7602,
+          "lon": -122.3845,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "octavia-chain",
+      "kind": "bountyChain",
+      "wave": 5,
+      "objective": {
+        "event": "bounty.chainCompleted",
+        "count": 1
+      },
+      "timeLimitS": 360,
+      "reward": {
+        "cashCents": 30000,
+        "xp": 350
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "first",
+          "label": "Octavia at Hayes",
+          "lat": 37.7765,
+          "lon": -122.4245,
+          "radiusM": 12
+        },
+        {
+          "id": "second",
+          "label": "Octavia at Fell",
+          "lat": 37.7758,
+          "lon": -122.4242,
+          "radiusM": 12
+        },
+        {
+          "id": "third",
+          "label": "Octavia at Oak",
+          "lat": 37.7749,
+          "lon": -122.4237,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "painted-ladies-photo",
+      "kind": "photo",
+      "wave": 5,
+      "objective": {
+        "event": "photo.landmarkFramed",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 10000,
+        "xp": 150
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "photo",
+          "label": "Alamo Square view",
+          "lat": 37.7763,
+          "lon": -122.4328,
+          "radiusM": 10
+        }
+      ]
+    },
+    {
+      "id": "foil-integrity",
+      "kind": "delivery",
+      "wave": 6,
+      "objective": {
+        "event": "delivery.foilIntact",
+        "count": 1
+      },
+      "timeLimitS": 300,
+      "reward": {
+        "cashCents": 27500,
+        "xp": 350
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "pickup",
+          "label": "Mission burrito pickup",
+          "lat": 37.7595,
+          "lon": -122.419,
+          "radiusM": 12
+        },
+        {
+          "id": "hill",
+          "label": "22nd St at Church",
+          "lat": 37.7553,
+          "lon": -122.428,
+          "radiusM": 12
+        },
+        {
+          "id": "drop",
+          "label": "Noe Valley drop-off",
+          "lat": 37.7502,
+          "lon": -122.433,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "vermont-curves",
+      "kind": "timeTrial",
+      "wave": 6,
+      "objective": {
+        "event": "race.finished",
+        "count": 1
+      },
+      "timeLimitS": 180,
+      "reward": {
+        "cashCents": 25000,
+        "xp": 300
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "start",
+          "label": "Vermont St upper approach",
+          "lat": 37.7584,
+          "lon": -122.4031,
+          "radiusM": 12
+        },
+        {
+          "id": "curves",
+          "label": "Vermont St curved block",
+          "lat": 37.7575,
+          "lon": -122.4031,
+          "radiusM": 12
+        },
+        {
+          "id": "finish",
+          "label": "Vermont St lower approach",
+          "lat": 37.7568,
+          "lon": -122.4032,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "bernal-viewer",
+      "kind": "relic",
+      "wave": 6,
+      "objective": {
+        "event": "relic.viewerFound",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 12500,
+        "xp": 200
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "view",
+          "label": "Bernal Hill lookout",
+          "lat": 37.7431,
+          "lon": -122.4141,
+          "radiusM": 15
+        }
+      ]
+    },
+    {
+      "id": "great-highway-night",
+      "kind": "timeTrial",
+      "wave": 7,
+      "objective": {
+        "event": "race.finished",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 30000,
+        "xp": 400
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "start",
+          "label": "Ocean Beach north route",
+          "lat": 37.772,
+          "lon": -122.509,
+          "radiusM": 12
+        },
+        {
+          "id": "middle",
+          "label": "Great Highway at Judah",
+          "lat": 37.7606,
+          "lon": -122.508,
+          "radiusM": 12
+        },
+        {
+          "id": "finish",
+          "label": "Great Highway south route",
+          "lat": 37.745,
+          "lon": -122.506,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "lake-loop",
+      "kind": "timeTrial",
+      "wave": 8,
+      "objective": {
+        "event": "race.finished",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "reward": {
+        "cashCents": 27500,
+        "xp": 350
+      },
+      "repeatable": true,
+      "cooldownS": 120,
+      "checkpoints": [
+        {
+          "id": "start",
+          "label": "Lake Merced north path",
+          "lat": 37.729,
+          "lon": -122.493,
+          "radiusM": 12
+        },
+        {
+          "id": "turn",
+          "label": "Lake Merced east path",
+          "lat": 37.722,
+          "lon": -122.485,
+          "radiusM": 12
+        },
+        {
+          "id": "finish",
+          "label": "Lake Merced north return",
+          "lat": 37.729,
+          "lon": -122.4927,
+          "radiusM": 12
+        }
+      ]
+    }
+  ],
+  "plainWords": {
+    "boardCount": 20,
+    "spinnerCount": 4,
+    "boardWashS": 2,
+    "timeLimitS": 300,
+    "ladder": [
+      "AI",
+      "agentic",
+      "agent-native",
+      "post-agentic",
+      "made by humans"
+    ],
+    "advanceEvery": 4,
+    "southLat": 37.7982,
+    "northLat": 37.8051,
+    "corridor": "Columbus Ave north of Broadway; never Stockton or Grant."
+  },
+  "benchCards": [
+    {
+      "id": "faster",
+      "text": "Make it faster",
+      "speedFactor": 1.3,
+      "brakeFactor": 0.4,
+      "reviewS": 0,
+      "priceCents": 60000
+    },
+    {
+      "id": "safer",
+      "text": "Make it safer",
+      "speedFactor": 0.85,
+      "brakeFactor": 1.15,
+      "reviewS": 0,
+      "priceCents": 40000
+    },
+    {
+      "id": "review",
+      "text": "Review the diff",
+      "speedFactor": 1,
+      "brakeFactor": 1,
+      "reviewS": 30,
+      "priceCents": 0
+    },
+    {
+      "id": "accept",
+      "text": "Accept all",
+      "speedFactor": 1,
+      "brakeFactor": 1,
+      "reviewS": 0,
+      "priceCents": 0
+    },
+    {
+      "id": "range",
+      "text": "Carry more water",
+      "speedFactor": 0.95,
+      "brakeFactor": 1,
+      "reviewS": 0,
+      "priceCents": 100000
+    },
+    {
+      "id": "corner",
+      "text": "Help it corner",
+      "speedFactor": 0.97,
+      "brakeFactor": 1.2,
+      "reviewS": 0,
+      "priceCents": 80000
+    }
+  ],
+  "factionContracts": [
+    {
+      "id": "contract-1",
+      "district": "fidi",
+      "event": "update.interrupted",
+      "count": 3,
+      "cashCents": 25000,
+      "brief": "Keep three deliveries out of the forced update."
+    },
+    {
+      "id": "contract-2",
+      "district": "north-beach",
+      "event": "board.washed",
+      "count": 8,
+      "cashCents": 15000,
+      "brief": "Clear the buzzword boards without splashing a queue."
+    },
+    {
+      "id": "contract-3",
+      "district": "dogpatch",
+      "event": "bounty.confirmed",
+      "count": 3,
+      "cashCents": 22500,
+      "brief": "Confirm three workshop impostors before spraying."
+    },
+    {
+      "id": "contract-4",
+      "district": "marina",
+      "event": "vehicle.coned",
+      "count": 3,
+      "cashCents": 18000,
+      "brief": "Stop rogue pickups with cones; keep the lawn clear."
+    },
+    {
+      "id": "contract-5",
+      "district": "presidio",
+      "event": "recon.signalFound",
+      "count": 2,
+      "cashCents": 20000,
+      "brief": "Find the relay signals along the forest road."
+    },
+    {
+      "id": "contract-6",
+      "district": "hayes-valley",
+      "event": "delivery.completed",
+      "count": 2,
+      "cashCents": 15000,
+      "brief": "Keep the side-lane deliveries moving."
+    },
+    {
+      "id": "contract-7",
+      "district": "the-mission",
+      "event": "delivery.foilIntact",
+      "count": 2,
+      "cashCents": 25000,
+      "brief": "Deliver two burritos with their foil intact."
+    },
+    {
+      "id": "contract-8",
+      "district": "sunset",
+      "event": "bounty.confirmed",
+      "count": 2,
+      "cashCents": 20000,
+      "brief": "Read the tells in fog; never guess from a silhouette."
+    }
+  ],
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:79261204",
+    "reviewedBy": [
+      "root second-read at 88a9781"
+    ],
+    "review": "Root independently read every authored string at 88a9781 with no taste, identity or brand misuse issue. Adversarial inputs remain non-display fixtures. Three wave-2 activity definitions added after review; narrow review pending."
+  }
+}

@@ -1,13 +1,14 @@
 import { commands,distanceSquared,event,sortedBodies } from "./common.ts";
 import type { EconomyState,GameplayContext,HeatState,PlayerGameplayState,PlayerStatus } from "./types.ts";
 
-export function createPlayerStatus():PlayerStatus{return {status:"active",bridgeUntil:0,resumeTick:0,safehouseId:"",startupKitId:"",downRounds:0,commandSequence:0};}
+export function createPlayerStatus():PlayerStatus{return {status:"active",bridgeUntil:0,resumeTick:0,safehouseId:"",startupKitId:"",downRounds:0,commandSequence:0,watchingActorId:"",watchedTicks:0};}
 export function createPlayer(tick=0):PlayerGameplayState{return {version:1,tick,nextId:1,players:{},events:[]};}
 /** Recovery emits explicit commands to the owner of wallet/heat/body state. */
 export function stepPlayer(previous:PlayerGameplayState,ctx:GameplayContext,tick:number,economy:EconomyState,heat:HeatState):PlayerGameplayState {
  const state:PlayerGameplayState={...previous,tick,players:{},events:[]};
  for(const body of sortedBodies(ctx)){
   const own={...(previous.players[body.id]??createPlayerStatus())};state.players[body.id]=own;
+  const observation=ctx.observations.find(o=>o.playerId===body.id);own.watchingActorId=observation?.watchingActorId??"";own.watchedTicks=observation?.watchedTicks??0;
   const wallet=economy.players[body.id], danger=heat.players[body.id];
   for(const command of commands(ctx,body.id,["startup-define","bridge-accept"],own.commandSequence)){
    own.commandSequence=command.sequence;

@@ -272,12 +272,42 @@
       "lon": -122.3895,
       "wave": 2,
       "note": "Queue counters post along the on-ramp queue."
+    },
+    {
+      "id": "russian-hill-board",
+      "name": "Local bounty board",
+      "kind": "bountyHotspot",
+      "district": "russian-hill",
+      "lat": 37.800088504706174,
+      "lon": -122.41256886638455,
+      "wave": 3,
+      "note": "Confirm the repeated empty approach before acting; pedestrians and genuine deliveries stay clear."
+    },
+    {
+      "id": "nob-hill-board",
+      "name": "Local bounty board",
+      "kind": "bountyHotspot",
+      "district": "nob-hill",
+      "lat": 37.787286748659504,
+      "lon": -122.41673561946354,
+      "wave": 3,
+      "note": "Confirm the repeated empty approach before acting; pedestrians and genuine deliveries stay clear."
+    },
+    {
+      "id": "chinatown-board",
+      "name": "Local bounty board",
+      "kind": "bountyHotspot",
+      "district": "chinatown",
+      "lat": 37.79810909320399,
+      "lon": -122.41199833491987,
+      "wave": 3,
+      "note": "Confirm the repeated empty approach before acting; pedestrians and genuine deliveries stay clear."
     }
   ],
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:e08625fd",
+    "contentHash": "fnv1a32:e4920b76",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
   }

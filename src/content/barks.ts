@@ -6,6 +6,7 @@
 
 import robotsJson from "../../content/barks/robots.json" with { type: "json" };
 import wetJson from "../../content/barks/wet.json" with { type: "json" };
+import peopleJson from "../../content/barks/people.json" with { type: "json" };
 import { FONT_FIT } from "./lint.ts";
 import { hashString } from "./prng.ts";
 
@@ -28,13 +29,14 @@ export interface Provenance {
 
 export interface BarkPool {
   version: 1;
-  pool: "robots" | "wet";
+  pool: "robots" | "wet" | "people";
   provenance: Provenance;
   barks: Bark[];
 }
 
 export const ROBOT_BARKS = robotsJson as unknown as BarkPool;
 export const WET_BARKS = wetJson as unknown as BarkPool;
+export const PEOPLE_BARKS = peopleJson as unknown as BarkPool;
 
 /** "fnv1a32:xxxxxxxx" over the texts joined by newlines: edits must update the provenance block. */
 export function contentHash(texts: readonly string[]): string {
