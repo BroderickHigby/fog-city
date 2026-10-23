@@ -12,6 +12,7 @@
 
 import { decodeColliderPack, type BoundaryFile, type RoadsFile, type TileCollider } from "../sim/index.ts";
 import type { Assets } from "./assets.ts";
+import type { GameplayWorldData } from "../sim/gameplay-world.ts";
 
 /**
  * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
@@ -19,7 +20,7 @@ import type { Assets } from "./assets.ts";
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "sidewalks", "districts", "storefronts"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "sidewalks", "districts", "storefronts", "gameplay"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
@@ -36,6 +37,7 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   tiles: TileCollider[];
   roads: RoadsFile | null;
   boundary: BoundaryFile | null;
+  gameplay?: GameplayWorldData | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
 }
@@ -73,7 +75,8 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
   const packFile = manifest.worldColliders;
   const roadsFile = manifest.roads ?? null;
   const boundaryFile = manifest.layers?.boundary ?? null;
-  const [colliders, roads, boundary] = await Promise.all([
+  const gameplayFile=manifest.layers?.gameplay;
+  const [colliders, roads, boundary, gameplay] = await Promise.all([
     packFile
       ? assets.bytes(base + packFile).then(
           (pack) => ({ pack }),
@@ -92,6 +95,7 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
           throw named("boundary", boundaryFile, err);
         })
       : Promise.resolve(null),
+    gameplayFile?assets.json<GameplayWorldData>(base+gameplayFile).catch((err:unknown)=>{throw named("gameplay layer",gameplayFile,err);}):Promise.resolve(null),
   ]);
-  return assembleWorldFiles(manifest, colliders, roads, boundary);
+  return {...assembleWorldFiles(manifest, colliders, roads, boundary),gameplay};
 }

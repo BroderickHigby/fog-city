@@ -527,6 +527,7 @@ export class AgentLayer {
       const held = this.brakeUntil.get(b.id) ?? -Infinity;
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
       const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, moved, time, held, this.cue);
+      if((b as AgentState&{visualFlash?:boolean}).visualFlash)cue.flash=Math.sin(time*9)>0?1:0;
       if (cue.brakeUntil > held) this.brakeUntil.set(b.id, cue.brakeUntil);
       drawn++;
       if (b.kind === "person") {
@@ -557,6 +558,7 @@ export class AgentLayer {
         this.drawNear(view, b, pose, cue, dt);
       } else {
         baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
+        _base.scale(_s.set(1,visualHeight(b),1));
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
       }
     }
@@ -662,6 +664,7 @@ export class AgentLayer {
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
     baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
+    _base.scale(_s.set(1,visualHeight(b),1));
     const swing = Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
       if (p.bagContents && !bagFull(b, this.bags)) continue;
@@ -712,6 +715,8 @@ export function bagFull(a: Readonly<AgentState>, override: boolean | null = null
   const tell = (a as unknown as { tell?: unknown }).tell;
   return tell !== "emptyBag";
 }
+
+function visualHeight(a:Readonly<AgentState>):number {const scale=(a as AgentState&{visualHeightScale?:number}).visualHeightScale;return typeof scale==="number"&&Number.isFinite(scale)?Math.max(.05,Math.min(1,scale)):1;}
 
 // ---------------------------------------------------------------- box proxies
 

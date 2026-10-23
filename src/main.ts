@@ -29,6 +29,14 @@ import { openAssets } from "./io/assets.ts";
 import { loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
+import { uiText } from "./content/ui.ts";
+import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
+import { uiProjection } from "./ui/projection.ts";
+import { CombatLayer } from "./render/combat-layer.ts";
+import { GameAudio } from "./audio/mixer.ts";
+import { createCombatSystem, contextFromState } from "./sim/combat/index.ts";
+import { createPlayerSystems, gameplaySnapshot, combatLoadout } from "./sim/player/adapter.ts";
+import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
@@ -111,7 +119,7 @@ async function boot(): Promise<void> {
   };
   // A production build (pnpm build) reads its packed layout; the dev server serves loose files.
   const assets = await openAssets(import.meta.env.PROD);
-  const worldName = params.get("world") ?? assets.defaultWorld ?? "dev";
+  const worldName = params.get("world") ?? assets.defaultWorld ?? "sf";
   if (assets.worlds && !assets.worlds.includes(worldName)) {
     throw new Error(`world "${worldName}" is not in this build (it has ${assets.worlds.join(", ")})`);
   }
@@ -130,7 +138,7 @@ async function boot(): Promise<void> {
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
   const tBuild = performance.now();
-  const world = buildWorld(tiles, files.roads, files.boundary);
+  const world = buildWorld(tiles, files.roads, files.boundary, files.gameplay??undefined);
   const buildMs = performance.now() - tBuild;
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
@@ -215,12 +223,43 @@ async function boot(): Promise<void> {
   let paused = false;
   let acc = 0;
   let last = performance.now();
+  let waypoint:MapPoint|undefined;
+  let queuedEvents:SimEvent[]=[];
+  const send=createGameplayDispatcher({playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>queuedEvents.push(event)});
+  const gameUI=mountGameUI(container,{copy:uiText,keyboard,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1",callbacks:{
+    pause:value=>{paused=value;acc=0;last=performance.now();},
+    purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
+    waypoint:point=>{waypoint=point;},
+    interaction:choiceId=>{
+      const progress=gameplaySnapshot({state:curr}).missions.players[LOCAL_PLAYER];
+      const mission=MISSIONS.find(m=>m.id===progress?.missionId),current=mission?.steps.find(s=>s.id===progress?.stepId);
+      if(choiceId==="retry")send({kind:"mission-retry"});
+      else if(current?.type==="dialogue")send({kind:"mission-answer",questionId:current.questions[progress?.questionIndex??0]?.id,choiceId});
+      else send({kind:"mission-ack"});
+    },
+  }});
+  const combatLayer=new CombatLayer(view.scene);
+  const audio=new GameAudio();void audio.load(assets).catch(()=>{});
+  const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
+  const systems=[createCombatSystem(system=>{
+    const snapshot=gameplaySnapshot(system),loadouts=Object.fromEntries(sortedIds(system.state.players).map(id=>{
+      const p=system.state.players[id]!,body=p.mode==="foot"&&p.foot?p.foot:p.car;
+      return[id,combatLoadout(snapshot,{id,mode:p.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading)];
+    }));
+    return {context:contextFromState(world,system.state,{loadouts,refills:world.gameplay?.refills??[]})};
+  }),...createPlayerSystems()];
+  send({kind:"mission-start",targetId:"hot-desk"});
+  const diagnostics=params.get("debug")==="1";
+  const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
+  const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
   const clockStart = clockStartMinute(bootedAtNight);
 
   const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
     prev = curr;
-    curr = step(world, curr, frame, events);
+    const tick=curr.tick+1,pending=queuedEvents.filter(event=>event.tick===tick);
+    queuedEvents=queuedEvents.filter(event=>event.tick>tick);
+    curr = step(world, curr, frame, [...events,...pending],systems);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -322,6 +361,7 @@ async function boot(): Promise<void> {
     setAgentBags: (full) => view.agents.setBags(full),
   });
 
+  let nextUiUpdate=0;
   const frame = (now: number): void => {
     const frameS = (now - last) / 1000;
     const dtFrame = Math.min(frameS, MAX_FRAME_S);
@@ -345,7 +385,7 @@ async function boot(): Promise<void> {
           keyboard.clearActions();
           advance({ ...NEUTRAL_INPUT });
         } else {
-          const input = keyboard.sample();
+          const input = gameUI.sampleInput();
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
           const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
@@ -354,6 +394,7 @@ async function boot(): Promise<void> {
         acc -= DT;
       }
     }
+    else if(queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
     const alpha = paused ? 1 : acc / DT;
 
     // Player ids change only when the sim state does (once per tick at most).
@@ -406,6 +447,8 @@ async function boot(): Promise<void> {
       }
     }
     view.setSim(prev, curr, alpha);
+    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
+    audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
     const minute = gameMinuteOfDay(curr, clockStart);
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
@@ -427,6 +470,7 @@ async function boot(): Promise<void> {
     hudData.minuteOfDay = minute;
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint);gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
