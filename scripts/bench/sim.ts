@@ -10,7 +10,13 @@
 //   node scripts/bench/sim.ts --root <dir>         the sim (and tests/helpers.ts) of another checkout, on the same tiles
 //   options: --scenario single|multi, --ticks N, --repeat N (each scenario N times, the run with the
 //   median mean kept: --update and --check default to 3, since one run on a busy machine can be
-//   off by a fifth)
+//   off by a fifth), --systems game|core
+//
+// --systems game (the default) steps the composed registry the game, the headless drivers and
+// the relay run: createGameSystems() (clock, agents runtime, combat, player, heat, missions, ...).
+// --systems core steps step()'s default SYSTEMS, the static per-area lists, which leave out every
+// system that needs a provider: movement, ambient traffic and the dodge only. The baseline keeps
+// one entry per scenario and systems.
 //
 // Timing is machine-dependent: the committed baseline is the machine it was recorded on (it says
 // which); re-record it on the runner that checks it. Run it alone (`flock` in this repo's memory
@@ -28,13 +34,21 @@ const here = resolve(import.meta.dirname, "../..");
 const root = resolve(opt("root") ?? here);
 const ticks = Number(opt("ticks") ?? 1800);
 const scenarios = opt("scenario") ? [opt("scenario")!] : ["single", "multi"];
+const systemsOpt = opt("systems") ?? "game";
+if (systemsOpt !== "game" && systemsOpt !== "core") throw new Error("--systems must be game or core");
+const systemsMode: "game" | "core" = systemsOpt;
 const BASELINE = join(here, "scripts/bench/sim-baseline.json");
 const LIMIT = 1.2;
 
 const S = await import(join(root, "src/sim/index.ts"));
 const H = await import(join(root, "tests/helpers.ts"));
 const files = H.loadWorldFiles("sf");
-const world = S.buildWorld(files.tiles, files.roads, files.boundary);
+// The game's world: road graph, boundary and, where this checkout has them, the gameplay,
+// sidewalk and transit layers the composed systems read.
+const world = typeof H.buildWorldWithRoads === "function"
+  ? H.buildWorldWithRoads(files.tiles, files.roads, files.boundary, files)
+  : S.buildWorld(files.tiles, files.roads, files.boundary);
+if (systemsMode === "game" && typeof S.createGameSystems !== "function") throw new Error("this checkout has no createGameSystems: pass --systems core");
 const spawn = files.manifest.spawn as { x: number; z: number; heading: number };
 
 const PLACES: Array<{ x: number; z: number; heading: number }> = [
@@ -46,6 +60,11 @@ const PLACES: Array<{ x: number; z: number; heading: number }> = [
 
 interface Result {
   scenario: string;
+  /** Absent in baselines recorded before the composed path was benched: those were core. */
+  systems?: "game" | "core";
+  /** Where and when this entry was recorded (absent: the file's top-level machine). */
+  machine?: string;
+  recorded?: string;
   ticks: number;
   meanMs: number;
   p50: number;
@@ -57,6 +76,7 @@ interface Result {
 
 function run(scenario: string): Result {
   const ids = scenario === "single" ? ["p1"] : ["p1", "p2", "p3", "p4"];
+  const systems = systemsMode === "game" ? S.createGameSystems() : S.SYSTEMS;
   let s = S.createInitialState(world, 7, ids, spawn);
   const players = { ...s.players };
   ids.forEach((id, i) => {
@@ -74,12 +94,12 @@ function run(scenario: string): Result {
     return out;
   };
   const WARM = 300;
-  for (let t = 0; t < WARM; t++) s = S.step(world, s, inputs(t));
+  for (let t = 0; t < WARM; t++) s = S.step(world, s, inputs(t), [], systems);
   const per: number[] = [];
   let agents = 0;
   for (let t = 0; t < ticks; t++) {
     const a = process.hrtime.bigint();
-    s = S.step(world, s, inputs(WARM + t));
+    s = S.step(world, s, inputs(WARM + t), [], systems);
     per.push(Number(process.hrtime.bigint() - a) / 1e6);
     agents += (s.ext.agents?.list ?? []).length;
   }
@@ -87,6 +107,7 @@ function run(scenario: string): Result {
   const q = (f: number): number => +per[Math.min(per.length - 1, Math.floor(f * per.length))]!.toFixed(3);
   return {
     scenario,
+    systems: systemsMode,
     ticks,
     meanMs: +(per.reduce((x, y) => x + y, 0) / per.length).toFixed(3),
     p50: q(0.5),
@@ -106,19 +127,28 @@ for (const r of results) console.log(JSON.stringify({ root, simVersion: S.SIM_VE
 
 if (args.includes("--update")) {
   const machine = `${cpus()[0]?.model ?? "unknown cpu"} x${cpus().length}, ${platform()} ${arch()}, node ${process.version}`;
-  writeFileSync(BASELINE, JSON.stringify({ machine, recorded: new Date().toISOString().slice(0, 10), results }, null, 2) + "\n");
+  const recorded = new Date().toISOString().slice(0, 10);
+  let kept: Result[] = [];
+  try {
+    const old = JSON.parse(readFileSync(BASELINE, "utf8")) as { machine: string; recorded: string; results: Result[] };
+    kept = old.results
+      .filter((b) => !results.some((r) => r.scenario === b.scenario && r.systems === (b.systems ?? "core")))
+      .map((b) => ({ ...b, systems: b.systems ?? "core", machine: b.machine ?? old.machine, recorded: b.recorded ?? old.recorded }));
+  } catch { /* no baseline yet */ }
+  const fresh = results.map((r) => ({ ...r, machine, recorded }));
+  writeFileSync(BASELINE, JSON.stringify({ machine, recorded, results: [...kept, ...fresh] }, null, 2) + "\n");
   console.log(`baseline written: ${BASELINE}`);
 }
 if (args.includes("--check")) {
   const base = JSON.parse(readFileSync(BASELINE, "utf8")) as { machine: string; results: Result[] };
   const bad: string[] = [];
   for (const r of results) {
-    const b = base.results.find((x) => x.scenario === r.scenario);
+    const b = base.results.find((x) => x.scenario === r.scenario && (x.systems ?? "core") === r.systems);
     if (!b) continue;
     for (const k of ["meanMs", "p95"] as const) if (r[k] > b[k] * LIMIT) bad.push(`${r.scenario} ${k} ${r[k]} ms > ${b[k]} ms x ${LIMIT}`);
   }
   if (bad.length) {
-    console.error(`sim bench regression (baseline from ${base.machine}):\n  ${bad.join("\n  ")}`);
+    console.error(`sim bench regression (baseline from ${base.machine}; entries may name their own machine):\n  ${bad.join("\n  ")}`);
     process.exit(1);
   }
   console.log("sim bench within 20% of the baseline");
