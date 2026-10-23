@@ -21,7 +21,17 @@ export function gameplaySnapshot(context:Pick<SimSystemContext,"state">):Gamepla
  return {player:(ext.player as unknown as GameplaySnapshot["player"])??createPlayer(),heat:(ext.heat as unknown as GameplaySnapshot["heat"])??createHeat(),missions:(ext.missions as unknown as GameplaySnapshot["missions"])??createMissions(),economy:(ext.economy as unknown as GameplaySnapshot["economy"])??createEconomy(),progression:(ext.progression as unknown as GameplaySnapshot["progression"])??createProgression(),activities:(ext.activities as unknown as GameplaySnapshot["activities"])??createActivities()};
 }
 /** Combat events have one durable numeric producer cursor, including across despawns. */
-export function combatFacts(events:readonly CombatEvent[]):GameplayFact[]{return events.map(e=>({id:`combat:${e.id}`,source:"combat",sequence:e.id,tick:e.tick,kind:e.kind,playerId:e.sourceId,actorId:e.targetId,amount:e.amount,detail:e.detail}));}
+export function combatFacts(events:readonly CombatEvent[]):GameplayFact[]{
+ const cones=new Set<string>();
+ return [...events].sort((a,b)=>a.id-b.id).flatMap(e=>{
+  let kind=e.kind;
+  if(kind==="refill.complete")kind="water.refilled";
+  if(kind==="robot.blinded"||kind==="vehicle.pull-over"){
+   const key=`${e.tick}:${e.sourceId}:${e.targetId}`;if(cones.has(key))return [];cones.add(key);kind="cone.placed";
+  }
+  return [{id:`combat:${e.id}`,source:"combat" as const,sequence:e.id,tick:e.tick,kind,playerId:e.sourceId,actorId:e.targetId,amount:e.amount,detail:e.detail}];
+ });
+}
 export const defaultGameplayProvider:GameplayProvider=context=>{
  const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=player.mode==="foot"&&player.foot?player.foot:player.car;return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
