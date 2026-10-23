@@ -27,15 +27,25 @@ describe("ground classes (W-18, W-34)", () => {
 
   it("every sample has a class; urban, grass, forest, sand, sea and lakes all occur", () => {
     const counts: Record<string, number> = {};
+    // (Mismatches collected and asserted once: an expect per sample is 1.5 million of them.)
+    const lengths: string[] = [];
+    const waterMismatch: string[] = [];
     for (const c of colliders) {
       const g = c.ground as Ground;
-      expect(g.cover?.length, c.tileId).toBe(g.heights.length);
-      for (let i = 0; i < g.cover!.length; i++) {
-        const ch = g.cover![i]!;
-        counts[/[0-9]/.test(ch) ? "lake" : ch] = (counts[/[0-9]/.test(ch) ? "lake" : ch] ?? 0) + 1;
-        expect(ch === "w", `${c.tileId} sample ${i}`).toBe(g.water[i] === 1);
+      const cover: string | undefined = g.cover;
+      if (cover?.length !== g.heights.length) {
+        lengths.push(`${c.tileId}: ${cover?.length} classes, ${g.heights.length} samples`);
+        continue;
+      }
+      for (let i = 0; i < cover.length; i++) {
+        const ch: string = cover[i]!;
+        const k = /[0-9]/.test(ch) ? "lake" : ch;
+        counts[k] = (counts[k] ?? 0) + 1;
+        if ((ch === "w") !== (g.water[i] === 1) && waterMismatch.length < 20) waterMismatch.push(`${c.tileId} sample ${i}`);
       }
     }
+    expect(lengths).toEqual([]);
+    expect(waterMismatch).toEqual([]);
     for (const k of ["u", "g", "f", "s", "w", "lake"]) expect(counts[k] ?? 0, k).toBeGreaterThan(5000);
   });
 
