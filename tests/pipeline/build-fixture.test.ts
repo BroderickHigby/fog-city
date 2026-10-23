@@ -574,3 +574,17 @@ describe("road helpers", () => {
     expect(titleCase("UNNAMED 042")).toBe("Unnamed 42");
   });
 });
+
+describe("fixture build: gameplay publication", () => {
+  it("emits the shared gameplay layer from full-build inputs as well as standalone indexing", async () => {
+    const f = fixture();
+    f.raw.extras = { neighborhoods: [], fountains: [], muniStops: [], muniRoutes: [], signals: [], crosswalks: [], sweeping: [], parking: [] };
+    const built = await buildWorldFiles(f.cfg, f.raw, f.overrides);
+    const data = json<Record<string, unknown>>(built, "gameplay.json");
+    const validate = new Ajv2020({ allErrors: true }).compile(readJson("schemas/tile-gameplay.schema.json"));
+    expect(validate(data), JSON.stringify(validate.errors)).toBe(true);
+    expect(json<{ layers: Record<string, string> }>(built, "manifest.json").layers.gameplay).toBe("gameplay.json");
+    expect(data.tiles).toHaveLength(2);
+    expect(data.territories).toEqual([]);
+  });
+});
