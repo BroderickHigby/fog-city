@@ -1,6 +1,8 @@
 # Lane 6: Modes & online
 
 ## Now
+Validated checkpoint: 95 targeted tests across 10 files and full TypeScript check pass. This is the match/relay foundation; integrated browser co-op, later modes and live provider deployment are still pending.
+
 Building `lane/modes-online/wave4` from the published core interface (`9a6a107`) in `/workspace/fog-city-modes`. The user's request authorizes the remaining lanes. The original prototype and existing network branch are preserved.
 
 ## Done
@@ -12,7 +14,7 @@ Building `lane/modes-online/wave4` from the published core interface (`9a6a107`)
 Complete Bot Sweep's isolated match state and carry rules, connect a provider-driven simulation runner, validate the relay against the published core, then implement the later modes and server boundaries on stacked wave branches.
 
 ## Blocked on
-- Core owns dependency pins and shared gameplay commands. Existing reviewed relay needs `ws`, its types and the shared SHA-256 package.
+- Shared commands and exact dependency pins are published (dependency-only commit `7dcacc1`). Core composition and physical actor adapters are being integrated.
 - Hosted deployment and live AI provider/key selection remain owner decisions. No paid service, secret or external deployment is being used; local/solo work continues.
 
 ## Requests for other lanes
@@ -35,12 +37,14 @@ Title: `Modes: add isolated Bot Sweep matches and the reviewed private relay`
 Adds deterministic match state and private invitation rooms without changing the saved free-roam world. Reuses the existing bounded relay and adapts its controls to the shared interface.
 
 ### Roadmap deliverables
-- [ ] Match carry rules, Bot Sweep objectives/lives/revive and allowed instances.
-- [ ] Authoritative relay and client replay with the same gameplay runner.
+- [x] Separate match simulation, allowlisted loadout carry, replay-safe payout IDs, Bot Sweep objectives/lives/revive and Clean Streets scoring.
+- [ ] Bind approved instances and real actor rosters to browser match creation.
+- [x] Authoritative relay/client replay accept the same injected gameplay runner; closed gameplay commands bind to server-assigned identity.
+- [ ] Connect the final core gameplay composition and browser lobby.
 - [ ] Loopback validation and headless match drivers.
 
 ### Acceptance tests
-Pending implementation checks. Previous network evidence is documented on the source branch and is not treated as verification of this integration.
+`pnpm typecheck` passed; 95 tests in 10 files passed, including local WebSocket transport, two-client rollback with jitter, identical driver hashes, command identity/sequence checks, match revival/timers/scoring/carry isolation and deterministic API checks. Full integrated `pnpm verify` remains a final gate.
 
 ### Contract changes
 Shared changes are requested from core; this lane edits only its owned areas.
@@ -50,3 +54,11 @@ See the exact integration requests above.
 
 ### For the owner to judge
 Local play and deterministic state are the review target. Online deployment remains unconfigured.
+
+## Validated implementation details
+
+- Bot Sweep requires remaining beta units plus a separate relay; converted units join the objective count. Three-second teammate revival, fifteen-second shared-life respawn and twelve-minute timeout are deterministic.
+- Clean Streets uses eight-minute team scoring, penalties and interrupted-update tie-breaks.
+- Match deadlines survive skipped global pause ticks. Payout `cashCents` is capped at 7,500 cents per elapsed minute and has a stable settlement ID.
+- Rooms remain private, four-player, thirty-minute invitation rooms. Client controls and commands cannot submit player identity, chat, positions or arbitrary simulation events.
+- Advanced mode IDs currently fail closed until their rule modules and drivers land.
