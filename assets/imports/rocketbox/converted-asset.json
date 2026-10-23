@@ -1,0 +1,41 @@
+{
+  "file": "public/models/generic-player.glb",
+  "bytes": 5665420,
+  "sha256": "3439b2b3fe4438c124c3d187d83457cb50e5ea860dd96e1bc37c6556c462cf28",
+  "triangles": 7440,
+  "bones": 80,
+  "animations": [
+    "idle",
+    "walk",
+    "run"
+  ],
+  "licence": "MIT",
+  "sourceCommit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
+  "images": [
+    {
+      "name": "m002_body_normal",
+      "mimeType": "image/png",
+      "bytes": 1176792
+    },
+    {
+      "name": "m002_body_color",
+      "mimeType": "image/jpeg",
+      "bytes": 226874
+    },
+    {
+      "name": "m002_head_normal",
+      "mimeType": "image/png",
+      "bytes": 1077163
+    },
+    {
+      "name": "m002_head_color",
+      "mimeType": "image/jpeg",
+      "bytes": 625790
+    },
+    {
+      "name": "m002_opacity_color",
+      "mimeType": "image/png",
+      "bytes": 1613187
+    }
+  ]
+}

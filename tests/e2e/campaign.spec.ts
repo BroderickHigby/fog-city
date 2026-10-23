@@ -59,6 +59,8 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
     const handle = (window as unknown as FogWindow).__fogcity!;
     if (handle.state().ext.missions?.players.p1?.stepId !== "cone") return false;
     handle.pause();
+    // Closing the form resumes movement; settle with recorded neutral input before the counter.
+    handle.stepN(12);
     return true;
   });
   const signed = await simState(page);

@@ -12,6 +12,10 @@ export interface RenderInfoLike {
   drawCalls: number;
   triangles: number;
   cameraMode: string;
+  presentation?: boolean;
+  lightingPreset?: string;
+  foliage?: { near: number; far: number; draws: number };
+  surfaceTextures?: readonly string[];
   tilesLoaded?: number;
   tilesPending?: number;
   tilesTotal?: number;
@@ -27,9 +31,10 @@ export interface RenderInfoLike {
   agentsTotal?: number;
   agentDrawCalls?: number;
   agentModels?: string[];
-  /** Players whose car is models/player-car.glb, and players drawn on foot. */
+  /** Players whose car is models/civilian-car.glb, and players drawn on foot. */
   playerCarsFromFile?: number;
   walkers?: number;
+  walkersFromFile?: number;
   /** Far-LOD skyline cells: listed by the manifest, loaded, drawn last frame; their triangles. */
   farCellsTotal?: number;
   farCells?: number;

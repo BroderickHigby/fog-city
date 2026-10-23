@@ -269,8 +269,8 @@ test.describe("sf world: in the browser", () => {
     expect([...(r.agentModels ?? [])].sort(), "agent kinds drawn from their model files").toEqual(["errandRobot", "robotaxi", "sidewalkBot"]);
     // Instanced: the draw-call cost does not grow with the number of agents.
     expect(r.agentDrawCalls ?? 0, "agent draw calls").toBeLessThanOrEqual(27);
-    expect(r.playerCarsFromFile, "the player car is models/player-car.glb").toBe(1);
-    for (const m of ["robotaxi", "errand-robot", "sidewalk-bot", "player-car"]) {
+    expect(r.playerCarsFromFile, "the player car is models/civilian-car.glb").toBe(1);
+    for (const m of ["robotaxi", "errand-robot", "sidewalk-bot", "civilian-car"]) {
       const got = responses.filter((x) => x.path === `/models/${m}.glb`);
       expect(got.length, `GET /models/${m}.glb`).toBeGreaterThan(0);
     }

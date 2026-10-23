@@ -73,6 +73,19 @@
         { "what": "SF Muni buses and their livery", "difference": "On the pre-release legal checklist (design.md): the Muni name and livery." }
       ],
       "signOff": "pre-release legal checklist"
+    },
+    {
+      "model": "civilian-car.glb",
+      "name": "Generic civilian fastback",
+      "maker": "none",
+      "silhouette": "Original unbranded four-door fastback with rounded blue-gray body, tapered greenhouse, separate conventional lamps and grille, anonymous glyph plate; 4.36 m overall length.",
+      "nearest": [
+        {
+          "what": "Compact four-door fastbacks of the 2010s-2020s",
+          "difference": "Generic vehicle proportions with original panel, light and grille geometry; no copied model, logo, badge, livery or real registration."
+        }
+      ],
+      "signOff": "Original mesh reviewed in SF realism pass; no branded source asset."
     }
   ]
 }
