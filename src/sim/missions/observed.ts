@@ -10,18 +10,24 @@ export interface MissionObservedState {
  lastPosition:Position|null;travelled:number;requested:string[];recoveryPosition:Position|null;recoveryId:string;
 }
 export interface ObservationRequest {kind:string;targetId:string;detail:string}
+const OBSERVED_EVENTS = new Set([
+ "botCheck.falsePositiveSeen", "demo.robotPresented", "pitch.windowOpened", "pitch.windowCompleted",
+ "vehicle.recovered", "fog.nightWindowOpened", "fog.betaFleetLured",
+]);
 export function createMissionObserved():MissionObservedState{return {missionId:"",stepId:"",scannedFalsePositives:[],watched:[],melted:[],coned:[],dirty:false,pitchCount:0,lastPitchTick:-600,airshowTick:-1,commandSequence:0,previousInteract:false,lastPosition:null,travelled:0,requested:[],recoveryPosition:null,recoveryId:""};}
 function location(mission:Mission):Place|undefined {
  const start=mission.steps.find(step=>step.id===(mission.start??mission.steps[0]?.id));return start?.type==="trigger"?start.event.place:undefined;
 }
 /** Named story facts are measured here; arbitrary completion commands are never accepted. */
-export function observeMission(previous:MissionObservedState|undefined,mission:Mission,step:ObjectiveStep,ctx:GameplayContext,playerId:string,tick:number,stepStartedTick:number,incoming:readonly GameplayFact[]):{state:MissionObservedState;complete:boolean;requests:ObservationRequest[]} {
+export function observeMission(previous:MissionObservedState|undefined,mission:Mission,step:ObjectiveStep,ctx:GameplayContext,playerId:string,tick:number,stepStartedTick:number,incoming:readonly GameplayFact[]):{state:MissionObservedState;handled:boolean;complete:boolean;requests:ObservationRequest[]} {
  const old=previous?.missionId===mission.id?previous:createMissionObserved();
  const state:MissionObservedState={...old,missionId:mission.id,stepId:step.id,scannedFalsePositives:[...old.scannedFalsePositives],watched:[...old.watched],melted:[...old.melted],coned:[...old.coned],requested:[...old.requested],lastPosition:old.lastPosition?{...old.lastPosition}:null,recoveryPosition:old.recoveryPosition?{...old.recoveryPosition}:null};
+ const expected=step.objective.kind==="event"?step.objective.event:undefined;
+ const handled=expected!==undefined&&OBSERVED_EVENTS.has(expected);
  const body=ctx.bodies.find(body=>body.id===playerId),observation=ctx.observations.find(o=>o.playerId===playerId),requests:ObservationRequest[]=[];
- if(!body)return {state,complete:false,requests};
+ if(!body)return {state,handled,complete:false,requests};
  const actorId=(alias:string)=>observation?.actorBindings?.[alias]??`mission:${mission.id}:${alias}`;
- const actors=ctx.actorBodies??[],expected=step.objective.kind==="event"?step.objective.event:undefined;
+ const actors=ctx.actorBodies??[];
  const relevant=new Set(Object.keys(mission.actors??{}).sort().flatMap(alias=>[actorId(alias),...(mission.actors?.[alias]?.members??[]).map(actorId)]));
  const append=(list:string[],id:string)=>{if(!list.includes(id))list.push(id);};
  for(const fact of incoming){
@@ -73,5 +79,5 @@ export function observeMission(previous:MissionObservedState|undefined,mission:M
   const stage=mission.steps.find(s=>s.type==="stage"),roadX=stage?.type==="stage"?toLocal(stage.place.lat,stage.place.lon).x:body.x;
   complete=Math.abs(body.x-roadX)<=80&&members.length>0&&new Set(ids).size===members.length&&ids.every(id=>{const actor=actors.find(a=>a.id===id);return !!actor&&actor.firmware==="bad"&&distanceSquared(body,actor)<=22500;})&&(observation?.fog??0)>.6&&state.travelled+1e-6>=250;
  }
- return {state,complete,requests};
+ return {state,handled,complete,requests};
 }

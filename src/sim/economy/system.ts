@@ -19,7 +19,11 @@ export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:numbe
    const stars=(heat?.players[fact.playerId]?.vcQuarters??0)/4;
    const hype=ctx.observations.find(o=>o.playerId===fact.playerId)?.associateWithin200?1+.1*stars:1;
    const multiplier=(1+.25*(clamp(actor.subtlety??1,1,5)-1))*(actor.caughtInAct?1.5:1)*clamp(ctx.doomPayFactor??1,0,5)*hype;
-   const amount=Math.round((actor.armoured?40000:15000)*multiplier);pay(wallet,amount);wallet.reputation=clamp(wallet.reputation+1+(actor.caughtInAct?1:0),0,100);wallet.runwayMonths=Math.min(18,wallet.runwayMonths+.5+(perks[fact.playerId]?.includes("default-alive")?0.5:0));wallet.paidActorIds.push(fact.actorId);event(state,"bounty.paid",fact.playerId,fact.actorId,amount);
+   const amount=Math.round((actor.armoured?40000:15000)*multiplier);pay(wallet,amount);wallet.reputation=clamp(wallet.reputation+1+(actor.caughtInAct?1:0),0,100);wallet.runwayMonths=Math.min(18,wallet.runwayMonths+.5);
+   if(perks[fact.playerId]?.includes("default-alive")){
+    if(ctx.modeRoles?.[fact.playerId]==="spotter")event(state,"perk.scan-charge",fact.playerId,"default-alive",1);
+    else wallet.runwayMonths=Math.min(18,wallet.runwayMonths+.5);
+   }wallet.paidActorIds.push(fact.actorId);event(state,"bounty.paid",fact.playerId,fact.actorId,amount);
   }
   if(fact.kind==="update.interrupted"){wallet.reputation=Math.min(100,wallet.reputation+2);event(state,"update.rewarded",fact.playerId,fact.actorId??"");}
  }

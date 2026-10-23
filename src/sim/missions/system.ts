@@ -78,8 +78,12 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
      const expected=kind==="event"?(objective as typeof objective&{event?:string}).event:mapping[kind];
      const members=objective.actor?mission.actors?.[objective.actor]?.members:undefined;
      const targets=members?.map(alias=>observation?.actorBindings?.[alias]??`mission:${mission.id}:${alias}`)??(target?[target]:[]);
-     for(const fact of incoming)if(expected&&fact.kind===expected&&(!targets.length||targets.includes(fact.actorId??""))&&!own.objectiveIds.includes(fact.id)){own.objectiveIds.push(fact.id);own.objectiveCount++;}
-     complete=own.objectiveCount>=required;
+     // Observed story objectives own their measured completion. A provider fact with the
+     // same name cannot bypass that check; external mechanic producers retain the fallback.
+     if(!measured.handled){
+      for(const fact of incoming)if(expected&&fact.kind===expected&&(!targets.length||targets.includes(fact.actorId??""))&&!own.objectiveIds.includes(fact.id)){own.objectiveIds.push(fact.id);own.objectiveCount++;}
+      complete=own.objectiveCount>=required;
+     }
     }
     if(complete)return step.next;
     if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}

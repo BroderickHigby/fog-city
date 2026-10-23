@@ -75,3 +75,29 @@ it("clears failed-attempt evidence on an explicit mission retry",()=>{
  const next=stepMissions(state,ctx({missions:[m],commands:[{sequence:1,kind:"mission-retry",playerId:"p"}]}),1,createHeat(),createPlayer());
  expect(next.players.p!.observed?.dirty).toBe(false);expect(next.players.p!.observed?.watched).toEqual([]);expect(next.players.p!.observed?.melted).toEqual([]);
 });
+
+it.each([
+ ["launch-day","botCheck.falsePositiveSeen"], ["demoed-correctly","demo.robotPresented"],
+ ["fleet-week","pitch.windowOpened"], ["fleet-week","pitch.windowCompleted"], ["fleet-week","vehicle.recovered"],
+ ["marine-layer","fog.nightWindowOpened"], ["marine-layer","fog.betaFleetLured"],
+])("cannot bypass %s's measured %s objective with a named provider fact",(missionId,eventName)=>{
+ const m=mission(missionId),step=objective(m,eventName),previous=createMissions();
+ previous.players.p={...createMissionProgress(),missionId:m.id,stepId:step.id,status:"active",visits:1};
+ const fake:GameplayFact={id:"provider:1",sequence:1,source:"world",tick:1,kind:eventName,playerId:"p"};
+ const next=stepMissions(previous,ctx({missions:[m],facts:[fake]}),1,createHeat(),createPlayer());
+ expect(next.players.p!.stepId).toBe(step.id);
+ expect(next.players.p!.objectiveCount).toBe(0);
+ expect(next.events.some(event=>event.kind===eventName||event.kind==="mission.cash")).toBe(false);
+ if(step.timeLimitS!==undefined){
+  const timedOut=stepMissions(next,ctx({missions:[m]}),Math.ceil(step.timeLimitS*60),createHeat(),createPlayer());
+  expect(timedOut.players.p!.stepId!==step.id||timedOut.players.p!.status!=="active").toBe(true);
+ }
+});
+
+it("advances an observed objective through the interpreter when its physical predicate is met",()=>{
+ const m=mission("marine-layer"),step=objective(m,"fog.nightWindowOpened"),previous=createMissions();
+ previous.players.p={...createMissionProgress(),missionId:m.id,stepId:step.id,status:"active",visits:1};
+ const next=stepMissions(previous,ctx({missions:[m],hour:22,observations:[{playerId:"p",seenByBad:false,seenByAssociate:false,associateWithin200:false,protectedArea:false,fog:.8}]}),1,createHeat(),createPlayer());
+ expect(next.players.p!.stepId).not.toBe(step.id);
+ expect(next.events.filter(event=>event.kind==="fog.nightWindowOpened")).toHaveLength(1);
+});
