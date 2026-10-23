@@ -12,25 +12,31 @@ import {
   type SimState,
   type Spawn,
 } from "./contract.ts";
-import { clamp } from "./dmath.ts";
+import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
 import { carBox, carCircles, makeCar, stepCar } from "./car.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
 import { AGENTS_EXT_KEY, agentCircles, initialAgents, stepAgents, type AgentsExt } from "./agents.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
 import { groundHeight, type World } from "./world.ts";
+import { runSystems, SYSTEMS } from "./systems.ts";
+import type { SimSystem } from "./system-contract.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
 }
 
 export function sanitizeInput(i: Readonly<SimInput>): SimInput {
-  return {
+  const input: SimInput = {
     throttle: clamp(finiteOr0(i.throttle), -1, 1),
     steer: clamp(finiteOr0(i.steer), -1, 1),
     brake: clamp(finiteOr0(i.brake), 0, 1),
     actions: (i.actions | 0) >>> 0,
   };
+  // Missing/non-finite aim stays absent so pre-wave-2 input logs keep body-heading aim.
+  if (Number.isFinite(i.aimYaw)) input.aimYaw = wrapAngle(i.aimYaw! % TAU);
+  if (Number.isFinite(i.aimPitch)) input.aimPitch = clamp(i.aimPitch!, -HALF_PI, HALF_PI);
+  return input;
 }
 
 function spawnPlayer(world: World, id: PlayerId, s: Spawn): PlayerState {
@@ -62,6 +68,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
 /** Lift a saved state from an older SIM_VERSION to this one. Pure. */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
+  if (s.version === 2) return { ...s, version: SIM_VERSION };
   if (s.version !== 1) throw new Error(`cannot upgrade sim state version ${s.version}`);
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(s.players)) {
@@ -165,7 +172,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
  * Advance the world by one fixed tick (DT). Pure: returns a new state.
  * `events` must all carry tick === prev.tick + 1.
  */
-export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = []): SimState {
+export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = [], systems: readonly SimSystem[] = SYSTEMS): SimState {
   const tick = prev.tick + 1;
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(prev.players)) players[id] = prev.players[id]!;
@@ -185,14 +192,18 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const before: SimState = { ...prev, players };
   const obs = obstaclesOf(before);
   const next: Record<PlayerId, PlayerState> = {};
+  const sanitized: Record<PlayerId, SimInput> = {};
   for (const id of sortedIds(players)) {
     const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
+    sanitized[id] = input;
     next[id] = stepPlayer(world, players[id]!, input, obs);
   }
 
   const agents = stepAgents(world, before, tick);
-  if (!agents) return { ...prev, tick, players: next };
-  return { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } };
+  const moved = agents
+    ? { ...prev, tick, players: next, rng: agents.rng, ext: { ...prev.ext, [AGENTS_EXT_KEY]: agents.ext } }
+    : { ...prev, tick, players: next };
+  return runSystems({ world, previous: before, state: moved, inputs: sanitized, events }, systems);
 }
 
 /** The body a player controls right now: the walker on foot, else the car. For cameras, HUDs and AI. */
