@@ -126,3 +126,18 @@ Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane
 Body: Add optional provider hooks to the canonical game registry so playable mode adapters can inject their roster, rival mapping and carried equipment through the same body acceptance path. Preserve default free-roam behavior and register the configured modes reducer. Adds a real composition test for accepted actors, equipment and match advancement. Validation status is recorded above; no frozen wave-2 or main branch change.
 
 Later-mode seam verification: typecheck and four tests across three files passed, including configured roster admission, carried equipment and mode advancement. The physical-step AGI adaptation retains recorded membership and sanitized input, freezes preparation/movement/all noncombat hooks through the deadline, and resumes at update 181. Its identical explicit-registry regression passed in the agents integration (two tests); it is separate from wave-2 activation.
+
+## Performance candidate
+
+Branch `lane/core/perf` starts at the immutable wave-2 candidate `aa1eb6a`. `9873dd8` reuses identical per-tick observations across the six gameplay reducers; interleaved simulation branches remain identical to fresh registries (three composition tests passed). The first timed comparison did not demonstrate a speed improvement, so this is not a performance sign-off.
+
+A core population defect was found during profiling: claimed legacy actors were omitted from ambient population counts, allowing replacement actors to be added every population tick. Population now counts all present bodies while preserving runtime ownership. The exact regression compares the same population calculation with claimed bodies and passes, alongside the composition tests (four tests total).
+
+Real-SF baseline remains too slow for the intended game: the 100-tick sample measured about 17 ms median, 27 ms p95 at 255 actors; a separate 600-tick driving probe took 51 seconds. CPU sampling points primarily at agent preparation/nearest-node work. Agent and combat hot paths are being reviewed separately; full renderer and replay timing remain pending.
+
+Draft PR title: `Core: retain claimed actors in population budgets and reuse observations`
+Base: `integrate/wave2` · Head: `lane/core/perf`
+Open: <https://github.com/BroderickHigby/fog-city/compare/integrate/wave2...lane/core/perf?expand=1>
+Body: Count runtime-owned legacy actors when replenishing ambient population, preventing duplicate replacements without surrendering movement ownership. Reuse the unchanged observation snapshot across gameplay reducers and verify interleaved replay branches. Includes population and replay regression tests. Actual-SF profiling is still in progress; this branch does not claim the final simulation budget or visual quality target.
+
+Performance candidate follow-up: merged the agents lane's tested `fc64776` exact spatial nearest-node index and current runtime reuse, retained population fix `f6f8357`, and applied an authorized combat adapter allowlist copy (avoids cloning then deleting body fields). The adapter still ignores metadata identity/position overrides. Updated a leftover test assertion from the earlier typed-extension fixture migration. Combined **typecheck and 100 tests across 7 files passed**, including exact navigation queries, actual service movement, population ownership, metadata protection, replay branches and purity. A new consistent-world timed probe is still required before claiming the frame budget.

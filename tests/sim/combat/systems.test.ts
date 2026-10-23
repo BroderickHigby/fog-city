@@ -55,7 +55,7 @@ describe("registered combat system", () => {
     const second = step(world, freeze(first), {}, [], [earlier, combat]);
     expect(second.ext.combat?.tick).toBe(2);
     expect(second.ext.future).toEqual({ keep: [1, true] });
-    expect(second.ext.robots).toEqual({ ready: true });
+    expect(second.ext.futureReady).toEqual({ ready: true });
     expect(previous.ext.combat).toBeUndefined();
     expect(() => canonicalJson(second)).not.toThrow();
   });
