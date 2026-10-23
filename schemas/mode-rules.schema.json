@@ -1,0 +1,482 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/mode-rules",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "payoutCapCentsPerMinute",
+    "instanceIds",
+    "botSweep",
+    "cleanStreets",
+    "hideInTheCrowd",
+    "fogRoyale",
+    "vibesNight",
+    "provenance"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "payoutCapCentsPerMinute": {
+      "const": 7500
+    },
+    "instanceIds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][A-Za-z0-9-]*$"
+      }
+    },
+    "botSweep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationS",
+        "playersMin",
+        "playersMax",
+        "baseBetaUnits",
+        "betaUnitsPerPlayer",
+        "backgroundRobots",
+        "relayStreamS",
+        "teamLives",
+        "downS",
+        "reviveS",
+        "reviveRunwayMonths",
+        "respawnS",
+        "revealAtRemaining",
+        "revealAtS",
+        "revealIntervalS",
+        "revealRangeM",
+        "brief",
+        "win",
+        "lose"
+      ],
+      "properties": {
+        "durationS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "playersMin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "playersMax": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseBetaUnits": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "betaUnitsPerPlayer": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "backgroundRobots": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "relayStreamS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "teamLives": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "downS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reviveS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reviveRunwayMonths": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "respawnS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revealAtRemaining": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revealAtS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revealIntervalS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revealRangeM": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "brief": {
+          "type": "string",
+          "minLength": 1
+        },
+        "win": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lose": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "cleanStreets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationS",
+        "teams",
+        "playersPerTeamMin",
+        "playersPerTeamMax",
+        "postedRobots",
+        "goodRobotPenalty",
+        "wetPersonPenalty",
+        "tieBreak",
+        "brief",
+        "win",
+        "lose"
+      ],
+      "properties": {
+        "durationS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "teams": {
+          "const": 2
+        },
+        "playersPerTeamMin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "playersPerTeamMax": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "postedRobots": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "goodRobotPenalty": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "wetPersonPenalty": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tieBreak": {
+          "const": "interruptedUpdates"
+        },
+        "brief": {
+          "type": "string",
+          "minLength": 1
+        },
+        "win": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lose": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "hideInTheCrowd": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "durationS",
+        "activeTasks",
+        "flickerIntervalS",
+        "quietFlickerIntervalS",
+        "taskPingDelayS",
+        "scanCharges",
+        "scanRechargeS",
+        "scanAccuracy",
+        "replacementDelayS",
+        "replacementDistanceM",
+        "tasks",
+        "briefHider",
+        "briefSpotter"
+      ],
+      "properties": {
+        "durationS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "activeTasks": {
+          "const": 3
+        },
+        "flickerIntervalS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "quietFlickerIntervalS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "taskPingDelayS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scanCharges": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scanRechargeS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "scanAccuracy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "replacementDelayS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "replacementDistanceM": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tasks": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "event",
+              "durationS",
+              "instruction"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][A-Za-z0-9-]*$"
+              },
+              "event": {
+                "type": "string",
+                "minLength": 1
+              },
+              "durationS": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "instruction": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "briefHider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "briefSpotter": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "fogRoyale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "players",
+        "startRunwayMonths",
+        "phases",
+        "outsideDrainMonths",
+        "outsideDrainEveryS",
+        "fleeceDurationS",
+        "fleeceDrainFactor",
+        "meltRunwayMonths",
+        "crateRunwayMonths",
+        "flowerRunwayMonths",
+        "bridgeRoundRunwayMonths",
+        "duelPairWindowS",
+        "finalCircleDistricts",
+        "forecast",
+        "win",
+        "out"
+      ],
+      "properties": {
+        "players": {
+          "const": 8
+        },
+        "startRunwayMonths": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "phases": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "phase",
+              "holdS",
+              "closeS",
+              "radiusFraction"
+            ],
+            "properties": {
+              "phase": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "holdS": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "closeS": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "radiusFraction": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            }
+          }
+        },
+        "outsideDrainMonths": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "outsideDrainEveryS": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "fleeceDurationS": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "fleeceDrainFactor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "meltRunwayMonths": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "crateRunwayMonths": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "flowerRunwayMonths": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "bridgeRoundRunwayMonths": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "duelPairWindowS": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "finalCircleDistricts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        },
+        "forecast": {
+          "type": "string",
+          "minLength": 1
+        },
+        "win": {
+          "type": "string",
+          "minLength": 1
+        },
+        "out": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "vibesNight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "playersMin",
+        "playersMax",
+        "demoDurationS",
+        "robotsPerDemo",
+        "badRobotsPerDemo",
+        "rivalBots",
+        "scoreAuthority",
+        "awardAuthority",
+        "brief",
+        "vote",
+        "tie"
+      ],
+      "properties": {
+        "playersMin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "playersMax": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "demoDurationS": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "robotsPerDemo": {
+          "const": 3
+        },
+        "badRobotsPerDemo": {
+          "const": 1
+        },
+        "rivalBots": {
+          "const": false
+        },
+        "scoreAuthority": {
+          "const": "simulation"
+        },
+        "awardAuthority": {
+          "const": "playerVote"
+        },
+        "brief": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tie": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/ai-fixtures",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "promptVersion",
+    "mode",
+    "templates",
+    "cases",
+    "provenance"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "promptVersion": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9-]*$"
+    },
+    "mode": {
+      "const": "offline"
+    },
+    "templates": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "instruction"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "instruction": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "feature",
+          "category",
+          "input",
+          "expected"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "feature": {
+            "enum": [
+              "interview",
+              "mom",
+              "discovery",
+              "startup",
+              "roast"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "input": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expected": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "refusal",
+              "tags",
+              "delta",
+              "reply",
+              "source"
+            ],
+            "properties": {
+              "refusal": {
+                "enum": [
+                  "none",
+                  "off_topic",
+                  "real_person",
+                  "private_person",
+                  "punching_down",
+                  "sexual",
+                  "violent",
+                  "hateful",
+                  "self_harm"
+                ]
+              },
+              "tags": {
+                "type": "array",
+                "minItems": 0,
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                }
+              },
+              "delta": {
+                "type": "integer",
+                "minimum": -2,
+                "maximum": 2
+              },
+              "reply": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "source": {
+                "const": "scripted"
+              }
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

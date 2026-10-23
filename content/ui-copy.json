@@ -133,7 +133,7 @@
     "ui.lobby.leave": "Leave room",
     "ui.lobby.expired": "This invite has expired. Ask for a new one.",
     "ui.lobby.full": "This room is full.",
-    "ui.lobby.disconnected": "Connection lost. Your progress is safe.",
+    "ui.lobby.disconnected": "Connection lost. Reconnect to continue.",
     "ui.lobby.name": "Display name",
     "ui.lobby.generated": "Generate another name",
     "ui.lobby.private": "Only people with your code can join.",
@@ -185,7 +185,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave2-2026-10-23",
-    "contentHash": "fnv1a32:6558c1e8",
+    "contentHash": "fnv1a32:8bc26e24",
     "reviewedBy": [],
     "review": "Authored for the published UI request. Pending independent review; existing approved names reused."
   }

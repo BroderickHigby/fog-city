@@ -1,3 +1,5 @@
+import { observeMission } from "./observed.ts";
+import { prepareMissionParking } from "./mechanics/runtime.ts";
 import { clamp } from "../dmath.ts";
 import { toLocal } from "../../geo/project.ts";
 import type { Mission,Place,Step } from "../../content/missions.ts";
@@ -10,12 +12,15 @@ export function missionPlace(place:Place):{x:number;y:number;z:number}{return {.
 function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)*(place.radiusM??25);}
 function initial(mission:Mission):string{return mission.start??mission.steps[0]?.id??"";}
 function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
-function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
+function start(progress:MissionProgress,mission:Mission,tick:number):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
 export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState):MissionState {
  const state:MissionState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};
- const incoming=facts(ctx,tick,state.factCursors);
+ const parking=ctx.wave>=3?prepareMissionParking(previous.parking,previous,ctx,tick):undefined;
+ if(parking)state.parking=parking.state;
+ // Authored completion facts have a single producer. External copies cannot bypass measurement.
+ const incoming=facts({...ctx,facts:[...ctx.facts.filter(f=>!["demo.parkedLegally","demo.robotPresented","botCheck.falsePositiveSeen"].includes(f.kind)),...parking?.facts??[]]},tick,state.factCursors);
  for(const body of sortedBodies(ctx)){
   const old=previous.players[body.id]??createMissionProgress();const own:MissionProgress={...old,meters:{...old.meters},completedIds:[...old.completedIds],rewardedIds:[...old.rewardedIds],objectiveIds:[...old.objectiveIds]};state.players[body.id]=own;
   const eligible=ctx.missions.filter(m=>(m.wave??2)<=ctx.wave).sort((a,b)=>(a.campaign??0)-(b.campaign??0)||(a.id<b.id?-1:1));
@@ -26,10 +31,10 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     const earlier=wanted&&eligible.some(m=>(m.campaign??0)>0&&(m.campaign??0)<(wanted.campaign??0)&&!own.completedIds.includes(m.id));
     if(wanted&&!earlier)start(own,wanted,tick);
    }
-   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";enter(own,own.retryFrom,tick);}
+   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";delete own.observed;enter(own,own.retryFrom,tick);}
   }
   if(own.status==="idle"){
-   const mission=eligible.find(m=>!own.completedIds.includes(m.id));const first=mission?.steps.find(s=>s.id===initial(mission));
+   const mission=eligible.find(m=>m.campaign!==undefined&&!own.completedIds.includes(m.id));const first=mission?.steps.find(s=>s.id===initial(mission));
    if(mission&&first?.type==="trigger"&&first.event.kind==="enterArea"&&near(ctx,body.id,first.event.place))start(own,mission,tick);
   }
   const mission=eligible.find(m=>m.id===own.missionId);
@@ -60,6 +65,13 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
    if(step.type==="branch"){const value=own.meters[step.meter]??0;return step.cases.find(c=>(c.min===undefined||value>=c.min)&&(c.max===undefined||value<=c.max))?.next??step.default;}
    if(step.type==="form")return requests.some(c=>c.kind==="startup-define"&&c.kitId&&ctx.validKitIds.includes(c.kitId))?step.next:undefined;
    if(step.type==="objective"){
+    const measured=observeMission(own.observed,mission,step,ctx,body.id,tick,own.startedTick,incoming);
+    if(ctx.wave>=3)own.observed=measured.state;
+    if(measured.handled){
+     if(measured.complete){event(state,step.objective.kind==="event"?step.objective.event!:"mission.observed",body.id,mission.id);return step.next;}
+     if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}
+     return;
+    }
     const objective=step.objective;const observation=ctx.observations.find(o=>o.playerId===body.id);const target=objective.actor?(observation?.actorBindings?.[objective.actor]??`mission:${mission.id}:${objective.actor}`):undefined;
     const kind=objective.kind as string;const required=Math.max(1,objective.count??1);let complete=false;
     if(kind==="watch")complete=observation?.watchingActorId===target&&(observation?.watchedTicks??0)>=(objective.seconds??3)*60;

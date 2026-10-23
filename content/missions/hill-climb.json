@@ -1,0 +1,209 @@
+{
+  "id": "hill-climb",
+  "version": 1,
+  "title": "Hill Climb",
+  "campaign": 7,
+  "wave": 4,
+  "area": "Russian Hill and Nob Hill",
+  "start": "start",
+  "cast": {
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    },
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, by text"
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "role": "Mission support"
+    }
+  },
+  "actors": {
+    "ringleader": {
+      "kind": "badRobot",
+      "archetype": "prowler",
+      "level": 4
+    },
+    "stolen": {
+      "kind": "rogueTaxi",
+      "archetype": "rogueTaxi",
+      "level": 4
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Complete",
+      "kind": "success"
+    },
+    "retry": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "event": {
+        "kind": "enterArea",
+        "place": {
+          "label": "Hyde St near Union St",
+          "lat": 37.7985,
+          "lon": -122.4195,
+          "radiusM": 25
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "same stolen cars. same empty bags. different pitch deck. the ring is using the hills."
+        }
+      ],
+      "next": "stage"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Hyde St near Union St",
+        "lat": 37.7985,
+        "lon": -122.4195,
+        "radiusM": 25
+      },
+      "actors": [
+        "ringleader",
+        "stolen"
+      ],
+      "nearHydrantM": 20,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "watch the footman that checks every parked car and never opens its delivery bag."
+        }
+      ],
+      "next": "watch"
+    },
+    {
+      "id": "watch",
+      "type": "objective",
+      "objective": {
+        "kind": "watch",
+        "seconds": 4,
+        "actor": "ringleader"
+      },
+      "hint": "Observe the ringleader before starting the pursuit.",
+      "next": "crooked"
+    },
+    {
+      "id": "crooked",
+      "type": "goto",
+      "target": {
+        "label": "Lombard St crooked block, east end",
+        "lat": 37.8021,
+        "lon": -122.4185,
+        "radiusM": 25
+      },
+      "travel": "any",
+      "timer": {
+        "limitS": 180,
+        "warnAtS": 30
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "follow the marked route down Lombard. brake before each turn; the shortcut is not faster."
+        }
+      ],
+      "next": "chase",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "chase",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "chase.lombardCompleted"
+      },
+      "hint": "Stay on the marked chase route through the crooked block.",
+      "next": "board",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "board",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "cableCar.runningBoardMounted"
+      },
+      "hint": "Board the stopped cable car at the marked running board.",
+      "next": "stop",
+      "timeLimitS": 120,
+      "onFail": "retry"
+    },
+    {
+      "id": "stop",
+      "type": "objective",
+      "objective": {
+        "kind": "cone",
+        "actor": "stolen"
+      },
+      "hint": "From the running board, cone the rogue vehicle as it passes.",
+      "next": "complete",
+      "timeLimitS": 120,
+      "onFail": "retry"
+    },
+    {
+      "id": "complete",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the ring is stopped. our burn rate now includes handbrake maintenance."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 2200
+        },
+        {
+          "kind": "stat",
+          "stat": "xp",
+          "delta": 1500
+        },
+        {
+          "kind": "unlock",
+          "unlock": "safehouse:russian-hill-garage"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "retry",
+      "retryFrom": "stage",
+      "hint": "Use the brakes through Lombard and board only at the marked stop.",
+      "cooldownS": 10,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the cable car runs again. so does this plan."
+        }
+      ]
+    }
+  ],
+  "summary": "Follow the car-theft ring down Lombard, then finish the pursuit from a cable car running board.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave3-2026-10-23",
+    "contentHash": "fnv1a32:95c3a20e",
+    "reviewedBy": [],
+    "review": "Authored against the campaign design. Pending independent narrative and gameplay review."
+  }
+}

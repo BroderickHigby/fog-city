@@ -36,3 +36,7 @@ Body:
 Static content exports let the mission, economy and UI systems consume the existing authored catalogs without browser or filesystem dependencies. The UI catalog supplies stable text keys and checked interpolation. Tank upgrades now match the 8 → 12 → 16 L design; the flow upgrade is 1.2 L/s, with stable prices and IDs.
 
 Validation: TypeScript and 130 scoped content/schema/provenance/taste/vendor tests passed. Existing approved names were reused. Later campaign and activity content follows on stacked lane branches.
+
+## Integrated authored campaign catalog
+
+Content catalog from PR #18 is integrated for the wave-3 mission runtime. Later-wave entries remain gated by their declared wave. Review provenance is pending independent signoff.

@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/loadouts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "slots",
+    "gadgets",
+    "gear",
+    "perks",
+    "customizer",
+    "provenance"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nozzle",
+        "gadget",
+        "gear",
+        "perk",
+        "streak"
+      ],
+      "properties": {
+        "nozzle": {
+          "const": 1
+        },
+        "gadget": {
+          "const": 1
+        },
+        "gear": {
+          "const": 1
+        },
+        "perk": {
+          "const": 3
+        },
+        "streak": {
+          "const": 3
+        }
+      }
+    },
+    "gadgets": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "rangeM",
+          "radiusM",
+          "durationS",
+          "charges",
+          "rust",
+          "rank",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rangeM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "radiusM": {
+            "type": "number",
+            "minimum": 0
+          },
+          "durationS": {
+            "type": "number",
+            "minimum": 0
+          },
+          "charges": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "rust": {
+            "type": "number",
+            "minimum": 0
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "gear": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "cooldownS",
+          "durationS",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "cooldownS": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "durationS": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "perks": {
+      "type": "array",
+      "minItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "effect",
+          "value",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effect": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "value": {
+            "type": "number",
+            "minimum": 0
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "customizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jackets",
+        "colours",
+        "shoes",
+        "carPaint",
+        "decals",
+        "voice"
+      ],
+      "properties": {
+        "jackets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        },
+        "colours": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        },
+        "shoes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        },
+        "carPaint": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        },
+        "decals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        },
+        "voice": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

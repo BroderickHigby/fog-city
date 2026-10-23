@@ -1,0 +1,404 @@
+{
+  "units": {
+    "cash": "cents",
+    "xp": "points"
+  },
+  "ranks": [
+    {
+      "rank": 1,
+      "totalXp": 0,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 2,
+      "totalXp": 250,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 3,
+      "totalXp": 550,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 4,
+      "totalXp": 900,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 5,
+      "totalXp": 1300,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 6,
+      "totalXp": 1750,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 7,
+      "totalXp": 2250,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 8,
+      "totalXp": 2800,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 9,
+      "totalXp": 3400,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 10,
+      "totalXp": 4050,
+      "label": "Pre-seed"
+    },
+    {
+      "rank": 11,
+      "totalXp": 4750,
+      "label": "Seed"
+    },
+    {
+      "rank": 12,
+      "totalXp": 5500,
+      "label": "Seed"
+    },
+    {
+      "rank": 13,
+      "totalXp": 6300,
+      "label": "Seed"
+    },
+    {
+      "rank": 14,
+      "totalXp": 7150,
+      "label": "Seed"
+    },
+    {
+      "rank": 15,
+      "totalXp": 8050,
+      "label": "Seed"
+    },
+    {
+      "rank": 16,
+      "totalXp": 9000,
+      "label": "Seed"
+    },
+    {
+      "rank": 17,
+      "totalXp": 10000,
+      "label": "Seed"
+    },
+    {
+      "rank": 18,
+      "totalXp": 11050,
+      "label": "Seed"
+    },
+    {
+      "rank": 19,
+      "totalXp": 12150,
+      "label": "Seed"
+    },
+    {
+      "rank": 20,
+      "totalXp": 13300,
+      "label": "Seed"
+    },
+    {
+      "rank": 21,
+      "totalXp": 14500,
+      "label": "Series A"
+    },
+    {
+      "rank": 22,
+      "totalXp": 15750,
+      "label": "Series A"
+    },
+    {
+      "rank": 23,
+      "totalXp": 17050,
+      "label": "Series A"
+    },
+    {
+      "rank": 24,
+      "totalXp": 18400,
+      "label": "Series A"
+    },
+    {
+      "rank": 25,
+      "totalXp": 19800,
+      "label": "Series A"
+    },
+    {
+      "rank": 26,
+      "totalXp": 21250,
+      "label": "Series A"
+    },
+    {
+      "rank": 27,
+      "totalXp": 22750,
+      "label": "Series A"
+    },
+    {
+      "rank": 28,
+      "totalXp": 24300,
+      "label": "Series A"
+    },
+    {
+      "rank": 29,
+      "totalXp": 25900,
+      "label": "Series A"
+    },
+    {
+      "rank": 30,
+      "totalXp": 27550,
+      "label": "Series A"
+    },
+    {
+      "rank": 31,
+      "totalXp": 29250,
+      "label": "Series B"
+    },
+    {
+      "rank": 32,
+      "totalXp": 31000,
+      "label": "Series B"
+    },
+    {
+      "rank": 33,
+      "totalXp": 32800,
+      "label": "Series B"
+    },
+    {
+      "rank": 34,
+      "totalXp": 34650,
+      "label": "Series B"
+    },
+    {
+      "rank": 35,
+      "totalXp": 36550,
+      "label": "Series B"
+    },
+    {
+      "rank": 36,
+      "totalXp": 38500,
+      "label": "Series B"
+    },
+    {
+      "rank": 37,
+      "totalXp": 40500,
+      "label": "Series B"
+    },
+    {
+      "rank": 38,
+      "totalXp": 42550,
+      "label": "Series B"
+    },
+    {
+      "rank": 39,
+      "totalXp": 44650,
+      "label": "Series B"
+    },
+    {
+      "rank": 40,
+      "totalXp": 46800,
+      "label": "Series B"
+    },
+    {
+      "rank": 41,
+      "totalXp": 49000,
+      "label": "Series C"
+    },
+    {
+      "rank": 42,
+      "totalXp": 51250,
+      "label": "Series C"
+    },
+    {
+      "rank": 43,
+      "totalXp": 53550,
+      "label": "Series C"
+    },
+    {
+      "rank": 44,
+      "totalXp": 55900,
+      "label": "Series C"
+    },
+    {
+      "rank": 45,
+      "totalXp": 58300,
+      "label": "Series C"
+    },
+    {
+      "rank": 46,
+      "totalXp": 60750,
+      "label": "Series C"
+    },
+    {
+      "rank": 47,
+      "totalXp": 63250,
+      "label": "Series C"
+    },
+    {
+      "rank": 48,
+      "totalXp": 65800,
+      "label": "Series C"
+    },
+    {
+      "rank": 49,
+      "totalXp": 68400,
+      "label": "Series C"
+    },
+    {
+      "rank": 50,
+      "totalXp": 71050,
+      "label": "Series C"
+    },
+    {
+      "rank": 51,
+      "totalXp": 73750,
+      "label": "Series D"
+    },
+    {
+      "rank": 52,
+      "totalXp": 76500,
+      "label": "Series D"
+    },
+    {
+      "rank": 53,
+      "totalXp": 79300,
+      "label": "Series D"
+    },
+    {
+      "rank": 54,
+      "totalXp": 82150,
+      "label": "Series D"
+    },
+    {
+      "rank": 55,
+      "totalXp": 85050,
+      "label": "Series D"
+    }
+  ],
+  "awards": {
+    "melt": 50,
+    "missionMin": 500,
+    "missionMax": 2000,
+    "activityMin": 100,
+    "activityMax": 400
+  },
+  "gates": [
+    {
+      "kind": "blasterTier",
+      "rank": 8,
+      "value": 2
+    },
+    {
+      "kind": "blasterTier",
+      "rank": 20,
+      "value": 3
+    },
+    {
+      "kind": "blasterTier",
+      "rank": 35,
+      "value": 4
+    },
+    {
+      "kind": "perkSlots",
+      "rank": 5,
+      "value": 1
+    },
+    {
+      "kind": "perkSlots",
+      "rank": 15,
+      "value": 2
+    },
+    {
+      "kind": "perkSlots",
+      "rank": 30,
+      "value": 3
+    },
+    {
+      "kind": "streakSlots",
+      "rank": 3,
+      "value": 1
+    },
+    {
+      "kind": "streakSlots",
+      "rank": 10,
+      "value": 2
+    },
+    {
+      "kind": "streakSlots",
+      "rank": 25,
+      "value": 3
+    }
+  ],
+  "upgrades": [
+    {
+      "id": "scanner-tier-2",
+      "kind": "scanner",
+      "priceCents": 0,
+      "requiresMission": "launch-day",
+      "rank": 1
+    },
+    {
+      "id": "wide-nozzle",
+      "kind": "nozzle",
+      "priceCents": 150000,
+      "rank": 8
+    },
+    {
+      "id": "pressure-nozzle",
+      "kind": "nozzle",
+      "priceCents": 300000,
+      "rank": 20
+    },
+    {
+      "id": "roof-cannon",
+      "kind": "vehicle",
+      "priceCents": 650000,
+      "rank": 20
+    },
+    {
+      "id": "trunk-tank",
+      "kind": "vehicle",
+      "priceCents": 200000,
+      "rank": 8
+    }
+  ],
+  "safehousePrices": [
+    {
+      "id": "north-beach-studio",
+      "priceCents": 500000
+    },
+    {
+      "id": "dogpatch-loft",
+      "priceCents": 1400000
+    },
+    {
+      "id": "marina-flat",
+      "priceCents": 6000000
+    },
+    {
+      "id": "hayes-valley-micro",
+      "priceCents": 1800000
+    },
+    {
+      "id": "mission-flat",
+      "priceCents": 2200000
+    },
+    {
+      "id": "sunset-in-law",
+      "priceCents": 2600000
+    }
+  ],
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:8dc1cc32",
+    "reviewedBy": [],
+    "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
+  }
+}

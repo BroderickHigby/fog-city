@@ -40,3 +40,39 @@ Body:
 The player lane now registers deterministic player, heat, missions, economy, progression and activity systems. Hot Desk and Spill advance through measured world and combat objectives, pay once, allow retries, and expose HUD/loadout projections. Purchases validate proximity and funds; bounties reject friendly/unknown actors; recovery restores runway and applies cash/heat consequences. Ambient encounters use a persisted per-player random stream.
 
 Validation: TypeScript and 9 focused player tests passed, including Hot Desk/Spill drivers and a 20-seed director check. Later-wave mission mechanics and the production agent/provider adapter remain visible integration work; see Requests for other lanes.
+
+## Reviewed wave-3 integration
+
+The integration preserves the canonical combat attribution, aimed watching, Hot Desk/Spill
+phone and form gates, and same-tick activity/economy ordering. PR #18 supplies the authored
+catalog; duplicate content from PR #16 is not used to replace it. Later-wave content remains
+behind its declared wave and no later mode, property or cable-car mechanic is enabled here.
+
+Launch Day derives its false-positive lesson from a real incorrect scan of the good courier
+and a separate acknowledgement. Demoed Correctly derives presentation from three observed
+robots, the bad robot's actual melt, and both good robots remaining dry. Their named success
+facts cannot be supplied externally to bypass these conditions. Attempts retain their own
+evidence and reset it on a retry.
+
+Legal parking uses committed street rules and cleaning windows, accepted car hulls and a
+continuous two-second stop followed by a new interact press. The mission's Pier 70 point is
+over 200 m from the nearest committed signed edge, so the provider searches within 350 m,
+then validates dry, unobstructed curb positions. An unknown rule never becomes permission.
+The world loader must supply both declared rule layers; the shared composition mounts
+`buildMissionParkingWorld` through `createObservedGameplayProvider.missionParking`.
+
+The Director starts and recurs in the seeded 45–75 second range and rejects protected stage
+locations. A stopped car's recorded car-wash interaction reduces heat once per visit; mission
+VC grants survive the one-tick ordering boundary without duplicate awards.
+
+Verification is recorded in the integration report after the final focused run. Composed
+mission tests use accepted stage-position fixtures and production combat/mission reducers;
+they are not a claim of a browser-driven route through San Francisco. The tests also retain
+Hot Desk/Spill regressions, spoof rejection, parking-rule negatives and deterministic reruns.
+
+Final focused verification on this branch: TypeScript passed; **34 test files passed,
+1,279 tests passed, one existing opt-in skip**. This includes the two composed wave-3
+missions repeated deterministically, spoof rejection, real-SF signed parking, parking
+negatives, car-wash/delayed-grant checks, the existing player and content suites, the
+composed wave-2 regression and every forbidden-API check. No full browser campaign or
+later-wave gameplay completion is claimed by this lane.

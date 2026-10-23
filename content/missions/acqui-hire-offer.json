@@ -1,0 +1,154 @@
+{
+  "id": "acqui-hire-offer",
+  "version": 1,
+  "title": "Acqui-hire Offer",
+  "campaign": 8,
+  "wave": 7,
+  "area": "SoMa",
+  "start": "start",
+  "cast": {
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    },
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, by text"
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "role": "Mission support"
+    }
+  },
+  "actors": {},
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Complete",
+      "kind": "success"
+    },
+    "retry": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "event": {
+        "kind": "enterArea",
+        "place": {
+          "label": "Moat Labs HQ, outside on the SoMa curb",
+          "lat": 37.7819,
+          "lon": -122.3975,
+          "radiusM": 25
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "moat labs wants to acquire us. their due diligence form asks for our passwords. we have a different form."
+        }
+      ],
+      "next": "connect"
+    },
+    {
+      "id": "connect",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "teleoperation.connected"
+      },
+      "hint": "Enter the van and connect to the teleoperated unit.",
+      "next": "blend",
+      "timeLimitS": 90,
+      "onFail": "retry"
+    },
+    {
+      "id": "blend",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "teleoperation.coverTaskCompleted"
+      },
+      "hint": "Follow the delivery routine; pause for the crossings and finish the handoff.",
+      "next": "server",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "server",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "teleoperation.serverFound"
+      },
+      "hint": "Reach the update server without exposing the unit.",
+      "next": "disconnect",
+      "timeLimitS": 240,
+      "onFail": "retry"
+    },
+    {
+      "id": "disconnect",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "teleoperation.disconnected"
+      },
+      "hint": "Disconnect safely and leave the van area.",
+      "next": "complete",
+      "timeLimitS": 90,
+      "onFail": "retry"
+    },
+    {
+      "id": "complete",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "offer declined. we kept the server map and our vesting schedule."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 2500
+        },
+        {
+          "kind": "stat",
+          "stat": "xp",
+          "delta": 1700
+        },
+        {
+          "kind": "unlock",
+          "unlock": "app:server-map"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "retry",
+      "retryFrom": "connect",
+      "hint": "Reconnect from the van. A normal delivery is better cover than standing perfectly still.",
+      "cooldownS": 10,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "connection dropped. the van is still ours. try a less memorable route."
+        }
+      ]
+    }
+  ],
+  "summary": "Pilot a borrowed unit from the van, blend into its delivery routine and find the update server.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave3-2026-10-23",
+    "contentHash": "fnv1a32:55d36615",
+    "reviewedBy": [],
+    "review": "Authored against the campaign design. Pending independent narrative and gameplay review."
+  }
+}
