@@ -1,7 +1,7 @@
 # Integration harness
 
 ## Now
-Running full typecheck, unit and browser verification on `lane/harness/wave2`, including core `f9ca263`, source-only UI through `352b526`, bounded rendering `5c0c598` and the isolated wave-2 purchase correction `cad8993`. The original prototype and other active worktrees are untouched.
+Full typecheck and unit verification passed on immutable `76fcc02`: **121 files, 2,975 tests passed**, with one existing opt-in content-generator test skipped (258.08 seconds). Browser and hosted-build verification is next, after a brief shared-runner gap for other lanes' focused checks. The candidate includes core `f9ca263`, source-only UI through `352b526`, bounded rendering `5c0c598` and the isolated wave-2 purchase correction `cad8993`. The original prototype and other active worktrees are untouched.
 
 ## Done
 - Node and browser replay builders retain the authored gameplay, sidewalk and transit layers.
@@ -16,9 +16,12 @@ Running full typecheck, unit and browser verification on `lane/harness/wave2`, i
 - Added real-SF first-purchase acceptance: drive to the FiDi counter using production controls, click the HUD, check cash/item/capacity changes, replay the recorded command, and capture first/third-person screenshots. Pending full browser execution.
 - First complete unit run: **2,968 passed, three failed, one skipped** in 233.28 seconds. The failures were the missing `gameplay` entry in the manifest test, tests looking for `gameplay.schema.json` instead of canonical `tile-gameplay.schema.json`, and an old whole-extension-empty assertion despite intentionally registered player systems. Fixes retain schema validation and positive population/player/wallet checks. The skipped unit is the existing opt-in content generator, not gameplay coverage.
 - Integrated controller release guards, authored signup choices and the UI fix that reopens a dismissed active mission interaction from the objective or phone.
+- Full repaired unit gate passed on `76fcc02`; log: `test-results/full-verify-v2.log`. The supervising shell was deliberately stopped after Vitest exited so the shared lock could be released before browser testing; its final exit 143 is not a failed test.
+- Review found that the legacy standalone Ramen prototype could precede Spill in automatic mission selection. Integrated the isolated campaign-only selector fix `6edaba1`; browser acceptance will cover the corrected handoff.
+- Review found that a mission-start command also answered its own phone call. Integrated the isolated `13d54de` correction so Spill waits for a real mission acknowledgement; focused and browser validation are pending.
 
 ## Next
-1. Complete the active full verification run and repair concrete failures without lowering assertions.
+1. Complete browser and hosted-production-build verification and repair concrete failures without lowering assertions.
 2. Verify Hot Desk / Spill through real controls and recorded UI commands.
 
 ## Blocked on
@@ -39,7 +42,7 @@ Title: `Harness: replay the composed game with authored world metadata`
 Body:
 The browser now runs registered gameplay systems and authored world layers, so replaying only base vehicle physics cannot reproduce its state. Pass the same explicit registry and all authored metadata through the replay harness, and add regressions that detect a missing registry or discarded navigation curves. Add a short composed-gameplay cross-engine scenario and require Chromium to execute even when its binary is supplied through a local override.
 
-Validation: typecheck and 24 focused harness tests passed; Chromium dev boot, tick progress and nonblank-frame smoke passed. Full unit/browser acceptance is pending the current runtime performance investigation. No harness contract or SIM_VERSION change. Reviewed Core/UI commits are integrated separately; no QA collider migration is included.
+Validation: full typecheck and 2,975 unit tests passed on `76fcc02`; one existing opt-in content generator was skipped. Chromium dev boot, tick progress and nonblank-frame smoke passed. Final browser/hosted-build and input-only campaign acceptance remain pending; Firefox/WebKit installation was blocked by the environment's download-host policy. No harness contract or SIM_VERSION change. Reviewed Core/UI commits are integrated separately; no QA collider migration is included.
 
 ## Compatibility review
 The visual checkpoint `ce41d92` was merged only into a disposable local comparison. It brought 1,449 changed paths versus the physical checkpoint, including a pack decoder with DECK/TUNL/SPAN/LAKE extensions. The approved `b7c412c` world/vehicle code does not consume those added surfaces. The binary header remains FCWC version 1, so this combination can load while lacking matching deck/tunnel/lake physics. The comparison is retained as `harness/qa-compatibility`; no broad comparison merge was pushed. The active branch uses the source-only UI and reviewed gameplay metadata instead.
