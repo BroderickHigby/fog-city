@@ -14,7 +14,8 @@ import { dmathDigest, makeWorld, recordSession, runScenario } from "./determinis
 import { distanceToPolyline, headingDelta } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
 import { PREREQUISITES, parseRequire } from "./prereq.ts";
-import { COLLIDERS_ONLY, WITH_ROADS, matchGame, p1Chunk, replay } from "./replay.ts";
+import { COLLIDERS_ONLY, WITH_ROADS, matchGame, p1Chunk, replay, withRecordedCommands } from "./replay.ts";
+import { GameplayDriver } from "./gameplay-driver.ts";
 
 function chunk(type: string, body: Uint8Array): Buffer {
   const len = Buffer.alloc(4);
@@ -158,6 +159,21 @@ describe("the running-game replay (replay.ts, recordSession)", () => {
     expect(initial.ext.clock).toBeUndefined();
   });
 
+  it("places delayed UI commands in their correct replay chunk without duplicating explicit events", () => {
+    const gameWorld = makeWorld(dev.tiles, dev.roads);
+    const initial = createInitialState(gameWorld, 1, ["p1"], dev.manifest.spawn);
+    const command = { tick: 3, kind: "gameplay.command", playerId: "p1", payload: { sequence: 1, kind: "buy", itemId: "tank-1", targetId: "fidi-desk" } } as const;
+    const chunks = [p1Chunk(2), p1Chunk(2)];
+    const recorded = withRecordedCommands(chunks, 0, [command]);
+    expect(recorded[0]!.events).toEqual([]);
+    expect(recorded[1]!.events).toEqual([command]);
+    expect(withRecordedCommands(recorded, 0, [command])).toEqual(recorded);
+    const game = replay(gameWorld, initial, recorded, createGameSystems());
+    expect(game.final.ext.economy?.players.p1?.commandSequence).toBe(1);
+    expect(replay(gameWorld, initial, chunks, createGameSystems()).final.ext.economy?.players.p1?.commandSequence).toBe(0);
+    expect(matchGame("dev", initial, recorded, game.hashes, game.final, createGameSystems()).match).toBeDefined();
+  });
+
   it("recordSession joins p2 and p3 on its first tick and stamps every event with its absolute tick", () => {
     const chunks = recordSession(["p1"], s0.tick, { ticks: 1800, seed: 20261020, spawn: dev.manifest.spawn }, 60);
     expect(chunks).toHaveLength(30);
@@ -225,6 +241,21 @@ describe("E2E_REQUIRE (prereq.ts)", () => {
 });
 
 describe("helpers", () => {
+  it("the route driver moves and enters through replayable inputs alone", () => {
+    const world = makeWorld([], null);
+    const initial = createInitialState(world, 1, ["p1"], { x: 0, z: 0, heading: 0 });
+    const driver = new GameplayDriver(world, initial);
+    driver.walkTo({ x: 8, z: 0 }, 2, 600);
+    expect(driver.state.players.p1!.mode).toBe("foot");
+    expect(Math.hypot(driver.body.x - 8, driver.body.z)).toBeLessThanOrEqual(2);
+    driver.inCar();
+    expect(driver.state.players.p1!.mode).toBe("vehicle");
+    const replayed = replay(world, initial, [{ frames: driver.frames }], createGameSystems());
+    expect(hashState(replayed.final)).toBe(hashState(driver.state));
+    expect(initial.tick).toBe(0);
+    expect(initial.players.p1!.car.x).toBe(0);
+  });
+
   it("builds the same authored world layers in browser scenarios and Node replays, retaining curved sidewalks", () => {
     const gameplay: GameplayWorldData = {
       version: 1, world: "fixture", sourceSnapshot: "committed",

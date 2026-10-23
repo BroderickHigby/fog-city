@@ -1,9 +1,9 @@
 // Input-only integration driver. Planning may inspect committed geometry and observed state;
 // every change to a body, mission or wallet still goes through the production step function.
 import {
-  Action, DT, clamp, datan2, segmentBlocked, segmentCrossesWall, circleBlocked, groundHeight,
+  Action, DT, carBox, circleInBoxes, clamp, datan2, dodgeExtOf, segmentBlocked, segmentCrossesWall, circleBlocked, groundHeight,
   createGameSystems, createFollowerState, stepVehicleFollower, step, wrapAngle,
-  type InputFrame, type SimInput, type SimState, type World,
+  type Box, type InputFrame, type SimInput, type SimState, type World,
 } from "../../src/sim/index.ts";
 
 export interface Point { x: number; z: number }
@@ -26,15 +26,26 @@ export class GameplayDriver {
     const frame = { [this.playerId]: input };
     this.frames.push(frame);
     this.state = step(this.world, this.state, frame, [], this.systems);
+    const clearance = dodgeExtOf(this.state);
+    if (clearance.contacts !== 0 || clearance.failures !== 0) {
+      throw new Error(`Unsafe physical step at tick ${this.state.tick}: ${JSON.stringify(clearance)}`);
+    }
   }
   hold(ticks: number, actions = 0): void {
     for (let i = 0; i < ticks; i++) this.input({ throttle: 0, steer: 0, brake: 1, actions });
   }
   onFoot(): void {
     if (this.state.players[this.playerId]!.mode === "foot") return;
-    this.hold(90);
+    for (let i = 0; i < 120 && Math.abs(this.body.speed) > .3; i++) this.hold(1);
     this.hold(1, Action.enterExit);
     if (this.state.players[this.playerId]!.mode !== "foot") throw new Error("No safe place to exit the car");
+  }
+  inCar(): void {
+    const player = this.state.players[this.playerId]!;
+    if (player.mode === "vehicle") return;
+    this.walkTo(player.car, 2.8);
+    this.hold(1, Action.enterExit);
+    if (this.state.players[this.playerId]!.mode !== "vehicle") throw new Error("Could not enter the nearby car");
   }
   aim(target: Point, actions: number, ticks = 1): void {
     for (let i = 0; i < ticks; i++) {
@@ -56,7 +67,8 @@ export class GameplayDriver {
   }
   walkTo(target: Point, stopDistance = 3, maxTicks = 15000): void {
     this.onFoot();
-    const route = walkingRoute(this.world, this.body, target, stopDistance);
+    const cars = Object.keys(this.state.players).sort().map(id => carBox(this.state.players[id]!.car));
+    const route = walkingRoute(this.world, this.body, target, stopDistance, cars);
     let waypoint = 0;
     for (let i = 0; i < maxTicks; i++) {
       const body = this.body;
@@ -71,7 +83,7 @@ export class GameplayDriver {
 }
 
 /** Small bounded A* on committed ground geometry; this does not move any game body. */
-function walkingRoute(world: World, start: Point, target: Point, stopDistance: number): Point[] {
+function walkingRoute(world: World, start: Point, target: Point, stopDistance: number, cars: readonly Box[]): Point[] {
   const size = 2, padding = 80;
   const minX = Math.min(start.x, target.x) - padding, maxX = Math.max(start.x, target.x) + padding;
   const minZ = Math.min(start.z, target.z) - padding, maxZ = Math.max(start.z, target.z) + padding;
@@ -96,6 +108,7 @@ function walkingRoute(world: World, start: Point, target: Point, stopDistance: n
       const cost = current.cost + Math.hypot(dx!, dz!) * size;
       if (closed.has(id) || cost >= (best.get(id) ?? Infinity) || to.x < minX || to.x > maxX || to.z < minZ || to.z > maxZ) continue;
       if (circleBlocked(world, to.x, to.z, .6) || segmentBlocked(world, from.x, from.z, to.x, to.z) ||
+        circleInBoxes(to.x, to.z, .6, cars) || circleInBoxes((from.x + to.x) / 2, (from.z + to.z) / 2, .6, cars) ||
         segmentCrossesWall(world.walls, from.x, from.z, to.x, to.z) || Math.abs(groundHeight(world, from.x, from.z) - groundHeight(world, to.x, to.z)) > size) continue;
       best.set(id, cost);
       pending.push({ x, z, cost, score: cost + Math.hypot(to.x - target.x, to.z - target.z), parent: current });

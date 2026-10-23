@@ -71,6 +71,24 @@ export interface Chunk {
   events?: readonly SimEvent[];
 }
 
+/** Keep UI commands at their recorded ticks, including commands emitted after a snapshot. */
+export function withRecordedCommands(chunks: readonly Chunk[], startTick: number, commands: readonly SimEvent[]): Chunk[] {
+  let previous = startTick;
+  return chunks.map((chunk) => {
+    const through = previous + chunk.frames.length;
+    const events = [...(chunk.events ?? [])];
+    const seen = new Set(events.map(canonicalJson));
+    for (const event of commands) {
+      if (event.tick > previous && event.tick <= through && !seen.has(canonicalJson(event))) {
+        events.push(event);
+        seen.add(canonicalJson(event));
+      }
+    }
+    previous = through;
+    return { ...chunk, events };
+  });
+}
+
 /** n ticks of one input for p1 (what window.__fogcity.stepN(n, input) does). */
 export function p1Chunk(n: number, input: SimInput = NEUTRAL_INPUT): Chunk {
   return { frames: Array.from({ length: n }, () => ({ p1: input })) };
