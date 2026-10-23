@@ -1,5 +1,4 @@
-// Mouse input for the free fly camera: drag to look, wheel to change speed. Render-only:
-// nothing here ever reaches the sim.
+// Mouse look shared by fly camera and on-foot aim. The caller records gameplay aim.
 
 export class PointerLook {
   private dx = 0;
@@ -12,21 +11,28 @@ export class PointerLook {
   constructor(el: HTMLElement) {
     el.addEventListener("pointerdown", (e) => {
       this.dragging = true;
+      if(e.button===2 && el.requestPointerLock){try{const request=el.requestPointerLock();if(request)void request.catch(()=>{});}catch{/* Drag aiming remains available. */}}
       this.lastX = e.clientX;
       this.lastY = e.clientY;
       el.setPointerCapture?.(e.pointerId);
     });
     el.addEventListener("pointermove", (e) => {
       if (!this.dragging) return;
-      this.dx += e.clientX - this.lastX;
-      this.dy += e.clientY - this.lastY;
+      this.dx += document.pointerLockElement === el ? e.movementX : e.clientX - this.lastX;
+      this.dy += document.pointerLockElement === el ? e.movementY : e.clientY - this.lastY;
       this.lastX = e.clientX;
       this.lastY = e.clientY;
     });
     const end = (e: PointerEvent): void => {
       this.dragging = false;
+      if(document.pointerLockElement===el)document.exitPointerLock();
       el.releasePointerCapture?.(e.pointerId);
     };
+    window.addEventListener("blur", () => { this.dragging = false; this.dx = this.dy = 0; });
+    document.addEventListener("pointerlockchange", () => {
+      if (document.pointerLockElement !== el) this.dragging = false;
+    });
+    el.addEventListener("contextmenu",e=>e.preventDefault());
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
     el.addEventListener(

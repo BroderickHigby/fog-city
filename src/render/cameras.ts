@@ -37,6 +37,9 @@ const PULL_IN = [0.8, 0.62, 0.45, 0.3, 0.18] as const;
 export class CameraRig {
   readonly camera: THREE.PerspectiveCamera;
   mode: CameraMode = "chase";
+  aim: {yaw:number;pitch:number}|null=null;
+  watch=false;
+  reduceMotion=false;
   /** The mode to return to when leaving fly. */
   private ground: GroundFn;
   private occluded: (x: number, y: number, z: number) => boolean;
@@ -101,8 +104,9 @@ export class CameraRig {
   }
 
   update(dt: number, t: CameraTarget, input: Readonly<FlyInput>): void {
-    const fx = Math.sin(t.heading);
-    const fz = -Math.cos(t.heading);
+    const heading=t.onFoot && this.aim ? this.aim.yaw : t.heading;
+    const fx = Math.sin(heading);
+    const fz = -Math.cos(heading);
     if (this.mode === "fly") {
       const f = this.fly;
       f.yaw += input.yaw;
@@ -124,10 +128,13 @@ export class CameraRig {
       this.init = false;
       return;
     }
+    const fov=this.reduceMotion?62:t.onFoot?(this.watch?50:62):62+Math.min(Math.abs(t.speed),30)*.2;
+    const nextFov=this.camera.fov+(fov-this.camera.fov)*(1-Math.exp(-dt*7));
+    if(Math.abs(nextFov-this.camera.fov)>.001){this.camera.fov=nextFov;this.camera.updateProjectionMatrix();}
     if (this.mode === "first-person") {
       if (t.onFoot) {
         this.camera.position.set(t.x + fx * 0.12, t.y + 1.62, t.z + fz * 0.12);
-        this.camera.lookAt(t.x + fx * 20, t.y + 1.3, t.z + fz * 20);
+        this.camera.lookAt(t.x + fx * 20, t.y + 1.62 + Math.tan(this.aim?.pitch??0)*20, t.z + fz * 20);
       } else {
         // Driver's eye: left seat, behind the windscreen.
         const rx = -fz;
@@ -142,7 +149,7 @@ export class CameraRig {
     const speed = Math.abs(t.speed);
     const dist = t.onFoot ? 4.4 : 8.2 + Math.min(speed, 30) * 0.09;
     const height = t.onFoot ? 2.0 : 3.1 + Math.min(speed, 30) * 0.02;
-    _desired.set(t.x - fx * dist, t.y + height, t.z - fz * dist);
+    _desired.set(t.x - fx * dist + (t.onFoot && this.aim ? -fz*.65 : 0), t.y + height, t.z - fz * dist + (t.onFoot && this.aim ? fx*.65 : 0));
     // Pull in towards the target when the arm would end inside a building.
     if (this.occluded(_desired.x, _desired.y, _desired.z)) {
       for (const k of PULL_IN) {
@@ -153,7 +160,8 @@ export class CameraRig {
         if (!this.occluded(x, y, z)) break;
       }
     }
-    _look.set(t.x + fx * 5, t.y + (t.onFoot ? 1.4 : 1.25), t.z + fz * 5);
+    const reach=t.onFoot&&this.aim?30:5;
+    _look.set(t.x + fx * reach, t.y + (t.onFoot ? 1.2+Math.tan(this.aim?.pitch??0)*reach : 1.25), t.z + fz * reach);
     if (!this.init) {
       this.pos.copy(_desired);
       this.lookAt.copy(_look);

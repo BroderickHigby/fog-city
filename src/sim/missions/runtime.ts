@@ -133,9 +133,10 @@ function missionSystem(ctx: SimSystemContext): SimState {
       else if(s.type==='branch'){const value=r.meters[s.meter]??0; next=s.cases.find(v=>(v.min===undefined||value>=v.min)&&(v.max===undefined||value<=v.max))?.next??s.default;}
       else if(s.type==='objective') {
         const a=target(c,id,s.objective.actor), t=a?combat?.targets[a.id]:undefined;
-        const inReach=a && dist(p,a)<=35 && !nearbyBuildings(ctx.world,(p.x+a.x)/2,(p.z+a.z)/2,dist(p,a)/2+1).some(b=>{
+        const watchYaw=input?.aimYaw??p.heading;
+        const inReach=a && dist(p,a)<=30 && !nearbyBuildings(ctx.world,(p.x+a.x)/2,(p.z+a.z)/2,dist(p,a)/2+1).some(b=>{
           for(let sample=1;sample<16;sample++)if(pointInPolygon(p.x+(a.x-p.x)*sample/16,p.z+(a.z-p.z)*sample/16,b.footprint)&&b.topY>Math.min(p.y,a.y)+1)return true;return false;
-        }) && ((a.x-p.x)*dsin(p.heading)-(a.z-p.z)*dcos(p.heading))>=dist(p,a)*.5;
+        }) && ((a.x-p.x)*dsin(watchYaw)-(a.z-p.z)*dcos(watchYaw))>=dist(p,a)*.5;
         const cp=combat?.players[id];let done=false;
         switch(s.objective.kind){
           case 'watch': r.watchTicks=inReach && (input?.actions??0)&Action.watch ? r.watchTicks+1:0;done=r.watchTicks>=(s.objective.seconds??3)/DT;break;

@@ -29,6 +29,7 @@ export class InputController {
     if(down)this.held.add(action);else this.held.delete(action);
   }
   releaseAll():void {this.held.clear();this.pressed=0;this.x=0;this.y=0;this.previousPad.clear();this.keyboard?.releaseAll();}
+  lookDelta(dt:number):{x:number;y:number}{if(this.blocked)return {x:0,y:0};const pad=this.gamepads().find(p=>p?.connected);return {x:deadzone(pad?.axes[2]??0)*500*dt,y:deadzone(pad?.axes[3]??0)*500*dt};}
   sample():SimInput {
     if(this.blocked)return neutral();
     const base=this.keyboard?.sample()??neutral();

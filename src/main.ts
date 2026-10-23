@@ -1,3 +1,12 @@
+import { segmentBlocked } from "./sim/world.ts";
+import { BrowserSaveStore,readCheckpoint,restoreCheckpoint,checkpointOf,type SaveStore } from "./save/checkpoints.ts";
+import { AimControl } from "./input/aim.ts";
+import { InputController } from "./input/controller.ts";
+import { assistedAim } from "./input/aim-assist.ts";
+import { isTextEntry } from "./input/keyboard.ts";
+import { CombatFeedback } from "./ui/feedback.ts";
+import { campaignOf } from "./sim/missions/runtime.ts";
+import { combatOf } from "./sim/combat/system.ts";
 import { Minimap } from "./ui/minimap.ts";
 import { CampaignHud } from "./ui/campaign.ts";
 import { AudioDirector } from "./audio/director.ts";
@@ -219,9 +228,16 @@ async function boot(): Promise<void> {
   view.renderer.domElement.setAttribute("aria-label", "San Francisco game view");
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
+  const controller=new InputController(keyboard);
+  const aim=new AimControl();
+  const feedback=new CombatFeedback((a,b)=>!segmentBlocked(world,a.x,a.z,b.x,b.z));
   let localPlayerId = LOCAL_PLAYER;
   let prev: SimState = createInitialState(world, SEED, [localPlayerId], manifest.spawn);
   let curr: SimState = prev;
+  const saveNotice=document.createElement("div");saveNotice.id="checkpoint-status";saveNotice.setAttribute("role","status");Object.assign(saveNotice.style,{position:"fixed",right:"28px",bottom:"95px",color:"#c9dfd5",font:"11px system-ui",zIndex:"4",pointerEvents:"none",textShadow:"0 1px 4px #000"});document.body.append(saveNotice);
+  let saveStore:SaveStore|null=null,savedKey="";
+  try{saveStore=new BrowserSaveStore();const stored=await saveStore.load(worldName);const checkpoint=readCheckpoint(stored,worldName);if(checkpoint){curr=prev=restoreCheckpoint(curr,localPlayerId,checkpoint);savedKey=JSON.stringify(checkpoint);saveNotice.textContent="Checkpoint restored · local browser";}else saveNotice.textContent=stored?"Older checkpoint kept · content changed":"Autosave after missions · local browser";}
+  catch{saveNotice.textContent="Local saving unavailable · play continues";saveStore=null;}
   let paused = false;
   let acc = 0;
   let last = performance.now();
@@ -230,6 +246,7 @@ async function boot(): Promise<void> {
 
   const commands: Array<Omit<SimEvent,"tick">> = [];
   const audio = new AudioDirector(assets);
+  view.renderer.domElement.addEventListener("pointerdown",()=>{void audio.enable().catch(()=>{});});
   const campaignHud = new CampaignHud(command => { if (!multiplayer.active()) commands.push({kind:"gameplay.command",playerId:localPlayerId,payload:command}); }, audio);
   const minimap = new Minimap(roads);
   const campaignView = new CampaignLayer(assets,ground);view.scene.add(campaignView.group);
@@ -364,6 +381,10 @@ async function boot(): Promise<void> {
     else {
       pointer.takeDrag(drag);
       pointer.takeWheel();
+      const player=curr.players[localPlayerId],pose=player?.mode==="foot"?player.foot:player?.car;
+      controller.setBlocked(isTextEntry(document.activeElement));
+      const pad=controller.lookDelta(dtFrame);
+      aim.update(pose?.heading??0,player?.mode==="foot",drag.x+pad.x,drag.y+pad.y);
     }
     if (!paused) {
       acc += dtFrame;
@@ -373,7 +394,13 @@ async function boot(): Promise<void> {
           keyboard.clearActions();
           advance({ ...NEUTRAL_INPUT });
         } else {
-          const input = keyboard.sample();
+          controller.setBlocked(isTextEntry(document.activeElement));
+          const input = controller.sample();
+          const own=curr.players[localPlayerId];
+          if(own?.mode==="foot"&&own.foot){
+            input.aimYaw=assistedAim(own.foot,aim.yaw,Object.values(campaignOf(curr)?.actors??{}).map(a=>({id:a.id,x:a.x,z:a.z,robot:true,protected:a.protected,visible:!segmentBlocked(world,own.foot!.x,own.foot!.z,a.x,a.z)})));
+            input.aimPitch=aim.pitch;
+          }
           const before = curr.players[localPlayerId];
           advance(input);
           const hint = exitHint(before, curr.players[localPlayerId], (input.actions & Action.enterExit) !== 0);
@@ -438,9 +465,15 @@ async function boot(): Promise<void> {
     minimap.update(curr,localPlayerId);
     campaignHud.update(curr,localPlayerId,multiplayer.active());
     campaignView.update(curr,localPlayerId);
+    if(!multiplayer.active()&&saveStore){const checkpoint=checkpointOf(curr,localPlayerId,worldName);if(checkpoint){const key=JSON.stringify(checkpoint);if(key!==savedKey){savedKey=key;saveNotice.textContent="Saving checkpoint…";void saveStore.save(worldName,checkpoint).then(()=>{saveNotice.textContent="Checkpoint saved · local browser";},()=>{savedKey="";saveNotice.textContent="Checkpoint not saved · storage unavailable";saveStore=null;});}}}
     view.setSim(prev, curr, alpha);
     const minute = gameMinuteOfDay(curr, clockStart);
+    view.rig.watch=keyboard.isDown("KeyR")||keyboard.isDown("KeyZ");
+    view.rig.reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+    view.rig.aim=curr.players[localPlayerId]?.mode==="foot"?{yaw:aim.yaw,pitch:aim.pitch}:null;
     view.frame(dtFrame, curr.players[localPlayerId] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
+    feedback.update(curr,localPlayerId,view.camera,aim.yaw,aim.pitch);
+    audio.feedback(curr.tick,combatOf(curr)?.events??[],localPlayerId);
     view.render();
 
     const info = view.info(renderInfo);

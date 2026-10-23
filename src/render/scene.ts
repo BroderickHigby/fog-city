@@ -18,7 +18,7 @@ import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
-import { DAY, NIGHT, NOON, Sky, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
+import { DAY, NIGHT, NOON, Sky, skyUniforms, applySkyPreset, sunDirection, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { LookFn } from "./house-kit.ts";
@@ -216,6 +216,7 @@ export class SceneRenderer {
     // Only a tier the browser was given by auto steps down; ?gfx=high keeps every feature on.
     this.governor = new GfxGovernor(this.gfx.tier === "high" && this.gfx.requested === "auto");
     const high = this.gfx.tier === "high";
+    skyUniforms.uCloudAmount.value=high?0.65:0;
     this.shadows = this.features.shadows;
     this.renderer.shadowMap.enabled = this.shadows;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -310,7 +311,7 @@ export class SceneRenderer {
     const kitDoc = parseKitDoc(opts.houseKit);
     if (kitDoc) void loadKitLib(this.registry, kitDoc).then((lib) => this.streamer.setKitLib(lib, kitDoc));
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
-    this.actors = new Actors(this.registry, this.lights, opts.shadows);
+    this.actors = new Actors(this.registry, this.lights, opts.shadows, high);
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);

@@ -82,6 +82,15 @@ export function recolorCar(car: THREE.Object3D, hex: number | null): THREE.Mater
   });
   return [...clones.values()];
 }
+/** A second dielectric layer for automotive paint, using the existing environment map. */
+export function finishCar(car:THREE.Object3D):THREE.Material[]{
+  const replacements=new Map<THREE.Material,THREE.MeshPhysicalMaterial>();
+  car.traverse(o=>{const mesh=o as THREE.Mesh;if(!mesh.isMesh)return;
+    const finish=(source:THREE.Material)=>{if(!['paint','glass'].includes(baseName(source.name))||!(source instanceof THREE.MeshStandardMaterial))return source;
+      let material=replacements.get(source);if(!material){material=new THREE.MeshPhysicalMaterial();THREE.MeshStandardMaterial.prototype.copy.call(material,source);material.clearcoat=1;material.clearcoatRoughness=.13;material.ior=1.5;material.roughness=baseName(source.name)==='paint'?.28:.09;material.metalness=baseName(source.name)==='paint'?.25:0;replacements.set(source,material);}return material;};
+    mesh.material=Array.isArray(mesh.material)?mesh.material.map(finish):finish(mesh.material);
+  });return [...replacements.values()];
+}
 const SHIRTS = [0x2f6f9f, 0xb0453a, 0x3f7f4a, 0xd0a03a, 0x6a4f9a, 0x2f8a85];
 const PANTS = [0x2b3a55, 0x1f2024, 0x8f7d58, 0x4a4d52];
 const SKIN = [0xe0ac86, 0x8d5a3b, 0xf1c7a5, 0xa5714b, 0x6b4229, 0xc68e64];
@@ -215,13 +224,15 @@ export class Actors {
   private hidden: string | null = null;
   private hiddenPart: "car" | "person" = "car";
   private readonly shadows: boolean;
+  private readonly detail:boolean;
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
   private readonly divePose = newPersonPose();
   /** Render clock, seconds (a dodge's startled shake). */
   private clock = 0;
 
-  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false) {
+  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false, privateDetail = false) {
+    this.detail=privateDetail;
     this.registry = registry;
     this.lights = lights;
     this.shadows = shadows;
@@ -271,6 +282,7 @@ export class Actors {
     v.wheels = findWheels(car);
     // The procedural car is built in its colour; a loaded model is recoloured (slot 0 keeps its paint).
     v.ownMaterials = source === "file" ? recolorCar(car, v.colorIndex === 0 ? null : CAR_COLORS[v.colorIndex]!) : [];
+    if(this.detail&&source==="file")v.ownMaterials.push(...finishCar(car));
     car.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) castShadows(o, this.shadows);
     });

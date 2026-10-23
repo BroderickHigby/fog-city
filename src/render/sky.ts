@@ -126,6 +126,7 @@ export const skyUniforms = {
   uSunGlow: { value: 1 },
   uSunDisc: { value: 1 },
   uStars: { value: 0 },
+  uCloudAmount: { value: 0 },
   /** Display-space fog colour (same as the scene fog's uniform). */
   uFogDisplay: { value: new THREE.Vector3() },
 };
@@ -140,6 +141,9 @@ uniform vec3 uSunColorSky;
 uniform float uSunGlow;
 uniform float uSunDisc;
 uniform float uStars;
+uniform float uCloudAmount;
+float fcCloudHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float fcCloudNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);return mix(mix(fcCloudHash(i),fcCloudHash(i+vec2(1,0)),f.x),mix(fcCloudHash(i+vec2(0,1)),fcCloudHash(i+vec2(1,1)),f.x),f.y);}
 vec3 fcSkyRadiance( vec3 d ) {
   float y = clamp( d.y, -1.0, 1.0 );
   vec2 hz = normalize( d.xz + vec2( 1e-5 ) );
@@ -149,6 +153,13 @@ vec3 fcSkyRadiance( vec3 d ) {
   float t = pow( 1.0 - max( y, 0.0 ), 5.0 );
   vec3 sky = mix( uSkyZenith, horizon, t );
   if ( y < 0.0 ) sky = horizon * mix( 1.0, 0.6, smoothstep( 0.0, -0.4, y ) );
+  if(uCloudAmount>0.0 && y>0.0){
+    vec2 p=d.xz/max(y,.12)*1.3;
+    float cloud=fcCloudNoise(p)*.57+fcCloudNoise(p*2.03+12.7)*.28+fcCloudNoise(p*4.09)*.15;
+    float cover=smoothstep(.5,.72,cloud)*smoothstep(.015,.12,y)*uCloudAmount;
+    vec3 cloudColor=mix(vec3(.72,.79,.85),vec3(1.0,.9,.77),toward*.45)*(1.0-uStars*.83);
+    sky=mix(sky,cloudColor,cover);
+  }
   float sd = max( dot( d, uSunDirSky ), 0.0 );
   sky += uSunColorSky * uSunGlow * ( 0.10 * pow( sd, 6.0 ) + 0.35 * pow( sd, 48.0 ) );
   sky += uSunColorSky * uSunDisc * smoothstep( 0.99965, 0.9999, sd );
