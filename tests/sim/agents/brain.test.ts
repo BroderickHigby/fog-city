@@ -224,6 +224,14 @@ describe("robot state transitions", () => {
     expect(result.intent.action.kind).toBe("none");
   });
 
+  it("treats only fog above 0.4 as fog: thin haze neither breaks off a disguised robot nor triples its rust", () => {
+    for (const [density, flees] of [[0.1, false], [0.4, false], [0.45, true], [0.9, true]] as const) {
+      const result = next(createRobotBrain({ id: 1 }), {}, { self: { ...input(0).self, fogDensity: density } });
+      expect(result.state.mode === "flee", `fog ${density}`).toBe(flees);
+      expect(result.intent.fogRustMultiplier).toBe(1);
+    }
+  });
+
   it("follows a visible target into fog for at most eight seconds, then breaks off", () => {
     let state = createRobotBrain({ id: 1 });
     const observations = { sight: [player("p", 0, -8, { threatening: true })] };

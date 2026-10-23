@@ -82,9 +82,10 @@ Low: name-rejection now uses generated names only; command ids go through
 
 ## Contract / version
 
-- No change to `src/sim/contract.ts` or schemas. **SIM_VERSION stays 8**: city states and replays
-  step identically (the modes system is inert outside a match instance); match states are new and
-  checked by `SIM_VERSION` + `NET_VERSION` in the hello. The World stream keeps 9.
+- No change to `src/sim/contract.ts` or schemas, and **no SIM_VERSION bump of its own**: city
+  states and replays step identically (the modes system is inert outside a match instance); match
+  states are new and checked by `SIM_VERSION` + `NET_VERSION` in the hello. Merged with the base at
+  `86dfb90`, which is at SIM_VERSION 10 (weather); matches now run the weather reducer too.
 
 ## Transport seam
 
