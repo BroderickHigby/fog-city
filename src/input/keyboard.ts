@@ -11,18 +11,23 @@ export class Keyboard {
 
   constructor(target: Window = window) {
     target.addEventListener("keydown", (e) => {
+      if (typeof HTMLElement !== "undefined" && e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return;
       if (!this.held.has(e.code)) this.onPress(e.code);
       this.held.add(e.code);
       if (e.code.startsWith("Arrow") || e.code === "Space") e.preventDefault();
     });
     target.addEventListener("keyup", (e) => this.held.delete(e.code));
     target.addEventListener("blur", () => this.release());
+    target.addEventListener("focusin", () => this.release());
+    target.addEventListener("mousedown", e => {if (e.button === 0 && (e.target as Element | null)?.tagName === "CANVAS") this.held.add("Mouse0");});
+    target.addEventListener("mouseup", () => this.held.delete("Mouse0"));
   }
 
   private onPress(code: string): void {
     if (code === "KeyF") this.pressed |= Action.enterExit;
     else if (code === "KeyE" || code === "Enter") this.pressed |= Action.fire;
     else if (code === "KeyQ") this.pressed |= Action.scan;
+    else if (code === "KeyG") this.pressed |= Action.cone;
     else if (code === "KeyH") this.pressed |= Action.horn;
     else this.uiPresses.push(code);
   }
@@ -39,7 +44,7 @@ export class Keyboard {
       throttle: this.axis(["KeyW", "ArrowUp"], ["KeyS", "ArrowDown"]),
       steer: this.axis(["KeyD", "ArrowRight"], ["KeyA", "ArrowLeft"]),
       brake: this.held.has("Space") ? 1 : 0,
-      actions: this.pressed,
+      actions: this.pressed | (this.held.has("KeyE") || this.held.has("Mouse0") ? Action.fire : 0) | (this.held.has("KeyQ") ? Action.scan : 0) | (this.held.has("KeyR") ? Action.watch : 0) | (this.held.has("KeyT") ? Action.interact : 0),
     };
     this.pressed = 0;
     return input;

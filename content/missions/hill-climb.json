@@ -1,0 +1,146 @@
+{
+  "id": "hill-climb",
+  "version": 1,
+  "campaign": 7,
+  "wave": 7,
+  "title": "Hill Climb",
+  "summary": "The car-theft ring has reached the crooked block. Take the hills, catch the empty taxi, and shut down its pickup.",
+  "area": "Lombard Street",
+  "start": "call",
+  "cast": {
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, on the phone"
+    },
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    }
+  },
+  "actors": {
+    "relay": {
+      "kind": "rogueTaxi",
+      "archetype": "rogueTaxi"
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Mission complete",
+      "kind": "success"
+    },
+    "tryAgain": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "cofounder",
+        "place": {
+          "label": "Lombard Street",
+          "lat": 37.8021,
+          "lon": -122.4196,
+          "radiusM": 35
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The car-theft ring has reached the crooked block. Take the hills, catch the empty taxi, and shut down its pickup."
+        }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "target": {
+        "label": "Lombard Street",
+        "lat": 37.8021,
+        "lon": -122.4196,
+        "radiusM": 35
+      },
+      "timer": {
+        "limitS": 900,
+        "warnAtS": 90,
+        "label": "Window closes"
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The car-theft ring has reached the crooked block. Take the hills, catch the empty taxi, and shut down its pickup."
+        }
+      ],
+      "next": "stage",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Lombard Street",
+        "lat": 37.8021,
+        "lon": -122.4196,
+        "radiusM": 35
+      },
+      "actors": [
+        "relay"
+      ],
+      "next": "objective"
+    },
+    {
+      "id": "objective",
+      "type": "objective",
+      "objective": {
+        "kind": "cone",
+        "actor": "relay"
+      },
+      "hint": "Aim at the marked taxi and press G to toss a traffic cone.",
+      "timeLimitS": 240,
+      "next": "finish",
+      "onFail": "retry"
+    },
+    {
+      "id": "finish",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The car is back, the hills are still vertical, and we can finally expense the brakes."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 1750
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "tryAgain",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "We missed the window, not the whole company. Take a breath and run it again."
+        }
+      ],
+      "retryFrom": "call"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex-fog-city-campaign-hd",
+    "contentHash": "fnv1a32:3f97acd3",
+    "reviewedBy": [],
+    "review": "Automated schema, reachability and adversarial checks; no independent human sign-off claimed."
+  }
+}

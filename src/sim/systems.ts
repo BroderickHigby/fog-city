@@ -1,3 +1,4 @@
+import { campaignSystems } from "./missions/runtime.ts";
 import { SYSTEM_ORDER, type SimSystem, type SimSystemContext } from "./system-contract.ts";
 import { systems as clockSystems } from "./clock/systems.ts";
 import { systems as fogSystems } from "./fog/systems.ts";
@@ -22,6 +23,7 @@ export const SYSTEMS: readonly SimSystem[] = Object.freeze([
   ...agentsSystems,
   ...robotsSystems,
   ...combatSystems,
+  ...campaignSystems,
   ...playerSystems,
   ...heatSystems,
   ...missionsSystems,

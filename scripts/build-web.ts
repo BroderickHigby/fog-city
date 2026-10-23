@@ -246,7 +246,7 @@ export function checkHostLimits(dir: string): { problems: string[]; files: numbe
 }
 
 /** The top-level names a build writes into its out directory. */
-const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models"]);
+const BUILD_ENTRIES: ReadonlySet<string> = new Set(["index.html", "assets", ASSET_INDEX, "tiles", "models", "audio"]);
 
 /** `p` itself, or a path inside it. */
 function within(p: string, dir: string): boolean {
@@ -293,7 +293,7 @@ export function outDirRefusal(out: string, publicDir: string, forceClean = false
     for (const e of readdirSync(out, { withFileTypes: true }).sort((p, q) => (p.name < q.name ? -1 : 1))) {
       if (stray.length >= 3) break;
       const isDir = e.isDirectory();
-      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models")) stray.push(e.name);
+      if (!BUILD_ENTRIES.has(e.name) || isDir !== (e.name === "assets" || e.name === "tiles" || e.name === "models" || e.name === "audio")) stray.push(e.name);
       else if (e.name === "assets") look(join(out, e.name), e.name, served);
       else if (isDir) look(join(out, e.name), e.name, (n) => n.endsWith(".json") || n.endsWith(".txt"));
     }
@@ -404,6 +404,10 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   // The crowd's vertex-animation textures (humanoid-vat-*.bin) and their humanoid-vat.json too.
   for (const f of walk(modelsDir).filter((p) => /\.(glb|webp|bin)$/i.test(p) || /[\\/](textures[\\/]textures|humanoid-vat)\.json$/.test(p))) {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
+  }
+
+  for (const file of walk(join(pub, "audio")).filter(p => /\.(ogg|mp3|json)$/i.test(p))) {
+    single(relative(pub,file).split("\\").join("/"),new Uint8Array(readFileSync(file)));
   }
 
   const byKey = <T>(r: Record<string, T>): Record<string, T> => Object.fromEntries(Object.entries(r).sort((p, q) => (p[0] < q[0] ? -1 : p[0] > q[0] ? 1 : 0)));

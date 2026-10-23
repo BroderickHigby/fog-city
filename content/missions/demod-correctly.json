@@ -1,0 +1,158 @@
+{
+  "id": "demod-correctly",
+  "version": 1,
+  "campaign": 4,
+  "wave": 4,
+  "title": "Demo’d Correctly",
+  "summary": "The partners asked for a live demo. Moat Labs sent one. Read the tell before you reach for the blaster.",
+  "area": "Pier 70",
+  "start": "call",
+  "cast": {
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, on the phone"
+    },
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    }
+  },
+  "actors": {
+    "relay": {
+      "kind": "badRobot",
+      "archetype": "snatcher"
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Mission complete",
+      "kind": "success"
+    },
+    "tryAgain": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "cofounder",
+        "place": {
+          "label": "Pier 70",
+          "lat": 37.7605,
+          "lon": -122.3842,
+          "radiusM": 35
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The partners asked for a live demo. Moat Labs sent one. Read the tell before you reach for the blaster."
+        }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "target": {
+        "label": "Pier 70",
+        "lat": 37.7605,
+        "lon": -122.3842,
+        "radiusM": 35
+      },
+      "timer": {
+        "limitS": 900,
+        "warnAtS": 90,
+        "label": "Window closes"
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The partners asked for a live demo. Moat Labs sent one. Read the tell before you reach for the blaster."
+        }
+      ],
+      "next": "stage",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Pier 70",
+        "lat": 37.7605,
+        "lon": -122.3842,
+        "radiusM": 35
+      },
+      "actors": [
+        "relay"
+      ],
+      "next": "objective"
+    },
+    {
+      "id": "objective",
+      "type": "objective",
+      "objective": {
+        "kind": "scan",
+        "actor": "relay"
+      },
+      "hint": "Hold Q to scan the marked robot.",
+      "timeLimitS": 240,
+      "next": "melt",
+      "onFail": "retry"
+    },
+    {
+      "id": "melt",
+      "type": "objective",
+      "objective": {
+        "kind": "melt",
+        "actor": "relay"
+      },
+      "hint": "Hold E to keep the water stream on the marked relay.",
+      "timeLimitS": 180,
+      "onFail": "retry",
+      "next": "finish"
+    },
+    {
+      "id": "finish",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "A clean demo. No partners soaked. They have run out of reasons to say circle back."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 1000
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "tryAgain",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "We missed the window, not the whole company. Take a breath and run it again."
+        }
+      ],
+      "retryFrom": "call"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex-fog-city-campaign-hd",
+    "contentHash": "fnv1a32:2e888e8e",
+    "reviewedBy": [],
+    "review": "Automated schema, reachability and adversarial checks; no independent human sign-off claimed."
+  }
+}

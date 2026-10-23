@@ -1,0 +1,169 @@
+{
+  "id": "launch-day",
+  "version": 1,
+  "campaign": 3,
+  "wave": 3,
+  "title": "Launch Day",
+  "summary": "The launch is live. So is the bug report. Find the robot trailing the crowd, check its firmware, and save the demo.",
+  "area": "Washington Square",
+  "start": "call",
+  "cast": {
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, on the phone"
+    },
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    }
+  },
+  "actors": {
+    "relay": {
+      "kind": "badRobot",
+      "archetype": "snatcher"
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Mission complete",
+      "kind": "success"
+    },
+    "tryAgain": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "cofounder",
+        "place": {
+          "label": "Washington Square",
+          "lat": 37.8005,
+          "lon": -122.4105,
+          "radiusM": 35
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The launch is live. So is the bug report. Find the robot trailing the crowd, check its firmware, and save the demo."
+        }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "target": {
+        "label": "Washington Square",
+        "lat": 37.8005,
+        "lon": -122.4105,
+        "radiusM": 35
+      },
+      "timer": {
+        "limitS": 900,
+        "warnAtS": 90,
+        "label": "Window closes"
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The launch is live. So is the bug report. Find the robot trailing the crowd, check its firmware, and save the demo."
+        }
+      ],
+      "next": "stage",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Washington Square",
+        "lat": 37.8005,
+        "lon": -122.4105,
+        "radiusM": 35
+      },
+      "actors": [
+        "relay"
+      ],
+      "next": "objective"
+    },
+    {
+      "id": "objective",
+      "type": "objective",
+      "objective": {
+        "kind": "watch",
+        "actor": "relay",
+        "seconds": 3
+      },
+      "hint": "Hold R to watch the marked robot for three seconds.",
+      "timeLimitS": 240,
+      "next": "scan",
+      "onFail": "retry"
+    },
+    {
+      "id": "scan",
+      "type": "objective",
+      "objective": {
+        "kind": "scan",
+        "actor": "relay"
+      },
+      "hint": "Hold Q to scan. Read its tell; confidence is not proof.",
+      "next": "melt"
+    },
+    {
+      "id": "melt",
+      "type": "objective",
+      "objective": {
+        "kind": "melt",
+        "actor": "relay"
+      },
+      "hint": "Hold E to keep the water stream on the marked relay.",
+      "timeLimitS": 180,
+      "onFail": "retry",
+      "next": "finish"
+    },
+    {
+      "id": "finish",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "Your instincts beat the confidence score. Bot Check has its first honest case study."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 750
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "tryAgain",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "We missed the window, not the whole company. Take a breath and run it again."
+        }
+      ],
+      "retryFrom": "call"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex-fog-city-campaign-hd",
+    "contentHash": "fnv1a32:bb438734",
+    "reviewedBy": [],
+    "review": "Automated schema, reachability and adversarial checks; no independent human sign-off claimed."
+  }
+}

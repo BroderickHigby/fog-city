@@ -1,3 +1,4 @@
+import { treeGeometry } from "./vegetation.ts";
 // Streams world tiles in and out around the camera.
 //
 //  - Which tiles: tile-select.ts (distance from the camera to each tile's rectangle, with
@@ -533,6 +534,13 @@ export class TileStreamer {
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
+      if (this.opts.materials.hdTrees && /^foliage/.test(mesh.name)) {
+        const old = mesh.geometry;
+        mesh.geometry = treeGeometry(/conifer/.test(mesh.name));
+        mesh.material = this.opts.materials.hdTrees;
+        rec.geometries.push(mesh.geometry); old.dispose();
+        return;
+      }
       const geo = mesh.geometry;
       rec.geometries.push(geo);
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];

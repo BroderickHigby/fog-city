@@ -1,3 +1,4 @@
+import { treeGeometry } from "./vegetation.ts";
 // Street furniture generated at runtime from the road graph, per tile, as instanced meshes:
 // streetlights (pole, lamp head, a glow sprite and a light pool on the road at night) and
 // street trees. Prototype geometries are shared and never disposed with a tile; the
@@ -207,7 +208,9 @@ export function buildTileProps(
   let treeCount = 0;
   byVariant.forEach((list, variant) => {
     if (list.length === 0) return;
-    const mesh = new THREE.InstancedMesh(P.trees[variant]!, mats.foliage, list.length);
+    const detailed = mats.hdTrees ? treeGeometry(variant === 1).scale(5.2, 8.5, 5.2) : null;
+    if (detailed) owned.push(detailed);
+    const mesh = new THREE.InstancedMesh(detailed ?? P.trees[variant]!, mats.hdTrees ?? mats.foliage, list.length);
     list.forEach((t, i) => {
       const s = 0.75 + t.v * 0.55;
       _q.setFromAxisAngle(_up, t.heading);

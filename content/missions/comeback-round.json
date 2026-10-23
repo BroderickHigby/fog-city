@@ -1,0 +1,146 @@
+{
+  "id": "comeback-round",
+  "version": 1,
+  "campaign": 10,
+  "wave": 8,
+  "title": "The Comeback Round",
+  "summary": "The comeback rollout is headed for the waterfront. Take down the three relay units and end the forced update.",
+  "area": "Embarcadero waterfront",
+  "start": "call",
+  "cast": {
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, on the phone"
+    },
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    }
+  },
+  "actors": {
+    "relay": {
+      "kind": "badRobot",
+      "archetype": "snatcher"
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Mission complete",
+      "kind": "success"
+    },
+    "tryAgain": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "cofounder",
+        "place": {
+          "label": "Embarcadero waterfront",
+          "lat": 37.7929,
+          "lon": -122.3916,
+          "radiusM": 35
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The comeback rollout is headed for the waterfront. Take down the three relay units and end the forced update."
+        }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "target": {
+        "label": "Embarcadero waterfront",
+        "lat": 37.7929,
+        "lon": -122.3916,
+        "radiusM": 35
+      },
+      "timer": {
+        "limitS": 900,
+        "warnAtS": 90,
+        "label": "Window closes"
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The comeback rollout is headed for the waterfront. Take down the three relay units and end the forced update."
+        }
+      ],
+      "next": "stage",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Embarcadero waterfront",
+        "lat": 37.7929,
+        "lon": -122.3916,
+        "radiusM": 35
+      },
+      "actors": [
+        "relay"
+      ],
+      "next": "objective"
+    },
+    {
+      "id": "objective",
+      "type": "objective",
+      "objective": {
+        "kind": "melt",
+        "actor": "relay"
+      },
+      "hint": "On foot, hold E or the left mouse button to rust the marked bad robot.",
+      "timeLimitS": 240,
+      "next": "finish",
+      "onFail": "retry"
+    },
+    {
+      "id": "finish",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "The fleet is free of Moat firmware. San Francisco gets its robots back. We get one quiet afternoon."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 2500
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "tryAgain",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "We missed the window, not the whole company. Take a breath and run it again."
+        }
+      ],
+      "retryFrom": "call"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex-fog-city-campaign-hd",
+    "contentHash": "fnv1a32:584db179",
+    "reviewedBy": [],
+    "review": "Automated schema, reachability and adversarial checks; no independent human sign-off claimed."
+  }
+}

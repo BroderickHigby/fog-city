@@ -254,7 +254,7 @@ varying vec3 fcPaintW;
 `;
 
 function paintMaterial(orm: THREE.Texture, normal: THREE.Texture): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ color: 0xeeeae0, roughness: 0.55, metalness: 0, name: "fc:showcase-paint" });
+  const m = new THREE.MeshStandardMaterial({ color: 0xeeeae0, roughness: 0.85, metalness: 0, name: "fc:showcase-paint" });
   m.polygonOffset = true;
   m.polygonOffsetFactor = -3;
   m.polygonOffsetUnits = -6;
@@ -270,12 +270,12 @@ function paintMaterial(orm: THREE.Texture, normal: THREE.Texture): THREE.MeshSta
         "#include <color_fragment>",
         `#include <color_fragment>
   vec3 fcPo = texture2D( fcPaintO, fcPaintW.xz * 0.5 ).rgb;
-  if ( fcPo.r < 0.22 ) discard;
-  diffuseColor.rgb *= 0.86 + 0.14 * fcPo.r;`,
+  if ( fcPo.r < 0.05 ) discard;
+  diffuseColor.rgb *= 0.94 + 0.06 * fcPo.r;`,
       )
-      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = fcPo.g;");
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = max( 0.80, fcPo.g );");
   };
-  m.customProgramCacheKey = () => "fc:showcase-paint:v1";
+  m.customProgramCacheKey = () => "fc:showcase-paint:v2";
   return m;
 }
 

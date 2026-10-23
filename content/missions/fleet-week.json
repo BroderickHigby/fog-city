@@ -1,0 +1,146 @@
+{
+  "id": "fleet-week",
+  "version": 1,
+  "campaign": 6,
+  "wave": 6,
+  "title": "Fleet Week",
+  "summary": "Your pitch has a flypast and an uninvited robotaxi. Put a cone on the hood before it steals the show.",
+  "area": "Marina Green",
+  "start": "call",
+  "cast": {
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, on the phone"
+    },
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    }
+  },
+  "actors": {
+    "relay": {
+      "kind": "rogueTaxi",
+      "archetype": "rogueTaxi"
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Mission complete",
+      "kind": "success"
+    },
+    "tryAgain": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "call",
+      "type": "trigger",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "cofounder",
+        "place": {
+          "label": "Marina Green",
+          "lat": 37.8062,
+          "lon": -122.437,
+          "radiusM": 35
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "Your pitch has a flypast and an uninvited robotaxi. Put a cone on the hood before it steals the show."
+        }
+      ],
+      "next": "drive"
+    },
+    {
+      "id": "drive",
+      "type": "goto",
+      "target": {
+        "label": "Marina Green",
+        "lat": 37.8062,
+        "lon": -122.437,
+        "radiusM": 35
+      },
+      "timer": {
+        "limitS": 900,
+        "warnAtS": 90,
+        "label": "Window closes"
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "Your pitch has a flypast and an uninvited robotaxi. Put a cone on the hood before it steals the show."
+        }
+      ],
+      "next": "stage",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Marina Green",
+        "lat": 37.8062,
+        "lon": -122.437,
+        "radiusM": 35
+      },
+      "actors": [
+        "relay"
+      ],
+      "next": "objective"
+    },
+    {
+      "id": "objective",
+      "type": "objective",
+      "objective": {
+        "kind": "cone",
+        "actor": "relay"
+      },
+      "hint": "Aim at the marked taxi and press G to toss a traffic cone.",
+      "timeLimitS": 240,
+      "next": "finish",
+      "onFail": "retry"
+    },
+    {
+      "id": "finish",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "Pitch delivered. Robotaxi parked. The picnic blanket remains our most successful boardroom."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 1500
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "tryAgain",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "We missed the window, not the whole company. Take a breath and run it again."
+        }
+      ],
+      "retryFrom": "call"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex-fog-city-campaign-hd",
+    "contentHash": "fnv1a32:b2a014c9",
+    "reviewedBy": [],
+    "review": "Automated schema, reachability and adversarial checks; no independent human sign-off claimed."
+  }
+}

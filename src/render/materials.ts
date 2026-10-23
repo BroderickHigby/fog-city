@@ -1,3 +1,4 @@
+import { treeMaterials } from "./vegetation.ts";
 // Shared materials, the San Francisco fog, and the day/night switch.
 //
 // Fog: three's fog chunks are replaced once, globally, with a height fog: density falls off
@@ -282,6 +283,7 @@ export interface SharedMaterials {
   roadUv: THREE.MeshStandardMaterial;
   freewayUv: THREE.MeshStandardMaterial;
   foliage: THREE.MeshStandardMaterial;
+  hdTrees?: [THREE.MeshStandardMaterial, THREE.MeshStandardMaterial];
   lampPole: THREE.MeshStandardMaterial;
   lampHead: THREE.MeshStandardMaterial;
   /** The house kit's merged pieces (bays, stoops, mouldings, roof props, shopfronts): vertex colours. */
@@ -300,7 +302,8 @@ function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithU
   return m;
 }
 
-export function createSharedMaterials(): SharedMaterials {
+export function createSharedMaterials(highVegetation = false): SharedMaterials {
+  const hdTrees = highVegetation ? treeMaterials() : undefined;
   installFog();
   const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
   building.onBeforeCompile = patchBuildingShader;
@@ -347,9 +350,10 @@ export function createSharedMaterials(): SharedMaterials {
     roadUv,
     freewayUv,
     foliage,
+    hdTrees,
     lampPole,
     lampHead,
-    all: [houseKit, building, buildingFlat, ground, groundSkirt, tunnel, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
+    all: [...(hdTrees ?? []), houseKit, building, buildingFlat, ground, groundSkirt, tunnel, sidewalk, road, roadUv, freewayUv, foliage, lampPole, lampHead],
   };
 }
 

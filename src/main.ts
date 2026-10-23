@@ -1,3 +1,7 @@
+import { Minimap } from "./ui/minimap.ts";
+import { CampaignHud } from "./ui/campaign.ts";
+import { AudioDirector } from "./audio/director.ts";
+import { CampaignLayer } from "./render/campaign.ts";
 // Boot: load a world manifest, the whole world's colliders (the citywide collider pack when
 // the manifest names one, else every tile's collider JSON), the road graph and the world's
 // edge (the sim needs the whole world for determinism: src/io/world-load.ts), build the sim
@@ -131,7 +135,9 @@ async function boot(): Promise<void> {
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
   const tBuild = performance.now();
-  const world = buildWorld(tiles, files.roads, files.boundary);
+  const gameplayFile = manifest.layers?.gameplay;
+  const gameplay = gameplayFile ? await assets.json<import("./sim/gameplay-world.ts").GameplayWorldData>(base + gameplayFile) : undefined;
+  const world = buildWorld(tiles, files.roads, files.boundary, gameplay);
   const buildMs = performance.now() - tBuild;
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
@@ -220,10 +226,17 @@ async function boot(): Promise<void> {
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
   const clockStart = clockStartMinute(bootedAtNight);
 
+  const commands: Array<Omit<SimEvent,"tick">> = [];
+  const audio = new AudioDirector(assets);
+  const campaignHud = new CampaignHud(command => { if (!multiplayer.active()) commands.push({kind:"gameplay.command",playerId:localPlayerId,payload:command}); }, audio);
+  const minimap = new Minimap(roads);
+  const campaignView = new CampaignLayer(assets,ground);view.scene.add(campaignView.group);
+  if (params.get("debug") !== "1") {const stats=document.getElementById("hud");if(stats)stats.style.display="none";}
   const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
     if (multiplayer.active()) throw new Error("Local stepping is unavailable during multiplayer.");
     prev = curr;
-    curr = step(world, curr, frame, events);
+    const recorded = commands.splice(0).map(command => ({...command,tick:curr.tick+1}));
+    curr = step(world, curr, frame, [...events,...recorded]);
   };
   const advance = (input: SimInput): void => {
     if (multiplayer.active()) multiplayer.sample(input);
@@ -420,6 +433,9 @@ async function boot(): Promise<void> {
         target.speed = onFoot ? P.foot.speed : c.speed;
       }
     }
+    minimap.update(curr,localPlayerId);
+    campaignHud.update(curr,localPlayerId,multiplayer.active());
+    campaignView.update(curr,localPlayerId);
     view.setSim(prev, curr, alpha);
     const minute = gameMinuteOfDay(curr, clockStart);
     view.frame(dtFrame, curr.players[localPlayerId] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);

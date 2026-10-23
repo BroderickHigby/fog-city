@@ -245,7 +245,7 @@ export class SceneRenderer {
       if (high) this.sun.shadow.radius = 3;
     }
 
-    this.materials = createSharedMaterials();
+    this.materials = createSharedMaterials(this.gfx.tier === "high");
     this.nightMats = createNightMaterials();
     if (this.features.post) this.post = new PostChain(this.renderer, this.scene, this.camera, opts.gfxOff ?? []);
     if (this.features.reflections) {

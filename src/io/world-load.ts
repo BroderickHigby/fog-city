@@ -19,7 +19,7 @@ import type { Assets } from "./assets.ts";
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "sidewalks", "districts", "storefronts"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "sidewalks", "districts", "storefronts", "gameplay"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {

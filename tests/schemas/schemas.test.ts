@@ -60,7 +60,7 @@ describe("world tiles validate", () => {
     for (const file of Object.values(m.layers ?? {})) {
       const rel = `${dir}/${file}`;
       covered.add(file);
-      it(`${rel} (layer)`, () => check(schema(file.replace(/\.json$/, "")), rel));
+      it(`${rel} (layer)`, () => check(schema(file === "gameplay.json" ? "tile-gameplay" : file.replace(/\.json$/, "")), rel));
     }
     for (const [file, s] of Object.entries(EXTRAS)) {
       if (!existsSync(join(ROOT, dir, file))) continue;

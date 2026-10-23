@@ -15,7 +15,7 @@ describe("closed relay protocol", () => {
     { type: "chat", text: "hello" }, { type: "state", state: { tick: 99 } },
     { ...input, playerId: "p2" }, { ...input, seq: -1 }, { ...input, seq: 1.5 },
     { ...input, input: { ...input.input, throttle: 2 } }, { ...input, input: { ...input.input, throttle: null } },
-    { ...input, input: { ...input.input, brake: -1 } }, { ...input, input: { ...input.input, actions: 16 } },
+    { ...input, input: { ...input.input, brake: -1 } }, { ...input, input: { ...input.input, actions: 1 << 20 } },
     { ...input, input: { ...input.input, actions: 1.5 } }, { type: "resync", extra: true },
   ])("rejects incompatible or unauthorized payload %j", (message) => {
     expect(() => parseClientMessage(JSON.stringify(message))).toThrow();

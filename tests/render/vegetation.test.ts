@@ -1,0 +1,3 @@
+import {describe,it,expect} from 'vitest';
+import {treeGeometry} from '../../src/render/vegetation.ts';
+describe('HD foliage',()=>{for(const conifer of [false,true])it(`builds bounded instancable ${conifer?'cypress':'broadleaf'} with foliage and branch materials`,()=>{const g=treeGeometry(conifer);expect(g.groups).toHaveLength(2);expect(g.getAttribute('position').count/3).toBeGreaterThan(350);expect(g.boundingBox!.min.y).toBeGreaterThan(-.01);expect(g.boundingBox!.max.y).toBeLessThan(1.15);for(const x of g.getAttribute('normal').array)expect(Number.isFinite(x)).toBe(true);const second=treeGeometry(conifer);expect(Array.from(g.getAttribute('position').array)).toEqual(Array.from(second.getAttribute('position').array));g.dispose();second.dispose();});});
