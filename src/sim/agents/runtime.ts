@@ -192,6 +192,10 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   for(const id of keys(previous.actors)){
     const old=previous.actors[id]!;
     if(known.has(id)||old.retired&&!bound.has(id)&&!embodied.has(id))continue;
+    // Ordinary traffic needs its original lane-route body. Once population
+    // culling removes that body, retain no motionless virtual replacement.
+    // Authored/service vehicles have legacyId=null and keep their own follower.
+    if(old.legacyId!==null&&vehicle(old.model)&&!embodied.has(id)&&!bound.has(id))continue;
     if(old.significant||old.legacyId===null)state.actors[id]={...old,
       // A significant ambient actor can return after its physical body was
       // culled. Its stable ID survives; it now needs normal physical admission.

@@ -105,6 +105,30 @@ describe("bounded runtime actor lifecycle", () => {
     expect(next.actors.blocked).toBeDefined();
     expect(next.actors.blocked!.retired).toBe(false);
   });
+
+  it("repopulates ordinary traffic instead of restoring a culled taxi without its lane route", () => {
+    const roadWorld = buildWorld([], {
+      version: 1, nodes: [{ id: "a", x: -500, z: 0 }, { id: "b", x: 2500, z: 0 }],
+      edges: [{ id: "road", a: "a", b: "b", kind: "residential", lanes: 2, oneway: false, points: [[-500, 0], [2500, 0]] }],
+    });
+    let state = createInitialState(roadWorld, 7, ["p"], { x: 0, z: 30, heading: 0 });
+    const oldTaxi = state.ext.agents!.list.find(body => body.kind === "robotaxi")!;
+    expect(oldTaxi).toBeDefined();
+    state.ext.robots = createAgentsRuntime(state);
+    const id = `agent:${oldTaxi.id}`;
+    state.ext.robots.actors[id]!.significant = true;
+    const system = createAgentsSystem(() => ({ services: false }));
+    state.players.p!.car.x = 1800;
+    state.tick = 59;
+    state = step(roadWorld, state, {}, [], [system]);
+    expect(state.ext.agents!.list.some(body => body.id === oldTaxi.id)).toBe(false);
+    expect(agentsRuntimeOf(state)!.actors[id]).toBeUndefined();
+    state.players.p!.car.x = 0;
+    state.tick = 119;
+    state = step(roadWorld, state, {}, [], [system]);
+    expect(state.ext.agents!.list.some(body => body.kind === "robotaxi" && body.id !== oldTaxi.id)).toBe(true);
+    expect(agentsRuntimeOf(state)!.actors[id]).toBeUndefined();
+  });
 });
 
 describe("runtime broadphase and portable content arithmetic", () => {

@@ -9,6 +9,10 @@ transient records disappear after their physical body is removed. Mission-bound 
 records remain available to the mission staging owner, and active pending-admission actors
 remain queued. Significant ambient actors retain their stable identity without a physical
 body and pass normal admission when they return to the active area.
+Ordinary legacy taxis are the exception: their lane route belongs to the physical
+population, so a taxi whose body was culled is retired instead of becoming an inert
+nonlegacy replacement. Returning to the region repopulates normal traffic. Authored
+mission and service vehicles keep their existing owned follower lifecycle.
 
 Reaction perception now checks the existing 40 m maximum sensing range before querying
 building visibility. This preserves the reaction ranges and avoids long city-wide visibility
@@ -42,3 +46,6 @@ vehicles use the corresponding Core motion hook.
 
 TypeScript and 26 focused legacy-agent, combat-movement and core replay tests passed.
 Combat owns the effect-expiration fix; this consumer preserves its existing API.
+
+The returning-traffic guard passes all eight lifecycle regressions, including leaving a
+populated region, culling the marked ambient taxi and returning to freshly populated traffic.
