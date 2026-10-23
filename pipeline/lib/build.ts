@@ -22,6 +22,7 @@ import {
   insideAny,
 } from "./gameplay.ts";
 import { tileGlb } from "./glb.ts";
+import { buildGameplayIndex } from "./gameplay-index.ts";
 import { RoadSurface, trafficEdges } from "./road-surface.ts";
 import { buildSidewalks, type SidewalkStats } from "./sidewalks.ts";
 import type { Deck, Movable, Tunnel } from "./structures.ts";
@@ -946,15 +947,17 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     const surface = new RoadSurface(trafficEdges(graph.edges));
     const isLand = (px: number, pz: number): boolean =>
       inWorld(px, pz) && !simGround.waterAt(px, pz) && !insideAny(px, pz, (qx, qz) => bidx.near(qx, qz, 1));
+    const hydrants = buildHydrants(walk, (n) => degree.get(n) ?? 0, isLand, heightOr0, (px, pz) => surface.clearance(px, pz));
+    const fountains = buildFountains(x.fountains, inWorld, heightOr0);
     layer(
       "hydrants",
       "hydrants.json",
       "Procedural fire hydrants (no open dataset exists): sidewalk corners at intersections about every 120 m, plus points along long sidewalks. Water refills.",
       "Procedural, from the sidewalk graph (derived from DataSF 3psu-pn9h, ODC PDDL 1.0).",
       "hydrants",
-      buildHydrants(walk, (n) => degree.get(n) ?? 0, isLand, heightOr0, (px, pz) => surface.clearance(px, pz)),
+      hydrants,
     );
-    layer("fountains", "fountains.json", "Public drinking-water points (no names). Water refills.", ATTRIBUTION[9]!, "fountains", buildFountains(x.fountains, inWorld, heightOr0));
+    layer("fountains", "fountains.json", "Public drinking-water points (no names). Water refills.", ATTRIBUTION[9]!, "fountains", fountains);
     const transit = buildTransit(x.muniRoutes, x.muniStops, inWorld, heightOr0);
     files.set(
       "muni.json",
@@ -976,6 +979,15 @@ export async function buildWorldFiles(cfg: WorldConfig, raw: RawInputs, override
     layers.transit = "muni.json";
     layerCounts.transitRoutes = transit.routes.length;
     layerCounts.transitStops = transit.stops.length;
+    const gameplay = buildGameplayIndex({
+      world: cfg.id, sourceSnapshot: cfg.sources.snapshotDate ?? "unversioned", tileSizeM: TILE_SIZE_M,
+      tiles, walk, roads: graph, districts, hydrants, fountains, signals, transit, shore: boundary.shore,
+      isLand, heightAt: (px, pz) => simGround.heightAt(px, pz), roadClearance: (px, pz) => surface.clearance(px, pz),
+    });
+    files.set("gameplay.json", utf8(jsonLines({ ...gameplay }, ["refills", "anchors", "tiles", "territories"])));
+    layers.gameplay = "gameplay.json";
+    layerCounts.gameplayRefills = gameplay.refills.length;
+    layerCounts.gameplayAnchors = gameplay.anchors.length;
     layer("signals", "signals.json", "Working traffic signals and beacons at road-graph nodes. Phases are the sim's (procedural).", ATTRIBUTION[7]!, "signals", signals);
     layer(
       "streetCleaning",

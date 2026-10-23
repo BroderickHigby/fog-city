@@ -257,6 +257,13 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      },
+      "properties": {
+        "gameplay": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Static gameplay anchors and tile index; schemas/tile-gameplay.schema.json."
+        }
       }
     }
   }

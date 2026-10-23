@@ -1,0 +1,266 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/tile-gameplay",
+  "title": "Static gameplay world layer",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "world",
+    "sourceSnapshot",
+    "refills",
+    "anchors",
+    "tiles",
+    "territories"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "sourceSnapshot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "refills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "x",
+          "y",
+          "z",
+          "radius",
+          "salt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "kind": {
+            "enum": [
+              "hydrant",
+              "fountain",
+              "bay"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "radius": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "salt": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "x",
+          "y",
+          "z",
+          "roadNodeId",
+          "districtId"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "kind": {
+            "enum": [
+              "car-wash",
+              "repair-kiosk",
+              "garage-candidate",
+              "activity-candidate"
+            ]
+          },
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "roadNodeId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "districtId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      }
+    },
+    "tiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "sidewalkNodes",
+          "sidewalkEdges",
+          "refills",
+          "anchors",
+          "signals",
+          "transitStops",
+          "transitRoutes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "sidewalkNodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "sidewalkEdges": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "refills": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "anchors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "transitStops": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "transitRoutes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "territories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "step",
+          "wave",
+          "districtIds",
+          "tileIds"
+        ],
+        "properties": {
+          "step": {
+            "enum": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8",
+              "9a",
+              "9b"
+            ]
+          },
+          "wave": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8
+          },
+          "districtIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          },
+          "tileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}

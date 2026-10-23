@@ -6,6 +6,7 @@
 import { buildStairBarriers, buildStairIndex, buildWalls, type BoundaryFile, type StairIndex, type WallSet, type Walls } from "./boundary.ts";
 import { TILE_SIZE_M } from "../geo/project.ts";
 import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
+import type { GameplayWorldData } from "./gameplay-world.ts";
 
 export interface BuildingCollider {
   id: string;
@@ -99,6 +100,8 @@ export interface SurfaceIndex {
 }
 
 export interface World {
+  /** Optional immutable gameplay layer supplied by the world loader. */
+  gameplay?: Readonly<GameplayWorldData>;
   /** Tiles in ascending id order. */
   tiles: TileCollider[];
   /** Derived: cellKey(gx, gz) of GROUND_CELL m cells -> tiles whose heightfield overlaps the cell, ascending id order. */
@@ -163,7 +166,7 @@ function tileAligned(sorted: readonly TileCollider[]): Map<number, Heightfield> 
  * 1.6 to 2.3 s for the citywide set (583 tiles, 187k buildings, 15.7k road edges). Callers on
  * a UI thread should build once at load (or in a worker), not per frame.
  */
-export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null, boundary: BoundaryFile | null = null): World {
+export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | null = null, boundary: BoundaryFile | null = null, gameplay?: Readonly<GameplayWorldData>): World {
   const sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0));
   const cells = new Map<number, BuildingCollider[]>();
   const boxLists = new Map<number, number[]>();
@@ -220,6 +223,7 @@ export function buildWorld(tiles: readonly TileCollider[], roads: RoadsFile | nu
     barriers: buildStairBarriers(roads),
     stairs: buildStairIndex(roads),
   };
+  if (gameplay) world.gameplay = gameplay;
   if (roads) {
     // A lane or sidewalk of a deck or tunnel edge is checked against buildings at its own
     // surface (a span over a bridge, the houses over a bore), every other one at the ground.
