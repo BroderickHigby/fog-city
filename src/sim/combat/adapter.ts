@@ -4,12 +4,27 @@ import { groundHeight, nearbyBuildings, type World } from "../world.ts";
 import { sortedIds } from "../contract.ts";
 import type { CombatActor, CombatContext, CombatPlayer, Wall } from "./types.ts";
 
+export type CombatActorMetadata = Partial<Omit<CombatActor,"id"|"playerId"|"x"|"y"|"z"|"heading"|"speed">>;
+
 export interface CombatAdapterOptions extends Partial<Omit<CombatContext,"actors"|"players"|"walls"|"groundHeight">> {
   /** Explicit agent metadata from the actor lane. Unclassified people stay protected. */
-  actorMetadata?: Readonly<Record<string,Partial<CombatActor>>>;
+  actorMetadata?: Readonly<Record<string,CombatActorMetadata>>;
   loadouts?: Readonly<Record<string,Partial<CombatPlayer>>>;
   extraActors?: readonly CombatActor[];
   walls?: readonly Wall[];
+}
+
+/** Runtime callers cannot replace body identity or position through descriptive metadata. */
+function actorMetadata(options: CombatAdapterOptions, id: string): CombatActorMetadata {
+  const metadata: Partial<CombatActor> = { ...options.actorMetadata?.[id] };
+  delete metadata.id;
+  delete metadata.playerId;
+  delete metadata.x;
+  delete metadata.y;
+  delete metadata.z;
+  delete metadata.heading;
+  delete metadata.speed;
+  return metadata;
 }
 
 /**
@@ -25,10 +40,11 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
   });
   const actors:CombatActor[]=agentsOf(state).map(agent=> {
     const id=`agent:${agent.id}`, spec=AGENT_SPEC[agent.kind], person=agent.kind==="person";
-    return {id,kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi",...options.actorMetadata?.[id],x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed};
+    return {kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi",...actorMetadata(options,id),id,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed};
   });
   for (const player of players) {
-    actors.push({id:`player:${player.id}`,playerId:player.id,kind:"player",firmware:"none",robotBody:false,radius:0.35,height:1.8,x:player.x,y:player.y,z:player.z,heading:player.heading,speed:player.speed,...options.actorMetadata?.[`player:${player.id}`]});
+    const id=`player:${player.id}`;
+    actors.push({kind:"player",firmware:"none",robotBody:false,radius:0.35,height:1.8,...actorMetadata(options,id),id,playerId:player.id,x:player.x,y:player.y,z:player.z,heading:player.heading,speed:player.speed});
   }
   actors.push(...(options.extraActors??[]));
   const walls:Wall[]=[...(options.walls??[])];
