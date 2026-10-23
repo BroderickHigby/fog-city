@@ -53,11 +53,11 @@ export interface EndStep { id: string; type: "end"; note?: string; outcome: stri
 export interface StageStep {
   id: string; type: "stage"; note?: string; actors: string[]; place: Place & { radiusM: number }; nearHydrantM?: number; lines?: Line[]; next: string;
 }
-export type ObjectiveKind = "melt" | "watch" | "scan" | "cone" | "interruptUpdate" | "threatAtLeast" | "threatAtMost" | "refill" | "enterVehicle";
+export type ObjectiveKind = "melt" | "watch" | "scan" | "cone" | "interruptUpdate" | "threatAtLeast" | "threatAtMost" | "refill" | "enterVehicle" | "event";
 /** Wave 2: a goal the sim checks, optionally against a time limit. */
 export interface ObjectiveStep {
   id: string; type: "objective"; note?: string;
-  objective: { kind: ObjectiveKind; actor?: string; count?: number; level?: number; seconds?: number };
+  objective: { kind: ObjectiveKind; actor?: string; count?: number; level?: number; seconds?: number; event?: string };
   timeLimitS?: number; hint?: string; lines?: Line[]; next: string; onFail?: string;
 }
 /** Wave 2: a FreeTextBox form (the coworking sign-up). */
@@ -70,7 +70,7 @@ export interface FormStep {
 export type Step = TriggerStep | GotoStep | TimerStep | DialogueStep | BranchStep | RewardStep | RetryStep | EndStep | StageStep | ObjectiveStep | FormStep;
 export type StepType = Step["type"];
 export const STEP_TYPES: readonly StepType[] = ["trigger", "goto", "timer", "dialogue", "branch", "reward", "retry", "end", "stage", "objective", "form"];
-export const OBJECTIVE_KINDS: readonly ObjectiveKind[] = ["melt", "watch", "scan", "cone", "interruptUpdate", "threatAtLeast", "threatAtMost", "refill", "enterVehicle"];
+export const OBJECTIVE_KINDS: readonly ObjectiveKind[] = ["melt", "watch", "scan", "cone", "interruptUpdate", "threatAtLeast", "threatAtMost", "refill", "enterVehicle", "event"];
 
 export interface MissionActor {
   kind: "badRobot" | "goodRobot" | "rogueTaxi" | "goodTaxi" | "crew";
@@ -93,6 +93,8 @@ export interface Mission {
   start?: string;
   wave?: number;
   campaign?: number;
+  /** Authored activities whose completed outcomes all advance the campaign (e.g. Office Hours). */
+  advanceOnAnyOutcome?: boolean;
   cast: Record<string, { name: string; role: string; description?: string }>;
   actors?: Record<string, MissionActor>;
   meters: Record<string, Meter>;
@@ -349,7 +351,7 @@ export function validateMission(input: unknown): MissionReport {
     if (!isObj(o) || !["success", "retry", "fail"].includes(o.kind as string)) err(`outcome ${id}: kind must be success, retry or fail`);
   }
   if (!outcomeKinds.includes("success")) err("no success outcome declared");
-  if (!outcomeKinds.some((k) => k === "retry" || k === "fail")) err("no retry or fail outcome declared");
+  if (!m.advanceOnAnyOutcome && !outcomeKinds.some((k) => k === "retry" || k === "fail")) err("no retry or fail outcome declared");
 
   // Steps: ids, types, references.
   const ids = new Set<string>();
@@ -534,6 +536,8 @@ export function validateMission(input: unknown): MissionReport {
           if (isStr(o.actor) && !(o.actor in actors)) err(`step ${id}: actor "${o.actor}" is not declared`);
           if ((o.kind === "threatAtLeast" || o.kind === "threatAtMost") && !(isNum(o.level) && Number.isInteger(o.level) && o.level >= 0 && o.level <= 5)) err(`step ${id}: ${o.kind} needs a level 0-5`);
           if (o.kind === "watch") positive(id, "objective.seconds", o.seconds);
+          if (o.kind === "event" && (!isStr(o.event) || !/^[a-z][A-Za-z0-9]*(\.[a-z][A-Za-z0-9]*)+$/.test(o.event))) err(`step ${id}: event objective needs a dotted gameplay fact name`);
+          if (o.kind !== "event" && o.event !== undefined) err(`step ${id}: only event objectives may name an event`);
         }
         if ((s.timeLimitS === undefined) !== (s.onFail === undefined)) err(`step ${id}: timeLimitS and onFail come together`);
         positive(id, "timeLimitS", s.timeLimitS, true);
@@ -603,7 +607,7 @@ export function validateMission(input: unknown): MissionReport {
   for (const id of Object.keys(outcomes)) if (!outcomeCounts[id]) err(`outcome ${id} is never reached`);
   const reachedKinds = new Set(Object.keys(outcomeCounts).map((o) => outcomes[o]?.kind));
   if (!reachedKinds.has("success")) err("no path succeeds");
-  if (!reachedKinds.has("retry") && !reachedKinds.has("fail")) err("no path fails or asks for a retry");
+  if (!m.advanceOnAnyOutcome && !reachedKinds.has("retry") && !reachedKinds.has("fail")) err("no path fails or asks for a retry");
   for (const s of m.steps) if (!visited.has(s.id)) err(`step ${s.id} is unreachable`);
   return { ok: errors.length === 0, errors, paths, outcomeCounts, meterRanges };
 }

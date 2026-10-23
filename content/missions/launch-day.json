@@ -1,0 +1,217 @@
+{
+  "id": "launch-day",
+  "version": 1,
+  "title": "Launch Day",
+  "campaign": 3,
+  "wave": 3,
+  "area": "North Beach",
+  "start": "start",
+  "cast": {
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    },
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, by text"
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "role": "Mission support"
+    }
+  },
+  "actors": {
+    "suspect": {
+      "kind": "badRobot",
+      "archetype": "fakeCourier",
+      "level": 2
+    },
+    "courier": {
+      "kind": "goodRobot",
+      "archetype": "errandFootman",
+      "note": "A harmless light flicker creates a false tell; never required to be sprayed."
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Complete",
+      "kind": "success"
+    },
+    "retry": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "event": {
+        "kind": "enterArea",
+        "place": {
+          "label": "Washington Square, Columbus Ave",
+          "lat": 37.8008,
+          "lon": -122.4103,
+          "radiusM": 25
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "bot check 1.0 is live! the launch is in the square. we have two users if we count us."
+        }
+      ],
+      "next": "stage"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Washington Square, Columbus Ave",
+        "lat": 37.8008,
+        "lon": -122.4103,
+        "radiusM": 25
+      },
+      "actors": [
+        "suspect",
+        "courier"
+      ],
+      "nearHydrantM": 20,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "one has an empty bag. one has a full bag and a light that flickers. watch before you scan."
+        }
+      ],
+      "next": "watch"
+    },
+    {
+      "id": "watch",
+      "type": "objective",
+      "objective": {
+        "kind": "watch",
+        "seconds": 3,
+        "actor": "suspect"
+      },
+      "hint": "Watch the empty-bag courier for three seconds.",
+      "next": "scan"
+    },
+    {
+      "id": "scan",
+      "type": "objective",
+      "objective": {
+        "kind": "scan",
+        "actor": "suspect"
+      },
+      "hint": "Scan the suspected bad robot after observing its path.",
+      "next": "false-positive"
+    },
+    {
+      "id": "false-positive",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "botCheck.falsePositiveSeen"
+      },
+      "hint": "Scan the full-bag courier, then read the confident false positive. Let it finish its delivery.",
+      "next": "compare",
+      "timeLimitS": 120,
+      "onFail": "retry"
+    },
+    {
+      "id": "compare",
+      "type": "objective",
+      "objective": {
+        "kind": "watch",
+        "seconds": 3,
+        "actor": "courier"
+      },
+      "hint": "Watch the full-bag courier deliver. A flickering light alone proves nothing.",
+      "next": "melt"
+    },
+    {
+      "id": "melt",
+      "type": "objective",
+      "objective": {
+        "kind": "melt",
+        "actor": "suspect"
+      },
+      "hint": "Rust only the confirmed bad robot. Keep the good courier dry.",
+      "next": "pivot",
+      "timeLimitS": 120,
+      "onFail": "retry"
+    },
+    {
+      "id": "pivot",
+      "type": "form",
+      "form": {
+        "kind": "startupSignup",
+        "prompt": "What does your startup do now?",
+        "maxLength": 140,
+        "records": "StartupDefined",
+        "multipleChoice": [
+          "Find bad robots using observed behaviour",
+          "Keep the old idea, add robot checks",
+          "Build tools for people who check robots"
+        ]
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "new positioning: same startup, now with reasons. \"98%\" is a number, not a witness."
+        }
+      ],
+      "next": "complete"
+    },
+    {
+      "id": "complete",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "scanner tier 2 is ready. it gives more detail, not permission to stop thinking."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 900
+        },
+        {
+          "kind": "stat",
+          "stat": "xp",
+          "delta": 700
+        },
+        {
+          "kind": "unlock",
+          "unlock": "app:scanner-tier-2"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "retry",
+      "retryFrom": "stage",
+      "hint": "Compare two independent tells, then scan. A false positive is part of the lesson.",
+      "cooldownS": 10,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the launch can wait. the harmless courier cannot. reset and follow the evidence."
+        }
+      ]
+    }
+  ],
+  "summary": "Launch Bot Check 1.0, test it against observed behaviour, and learn why confidence is not evidence.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave3-2026-10-23",
+    "contentHash": "fnv1a32:2868bcf5",
+    "reviewedBy": [],
+    "review": "Authored against the campaign design. Pending independent narrative and gameplay review."
+  }
+}

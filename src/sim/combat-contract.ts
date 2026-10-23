@@ -87,7 +87,7 @@ export interface CombatContext {
   rain?: number;
   conversionCap?: number;
   rivalPlayerIds?: Readonly<Record<string, readonly string[]>>;
-  mode?: "free-roam" | "clean-streets" | "fog-royale" | "other-pvp";
+  mode?: "free-roam" | "bot-sweep" | "clean-streets" | "fog-royale" | "other-pvp";
 }
 export interface ScanResult { targetId: string; bad: boolean; confidence: number; tick: number }
 export interface PlayerCombat {

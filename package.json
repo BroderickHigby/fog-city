@@ -16,10 +16,14 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "shots": "playwright test --config tests/e2e/shots.config.ts",
-    "verify": "pnpm typecheck && pnpm test && pnpm e2e"
+    "verify": "pnpm typecheck && pnpm test && pnpm e2e",
+    "server": "node server/main.ts",
+    "test:net": "vitest run tests/net tests/server --maxWorkers=2"
   },
   "dependencies": {
-    "three": "0.186.1"
+    "@noble/hashes": "1.8.0",
+    "three": "0.186.1",
+    "ws": "8.21.0"
   },
   "devDependencies": {
     "@gltf-transform/core": "4.5.1",
@@ -27,6 +31,7 @@
     "@playwright/test": "1.56.1",
     "@types/node": "22.19.1",
     "@types/three": "0.186.0",
+    "@types/ws": "8.18.2",
     "@wasm-audio-decoders/ogg-vorbis": "0.1.20",
     "ajv": "8.20.0",
     "gltf-validator": "2.0.0-dev.3.10",

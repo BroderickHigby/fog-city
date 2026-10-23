@@ -1,0 +1,1215 @@
+{
+  "version": 1,
+  "pool": "people",
+  "barks": [
+    {
+      "id": "people-commute-01",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "The meeting started while I was waiting for the meeting shuttle.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-02",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "I left early. The route planner called that an edge case.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-03",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "The fastest route today is the one with no product launch on it.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-04",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "My calendar has booked travel time inside another meeting.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-05",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "This hill is why my estimated arrival has a confidence interval.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-06",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "The robotaxi asked whether I enjoyed the stop sign.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-07",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "I am walking. The app is still searching for a way to charge me.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-08",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "A straight line on the map is not a promise about the stairs.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-09",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "The pickup pin is on the other side of a philosophical question.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-10",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "I would like a route with fewer opportunities for growth.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-11",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "The fog is doing a better job of setting boundaries than I am.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-12",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "Two blocks away, apparently. Two vertical blocks.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-13",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "The vehicle said we were arriving. Then it began the second lap.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-14",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "I can see my stop. That is more than the bus app can commit to.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-commute-15",
+      "speaker": "person",
+      "context": "commute",
+      "mood": "conversational",
+      "text": "Today my transport mix is walking and reconsidering.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-01",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "The deck has twelve owners and no author.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-02",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "We moved the deadline into the slide title. Much easier to update.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-03",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "The new workflow automates asking me whether I finished the old workflow.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-04",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "Our meeting notes have begun assigning tasks to the meeting notes.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-05",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "I asked for a small change. It came back with a pricing page.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-06",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "We are moving quickly, mainly between chat channels.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-07",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "The dashboard is green. The customer has supplied a different colour.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-08",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "The build passed after we removed the part it was checking.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-09",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "It is a pilot. The contract has not learned that yet.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-10",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "We finally agreed on the metric. The number immediately changed.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-11",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "An internal tool with an external press strategy. Very normal.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-12",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "The new process has a shorter name and three more steps.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-13",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "I am taking lunch away from the screen. Please tell the screen.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-14",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "We have hired someone to simplify the hiring process.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-work-15",
+      "speaker": "person",
+      "context": "work",
+      "mood": "conversational",
+      "text": "The product brief now contains a brief about the product brief.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-01",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "My coffee is cooling while the ordering app discovers me.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-02",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "The machine asked for a rating before it finished pouring.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-03",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "I ordered the same thing. The recommendation engine seems disappointed.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-04",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "No meeting. Just a coffee. I have put it in writing.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-05",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "The cup is reusable. The password reset link is not.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-06",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "I can smell the coffee from outside the onboarding flow.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-07",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "The queue is moving. Nobody announce a new queue strategy.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-08",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "One coffee and a very small conversation, please.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-09",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "The app knows my usual order and still asks seventeen questions.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-10",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "I came for the coffee, stayed because the receipt was still printing.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-11",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "That is a good cup. We can let it be a good cup.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-12",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "My loyalty points have a more complicated career than I do.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-13",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "If this is a networking event, I would like to network with the pastry.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-14",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "The lid fits. A rare example of product-market fit.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-coffee-15",
+      "speaker": "person",
+      "context": "coffee",
+      "mood": "conversational",
+      "text": "The coffee has arrived ahead of the confirmation notification.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-01",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The forecast says clear. I assume it means clear about being wrong.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-02",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "I packed two layers and three levels of optimism.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-03",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The sun is over there. I am considering a very small relocation.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-04",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The wind has accepted my invitation to this lunch.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-05",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "Fog is just the city turning off read receipts.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-06",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "My jacket was the best decision in the planning document.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-07",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "We have reached the part of the afternoon with a different climate.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-08",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The cloud looks local. The cloud invoice does not.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-09",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "I checked the weather by going outside. Old system, still supported.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-10",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "It is bright enough to regret leaving the sunglasses at the desk.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-11",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "That bank of fog has excellent customer retention.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-12",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The forecast updated as soon as I put the jacket away.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-13",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The view will return after its unscheduled maintenance.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-14",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "The breeze has made several edits to my hairstyle.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-weather-15",
+      "speaker": "person",
+      "context": "weather",
+      "mood": "conversational",
+      "text": "This is the sunny side of the street. For now.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-01",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "I booked thirty minutes for lunch. That includes approving the booking.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-02",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "The soup has no roadmap. I find that reassuring.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-03",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "Lunch is the one daily standup I prefer to sit down for.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-04",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "My sandwich is complete. We are resisting scope expansion.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-05",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "The robot delivered the order and waited for someone to say thanks.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-06",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "I would like to chew before discussing the quarterly strategy.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-07",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "The table is level. This is already a productive offsite.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-08",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "We said no laptops at lunch. The phones are exploiting a loophole.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-09",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "The order was correct. A modest and deeply welcome achievement.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-10",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "I saved half for later. The calendar is challenging that assumption.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-11",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "The lunch special does not need a subscription tier.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-12",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "That delivery robot has carried more salads than any investor I know.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-13",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "We are sharing fries, not the entire customer database.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-14",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "The napkin has a cleaner diagram than our deck.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-lunch-15",
+      "speaker": "person",
+      "context": "lunch",
+      "mood": "conversational",
+      "text": "Lunch has concluded with zero action items. Excellent work.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-01",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "It waited for the crossing. I appreciate a machine with some patience.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-02",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "The little one apologised to the curb. I know the feeling.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-03",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "That one has gone round the block three times without a delivery.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-04",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "It offered to carry the bag, then asked where the bag wanted to go.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-05",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "I waved. It checked whether the wave was a command.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-06",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "A full bag, a real address, a normal pace. That looks like a delivery.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-07",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "The status light changed. The behaviour is what I am watching.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-08",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "That robot has a clear task. The one with the lanyard has a campaign.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-09",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "It returned the shopping before asking for feedback.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-10",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "The robot waited for the dog. A good route has room for everyone.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-11",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "It knows where it is going. I will avoid disrupting the experiment.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-12",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "That pause looked like a connection problem, not a personality.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-13",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "If you are checking that one, let it finish its delivery first.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-14",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "The good one has apologised enough for both of them.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-robot-15",
+      "speaker": "person",
+      "context": "robot",
+      "mood": "conversational",
+      "text": "I am pleased the robot also found that staircase unreasonable.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-01",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "I told my friend I was outside. They asked which channel.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-02",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "We have finally made a group chat for leaving the group chat.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-03",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "This walk has no agenda. We are defending that feature.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-04",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "I am listening. The phone is upside down as supporting evidence.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-05",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "A real conversation. No transcript required.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-06",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "We met for ten minutes and accidentally had a nice afternoon.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-07",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "Nobody has said scale yet. There is still hope.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-08",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "I am trying a hobby that does not need a launch announcement.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-09",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "The invitation said casual. The follow-up had a dress code and a deck.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-10",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "We can take a photo without turning it into a performance review.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-11",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "I have been practising saying no without opening a scheduling link.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-12",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "That is good news. You can enjoy it before writing the post.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-13",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "The phone can wait. This story has a better ending.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-14",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "We are celebrating a small thing at its actual size.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-social-15",
+      "speaker": "person",
+      "context": "social",
+      "mood": "conversational",
+      "text": "I missed this. Talking until the subject changes by itself.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-01",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The sign is blank. The window tells me everything I need.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-02",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "I would like to buy one thing once.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-03",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The receipt has more paper than the instruction manual.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-04",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "It is available in four colours and one useful size.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-05",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The shop is open. The website remains undecided.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-06",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "I found the item without a personalised journey.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-07",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The return policy fits on a card. I may frame it.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-08",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The bag is fine. It does not need to connect to my phone.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-09",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "I asked whether it was washable, not whether it had a community.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-10",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The repair took ten minutes. The booking took a whole lunch.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-11",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "That window display has done more explaining than the ad.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-12",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The person at the counter knew what the part was called.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-13",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "I am comparing the products, not their founder stories.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-14",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "It has a button. The button does the thing.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-shop-15",
+      "speaker": "person",
+      "context": "shop",
+      "mood": "conversational",
+      "text": "The store closed on time. Everyone looked pleased.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-01",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The bench is doing exactly what it promised.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-02",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The view is still loading behind the fog. I can wait.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-03",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "No headphones for this bit. I want to hear the birds.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-04",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "I took the longer path because it was the nicer path.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-05",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The grass has declined to attend the planning meeting.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-06",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "A good place to remember the day has other hours in it.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-07",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The path bends here. We can simply follow it.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-08",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The tree has been working on this shade for years.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-09",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "I am not optimising the walk. That is the point of the walk.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-10",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "We brought lunch and enough time to eat it.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-11",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The water looks different every time. No release notes.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-12",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "I have left a gap in the afternoon and intend to keep it.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-13",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The birds are having a conversation with no slides.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-14",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "That is a good patch of sun. I will make a temporary commitment.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-park-15",
+      "speaker": "person",
+      "context": "park",
+      "mood": "conversational",
+      "text": "The park closes later than my willingness to check email.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-01",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The demo worked better before the person explained why it could not fail.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-02",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The microphone is live. The prototype is in negotiation.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-03",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "I asked a short question. The answer has reached its third section.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-04",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The event badge has become the largest thing in my pocket.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-05",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "There is a queue for the panel about instant access.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-06",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The speaker said one final slide. That was a conditional statement.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-07",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "I came to see the product. So far I have seen its entire market.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-08",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The best demo today admitted exactly where it stopped working.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-09",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "They called the pause intentional. I admire the composure.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-10",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The applause began before the system returned a result.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-11",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "I like a demonstration with something to demonstrate.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-12",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The launch has launched another registration form.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-13",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The session is full. The livestream is showing the empty lobby.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-14",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "The panel agreed that disagreement would be valuable.",
+      "maxLength": 90
+    },
+    {
+      "id": "people-event-15",
+      "speaker": "person",
+      "context": "event",
+      "mood": "conversational",
+      "text": "I am leaving with one useful idea and a tote bag of uncertain origin.",
+      "maxLength": 90
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:e37eb1d5",
+    "reviewedBy": [
+      "root second-read, source SHA256 d7d892adea4a9ed5cfaa8d967af1a82fe63a799d6e7da9341ab1c197744b8d76"
+    ],
+    "review": "Root independently read all lines with no taste, identity or punching-down issue. Geographic data is separately validated against canonical pipeline polygons."
+  }
+}

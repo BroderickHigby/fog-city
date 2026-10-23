@@ -65,6 +65,7 @@ describe("integrated combat reducer",()=>{
   });
 
   it("rejects duplicate IDs and nonfinite poses instead of poisoning replay state",()=>{
+    for (const rustScale of [0, -1, 1.1, NaN, Infinity]) expect(()=>createCombatState(1,context([{...robot(),rustScale}]))).toThrow(/rust scale/);
     expect(()=>createCombatState(1,context([robot(),robot()]))).toThrow(/unique/);
     expect(()=>createCombatState(1,context([{...robot(),x:NaN}]))).toThrow(/finite/);
     for(const id of ["__proto__","constructor","toString","prototype"]) expect(()=>createCombatState(1,context([robot(id)]))).toThrow(/unique/);

@@ -179,6 +179,8 @@ export const NAME_FIELDS: ReadonlyArray<{ file: RegExp; path: string; kind: Fiel
  * detector lists (they exist to contain the words they detect) and research records.
  */
 export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; rules?: readonly LintRule[]; why: string }> = [
+  { file: /^content\/ai-fixtures\.json$/, path: "cases.*.input", why: "untrusted adversarial test inputs, never displayed as authored game output; expected replies still receive every content rule" },
+  ...["cases.*.id", "cases.*.category", "cases.*.expected.refusal"].map((path) => ({ file: /^content\/ai-fixtures\.json$/, path, rules: ["lexicon", "sexual"] as const, why: "closed-schema fixture identifiers and refusal enums are machine metadata; expected reply text remains fully linted" })),
   { file: /^content\/cleared-names\.json$/, why: "the name-search record quotes real companies, by design" },
   { file: /^content\/banned-pairs\.json$/, why: "the list of composed names that fail the lint, by definition" },
   {
@@ -243,7 +245,7 @@ export function lintDocument(rel: string, doc: unknown, cleared: ClearedNames | 
   const nameFields = NAME_FIELDS.filter((f) => f.file.test(rel));
   walk(doc, [], (path, s) => {
     const at = path.join(".");
-    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || at === e.path || at.startsWith(`${e.path}.`);
+    const under = (e: (typeof EXEMPT_PATHS)[number]) => e.path === undefined || matches(e.path, path.slice(0, e.path.split(".").length));
     if (fileExempt.some((e) => e.rules === undefined && under(e))) return;
     const skipRules = new Set(fileExempt.filter((e) => e.rules !== undefined && under(e)).flatMap((e) => e.rules ?? []));
     const key = path[path.length - 1] ?? "";

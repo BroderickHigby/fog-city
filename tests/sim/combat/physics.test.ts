@@ -109,12 +109,12 @@ describe("continuous combat projectile physics", () => {
   });
 
   it.each([false, true])("flowers pass through NPCs and their owner to reach a rival player, robotBody=%s", robotBody => {
-    const result = advanceProjectile(shot({ kind: "flower" }), context([
+    const result = advanceProjectile(shot({ kind: "flower" }), {...context([
       actor("npc-robot", 1), actor("npc-person", 2, { kind: "person", firmware: "none" }),
       actor("npc-animal", 3, { kind: "animal", firmware: "none" }),
       actor("owner-avatar", 5, { kind: "player", playerId: "owner" }),
       actor("rival", 6, { kind: "player", playerId: "other", robotBody }),
-    ]));
+    ]),rivalPlayerIds:{owner:["other"]}});
     expect(result.hit?.id).toBe("rival");
     expect(result.projectile.x).toBeCloseTo(5.75, 10);
   });

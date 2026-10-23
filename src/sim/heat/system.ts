@@ -1,15 +1,16 @@
 import { clamp } from "../dmath.ts";
-import { event,facts,sortedBodies } from "../player/common.ts";
+import { canInteractAtSite } from "../player/sites.ts";
+import { commands,event,facts,sortedBodies } from "../player/common.ts";
 import type { GameplayContext,GameplayEvent,HeatState,HeatStatus } from "../player/types.ts";
-export function createHeatStatus(tick:number):HeatStatus {return {threat:0,vcQuarters:0,lastSeenTick:tick,lastAssociateSeenTick:tick,recentMelts:[],levelMelts:0,spawnSequence:0,commandSequence:0};}
-export function createHeat(tick=0):HeatState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
+export function createHeatStatus(tick:number):HeatStatus {return {threat:0,vcQuarters:0,lastSeenTick:tick,lastAssociateSeenTick:tick,recentMelts:[],levelMelts:0,spawnSequence:0,commandSequence:0,lastWashId:""};}
+export function createHeat(tick=0):HeatState{return {version:1,tick,nextId:1,players:{},factCursors:{},grantCursors:{},events:[]};}
 function raise(state:HeatState,id:string,level:number,ctx:GameplayContext):void {
  const own=state.players[id]!;const next=Math.min(ctx.wave>=3?5:2,level);if(next<=own.threat)return;own.threat=next;own.levelMelts=0;own.lastSeenTick=state.tick;
  event(state,"threat.changed",id,"",next);
  if(next>=2){const body=ctx.bodies.find(b=>b.id===id)!;const kind=next===2?"van":next===3?"drone":next===4?"swarm":"patrol";const out=event(state,"threat.spawn",id,"",next===4?8:next===5?4:2,kind),base={id:`heat:${id}:${++own.spawnSequence}`,requestTick:state.tick,playerId:id,player:{x:body.x,z:body.z}};out.payload=next===2?{...base,kind:"van",unitCount:2,threat:2}:{...base,kind:next===3?"drone":next===4?"swarm":"patrol",unitCount:out.amount,threat:next as 3|4|5};}
 }
-export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[]):HeatState {
- const state:HeatState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};
+export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,grants:readonly GameplayEvent[]=[],missionGrants:readonly GameplayEvent[]=[]):HeatState {
+ const state:HeatState={...previous,tick,players:{},factCursors:{...previous.factCursors},grantCursors:{...previous.grantCursors},events:[]};
  for(const body of sortedBodies(ctx)){const old=previous.players[body.id]??createHeatStatus(tick);state.players[body.id]={...old,recentMelts:old.recentMelts.filter(t=>t>=tick-7200)};}
  for(const fact of facts(ctx,tick,state.factCursors)){
   const own=state.players[fact.playerId];if(!own)continue;
@@ -18,7 +19,7 @@ export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,gran
    const actor=ctx.actors.find(actor=>actor.id===fact.actorId);if(actor?.firmware!=="bad")continue;
    own.recentMelts.push(tick);own.levelMelts++;
    if(own.threat<2&&(actor.witnessedByBad||own.recentMelts.filter(t=>t>=tick-3600).length>=2))raise(state,fact.playerId,2,ctx);
-   else if(own.threat===2&&own.recentMelts.length>=4)raise(state,fact.playerId,3,ctx);
+   else if(own.threat===2&&own.levelMelts>=4&&own.recentMelts.length>=4)raise(state,fact.playerId,3,ctx);
    else if(own.threat===3&&own.levelMelts>=3)raise(state,fact.playerId,4,ctx);
    else if(own.threat===4&&actor.armoured)raise(state,fact.playerId,5,ctx);
    if(ctx.wave>=3&&(actor.peopleWitnesses??0)>=5)own.vcQuarters=Math.min(20,own.vcQuarters+1);
@@ -28,13 +29,21 @@ export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,gran
   if(ctx.wave>=3&&fact.kind==="player.viral-jump")own.vcQuarters=Math.min(20,own.vcQuarters+1);
   if(ctx.wave>=3&&fact.kind==="player.commandeer")own.vcQuarters=Math.min(20,own.vcQuarters+4);
  }
+ const accepted:GameplayEvent[]=[];
+ for(const [source,group] of [["player",grants],["missions",missionGrants]] as const)for(const grant of [...group].sort((a,b)=>a.id-b.id))if(grant.id>(state.grantCursors[source]??0)&&grant.tick<=tick){state.grantCursors[source]=grant.id;accepted.push(grant);}
  for(const body of sortedBodies(ctx)){
   const own=state.players[body.id]!, observation=ctx.observations.find(o=>o.playerId===body.id), fog=(observation?.fog??0)>.4;
-  for(const grant of grants.filter(e=>e.playerId===body.id&&e.tick===tick)){
+  for(const grant of accepted.filter(e=>e.playerId===body.id)){
    if(grant.kind==="player.down"){own.threat=0;own.vcQuarters=Math.min(20,own.vcQuarters+4);}
    if(grant.kind==="player.bridge")own.vcQuarters=Math.min(20,own.vcQuarters+4);
    if(grant.kind==="player.acqui-hired"){own.threat=0;own.vcQuarters=0;}
    if(grant.kind==="mission.vc")own.vcQuarters=clamp(own.vcQuarters+4*grant.amount,0,20);
+  }
+  const wash=ctx.sites.find(site=>site.kind==="carWash"&&site.wave<=ctx.wave&&canInteractAtSite(body,site));
+  if(!wash)own.lastWashId="";
+  for(const command of commands(ctx,body.id,["activity-start"],own.commandSequence)){
+   own.commandSequence=command.sequence;
+   if(wash&&command.targetId===wash.id&&own.lastWashId!==wash.id){own.lastWashId=wash.id;own.threat=Math.max(0,own.threat-1);own.lastSeenTick=tick;event(state,"threat.changed",body.id,wash.id,own.threat,"car-wash");}
   }
   if(observation?.seenByBad)own.lastSeenTick=tick;
   else if(own.threat>0&&tick-own.lastSeenTick>=(fog?900:1800)){own.threat--;own.lastSeenTick=tick;event(state,"threat.changed",body.id,"",own.threat,"decay");}

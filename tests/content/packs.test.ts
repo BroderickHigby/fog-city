@@ -50,6 +50,9 @@ describe("district packs", () => {
 
   it("people lines name local streets or landmarks (at least a quarter of them)", () => {
     const local: Record<string, RegExp> = {
+      "russian-hill": /Hyde|Lombard|Union|hill|stairs|cable car|crest/i,
+      "nob-hill": /Nob Hill|California|Pine|cathedral|lobby|hill|cable car|crest/i,
+      chinatown: /Grant|Stockton|Broadway|hill|crossing|doorway|tunnel/i,
       downtown: /Union Square|Powell|Geary|Stockton|Post St|turntable|cable car/i,
       fidi: /Front St|Montgomery|Sansome|Battery|California|Pine|lobby|tower|floor|elevator|office|badge|plaza/i,
       embarcadero: /ferry|clock tower|promenade|market|bay|bridge|Pier/i,
