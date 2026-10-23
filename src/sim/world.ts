@@ -8,6 +8,7 @@ import { TILE_SIZE_M } from "../geo/project.ts";
 import { buildRoadGraph, type RoadGraph, type RoadsFile } from "./roads.ts";
 import type { GameplayWorldData } from "./gameplay-world.ts";
 import type { SidewalkGraph } from "./agents/navigation.ts";
+import type { TransitLayer } from "./agents/transit-runtime.ts";
 
 export interface BuildingCollider {
   id: string;
@@ -44,6 +45,8 @@ export interface TileCollider {
 }
 
 export interface World {
+  /** Immutable authored routes/stops loaded beside gameplay metadata. */
+  transit?: TransitLayer;
   /** Static pedestrian graph loaded with the world's gameplay metadata. */
   sidewalks?: SidewalkGraph;
   /** Optional immutable gameplay layer supplied by the world loader. */

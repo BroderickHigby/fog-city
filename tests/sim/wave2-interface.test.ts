@@ -76,7 +76,7 @@ describe("wave-2 shared interface", () => {
     const missions: SimSystem = { key: "missions", step: context => {
       calls.push("missions");
       expect(context.state.ext.future).toEqual({ order: "combat" });
-      return { ...context.state, ext: { ...context.state.ext, missions: { started: true } } };
+      return { ...context.state, ext: { ...context.state.ext, future: { started: true } } };
     } };
     const inputs = deepFreeze({ a: { throttle: 5, steer: 0, brake: 0, actions: 0 } });
     const a = step(world, previous, inputs, [], Object.freeze([missions, combat]));
