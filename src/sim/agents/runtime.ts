@@ -394,8 +394,10 @@ function clearAhead(world:World,graph:SidewalkGraph,actor:RuntimeActor,isBlocked
     if(p.blockedEdgeId!==null)return null;
     const q=advanceSidewalkRoute(graph,actor.route!,actor.cursor,d+.25,edge=>isBlocked(edge)).point;
     const tx=q.x-p.point.x,tz=q.z-p.point.z,tl=Math.sqrt(tx*tx+tz*tz);
+    // Right of the route there (none where the route has no direction: only the line itself).
+    const rx=tl>1e-6?-tz/tl:0,rz=tl>1e-6?tx/tl:0;
     for(const shift of tl>1e-6?FACADE_SHIFTS_M:[0]){
-      const x=p.point.x-tz/tl*shift*(tl>1e-6?1:0),z=p.point.z+tx/tl*shift*(tl>1e-6?1:0);
+      const x=p.point.x+rx*shift,z=p.point.z+rz*shift;
       if(fits(x,z))return {x,z,cursor:p.cursor};
     }
     if(p.finished)return null;
