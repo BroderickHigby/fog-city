@@ -58,7 +58,7 @@ describe("economy, mode and activity contracts", () => {
       expect(activity.checkpoints.length).toBeGreaterThan(0);
       expect(new Set(activity.checkpoints.map((p) => p.id)).size).toBe(activity.checkpoints.length);
       expect(activity.reward.cashCents).toBeLessThanOrEqual(30000);
-      expect(activity.objective.event).toMatch(/^[a-z]+\.[A-Za-z]+$/);
+      expect(activity.objective.event).toMatch(/^[a-z]+\.[A-Za-z][A-Za-z-]+$/);
     }
     expect(new Set(WRITING.map((w) => w.id)).size).toBe(WRITING.length);
   });

@@ -61,7 +61,7 @@
             "properties": {
               "event": {
                 "type": "string",
-                "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+$"
+                "pattern": "^[a-z][A-Za-z0-9-]*(\\.[a-z][A-Za-z0-9-]*)+$"
               },
               "count": {
                 "type": "integer",
@@ -136,6 +136,10 @@
                 }
               }
             }
+          },
+          "maxSpeedMps": {
+            "type": "number",
+            "exclusiveMinimum": 0
           }
         }
       }
