@@ -300,7 +300,7 @@ function vehiclesReaching(world: World, prev: Readonly<SimState>, self: PlayerId
   }
   for (const a of agents) {
     if (!AGENT_SPEC[a.kind].road) continue;
-    const lim = within + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth + a.speed * horizonS(a.speed) + 3;
+    const lim = within + (a.halfLength ?? ROBOTAXI_BODY.halfLength) + (a.halfWidth ?? ROBOTAXI_BODY.halfWidth) + a.speed * horizonS(a.speed) + 3;
     if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
     const v = vehicleOfAgent(a, null, DT, world, true);
     routeReach(v, a, DT, world);
