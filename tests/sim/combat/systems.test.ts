@@ -146,4 +146,10 @@ describe("registered combat system", () => {
     });
     expect(unsafe.id).toBe("forged");
   });
+  it("keeps inherited metadata from changing actor classification",()=>{
+    const metadata=Object.create({firmware:"bad",kind:"robot",id:"forged"});
+    const context=contextFromState(world,initial(),{actorMetadata:{"player:p":metadata}});
+    expect(context.actors.find(actor=>actor.id==="player:p")).toMatchObject({id:"player:p",kind:"player",firmware:"none",playerId:"p"});
+  });
+
 });
