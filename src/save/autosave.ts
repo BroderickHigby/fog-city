@@ -6,12 +6,14 @@ export class Autosave {
   private checkpoint="";
   private pending:Promise<unknown>|undefined;
   private dirty=false;
+  private initialized=false;
   private readonly store:SaveStore;
   private readonly capture:()=>ProgressionDocument;
   private readonly failed:(error:unknown)=>void;
   constructor(store:SaveStore,capture:()=>ProgressionDocument,failed:(error:unknown)=>void=()=>{}){this.store=store;this.capture=capture;this.failed=failed;}
   observe(tick:number,checkpoint:string):void {
     if(!Number.isSafeInteger(tick)||tick<0)return;
+    if(!this.initialized){this.initialized=true;this.lastTick=tick;this.checkpoint=checkpoint;return;}
     if(tick<this.lastTick){this.lastTick=tick;this.checkpoint=checkpoint;return;}
     if(checkpoint===this.checkpoint&&tick-this.lastTick<18000)return;
     this.lastTick=tick;this.checkpoint=checkpoint;this.flush();

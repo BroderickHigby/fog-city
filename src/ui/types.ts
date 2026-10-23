@@ -1,5 +1,6 @@
 import type { SimInput } from "../sim/contract.ts";
 import type { Keyboard } from "../input/keyboard.ts";
+import type { SavePanelOptions } from "./save-panel.ts";
 
 /** Presentation snapshots are supplied by the owning simulation lanes. */
 export interface MapPoint { readonly x:number; readonly z:number }
@@ -66,6 +67,7 @@ export interface UiMountOptions {
   readonly document?:Document;
   /** Share the host's keyboard when camera controls already use one. */
   readonly keyboard?:Keyboard;
+  readonly saves?:SavePanelOptions;
 }
 export interface MountedGameUI {
   readonly element:HTMLElement;

@@ -3,7 +3,8 @@ import { uiText } from "../content/ui.ts";
 import { VENDOR } from "../content/vendor.ts";
 import { toLocal } from "../geo/project.ts";
 import type { SimState } from "../sim/contract.ts";
-import { gameplaySnapshot, playerView } from "../sim/player/adapter.ts";
+import { gameplaySnapshot, playerView, combatLoadout } from "../sim/player/adapter.ts";
+import { capacity } from "../sim/combat/shared.ts";
 import { DEFAULT_CATALOG } from "../sim/player/catalog.ts";
 import type { RoadGraph } from "../render/types.ts";
 import type { InteractionView, MapEdge, MapPoint, UiView } from "./types.ts";
@@ -13,6 +14,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const snapshot=gameplaySnapshot({state}),own=playerView(snapshot,playerId),player=state.players[playerId];
   const body=player?.mode==="foot"&&player.foot?player.foot:player?.car;
   const combat=state.ext.combat?.players[playerId],progression=snapshot.progression.players[playerId],progress=snapshot.missions.players[playerId];
+  const loadout=player&&body?combatLoadout(snapshot,{id:playerId,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading):undefined;
   const mission=MISSIONS.find(m=>m.id===progress?.missionId),step=mission?.steps.find(s=>s.id===progress?.stepId);
   let interaction:InteractionView|undefined;
   const lines=step&&"lines"in step?step.lines?.map(line=>`${line.speaker}: ${line.text}`).join("\n"):"";
@@ -33,7 +35,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=2&&Math.hypot(site.x-body.x,site.z-body.z)<=site.radius&&Math.abs(body.speed)<=3).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
   return {tick:state.tick,playerId,x:body?.x??0,z:body?.z??0,heading:body?.heading??0,speedMps:body?.speed??0,...own,
-    waterLitres:combat?.water??8,capacityLitres:progression?.tankTier===2?16:progression?.tankTier===1?12:8,salt:combat?.salt??false,
+    waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
     map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target,radius:150},
