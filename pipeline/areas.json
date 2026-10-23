@@ -93,7 +93,7 @@
         "waterbodies": "https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12",
         "federalLands": "https://services1.arcgis.com/fBc8EJBxQRMcHlei/arcgis/rest/services/NPS_Land_Resources_Division_Boundary_and_Tract_Data_Service/FeatureServer/2",
         "federalUnits": ["GOGA", "SAFR"],
-        "snapshotDate": "2026-10-20"
+        "snapshotDate": "2026-10-23"
       },
       "probes": {
         "$comment": "Named points whose building ids the build reports (report.json \"probes\"), so landmark placements can list replacesBuildingIds. Labels are addresses or public landmark names, never brands. radiusM: report every record within that distance (a landmark the data splits into several records).",
