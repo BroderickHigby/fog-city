@@ -98,6 +98,11 @@ export interface AgentsRuntimeState {
   attacks: AttackRequest[];
   proposals: AgentMotionProposal[];
   events: AgentRuntimeEvent[];
+  /** v11 city life: each player's ambient density multipliers by kind (read by populate in agents.ts). */
+  density?: Record<string, Record<string, number>>;
+  /** v11 city life: street incidents staged for the director (incidents.ts), by id, and the next number. */
+  incidents?: Record<string, import("./incidents.ts").Incident>;
+  nextIncident?: number;
 }
 
 export interface AgentRuntimeOptions {
@@ -121,6 +126,10 @@ export interface AgentRuntimeOptions {
   anchors?: readonly FidelityAnchor[];
   protectedArea?: (x:number,z:number)=>boolean;
   crossingBlocked?: (edgeId:string)=>boolean;
+  /** v11 city life: ambient density multipliers by kind for an area owned by a player standing at (x, z). */
+  densityAt?: (x:number,z:number)=>Record<string,number>;
+  /** v11 city life: stage the director's cards as street incidents (incidents.ts). */
+  director?: { cards: readonly import("../../content/directorCards.ts").DirectorCard[]; stageM: readonly [number,number]; maxActive: number };
 }
 
 export const MAX_RUNTIME_ACTORS = 4096;
@@ -490,6 +499,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
   const stopped=stoppedVehicles(sim);
+  if(options.densityAt){const density:Record<string,Record<string,number>>={};for(const player of people)density[player.id]=options.densityAt(player.x,player.z);state.density=density;}
   for(const actor of list){
     if(actor.retired)continue;
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}

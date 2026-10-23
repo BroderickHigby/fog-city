@@ -1849,11 +1849,25 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
 
 // ---------------------------------------------------------------- population
 
-function budget(seed: number, area: AreaRoads, kind: AgentKind): number {
+/**
+ * An area's seeded budget for a kind, its density and cap scaled by `scale` (v11 city life: the
+ * game composition scales them by district and hour, src/content/cityLife.ts; 1 elsewhere).
+ */
+function budget(seed: number, area: AreaRoads, kind: AgentKind, scale = 1): number {
   const spec = AGENT_SPEC[kind];
   const km = (spec.road ? area.driveLen : area.walkLen) / 1000;
   const u = hash32(seed, area.ax, area.az, AGENT_KINDS.indexOf(kind)) / 4294967296;
-  return Math.min(spec.cap, Math.floor(km * spec.perKm + u));
+  return Math.min(Math.round(spec.cap * scale), Math.floor(km * spec.perKm * scale + u));
+}
+
+/** Density multipliers by kind, per player (sortedIds order): what populate scales each player's areas by. */
+export type PopulationScales = ReadonlyArray<Readonly<Partial<Record<AgentKind, number>>>>;
+
+/** state.ext.robots.density (the agents runtime's per-player city-life scales), in sortedIds order; empty without it. */
+function populationScales(state: Readonly<SimState>): PopulationScales {
+  const density = (state.ext.robots as { density?: Record<string, Partial<Record<AgentKind, number>>> } | undefined)?.density;
+  if (!density) return [];
+  return sortedIds(state.players).map((id) => density[id] ?? {});
 }
 
 /** The seeded spawn budget of every kind in one area (for tests and tooling). */
@@ -2047,6 +2061,7 @@ export function populate(
   seed: number,
   initial: boolean,
   cars: readonly CarSpot[] = [],
+  scales: PopulationScales = [],
 ): { ext: AgentsExt; rng: RngState } {
   const g = world.roads;
   if (!g || bodies.length === 0) return { ext, rng };
@@ -2073,17 +2088,19 @@ export function populate(
     totals.set(a.kind, (totals.get(a.kind) ?? 0) + 1);
     owned[nearestBody(bodies, a.x, a.z)]!++;
   }
+  // Each area is scaled by its owner's density (the nearest player's).
+  const scaleOf = (ar: AreaRoads, kind: AgentKind): number => scales[nearestBody(bodies, ar.cx, ar.cz)]?.[kind] ?? 1;
   const room = new Map<AgentKind, number>();
   for (const kind of AGENT_KINDS) {
     let sum = 0;
-    for (const { ar } of active) sum += budget(seed, ar, kind);
+    for (const { ar } of active) sum += budget(seed, ar, kind, scaleOf(ar, kind));
     room.set(kind, sum - (totals.get(kind) ?? 0));
   }
   const minPlayer = initial ? 6 : SPAWN_MIN_PLAYER_M;
   for (const { ar } of active) {
     const owner = nearestBody(bodies, ar.cx, ar.cz);
     for (const kind of AGENT_KINDS) {
-      const want = budget(seed, ar, kind);
+      const want = budget(seed, ar, kind, scaleOf(ar, kind));
       const have = counts.get(`${ar.key}|${kind}`) ?? 0;
       let add = Math.min(Math.max(0, want - have), Math.max(0, room.get(kind)!));
       if (!initial) add = Math.min(add, SPAWN_PER_POP);
@@ -2273,7 +2290,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     // only unclaimed rows refills the same slots every population tick. They must
     // also obey the same distance cull: restoring every claimed body afterwards
     // leaves a trail of frozen pedestrians as the player travels across the city.
-    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev));
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev));
     out = p.ext;
     rng = p.rng;
   }

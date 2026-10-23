@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/city-life",
+  "title": "City life tuning (content/city-life.json)",
+  "description": "Ambient robot and traffic density by kind, hour band and district (multipliers on the sim's base densities, game composition only), the Ambient Director's pacing and pick weights, and extra director cards for street incidents. Cross-references are checked by checkCityLife in src/content/cityLife.ts.",
+  "type": "object",
+  "required": ["version", "population", "director", "incidents", "provenance"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "$comment": { "type": "string" },
+    "provenance": { "$ref": "provenance" },
+    "population": {
+      "type": "object",
+      "required": ["maxScale", "base", "hours", "districts"],
+      "additionalProperties": false,
+      "properties": {
+        "maxScale": { "type": "number", "minimum": 1, "maximum": 4 },
+        "base": { "$ref": "#/$defs/scale" },
+        "hours": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "scale"],
+            "additionalProperties": false,
+            "properties": {
+              "from": { "type": "integer", "minimum": 0, "maximum": 23 },
+              "to": { "type": "integer", "minimum": 1, "maximum": 24 },
+              "scale": { "$ref": "#/$defs/scale" }
+            }
+          }
+        },
+        "districts": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9-]+$" },
+          "additionalProperties": { "$ref": "#/$defs/partialScale" }
+        }
+      }
+    },
+    "director": {
+      "type": "object",
+      "required": ["idleWindowS", "stagedS", "stageM", "weights"],
+      "additionalProperties": false,
+      "properties": {
+        "idleWindowS": { "$ref": "#/$defs/range" },
+        "stagedS": { "type": "number", "minimum": 5, "maximum": 120 },
+        "stageM": { "$ref": "#/$defs/range" },
+        "weights": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z0-9-]+$" },
+          "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 10 }
+        }
+      }
+    },
+    "incidents": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": { "$ref": "fog-city/director-cards#/$defs/card" }
+    }
+  },
+  "$defs": {
+    "factor": { "type": "number", "minimum": 0, "maximum": 4 },
+    "scale": {
+      "type": "object",
+      "required": ["robotaxi", "errandRobot", "sidewalkBot", "person"],
+      "additionalProperties": false,
+      "properties": {
+        "robotaxi": { "$ref": "#/$defs/factor" },
+        "errandRobot": { "$ref": "#/$defs/factor" },
+        "sidewalkBot": { "$ref": "#/$defs/factor" },
+        "person": { "$ref": "#/$defs/factor" }
+      }
+    },
+    "partialScale": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "robotaxi": { "$ref": "#/$defs/factor" },
+        "errandRobot": { "$ref": "#/$defs/factor" },
+        "sidewalkBot": { "$ref": "#/$defs/factor" },
+        "person": { "$ref": "#/$defs/factor" }
+      }
+    },
+    "range": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number", "minimum": 0 }
+    }
+  }
+}
