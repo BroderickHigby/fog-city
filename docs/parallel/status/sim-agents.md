@@ -26,13 +26,13 @@ Published runtime checkpoints: `975ab09` adds the runtime and mission placement;
 - Automatic mission-stage admission, portable APIs and runtime retention passed a follow-up: **3 files, 63 tests**, plus typecheck.
 - Heavy checks use `/tmp/fog.lock`, `NODE_OPTIONS=--max-old-space-size=8192` and at most two Vitest workers. No new full browser run was started in this lane.
 
-The previous hosted favicon failure was fixed independently by the rendering lane; the lane does not weaken those assertions. Core's new movement and dodge integration still needs runtime acceptance/clearance tests before a zero-contact claim. No golden files were changed.
+The previous hosted favicon failure was fixed independently by the rendering lane; the lane does not weaken those assertions. The registered runtime acceptance fixtures now pass: accepted extra bodies move once, an unopposed forced update completes once at tick 361, the van delivers within 20 seconds and a wrapped bus stops at the Ferry. These fixtures check zero contacts each step; a full multi-player clearance soak remains owned by the integration lane. No golden files were changed.
 
 ## Remaining
 
-1. Merge core's prepared-motion, stable identity, observed-body and final dodge checkpoint; run actual registered runtime acceptance tests.
+1. Complete the scene/controller regression checks and publish this checkpoint; core physical kernel and observed-body integration are merged.
 2. Connect the static world loader to `navigationFromPipeline` and use the loaded tile set.
-3. Connect shared threat requests and the existing van/bus policies to actual steering follower bodies, measured route progress, disembarkation and safe retirement. A policy timer alone is not delivery proof.
+3. Broaden service route coverage and lifecycle soak; the physical van/bus acceptance fixtures pass with real follower controls and measured stopped arrivals.
 4. Continue wave-3 through wave-8 behaviors: drones, rogue taxi/swarm/patrol/associates, Tidy/restore, calendar behaviors, recruits/parrots, robot-body control and finale evacuation/boss actors.
 5. Run integrated performance, deterministic replay and browser checks with the coordinating lane.
 
@@ -64,3 +64,29 @@ Git push works. GitHub API operations have been blocked in this environment, so 
 - Good robots with a repair flag seek a real repair kiosk. `agentsCombatOptions` supplies the baseline twofold conversion cap required for forced updates.
 - Latest validation: **typecheck passed; 14 owned-agent/forbidden-API files, 194 tests passed**. The van and bus tests require observed arrival, reject timer-only success and replayed dispatch, and check wrap/source-stop data.
 - Core `b7c412c` now publishes the physical prepared-motion kernel. Merge and actual service-control acceptance tests are the next step; the passing controller tests do not establish physical 20-second delivery yet.
+
+## Physical service, scene and rival-controller checkpoint
+
+- Core physical kernel `a86ac61` and isolated follower fix `953a4d8` are merged. Actual van arrival and the wrapped Ferry bus both pass through the ordinary vehicle controller. Arrival requires an observed body within 2 m and speed below 0.3 m/s.
+- A forced update completes exactly once at tick 361 through the combat reducer, with runtime firmware synchronized afterward. Accepted extra-body poses feed both runtime and combat; no direct movement shortcut is used.
+- `e78b70c` isolates the rival-founder controller under the extra paths assigned by the coordinating lane. It produces ordinary player inputs and recorded gameplay commands from visible actors, its own accepted scans, refills and objectives. It preserves last-seen memory, avoids unseen updates and protected spray corridors, and recovers from blocked travel. All ten adversarial controller tests pass.
+- Scene requests use validated stable IDs and safe placement for the teleoperation van, unit, pickup, recipient and server. Posted scene actors remain stationary. Accepted controlled actor IDs suspend the autonomous planner without removing runtime metadata. `fogAt` allows core to provide per-position weather. Scene admission, posted actors, control suppression and positional fog tests pass.
+
+### Requests for other lanes
+
+- **Core:** supply only accepted `controlledActorIds` and keep their accepted poses in `observedBodies`; add bounded flying-body acceptance for wave 3. World navigation/transit data should continue to flow through the configured provider.
+- **Player:** `mission.scene-request` can supply the agreed small-body scene schema; giant Walker and fireboat require their dedicated physical/model contract.
+- **Combat:** maintenance dependency is published at `043396c`; the Tidy bridge will retain hidden carried targets in combat until restore, then wait for physical readmission before emitting accepted restoration.
+- **Integration:** full clearance fuzz/soak and browser performance remain necessary beyond the small physical fixtures.
+
+### Updated draft PR
+
+Title: `feat(agents): connect physical services, mission actors and observed robot behavior`
+
+Body:
+
+Connect sidewalk policies and robot knowledge to the shared physical kernel and combat reducer. Vans dispatch on valid directed road routes and deliver two units after an actual stopped arrival; wrapped buses follow timetables and acknowledge source Ferry stops only after physical arrival. Stable mission/scene actors retain accepted poses and authored visual tells. Add an isolated rival-founder input controller using perceived actors and accepted scan results.
+
+Validation: registered runtime/forced-update integration passes; real van and Ferry-bus service fixtures pass with zero contacts on every checked tick. Typecheck and 101 focused runtime, scene, rival-controller, physical-service and portable-API checks pass. No full browser or multi-player soak is claimed.
+
+Latest verification: TypeScript passes; **5 files, 101 tests pass**, covering runtime behavior, scene admission/control, all ten rival-controller checks, physical van/bus acceptance, and forbidden APIs.

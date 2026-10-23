@@ -38,6 +38,7 @@ export interface RuntimeSpawn {
   archetype?: string;
   level?: number;
   adWrapSlot?: AdWrapSlot;
+  posted?: boolean;
 }
 
 export interface RuntimeActor extends RuntimeSpawn {
@@ -105,6 +106,10 @@ export interface AgentRuntimeOptions {
   wave?: number;
   badRateAt?: (x:number,z:number)=>number;
   fog?: number;
+  /** Position-specific weather/fog; core supplies the authoritative sample. */
+  fogAt?: (x:number,z:number)=>number;
+  /** Core owns player-controlled bodies, so autonomous brains never propose motion for them. */
+  controlledActorIds?: readonly string[];
   conversionCap?: number;
   /** Scenario or camera anchors are accepted only when recorded in the simulation. */
   anchors?: readonly FidelityAnchor[];
@@ -328,7 +333,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
-  if(speed<=0||frozen){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
+  if(speed<=0||frozen||actor.posted){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
   if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"){
     const node=goal?nearestNode(graph,goal):actor.goalNode;
     if(!actor.route||actor.goalNode!==node||actor.cursor.stepIndex>=actor.route.steps.length){
@@ -396,9 +401,11 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const graph=options.graph??fallbackGraph(world);
   const list=keys(state.actors).map(id=>state.actors[id]!);
   const presentLegacy=new Set(agentsOf(sim).map(actor=>actor.id));
+  const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
   for(const actor of list){
     if(actor.retired)continue;
+    if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
     if(actor.legacyId!==null&&!presentLegacy.has(actor.legacyId)){actor.fidelity="abstract";continue;}
     const fidelity=planFidelity(actor,anchors,sim.tick);actor.fidelity=fidelity.tier;
     if(!fidelity.allowCombat)continue;
@@ -407,7 +414,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       actor.brain??=createRobotBrain({id:actor.numericId,archetype:archetype(actor.model),tick:sim.tick});
       if(actor.brain.lastTick>=sim.tick)continue;
       const own=activeCombat(sim)?.targets[actor.id];
-      const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:clamp(options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
+      const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
         observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});

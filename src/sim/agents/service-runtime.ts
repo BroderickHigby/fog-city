@@ -115,7 +115,7 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
     if(!body){frame.spawns.push({id,model:"van",firmware:"good",...vehicle.origin,radius:1.2,height:2.4,halfLength:2.7,halfWidth:1.1,protected:true,significant:true});continue;}
     const target=vehicle.phase==="driving"?vehicle.destination:vehicle.depot;
     const follow=stepVehicleFollower(world,body,vehicle.follower,{kind:"pursue",target,stopDistance:1,maxSpeed:13});vehicle.follower=follow.state;frame.controls[id]=follow.input;
-    if(vehicle.phase==="driving"&&follow.status==="arrived"){
+    if(vehicle.phase==="driving"&&follow.distanceToGoal<=2&&follow.stopped){
       const plan=planMissionActors(world,sim,{missionId:`reinforce-${vehicle.requestId}`,stepId:"arrival",actorIds:["unit0","unit1"],definitions:{unit0:{kind:"badRobot"},unit1:{kind:"badRobot"}},place:{x:body.x,y:body.y,z:body.z},radius:12});
       if(plan.actors.length!==2){frame.controls[id]={throttle:0,steer:0,brake:1,actions:0};continue;}
       frame.spawns.push(...plan.actors);vehicle.deliveredTick=sim.tick;vehicle.phase="returning";

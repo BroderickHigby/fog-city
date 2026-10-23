@@ -84,7 +84,7 @@ export function planTransitRuntime(world:World,sim:Readonly<SimState>,data:Trans
     if(sim.tick<run.dwellUntil){frame.controls[id]={throttle:0,steer:0,brake:1,actions:0};continue;}
     const stop=run.stops[run.nextStop%run.stops.length]!;
     const follow=stepVehicleFollower(world,body,run.follower,{kind:"pursue",target:stop,stopDistance:1.5,maxSpeed:10});run.follower=follow.state;frame.controls[id]=follow.input;
-    if(follow.status==="arrived"){
+    if(follow.distanceToGoal<=2&&follow.stopped){
       emit("transit.stop",run,stop.id);
       if(ferryIds.includes(stop.id)){run.ferryTick=sim.tick;emit("transit.ferry-pass",run,stop.id);}
       run.nextStop++;run.dwellUntil=sim.tick+60;
