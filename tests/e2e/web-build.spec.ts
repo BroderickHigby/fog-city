@@ -189,6 +189,14 @@ test.describe("static web build, served from a sub-path", () => {
     expect(sim.roads).toBe(true);
     expect(sim.walls ?? 0).toBeGreaterThan(1000);
     expect(sim.agents).toBeGreaterThan(50);
+    // The actual skinned avatar must load through the packed asset provider too.
+    await page.keyboard.press("KeyF");
+    await page.waitForFunction(() => {
+      const game = (window as unknown as FogWindow).__fogcity!;
+      return game.state().players.p1!.mode === "foot" && game.renderInfo!().walkersFromFile === 1;
+    });
+    await page.keyboard.press("KeyF");
+    await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.mode === "vehicle");
     // Relative URLs only: nothing asked for outside the sub-path, nothing the host would refuse.
     expect(requests.filter((r) => !r.path.startsWith(SUB)).map((r) => r.path), "requests outside the sub-path").toEqual([]);
     expect(requests.filter((r) => r.status !== 200).map((r) => `${r.status} ${r.path}`), "failed requests").toEqual([]);

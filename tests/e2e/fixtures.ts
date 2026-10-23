@@ -30,6 +30,7 @@ export interface RenderInfoLike {
   /** Players whose car is models/player-car.glb, and players drawn on foot. */
   playerCarsFromFile?: number;
   walkers?: number;
+  walkersFromFile?: number;
   /** Far-LOD skyline cells: listed by the manifest, loaded, drawn last frame; their triangles. */
   farCellsTotal?: number;
   farCells?: number;

@@ -1,13 +1,14 @@
 // Players as the renderer draws them: a car per player (models/player-car.glb when present,
 // else an original procedural hatchback), its body pitched and rolled as the sim says and
 // its wheels rolling (rotation.x -= distance / radius) and steering; and, while the player is
-// on foot, the walker, drawn by the same person builder as the crowd (person.ts) and walking.
+// on foot, an animated human from player.glb, with a procedural placeholder while it loads.
 // Car lights are light_* materials: NightLights scales them with the rest of the city.
 // Each player has a colour from their id (playerColorIndex): the first keeps the model's own
 // paint, the others get the GLB's recolourable `paint` material cloned in their colour, so
 // players are told apart, and every client colours the same player the same way.
 
 import * as THREE from "three";
+import { PlayerBodies } from "./player-body.ts";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
 import { packedMaterial } from "./agent-packing.ts";
@@ -212,9 +213,11 @@ export class Actors {
   private readonly shadows: boolean;
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
+  private bodies: PlayerBodies | null = null;
+  private disposed = false;
   private readonly contacts = new ContactShadows(MAX_PLAYERS_DRAWN * 2);
 
-  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false) {
+  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false, bytes?: (path: string) => Promise<Uint8Array>) {
     this.registry = registry;
     this.lights = lights;
     this.shadows = shadows;
@@ -222,6 +225,13 @@ export class Actors {
     this.group.name = "actors";
     this.group.add(this.people.group);
     this.group.add(this.contacts.mesh);
+    if (bytes) void PlayerBodies.load(bytes, shadows).then(bodies => {
+      if (this.disposed) { bodies.dispose(); return; }
+      this.bodies = bodies;
+      this.group.add(bodies.group);
+    }).catch(error => {
+      if (!this.disposed) console.warn("player body: fallback kept:", error);
+    });
   }
 
   /** Each player's colour slot (playerColorIndex), for tests and the debug handle. */
@@ -240,8 +250,11 @@ export class Actors {
 
   /** Players drawn on foot last frame. */
   get walkers(): number {
-    return this.people.body.count;
+    return this.people.body.count + (this.bodies?.drawn ?? 0);
   }
+
+  /** Authored human models drawn last frame, excluding first-person hidden players. */
+  get walkersFromFile(): number { return this.bodies?.drawn ?? 0; }
 
   private adopt(v: PlayerView, car: THREE.Object3D, source: "file" | "fallback"): void {
     car.rotation.order = "YXZ";
@@ -354,6 +367,7 @@ export class Actors {
 
   /** Per frame, after setCar/setFoot: draws the walkers. */
   update(dt: number): void {
+    this.bodies?.begin();
     this.people.begin();
     this.contacts.begin();
     for (const [id, v] of this.players) {
@@ -370,9 +384,12 @@ export class Actors {
       v.gait = advanceGait(v.gait, dist, STRIDE_M);
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
-      this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
+      if (this.walkers >= MAX_PLAYERS_DRAWN) continue;
+      if (this.bodies) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt, v.colorIndex === 0 ? undefined : v.look.shirt);
+      else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
     }
     this.people.end();
+    this.bodies?.end();
     this.contacts.end();
   }
 
@@ -383,6 +400,7 @@ export class Actors {
   }
 
   remove(keep: ReadonlySet<string>): void {
+    this.bodies?.remove(keep);
     for (const [id, v] of this.players) {
       if (keep.has(id)) continue;
       this.drop(v);
@@ -391,6 +409,10 @@ export class Actors {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.bodies?.dispose();
+    this.bodies = null;
     this.remove(new Set());
     this.people.dispose();
     this.peopleMaterial.dispose();

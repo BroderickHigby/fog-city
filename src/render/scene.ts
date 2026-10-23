@@ -24,6 +24,7 @@ import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
+import { AvatarGround } from "./avatar-ground.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -82,6 +83,8 @@ export interface RenderInfo {
   playerCarsFromFile: number;
   /** Players drawn on foot last frame. */
   walkers: number;
+  /** On-foot players using the animated human asset, rather than a loading fallback. */
+  walkersFromFile: number;
   /** Far-LOD cells the manifest lists, loaded into the scene, and drawn in the last frame. */
   farCellsTotal: number;
   farCells: number;
@@ -123,6 +126,7 @@ export class SceneRenderer {
   private readonly sky = new Sky();
   private readonly water = new Water(SEA_SIZE_M);
   private readonly ground: (x: number, z: number) => number;
+  private readonly avatarGround = new AvatarGround();
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   private readonly headlight = new THREE.SpotLight(0xfff0d8, 0, 90, 0.52, 0.55, 1.4);
@@ -220,14 +224,23 @@ export class SceneRenderer {
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
-      onReady: (g) => this.prepareShadows(g),
-      onTileVisible: (id, visible) => this.far.setTileVisible(id, visible),
+      onReady: (g) => { this.prepareShadows(g); this.avatarGround.addTile(g); },
+      onTileVisible: (id, visible) => {
+        this.far.setTileVisible(id, visible);
+        if (!visible) this.avatarGround.removeTile(id);
+      },
       tintGround: (geo, m) => tintParks(geo, m, parks),
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
-    this.actors = new Actors(this.registry, this.lights, opts.shadows);
+    this.actors = new Actors(this.registry, this.lights, opts.shadows,
+      available && !available.has("models/player.glb") ? undefined : async (path) => {
+        if (assets) return assets.bytes(path);
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
+        return new Uint8Array(await response.arrayBuffer());
+      });
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
@@ -338,7 +351,7 @@ export class SceneRenderer {
   }
 
   setFoot(id: string, pose: WalkerPose | null): void {
-    this.actors.setFoot(id, pose);
+    this.actors.setFoot(id, pose ? { ...pose, y: this.avatarGround.heightAt(pose.x, pose.y, pose.z) } : null);
   }
 
   /** The two latest sim states and how far (0..1) the frame is between them: agents are drawn from these. */
@@ -451,6 +464,7 @@ export class SceneRenderer {
     for (const src of Object.values(this.actors.carSources())) if (src === "file") fromFile++;
     out.playerCarsFromFile = fromFile;
     out.walkers = this.actors.walkers;
+    out.walkersFromFile = this.actors.walkersFromFile;
     const f = this.far.info();
     out.farCellsTotal = f.total;
     out.farCells = f.loaded;
@@ -469,6 +483,7 @@ export class SceneRenderer {
 
   dispose(): void {
     this.streamer.dispose();
+    this.avatarGround.clear();
     this.far.dispose();
     this.actors.dispose();
     this.agents.dispose();
@@ -503,6 +518,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   agentModels: [],
   playerCarsFromFile: 0,
   walkers: 0,
+  walkersFromFile: 0,
   farCellsTotal: 0,
   farCells: 0,
   farCellsDrawn: 0,
