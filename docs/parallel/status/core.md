@@ -159,3 +159,13 @@ Draft PR title: `Core: apply accepted recovery positions and calendar advances`
 Base: `lane/core/mode-seam` · Head: `lane/core/world-effects`
 Open: <https://github.com/BroderickHigby/fog-city/compare/lane/core/mode-seam...lane/core/world-effects?expand=1>
 Body: Apply safehouse recovery before the normal physical step and retain the accepted pose through movement. Consume owner-validated player and economy events once to handle sleep and next-morning acqui-hire recovery, while leaving match instances unaffected. Persist bounded source cursors in the optional vehicles extension. Typecheck, 95 focused tests, and seven final recovery/composition tests passed. Mission vehicle transfers and teleoperation remain separate follow-up work.
+
+## Existing weather integration for the playable mission build
+
+- Adapted weather `1ec428f` and local combat-fog fields `87e191f` onto the current mode/recovery composition as `377975e` and `6f17b09`. Mode providers, observation reuse, day/hour/minute context and recovery behavior are preserved.
+- Wave 3+ registers the deterministic fog reducer. Recorded `mission.weather-request` effects create bounded fog windows and advance daytime requests to night. Ordinary weather depends on the saved calendar and seed; reads never consume simulation RNG.
+- Agents receive `fogAt(x,z)`. Combat actors and players receive their own location's density. Gameplay observations resolve each corresponding player's actual body position, so west-side fog is not copied citywide from `(0,0)`.
+- **Typecheck and 103 tests across six files passed**, including seeded weather, night-window expiry, recovery, mode hooks, replay/composition and forbidden APIs. A new composed regression verifies that west-side fog accelerates one player's threat decay while a clear east-side player's threat stays unchanged.
+- Wave 2 keeps zero fog. Rain exposure and the King-tide forecast are data interfaces; this checkpoint does not claim rain handling or new tidal geometry.
+
+Additional PR description: integrate the existing deterministic weather module into the later playable campaign, including position-specific observations and the authored Marine Layer night request. Keep mode provider hooks and the measured observation cache. Validation: typecheck plus 103 tests across six files passed. No changes are made to the frozen wave-2 gate.
