@@ -77,4 +77,10 @@ describe("gameplay layer index", () => {
     input.walk.nodes.push(input.walk.nodes[0]!);
     expect(() => buildGameplayIndex(input)).toThrow("duplicate sidewalk node");
   });
+
+  it("bounds transit indexing to built tiles when a route extends far outside the city", () => {
+    const input = fixture();
+    input.transit.routes[0]!.paths = [[[-1e10, 200], [1e10, 200]]];
+    expect(buildGameplayIndex(input).tiles.map((t) => t.transitRoutes)).toEqual([["r1"], ["r1"], ["r1"]]);
+  });
 });

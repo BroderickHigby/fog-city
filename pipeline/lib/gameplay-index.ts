@@ -8,24 +8,12 @@ import { clipSegment, r2, type P2 } from "./geom.ts";
 import type { RoadGraph } from "./roads.ts";
 import type { ShoreLine } from "./boundary.ts";
 import type { SidewalkGraph } from "./sidewalks.ts";
+import type { GameplayWorldData, WorldRefill, WorldGameplayAnchor, WorldGameplayTile, WorldGameplayTerritory } from "../../src/sim/gameplay-world.ts";
 
-export interface GameplayRefill {
-  id: string; kind: "hydrant" | "fountain" | "bay";
-  x: number; y: number; z: number; radius: number; salt: boolean;
-}
-export interface GameplayAnchor {
-  id: string; kind: "car-wash" | "repair-kiosk" | "garage-candidate" | "activity-candidate";
-  x: number; y: number; z: number; roadNodeId: string; districtId: string;
-}
-export interface GameplayTile {
-  id: string; sidewalkNodes: string[]; sidewalkEdges: string[]; refills: string[];
-  anchors: string[]; signals: string[]; transitStops: string[]; transitRoutes: string[];
-}
-export interface GameplayIndex {
-  version: 1; world: string; sourceSnapshot: string;
-  refills: GameplayRefill[]; anchors: GameplayAnchor[]; tiles: GameplayTile[];
-  territories: Array<{ step: string; wave: number; districtIds: string[]; tileIds: string[] }>;
-}
+export type GameplayRefill = WorldRefill;
+export type GameplayAnchor = WorldGameplayAnchor;
+export type GameplayTile = WorldGameplayTile;
+export type GameplayIndex = GameplayWorldData;
 export interface GameplayInput {
   world: string; sourceSnapshot: string; tiles: readonly TileRef[]; tileSizeM: number;
   walk: SidewalkGraph; roads: RoadGraph; districts: District[];
@@ -43,7 +31,7 @@ const unique = (values: string[]): string[] => [...new Set(values)].sort(cmp);
 
 // Analysis Neighborhoods are geometry, not mission activation. Several game districts
 // share one polygon (e.g. FiDi/Rincon Hill). These rows never activate content early.
-const TERRITORIES: Array<[string, number, string[]]> = [
+const TERRITORIES: Array<[WorldGameplayTerritory["step"], number, string[]]> = [
   ["1", 1, ["financial-district-south-beach"]],
   ["2", 1, ["north-beach", "marina", "potrero-hill"]],
   ["3", 2, ["south-of-market", "mission-bay", "financial-district-south-beach"]],
@@ -64,6 +52,8 @@ export function buildGameplayIndex(input: GameplayInput): GameplayIndex {
     if (tiles.has(t.id)) throw new Error(`gameplay: duplicate tile ${t.id}`);
     tiles.set(t.id, { id: t.id, sidewalkNodes: [], sidewalkEdges: [], refills: [], anchors: [], signals: [], transitStops: [], transitRoutes: [] });
   }
+  const minIx = Math.min(...input.tiles.map((t) => t.ix)), maxIx = Math.max(...input.tiles.map((t) => t.ix));
+  const minIz = Math.min(...input.tiles.map((t) => t.iz)), maxIz = Math.max(...input.tiles.map((t) => t.iz));
   const tileAt = (x: number, z: number): GameplayTile | undefined => tiles.get(`t${Math.floor(x / size)}_${Math.floor(z / size)}`);
   const nodes = new Map(walk.nodes.map((n) => [n.id, n]));
   if (nodes.size !== walk.nodes.length) throw new Error("gameplay: duplicate sidewalk node");
@@ -75,8 +65,10 @@ export function buildGameplayIndex(input: GameplayInput): GameplayIndex {
     for (let i = 1; i < points.length; i++) {
       const a = points[i - 1]!, b = points[i]!;
       if (!finite(...a) || !finite(...b)) throw new Error("gameplay: invalid line coordinate");
-      for (let ix = Math.floor(Math.min(a[0], b[0]) / size); ix <= Math.floor(Math.max(a[0], b[0]) / size); ix++) {
-        for (let iz = Math.floor(Math.min(a[1], b[1]) / size); iz <= Math.floor(Math.max(a[1], b[1]) / size); iz++) {
+      // Public transit patterns may continue far beyond the playable city. Bound the
+      // scan to built tiles before iterating, including adversarially distant points.
+      for (let ix = Math.max(minIx, Math.floor(Math.min(a[0], b[0]) / size)); ix <= Math.min(maxIx, Math.floor(Math.max(a[0], b[0]) / size)); ix++) {
+        for (let iz = Math.max(minIz, Math.floor(Math.min(a[1], b[1]) / size)); iz <= Math.min(maxIz, Math.floor(Math.max(a[1], b[1]) / size)); iz++) {
           const t = tiles.get(`t${ix}_${iz}`);
           if (t && clipSegment(a, b, [ix * size, iz * size, (ix + 1) * size, (iz + 1) * size])) visit(t);
         }

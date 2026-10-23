@@ -13,11 +13,14 @@ Publishing the gameplay-world handoff on `lane/pipeline/wave2`, starting from th
 - Added `gameplay.json` (2.52 MB): 583 tile indices, 5,205 refill interactions, 807 procedural service/activity candidates, and all 10 design territory rows.
 - Kept complete sidewalk endpoint references at tile seams, including segments crossing a tile without either endpoint inside it. Indexed transit segments by geometric intersection.
 - Added an offline index rebuild/check command and connected the same generator to the full build.
-- Synthetic seam, determinism, safety and malformed-ID tests plus the existing build-fixture pass (40 tests).
+- Synthetic seam, determinism, safety, malformed-ID and far-outside transit tests pass. The full-build fixture publishes the shared schema too.
+- Integrated Lane 2's `8c6dff9` and imported its shared gameplay types instead of maintaining duplicate contracts.
+- All 62 focused pipeline tests pass (index, committed-world schema/references/territory coverage, build fixture, existing layers and budgets). Offline regeneration is byte-identical. No district lacks a garage candidate.
+- Pushed the initial checkpoint as `34d4984` on `lane/pipeline/wave2`; the functional data commit is `436aa32`.
 
 ## Next
 
-Merge Lane 2's published schema/types, validate the committed world against it, push the wave-2 checkpoint, then coordinate reviewed QA geometry before later-wave physical certification.
+Publish the final hardening checkpoint, then review new mission copy and integrated runtime seams as requested by Lane R. Later-wave physical certification awaits the coordinated QA collider/surface migration.
 
 ## Blocked on
 
@@ -47,4 +50,4 @@ The committed city already had sidewalks, transit and water-source layers, but n
 
 The full builder emits the layer, and an offline command rebuilds it from existing committed data without downloads or tile regeneration. Placement checks exclude water, building footprints and traffic lanes; candidate services remain subject to content progression and driving-route validation. The world QA geometry gate remains open and this change does not claim bridge/tunnel/stair readiness.
 
-Validation: synthetic seam/determinism/safety cases and existing build-fixture tests pass; shared-schema, committed-world, budget and byte-identity checks recorded below when complete.
+Validation: `pnpm exec vitest run tests/pipeline/gameplay-index.test.ts tests/pipeline/gameplay-world.test.ts tests/pipeline/build-fixture.test.ts tests/pipeline/layers.test.ts tests/pipeline/budgets.test.ts --maxWorkers=2` — 62 passed. `node pipeline/build-gameplay.ts --check` — byte-identical. Typecheck passed after merging the shared contract; final hardening typecheck pending below.
