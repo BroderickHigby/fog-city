@@ -9,6 +9,7 @@ import { canInteractAtSite } from "../sim/player/sites.ts";
 import { DEFAULT_CATALOG } from "../sim/player/catalog.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { missionActorBindings } from "../sim/agents/systems.ts";
+import { nearestTurntable } from "../sim/missions/mechanics/bell.ts";
 import type { RoadGraph } from "../render/types.ts";
 import type { InteractionView, MapEdge, MapPoint, UiView } from "./types.ts";
 const graphEdges=new WeakMap<RoadGraph,readonly MapEdge[]>();
@@ -21,7 +22,11 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const mission=MISSIONS.find(m=>m.id===progress?.missionId),step=mission?.steps.find(s=>s.id===progress?.stepId);
   let interaction:InteractionView|undefined;
   const lines=step&&"lines"in step?step.lines?.map(line=>`${line.speaker}: ${line.text}`).join("\n"):"";
-  const detail=(step&&"hint"in step?step.hint:undefined)||lines||step?.note||mission?.summary||"";
+  const duelStep=step?.type==="objective"&&step.objective.kind==="event"&&(step.objective.event==="bell.duelStarted"||step.objective.event==="bell.duelWon");
+  const duel=duelStep?state.ext.missions?.bell?.duels[playerId]:undefined;
+  const bell=duel?{round:duel.round,wins:duel.wins,losses:duel.losses,count:duel.cues.length}:undefined;
+  const duelText=duel&&bell?duel.phase==="demonstration"?uiText("ui.bell.listen",{...bell,heard:duel.cues.filter(cue=>cue<=state.tick).length}):duel.phase==="response"?uiText("ui.bell.turn",{...bell,rung:duel.ringIndex}):uiText("ui.bell.pause",bell):undefined;
+  const detail=duelText||(step&&"hint"in step?step.hint:undefined)||lines||step?.note||mission?.summary||"";
   if(mission&&progress&&step&&progress.status==="active"){
     const id=`${mission.id}:${step.id}:${progress.questionIndex}`;
     if(step.type==="form")interaction={id,title:mission.title,detail,startup:true,choices:[]};
@@ -40,7 +45,8 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const objectiveActor=step?.type==="objective"?(step.objective.actor??(step.objective.event==="botCheck.falsePositiveSeen"?"courier":undefined)):undefined;
   const targetId=mission&&objectiveActor?missionActorBindings(state,mission.id,playerId)[objectiveActor]:undefined;
   const actorTarget=targetId?agentsRuntimeOf(state)?.actors[targetId]:undefined;
-  const target=missionDestination??(step?.type==="goto"?toLocal(step.target.lat,step.target.lon):step?.type==="trigger"?toLocal(step.event.place.lat,step.event.place.lon):actorTarget?{x:actorTarget.x,z:actorTarget.z}:undefined);
+  const turntable=duelStep&&body?nearestTurntable(body.x,body.z):undefined;
+  const target=missionDestination??(turntable?{x:turntable.x,z:turntable.z}:step?.type==="goto"?toLocal(step.target.lat,step.target.lon):step?.type==="trigger"?toLocal(step.event.place.lat,step.event.place.lon):actorTarget?{x:actorTarget.x,z:actorTarget.z}:undefined);
   if(target)blips.push({id:"mission-target",kind:"safehouse",label:mission?.title??uiText("ui.hud.objective"),...target});
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;

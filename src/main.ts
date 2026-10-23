@@ -76,7 +76,10 @@ import {
 
 const LOCAL_PLAYER = "p1";
 const SEED = 1;
-const GAME_WAVE = 3;
+/** The released wave. ?wave=4 previews the next wave's missions (QA and browser tests only). */
+const RELEASED_WAVE = 3;
+const PREVIEW_WAVE = Number(new URLSearchParams(location.search).get("wave"));
+const GAME_WAVE: 3 | 4 = PREVIEW_WAVE === 4 ? 4 : RELEASED_WAVE;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];

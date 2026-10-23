@@ -77,7 +77,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
 export function makeGameplaySystem(key:"player"|"heat"|"missions"|"economy"|"progression"|"activities",provider:GameplayProvider=defaultGameplayProvider):SimSystem {
  return {key,step(context){
   const ctx=provider(context);finiteContext(ctx);const own=gameplaySnapshot(context),tick=context.state.tick;
-  const result=key==="player"?stepPlayer(own.player,ctx,tick,own.economy,own.heat):key==="heat"?stepHeat(own.heat,ctx,tick,own.player.events,own.missions.events):key==="missions"?stepMissions(own.missions,ctx,tick,own.heat,own.player):key==="economy"?stepEconomy(own.economy,ctx,tick,own.missions.events,own.heat,own.player.events,own.activities.events):key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events}):stepActivities(own.activities,ctx,tick,own.missions,context.state.seed);
+  const result=key==="player"?stepPlayer(own.player,ctx,tick,own.economy,own.heat,own.missions.events):key==="heat"?stepHeat(own.heat,ctx,tick,own.player.events,own.missions.events):key==="missions"?stepMissions(own.missions,ctx,tick,own.heat,own.player,context.state.seed):key==="economy"?stepEconomy(own.economy,ctx,tick,own.missions.events,own.heat,own.player.events,own.activities.events):key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events}):stepActivities(own.activities,ctx,tick,own.missions,context.state.seed);
   return {...context.state,ext:{...context.state.ext,[key]:result}};
  }};
 }

@@ -180,12 +180,15 @@
     "ui.accessibility.captions": "Captions",
     "ui.audio.music": "Music",
     "ui.audio.effects": "Effects",
-    "ui.audio.master": "Master volume"
+    "ui.audio.master": "Master volume",
+    "ui.bell.listen": "Listen: bell {heard} of {count}. Round {round}, {wins}–{losses}.",
+    "ui.bell.turn": "Your turn: ring with interact ({rung} of {count}). Round {round}, {wins}–{losses}.",
+    "ui.bell.pause": "Round {round} over: {wins}–{losses}."
   },
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave2-2026-10-23",
-    "contentHash": "fnv1a32:8bc26e24",
+    "contentHash": "fnv1a32:d2eed466",
     "reviewedBy": [],
     "review": "Authored for the published UI request. Pending independent review; existing approved names reused."
   }

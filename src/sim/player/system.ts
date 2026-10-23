@@ -1,10 +1,10 @@
 import { commands,distanceSquared,event,sortedBodies } from "./common.ts";
-import type { EconomyState,GameplayContext,HeatState,PlayerGameplayState,PlayerStatus } from "./types.ts";
+import type { EconomyState,GameplayContext,GameplayEvent,HeatState,PlayerGameplayState,PlayerStatus } from "./types.ts";
 
 export function createPlayerStatus():PlayerStatus{return {status:"active",bridgeUntil:0,resumeTick:0,safehouseId:"",startupKitId:"",downRounds:0,commandSequence:0,watchingActorId:"",watchedTicks:0};}
 export function createPlayer(tick=0):PlayerGameplayState{return {version:1,tick,nextId:1,players:{},events:[]};}
 /** Recovery emits explicit commands to the owner of wallet/heat/body state. */
-export function stepPlayer(previous:PlayerGameplayState,ctx:GameplayContext,tick:number,economy:EconomyState,heat:HeatState):PlayerGameplayState {
+export function stepPlayer(previous:PlayerGameplayState,ctx:GameplayContext,tick:number,economy:EconomyState,heat:HeatState,missionEvents:readonly GameplayEvent[]=[]):PlayerGameplayState {
  const state:PlayerGameplayState={...previous,tick,players:{},events:[]};
  for(const body of sortedBodies(ctx)){
   const own={...(previous.players[body.id]??createPlayerStatus())};state.players[body.id]=own;
@@ -21,7 +21,10 @@ export function stepPlayer(previous:PlayerGameplayState,ctx:GameplayContext,tick
    else down();
   }
   if(own.status==="bridge"&&tick>=own.bridgeUntil)down();
-  if((danger?.vcQuarters??0)>=20&&ctx.facts.some(f=>f.playerId===body.id&&f.tick===tick&&f.kind==="bell-duel.lost")){
+  // A lost bell duel means ACQUI-HIRED. The mission producer (its event from the tick before)
+  // only starts a duel at five stars, which may decay while the bells ring.
+  const lostDuel=(danger?.vcQuarters??0)>=20&&ctx.facts.some(f=>f.playerId===body.id&&f.tick===tick&&f.kind==="bell-duel.lost")||missionEvents.some(e=>e.playerId===body.id&&e.tick===tick-1&&e.kind==="bell-duel.lost");
+  if(own.status==="active"&&lostDuel){
    own.status="down";own.resumeTick=tick+1;event(state,"player.acqui-hired",body.id,"",.1);recover();
   }
   function recover():void {
