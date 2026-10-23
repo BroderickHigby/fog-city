@@ -1,7 +1,9 @@
 # Lane 2: Core sim and harness
 
 ## Now
-- Shared interface published on `lane/core/wave2`; combined integration verification is owned by the integrating session.
+- Remaining wave-2 core/harness work is active: shared gameplay commands/world metadata, clock/calendar, fog API, vehicle follower and runtime movement integration.
+- `integrate/wave2` is pushed at `ee21b4d`: reviewed core + combat `ef74fe5` + favicon fix. Scoped intake verification passed (157 tests and typecheck).
+- Publishing `gameplay-contract.ts` with the single `gameplay.command` channel agreed by Player/UI, and `gameplay-world.ts` plus the tile-gameplay schema for Pipeline.
 
 ## Done
 - Inspected the actual base: `SIM_VERSION` is 2. `qa/sim` and `feature/dodge` use 4, with 5 reserved for their integration. Wave 2 will use 6.
@@ -21,6 +23,7 @@
 ## Blocked on
 - GitHub API access is unavailable; the owner will open the draft PR from the pushed branch.
 - QA/dodge migrations must land before saves from their intermediate schemas can be accepted safely.
+- Automatic approval review rejected merging the docs-only `origin/integrate/wave1` source into `integrate/wave2` twice, interpreting the protected-branch rule as banning that merge direction too. No protected branch was changed; no workaround was attempted. Read-only handoffs remain available.
 
 ## Requests for other lanes
 - All lanes: build against the shared interface once published. Do not edit `contract.ts`.
