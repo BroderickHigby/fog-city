@@ -232,7 +232,7 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(input&&(input.actions&Action.watch))watches.push({playerId:player.id,x:player.x,z:player.z,lineOfSight:visible});
   }
   for(const other of others){
-    if(other.id===actor.id||other.retired||distance(actor,other)>30)continue;
+    if(other.id===actor.id||other.retired||other.behavior==="pending-admission"||distance(actor,other)>30)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,other.x,other.z);
     if(human(other.model))sight.push({kind:"person",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible});
     else if(!animal(other.model))sight.push({kind:"robot",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible,alignment:other.firmware==="bad"?"bad":"good",operational:phase(sim,other.id)==="active"});
@@ -396,6 +396,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const graph=options.graph??fallbackGraph(world);
   const list=keys(state.actors).map(id=>state.actors[id]!);
   const presentLegacy=new Set(agentsOf(sim).map(actor=>actor.id));
+  const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
   for(const actor of list){
@@ -404,6 +405,16 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
     if(actor.legacyId!==null&&!presentLegacy.has(actor.legacyId)){actor.fidelity="abstract";continue;}
     const fidelity=planFidelity(actor,anchors,sim.tick);actor.fidelity=fidelity.tier;
     if(!fidelity.allowCombat)continue;
+    if(actor.behavior==="pending-admission"&&actor.legacyId===null&&actor.model!=="drone"&&!physical.has(actor.id)){
+      // Retry only the stationary source pose. An unadmitted actor has no perception,
+      // navigation or attack progress until core has actually placed its physical body.
+      actor.fidelity="abstract";actor.intent=null;
+      state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:null,...motionMetadata(actor),
+        kind:vehicle(actor.model)?"vehicle":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,
+        radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),
+        ...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
+      continue;
+    }
     let intent:RobotBrainIntent|undefined=actor.intent??undefined;
     if(actor.firmware==="bad"&&!vehicle(actor.model)&&phase(sim,actor.id)==="active"&&(fidelity.run||actor.brain?.windup||actor.brain?.update)){
       actor.brain??=createRobotBrain({id:actor.numericId,archetype:archetype(actor.model),tick:sim.tick});
@@ -433,7 +444,26 @@ export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
 export function observeAgentRuntime(sim:Readonly<SimState>,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const previous=agentsRuntimeOf(sim)??createAgentsRuntime(sim,options);
   const observed=synchronize(previous,sim,options);
-  return {...observed,attacks:previous.attacks,proposals:previous.proposals,events:[...previous.events,...observed.events]};
+  let attacks=previous.attacks;
+  if(options.observedBodies!==undefined){
+    // Core may defer a blocked spawn. Keep its durable staging record, but do not publish
+    // a ghost body to combat, mission watching or rendering while physical admission waits.
+    // Drones deliberately use the flying path and have no ground collision proxy.
+    const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
+    const waiting=new Set<string>();
+    const anchors=options.anchors??players(sim).map(player=>({id:player.id,x:player.x,z:player.z}));
+    for(const id of keys(observed.actors)){
+      const actor=observed.actors[id]!;
+      if(actor.retired||actor.legacyId!==null||actor.model==="drone")continue;
+      if(!physical.has(id)){
+        waiting.add(id);actor.fidelity="abstract";actor.behavior="pending-admission";actor.speed=0;actor.intent=null;
+      }else if(actor.behavior==="pending-admission"){
+        actor.fidelity=planFidelity(actor,anchors,sim.tick).tier;actor.behavior="idle";
+      }
+    }
+    if(waiting.size)attacks=attacks.filter(attack=>!waiting.has(attack.attackerId)&&!waiting.has(attack.targetId));
+  }
+  return {...observed,attacks,proposals:previous.proposals,events:[...previous.events,...observed.events]};
 }
 
 export function runtimeAttackRequests(sim:Readonly<SimState>):readonly AttackRequest[]{return agentsRuntimeOf(sim)?.attacks??[];}
