@@ -37,4 +37,16 @@ describe("closed-loop vehicle follower", () => {
     expect(state.reversals).toBe(0);
     expect(state.blockedTicks).toBe(0);
   });
+  it("settles a near-goal stop without entering a deadband reverse loop",()=>{
+    const world=buildWorld([]);
+    let body=makeCar(0,0,0),state=createFollowerState(body),status="driving";
+    for(let tick=0;tick<300;tick++){
+      const result=stepVehicleFollower(world,body,state,{kind:"pursue",target:{x:0,z:-2.25},stopDistance:2});
+      status=result.status;state=result.state;body=stepCar(world,body,result.input);
+    }
+    expect(status).toBe("arrived");
+    expect(state.reversals).toBe(0);
+    expect(Math.abs(body.speed)).toBeLessThan(.3);
+  });
+
 });
