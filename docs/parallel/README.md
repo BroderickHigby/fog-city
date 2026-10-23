@@ -160,10 +160,12 @@ pnpm build && pnpm preview   # packed static build in dist/ (scripts/build-web.t
   files and `schemas/tile-*`. Each wave opens with Lane 2's **interface PR**: `ext` key types,
   event kinds, new actions and stub `systems.ts` files in every area. Build against those stubs.
   Until that PR merges, branch from Lane 2's interface branch.
-- **SIM_VERSION:** `integrate/wave1` is at version 4, and Lane R's dodge merge takes 5. Lane 2
-  takes the next free number when its interface PR merges, and renumbers at rebase if that number
-  is taken. Every bump adds an `upgradeState` step and a test that loads the previous version's
-  save or replay.
+- **SIM_VERSION:** `integrate/wave1` is still at version 2. The unmerged `qa/sim` and
+  `feature/dodge` branches each bump to 4 on their own, so Lane R's integration lands them as 4
+  (world surfaces) and 5 (the dodge). Lane 2's wave-2 interface takes 6. A later bump takes the
+  next free number when it merges, and renumbers at rebase if that number is taken. Every bump
+  adds an `upgradeState` step and a test that loads the previous version's save or replay. The
+  chain must stay unbroken (2 → 4 → 5 → 6 …) once the integration lands.
 - **Determinism (enforced by `tests/sim/forbidden-apis.test.ts`):** the sim is pure. That means
   no three.js, DOM, network, wall clock or `Math.random`, and transcendental maths only from
   `dmath.ts`. Iterate players with `sortedIds()`. Outside facts enter only as `SimEvent`s.

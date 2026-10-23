@@ -31,9 +31,10 @@
 >    - the new actions: `gadget`, `cone`, `interact`, `streak`, `emote`, `watch` and `altFire`,
 >      plus aim yaw and pitch;
 >    - stub `systems.ts` files in every area directory;
->    - the next `SIM_VERSION`, with its `upgradeState` step and a test. `integrate/wave1` is at 4
->      and Lane R's dodge merge takes 5, so take the next free number and renumber at rebase if it
->      is taken.
+>    - the next `SIM_VERSION`, with its `upgradeState` step and a test. `integrate/wave1` is
+>      still at 2, and Lane R's integration lands world surfaces as 4 and the dodge as 5, so the
+>      interface takes 6. Keep the `upgradeState` chain unbroken (2 → 4 → 5 → 6) when you merge
+>      the integration in.
 >
 >    Merge it into `integrate/wave2` and tell the lanes in your status file.
 > 4. Then do the rest of your wave-2 rows, and the integrator duties below.
