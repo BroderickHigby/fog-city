@@ -1,0 +1,51 @@
+{
+  "repository": "https://github.com/microsoft/Microsoft-Rocketbox",
+  "commit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
+  "files": [
+    {
+      "file": "Male_Adult_01.fbx",
+      "bytes": 521472,
+      "sha256": "8d1edb51b4dc3427ae2456f4407fc105532c145dd019e53cd42bab31cc948a29"
+    },
+    {
+      "file": "m002_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "6a048a6b2140a1f5293798ca286be64fd0de6d79572e1273ff5765bd578f463f"
+    },
+    {
+      "file": "m002_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "c9892e80c56890f6f5365627835286c2d4d2cc34cc473f6788fe3d560a52fb69"
+    },
+    {
+      "file": "m002_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "f5b64e4894930d438f7c419c3c9d0bba1f95fa4de9af078b762ea55bfca1ab85"
+    },
+    {
+      "file": "m002_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "5ef5ae404c9276f17641e392d0d4bdbe5fb23e94f28238b23a381e6a357c42ea"
+    },
+    {
+      "file": "m002_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "53818d3f45519451edd2bc60d6e59cd4057ecd381827463c5503da0439d0a5cf"
+    },
+    {
+      "file": "m_idle_neutral_01.max.fbx",
+      "bytes": 2418544,
+      "sha256": "818cc185af21390575f7fbfdeb3012ba2ce5969fbcb220ea725a2617b339a6e2"
+    },
+    {
+      "file": "m_walk_neutral.max.fbx",
+      "bytes": 958512,
+      "sha256": "93089851a370e3a117a6bd04c002815f7133fce41c6271e9eb448ca1228b154f"
+    },
+    {
+      "file": "m_run_neutral.max.fbx",
+      "bytes": 877760,
+      "sha256": "2f5647b86022ddbb702819ce939c7012e3636796fff93d1b979ea716a71dff5f"
+    }
+  ]
+}

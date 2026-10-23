@@ -1,7 +1,7 @@
-// Players as the renderer draws them: a car per player (models/player-car.glb when present,
+// Players as the renderer draws them: a car per player (models/civilian-car.glb when present,
 // else an original procedural hatchback), its body pitched and rolled as the sim says and
 // its wheels rolling (rotation.x -= distance / radius) and steering; and, while the player is
-// on foot, an animated human from player.glb, with a procedural placeholder while it loads.
+// on foot, an animated human from generic-player.glb, with a procedural placeholder while it loads.
 // Car lights are light_* materials: NightLights scales them with the rest of the city.
 // Each player has a colour from their id (playerColorIndex): the first keeps the model's own
 // paint, the others get the GLB's recolourable `paint` material cloned in their colour, so
@@ -33,8 +33,8 @@ export interface WalkerPose extends Pose {
 }
 
 /**
- * Player car colours (sRGB). Index 0 is the player car's own paint (player-car.glb's orange;
- * the procedural car matches it); the rest replace the GLB's `paint` material.
+ * Player car colours (sRGB). The first slot supplies the procedural fallback colour;
+ * a loaded car in slot 0 keeps its authored paint. Other slots replace its `paint` material.
  */
 export const CAR_COLORS = [0xe0552b, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0];
 
@@ -241,7 +241,7 @@ export class Actors {
     return out;
   }
 
-  /** Where each player's car model came from ("file" = player-car.glb). */
+  /** Where each player's car model came from ("file" = civilian-car.glb). */
   carSources(): Record<string, "file" | "fallback"> {
     const out: Record<string, "file" | "fallback"> = {};
     for (const [id, v] of this.players) out[id] = v.carSource;

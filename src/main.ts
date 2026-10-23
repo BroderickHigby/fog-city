@@ -183,9 +183,12 @@ async function boot(): Promise<void> {
     { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
     {
       radius: numParam(params, "radius") ?? 1500,
-      shadows: params.get("shadows") === "1",
+      shadows: params.has("shadows") ? params.get("shadows") === "1" : undefined,
+      quality: params.has("quality") ? params.get("quality") === "1" : params.get("gfx") === "high" ? true : undefined,
+      timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
+        ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
-      maxPixelRatio: numParam(params, "pr") ?? 1.5,
+      maxPixelRatio: numParam(params, "pr") ?? 2,
       models: new Set(models),
       landmarks: landmarksDoc,
     },

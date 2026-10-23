@@ -1,10 +1,10 @@
-# Human avatar in the running game
+# Generic human avatar in the running game
 
-Captured on `lane/render/wave2` from the canonical wave-2 world with the normal renderer and existing authored human asset; these are real Chromium game frames, not concept art.
+Captured on `lane/render/wave2` from the canonical SF world. These are actual Chromium game frames.
 
-- `front.png`: fly camera facing the player; face, hair, bomber jacket, hands, jeans and sneakers visible.
-- `third-person.png`: normal chase camera beside the car at the Ferry Building.
+- `front.png`: Microsoft Rocketbox's generic adult, with textured face, hair, striped polo, shorts and sneakers.
+- `third-person.png`: normal chase camera beside the player car at the Ferry Building.
 
-Reproduce with `tests/e2e/avatar.spec.ts`. It exits the car with the real F key, waits for `walkersFromFile === 1`, pauses the simulation, takes both views, then verifies first-person hides the local body and camera changes preserve the simulation hash.
+Reproduce with `tests/e2e/avatar.spec.ts`. It exits the car with F, waits for the skinned model, takes both views, then verifies that first-person hides the body and cameras preserve the simulation hash.
 
-The avatar is skinned and animated in normal play. Render-only floor alignment follows the actual loaded street triangles so the raised pavement no longer hides the shoes. Images use software rendering; they are not hardware frame-rate evidence. The surrounding world art remains the canonical integration baseline.
+Source and MIT licence: `assets/imports/rocketbox/`. Feet follow the visible road surface without changing simulation position. These captures use software rendering and are not native-GPU frame-rate evidence.

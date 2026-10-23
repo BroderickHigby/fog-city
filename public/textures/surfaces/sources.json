@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "sourceCommit": "d269fecc6f5b456194e6a2399b3992e1a864ad12",
+  "textures": {
+    "asphalt": {
+      "sizeM": 3.0,
+      "meanLinear": [
+        0.11198,
+        0.11036,
+        0.09824
+      ],
+      "albedo": "asphalt_albedo.webp",
+      "normal": "asphalt_normal.webp",
+      "orm": "asphalt_orm.webp",
+      "source": "https://polyhaven.com/a/asphalt_02",
+      "author": "Rob Tuytel",
+      "licence": "CC0 1.0 (https://polyhaven.com/license)",
+      "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+    },
+    "concrete": {
+      "sizeM": 1.8,
+      "meanLinear": [
+        0.21601,
+        0.17802,
+        0.13617
+      ],
+      "albedo": "concrete_albedo.webp",
+      "normal": "concrete_normal.webp",
+      "orm": "concrete_orm.webp",
+      "source": "https://polyhaven.com/a/concrete_pavement",
+      "author": "Charlotte Baglioni",
+      "licence": "CC0 1.0 (https://polyhaven.com/license)",
+      "adaptation": "1k JPEG maps (Diffuse, nor_gl, arm) re-encoded as 1024 px WebP by assets/textures/fetch_cc0.py"
+    }
+  }
+}

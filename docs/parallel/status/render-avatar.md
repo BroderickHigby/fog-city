@@ -1,31 +1,30 @@
-# Human avatar correction — 23 October 2026
+# SF realism and generic avatar — 23 October 2026
 
-The owner explicitly requested replacing the Lego-like player with a human. This focused rendering change starts from canonical `integrate/wave2` (`c36a550`) on `lane/render/wave2`; it does not resume or merge a frozen showcase branch and does not change the simulation.
+The owner requested a generic human from an online asset library and a visual direction comparable to Slop New York, adapted to San Francisco. This rendering work starts from canonical `integrate/wave2` (`c36a550`) on `lane/render/wave2`. It does not modify simulation, physics, missions or save contracts.
 
-The canonical player renderer never loaded the existing authored `public/models/player.glb`. It used the crowd's primitive torso/cylinder placeholder for every player. The existing human asset has 7,896 triangles, a 20-bone skeleton, facial features, hands, clothes, idle/walk/run clips and authored morphs. Its generation/source terms are already documented in `assets/blender/README.md`; this change introduces no third-party asset or licence.
+## What changed
 
-Changes:
+- The default on-foot player now uses Microsoft's MIT-licensed Rocketbox `Male_Adult_01`, converted with embedded textures and idle/walk/run clips. It has 7,440 triangles and 80 joints. The retired likeness-specific `player.glb` stays in source history but is excluded from the web build. Provenance, complete licence and reproducible import scripts: `assets/imports/rocketbox/`.
+- Players get independent skeletons and animation mixers, visible loading/failure fallback, first-person hiding and the existing 16-player draw limit. Ground contact uses the visible road surface while preserving simulated height and jump/roof/bridge behaviour.
+- Leaf-spray broadleaf and cypress trees replace named primitive street trees, with bark, branches, wind, shadows and bounded near/far instance budgets.
+- Façades gain recessed window/frame shading, interior parallax and blinds, masonry detail and weathering. Roads and sidewalks gain finer material variation and joints, plus six licensed 1K Poly Haven asphalt/concrete maps with real metre-scale repetition and packed-build loading.
+- Noon, golden-hour, twilight and night lighting share sky, sun, environment reflection and SF marine haze. Native GPUs default to soft shadows and HDR grading/bloom/FXAA. Software renderers keep a lighter default; `?gfx=high&shadows=1&tod=golden` explicitly enables the visual QA path. Devices without floating-point color targets use the direct rendering path to avoid clipped highlights.
+- An original unbranded rounded fastback is now the default player car, keeping wheel, paint and light contracts. Reproducible model source and licences: `assets/imports/civilian-car/`.
 
-- Mount the skinned human on all normal graphics settings, through the same loose/packed asset provider as the world. Keep a visible fallback during loading or failure.
-- Give each player its own skeleton and animation mixer, preserve other players' jacket colours, and dispose departed bodies without disposing shared geometry.
-- Preserve first-person hiding and car-entry behaviour; expose `walkersFromFile` for browser verification.
-- Align only the rendered feet and contact shadow to nearby visible ground/road triangles. SF's road ribbons sit 0.15 m above simulation ground and previously buried the shoes. Keep jump/roof/bridge simulation coordinates intact.
+Slop New York's source was inspected at `039a32796faf6ff914a07946b3d3d058d291e251`. Its grading and material techniques informed this implementation; no NYC map or city assets were copied. Attribution: `assets/imports/slop-new-york/`.
 
-Verification and screenshots are recorded below after the final candidate runs. This is a human-avatar correction, not a claim that the rest of the world meets the requested modern visual standard.
+## Validation
 
-Validation checkpoint:
+- TypeScript passed. All 133 unit files passed: **3,034 tests**, with one existing opt-in skip.
+- **39 unique Chromium cases passed**, using the full regression run plus focused reruns. Ten Firefox/WebKit checks were skipped because those engines are unavailable.
+- The complete Hot Desk route, signup, first purchase, reward and Spill acknowledgement passed. Browser and Node reproduced the same final hash, `845bcfc6`, across **14,644 input frames** (tick 1 to 14,645), including all five recorded UI commands.
+- Dedicated rendering checks verify actual avatar and scanned-surface decoding, bounded foliage, camera/lighting state isolation, model contracts, loading fallbacks and disposal. City tests cover traffic, skyline streaming, the southern seam and driving.
+- The hosted build passed all six checks, including sub-path loading, split packs and missing-part refusal. Its **124 files / 119,705,388 bytes** fit the host limits; the largest file is 12,349,300 bytes. All eight new runtime assets match their source hashes. The retired likeness is absent; licence notices are included.
+- `test-results/fog-city-sf-realism.zip` is the tested, CRC-checked bundle: **75,886,458 bytes**. It is an ignored build artifact.
+- Real game screenshots are in `docs/shots/sf-realism/` and `docs/shots/avatar-human/`, including 1920 × 1080 noon and avatar views. The HD captures reported no browser errors.
 
-- TypeScript passed. Full unit sweep: 3,011 passed and one existing opt-in skip; the sole failure was the test-guide coverage check for the newly added `avatar.spec.ts`. Added its guide entry and reran the complete 24-test harness file successfully, covering all 3,012 unit cases after that documentation correction.
-- Eleven new focused cases cover real-asset skinning/grounded feet, independent skeletons, first-person hiding, loading failure and late disposal, actual floor interpolation, tile lifecycle, bridge/roof separation and malformed-coordinate rejection.
-- Initial live controls run: three browser cases passed (SF human avatar, walking/vehicle entry and blocked vehicle exit).
-- Updated floor-aligned avatar and packaged build: seven browser cases passed, including human loading through the packed sub-path provider, no raw binary requests, streaming, split packs and missing-part failure.
-- Front and chase-view evidence is committed under `docs/shots/avatar-human/`. The avatar remains an authored stylized human, not a photoreal scan. No asset geometry, texture or licensing changes were needed.
+The first campaign attempt was interrupted by a development hot reload. Focused reruns also exposed test timing assumptions: the visual check now drains the startup mission command before taking its paused hash, and the campaign explicitly settles with neutral input after closing the form. The stopped-speed, financial and replay assertions remain intact. The traffic request check now names the new civilian car. All affected cases passed on the final frozen source.
 
-Final review and validation:
+The supplied reference page is blocked by this environment's network policy. Its pinned source was available on GitHub, but the locally mirrored reference failed to draw on the software GPU. Exact visual parity and native-GPU frame rate are therefore unverified. The city remains procedural; these images show the actual runtime, not a render mockup.
 
-- Preserved the existing limit of 16 visible on-foot players for the skinned path. A 24-player test checks the cap and verifies that hiding the local first-person body frees a slot for the next remote avatar.
-- Full Chromium suite before that budget guard: **38 passed in 20.6 minutes**, including complete Hot Desk/purchase/Spill progression and matching replay hash. Ten Firefox/WebKit cases were explicitly skipped because those engines are unavailable.
-- After the budget guard: **TypeScript and all 130 unit files passed: 3,013 tests, one existing opt-in skip**. The only further runtime delta was the drawing-budget guard; final avatar, controls and packaged-build browser checks are recorded below.
-- The guard does not change input, physics, saves, missions or collision state. The old placeholder and the skinned model now share the same visible-player limit.
-- Final post-guard browser verification: **all nine avatar/control/static-build tests passed**. The packaged build loads the human model at its sub-path, and car entry, first-person hiding, streaming and missing-pack handling pass on the final source.
-- Shareable evidence: `docs/shots/avatar-human/front.png` and `third-person.png`. Built host bundle: `test-results/fog-city-human-avatar.zip` (ignored build artifact). The live Claude artifact is not republished by this environment; this branch and bundle are the tested handoff.
+This branch is a tested rendering handoff on the canonical base. The live Claude artifact cannot be republished from this environment; the branch and static ZIP are ready for the existing publishing workflow.

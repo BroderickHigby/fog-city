@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 
-export const PLAYER_BODY_FILE = "models/player.glb";
+export const PLAYER_BODY_FILE = "models/generic-player.glb";
 type Motion = "idle" | "walk" | "run";
 interface Body {
   root: THREE.Object3D;
@@ -20,6 +20,7 @@ export class PlayerBodies {
   readonly group = new THREE.Group();
   private readonly bodies = new Map<string, Body>();
   private readonly walkSpeed: number;
+  private readonly runSpeed: number;
   private readonly gltf: GLTF;
   private readonly shadows: boolean;
   private drawnCount = 0;
@@ -28,12 +29,15 @@ export class PlayerBodies {
   private constructor(gltf: GLTF, shadows: boolean) {
     this.gltf = gltf;
     this.shadows = shadows;
-    let speed = 1.39;
+    let speed = 1.39, runSpeed = 3.2;
     gltf.scene.traverse(object => {
       const value: unknown = object.userData.walkSpeedMps;
       if (typeof value === "number" && Number.isFinite(value) && value > 0) speed = value;
+      const run: unknown = object.userData.runSpeedMps;
+      if (typeof run === "number" && Number.isFinite(run) && run > 0) runSpeed = run;
     });
     this.walkSpeed = speed;
+    this.runSpeed = runSpeed;
     this.group.name = "players:bodies";
   }
 
@@ -109,7 +113,7 @@ export class PlayerBodies {
       }
     }
     const action = body.actions[body.current];
-    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed)) : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / (this.walkSpeed * 2.6))) : 1;
+    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed)) : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / this.runSpeed)) : 1;
     body.mixer.update(Math.max(0, dt));
     this.drawnCount++;
   }

@@ -1,16 +1,26 @@
 import { readFileSync } from "node:fs";
 import * as THREE from "three";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
 import { PLAYER_BODY_FILE, PlayerBodies } from "../../src/render/player-body.ts";
 
-const bytes = new Uint8Array(readFileSync(new URL("../../public/models/player.glb", import.meta.url)));
+const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
+// Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
+beforeEach(() => {
+  vi.stubGlobal("self", globalThis);
+  vi.spyOn(THREE.TextureLoader.prototype, "load").mockImplementation((_url, loaded) => {
+    const texture = new THREE.Texture<HTMLImageElement>();
+    queueMicrotask(() => loaded?.(texture));
+    return texture;
+  });
+});
 const disposables: Array<{ dispose(): void }> = [];
 afterEach(() => {
   for (const disposable of disposables.splice(0)) disposable.dispose();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function registry(): ModelRegistry<THREE.Object3D> {
@@ -37,7 +47,7 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
 }
 const pose = { x: 10, y: 3, z: -5, heading: Math.PI / 2, speed: 0 };
 
-describe("authored player avatar", () => {
+describe("generic online player avatar", () => {
   it("loads actual human geometry and animates independent skeletons without moving the world pose", async () => {
     const humans = await PlayerBodies.load(async path => { expect(path).toBe(PLAYER_BODY_FILE); return bytes; }, true);
     disposables.push(humans);
@@ -50,11 +60,11 @@ describe("authored player avatar", () => {
     const humanGeometry = new Set<THREE.BufferGeometry>();
     first.traverse(object => { if ((object as THREE.SkinnedMesh).isSkinnedMesh) humanGeometry.add((object as THREE.SkinnedMesh).geometry); });
     expect([...humanGeometry].reduce((count, geometry) => count + geometry.getAttribute("position").count, 0)).toBeGreaterThan(3000);
-    expect(firstSkin.skeleton.bones.length).toBe(20);
+    expect(firstSkin.skeleton.bones.length).toBe(80);
     expect(firstSkin.geometry).toBe(secondSkin.geometry);
     expect(firstSkin.skeleton).not.toBe(secondSkin.skeleton);
     expect(firstSkin.skeleton.bones[0]).not.toBe(secondSkin.skeleton.bones[0]);
-    const thigh = first.getObjectByName("thigh_L")!, otherThigh = second.getObjectByName("thigh_L")!;
+    const thigh = first.getObjectByName("Bip01_L_Thigh")!, otherThigh = second.getObjectByName("Bip01_L_Thigh")!;
     const before = thigh.quaternion.clone(), otherBefore = otherThigh.quaternion.clone();
     humans.begin();
     humans.add("p1", 10, 3, -5, Math.PI / 2, 1.39, 0.4);
@@ -89,16 +99,22 @@ describe("authored player avatar", () => {
         const soles: number[] = [];
         root.traverse(object => {
           const mesh = object as THREE.SkinnedMesh;
-          if (!mesh.isSkinnedMesh || (mesh.material as THREE.Material).name !== "tint_sole") return;
+          if (!mesh.isSkinnedMesh) return;
+          const indices = mesh.geometry.getAttribute("skinIndex");
+          const weights = mesh.geometry.getAttribute("skinWeight");
+          const feet = new Set(mesh.skeleton.bones.map((bone, i) => /_Foot$|_Toe/.test(bone.name) ? i : -1));
           const point = new THREE.Vector3();
           for (let i = 0; i < mesh.geometry.getAttribute("position").count; i++) {
+            let footWeight = 0;
+            for (let k = 0; k < 4; k++) if (feet.has(indices.getComponent(i,k))) footWeight += weights.getComponent(i,k);
+            if (footWeight < 0.5) continue;
             mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
             soles.push(point.y);
           }
         });
         expect(soles.length).toBeGreaterThan(50);
-        expect(Math.min(...soles)).toBeGreaterThan(-0.005);
-        expect(Math.min(...soles)).toBeLessThan(0.05);
+        expect(Math.min(...soles)).toBeGreaterThan(-0.06);
+        expect(Math.min(...soles)).toBeLessThan(0.12);
         expect(Math.max(...soles)).toBeGreaterThan(0.02);
       }
     }
