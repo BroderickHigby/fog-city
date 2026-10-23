@@ -63,3 +63,14 @@ test("gamepad opens the phone and selects an authored startup answer without lea
   await pad([]);await page.evaluate(()=>(window as unknown as {ui:{sampleInput():unknown}}).ui.sampleInput());
   await pad([0]);expect(await page.evaluate(()=>(window as unknown as {ui:{sampleInput():{actions:number}}}).ui.sampleInput().actions)).not.toBe(0);
 });
+
+test("an active mission dialog can be reopened after dismissal",async({page})=>{
+  await page.evaluate(()=>{
+    const host=window as unknown as {view:object;ui:{update(value:unknown):void}};
+    host.ui.update({...host.view,interaction:{id:"signup-step",title:"Your desk",detail:"Choose a startup",startup:true,choices:[]}});
+  });
+  await expect(page.getByRole("dialog")).toBeVisible();await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.locator(".fc-objective").getByRole("button",{name:"Continue"}).click();await expect(page.getByRole("textbox")).toBeVisible();
+  await page.keyboard.press("Escape");await page.getByRole("button",{name:"Open phone"}).click();
+  await page.getByRole("dialog").getByRole("button",{name:"Continue",exact:true}).click();await expect(page.getByRole("textbox")).toBeVisible();
+});
