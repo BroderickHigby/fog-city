@@ -24,4 +24,4 @@ export * from "./kits.ts";
 export * from "./proseNames.ts";
 export * from "./provenance.ts";
 export * from "./ui.ts";
-export * from "./catalog.ts";
+export { MISSIONS, CAMPAIGN_MISSIONS, SAFEHOUSES, MODE_INSTANCES, missionById } from "./catalog.ts";
