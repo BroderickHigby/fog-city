@@ -272,17 +272,21 @@ describe("hero landmarks: interim shapes (W-27)", () => {
     expect(box(allPositions(doc)).max[1]).toBeGreaterThan(255);
   });
 
-  it("the 415 Mission tower: 326 m, a rounded-square plan about 57 m across that tapers, and a crown narrower than the roof", async () => {
+  it("the 415 Mission tower: 326 m, a rounded-square plan about 57 m across that tapers, and a solid crown that rounds over narrower than the roof", async () => {
     const { doc } = await loadModel("415-mission.glb");
     const tris = allTriangles(doc, "tower");
     const span = (pts: Array<[number, number]>, k: 0 | 1): number => Math.max(...pts.map((p) => p[k])) - Math.min(...pts.map((p) => p[k]));
     const base = sectionAt(tris, 20);
     const high = sectionAt(tris, 280);
-    const crown = sectionAt(tris, 318);
+    const screen = allTriangles(doc, "crown_lights");
+    const crownLow = sectionAt(screen, 304);
+    const crownTop = sectionAt(screen, 324);
     expect(span(base, 0)).toBeGreaterThan(48);
     expect(span(base, 0)).toBeLessThan(62);
     expect(span(high, 0) / span(base, 0)).toBeLessThan(0.92);
-    expect(span(crown, 0) / span(high, 0)).toBeLessThan(0.8);
+    // the screen carries the shaft on past the roof (solid, not a lattice), then rounds over
+    expect(span(crownLow, 0) / span(high, 0)).toBeGreaterThan(0.9);
+    expect(span(crownTop, 0) / span(high, 0)).toBeLessThan(0.7);
     expect(box(allPositions(doc)).max[1]).toBeGreaterThan(320);
   });
 

@@ -351,6 +351,18 @@ export function rasterMask(polys: readonly P2[][], half = MASK_HALF_M, px = MASK
   return out;
 }
 
+/** A lookup into a mask that rasterMask made (or its DataTexture): true where (x, z) is set. */
+export function pavedAt(mask: Uint8Array | THREE.DataTexture, half = MASK_HALF_M): (x: number, z: number) => boolean {
+  const data = (mask instanceof Uint8Array ? mask : mask.image.data) as Uint8Array;
+  const px = Math.round(Math.sqrt(data.length));
+  const m = (2 * half) / px;
+  return (x, z) => {
+    const c = Math.floor((x + half) / m);
+    const r = Math.floor((z + half) / m);
+    return c >= 0 && r >= 0 && c < px && r < px && data[r * px + c]! > 127;
+  };
+}
+
 // ------------------------------------------------------------------ the F-line and palms
 
 /**

@@ -101,14 +101,17 @@ def rounded_square(h: float, r: float, per_corner: int = 6) -> list:
 
 
 def mission415() -> None:
-    """The 326 m tower: rounded-square plan with a slight taper, glass between pale fins, an open
-    crown of fins round a lit core. Night: the crown glows (light_tower_outline) with plain light,
-    never a logo or lettering; the lobby glows warm."""
+    """The 326 m tower: rounded-square plan with a slight taper, glass between pale fins that run
+    the full height in a steady vertical rhythm, and a solid crown: the shaft carries on past the
+    top floor as a pale screen that tapers and rounds over to a blunt top. Night: the whole crown
+    screen glows (light_tower_outline) with plain light, never a logo or lettering; the lobby glows
+    warm."""
     s = LK.site("415-mission")
     fc.reset()
     glass = fc.material("glass_curtain", "#7f95a6", 0.08, 0.75)
     fin = fc.material("precast_white", "#e9e6df", 0.5)
-    spandrel = fc.material("spandrel_pale", "#cfd6db", 0.35, 0.3)
+    # floor lines barely lighter than the glass: the fins, not a floor grid, give the shaft its rhythm
+    spandrel = fc.material("spandrel_pale", "#93a4b1", 0.2, 0.5)
     lobby = fc.material("glass_lobby", "#34404a", 0.15, 0.6)
     crown = fc.material("light_tower_outline", "#dfe5e8", 0.4, emission="#fff6e6", strength=1.0)
     beacon = fc.material("light_status", "#5a1010", 0.4, emission="#ff2a18", strength=1.0)
@@ -118,8 +121,11 @@ def mission415() -> None:
     h0 = min(s["extra"]["baseLongM"], s["extra"]["baseShortM"]) / 2.0 - 0.3  # about 26 m
     roof, top = 296.0, 326.0
     taper = 0.82  # the shaft narrows to 82% at the roof
-    half = lambda z: h0 * (1.0 - (1.0 - taper) * max(0.0, z) / roof)  # noqa: E731
+    half = lambda z: h0 * (1.0 - (1.0 - taper) * max(0.0, min(z, roof)) / roof)  # noqa: E731
     rc = lambda z: 0.32 * half(z)  # noqa: E731 corner radius
+    # the crown's profile above the roof: (height over the roof, share of the roof's half width);
+    # straight on for a storey, then rounding over to a blunt top a little under half as wide
+    profile = [(0.0, 1.0), (8.0, 0.99), (16.0, 0.95), (22.0, 0.86), (26.0, 0.72), (28.5, 0.56), (30.0, 0.4)]
     mb = fc.MeshBuilder()
     # the base on the record's own footprint (what the sim collides with at street level): a glass
     # lobby to 9 m with a pale band over it, the shaft rising from its roof in floor bands
@@ -128,41 +134,46 @@ def mission415() -> None:
     z = 10.0
     while z < roof:
         z1 = min(roof, z + floor)
-        zs = min(z1, z + 0.55)
+        zs = min(z1, z + 0.35)
         mb.frustum(rounded_square(half(z), rc(z)), rounded_square(half(zs), rc(zs)), z, zs, spandrel, top=False)
         mb.frustum(rounded_square(half(zs), rc(zs)), rounded_square(half(z1), rc(z1)), zs, z1, glass, top=False)
         z = z1
-    # vertical fins: pale ribs standing 0.45 m off the glass, every 3 m round the plan, up through
-    # the crown, where they lean in over the core
+    # vertical fins: pale ribs 0.55 m wide standing 0.7 m off the glass, every 4.5 m round the
+    # plan, from the lobby band to the roof, then up the crown screen's face to its top
     ring0 = rounded_square(half(0), rc(0), per_corner=4)
     perim = sum(math.hypot(ring0[(i + 1) % len(ring0)][0] - ring0[i][0], ring0[(i + 1) % len(ring0)][1] - ring0[i][1]) for i in range(len(ring0)))
-    nfin = int(perim / 3.0)
+    nfin = int(perim / 4.5)
+
+    def on_plan(a: float, h: float, rr: float, out: float) -> tuple:
+        # The point on the rounded square (half width h, corner radius rr) in direction a, pushed out by `out`.
+        dx, dy = math.cos(a), math.sin(a)
+        t = h / max(abs(dx), abs(dy))
+        px, py = dx * t, dy * t
+        cx, cy = math.copysign(h - rr, px), math.copysign(h - rr, py)
+        if abs(px) > h - rr and abs(py) > h - rr:
+            ex, ey = px - cx, py - cy
+            l = math.hypot(ex, ey) or 1.0
+            px, py = cx + ex / l * rr, cy + ey / l * rr
+        l = math.hypot(px, py) or 1.0
+        return (px + px / l * out, py + py / l * out)
+
     for k in range(nfin):
         a = 2 * math.pi * k / nfin
-
-        def at(z: float, out: float = 0.45, lean: float = 0.0) -> tuple:
-            # The point on the rounded square in direction a, pushed out by `out`.
-            h, rr = half(min(z, roof)) * (1.0 - lean), rc(min(z, roof)) * (1.0 - lean)
-            dx, dy = math.cos(a), math.sin(a)
-            # Intersect the ray with the rounded square: scale a superellipse-like guess.
-            t = h / max(abs(dx), abs(dy))
-            px, py = dx * t, dy * t
-            cx, cy = math.copysign(h - rr, px), math.copysign(h - rr, py)
-            if abs(px) > h - rr and abs(py) > h - rr:
-                ex, ey = px - cx, py - cy
-                l = math.hypot(ex, ey) or 1.0
-                px, py = cx + ex / l * rr, cy + ey / l * rr
-            l = math.hypot(px, py) or 1.0
-            return (px + px / l * out, py + py / l * out, z)
-
-        pts = [at(10.0), at(roof), at(roof + 12.0, lean=0.05), at(top - 4.0, lean=0.35), at(top, 0.0, lean=0.62)]
+        pts = [(*on_plan(a, half(10.0), rc(10.0), 0.7), 10.0), (*on_plan(a, half(roof), rc(roof), 0.7), roof)]
+        for dz, f in profile[1:-1]:
+            pts.append((*on_plan(a, half(roof) * f, rc(roof) * f, 0.5), roof + dz))
         for p0, p1 in zip(pts, pts[1:]):
-            LK.strut(mb, p0, p1, 0.32, fin)
-    # the roof plate and the lit core inside the crown (plain light, no art)
-    mb.frustum(rounded_square(half(roof), rc(roof)), rounded_square(half(roof) - 0.5, rc(roof) - 0.5), roof, roof + 0.6, fin, top=True)
+            LK.strut(mb, p0, p1, 0.55, fin)
     mb.build("tower", parent=r, sharp_angle=35)
+    # the crown screen: a solid, rounded, tapering top in the lit material (pale by day, glowing at
+    # night: plain light, no art), capped flat, with the aircraft beacon on top
     li = fc.MeshBuilder()
-    li.frustum(rounded_square(half(roof) * 0.72, rc(roof) * 0.7), rounded_square(half(roof) * 0.42, rc(roof) * 0.42), roof + 0.6, top - 6.0, crown, top=True)
+    for (z0, f0), (z1, f1) in zip(profile, profile[1:]):
+        last = z1 == profile[-1][0]
+        h0c, h1c = half(roof) * f0, half(roof) * f1
+        lo = rounded_square(h0c, rc(roof) * f0)
+        hi = rounded_square(h1c, rc(roof) * f1)
+        li.frustum(lo, hi, roof + z0, roof + z1, crown, top=last)
     li.sphere((0, 0, top + 0.6), 0.6, 8, 4, beacon)
     ob = li.build("crown_lights", parent=r)
     ob["nightLight"] = True

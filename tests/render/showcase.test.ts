@@ -2,7 +2,7 @@
 // where the paint, the median, the palms and the paving mask go. Pure geometry, no WebGL.
 
 import { describe, expect, it } from "vitest";
-import { MASK_HALF_M, MASK_PX, MEDIAN_REACH_M, SHOWCASE, inShowcase, medianLine, paintQuads, palmSpots, pavingPolygons, rasterMask } from "../../src/render/showcase.ts";
+import { MASK_HALF_M, MASK_PX, MEDIAN_REACH_M, SHOWCASE, inShowcase, medianLine, paintQuads, palmSpots, pavedAt, pavingPolygons, rasterMask } from "../../src/render/showcase.ts";
 import { roadHalfWidth } from "../../src/render/roads.ts";
 import type { RoadGraph } from "../../src/render/types.ts";
 import { readJson, worldExists } from "../helpers.ts";
@@ -32,6 +32,15 @@ describe("rasterMask", () => {
     expect(at(11, 0)).toBe(0);
     expect(at(0, -15)).toBe(0);
     expect(m.reduce((n, v) => n + (v ? 1 : 0), 0)).toBe(400);
+  });
+
+  it("pavedAt reads the mask back in the same frame", () => {
+    const paved = pavedAt(rasterMask([[[-10, -10], [10, -10], [10, 10], [-10, 10]]], 20, 40), 20);
+    expect(paved(0, 0)).toBe(true);
+    expect(paved(9.5, -9.5)).toBe(true);
+    expect(paved(11, 0)).toBe(false);
+    expect(paved(0, -15)).toBe(false);
+    expect(paved(-25, 0)).toBe(false);
   });
 });
 

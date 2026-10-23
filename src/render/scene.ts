@@ -31,8 +31,8 @@ import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type G
 import { PostChain } from "./post.ts";
 import { CrowdRig } from "./crowd.ts";
 import { PlayerBodies } from "./player-body.ts";
-import { StreetTrees } from "./trees.ts";
-import { buildShowcase, inShowcase, kerbAt, KerbLift, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import { StreetTrees, type TreeSpot } from "./trees.ts";
+import { buildShowcase, inShowcase, kerbAt, KerbLift, MASK_HALF_M, pavedAt, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
 import type { Spot } from "./roads.ts";
 import { sidewalkBandTriangles, sidewalksByTile, type SidewalkGraph } from "./sidewalks.ts";
 
@@ -328,6 +328,7 @@ export class SceneRenderer {
         .then((t) => {
           this.trees = t;
           t.add(this.treesWaiting.splice(0));
+          if (this.showcase) t.setPaved(pavedAt(this.showcase.mask));
           this.scene.add(t.group);
         })
         .catch((err) => console.warn("street trees: tile props keep their trees:", err));
@@ -370,14 +371,16 @@ export class SceneRenderer {
 
   /** The showcase's street trees (trees.ts), once generated; spots that arrive before wait. */
   private trees: StreetTrees | null = null;
-  private readonly treesWaiting: Array<Spot & { y: number }> = [];
+  private readonly treesWaiting: TreeSpot[] = [];
 
   /**
    * The tiles' park and plaza trees (the glb's instanced "foliage" nodes): inside the showcase they
-   * are hidden and their positions go to the ez-tree instances; elsewhere they stay as they are.
+   * are hidden (scaled to nothing, so a node straddling the edge keeps its trees outside) and their
+   * positions go to the ez-tree instances, thinned on paving; elsewhere they stay as they are.
    */
   private takeFoliage(group: THREE.Group): void {
-    const mine: Array<Spot & { y: number }> = [];
+    const mine: TreeSpot[] = [];
+    const none = new THREE.Matrix4().makeScale(0, 0, 0);
     const m = new THREE.Matrix4();
     const p = new THREE.Vector3();
     group.traverse((o) => {
@@ -392,10 +395,11 @@ export class SceneRenderer {
         if (!inShowcase(p.x, p.z)) continue;
         inside++;
         const v = (Math.abs(Math.sin(p.x * 12.9898 + p.z * 78.233)) * 43758.5453) % 1;
-        mine.push({ x: p.x, z: p.z, heading: 0, v, y: this.drawnGround(p.x, p.z) });
+        mine.push({ x: p.x, z: p.z, heading: 0, v, y: this.drawnGround(p.x, p.z), park: true });
+        im.setMatrixAt(i, none);
       }
-      // A node wholly inside the showcase is hidden; one straddling its edge stays (its trees beyond the edge would vanish).
-      if (inside > 0 && inside === im.count) im.visible = false;
+      if (inside === im.count) im.visible = false;
+      else if (inside > 0) im.instanceMatrix.needsUpdate = true;
     });
     if (mine.length === 0) return;
     if (this.trees) this.trees.add(mine);
@@ -405,7 +409,7 @@ export class SceneRenderer {
   /** The street-tree spots inside the showcase go to the ez-tree instances; the rest stay props. */
   private takeTrees(spots: readonly Spot[]): Spot[] {
     const keep: Spot[] = [];
-    const mine: Array<Spot & { y: number }> = [];
+    const mine: TreeSpot[] = [];
     for (const s of spots) {
       if (!inShowcase(s.x, s.z)) keep.push(s);
       else mine.push({ ...s, y: this.drawnGround(s.x, s.z) + kerbAt(s.x, s.z) });
@@ -465,6 +469,7 @@ export class SceneRenderer {
           if (/paint|trackbed|rails/.test(o.name)) o.castShadow = false;
         });
         this.scene.add(this.showcase.group);
+        this.trees?.setPaved(pavedAt(this.showcase.mask));
       }
       // The shared ground and every tile's own ground (bores cut out under it) wear the same detail.
       const mask = this.showcase?.mask ?? null;

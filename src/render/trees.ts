@@ -9,12 +9,22 @@
 import * as THREE from "three";
 import type { Spot } from "./roads.ts";
 
-/** ez-tree presets used for the city's street trees (London plane and ash read alike at street scale). */
+/**
+ * ez-tree presets used for the city's street trees: broadleaf crowns that read as SF's London
+ * planes at street scale (two ash seeds and an oak; no aspen, whose white bark and autumn-yellow
+ * leaves are not a downtown street tree).
+ */
 const VARIANTS: ReadonlyArray<{ preset: string; seed: number; scale: number }> = [
   { preset: "Ash Medium", seed: 11, scale: 0.5 },
   { preset: "Oak Medium", seed: 23, scale: 0.48 },
-  { preset: "Aspen Medium", seed: 37, scale: 0.55 },
+  { preset: "Ash Medium", seed: 41, scale: 0.46 },
 ];
+
+/** Of the park and plaza trees standing on paving (a plaza, not a lawn), this share is drawn. */
+export const PLAZA_KEEP = 0.25;
+
+/** A tree spot: `park` for the tiles' park and plaza trees (thinned on paving), street trees otherwise. */
+export type TreeSpot = Spot & { y: number; park?: boolean };
 
 /** Trees drawn per variant: the nearest to the camera. */
 export const NEAR_PER_VARIANT = 30;
@@ -37,7 +47,8 @@ interface Variant {
 export class StreetTrees {
   readonly group = new THREE.Group();
   private readonly variants: Variant[];
-  private readonly spots = new Map<string, Spot & { y: number }>();
+  private readonly spots = new Map<string, TreeSpot>();
+  private paved: ((x: number, z: number) => boolean) | null = null;
   private dirty = false;
   private readonly capacity: number;
 
@@ -104,7 +115,7 @@ export class StreetTrees {
   }
 
   /** Street-tree spots (with their ground height) to draw; the same spot added twice counts once. */
-  add(spots: ReadonlyArray<Spot & { y: number }>): void {
+  add(spots: ReadonlyArray<TreeSpot>): void {
     for (const s of spots) {
       const key = `${s.x.toFixed(1)},${s.z.toFixed(1)}`;
       if (!this.spots.has(key)) {
@@ -112,6 +123,21 @@ export class StreetTrees {
         this.dirty = true;
       }
     }
+  }
+
+  /**
+   * Where the ground is paving (the showcase's paving mask): park trees there are thinned to
+   * PLAZA_KEEP (Harry Bridges Plaza is open paving with a few rows of trees, not a wood).
+   */
+  setPaved(paved: (x: number, z: number) => boolean): void {
+    this.paved = paved;
+    this.dirty = true;
+  }
+
+  /** False for a park tree on paving that the thinning leaves out (by a hash of its spot, stable). */
+  private drawn(s: TreeSpot): boolean {
+    if (!s.park || !this.paved || !this.paved(s.x, s.z)) return true;
+    return (Math.abs(Math.sin(s.x * 3.17 + s.z * 7.91)) * 9187.31) % 1 < PLAZA_KEEP;
   }
 
   private lastX = Infinity;
@@ -123,7 +149,7 @@ export class StreetTrees {
     this.dirty = false;
     this.lastX = camX;
     this.lastZ = camZ;
-    const byDistance = [...this.spots.values()].sort((a, b) => Math.hypot(a.x - camX, a.z - camZ) - Math.hypot(b.x - camX, b.z - camZ));
+    const byDistance = [...this.spots.values()].filter((s) => this.drawn(s)).sort((a, b) => Math.hypot(a.x - camX, a.z - camZ) - Math.hypot(b.x - camX, b.z - camZ));
     const n = this.variants.length;
     const counts = new Array<number>(n).fill(0);
     const m = new THREE.Matrix4();
