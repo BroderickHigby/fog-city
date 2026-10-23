@@ -15,7 +15,7 @@ const neutral = { throttle: 0, steer: 0, brake: 0, actions: 0 };
 function initial(): SimState {
   const state = createInitialState(world, 17, ["p"], { x: 0, z: 0, heading: 0 });
   state.players.p!.mode = "foot";
-  state.players.p!.foot = { x: 0, y: 0, z: 0, heading: 0, speed: 0, sprint: false };
+  state.players.p!.foot = { x: 0, y: 0, z: 0, heading: 0, speed: 0, sprint: false, vy: 0, grounded: true, dodge: null };
   state.players.p!.car.x = 20;
   return state;
 }
@@ -132,7 +132,7 @@ describe("registered combat system", () => {
     const previous = initial();
     previous.ext.agents = { nextId: 2, list: [{ id: 1, kind: "errandRobot", x: 3, y: 4, z: 5, heading: 0.2, speed: 1,
       pitch: 0, vmax: 2, edge: "", dir: 1, lane: 0, s: 0, next: "", ndir: 1, nlane: 0, conn: null,
-      node: "", resume: 0, lat: 0, wait: 0, dwell: 0, ghost: 0, mode: "go", rng: 1 }] };
+      node: "", resume: 0, lat: 0, wait: 0, dwell: 0, ghost: 0, mode: "go", rng: 1, dodge: null }] };
     const unsafe = { id: "forged", playerId: "other", x: 900, y: 900, z: 900, heading: 99, speed: 99,
       firmware: "bad", radius: 0.6 };
     const options = { actorMetadata: { "agent:1": unsafe, "player:p": unsafe } } as unknown as CombatAdapterOptions;

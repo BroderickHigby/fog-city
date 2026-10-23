@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { assembleWorldFiles } from "../src/io/world-load.ts";
 import { buildWorld, type BoundaryFile, type RoadsFile, type TileCollider, type World } from "../src/sim/index.ts";
+import type { GameplayWorldData } from "../src/sim/gameplay-world.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
 
@@ -82,6 +83,7 @@ export interface WorldFilesNode {
   roads: RoadGraphFile | null;
   /** boundary.json (manifest.layers.boundary), or null. */
   boundary: BoundaryFile | null;
+  gameplay: GameplayWorldData | null;
   /** Where the colliders came from: the collider pack (when the manifest names one) or per-tile JSON. */
   colliders: "pack" | "json";
 }
@@ -91,7 +93,7 @@ const worldFilesCache = new Map<string, WorldFilesNode>();
 /**
  * The files a world's sim is built from, read from disk exactly as the game reads them
  * (src/io/world-load.ts): the collider pack when the manifest names one, else every tile's
- * collider JSON; the road graph and the boundary when the manifest names them. Cached per world
+ * collider JSON; the road graph, boundary and gameplay layer when the manifest names them. Cached per world
  * (the data is never mutated).
  */
 export function loadWorldFiles(name: string): WorldFilesNode {
@@ -105,15 +107,17 @@ export function loadWorldFiles(name: string): WorldFilesNode {
   const roads = manifest.roads ? readJsonIfExists<RoadGraphFile>(`${dir}/${manifest.roads}`) : null;
   const boundaryFile = manifest.layers?.boundary;
   const boundary = boundaryFile ? readJson<BoundaryFile>(`${dir}/${boundaryFile}`) : null;
-  const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary);
-  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, colliders: files.colliders };
+  const gameplayFile = manifest.layers?.gameplay;
+  const gameplay = gameplayFile ? readJson<GameplayWorldData>(`${dir}/${gameplayFile}`) : null;
+  const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary, gameplay);
+  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, gameplay, colliders: files.colliders };
   worldFilesCache.set(name, out);
   return out;
 }
 
 /** buildWorld(tiles, roads, boundary): the world as a manifest describes it. */
-export function buildWorldWithRoads(tiles: readonly TileCollider[], roads: unknown, boundary: BoundaryFile | null = null): World {
-  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, boundary);
+export function buildWorldWithRoads(tiles: readonly TileCollider[], roads: unknown, boundary: BoundaryFile | null = null, gameplay: GameplayWorldData | null = null): World {
+  return buildWorld(tiles, (roads ?? null) as RoadsFile | null, boundary, gameplay ?? undefined);
 }
 
 /**
@@ -126,8 +130,8 @@ export function loadWorld(
   name: string,
   opts: { roads?: boolean } = {},
 ): { world: World; manifest: WorldManifest; roads: RoadGraphFile | null } {
-  const { manifest, tiles, roads, boundary } = loadWorldFiles(name);
-  const world = opts.roads ? buildWorldWithRoads(tiles, roads, boundary) : buildWorld(tiles);
+  const { manifest, tiles, roads, boundary, gameplay } = loadWorldFiles(name);
+  const world = opts.roads ? buildWorldWithRoads(tiles, roads, boundary, gameplay) : buildWorld(tiles);
   return { world, manifest, roads };
 }
 

@@ -64,6 +64,37 @@ describe("sidewalk navigation policy", () => {
     expect(graph.edges).toEqual([]);
   });
 
+  it("matches all-pairs shortest distances on a cyclic geometric graph", () => {
+    const nodes = Array.from({ length: 16 }, (_, i) => ({ id: `n${i}`, x: (i % 4) * 10, z: Math.floor(i / 4) * 10 }));
+    const edges: SidewalkGraphInput["edges"][number][] = [];
+    const distance = nodes.map((_, i) => nodes.map((_, j) => i === j ? 0 : Infinity));
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      if (j !== i + 4 && !(j === i + 1 && i % 4 < 3) && (i * 11 + j * 7) % 9 !== 0) continue;
+      const a = nodes[i]!, b = nodes[j]!;
+      edges.push({ id: `e${i}-${j}`, a: a.id, b: b.id, kind: "sidewalk", points: [[a.x, a.z], [b.x, b.z]] });
+      distance[i]![j] = distance[j]![i] = Math.hypot(a.x - b.x, a.z - b.z);
+    }
+    for (let k = 0; k < nodes.length; k++) for (let i = 0; i < nodes.length; i++) for (let j = 0; j < nodes.length; j++)
+      distance[i]![j] = Math.min(distance[i]![j]!, distance[i]![k]! + distance[k]![j]!);
+    const graph = buildSidewalkGraph({ nodes, edges });
+    for (let i = 0; i < nodes.length; i++) for (let j = 0; j < nodes.length; j++)
+      expect(shortestSidewalkRoute(graph, nodes[i]!.id, nodes[j]!.id)!.lengthM).toBeCloseTo(distance[i]![j]!, 8);
+  });
+
+  it("keeps the two ends of a real self-loop road distinct", () => {
+    const roads: RoadsFile = { version: 1, nodes: [{ id: "corner", x: 0, z: 0 }], edges: [{
+      id: "loop", a: "corner", b: "corner", kind: "residential", lanes: 2, oneway: false,
+      points: [[0, 0], [60, 0], [60, 60], [0, 60], [0, 0]],
+    }] };
+    const graph = buildFallbackSidewalkGraph(roads);
+    expect(new Set(graph.nodes.map(node => node.id)).size).toBe(graph.nodes.length);
+    expect(graph.edges.filter(edge => edge.roadId === "loop")).toHaveLength(2);
+    for (const edge of graph.edges.filter(edge => edge.roadId === "loop")) {
+      expect(edge.a).not.toBe(edge.b);
+      expect(shortestSidewalkRoute(graph, edge.a, edge.b)).not.toBeNull();
+    }
+  });
+
   it("rejects path endpoints that would teleport between graph nodes", () => {
     expect(() => buildSidewalkGraph({ ...diamond, edges: [{ ...diamond.edges[0]!, points: [[8, 8], [10, -10]] }] }))
       .toThrow("Invalid sidewalk edge");

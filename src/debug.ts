@@ -25,12 +25,16 @@ export interface RenderInfo {
   shadows: boolean;
   /** Ambient agents drawn last frame (full models near the camera plus far proxies). */
   agents: number;
+  /** Additional physical animals, services and named agents. */
+  runtimeAgents?: number;
   /** Of those, drawn with the full, animated model. */
   agentsNear: number;
   /** Agents in the sim state the renderer drew from. */
   agentsTotal: number;
   /** Draw calls the agents took last frame. */
   agentDrawCalls: number;
+  /** Agents drawn in a dodge pose last frame: diving out of a car's way, leaping, getting up, skidding. */
+  agentsDodging: number;
   /** Agent kinds drawn from their model files ("robotaxi", "errandRobot", "sidewalkBot"). */
   agentModels: string[];
   /** Players whose car is models/player-car.glb (not the procedural stand-in). */
@@ -65,6 +69,8 @@ export interface SimInfo {
   roads: boolean;
   /** Ambient agents in the current state. */
   agents: number;
+  /** Additional physical animals, services and named agents. */
+  runtimeAgents: number;
   /** Where the sim's colliders came from: the citywide collider pack, or per-tile JSON. */
   colliders: "pack" | "json";
   /** Wall segments at the world's edge and shore (0 when the world has no boundary.json). */

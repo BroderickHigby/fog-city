@@ -1,0 +1,12 @@
+{
+  "version": 7,
+  "migratedFrom": 2,
+  "reason": "Published gravity, safe spawn and final person-clearance integration intentionally change physics; original v2 recording retained.",
+  "hashes": [
+    "35037b8f",
+    "da42577e",
+    "86456f67",
+    "c336831c",
+    "fd3f6840"
+  ]
+}

@@ -54,7 +54,7 @@ export function constructions(name: string): Constructions {
     get(i: number): Construction {
       if (!built[i]) {
         const label = labels[i]!;
-        const world = label === COLLIDERS_ONLY ? makeWorld(files.tiles, null) : makeWorld(files.tiles, files.roads, label === WITH_ROADS_AND_BOUNDARY ? files.boundary : null);
+        const world = label === COLLIDERS_ONLY ? makeWorld(files.tiles, null, null, files.gameplay ?? undefined) : makeWorld(files.tiles, files.roads, label === WITH_ROADS_AND_BOUNDARY ? files.boundary : null, files.gameplay ?? undefined);
         built[i] = { label, world };
       }
       return built[i]!;

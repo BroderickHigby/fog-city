@@ -28,6 +28,15 @@ function fromExt(ext: unknown): number | null {
   return null;
 }
 
+function fromAgentSession(state: { tick: number; ext?: unknown }): number | null {
+  if (!state.ext || typeof state.ext !== "object") return null;
+  const robots = (state.ext as Record<string, unknown>).robots;
+  if (!robots || typeof robots !== "object") return null;
+  const session = robots as Record<string, unknown>;
+  return session.enabled === true && typeof session.startGameMinute === "number" && Number.isFinite(session.startGameMinute)
+    ? session.startGameMinute + state.tick / TICK_HZ : null;
+}
+
 /** The clock's start minute for a game booted by day or at night. */
 export function clockStartMinute(bootedAtNight: boolean): number {
   return bootedAtNight ? NIGHT_START_MINUTE : DAY_START_MINUTE;
@@ -36,7 +45,7 @@ export function clockStartMinute(bootedAtNight: boolean): number {
 /** Minutes since midnight in [0, 1440): `startMinute` at tick 0, then real-time speed. */
 export function gameMinuteOfDay(state: { tick: number; ext?: unknown }, startMinute: number = DAY_START_MINUTE): number {
   const fromSim = fromExt(state.ext);
-  const m = fromSim ?? startMinute + state.tick / TICK_HZ / 60;
+  const m = fromSim ?? fromAgentSession(state) ?? startMinute + state.tick / TICK_HZ / 60;
   return ((m % 1440) + 1440) % 1440;
 }
 

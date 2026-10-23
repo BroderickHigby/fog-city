@@ -29,6 +29,8 @@ import { openAssets } from "./io/assets.ts";
 import { loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
+import { runtimePhysicalBodies } from "./sim/agents/runtime-system.ts";
+import { enableAgentRuntime } from "./sim/agents/runtime-state.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
@@ -134,7 +136,7 @@ async function boot(): Promise<void> {
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
   const tBuild = performance.now();
-  const world = buildWorld(tiles, files.roads, files.boundary);
+  const world = buildWorld(tiles, files.roads, files.boundary, files.gameplay ?? undefined);
   const buildMs = performance.now() - tBuild;
   const colliders = new Map<string, TileCollider>();
   manifest.tiles.forEach((t, i) => colliders.set(t.id, tiles[i]!));
@@ -180,7 +182,9 @@ async function boot(): Promise<void> {
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
-  let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
+  let prev: SimState = enableAgentRuntime(createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn), {
+    startGameMinute: clockStartMinute(bootedAtNight),
+  });
   let curr: SimState = prev;
   let paused = false;
   let acc = 0;
@@ -201,7 +205,7 @@ async function boot(): Promise<void> {
     if (!p) {
       p = {
         car: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, steer: 0, speed: 0 },
-        foot: { x: 0, y: 0, z: 0, heading: 0, speed: 0 },
+        foot: { x: 0, y: 0, z: 0, heading: 0, speed: 0, dodge: null, alpha: 0 },
       };
       poses.set(id, p);
     }
@@ -275,6 +279,7 @@ async function boot(): Promise<void> {
       playerIds: sortedIds(curr.players),
       roads: world.roads !== null,
       agents: agentsOf(curr).length,
+      runtimeAgents: runtimePhysicalBodies(curr).length,
       colliders: files.colliders,
       walls: world.walls?.segments.length ?? 0,
       assets: assets.mode,
@@ -360,6 +365,8 @@ async function boot(): Promise<void> {
         f.z = lerp(fa.z, fb.z, alpha);
         f.heading = fa.heading + wrapAngle(fb.heading - fa.heading) * alpha;
         f.speed = lerp(fa.speed, fb.speed, alpha);
+        f.dodge = fb.dodge;
+        f.alpha = alpha;
       }
       view.setFoot(id, onFoot ? P.foot : null);
       if (id === LOCAL_PLAYER) {

@@ -1,4 +1,4 @@
 import type { SimSystem } from "../system-contract.ts";
+import { robotRuntimeSystem } from "./runtime-system.ts";
 
-/** Reserved registration point; the owning lane replaces this list when ready. */
-export const systems: readonly SimSystem[] = Object.freeze([]);
+export const systems: readonly SimSystem[] = Object.freeze([robotRuntimeSystem]);

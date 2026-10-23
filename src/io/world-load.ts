@@ -6,20 +6,22 @@
 //    city, and growing, decoded by src/sim/pack.ts; the static build serves it in parts once it
 //    is too big for one host file, and src/io/assets.ts joins them) when the manifest names
 //    one; otherwise every tile's *.collider.json (the small hand-made dev worlds).
-//  - The road graph (manifest.roads) and the world's edge and shore (manifest.layers.boundary).
+//  - The road graph (manifest.roads), edge and shore (manifest.layers.boundary), and static
+//    gameplay metadata (manifest.layers.gameplay).
 //    A file the manifest names that cannot be loaded fails the load: a client must never run a
 //    roadless or wall-less world beside its peers.
 
 import { decodeColliderPack, type BoundaryFile, type RoadsFile, type TileCollider } from "../sim/index.ts";
+import type { GameplayWorldData } from "../sim/gameplay-world.ts";
 import type { Assets } from "./assets.ts";
 
 /**
- * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
- * districts (main.ts, the park tint). The static build (scripts/build-web.ts) ships only these
+ * The manifest's data layers (manifest.layers) the game loads: boundary and gameplay
+ * (loadWorldFiles), and districts (main.ts, the park tint). The static build ships only these
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
@@ -27,7 +29,7 @@ export interface WorldManifestLike {
   tiles: ReadonlyArray<{ id: string; collider: string }>;
   roads?: string | null;
   worldColliders?: string;
-  layers?: { boundary?: string } & Record<string, string | undefined>;
+  layers?: { boundary?: string; gameplay?: string } & Record<string, string | undefined>;
 }
 
 export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
@@ -36,6 +38,8 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   tiles: TileCollider[];
   roads: RoadsFile | null;
   boundary: BoundaryFile | null;
+  /** Optional static gameplay anchors/refills/territory data named by the manifest. */
+  gameplay: GameplayWorldData | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
 }
@@ -49,6 +53,7 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
   colliders: { pack: Uint8Array } | { json: TileCollider[] },
   roads: RoadsFile | null,
   boundary: BoundaryFile | null,
+  gameplay: GameplayWorldData | null = null,
 ): WorldFiles<M> {
   if ("pack" in colliders) {
     const pack = decodeColliderPack(colliders.pack);
@@ -57,9 +62,9 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
     if (ids.length !== want.length || ids.some((id, i) => id !== want[i])) {
       throw new Error(`collider pack ${manifest.worldColliders}: its ${ids.length} tiles are not the manifest's ${want.length}`);
     }
-    return { manifest, tiles: pack.tiles, roads, boundary, colliders: "pack" };
+    return { manifest, tiles: pack.tiles, roads, boundary, gameplay, colliders: "pack" };
   }
-  return { manifest, tiles: colliders.json, roads, boundary, colliders: "json" };
+  return { manifest, tiles: colliders.json, roads, boundary, gameplay, colliders: "json" };
 }
 
 function named(what: string, file: string, err: unknown): Error {
@@ -73,7 +78,8 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
   const packFile = manifest.worldColliders;
   const roadsFile = manifest.roads ?? null;
   const boundaryFile = manifest.layers?.boundary ?? null;
-  const [colliders, roads, boundary] = await Promise.all([
+  const gameplayFile = manifest.layers?.gameplay ?? null;
+  const [colliders, roads, boundary, gameplay] = await Promise.all([
     packFile
       ? assets.bytes(base + packFile).then(
           (pack) => ({ pack }),
@@ -92,6 +98,11 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
           throw named("boundary", boundaryFile, err);
         })
       : Promise.resolve(null),
+    gameplayFile
+      ? assets.json<GameplayWorldData>(base + gameplayFile).catch((err: unknown) => {
+          throw named("gameplay", gameplayFile, err);
+        })
+      : Promise.resolve(null),
   ]);
-  return assembleWorldFiles(manifest, colliders, roads, boundary);
+  return assembleWorldFiles(manifest, colliders, roads, boundary, gameplay);
 }

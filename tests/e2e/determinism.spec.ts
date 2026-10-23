@@ -2,8 +2,9 @@
 // world, seed, inputs and events must give bit-identical states on every JavaScript engine.
 //
 // 1. Pure sim (@engines: runs in Chromium, Firefox and WebKit): determinism-scenario.ts runs a
-//    multiplayer script (five players, joins and leaves, steering, collisions, on-foot hops,
-//    clamped junk input, ambient traffic when the sim has it) in Node and in the browser via
+//    multiplayer script (seven players, joins and leaves, steering, collisions, on-foot hops,
+//    clamped junk input, ambient traffic when the sim has it, people diving out of cars' way and,
+//    on dev, the dodge's clearance override) in Node and in the browser via
 //    sim-lab.html; every 15th tick's hashState must match, and so must the final state.
 // 2. The running game (Chromium): the real game loop is paused and stepped through
 //    window.__fogcity.stepN(); between segments come render-only pokes (C, V, N keys, night,
@@ -105,7 +106,7 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
       gateWorld(world);
       const files = loadWorldFiles(world);
       const t0 = performance.now();
-      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary), {
+      const node = runScenario(makeWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined), {
         ticks,
         checkpointEvery: EVERY,
         seed: SEED,
@@ -123,12 +124,21 @@ test.describe("cross-engine determinism: pure sim", { tag: "@engines" }, () => {
       expect(node.stats.playersSeen.length).toBeGreaterThanOrEqual(4);
       expect(node.stats.turned).toBeGreaterThan(1);
       if (world === "dev") expect(node.stats.hits, "p1 rams the dev wall").toBeGreaterThan(0);
+      // The dodge runs in it, and on dev its clearance override fires (the scenario's override
+      // episode), so equal states prove overrideSpot and the leap the same on every engine too.
+      const dodge = (JSON.parse(node.finalJson) as { ext: { dodge?: { overrides: number; dives: number; contacts: number } } }).ext.dodge;
+      expect(dodge?.contacts ?? 0).toBe(0);
+      if (world === "dev") {
+        expect(dodge?.dives, "people dived").toBeGreaterThan(0);
+        expect(dodge?.overrides, "the override fired").toBeGreaterThan(0);
+      }
 
       test.info().annotations.push({
         type: "determinism",
         description:
           `${browserName} (${ua}): ${node.checkpoints.length} checkpoints equal; ` +
           `players ${node.stats.playersSeen.join(",")}, hits ${node.stats.hits}, foot ticks ${node.stats.footTicks}, ` +
+          `dives ${dodge?.dives ?? 0}, overrides ${dodge?.overrides ?? 0}, ` +
           `agents ${node.stats.agents}; node ${nodeMs.toFixed(0)} ms, browser ${browser.runMs.toFixed(0)} ms`,
       });
     });

@@ -33,7 +33,7 @@ window.__simlab = {
     const t0 = performance.now();
     // sim-lab.html lives at /tests/e2e/: the worlds are at the server root.
     const files = await loadWorldFiles(looseAssets("/"), world);
-    const w = makeWorld(files.tiles, files.roads, files.boundary);
+    const w = makeWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined);
     const t1 = performance.now();
     const result = runScenario(w, { ...opts, spawn: files.manifest.spawn });
     return { ...result, loadMs: t1 - t0, runMs: performance.now() - t1, colliders: files.colliders };

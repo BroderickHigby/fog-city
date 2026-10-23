@@ -4,6 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
+import migrated from "../golden/wave2-v7.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -31,28 +32,50 @@ describe("wave-2 shared interface", () => {
     const old = deepFreeze({ ...baseline.initial, ext: { ...baseline.initial.ext, future: { keep: [1, true] } } }) as unknown as SimState;
     const upgraded = upgradeState(old);
     expect(upgraded.version).toBe(SIM_VERSION);
-    expect({ ...upgraded, version: 2 }).toEqual(old);
+    expect(upgraded.players.p1!.car).toMatchObject(old.players.p1!.car);
+    expect(upgraded.players.p1!.car.nearMisses).toBe(0);
+    expect(upgraded.ext.future).toEqual(old.ext.future);
+    expect(upgraded.ext.agents!.list.map(a => a.id)).toEqual(old.ext.agents!.list.map(a => a.id));
     expect(old.version).toBe(2);
     expect(upgradeState(upgraded)).toBe(upgraded);
-    const walking = deepFreeze({ ...old, players: { ...old.players, p1: { ...old.players.p1!, mode: "foot" as const, foot: { x: 1, y: 2, z: 3, heading: .5, speed: 1, sprint: false }, exitPending: true } } });
-    expect(upgradeState(walking).players.p1).toEqual(walking.players.p1);
+    const walking = deepFreeze({ ...old, players: { ...old.players, p1: { ...old.players.p1!, mode: "foot" as const, foot: { x: 1, y: 2, z: 3, heading: .5, speed: 1, sprint: false }, exitPending: true } } }) as unknown as SimState;
+    expect(upgradeState(walking).players.p1!.foot).toEqual({ ...walking.players.p1!.foot, vy: 0, grounded: true, dodge: null });
   });
 
-  it("replays recorded wave-1 inputs through migration against pre-change hashes", () => {
+  it("replays recorded wave-1 inputs through the gravity/clearance migration against v7 hashes", () => {
     const { world } = loadDevWorldWithRoads();
     let state = upgradeState(deepFreeze(baseline.initial) as unknown as SimState);
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame);
-      // The only persisted difference in this interface-only release is the version stamp.
-      expect(hashState({ ...state, version: 2 })).toBe(baseline.hashes[i]);
+      // v7 deliberately changes ground/collision/dodge physics; keep the original v2
+      // recording and compare its migrated replay with an independently pinned v7 trace.
+      expect(hashState(state)).toBe(migrated.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
     expect(state.tick).toBe(300);
   });
 
+  it("upgrades v6 saves without resetting completed mechanics or unknown extensions", () => {
+    const { world, spawn } = loadDevWorldWithRoads();
+    const initial = createInitialState(world, 7, ["p1"], spawn);
+    const car = { ...initial.players.p1!.car, nearMisses: 4 };
+    const old = deepFreeze({ ...initial, version: 6, players: { p1: { ...initial.players.p1!, car,
+      mode: "foot", foot: { x: car.x, y: car.y + 2, z: car.z, heading: .3, speed: 1, sprint: false, vy: -2, grounded: false, dodge: null } } },
+      ext: { ...initial.ext, future: { completed: true } } }) as unknown as SimState;
+    const upgraded = upgradeState(old);
+    expect(upgraded.version).toBe(SIM_VERSION);
+    expect(upgraded.players).toEqual(old.players);
+    expect(upgraded.ext).toEqual(old.ext);
+    expect(old.version).toBe(6);
+    const missing = { ...old, players: { p1: { ...old.players.p1!, car: { ...old.players.p1!.car, nearMisses: undefined },
+      foot: { ...old.players.p1!.foot!, vy: undefined, grounded: undefined, dodge: undefined } } } } as unknown as SimState;
+    expect(upgradeState(missing).players.p1!.foot).toMatchObject({ vy: 0, grounded: true, dodge: null });
+    expect(upgradeState(missing).players.p1!.car.nearMisses).toBe(0);
+  });
+
   it("rejects unavailable intermediate and future migrations", () => {
-    for (const version of [0, 3, 4, 5, SIM_VERSION + 1, NaN]) {
+    for (const version of [0, 5, SIM_VERSION + 1, NaN]) {
       expect(() => upgradeState({ ...baseline.initial, version } as unknown as SimState)).toThrow("cannot upgrade");
     }
   });

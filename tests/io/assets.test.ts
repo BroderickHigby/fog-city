@@ -28,6 +28,8 @@ import {
 } from "../../scripts/build-web.ts";
 import { base64ToBytes, decodeGzBase64, looseAssets, openAssets, packedAssets, type Assets } from "../../src/io/assets.ts";
 import { RUNTIME_LAYERS, loadWorldFiles } from "../../src/io/world-load.ts";
+import { buildWorld } from "../../src/sim/world.ts";
+import type { GameplayWorldData } from "../../src/sim/gameplay-world.ts";
 import { ROOT, worldExists } from "../helpers.ts";
 
 const bytesOf = (n: number, seed: number): Uint8Array => Uint8Array.from({ length: n }, (_, i) => (i * 31 + seed * 7 + ((i >> 5) & 255)) & 255);
@@ -297,6 +299,28 @@ describe("the web build's world JSON", () => {
     expect(read.size, "the game reads some layers").toBeGreaterThan(0);
     for (const name of read) expect(RUNTIME_LAYERS, `src/ reads manifest.layers.${name}`).toContain(name);
   });
+
+  it("ships the gameplay layer named by a world manifest", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "fogcity-gameplay-build-"));
+    try {
+      const publicDir = join(directory, "public"), worldDir = join(publicDir, "tiles", "fixture");
+      mkdirSync(worldDir, { recursive: true });
+      mkdirSync(join(publicDir, "models"));
+      const manifest = { world: "fixture", spawn: { x: 0, z: 0, heading: 0 }, tiles: [],
+        worldColliders: "world.colliders.bin", layers: { gameplay: "gameplay.json" } };
+      const gameplay = { version: 1, world: "fixture", sourceSnapshot: "fixture", refills: [], anchors: [], tiles: [], territories: [] };
+      writeFileSync(join(worldDir, "manifest.json"), JSON.stringify(manifest));
+      writeFileSync(join(worldDir, "gameplay.json"), JSON.stringify(gameplay));
+      // The packer treats binaries as opaque. This minimal empty collider pack is valid too.
+      const pack = new Uint8Array(64), view = new DataView(pack.buffer);
+      pack.set([70, 67, 87, 67]); view.setUint16(4, 1, true); view.setUint16(6, 64, true);
+      view.setUint16(20, 2, true); view.setUint16(22, 100, true); view.setUint32(24, 50_000, true);
+      writeFileSync(join(worldDir, "world.colliders.bin"), pack);
+      const out = join(directory, "build");
+      await buildWeb({ out, worlds: ["fixture"], level: 1, skipVite: true, publicDir });
+      expect(JSON.parse(readFileSync(join(out, "tiles", "fixture", "gameplay.json"), "utf8"))).toEqual(gameplay);
+    } finally { rmSync(directory, { recursive: true, force: true }); }
+  });
 });
 
 describe("the web build's limits", () => {
@@ -383,6 +407,44 @@ describe("the web build's out directory", () => {
 });
 
 describe("world files through the asset layer", () => {
+  const gameplay: GameplayWorldData = { version: 1, world: "fixture", sourceSnapshot: "unit-test",
+    refills: [{ id: "fountain", kind: "fountain", x: 3, y: 0, z: 4, radius: 2, salt: false }],
+    anchors: [{ id: "repair", kind: "repair-kiosk", x: 5, y: 0, z: 6, roadNodeId: "node", districtId: "district" }],
+    tiles: [], territories: [] };
+  function memoryAssets(files: Record<string, unknown>): Assets {
+    return { mode: "loose", defaultWorld: null, worlds: null, has: path => Object.hasOwn(files, path),
+      bytes: async () => { throw new Error("No binary expected"); },
+      async json<T>(path: string): Promise<T> {
+        if (!Object.hasOwn(files, path)) throw new Error(`missing ${path}`);
+        return structuredClone(files[path]) as T;
+      } };
+  }
+
+  it("loads named gameplay metadata and supplies it to the deterministic world", async () => {
+    const files = await loadWorldFiles(memoryAssets({
+      "tiles/fixture/manifest.json": { spawn: { x: 0, z: 0, heading: 0 }, tiles: [], layers: { gameplay: "gameplay.json" } },
+      "tiles/fixture/gameplay.json": gameplay,
+    }), "fixture");
+    expect(files.gameplay).toEqual(gameplay);
+    const world = buildWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined);
+    expect(world.gameplay?.anchors[0]?.id).toBe("repair");
+    expect(world.gameplay?.refills[0]?.id).toBe("fountain");
+  });
+
+  it("keeps old manifests without gameplay metadata optional", async () => {
+    const files = await loadWorldFiles(memoryAssets({
+      "tiles/fixture/manifest.json": { spawn: { x: 0, z: 0, heading: 0 }, tiles: [] },
+    }), "fixture");
+    expect(files.gameplay).toBeNull();
+    expect(buildWorld(files.tiles, files.roads, files.boundary, files.gameplay ?? undefined).gameplay).toBeUndefined();
+  });
+
+  it("fails by name when a manifest's required gameplay file cannot load", async () => {
+    await expect(loadWorldFiles(memoryAssets({
+      "tiles/fixture/manifest.json": { spawn: { x: 0, z: 0, heading: 0 }, tiles: [], layers: { gameplay: "gameplay.json" } },
+    }), "fixture")).rejects.toThrow("gameplay gameplay.json: missing tiles/fixture/gameplay.json");
+  });
+
   it("loads the dev world from its collider JSON over loose files (no pack in its manifest)", async () => {
     const server = createServer((req, res) => {
       try {

@@ -118,7 +118,7 @@ export function buildFallbackSidewalkGraph(roads: RoadGraph | RoadsFile): Sidewa
       const first = pathPoint(path, 0);
       const last = pathPoint(path, path.len);
       const a = { id: JSON.stringify(["end", road.id, side, graph.nodes[road.a]!.id]), x: first.x, z: first.z };
-      const b = { id: JSON.stringify(["end", road.id, side, graph.nodes[road.b]!.id]), x: last.x, z: last.z };
+      const b = { id: JSON.stringify(["end", road.id, side, graph.nodes[road.b]!.id, ...(road.a === road.b ? ["return"] : [])]), x: last.x, z: last.z };
       nodes.push(a, b);
       for (const [index, node] of [[road.a, a], [road.b, b]] as const) {
         const list = ends.get(index) ?? [];
@@ -161,9 +161,9 @@ export function buildFallbackSidewalkGraph(roads: RoadGraph | RoadsFile): Sidewa
   return buildSidewalkGraph({ nodes, edges });
 }
 
-interface Frontier { id: string; distance: number; key: string }
+interface Frontier { id: string; distance: number; estimate: number; key: string }
 const compareFrontier = (a: Frontier, b: Frontier): number =>
-  a.distance - b.distance || compareId(a.key, b.key) || compareId(a.id, b.id);
+  a.estimate - b.estimate || a.distance - b.distance || compareId(a.key, b.key) || compareId(a.id, b.id);
 
 function pushHeap(heap: Frontier[], value: Frontier): void {
   heap.push(value);
@@ -193,14 +193,28 @@ function popHeap(heap: Frontier[]): Frontier {
   return result;
 }
 
-/** Positive geometric edge lengths; exact ties choose the lexicographically first edge sequence. */
+const traversalKeys = new WeakMap<SidewalkTraversal, string>();
+function traversalKey(step: SidewalkTraversal): string {
+  let key = traversalKeys.get(step);
+  if (key === undefined) { key = `${JSON.stringify([step.edgeId, step.to])}\n`; traversalKeys.set(step, key); }
+  return key;
+}
+
+/** Geometric A*; exact length ties choose the same lexicographic path as Dijkstra. */
 export function shortestSidewalkRoute(
   graph: SidewalkGraph, start: string, target: string, isBlocked?: BlockedSidewalkQuery,
 ): SidewalkRoute | null {
   if (!graph.nodeById.has(start) || !graph.nodeById.has(target)) return null;
   const best = new Map<string, Frontier>();
   const previous = new Map<string, SidewalkTraversal>();
-  const initial = { id: start, distance: 0, key: "" };
+  const destination = graph.nodeById.get(target)!;
+  const remaining = (id: string): number => {
+    const node = graph.nodeById.get(id)!;
+    const dx = node.x - destination.x, dz = node.z - destination.z;
+    // Conservatively round below the Euclidean lower bound, including near ties.
+    return Math.sqrt(dx * dx + dz * dz) * 0.999999999;
+  };
+  const initial = { id: start, distance: 0, estimate: remaining(start), key: "" };
   best.set(start, initial);
   const heap = [initial];
   while (heap.length > 0) {
@@ -220,8 +234,9 @@ export function shortestSidewalkRoute(
     for (const step of graph.outgoing.get(current.id)!) {
       const edge = graph.edgeById.get(step.edgeId)!;
       if (isBlocked?.(edge, step)) continue;
-      const candidate = { id: step.to, distance: current.distance + edge.path.len,
-        key: `${current.key}${JSON.stringify([step.edgeId, step.to])}\n` };
+      const distance = current.distance + edge.path.len;
+      const candidate = { id: step.to, distance, estimate: distance + remaining(step.to),
+        key: current.key + traversalKey(step) };
       const prior = best.get(step.to);
       if (!prior || compareFrontier(candidate, prior) < 0) {
         best.set(step.to, candidate);

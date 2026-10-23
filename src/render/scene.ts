@@ -9,6 +9,8 @@ import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
+import { createRuntimeAgentRenderer, type RuntimeAgentRenderer } from "./agent-runtime.ts";
+import { hideRuntimeReplacements, runtimeVisualSnapshot } from "./runtime-snapshot.ts";
 import { FarLayer } from "./far-layer.ts";
 import { parkShapes, tintParks } from "./parks.ts";
 import type { Viewer } from "./agent-lod.ts";
@@ -75,8 +77,20 @@ export interface RenderInfo {
   agentsTotal: number;
   /** Draw calls the agents took last frame. */
   agentDrawCalls: number;
+  /** Agents drawn in a dodge pose last frame (diving, leaping, getting up, skidding). */
+  agentsDodging: number;
   /** Agent kinds drawn from their model files (the rest use box stand-ins). */
   agentModels: string[];
+  /** Runtime layer draws, including substitutions for legacy robots. */
+  runtimeAgents?: number;
+  /** Additional physical bodies outside the legacy ext.agents.list population. */
+  runtimeAgentsTotal?: number;
+  /** Legacy population plus additional runtime physical bodies, counted once. */
+  totalActors?: number;
+  runtimeAgentDrawCalls?: number;
+  runtimeAgentTriangles?: number;
+  runtimeAgentKinds?: string[];
+  runtimeAgentModels?: string[];
   /** Players drawn from models/player-car.glb (the rest use the procedural car). */
   playerCarsFromFile: number;
   /** Players drawn on foot last frame. */
@@ -109,6 +123,7 @@ export class SceneRenderer {
   readonly streamer: TileStreamer;
   readonly actors: Actors;
   readonly agents: AgentLayer;
+  readonly runtimeAgents: RuntimeAgentRenderer;
   readonly landmarks: LandmarkLayer;
   readonly far: FarLayer;
   readonly lights = new NightLights();
@@ -137,6 +152,9 @@ export class SceneRenderer {
   private lastTris = 0;
   private fpsAvg = 60;
   private time = 0;
+  private runtimePhysicalCount = 0;
+  private runtimeLegacyReplacementCount = 0;
+  private runtimeDodging = 0;
   private readonly statsScratch: StreamerStats = { total: 0, ready: 0, pending: 0, failed: 0, glbReady: 0, builtReady: 0 };
   /** Frames rendered since a camera jump (debug fly-to, mode switch). */
   private framesSinceJump = 0;
@@ -222,6 +240,7 @@ export class SceneRenderer {
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
+    this.runtimeAgents = createRuntimeAgentRenderer(this.scene, { shadows: opts.shadows, registry: this.registry });
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -368,7 +387,6 @@ export class SceneRenderer {
     } else {
       this.rig.update(dtSeconds, NO_TARGET, fly);
     }
-    this.actors.update(dtSeconds);
     const cam = this.camera.position;
     if (this.sim) {
       this.camera.getWorldDirection(this.camDir);
@@ -377,8 +395,20 @@ export class SceneRenderer {
       this.viewer.z = cam.z;
       this.viewer.fx = h > 1e-6 ? this.camDir.x / h : 0;
       this.viewer.fz = h > 1e-6 ? this.camDir.z / h : -1;
-      this.agents.update(this.sim.prev, this.sim.curr, this.sim.alpha, this.viewer, dtSeconds, this.time);
+      const runtime = runtimeVisualSnapshot(this.sim.prev, this.sim.curr, this.sim.alpha, this.viewer);
+      this.runtimePhysicalCount = runtime.physicalCount;
+      this.runtimeLegacyReplacementCount = runtime.legacyIdsToHide.size;
+      this.runtimeDodging = runtime.dodging;
+      for (const id of runtime.playerIdsToHide) this.actors.setFoot(id, null);
+      const renderedTick = this.sim.prev.tick + (this.sim.curr.tick - this.sim.prev.tick) * Math.max(0, Math.min(1, this.sim.alpha));
+      const runtimeView = local && this.rig.mode === "first-person"
+        ? { ...runtime.snapshot, actors: runtime.snapshot.actors.filter(actor => actor.id !== `player:${local.id}` && actor.id !== `player:${local.id}:puddle`) }
+        : runtime.snapshot;
+      this.runtimeAgents.update(runtimeView, renderedTick);
+      this.agents.update(hideRuntimeReplacements(this.sim.prev, runtime.legacyIdsToHide),
+        hideRuntimeReplacements(this.sim.curr, runtime.legacyIdsToHide), this.sim.alpha, this.viewer, dtSeconds, this.time);
     }
+    this.actors.update(dtSeconds);
     this.fitNearPlane();
     this.sky.follow(this.camera);
     this.water.follow(this.camera);
@@ -431,11 +461,20 @@ export class SceneRenderer {
     out.pixelRatio = this.renderer.getPixelRatio();
     out.shadows = this.shadows;
     const a: AgentRenderInfo = this.agents.info();
-    out.agents = a.drawn;
-    out.agentsNear = a.near;
-    out.agentsTotal = a.total;
-    out.agentDrawCalls = a.drawCalls;
+    const runtime = this.runtimeAgents.info();
+    out.agents = a.drawn + runtime.bodiesDrawn;
+    out.agentsNear = a.near + runtime.bodiesNear;
+    out.agentsTotal = this.sim?.curr.ext.agents?.list.length ?? a.total;
+    out.agentDrawCalls = a.drawCalls + runtime.drawCalls;
+    out.agentsDodging = a.dodging + this.runtimeDodging;
     out.agentModels = a.models;
+    out.runtimeAgents = runtime.bodiesDrawn;
+    out.runtimeAgentsTotal = Math.max(0, this.runtimePhysicalCount - this.runtimeLegacyReplacementCount);
+    out.totalActors = out.agentsTotal + out.runtimeAgentsTotal;
+    out.runtimeAgentDrawCalls = runtime.drawCalls;
+    out.runtimeAgentTriangles = runtime.triangles;
+    out.runtimeAgentKinds = [...runtime.kinds];
+    out.runtimeAgentModels = [...runtime.fileKinds];
     let fromFile = 0;
     for (const src of Object.values(this.actors.carSources())) if (src === "file") fromFile++;
     out.playerCarsFromFile = fromFile;
@@ -460,6 +499,7 @@ export class SceneRenderer {
     this.far.dispose();
     this.actors.dispose();
     this.agents.dispose();
+    this.runtimeAgents.dispose();
     this.sky.dispose();
     this.water.dispose();
     for (const m of this.materials.all) m.dispose();
@@ -488,7 +528,15 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   agentsNear: 0,
   agentsTotal: 0,
   agentDrawCalls: 0,
+  agentsDodging: 0,
   agentModels: [],
+  runtimeAgents: 0,
+  runtimeAgentsTotal: 0,
+  totalActors: 0,
+  runtimeAgentDrawCalls: 0,
+  runtimeAgentTriangles: 0,
+  runtimeAgentKinds: [],
+  runtimeAgentModels: [],
   playerCarsFromFile: 0,
   walkers: 0,
   farCellsTotal: 0,

@@ -188,7 +188,7 @@ test.describe("static web build, served from a sub-path", () => {
     expect(sim.colliders).toBe("pack");
     expect(sim.roads).toBe(true);
     expect(sim.walls ?? 0).toBeGreaterThan(1000);
-    expect(sim.agents).toBeGreaterThan(50);
+    expect(sim.agents + sim.runtimeAgents).toBeGreaterThan(50);
     // Relative URLs only: nothing asked for outside the sub-path, nothing the host would refuse.
     expect(requests.filter((r) => !r.path.startsWith(SUB)).map((r) => r.path), "requests outside the sub-path").toEqual([]);
     expect(requests.filter((r) => r.status !== 200).map((r) => `${r.status} ${r.path}`), "failed requests").toEqual([]);

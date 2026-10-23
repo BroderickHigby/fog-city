@@ -296,6 +296,7 @@ describe("AgentLayer instance capacities", () => {
         if (name.endsWith(":far")) expect(cap, name).toBe(instanceBudget(tierCapacity(TIER_FAR, { nearCap }, MAX_AGENTS), 1));
         else if (name.endsWith(":mid")) expect(cap, name).toBe(instanceBudget(tierCapacity(TIER_MID, { nearCap }, MAX_AGENTS), 1));
         else if (/:people:(arms|legs)$/.test(name)) expect(cap, name).toBe(instanceBudget(near, 2));
+        else if (name.endsWith(":people:dodge-shadow")) expect(cap, name).toBe(near); // one per person drawn near
         else {
           expect(cap, name).toBe(near);
           nearParts++;

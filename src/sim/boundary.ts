@@ -10,12 +10,15 @@
 //    crossed a wall, so a car that somehow is on the water stays there instead of being thrown
 //    onto the bank. Land is on the left of travel along every line (+x east, +z south); the
 //    normal (nx, nz) points at it.
-//  - Roads over water: where a surface street the road graph lets traffic or people use (never
-//    a freeway or a ramp joining one) runs over open water (a bridge, a pier road), the stretch
-//    of its centreline over the water, widened to the road's half width plus
+//  - Roads over water: where a surface street the road graph lets traffic or people use, or a
+//    freeway or ramp whose two ends are on land (I-280 over Mission Creek and Islais Creek),
+//    runs over open water (a bridge, a pier road), the stretch of its centreline over the
+//    water, widened to the road's half width plus
 //    CORRIDOR_MARGIN_M each side, is a corridor. The shore is cut where a corridor covers it,
 //    and the corridor's sides (kerbs) and ends over the water are walls, so a car can drive
-//    across the 3rd St bridge or down a pier road, but not off it into the creek. Corridors
+//    across the 3rd St bridge, down a pier road or along I-280 over a creek, but not off it
+//    into the water. A freeway that runs out to open water (the Bay Bridge, the Golden Gate)
+//    stays walled: its deck is not modelled. Corridors
 //    that overlap (a junction on a bridge, the two halves of a divided road) count as one: no
 //    kerb stands inside another corridor. The road surface stays at the water's height until
 //    the wave-2 deck schema raises it.
@@ -106,6 +109,13 @@ export const JOINT_REACH_M = 0.05;
 export const CORRIDOR_MARGIN_M = 3;
 /** A kerb carries on this far onto the land where it meets the shore, so the joint leaves no slot. */
 export const KERB_OVERLAP_M = 0.5;
+/**
+ * A freeway or ramp with both ends on land gets a corridor over a stretch of water at most this
+ * long (I-280 over Mission Creek, 74 to 89 m, and Islais Creek, 107 m); a longer one is the Bay
+ * (the Bay Bridge's west span between Rincon Hill and Yerba Buena Island, 296 and 750 m) and
+ * stays walled until its deck exists.
+ */
+export const MAX_INLET_M = 200;
 /** Beyond this distance from every shore line, the ground's water mask (or else: land) decides. */
 export const SHORE_SEARCH_M = 300;
 /** Stretches of a road over water closer than this along it are one corridor (a strip of land under a pier road). */
@@ -480,7 +490,8 @@ function buildCorridors(roads: RoadsFile, shore: ShoreIndex, opens: (e: RoadsFil
   }
   const nearShore = (x: number, z: number): boolean => coarse.has(cellKey(Math.floor(x / SHORE_SEARCH_M), Math.floor(z / SHORE_SEARCH_M)));
   for (const e of edges) {
-    if (!opens(e)) continue;
+    const opened = opens(e);
+    if (!opened && !landFreeway(e, shore)) continue;
     const l = lineOf(e.points);
     if (l.xs.length < 2 || l.len <= 0) continue;
     const n = l.xs.length;
@@ -519,6 +530,8 @@ function buildCorridors(roads: RoadsFile, shore: ShoreIndex, opens: (e: RoadsFil
       return ext < MAX_EXTEND_M ? ext : MAX_EXTEND_M;
     };
     for (const st of stretches) {
+      // A freeway gets a corridor only across an inlet (a creek, a cove), never out over the Bay.
+      if (!opened && st.s1 - st.s0 > MAX_INLET_M) continue;
       const e0 = st.s0 <= 0 ? halfW : landward(st.sin0);
       const e1 = st.s1 >= l.len ? halfW : landward(st.sin1);
       const c = corridorOf(e.id, subLine(l, st.s0 - e0, st.s1 + e1), halfW);
@@ -526,6 +539,23 @@ function buildCorridors(roads: RoadsFile, shore: ShoreIndex, opens: (e: RoadsFil
     }
   }
   return out;
+}
+
+/**
+ * A freeway or ramp that crosses a creek or a cove between two points on land (I-280 over
+ * Mission Creek and Islais Creek): it gets a corridor across the water (no longer than
+ * MAX_INLET_M) like a surface bridge, so the walls never stand across its carriageway. Traffic
+ * stays off it (the road graph), but a player may drive it. One that runs out over the Bay (the
+ * Golden Gate, with an end over the water; the Bay Bridge's west span, longer than an inlet)
+ * stays walled: those decks are not modelled.
+ */
+function landFreeway(e: RoadsFile["edges"][number], shore: ShoreIndex): boolean {
+  if (e.gradeSeparated !== true && e.kind !== "ramp") return false;
+  const n = e.points.length;
+  if (n < 2) return false;
+  const a = e.points[0]!;
+  const b = e.points[n - 1]!;
+  return !onWater(shore, a[0]!, a[1]!) && !onWater(shore, b[0]!, b[1]!);
 }
 
 /** Is (x, z) strictly inside the corridor (not on its outline)? */
@@ -721,6 +751,7 @@ export interface WallOptions {
   /**
    * Which road edges get a corridor where they run over water: the road graph's drivable or
    * walkable edges (buildWorld passes them). Default: every edge that is not gradeSeparated.
+   * Freeways and ramps with both ends on land get one whatever this says (landFreeway).
    */
   opens?: (edge: RoadsFile["edges"][number]) => boolean;
 }
