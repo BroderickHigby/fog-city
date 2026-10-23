@@ -20,7 +20,7 @@
 //   &cam=chase|first-person|fly  starting camera
 //
 // Keys: WASD/arrows drive (or walk), Space brake (sprint on foot); F enter/exit, E fire,
-// Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
+// Q scan, H horn (sim actions; src/audio/horn.ts sounds it). Render only: C chase/first-person, V free fly camera (WASD
 // move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
@@ -34,7 +34,8 @@ import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
-import { GameAudio } from "./audio/mixer.ts";
+import { createGameAudioDirector } from "./audio/index.ts";
+import { HornVoice, hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
 import { contentHash } from "./content/barks.ts";
@@ -216,12 +217,13 @@ async function boot(): Promise<void> {
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const gameUI=mountGameUI(container,{copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
+  const audio=createGameAudioDirector({host:container,missions:MISSIONS});void audio.load();
+  const gameUI=mountGameUI(container,{audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
-    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
+    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
     pause:value=>{paused=value;acc=0;last=performance.now();},
@@ -231,13 +233,13 @@ async function boot(): Promise<void> {
       const progress=gameplaySnapshot({state:curr}).missions.players[LOCAL_PLAYER];
       const mission=MISSIONS.find(m=>m.id===progress?.missionId),current=mission?.steps.find(s=>s.id===progress?.stepId);
       if(choiceId==="retry")send({kind:"mission-retry"});
-      else if(current?.type==="dialogue")send({kind:"mission-answer",questionId:current.questions[progress?.questionIndex??0]?.id,choiceId});
+      else if(current?.type==="dialogue"){const questionId=current.questions[progress?.questionIndex??0]?.id;send({kind:"mission-answer",questionId,choiceId});if(questionId)audio.answered(questionId,choiceId);}
       else send({kind:"mission-ack"});
     },
   }});
   const combatLayer=new CombatLayer(view.scene);
-  const audio=new GameAudio();void audio.load(assets).catch(()=>{});
-  const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
+  const horn=new HornVoice();
+  const unlockAudio=()=>{audio.unlock();horn.unlock();};window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
   const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
@@ -250,6 +252,9 @@ async function boot(): Promise<void> {
     const tick=curr.tick+1,pending=queuedEvents.filter(event=>event.tick===tick);
     queuedEvents=queuedEvents.filter(event=>event.tick>tick);
     curr = step(world, curr, frame, [...events,...pending],systems);
+    // Every horn in the stepped frame sounds (keys, pad and touch all set Action.horn).
+    const me = curr.players[LOCAL_PLAYER];
+    if (me) for (const blast of hornBlasts(frame, curr)) horn.play(blast, activeBody(me));
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -439,7 +444,7 @@ async function boot(): Promise<void> {
     }
     view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
     combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
-    audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
+    audio.update({state:curr,playerId:LOCAL_PLAYER,paused,nowMs:now});
     const minute = gameMinuteOfDay(curr, clockStart);
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
