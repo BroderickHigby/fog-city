@@ -16,6 +16,7 @@
 // returns; deterministic (seeded placement).
 
 import * as THREE from "three";
+import { injectUniforms } from "./materials.ts";
 import { rand01 } from "./hash.ts";
 import { roadHalfWidth } from "./roads.ts";
 import type { GroundFn, RoadEdge, RoadGraph } from "./types.ts";
@@ -259,6 +260,7 @@ function paintMaterial(orm: THREE.Texture, normal: THREE.Texture): THREE.MeshSta
   m.polygonOffsetFactor = -3;
   m.polygonOffsetUnits = -6;
   m.onBeforeCompile = (shader) => {
+    injectUniforms(shader);
     shader.uniforms.fcPaintO = { value: orm };
     shader.uniforms.fcPaintN = { value: normal };
     shader.vertexShader = shader.vertexShader

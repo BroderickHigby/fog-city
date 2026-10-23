@@ -13,6 +13,7 @@
 
 import * as THREE from "three";
 import type { Assets } from "../io/assets.ts";
+import { injectUniforms } from "./materials.ts";
 
 export interface TextureSetInfo {
   sizeM: number;
@@ -283,6 +284,7 @@ export class DetailMaterial {
     const uniforms = this.uniforms;
     this.material.onBeforeCompile = (shader, renderer) => {
       base?.(shader, renderer);
+      injectUniforms(shader);
       Object.assign(shader.uniforms, uniforms);
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", "#include <common>\nvarying vec3 fcDetWorld;")
@@ -368,6 +370,7 @@ export function applyTriplanar(material: THREE.MeshStandardMaterial, set: Detail
   const key = material.customProgramCacheKey();
   material.onBeforeCompile = (shader, renderer) => {
     base?.(shader, renderer);
+    injectUniforms(shader);
     Object.assign(shader.uniforms, uniforms);
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 fcTriW;\nvarying vec3 fcTriWN;")
