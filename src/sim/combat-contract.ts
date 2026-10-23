@@ -25,6 +25,8 @@ export interface CombatActor extends Vec3 {
   sheltered?: boolean;
   pursuing?: boolean;
   inFidelity?: boolean;
+  /** Optional model resistance multiplier, finite and greater than 0 through 1. */
+  rustScale?: number;
 }
 export type Mount = "foot" | "vehicle" | "running-board" | "roof";
 export interface CombatPlayer extends Vec3 {
