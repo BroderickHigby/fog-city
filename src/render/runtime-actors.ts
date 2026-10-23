@@ -25,13 +25,23 @@ export function combatLook(t: Readonly<TargetCombat> | undefined, tick: number, 
   return { rust: person ? 0 : Math.max(0, Math.min(1, t.rust)), wet, topple };
 }
 
-interface RuntimeVisualActor {readonly id:string;readonly numericId:number;readonly legacyId:number|null;readonly model:string;readonly x:number;readonly y:number;readonly z:number;readonly heading:number;readonly speed:number;readonly retired:boolean;readonly fidelity:string;readonly bag?:string;readonly statusLight?:string}
+interface RuntimeVisualActor {readonly id:string;readonly numericId:number;readonly legacyId:number|null;readonly model:string;readonly x:number;readonly y:number;readonly z:number;readonly heading:number;readonly speed:number;readonly retired:boolean;readonly fidelity:string;readonly bag?:string;readonly statusLight?:string;readonly reaction?:{readonly mode:string;readonly source:{readonly x:number;readonly z:number}|null}}
 const renderCache=new WeakMap<SimState,SimState>();
 function kindFor(model:string):AgentKind {
   if(model==="trundle")return "sidewalkBot";
   if(["robotaxi","van","bus","patrol"].includes(model))return "robotaxi";
   if(["person","walker","associate"].includes(model))return "person";
   return "errandRobot";
+}
+/**
+ * A startled or glancing actor turns to look at what it heard (a horn, a ping), so the
+ * reaction reads on screen. Drawing only: the sim's heading is untouched.
+ */
+function facing(agent:AgentState,actor:RuntimeVisualActor|undefined):number{
+  const reaction=actor?.reaction;
+  if(!reaction?.source||(reaction.mode!=="startle"&&reaction.mode!=="glance"))return agent.heading;
+  const dx=reaction.source.x-agent.x,dz=reaction.source.z-agent.z;
+  return dx*dx+dz*dz<1e-6?agent.heading:Math.atan2(dx,-dz);
 }
 /** Adapt accepted runtime poses to the existing instanced models, solely for drawing. */
 export function renderWithRuntimeActors(state:SimState,actors:readonly RuntimeVisualActor[]):SimState {
@@ -40,7 +50,7 @@ export function renderWithRuntimeActors(state:SimState,actors:readonly RuntimeVi
   const decorate=(agent:AgentState,actor:RuntimeVisualActor|undefined)=>{
     const target=actor?state.ext.combat?.targets[actor.id]:undefined;
     const look=combatLook(target,state.tick,agent.kind==="person");
-    return {...agent,tell:actor?.bag==="empty"?"emptyBag":"fullBag",visualFlash:actor?.statusLight==="flicker",visualHeightScale:target?.heightScale??1,visualRust:look.rust,visualWet:look.wet,visualTopple:look.topple};
+    return {...agent,heading:facing(agent,actor),tell:actor?.bag==="empty"?"emptyBag":"fullBag",visualFlash:actor?.statusLight==="flicker",visualHeightScale:target?.heightScale??1,visualRust:look.rust,visualWet:look.wet,visualTopple:look.topple};
   };
   const extras:AgentState[]=actors.filter(actor=>actor.legacyId===null&&!actor.retired&&["full","active"].includes(actor.fidelity)).map(actor=>({
     id:actor.numericId,kind:kindFor(actor.model),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,pitch:0,speed:actor.speed,vmax:Math.abs(actor.speed),

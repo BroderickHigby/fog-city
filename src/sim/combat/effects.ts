@@ -107,8 +107,10 @@ export function applyWaterHit(state: CombatState, actor: CombatActor, projectile
   if (actor.kind !== "person" || projectile.vehicle) return;
   const target = targetOf(state, actor.id);
   if (target.wetUntil > state.tick) return;
+  // Count shots, not particles: a multi-pellet shot (Wide Boost) fired on one tick is one hit.
   target.wetHits = target.wetHits.filter(tick => tick >= state.tick - EFFECTS.wetHitSpan);
-  target.wetHits.push(state.tick);
+  const shot = Number.isSafeInteger(projectile.bornTick) ? projectile.bornTick : state.tick;
+  if (!target.wetHits.includes(shot)) target.wetHits.push(shot);
   if (target.wetHits.length < 3) return;
   target.wetHits = [];
   target.wetUntil = state.tick + EFFECTS.wetDuration;
