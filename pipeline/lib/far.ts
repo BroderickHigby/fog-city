@@ -21,7 +21,10 @@
 //   * colours by ground class (landcover.ts) where the cover function gives one.
 // Buildings (W-41):
 //   * tall records (tallM and up): their own outline, simplified (the convex hull only when the
-//     footprint is close to convex), flat roof at their topY;
+//     footprint is close to convex), flat roof at their topY; the outline covers the record's
+//     marks (interior point, area centroid, vertex mean: a strip bent round a corner has its
+//     centroids in its own notch), taking more vertices or the convex hull for that, and never
+//     covers another record's marks that differ in roof by more than clusterHeightM;
 //   * everything else: records closer than clusterGapM whose heights above the ground differ by at
 //     most clusterHeightM merge into a cluster whose roofs span at most clusterSpanM (W-41: a far
 //     roof within 5 m of the near one at p99, inside the 600k-triangle budget): its convex hull,
@@ -35,7 +38,7 @@
 // Every hull's walls start skirtM below the lowest ground under it.
 
 import type { Building } from "./buildings.ts";
-import { cleanRing, dropCollinear, interiorPoint, isSimpleRing, pointInRing, signedArea, simplifyRing, type P2 } from "./geom.ts";
+import { centroid, cleanRing, dropCollinear, interiorPoint, isSimpleRing, pointInRing, signedArea, simplifyRing, type P2 } from "./geom.ts";
 import { meshGlb } from "./glb.ts";
 import { facadeStyle, MeshData, rgba } from "./mesh.ts";
 import { largest, unionRings } from "./polygon.ts";
@@ -231,10 +234,17 @@ const OUTLINE_MAX_VERTS = 12;
 class PointIndex {
   private cells = new Map<number, number[]>();
   private readonly list: readonly Building[];
-  private readonly pts: P2[];
-  constructor(list: readonly Building[]) {
+  private readonly pts: P2[] = [];
+  private readonly owner: number[] = [];
+  /** By default each record's interior point; `points` gives each record its own points. */
+  constructor(list: readonly Building[], points: (b: Building) => P2[] = (b) => [interiorPoint(b.footprint)]) {
     this.list = list;
-    this.pts = list.map((b) => interiorPoint(b.footprint));
+    list.forEach((b, i) => {
+      for (const q of points(b)) {
+        this.pts.push(q);
+        this.owner.push(i);
+      }
+    });
     this.pts.forEach(([x, z], i) => {
       const k = (Math.floor(x / 50) + 4096) * 8192 + Math.floor(z / 50) + 4096;
       (this.cells.get(k) ?? this.cells.set(k, []).get(k)!).push(i);
@@ -242,13 +252,17 @@ class PointIndex {
   }
   /** Records whose interior point lies inside the ring. */
   inside(ring: readonly P2[]): Building[] {
+    return this.insidePoints(ring).map((h) => h.b);
+  }
+  /** Every indexed point inside the ring, with its record (a record once per point inside). */
+  insidePoints(ring: readonly P2[]): Array<{ b: Building; at: P2 }> {
     const [x0, z0, x1, z1] = bbox(ring);
-    const out: Building[] = [];
+    const out: Array<{ b: Building; at: P2 }> = [];
     for (let cx = Math.floor(x0 / 50); cx <= Math.floor(x1 / 50); cx++) {
       for (let cz = Math.floor(z0 / 50); cz <= Math.floor(z1 / 50); cz++) {
         for (const i of this.cells.get((cx + 4096) * 8192 + cz + 4096) ?? []) {
           const [x, z] = this.pts[i]!;
-          if (pointInRing(x, z, ring)) out.push(this.list[i]!);
+          if (pointInRing(x, z, ring)) out.push({ b: this.list[this.owner[i]!]!, at: this.pts[i]! });
         }
       }
     }
@@ -773,25 +787,59 @@ export function farHulls(buildings: readonly Building[], p: FarParams = FAR_DEFA
   });
 }
 
+/** The vertex mean of a ring. */
+function vertexMean(ring: readonly P2[]): P2 {
+  let x = 0, z = 0;
+  for (const q of ring) {
+    x += q[0];
+    z += q[1];
+  }
+  return [x / ring.length, z / ring.length];
+}
+
+/** Where a record "is" from afar: its interior point, its area centroid and its vertex mean. */
+export function recordMarks(ring: readonly P2[]): P2[] {
+  return [interiorPoint(ring), centroid(ring), vertexMean(ring)];
+}
+
 function farHullsExact(buildings: readonly Building[], p: FarParams): Hull[] {
   const tall: Hull[] = [];
   const low: Building[] = [];
-  const index = new PointIndex(buildings);
+  const index = new PointIndex(buildings, (o) => recordMarks(o.footprint));
   for (const b of buildings) {
     if (heightOf(b) >= p.tallM) {
       const style = facadeStyle(b);
-      // A tall record's outline never stands over another record's interior point that its own
-      // footprint does not cover (the neighbour would pop by the height difference): it takes
-      // more vertices until it does not, at worst its own footprint.
+      // A tall record's outline never stands over another record's mark (its interior point or
+      // centroids, recordMarks) that its own footprint does not cover (the neighbour would pop by
+      // the height difference): it takes more vertices until it does not, at worst its own footprint.
       const intrudes = (ring: readonly P2[]): boolean =>
-        index.inside(ring).some((o) => {
-          if (o.id === b.id) return false;
-          const ip = interiorPoint(o.footprint);
-          return !pointInRing(ip[0], ip[1], b.footprint) && Math.abs(o.topY - b.topY) > p.clusterHeightM;
-        });
-      let ring = farOutline(b.footprint, p.tallMaxVerts);
-      for (let cap = p.tallMaxVerts + 2; intrudes(ring) && cap <= OUTLINE_MAX_VERTS; cap += 2) ring = farOutline(b.footprint, cap);
-      if (intrudes(ring)) ring = signedArea(b.footprint) > 0 ? [...b.footprint].reverse() : [...b.footprint];
+        index.insidePoints(ring).some(({ b: o, at }) => o.id !== b.id && !pointInRing(at[0], at[1], b.footprint) && Math.abs(o.topY - b.topY) > p.clusterHeightM);
+      // It also stands over the points a far viewer reads as the record (W-41): its interior
+      // point, its area centroid and its vertex mean. A strip bent round a corner (a terrace or
+      // corridor piece) has its centroid in its own notch; a simplified outline can leave out even
+      // a centroid inside the footprint; either way the tile then streams in a tower where the far
+      // layer drew bare ground or a low neighbour. Both centroids lie inside the convex hull, so
+      // the outline takes more vertices, then the (simplified) convex hull, before giving that up.
+      const marks = recordMarks(b.footprint);
+      const fits = (ring: readonly P2[]): boolean => ring.length >= 3 && !intrudes(ring) && marks.every(([x, z]) => pointInRing(x, z, ring));
+      let ring: P2[] | null = null;
+      for (let cap = p.tallMaxVerts; !ring && cap <= OUTLINE_MAX_VERTS; cap += 2) {
+        const r = farOutline(b.footprint, cap);
+        if (fits(r)) ring = r;
+      }
+      if (!ring) {
+        const hull = convexHull(b.footprint);
+        for (let cap = p.tallMaxVerts; !ring && cap < Math.max(hull.length, p.tallMaxVerts) + 2; cap += 2) {
+          const r = simplifyConvex(hull, cap);
+          if (fits(r)) ring = r;
+        }
+      }
+      if (!ring) {
+        // No outline both covers the marks and keeps off the neighbours: keep off the neighbours.
+        ring = farOutline(b.footprint, p.tallMaxVerts);
+        for (let cap = p.tallMaxVerts + 2; intrudes(ring) && cap <= OUTLINE_MAX_VERTS; cap += 2) ring = farOutline(b.footprint, cap);
+        if (intrudes(ring)) ring = signedArea(b.footprint) > 0 ? [...b.footprint].reverse() : [...b.footprint];
+      }
       if (ring.length >= 3) tall.push({ ring, top: b.topY, absolute: true, wall: style.wall, roof: style.roof, records: 1 });
     } else {
       low.push(b);
