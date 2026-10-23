@@ -35,6 +35,8 @@ export const fcUniforms = {
   fcLinearOutput: { value: 0 },
   fcNight: { value: 0 },
   fcTime: { value: 0 },
+  /** Road and ground wetness 0..1 from the sim's rain (weather.ts). */
+  fcWet: { value: 0 },
 };
 
 const FOG_PARS_VERTEX = /* glsl */ `
@@ -301,6 +303,7 @@ function patchBuildingShader(shader: THREE.WebGLProgramParametersWithUniforms): 
 /** Metre-scaled surface detail. High frequencies fade before becoming shimmering pixels. */
 const GRAIN_PARS = /* glsl */ `
 varying vec3 vFcWorld;
+uniform float fcWet;
 float fcRand( vec2 p ) {
   p = fract( p * vec2( 123.34, 456.21 ) );
   p += dot( p, p + 45.32 );
@@ -313,6 +316,18 @@ float fcN( vec2 p ) {
               mix( fcRand( i + vec2( 0.0, 1.0 ) ), fcRand( i + 1.0 ), u.x ), u.y );
 }
 `;
+
+/**
+ * Rain on the ground (weather.ts sets fcWet): it darkens and turns glossy, patchily as it
+ * dries. After every roughness patch (scanned surfaces included), before the lighting reads it.
+ */
+const WET_FRAGMENT = /* glsl */ `
+  {
+    float fcWetAmt = fcWet * mix( 0.7, 1.0, fcN( fcP * 0.23 ) );
+    diffuseColor.rgb *= 1.0 - 0.32 * fcWetAmt;
+    roughnessFactor = mix( roughnessFactor, 0.14, 0.85 * fcWetAmt );
+  }
+  #include <lights_physical_fragment>`;
 
 function patchGrainShader(amount: number, scale: number, road = false) {
   const detail = road ? /* glsl */ `
@@ -360,7 +375,8 @@ function patchGrainShader(amount: number, scale: number, road = false) {
   float fcSurfaceRoughness = roughness;
   ${detail}`)
       .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\n  roughnessFactor = min( roughnessFactor, fcSurfaceRoughness );")
-      .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = fcReliefNormal( -vViewPosition, normal, fcRelief );");
+      .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = fcReliefNormal( -vViewPosition, normal, fcRelief );")
+      .replace("#include <lights_physical_fragment>", WET_FRAGMENT);
   };
 }
 

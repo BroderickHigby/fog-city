@@ -46,6 +46,8 @@ import { missionParkingDestination } from "./sim/missions/parking-world.ts";
 import { agentsRuntimeOf } from "./sim/agents/runtime.ts";
 import { renderWithRuntimeActors } from "./render/runtime-actors.ts";
 import { gameplaySnapshot } from "./sim/player/adapter.ts";
+import { gameTime } from "./sim/clock/calendar.ts";
+import { TIDE_PROMENADE, WEATHER, promenadeAt, weatherView } from "./sim/fog/index.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
@@ -192,6 +194,7 @@ async function boot(): Promise<void> {
       maxPixelRatio: numParam(params, "pr") ?? 2,
       models: new Set(models),
       landmarks: landmarksDoc,
+      tide: { line: TIDE_PROMENADE, nearM: WEATHER.promenadeNearM, farM: WEATHER.promenadeFarM, floods: (x, z) => promenadeAt(world, x, z) },
     },
   );
   // ?debug=1 exposes the renderer for poking at from the console. Never used by tests.
@@ -243,6 +246,7 @@ async function boot(): Promise<void> {
   const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
   const clockStart = clockStartMinute(bootedAtNight);
+  let nextWeather = 0;
 
   const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
     prev = curr;
@@ -437,7 +441,16 @@ async function boot(): Promise<void> {
     view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
     combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
     audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
-    const minute = gameMinuteOfDay(curr, clockStart);
+    // The sim's calendar is the game clock when its clock system runs; the light follows it
+    // unless a look is pinned (?tod=, ?night=1, N). The weather is read at the camera.
+    const calendar = curr.ext.clock ? gameTime(curr) : null;
+    const minute = calendar ? calendar.hour * 60 + calendar.minute + calendar.second / 60 : gameMinuteOfDay(curr, clockStart);
+    if (calendar) view.setDaylight(calendar.month, calendar.day, minute / 60);
+    if (now >= nextWeather) {
+      nextWeather = now + 100;
+      const cam = view.camera.position;
+      view.setWeather(weatherView(world, curr, cam.x, cam.z));
+    }
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
 
