@@ -34,3 +34,18 @@ The SF screenshot shows the verified two-player lobby and running city. Visual q
 and performance on real hardware remain for the owner to judge.
 
 ![Two-player SF room](2026-10-23-multiplayer-sf.png)
+
+## Broader checks and visual sample
+
+All eight Firefox/WebKit pure-simulation comparisons against Node passed. The full unit/world
+run finished with 3,062 passed, 92 failed and one maintenance test pending; see
+`2026-10-23-full-suite-triage.md` for exact failures, attribution and ownership. The world
+baseline description adjustment preserves every threshold and failing-run list.
+
+The two-player SF and single-player packed-SF screenshots show readable lobby text, matching
+roster counts and visible roads, sidewalks, buildings, trees and the player car, without an
+obvious overlap in these two views. The remote car is not visible in the two-player still;
+movement/synchronization evidence comes from the browser assertions, not the screenshot.
+The developer HUD remains prominent and the invitation panel has no copy/share action;
+those are future UI refinements. These samples do not validate other districts, frame rate
+or the final visual direction.

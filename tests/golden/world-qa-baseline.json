@@ -550,7 +550,7 @@
    "targetWave": null,
    "suite": "buildings",
    "cadence": "pr",
-   "desc": "|report.json kept - footprint records in the colliders| (the report and the tiles agree)"
+   "desc": "|report.json kept - unique source footprints in the colliders| (the report and the tiles agree)"
   },
   "A.accounting.unexplained": {
    "baseline": 0,

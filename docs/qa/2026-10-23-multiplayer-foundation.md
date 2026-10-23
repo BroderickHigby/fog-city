@@ -17,6 +17,13 @@ it does not complete Bot Sweep or change the world-continuity gate's status.
 - Chromium with SwiftShader, two separate contexts: create/join, remote driving, two-player
   roster, leave and rejoin, no page errors. Passed in `dev` (26.9 s) and real `sf` (1.6 min).
   The SF flow verifies browser/server agreement on the loaded city fingerprint.
+- Firefox and WebKit: all eight cross-engine pure-simulation checks passed in 36.6 s.
+  Each engine matches Node for deterministic math/state hashing and multiplayer replays
+  in dev (3,600 ticks), dev-city (1,200 ticks) and SF (900 ticks). This does not test the
+  relay or rendered multiplayer UI in those engines.
+- Static build: 158 files, 170.9 MB, within the current 450-file / 240 MB host budgets.
+  A separate Chromium smoke check joined a private SF room through the packed frontend
+  and live relay without page errors.
 - Container built as `fog-city-relay:local`; non-root runtime answered `/health` and completed
   a real private-room WebSocket handshake with simulation version 5. The temporary container
   was stopped after verification.
@@ -47,8 +54,10 @@ The browser screenshots are local QA outputs:
 The full repository/world gate is not asserted green; inherited failures are recorded in
 `2026-10-23-integration-status.md`. No benchmark or real-hardware frame-rate claim is made.
 Firefox/WebKit multiplayer browser flows were not run; Chromium was used for the two-context
-integration proof. The pinned engines downloaded, but WebKit needs system libraries that this
-non-root environment cannot install via apt.
+integration proof. The pure-simulation checks ran in both other engines using the unchanged
+pinned Playwright binaries. Required Debian libraries were extracted into the workspace
+after verification against authenticated APT metadata; no system installation or TLS/signature
+bypass was needed. Runtime instructions: `/workspace/.cache/browser-libs/README.md`.
 
 No external deployment, paid service, account system, persistence, public matchmaking, chat,
 AI proxy or Bot Sweep objective framework is included. Room codes grant private-session access

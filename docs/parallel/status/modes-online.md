@@ -43,6 +43,12 @@ or SIM_VERSION changes.
 - **Owner:** AI provider/key and spending/retention policy before any live AI routes; this
   prototype uses no paid services or secrets.
 - **Lane 2:** match/state extension interfaces and wave-2 simulation integration.
+- Lane 2 has published the schema-6 interface on `lane/core/wave2` (`9a6a107`). Its status
+  explicitly reserves the QA/dodge migrations for integration. This prototype stays on the
+  verified schema-5 base until those migrations are combined by the integrating lane. When
+  adopting schema 6, update the closed network input validator for its optional aim fields
+  and re-run world identity, replay and browser convergence checks; do not silently accept
+  a different simulation version.
 - The inherited world/ballpark regeneration and other world QA defects remain tracked in
   `docs/qa/2026-10-23-integration-status.md`; the relay does not waive their gate.
 
