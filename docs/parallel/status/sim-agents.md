@@ -98,3 +98,21 @@ The CPU profile of the real SF scene identified repeated nearest-node scans as a
 Typecheck and **4 focused files / 90 tests pass**, including exact nearest-node comparisons for local/remote points and ties, disconnected-search rejection, physical runtime integration and forbidden APIs. A real-SF per-system timing probe is queued before claiming a measured speed improvement.
 
 Local match integration consumes the isolated `afef191` roster optimization: compute the ordered non-taxi placement candidates once per planning call. The individual occupancy checks and deterministic placement order remain unchanged. The separate Tidy lifecycle branch is not part of this intake.
+
+## Wave-2 admission repair from the canonical Hot Desk probe
+
+Branch: `lane/sim-agents/wave2-admission-fix`, based directly on frozen `9c65082`. This repair does not include the later threat/flight/Tidy stack.
+
+The saved canonical SF Hot Desk run failed at tick 1201 when `transit:FBUS-in:20` (numeric ID 334) overlapped `transit:FBUS-in:10` (333). Their long bus hulls intersected although the old center/radius entry check passed. Static world clearance was not the cause.
+
+Service and transit entry planners now check complete oriented vehicle hulls against static geometry, physical bodies, runtime extras, parked cars and walking players. Pending service spawns also block transit entries in the same prepare batch. Missing-body retries recheck their stored origin each tick and remain pending while blocked, without inserting a runtime/combat actor.
+
+Validation: TypeScript passes; 16 focused service/transit/admission tests and 75 forbidden-API checks pass. The exact saved state and last input now advance from tick 1200 to 1201 through canonical `createGameSystems()`: the second bus is admitted at `(79.902636, 172.812664)`, and all 333 runtime actors match physical bodies. The narrow tests cover the exact rejected hull pair, foot-player entry blocking, parked car hulls, blocked retries and simultaneous van/bus admission. Full Hot Desk completion remains with the coordinating harness.
+
+Draft PR title: `fix(agents): validate full service hulls before admission`
+
+Draft PR body:
+
+The canonical Hot Desk approach could crash when a second timed Ferry bus spawned through the first bus's long hull. Check complete vehicle footprints and all accepted bodies before service admission, include walking players and pending service/transit spawns, and defer blocked retries before a runtime actor is created.
+
+Validation: typecheck, 16 targeted tests and 75 portable-API checks pass. Replaying the exact saved SF tick-1200 state through the game systems now reaches tick 1201 with a clear second-bus entry and matching runtime/physical actor counts.
