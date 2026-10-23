@@ -13,9 +13,12 @@ export class GameplayDriver {
   readonly world: World;
   readonly playerId: string;
   state: SimState;
+  /** Retain the immutable pre-step snapshot so a safety failure is a one-tick reproduction. */
+  previousState: SimState;
   constructor(world: World, state: SimState, playerId = "p1") {
     this.world = world;
     this.state = state;
+    this.previousState = state;
     this.playerId = playerId;
   }
   get body() {
@@ -25,6 +28,7 @@ export class GameplayDriver {
   input(input: SimInput): void {
     const frame = { [this.playerId]: input };
     this.frames.push(frame);
+    this.previousState = this.state;
     this.state = step(this.world, this.state, frame, [], this.systems);
     const clearance = dodgeExtOf(this.state);
     if (clearance.contacts !== 0 || clearance.failures !== 0) {

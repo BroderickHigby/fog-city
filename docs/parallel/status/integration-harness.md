@@ -1,7 +1,7 @@
 # Integration harness
 
 ## Now
-Full typecheck and unit verification passed on immutable `76fcc02`: **121 files, 2,975 tests passed**, with one existing opt-in content-generator test skipped (258.08 seconds). Browser and hosted-build verification is next, after a brief shared-runner gap for other lanes' focused checks. The candidate includes core `f9ca263`, source-only UI through `352b526`, bounded rendering `5c0c598` and the isolated wave-2 purchase correction `cad8993`. The original prototype and other active worktrees are untouched.
+Full typecheck and unit verification passed on immutable `76fcc02`: **121 files, 2,975 tests passed**, with one existing opt-in content-generator test skipped (258.08 seconds). Current game candidate `7269504` adds the isolated campaign handoff, phone acknowledgement and full bus-hull admission corrections. Browser verification is paused while Core fixes a newly reproduced ambient pedestrian/taxi contact. The original prototype and other active worktrees are untouched.
 
 ## Done
 - Node and browser replay builders retain the authored gameplay, sidewalk and transit layers.
@@ -19,10 +19,15 @@ Full typecheck and unit verification passed on immutable `76fcc02`: **121 files,
 - Full repaired unit gate passed on `76fcc02`; log: `test-results/full-verify-v2.log`. The supervising shell was deliberately stopped after Vitest exited so the shared lock could be released before browser testing; its final exit 143 is not a failed test.
 - Review found that the legacy standalone Ramen prototype could precede Spill in automatic mission selection. Integrated the isolated campaign-only selector fix `6edaba1`; browser acceptance will cover the corrected handoff.
 - Review found that a mission-start command also answered its own phone call. Integrated the isolated `13d54de` correction so Spill waits for a real mission acknowledgement; focused and browser validation are pending.
+- Handoff follow-up typecheck and **11 focused tests passed** on `9c65082`. Chromium partial gate: **7 passed, one deliberately interrupted, 39 not run** to release the runner for a concrete game fix; log `test-results/browser-build-gate.log`. This is not a full browser pass.
+- Real input-only Hot Desk approach exposed two overlapping transit buses at tick 1201. Integrated isolated `5e8bf5b` as `7269504`; its planner checks full vehicle hulls, without relaxing physical admission.
+- The corrected physical route completed **180 observed Watch ticks**, melted the canonical thief, and held a real hydrant refill from 1.84 L to the **8 L capacity**. Continuing the route exposed a **1.062 mm** ambient pedestrian/taxi overlap at tick 3078. The zero-contact assertion remains in place; exact one-tick state/input reproduction is `test-results/hot-desk-contact-repro.json`.
+- The input driver now retains its immutable pre-step snapshot so later failures can be reproduced in one tick without replaying the whole route.
 
 ## Next
-1. Complete browser and hosted-production-build verification and repair concrete failures without lowering assertions.
-2. Verify Hot Desk / Spill through real controls and recorded UI commands.
+1. Intake the isolated ambient-contact and same-tick activity reward-order fixes, then rerun the full unit gate.
+2. Verify Hot Desk completion / Spill acknowledgement through real controls and recorded UI commands.
+3. Complete all browser and hosted-production-build checks without lowering assertions.
 
 ## Blocked on
 - Firefox and WebKit are not installed. An official Playwright installation attempt failed with HTTP 403 `Domain forbidden` from `cdn.playwright.dev` and `playwright.download.prss.microsoft.com`; it stopped before downloading WebKit. This remains explicit missing cross-engine evidence. System Chromium continues to work through the local executable override.
