@@ -179,6 +179,7 @@ export const NAME_FIELDS: ReadonlyArray<{ file: RegExp; path: string; kind: Fiel
  * detector lists (they exist to contain the words they detect) and research records.
  */
 export const EXEMPT_PATHS: ReadonlyArray<{ file: RegExp; path?: string; rules?: readonly LintRule[]; why: string }> = [
+  { file: /^content\/ai-fixtures\.json$/, path: "cases.*.input", why: "untrusted adversarial test inputs, never displayed as authored game output; expected replies still receive every content rule" },
   { file: /^content\/cleared-names\.json$/, why: "the name-search record quotes real companies, by design" },
   { file: /^content\/banned-pairs\.json$/, why: "the list of composed names that fail the lint, by definition" },
   {

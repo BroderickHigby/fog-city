@@ -1,0 +1,573 @@
+{
+  "entries": [
+    {
+      "id": "interview-retention",
+      "kind": "interview",
+      "wave": 3,
+      "context": "metrics",
+      "text": "What did your first customers do the second week?",
+      "speaker": "metrics",
+      "choices": [
+        {
+          "id": "cohort",
+          "text": "Seven of ten came back; two needed help and one left.",
+          "score": 2,
+          "reply": "A cohort and a denominator. We can have a conversation."
+        },
+        {
+          "id": "users",
+          "text": "We have a lot of sign-ups.",
+          "score": 0,
+          "reply": "A sign-up is a hello. I asked whether they stayed."
+        },
+        {
+          "id": "destiny",
+          "text": "Our retention is inevitable.",
+          "score": -1,
+          "reply": "Please put inevitable in the forecast, not the actuals."
+        }
+      ]
+    },
+    {
+      "id": "interview-buyer",
+      "kind": "interview",
+      "wave": 3,
+      "context": "metrics",
+      "text": "Who can say yes to buying this?",
+      "speaker": "metrics",
+      "choices": [
+        {
+          "id": "owner",
+          "text": "The person who does this work also controls the small team budget.",
+          "score": 2,
+          "reply": "A buyer close enough to the problem to recognise it."
+        },
+        {
+          "id": "everyone",
+          "text": "Everyone with a computer.",
+          "score": 0,
+          "reply": "That is a distribution problem disguised as a market."
+        },
+        {
+          "id": "unknown",
+          "text": "We do not know yet; three buyer calls are booked.",
+          "score": 1,
+          "reply": "Good. Bring the calls, including the uncomfortable one."
+        }
+      ]
+    },
+    {
+      "id": "interview-margin",
+      "kind": "interview",
+      "wave": 3,
+      "context": "metrics",
+      "text": "What costs more as a customer uses it more?",
+      "speaker": "metrics",
+      "choices": [
+        {
+          "id": "usage",
+          "text": "Compute and support. We measure both per completed job.",
+          "score": 2,
+          "reply": "A unit we can count. Please keep counting it."
+        },
+        {
+          "id": "nothing",
+          "text": "Nothing. The cloud is effectively free.",
+          "score": -2,
+          "reply": "It has been remarkably effective at sending invoices."
+        },
+        {
+          "id": "model",
+          "text": "We are still measuring inference cost.",
+          "score": 1,
+          "reply": "An unknown with a measurement plan beats a decorative margin."
+        }
+      ]
+    },
+    {
+      "id": "interview-feature",
+      "kind": "interview",
+      "wave": 3,
+      "context": "philosopher",
+      "text": "If the large platforms copy the feature, what remains?",
+      "speaker": "philosopher",
+      "choices": [
+        {
+          "id": "workflow",
+          "text": "The workflow, the permissions and the habit of using it.",
+          "score": 2,
+          "reply": "A reason to stay that does not fit on a release note."
+        },
+        {
+          "id": "faster",
+          "text": "We will move faster.",
+          "score": 0,
+          "reply": "Speed is an activity. What will it accumulate?"
+        },
+        {
+          "id": "honest",
+          "text": "We may be a feature; we are testing the wider need.",
+          "score": 1,
+          "reply": "A small honest question can become a useful company."
+        }
+      ]
+    },
+    {
+      "id": "interview-proof",
+      "kind": "interview",
+      "wave": 3,
+      "context": "philosopher",
+      "text": "What would convince you this idea is wrong?",
+      "speaker": "philosopher",
+      "choices": [
+        {
+          "id": "test",
+          "text": "If teams still use the old workflow after a month of supported trials.",
+          "score": 2,
+          "reply": "A belief with an exit door. Encouraging."
+        },
+        {
+          "id": "faith",
+          "text": "Nothing; conviction is the moat.",
+          "score": -1,
+          "reply": "Then this is a faith round. We do not lead those."
+        },
+        {
+          "id": "price",
+          "text": "If nobody pays at the price that covers our costs.",
+          "score": 1,
+          "reply": "Good. Do not discount away the answer."
+        }
+      ]
+    },
+    {
+      "id": "interview-why-now",
+      "kind": "interview",
+      "wave": 3,
+      "context": "philosopher",
+      "text": "Why does this work now?",
+      "speaker": "philosopher",
+      "choices": [
+        {
+          "id": "change",
+          "text": "The data can finally be exported, and the buyer has a budget for the problem.",
+          "score": 2,
+          "reply": "A change in the world rather than a change in your calendar."
+        },
+        {
+          "id": "buzz",
+          "text": "Agents are having a moment.",
+          "score": 0,
+          "reply": "Moments tend to invoice annually."
+        },
+        {
+          "id": "learn",
+          "text": "We have not isolated the change yet.",
+          "score": 1,
+          "reply": "Then make that your next experiment."
+        }
+      ]
+    },
+    {
+      "id": "interview-story",
+      "kind": "interview",
+      "wave": 3,
+      "context": "vibes",
+      "text": "Explain the demo without explaining the architecture.",
+      "speaker": "vibes",
+      "choices": [
+        {
+          "id": "job",
+          "text": "It turns the missed delivery list into a route the driver can actually use.",
+          "score": 2,
+          "reply": "I can picture the person and the Tuesday."
+        },
+        {
+          "id": "stack",
+          "text": "We orchestrate a multi-agent abstraction layer.",
+          "score": 0,
+          "reply": "I can picture a diagram arguing with another diagram."
+        },
+        {
+          "id": "small",
+          "text": "It does one useful job, and we can show it.",
+          "score": 1,
+          "reply": "Excellent. The room has one attention span."
+        }
+      ]
+    },
+    {
+      "id": "interview-failure",
+      "kind": "interview",
+      "wave": 3,
+      "context": "vibes",
+      "text": "What happens when it is confidently wrong?",
+      "speaker": "vibes",
+      "choices": [
+        {
+          "id": "review",
+          "text": "It shows its evidence, stops the automatic action and lets a person correct it.",
+          "score": 2,
+          "reply": "The correction is part of the product. Keep it visible."
+        },
+        {
+          "id": "hide",
+          "text": "We raise the confidence score.",
+          "score": -2,
+          "reply": "The number was not the problem I was asking about."
+        },
+        {
+          "id": "manual",
+          "text": "We fall back to the existing manual workflow.",
+          "score": 1,
+          "reply": "An unglamorous landing is still a landing."
+        }
+      ]
+    },
+    {
+      "id": "demo-enter",
+      "kind": "demo",
+      "wave": 3,
+      "context": "enter",
+      "text": "Three robots. One bad. Please keep the partners and the good robots dry."
+    },
+    {
+      "id": "demo-observe",
+      "kind": "demo",
+      "wave": 3,
+      "context": "observe",
+      "text": "Watch the path and the task. A confident scan is a second opinion, not a verdict."
+    },
+    {
+      "id": "demo-dry",
+      "kind": "demo",
+      "wave": 3,
+      "context": "dry",
+      "text": "Clear target, clear reasoning, dry partners. We can discuss the numbers."
+    },
+    {
+      "id": "demo-wet",
+      "kind": "demo",
+      "wave": 3,
+      "context": "wet",
+      "text": "Strong energy. Very wet. We will send the carpet invoice separately."
+    },
+    {
+      "id": "demo-wrong",
+      "kind": "demo",
+      "wave": 3,
+      "context": "wrong",
+      "text": "That was the delivery robot. It had a real delivery. We will try again tomorrow."
+    },
+    {
+      "id": "office-email-term-sheet",
+      "kind": "email",
+      "wave": 3,
+      "context": "term-sheet",
+      "text": "We would like to invest. The paperwork is longer than the meeting. Your evidence earned another conversation."
+    },
+    {
+      "id": "office-email-follow-up",
+      "kind": "email",
+      "wave": 3,
+      "context": "follow-up",
+      "text": "We enjoyed meeting you. We will follow up after one more customer conversation. Please keep sending the numbers."
+    },
+    {
+      "id": "office-email-rejected",
+      "kind": "email",
+      "wave": 3,
+      "context": "rejected",
+      "text": "Thank you for the demo. We could not yet connect the problem, the buyer and the price. Bring a concrete customer example next time."
+    },
+    {
+      "id": "office-email-timeout",
+      "kind": "email",
+      "wave": 3,
+      "context": "timeout",
+      "text": "The room is needed for another meeting. Your slot can be booked again tomorrow."
+    },
+    {
+      "id": "mom-plain",
+      "kind": "mom",
+      "wave": 4,
+      "context": "plain",
+      "text": "What changes in someone’s day when they use it?",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-customer",
+      "kind": "mom",
+      "wave": 4,
+      "context": "customer",
+      "text": "Who has that problem? Have you asked them, or just other founders?",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-money",
+      "kind": "mom",
+      "wave": 4,
+      "context": "money",
+      "text": "When you say revenue, is that money arriving or a person saying it sounds nice?",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-care",
+      "kind": "mom",
+      "wave": 4,
+      "context": "care",
+      "text": "You do not have to explain the whole company. Tell me the useful part.",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-clear",
+      "kind": "mom",
+      "wave": 4,
+      "context": "clear",
+      "text": "I understand. It helps that person do that job. Now go and ask whether they want it.",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-off-topic",
+      "kind": "mom",
+      "wave": 4,
+      "context": "off-topic",
+      "text": "ok honey. call me",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-unknown",
+      "kind": "mom",
+      "wave": 4,
+      "context": "unknown",
+      "text": "It is fine not to know. Find out before you make the slide bigger.",
+      "speaker": "Mom"
+    },
+    {
+      "id": "mom-rest",
+      "kind": "mom",
+      "wave": 4,
+      "context": "rest",
+      "text": "Eat something, get some sleep, and call me when you are not walking into traffic.",
+      "speaker": "Mom"
+    },
+    {
+      "id": "cofounder-delay",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "delay",
+      "text": "the deploy is taking longer than the screenshot"
+    },
+    {
+      "id": "cofounder-evidence",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "evidence",
+      "text": "watch the feet. the status light has a marketing department"
+    },
+    {
+      "id": "cofounder-expense",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "expense",
+      "text": "our biggest enterprise customer is still our cloud provider"
+    },
+    {
+      "id": "cofounder-apology",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "apology",
+      "text": "that was a good robot. we owe it a repair, not a revised definition of good"
+    },
+    {
+      "id": "cofounder-victory",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "victory",
+      "text": "nice. actual progress. should we make the graph less steep now"
+    },
+    {
+      "id": "cofounder-pivot",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "pivot",
+      "text": "we can change the sentence without changing the customer every week"
+    },
+    {
+      "id": "cofounder-late",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "late",
+      "text": "i moved the meeting. then the meeting moved me"
+    },
+    {
+      "id": "cofounder-fog",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "fog",
+      "text": "fog is up. good for hiding. bad for pretending we saw everything"
+    },
+    {
+      "id": "cofounder-friend",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "friend",
+      "text": "the restored one remembered us. i am going to be normal about this"
+    },
+    {
+      "id": "cofounder-finale",
+      "kind": "cofounder",
+      "wave": 4,
+      "context": "finale",
+      "text": "clock stopped. for once that is the good kind of outage"
+    },
+    {
+      "id": "discovery-queue",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "queue",
+      "text": "I am trying to deliver the soup before it becomes an architectural solid."
+    },
+    {
+      "id": "discovery-caregiver",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "caregiver",
+      "text": "The reminder helps, but I still want a person to check the important bit."
+    },
+    {
+      "id": "discovery-buyer",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "buyer",
+      "text": "I can approve a small trial. A citywide deployment needs someone else."
+    },
+    {
+      "id": "discovery-skeptic",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "skeptic",
+      "text": "Show me one finished task. I have already seen six concept videos."
+    },
+    {
+      "id": "discovery-operator",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "operator",
+      "text": "If it fails, tell me what stopped. Do not just make the spinner friendlier."
+    },
+    {
+      "id": "discovery-commuter",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "commuter",
+      "text": "My route is fine. The pickup spot is where the problem happens."
+    },
+    {
+      "id": "discovery-maker",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "maker",
+      "text": "The tool is useful when I can undo what it did."
+    },
+    {
+      "id": "discovery-shopper",
+      "kind": "discovery",
+      "wave": 5,
+      "context": "shopper",
+      "text": "I want the order I placed, not a personalised interpretation of it."
+    },
+    {
+      "id": "diligence-positive",
+      "kind": "diligence",
+      "wave": 5,
+      "context": "positive",
+      "text": "Clear user, repeated task, observed pain. Test willingness to pay before expanding the market slide."
+    },
+    {
+      "id": "diligence-mixed",
+      "kind": "diligence",
+      "wave": 5,
+      "context": "mixed",
+      "text": "People understand the job. The buyer and the budget are still unclear. Run one paid pilot with a narrow success measure."
+    },
+    {
+      "id": "diligence-negative",
+      "kind": "diligence",
+      "wave": 5,
+      "context": "negative",
+      "text": "The interviews describe a different problem. Keep the notes, revise the question and avoid turning compliments into demand."
+    },
+    {
+      "id": "diligence-insight",
+      "kind": "diligence",
+      "wave": 5,
+      "context": "insight",
+      "text": "The useful surprise was operational: people need a recovery path more than another recommendation."
+    },
+    {
+      "id": "roast-baseline",
+      "kind": "roast",
+      "wave": 8,
+      "context": "baseline",
+      "text": "The useful part of this startup is remarkably well hidden by the startup part."
+    },
+    {
+      "id": "roast-soup",
+      "kind": "roast",
+      "wave": 8,
+      "context": "soup",
+      "text": "A bold attempt to make one sentence require a glossary."
+    },
+    {
+      "id": "roast-clear",
+      "kind": "roast",
+      "wave": 8,
+      "context": "clear",
+      "text": "A clear user and a clear job. The deck must have felt very left out."
+    },
+    {
+      "id": "roast-demo",
+      "kind": "roast",
+      "wave": 8,
+      "context": "demo",
+      "text": "The demo worked. The confidence slide is taking credit for the sprinkler."
+    },
+    {
+      "id": "roast-budget",
+      "kind": "roast",
+      "wave": 8,
+      "context": "budget",
+      "text": "Your business model has found product-market fit with your cloud invoice."
+    },
+    {
+      "id": "roast-pivot",
+      "kind": "roast",
+      "wave": 8,
+      "context": "pivot",
+      "text": "The company has pivoted so often the logo is developing steering."
+    },
+    {
+      "id": "roast-kind",
+      "kind": "roast",
+      "wave": 8,
+      "context": "kind",
+      "text": "There is a real idea here. Someone should rescue it from the adjectives."
+    },
+    {
+      "id": "roast-fallback",
+      "kind": "roast",
+      "wave": 8,
+      "context": "fallback",
+      "text": "The room has enough information. Let the demo speak for itself."
+    }
+  ],
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:1d6715eb",
+    "reviewedBy": [],
+    "review": "Authored from the design. Pending independent content and gameplay review."
+  }
+}

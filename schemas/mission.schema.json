@@ -4,10 +4,21 @@
   "title": "Mission (content/missions/*.json), interpreted by the sim mission runtime",
   "description": "A mission is a graph of steps discriminated by 'type'. Wave 2 adds three step types additively (stage, objective, form) and the optional wave, campaign and actors fields; the wave-1 types are unchanged. Execution starts at 'start' (default: the first step) and ends at a step that names an outcome (reward without next, retry, end). Places are WGS84 lat/lon; the game projects them with src/geo/project.ts. Graph rules JSON Schema cannot express (every target resolves, timers are feasible, meters stay bounded, every answer path terminates and every outcome is reachable) are checked by validateMission in src/content/missions.ts.",
   "type": "object",
-  "required": ["id", "version", "title", "cast", "meters", "outcomes", "steps", "provenance"],
+  "required": [
+    "id",
+    "version",
+    "title",
+    "cast",
+    "meters",
+    "outcomes",
+    "steps",
+    "provenance"
+  ],
   "additionalProperties": false,
   "properties": {
-    "provenance": { "$ref": "#/$defs/provenance" },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
     "id": {
       "type": "string",
       "pattern": "^[a-z0-9-]+$"
@@ -39,7 +50,10 @@
       },
       "additionalProperties": {
         "type": "object",
-        "required": ["name", "role"],
+        "required": [
+          "name",
+          "role"
+        ],
         "additionalProperties": false,
         "properties": {
           "name": {
@@ -62,7 +76,12 @@
       },
       "additionalProperties": {
         "type": "object",
-        "required": ["label", "start", "min", "max"],
+        "required": [
+          "label",
+          "start",
+          "min",
+          "max"
+        ],
         "additionalProperties": false,
         "properties": {
           "label": {
@@ -89,14 +108,21 @@
       "minProperties": 1,
       "additionalProperties": {
         "type": "object",
-        "required": ["label", "kind"],
+        "required": [
+          "label",
+          "kind"
+        ],
         "additionalProperties": false,
         "properties": {
           "label": {
             "type": "string"
           },
           "kind": {
-            "enum": ["success", "retry", "fail"]
+            "enum": [
+              "success",
+              "retry",
+              "fail"
+            ]
           }
         }
       }
@@ -128,11 +154,19 @@
       },
       "additionalProperties": {
         "type": "object",
-        "required": ["kind"],
+        "required": [
+          "kind"
+        ],
         "additionalProperties": false,
         "properties": {
           "kind": {
-            "enum": ["badRobot", "goodRobot", "rogueTaxi", "goodTaxi", "crew"]
+            "enum": [
+              "badRobot",
+              "goodRobot",
+              "rogueTaxi",
+              "goodTaxi",
+              "crew"
+            ]
           },
           "archetype": {
             "type": "string"
@@ -160,6 +194,10 @@
           }
         }
       }
+    },
+    "advanceOnAnyOutcome": {
+      "type": "boolean",
+      "description": "Completed graded activities advance on every authored outcome. Challenge failures remain retries."
     }
   },
   "$defs": {
@@ -218,7 +256,10 @@
     },
     "line": {
       "type": "object",
-      "required": ["speaker", "text"],
+      "required": [
+        "speaker",
+        "text"
+      ],
       "additionalProperties": false,
       "properties": {
         "speaker": {
@@ -240,7 +281,11 @@
     },
     "place": {
       "type": "object",
-      "required": ["label", "lat", "lon"],
+      "required": [
+        "label",
+        "lat",
+        "lon"
+      ],
       "additionalProperties": false,
       "properties": {
         "label": {
@@ -275,13 +320,28 @@
     },
     "step": {
       "type": "object",
-      "required": ["id", "type"],
+      "required": [
+        "id",
+        "type"
+      ],
       "properties": {
         "id": {
           "$ref": "#/$defs/stepId"
         },
         "type": {
-          "enum": ["trigger", "goto", "timer", "dialogue", "branch", "reward", "retry", "end", "stage", "objective", "form"]
+          "enum": [
+            "trigger",
+            "goto",
+            "timer",
+            "dialogue",
+            "branch",
+            "reward",
+            "retry",
+            "end",
+            "stage",
+            "objective",
+            "form"
+          ]
         },
         "note": {
           "type": "string"
@@ -326,7 +386,12 @@
     "trigger": {
       "description": "Starts the mission when an event happens (a phone call while the player is at a place, or entering an area).",
       "type": "object",
-      "required": ["id", "type", "event", "next"],
+      "required": [
+        "id",
+        "type",
+        "event",
+        "next"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -342,7 +407,11 @@
           "oneOf": [
             {
               "type": "object",
-              "required": ["kind", "caller", "place"],
+              "required": [
+                "kind",
+                "caller",
+                "place"
+              ],
               "additionalProperties": false,
               "properties": {
                 "kind": {
@@ -362,7 +431,10 @@
             },
             {
               "type": "object",
-              "required": ["kind", "place"],
+              "required": [
+                "kind",
+                "place"
+              ],
               "additionalProperties": false,
               "properties": {
                 "kind": {
@@ -389,7 +461,14 @@
     "goto": {
       "description": "Reach target.place within timer.limitS; 'next' on arrival, 'onTimeout' when the timer runs out.",
       "type": "object",
-      "required": ["id", "type", "target", "timer", "next", "onTimeout"],
+      "required": [
+        "id",
+        "type",
+        "target",
+        "timer",
+        "next",
+        "onTimeout"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -408,13 +487,17 @@
             },
             {
               "type": "object",
-              "required": ["radiusM"]
+              "required": [
+                "radiusM"
+              ]
             }
           ]
         },
         "timer": {
           "type": "object",
-          "required": ["limitS"],
+          "required": [
+            "limitS"
+          ],
           "additionalProperties": false,
           "properties": {
             "limitS": {
@@ -433,7 +516,11 @@
           }
         },
         "travel": {
-          "enum": ["any", "vehicle", "foot"]
+          "enum": [
+            "any",
+            "vehicle",
+            "foot"
+          ]
         },
         "lines": {
           "$ref": "#/$defs/lines"
@@ -449,7 +536,12 @@
     "timer": {
       "description": "Wait durationS (lines play meanwhile), then go to next.",
       "type": "object",
-      "required": ["id", "type", "durationS", "next"],
+      "required": [
+        "id",
+        "type",
+        "durationS",
+        "next"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -475,7 +567,14 @@
     "dialogue": {
       "description": "The speaker asks each question in order; each answer adds its delta to the meter (clamped) and plays the reply.",
       "type": "object",
-      "required": ["id", "type", "speaker", "meter", "questions", "next"],
+      "required": [
+        "id",
+        "type",
+        "speaker",
+        "meter",
+        "questions",
+        "next"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -501,7 +600,11 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["id", "prompt", "answers"],
+            "required": [
+              "id",
+              "prompt",
+              "answers"
+            ],
             "additionalProperties": false,
             "properties": {
               "id": {
@@ -517,7 +620,12 @@
                 "minItems": 2,
                 "items": {
                   "type": "object",
-                  "required": ["id", "text", "delta", "reply"],
+                  "required": [
+                    "id",
+                    "text",
+                    "delta",
+                    "reply"
+                  ],
                   "additionalProperties": false,
                   "properties": {
                     "id": {
@@ -550,7 +658,13 @@
     "branch": {
       "description": "Go to the first case whose [min, max] contains the meter's value, else 'default'.",
       "type": "object",
-      "required": ["id", "type", "meter", "cases", "default"],
+      "required": [
+        "id",
+        "type",
+        "meter",
+        "cases",
+        "default"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -570,13 +684,19 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["next"],
+            "required": [
+              "next"
+            ],
             "anyOf": [
               {
-                "required": ["min"]
+                "required": [
+                  "min"
+                ]
               },
               {
-                "required": ["max"]
+                "required": [
+                  "max"
+                ]
               }
             ],
             "additionalProperties": false,
@@ -601,7 +721,12 @@
     "reward": {
       "description": "Grants rewards. Ends the run with 'outcome' unless 'next' continues it.",
       "type": "object",
-      "required": ["id", "type", "outcome", "grants"],
+      "required": [
+        "id",
+        "type",
+        "outcome",
+        "grants"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -626,7 +751,12 @@
             "oneOf": [
               {
                 "type": "object",
-                "required": ["kind", "corridor", "place", "copy"],
+                "required": [
+                  "kind",
+                  "corridor",
+                  "place",
+                  "copy"
+                ],
                 "additionalProperties": false,
                 "properties": {
                   "kind": {
@@ -642,17 +772,25 @@
                       },
                       {
                         "type": "object",
-                        "required": ["headingDeg"]
+                        "required": [
+                          "headingDeg"
+                        ]
                       }
                     ]
                   },
                   "copy": {
                     "type": "object",
-                    "required": ["generator", "product"],
+                    "required": [
+                      "generator",
+                      "product"
+                    ],
                     "additionalProperties": false,
                     "properties": {
                       "generator": {
-                        "enum": ["billboard", "busWrap"],
+                        "enum": [
+                          "billboard",
+                          "busWrap"
+                        ],
                         "description": "src/content/billboards.ts kind."
                       },
                       "product": {
@@ -665,7 +803,11 @@
               },
               {
                 "type": "object",
-                "required": ["kind", "stat", "delta"],
+                "required": [
+                  "kind",
+                  "stat",
+                  "delta"
+                ],
                 "additionalProperties": false,
                 "properties": {
                   "kind": {
@@ -682,7 +824,10 @@
               },
               {
                 "type": "object",
-                "required": ["kind", "unlock"],
+                "required": [
+                  "kind",
+                  "unlock"
+                ],
                 "additionalProperties": false,
                 "properties": {
                   "kind": {
@@ -705,7 +850,12 @@
     "retry": {
       "description": "Ends the run with 'outcome'; the mission can be replayed from 'retryFrom'.",
       "type": "object",
-      "required": ["id", "type", "outcome", "retryFrom"],
+      "required": [
+        "id",
+        "type",
+        "outcome",
+        "retryFrom"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -738,7 +888,11 @@
     "end": {
       "description": "Ends the run with 'outcome'.",
       "type": "object",
-      "required": ["id", "type", "outcome"],
+      "required": [
+        "id",
+        "type",
+        "outcome"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -761,7 +915,13 @@
     "stage": {
       "description": "Place mission actors at a place (within radiusM), then go to next. Staging uses the sim's spawn primitives; nothing spawns on a spot holding a person.",
       "type": "object",
-      "required": ["id", "type", "actors", "place", "next"],
+      "required": [
+        "id",
+        "type",
+        "actors",
+        "place",
+        "next"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -787,7 +947,9 @@
             },
             {
               "type": "object",
-              "required": ["radiusM"]
+              "required": [
+                "radiusM"
+              ]
             }
           ]
         },
@@ -807,7 +969,12 @@
     "objective": {
       "description": "A goal the sim checks. 'next' when it is met; with timeLimitS, 'onFail' when time runs out first.",
       "type": "object",
-      "required": ["id", "type", "objective", "next"],
+      "required": [
+        "id",
+        "type",
+        "objective",
+        "next"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -821,11 +988,24 @@
         },
         "objective": {
           "type": "object",
-          "required": ["kind"],
+          "required": [
+            "kind"
+          ],
           "additionalProperties": false,
           "properties": {
             "kind": {
-              "enum": ["melt", "watch", "scan", "cone", "interruptUpdate", "threatAtLeast", "threatAtMost", "refill", "enterVehicle"]
+              "enum": [
+                "melt",
+                "watch",
+                "scan",
+                "cone",
+                "interruptUpdate",
+                "threatAtLeast",
+                "threatAtMost",
+                "refill",
+                "enterVehicle",
+                "event"
+              ]
             },
             "actor": {
               "type": "string",
@@ -844,8 +1024,36 @@
             "seconds": {
               "$ref": "#/$defs/seconds",
               "description": "watch: how long to hold the Watch."
+            },
+            "event": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+$",
+              "description": "An authoritative GameplayFact name; never a client supplied completion."
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "kind": {
+                    "const": "event"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "event"
+                ]
+              },
+              "else": {
+                "not": {
+                  "required": [
+                    "event"
+                  ]
+                }
+              }
+            }
+          ]
         },
         "timeLimitS": {
           "$ref": "#/$defs/seconds"
@@ -864,14 +1072,23 @@
         }
       },
       "dependentRequired": {
-        "timeLimitS": ["onFail"],
-        "onFail": ["timeLimitS"]
+        "timeLimitS": [
+          "onFail"
+        ],
+        "onFail": [
+          "timeLimitS"
+        ]
       }
     },
     "form": {
       "description": "A FreeTextBox form. startupSignup: 'What are you building?' (max 140 characters). The client crisis check runs first; then the keyword matcher outside the sim picks a kit (src/content/kits.ts) and the sim records StartupDefined{kitId, sharedTaglineId, refusal, source}. The typed sentence is never displayed.",
       "type": "object",
-      "required": ["id", "type", "form", "next"],
+      "required": [
+        "id",
+        "type",
+        "form",
+        "next"
+      ],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -885,7 +1102,12 @@
         },
         "form": {
           "type": "object",
-          "required": ["kind", "prompt", "maxLength", "records"],
+          "required": [
+            "kind",
+            "prompt",
+            "maxLength",
+            "records"
+          ],
           "additionalProperties": false,
           "properties": {
             "kind": {

@@ -1,0 +1,160 @@
+{
+  "slots": {
+    "nozzle": 1,
+    "gadget": 1,
+    "gear": 1,
+    "perk": 3,
+    "streak": 3
+  },
+  "gadgets": [
+    {
+      "id": "water-balloon",
+      "label": "Water balloon",
+      "rangeM": 15,
+      "radiusM": 3,
+      "durationS": 0,
+      "charges": 2,
+      "rust": 0.2,
+      "rank": 5,
+      "description": "A short splash on bad robot firmware; people step clear."
+    },
+    {
+      "id": "lawn-sprinkler",
+      "label": "Lawn sprinkler",
+      "rangeM": 0,
+      "radiusM": 4,
+      "durationS": 15,
+      "charges": 1,
+      "rust": 0.15,
+      "rank": 12,
+      "description": "Holds a small patch of ground. Place it where people are clear."
+    },
+    {
+      "id": "decoy-speaker",
+      "label": "Decoy speaker",
+      "rangeM": 10,
+      "radiusM": 0,
+      "durationS": 8,
+      "charges": 1,
+      "rust": 0,
+      "rank": 18,
+      "description": "Draws one curious bad robot. An audience of one is still engagement."
+    }
+  ],
+  "gear": [
+    {
+      "id": "microclimate",
+      "label": "Microclimate as a service",
+      "cooldownS": 90,
+      "durationS": 20,
+      "description": "An 8 m fog sphere; bad robots gain 0.03 rust per second. Subscription: $9 a game week."
+    },
+    {
+      "id": "rubber-boots",
+      "label": "Rubber boots",
+      "cooldownS": 90,
+      "durationS": 15,
+      "description": "Ignore robot shoves and handshakes for fifteen seconds."
+    },
+    {
+      "id": "airplane-mode",
+      "label": "Airplane mode",
+      "cooldownS": 90,
+      "durationS": 15,
+      "description": "Block phone hacks and ad blasts. Your map and scanner take a break too."
+    }
+  ],
+  "perks": [
+    {
+      "id": "marine-layer",
+      "label": "Marine Layer",
+      "effect": "fogSight",
+      "value": 0.5,
+      "description": "In dense fog, halve enemy sight range and avoid rival confidence markers."
+    },
+    {
+      "id": "do-not-disturb",
+      "label": "Do not disturb",
+      "effect": "quietActions",
+      "value": 45,
+      "description": "Scans and placements stay quiet. A hidden unit flickers every 45 seconds."
+    },
+    {
+      "id": "stealth-mode",
+      "label": "Stealth mode",
+      "effect": "hideBroadcast",
+      "value": 1,
+      "description": "Seizing robots omit your position; rival marks and blimp ads skip you."
+    },
+    {
+      "id": "default-alive",
+      "label": "Default alive",
+      "effect": "meltRunway",
+      "value": 0.5,
+      "description": "Recover half a month per melt, or one scan charge as a spotter."
+    },
+    {
+      "id": "lean",
+      "label": "Lean",
+      "effect": "speed",
+      "value": 1.08,
+      "description": "Move eight percent faster; carry two fewer litres."
+    },
+    {
+      "id": "brackish",
+      "label": "Brackish",
+      "effect": "saltRefill",
+      "value": 2,
+      "description": "Refill twice as fast at the Bay; retain the salt bonus in your next tank."
+    },
+    {
+      "id": "hydrant-whisperer",
+      "label": "Hydrant whisperer",
+      "effect": "refillSeconds",
+      "value": 1,
+      "description": "Hydrants and fountains refill your tank in one second."
+    }
+  ],
+  "customizer": {
+    "jackets": [
+      "fleece",
+      "windbreaker",
+      "work-jacket"
+    ],
+    "colours": [
+      "fog-grey",
+      "bay-blue",
+      "rust-orange",
+      "leaf-green"
+    ],
+    "shoes": [
+      "trainers",
+      "boots"
+    ],
+    "carPaint": [
+      "chalk",
+      "navy",
+      "mustard",
+      "forest"
+    ],
+    "decals": [
+      "none",
+      "wave",
+      "cone",
+      "cloud"
+    ],
+    "voice": [
+      "calm",
+      "bright",
+      "dry"
+    ]
+  },
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:f5045b9c",
+    "reviewedBy": [],
+    "review": "Authored from the design. Pending independent content and gameplay review."
+  }
+}
