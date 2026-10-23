@@ -17,6 +17,14 @@ function plan(driver: CampaignDriver, run: () => void): void {
   }
 }
 
+const CAMPAIGN_VIEWPORT = { width: 960, height: 540 };
+/** Pure Node planning does not need a full-size software-rasterized canvas. */
+async function planWithoutRasterLoad(page: Page, driver: CampaignDriver, run: () => void): Promise<void> {
+  await page.setViewportSize({ width: 1, height: 1 });
+  try { plan(driver, run); }
+  finally { await page.setViewportSize(CAMPAIGN_VIEWPORT); }
+}
+
 async function feed(page: Page, driver: CampaignDriver): Promise<void> {
   let actual: SimState | undefined;
   for (let at = 0; at < driver.frames.length; at += 500) {
@@ -29,7 +37,7 @@ async function feed(page: Page, driver: CampaignDriver): Promise<void> {
   expect(canonicalJson(actual ?? await simState(page))).toBe(canonicalJson(driver.state));
 }
 
-test.use({ viewport: { width: 960, height: 540 } });
+test.use({ viewport: CAMPAIGN_VIEWPORT });
 test("Hot Desk and the first purchase complete through real controls, then Spill waits for acknowledgement", async ({ page }) => {
   test.setTimeout(1_200_000);
   const problems = await bootWorld(page, "sf", "&radius=300&pr=0.75");
@@ -41,7 +49,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   const { world } = loadWorld("sf", { roads: true });
   const initial = await simState(page);
   const first = new CampaignDriver(world, initial, "p1", e2eGameSystems());
-  plan(first, () => first.hotDeskToSignup());
+  await planWithoutRasterLoad(page, first, () => first.hotDeskToSignup());
   console.info(`Campaign planned through signup: ${first.frames.length} input frames`);
   await feed(page, first);
   console.info("Campaign browser reached signup with exact replay state");
@@ -83,7 +91,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
   const beforeCone = await simState(page);
   const second = new CampaignDriver(world, beforeCone, "p1", e2eGameSystems());
-  plan(second, () => second.coneHotDeskSpot());
+  await planWithoutRasterLoad(page, second, () => second.coneHotDeskSpot());
   console.info(`Campaign completion planned: ${second.frames.length} input frames`);
   await feed(page, second);
   await page.waitForFunction(() => {
