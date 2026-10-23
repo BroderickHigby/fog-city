@@ -5,16 +5,16 @@ pipeline (crosswalks, signals, stop signs, street-name blades, land cover, fence
 trees, storefront signs). Coordinator session: `session_012u6jdJxkY41mYkqG3yG9Xk`.
 Base: `origin/integrate/wave2` (`ff7db5b`, SIM_VERSION 8, GAME_WAVE 3).
 
-## Plan (one PR per feature)
+## Plan (one PR per feature, stacked: each branch builds on the previous)
 
 | # | Branch | Feature | State |
 | --- | --- | --- | --- |
-| 1 | `work/world-detail/crosswalks` | Junction patches, continental/standard crosswalks, stop bars; Chestnut St regression test | in progress |
-| 2 | `work/world-detail/signals` | Traffic signals (SFMTA `ybh5-27n2`) and stop signs (SFMTA `4542-gpa3`), render-only, phase from the tick | not started |
-| 3 | `work/world-detail/street-signs` | White-on-green street-name blades, one-way and parking signs (SFMTA `m48z-6ji4`) | not started |
-| 4 | `work/world-detail/landcover` | Lawns (RPD `38b7-6db3`, NPS for Fort Mason/Presidio), fences (RPD `rny7-88gk`), Marina waterfront | not started |
-| 5 | `work/world-detail/trees` | Street trees (Public Works `tkzw-k3nq`) by species class and size | not started |
-| 6 | `work/world-detail/storefront-signs` | Icon-only storefront signs from `storefronts.json` (no names, design.md) | not started |
+| 1 | `work/world-detail/crosswalks` | Junction patches, continental/standard crosswalks, stop bars; Chestnut St regression test | draft PR #41; unit tests green, e2e running |
+| 2 | `work/world-detail/signals` | Traffic signals (SFMTA `ybh5-27n2`) and stop signs (SFMTA `4542-gpa3`), render-only, lamps cycle from the tick | pushed; PR after #41's CI |
+| 3 | `work/world-detail/street-signs` | White-on-green street-name blades (real names), one-way and kerbside parking signs (SFMTA `m48z-6ji4`) | pushed |
+| 4 | `work/world-detail/landcover` | Lawns (Rec and Park `38b7-6db3`, OSM), fences/walls/hedges (Rec and Park `rny7-88gk`, OSM), piers (OSM) | pushed; **needs owner sign-off on OSM (ODbL)** |
+| 5 | `work/world-detail/trees` | 135,647 real street trees (Public Works `tkzw-k3nq`) via the foliage layer; palms | pushed; touches `src/render/foliage.ts` (Lane R) |
+| 6 | `work/world-detail/storefront-signs` | Icon-only storefront blade signs, blank sign slot, bar neon, barber pole | pushed |
 
 ## Findings
 
@@ -41,8 +41,17 @@ Base: `origin/integrate/wave2` (`ff7db5b`, SIM_VERSION 8, GAME_WAVE 3).
   `src/render/street-detail*.ts`; hook-up lines in `src/render/scene.ts` and the static build's
   file list in `scripts/build-web.ts` are listed in each PR body.
 - Every placed object carries a stable id (for the Impacts stream's knockables).
-- No OpenStreetMap needed so far.
+- OpenStreetMap: the owner's local session pushed a pinned SF extract on `data/osm-sf`
+  (`ec64af5`, sha256 `90f1a33c…`). PR 4 reads it with a small PBF reader and writes the
+  OSM-derived data to its own file, `street-osm.json`, under the ODbL. That is the repo's first
+  OSM data: the "no OSM" note in `docs/data-sources.md` and a visible "© OpenStreetMap
+  contributors" credit need the owner's sign-off. (Replying to that session was not possible:
+  this cloud session cannot message other sessions.)
+- PR 5 adds a small placement API to `src/render/foliage.ts` (Lane R's file) so real trees
+  reuse Lane R's tree look; palms are drawn by the stream's own `src/render/street-trees.ts`.
 
 ## Log
 
 - 2026-10-23: started; baseline screenshots taken; root cause of the X found.
+- 2026-10-23: PR #41 (crosswalks) opened as a draft. Branches 2 to 6 pushed with unit tests;
+  browser screenshots of each next.
