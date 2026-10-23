@@ -38,3 +38,6 @@ Validation: full typecheck and three focused canonical progression save tests pa
 Controller menu navigation and held-input release barriers are now mounted in the clean runtime. Hot Desk's authored multiple-choice answers let a gamepad-only player complete signup through the same gated resolver. `?perf=1` also enables the performance readout. The UI and economy use the same planar, low-speed site eligibility helper, so hill vendors no longer advertise a purchase that the reducer rejects.
 
 Validation: full typecheck; 23 input/command/save tests; 2 focused purchase tests (UI-to-economy at elevated terrain and speed rejection); and 4 real Chromium fixture tests passed. Browser tests verify mobile UI, startup crisis gates, disposal, IndexedDB reload and gamepad-only signup with no held action leaking on close. These fixture tests supplement the independent actual-SF mission harness; they do not claim the SF campaign is complete.
+
+## Mission interaction recovery
+Closing a mission dialog or signup no longer strands its active step. The objective card and phone both offer Continue while the interaction remains active. All five Chromium fixture tests passed, including dismiss/reopen through both entry points, gamepad signup, input suppression and IndexedDB reload.
