@@ -545,12 +545,12 @@
    "baseline": 0,
    "target": 0,
    "better": "lower",
-   "unit": "footprints",
+   "unit": "records",
    "defects": [],
    "targetWave": null,
    "suite": "buildings",
    "cadence": "pr",
-   "desc": "|report.json kept - footprint records in the colliders| (the report and the tiles agree)"
+   "desc": "|report.json colliderPack.buildings - building records in the colliders| (the report and the tiles agree)"
   },
   "A.accounting.unexplained": {
    "baseline": 0,
@@ -564,7 +564,7 @@
    "desc": "source footprint parts neither kept nor dropped for a counted reason (report.json)"
   },
   "A.facade.firstStoreyOffStreet": {
-   "baseline": 0.111,
+   "baseline": 0.013,
    "target": 0.01,
    "better": "lower",
    "unit": "share of street-facing records",
@@ -577,7 +577,7 @@
    "desc": "street-facing buildings whose first-storey line (meta.streetY, else baseY) is more than 1.5 m off the ground at the wall nearest the street"
   },
   "A.facade.storeys5m": {
-   "baseline": 0.611,
+   "baseline": 0,
    "target": 0.02,
    "better": "lower",
    "unit": "share of residential records",
@@ -590,7 +590,7 @@
    "desc": "residential records the GLB draws with storeys of 5 m or more (_FACADE storey height)"
   },
   "A.ground.lowAboveGround": {
-   "baseline": 83,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -603,7 +603,7 @@
    "desc": "records 4 m or taller whose roof stands less than 2 m above the highest ground under them"
   },
   "A.ground.relief10": {
-   "baseline": 466,
+   "baseline": 2,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -616,7 +616,7 @@
    "desc": "drawn parts with more than 10 m of ground relief under one roof"
   },
   "A.ground.roofUnderGround": {
-   "baseline": 22,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -629,7 +629,7 @@
    "desc": "records with the ground above the roof anywhere inside the footprint (1 m raster)"
   },
   "A.ground.wallBottomAboveGround": {
-   "baseline": 2,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -639,10 +639,10 @@
    "targetWave": null,
    "suite": "buildings",
    "cadence": "pr",
-   "desc": "records whose wall bottom (meta.footY) is more than 0.3 m above the lowest ground along their walls (0.5 m samples)"
+   "desc": "records whose wall bottom (meta.footY) is more than 0.3 m above the lowest ground along their walls (0.5 m samples; spans, which have an underside, excluded)"
   },
   "A.landmark.bridgesMissing": {
-   "baseline": 2,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "landmarks",
@@ -655,7 +655,7 @@
    "desc": "of golden-gate-bridge and bay-bridge-west, entries missing from content/landmarks.json"
   },
   "A.landmark.coitHeightError": {
-   "baseline": 0.199,
+   "baseline": 0,
    "target": 0.05,
    "better": "lower",
    "unit": "share of 64 m",
@@ -668,7 +668,7 @@
    "desc": "Coit Tower's height against the published 64 m"
   },
   "A.landmark.heroWithoutShape": {
-   "baseline": 10,
+   "baseline": 1,
    "target": 0,
    "better": "lower",
    "unit": "landmarks",
@@ -681,7 +681,7 @@
    "desc": "hero landmarks (Transamerica, Coit, Saints Peter and Paul, Palace of Fine Arts, City Hall, Grace Cathedral, Mission Dolores, the Conservatory, Dragon Gate, Sutro Baths) with neither a model nor an interim shape without the office window grid"
   },
   "A.landmark.sutroAreaTallestM": {
-   "baseline": 13.64,
+   "baseline": 13.68,
    "target": 20,
    "better": "lower",
    "unit": "m above ground",
@@ -694,7 +694,7 @@
    "desc": "the tallest footprint record (any id) with its centroid or a corner within 60 m of Sutro Tower (37.7552,-122.4528), above the ground at its centroid: the plinths and the tower's equipment buildings, never the solid 231 m slab"
   },
   "A.landmark.sutroTowerTopM": {
-   "baseline": 0,
+   "baseline": 298.15,
    "target": 290,
    "better": "higher",
    "unit": "m above ground",
@@ -707,7 +707,7 @@
    "desc": "a sutro-tower landmark at 37.7552,-122.4528 whose model top is 290 m or more above its ground"
   },
   "A.newer.cells3": {
-   "baseline": 13,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "100 m cells",
@@ -720,7 +720,7 @@
    "desc": "100 m cells holding 3 or more of those unmatched parcel points (a missing block)"
   },
   "A.newer.missionRockTall": {
-   "baseline": 0,
+   "baseline": 3,
    "target": 4,
    "better": "higher",
    "unit": "records",
@@ -733,7 +733,7 @@
    "desc": "records 40 m or taller in the Mission Rock box (37.7740-37.7765, -122.3905..-122.3875)"
   },
   "A.newer.publishedHeightFails": {
-   "baseline": 4,
+   "baseline": 2,
    "target": 0,
    "better": "lower",
    "unit": "towers",
@@ -746,7 +746,7 @@
    "desc": "towers whose tallest record within 30 m is not within 10% of the published height (Salesforce, Transamerica, 555 California, One Rincon Hill, 250 Howard, The Avery, 706 Mission, 33 Tehama, Fifteen Fifty)"
   },
   "A.newer.unmatched": {
-   "baseline": 122,
+   "baseline": 0,
    "target": 10,
    "better": "lower",
    "unit": "parcel points",
@@ -770,7 +770,7 @@
    "desc": "building records whose collider-pack copy differs from the tile JSON (footprint, baseY, topY)"
   },
   "A.phantom.fortPointHeight": {
-   "baseline": 64.61,
+   "baseline": 15.56,
    "target": 25,
    "better": "lower",
    "unit": "m above ground",
@@ -783,7 +783,7 @@
    "desc": "Fort Point (201006.0000856 and its tower): roof above the ground at the centroid (the LiDAR caught the bridge deck above it)"
   },
   "A.phantom.tallOnStreet": {
-   "baseline": 11,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -796,7 +796,7 @@
    "desc": "records more than 30 m tall standing on a surface street's centreline (no underside clearing the road)"
   },
   "A.rings.coplanarRoofs": {
-   "baseline": 24,
+   "baseline": 11,
    "target": 0,
    "better": "lower",
    "unit": "pairs",
@@ -809,7 +809,7 @@
    "desc": "overlapping footprint pairs (2 m2 or more) whose roofs are within 0.1 m: z-fighting roofs"
   },
   "A.rings.duplicates": {
-   "baseline": 23,
+   "baseline": 26,
    "target": 0,
    "better": "lower",
    "unit": "pairs",
@@ -819,10 +819,10 @@
    "targetWave": null,
    "suite": "buildings",
    "cadence": "pr",
-   "desc": "footprint pairs overlapping by 90% or more of the smaller one (0.5 m raster; a podium and its own tower excluded)"
+   "desc": "footprint pairs overlapping by 90% or more of the smaller one (0.5 m raster; a podium, or a terrace piece or span of it, and its own tower excluded)"
   },
   "A.rings.nonSimple": {
-   "baseline": 193,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "rings",
@@ -870,7 +870,7 @@
    "desc": "hillside-crossing roads (Vermont c13216002, Twin Peaks Blvd c12770000, Vasquez c13186101, Kensington c7806001) whose steepest 10 m exceeds the 1 m DEM's by more than 5 points or whose grade break exceeds it by more than 10"
   },
   "B.groundParity.max": {
-   "baseline": 1.175,
+   "baseline": 1.122,
    "target": 0.02,
    "better": "lower",
    "unit": "m",
@@ -883,7 +883,7 @@
    "desc": "largest |sim ground - drawn ground| at the same 10,000 points"
   },
   "B.groundParity.p99": {
-   "baseline": 0.261,
+   "baseline": 0.256,
    "target": 0.02,
    "better": "lower",
    "unit": "m",
@@ -944,7 +944,7 @@
    "desc": "of 25 named summits, those whose sim ground maximum within 150 m is not within 1 m of the 3DEP DEM maximum (the published heights differ from the DEM by up to 47 m for known reasons and are listed in the details)"
   },
   "C.bridges.dippingDecks": {
-   "baseline": 4,
+   "baseline": 3,
    "target": 0,
    "better": "lower",
    "unit": "bridges",
@@ -957,7 +957,7 @@
    "desc": "of the 3rd St, 4th St, 3rd St (Islais) and Illinois St creek bridges, those whose road surface dips more than 0.2 m below the lower bank (no deck)"
   },
   "C.clearance.carriagewayEdges": {
-   "baseline": 384,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "edges",
@@ -970,7 +970,7 @@
    "desc": "surface street edges with a centreline sample within 0.95 m (the car's half width) of a footprint whose roof is over 0.5 m above the road and whose underside is under road + 4.5 m"
   },
   "C.clearance.lombardEdges": {
-   "baseline": 2,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "edges",
@@ -983,7 +983,7 @@
    "desc": "of Lombard St c8448000 (the crooked block) and c8449000 (the approach from Hyde), edges whose centreline passes within 0.95 m of a house"
   },
   "C.clearance.pedestrianEdges": {
-   "baseline": 62,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "edges",
@@ -996,7 +996,7 @@
    "desc": "pedestrian edges (stairways, paths) with a centreline sample within 0.75 m of a blocking footprint"
   },
   "C.freeway.insideFootprintsM": {
-   "baseline": 435,
+   "baseline": 113,
    "target": 0,
    "better": "lower",
    "unit": "m",
@@ -1009,7 +1009,7 @@
    "desc": "metres of freeway and ramp centreline inside footprints that block its surface"
   },
   "C.freeway.maxGradePct": {
-   "baseline": 143.22,
+   "baseline": 345.06,
    "target": 6,
    "better": "lower",
    "unit": "%",
@@ -1022,7 +1022,7 @@
    "desc": "steepest 10 m along any freeway (ramps excluded) on its drivable surface"
   },
   "C.freeway.separatedCrossingsShare": {
-   "baseline": 0,
+   "baseline": 0.423,
    "target": 1,
    "better": "higher",
    "unit": "share",
@@ -1036,7 +1036,7 @@
    "desc": "share of street-over-freeway crossings where the freeway's surface and the street's are at least 5 m apart (a deck or a cut, not an at-grade junction)"
   },
   "C.piers.buildingsOnWater": {
-   "baseline": 103,
+   "baseline": 59,
    "target": 0,
    "better": "lower",
    "unit": "buildings",
@@ -1049,7 +1049,7 @@
    "desc": "buildings at least half over open water with no deck under them (baseY under 1 m)"
   },
   "C.piers.streetsAtSeaLevel": {
-   "baseline": 4,
+   "baseline": 1,
    "target": 0,
    "better": "lower",
    "unit": "streets",
@@ -1089,7 +1089,7 @@
    "desc": "streetlights standing on a road ribbon (+0.5 m), from the renderer's streetlightSpots"
   },
   "C.props.treesInBuildings": {
-   "baseline": 0.058,
+   "baseline": 0.057,
    "target": 0,
    "better": "lower",
    "unit": "share of street trees",
@@ -1128,7 +1128,7 @@
    "desc": "tiles with streets whose GLB draws no sidewalk geometry (no sidewalks node)"
   },
   "C.stairs.carDrivable": {
-   "baseline": 4,
+   "baseline": 1,
    "target": 0,
    "better": "lower",
    "unit": "stairways",
@@ -1141,7 +1141,7 @@
    "desc": "of those present, stairways the car can drive end to end (the steps are drawn and driven as a smooth ramp)"
   },
   "C.stairs.missing": {
-   "baseline": 2,
+   "baseline": 1,
    "target": 0,
    "better": "lower",
    "unit": "stairways",
@@ -1154,7 +1154,7 @@
    "desc": "of the Filbert, Greenwich, Lyon, 16th Ave, Vulcan and Harry St stairways, those with no pedestrian edge in roads.json"
   },
   "C.stairs.notMarkedStairs": {
-   "baseline": 4,
+   "baseline": 1,
    "target": 0,
    "better": "lower",
    "unit": "stairways",
@@ -1167,7 +1167,7 @@
    "desc": "of those present, stairways whose edges are not marked as stairs"
   },
   "C.tunnels.broadwayAbovePortalLineM": {
-   "baseline": 49.68,
+   "baseline": 8.16,
    "target": 1,
    "better": "lower",
    "unit": "m",
@@ -1180,7 +1180,7 @@
    "desc": "how far the Broadway Tunnel's road surface rises above the straight line between its ends (it is draped over Russian Hill)"
   },
   "C.tunnels.insideFootprintsM": {
-   "baseline": 578,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "m",
@@ -1193,7 +1193,7 @@
    "desc": "metres of Broadway, Stockton and Toll Plaza tunnel centreline inside footprints that block the road surface"
   },
   "C.tunnels.unflagged": {
-   "baseline": 7,
+   "baseline": 2,
    "target": 0,
    "better": "lower",
    "unit": "tunnels",
@@ -1206,7 +1206,7 @@
    "desc": "of Broadway, Stockton, Toll Plaza, MacArthur, YBI and the two Presidio Parkway tunnels, those whose road edges are not all flagged as tunnels"
   },
   "D.beaches.sandShare": {
-   "baseline": 0,
+   "baseline": 0.771,
    "target": 0.9,
    "better": "higher",
    "unit": "share",
@@ -1219,7 +1219,7 @@
    "desc": "share of the Ocean, Baker, China and Crissy beaches (land within 80 m of the sea, up to 8 m) drawn as sand"
   },
   "D.foliage.parkTilesShare": {
-   "baseline": 0,
+   "baseline": 1,
    "target": 1,
    "better": "higher",
    "unit": "share of tiles",
@@ -1232,7 +1232,7 @@
    "desc": "share of the tiles over Golden Gate Park, the Presidio, McLaren, Lincoln Park, Buena Vista, Glen Canyon, Sutro Forest and Mt Davidson whose GLB has a foliage node"
   },
   "D.lakes.drawnGrassHa": {
-   "baseline": 5.06,
+   "baseline": 0.09,
    "target": 0,
    "better": "lower",
    "unit": "ha",
@@ -1245,7 +1245,7 @@
    "desc": "lake surface (the eight hydro-flattened lakes) drawn as grass"
   },
   "D.parks.greenShare": {
-   "baseline": 0.437,
+   "baseline": 0.882,
    "target": 0.9,
    "better": "higher",
    "unit": "share of park land",
@@ -1258,7 +1258,7 @@
    "desc": "share of Rec and Park land (lattice vertices in the 255 properties) drawn as grass or forest"
   },
   "D.parks.propertiesUnder10pct": {
-   "baseline": 240,
+   "baseline": 17,
    "target": 0,
    "better": "lower",
    "unit": "properties",
@@ -1271,7 +1271,7 @@
    "desc": "Rec and Park properties less than 10% of whose land is drawn green"
   },
   "D.shore.drawnGrassHa": {
-   "baseline": 31.07,
+   "baseline": 67.86,
    "target": 0,
    "better": "lower",
    "unit": "ha",
@@ -1285,7 +1285,7 @@
    "desc": "shore land 1.5 to 8 m high within 80 m of the sea drawn as grass (beaches and bluffs painted lawn)"
   },
   "E.freeway.i280Stops": {
-   "baseline": 2,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "drives",
@@ -1299,7 +1299,7 @@
    "desc": "of I-280 northbound and southbound driven end to end at 25 m/s, drives that stop before the end"
   },
   "E.freeway.landEdgesCrossingWalls": {
-   "baseline": 3,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "edges",
@@ -1351,7 +1351,7 @@
    "desc": "metres of the boundary's shore lines (sampled every metre) that no shore wall covers and that lie outside every road corridor (an open gap with no kerbs)"
   },
   "E.gaps.turnRuns": {
-   "baseline": 156,
+   "baseline": 240,
    "target": 156,
    "better": "higher",
    "unit": "runs",
@@ -1377,7 +1377,7 @@
    "desc": "sprinting walkers turning off a road over water who get more than 1 m outside its corridor on the water side"
   },
   "E.launch.maxRiseM": {
-   "baseline": 8.94,
+   "baseline": 0.74,
    "target": 1,
    "better": "lower",
    "unit": "m",
@@ -1390,7 +1390,7 @@
    "desc": "the highest any of those cars rose above the ground"
   },
   "E.launch.sampleLaunches": {
-   "baseline": 98,
+   "baseline": 4,
    "target": 0,
    "better": "lower",
    "unit": "runs",
@@ -1403,7 +1403,7 @@
    "desc": "of cars driven at the shore wall from 2.5 and 6 m out on the water at 5/15/30 m/s (a fixed sample of 200 shore points), runs that rise over 1 m or jump more than speed*DT + 0.5 m in a tick"
   },
   "E.net.buildingsWithoutStreet": {
-   "baseline": 911,
+   "baseline": 138,
    "target": 0,
    "better": "lower",
    "unit": "buildings",
@@ -1446,7 +1446,7 @@
    "targetWave": null,
    "suite": "edge",
    "cadence": "pr",
-   "desc": "10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once"
+   "desc": "10 m pieces of the built tiles' outline that boundary.json's edge runs cover other than exactly once (a south edge past the county line: the walls inside its tile, crossed an odd number of times going north, W-42)"
   },
   "E.net.seamDeadEnds": {
    "baseline": 0,
@@ -1485,10 +1485,10 @@
    "targetWave": null,
    "suite": "edge",
    "cadence": "pr",
-   "desc": "ram tests (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) from a fixed sample of 97 wall starts that cross a real wall or leave the built tiles"
+   "desc": "ram tests (car at 30 m/s at 0/+-30/+-60 deg, sprinting walker at 0/+-45 deg) from a fixed sample of 92 wall starts that cross a real wall or leave the built tiles"
   },
   "F.bridges.failingRuns": {
-   "baseline": 16,
+   "baseline": 13,
    "target": 0,
    "better": "lower",
    "unit": "runs",
@@ -1501,7 +1501,7 @@
    "desc": "drives over the 3rd St, 4th St, 3rd St (Islais) and Illinois St bridges, both ways at 15 and 25 m/s, that dip below the lower abutment - 0.2 m, leave the ground or stop"
   },
   "F.buried.carMaxJumpM": {
-   "baseline": 23.15,
+   "baseline": 0.5,
    "target": 0.5,
    "better": "lower",
    "unit": "m",
@@ -1514,7 +1514,7 @@
    "desc": "cars driven at the 31 buried-roof sites: the most one tick moves a car beyond speed * DT (teleported out of a buried footprint)"
   },
   "F.buried.walkerLowWallStops": {
-   "baseline": 29,
+   "baseline": 30,
    "target": 0,
    "better": "lower",
    "unit": "sites",
@@ -1527,7 +1527,7 @@
    "desc": "buried-roof sites where a walker is stopped by a wall less than 2.5 m tall (an invisible wall at roof level)"
   },
   "F.crossings.airborneRuns": {
-   "baseline": 66,
+   "baseline": 70,
    "target": 0,
    "better": "lower",
    "unit": "runs",
@@ -1540,7 +1540,7 @@
    "desc": "street-over-freeway crossings, each driven straight at 15 m/s, that leave the car airborne for more than 0.2 s (trenches and humps)"
   },
   "F.crossings.richlandAirS": {
-   "baseline": 2.33,
+   "baseline": 0,
    "target": 0.2,
    "better": "lower",
    "unit": "s",
@@ -1564,7 +1564,7 @@
    "desc": "60 s of step() with two players and traffic, twice from the collider pack and once from the per-tile JSON colliders: 600-tick state hashes that differ"
   },
   "F.lake.mercedDrivenM": {
-   "baseline": 620,
+   "baseline": 780,
    "target": 10,
    "better": "lower",
    "unit": "m",
@@ -1577,7 +1577,7 @@
    "desc": "metres a car drives across South Lake Merced's flattened surface (it should be stopped or towed at the water's edge)"
   },
   "F.named.runsStopped": {
-   "baseline": 31,
+   "baseline": 3,
    "target": 0,
    "better": "lower",
    "unit": "runs",
@@ -1594,7 +1594,7 @@
    "desc": "runs over the named streets (1st St, Howard, Kearny, Upper Market, Battery, Elk, Houston, Crescent, Mason, Winston, Walnut, the Broadway, Stockton and Toll Plaza tunnels, Lombard, the creek bridges, Richland, Twin Peaks Blvd, Filbert, Vermont), each allowed direction at the posted speed, that do not reach the end"
   },
   "F.placement.maxJumpM": {
-   "baseline": 23.22,
+   "baseline": 0.5,
    "target": 0.5,
    "better": "lower",
    "unit": "m",
@@ -1607,7 +1607,7 @@
    "desc": "the same placements: the most one tick moves the car beyond speed * DT (pushed out of a footprint in one tick)"
   },
   "F.placement.maxRiseM": {
-   "baseline": 0.34,
+   "baseline": 1.69,
    "target": 0.5,
    "better": "lower",
    "unit": "m",
@@ -1620,7 +1620,7 @@
    "desc": "a car placed at each of the 58 start-blocked street starts and at the 8 multiplayer spawn slots, then driven off: the most it rises above the ground"
   },
   "F.ram.launches": {
-   "baseline": 211,
+   "baseline": 81,
    "target": 0,
    "better": "lower",
    "unit": "rams",
@@ -1633,7 +1633,7 @@
    "desc": "of 360 seeded rams at 25 m/s into buildings on 15%+ ground (Russian Hill, west of Twin Peaks, Bernal), those that leave the car airborne over 0.3 s or lift it over 0.5 m"
   },
   "F.routes.belowSurfaceM": {
-   "baseline": 0.173,
+   "baseline": 0.404,
    "target": 0.1,
    "better": "lower",
    "unit": "m",
@@ -1646,7 +1646,7 @@
    "desc": "on those routes: the deepest the car goes below the surface under it"
   },
   "F.routes.maxAirborneS": {
-   "baseline": 0.83,
+   "baseline": 0.8,
    "target": 0.8,
    "better": "lower",
    "unit": "s",
@@ -1659,7 +1659,7 @@
    "desc": "on those routes: the longest airborne interval (real crests like Filbert allow up to 0.8 s at 25 m/s)"
   },
   "F.routes.maxJumpM": {
-   "baseline": 0.002,
+   "baseline": 0.004,
    "target": 0.5,
    "better": "lower",
    "unit": "m",
@@ -1681,7 +1681,7 @@
    "desc": "a route driven twice with step(): state hashes that differ at the 600-tick checkpoints"
   },
   "F.routes.seamStepM": {
-   "baseline": 0.003,
+   "baseline": 0.004,
    "target": 0.1,
    "better": "lower",
    "unit": "m",
@@ -1692,7 +1692,7 @@
    "desc": "on those routes: the largest jump in the car's height change at a tile seam"
   },
   "F.routes.stopped": {
-   "baseline": 2,
+   "baseline": 3,
    "target": 0,
    "better": "lower",
    "unit": "routes",
@@ -1706,7 +1706,7 @@
    "desc": "of the 11 closed-loop routes (Filbert up and Lombard down, California over Nob Hill, Market to Twin Peaks, 22nd St, Fillmore, Vermont, Great Hwy, 19th Ave, JFK Dr, 3rd St, a diagonal across the city), driven with the full step() (no ambient traffic), those held by a building or a wall before the end"
   },
   "F.sample.runsStopped": {
-   "baseline": 11,
+   "baseline": 3,
    "target": 0,
    "better": "lower",
    "unit": "runs",
@@ -1719,7 +1719,7 @@
    "desc": "runs over the critic's seeded 300-edge sample of surface streets (every k-th edge by id at 544f67c, pinned in tests/helpers/world-gate/fixtures/drive-sample.json; each allowed direction) that do not reach the end, or whose edge is gone from roads.json"
   },
   "F.tunnels.failingRuns": {
-   "baseline": 6,
+   "baseline": 5,
    "target": 0,
    "better": "lower",
    "unit": "runs",
@@ -1732,7 +1732,7 @@
    "desc": "drives through the Broadway, Stockton and Toll Plaza tunnels at 25 m/s that hit something, leave the ground or stray more than 1 m from the straight portal-to-portal line"
   },
   "F.walk.routesFailing": {
-   "baseline": 6,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "walks",
@@ -1745,7 +1745,7 @@
    "desc": "walks that fail: Filbert St up at 1.0 m/s or better, the Lyon St and Filbert steps both ways, 22nd St up, a seam on a slope, Pemberton Pl and Cottage Row both ways"
   },
   "F.walker.verticalFails": {
-   "baseline": 2,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "checks",
@@ -1901,7 +1901,7 @@
    "desc": "bay-window anchors drawn (GLB extras \"bays\") against the street-facing houses from 1925 or earlier"
   },
   "H.cracks.sampleBoxPairs": {
-   "baseline": 291,
+   "baseline": 205,
    "target": 0,
    "better": "lower",
    "unit": "pairs",
@@ -1953,7 +1953,7 @@
    "desc": "share of single-family houses whose drawn roof is not one flat slab (roof vertices span more than 0.5 m: gables, hips, parapets)"
   },
   "H.seawall.embarcaderoRampShare": {
-   "baseline": 0.94,
+   "baseline": 0.914,
    "target": 0,
    "better": "lower",
    "unit": "share of shore samples",
@@ -1966,7 +1966,7 @@
    "desc": "Embarcadero shore samples (every 10 m, Pier 39 to the ballpark) where the promenade, 2.5 m or higher 10 m inland, falls below 2 m within 1 m of the shore line (a ramp into the Bay, no quay face)"
   },
   "H.stoops.blankBandOver2_5m": {
-   "baseline": 834,
+   "baseline": 65,
    "target": 0,
    "better": "lower",
    "unit": "houses",
@@ -1979,7 +1979,7 @@
    "desc": "street-facing houses whose drawn first-storey line stands more than 2.5 m above the street at their front (a blank plinth with no stoop, entry or garage storey)"
   },
   "H.storefronts.shopBandShare": {
-   "baseline": 0.081,
+   "baseline": 0.084,
    "target": 0.95,
    "better": "higher",
    "unit": "share of anchors",
@@ -1992,7 +1992,7 @@
    "desc": "share of the storefront anchors (storefronts.json) whose wall is drawn with shop glazing"
   },
   "H.walls.frontClassedShare": {
-   "baseline": 0,
+   "baseline": 0.841,
    "target": 0.9,
    "better": "higher",
    "unit": "share",
@@ -2005,7 +2005,7 @@
    "desc": "share of residential records with a wall drawn as the street front (_FACADE.w = 170), so fronts, party walls and rear walls differ"
   },
   "N.far.farAboveNearKm": {
-   "baseline": 83.26,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "km",
@@ -2018,7 +2018,7 @@
    "desc": "border length where the far terrain stands more than 1 m above the near ground (the sea shows through the crack)"
   },
   "N.far.lowHullsP99M": {
-   "baseline": 8.3,
+   "baseline": 6.56,
    "target": 5,
    "better": "lower",
    "unit": "m",
@@ -2031,7 +2031,7 @@
    "desc": "the 99th percentile of |far hull roof - roof| for records under 30 m"
   },
   "N.far.outerLandUncovered": {
-   "baseline": 310,
+   "baseline": 39,
    "target": 0,
    "better": "lower",
    "unit": "samples",
@@ -2044,7 +2044,7 @@
    "desc": "land samples on the city's outer edge (every 5 m) with no far terrain 1 m beyond them (the city edge floats over the sea)"
   },
   "N.far.recordsWithoutHull": {
-   "baseline": 690,
+   "baseline": 315,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -2057,7 +2057,7 @@
    "desc": "records with no far hull or cluster over their centroid"
   },
   "N.far.ringStepMaxM": {
-   "baseline": 21.57,
+   "baseline": 1.11,
    "target": 2,
    "better": "lower",
    "unit": "m",
@@ -2070,7 +2070,7 @@
    "desc": "the largest such step"
   },
   "N.far.ringStepP99M": {
-   "baseline": 7.44,
+   "baseline": 0.91,
    "target": 1,
    "better": "lower",
    "unit": "m",
@@ -2083,7 +2083,7 @@
    "desc": "99th percentile of |near ground - far terrain| across every built tile's border, every 5 m (the step at the streaming ring)"
   },
   "N.far.sanBrunoSummitErrorM": {
-   "baseline": 402,
+   "baseline": 27.54,
    "target": 10,
    "better": "lower",
    "unit": "m",
@@ -2097,7 +2097,7 @@
    "desc": "San Bruno Mountain's far-terrain summit against its 402 m (the far layer stops short of it)"
   },
   "N.far.tallHullsOff3m": {
-   "baseline": 44,
+   "baseline": 110,
    "target": 0,
    "better": "lower",
    "unit": "records",
@@ -2163,7 +2163,7 @@
    "desc": "freeway and ramp runs that stop before the end (buildings on the freeway, sea walls)"
   },
   "N.glb.doubleRibbonShare": {
-   "baseline": 0.062,
+   "baseline": 0.053,
    "target": 0.005,
    "better": "lower",
    "unit": "share of road area",
@@ -2176,7 +2176,7 @@
    "desc": "road area (0.5 m raster) covered by two or more ribbons at once (junction overlaps that z-fight)"
   },
   "N.glb.floatingWallBottoms": {
-   "baseline": 2,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "buildings",
@@ -2187,10 +2187,10 @@
    "targetWave": null,
    "suite": "glb",
    "cadence": "pr",
-   "desc": "buildings (not towers on their podiums) whose drawn wall bottoms stand more than 0.05 m above the drawn ground; at 544f67c only the two south-edge records over the void (L-03)"
+   "desc": "buildings (not towers on their podiums, nor spans with an underside) whose drawn wall bottoms stand more than 0.05 m above the drawn ground, where no neighbour's wall stands up to them (shared walls are not drawn); at 544f67c only the two south-edge records over the void (L-03)"
   },
   "N.glb.freewayUnderGroundShare": {
-   "baseline": 0.105,
+   "baseline": 0.027,
    "target": 0,
    "better": "lower",
    "unit": "share of freeway area",
@@ -2215,7 +2215,7 @@
    "desc": "ground border vertices whose height differs from the neighbouring tile's vertex at the same place (cracks)"
   },
   "N.glb.groundThroughRoadsShare": {
-   "baseline": 0.02,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "share of road area",
@@ -2239,7 +2239,7 @@
    "desc": "building records without exactly one GLB range in the same order, or whose drawn roof and footprint extents differ from the collider by more than 0.1 m (invisible walls, ghost meshes)"
   },
   "N.glb.roadSunkShare": {
-   "baseline": 0.039,
+   "baseline": 0,
    "target": 0,
    "better": "lower",
    "unit": "share of samples",
@@ -2252,7 +2252,7 @@
    "desc": "centreline and kerb-inset samples (every 2 m of every surface street) where the drawn road is more than 0.3 m above the sim's surface (the car sinks into the road)"
   },
   "N.glb.roadSurfaceMaxM": {
-   "baseline": 3.84,
+   "baseline": 6.6,
    "target": 0.05,
    "better": "lower",
    "unit": "m",
@@ -2265,7 +2265,7 @@
    "desc": "the largest |drawn road top - sim surface| over the same samples"
   },
   "N.glb.roadSurfaceP99M": {
-   "baseline": 0.497,
+   "baseline": 0.029,
    "target": 0.05,
    "better": "lower",
    "unit": "m",
