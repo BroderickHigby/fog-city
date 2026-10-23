@@ -7,7 +7,7 @@ import { ACTIVITY_DEFINITIONS,PROGRESSION } from "../../content/gameplay.ts";
 import { toLocal } from "../../geo/project.ts";
 import type { GameplayContext,GameplaySite } from "./types.ts";
 
-const upgrades=PROGRESSION.upgrades.filter(item=>item.priceCents>0&&item.id!=="wide-nozzle").map(item=>({id:item.id,kind:item.kind,priceCents:item.priceCents,rank:item.rank,wave:4,effect:{}}));
+const upgrades=PROGRESSION.upgrades.filter(item=>item.priceCents>0).map(item=>({id:item.id,kind:item.kind,priceCents:item.priceCents,rank:item.rank,wave:4,effect:{}}));
 const sites:GameplaySite[]=SITES.map(site=>({...toLocal(site.lat,site.lon),y:0,id:site.id,kind:site.kind,wave:site.wave,radius:25,...(PROGRESSION.safehousePrices.find(price=>price.id===site.id)??{})}));
 for(const vendor of VENDOR.vendors){const site=sites.find(s=>s.id===vendor.site);if(site)sites.push({...site,kind:"vendor",vendorItems:[...vendor.items,...upgrades.map(item=>item.id)]});}
 for(const activity of ACTIVITIES)if(activity.kind==="carWash"||activity.kind==="repairKiosk")sites.push({...toLocal(activity.lat,activity.lon),y:0,id:activity.id,kind:activity.kind,wave:activity.wave,radius:15});

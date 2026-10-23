@@ -69,3 +69,8 @@ Added `missions/observed.ts`, called by the actual mission reducer, for Launch D
 Integration requests emitted once: `mission.airshow-request` (period/loud ticks), `mission.weather-request` (night/fog/duration), and `mission.vehicle-recovery-request` (actual stopped, coned actor at the player's interaction). The recovery objective waits for `GameplayContext.recoveredVehicleIds[playerId]` and an accepted player vehicle body at the recovery position; it does not award on request alone. `createObservedGameplayProvider` supplies actor bodies/rust and accepts a recovered-ownership callback.
 
 Validation: TypeScript and **81 tests across eight files passed**, including seven observed-mission scenarios, negative ownership/weather/identity cases, clean retry recovery, and portable deterministic APIs. Remaining specialized story mechanics: teleoperation, finale/boss scene, and physical rendering/audio integration owned by the integration lanes.
+
+## Equipment bridge
+Consumed the core's persistent wide-nozzle and microclimate equipment contract, enabled the authored wide-nozzle purchase, mapped it into combat loadout state, and enabled switching between owned nozzles. Microclimate selection now reaches combat's implemented gear effect. The subscription renewal/cancellation flow remains a separate unfinished system; this checkpoint does not claim subscription billing is present.
+
+Latest validation: TypeScript and **82 tests across eight files passed**. Composed-core review also found that nearby off-reticle robots could steal Watch: `c0d5d0a` and `29b3705` now use a 15-degree aim cone and angular error before distance. The core owner has independently verified the same fix against an actual staged Hot Desk scene.

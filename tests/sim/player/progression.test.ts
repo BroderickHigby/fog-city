@@ -6,7 +6,7 @@ import { createActivities,stepActivities } from "../../../src/sim/activities/sys
 import { createMissions,stepMissions } from "../../../src/sim/missions/system.ts";
 import { createPlayer } from "../../../src/sim/player/system.ts";
 import { createHeat } from "../../../src/sim/heat/system.ts";
-import { createProgression,stepProgression,rankForXp } from "../../../src/sim/progression/system.ts";
+import { createProgression,createProgressionPlayer,stepProgression,rankForXp } from "../../../src/sim/progression/system.ts";
 import { createEconomy,stepEconomy } from "../../../src/sim/economy/system.ts";
 import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import type { GameplayContext,GameplayFact } from "../../../src/sim/player/types.ts";
@@ -49,4 +49,11 @@ it("keeps equal sequences from separate authoritative world producers",()=>{
  const facts:GameplayFact[]=[{id:"world-parking:1",source:"world",sequence:1,tick:1,kind:"player.runway",playerId:"p",amount:-1},{id:"world-delivery:1",source:"world",sequence:1,tick:1,kind:"player.runway",playerId:"p",amount:-2}];
  const state=stepEconomy(createEconomy(),context({facts}),1);expect(state.players.p!.runwayMonths).toBe(15);
  const replay=stepEconomy(state,context({facts:facts.map(f=>({...f,tick:2}))}),2);expect(replay.players.p!.runwayMonths).toBe(15);
+});
+it("makes a purchased wide nozzle and selected microclimate effective",()=>{
+ const site=DEFAULT_CATALOG.sites.find(s=>s.kind==="vendor")!,ctx=context({bodies:[{...site,id:"p",mode:"foot",speed:0}],commands:[{sequence:1,kind:"buy",playerId:"p",targetId:site.id,itemId:"wide-nozzle"}]});
+ const wallet=stepEconomy(createEconomy(),ctx,1,[],undefined,[],[],{p:8});expect(wallet.players.p!.cashCents).toBe(50000);
+ const previous=createProgression();previous.players.p={...createProgressionPlayer(),xp:2800,rank:8};
+ const bought=stepProgression(previous,ctx,1,{economy:wallet.events});expect(bought.players.p!.nozzle).toBe("wide");
+ const selected=stepProgression(bought,{...ctx,commands:[{sequence:2,kind:"loadout",playerId:"p",itemId:"microclimate"}]},2,{});expect(selected.players.p!.gear).toBe("microclimate");
 });
