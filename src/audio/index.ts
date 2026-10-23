@@ -6,6 +6,10 @@
 import type { Mission } from "../content/missions.ts";
 import type { SimState } from "../sim/contract.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
+import { agentsOf } from "../sim/agents.ts";
+import { isTextEntry } from "../input/keyboard.ts";
+import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
+import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
@@ -42,7 +46,10 @@ export interface AudioDebugInfo {
   unlocked: boolean;
   context: string;
   musicContext: MusicContext | null;
-  music: { context: string; trackId: string; paused: boolean; src: string } | null;
+  musicTrack: string | null;
+  station: string;
+  horn: boolean;
+  music: { trackId: string; paused: boolean; src: string } | null;
   musicTracks: number;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
@@ -60,6 +67,13 @@ export interface GameAudioDirector {
   /** Call from a user gesture (pointerdown / keydown): nothing sounds before it. */
   unlock(): void;
   update(frame: AudioFrame): void;
+  /**
+   * The local player's horn button is held: call every tick or frame while it is. The horn
+   * sounds while calls keep coming (released ~150 ms after the last), only in a car.
+   */
+  horn(): void;
+  /** Tune the car radio (M / Shift+M call this): +1 next station, -1 previous. */
+  tuneRadio(step: number): RadioStation;
   /** The player answered a dialogue question (UI callback): the speaker replies. */
   answered(questionId: string, answerId: string): void;
   /** A save restore jumped the game to another moment. */
@@ -74,6 +88,8 @@ export interface GameAudioDirector {
 /** Combat events that mean the local player is in a robot fight. */
 const FIGHT_EVENTS = new Set(["robot.seized", "robot.slumping", "robot.heap", "robot.knockdown", "robot.alert", "robot.blinded", "player.stumble", "player.handshake"]);
 const VOICE_EVENT_LOG = 64;
+/** The horn keeps sounding this long after the last horn() call (frames under load are slow). */
+const HORN_HOLD_MS = 150;
 
 declare global {
   interface Window {
@@ -99,10 +115,36 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   const cues = new EffectCueTracker();
   const musicTracker = new MusicContextTracker();
   const subtitles: MountedSubtitles = mountSubtitles(options.host);
+  const toast: MountedRadioToast = mountRadioToast(options.host);
   let manifest: VoiceManifest | null = null;
   let tracks: readonly MusicTrack[] = [];
   let musicContext: MusicContext | null = null;
+  let musicTrack: string | null = null;
   let now = 0;
+  let hornUntil = Number.NEGATIVE_INFINITY;
+  let inCar = false;
+  let paused = false;
+  const clock = (): number => (typeof performance !== "undefined" ? performance.now() : now);
+  const showStation = (station: RadioStation): void => toast.show(station.name, station.tagline, clock());
+  /** The track a context plays: in a car the radio station, else the context's own track. */
+  const trackFor = (context: MusicContext): string | null =>
+    context === "driving" ? stationById(prefs.get().station).trackId : (tracks.find((t) => t.context === context)?.id ?? null);
+  const tuneRadio = (step: number): RadioStation => {
+    const station = tune(prefs.get().station, step);
+    prefs.set({ station: station.id });
+    showStation(station);
+    if (musicContext === "driving") {
+      musicTrack = station.trackId;
+      mixer.setMusicTrack(musicTrack);
+    }
+    return station;
+  };
+  const onKey = (event: KeyboardEvent): void => {
+    if (event.code !== "KeyM" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (paused || !inCar || isTextEntry(event.target)) return;
+    tuneRadio(event.shiftKey ? -1 : 1);
+  };
+  if (typeof window !== "undefined") window.addEventListener("keydown", onKey);
   let lastFightEvent = 0;
   let disposed = false;
   const unsubscribe = prefs.subscribe((p) => mixer.setPrefs(p));
@@ -139,6 +181,9 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const { state, playerId } = frame;
       const player = state.players[playerId];
       const onFoot = player?.mode === "foot" && !!player.foot;
+      inCar = !!player && !onFoot;
+      paused = frame.paused;
+      mixer.setHorn(!frame.paused && inCar && clock() < hornUntil);
       const body = onFoot ? player!.foot! : player?.car;
       const listener = { x: body?.x ?? 0, z: body?.z ?? 0, heading: body?.heading ?? 0 };
       const combat = state.ext.combat;
@@ -148,7 +193,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.setPaused(frame.paused);
       const runtime = agentsRuntimeOf(state);
       const actors: HummingActor[] = runtime ? Object.values(runtime.actors) : [];
-      for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused)) mixer.play(cue);
+      for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused, agentsOf(state))) mixer.play(cue);
       // Music context.
       let fight = spraying;
       for (const e of combat?.events ?? []) {
@@ -160,8 +205,13 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const mission = missions ? options.missions.find((m) => m.id === missions.missionId) : undefined;
       const step = mission?.steps.find((s) => s.id === missions?.stepId);
       const missionUrgent = missions?.status === "active" && !!step && ((step.type === "goto") || (step.type === "objective" && step.timeLimitS !== undefined));
-      musicContext = musicTracker.update({ menu: frame.paused, onFoot, missionUrgent, combat: fight }, frame.nowMs);
-      mixer.setMusicContext(musicContext);
+      const nextContext = musicTracker.update({ menu: frame.paused, onFoot, missionUrgent, combat: fight }, frame.nowMs);
+      // Tuning in as the player gets into a car (once audio can play).
+      if (nextContext === "driving" && musicContext !== "driving" && mixer.isUnlocked()) showStation(stationById(prefs.get().station));
+      musicContext = nextContext;
+      musicTrack = trackFor(musicContext);
+      mixer.setMusicTrack(musicTrack);
+      toast.update(clock());
       // Voices and subtitles.
       queue.setPaused(frame.paused, frame.nowMs);
       missionVoice.observe(missions, frame.nowMs);
@@ -169,6 +219,10 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.setVoiceActive(queue.speaking());
       subtitles.update(queue.subtitle(), prefs.get().subtitles);
     },
+    horn() {
+      hornUntil = clock() + HORN_HOLD_MS;
+    },
+    tuneRadio,
     answered(questionId, answerId) {
       missionVoice.answered(questionId, answerId, now);
     },
@@ -182,6 +236,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     mountSettings(doc) {
       return mountAudioSettings(doc, {
         store: prefs,
+        stations: RADIO_STATIONS.map((s) => ({ id: s.id, name: s.name })),
         nowPlaying: () => {
           const playing = mixer.info().music;
           const track = playing ? tracks.find((t) => t.id === playing.trackId) : undefined;
@@ -196,6 +251,9 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         unlocked: m.unlocked,
         context: m.state,
         musicContext,
+        musicTrack,
+        station: prefs.get().station,
+        horn: m.horn,
         music: m.music,
         musicTracks: tracks.length,
         effectsLoaded: m.effectsLoaded,
@@ -213,6 +271,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       disposed = true;
       unsubscribe();
       queue.reset();
+      if (typeof window !== "undefined") window.removeEventListener("keydown", onKey);
+      toast.dispose();
       subtitles.dispose();
       mixer.dispose();
       if (typeof window !== "undefined" && window.__fogcityAudio?.info === info) delete window.__fogcityAudio;

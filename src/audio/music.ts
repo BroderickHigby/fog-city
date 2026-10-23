@@ -1,9 +1,9 @@
 // Contextual music: which track fits the moment (pure, tested), and a streaming two-deck player
 // that crossfades between them (browser).
 //
-// Tracks are never preloaded: a deck's <audio> gets its src only when its context first plays,
-// and the browser streams it from there. Each track resumes where it left off when its context
-// comes back. A track that fails to load (both formats) stays silent; the game carries on.
+// Tracks are never preloaded: a deck's <audio> gets its src only when the track first plays,
+// and the browser streams it from there. Each track resumes where it left off when it comes
+// back. In a car the radio (radio.ts) picks the track. A track that fails to load (both formats) stays silent; the game carries on.
 
 export type MusicContext = "driving" | "foot" | "mission" | "combat" | "menu";
 
@@ -25,9 +25,11 @@ export const CROSSFADE_S = 1.6;
 
 export function desiredContext(s: MusicSignals, combatHeld: boolean): MusicContext {
   if (s.menu) return "menu";
+  // In a car the radio plays, whatever is happening outside (radio.ts picks the station).
+  if (!s.onFoot) return "driving";
   if (s.combat || combatHeld) return "combat";
   if (s.missionUrgent) return "mission";
-  return s.onFoot ? "foot" : "driving";
+  return "foot";
 }
 
 /** Signals over time to a context, with the combat hold and the settle delay. */
@@ -98,22 +100,23 @@ interface Deck {
   failedOgg: boolean;
 }
 
-/** Two <audio> decks through Web Audio gains into the music bus. */
+/** Two <audio> decks through Web Audio gains into the music bus, playing a track by id. */
 export class MusicPlayer {
   private readonly decks: [Deck, Deck];
   private active = 0;
-  private readonly tracks: Map<MusicContext, MusicTrack>;
+  private readonly tracks: Map<string, MusicTrack>;
   private readonly resumeAt = new Map<string, number>();
   private readonly failed = new Set<string>();
   private readonly ctx: AudioContext;
-  private playing: MusicContext | null = null;
+  /** The track id asked for ("" = silence), or null before the first request. */
+  private playing: string | null = null;
   private enabled = false;
   private readonly base: string;
 
   constructor(ctx: AudioContext, bus: AudioNode, tracks: readonly MusicTrack[], base = "") {
     this.ctx = ctx;
     this.base = base;
-    this.tracks = new Map(tracks.map((t) => [t.context, t]));
+    this.tracks = new Map(tracks.map((t) => [t.id, t]));
     const make = (): Deck => {
       const element = new Audio();
       element.preload = "none";
@@ -145,46 +148,56 @@ export class MusicPlayer {
       for (const d of this.decks) d.element.pause();
       return;
     }
-    const context = this.playing;
-    if (!context) return;
+    const id = this.playing;
+    if (!id) return;
     const deck = this.deck(this.active);
-    if (deck.track?.context === context && !this.failed.has(deck.track.id)) {
+    if (deck.track?.id === id && !this.failed.has(id)) {
       const t = this.ctx.currentTime;
       deck.gain.gain.cancelScheduledValues(t);
       deck.gain.gain.setValueAtTime(1, t);
       void deck.element.play().catch(() => {});
     } else {
       this.playing = null;
-      this.play(context);
+      this.play(id);
     }
   }
 
   /** The track now heard, for diagnostics. */
-  nowPlaying(): { context: MusicContext; trackId: string; paused: boolean; src: string } | null {
+  nowPlaying(): { trackId: string; paused: boolean; src: string } | null {
     const d = this.deck(this.active);
-    if (!this.playing || !d.track) return null;
-    return { context: this.playing, trackId: d.track.id, paused: d.element.paused, src: d.element.currentSrc || d.element.src };
+    if (!this.playing || !d.track || d.track.id !== this.playing) return null;
+    return { trackId: d.track.id, paused: d.element.paused, src: d.element.currentSrc || d.element.src };
   }
 
-  play(context: MusicContext): void {
-    if (context === this.playing) return;
-    this.playing = context;
+  /** Crossfade to a track by id; null fades to silence (radio off). */
+  play(trackId: string | null): void {
+    const id = trackId ?? "";
+    if (id === this.playing) return;
+    this.playing = id;
     if (!this.enabled) return;
-    const track = this.tracks.get(context);
+    const track = this.tracks.get(id);
     const t = this.ctx.currentTime;
     const old = this.deck(this.active);
-    if (old.track && old.track.context !== context) {
+    if (old.track && old.track.id !== id) {
       this.resumeAt.set(old.track.id, old.element.currentTime || 0);
       old.gain.gain.cancelScheduledValues(t);
       old.gain.gain.setValueAtTime(old.gain.gain.value, t);
       old.gain.gain.linearRampToValueAtTime(0, t + CROSSFADE_S);
-      const el = old.element, was = old.track;
+      const el = old.element, was = old.track!;
       setTimeout(() => {
-        // Still the faded deck: stop streaming it.
-        if (this.deck(this.active).element !== el && old.track === was) el.pause();
+        // Its track is no longer wanted (another track, or silence): stop streaming it.
+        if (old.track === was && this.playing !== was.id) el.pause();
       }, CROSSFADE_S * 1000 + 100);
     }
     if (!track || this.failed.has(track.id)) return;
+    if (old.track?.id === id) {
+      // Back to the track the active deck holds (after a silence): fade it back in where it is.
+      old.gain.gain.cancelScheduledValues(t);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+      old.gain.gain.linearRampToValueAtTime(1, t + CROSSFADE_S);
+      void old.element.play().catch(() => {});
+      return;
+    }
     this.active = 1 - this.active;
     const deck = this.deck(this.active);
     if (deck.track?.id !== track.id) {

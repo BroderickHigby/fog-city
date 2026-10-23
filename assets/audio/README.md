@@ -29,6 +29,8 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
 | `rust-creak` | 1.30 s | no | a robot's rust passes 0.5 (it slows), and again at `seized` |
 | `melt-fizz` | 2.20 s | no | `slumping` starts; it runs through the slump into the heap |
 | `moat-jingle` | 1.70 s | no | a bad robot hums it (tell, subtlety 3); Moat Labs vans and ads |
+| `horn` | 0.50 s | yes | the player's car horn, looped while H (pad L3) is held, with a 12 ms attack and 60 ms release at playback. Loop the `.ogg` |
+| `robotaxi-horn` | 0.62 s | no | a robotaxi honks (agent mode `honk`, a player blocking it): at most once per car per 4 s, distance-attenuated |
 
 ## How each one is made
 
@@ -41,6 +43,12 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
   and falls back to a groan excites four inharmonic metal modes (410, 1135, 2210, 3570 Hz).
 - **melt-fizz**: a high hiss that fades, dense random crackle that thins out, and low bubbles
   gliding upward.
+- **horn**: two reed-like tones a major third apart (400 and 500 Hz, the usual dual-trumpet car
+  horn interval), eight harmonics each with odd ones stronger, soft-clipped and shaped by a fixed
+  brassy EQ. Every component completes whole cycles in 0.5 s, so the loop is seamless.
+- **robotaxi-horn**: an original, deliberately polite double chirp: two short soft-square tones
+  rising a fifth (C6 then G6), each with a tiny pitch blip on its attack. It honks like it is asking
+  permission; it copies no real vehicle's horn.
 - **moat-jingle**: four FM-bell notes, **A4 D5 E5 B4** (onsets 0, 0.17, 0.34, 0.56 s), the
   last held over a soft B/F# pad and a short room reverb. It ends unresolved on purpose ("Every
   robot. Eventually."). The interval pattern (up a fourth, up a tone, down a fifth) was chosen
@@ -78,6 +86,23 @@ CC0 needs no attribution; the credits ship anyway (settings panel "Now playing",
 | `music/menu.ogg` + `.mp3` | menu | Midnight Drive | congusbongus (https://opengameart.org/users/congusbongus) | https://opengameart.org/content/midnight-drive | CC0 1.0 | 203.6 s | `0cec2b4468bd…` |
 
 Total: 10 files, about 12.8 MB (well inside the build's 15 MB per file, 240 MB and 450 files).
+
+## Car radio
+
+In a car the music is the radio (`src/audio/radio.ts`): M tunes to the next station, Shift+M to
+the previous one, and there is an Off position; the settings panel has a station picker too. The
+station is kept with the audio preferences. A card shows the station when the player gets in or
+tunes. Stations are invented (no real call signs) and play the CC0 tracks above:
+
+| Station | Track |
+|---|---|
+| Runway FM 88.5 (default) | `music/drive` Midnight Cruiser |
+| Series A 101.3 | `music/menu` Midnight Drive |
+| Pivot 94.9 | `music/foot` Electronic Outlaw |
+| Burn Rate 107.7 | `music/mission` Down to Business |
+| Radio off | silence |
+
+On foot the music follows the moment again: combat, a timed mission step, or the on-foot track.
 
 # Mission voices (ElevenLabs, held)
 

@@ -374,6 +374,7 @@ async function boot(): Promise<void> {
           advance({ ...NEUTRAL_INPUT });
         } else {
           const input = gameUI.sampleInput();
+          if (input.actions & Action.horn) audio.horn();
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
           const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);

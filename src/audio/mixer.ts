@@ -9,15 +9,15 @@
 
 import { DUCK_ATTACK_S, DUCK_RELEASE_S, audible, busGain, masterGain } from "./buses.ts";
 import type { EffectCue, EffectSound } from "./cues.ts";
-import { MusicPlayer, type MusicContext, type MusicTrack } from "./music.ts";
+import { MusicPlayer, type MusicTrack } from "./music.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
 import type { VoiceHandle, VoicePlayer } from "./voice-queue.ts";
 
-export type Sound = EffectSound | "spray";
-export const SOUNDS: readonly Sound[] = ["spray", "splash", "melt-fizz", "rust-creak", "moat-jingle"];
+export type Sound = EffectSound | "spray" | "horn";
+export const SOUNDS: readonly Sound[] = ["spray", "splash", "melt-fizz", "rust-creak", "moat-jingle", "horn", "robotaxi-horn"];
 /** Effect voices sounding at once, all sounds together, and per sound. */
 export const MAX_EFFECT_VOICES = 8;
-export const MAX_PER_SOUND: Readonly<Record<EffectSound, number>> = { splash: 3, "melt-fizz": 3, "rust-creak": 3, "moat-jingle": 1 };
+export const MAX_PER_SOUND: Readonly<Record<EffectSound, number>> = { splash: 3, "melt-fizz": 3, "rust-creak": 3, "moat-jingle": 1, "robotaxi-horn": 2 };
 
 interface ActiveEffect {
   sound: EffectSound;
@@ -46,9 +46,11 @@ export class GameAudio {
   private active: ActiveEffect[] = [];
   private spray: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
   private wantSpray = false;
+  private hornLoop: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private wantHorn = false;
   private music: MusicPlayer | null = null;
   private musicTracks: readonly MusicTrack[] = [];
-  private musicContext: MusicContext | null = null;
+  private musicTrack: string | null | undefined = undefined;
   private prefs: AudioPrefs;
   private ducked = false;
   private unlocked = false;
@@ -131,9 +133,40 @@ export class GameAudio {
     this.applyGains(false);
   }
 
-  setMusicContext(context: MusicContext): void {
-    this.musicContext = context;
-    this.music?.play(context);
+  /** The music track to play by id (null: silence, the radio switched off). */
+  setMusicTrack(trackId: string | null): void {
+    this.musicTrack = trackId;
+    this.music?.play(trackId);
+  }
+
+  /** The player's horn: sounds while held (a short attack and release, no click). */
+  setHorn(held: boolean): void {
+    if (held === this.wantHorn) return;
+    this.wantHorn = held;
+    const ctx = this.ctx, bus = this.buses.get("effects"), buffer = this.buffers.get("horn");
+    if (held) {
+      if (this.hornLoop || !ctx || !bus || !buffer || !this.unlocked) return;
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.75, ctx.currentTime + 0.012);
+      source.connect(gain);
+      gain.connect(bus);
+      source.start();
+      this.hornLoop = { source, gain };
+      this.played.set("horn", (this.played.get("horn") ?? 0) + 1);
+    } else if (this.hornLoop && ctx) {
+      const { source, gain } = this.hornLoop;
+      this.hornLoop = null;
+      const t = ctx.currentTime;
+      gain.gain.cancelScheduledValues(t);
+      gain.gain.setValueAtTime(gain.gain.value, t);
+      gain.gain.linearRampToValueAtTime(0, t + 0.06);
+      try { source.stop(t + 0.07); } catch { /* already stopped */ }
+      source.onended = () => gain.disconnect();
+    }
   }
 
   setSpray(on: boolean): void {
@@ -145,6 +178,7 @@ export class GameAudio {
 
   /** Pause or resume all sound with the game's pause (music keeps playing under the menu). */
   setPaused(paused: boolean): void {
+    if (paused) this.setHorn(false);
     if (paused) this.stopSpray();
     else if (this.wantSpray) this.startSpray();
   }
@@ -227,13 +261,14 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; horn: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
       effectsLoaded: this.buffers.size,
       effectsPlayed: Object.fromEntries(this.played),
       spray: this.spray !== null,
+      horn: this.hornLoop !== null,
       music: this.music?.nowPlaying() ?? null,
       ducked: this.ducked,
       gains: {
@@ -247,6 +282,7 @@ export class GameAudio {
 
   dispose(): void {
     this.stopSpray();
+    this.setHorn(false);
     for (const a of this.active) this.stopEffect(a);
     this.music?.dispose();
     this.music = null;
@@ -266,7 +302,7 @@ export class GameAudio {
     } catch {
       return;
     }
-    if (this.musicContext) this.music.play(this.musicContext);
+    if (this.musicTrack !== undefined) this.music.play(this.musicTrack);
     this.music.setEnabled(this.unlocked && audible(this.prefs, "music"));
   }
 
