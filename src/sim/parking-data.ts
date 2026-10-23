@@ -7,9 +7,9 @@ export interface ParkingRule {
   /** ISO weekdays, Monday=1 through Sunday=7. */
   days: number[];
   /** Minutes after midnight. */
-  from: number;
-  to: number;
-  hourLimit: number;
+  from: number | null;
+  to: number | null;
+  hourLimit: number | null;
   permitAreas: string[];
   lengthM: number;
 }

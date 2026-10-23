@@ -30,7 +30,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
       const question=step.questions[progress.questionIndex];if(question)interaction={id,title:step.speaker,detail:question.prompt,choices:question.answers.map(answer=>({id:answer.id,label:answer.text}))};
     }
     if(step.type==="objective"&&step.objective.kind==="event"&&step.objective.event==="botCheck.falsePositiveSeen"){
-      const courier=missionActorBindings(state,mission.id).courier??`mission:${mission.id}:courier`;
+      const courier=missionActorBindings(state,mission.id,playerId).courier??`mission:${mission.id}:courier`;
       if(progress.observed?.falsePositives.includes(courier))interaction={id,title:mission.title,detail,choices:[{id:"ack",label:uiText("ui.common.continue")}]};
     }
   }
@@ -38,7 +38,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   let edges=roads?graphEdges.get(roads):undefined;if(!edges){const all:MapEdge[]=[];for(const edge of roads?.edges??[]){all.push({from:edge.a,to:edge.b});if(!edge.oneway)all.push({from:edge.b,to:edge.a});}edges=all;if(roads)graphEdges.set(roads,edges);}
   const blips=SAFEHOUSES.map(site=>({id:site.id,kind:"safehouse" as const,label:site.label,...toLocal(site.lat,site.lon)}));
   const objectiveActor=step?.type==="objective"?(step.objective.actor??(step.objective.event==="botCheck.falsePositiveSeen"?"courier":undefined)):undefined;
-  const targetId=mission&&objectiveActor?missionActorBindings(state,mission.id)[objectiveActor]:undefined;
+  const targetId=mission&&objectiveActor?missionActorBindings(state,mission.id,playerId)[objectiveActor]:undefined;
   const actorTarget=targetId?agentsRuntimeOf(state)?.actors[targetId]:undefined;
   const target=missionDestination??(step?.type==="goto"?toLocal(step.target.lat,step.target.lon):step?.type==="trigger"?toLocal(step.event.place.lat,step.event.place.lon):actorTarget?{x:actorTarget.x,z:actorTarget.z}:undefined);
   if(target)blips.push({id:"mission-target",kind:"safehouse",label:mission?.title??uiText("ui.hud.objective"),...target});

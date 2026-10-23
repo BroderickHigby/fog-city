@@ -76,7 +76,7 @@ import {
 
 const LOCAL_PLAYER = "p1";
 const SEED = 1;
-const GAME_WAVE = 2;
+const GAME_WAVE = 3;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
