@@ -25,11 +25,14 @@ import type { LookFn } from "./house-kit.ts";
 import { loadKitLib } from "./house-kit-mesh.ts";
 import { parseKitDoc, type StorefrontAnchor } from "./house-kit-props.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
-import { Water } from "./water.ts";
-import { DetailMaterial, loadDetailSets, textureBytes } from "./detail.ts";
+import { Water, WaterReflection } from "./water.ts";
+import { applyTriplanar, DetailMaterial, loadDetailSets, textureBytes, type DetailSet } from "./detail.ts";
 import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type GfxFeatures, type GfxRequest } from "./gfx.ts";
 import { PostChain } from "./post.ts";
-import { buildShowcase, MASK_HALF_M, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import { buildShowcase, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+
+/** How far from the showcase's centre the camera may be for the Bay to mirror the city. */
+const REFLECT_REACH_M = 2500;
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -114,6 +117,7 @@ export interface RenderInfo {
     requested: GfxChoice["requested"];
     reason: string;
     post: boolean;
+    reflections: boolean;
     detail: boolean;
     detailSets: number;
     dropped: string[];
@@ -162,12 +166,17 @@ export class SceneRenderer {
   readonly gfx: GfxChoice;
   private readonly features: GfxFeatures;
   private post: PostChain | null = null;
+  private reflection: WaterReflection | null = null;
   private readonly governor: GfxGovernor;
   private detailSets = 0;
   private showcase: Showcase | null = null;
   /** How the ground's detail is applied (set once the texture sets land), and tile ground materials waiting for it. */
   private groundDetail: ((m: THREE.MeshStandardMaterial) => void) | null = null;
   private readonly groundWaiting: THREE.MeshStandardMaterial[] = [];
+  /** Landmark models placed before the texture sets landed, and the materials already dressed. */
+  private readonly landmarkWaiting: THREE.Object3D[] = [];
+  private readonly dressed = new WeakSet<THREE.Material>();
+  private landmarkSets: Map<string, DetailSet> | null = null;
   private readonly drawnGround: (x: number, z: number) => number;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
@@ -230,6 +239,10 @@ export class SceneRenderer {
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
     if (this.features.post) this.post = new PostChain(this.renderer, this.scene, this.camera, opts.gfxOff ?? []);
+    if (this.features.reflections) {
+      const size = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.reflection = new WaterReflection(size.x >> 1, size.y >> 1);
+    }
     this.drawnGround = makeDrawnGroundFn([...world.colliders.values()]);
     if (this.features.detail) this.loadDetail(world.assets, world.roads);
 
@@ -297,6 +310,10 @@ export class SceneRenderer {
       (root) => {
         this.prepareShadows(root);
         this.lights.track(root);
+        if (this.features.detail) {
+          if (this.landmarkSets) this.dressLandmark(root);
+          else this.landmarkWaiting.push(root);
+        }
       },
     );
     this.scene.add(this.landmarks.group);
@@ -312,8 +329,10 @@ export class SceneRenderer {
   private loadDetail(assets: Assets | undefined, roads: RoadGraph | null): void {
     const m = this.materials;
     const aniso = Math.min(8, this.renderer.capabilities.getMaxAnisotropy());
-    void loadDetailSets(textureBytes(assets), ["asphalt", "concrete", "grass", "pavers", "paint"], aniso).then((sets) => {
+    void loadDetailSets(textureBytes(assets), ["asphalt", "concrete", "grass", "pavers", "paint", "sandstone"], aniso).then((sets) => {
       this.detailSets = sets.size;
+      this.landmarkSets = sets;
+      for (const root of this.landmarkWaiting.splice(0)) this.dressLandmark(root);
       const asphalt = sets.get("asphalt");
       const concrete = sets.get("concrete");
       const grass = sets.get("grass");
@@ -345,6 +364,33 @@ export class SceneRenderer {
       };
       this.groundDetail(m.ground);
       for (const gm of this.groundWaiting.splice(0)) this.groundDetail(gm);
+    });
+  }
+
+  /**
+   * The high tier's stone on the landmark models (they carry no UVs): world-space triplanar detail
+   * on the materials named for sandstone (the Ferry Building, R-Evolution's plinth...), slate and
+   * concrete. Materials are shared between clones: each is dressed once.
+   */
+  private dressLandmark(root: THREE.Object3D): void {
+    const sets = this.landmarkSets;
+    if (!sets) return;
+    const sandstone = sets.get("sandstone");
+    const concrete = sets.get("concrete");
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const mat of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const m = mat as THREE.MeshStandardMaterial;
+        if (!m.isMeshStandardMaterial || this.dressed.has(m)) continue;
+        const name = m.name.toLowerCase();
+        if (sandstone && /sandstone|stone|limestone|granite|plinth/.test(name)) {
+          applyTriplanar(m, sandstone, { albedo: 0.9, normalScale: 1.2, roughness: 0.8, ao: 0.8, farM: 260 });
+        } else if (concrete && /concrete|roof|slate|plaster|stucco/.test(name)) {
+          applyTriplanar(m, concrete, { albedo: 0.6, normalScale: 0.8, roughness: 0.6, ao: 0.6, farM: 200 });
+        } else continue;
+        this.dressed.add(m);
+      }
     });
   }
 
@@ -446,6 +492,10 @@ export class SceneRenderer {
     const h = this.container.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
     this.post?.setSize(w, h);
+    if (this.reflection) {
+      const pr = this.renderer.getPixelRatio();
+      this.reflection.setSize(Math.round((w * pr) / 2), Math.round((h * pr) / 2));
+    }
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -534,10 +584,30 @@ export class SceneRenderer {
     }
   }
 
+  /** Within REFLECT_REACH_M of the showcase, above the water: the Bay mirrors the city. */
+  private renderReflection(): void {
+    const r = this.reflection;
+    if (!r) return;
+    const c = this.camera.position;
+    const level = this.water.seaLevel;
+    const on = Math.hypot(c.x - SHOWCASE.x, c.z - SHOWCASE.z) < REFLECT_REACH_M && c.y > level + 0.3;
+    if (!on) {
+      this.water.setReflection(r, 0);
+      return;
+    }
+    r.render(this.renderer, this.scene, this.camera, level, this.water.mesh);
+    this.water.setReflection(r, 1);
+  }
+
   /** The high tier steps down when it cannot hold its frame rate (gfx.ts GfxGovernor). */
   private govern(frameSeconds: number): void {
     const drop = this.governor.frame(frameSeconds, !this.streamer.settled());
-    if (drop === "post" && this.post) {
+    if (drop === "reflections" && this.reflection) {
+      this.water.setReflection(null, 0);
+      this.reflection.dispose();
+      this.reflection = null;
+      console.info("gfx: water reflections off (frame rate)");
+    } else if (drop === "post" && this.post) {
       this.post.dispose();
       this.post = null;
       this.renderer.info.autoReset = true;
@@ -556,6 +626,7 @@ export class SceneRenderer {
 
   render(): void {
     if (!this.renderer.info.autoReset) this.renderer.info.reset();
+    this.renderReflection();
     if (this.post) this.post.render();
     else this.renderer.render(this.scene, this.camera);
     this.far.endFrame();
@@ -600,6 +671,7 @@ export class SceneRenderer {
       requested: this.gfx.requested,
       reason: this.gfx.reason,
       post: this.post !== null,
+      reflections: this.reflection !== null,
       detail: this.features.detail,
       detailSets: this.detailSets,
       dropped: [...this.governor.dropped],
@@ -626,6 +698,7 @@ export class SceneRenderer {
     for (const e of this.envCache.values()) e.dispose();
     this.pmrem.dispose();
     this.post?.dispose();
+    this.reflection?.dispose();
     this.showcase?.dispose();
     this.renderer.dispose();
   }
@@ -656,7 +729,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
-  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, detail: false, detailSets: 0, dropped: [], showcase: null },
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

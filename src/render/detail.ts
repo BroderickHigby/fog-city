@@ -294,3 +294,89 @@ export class DetailMaterial {
     this.material.needsUpdate = true;
   }
 }
+
+const TRI_PARS = /* glsl */ `
+uniform sampler2D fcTriA;
+uniform sampler2D fcTriN;
+uniform sampler2D fcTriO;
+uniform vec4 fcTriInfo;   // 1/sizeM, albedo strength, normal scale, far metres
+uniform vec3 fcTriMean;
+uniform vec2 fcTriRA;     // roughness blend, ao strength
+varying vec3 fcTriW;
+varying vec3 fcTriWN;
+`;
+
+const TRI_COLOR = /* glsl */ `
+  vec3 fcTn = normalize( fcTriWN );
+  vec3 fcTw = pow( abs( fcTn ), vec3( 4.0 ) );
+  fcTw /= max( fcTw.x + fcTw.y + fcTw.z, 1e-4 );
+  float fcTfade = 1.0 - smoothstep( fcTriInfo.w * 0.45, fcTriInfo.w, distance( fcTriW, cameraPosition ) );
+  // Planes: x-facing walls read (z, y), z-facing walls (x, y), roofs and floors (x, z). Courses run level.
+  vec2 fcTuvX = vec2( fcTriW.z * sign( fcTn.x ), fcTriW.y ) * fcTriInfo.x;
+  vec2 fcTuvZ = vec2( -fcTriW.x * sign( fcTn.z ), fcTriW.y ) * fcTriInfo.x;
+  vec2 fcTuvY = fcTriW.xz * fcTriInfo.x;
+  vec3 fcTo = vec3( 1.0, 0.85, 0.0 );
+  vec3 fcTnx = vec3( 0.0, 0.0, 1.0 );
+  vec3 fcTny = vec3( 0.0, 0.0, 1.0 );
+  vec3 fcTnz = vec3( 0.0, 0.0, 1.0 );
+  if ( fcTfade > 0.0 ) {
+    vec3 fcTa = texture2D( fcTriA, fcTuvX ).rgb * fcTw.x + texture2D( fcTriA, fcTuvY ).rgb * fcTw.y + texture2D( fcTriA, fcTuvZ ).rgb * fcTw.z;
+    fcTo = texture2D( fcTriO, fcTuvX ).rgb * fcTw.x + texture2D( fcTriO, fcTuvY ).rgb * fcTw.y + texture2D( fcTriO, fcTuvZ ).rgb * fcTw.z;
+    fcTnx = texture2D( fcTriN, fcTuvX ).xyz * 2.0 - 1.0;
+    fcTny = texture2D( fcTriN, fcTuvY ).xyz * 2.0 - 1.0;
+    fcTnz = texture2D( fcTriN, fcTuvZ ).xyz * 2.0 - 1.0;
+    diffuseColor.rgb *= mix( vec3( 1.0 ), fcTa / fcTriMean, fcTfade * fcTriInfo.y );
+    diffuseColor.rgb *= mix( 1.0, fcTo.r, fcTriRA.y * fcTfade );
+  }
+`;
+
+const TRI_ROUGH = /* glsl */ `
+  roughnessFactor = mix( roughnessFactor, fcTo.g, fcTriRA.x * fcTfade );
+`;
+
+const TRI_NORMAL = /* glsl */ `
+  if ( fcTfade > 0.0 ) {
+    // Each plane's tangent-space detail, rotated into world space (whiteout-style blend), then view.
+    float k = fcTriInfo.z * fcTfade;
+    vec3 wX = vec3( 0.0, fcTnx.y * k, fcTnx.x * k * sign( fcTn.x ) );
+    vec3 wZ = vec3( -fcTnz.x * k * sign( fcTn.z ), fcTnz.y * k, 0.0 );
+    vec3 wY = vec3( fcTny.x * k, 0.0, fcTny.y * k );
+    vec3 fcTd = wX * fcTw.x + wY * fcTw.y + wZ * fcTw.z;
+    normal = normalize( normal + ( viewMatrix * vec4( fcTd, 0.0 ) ).xyz );
+  }
+`;
+
+/**
+ * World-space triplanar PBR detail for meshes without UVs (the landmark models): the same maps
+ * and the same normalised-albedo rule as DetailMaterial, projected along the three world axes and
+ * blended by the surface normal. Ashlar courses stay level on every wall.
+ */
+export function applyTriplanar(material: THREE.MeshStandardMaterial, set: DetailSet, o: Omit<DetailOptions, "greyOnly">): void {
+  const uniforms = {
+    fcTriA: { value: set.albedo },
+    fcTriN: { value: set.normal },
+    fcTriO: { value: set.orm },
+    fcTriInfo: { value: new THREE.Vector4(1 / set.info.sizeM, o.albedo, o.normalScale, o.farM) },
+    fcTriMean: { value: new THREE.Vector3(...set.info.meanLinear) },
+    fcTriRA: { value: new THREE.Vector2(o.roughness, o.ao) },
+  };
+  const base = material.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? null : material.onBeforeCompile.bind(material);
+  const key = material.customProgramCacheKey();
+  material.onBeforeCompile = (shader, renderer) => {
+    base?.(shader, renderer);
+    Object.assign(shader.uniforms, uniforms);
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 fcTriW;\nvarying vec3 fcTriWN;")
+      .replace(
+        "#include <project_vertex>",
+        "#include <project_vertex>\n  fcTriW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\n  fcTriWN = normalize( mat3( modelMatrix ) * objectNormal );",
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", `#include <common>\n${TRI_PARS}`)
+      .replace("#include <color_fragment>", `#include <color_fragment>\n${TRI_COLOR}`)
+      .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>\n${TRI_ROUGH}`)
+      .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>\n${TRI_NORMAL}`);
+  };
+  material.customProgramCacheKey = () => `${key}+triplanar:${set.name}`;
+  material.needsUpdate = true;
+}

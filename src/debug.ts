@@ -54,6 +54,8 @@ export interface RenderInfo {
     requested: "default" | "high" | "auto";
     reason: string;
     post: boolean;
+    /** Planar water reflections near the showcase. */
+    reflections: boolean;
     detail: boolean;
     detailSets: number;
     dropped: string[];

@@ -5,7 +5,7 @@
 // (auto when absent): auto picks high on a hardware WebGL2 GPU with large textures, and default on
 // a software rasteriser (SwiftShader, llvmpipe: every CI and e2e run) or a phone. A high tier that
 // auto chose and that cannot hold its frame rate steps down by itself (GfxGovernor): first the
-// post-processing, then the shadows; it never steps back up in the same session. ?gfx=high is
+// water reflections, then the post-processing, then the shadows; it never steps back up in the same session. ?gfx=high is
 // taken at its word and never steps down.
 //
 // Pure apart from the probe of the GL context: tests/render/gfx.test.ts.
@@ -58,6 +58,8 @@ export function probeCaps(gl: WebGLRenderingContext | WebGL2RenderingContext): G
 
 /** The high tier's features, each of which the governor may switch off. */
 export interface GfxFeatures {
+  /** Planar reflections in the Bay near the showcase (water.ts WaterReflection). */
+  reflections: boolean;
   post: boolean;
   shadows: boolean;
   detail: boolean;
@@ -66,8 +68,8 @@ export interface GfxFeatures {
 
 export function featuresFor(tier: GfxTier, shadowsAsked: boolean): GfxFeatures {
   return tier === "high"
-    ? { post: true, shadows: true, detail: true, showcase: true }
-    : { post: false, shadows: shadowsAsked, detail: false, showcase: false };
+    ? { reflections: true, post: true, shadows: true, detail: true, showcase: true }
+    : { reflections: false, post: false, shadows: shadowsAsked, detail: false, showcase: false };
 }
 
 /** Frame rate under which the high tier steps down, and how long it must last (seconds). */
@@ -83,7 +85,7 @@ export const GOVERNOR_GRACE_S = 8;
 export class GfxGovernor {
   private slow = 0;
   private grace = GOVERNOR_GRACE_S;
-  private readonly steps: Array<keyof GfxFeatures> = ["post", "shadows"];
+  private readonly steps: Array<keyof GfxFeatures> = ["reflections", "post", "shadows"];
   readonly dropped: Array<keyof GfxFeatures> = [];
   private readonly enabled: boolean;
 
