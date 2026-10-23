@@ -3,6 +3,7 @@ import { pathToFileURL } from "node:url";
 import { createRelay } from "./net/server.ts";
 import { worldLoader } from "./net/world.ts";
 import { createAiService, createAiHttpHandler } from "./ai/index.ts";
+import { gameplaySimulation } from "../src/net/simulation.ts";
 
 export async function main(): Promise<void> {
   const port = Number(process.env.PORT ?? 8787);
@@ -10,6 +11,7 @@ export async function main(): Promise<void> {
   const ai=createAiService();
   const relay = createRelay({ loadWorld: worldLoader(resolve(process.env.PUBLIC_ROOT ?? "public")),
     handleHttp:createAiHttpHandler(ai),
+    simulation:gameplaySimulation,
     allowedOrigins: (process.env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean) });
   await relay.listen(port, process.env.HOST ?? "127.0.0.1");
   console.log(`Fog City relay listening on port ${port}`);

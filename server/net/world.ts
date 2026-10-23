@@ -4,6 +4,9 @@ import { assembleWorldFiles, type WorldManifestLike } from "../../src/io/world-l
 import { worldFingerprint } from "../../src/net/world-id.ts";
 import type { WorldName } from "../../src/net/protocol.ts";
 import { buildWorld, type BoundaryFile, type RoadsFile, type Spawn, type TileCollider, type World } from "../../src/sim/index.ts";
+import type { GameplayWorldData } from "../../src/sim/gameplay-world.ts";
+import { navigationFromPipeline, type PipelineSidewalks } from "../../src/sim/agents/pipeline-navigation.ts";
+import type { TransitLayer } from "../../src/sim/agents/transit-runtime.ts";
 
 export interface WorldBundle { name: WorldName; fingerprint: string; world: World; spawn: Spawn }
 
@@ -25,11 +28,20 @@ export function worldLoader(publicRoot: string): (name: WorldName) => Promise<Wo
       const colliders = manifest.worldColliders
         ? { pack: new Uint8Array(await readFile(file(manifest.worldColliders))) }
         : { json: await Promise.all(manifest.tiles.map((t) => json<TileCollider>(t.collider))) };
-      const files = assembleWorldFiles(manifest, colliders,
+      const baseFiles = assembleWorldFiles(manifest, colliders,
         manifest.roads ? await json<RoadsFile>(manifest.roads) : null,
         manifest.layers?.boundary ? await json<BoundaryFile>(manifest.layers.boundary) : null);
+      const [gameplay,sidewalks,transit]=await Promise.all([
+        manifest.layers?.gameplay?json<GameplayWorldData>(manifest.layers.gameplay):null,
+        manifest.layers?.sidewalks?json<PipelineSidewalks>(manifest.layers.sidewalks):null,
+        manifest.layers?.transit?json<TransitLayer>(manifest.layers.transit):null,
+      ]);
+      const files={...baseFiles,gameplay,sidewalks,transit};
       const fingerprint = await worldFingerprint(files);
-      return { name, fingerprint, world: buildWorld(files.tiles, files.roads, files.boundary), spawn: manifest.spawn };
+      const world=buildWorld(files.tiles,files.roads,files.boundary,gameplay??undefined);
+      if(sidewalks)world.sidewalks=navigationFromPipeline(sidewalks).graph;
+      if(transit)world.transit=transit;
+      return { name, fingerprint, world, spawn: manifest.spawn };
     })();
     cached.set(name, found);
     found.catch(() => cached.delete(name));

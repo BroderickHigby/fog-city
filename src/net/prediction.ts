@@ -1,5 +1,5 @@
 import { hashState, SIM_VERSION, type SimInput, type SimState, type World } from "../sim/index.ts";
-import { baseSimulation, type NetworkSimulation } from "./simulation.ts";
+import { gameplaySimulation, type NetworkSimulation } from "./simulation.ts";
 import { MAX_PREDICTION_TICKS, NET_VERSION, validInput, type ServerMessage, type Snapshot } from "./protocol.ts";
 
 /** Bounded client prediction; every correction replays only unacknowledged local controls. */
@@ -16,7 +16,7 @@ export class Prediction {
   private readonly requestSnapshot: () => void;
   private readonly simulation:NetworkSimulation;
 
-  constructor(world: World, requestSnapshot: () => void, simulation:NetworkSimulation=baseSimulation) {
+  constructor(world: World, requestSnapshot: () => void, simulation:NetworkSimulation=gameplaySimulation) {
     this.world = world;
     this.requestSnapshot = requestSnapshot;
     this.simulation=simulation;

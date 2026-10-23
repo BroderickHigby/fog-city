@@ -29,9 +29,9 @@ describe("closed relay protocol", () => {
     }
   });
   it("accepts only identity-free closed gameplay commands",()=>{
-    const command={type:"command",command:{sequence:0,kind:"mission-start",targetId:"hot-desk"}};
+    const command={type:"command",command:{sequence:1,kind:"mission-start",targetId:"hot-desk"}};
     expect(parseClientMessage(JSON.stringify(command))).toEqual(command);
-    for(const extra of [{playerId:"p2"},{text:"arbitrary text"},{kind:"robot.heap"},{sequence:-1},{targetId:"__proto__"}]) {
+    for(const extra of [{playerId:"p2"},{text:"arbitrary text"},{kind:"robot.heap"},{sequence:-1},{sequence:0},{targetId:"__proto__"}]) {
       expect(()=>parseClientMessage(JSON.stringify({...command,command:{...command.command,...extra}}))).toThrow();
     }
   });
