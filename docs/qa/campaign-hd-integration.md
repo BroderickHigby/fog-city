@@ -44,3 +44,29 @@ Production build and typecheck passed before the final verification run. The pac
 ## Remaining release work
 
 The existing missing ballpark, road/terrain continuity and building-ledger failures require valid source data/pipeline regeneration. DataSF/elevation requests and pinned cross-browser downloads were blocked by environment network policy in the earlier review. The full nightly/world tour, real-GPU profiling, independent visual review, campaign persistence and later mission depth remain outstanding. No live site publication or main merge should be inferred from the build artifact.
+
+## Final verification record
+
+The full regression run completed in 409 s: **3,414 passed, 97 failed, 1 skipped across 165 files**. Five failures were intake issues: schema routing for `gameplay.json` in two suites, the stale committed gameplay index in two tests, and the missing documentation entry for the high-graphics browser spec. These were repaired without disabling assertions. The resulting focused rerun passed **713 tests in four files**. The index now matches 581 committed tiles, 5,292 refill points and 800 anchors; `build-gameplay.ts --check` confirms byte identity. Only gameplay metadata was regenerated, not world geometry.
+
+The remaining full-run failures are the already documented world/content gate, including the absent ballpark. The latest PR #5 head `1f752fe2730d9bbc444bcba4969a76dec6c53e36` was then fetched directly from its PR ref and merged. Its baseline edit changes a measurement description, not a threshold. Its stronger network recovery regression is included in the final focused run. This report does not relabel the full suite as green.
+
+The real-SF placement probe passed all **18 staged actors**, and its check is retained in `tests/sim/missions/sites.test.ts`. The first 1920×1080 packed-build render passed: six PBR sets, both HD character assets, shadows, post-processing, reflections, all lighting presets, no failed tile loads and no browser/HTTP errors. Radio loading succeeded. The close material-detail screenshot is in [the capture directory](../shots/campaign-hd/README.md). Camera location is explicitly recorded; it is not claimed to match the owner's old screenshot.
+
+The multiplayer browser pass caught an ambiguous `canvas` selector after adding the minimap. The game canvas now has a unique ID and label; the test clicks that specific view. A control regression checks that clicking the minimap cannot fire the blaster. Final browser/network results follow below.
+
+### Reproduce the candidate
+
+Use the pinned pnpm version from `package.json`, install with `pnpm install --frozen-lockfile`, then run `pnpm build` and `pnpm preview`. Open `/?world=sf&gfx=high&tod=golden`. Start Hot Desk from the mission panel. `pnpm exec vitest run tests/sim/missions tests/render/vegetation.test.ts` runs the campaign and canopy checks; `pnpm exec playwright test --config tests/e2e/net.config.ts` runs the private-room browser flow when the pinned browsers are installed. This environment uses an external config selecting system Chromium because the pinned download is blocked.
+
+Final results on the frozen source (`8e8032c`):
+
+- Typecheck and production rebuild passed again: 178 files, 182.0 MB, within the host limits.
+- Campaign, real-SF sites, network recovery and vegetation focused run: **13 tests / five files passed**. Every campaign mission completed in the recorded-control harness.
+- Canopy distribution regression and geometry checks: **three tests passed**. Visual inspection of the first full-resolution capture found clustered leaves; the deterministic visual hash was corrected and the final capture shows complete canopies.
+- Keyboard ownership checks: **two tests passed**, including map clicks versus game-view firing.
+- Final packed-build browser smoke passed at **1920×1080 / pixel ratio 1**, all three lighting presets, actual HD assets, zero console/HTTP errors, and radio loading. See [the final plaza capture](../shots/campaign-hd/ferry-golden-1920.png).
+- Final private-room browser test passed: create/join, two players, remote movement, leave and rejoin. The intermediate recheck was interrupted after a source reload invalidated its open lobby; the final run used frozen source and passed.
+- All four current PR heads were rechecked as ancestors of the candidate; main was not changed.
+
+The full suite and release gate remain **red**. No live publication, GPU frame-rate claim, full-world nightly certification, ElevenLabs recording, or complete GTA-level asset-quality claim is made.
