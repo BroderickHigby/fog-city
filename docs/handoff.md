@@ -1,4 +1,6 @@
-# Handoff — 2026-10-22 22:30 UTC
+# Historical handoff — 2026-10-22 22:30 UTC
+
+**Superseded for current status:** read [FOG_CITY_HANDOFF.md](FOG_CITY_HANDOFF.md) and [the current integration report](parallel/status/integration-wave3.md) first. The branch/version, likeness and release instructions below describe an older checkpoint; they are retained as history.
 
 Fog City: a browser open-world game of San Francisco. Read `CLAUDE.md`, `docs/design.md`,
 `docs/roadmap.md` and `docs/qa/` first. Repo: `BroderickHigby/fog-city`.
