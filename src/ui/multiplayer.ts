@@ -108,7 +108,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   let codeDraft = new URLSearchParams(options.search ?? win.location.search).get("room")?.toUpperCase() ?? "";
   if (codeDraft && !ROOM_CODE.test(codeDraft)) codeDraft = "";
   let prevView: SimState | null = null, currView: SimState | null = null, viewMatch = "";
-  let lastStamp = "", lastHud = "";
+  let lastStamp = "";
 
   const saveSeat = (seat: Seat | null): void => {
     try { if (seat) storage?.setItem(SEAT_KEY, JSON.stringify(seat)); else storage?.removeItem(SEAT_KEY); } catch { /* private mode: no rejoin after reload */ }
@@ -217,23 +217,24 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     return list;
   }
 
+  // The match HUD is built once; only its text changes, so its buttons never move under a click.
+  const hudTitle = node("span", undefined, "Bot Sweep"), hudClock = node("strong"), hudUnits = node("span"), hudLives = node("span"), hudScore = node("span"), hudTeam = node("span"), hudNet = node("output");
+  const endButton = button("End match", () => client.end()), leaveButton = button("Leave match", () => leave());
+  hud.append(hudTitle, hudClock, hudUnits, hudLives, hudScore, hudTeam, hudNet, endButton, leaveButton);
+  const setText = (el: HTMLElement, text: string): void => { if (el.textContent !== text) el.textContent = text; };
   function renderHud(): void {
     const state = client.match?.confirmed, view = state ? botSweepView(state) : null;
     if (!inMatch || !view || !info) { hud.hidden = true; return; }
     const me = view.players[info.playerId];
     const net = info.status !== "connected" ? info.message : client.match?.recovering ? "Resynchronising…" : info.rttMs ? `${Math.round(info.rttMs)} ms` : "";
-    const stamp = JSON.stringify([view.phase, Math.ceil(view.remainingTicks / 60), view.objectivesRemaining, view.lives, me, net, info.members.map((m) => m.connected), client.isHost()]);
-    if (stamp === lastHud) return;
-    lastHud = stamp;
-    const parts: (HTMLElement | string)[] = [node("span", undefined, "Bot Sweep"), node("strong", undefined, clock(view.remainingTicks)),
-      node("span", undefined, `Units left ${view.objectivesRemaining}${view.relayStanding ? " (Relay up)" : ""}`), node("span", undefined, `Lives ${view.lives}`),
-      node("span", undefined, `Score ${me?.score ?? 0}${me?.down ? " · DOWN" : ""}`), node("span", undefined, `Team ${info.members.filter((m) => m.connected).length}/${info.members.length}`)];
-    if (net) parts.push(node("output", undefined, net));
-    if (view.phase === "active") {
-      if (client.isHost()) parts.push(button("End match", () => client.end()));
-      parts.push(button("Leave match", () => leave()));
-    }
-    hud.replaceChildren(...parts);
+    setText(hudClock, clock(view.remainingTicks));
+    setText(hudUnits, `Units left ${view.objectivesRemaining}${view.relayStanding ? " (Relay up)" : ""}`);
+    setText(hudLives, `Lives ${view.lives}`);
+    setText(hudScore, `Score ${me?.score ?? 0}${me?.down ? " · DOWN" : ""}`);
+    setText(hudTeam, `Team ${info.members.filter((m) => m.connected).length}/${info.members.length}`);
+    setText(hudNet, net); hudNet.hidden = !net;
+    endButton.hidden = view.phase !== "active" || !client.isHost();
+    leaveButton.hidden = view.phase !== "active";
     hud.hidden = false;
   }
 
