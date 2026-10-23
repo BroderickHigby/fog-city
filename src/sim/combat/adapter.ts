@@ -21,7 +21,7 @@ function actorMetadata(options: CombatAdapterOptions, id: string): CombatActorMe
   const source=options.actorMetadata?.[id] as Readonly<Record<string,unknown>>|undefined;
   if(!source)return {};
   const metadata:Record<string,unknown>={};
-  for(const field of METADATA_FIELDS)if(source[field]!==undefined)metadata[field]=source[field];
+  for(const field of METADATA_FIELDS)if(Object.hasOwn(source,field)&&source[field]!==undefined)metadata[field]=source[field];
   return metadata as CombatActorMetadata;
 }
 
