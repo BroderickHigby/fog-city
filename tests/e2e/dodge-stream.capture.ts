@@ -1,7 +1,7 @@
 // Frame strips of people getting out of a car's way (tests/e2e/dodge-stream.config.ts). For each
 // speed: a second player joins 70 m behind someone walking near the SF spawn, on their path, and
-// drives at them (steering at them every tick, holding the speed); once they start to dodge, a camera 8 m to
-// the side of them films a frame every few ticks. Writes <DODGE_SHOTS>/<speed>-<n>.png and
+// drives at them (steering at them every tick, holding the speed); once they start to dodge, a camera 4.5 m to
+// the side of them follows them, filming a frame every few ticks. Writes <DODGE_SHOTS>/<speed>-<n>.png and
 // <DODGE_SHOTS>/<speed>.json (the person's sim trace: position, height, dodge phase).
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -10,8 +10,10 @@ import { bootWorld, frames, gateWorld, type FogWindow } from "./fixtures.ts";
 
 const OUT = process.env.DODGE_SHOTS ?? "test-results/dodge-stream";
 const SPEEDS = (process.env.DODGE_SPEEDS ?? "8,14,22").split(",").map(Number);
-const SHOTS = 16;
-const EVERY = 4;
+const SHOTS = 20;
+const EVERY = 5;
+/** The camera follows the person from this far to the side of the car's line, metres, at chest height. */
+const SIDE_M = 4.5;
 
 interface Picked {
   id: number;
@@ -58,15 +60,28 @@ for (const speed of SPEEDS) {
       return { id, found: Boolean(p?.dodge), ticks, car: { x: c.x, z: c.z, heading: c.heading, speed: c.speed }, person: { x: p.x, y: p.y, z: p.z } };
     }, speed);
     mkdirSync(OUT, { recursive: true });
-    // The camera: 8 m to the side of the person, square to the car's line, at eye height, looking at them.
+    // The camera: SIDE_M to the side of the person, square to the car's line (as it was when they
+    // started to dodge), at chest height, looking at them: it follows them along, never turning.
     const side = { x: Math.cos(picked.car.heading), z: Math.sin(picked.car.heading) };
-    const cam = { x: picked.person.x + side.x * 8, y: picked.person.y + 1.5, z: picked.person.z + side.z * 8 };
-    const yaw = (Math.atan2(picked.person.x - cam.x, -(picked.person.z - cam.z)) * 180) / Math.PI;
-    await page.evaluate(([x, y, z, yw]) => (window as unknown as FogWindow).__fogcity!.flyTo!(x!, y!, z!, yw!, -6), [cam.x, cam.y, cam.z, yaw]);
+    const yaw = (Math.atan2(-side.x, side.z) * 180) / Math.PI;
+    const follow = async (): Promise<{ x: number; y: number; z: number }> => {
+      const at = await page.evaluate((id) => {
+        type A = { id: number; x: number; y: number; z: number };
+        const list = ((window as unknown as FogWindow).__fogcity!.state().ext as Record<string, { list?: A[] }>).agents?.list ?? [];
+        return list.find((a) => (a as A).id === id) as A | undefined;
+      }, picked.id);
+      const p = at ?? picked.person;
+      const cam = { x: p.x + side.x * SIDE_M, y: p.y + 1.1, z: p.z + side.z * SIDE_M };
+      await page.evaluate(([x, y, z, yw]) => (window as unknown as FogWindow).__fogcity!.flyTo!(x!, y!, z!, yw!, -4), [cam.x, cam.y, cam.z, yaw]);
+      return cam;
+    };
+    const cam = await follow();
     await frames(page, 6);
     const trace: unknown[] = [];
     for (let k = 0; k < SHOTS; k++) {
-      await page.screenshot({ path: join(OUT, `${speed}-${String(k).padStart(2, "0")}.png`), clip: { x: 300, y: 150, width: 500, height: 420 } });
+      await follow();
+      await frames(page, 2);
+      await page.screenshot({ path: join(OUT, `${speed}-${String(k).padStart(2, "0")}.png`), clip: { x: 370, y: 140, width: 360, height: 420 } });
       const row = await page.evaluate(
         ([id, target, every]) => {
           const game = (window as unknown as FogWindow).__fogcity!;
