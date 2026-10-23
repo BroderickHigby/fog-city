@@ -1,0 +1,280 @@
+{
+  "entries": [
+    {
+      "id": "dm-invite",
+      "kind": "vcDm",
+      "wave": 3,
+      "context": "invite",
+      "text": "Saw the demo. Do you have ten minutes to explain it in four?"
+    },
+    {
+      "id": "dm-metrics",
+      "kind": "vcDm",
+      "wave": 3,
+      "context": "metrics",
+      "text": "Could you send weekly retention? Monthly is fine if the month is bad."
+    },
+    {
+      "id": "dm-moat",
+      "kind": "vcDm",
+      "wave": 3,
+      "context": "moat",
+      "text": "Love the energy. What stops the large platform from adding it before lunch?"
+    },
+    {
+      "id": "dm-follow-up",
+      "kind": "vcDm",
+      "wave": 3,
+      "context": "follow-up",
+      "text": "Circling back to circle back. The round is still open, then?"
+    },
+    {
+      "id": "dm-passed",
+      "kind": "vcDm",
+      "wave": 3,
+      "context": "passed",
+      "text": "Not a fit for this fund. Please keep us updated on evidence that would make us regret this."
+    },
+    {
+      "id": "dm-warm",
+      "kind": "vcDm",
+      "wave": 3,
+      "context": "warm",
+      "text": "A customer used it twice without being reminded. That is a warmer introduction than mine."
+    },
+    {
+      "id": "fogcast-sun",
+      "kind": "fogcast",
+      "wave": 3,
+      "context": "sun",
+      "text": "97% chance of sun. The remaining 3% is currently covering the city."
+    },
+    {
+      "id": "fogcast-fog",
+      "kind": "fogcast",
+      "wave": 3,
+      "context": "fog",
+      "text": "Visibility improving in the model. Please continue looking through the windscreen."
+    },
+    {
+      "id": "fogcast-wind",
+      "kind": "fogcast",
+      "wave": 3,
+      "context": "wind",
+      "text": "A gentle breeze at sea level. Your slide deck has reached the next block."
+    },
+    {
+      "id": "fogcast-night",
+      "kind": "fogcast",
+      "wave": 3,
+      "context": "night",
+      "text": "Clear tonight, except where it is not. Forecast confidence remains excellent."
+    },
+    {
+      "id": "fogcast-update",
+      "kind": "fogcast",
+      "wave": 3,
+      "context": "update",
+      "text": "We adjusted yesterday’s forecast to match yesterday’s weather."
+    },
+    {
+      "id": "fogcast-boundary",
+      "kind": "fogcast",
+      "wave": 3,
+      "context": "boundary",
+      "text": "Fog at the next intersection. Conditions on this side remain commercially sunny."
+    },
+    {
+      "id": "meander-review-careful",
+      "kind": "rideReview",
+      "wave": 3,
+      "context": "careful",
+      "text": "Five stars. Waited for the crossing, apologised to a bollard, arrived on time."
+    },
+    {
+      "id": "meander-review-loop",
+      "kind": "rideReview",
+      "wave": 3,
+      "context": "loop",
+      "text": "Three stars. We passed my destination twice. The second pass was more confident."
+    },
+    {
+      "id": "meander-review-quiet",
+      "kind": "rideReview",
+      "wave": 3,
+      "context": "quiet",
+      "text": "Five stars. Asked once about the temperature and believed my answer."
+    },
+    {
+      "id": "meander-review-pitch",
+      "kind": "rideReview",
+      "wave": 3,
+      "context": "pitch",
+      "text": "Two stars. The ride included a pitch. I had already paid for the ride."
+    },
+    {
+      "id": "meander-review-lost",
+      "kind": "rideReview",
+      "wave": 3,
+      "context": "lost",
+      "text": "Four stars. Admitted it was lost, stopped safely and asked for help."
+    },
+    {
+      "id": "meander-review-cone",
+      "kind": "rideReview",
+      "wave": 3,
+      "context": "cone",
+      "text": "No rating. A cone has changed the strategic direction of this journey."
+    },
+    {
+      "id": "support-lost",
+      "kind": "support",
+      "wave": 3,
+      "context": "lost",
+      "text": "Your ride is stopped safely. Choose a new pickup point or end the ride.",
+      "tags": [
+        "lost",
+        "where",
+        "route"
+      ]
+    },
+    {
+      "id": "support-fare",
+      "kind": "support",
+      "wave": 3,
+      "context": "fare",
+      "text": "Here is the trip estimate and the final fare. A route correction does not add a new booking fee.",
+      "tags": [
+        "fare",
+        "price",
+        "charged"
+      ]
+    },
+    {
+      "id": "support-cone",
+      "kind": "support",
+      "wave": 3,
+      "context": "cone",
+      "text": "The vehicle will wait until the hood is clear. Please do not stand in the road.",
+      "tags": [
+        "cone",
+        "stopped",
+        "hood"
+      ]
+    },
+    {
+      "id": "support-refund",
+      "kind": "support",
+      "wave": 3,
+      "context": "refund",
+      "text": "Your refund request is recorded. The reply will show the trip and amount before you confirm.",
+      "tags": [
+        "refund",
+        "cancel",
+        "money"
+      ]
+    },
+    {
+      "id": "support-default",
+      "kind": "support",
+      "wave": 3,
+      "context": "default",
+      "text": "I can help with the route, fare, cancellation or a stopped vehicle.",
+      "tags": [
+        "help"
+      ]
+    },
+    {
+      "id": "humble-first",
+      "kind": "humblebrag",
+      "wave": 4,
+      "context": "first",
+      "text": "Humbled to share that someone used the thing for the second time."
+    },
+    {
+      "id": "humble-raise",
+      "kind": "humblebrag",
+      "wave": 4,
+      "context": "raise",
+      "text": "Grateful to announce more runway. The spreadsheet has become emotionally available."
+    },
+    {
+      "id": "humble-melt",
+      "kind": "humblebrag",
+      "wave": 4,
+      "context": "melt",
+      "text": "A small milestone: fewer bad robots, same number of slides."
+    },
+    {
+      "id": "humble-miss",
+      "kind": "humblebrag",
+      "wave": 4,
+      "context": "miss",
+      "text": "Learned a lot from today’s demo. Most of it involved the carpet."
+    },
+    {
+      "id": "humble-team",
+      "kind": "humblebrag",
+      "wave": 4,
+      "context": "team",
+      "text": "Proud of the team for asking what the customer meant before writing the announcement."
+    },
+    {
+      "id": "humble-quiet",
+      "kind": "humblebrag",
+      "wave": 4,
+      "context": "quiet",
+      "text": "No launch today. Fixed a bug. Surprisingly good day."
+    },
+    {
+      "id": "tagline-groceries",
+      "kind": "tagline",
+      "wave": 3,
+      "context": "groceries",
+      "text": "Know where the groceries are. Including when something went wrong."
+    },
+    {
+      "id": "tagline-route",
+      "kind": "tagline",
+      "wave": 3,
+      "context": "route",
+      "text": "One route your driver can finish."
+    },
+    {
+      "id": "tagline-calendar",
+      "kind": "tagline",
+      "wave": 3,
+      "context": "calendar",
+      "text": "Fewer meetings about the meeting tool."
+    },
+    {
+      "id": "tagline-proof",
+      "kind": "tagline",
+      "wave": 3,
+      "context": "proof",
+      "text": "Show the work. Keep the undo button."
+    },
+    {
+      "id": "tagline-queue",
+      "kind": "tagline",
+      "wave": 3,
+      "context": "queue",
+      "text": "A shorter queue is a measurable outcome."
+    },
+    {
+      "id": "tagline-honest",
+      "kind": "tagline",
+      "wave": 3,
+      "context": "honest",
+      "text": "Useful even when it says it does not know."
+    }
+  ],
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:104ef6d9",
+    "reviewedBy": [],
+    "review": "Authored from the design. Pending independent content and gameplay review."
+  }
+}

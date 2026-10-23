@@ -1,0 +1,210 @@
+{
+  "id": "fleet-week",
+  "version": 1,
+  "title": "Fleet Week",
+  "campaign": 6,
+  "wave": 4,
+  "area": "The Marina",
+  "start": "start",
+  "cast": {
+    "player": {
+      "name": "You",
+      "role": "Founder"
+    },
+    "cofounder": {
+      "name": "Your cofounder",
+      "role": "Cofounder, by text"
+    },
+    "dispatch": {
+      "name": "Dispatcher",
+      "role": "Mission support"
+    }
+  },
+  "actors": {
+    "thief": {
+      "kind": "badRobot",
+      "archetype": "snatcher",
+      "level": 3
+    },
+    "escapeCar": {
+      "kind": "rogueTaxi",
+      "archetype": "rogueTaxi",
+      "level": 3
+    }
+  },
+  "meters": {},
+  "outcomes": {
+    "complete": {
+      "label": "Complete",
+      "kind": "success"
+    },
+    "retry": {
+      "label": "Try again",
+      "kind": "retry"
+    }
+  },
+  "steps": [
+    {
+      "id": "start",
+      "type": "trigger",
+      "event": {
+        "kind": "enterArea",
+        "place": {
+          "label": "Marina Green, east end",
+          "lat": 37.806,
+          "lon": -122.439,
+          "radiusM": 25
+        }
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "fleet week. the meeting room is a picnic blanket and the mute button is the sky."
+        }
+      ],
+      "next": "window"
+    },
+    {
+      "id": "window",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "pitch.windowOpened"
+      },
+      "hint": "Wait for the forced air-show window; speak between the jet passes.",
+      "next": "pitch",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "pitch",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "pitch.windowCompleted"
+      },
+      "hint": "Fit the three talking points into quiet gaps. Repeat a missed point, not the whole deck.",
+      "next": "stage",
+      "timeLimitS": 180,
+      "onFail": "retry"
+    },
+    {
+      "id": "stage",
+      "type": "stage",
+      "place": {
+        "label": "Marina Green, east end",
+        "lat": 37.806,
+        "lon": -122.439,
+        "radiusM": 25
+      },
+      "actors": [
+        "thief",
+        "escapeCar"
+      ],
+      "nearHydrantM": 20,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "the footman took our car. our car! cone through the window; it stops the vehicle."
+        }
+      ],
+      "next": "chase"
+    },
+    {
+      "id": "chase",
+      "type": "goto",
+      "target": {
+        "label": "Marina Blvd at Laguna St",
+        "lat": 37.80515,
+        "lon": -122.4324,
+        "radiusM": 25
+      },
+      "travel": "any",
+      "timer": {
+        "limitS": 240,
+        "warnAtS": 30
+      },
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "follow the marked car along Marina Blvd. pedestrians have right of way."
+        }
+      ],
+      "next": "cone",
+      "onTimeout": "retry"
+    },
+    {
+      "id": "cone",
+      "type": "objective",
+      "objective": {
+        "kind": "cone",
+        "actor": "escapeCar"
+      },
+      "hint": "Throw a cone through the open window to stop the rogue vehicle.",
+      "next": "recover",
+      "timeLimitS": 120,
+      "onFail": "retry"
+    },
+    {
+      "id": "recover",
+      "type": "objective",
+      "objective": {
+        "kind": "event",
+        "event": "vehicle.recovered"
+      },
+      "hint": "Approach the stopped car and recover it.",
+      "next": "complete",
+      "timeLimitS": 90,
+      "onFail": "retry"
+    },
+    {
+      "id": "complete",
+      "type": "reward",
+      "outcome": "complete",
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "car recovered. the partner called it a memorable product demonstration."
+        }
+      ],
+      "grants": [
+        {
+          "kind": "stat",
+          "stat": "cash",
+          "delta": 2000
+        },
+        {
+          "kind": "stat",
+          "stat": "xp",
+          "delta": 1400
+        },
+        {
+          "kind": "unlock",
+          "unlock": "safehouse:marina-flat"
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "type": "retry",
+      "outcome": "retry",
+      "retryFrom": "window",
+      "hint": "The pitch window repeats. Keep cones for the vehicle, and leave the crowd dry.",
+      "cooldownS": 10,
+      "lines": [
+        {
+          "speaker": "cofounder",
+          "text": "we can do another pass. the pilots were going to anyway."
+        }
+      ]
+    }
+  ],
+  "summary": "Pitch between jet passes, then recover your car without turning the picnic into a traffic incident.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave3-2026-10-23",
+    "contentHash": "fnv1a32:2f239d69",
+    "reviewedBy": [],
+    "review": "Authored against the campaign design. Pending independent narrative and gameplay review."
+  }
+}

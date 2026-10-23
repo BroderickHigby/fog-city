@@ -1,0 +1,285 @@
+{
+  "entries": [
+    {
+      "id": "radio-moat",
+      "kind": "radio",
+      "wave": 3,
+      "context": "moat",
+      "text": "Moat Labs has announced an update to its update policy. The policy now updates automatically."
+    },
+    {
+      "id": "radio-cloud",
+      "kind": "radio",
+      "wave": 3,
+      "context": "cloud",
+      "text": "Cloud spending rose again this quarter. Clouds declined to comment on the margin."
+    },
+    {
+      "id": "radio-traffic",
+      "kind": "radio",
+      "wave": 3,
+      "context": "traffic",
+      "text": "Traffic is slow on the waterfront. Several vehicles are considering a pivot to parking."
+    },
+    {
+      "id": "radio-fund",
+      "kind": "radio",
+      "wave": 3,
+      "context": "fund",
+      "text": "A new fund will invest exclusively in founders who can explain the fund."
+    },
+    {
+      "id": "radio-weather",
+      "kind": "radio",
+      "wave": 3,
+      "context": "weather",
+      "text": "FogCast forecasts sun. Dry Powder recommends bringing a jacket and a second source."
+    },
+    {
+      "id": "radio-press",
+      "kind": "radio",
+      "wave": 3,
+      "context": "press",
+      "text": "A startup has launched a waiting list for its waiting list. Early access is delayed."
+    },
+    {
+      "id": "radio-safety",
+      "kind": "radio",
+      "wave": 3,
+      "context": "safety",
+      "text": "The robot pilot includes a large pause button. Investors asked whether it could be subscription-only."
+    },
+    {
+      "id": "radio-bench",
+      "kind": "radio",
+      "wave": 3,
+      "context": "bench",
+      "text": "A new speed record includes a footnote, two warm-up laps and no independent timing."
+    },
+    {
+      "id": "radio-return",
+      "kind": "radio",
+      "wave": 3,
+      "context": "return",
+      "text": "A former founder has announced a comeback. The fog has declined to confirm its involvement."
+    },
+    {
+      "id": "radio-clock",
+      "kind": "radio",
+      "wave": 3,
+      "context": "clock",
+      "text": "The Ferry Building clock is running early. Founders have described this as a tailwind."
+    },
+    {
+      "id": "doom-ten",
+      "kind": "doomClock",
+      "wave": 4,
+      "context": "ten",
+      "text": "Ten minutes to the next clock event. Finish the job before starting the announcement."
+    },
+    {
+      "id": "doom-five",
+      "kind": "doomClock",
+      "wave": 4,
+      "context": "five",
+      "text": "Five minutes. The clock has more conviction than the forecast."
+    },
+    {
+      "id": "doom-one",
+      "kind": "doomClock",
+      "wave": 4,
+      "context": "one",
+      "text": "One minute. Nearby bad robots are reconsidering their launch date."
+    },
+    {
+      "id": "doom-midnight",
+      "kind": "doomClock",
+      "wave": 4,
+      "context": "midnight",
+      "text": "Midnight arrived early. The chime is real; the claim remains under review."
+    },
+    {
+      "id": "conference-lanyard",
+      "kind": "conference",
+      "wave": 4,
+      "context": "lanyard",
+      "text": "The lanyard has a lanyard. I am not sure which one is the decision-maker."
+    },
+    {
+      "id": "conference-badge",
+      "kind": "conference",
+      "wave": 4,
+      "context": "badge",
+      "text": "My badge says speaker. I am mostly listening for the lunch announcement."
+    },
+    {
+      "id": "conference-demo",
+      "kind": "conference",
+      "wave": 4,
+      "context": "demo",
+      "text": "The live demo is running on a separate laptop that nobody may touch."
+    },
+    {
+      "id": "conference-queue",
+      "kind": "conference",
+      "wave": 4,
+      "context": "queue",
+      "text": "This queue is for the panel about removing friction."
+    },
+    {
+      "id": "conference-after",
+      "kind": "conference",
+      "wave": 4,
+      "context": "after",
+      "text": "The after-party has a waitlist. The networking queue has achieved network effects."
+    },
+    {
+      "id": "conference-free",
+      "kind": "conference",
+      "wave": 4,
+      "context": "free",
+      "text": "The free tote bag has cost me two hours."
+    },
+    {
+      "id": "coit-fact",
+      "kind": "guide",
+      "wave": 4,
+      "context": "coit-fact",
+      "text": "Coit Tower stands on Telegraph Hill. The stairs are real, and so is the climb."
+    },
+    {
+      "id": "coit-uncertain",
+      "kind": "guide",
+      "wave": 4,
+      "context": "coit-uncertain",
+      "text": "I am not certain about that detail. The view is not improved by inventing it."
+    },
+    {
+      "id": "coit-wrong",
+      "kind": "guide",
+      "wave": 4,
+      "context": "coit-wrong",
+      "text": "The tower was built as a charging dock. That was incorrect. Please disregard the entire previous sentence."
+    },
+    {
+      "id": "coit-correct",
+      "kind": "guide",
+      "wave": 4,
+      "context": "coit-correct",
+      "text": "Correction: the tower is a city landmark, not a charging dock. Thank you for checking."
+    },
+    {
+      "id": "streak-first",
+      "kind": "announcer",
+      "wave": 4,
+      "context": "first",
+      "text": "Confidence earned. Read the label before trusting the marker."
+    },
+    {
+      "id": "streak-parrots",
+      "kind": "announcer",
+      "wave": 4,
+      "context": "parrots",
+      "text": "The flock is discussing your deck. From a respectful distance."
+    },
+    {
+      "id": "streak-brick",
+      "kind": "announcer",
+      "wave": 4,
+      "context": "brick",
+      "text": "A crate has arrived at a clear landing site. Please keep the path open."
+    },
+    {
+      "id": "streak-blimp",
+      "kind": "announcer",
+      "wave": 4,
+      "context": "blimp",
+      "text": "Your ad is above the fold. Far above it."
+    },
+    {
+      "id": "streak-hydrants",
+      "kind": "announcer",
+      "wave": 4,
+      "context": "hydrants",
+      "text": "Public infrastructure has joined the demo."
+    },
+    {
+      "id": "streak-clock",
+      "kind": "announcer",
+      "wave": 4,
+      "context": "clock",
+      "text": "A remarkable claim. A very ordinary clock chime."
+    },
+    {
+      "id": "faction-lost",
+      "kind": "faction",
+      "wave": 5,
+      "context": "lost",
+      "text": "That result found a useful limit. The next attempt starts with better evidence."
+    },
+    {
+      "id": "faction-won",
+      "kind": "faction",
+      "wave": 5,
+      "context": "won",
+      "text": "Clean work. Count the restored robots, not the adjectives."
+    },
+    {
+      "id": "faction-close",
+      "kind": "faction",
+      "wave": 5,
+      "context": "close",
+      "text": "Close result. The tie-break used completed updates, not confidence."
+    },
+    {
+      "id": "faction-safe",
+      "kind": "faction",
+      "wave": 5,
+      "context": "safe",
+      "text": "Keep people dry and the route clear. Style points come after that."
+    },
+    {
+      "id": "crate-credit",
+      "kind": "crate",
+      "wave": 6,
+      "context": "credit",
+      "text": "Cloud credits: three more months of runway, no application form."
+    },
+    {
+      "id": "crate-fleece",
+      "kind": "crate",
+      "wave": 6,
+      "context": "fleece",
+      "text": "Fleece: half the fog drain for one minute. The forecast has no comment."
+    },
+    {
+      "id": "crate-water",
+      "kind": "crate",
+      "wave": 6,
+      "context": "water",
+      "text": "Fresh tank: take a breath, then take a refill."
+    },
+    {
+      "id": "crate-cone",
+      "kind": "crate",
+      "wave": 6,
+      "context": "cone",
+      "text": "Cones: the simplest interface in the city."
+    },
+    {
+      "id": "crate-flower",
+      "kind": "crate",
+      "wave": 6,
+      "context": "flower",
+      "text": "Flowers: a calendar interruption with petals."
+    }
+  ],
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:48d049fa",
+    "reviewedBy": [],
+    "review": "Authored from the design. Pending independent content and gameplay review."
+  }
+}
