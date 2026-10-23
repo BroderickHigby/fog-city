@@ -487,11 +487,16 @@ ${styleGlsl()}
       }
 
       // Night: lit windows come in clusters (a flat, an office floor); houses are well lived in.
+      // Far away, where the windows average out, the glow keeps the lit share of the glass (the
+      // averaged fcWin is the glazing share * 0.6) as strips: a storey's run of windows is on or
+      // nearly dark (an office floor left on), so a downtown tower still reads occupied at night.
       if ( fcWin > 0.0 ) {
         float cluster = fcHash( floor( vec2( c, row ) / vec2( 3.0, 2.0 ) ) + sd * 3.3 + 7.3 );
         float litFrac = curtain ? 0.25 : ( house ? 0.42 : 0.3 );
         float on = step( 1.0 - litFrac * ( 0.35 + 1.3 * cluster ), tone );
-        float lit = mix( on * ( 1.0 - blind * 0.3 ), litFrac * 0.5, farW ) * fcWin;
+        float strip = fcHash( floor( vec2( x / 24.0, y / 3.6 ) ) + sd * 5.1 + 3.7 );
+        float farLit = litFrac * ( strip > 0.62 ? 2.6 : 0.1 ) / 0.6;
+        float lit = mix( on * ( 1.0 - blind * 0.3 ), farLit, farW ) * fcWin;
         fcLit = max( fcLit, lit );
         if ( !shop || !groundRow ) fcLightCol = tone > 0.86 ? vec3( 0.75, 0.86, 1.0 ) : ( tone > 0.6 ? vec3( 1.0, 0.85, 0.6 ) : vec3( 1.0, 0.7, 0.4 ) );
       }
