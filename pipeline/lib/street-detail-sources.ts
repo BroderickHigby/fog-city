@@ -66,6 +66,15 @@ export const STREET_DETAIL_DATASETS: readonly DatasetSpec[] = [
     select: "objectid,asset_id,asset_type,asset_subtype,shape",
     order: "objectid",
   },
+  {
+    key: "trees",
+    id: "tkzw-k3nq",
+    title: "San Francisco Street Tree Inventory",
+    publisher: "San Francisco Public Works",
+    where: "latitude IS NOT NULL AND species IS NOT NULL",
+    select: "treeid,species,mapdbh,latitude,longitude",
+    order: "treeid",
+  },
 ];
 
 export const LICENCE = "ODC PDDL 1.0";

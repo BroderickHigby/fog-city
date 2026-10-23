@@ -12,7 +12,7 @@ export const FOLIAGE_NEAR_M = 110;
 export const FOLIAGE_FAR_M = 1400;
 const REPICK_M = 12;
 const ALPHA_CUTOFF = 0.42;
-type Species = 0 | 1;
+export type Species = 0 | 1;
 interface Placement { matrix: THREE.Matrix4; x: number; z: number; species: Species; tint: THREE.Color }
 interface TileTrees { placements: Placement[]; originals: Array<{ mesh: THREE.InstancedMesh; visible: boolean }> }
 interface Tier { bark: THREE.InstancedMesh; leaves: THREE.InstancedMesh; capacity: number }
@@ -204,6 +204,8 @@ export class FoliageLayer {
   private disposed = false;
   private nearCount = 0;
   private farCount = 0;
+  /** True once real street trees (street-detail) replace the tiles' procedural ones. */
+  private placedTrees = false;
 
   constructor(shadows = false) {
     this.group.name = "sf:foliage";
@@ -234,6 +236,10 @@ export class FoliageLayer {
       const mesh = object as THREE.InstancedMesh;
       if (!mesh.isInstancedMesh || !/^street-trees-[01]$/.test(mesh.name)) return;
       record.originals.push({ mesh, visible: mesh.visible });
+      if (this.placedTrees) {
+        mesh.visible = false;
+        return;
+      }
       const matrix = new THREE.Matrix4(), tint = new THREE.Color();
       for (let i = 0; i < mesh.count; i++) {
         mesh.getMatrixAt(i, matrix); matrix.premultiply(mesh.matrixWorld);
@@ -245,6 +251,29 @@ export class FoliageLayer {
       mesh.visible = false;
     });
     this.tiles.set(id, record); this.dirty = true;
+  }
+
+  /**
+   * Trees placed from data (src/render/street-detail.ts) under `key`, replacing any earlier set
+   * with that key. The first call hides every tile's procedural street trees for good.
+   */
+  setPlacements(key: string, list: ReadonlyArray<{ x: number; y: number; z: number; heading: number; scale: number; species: Species; tint: THREE.Color }>): void {
+    if (this.disposed) return;
+    if (!this.placedTrees) {
+      this.placedTrees = true;
+      for (const [id, record] of this.tiles) if (!id.startsWith("placed:")) record.placements = [];
+    }
+    const q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+    const placements = list.map((t) => ({
+      matrix: new THREE.Matrix4().compose(new THREE.Vector3(t.x, t.y, t.z), q.setFromAxisAngle(up, t.heading), new THREE.Vector3(t.scale, t.scale, t.scale)),
+      x: t.x, z: t.z, species: t.species, tint: t.tint,
+    }));
+    this.tiles.set(`placed:${key}`, { placements, originals: [] });
+    this.dirty = true;
+  }
+
+  removePlacements(key: string): void {
+    if (this.tiles.delete(`placed:${key}`)) this.dirty = true;
   }
 
   removeTile(id: string): void {

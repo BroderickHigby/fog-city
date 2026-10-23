@@ -21,6 +21,7 @@ import { buildFurniture } from "./lib/street-furniture.ts";
 import { buildStreetSigns, type SignRow } from "./lib/street-signs.ts";
 import { OSM_FILTER, osmLandcover, rpdLandcover, type RpdRows } from "./lib/landcover.ts";
 import { readOsmPbf, type OsmData } from "./lib/osm-pbf.ts";
+import { buildTrees, TREE_CLASSES, type TreeRow } from "./lib/street-trees.ts";
 import { buildMarkings, stopApproaches, type Junction, type MarkingStats } from "./lib/street-markings.ts";
 import { Ground } from "./lib/terrain.ts";
 import { STREET_DETAIL_INDEX } from "../src/render/street-markings.ts";
@@ -31,6 +32,7 @@ export const FURNITURE_FILE = "street-furniture.json";
 export const SIGNS_FILE = "street-signs.json";
 export const LANDCOVER_FILE = "street-landcover.json";
 export const OSM_FILE = "street-osm.json";
+export const TREES_FILE = "street-trees.json";
 /** The pinned OpenStreetMap extract (branch data/osm-sf, data/osm/SOURCE.md). */
 export const OSM_EXTRACT = { file: "data/osm/sf-2026-10-23.osm.pbf", sha256: "90f1a33cae615e122dd3828bda038f2b3e94a555bac9b5e83da9faa6cf7e3be4", timestamp: "2026-10-22T20:21:33Z" };
 
@@ -156,6 +158,22 @@ export function buildStreetDetail(
         ["grass", "barriers", "piers"],
       )
     : null;
+  // Trees on land inside the world: on a tile with ground and above the sea.
+  const tileIds = new Set(pack.tiles.map((t) => `${t.ix},${t.iz}`));
+  const trees = buildTrees((rows.trees ?? []) as TreeRow[], (x, z) => tileIds.has(`${Math.floor(x / 500)},${Math.floor(z / 500)}`) && (ground.heightAt(x, z) ?? -1) > 0.2);
+  const treesFile = jsonLines(
+    {
+      version: 1,
+      world: manifest.world,
+      description:
+        "Street trees (render-only), one per line: [treeid, x, z, class, height m]. class indexes `classes`. Placed from San Francisco Public Works' Street Tree Inventory; height from trunk diameter (pipeline/lib/street-trees.ts). Ids for knockable props: tree:<treeid>.",
+      snapshotDate,
+      attribution: streetDetailAttribution(["trees"]),
+      classes: [...TREE_CLASSES],
+      trees: trees.trees,
+    },
+    ["trees"],
+  );
   const index = jsonPretty({
     version: 1,
     world: manifest.world,
@@ -163,10 +181,10 @@ export function buildStreetDetail(
     snapshotDate,
     attribution: [
       ...attribution,
-      streetDetailAttribution(["rpdAreas", "rpdLinear"]),
+      streetDetailAttribution(["rpdAreas", "rpdLinear", "trees"]),
       ...(osmFile ? ["Grass, barriers and piers in street-osm.json: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)."] : []),
     ],
-    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, landcover: LANDCOVER_FILE, ...(osmFile ? { osm: OSM_FILE } : {}) },
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, landcover: LANDCOVER_FILE, trees: TREES_FILE, ...(osmFile ? { osm: OSM_FILE } : {}) },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,
@@ -179,9 +197,10 @@ export function buildStreetDetail(
       grassPieces: rpd.grass.length + (osmDoc?.grass.length ?? 0),
       barriers: rpd.barriers.length + (osmDoc?.barriers.length ?? 0),
       piers: osmDoc?.piers.length ?? 0,
+      trees: trees.trees.length,
     },
   });
-  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile, [SIGNS_FILE]: signsFile, [LANDCOVER_FILE]: landcoverFile, ...(osmFile ? { [OSM_FILE]: osmFile } : {}) }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length }, signs: { ...signs.stats, posts: signs.corners.length } } };
+  return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile, [SIGNS_FILE]: signsFile, [LANDCOVER_FILE]: landcoverFile, [TREES_FILE]: treesFile, ...(osmFile ? { [OSM_FILE]: osmFile } : {}) }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length }, signs: { ...signs.stats, posts: signs.corners.length } } };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

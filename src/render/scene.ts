@@ -268,6 +268,7 @@ export class SceneRenderer {
       ground: world.ground,
       materials: this.materials,
       waterY: world.manifest.water?.y ?? 0,
+      foliage: this.foliage,
     });
     this.scene.add(this.streetDetail.group);
     void this.streetDetail.load();

@@ -19,7 +19,8 @@
         "furniture": { "type": "string", "pattern": "^[a-z0-9-]+\\.json$" },
         "signs": { "type": "string", "pattern": "^[a-z0-9-]+\\.json$" },
         "landcover": { "type": "string", "pattern": "^[a-z0-9-]+\\.json$" },
-        "osm": { "type": "string", "pattern": "^[a-z0-9-]+\\.json$" }
+        "osm": { "type": "string", "pattern": "^[a-z0-9-]+\\.json$" },
+        "trees": { "type": "string", "pattern": "^[a-z0-9-]+\\.json$" }
       }
     },
     "counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
