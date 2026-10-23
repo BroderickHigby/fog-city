@@ -100,8 +100,8 @@ const worldFilesCache = new Map<string, WorldFilesNode>();
  * collider JSON; the road graph and the boundary when the manifest names them. Cached per world
  * (the data is never mutated).
  */
-export function loadWorldFiles(name: string): WorldFilesNode {
-  const hit = worldFilesCache.get(name);
+export function loadWorldFiles(name: string, cache = true): WorldFilesNode {
+  const hit = cache ? worldFilesCache.get(name) : undefined;
   if (hit) return hit;
   const dir = `public/tiles/${name}`;
   const manifest = readJson<WorldManifest>(`${dir}/manifest.json`);
@@ -116,7 +116,7 @@ export function loadWorldFiles(name: string): WorldFilesNode {
   const transit = manifest.layers?.transit ? readJson<TransitLayer>(`${dir}/${manifest.layers.transit}`) : null;
   const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary, { gameplay, sidewalks, transit });
   const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, gameplay, sidewalks, transit, colliders: files.colliders };
-  worldFilesCache.set(name, out);
+  if (cache) worldFilesCache.set(name, out);
   return out;
 }
 

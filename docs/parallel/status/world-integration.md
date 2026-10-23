@@ -17,3 +17,27 @@ Validation at this checkpoint:
 - Full SF `build-world --offline --check` stops at the first missing raw DataSF building-cache page. The source cache is absent locally; full-city regeneration is not certified. The committed geometry was imported from the named source commit, not fabricated or edited by hand.
 
 The incoming world's last ratchet update accepted known regressions, including the unfinished Golden Gate approach deck, the drawn contradictory Broadway Tunnel deck and a stopped Twin Peaks route. Those defects are not waived by this candidate. Strict world-gate results and combined browser/render/campaign validation remain required before release.
+
+## Strict gate checkpoint
+
+The world gate and historical audit documents are restored from before the incoming branch's `--accept-worse` update. The numeric baselines and failing-run lists remain byte-identical to `7a4c0ea`; no value, target or tracked defect was weakened.
+
+The first complete strict per-PR run finished with **53 passed, 78 failed and seven skipped** across 12 files. Of 116 measured numeric metrics, **66 improved, 37 were unchanged and 13 worsened**. The failed-test count also includes substantial improvements requiring tighter baselines and description changes; it is not a count of newly introduced defects.
+
+Material regressions against that strict baseline remain:
+
+| Metric | Baseline | Candidate |
+| --- | ---: | ---: |
+| Maximum freeway grade | 143.22% | 345.06% |
+| Largest drawn-road / sim-surface difference | 3.84 m | 6.6 m |
+| Stopped closed-loop routes | 2 | 3 |
+| Maximum placement rise | 0.34 m | 1.69 m |
+| Airborne crossing runs | 66 | 70 |
+| Far building hulls over 3 m wrong | 44 | 110 |
+| Driven distance over Lake Merced | 620 m | 780 m |
+
+Other worsening values are duplicate footprint pairs (23 to 26), buried walker stops (29 to 30), below-surface travel (0.173 to 0.404 m), two millimetre-scale motion metrics, and a 4 cm Sutro-area height change. These are recorded, not accepted away.
+
+The shared height-aware line sweep `segmentBlockedBand` is also added for runtime actors and motion. It retains the original polygon/spatial-index implementation while testing each building against the caller's vertical body band. Its focused run passed TypeScript and 28 surface/replay/segment tests; importing its callers is coordinated separately.
+
+Logs and comparison: `/tmp/fog-world-gate.log`, `/tmp/fog-world-gate-comparison.json`, `/tmp/fog-world-band.log`. The historical documents describe their original world; this checkpoint describes the integrated candidate and its current release hold.

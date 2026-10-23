@@ -29,6 +29,8 @@ const CI = Boolean(process.env.CI);
 export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
+  // Whole-city visual sweeps run explicitly through the nightly/tour configs.
+  testIgnore: ["**/world-tour.spec.ts", "**/far-ring.spec.ts"],
   // Generous: under SwiftShader on a loaded 4-core machine the game runs at ~1 frame a second,
   // and every real-time wait in a spec allows at least 60 s (docs/testing.md, "load-proof").
   timeout: 180_000,
