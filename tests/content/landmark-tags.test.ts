@@ -6,6 +6,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { unionRings } from "../../pipeline/lib/polygon.ts";
 import {
   LANDMARK_TAGS, checkLandmarkTags, distToRing, landmarkMaterialFor, landmarkTagFor, resolveProbe, storefrontAllowedOn, type LandmarkTagsFile,
 } from "../../src/content/landmarkTags.ts";
@@ -49,7 +50,9 @@ describe("every building entry's point resolves, on the committed sf world, to e
     it(l.id, () => {
       const near = recordsNear(l.point.lat, l.point.lon);
       const byId = new Map(near.map((r) => [r.id, r]));
-      for (const id of l.records) expect(byId.has(id), `${l.id}: ${id} is not a record of the world`).toBe(true);
+      for (const id of l.records) {
+        expect(near.some((r) => podium(r) === id), `${l.id}: ${id} and its pieces are not records of the world`).toBe(true);
+      }
       const res = resolveProbe(l.point, near);
       expect(res.nearestM, `${l.id}: the point is in no record`).toBe(0);
       // The resolved records, mapped to their podiums, are exactly the listed records.
@@ -74,7 +77,13 @@ describe("L-04: Saints Peter and Paul", () => {
     const res = resolveProbe(sspp.point, near);
     expect(res.buildings).toEqual(["201006.0001265", "201006.0001265-tower"]);
     expect(res.nearestM).toBe(0);
-    expect(res.insideByM).toBeGreaterThan(15);
+    // Terracing divides one church into several collider strips. Those internal seams are
+    // not walls: retain the original clearance assertion against the source footprint's union.
+    expect(res.insideByM).toBeGreaterThan(2);
+    const { x, z } = toLocal(sspp.point.lat, sspp.point.lon);
+    const church = unionRings(near.filter((r) => podium(r) === "201006.0001265" && !r.meta?.towerOf).map((r) => r.footprint));
+    expect(church).toHaveLength(1);
+    expect(distToRing(x, z, church[0]!.outer)).toBeGreaterThan(15);
   });
 
   it("201006.0001265 is the church: a non-residential hall of the 1920s with a spire rising over 50 m, the tallest record within 150 m", () => {
@@ -139,6 +148,13 @@ describe("tagging and drawing rules", () => {
   it("a tower and a terrace piece take their podium's tag; an untagged record has none", () => {
     expect(landmarkTagFor({ id: "201006.0006230-tower", meta: { towerOf: "201006.0006230" } })?.id).toBe("coit-tower");
     expect(landmarkTagFor({ id: "201006.0000041-s1", meta: { pieceOf: "201006.0000041" } })?.id).toBe("city-hall");
+    // The storefront payload has only buildingId; preserve the source landmark policy after
+    // the pipeline replaces its footprint with smaller slope/bridge pieces.
+    expect(landmarkTagFor({ id: "201006.0000003-s1" })?.id).toBe("ballpark");
+    expect(landmarkTagFor({ id: "201006.0000003-tower-s1" })?.id).toBe("ballpark");
+    expect(landmarkTagFor({ id: "201006.0000041-b2" })?.id).toBe("city-hall");
+    expect(storefrontAllowedOn("201006.0000041-b2")).toBe(false);
+    expect(storefrontAllowedOn("201006.0000003-s1")).toBe(true);
     expect(landmarkTagFor({ id: "201006.0003946" })).toBeNull();
     expect(landmarkMaterialFor({ id: "201006.0001265" })).toEqual(LANDMARK_TAGS.materials.white);
     expect(landmarkMaterialFor({ id: "201006.0000856" })).toEqual(LANDMARK_TAGS.materials.brick);

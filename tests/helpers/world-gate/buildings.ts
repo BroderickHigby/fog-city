@@ -253,8 +253,10 @@ export async function measureBuildings(gw: GameWorld): Promise<Measured> {
     const rep = readJson<{ buildings: Record<string, number> }>(`public/tiles/${gw.name}/report.json`).buildings;
     const unexplained = rep.parts! - rep.kept! - (rep.droppedSmall ?? 0) - (rep.droppedLow ?? 0) - (rep.droppedOutside ?? 0);
     m.metric({ id: "A.accounting.unexplained", target: 0, better: "lower", unit: "footprints", defects: [], desc: "source footprint parts neither kept nor dropped for a counted reason (report.json)" }, unexplained, rep);
-    const plain = recs.filter((r) => !r.id.endsWith("-tower")).length;
-    m.metric({ id: "A.accounting.keptMatchesRecords", target: 0, better: "lower", unit: "footprints", defects: [], desc: "|report.json kept - footprint records in the colliders| (the report and the tiles agree)" }, Math.abs(rep.kept! - plain), { kept: rep.kept, records: plain });
+    // kept counts source footprints. The pipeline may materialise one footprint as several
+    // terrace strips or spans, all carrying pieceOf; those are still one kept footprint.
+    const plain = new Set(recs.filter((r) => !r.id.endsWith("-tower")).map((r) => r.meta.pieceOf ?? r.id)).size;
+    m.metric({ id: "A.accounting.keptMatchesRecords", target: 0, better: "lower", unit: "footprints", defects: [], desc: "|report.json kept - unique source footprints in the colliders| (the report and the tiles agree)" }, Math.abs(rep.kept! - plain), { kept: rep.kept, records: plain });
   }
 
   m.lap("accounting");

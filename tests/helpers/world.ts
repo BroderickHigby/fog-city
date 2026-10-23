@@ -153,11 +153,19 @@ export function colliderRecords(gw: GameWorld): SfRecord[] {
   return out;
 }
 
-/** The per-tile collider JSON's ground and buildings (minus meta), for the pack-vs-JSON check. */
+/** The complete per-tile simulation data, minus render-only building metadata. */
 export function colliderJsonTiles(gw: Pick<GameWorld, "name" | "manifest">): TileCollider[] {
   return gw.manifest.tiles.map((t) => {
-    const c = readJson<TileCollider & { buildings: Array<BuildingCollider & { meta?: unknown }> }>(`public/tiles/${gw.name}/${t.collider}`);
-    return { tileId: c.tileId, ground: c.ground, buildings: c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY })) };
+    const c = readJson<Omit<TileCollider, "buildings"> & { buildings: Array<BuildingCollider & { meta?: unknown }> }>(`public/tiles/${gw.name}/${t.collider}`);
+    // Decks, tunnels, movable spans and building undersides change the sim. Dropping them
+    // compares two different worlds, producing a false determinism failure after qa/sim.
+    return {
+      ...c,
+      buildings: c.buildings.map((b) => {
+        const { meta: _meta, ...sim } = b;
+        return sim;
+      }),
+    };
   });
 }
 

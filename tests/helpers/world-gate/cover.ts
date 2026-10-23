@@ -1,14 +1,11 @@
 // Gate suite D: ground cover (docs/qa/world-continuity-gate.md, section D). Measures what the
-// renderer draws: each tile GLB's ground vertex colours, put through the same runtime tint the
-// SceneRenderer applies when a tile loads (scene.ts tintGround: parks.ts tintParks over the
-// districts.json park polygons). When Render changes how the ground is coloured, it updates
-// drawnGround() here in the same PR, so the gate keeps measuring the drawn ground.
+// renderer draws: the ground classes baked into each tile GLB. The current streamer keeps
+// these vertex colours; parks, beaches and lakes are classified by the pipeline. A runtime
+// tint must update this measurement in the same change, never silently diverge from it.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import * as THREE from "three";
 import { toLocal } from "../../../src/geo/project.ts";
-import { parkShapes, tintParks } from "../../../src/render/parks.ts";
 import { cellKey, pointInPolygon } from "../../../src/sim/index.ts";
 import { ROOT, readJson } from "../../helpers.ts";
 import { glbJsonOf, latticeAt, r2, r3, readGlb, type GameWorld, type P2 } from "../world.ts";
@@ -44,54 +41,40 @@ export function colourClass(r: number, g: number, b: number): number {
   return CLASS.grey;
 }
 
-/**
- * drawnGround() re-applies the renderer's ground tint in Node. So that the gate notices when the
- * renderer stops (or changes how it goes about) tinting the ground, the wiring it copies is checked
- * in src/render/scene.ts itself: the park shapes from the world's districts, and the streamer's
- * tintGround calling tintParks with them. A change there fails the cover suite with this message
- * until drawnGround() follows it (or Render-World exports one function both use).
- */
-export function checkTintWiring(source = readFileSync(join(ROOT, "src/render/scene.ts"), "utf8")): void {
-  const shapes = /const\s+parks\s*=\s*parkShapes\(\s*world\.districts\b/.test(source);
-  const tint = /tintGround:\s*\(\s*(\w+)\s*,\s*(\w+)\s*\)\s*=>\s*tintParks\(\s*\1\s*,\s*\2\s*,\s*parks\s*\)/.test(source);
-  if (!shapes || !tint) {
-    throw new Error(
-      `src/render/scene.ts no longer tints the drawn ground as tests/helpers/world-gate/cover.ts drawnGround() assumes (${shapes ? "" : "parks = parkShapes(world.districts ...) not found; "}${tint ? "" : "tintGround: (geo, m) => tintParks(geo, m, parks) not found"}): update drawnGround() to match in the same PR, so the gate keeps measuring the drawn ground`,
-    );
+/** Refuse a stale measurement if the renderer reintroduces a runtime ground tint. */
+export function checkTintWiring(
+  source = readFileSync(join(ROOT, "src/render/tile-streamer.ts"), "utf8"),
+  materials = readFileSync(join(ROOT, "src/render/materials.ts"), "utf8"),
+): void {
+  if (/\btintGround\b|\btintParks\b/.test(source)) {
+    throw new Error("runtime ground tint detected: update drawnGround() to measure the rendered colours");
+  }
+  if (!/const ground = new THREE\.MeshStandardMaterial\(\{ vertexColors: true,/.test(materials)) {
+    throw new Error("ground vertexColors material changed: update drawnGround() to match the renderer");
   }
 }
 
 /** Drawn ground class per lattice vertex: tile key -> 51 x 51 classes (0 where no vertex is drawn). */
 export async function drawnGround(gw: GameWorld): Promise<Map<number, Uint8Array>> {
   checkTintWiring();
-  const districts = readJson(`public/tiles/${gw.name}/${gw.manifest.layers?.districts ?? "districts.json"}`);
-  const parks = parkShapes(districts);
-  const identity = new THREE.Matrix4();
   const out = new Map<number, Uint8Array>();
   for (const t of gw.manifest.tiles) {
     if (!t.glb) continue;
     const g = await readGlb(`public/tiles/${gw.name}/${t.glb}`, ["ground"], ["POSITION", "COLOR_0"]);
     const node = g.nodes[0];
     if (!node?.colors) continue;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(node.positions, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(node.colors, 4));
-    // scene.ts: tintGround: (geo, m) => tintParks(geo, m, parks)
-    tintParks(geo, identity, parks);
-    const col = geo.getAttribute("color") as THREE.BufferAttribute;
     const ix = t.ix ?? Math.floor((t.bbox?.[0] ?? 0) / 500);
     const iz = t.iz ?? Math.floor((t.bbox?.[1] ?? 0) / 500);
     const cls = new Uint8Array(51 * 51);
-    for (let v = 0; v < col.count; v++) {
+    for (let v = 0; v < node.positions.length / 3; v++) {
       const x = node.positions[v * 3]!;
       const z = node.positions[v * 3 + 2]!;
       const i = Math.round(x / 10) - ix * 50;
       const k = Math.round(z / 10) - iz * 50;
       if (i < 0 || i > 50 || k < 0 || k > 50 || Math.abs(x - Math.round(x / 10) * 10) > 0.05 || Math.abs(z - Math.round(z / 10) * 10) > 0.05) continue;
-      cls[k * 51 + i] = colourClass(col.getX(v), col.getY(v), col.getZ(v));
+      cls[k * 51 + i] = colourClass(node.colors[v * 4]!, node.colors[v * 4 + 1]!, node.colors[v * 4 + 2]!);
     }
     out.set(cellKey(ix, iz), cls);
-    geo.dispose();
   }
   return out;
 }

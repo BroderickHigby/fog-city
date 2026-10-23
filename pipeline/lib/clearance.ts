@@ -357,6 +357,8 @@ export interface ClearanceOptions {
   keepCentreline?: ReadonlySet<string>;
   /** Stairways from layers otherwise excluded (UPROW, PAPER): dropped if they run through buildings. */
   optionalStairs?: ReadonlySet<string>;
+  /** Verified existing source footprints: exempt from the stale-date heuristic, still cut or spanned for clearance. */
+  preserveExisting?: ReadonlySet<string>;
 }
 
 /**
@@ -417,8 +419,13 @@ export function clearCorridors(
 
   // ---- 2. Footprints on land a newer street was built across. A record the newer-buildings pass
   // or an override added (meta.outline: a 2025 parcel or a hand-checked block) is current, never
-  // stale: what of it stands in a corridor is cut or spanned in step 4 like any other record.
+  // stale. Verified landmarks also still exist, even if their parcel has no assessor year:
+  // a newer centreline alone cannot prove their demolition. Both still get corridor clearance.
   const isAdded = (b: Building): boolean => b.meta.outline !== undefined || (b.meta.towerOf !== undefined && list[index.get(b.meta.towerOf) ?? -1]?.meta.outline !== undefined);
+  const isPreserved = (b: Building): boolean => {
+    const source = (b.meta.pieceOf ?? b.meta.towerOf ?? b.id).replace(/(?:-(?:tower|[sb]\d+))+$/, "");
+    return !!(opts.preserveExisting?.has(b.id) || opts.preserveExisting?.has(source));
+  };
   for (const e of graph.edges) {
     if (corridorRadius(e) === 0) continue;
     const d = dateOf.get(e.cnn);
@@ -429,7 +436,7 @@ export function clearCorridors(
     }
     for (const [i, n] of inside) {
       const b = list[i];
-      if (!b || n < STALE_INSIDE_M || !isNewer(d, b) || isAdded(b)) continue;
+      if (!b || n < STALE_INSIDE_M || !isNewer(d, b) || isAdded(b) || isPreserved(b)) continue;
       // A podium's tower goes with it; a tower alone takes its podium (both are the old building).
       if (b.meta.towerOf !== undefined) {
         const pi = index.get(b.meta.towerOf);

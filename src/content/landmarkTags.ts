@@ -57,7 +57,11 @@ for (const l of LANDMARK_TAGS.landmarks) for (const r of l.records) BY_RECORD.se
  * (pieceOf, a terrace strip or span piece) is listed. Null for every other record.
  */
 export function landmarkTagFor(record: { id: string; meta?: { towerOf?: string; pieceOf?: string } | null }, file: LandmarkTagsFile = LANDMARK_TAGS): LandmarkTag | null {
-  const keys = [record.id, record.meta?.towerOf, record.meta?.pieceOf].filter((k): k is string => typeof k === "string");
+  // Storefront anchors carry an id but no collider metadata. A source footprint may have
+  // been replaced entirely by terrace strips or spans; its encoded parent still owns the
+  // landmark policy, including whether its shops are allowed.
+  const sourceId = record.id.replace(/(?:-(?:tower|[sb]\d+))+$/, "");
+  const keys = [record.id, record.meta?.towerOf, record.meta?.pieceOf, sourceId].filter((k): k is string => typeof k === "string");
   if (file === LANDMARK_TAGS) {
     for (const k of keys) {
       const t = BY_RECORD.get(k);

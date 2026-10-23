@@ -151,11 +151,12 @@ describe("world gate pinned street sample (tests/helpers/world-gate/fixtures/dri
   });
 });
 
-describe("world gate cover suite's copy of the renderer's ground tint", () => {
-  it("matches src/render/scene.ts now, and fails loudly when the wiring changes", () => {
+describe("world gate cover suite's rendered ground contract", () => {
+  it("measures baked vertex colours and refuses runtime tint or material changes", () => {
     expect(() => checkTintWiring()).not.toThrow();
-    const scene = readFileSync(join(ROOT, "src/render/scene.ts"), "utf8");
-    expect(() => checkTintWiring(scene.replace(/tintGround:[^\n]*\n/, "\n"))).toThrow(/tintGround/);
-    expect(() => checkTintWiring(scene.replace(/parkShapes\(world\.districts/, "parkShapes(other"))).toThrow(/parkShapes/);
+    const streamer = readFileSync(join(ROOT, "src/render/tile-streamer.ts"), "utf8");
+    const materials = readFileSync(join(ROOT, "src/render/materials.ts"), "utf8");
+    expect(() => checkTintWiring(streamer + "\ntintGround(geometry);", materials)).toThrow(/runtime ground tint/);
+    expect(() => checkTintWiring(streamer, materials.replace("const ground = new THREE.MeshStandardMaterial({ vertexColors: true,", "const ground = new THREE.MeshStandardMaterial({ vertexColors: false,"))).toThrow(/vertexColors/);
   });
 });
