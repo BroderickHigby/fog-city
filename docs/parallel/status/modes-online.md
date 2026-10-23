@@ -102,3 +102,8 @@ Draft PR title: `Modes: connect local Bot Sweep and Clean Streets to physical ga
 
 Draft PR body: Add bounded local arenas, ordinary simulated robot objectives and a perception-driven rival founder. Preserve the saved city, require usable authored refills, return stable settlement IDs and route respawns through core clearance. Fix rival flower input and update-interruption attribution. TypeScript and 111 focused checks pass; real-SF actor admission and interleaved replay pass. Final integrated UI validation is tracked by the UI lane.
 
+## Service admission repair intake
+
+The local-playable branch includes `5e8bf5b` as `e7f08eb`: full service-vehicle hull checks, player foot/car blockers, shared pending-spawn clearance and safe deferred retries. This fixes the second Ferry bus overlap found by the canonical Hot Desk probe without bringing in later threat dispatch, flight or Tidy features.
+
+Validation after intake: TypeScript and **8 files / 39 tests** pass, covering service/transit admission, physical van/bus behavior, local playable matches, session isolation, bounded arenas and Crowd rules. Existing real-SF roster and UI validation above remains separate evidence.
