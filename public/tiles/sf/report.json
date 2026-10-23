@@ -97,7 +97,6 @@
       "201006.0003362-tower"
     ],
     "staleDropped": [
-      "201006.0000003",
       "201006.0000044",
       "201006.0000113",
       "201006.0000173",
@@ -467,6 +466,7 @@
       "c2900000",
       "c2934000",
       "c2949000",
+      "c2951000",
       "c2962000",
       "c2972000",
       "c2979000",
@@ -830,7 +830,7 @@
       "201006.9000173-b2",
       "201006.9000174-b1"
     ],
-    "cut": 1427,
+    "cut": 1428,
     "stairsDropped": [
       "c10939000"
     ],
@@ -1136,6 +1136,7 @@
     "maxLiftM": 47.1
   },
   "overridesApplied": [
+    "201006.0000003",
     "201006.0000060",
     "201006.0000548",
     "201006.0001563",
@@ -1448,11 +1449,11 @@
     "largestComponentNodes": 9313
   },
   "storefronts": {
-    "raw": 13265,
-    "notStorefrontNaics": 1604,
-    "noBuilding": 159,
-    "noFrontage": 1044,
-    "kept": 10458
+    "raw": 13277,
+    "notStorefrontNaics": 1606,
+    "noBuilding": 147,
+    "noFrontage": 1046,
+    "kept": 10478
   },
   "sidewalks": {
     "nodes": 33402,
@@ -1485,7 +1486,7 @@
     "signals": 1301,
     "streetCleaning": 37476,
     "parking": 7773,
-    "storefronts": 10458
+    "storefronts": 10478
   },
   "outside": {
     "alcatraz": [
@@ -1564,16 +1565,16 @@
     "lakeShoreM": 23790
   },
   "colliderPack": {
-    "bytes": 14745460,
+    "bytes": 14745736,
     "tiles": 581,
-    "buildings": 193197
+    "buildings": 193199
   },
   "far": {
     "cells": 26,
-    "triangles": 588425,
+    "triangles": 588445,
     "terrainTriangles": 104480,
-    "records": 196164,
-    "bytes": 7761384,
+    "records": 196166,
+    "bytes": 7761648,
     "bounds": [
       -11000,
       -7500,
