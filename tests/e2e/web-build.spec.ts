@@ -207,14 +207,41 @@ test.describe("static web build, served from a sub-path", () => {
     const { requests } = site!;
     // Drive: 10 s of full throttle from the spawn, stepped deterministically.
     expect(await drive(page), "metres driven in 10 s").toBeGreaterThan(30);
-    await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.setCameraMode!("chase"));
+    await page.evaluate(() => {
+      const h = (window as unknown as FogWindow).__fogcity!;
+      h.setCameraMode!("first-person");
+      h.setCameraMode!("chase");
+    });
     await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.tilesSettled!() === true, null, { timeout: 180_000 });
     await frames(page, 3);
     const r = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!());
     expect(r.tilesLoaded, "tiles loaded from the packs").toBeGreaterThan(10);
     expect(r.tilesFailed).toBe(0);
-    expect(r.farCells, "far cells loaded").toBe(r.farCellsTotal);
     expect(r.farCellsTotal).toBeGreaterThan(20);
+    if (r.farBudget?.radius !== null && r.farBudget?.radius !== undefined) {
+      const car = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.car);
+      const far = (JSON.parse(readFileSync(join(PUBLIC, "tiles/sf/manifest.json"), "utf8")) as {
+        far: Array<{ bbox?: [number, number, number, number] }>;
+      }).far;
+      expect(r.farCellsTotal).toBe(far.length);
+      // The reset chase camera is at most 10.9 m from the car. Every cell in
+      // this inner region must therefore be loaded for the actual camera.
+      const radius = r.farBudget.radius - 11;
+      expect(radius).toBeGreaterThan(0);
+      const wanted = far.filter(({ bbox: b }) => {
+        if (!b) return true;
+        const dx = Math.max(Math.min(b[0], b[2]) - car.x, car.x - Math.max(b[0], b[2]), 0);
+        const dz = Math.max(Math.min(b[1], b[3]) - car.z, car.z - Math.max(b[1], b[3]), 0);
+        return Math.hypot(dx, dz) <= radius;
+      }).length;
+      expect(wanted, "cells required around the settled chase camera").toBeGreaterThan(0);
+      expect(r.farBudget, "the current region has no outstanding or failed loads").toMatchObject({ queued: 0, loading: 0, failed: 0 });
+      expect(r.farCells, "every cell in the required camera region is loaded").toBeGreaterThanOrEqual(Math.min(24, wanted));
+      expect(r.farCells, "the software skyline cache stays inside its cell budget").toBeLessThanOrEqual(24);
+    } else {
+      expect(r.farCells, "native GPUs retain the full skyline").toBe(r.farCellsTotal);
+    }
+    expect(r.farCellsDrawn ?? 0, "far skyline cells are actually drawn").toBeGreaterThan(0);
     expect(r.playerCarsFromFile, "the player car model came from its packed file").toBe(1);
     expect(requests.filter((r) => r.path.includes("/packs/tiles-")).length, "tile packs fetched").toBeGreaterThan(1);
     const png = await page.screenshot({ path: join(ROOT, "test-results", "web-build", "hosted-chase.png") });
