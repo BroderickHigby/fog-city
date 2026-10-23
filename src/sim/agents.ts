@@ -82,7 +82,7 @@ import {
 } from "./roads.ts";
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
-import { cellKey, circleBlocked, groundHeight, type World } from "./world.ts";
+import { cellKey, circleBlocked, roadSurfaceHeight, type World } from "./world.ts";
 
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
@@ -912,22 +912,30 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   return p;
 }
 
-/** Pitch of a robotaxi body from the ground under its axles (+ = nose up). */
-function bodyPitch(world: World, x: number, z: number, heading: number): number {
+/**
+ * Pitch of a robotaxi body from the road surface of its edge under its axles (+ = nose up):
+ * the ground, or the edge's deck or tunnel floor (world.ts roadSurfaceHeight).
+ */
+function bodyPitch(world: World, edge: string, x: number, z: number, heading: number): number {
   const a = AGENT_SPEC.robotaxi.halfLength * 0.6;
   const hx = dsin(heading) * a;
   const hz = -dcos(heading) * a;
-  return datan((groundHeight(world, x + hx, z + hz) - groundHeight(world, x - hx, z - hz)) / (2 * a)) + 0;
+  return datan((roadSurfaceHeight(world, edge, x + hx, z + hz) - roadSurfaceHeight(world, edge, x - hx, z - hz)) / (2 * a)) + 0;
 }
 
-function bodyBlocked(world: World, kind: AgentKind, x: number, z: number, heading: number): boolean {
+/** Does the agent's body touch a building, at the road surface of its edge (so it passes under a span over a bridge, or through a bore under the houses)? */
+function bodyBlocked(world: World, kind: AgentKind, edge: string, x: number, z: number, heading: number): boolean {
   const spec = AGENT_SPEC[kind];
-  if (!spec.road) return circleBlocked(world, x, z, spec.radius * 0.8);
+  if (!spec.road) return circleBlocked(world, x, z, spec.radius * 0.8, roadSurfaceHeight(world, edge, x, z));
   const o = spec.halfLength - spec.halfWidth;
   const hx = dsin(heading);
   const hz = -dcos(heading);
   const r = spec.halfWidth * 0.8;
-  return circleBlocked(world, x + hx * o, z + hz * o, r) || circleBlocked(world, x - hx * o, z - hz * o, r);
+  const ax = x + hx * o;
+  const az = z + hz * o;
+  const bx = x - hx * o;
+  const bz = z - hz * o;
+  return circleBlocked(world, ax, az, r, roadSurfaceHeight(world, edge, ax, az)) || circleBlocked(world, bx, bz, r, roadSurfaceHeight(world, edge, bx, bz));
 }
 
 /** Advance one agent by dt seconds (DT, or LOD_STRIDE * DT when far). null = remove it. */
@@ -1115,7 +1123,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   let wait = blocked ? a.wait + ticks : spec.road || speed > 0.6 * cruise ? 0 : Math.max(0, a.wait - ticks);
   // On a safe lane (roads.ts LANE_SAFE_M) a robotaxi cannot touch a building: skip the check.
   const safe = spec.road && conn === null && curEdge.laneSafe[dirIndex(dir)][lane] === true;
-  if (!safe && bodyBlocked(c.world, a.kind, x, z, heading)) {
+  if (!safe && bodyBlocked(c.world, a.kind, edge, x, z, heading)) {
     // Refuse the move: stay put and wait.
     wait = a.wait + ticks;
     if (spec.road && wait > ROBOTAXI_STUCK_TICKS) return null;
@@ -1138,10 +1146,10 @@ function stepAgent(c: Ctx, a: AgentState, dt: number): AgentState | null {
   return {
     ...a,
     x,
-    y: groundHeight(c.world, x, z),
+    y: roadSurfaceHeight(c.world, edge, x, z),
     z,
     heading,
-    pitch: spec.road ? bodyPitch(c.world, x, z, heading) : 0,
+    pitch: spec.road ? bodyPitch(c.world, edge, x, z, heading) : 0,
     speed,
     edge,
     dir,
@@ -1279,7 +1287,7 @@ function trySpawn(
     const s = clamp(e.center.len > 0 ? (along * path.len) / e.center.len : 0, 0, path.len);
     const q = pathPoint(path, s);
     const heading = datan2(q.tx, -q.tz);
-    if (bodyBlocked(world, kind, q.x, q.z, heading)) continue;
+    if (bodyBlocked(world, kind, e.id, q.x, q.z, heading)) continue;
     if (minDist2(bodies, q.x, q.z) < minPlayerDist * minPlayerDist) continue;
     let clash = false;
     for (const o of others) {
@@ -1300,10 +1308,10 @@ function trySpawn(
       id,
       kind,
       x: q.x,
-      y: groundHeight(world, q.x, q.z),
+      y: roadSurfaceHeight(world, e.id, q.x, q.z),
       z: q.z,
       heading,
-      pitch: spec.road ? bodyPitch(world, q.x, q.z, heading) : 0,
+      pitch: spec.road ? bodyPitch(world, e.id, q.x, q.z, heading) : 0,
       speed: 0,
       vmax,
       edge: e.id,

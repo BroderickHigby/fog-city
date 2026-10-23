@@ -36,6 +36,12 @@ export interface RoadsFile {
     gradeSeparated?: boolean;
     /** Crosses open water for 10 m or more (its points are the water under the deck). */
     bridge?: boolean;
+    /** Part of it is carried on a deck (the tile colliders' decks hold its surface). */
+    deck?: boolean;
+    /** Part of it runs in a tunnel (the tile colliders' tunnels hold its floor and ceiling). */
+    tunnel?: boolean;
+    /** A public stairway (always pedestrian): walked, never driven (boundary.ts buildStairBarriers). */
+    stairs?: boolean;
     points: ReadonlyArray<readonly [number, number] | readonly number[]>;
   }>;
 }
@@ -459,16 +465,19 @@ export function startNode(e: RoadEdgeInfo, dir: Dir): number {
 
 /** Building queries the graph builder needs (world.ts supplies them). */
 export interface BuildingQuery {
-  /** Does a circle of radius r at (x, z) touch any building? */
-  blocked: (x: number, z: number, r: number) => boolean;
+  /**
+   * Does a circle of radius r at (x, z) touch any building? `edge` is the roads.json id of the
+   * edge being checked, so a deck or tunnel edge is checked at its own surface (world.ts).
+   */
+  blocked: (x: number, z: number, r: number, edge?: string) => boolean;
 }
 
-function pathClear(p: Path, r: number, q: BuildingQuery | null): boolean {
+function pathClear(p: Path, r: number, q: BuildingQuery | null, edge: string): boolean {
   if (!q) return true;
   const n = Math.max(1, Math.ceil(p.len / 3));
   for (let i = 0; i <= n; i++) {
     const pt = pathPoint(p, (p.len * i) / n);
-    if (q.blocked(pt.x, pt.z, r)) return false;
+    if (q.blocked(pt.x, pt.z, r, edge)) return false;
   }
   return true;
 }
@@ -477,15 +486,15 @@ function pathClear(p: Path, r: number, q: BuildingQuery | null): boolean {
  * Two clearances of a lane at once, sampled every LANE_SAFE_STEP_M: usable (no building within
  * `usable` of any sample) and safe (none within `safe`). Stops at the first unusable sample.
  */
-function laneFlags(p: Path, usable: number, safe: number, q: BuildingQuery | null): { clear: boolean; safe: boolean } {
+function laneFlags(p: Path, usable: number, safe: number, q: BuildingQuery | null, edge: string): { clear: boolean; safe: boolean } {
   if (!q) return { clear: true, safe: true };
   const n = Math.max(1, Math.ceil(p.len / LANE_SAFE_STEP_M));
   let isSafe = true;
   for (let i = 0; i <= n; i++) {
     const pt = pathPoint(p, (p.len * i) / n);
-    if (isSafe && !q.blocked(pt.x, pt.z, safe)) continue;
+    if (isSafe && !q.blocked(pt.x, pt.z, safe, edge)) continue;
     isSafe = false;
-    if (q.blocked(pt.x, pt.z, usable)) return { clear: false, safe: false };
+    if (q.blocked(pt.x, pt.z, usable, edge)) return { clear: false, safe: false };
   }
   return { clear: true, safe: isSafe };
 }
@@ -670,7 +679,7 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
         const full = offsetPath(xs, zs, off);
         const lp = subPath(full, laneTrim(s0n, off), full.len - laneTrim(e0n, off));
         info.lanePaths[di].push(lp);
-        const flags = drivable ? laneFlags(lp, LANE_CLEARANCE_M, LANE_SAFE_M + LANE_SAFE_STEP_M / 2, blocked) : null;
+        const flags = drivable ? laneFlags(lp, LANE_CLEARANCE_M, LANE_SAFE_M + LANE_SAFE_STEP_M / 2, blocked, raw.id) : null;
         info.laneClear[di].push(flags !== null && flags.clear);
         info.laneSafe[di].push(flags !== null && flags.safe);
       }
@@ -688,7 +697,7 @@ export function buildRoadGraph(file: RoadsFile, blocked: BuildingQuery | null = 
           const full = offsetPath(xs, zs, off);
           const wp = subPath(full, trimFor(startNode(info, dir), off), full.len - trimFor(endNode(info, dir), off));
           both.push(wp);
-          clear = clear && pathClear(wp, WALK_CLEARANCE_M, blocked);
+          clear = clear && pathClear(wp, WALK_CLEARANCE_M, blocked, raw.id);
         }
         if (clear || k === 0) {
           info.walkPaths[0][si] = both[0]!;

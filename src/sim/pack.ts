@@ -12,7 +12,7 @@
 // Pure: a DataView over the caller's bytes, no I/O. Decoding the whole city (583 tiles,
 // 177,921 buildings) takes about 0.2 s in Node.
 
-import type { BuildingCollider, Heightfield, TileCollider } from "./world.ts";
+import type { BuildingCollider, Deck, Heightfield, Movable, RibbonVertex, TileCollider, Tunnel } from "./world.ts";
 
 export const FCWC_MAGIC = "FCWC";
 export const FCWC_VERSION = 1;
@@ -21,35 +21,14 @@ const BUILDING_RECORD_BYTES = 20;
 /** A vertex delta of this value is followed by an absolute (int32 x, int32 z) pair. */
 const ESCAPE = -32768;
 
-/** [x, y, z, w]: ribbon centreline position, road-surface height and full width, metres. */
-export type RibbonVertex = [number, number, number, number];
+/** A road deck above the ground (schemas/tile-collider.schema.json decks; world.ts Deck). */
+export type PackedDeck = Deck;
 
-/** A road deck above the ground (schemas/tile-collider.schema.json decks). */
-export interface PackedDeck {
-  id: string;
-  kind: "freeway" | "ramp" | "bridge" | "overpass" | "pier";
-  edge?: string;
-  layer: number;
-  path: RibbonVertex[];
-}
+/** A road below the ground with a ceiling clearanceM above it (tunnels; world.ts Tunnel). */
+export type PackedTunnel = Tunnel;
 
-/** A road below the ground with a ceiling clearanceM above it (tunnels). */
-export interface PackedTunnel {
-  id: string;
-  kind: "tunnel" | "underpass";
-  edge?: string;
-  clearanceM: number;
-  path: RibbonVertex[];
-}
-
-/** A deck piece that lifts about a hinge line (movable). */
-export interface PackedMovable {
-  id: string;
-  kind: "bascule";
-  deck: string;
-  hinge: [[number, number], [number, number]];
-  openRad: number;
-}
+/** A deck piece that lifts about a hinge line (movable; world.ts Movable). */
+export type PackedMovable = Movable;
 
 /** A building with the optional underside of a structure spanning a street, path or tunnel bore. */
 export type PackedBuilding = BuildingCollider & { underY?: number };
