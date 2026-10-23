@@ -1050,6 +1050,15 @@ function segmentsMeet(ax: number, az: number, bx: number, bz: number, cx: number
  * except that a structure whose underside clears both ends' ground by UNDER_CLEARANCE_M is seen under.
  */
 export function segmentBlocked(world: World, ax: number, az: number, bx: number, bz: number): boolean {
+  return segmentIntersectsBuildings(world, ax, az, bx, bz);
+}
+
+/** Does a swept line at this body's collision band meet a solid building? */
+export function segmentBlockedBand(world: World, ax: number, az: number, bx: number, bz: number, bottom: number, top: number): boolean {
+  return segmentIntersectsBuildings(world, ax, az, bx, bz, bottom, top);
+}
+
+function segmentIntersectsBuildings(world: World, ax: number, az: number, bx: number, bz: number, bottom?: number, top?: number): boolean {
   const minX = ax < bx ? ax : bx;
   const maxX = ax > bx ? ax : bx;
   const minZ = az < bz ? az : bz;
@@ -1064,8 +1073,12 @@ export function segmentBlocked(world: World, ax: number, az: number, bx: number,
         const k = i * 4;
         if (maxX < bb[k]! || minX > bb[k + 2]! || maxZ < bb[k + 1]! || minZ > bb[k + 3]!) continue;
         const b = list[i]!;
-        if (b.topY <= b.baseY) continue;
-        if (b.underY !== undefined && b.underY - Math.max(meshGroundHeight(world, ax, az), meshGroundHeight(world, bx, bz)) >= UNDER_CLEARANCE_M) continue;
+        if (bottom !== undefined && top !== undefined) {
+          if (!blocksBand(b, bottom, top)) continue;
+        } else {
+          if (b.topY <= b.baseY) continue;
+          if (b.underY !== undefined && b.underY - Math.max(meshGroundHeight(world, ax, az), meshGroundHeight(world, bx, bz)) >= UNDER_CLEARANCE_M) continue;
+        }
         if (pointInPolygon(ax, az, b.footprint) || pointInPolygon(bx, bz, b.footprint)) return true;
         const poly = b.footprint;
         for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
