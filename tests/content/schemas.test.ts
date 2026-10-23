@@ -56,6 +56,7 @@ const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
   [/^content\/startup-kits\.json$/, "startup-kits"],
   [/^content\/house-palettes\.json$/, "house-palettes"],
   [/^content\/landmark-tags\.json$/, "landmark-tags"],
+  [/^content\/ui-copy\.json$/, "ui-copy"],
 ];
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
