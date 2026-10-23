@@ -46,6 +46,8 @@ export interface RenderInfo {
   farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /** Pipeline-placed street detail near the camera: junction patches, crosswalks, stop bars. */
+  streetDetail?: { layers: string[]; junctions: number; cellsBuilt: number; patches: number; crosswalks: number; stopBars: number };
 }
 
 export interface LandmarkInfo {

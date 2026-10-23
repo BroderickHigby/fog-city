@@ -29,6 +29,7 @@ import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
+import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -107,6 +108,8 @@ export interface RenderInfo {
   cameraFar: number;
   /** CPU-renderer fallback diagnostics; native GPUs have no radius limit. */
   farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
+  /** Pipeline-placed street detail near the camera (street-detail.ts). */
+  streetDetail?: StreetDetailInfo;
 }
 
 const SHADOW_HALF = 96;
@@ -129,6 +132,7 @@ export class SceneRenderer {
   readonly agents: AgentLayer;
   readonly landmarks: LandmarkLayer;
   readonly far: FarLayer;
+  readonly streetDetail: StreetDetailLayer;
   readonly lights = new NightLights();
   private readonly container: HTMLElement;
   private readonly materials: SharedMaterials;
@@ -258,6 +262,14 @@ export class SceneRenderer {
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
+    this.streetDetail = new StreetDetailLayer({
+      base: world.base,
+      json: assets ? (path) => assets.json(path) : fetchJson,
+      ground: world.ground,
+      materials: this.materials,
+    });
+    this.scene.add(this.streetDetail.group);
+    void this.streetDetail.load();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
     this.actors = new Actors(this.registry, this.lights, this.shadows,
       available && !available.has(PLAYER_BODY_FILE) ? undefined : async (path) => {
@@ -371,7 +383,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled() && this.streetDetail.settled();
   }
 
   resize(): void {
@@ -453,6 +465,7 @@ export class SceneRenderer {
     this.streamer.update(cam.x, cam.z, 4);
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
+    this.streetDetail.update(cam.x, cam.z);
     this.landmarks.update(minuteOfDay);
   }
 
@@ -518,6 +531,7 @@ export class SceneRenderer {
     out.farSeamEdges = f.seamEdges;
     out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
     out.cameraFar = this.camera.far;
+    out.streetDetail = this.streetDetail.info();
     return out;
   }
 
@@ -533,6 +547,7 @@ export class SceneRenderer {
     this.foliage.dispose();
     this.quality?.dispose();
     this.far.dispose();
+    this.streetDetail.dispose();
     this.actors.dispose();
     this.agents.dispose();
     this.sky.dispose();
@@ -581,6 +596,12 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
 
 /** An ArrayBuffer holding exactly these bytes (GLTFLoader.parse takes a whole buffer). */
+async function fetchJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
 function bufferOf(bytes: Uint8Array): ArrayBuffer {
   if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength && bytes.buffer instanceof ArrayBuffer) return bytes.buffer;
   return bytes.slice().buffer as ArrayBuffer;

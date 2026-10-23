@@ -636,6 +636,70 @@ components. The largest holds 31,770 nodes: **99.4 % of the mainland's 31,955** 
 Island and Yerba Buena Island are a walk network of their own, since the Bay Bridge is a
 freeway), and spans the city.
 
+## Street detail (`street-detail.json`, render-only)
+
+`pipeline/build-street-detail.ts` places street-level detail from the committed road graph
+and signals plus DataSF datasets that the world build does not download. Its outputs are
+render-only (no colliders, no sim change) and live beside the world's other layers:
+`street-detail.json` is the index the renderer reads (`src/render/street-detail.ts`), and it
+names each layer file. A world or build without the index simply has no street detail.
+
+```sh
+node pipeline/build-street-detail.ts --world sf            # download (cached) + write
+node pipeline/build-street-detail.ts --world sf --offline  # from pipeline/.cache only
+node pipeline/build-street-detail.ts --world sf --check    # exit 1 unless the files are byte-identical
+node pipeline/build-street-detail.ts --world sf --refresh  # re-download; move the pinned snapshot
+```
+
+**Snapshot pinning.** Every DataSF response is cached like the world build's
+(`pipeline/.cache/http/`) and its SHA-256 and size are recorded in
+`pipeline/street-detail-snapshot.json` with the snapshot date. A rebuild whose download differs
+from the pinned hashes fails; moving the snapshot takes `--refresh` (a deliberate PR). The
+world's own inputs (`roads.json`, `signals.json`, the collider pack's ground) are read from the
+committed files, so a world rebuild is followed by a street-detail rebuild.
+
+| Data | Source and licence (metadata read 2026-10-23) | Fields used |
+|---|---|---|
+| Continental crosswalks | DataSF *Continental Crosswalks*, [`g9zy-srvv`](https://data.sfgov.org/resource/g9zy-srvv.json), SFMTA, PDDL 1.0. Intersection-level: nodes with at least one continental crosswalk. | `cnn`, `continental` |
+| Stop signs | DataSF *Stop Signs*, [`4542-gpa3`](https://data.sfgov.org/resource/4542-gpa3.json), SFMTA, PDDL 1.0. One row per sign: the node (`cnn`), the street it controls and the traffic direction it faces. | `cnn`, `street`, `x_street`, `st_facing`, `direction` |
+| Traffic signals | `signals.json` (SFMTA `ybh5-27n2`, see Gameplay data) | `node`, `kind` |
+
+### Junction paint (`street-markings.json`)
+
+`pipeline/lib/street-markings.ts`. One record per road node where three or more at-grade
+drivable legs meet (freeway and ramp nodes are skipped): 7,439 junctions in sf.
+
+* **Why a patch.** The glb road ribbons run every edge up to its end node and the road
+  shader paints a dashed centre line along each ribbon, so at a junction every leg's ribbon
+  overlapped the others and painted its dashes across the box: two crossing dash lines read
+  as a sideways X (a chevron at a T), and the square ribbon ends left notched corners. Each
+  junction now gets one asphalt **patch** (`ring`) drawn just above the ribbons with the same
+  road material: every leg's kerbs out to its mouth, joined at each corner by a 3.5 m kerb
+  return. It covers every overlap of the legs' ribbons (tested on Chestnut St).
+* **Exits.** Each leg is measured along its own centreline. Its exit is the last
+  cross-section (every 0.25 m, across the full width) that is still inside another leg's
+  ribbon; a carriageway running alongside (within 15°, the other half of a divided street)
+  does not count. Paint starts 0.6 m beyond the exit and never reaches past 45 % of the leg.
+  Near the junction the leg is modelled as a straight line along the centreline's tangent at
+  its paint (`ox, oz, ux, uz`), so crosswalks stay on the street where a divided boulevard's
+  carriageway jogs out of a median node (Van Ness Ave). Where that line would still clip a
+  cross street, the paint steps out 0.5 m at a time until it is clear.
+* **Crosswalks**, 3 m deep, square across the leg: **continental** (bars 0.6 m wide every
+  1.2 m, running with the traffic, 0.4 m off the kerbs) at every leg of a node listed in
+  Continental Crosswalks; else **standard** (two 0.3 m transverse lines) where a signal
+  controls the node or a stop sign controls that approach; else unmarked. The continental list
+  is per intersection, so every leg of a listed node is painted: an inference, since the
+  dataset does not say which legs.
+* **Stop bars** (limit lines), 0.45 m, 1.2 m behind the crosswalk across the approach lanes
+  (the near half of a two-way street, the whole width of a one-way into the node) wherever a
+  signal controls the node or a stop sign faces that approach. A stop-sign row is matched to
+  the leg whose inbound traffic heading is nearest `st_facing` (within 75°), preferring the leg
+  named `street`: 10,607 of 11,162 rows match.
+* Ids: a junction's id is its road node id (`n<CNN>`), stable across rebuilds; a crosswalk or
+  stop bar is identified by junction id + edge id.
+* sf result (snapshot 2026-10-23): 26,814 continental and 13 standard crosswalks, 14,225 stop
+  bars; 4.4 MB.
+
 ## Gameplay data (the wave-2 spike)
 
 Each dataset the roadmap asks for, its DataSF id and licence (read from the dataset's

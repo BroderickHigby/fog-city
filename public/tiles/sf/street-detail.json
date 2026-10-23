@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "world": "sf",
+  "description": "Street-detail layers (render-only): see docs/data-sources.md, Street detail.",
+  "snapshotDate": "2026-10-23",
+  "attribution": [
+    "Junction paint: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2).",
+    "Continental Crosswalks: SFMTA via DataSF (g9zy-srvv); Stop Signs: SFMTA via DataSF (4542-gpa3), ODC PDDL 1.0."
+  ],
+  "layers": {
+    "markings": "street-markings.json"
+  },
+  "counts": {
+    "junctions": 7439,
+    "continentalCrosswalks": 26814,
+    "standardCrosswalks": 13,
+    "stopBars": 14225
+  }
+}

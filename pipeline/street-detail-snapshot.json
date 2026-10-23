@@ -1,0 +1,16 @@
+{
+ "$comment": "SHA-256 and size of every DataSF response the street-detail layers are built from (pipeline/build-street-detail.ts). A rebuild whose download differs fails unless run with --refresh.",
+ "snapshotDate": "2026-10-23",
+ "entries": [
+  {
+   "url": "https://data.sfgov.org/resource/g9zy-srvv.json?%24where=cnn%20IS%20NOT%20NULL&%24select=cnn%2Ccontinental&%24order=cnn&%24limit=50000&%24offset=0",
+   "sha256": "96ebcc62313d01d3f5afdd18813842918016800a510bcfdbee4ab05957b22457",
+   "bytes": 440102
+  },
+  {
+   "url": "https://data.sfgov.org/resource/4542-gpa3.json?%24where=cnn%20IS%20NOT%20NULL&%24select=objectid%2Ccnn%2Cstreet%2Cx_street%2Cst_facing%2Cdirection&%24order=objectid&%24limit=50000&%24offset=0",
+   "sha256": "80894c88aa54f59f1e1834439991f9a3f1af8f0016c257b975dc2f620bd910ed",
+   "bytes": 1217660
+  }
+ ]
+}
