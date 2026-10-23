@@ -1166,7 +1166,9 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - **Pre-release legal checklist** (does not block private builds): R-Evolution (the real
   sculpture, kept by the user's decision of 2026-10-20; a public release needs the artist's
   permission), Golden Gate Bridge and Transamerica Pyramid
-  (owners have asserted trademark rights over their images), Sutro Tower, Pier 39 (a privately
+  (owners have asserted trademark rights over their images), the tallest tower at 415 Mission St
+  (its name is a corporate brand: the game calls it by its address id `415-mission`, and its
+  night crown shows plain light or invented content, never the real company's name or logo), Sutro Tower, Pier 39 (a privately
   run attraction that uses its name as a brand; in-game text says "the sea lion docks"), the Muni
   name and livery, any named venue.
 - **Shooter terms.** Docs may describe inspiration ("like GTA", "Modern Warfare-style"), but no

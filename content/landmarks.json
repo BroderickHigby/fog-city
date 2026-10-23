@@ -94,7 +94,19 @@
         "201006.0000687",
         "201006.0000687-tower"
       ],
-      "source": "Interim shape: tapered four-sided tower with wings and spire (260 m), no window grid. Pre-release legal checklist (design.md). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+      "source": "Interim shape: tapered four-sided tower with wings and spire (260 m), punched window rows on the sloping faces. Pre-release legal checklist (design.md). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
+    },
+    {
+      "id": "415-mission",
+      "model": "models/415-mission.glb",
+      "lat": 37.7897923,
+      "lon": -122.3969124,
+      "headingDeg": 315.04,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000548"
+      ],
+      "source": "Interim shape: the 326 m tower on its record, a rounded-square glass shaft between pale fins, tapering, an open crown of fins over a core lit with plain light (no logo, no lettering). No brand name in ids, files or text. Pre-release legal checklist (design.md). Site: assets/blender/data/landmark-sites.json; see assets/blender/README.md."
     },
     {
       "id": "coit-tower",

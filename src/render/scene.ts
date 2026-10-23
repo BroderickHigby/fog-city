@@ -31,7 +31,9 @@ import { chooseTier, featuresFor, GfxGovernor, probeCaps, type GfxChoice, type G
 import { PostChain } from "./post.ts";
 import { CrowdRig } from "./crowd.ts";
 import { PlayerBodies } from "./player-body.ts";
-import { buildShowcase, kerbAt, KerbLift, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import { StreetTrees, TreeFallbacks } from "./trees.ts";
+import { buildShowcase, inShowcase, kerbAt, KerbLift, MASK_HALF_M, SHOWCASE, type Showcase, type ShowcaseStats } from "./showcase.ts";
+import type { Spot } from "./roads.ts";
 import { sidewalkBandTriangles, sidewalksByTile, type SidewalkGraph } from "./sidewalks.ts";
 
 /** How far from the showcase's centre the camera may be for the Bay to mirror the city. */
@@ -130,6 +132,8 @@ export interface RenderInfo {
     showcase: ShowcaseStats | null;
     /** The animated crowd and the skinned player body are in (else the placeholders draw). */
     characters: { crowd: boolean; player: boolean };
+    /** Street trees the showcase draws with ez-tree (trees.ts). */
+    trees: number;
   };
 }
 
@@ -291,7 +295,10 @@ export class SceneRenderer {
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
-      onReady: (g) => this.prepareShadows(g),
+      onReady: (g) => {
+        this.prepareShadows(g);
+        if (this.features.showcase) this.takeFoliage(g);
+      },
       kerbAt: this.features.showcase ? kerbAt : undefined,
       onGroundMaterial: (gm) => {
         if (!this.features.detail) return;
@@ -316,6 +323,15 @@ export class SceneRenderer {
     this.agents = new AgentLayer(this.registry, {}, opts.shadows);
     this.scene.add(this.agents.group);
     if (this.features.characters) this.loadCharacters(world.assets);
+    if (this.features.showcase) {
+      void StreetTrees.load(this.shadows)
+        .then((t) => {
+          this.trees = t;
+          t.add(this.treesWaiting.splice(0));
+          this.scene.add(t.group);
+        })
+        .catch((err) => console.warn("street trees: tile props keep their trees:", err));
+    }
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -350,6 +366,22 @@ export class SceneRenderer {
     const lift = new KerbLift(sidewalkBandTriangles(lines, this.roadsById));
     this.agents.setLift(lift.at);
     this.actors.setLift(lift.at);
+  }
+
+  /** The showcase's street trees (trees.ts), once generated; spots that arrive before wait. */
+  private trees: StreetTrees | null = null;
+  private readonly treesWaiting: Array<Spot & { y: number }> = [];
+  private readonly treeFallbacks = new TreeFallbacks();
+
+  /** Keep each original tree until a generated replacement is actually drawn. */
+  private takeFoliage(group: THREE.Group): void {
+    const mine = this.treeFallbacks.add(group, inShowcase).map(p => ({
+      ...p, heading: 0,
+      v: (Math.abs(Math.sin(p.x * 12.9898 + p.z * 78.233)) * 43758.5453) % 1,
+      y: this.drawnGround(p.x, p.z) + kerbAt(p.x, p.z),
+    }));
+    if (this.trees) this.trees.add(mine);
+    else this.treesWaiting.push(...mine);
   }
 
   /** The high tier's people: the animated crowd and the skinned player body; each keeps the placeholder if its files fail. */
@@ -612,6 +644,7 @@ export class SceneRenderer {
     this.sun.position.set(sx + this.sunDir.x * 800, this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    if (this.trees?.update(cam.x, cam.z)) this.treeFallbacks.update((x, z) => this.trees!.has(x, z));
     this.landmarks.update(minuteOfDay);
   }
 
@@ -724,6 +757,7 @@ export class SceneRenderer {
       dropped: [...this.governor.dropped],
       showcase: this.showcase?.stats ?? null,
       characters: { ...this.charactersOn },
+      trees: this.trees?.count ?? 0,
     };
     return out;
   }
@@ -778,7 +812,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   farCellsDrawn: 0,
   farTriangles: 0,
   cameraFar: 0,
-  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false } },
+  gfx: { tier: "default" as const, requested: "auto" as const, reason: "", post: false, reflections: false, detail: false, detailSets: 0, dropped: [], showcase: null, characters: { crowd: false, player: false }, trees: 0 },
 });
 
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });

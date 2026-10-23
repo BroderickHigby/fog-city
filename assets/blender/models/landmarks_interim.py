@@ -1,6 +1,8 @@
 """Interim shapes for the hero landmarks, until their full models land (roadmap waves 3-7):
 
-  600-montgomery.glb       the pyramid tower at 600 Montgomery St (tapered, wings, spire)
+  600-montgomery.glb       the pyramid tower at 600 Montgomery St (tapered, wings, spire, window rows)
+  415-mission.glb          the tallest tower, 415 Mission St: a rounded-square glass shaft with pale
+                           vertical fins, tapering, an open crown of fins over a lit core
   coit-tower.glb           Coit Tower: a 64 m fluted column with its arcade and base building
   city-hall.glb            City Hall: the block with pilasters, the colonnaded drum and dome
   palace-of-fine-arts.glb  the rotunda: eight piers, arches, the drum and dome
@@ -33,7 +35,8 @@ import fc  # noqa: E402
 import landmark_kit as LK  # noqa: E402
 
 BUDGETS = {
-    "600-montgomery.glb": 4_000,
+    "600-montgomery.glb": 16_000,
+    "415-mission.glb": 24_000,
     "coit-tower.glb": 8_000,
     "city-hall.glb": 16_000,
     "palace-of-fine-arts.glb": 12_000,
@@ -85,6 +88,87 @@ def pilasters(mb: fc.MeshBuilder, rec: dict, z0: float, z1: float, every: float,
             LK.box_on(mb, cx, cy, z0, z1, w, d, math.atan2(uy, ux), mat, skip=("-z",))
 
 
+# ============================================================================ 415 Mission
+
+def rounded_square(h: float, r: float, per_corner: int = 6) -> list:
+    """A square of half side h with corners rounded at radius r, counter-clockwise from +X."""
+    pts = []
+    for cx, cy, a0 in ((h - r, h - r, 0.0), (-h + r, h - r, 90.0), (-h + r, -h + r, 180.0), (h - r, -h + r, 270.0)):
+        for k in range(per_corner + 1):
+            a = math.radians(a0 + 90.0 * k / per_corner)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def mission415() -> None:
+    """The 326 m tower: rounded-square plan with a slight taper, glass between pale fins, an open
+    crown of fins round a lit core. Night: the crown glows (light_tower_outline) with plain light,
+    never a logo or lettering; the lobby glows warm."""
+    s = LK.site("415-mission")
+    fc.reset()
+    glass = fc.material("glass_curtain", "#7f95a6", 0.08, 0.75)
+    fin = fc.material("precast_white", "#e9e6df", 0.5)
+    spandrel = fc.material("spandrel_pale", "#cfd6db", 0.35, 0.3)
+    lobby = fc.material("glass_lobby", "#34404a", 0.15, 0.6)
+    crown = fc.material("light_tower_outline", "#dfe5e8", 0.4, emission="#fff6e6", strength=1.0)
+    beacon = fc.material("light_status", "#5a1010", 0.4, emission="#ff2a18", strength=1.0)
+    r = root("tower_415", "415-mission", topM=326.0)
+    rec = LK.record(s, "201006.0000548")
+    foot = rec["footY"]
+    h0 = min(s["extra"]["baseLongM"], s["extra"]["baseShortM"]) / 2.0 - 0.3  # about 26 m
+    roof, top = 296.0, 326.0
+    taper = 0.82  # the shaft narrows to 82% at the roof
+    half = lambda z: h0 * (1.0 - (1.0 - taper) * max(0.0, z) / roof)  # noqa: E731
+    rc = lambda z: 0.32 * half(z)  # noqa: E731 corner radius
+    mb = fc.MeshBuilder()
+    # the base on the record's own footprint (what the sim collides with at street level): a glass
+    # lobby to 9 m with a pale band over it, the shaft rising from its roof in floor bands
+    banded_walls(mb, rec, [(9.0, lobby), (10.0, fin)], top_mat=fin)
+    floor = 4.2
+    z = 10.0
+    while z < roof:
+        z1 = min(roof, z + floor)
+        zs = min(z1, z + 0.55)
+        mb.frustum(rounded_square(half(z), rc(z)), rounded_square(half(zs), rc(zs)), z, zs, spandrel, top=False)
+        mb.frustum(rounded_square(half(zs), rc(zs)), rounded_square(half(z1), rc(z1)), zs, z1, glass, top=False)
+        z = z1
+    # vertical fins: pale ribs standing 0.45 m off the glass, every 3 m round the plan, up through
+    # the crown, where they lean in over the core
+    ring0 = rounded_square(half(0), rc(0), per_corner=4)
+    perim = sum(math.hypot(ring0[(i + 1) % len(ring0)][0] - ring0[i][0], ring0[(i + 1) % len(ring0)][1] - ring0[i][1]) for i in range(len(ring0)))
+    nfin = int(perim / 3.0)
+    for k in range(nfin):
+        a = 2 * math.pi * k / nfin
+
+        def at(z: float, out: float = 0.45, lean: float = 0.0) -> tuple:
+            # The point on the rounded square in direction a, pushed out by `out`.
+            h, rr = half(min(z, roof)) * (1.0 - lean), rc(min(z, roof)) * (1.0 - lean)
+            dx, dy = math.cos(a), math.sin(a)
+            # Intersect the ray with the rounded square: scale a superellipse-like guess.
+            t = h / max(abs(dx), abs(dy))
+            px, py = dx * t, dy * t
+            cx, cy = math.copysign(h - rr, px), math.copysign(h - rr, py)
+            if abs(px) > h - rr and abs(py) > h - rr:
+                ex, ey = px - cx, py - cy
+                l = math.hypot(ex, ey) or 1.0
+                px, py = cx + ex / l * rr, cy + ey / l * rr
+            l = math.hypot(px, py) or 1.0
+            return (px + px / l * out, py + py / l * out, z)
+
+        pts = [at(10.0), at(roof), at(roof + 12.0, lean=0.05), at(top - 4.0, lean=0.35), at(top, 0.0, lean=0.62)]
+        for p0, p1 in zip(pts, pts[1:]):
+            LK.strut(mb, p0, p1, 0.32, fin)
+    # the roof plate and the lit core inside the crown (plain light, no art)
+    mb.frustum(rounded_square(half(roof), rc(roof)), rounded_square(half(roof) - 0.5, rc(roof) - 0.5), roof, roof + 0.6, fin, top=True)
+    mb.build("tower", parent=r, sharp_angle=35)
+    li = fc.MeshBuilder()
+    li.frustum(rounded_square(half(roof) * 0.72, rc(roof) * 0.7), rounded_square(half(roof) * 0.42, rc(roof) * 0.42), roof + 0.6, top - 6.0, crown, top=True)
+    li.sphere((0, 0, top + 0.6), 0.6, 8, 4, beacon)
+    ob = li.build("crown_lights", parent=r)
+    ob["nightLight"] = True
+    fc.export_glb("415-mission.glb", BUDGETS["415-mission.glb"])
+
+
 # ============================================================================ 600 Montgomery
 
 def montgomery() -> None:
@@ -117,7 +201,25 @@ def montgomery() -> None:
     hw = half0 - (half0 - half_top) * z_w / z_top
     mb.box(0.0, -4.6, z_w, hw, 4.6, 222.0, white)
     mb.box(-hw, -3.6, z_w, 0.0, 3.6, 220.0, white)
-    # the sloping faces carry no window grid: four shaded recess lines up each face's middle
+    # Window rows on the sloping faces: one row a floor (3.9 m), the punched windows as dark glass
+    # set into each face, fewer as the face narrows; the faces stay pale precast between them.
+    floor = 3.9
+    for k in range(4):
+        rot = Matrix.Rotation(k * math.pi / 2, 4, "Z")
+        mb.push(rot)
+        z = 10.0
+        while z + 1.6 < z_top - 4.0:
+            hz = half0 - (half0 - half_top) * z / z_top
+            hz2 = half0 - (half0 - half_top) * (z + 1.6) / z_top
+            n = max(2, int((2 * hz - 3.0) / 1.55))
+            span = 2 * hz - 3.0
+            for i in range(n):
+                x0 = -span / 2 + (i + 0.18) * span / n
+                x1 = -span / 2 + (i + 0.82) * span / n
+                mb.poly_n([(x0, -hz - 0.02, z), (x1, -hz - 0.02, z), (x1 * hz2 / hz, -hz2 - 0.02, z + 1.6), (x0 * hz2 / hz, -hz2 - 0.02, z + 1.6)], glass, (0, -1, 0.12))
+            z += floor
+        mb.pop()
+    # four shaded recess lines up each face's middle
     for k in range(4):
         rot = Matrix.Rotation(k * math.pi / 2, 4, "Z")
         mb.push(rot)
@@ -649,6 +751,7 @@ def sutro_baths() -> None:
 
 ALL = {
     "montgomery": montgomery,
+    "mission415": mission415,
     "coit": coit,
     "city_hall": city_hall,
     "palace": palace,

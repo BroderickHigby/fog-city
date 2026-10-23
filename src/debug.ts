@@ -65,6 +65,8 @@ export interface RenderInfo {
     showcase: { crosswalks: number; stopBars: number; palms: number; trackM: number; paintQuads: number } | null;
     /** The animated humanoid crowd and the skinned player body are in (else the placeholders draw). */
     characters: { crowd: boolean; player: boolean };
+    /** Street trees the showcase draws with ez-tree (src/render/trees.ts). */
+    trees: number;
   };
 }
 
