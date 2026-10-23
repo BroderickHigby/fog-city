@@ -6,7 +6,7 @@ import type { MatchPayoutEvent } from "../sim/modes/session.ts";
 import type { MatchResult } from "../sim/modes/types.ts";
 
 /** Bump on any wire-format change; a client and relay that differ refuse each other. */
-export const NET_VERSION = 2;
+export const NET_VERSION = 3;
 export const MAX_PLAYERS = 4;
 /** Client prediction never runs further ahead of the confirmed state than this (133 ms). */
 export const MAX_PREDICTION_TICKS = 8;
@@ -27,7 +27,8 @@ export interface Hello {
   sim: number;
   world: WorldName;
   fingerprint: string;
-  action: "create" | "join" | "rejoin";
+  /** create: a private room; quick: join (or open) a public room; join/rejoin: by code. */
+  action: "create" | "quick" | "join" | "rejoin";
   code?: string;
   token?: string;
 }
@@ -35,6 +36,8 @@ export type NetworkCommand = Omit<GameplayCommand, "playerId">;
 export type ClientMessage =
   | Hello
   | { type: "ready"; ready: boolean }
+  /** Host: bot teammates for the match (0–3; people always take precedence for seats). */
+  | { type: "bots"; count: number }
   | { type: "start"; mode: NetModeId }
   | { type: "end" }
   | { type: "leave" }
@@ -46,6 +49,10 @@ export type ClientMessage =
 
 export interface Member { id: string; name: string; ready: boolean; connected: boolean; host: boolean }
 export type RoomPhase = "lobby" | "match" | "results";
+export type Visibility = "private" | "public";
+/** One public room in GET /rooms. Private rooms are never listed. */
+export interface RoomListing { code: string; mode: NetModeId; phase: RoomPhase; players: number; bots: number; max: number; world: WorldName }
+export interface RoomList { online: number; rooms: RoomListing[] }
 export interface Snapshot { state: SimState; hash: string; ack: number }
 export interface Frame {
   type: "frame";
@@ -60,7 +67,7 @@ export interface Frame {
 export interface Results { matchId: string; result: MatchResult; payouts: MatchPayoutEvent[] }
 export type ServerMessage =
   | { type: "welcome"; net: number; sim: number; code: string; playerId: string; token: string; expiresAt: number }
-  | { type: "room"; phase: RoomPhase; mode: NetModeId; members: Member[]; matchId: string }
+  | { type: "room"; phase: RoomPhase; mode: NetModeId; members: Member[]; matchId: string; visibility: Visibility; bots: number }
   | ({ type: "snapshot"; matchId: string; reason: "start" | "rejoin" | "mismatch" | "behind" } & Snapshot)
   | Frame
   | ({ type: "results" } & Results)
@@ -117,6 +124,9 @@ export function parseClientMessage(text: string): ClientMessage {
     case "input":
       if (keys(value, ["type", "seq", "input"]) && integer(value.seq, 1, 0x7fffffff) && validInput(value.input)) return { type: "input", seq: value.seq, input: { ...value.input } };
       break;
+    case "bots":
+      if (keys(value, ["type", "count"]) && integer(value.count, 0, MAX_PLAYERS - 1)) return { type: "bots", count: value.count };
+      break;
     case "ready":
       if (keys(value, ["type", "ready"]) && typeof value.ready === "boolean") return { type: "ready", ready: value.ready };
       break;
@@ -140,14 +150,14 @@ export function parseClientMessage(text: string): ClientMessage {
       break;
     case "hello": {
       const action = value.action;
-      const shape = action === "create" ? ["type", "net", "sim", "world", "fingerprint", "action"]
+      const shape = action === "create" || action === "quick" ? ["type", "net", "sim", "world", "fingerprint", "action"]
         : action === "join" ? ["type", "net", "sim", "world", "fingerprint", "action", "code"]
         : action === "rejoin" ? ["type", "net", "sim", "world", "fingerprint", "action", "code", "token"] : null;
       if (!shape || !keys(value, shape)) break;
       // Version first, so an old client hears why it was refused.
       if (value.net !== NET_VERSION || value.sim !== SIM_VERSION) throw new Error("version_mismatch");
       if (!WORLDS.includes(value.world as WorldName) || typeof value.fingerprint !== "string" || !/^[a-f0-9]{8,64}$/.test(value.fingerprint)) break;
-      if (action !== "create" && (typeof value.code !== "string" || !ROOM_CODE.test(value.code))) break;
+      if ((action === "join" || action === "rejoin") && (typeof value.code !== "string" || !ROOM_CODE.test(value.code))) break;
       if (action === "rejoin" && (typeof value.token !== "string" || !TOKEN.test(value.token))) break;
       return value as unknown as Hello;
     }

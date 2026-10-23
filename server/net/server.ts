@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { ERRORS, MAX_MESSAGE_BYTES, ROOM_ALPHABET, parseClientMessage, type ErrorCode, type Hello, type ServerMessage, type WorldName } from "../../src/net/protocol.ts";
+import { ERRORS, MAX_MESSAGE_BYTES, ROOM_ALPHABET, parseClientMessage, type ErrorCode, type Hello, type RoomList, type ServerMessage, type WorldName } from "../../src/net/protocol.ts";
 import { DEFAULT_ROOM_LIMITS, Room, type Peer, type RoomLimits } from "./room.ts";
 import { FixedClock } from "./clock.ts";
 import type { WorldBundle } from "./world.ts";
@@ -69,6 +69,19 @@ export function createRelay(options: RelayOptions) {
   const roomsOf = (ip: string): number => { let n = 0; for (const room of rooms.values()) if (!room.closed && room.creatorIp === ip) n++; return n; };
 
   const server = createServer((req, res) => {
+    const path = (req.url ?? "").split("?")[0];
+    if (req.method === "GET" && path === "/rooms") {
+      // The public lobby list, readable by the game's page (CORS for allowed origins only).
+      const origin = req.headers.origin;
+      const headers: Record<string, string> = { "content-type": "application/json", "cache-control": "no-store", vary: "Origin" };
+      if (origin && originAllowed(req)) headers["access-control-allow-origin"] = origin;
+      const world = new URL(req.url ?? "/", "http://relay").searchParams.get("world");
+      const list: RoomList = { online: sockets.clients.size, rooms: [...rooms.values()].filter((r) => !r.closed && r.visibility === "public" && r.phase !== "results" && (!world || r.bundle.name === world))
+        .sort((a, b) => b.size - a.size || a.createdAt - b.createdAt).slice(0, 50).map((r) => r.listing()) };
+      res.writeHead(200, headers);
+      res.end(JSON.stringify(list));
+      return;
+    }
     if (req.method === "GET" && (req.url === "/health" || req.url === "/healthz")) {
       let mismatches = 0, snapshots = 0;
       for (const room of rooms.values()) { mismatches += room.stats.mismatches; snapshots += room.stats.snapshots; }
@@ -151,12 +164,17 @@ export function createRelay(options: RelayOptions) {
       if (!bundle) throw new Error("world_unavailable");
       if (bundle.fingerprint !== message.fingerprint) throw new Error("world_mismatch");
       const t = now();
-      if (message.action === "create") {
+      const quick = message.action === "quick" ? [...rooms.values()].filter((r) => r.open() && r.bundle.name === message.world)
+        .sort((a, b) => b.size - a.size || a.createdAt - b.createdAt)[0] : undefined;
+      if (quick) {
+        playerId = quick.join(peer, t);
+        room = quick;
+      } else if (message.action === "create" || message.action === "quick") {
         if (rooms.size >= limits.maxRooms) throw new Error("server_full");
         if (roomsOf(ip) >= limits.maxRoomsPerIp) throw new Error("too_many_rooms");
         let code: string;
         do { code = Array.from(randomBytes(8), (n) => ROOM_ALPHABET[n & 31]!).join(""); } while (rooms.has(code));
-        const created = new Room(code, bundle, t, ip, options.arenas.get(message.world) ?? [], roomLimits);
+        const created = new Room(code, bundle, t, ip, options.arenas.get(message.world) ?? [], roomLimits, message.action === "quick" ? "public" : "private");
         rooms.set(code, created);
         playerId = created.join(peer, t);
         room = created;
@@ -196,6 +214,7 @@ export function createRelay(options: RelayOptions) {
           case "input": room.input(playerId, message.seq, message.input, t); break;
           case "command": room.command(playerId, message.command); break;
           case "ready": room.ready(playerId, message.ready); break;
+          case "bots": room.setBots(playerId, message.count); break;
           case "start": room.start(playerId, message.mode, t); break;
           case "end": room.end(playerId); break;
           case "resync": room.resync(playerId, message.reason, t); break;

@@ -4,7 +4,7 @@
 // snapshot only to a client that joins mid-match, rejoins, or reports a hash mismatch.
 import { randomBytes } from "node:crypto";
 import { hashState, NEUTRAL_INPUT, type SimEvent, type SimInput, type SimState } from "../../src/sim/index.ts";
-import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, type ErrorCode, type Frame, type Member, type NetModeId, type NetworkCommand, type RoomPhase, type ServerMessage } from "../../src/net/protocol.ts";
+import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, type ErrorCode, type Frame, type Member, type NetModeId, type NetworkCommand, type RoomListing, type RoomPhase, type ServerMessage, type Visibility } from "../../src/net/protocol.ts";
 import { SIM_VERSION } from "../../src/sim/contract.ts";
 import { ArenaUnavailableError, botSweepView, createBotSweep, stepBotSweep } from "../../src/sim/modes/botsweep.ts";
 import { MODE_END_EVENT } from "../../src/sim/modes/systems.ts";
@@ -45,6 +45,9 @@ export class Room {
   readonly creatorIp: string;
   readonly stats: RoomStats = { mismatches: 0, behind: 0, snapshots: 0, droppedInputs: 0, ticks: 0 };
   phase: RoomPhase = "lobby";
+  readonly visibility: Visibility;
+  /** Bot teammates the host asked for; trimmed whenever people need the seats. */
+  bots = 0;
   mode: NetModeId = "botSweep";
   matchId = "";
   state: SimState | null = null;
@@ -56,7 +59,8 @@ export class Room {
   private finishedAt = 0;
   private arenaCursor: number;
 
-  constructor(code: string, bundle: WorldBundle, now: number, creatorIp: string, arenas: readonly Spawn[], limits: RoomLimits = DEFAULT_ROOM_LIMITS) {
+  constructor(code: string, bundle: WorldBundle, now: number, creatorIp: string, arenas: readonly Spawn[], limits: RoomLimits = DEFAULT_ROOM_LIMITS, visibility: Visibility = "private") {
+    this.visibility = visibility;
     this.code = code; this.bundle = bundle; this.createdAt = now; this.creatorIp = creatorIp; this.limits = limits; this.arenas = arenas;
     this.arenaCursor = randomBytes(1)[0]! % Math.max(1, arenas.length);
   }
@@ -77,6 +81,7 @@ export class Room {
     const seat: Seat = { id, name: NAME_PARTS.find((n) => !used.has(n))!, token: randomBytes(16).toString("hex"), ready: false, peer, disconnectedAt: 0,
       queue: [], seq: 0, ack: 0, lastInputAt: now, commandSequence: 0, lastResyncAt: 0 };
     this.seats.set(id, seat);
+    this.bots = Math.min(this.bots, MAX_PLAYERS - this.seats.size);
     this.welcome(seat);
     this.broadcastRoom();
     return id;
@@ -121,6 +126,18 @@ export class Room {
     this.broadcastRoom();
   }
 
+  /** Host only: how many bot teammates join the match. */
+  setBots(id: string, count: number): void {
+    if (id !== this.hostId) throw new Error("not_host");
+    if (this.phase !== "lobby") return;
+    this.bots = Math.max(0, Math.min(count, MAX_PLAYERS - this.seats.size));
+    this.broadcastRoom();
+  }
+
+  /** Quick play: a public lobby with a free seat. */
+  open(): boolean { return !this.closed && this.visibility === "public" && this.phase === "lobby" && this.seats.size < MAX_PLAYERS; }
+  listing(): RoomListing { return { code: this.code, mode: this.mode, phase: this.phase, players: this.seats.size, bots: this.bots, max: MAX_PLAYERS, world: this.bundle.name }; }
+
   /** Host only: build the arena and start the match with every seat in the lobby. */
   start(id: string, mode: NetModeId, now: number): void {
     if (id !== this.hostId) throw new Error("not_host");
@@ -133,7 +150,7 @@ export class Room {
     for (let tries = 0; tries < this.arenas.length && !state; tries++) {
       const spawn = this.arenas[this.arenaCursor++ % this.arenas.length]!;
       try {
-        state = createBotSweep(this.bundle.world, { id: matchId, seed, players, spawn, ...(this.limits.matchTicks ? { durationTicks: this.limits.matchTicks } : {}) });
+        state = createBotSweep(this.bundle.world, { id: matchId, seed, players, spawn, bots: Math.min(this.bots, MAX_PLAYERS - players.length), ...(this.limits.matchTicks ? { durationTicks: this.limits.matchTicks } : {}) });
       } catch (error) { if (!(error instanceof ArenaUnavailableError)) throw error; }
     }
     if (!state) throw new Error("arena_unavailable");
@@ -242,7 +259,7 @@ export class Room {
     seat.peer?.send({ type: "welcome", net: NET_VERSION, sim: SIM_VERSION, code: this.code, playerId: seat.id, token: seat.token, expiresAt: this.expiresAt });
   }
   private broadcastRoom(): void {
-    const message: ServerMessage = { type: "room", phase: this.phase, mode: this.mode, members: this.members(), matchId: this.matchId };
+    const message: ServerMessage = { type: "room", phase: this.phase, mode: this.mode, members: this.members(), matchId: this.matchId, visibility: this.visibility, bots: this.bots };
     for (const seat of this.seats.values()) seat.peer?.send(message);
   }
   private sendSnapshot(seat: Seat, reason: "start" | "rejoin" | "mismatch" | "behind", now: number): void {

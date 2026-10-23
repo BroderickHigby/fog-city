@@ -50,6 +50,9 @@ IP per minute (invite-code guessing); a socket must join within 15 s; an idle lo
 after 60 s, a match player who sends no input for 45 s is disconnected; a disconnected seat is
 held 2 minutes for a rejoin; rooms live at most 2 hours, and results stay 10 minutes.
 
+`GET /rooms?world=sf` lists public rooms (code, mode, phase, players, bots, max) and the number of
+connected sockets; private rooms are never listed. It sends CORS headers only to allowed origins.
+
 `GET /health` returns `{ ok, rooms, connections, worlds, mismatches, snapshots, refused,
 rateLimited, invalid }`. `mismatches` counts clients whose state hash differed from the relay's
 (each gets one snapshot); it should stay 0.
@@ -58,7 +61,10 @@ rateLimited, invalid }`. `mismatches` counts clients whose state hash differed f
 
 - **Transport.** `src/net/transport.ts` is the seam: the game uses a WebSocket to this relay;
   tests run the relay in-process on loopback and can pass any transport with the same semantics.
-- **Lobby.** `create` makes a room with an 8-character code from a CSPRNG; `join` takes a seat
+- **Quick play.** `quick` puts the player in the fullest open public lobby for that world, or opens
+  a new public room. The host can add bot teammates (deterministic, in the sim; people always take
+  precedence for seats) or start alone as solo practice.
+- **Lobby.** `create` makes a private room with an 8-character code from a CSPRNG; `join` takes a seat
   (`p1`…`p4`) with a generated name (never free text) and a secret rejoin token the page keeps
   in `sessionStorage`. Everyone readies up; the host (lowest seat) starts.
 - **Version checks.** The hello carries the protocol version, `SIM_VERSION` and a fingerprint of

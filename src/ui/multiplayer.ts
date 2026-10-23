@@ -9,8 +9,8 @@ import type { WorldFiles } from "../io/world-load.ts";
 import { DT, type SimInput, type SimState, type World } from "../sim/index.ts";
 import { botSweepView } from "../sim/modes/botsweep.ts";
 import { applyMatchSettlement, settledModeIds } from "../sim/modes/settlement.ts";
-import { RelayClient, type ClientInfo, type Seat } from "../net/client.ts";
-import { ROOM_CODE, WORLDS, type Results, type WorldName } from "../net/protocol.ts";
+import { listRooms, RelayClient, type ClientInfo, type Seat } from "../net/client.ts";
+import { MAX_PLAYERS, ROOM_CODE, WORLDS, type Results, type RoomList, type WorldName } from "../net/protocol.ts";
 import { worldFingerprint } from "../net/world-id.ts";
 import { formatMoney } from "./copy.ts";
 
@@ -95,7 +95,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   const button = (label: string, fn: () => void, className?: string): HTMLButtonElement => { const b = node("button", className, label); b.type = "button"; b.addEventListener("click", fn); return b; };
   const root = node("section", "fc-mp"); root.setAttribute("aria-label", "Play with friends");
   const style = node("style"); style.textContent = STYLE; root.append(style);
-  const launcher = button("Play with friends", () => { panel.hidden = !panel.hidden; if (!panel.hidden) render(); });
+  const launcher = button("Play with friends", () => { panel.hidden = !panel.hidden; if (!panel.hidden) { roomsAt = 0; refreshRooms(); render(); } });
   launcher.setAttribute("aria-expanded", "false");
   const panel = node("div", "fc-mp-panel"); panel.hidden = true; panel.setAttribute("role", "group"); panel.setAttribute("aria-label", "Multiplayer lobby");
   const hud = node("div", "fc-mp-hud"); hud.hidden = true; hud.setAttribute("role", "status"); hud.setAttribute("aria-label", "Bot Sweep match");
@@ -155,14 +155,15 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
 
   function render(): void {
     const phase = info?.phase ?? "none", status = info?.status ?? "offline";
-    const stamp = JSON.stringify([phase, status, info?.message, info?.code, info?.members, info?.results?.matchId, settlements.length, entering, codeDraft === "" ? 0 : 1]);
+    const stamp = JSON.stringify([phase, status, info?.message, info?.code, info?.members, info?.bots, info?.results?.matchId, settlements.length, entering, codeDraft === "" ? 0 : 1, rooms]);
     if (stamp === lastStamp) return;
     lastStamp = stamp;
     const focusedCode = doc.activeElement instanceof HTMLInputElement && panel.contains(doc.activeElement);
     const parts: HTMLElement[] = [];
     if (phase === "none") {
-      parts.push(node("h2", undefined, "Bot Sweep with friends"), node("p", undefined, "Private room · up to 4 players · co-op"));
-      const create = button("Create room", () => client.create(), "fc-primary");
+      parts.push(node("h2", undefined, "Bot Sweep online"), node("p", undefined, "Co-op · up to 4 players · bots fill empty seats"));
+      const quick = button("Play online", () => client.quick(), "fc-primary");
+      const create = button("Create private room", () => client.create());
       const form = node("form", "fc-mp-row"), label = node("label"), input = node("input");
       input.name = "code"; input.maxLength = 8; input.autocomplete = "off"; input.spellcheck = false; input.value = codeDraft; input.setAttribute("aria-label", "Room code"); input.placeholder = "ROOM CODE";
       input.addEventListener("input", () => { codeDraft = input.value.toUpperCase(); });
@@ -171,22 +172,33 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       form.append(label, join);
       form.addEventListener("submit", (e) => { e.preventDefault(); const code = input.value.trim().toUpperCase(); if (ROOM_CODE.test(code)) client.join(code); else { out.textContent = "Room codes are 8 letters and digits."; } });
       const busy = status === "connecting" || status === "reconnecting" || entering;
-      create.disabled = join.disabled = input.disabled = busy;
-      parts.push(create, form);
+      create.disabled = join.disabled = input.disabled = quick.disabled = busy;
+      parts.push(node("div", "fc-mp-row"));
+      parts.at(-1)!.append(quick, create);
+      parts.push(form, roomList(busy));
       if (focusedCode) win.setTimeout(() => input.focus(), 0);
     } else if (phase === "lobby" && info) {
       const me = info.members.find((m) => m.id === info!.playerId), host = me?.host ?? false, allReady = info.members.every((m) => m.ready && m.connected);
-      parts.push(node("h2", undefined, "Room code"), node("div", "fc-mp-code", info.code));
+      parts.push(node("h2", undefined, info.visibility === "public" ? "Public room" : "Private room"), node("div", "fc-mp-code", info.code));
       const link = new URL(win.location.href); link.searchParams.set("room", info.code);
       const copyLink = button("Copy invite link", () => { void win.navigator.clipboard?.writeText(link.href).then(() => { out.textContent = "Invite link copied."; }, () => { out.textContent = link.href; }); });
       parts.push(node("div", "fc-mp-row"));
       parts.at(-1)!.append(copyLink);
       parts.push(members(info));
+      const free = MAX_PLAYERS - info.members.length, alone = info.members.length === 1;
+      const bots = node("div", "fc-mp-row");
+      const botLabel = node("span", undefined, `Bot teammates: ${info.bots}`);
+      if (host) {
+        const fewer = button("Fewer bots", () => client.setBots(info!.bots - 1)), more = button("Add bot", () => client.setBots(info!.bots + 1));
+        fewer.disabled = info.bots <= 0; more.disabled = info.bots >= free;
+        bots.append(botLabel, fewer, more);
+      } else bots.append(botLabel);
+      parts.push(bots);
       const row = node("div", "fc-mp-row");
       row.append(button(me?.ready ? "Not ready" : "Ready", () => client.ready(!me?.ready), me?.ready ? undefined : "fc-primary"));
-      if (host) { const start = button("Start Bot Sweep", () => client.start(), "fc-primary"); start.disabled = !allReady; row.append(start); }
+      if (host) { const start = button(alone && info.bots === 0 ? "Start solo practice" : "Start Bot Sweep", () => client.start(), "fc-primary"); start.disabled = !allReady; row.append(start); }
       row.append(button("Leave room", () => leave()));
-      parts.push(row, node("p", undefined, host ? (allReady ? "Everyone is ready." : "Start when everyone is ready.") : "The host starts the match when everyone is ready."));
+      parts.push(row, node("p", undefined, alone && info.visibility === "public" ? "Nobody else is here yet: wait for players, add bot teammates, or play solo." : host ? (allReady ? "Everyone is ready." : "Start when everyone is ready.") : "The host starts the match when everyone is ready."));
     } else if (phase === "results" && info?.results) {
       const result = info.results.result, mine = settlements.filter((s) => s.matchId === info!.results!.matchId).at(-1);
       const won = result.winners.includes(info.playerId);
@@ -206,6 +218,30 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     panel.hidden = panel.hidden && phase === "none" && status !== "error";
     root.hidden = inMatch && phase === "match";
   }
+
+  let rooms: RoomList | null = null, roomsAt = 0, roomsLoading = false;
+  /** The public rooms, refreshed every 5 s while the lobby browser is open. */
+  function roomList(busy: boolean): HTMLElement {
+    const box = node("div");
+    if (!rooms) { box.append(node("p", undefined, roomsLoading ? "Looking for public rooms…" : "Public rooms: none listed.")); return box; }
+    box.append(node("p", undefined, `${rooms.online} online · ${rooms.rooms.length} public room${rooms.rooms.length === 1 ? "" : "s"}`));
+    const list = node("ul"); list.setAttribute("aria-label", "Public rooms");
+    for (const r of rooms.rooms) {
+      const li = node("li"), joinable = r.phase === "lobby" && r.players < r.max;
+      const go = button("Join", () => client.join(r.code)); go.disabled = busy || !joinable;
+      li.append(node("span", undefined, `${r.code} · ${r.players}/${r.max} players${r.bots ? ` + ${r.bots} bots` : ""} · ${r.phase === "lobby" ? "in lobby" : "playing"}`), go);
+      list.append(li);
+    }
+    if (rooms.rooms.length) box.append(list);
+    return box;
+  }
+  function refreshRooms(): void {
+    const now = win.performance.now();
+    if (roomsLoading || panel.hidden || (info?.phase ?? "none") !== "none" || now - roomsAt < 5000) return;
+    roomsLoading = true; roomsAt = now;
+    void listRooms(relayUrl, worldName).then((list) => { rooms = list; roomsLoading = false; lastStamp = ""; render(); });
+  }
+  const roomTimer = win.setInterval(refreshRooms, 1000);
 
   function members(current: ClientInfo): HTMLUListElement {
     const list = node("ul"); list.setAttribute("aria-label", "Players");
@@ -272,6 +308,6 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       renderHud();
       return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: info?.playerId ?? match.playerId };
     },
-    dispose() { client.dispose(); root.remove(); hud.remove(); },
+    dispose() { win.clearInterval(roomTimer); client.dispose(); root.remove(); hud.remove(); },
   };
 }

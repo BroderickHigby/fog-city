@@ -84,6 +84,32 @@ describe("Bot Sweep match instance", () => {
   });
 });
 
+describe("Bot Sweep bot teammates", () => {
+  it("adds bots as match players who get out and move on their own, identically on every replay", () => {
+    const solo = { ...config, players: ["p1"], bots: 2 };
+    let a = createBotSweep(world, solo), b = createBotSweep(world, solo);
+    expect(Object.keys(a.players)).toEqual(["bot-1", "bot-2", "p1"]);
+    expect(Object.keys(modeSessionOf(a)!.match.players)).toEqual(["bot-1", "bot-2", "p1"]);
+    expect(modeSessionOf(a)!.match.remainingBad).toHaveLength(22);
+    const start = { ...a.players["bot-1"]!.car };
+    for (let i = 0; i < 400; i++) {
+      // A peer's input keyed by a bot id is ignored: bots are driven by the sim alone.
+      a = stepBotSweep(world, a, { p1: go, "bot-1": { throttle: -1, steer: 1, brake: 0, actions: 0 } });
+      b = stepBotSweep(world, JSON.parse(JSON.stringify(b)), { p1: go });
+    }
+    expect(hashState(a)).toBe(hashState(b));
+    expect(a.players["bot-1"]!.mode).toBe("foot");
+    const foot = a.players["bot-1"]!.foot!;
+    expect(Math.hypot(foot.x - start.x, foot.z - start.z)).toBeGreaterThan(2);
+  });
+  it("keeps a team at four and bot ids away from people", () => {
+    expect(() => createBotSweep(world, { ...config, players: ["p1"], bots: 4 })).toThrow();
+    expect(() => createBotSweep(world, { ...config, players: ["p1", "p2", "p3"], bots: 2 })).toThrow();
+    expect(() => createBotSweep(world, { ...config, players: ["bot-1"] })).toThrow();
+    expect(() => createBotSweep(world, { ...config, players: ["p1"], bots: 1.5 })).toThrow();
+  });
+});
+
 describe("match settlement into the city", () => {
   const systems = createGameSystems({ wave: 3 });
   const city = () => step(world, createInitialState(world, 1, ["p1"], { x: 0, z: 0, heading: 0 }), { p1: { throttle: 0, steer: 0, brake: 0, actions: 0 } }, [], systems);

@@ -154,6 +154,44 @@ test.describe("online Bot Sweep", () => {
     }
   });
 
+  test("quick play: public room list, two browsers matched, a bot teammate fills a seat", async ({ browser }: { browser: Browser }) => {
+    gateWorld("sf");
+    const first = await browser.newContext(), second = await browser.newContext();
+    try {
+      const a = await open(first);
+      await a.getByRole("button", { name: "Play with friends" }).click();
+      await a.getByRole("button", { name: "Play online" }).click();
+      await waitNet(a, `n.info()?.phase === "lobby" && n.info()?.visibility === "public"`);
+      const code = await net(a, (n) => n.info()!.code);
+      await expect(a.getByText("Nobody else is here yet", { exact: false })).toBeVisible();
+      // The second player sees the public room listed, then quick play puts them in it.
+      const b = await open(second);
+      await b.getByRole("button", { name: "Play with friends" }).click();
+      await expect(b.getByRole("list", { name: "Public rooms" })).toContainText(`${code} · 1/4 players`, { timeout: 30_000 });
+      await b.getByRole("button", { name: "Play online" }).click();
+      await waitNet(b, `n.info()?.code === ${JSON.stringify(code)} && n.info()?.playerId === "p2"`);
+      // The host adds a bot teammate; only the host sees the bot controls.
+      await a.getByRole("button", { name: "Add bot" }).click();
+      await waitNet(b, `n.info()?.bots === 1`);
+      await expect(b.getByRole("button", { name: "Add bot" })).toHaveCount(0);
+      await a.getByRole("button", { name: "Ready", exact: true }).click();
+      await b.getByRole("button", { name: "Ready", exact: true }).click();
+      await expect(a.getByRole("button", { name: "Start Bot Sweep" })).toBeEnabled({ timeout: 30_000 });
+      await a.getByRole("button", { name: "Start Bot Sweep" }).click();
+      for (const page of [a, b]) await waitNet(page, `n.match() !== null && Object.keys(n.match().players).sort().join() === "bot-1,p1,p2"`, 120_000);
+      // The bot gets out of its car and goes sweeping in both browsers' copies of the match.
+      await waitNet(b, `n.match().players["bot-1"].mode === "foot"`, 120_000);
+      for (const page of [a, b]) await waitNet(page, `n.stats() && n.stats().frames > 120`, 120_000);
+      expect((await health()).mismatches).toBe(0);
+      await a.getByRole("button", { name: "End match" }).click();
+      for (const page of [a, b]) await waitNet(page, `n.info()?.phase === "results" && n.settlements().some((s) => s.status === "paid")`, 120_000);
+      for (const page of [a, b]) { await page.getByRole("button", { name: "Back to city" }).click(); await waitNet(page, `n.info()?.phase === "none"`); }
+      for (const page of [a, b]) expect((page as Page & { problems?: string[] }).problems).toEqual([]);
+    } finally {
+      await first.close(); await second.close();
+    }
+  });
+
   test("without a relay the game boots single-player with no lobby", async ({ page }) => {
     gateWorld("sf");
     await page.goto(`/?world=sf&gfx=default&pr=0.5&radius=250`);

@@ -3,7 +3,7 @@
 import { SIM_VERSION, type SimInput, type World } from "../sim/index.ts";
 import { MatchTimeline } from "./match.ts";
 import { webSocketTransport, type ConnectTransport, type RelayTransport } from "./transport.ts";
-import { ERRORS, NET_VERSION, type ErrorCode, type Hello, type Member, type NetModeId, type NetworkCommand, type Results, type RoomPhase, type ServerMessage, type WorldName } from "./protocol.ts";
+import { ERRORS, NET_VERSION, type ErrorCode, type Hello, type Member, type NetModeId, type NetworkCommand, type Results, type RoomList, type RoomPhase, type ServerMessage, type Visibility, type WorldName } from "./protocol.ts";
 
 export type ConnectionStatus = "offline" | "connecting" | "connected" | "reconnecting" | "error";
 export interface Seat { url: string; world: WorldName; code: string; token: string; playerId: string }
@@ -15,6 +15,9 @@ export interface ClientInfo {
   playerId: string;
   phase: RoomPhase | "none";
   mode: NetModeId;
+  visibility: Visibility;
+  /** Bot teammates the host has asked for. */
+  bots: number;
   members: Member[];
   matchId: string;
   /** Round-trip time from the last ping, ms; 0 before the first. */
@@ -45,7 +48,7 @@ const RECONNECTABLE = new Set<string>(["slow_client", "idle", "rate_limit"]);
 const FORGET_SEAT = new Set<ErrorCode>(["room_missing", "room_expired", "seat_missing", "room_full", "room_started", "replaced", "version_mismatch", "world_mismatch", "world_unavailable"]);
 
 export class RelayClient {
-  readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null };
+  readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", visibility: "private", bots: 0, members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null };
   match: MatchTimeline | null = null;
   private socket: RelayTransport | null = null;
   private seat: Seat | null = null;
@@ -65,10 +68,13 @@ export class RelayClient {
   active(): boolean { return this.info.status === "connecting" || this.info.status === "connected" || this.info.status === "reconnecting"; }
 
   create(): void { this.open({ action: "create" }); }
+  /** Join the fullest public lobby for this world, or open a new public room. */
+  quick(): void { this.open({ action: "quick" }); }
   join(code: string): void { this.open({ action: "join", code: code.trim().toUpperCase() }); }
   rejoin(seat: Seat): void { this.seat = seat; this.open({ action: "rejoin", code: seat.code, token: seat.token }); }
 
   ready(ready: boolean): void { this.send({ type: "ready", ready }); }
+  setBots(count: number): void { this.send({ type: "bots", count }); }
   start(): void { this.send({ type: "start", mode: "botSweep" }); }
   end(): void { this.send({ type: "end" }); }
   command(command: Omit<NetworkCommand, "sequence">): void { this.send({ type: "command", command: { ...command, sequence: ++this.commandSequence } }); }
@@ -154,6 +160,7 @@ export class RelayClient {
       }
       case "room": {
         this.info.phase = message.phase; this.info.mode = message.mode; this.info.members = message.members;
+        this.info.visibility = message.visibility; this.info.bots = message.bots;
         if (message.matchId !== this.info.matchId) { this.info.matchId = message.matchId; this.info.results = null; }
         if (message.phase === "lobby") { this.match = null; this.info.results = null; }
         this.emit();
@@ -215,4 +222,23 @@ export class RelayClient {
     if (this.match) { this.info.queued = this.match.queued; this.info.recovering = this.match.recovering; }
     this.options.onChange({ ...this.info, members: [...this.info.members] });
   }
+}
+
+/** The relay's HTTP base for a WebSocket URL: wss://host/relay → https://host. */
+export function relayHttpBase(url: string): string {
+  const parsed = new URL(url);
+  parsed.protocol = parsed.protocol === "wss:" ? "https:" : "http:";
+  parsed.pathname = parsed.pathname.replace(/\/relay\/?$/, "") || "/";
+  parsed.search = ""; parsed.hash = "";
+  return parsed.href.replace(/\/$/, "");
+}
+
+/** The public rooms of one world (GET /rooms). Never throws: an unreachable relay lists nothing. */
+export async function listRooms(url: string, world: WorldName, fetcher: typeof fetch = fetch): Promise<RoomList | null> {
+  try {
+    const response = await fetcher(`${relayHttpBase(url)}/rooms?world=${encodeURIComponent(world)}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json() as RoomList;
+    return Array.isArray(body.rooms) && Number.isSafeInteger(body.online) ? body : null;
+  } catch { return null; }
 }

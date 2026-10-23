@@ -91,6 +91,60 @@ describe("relay lobby", () => {
   });
 });
 
+describe("relay quick play", () => {
+  it("puts quick-play players in the fullest open public room, never in a private room", async () => {
+    const h = await relay();
+    const priv = make(h); priv.client.create(); await until(() => last(priv)?.phase === "lobby");
+    const a = make(h), b = make(h), c = make(h);
+    a.client.quick(); await until(() => last(a)?.phase === "lobby");
+    expect(last(a).visibility).toBe("public");
+    expect(last(a).code).not.toBe(last(priv).code);
+    b.client.quick(); await until(() => last(b)?.phase === "lobby");
+    c.client.quick(); await until(() => last(c)?.phase === "lobby");
+    expect(new Set([last(a).code, last(b).code, last(c).code]).size).toBe(1);
+    await until(() => last(a).members.length === 3);
+    expect(last(priv).members).toHaveLength(1);
+  });
+
+  it("lists public rooms with player counts over GET /rooms, with CORS only for allowed origins", async () => {
+    const h = await relay();
+    const a = make(h); a.client.quick(); await until(() => last(a)?.phase === "lobby");
+    const p = make(h); p.client.create(); await until(() => last(p)?.phase === "lobby");
+    const { listRooms } = await import("../../../src/net/client.ts");
+    const list = (await listRooms(h.url, "dev"))!;
+    expect(list.rooms).toEqual([{ code: last(a).code, mode: "botSweep", phase: "lobby", players: 1, bots: 0, max: 4, world: "dev" }]);
+    expect(list.online).toBe(2);
+    expect((await listRooms(h.url, "sf"))!.rooms).toEqual([]);
+    const base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect((await fetch(`${base}/rooms`, { headers: { origin: "https://evil.example" } })).headers.get("access-control-allow-origin")).toBeNull();
+    expect((await fetch(`${base}/rooms`, { headers: { origin: "http://localhost:5173" } })).headers.get("access-control-allow-origin")).toBe("http://localhost:5173");
+  });
+
+  it("lets the host add bot teammates, gives people precedence for seats, and starts with the bots in the match", async () => {
+    const h = await relay(), a = make(h), b = make(h);
+    a.client.quick(); await until(() => last(a)?.phase === "lobby");
+    a.client.setBots(3); await until(() => last(a).bots === 3);
+    b.client.quick(); await until(() => last(a).members.length === 2);
+    await until(() => last(a).bots === 2);
+    b.client.setBots(0); await until(() => last(b).message === "Only the host can do that.");
+    a.client.ready(true); b.client.ready(true); await until(() => last(a).members.every((m) => m.ready));
+    a.client.start(); await until(() => !!a.client.match && !!b.client.match);
+    expect(Object.keys(room(h).state!.players).sort()).toEqual(["bot-1", "bot-2", "p1", "p2"]);
+    await play(h, [a, b], 121);
+    expect(hashState(a.client.match!.confirmed)).toBe(hashState(room(h).state!));
+    expect(room(h).stats.mismatches).toBe(0);
+  });
+
+  it("starts a solo practice with one player", async () => {
+    const h = await relay(), a = make(h);
+    a.client.quick(); await until(() => last(a)?.phase === "lobby");
+    a.client.ready(true); await until(() => last(a).members[0]!.ready);
+    a.client.start(); await until(() => !!a.client.match);
+    expect(Object.keys(room(h).state!.players)).toEqual(["p1"]);
+    expect(room(h).open()).toBe(false);
+  });
+});
+
 describe("relay transport seam", () => {
   it("runs the lobby over any transport with WebSocket semantics (here the ws package's client)", async () => {
     const h = await relay();

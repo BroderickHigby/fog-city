@@ -8,6 +8,13 @@ withdrawn and is not built.
 
 Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-botsweep` (from `origin/integrate/wave2` `ff7db5b`).
 
+## Next PRs (owner direction via coordinator, in order)
+
+1. Quick play / matchmaking — `work/multiplayer/quick-play` (stacked on #32): "Play online" joins
+   the fullest public lobby or opens one; public room list (`GET /rooms`) with player counts;
+   host-added deterministic bot teammates; solo practice.
+2. More modes · 3. Player identity · 4. Server persistence · 5. Social · 6. Ops readiness.
+
 ## What is playable now
 
 Online **Bot Sweep** (co-op, 1–4 players) end to end in the browser, against a relay started

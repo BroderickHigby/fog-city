@@ -2,8 +2,11 @@
 // cut from the real city. Moat Labs' beta units hide among ~120 robots; melt every one and the
 // Update Relay before the clock runs out. The free-roam state is never read, copied or written
 // here: only the settled payouts leave the match (src/sim/modes/settlement.ts applies them).
-import { NEUTRAL_INPUT, sortedIds, type InputFrame, type SimEvent, type SimState, type Spawn } from "../contract.ts";
-import { step } from "../step.ts";
+import { Action, NEUTRAL_INPUT, sortedIds, type InputFrame, type SimEvent, type SimState, type Spawn } from "../contract.ts";
+import { activeBody, step } from "../step.ts";
+import { contextFromState } from "../combat/adapter.ts";
+import { agentsCombatOptions } from "../agents/systems.ts";
+import { createRivalBotState, planRivalBotInputs, type BotObservation, type RivalBotState } from "../bots/controller.ts";
 import type { SimSystem } from "../system-contract.ts";
 import { arenaCombatEvents, arenaContains, arenaWorld, constrainArenaMotion, hasArenaRefill, type Arena } from "./arena.ts";
 import { createModesSystem, defaultMatchContext } from "./systems.ts";
@@ -38,10 +41,16 @@ export interface BotSweepConfig {
   spawn: Spawn;
   /** Optional shorter clock (ticks), at least one second, never longer than 12 minutes. */
   durationTicks?: number;
+  /** Bot teammates (`bot-1`…), so a team is never short of players; humans + bots ≤ 4. */
+  bots?: number;
 }
 
+/** Bot teammates' ids: never a relay seat id (`p1`…). */
+export function botIds(count: number): string[] { return Array.from({ length: count }, (_, i) => `bot-${i + 1}`); }
+export const isBotId = (id: string): boolean => /^bot-[1-9]$/.test(id);
+
 /** What a Bot Sweep instance keeps beside the match: its admitted roster and arena. */
-interface SweepInstance { version: 1; roster: RuntimeSpawn[]; center: { x: number; y: number; z: number }; radius: number }
+interface SweepInstance { version: 1; roster: RuntimeSpawn[]; center: { x: number; y: number; z: number }; radius: number; bots?: RivalBotState }
 
 export interface BotSweepView {
   id: string;
@@ -76,8 +85,10 @@ export function botSweepArena(state: Readonly<SimState>): Arena | null {
 /** A new, separate match instance on an arena cut from `world`. Throws ArenaUnavailableError. */
 export function createBotSweep(world: World, config: BotSweepConfig): SimState {
   if (!VALID_ID.test(config.id)) throw new Error("Invalid match id");
-  const players = [...config.players].sort();
-  if (players.length < 1 || players.length > BOT_SWEEP_MAX_PLAYERS || new Set(players).size !== players.length || players.some(id => !VALID_ID.test(id))) throw new Error("Invalid match participants");
+  const bots = config.bots ?? 0;
+  if (!Number.isSafeInteger(bots) || bots < 0 || bots >= BOT_SWEEP_MAX_PLAYERS || config.players.some(isBotId)) throw new Error("Invalid bot teammates");
+  const players = [...config.players, ...botIds(bots)].sort();
+  if (config.players.length < 1 || players.length > BOT_SWEEP_MAX_PLAYERS || new Set(players).size !== players.length || players.some(id => !VALID_ID.test(id))) throw new Error("Invalid match participants");
   if (excluded(config.spawn.x, config.spawn.z) || !dryPoint(world, config.spawn.x, config.spawn.z)) throw new ArenaUnavailableError("location", "Choose a dry arena outside excluded areas");
   const relayId = `mission:mode-${config.id}:update-relay`;
   const center = { x: config.spawn.x, y: groundHeight(world, config.spawn.x, config.spawn.z), z: config.spawn.z }, radius = BOT_SWEEP_ARENA_RADIUS;
@@ -91,7 +102,7 @@ export function createBotSweep(world: World, config: BotSweepConfig): SimState {
   const reserved = allocateActorIds(state, roster.actors.map(actor => actor.id)); state = reserved.state;
   const actors = roster.actors.map(actor => ({ ...actor, numericId: reserved.ids[actor.id]! }));
   const session = modeSessionOf(state)!;
-  const instance: SweepInstance = { version: 1, roster: actors, center, radius };
+  const instance: SweepInstance = { version: 1, roster: actors, center, radius, ...(bots ? { bots: createRivalBotState(Object.fromEntries(botIds(bots).map(id => [id, "hunter" as const]))) } : {}) };
   const bad = actors.filter(actor => actor.firmware === "bad" && actor.id !== relayId).map(actor => actor.id).sort();
   return { ...state, ext: { ...state.ext, modes: JSON.parse(JSON.stringify({ ...session, match: { ...session.match, remainingBad: bad }, sweep: instance })) } };
 }
@@ -133,7 +144,33 @@ export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: In
     { tick: state.tick + 1, kind: "player.leave", playerId: event.playerId },
     { tick: state.tick + 1, kind: "player.join", playerId: event.playerId, payload: { x: local.center.x, z: local.center.z, heading: 0 } },
   ]);
-  return step(isolated, state, controls, [...events, ...respawns], SYSTEMS);
+  if (!local.bots || session.match.phase !== "active") return step(isolated, state, controls, [...events, ...respawns], SYSTEMS);
+  // Bot teammates see only what a player could (visible bodies, completed scans; never firmware)
+  // and play through the same controls and recorded commands as people. Deterministic: their
+  // memory lives in the match state.
+  const combat = contextFromState(isolated, state, { ...agentsCombatOptions(state), wave: 4 }), runtime = agentsRuntimeOf(state);
+  const observations: BotObservation[] = sortedIds(local.bots.bots).filter(id => state.players[id]).map(id => {
+    const body = activeBody(state.players[id]!);
+    const near = (a: { x: number; z: number }) => (a.x - body.x) * (a.x - body.x) + (a.z - body.z) * (a.z - body.z);
+    const actors = combat.actors.filter(actor => actor.playerId !== id && near(actor) <= 40 * 40)
+      .sort((a, b) => near(a) - near(b) || (a.id < b.id ? -1 : 1)).slice(0, 256)
+      .map(actor => ({ id: actor.id, kind: actor.kind, x: actor.x, y: actor.y, z: actor.z, visible: true, height: actor.height,
+        operational: actor.kind === "player" || state.ext.combat?.targets[actor.id]?.phase === undefined || state.ext.combat.targets[actor.id]!.phase === "active",
+        suspicion: runtime?.actors[actor.id]?.behavior === "attack" ? 1 : 0, rival: false }));
+    const refills = [...(isolated.gameplay?.refills ?? [])].sort((a, b) => near(a) - near(b) || (a.id < b.id ? -1 : 1)).slice(0, 64);
+    return { playerId: id, actors, refills, objective: local.center, paused: session.match.players[id]!.downUntil > state.tick };
+  });
+  const plan = planRivalBotInputs(isolated, state, local.bots, observations);
+  const commanded = plan.commands.map(command => { const { playerId, ...payload } = command; return { tick: state.tick + 1, kind: "gameplay.command", playerId, payload }; });
+  for (const id of sortedIds(local.bots.bots)) {
+    if (!state.players[id] || session.match.players[id]!.downUntil > state.tick) continue;
+    const player = state.players[id]!;
+    // Bots sweep on foot: out of the car first.
+    controls[id] = player.mode === "vehicle" ? { ...NEUTRAL_INPUT, actions: Math.abs(player.car.speed) < .1 ? Action.enterExit : 0, brake: 1 } : plan.inputs[id] ?? { ...NEUTRAL_INPUT };
+  }
+  const next = step(isolated, state, controls, [...events, ...commanded, ...respawns], SYSTEMS);
+  const modes = next.ext.modes as unknown as Record<string, unknown>;
+  return { ...next, ext: { ...next.ext, modes: JSON.parse(JSON.stringify({ ...modes, sweep: { ...local, bots: plan.state } })) } };
 }
 
 /** A HUD-sized summary; never used by the sim. */
