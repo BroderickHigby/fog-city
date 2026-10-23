@@ -1,6 +1,7 @@
 import { matchKit } from "../content/kits.ts";
-import { InputController } from "../input/controller.ts";
+import { InputController, availableGamepads } from "../input/controller.ts";
 import { Keyboard, isTextEntry } from "../input/keyboard.ts";
+import { MenuGamepad } from "../input/menu-gamepad.ts";
 import { bounded, formatMoney } from "./copy.ts";
 import { createFreeTextBox, type FreeTextControl } from "./free-text.ts";
 import { drawMap } from "./minimap.ts";
@@ -50,7 +51,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     }
     if(modal==="vendor"&&!view?.vendor?.length)dialog.append(node("p",undefined,copy("ui.common.empty")));
     if(modal==="startup"){
-      freeText=createFreeTextBox(doc,{id:"startup",label:copy("ui.signup.label"),submitLabel:copy("ui.signup.submit"),copy,resolve:matchKit,accept:result=>{if(result.kind==="kit"){callbacks.startup?.(result.kitId);setModal(undefined);}},crisis:active=>{crisis=active;controls.setBlocked(true);}});dialog.append(freeText.element);
+      freeText=createFreeTextBox(doc,{id:"startup",label:copy("ui.signup.label"),submitLabel:copy("ui.signup.submit"),copy,choices:options.startupChoices,resolve:matchKit,accept:result=>{if(result.kind==="kit"){callbacks.startup?.(result.kitId);setModal(undefined);}},crisis:active=>{crisis=active;controls.setBlocked(true);}});dialog.append(freeText.element);
     }
     layer.replaceChildren(dialog);dialog.focus();
   }
@@ -89,6 +90,9 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(isTextEntry(event.target))return;
     if(event.code==="KeyP"&&!event.repeat){event.preventDefault();setModal(modal==="phone"?undefined:"phone");}
   };win.addEventListener("keydown",keydown);
+  const menuPad=new MenuGamepad({isOpen:()=>!!modal,toggle:()=>setModal(modal?undefined:"phone"),close:()=>setModal(undefined),move:delta=>{const items=[...layer.querySelectorAll<HTMLElement>("button:not(:disabled),textarea,select,[tabindex='0']")];if(!items.length)return;const index=items.indexOf(doc.activeElement as HTMLElement);items[(index+delta+items.length)%items.length]?.focus();},activate:()=>{(doc.activeElement as HTMLElement|null)?.click();}});
+  let gamepadFrame=0;
+  const pollPad=()=>{if(disposed)return;menuPad.update(availableGamepads(win.navigator).find(pad=>pad?.connected));gamepadFrame=win.requestAnimationFrame(pollPad);};gamepadFrame=win.requestAnimationFrame(pollPad);
   function update(next:UiView):void {
     if(disposed)return;view=next;
     stats.get("runway")!.textContent=`${bounded(next.runwayMonths,0,999).toFixed(1)} mo`;
@@ -103,5 +107,5 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     // Never replace a focused form while sim snapshots arrive.
     if(modal&&modal!=="startup"){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents]);if(stamp!==panelStamp){panelStamp=stamp;const active=doc.activeElement as HTMLElement|null;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }
-  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
+  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();win.cancelAnimationFrame(gamepadFrame);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
 }

@@ -3,6 +3,7 @@ import type { Keyboard } from "./keyboard.ts";
 
 export type VirtualAction = keyof typeof Action | "brake";
 export interface PadLike { readonly connected: boolean; readonly axes: readonly number[]; readonly buttons: readonly { readonly pressed: boolean; readonly value: number }[] }
+export function availableGamepads(source:Navigator|undefined=typeof navigator==="undefined"?undefined:navigator):readonly(PadLike|null)[]{try{return source?.getGamepads?.()??[];}catch{return[];}}
 const CONTINUOUS = new Set<VirtualAction>(["fire", "scan", "watch", "altFire", "interact", "brake"]);
 const PAD_ACTIONS: Readonly<Record<number, VirtualAction>> = { 0:"enterExit", 1:"cone", 2:"gadget", 3:"interact", 4:"watch", 5:"altFire", 7:"fire", 10:"horn", 11:"scan" };
 const neutral = (): SimInput => ({ throttle:0, steer:0, brake:0, actions:0 });
@@ -17,11 +18,12 @@ export class InputController {
   private x = 0;
   private y = 0;
   private blocked = false;
+  private awaitPadRelease = false;
   private previousPad = new Set<number>();
   private readonly keyboard:Keyboard|undefined;
   private readonly gamepads:()=>readonly (PadLike|null)[];
-  constructor(keyboard?:Keyboard, gamepads:()=>readonly (PadLike|null)[] = () => typeof navigator==="undefined"?[]:navigator.getGamepads()) { this.keyboard=keyboard;this.gamepads=gamepads; }
-  setBlocked(value:boolean):void { this.blocked=value; if(value)this.releaseAll(); }
+  constructor(keyboard?:Keyboard, gamepads:()=>readonly (PadLike|null)[] = () => availableGamepads()) { this.keyboard=keyboard;this.gamepads=gamepads; }
+  setBlocked(value:boolean):void { this.blocked=value; this.keyboard?.setBlocked(value);if(value){this.releaseAll();this.awaitPadRelease=true;} }
   setStick(x:number,y:number):void { if(!this.blocked){this.x=axis(x);this.y=axis(y);} }
   setAction(action:VirtualAction,down:boolean):void {
     if(this.blocked)return;
@@ -31,6 +33,10 @@ export class InputController {
   releaseAll():void {this.held.clear();this.pressed=0;this.x=0;this.y=0;this.previousPad.clear();this.keyboard?.releaseAll();}
   sample():SimInput {
     if(this.blocked)return neutral();
+    if(this.awaitPadRelease){
+      const held=this.gamepads().some(pad=>pad?.connected&&(pad.buttons.some(button=>button.pressed)||pad.axes.some(value=>Number.isFinite(value)&&Math.abs(value)>.16)));
+      if(held)return neutral();this.awaitPadRelease=false;
+    }
     const base=this.keyboard?.sample()??neutral();
     let actions=base.actions|this.pressed;
     for(const action of this.held)if(action!=="brake"&&CONTINUOUS.has(action))actions|=Action[action];
