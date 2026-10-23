@@ -13,3 +13,8 @@ The tested core performance checkpoint `f9ca263` is now included. After this mer
 Draft PR title: `Online: run matching gameplay and world data on the relay and prediction`
 
 Draft PR body: Runs the same composed game systems on the private relay and client prediction, loads authored gameplay/navigation/transit layers on the server, and fingerprints all deterministic world inputs. Mounts the fixed, session-bound AI routes with scripted fallbacks and live providers disabled. All 66 offline/loopback tests pass, including actual gameplay hash parity and delayed-input transport recovery. Hosting and live-provider configuration remain unconfigured.
+## Service admission repair intake
+
+The online branch includes `5e8bf5b` as `47a83c6`: full service-vehicle hull checks, player foot/car blockers, shared pending-spawn clearance and safe deferred retries. The same repaired planner runs in authoritative relay and client prediction. Later threat dispatch, flight and Tidy features are not included.
+
+Validation after intake: TypeScript and **7 files / 19 tests** pass, covering service/transit admission, physical van/bus behavior, actual gameplay composition parity, authenticated gameplay-driver parity and deterministic world fingerprints. The earlier full network/service and transport-stress results remain separate evidence.
