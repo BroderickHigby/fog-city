@@ -36,8 +36,9 @@ The DataSF licence of each dataset was read from its metadata
 (`https://data.sfgov.org/api/views/<id>.json`, field `license`) on 2026-10-20. Every DataSF
 dataset used is the **Open Data Commons Public Domain Dedication and License (PDDL) 1.0**
 (<http://opendatacommons.org/licenses/pddl/1.0/>). The PDDL requires no attribution; we
-credit the sources anyway. The strings are in `manifest.json` `attribution`. No
-OpenStreetMap (ODbL) data is used or committed.
+credit the sources anyway. The strings are in `manifest.json` `attribution`. The world build
+uses no OpenStreetMap (ODbL) data; the street-detail land cover does, in its own file
+(see [Land cover](#land-cover-street-landcoverjson-street-osmjson)).
 
 | Data | Source | Fields used | Licence and credit |
 |---|---|---|---|
@@ -663,6 +664,9 @@ committed files, so a world rebuild is followed by a street-detail rebuild.
 | Continental crosswalks | DataSF *Continental Crosswalks*, [`g9zy-srvv`](https://data.sfgov.org/resource/g9zy-srvv.json), SFMTA, PDDL 1.0. Intersection-level: nodes with at least one continental crosswalk. | `cnn`, `continental` |
 | Stop signs | DataSF *Stop Signs*, [`4542-gpa3`](https://data.sfgov.org/resource/4542-gpa3.json), SFMTA, PDDL 1.0. One row per sign: the node (`cnn`), the street it controls and the traffic direction it faces. | `cnn`, `street`, `x_street`, `st_facing`, `direction` |
 | Traffic signals | `signals.json` (SFMTA `ybh5-27n2`, see Gameplay data) | `node`, `kind` |
+| Lawns | DataSF *Functional Areas maintained by Recreation and Parks Department*, [`38b7-6db3`](https://data.sfgov.org/resource/38b7-6db3.json), SF Rec and Park, PDDL 1.0: `Lawn`, `Non-landscaped Greenspace`, `Natural Area` polygons | `objectid`, `funcarea_id`, `functional_area_type`, `shape` |
+| Park fences | DataSF *Linear Assets Maintained by the Recreation and Parks Department*, [`rny7-88gk`](https://data.sfgov.org/resource/rny7-88gk.json), SF Rec and Park, PDDL 1.0: `Fence` and `Gate` lines | `objectid`, `asset_id`, `asset_type`, `asset_subtype`, `shape` |
+| Grass, barriers, piers outside the city's records | OpenStreetMap, the extract `data/osm/sf-2026-10-23.osm.pbf` on branch `data/osm-sf` (Geofabrik norcal, OSM timestamp 2026-10-22T20:21:33Z, SHA-256 `90f1a33c…f3be4`, pinned in `pipeline/build-street-detail.ts`). **ODbL 1.0, © OpenStreetMap contributors.** | grass: `landuse=grass/meadow/village_green`, `landcover=grass`, `natural=grassland`, `leisure=pitch` on grass (ways and multipolygons); barriers: `barrier=fence/wall/retaining_wall/hedge/guard_rail` (`height`); piers: `man_made=pier` (`floating`, `width`, `area`) |
 | Street signs | DataSF *Street Signs*, [`m48z-6ji4`](https://data.sfgov.org/resource/m48z-6ji4.json), SFMTA, PDDL 1.0. In-service rows (`status_code = 'IS'`) of the categories STREET NAME, ONE WAY(RA/LA), STREET CLEANING, PARKING, PARKING:RPP, PARKING:NPRK ANY TIME and TOW (TANP ANY TIME). | `objectid`, `sign_category`, `legend`, `sign_support`, `streetname`, `corner_side_facing`, `cnn`, `shape` |
 
 ### Junction paint (`street-markings.json`)
@@ -747,6 +751,29 @@ drivable legs meet (freeway and ramp nodes are skipped): 7,439 junctions in sf.
 * Ids: `corner:<node>:<k>` and `curb:<objectid>`.
 * sf result: 9,553 corner posts, 38,561 kerbside signs; 9,909 rows unplaced (no matching node
   or block, or no clear spot); 4.8 MB.
+
+### Land cover (`street-landcover.json`, `street-osm.json`)
+
+`pipeline/lib/landcover.ts`, render-only. The two files are kept apart by licence:
+`street-landcover.json` holds only DataSF (PDDL) data; `street-osm.json` holds only what is
+derived from OpenStreetMap and is a **derivative database under the ODbL** (its `license` field
+says so). Shipping it requires crediting "© OpenStreetMap contributors" where the game shows
+its credits; the index's `attribution` carries the line. This is the first OSM data in the repo:
+the earlier "no OpenStreetMap data" policy needs the owner's sign-off for it.
+
+* **Grass**: Rec and Park lawns (Marina Green, the Palace of Fine Arts, Moscone and every other
+  city park) and OSM grass (Fort Mason's Great Meadow, the Presidio, Crissy Field, federal and
+  private land the city does not map). Polygons, with their holes, are clipped to 100 m cells;
+  multipolygon relations are joined from their member ways. The renderer drapes a grass sheet
+  0.06 m above the ground (below the road ribbons) with patchy tone.
+* **Barriers**: Rec and Park fences and gates (height from the subtype: split rail 1.1 m, wood
+  1.5 m, else 1.8 m) and OSM fences, walls, hedges and guard rails (`height` when tagged, else
+  1.5 / 1.2 / 1.3 / 0.8 m); OSM retaining walls show as a 0.8 m parapet. The renderer draws
+  fences as posts with a chain-link panel, walls and hedges as blocks.
+* **Piers**: OSM `man_made=pier` decks (closed ways) or walkways (lines, `width` or 3 m; 1.8 m
+  floating): the Marina's yacht-harbour docks, Fort Mason's and the Embarcadero's piers. Decks
+  stand 1.4 m above the sea (0.45 m when floating), never below the ground.
+* Ids: `rpd:<id>…`, `osm:w<way>` / `osm:r<relation>`, with `@cx,cz` for each grass cell piece.
 
 ## Gameplay data (the wave-2 spike)
 

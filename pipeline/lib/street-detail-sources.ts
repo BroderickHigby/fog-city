@@ -48,6 +48,24 @@ export const STREET_DETAIL_DATASETS: readonly DatasetSpec[] = [
     select: "objectid,sign_category,legend,sign_support,streetname,corner_side_facing,cnn,shape",
     order: "objectid",
   },
+  {
+    key: "rpdAreas",
+    id: "38b7-6db3",
+    title: "Functional Areas maintained by Recreation and Parks Department",
+    publisher: "San Francisco Recreation and Parks",
+    where: "functional_area_type IN ('Lawn', 'Non-landscaped Greenspace', 'Natural Area') AND shape IS NOT NULL",
+    select: "objectid,funcarea_id,functional_area_type,shape",
+    order: "objectid",
+  },
+  {
+    key: "rpdLinear",
+    id: "rny7-88gk",
+    title: "Linear Assets Maintained by the Recreation and Parks Department",
+    publisher: "San Francisco Recreation and Parks",
+    where: "asset_type IN ('Fence', 'Gate') AND shape IS NOT NULL",
+    select: "objectid,asset_id,asset_type,asset_subtype,shape",
+    order: "objectid",
+  },
 ];
 
 export const LICENCE = "ODC PDDL 1.0";

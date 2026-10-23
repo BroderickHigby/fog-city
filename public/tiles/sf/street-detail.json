@@ -5,12 +5,16 @@
   "snapshotDate": "2026-10-23",
   "attribution": [
     "Junction paint, signals, stop signs and street signs: placed by pipeline/build-street-detail.ts from the road graph (DataSF 3psu-pn9h) and traffic signals (SFMTA ybh5-27n2).",
-    "Continental Crosswalks: SFMTA via DataSF (g9zy-srvv); Stop Signs: SFMTA via DataSF (4542-gpa3); Street Signs: SFMTA via DataSF (m48z-6ji4), ODC PDDL 1.0."
+    "Continental Crosswalks: SFMTA via DataSF (g9zy-srvv); Stop Signs: SFMTA via DataSF (4542-gpa3); Street Signs: SFMTA via DataSF (m48z-6ji4), ODC PDDL 1.0.",
+    "Functional Areas maintained by Recreation and Parks Department: San Francisco Recreation and Parks via DataSF (38b7-6db3); Linear Assets Maintained by the Recreation and Parks Department: San Francisco Recreation and Parks via DataSF (rny7-88gk), ODC PDDL 1.0.",
+    "Grass, barriers and piers in street-osm.json: © OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)."
   ],
   "layers": {
     "markings": "street-markings.json",
     "furniture": "street-furniture.json",
-    "signs": "street-signs.json"
+    "signs": "street-signs.json",
+    "landcover": "street-landcover.json",
+    "osm": "street-osm.json"
   },
   "counts": {
     "junctions": 7439,
@@ -20,6 +24,9 @@
     "signalPoles": 4113,
     "stopSigns": 10325,
     "signPosts": 9553,
-    "curbSigns": 38561
+    "curbSigns": 38561,
+    "grassPieces": 11216,
+    "barriers": 5356,
+    "piers": 1201
   }
 }

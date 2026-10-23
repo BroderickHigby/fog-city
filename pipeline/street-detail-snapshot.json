@@ -21,6 +21,16 @@
    "url": "https://data.sfgov.org/resource/m48z-6ji4.json?%24where=status_code%20%3D%20'IS'%20AND%20shape%20IS%20NOT%20NULL%20AND%20sign_category%20IN%20('STREET%20NAME'%2C%20'ONE%20WAY(RA)'%2C%20'ONE%20WAY(LA)'%2C%20'STREET%20CLEANING'%2C%20'PARKING'%2C%20'PARKING%3ARPP'%2C%20'PARKING%3ANPRK%20ANY%20TIME'%2C%20'TOW%20(TANP%20ANY%20TIME)')&%24select=objectid%2Csign_category%2Clegend%2Csign_support%2Cstreetname%2Ccorner_side_facing%2Ccnn%2Cshape&%24order=objectid&%24limit=50000&%24offset=50000",
    "sha256": "b06074fde72b8bdccf3d507e5ebd2076444145f0d80a3f68663cbeb1f635fbff",
    "bytes": 1874390
+  },
+  {
+   "url": "https://data.sfgov.org/resource/38b7-6db3.json?%24where=functional_area_type%20IN%20('Lawn'%2C%20'Non-landscaped%20Greenspace'%2C%20'Natural%20Area')%20AND%20shape%20IS%20NOT%20NULL&%24select=objectid%2Cfuncarea_id%2Cfunctional_area_type%2Cshape&%24order=objectid&%24limit=50000&%24offset=0",
+   "sha256": "dfb9fbaa538ba382d94383770e587d5af0f3f7cc8a98fb1939bd86519c4cabe4",
+   "bytes": 4398818
+  },
+  {
+   "url": "https://data.sfgov.org/resource/rny7-88gk.json?%24where=asset_type%20IN%20('Fence'%2C%20'Gate')%20AND%20shape%20IS%20NOT%20NULL&%24select=objectid%2Casset_id%2Casset_type%2Casset_subtype%2Cshape&%24order=objectid&%24limit=50000&%24offset=0",
+   "sha256": "fd53fa5f5bd4d7a81dd72a3177703115cff2bfb887f235628ceda6a1ac812f96",
+   "bytes": 557301
   }
  ]
 }
