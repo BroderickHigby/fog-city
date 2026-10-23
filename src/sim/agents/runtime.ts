@@ -3,10 +3,12 @@ import { ROBOT_GOALS, goalsInWave } from "../../content/robotGoals.ts";
 import { badRobotRate, protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
 import { Action, type InputFrame, type SimInput, type SimState } from "../contract.ts";
-import { AGENT_SPEC, agentsOf, personIsChild, type AgentState } from "../agents.ts";
+import { AGENT_SPEC, ROBOTAXI_BODY, agentsOf, personIsChild, type AgentState } from "../agents.ts";
+import { CAR } from "../car.ts";
+import { DETOUR_CLEAR_M, DETOUR_LOOK_M, DETOUR_REJOIN_M, DETOUR_TICKS, boxGap, detourWaypoint, type DetourBox } from "./detour.ts";
 import { dcos, dsin, datan2, clamp } from "../dmath.ts";
 import type { AgentMotionProposal as CoreAgentMotionProposal } from "../motion.ts";
-import { groundHeight, segmentBlocked, type World } from "../world.ts";
+import { circleBlocked, groundHeight, segmentBlocked, type World } from "../world.ts";
 import type { AttackKind, AttackRequest, CombatActor, CombatState } from "../combat-contract.ts";
 import { createRobotBrain, stepRobotBrain, type RobotBrainState, type RobotBrainIntent, type RobotObservations, type BrainTarget, type RobotGoal } from "../robots/brain.ts";
 import { buildFallbackSidewalkGraph, nearestSidewalkNode, shortestSidewalkRoute, advanceSidewalkRoute, type SidewalkGraph, type SidewalkRoute, type SidewalkCursor } from "./navigation.ts";
@@ -66,6 +68,8 @@ export interface RuntimeActor extends RuntimeSpawn {
   tellIds: string[];
   tellIntensity: number;
   hiddenTellId: string | null;
+  /** v10: walking round a stopped vehicle to (x, z), where its route carries on from `cursor` (detour.ts). */
+  detour?: { x: number; z: number; cursor: SidewalkCursor; until: number } | null;
 }
 
 export interface AgentMotionProposal extends CoreAgentMotionProposal {
@@ -299,10 +303,73 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
   return {goal:null,speed:actor.model==="trundle"?1:animal(actor.model)?1.3:1.6};
 }
 
+/** Vehicles standing still (players' cars, robotaxis, vans, buses), as of the previous tick. */
+function stoppedVehicles(sim:Readonly<SimState>):DetourBox[]{
+  const out:DetourBox[]=[];
+  for(const id of keys(sim.players)){const c=sim.players[id]!.car;if(Math.abs(c.speed)<.1)out.push({x:c.x,z:c.z,heading:c.heading,hl:CAR.halfLength,hw:CAR.halfWidth});}
+  for(const a of sim.ext.agents?.list??[])if(a.kind==="robotaxi"&&Math.abs(a.speed)<.1)out.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??ROBOTAXI_BODY.halfLength,hw:a.halfWidth??ROBOTAXI_BODY.halfWidth});
+  return out;
+}
+
+/**
+ * A walker whose route runs into a vehicle standing still walks round its nearer bumper to the
+ * first point of the route clear beyond it (detour.ts), and carries on from there. Returns the
+ * point to head for this tick, or null to follow the route as usual.
+ */
+function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor:RuntimeActor,speed:number,stopped:readonly DetourBox[],isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number}|null{
+  const r=actor.radius;
+  const within=(reach:number)=>stopped.filter(b=>Math.abs(b.x-actor.x)<=reach+b.hl+b.hw&&Math.abs(b.z-actor.z)<=reach+b.hl+b.hw);
+  // Nothing standing still within reach of the next DETOUR_LOOK_M of route: the common case, no route walk.
+  if(!actor.route||(!actor.detour&&!within(DETOUR_LOOK_M+r+.2).length)){actor.detour=null;return null;}
+  const boxes=within(DETOUR_REJOIN_M+r+DETOUR_CLEAR_M+1);
+  if(!boxes.length){actor.detour=null;return null;}
+  const walkable=(ax:number,az:number,bx:number,bz:number)=>!segmentBlocked(world,ax,az,bx,bz)&&!circleBlocked(world,bx,bz,r);
+  const blocking=(tx:number,tz:number)=>{
+    // The first stopped vehicle the straight line to (tx, tz) runs into.
+    let best:DetourBox|null=null,bestD=Infinity;
+    for(const b of boxes){
+      const dx=tx-actor.x,dz=tz-actor.z,l=Math.sqrt(dx*dx+dz*dz),n=Math.max(1,Math.ceil(l/.1));
+      for(let i=0;i<=n;i++){const px=actor.x+dx*i/n,pz=actor.z+dz*i/n;if(boxGap(px,pz,b)<r+DETOUR_CLEAR_M-.02){const d=l*i/n;if(d<bestD){bestD=d;best=b;}break;}}
+    }
+    return best;
+  };
+  if(actor.detour&&actor.detour.until>sim.tick){
+    const target=actor.detour;
+    if(distance(actor,target)<=Math.max(.25,speed*DT)){actor.cursor={...target.cursor};actor.detour=null;return {x:target.x,z:target.z};}
+    const box=blocking(target.x,target.z);
+    const way=box?detourWaypoint(actor,target,box,r,walkable):walkable(actor.x,actor.z,target.x,target.z)?target:null;
+    if(!way){actor.detour=null;return null;}
+    return way;
+  }
+  actor.detour=null;
+  // Is the next stretch of route into a stopped vehicle's body?
+  let box:DetourBox|null=null,from=0;
+  for(let d=.5;d<=DETOUR_LOOK_M&&!box;d+=.5){
+    const p=advanceSidewalkRoute(graph,actor.route,actor.cursor,d,edge=>isBlocked(edge));
+    if(p.blockedEdgeId!==null)break;
+    for(const b of boxes)if(boxGap(p.point.x,p.point.z,b)<r+.1){box=b;from=d;break;}
+    if(p.finished)break;
+  }
+  if(!box)return null;
+  // The first point of the route beyond it with room to stand clear of every stopped vehicle.
+  for(let d=from+.5;d<=DETOUR_REJOIN_M;d+=.5){
+    const p=advanceSidewalkRoute(graph,actor.route,actor.cursor,d,edge=>isBlocked(edge));
+    if(p.blockedEdgeId!==null)return null;
+    if(boxes.every(b=>boxGap(p.point.x,p.point.z,b)>=r+DETOUR_CLEAR_M+.1)&&!circleBlocked(world,p.point.x,p.point.z,r)){
+      const way=detourWaypoint(actor,p.point,box,r,walkable);
+      if(!way)return null;
+      actor.detour={x:p.point.x,z:p.point.z,cursor:p.cursor,until:sim.tick+DETOUR_TICKS};
+      return way;
+    }
+    if(p.finished)return null;
+  }
+  return null;
+}
+
 function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
   return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
 }
-function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>):void{
+function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>,stopped:readonly DetourBox[]):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
     const controls=options.vehicleControls?.[actor.id];
@@ -327,7 +394,8 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       if(dx*dx+dz*dz>1600)return [];
       const input=inputs[player.id],seen=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
       const observed:PerceivedStimulus[]=[];
-      if(distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
+      // A glance is at someone standing near; a driver sitting in a stopped car is not one (people walk round it).
+      if(player.mode==="foot"&&distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
       if(input&&(input.actions&Action.horn))observed.push({sourceId:player.id,kind:"horn",x:player.x,z:player.z,seen,heard:true});
       if(player.mode==="vehicle")observed.push({sourceId:player.id,kind:"vehicle",x:player.x,z:player.z,seen,heard:false,speedMps:Math.abs(player.speed)});
       for(const emitted of activeCombat(sim)?.events??[])if(emitted.sourceId===player.id){
@@ -355,12 +423,16 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       if(candidates.length){
         const end=candidates[hash(`${actor.id}:${sim.tick>>9}`)%candidates.length]!;
         const route=shortestSidewalkRoute(graph,start,end);
-        actor.route=route;actor.cursor={stepIndex:0,distanceM:0};actor.goalNode=end;
+        actor.route=route;actor.cursor={stepIndex:0,distanceM:0};actor.goalNode=end;actor.detour=null;
       }
     }
     if(actor.route&&actor.route.steps.length){
-      const next=advanceSidewalkRoute(graph,actor.route,actor.cursor,speed*DT,edge=>Boolean(options.crossingBlocked?.(edge.id)));
-      goal=next.point;actor.pendingCursor=next.cursor;
+      const around=detourGoal(world,sim,graph,actor,speed,stopped,edge=>Boolean(options.crossingBlocked?.(edge.id)));
+      if(around){goal=around;actor.pendingCursor=null;}
+      else{
+        const next=advanceSidewalkRoute(graph,actor.route,actor.cursor,speed*DT,edge=>Boolean(options.crossingBlocked?.(edge.id)));
+        goal=next.point;actor.pendingCursor=next.cursor;
+      }
     }
   }
   if(!goal)goal={x:actor.x+dsin(actor.heading),z:actor.z-dcos(actor.heading)};
@@ -417,6 +489,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
+  const stopped=stoppedVehicles(sim);
   for(const actor of list){
     if(actor.retired)continue;
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
@@ -449,7 +522,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
     }
-    propose(world,state,actor,graph,intent,options,sim,inputs,list,people);
+    propose(world,state,actor,graph,intent,options,sim,inputs,list,people,stopped);
   }
   return state;
 }

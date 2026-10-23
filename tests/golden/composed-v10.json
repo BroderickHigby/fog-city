@@ -1,0 +1,76 @@
+{
+  "simVersion": 10,
+  "scenarios": {
+    "city": {
+      "hashes": [
+        "24ed4833",
+        "832bec20",
+        "9c81432a",
+        "233b5d6c",
+        "6ead2653",
+        "c537e64d"
+      ],
+      "coverage": {
+        "agents:final": 17,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3
+      }
+    },
+    "service": {
+      "hashes": [
+        "e8f9d808",
+        "d524b69f",
+        "70f30965",
+        "1f89979b",
+        "58e5c1c9",
+        "91f0a989",
+        "feb9ab1d",
+        "d234d3a8",
+        "916785e6"
+      ],
+      "coverage": {
+        "agents:final": 2,
+        "identities:final": 2,
+        "services:service.delivered": 1,
+        "services:service.dispatched": 1,
+        "services:service.retired": 1
+      }
+    },
+    "mission": {
+      "hashes": [
+        "de79d15a",
+        "344b704a",
+        "284a890d",
+        "65483fe8",
+        "95ac1727",
+        "ae8a2fbc"
+      ],
+      "coverage": {
+        "agents:final": 2,
+        "combat:projectile.ended": 44,
+        "combat:weapon.water": 46,
+        "identities:final": 2,
+        "missions:mission.stage": 1
+      }
+    },
+    "city-wave3": {
+      "hashes": [
+        "c9a0922a",
+        "26031f32",
+        "b1427a48",
+        "e21b55cc",
+        "95fdc253",
+        "b596cbd2"
+      ],
+      "coverage": {
+        "agents:final": 17,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3
+      }
+    }
+  }
+}

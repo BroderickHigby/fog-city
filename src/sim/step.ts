@@ -138,7 +138,9 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if ([2, 3, 4, 5, 6].includes(s.version)) {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
-  if (s.version === 7) return { ...s, version: 8 };
+  if (s.version === 7) return upgradeState({ ...s, version: 8 });
+  // v10 adds only optional fields (AgentState.pass, RuntimeActor.detour): restamp.
+  if (s.version === 8) return { ...s, version: 10 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
