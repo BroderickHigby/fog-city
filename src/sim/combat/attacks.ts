@@ -1,4 +1,5 @@
 import { DT, FIDELITY_RADIUS, emit, initialTarget, newlyPressed, playerById } from "./shared.ts";
+import { segmentWallFraction } from "./physics.ts";
 import type {
   AttackKind, AttackRequest, CombatActor, CombatContext, CombatInputs, CombatPlayer,
   CombatState, PendingAttack, RobotModel, TargetCombat, Vec3,
@@ -83,25 +84,7 @@ function validTarget(kind: AttackKind, target: Target): boolean {
 
 /** A narrow wall blocks a short-range attack just as it blocks its readable wind-up. */
 function wallBetween(ctx: CombatContext, from: Vec3, to: Vec3): boolean {
-  for (const wall of ctx.walls) {
-    let lo = 0, hi = 1;
-    const axes: Array<[number, number, number, number]> = [
-      [from.x, to.x - from.x, wall.minX, wall.maxX],
-      [from.y + 0.6, to.y - from.y, wall.minY, wall.maxY],
-      [from.z, to.z - from.z, wall.minZ, wall.maxZ],
-    ];
-    for (const [origin, delta, min, max] of axes) {
-      if (Math.abs(delta) < 1e-10) {
-        if (origin < min || origin > max) { hi = -1; break; }
-      } else {
-        const a = (min - origin) / delta, b = (max - origin) / delta;
-        lo = Math.max(lo, Math.min(a, b)); hi = Math.min(hi, Math.max(a, b));
-        if (lo > hi) break;
-      }
-    }
-    if (lo <= hi && hi > 1e-6 && lo < 1 - 1e-6) return true;
-  }
-  return false;
+  return ctx.walls.some(wall=>{const hit=segmentWallFraction({...from,y:from.y+.6},{...to,y:to.y+.6},wall);return hit!==null&&hit<1-1e-6;});
 }
 
 function pairFor(state: CombatState, ctx: CombatContext, attack: Pick<PendingAttack, "attackerId" | "targetId" | "kind">): { attacker: CombatActor; target: Target } | null {
