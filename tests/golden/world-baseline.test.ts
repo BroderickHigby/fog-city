@@ -151,11 +151,10 @@ describe("world gate pinned street sample (tests/helpers/world-gate/fixtures/dri
   });
 });
 
-describe("world gate cover suite's copy of the renderer's ground tint", () => {
-  it("matches src/render/scene.ts now, and fails loudly when the wiring changes", () => {
+describe("world gate cover suite's view of the renderer's ground colour", () => {
+  it("matches src/render/scene.ts now (no runtime tint), and fails loudly when a tint comes back", () => {
     expect(() => checkTintWiring()).not.toThrow();
     const scene = readFileSync(join(ROOT, "src/render/scene.ts"), "utf8");
-    expect(() => checkTintWiring(scene.replace(/tintGround:[^\n]*\n/, "\n"))).toThrow(/tintGround/);
-    expect(() => checkTintWiring(scene.replace(/parkShapes\(world\.districts/, "parkShapes(other"))).toThrow(/parkShapes/);
+    expect(() => checkTintWiring(`${scene}\nconst o = { tintGround: (geo, m) => tint(geo, m) };\n`)).toThrow(/tintGround/);
   });
 });
