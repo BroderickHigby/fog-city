@@ -1,10 +1,11 @@
-import { protectedAreaAt, badRobotRate } from "../content/places.ts";
+import { protectedAreaAt } from "../content/places.ts";
 import { toLatLon } from "../geo/project.ts";
 import { sortedIds } from "./contract.ts";
 import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { fogDensity } from "./fog/index.ts";
 import { allocateActorIds } from "./identity.ts";
 import { createAgentsSystem, agentsCombatOptions } from "./agents/systems.ts";
+import { badRobotRateAt } from "./agents/bad-rate.ts";
 import { createCombatSystem } from "./combat/systems.ts";
 import { contextFromState } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
@@ -19,7 +20,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   const wave=options.wave??2;
   const protectedArea=options.protectedArea??((x:number,z:number)=>{const p=toLatLon(x,z);return Boolean(protectedAreaAt([p.lat,p.lon]));});
   const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,
-    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return badRobotRate([p.lat,p.lon]);},
+    badRateAt:badRobotRateAt,
     fog:fogDensity(context.world,context.state,0,0),
   }),allocateActorIds);
   const combatContext=(context:SimSystemContext)=>{

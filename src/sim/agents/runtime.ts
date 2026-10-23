@@ -1,6 +1,7 @@
 import { BOT_TELLS, botAtLevel } from "../../content/botTells.ts";
 import { ROBOT_GOALS, goalsInWave } from "../../content/robotGoals.ts";
-import { badRobotRate, protectedAreaAt } from "../../content/places.ts";
+import { protectedAreaAt } from "../../content/places.ts";
+import { badRobotRateAt } from "./bad-rate.ts";
 import { toLatLon } from "../../geo/project.ts";
 import { Action, type InputFrame, type SimInput, type SimState } from "../contract.ts";
 import { AGENT_SPEC, agentsOf, personIsChild, type AgentState } from "../agents.ts";
@@ -129,7 +130,6 @@ function distance(a:{x:number;z:number},b:{x:number;z:number}):number{return Mat
 function bodyOf(player:SimState["players"][string]){return player.mode==="foot"&&player.foot?player.foot:player.car;}
 function players(state:Readonly<SimState>){return keys(state.players).map(id=>({id,mode:state.players[id]!.mode,...bodyOf(state.players[id]!)}));}
 function hash(value:string):number{let out=2166136261;for(let i=0;i<value.length;i++)out=Math.imul(out^value.charCodeAt(i),16777619);return out>>>0;}
-function defaultBadRate(x:number,z:number):number{const point=toLatLon(x,z);return badRobotRate([point.lat,point.lon]);}
 function defaultProtected(x:number,z:number):boolean{const point=toLatLon(x,z);return Boolean(protectedAreaAt([point.lat,point.lon]));}
 function activeCombat(state:Readonly<SimState>):CombatState|undefined{return state.ext.combat;}
 function phase(state:Readonly<SimState>,id:string):string{return activeCombat(state)?.targets[id]?.phase??"active";}
@@ -177,7 +177,7 @@ function initialize(spawn:RuntimeSpawn,tick:number,legacyId:number|null):Runtime
 
 function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):RuntimeSpawn{
   const id=`agent:${agent.id}`, model=agent.kind==="errandRobot"?"footman":agent.kind==="sidewalkBot"?"trundle":agent.kind;
-  const firmware=options.firmware?.[id]??(model==="person"?"none":hash(`${seed}:${id}`)/4294967296<clamp((options.badRateAt??defaultBadRate)(agent.x,agent.z),0,1)?"bad":"good");
+  const firmware=options.firmware?.[id]??(model==="person"?"none":hash(`${seed}:${id}`)/4294967296<clamp((options.badRateAt??badRobotRateAt)(agent.x,agent.z),0,1)?"bad":"good");
   const profiles=BOT_TELLS.archetypes.filter(profile=>profile.kind===firmware&&profile.model===(model==="trundle"?"sidewalk-bot":model==="robotaxi"?"robotaxi":"errand-robot"));
   const profile=profiles[hash(id)%Math.max(1,profiles.length)];
   return {id,numericId:agent.id,model,firmware,...(profile?{archetype:profile.id,level:1+hash(`${id}:level`)%5}:{}),x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed,
