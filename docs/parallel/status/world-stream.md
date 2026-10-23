@@ -38,6 +38,47 @@ Verified by running the same tests on a pristine `qa/world-integration` checkout
 - `tests/sim/boundary.test.ts`: 2.1978 m southern-boundary overshoot (limit 0.02 m).
 - The strict `world-pr` gate (handoff: 53 passed / 78 failed / 7 skipped).
 
+## Reproducibility (PR a)
+
+- The pinned raw cache is not recoverable: no git ref on origin carries `pipeline/.cache`
+  (gitignored), no dangling objects exist, and the original build machine's disk is gone.
+  The pipeline never recorded input hashes, only the label `snapshotDate: 2026-10-23`.
+- DataSF answered HTTP 200 (redirect to `data.sf.gov`); Socrata has no as-of queries, so the
+  current datasets were fetched (181 responses, 389.7 MB), resumable through DataSF's 425
+  throttling.
+- Offline `--check` of the held world against that cache: **1,192 / 1,203 files byte-identical**,
+  including the collider pack, every collider, roads and far cells. The 11 differences all
+  derive from the daily business registry (`g8m3-pdis`): `storefronts.json` (10,478 → 10,481
+  anchors), `report.json` counters, nine shopfront-bearing tile GLBs.
+- Recorded as explicit snapshot `2026-10-23T21:20Z`: hashes in `pipeline/source-snapshot.json`
+  (verifier `pipeline/tools/source-snapshot.ts`), diff summary in `docs/data-sources.md`
+  "Snapshots", tiles regenerated (no hand edits).
+
+## Strict gate at the import (`world-pr`, merged tree)
+
+53 passed / 78 failed / 7 skipped. Of 116 metrics: 67 better, 37 same, **12 worse**:
+freeway max grade 143.22 → 345.06 % (US-101 Golden Gate approach `c19205000`), drawn road vs
+sim surface 3.84 → 6.6 m (Broadway Tunnel `c3186101`), stopped routes 2 → 3, placement rise
+0.34 → 1.69 m (`c9329000`), airborne crossings 66 → 70, far hulls off 3 m 44 → 110, duplicates
+23 → 26, buried walker stops 29 → 30, below-surface 0.173 → 0.404 m, Sutro area +4 cm, two
+millimetre route metrics. These are PR (b)'s list.
+
+**Southern boundary (2.1978 m) root cause:** not a collision or sweep defect. The test's start
+pose (50 m back from the edge) at x 1450–1480 lands on a 30 m land-wall notch at the creek
+shore (z 9620), so the car *starts* 2.2 m across that wall; the measured overshoot is that start
+pose (2.200 at tick −1, 2.198 at tick 0) and never grows. From all 21 starts clear of every
+wall, at both southern land edges, the car stops at the county line with 0.000 m overshoot.
+Fix in PR (b): the probe rejects start poses that already straddle a wall; the 0.02 m
+assertion stays.
+
+## Lane R requests (for PR d)
+
+- Cherry-pick `b0914fb` (`feature/ferry-showcase`, lit office floors at night in
+  `facade-shader.ts` / `far-layer.ts`) if it applies cleanly and render tests pass; otherwise
+  record here and Lane R patches after (d) lands.
+- `showcase.ts`, `detail.ts`, sidewalks/kerbs (`sidewalks.ts`), the house-kit facade shader and
+  `structures.ts` reach `integrate/wave2` only through PR (d).
+
 ## Salvaged commits
 
 - `qa/world-integration` `4556f8a` (merged in `4244369`).

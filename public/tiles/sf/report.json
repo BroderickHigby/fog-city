@@ -1449,11 +1449,11 @@
     "largestComponentNodes": 9313
   },
   "storefronts": {
-    "raw": 13277,
-    "notStorefrontNaics": 1606,
+    "raw": 13282,
+    "notStorefrontNaics": 1607,
     "noBuilding": 147,
-    "noFrontage": 1046,
-    "kept": 10478
+    "noFrontage": 1047,
+    "kept": 10481
   },
   "sidewalks": {
     "nodes": 33402,
@@ -1488,7 +1488,7 @@
     "signals": 1301,
     "streetCleaning": 37476,
     "parking": 7773,
-    "storefronts": 10478
+    "storefronts": 10481
   },
   "outside": {
     "alcatraz": [

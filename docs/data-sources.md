@@ -30,6 +30,39 @@ stay stable) and follows the redirect. The same cache always gives byte-identica
 legitimately change the output: the snapshot date is pinned in `pipeline/areas.json`
 (`sources.snapshotDate`), and a refresh is a deliberate PR that updates it.
 
+## Snapshots
+
+`pipeline/source-snapshot.json` pins the bytes of every raw response the world is built
+from: URL, SHA-256 and size of all 181 cached bodies (`pipeline/tools/source-snapshot.ts
+--write` records it; without `--write` it verifies a cache and exits 1 on any difference).
+DataSF has no as-of queries and reloads its datasets daily, so a fresh download is the
+pinned world only if these hashes match; `build-world.ts --check` then proves the outputs.
+A deliberate refresh rewrites the manifest and `sources.snapshotDate` together, here.
+
+| Snapshot | Recorded | Inputs | Outputs |
+| --- | --- | --- | --- |
+| `2026-10-23` | Structural world (`qa/world-integration` `4556f8a`, from Ferry `451f4dc`) | **Not recorded**: no input hashes were kept, and the raw cache was lost with its build machine. No copy exists in any git ref. | Committed tiles |
+| `2026-10-23T21:20Z` | World stream, 2026-10-23, refetched from DataSF (`data.sfgov.org`, which redirects to `data.sf.gov`), USGS 3DEP and NHD, and NPS | 181 responses, 389,673,944 bytes, hashes in `pipeline/source-snapshot.json` | Rebuilt and committed; `--check` byte-identical |
+
+**Refetch against the unrecorded `2026-10-23` snapshot.** An offline build from the refetched
+cache was compared file by file with the committed tiles. Of 1,203 files, **1,192 were
+byte-identical**: `world.colliders.bin`, every `*.collider.json`, every far cell, `roads.json`,
+`boundary.json`, `sidewalks.json`, `districts.json`, `parking.json`, `street-cleaning.json`,
+`muni.json`, `signals.json`, `fountains.json`, `hydrants.json`, `manifest.json` and
+`gameplay.json`, and 572 of the 581 tile GLBs. So every footprint (177,023 raw, 175,604 kept),
+height, street, terrain sample, lake and collider is unchanged. The 11 that differed all come
+from the Registered Business Locations dataset (`g8m3-pdis`), whose active rows change daily:
+
+- `storefronts.json`: 13,277 → 13,282 storefront-coded raw rows; anchors 10,478 → 10,481
+  (6 removed, 9 added, 10 moved or re-coded); no-frontage 1,046 → 1,047.
+- Nine tile GLBs that draw those shopfronts: `t-12_15`, `t-17_7`, `t-19_8`, `t-3_3`, `t-5_4`,
+  `t-6_-1`, `t-7_5`, `t-7_6`, `t-9_1`.
+- `report.json`: only the storefront counters above.
+
+This was recorded as a new snapshot rather than a silent refresh: the label moved to
+`2026-10-23T21:20Z`, which also changes `gameplay.json`'s `sourceSnapshot` string; nothing else
+in that file changed.
+
 ## Sources and licences
 
 The DataSF licence of each dataset was read from its metadata
