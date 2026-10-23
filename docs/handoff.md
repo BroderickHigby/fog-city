@@ -56,6 +56,11 @@ draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped
   adversarial verify pass (the owner opted in to a workflow for this step: one reviewer per
   neighbourhood, 2-3 skeptics per finding, agents read only, heavy jobs solo under the lock). Then
   fix the confirmed findings and run the full suite.
+- Wave 2 note (2026-10-23 05:57 UTC, relayed by the parent): integrate/wave2 was fast-forwarded to
+  lane/harness/wave2 (c36a550): 106 commits, including Codex render integration (9 src/render
+  files; src/ui, src/input and src/save mounting). SIM_VERSION there is 7. lane/core/wave2 (a1c6482)
+  has started the recursive upgradeState chain. When a closed wave merges back into integrate/wave1,
+  expect src/render conflicts with the showcase (scene.ts, HUD mounting).
 - Ferry showcase status (feature/ferry-showcase, draft PR #3): the auto high tier with a governor;
   N8AO, bloom, 4K shadows and planar Bay reflections; CC0 Poly Haven ground and stone; crosswalks
   and kerbs; the F-line and palms; ez-tree trees with a near and a far build (about 424k triangles for the 90 drawn); the VAT crowd and the skinned player; noon, golden
