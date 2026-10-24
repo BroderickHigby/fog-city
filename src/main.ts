@@ -38,7 +38,7 @@ import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
-import { HornVoice, hornBlasts } from "./audio/horn.ts";
+import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
 import { contentHash } from "./content/barks.ts";
@@ -251,8 +251,7 @@ async function boot(): Promise<void> {
     queuedEvents.push(event);recordedCommands.push(event);
   };
   const combatLayer=new CombatLayer(view.scene);
-  const horn=new HornVoice();
-  const unlockAudio=()=>{audio.unlock();horn.unlock();};window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
+  const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
   const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
@@ -267,7 +266,7 @@ async function boot(): Promise<void> {
     curr = step(world, curr, frame, [...events,...pending],systems);
     // Every horn in the stepped frame sounds (keys, pad and touch all set Action.horn).
     const me = curr.players[LOCAL_PLAYER];
-    if (me) for (const blast of hornBlasts(frame, curr)) horn.play(blast, activeBody(me));
+    if (me) for (const blast of hornBlasts(frame, curr)) audio.playHorn(blast);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 

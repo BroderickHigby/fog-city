@@ -9,15 +9,15 @@
 
 import { DUCK_ATTACK_S, DUCK_RELEASE_S, audible, busGain, masterGain } from "./buses.ts";
 import type { EffectCue, EffectSound } from "./cues.ts";
-import { MusicPlayer, type MusicContext, type MusicTrack } from "./music.ts";
+import { MusicPlayer, type MusicTrack } from "./music.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
 import type { VoiceHandle, VoicePlayer } from "./voice-queue.ts";
 
-export type Sound = EffectSound | "spray";
-export const SOUNDS: readonly Sound[] = ["spray", "splash", "melt-fizz", "rust-creak", "moat-jingle"];
+export type Sound = EffectSound | "spray" | "horn";
+export const SOUNDS: readonly Sound[] = ["spray", "splash", "melt-fizz", "rust-creak", "moat-jingle", "horn", "robotaxi-horn"];
 /** Effect voices sounding at once, all sounds together, and per sound. */
 export const MAX_EFFECT_VOICES = 8;
-export const MAX_PER_SOUND: Readonly<Record<EffectSound, number>> = { splash: 3, "melt-fizz": 3, "rust-creak": 3, "moat-jingle": 1 };
+export const MAX_PER_SOUND: Readonly<Record<EffectSound, number>> = { splash: 3, "melt-fizz": 3, "rust-creak": 3, "moat-jingle": 1, "robotaxi-horn": 2 };
 
 interface ActiveEffect {
   sound: EffectSound;
@@ -48,7 +48,7 @@ export class GameAudio {
   private wantSpray = false;
   private music: MusicPlayer | null = null;
   private musicTracks: readonly MusicTrack[] = [];
-  private musicContext: MusicContext | null = null;
+  private musicTrack: string | null | undefined = undefined;
   private prefs: AudioPrefs;
   private ducked = false;
   private unlocked = false;
@@ -131,9 +131,42 @@ export class GameAudio {
     this.applyGains(false);
   }
 
-  setMusicContext(context: MusicContext): void {
-    this.musicContext = context;
-    this.music?.play(context);
+  /** The music track to play by id (null: silence, the radio switched off). */
+  setMusicTrack(trackId: string | null): void {
+    this.musicTrack = trackId;
+    this.music?.play(trackId);
+  }
+
+  /**
+   * One horn blast through the effects bus: the car horn sample for `length` seconds (it is a
+   * seamless loop, so any length works), or an octave up for the pocket air horn on foot.
+   */
+  playHorn(gain: number, pan: number, inVehicle: boolean): void {
+    const ctx = this.ctx, bus = this.buses.get("effects"), buffer = this.buffers.get("horn");
+    if (!ctx || !bus || !buffer || !this.unlocked || gain <= 0) return;
+    const t = ctx.currentTime, length = inVehicle ? 0.42 : 0.26, level = 0.8 * Math.min(1, gain);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.playbackRate.value = inVehicle ? 1 : 2;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(level, t + 0.012);
+    env.gain.setValueAtTime(level, t + length - 0.06);
+    env.gain.linearRampToValueAtTime(0, t + length);
+    let tail: AudioNode = env;
+    if (typeof ctx.createStereoPanner === "function") {
+      const p = ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan));
+      env.connect(p);
+      tail = p;
+    }
+    source.connect(env);
+    tail.connect(bus);
+    source.onended = () => tail.disconnect();
+    source.start(t);
+    source.stop(t + length + 0.01);
+    this.played.set("horn", (this.played.get("horn") ?? 0) + 1);
   }
 
   setSpray(on: boolean): void {
@@ -266,7 +299,7 @@ export class GameAudio {
     } catch {
       return;
     }
-    if (this.musicContext) this.music.play(this.musicContext);
+    if (this.musicTrack !== undefined) this.music.play(this.musicTrack);
     this.music.setEnabled(this.unlocked && audible(this.prefs, "music"));
   }
 

@@ -29,6 +29,8 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
 | `rust-creak` | 1.30 s | no | a robot's rust passes 0.5 (it slows), and again at `seized` |
 | `melt-fizz` | 2.20 s | no | `slumping` starts; it runs through the slump into the heap |
 | `moat-jingle` | 1.70 s | no | a bad robot hums it (tell, subtlety 3); Moat Labs vans and ads |
+| `horn` | 0.50 s | yes | every horn blast (H, pad L3 or the touch button; `src/audio/horn.ts`): looped for 0.42 s with a 12 ms attack and 60 ms release, or an octave up for 0.26 s for the pocket air horn on foot, heard from any player within 60 m. Loop the `.ogg` |
+| `robotaxi-horn` | 0.62 s | no | a robotaxi honks (agent mode `honk`, a player blocking it): at most once per car per 4 s, distance-attenuated |
 
 ## How each one is made
 
@@ -41,6 +43,12 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
   and falls back to a groan excites four inharmonic metal modes (410, 1135, 2210, 3570 Hz).
 - **melt-fizz**: a high hiss that fades, dense random crackle that thins out, and low bubbles
   gliding upward.
+- **horn**: two reed-like tones a major third apart (400 and 500 Hz, the usual dual-trumpet car
+  horn interval), eight harmonics each with odd ones stronger, soft-clipped and shaped by a fixed
+  brassy EQ. Every component completes whole cycles in 0.5 s, so the loop is seamless and a blast of any length has no click.
+- **robotaxi-horn**: an original, deliberately polite double chirp: two short soft-square tones
+  rising a fifth (C6 then G6), each with a tiny pitch blip on its attack. It honks like it is asking
+  permission; it copies no real vehicle's horn.
 - **moat-jingle**: four FM-bell notes, **A4 D5 E5 B4** (onsets 0, 0.17, 0.34, 0.56 s), the
   last held over a soft B/F# pad and a short room reverb. It ends unresolved on purpose ("Every
   robot. Eventually."). The interval pattern (up a fourth, up a tone, down a fifth) was chosen
@@ -79,15 +87,45 @@ CC0 needs no attribution; the credits ship anyway (settings panel "Now playing",
 
 Total: 10 files, about 12.8 MB (well inside the build's 15 MB per file, 240 MB and 450 files).
 
+## Car radio
+
+In a car the music is the radio (`src/audio/radio.ts`): M tunes to the next station, Shift+M to
+the previous one, and there is an Off position; the settings panel has a station picker too. The
+station is kept with the audio preferences. A card shows the station when the player gets in or
+tunes. Stations are invented (no real call signs) and play the CC0 tracks above:
+
+| Station | Track |
+|---|---|
+| Runway FM 88.5 (default) | `music/drive` Midnight Cruiser |
+| Series A 101.3 | `music/menu` Midnight Drive |
+| Pivot 94.9 | `music/foot` Electronic Outlaw |
+| Burn Rate 107.7 | `music/mission` Down to Business |
+| Radio off | silence |
+
+On foot the music follows the moment again: combat, a timed mission step, or the on-foot track.
+
 # Mission voices (ElevenLabs, held)
 
 `node scripts/audio/generate-voices.ts` writes `public/audio/voice/manifest.json`: every
 mission line (step lines, dialogue intros, question prompts and answer replies; 120 lines,
-8,304 characters) with its mission id, step id, line id, speaker, text, subtitle cues and file.
+8,304 characters) and every inner-voice line (171, 6,888 characters) with its mission id, step id, line id, speaker, text, subtitle cues and file.
 With `--generate` it calls ElevenLabs at build time only (the key stays in the environment and
 never reaches the page, `dist/` or a log), caching each line by a hash of its text, voice and
 settings, and transcodes to mono Ogg Opus 40 kb/s. Casting is in [`voices.json`](voices.json):
 only ElevenLabs premade voices, one distinct voice per recurring speaker; the player is silent.
+
+**The player's inner voice** (`src/audio/inner-voice.ts`), GTA-style. Short asides say what to do
+and where ("Okay, I gotta get to the FiDi coworking desk.", "Salt water. Great for rust, rough on the nozzle.", "That bot's
+acting sketchy."), and react to a win or a retry.
+- **A finite bank.** Every line is enumerated from the mission data: each place a goto or start
+  step names, times its variants, plus fixed lines per situation. That makes 171 lines and 6,888
+  characters, so the whole bank can be voiced ahead of time. The manifest lists them after the
+  mission lines.
+- **No frequent repeats.** Variants rotate least-recently-used, each situation has a cooldown, and
+  there is a 6 s gap between asides.
+- **Priority.** It speaks at the lowest priority, so the cofounder's and other characters' lines
+  interrupt it.
+- **Casting.** The player's voice is Chris (a premade voice), distinct from the cofounder's.
 
 **Account check, 2026-10-23** (`GET /v1/user/subscription`; tier and counts only):
 tier: free, 5,975 of 10,000 characters used.
@@ -99,6 +137,28 @@ does not change that), while every paid plan includes a commercial licence (Beta
 excepted). A distributed game cannot rely on free-tier output, so **voice generation is held**:
 the script checks the tier first and stops on `free` (or any tier it does not know). Every line
 plays as timed subtitles meanwhile, through the same queue a voiced line uses. ElevenLabs Music
-is not used for the same reason. To voice the game: move the account to any paid tier, then run
-`node scripts/audio/generate-voices.ts --generate`. It spends at most 25 % of the remaining
+is not used for the same reason. To voice the game, use a key from an account on a paid tier (see "Generating the voices" below). It spends at most 25 % of the remaining
 characters or 100,000, whichever is lower, and a rerun never regenerates a cached line.
+
+## Generating the voices
+
+The script reads the key from **`FOGCITY_ELEVENLABS_API_KEY` first**, then `ELEVENLABS_API_KEY`
+(the first one set wins). Use the game-specific variable for a key meant just for Fog City, so
+nobody has to change the shared `daringly` production secret in Doppler. The key in the cloud
+sessions' environment (`ELEVENLABS_API_KEY`) belongs to a separate free account, so its run stops at
+the licence check.
+
+From a checkout, with the paid account's key (for example from `daringly.env.local`):
+
+```sh
+export FOGCITY_ELEVENLABS_API_KEY=…            # the paid account's key; never commit it
+node scripts/audio/generate-voices.ts --generate --dry-run   # optional: check the tier and the plan
+node scripts/audio/generate-voices.ts --generate
+git add public/audio/voice/ assets/audio/voices.json
+git commit -m "Audio: generated mission and inner voices"
+```
+
+It logs which variable the key came from (never the value), the tier and character counts, and
+each line it generates. It refuses a tier without a commercial licence, spends at most 25 % of the
+remaining characters or 100,000, and never regenerates a cached line. All 291 lines are about
+15,200 characters. Needs Node 22.18+, pnpm dependencies installed and ffmpeg with libopus.
