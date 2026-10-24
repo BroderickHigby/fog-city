@@ -1276,3 +1276,8 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
   melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
   look-dev strip per model for the owner's sign-off.
+- 2026-10-23 · **The water blaster never runs out** (owner decision: "you have a squirt gun or something that has
+  like unlimited water"). Spraying no longer drains the tank or the trunk reserve, and the HUD water meter shows ∞.
+  This overrides the tank sizes and refill economy above. Refill points stay: they still switch fresh and salt water
+  and restock balloons. The Tank I and Tank II upgrades keep their ids (so old saves load) and become Pressure I
+  and II: +2 m of reach each. A new SIM_VERSION carries the change.

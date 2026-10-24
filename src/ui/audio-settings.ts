@@ -13,6 +13,8 @@ const CHANNELS:readonly {key:Channel;label:string;mute:"masterMuted"|"musicMuted
 
 export interface AudioSettingsOptions {
   readonly store:AudioPrefsStore;
+  /** Car radio stations for the station picker (radio.ts). */
+  readonly stations?:readonly {id:string;name:string}[];
   /** "Now playing" credit for the current track (CC0 attribution, as a courtesy). */
   readonly nowPlaying?:()=>string|null;
 }
@@ -36,10 +38,17 @@ export function mountAudioSettings(doc:Document,options:AudioSettingsOptions):{e
   const subtitles=doc.createElement("input");subtitles.type="checkbox";subtitles.setAttribute("aria-label","Show subtitles");
   subtitles.addEventListener("change",()=>options.store.set({subtitles:subtitles.checked}));
   subtitlesLabel.append(subtitles,doc.createTextNode("Subtitles (lines without audio always show)"));root.append(subtitlesLabel);
+  let station:HTMLSelectElement|undefined;
+  if(options.stations?.length){
+    const row=doc.createElement("label");row.className="fc-audio-check";row.textContent="Car radio (M / Shift+M) ";
+    station=doc.createElement("select");station.setAttribute("aria-label","Car radio station");
+    for(const s of options.stations){const o=doc.createElement("option");o.value=s.id;o.textContent=s.name;station.append(o);}
+    const picker=station;picker.addEventListener("change",()=>options.store.set({station:picker.value}));row.append(picker);root.append(row);
+  }
   const credit=doc.createElement("p");credit.className="fc-audio-credit";root.append(credit);
   const show=(prefs:AudioPrefs):void=>{
     for(const channel of CHANNELS){const i=inputs.get(channel.key)!,value=Math.round(prefs[channel.key]*100);if(doc.activeElement!==i.range)i.range.value=String(value);i.out.value=`${value}%`;i.mute.checked=prefs[channel.mute];i.range.disabled=prefs[channel.mute];}
-    subtitles.checked=prefs.subtitles;
+    subtitles.checked=prefs.subtitles;if(station)station.value=prefs.station;
     const playing=options.nowPlaying?.();credit.textContent=playing?`Now playing: ${playing}`:"";credit.hidden=!playing;
   };
   show(options.store.get());

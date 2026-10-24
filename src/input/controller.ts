@@ -4,7 +4,7 @@ import type { Keyboard } from "./keyboard.ts";
 export type VirtualAction = keyof typeof Action | "brake";
 export interface PadLike { readonly connected: boolean; readonly axes: readonly number[]; readonly buttons: readonly { readonly pressed: boolean; readonly value: number }[] }
 export function availableGamepads(source:Navigator|undefined=typeof navigator==="undefined"?undefined:navigator):readonly(PadLike|null)[]{try{return source?.getGamepads?.()??[];}catch{return[];}}
-const CONTINUOUS = new Set<VirtualAction>(["fire", "scan", "watch", "altFire", "interact", "brake"]);
+const CONTINUOUS = new Set<VirtualAction>(["fire", "scan", "watch", "altFire", "interact", "brake", "sprint"]);
 const PAD_ACTIONS: Readonly<Record<number, VirtualAction>> = { 0:"enterExit", 1:"cone", 2:"gadget", 3:"interact", 4:"watch", 5:"altFire", 7:"fire", 10:"horn", 11:"scan", 12:"gear", 13:"streak" };
 const neutral = (): SimInput => ({ throttle:0, steer:0, brake:0, actions:0 });
 function axis(v:number):number { return Number.isFinite(v) ? Math.max(-1,Math.min(1,v)) : 0; }

@@ -1,0 +1,16 @@
+# Render example (not deployed). Copy to render.yaml at the repository root and create a
+# Blueprint from it in the Render dashboard.
+services:
+  - type: web
+    name: fog-city-relay
+    runtime: docker
+    dockerfilePath: ./server/deploy/Dockerfile
+    dockerContext: .
+    plan: standard
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://your-game.example
+      # Render's proxy appends the client address to X-Forwarded-For (the last entry is used).
+      - key: CLIENT_IP_HEADER
+        value: x-forwarded-for

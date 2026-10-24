@@ -216,9 +216,10 @@ const BUILDING_FRAGMENT = /* glsl */ `
     fcWin = w;
     float h = fcHash( id + vec2( floor( fcGlaze * 31.0 ) * 17.0, 0.0 ) );
     float cluster = fcHash( floor( id / vec2( 5.0, 3.0 ) ) + 7.3 );
-    float litFrac = shop ? 0.75 : grid.z * ( 0.35 + 1.3 * cluster );
+    // Night offices: lit floors cluster, most rooms dark, and lit rooms differ in brightness.
+    float litFrac = shop ? 0.75 : grid.z * ( 0.2 + 0.9 * cluster );
     float on = step( 1.0 - litFrac, h );
-    fcLit = mix( on, ( shop ? 0.6 : grid.z ) * 0.22, far ) * w;
+    fcLit = mix( on * mix( 0.4, 1.0, fract( h * 13.7 ) ), ( shop ? 0.6 : grid.z ) * 0.14, far ) * w;
     float tone = fcHash( id * 1.7 + 3.1 );
     fcGlassVariation = tone;
     fcLightCol = tone > 0.82 ? vec3( 0.75, 0.86, 1.0 ) : ( tone > 0.55 ? vec3( 1.0, 0.85, 0.6 ) : vec3( 1.0, 0.7, 0.4 ) );
@@ -281,7 +282,7 @@ const BUILDING_ROUGHNESS = /* glsl */ `
 `;
 
 const BUILDING_EMISSIVE = /* glsl */ `
-  totalEmissiveRadiance += fcLightCol * fcLit * fcNight * 1.7;
+  totalEmissiveRadiance += fcLightCol * fcLit * fcNight * 1.1;
 `;
 
 function patchBuildingShader(shader: THREE.WebGLProgramParametersWithUniforms): void {
