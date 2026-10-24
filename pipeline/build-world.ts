@@ -26,6 +26,14 @@ function arg(name: string): string | undefined {
 }
 const flag = (name: string): boolean => process.argv.includes(`--${name}`);
 
+/** street-detail.json and the layer files it lists, when present. */
+function foreignFiles(dir: string): Set<string> {
+  const index = join(dir, "street-detail.json");
+  if (!existsSync(index)) return new Set();
+  const doc = JSON.parse(readFileSync(index, "utf8")) as { layers?: Record<string, string> };
+  return new Set(["street-detail.json", ...Object.keys(doc.layers ?? {}).sort().map((k) => doc.layers![k]!)]);
+}
+
 async function main(): Promise<void> {
   const world = arg("world") ?? "sf";
   const outDir = arg("out") ?? join(ROOT, "public/tiles", world);
@@ -47,13 +55,18 @@ async function main(): Promise<void> {
   for (const b of files.values()) total += b.byteLength;
   log(`built ${files.size} files, ${(total / 1e6).toFixed(2)} MB (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 
+  // Files another generator owns in the same directory: pipeline/build-street-detail.ts writes
+  // street-detail.json and the layers it lists from this world's roads. They are neither stale
+  // nor removed here; rebuild them with that script after the roads change.
+  const foreign = foreignFiles(outDir);
+
   if (flag("check")) {
     const differ: string[] = [];
     for (const [rel, bytes] of files) {
       const p = join(outDir, rel);
       if (!existsSync(p) || !Buffer.from(bytes).equals(readFileSync(p))) differ.push(rel);
     }
-    const stale = existsSync(outDir) ? readdirSync(outDir).filter((f) => !files.has(f)) : [];
+    const stale = existsSync(outDir) ? readdirSync(outDir).filter((f) => !files.has(f) && !foreign.has(f)) : [];
     if (differ.length || stale.length) {
       console.error(`check FAILED: ${differ.length} files differ, ${stale.length} stale`);
       for (const f of [...differ, ...stale].slice(0, 20)) console.error(`  ${f}`);
@@ -64,7 +77,7 @@ async function main(): Promise<void> {
   }
 
   mkdirSync(outDir, { recursive: true });
-  for (const f of readdirSync(outDir)) if (!files.has(f)) rmSync(join(outDir, f));
+  for (const f of readdirSync(outDir)) if (!files.has(f) && !foreign.has(f)) rmSync(join(outDir, f));
   for (const [rel, bytes] of files) writeFileSync(join(outDir, rel), bytes);
   log(`wrote ${outDir}`);
   const b = report.buildings;
