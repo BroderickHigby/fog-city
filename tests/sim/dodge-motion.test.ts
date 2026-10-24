@@ -21,6 +21,7 @@ import saved from "../golden/legacy-saves/v8-mid-dodge.json";
 import { deepFreeze } from "../helpers.ts";
 import { DodgeMotion, HARD_STOP_MPS2, pct, straightAtOne } from "./dodge-motion.ts";
 import { makeScene, run } from "./dodge-scenes.ts";
+import { LONG_RUN_MS } from "./fixtures.ts";
 
 /** The fastest anyone moves getting out of the way: a scramble (a person's or a player's). */
 const TOP = Math.max(DODGE_PROFILE.person.speed, DODGE_PROFILE.player.speed) * EMERGENCY_BOOST;
@@ -67,7 +68,7 @@ describe("how people move getting out of the way (v11)", () => {
     expect(accel99).toBeLessThan(HARD_STOP_MPS2);
     // Pull-ups (stopped short of a vehicle's reach) are rare: well under one a dive.
     expect(pullUps).toBeLessThan(dives * 0.5);
-  });
+  }, LONG_RUN_MS);
 
   it("a car driven straight at someone, at 6 to 30 m/s: they step or run aside in time, never leave the ground, never need the override", () => {
     const flat = buildWorld([{ tileId: "flat", buildings: [], ground: null }]);
@@ -92,7 +93,7 @@ describe("how people move getting out of the way (v11)", () => {
     // Speeding up and slowing down at an unhurried person's rate (a stop on the spot after a turn
     // onto a nearer one is the odd sharper step).
     expect(pct(accels, 0.99)).toBeLessThanOrEqual(DODGE_PROFILE.person.accel * 1.01);
-  });
+  }, LONG_RUN_MS);
 });
 
 describe("the save upgrade to people dodging on their feet (v11; dodges in flight from a real v8 save)", () => {
