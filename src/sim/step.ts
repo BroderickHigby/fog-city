@@ -42,7 +42,7 @@ import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./
 import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
-import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, destinationOf } from "./ride.ts";
+import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, destinationOf, hailableTaxi } from "./ride.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -496,7 +496,7 @@ export function activeBody(p: Readonly<PlayerState>): ActiveBody {
  */
 function settleRides(world: World, before: Readonly<SimState>, state: SimState, inputs: Readonly<Record<PlayerId, SimInput>>, events: readonly SimEvent[]): SimState {
   const ids = sortedIds(state.players);
-  if (!ids.some((id) => state.players[id]!.ride || (inputs[id]!.actions & Action.enterExit) !== 0)) return state;
+  if (!ids.some((id) => state.players[id]!.ride || state.players[id]!.hail || (inputs[id]!.actions & Action.enterExit) !== 0)) return state;
   const agents = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const players: Record<PlayerId, PlayerState> = { ...state.players };
   for (const id of ids) {
@@ -505,12 +505,20 @@ function settleRides(world: World, before: Readonly<SimState>, state: SimState, 
     let goal: { x: number; z: number } | null | undefined;
     for (const e of events) if (e.kind === RIDE_DESTINATION_EVENT && e.playerId === id) goal = destinationOf(e.payload) ?? goal;
     if (!p.ride) {
+      // A hail lapses after RIDE.hailTicks, or when the player is no longer on foot.
+      const hail = p.hail && p.hail.untilTick > state.tick && p.mode === "foot" ? p.hail : null;
+      if ((p.hail ?? null) !== hail) players[id] = { ...p, hail: null };
       const was = before.players[id];
       if (!pressed || p.mode !== "foot" || !p.foot || p.foot.dodge || !was || was.mode !== "foot") continue;
       const taxi = boardableTaxi(world, { ...state, players }, p.foot.x, p.foot.z);
-      if (!taxi) continue;
-      players[id] = { ...p, mode: "vehicle", foot: null, exitPending: false,
-        ride: { agentId: taxi.id, x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed, goal: goal ?? null, exitPending: false } };
+      if (taxi) {
+        players[id] = { ...p, mode: "vehicle", foot: null, exitPending: false, hail: null,
+          ride: { agentId: taxi.id, x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed, goal: goal ?? null, exitPending: false } };
+        continue;
+      }
+      // None in reach: hail the nearest one passing (it pulls up and waits for you).
+      const passing = hailableTaxi(world, { ...state, players }, p.foot.x, p.foot.z, id);
+      if (passing) players[id] = { ...p, hail: { agentId: passing.id, untilTick: state.tick + RIDE.hailTicks } };
       continue;
     }
     const taxi = agents.find((a) => a.id === p.ride!.agentId);

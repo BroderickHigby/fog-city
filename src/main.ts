@@ -54,7 +54,7 @@ import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
-import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
+import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
@@ -395,7 +395,10 @@ async function boot(): Promise<void> {
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
           // (A robotaxi rider gets out when the taxi stops: no car exit hints.)
-          const hint = before?.ride || curr.players[LOCAL_PLAYER]?.ride ? null : exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
+          const hailed = curr.players[LOCAL_PLAYER]?.hail;
+          const newHail = !!hailed && hailed.agentId !== before?.hail?.agentId;
+          if (newHail) hud.hint(HINT_TAXI_HAILED, now);
+          const hint = before?.ride || curr.players[LOCAL_PLAYER]?.ride || newHail ? null : exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
           if (hint) hud.hint(hint, now);
           const rider = curr.players[LOCAL_PLAYER];
           if (rider?.ride && !before?.ride) {

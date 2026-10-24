@@ -28,7 +28,7 @@
 // is fast (FOOT.sprint 7.0 m/s); Action.sprint (held, Shift) sprints as the brake already did.
 // Saved fields are unchanged; an upgraded v10 save keeps everything and walks at the new pace.
 // v12 (player feel): a player can ride an ambient robotaxi as a passenger (PlayerState.ride,
-// optional; absent or null = not riding). The taxi stays an ambient agent under every robotaxi
+// optional; absent or null = not riding) after hailing one on the street (PlayerState.hail). The taxi stays an ambient agent under every robotaxi
 // rule; the player's own car stays parked. An upgraded v11 save keeps every field (no ride).
 export const SIM_VERSION = 12;
 export const TICK_HZ = 60;
@@ -218,6 +218,8 @@ export interface PlayerState {
    * parked where it was left and keeps colliding). Absent or null when not riding.
    */
   ride?: PlayerRide | null;
+  /** v12: a robotaxi this player hailed on foot (F) stops for them until `untilTick`. Absent or null: none. */
+  hail?: { agentId: number; untilTick: number } | null;
 }
 
 /** v12: a passenger ride in an ambient robotaxi (state.ext.agents id `agentId`). */

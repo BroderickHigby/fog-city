@@ -82,6 +82,24 @@ describe("robotaxi rides", () => {
     expect(dodgeExtOf(s).contacts).toBe(0);
   });
 
+  it("F with no taxi in reach hails one passing: it pulls up and waits, then the hail lapses", () => {
+    const s0 = createInitialState(world, 5, ["p"], { x: 150, z: 0, heading: Math.PI / 2 });
+    const taxi = s0.ext.agents!.list.find((a) => a.kind === "robotaxi")!;
+    taxi.speed = 8;
+    // On foot 12 m away (out of reach to board, within hailing range).
+    s0.players.p!.mode = "foot";
+    s0.players.p!.foot = makeFoot(taxi.x - Math.cos(taxi.heading) * 12, 0, taxi.z - Math.sin(taxi.heading) * 12, 0);
+    let s = step(world, s0, F);
+    expect(s.players.p!.ride ?? null).toBeNull();
+    expect(s.players.p!.hail).toEqual({ agentId: taxi.id, untilTick: s.tick + RIDE.hailTicks });
+    for (let i = 0; i < 120; i++) s = step(world, s, IDLE);
+    const stopped = s.ext.agents!.list.find((a) => a.id === taxi.id)!;
+    expect(stopped.speed).toBe(0);
+    for (let i = 0; i < RIDE.hailTicks; i++) s = step(world, s, IDLE);
+    expect(s.players.p!.hail ?? null).toBeNull();
+    expect(dodgeExtOf(s).contacts).toBe(0);
+  });
+
   it("nobody boards a moving, distant or rogue robotaxi, or one already ridden", () => {
     const moving = besideTaxi();
     moving.taxi.speed = 5;

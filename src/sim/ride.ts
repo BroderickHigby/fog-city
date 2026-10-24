@@ -24,6 +24,10 @@ export const RIDE = {
   arrive: 25,
   /** The rider steps out once the taxi is slower than this, m/s. */
   exitSpeed: 0.05,
+  /** F on foot with no taxi in reach hails the nearest empty one within this distance, metres. */
+  hailRange: 20,
+  /** A hailed taxi waits this many ticks (10 s) for its passenger. */
+  hailTicks: 600,
 } as const;
 
 /** The event a rider's destination arrives as (recorded with its tick; payload { x, z }). */
@@ -92,6 +96,40 @@ export function boardableTaxi(world: World, state: Readonly<SimState>, x: number
     if (ridden.has(a.id) || Math.abs(a.speed) > RIDE.boardSpeed) continue;
     const d = distanceToTaxi(a, x, z);
     if (d > RIDE.boardRange || d >= bestD) continue;
+    if (segmentBlocked(world, x, z, a.x, a.z) || unfit(state, a)) continue;
+    best = a;
+    bestD = d;
+  }
+  return best;
+}
+
+/** Every hailed taxi's waiting deadline, by agent id, as of `state` (expired hails left out). */
+export function hailsByAgent(state: Readonly<SimState>): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const id of sortedIds(state.players)) {
+    const hail = state.players[id]!.hail;
+    if (hail && hail.untilTick > state.tick && !out.has(hail.agentId)) out.set(hail.agentId, hail.untilTick);
+  }
+  return out;
+}
+
+/**
+ * The robotaxi a walker at (x, z) can hail (F with none in reach): an ambient robotaxi, empty,
+ * fit, within RIDE.hailRange with nothing in between, not already hailed by someone else; the
+ * nearest (then the lowest id). Moving is fine: it pulls up.
+ */
+export function hailableTaxi(world: World, state: Readonly<SimState>, x: number, z: number, self: string): AgentState | null {
+  const list = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
+  const ridden = ridesByAgent(state);
+  const hailed = hailsByAgent(state);
+  let best: AgentState | null = null;
+  let bestD = Infinity;
+  for (const a of list) {
+    if (a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null || ridden.has(a.id)) continue;
+    const mine = state.players[self]?.hail?.agentId === a.id;
+    if (hailed.has(a.id) && !mine) continue;
+    const d = Math.sqrt((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z));
+    if (d > RIDE.hailRange || d >= bestD) continue;
     if (segmentBlocked(world, x, z, a.x, a.z) || unfit(state, a)) continue;
     best = a;
     bestD = d;

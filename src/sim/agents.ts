@@ -64,7 +64,7 @@
 
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
-import { arrived, playerPose, ridesByAgent } from "./ride.ts";
+import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import { movementLimit } from "./combat/system.ts";
 import {
@@ -1244,6 +1244,8 @@ interface Ctx {
   winners: Set<number>;
   /** Ridden robotaxis (step.ts boards riders): their goal and whether the rider asked to stop. */
   rides: ReturnType<typeof ridesByAgent>;
+  /** Robotaxis hailed by a player on foot: they pull up and wait (step.ts). */
+  hailed: Map<number, number>;
 }
 
 /**
@@ -1374,7 +1376,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   let limitedByObstacle = false;
   // A rider asked to get out, or the taxi is at their goal: stop here (in lane, as for a fare).
   const ride = c.rides.get(a.id);
-  if (ride && (ride.exitPending || arrived(ride, a.x, a.z))) target = 0;
+  if ((ride && (ride.exitPending || arrived(ride, a.x, a.z))) || c.hailed.has(a.id)) target = 0;
   // Heading for a rider's goal: re-plan the next street while well short of the junction (never
   // once committed to it: claimed, on a connector, or close enough to be contending for it).
   if (spec.road && ride?.goal && a.conn === null && a.node === "" && cur.len - a.s > 15) {
@@ -1987,7 +1989,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const byId = new Map<number, AgentState>();
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
-  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, rides };
+  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
