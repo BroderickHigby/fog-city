@@ -5,9 +5,11 @@ import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   AGENT_SPEC,
+  ROBOTAXI_BODY,
   agentsOf,
+  blocksBand,
   buildWorld,
-  circleBlocked,
+  circleBlockedBand,
   createInitialState,
   dcos,
   dsin,
@@ -59,12 +61,16 @@ describe.skipIf(!present)("agents on the real SF world", () => {
       if (t + 1 === REPLAY) atReplay = hashState(s);
       if (t % 5 !== 0) continue;
       for (const a of agentsOf(s)) {
-        for (const b of nearbyBuildings(world, a.x, a.z, 1)) if (pointInPolygon(a.x, a.z, b.footprint)) bad.push(`#${a.id} in ${b.id}`);
+        // In a building: inside its footprint and overlapping its solid band, from the agent's
+        // feet to its head. A body under a span or deck (its underside over the head) or on a
+        // roof (feet at the top) is not inside it.
         const sp = AGENT_SPEC[a.kind];
+        const top = a.y + (a.height ?? (sp.road ? ROBOTAXI_BODY.height : 1.8));
+        for (const b of nearbyBuildings(world, a.x, a.z, 1)) if (pointInPolygon(a.x, a.z, b.footprint) && blocksBand(b, a.y, top)) bad.push(`#${a.id} in ${b.id}`);
         if (sp.road) {
           const o = sp.halfLength - sp.halfWidth;
-          for (const k of [-1, 1]) if (circleBlocked(world, a.x + dsin(a.heading) * o * k, a.z - dcos(a.heading) * o * k, sp.halfWidth * 0.79)) bad.push(`robotaxi #${a.id} body`);
-        } else if (circleBlocked(world, a.x, a.z, sp.radius * 0.79)) bad.push(`#${a.id} body`);
+          for (const k of [-1, 1]) if (circleBlockedBand(world, a.x + dsin(a.heading) * o * k, a.z - dcos(a.heading) * o * k, sp.halfWidth * 0.79, a.y, top)) bad.push(`robotaxi #${a.id} body`);
+        } else if (circleBlockedBand(world, a.x, a.z, sp.radius * 0.79, a.y, top)) bad.push(`#${a.id} body`);
       }
     }
     expect(bad.slice(0, 5)).toEqual([]);

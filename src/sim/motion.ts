@@ -4,7 +4,8 @@ import { CAR, carBox, makeCar, stepCar } from "./car.ts";
 import { boxBlocked, boxCrossedWall, type Box, type Circle } from "./collide.ts";
 import { boxDistance } from "./dodge.ts";
 import { dcos, dsin, wrapAngle, clamp } from "./dmath.ts";
-import { circleBlocked, segmentBlocked, surfaceHeight, type World } from "./world.ts";
+import { FOOT } from "./foot.ts";
+import { ROOF_STEP_M, circleBlockedBand, segmentBlockedBand, surfaceHeight, type World } from "./world.ts";
 import { movementLimit } from "./combat/system.ts";
 
 export interface AgentMotionProposal {
@@ -43,25 +44,32 @@ function boxesTouch(a:Box,b:Box):boolean {
   }
   return true;
 }
-function obstacles(state:Readonly<SimState>,ignore:number):{circles:Circle[];boxes:Box[]} {
+/** A body's vertical extent: obstacles on a separate stacked surface (a deck over the street, a
+ * tunnel under the hill) never meet it. */
+interface Span { bottom: number; top: number }
+const meets=(a:Span,b:Span)=>a.bottom<b.top+.1&&b.bottom<a.top+.1;
+function obstacles(state:Readonly<SimState>,ignore:number,band:Span):{circles:Circle[];boxes:Box[]} {
   const circles:Circle[]=[],boxes:Box[]=[];
   for(const id of Object.keys(state.players).sort()) {
-    const p=state.players[id]!; boxes.push(carBox(p.car));
-    if(p.mode==="foot"&&p.foot)circles.push({x:p.foot.x,z:p.foot.z,r:.35,person:true});
+    const p=state.players[id]!;
+    if(meets(band,{bottom:p.car.y,top:p.car.y+CAR.bodyHeight}))boxes.push(carBox(p.car));
+    if(p.mode==="foot"&&p.foot&&meets(band,{bottom:p.foot.y,top:p.foot.y+FOOT.height}))circles.push({x:p.foot.x,z:p.foot.z,r:.35,person:true});
   }
   for(const a of state.ext.agents?.list??[])if(a.id!==ignore) {
+    const height=a.height??(a.kind==="robotaxi"?ROBOTAXI_BODY.height:1.8);
+    if(!meets(band,{bottom:a.y,top:a.y+height}))continue;
     if(a.kind==="robotaxi")boxes.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??ROBOTAXI_BODY.halfLength,hw:a.halfWidth??ROBOTAXI_BODY.halfWidth});
     else circles.push({x:a.x,z:a.z,r:a.radius??AGENT_SPEC[a.kind].radius,person:a.kind==="person"});
   }
   return {circles,boxes};
 }
 function occupied(world:World,state:Readonly<SimState>,motion:AgentMotionProposal,x:number,y:number,z:number,heading:number):boolean {
-  const other=obstacles(state,motion.numericId);
+  const other=obstacles(state,motion.numericId,{bottom:y,top:y+motion.height});
   if(motion.kind==="vehicle") {
     const box={x,z,heading,hl:motion.halfLength??2.2,hw:motion.halfWidth??.95};
     return boxBlocked(world,box,y+.5,other.circles,y+motion.height)||other.boxes.some(b=>boxesTouch(box,b));
   }
-  return circleBlocked(world,x,z,motion.radius)||other.circles.some(c=>(x-c.x)*(x-c.x)+(z-c.z)*(z-c.z)<(motion.radius+c.r)*(motion.radius+c.r))
+  return circleBlockedBand(world,x,z,motion.radius,y+ROOF_STEP_M,y+motion.height)||other.circles.some(c=>(x-c.x)*(x-c.x)+(z-c.z)*(z-c.z)<(motion.radius+c.r)*(motion.radius+c.r))
     ||other.boxes.some(b=>boxDistance(x,z,b.x,b.z,dsin(b.heading),-dcos(b.heading),b.hl,b.hw)<motion.radius);
 }
 
@@ -189,7 +197,11 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     const dx = motion.x-body.x,dz = motion.z-body.z,length = Math.sqrt(dx*dx+dz*dz);
     const allowed = Math.min(length, Math.abs(motion.speed)*DT + (restricted.has(body.id) ? 0 : 1e-6));
     const x = body.x + (length>0?dx/length*allowed:0), z = body.z + (length>0?dz/length*allowed:0);
-    let blocked = vehicleConflicts.has(body.id) || motion.kind!=="vehicle" && (circleBlocked(world,x,z,motion.radius) || segmentBlocked(world,body.x,body.z,x,z));
+    // Walkers and robots: the building check uses the body's own band (feet plus the step it can
+    // climb, to its head), as a player on foot does (foot.ts), so a body on a deck, in a bore or on
+    // a roof is held by what stands at its height, not by the hill above or the street below.
+    let blocked = vehicleConflicts.has(body.id) || motion.kind!=="vehicle" && (circleBlockedBand(world,x,z,motion.radius,body.y+ROOF_STEP_M,body.y+motion.height)
+      || segmentBlockedBand(world,body.x,body.z,x,z,body.y+ROOF_STEP_M,body.y+motion.height));
     if (motion.kind === "walker") for (const vehicle of vehicleBoxes) {
       const box=vehicle.box,reach=box.hl+box.hw+motion.radius+allowed+.1;
       if(Math.abs(body.x-box.x)>reach||Math.abs(body.z-box.z)>reach||body.y>=vehicle.y+vehicle.height+.1||vehicle.y>=body.y+motion.height+.1)continue;
