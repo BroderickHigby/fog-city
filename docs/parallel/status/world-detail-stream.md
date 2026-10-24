@@ -11,7 +11,7 @@ Base: `origin/integrate/wave2` (`ff7db5b`, SIM_VERSION 8, GAME_WAVE 3).
 | --- | --- | --- | --- | --- |
 | 1 | `work/world-detail/crosswalks` | Junction patches, continental/standard crosswalks, stop bars; Chestnut St regression test | #41 | draft; local typecheck, unit and e2e green; CI running |
 | 2 | `work/world-detail/signals` | Traffic signals (SFMTA `ybh5-27n2`) and stop signs (SFMTA `4542-gpa3`), render-only, lamps cycle from the tick | #52 | draft, stacked on #41 |
-| 3 | `work/world-detail/street-signs` | White-on-green street-name blades (real names), one-way and kerbside parking signs (SFMTA `m48z-6ji4`) | #53 | draft, stacked |
+| 3 | `work/world-detail/street-signs` | White-on-green street-name blades (real names), one-way and kerbside parking signs (SFMTA `m48z-6ji4`) | #53 | **ready for review**: CI green (01:46 UTC) |
 | 4 | `work/world-detail/landcover` | Lawns (Rec and Park `38b7-6db3`, OSM), fences/walls/hedges (Rec and Park `rny7-88gk`, OSM), piers (OSM) | #54 | draft, stacked; **needs owner sign-off on OSM (ODbL) and an OSM credit in the UI** |
 | 5 | `work/world-detail/trees` | 135,647 real street trees (Public Works `tkzw-k3nq`) via the foliage layer; palms | #55 | draft, stacked; adds a placement API to `src/render/foliage.ts` (Lane R) |
 | 6 | `work/world-detail/storefront-signs` | Icon-only storefront blade signs, blank sign slot, bar neon, barber pole | #56 | draft, stacked; top of stack: 3,401 unit tests and e2e (39 passed, 10 skipped) green; CI running |
@@ -62,3 +62,4 @@ Base: `origin/integrate/wave2` (`ff7db5b`, SIM_VERSION 8, GAME_WAVE 3).
   the whole stack with merge commits, no conflicts. The top of the stack is green locally, and
   all six branches are pushed with CI running. Each PR is marked ready once its CI is green;
   #54 also waits for the owner's ODbL sign-off.
+- 2026-10-24 01:48: #53 CI green, marked ready. CI is still running on #41, #52, #54, #55 and #56.
