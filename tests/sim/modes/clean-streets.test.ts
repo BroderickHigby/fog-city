@@ -6,7 +6,7 @@ import { hashState } from "../../../src/sim/serialize.ts";
 import { botSweepView, createBotSweep, stepBotSweep } from "../../../src/sim/modes/botsweep.ts";
 import { modeSessionOf } from "../../../src/sim/modes/session.ts";
 import { MATCH_RULES } from "../../../src/sim/modes/match.ts";
-import { MODE_END_EVENT } from "../../../src/sim/modes/systems.ts";
+import { MODE_END_EVENT, MODE_JOIN_EVENT } from "../../../src/sim/modes/systems.ts";
 
 const world = buildWorld([], null, null, { version: 1, world: "fixture", sourceSnapshot: "test", refills: [{ id: "water", kind: "hydrant", x: 0, y: 0, z: 10, radius: 3, salt: false }], anchors: [], tiles: [], territories: [] });
 const config = { id: "room-cs", seed: 3, players: ["p1", "p2"], spawn: { x: 0, z: 0, heading: 0 }, mode: "cleanStreets" as const };
@@ -64,6 +64,18 @@ describe("Clean Streets match instance", () => {
     const view = botSweepView(state)!;
     expect(view.result).toMatchObject({ reason: "time", winners: ["p1"] });
     expect(view.payouts.map((p) => [p.id, p.xp])).toEqual([["room-cs:p1", 102], ["room-cs:p2", 25]]);
+  });
+
+  it("adds a player who joins in progress on the recorded team, with a fresh score", () => {
+    let state = stepBotSweep(world, createBotSweep(world, config), {});
+    const tick = state.tick + 1;
+    state = stepBotSweep(world, state, {}, [{ tick, kind: MODE_JOIN_EVENT, playerId: "p3", payload: { team: 1 } }, { tick, kind: "player.join", playerId: "p3", payload: { x: 0, z: 0, heading: 0 } }]);
+    const view = botSweepView(state)!;
+    expect(view.players.p3).toMatchObject({ team: 1, score: 0 });
+    expect(state.players.p3).toBeDefined();
+    // A repeated join (or a bad team) changes nothing.
+    const again = stepBotSweep(world, state, {}, [{ tick: state.tick + 1, kind: MODE_JOIN_EVENT, playerId: "p3", payload: { team: 0 } }]);
+    expect(botSweepView(again)!.players.p3!.team).toBe(1);
   });
 
   it("replays identically and ends on a recorded decision", () => {

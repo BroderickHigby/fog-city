@@ -14,6 +14,7 @@ import { MAX_PLAYERS, MODES, ROOM_CODE, WORLDS, type NetModeId, type Results, ty
 import { worldFingerprint } from "../net/world-id.ts";
 import { LOOK_NAMES, LOOK_SWATCHES, loadIdentity, randomName, saveIdentity, profileName, type Identity } from "../net/identity.ts";
 import { formatMoney } from "./copy.ts";
+import { QUICK_CHAT } from "../net/chat.ts";
 
 export interface MultiplayerCity {
   playerId: string;
@@ -77,7 +78,7 @@ const STYLE = `
 .fc-mp-panel h2{font-size:15px;margin:0}.fc-mp-panel p{margin:0}.fc-mp-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .fc-mp-code{font:700 22px/1.2 ui-monospace,monospace;letter-spacing:.12em;color:#9af4c3}
 .fc-mp ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}.fc-mp ol li{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:#08171e99;border-radius:6px}.fc-mp ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.fc-mp li{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:#08171e99;border-radius:6px}
-.fc-mp li[data-connected=false]{opacity:.55}.fc-mp-swatch{display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-right:.4em;vertical-align:-.05em;border:1px solid #0006}.fc-mp-tags{position:fixed;inset:0;pointer-events:none;z-index:19}.fc-mp-tag{position:absolute;transform:translate(-50%,-100%);padding:2px 8px;border-radius:999px;background:#08171ecc;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;white-space:nowrap;text-shadow:0 1px 2px #000}.fc-mp-tag[data-team=rival]{border:1px solid #f08a6a}.fc-mp-tag[data-team=team]{border:1px solid #9af4c3}.fc-mp output{color:#c9d6d3;font-size:13px}
+.fc-mp li[data-connected=false]{opacity:.55}.fc-mp-swatch{display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-right:.4em;vertical-align:-.05em;border:1px solid #0006}.fc-mp-feed{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:21;display:grid;gap:4px;pointer-events:none}.fc-mp-feed p{margin:0;padding:4px 10px;border-radius:8px;background:#08171ed9;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;text-align:center}.fc-mp-tags{position:fixed;inset:0;pointer-events:none;z-index:19}.fc-mp-tag{position:absolute;transform:translate(-50%,-100%);padding:2px 8px;border-radius:999px;background:#08171ecc;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;white-space:nowrap;text-shadow:0 1px 2px #000}.fc-mp-tag[data-team=rival]{border:1px solid #f08a6a}.fc-mp-tag[data-team=team]{border:1px solid #9af4c3}.fc-mp output{color:#c9d6d3;font-size:13px}
 .fc-mp-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:21;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:#08171ee6;border:1px solid #55747b;border-radius:10px;color:#f4f5ed;font:600 14px/1.3 system-ui,sans-serif;max-width:calc(100vw - 24px)}
 .fc-mp-hud strong{color:#9af4c3}.fc-mp-hud button{font:inherit;border:1px solid #64838a;border-radius:8px;background:#142c35;color:inherit;padding:6px 10px;cursor:pointer}
 @media(max-width:600px){.fc-mp{top:auto;bottom:170px;left:10px}.fc-mp-hud{top:auto;bottom:8px;font-size:12px}}`;
@@ -148,7 +149,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   };
 
   const client = new RelayClient({ url: relayUrl, world: options.world, worldName, fingerprint, identity: () => identity,
-    onChange: (next) => { info = next; update(); }, onSeat: saveSeat, onResults: settle });
+    onChange: (next) => { info = next; update(); }, onSeat: saveSeat, onResults: settle, onChat: (from, phrase) => addChat(from, phrase) });
   debug.available = true;
   debug.info = () => ({ ...client.info, members: [...client.info.members] });
   debug.match = () => client.match?.confirmed ?? null;
@@ -206,14 +207,14 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       parts.push(form, roomList(busy), leaderboardBox());
       if (focusedCode) win.setTimeout(() => input.focus(), 0);
     } else if (phase === "lobby" && info) {
-      const me = info.members.find((m) => m.id === info!.playerId), host = me?.host ?? false, allReady = info.members.every((m) => m.ready && m.connected);
+      const me = info.members.find((m) => m.id === info!.playerId), host = me?.host ?? false, allReady = info.members.every((m) => m.spectator || m.ready && m.connected);
       parts.push(node("h2", undefined, info.visibility === "public" ? "Public room" : "Private room"), node("div", "fc-mp-code", info.code));
       const link = new URL(win.location.href); link.searchParams.set("room", info.code);
       const copyLink = button("Copy invite link", () => { void win.navigator.clipboard?.writeText(link.href).then(() => { out.textContent = "Invite link copied."; }, () => { out.textContent = link.href; }); });
       parts.push(node("div", "fc-mp-row"));
       parts.at(-1)!.append(copyLink);
       parts.push(members(info));
-      const free = MAX_PLAYERS - info.members.length, alone = info.members.length === 1;
+      const playing = info.members.filter((m) => !m.spectator).length, free = MAX_PLAYERS - playing, alone = playing === 1;
       const modes = node("div", "fc-mp-row"); modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Mode");
       for (const mode of MODES) {
         const pick = button(MODE_NAMES[mode], () => client.setMode(mode), info.mode === mode ? "fc-primary" : undefined);
@@ -230,7 +231,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       } else bots.append(botLabel);
       parts.push(bots);
       const row = node("div", "fc-mp-row");
-      row.append(button(me?.ready ? "Not ready" : "Ready", () => client.ready(!me?.ready), me?.ready ? undefined : "fc-primary"));
+      if (!me?.spectator) row.append(button(me?.ready ? "Not ready" : "Ready", () => client.ready(!me?.ready), me?.ready ? undefined : "fc-primary"));
       if (host) { const start = button(alone && info.bots === 0 ? "Start solo practice" : `Start ${MODE_NAMES[info.mode]}`, () => client.start(), "fc-primary"); start.disabled = !allReady; row.append(start); }
       row.append(button("Leave room", () => leave()));
       parts.push(row, node("p", undefined, alone && info.visibility === "public" ? "Nobody else is here yet: wait for players, add bot teammates, or play solo." : host ? (allReady ? "Everyone is ready." : "Start when everyone is ready.") : "The host starts the match when everyone is ready."));
@@ -241,7 +242,11 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       parts.push(node("h2", undefined, won ? (teams ? "Your team won!" : "You won the sweep!") : teams && !result.winners.length ? "A draw" : "Match over"), node("p", undefined, reason(result.reason)));
       if (mine?.status === "paid") parts.push(node("p", undefined, `+${formatMoney(mine.cashCents)} · +${mine.xp} XP added to your city.`));
       else if (mine?.status === "already") parts.push(node("p", undefined, `This match's payout (+${formatMoney(mine.cashCents)} · +${mine.xp} XP) is already in your city.`));
-      parts.push(button("Back to city", () => leave(), "fc-primary"));
+      const row = node("div", "fc-mp-row");
+      if (client.isHost()) row.append(button("Rematch", () => client.rematch(), "fc-primary"));
+      row.append(button("Back to city", () => leave(), client.isHost() ? undefined : "fc-primary"));
+      parts.push(row);
+      if (!client.isHost() && !client.isSpectator()) parts.push(node("p", undefined, "The host can start a rematch with everyone still here."));
     } else if (phase === "match") {
       parts.push(node("p", undefined, "Match in progress."), button("Leave match", () => leave()));
     }
@@ -263,9 +268,10 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     box.append(node("p", undefined, `${rooms.online} online · ${rooms.rooms.length} public room${rooms.rooms.length === 1 ? "" : "s"}`));
     const list = node("ul"); list.setAttribute("aria-label", "Public rooms");
     for (const r of rooms.rooms) {
-      const li = node("li"), joinable = r.phase === "lobby" && r.players < r.max;
-      const go = button("Join", () => client.join(r.code)); go.disabled = busy || !joinable;
-      li.append(node("span", undefined, `${MODE_NAMES[r.mode] ?? r.mode} · ${r.code} · ${r.players}/${r.max} players${r.bots ? ` + ${r.bots} bots` : ""} · ${r.phase === "lobby" ? "in lobby" : "playing"}`), go);
+      const li = node("li"), joinable = r.players + (r.phase === "match" ? r.bots : 0) < r.max;
+      const go = button(r.phase === "match" ? "Join in progress" : "Join", () => client.join(r.code)); go.disabled = busy || !joinable;
+      const watch = button("Watch", () => client.spectate(r.code)); watch.disabled = busy;
+      li.append(node("span", undefined, `${MODE_NAMES[r.mode] ?? r.mode} · ${r.code} · ${r.players}/${r.max} players${r.bots ? ` + ${r.bots} bots` : ""} · ${r.phase === "lobby" ? "in lobby" : "playing"}`), go, watch);
       list.append(li);
     }
     if (rooms.rooms.length) box.append(list);
@@ -319,7 +325,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     const list = node("ul"); list.setAttribute("aria-label", "Players");
     for (const m of current.members) {
       const li = node("li"); li.dataset.connected = String(m.connected);
-      li.append(swatch(m.look), node("span", undefined, `${m.name}${m.id === current.playerId ? " (you)" : ""}${m.host ? " · host" : ""}`), node("span", undefined, !m.connected ? "away" : m.ready ? "ready" : "not ready"));
+      li.append(swatch(m.look), node("span", undefined, `${m.name}${m.id === current.playerId ? " (you)" : ""}${m.host ? " · host" : ""}`), node("span", undefined, !m.connected ? "away" : m.spectator ? "watching" : m.ready ? "ready" : "not ready"));
       list.append(li);
     }
     return list;
@@ -328,12 +334,51 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   // The match HUD is built once; only its text changes, so its buttons never move under a click.
   const hudTitle = node("span", undefined, "Bot Sweep"), hudClock = node("strong"), hudUnits = node("span"), hudLives = node("span"), hudScore = node("span"), hudTeam = node("span"), hudNet = node("output");
   const endButton = button("End match", () => client.end()), leaveButton = button("Leave match", () => leave());
-  hud.append(hudTitle, hudClock, hudUnits, hudLives, hudScore, hudTeam, hudNet, endButton, leaveButton);
+  const nextButton = button("Next player", () => { follow = nextFollow(); });
+  const chatBar = node("div", "fc-mp-row"); chatBar.setAttribute("role", "group"); chatBar.setAttribute("aria-label", "Quick chat");
+  QUICK_CHAT.forEach((phrase, i) => { const b = button(`${i + 1} ${phrase}`, () => client.quickChat(i)); b.title = `Key ${i + 1}`; chatBar.append(b); });
+  hud.append(hudTitle, hudClock, hudUnits, hudLives, hudScore, hudTeam, hudNet, nextButton, endButton, leaveButton, chatBar);
+  // Quick chat: keys 1–6 during a match (never while typing). Messages fade after 6 s.
+  const feed = node("div", "fc-mp-feed"); feed.setAttribute("role", "log"); feed.setAttribute("aria-label", "Chat"); feed.hidden = true;
+  options.host.append(feed);
+  const chats: Array<{ text: string; until: number }> = [];
+  function addChat(from: string, phrase: number): void {
+    const who = info?.members.find((m) => m.id === from)?.name ?? "Someone", text = QUICK_CHAT[phrase];
+    if (!text) return;
+    chats.push({ text: `${who}: ${text}`, until: win.performance.now() + 6000 });
+    while (chats.length > 4) chats.shift();
+    renderFeed();
+  }
+  function renderFeed(): void {
+    const t = win.performance.now();
+    while (chats.length && chats[0]!.until <= t) chats.shift();
+    feed.hidden = !inMatch || !chats.length;
+    const text = chats.map((c) => c.text).join("\n");
+    if (feed.dataset.text !== text) { feed.dataset.text = text; feed.replaceChildren(...chats.map((c) => node("p", undefined, c.text))); }
+  }
+  const chatKeys = (event: KeyboardEvent): void => {
+    if (!inMatch || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+    const n = /^Digit([1-9])$/.exec(event.code);
+    if (n && Number(n[1]) <= QUICK_CHAT.length) client.quickChat(Number(n[1]) - 1);
+  };
+  win.addEventListener("keydown", chatKeys);
+  // Spectators follow one player (cycling with Next player); players follow themselves.
+  let follow = "";
+  function nextFollow(): string {
+    const ids = client.match ? Object.keys(client.match.confirmed.players).sort() : [];
+    if (!ids.length) return "";
+    const i = ids.indexOf(follow);
+    return ids[(i + 1) % ids.length]!;
+  }
   const setText = (el: HTMLElement, text: string): void => { if (el.textContent !== text) el.textContent = text; };
   function renderHud(): void {
     const state = client.match?.confirmed, view = state ? botSweepView(state) : null;
     if (!inMatch || !view || !info) { hud.hidden = true; return; }
-    const me = view.players[info.playerId];
+    const spectating = client.isSpectator();
+    if (spectating && (!follow || !state!.players[follow])) follow = nextFollow();
+    const meId = spectating ? follow : info.playerId, me = view.players[meId];
     const net = info.status !== "connected" ? info.message : client.match?.recovering ? "Resynchronising…" : info.rttMs ? `${Math.round(info.rttMs)} ms` : "";
     setText(hudClock, clock(view.remainingTicks));
     setText(hudTitle, MODE_NAMES[view.mode]);
@@ -346,11 +391,16 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       setText(hudLives, `Lives ${view.lives}`);
     }
     setText(hudScore, `Score ${me?.score ?? 0}${me?.down ? " · DOWN" : me?.distracted ? " · flowers!" : ""}`);
-    setText(hudTeam, `Team ${info.members.filter((m) => m.connected).length}/${info.members.length}`);
+    const watched = info.members.find((m) => m.id === follow)?.name ?? (follow.startsWith("bot-") ? `Bot ${follow.slice(4)}` : follow);
+    setText(hudTeam, spectating ? `Watching ${watched}` : `Team ${info.members.filter((m) => m.connected && !m.spectator).length}/${info.members.filter((m) => !m.spectator).length}`);
+    nextButton.hidden = !spectating;
+    chatBar.hidden = view.phase !== "active";
     setText(hudNet, net); hudNet.hidden = !net;
     endButton.hidden = view.phase !== "active" || !client.isHost();
     leaveButton.hidden = view.phase !== "active";
+    setText(leaveButton, spectating ? "Stop watching" : "Leave match");
     hud.hidden = false;
+    renderFeed();
   }
 
   // Nametags (docs/design.md, Seeing each other): other players' names over them, team-coloured in
@@ -414,7 +464,8 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       if (viewMatch !== match.matchId) { viewMatch = match.matchId; prevView = currView = null; }
       acc += Math.min(Math.max(0, dtSeconds), 0.25);
       let ticks = 0;
-      while (acc >= DT) { client.sample(sample()); acc -= DT; ticks++; }
+      const spectating = client.isSpectator();
+      while (acc >= DT) { if (!spectating) client.sample(sample()); acc -= DT; ticks++; }
       const started = performance.now(), budget = match.queued > 12 ? 150 : 24;
       // Catch up within a frame budget (larger when well behind), so a slow device keeps pace.
       const steps = client.advance(ticks, () => performance.now() - started > budget);
@@ -422,9 +473,9 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       if (!currView) prevView = currView = next;
       else if (steps || next !== currView) { prevView = currView; currView = next; }
       renderHud();
-      return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: info?.playerId ?? match.playerId };
+      return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: spectating ? (follow || nextFollow()) : info?.playerId ?? match.playerId };
     },
     overlay,
-    dispose() { win.clearInterval(roomTimer); client.dispose(); root.remove(); hud.remove(); tagLayer.remove(); },
+    dispose() { win.clearInterval(roomTimer); win.removeEventListener("keydown", chatKeys); client.dispose(); root.remove(); hud.remove(); tagLayer.remove(); feed.remove(); },
   };
 }

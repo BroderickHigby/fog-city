@@ -245,6 +245,53 @@ test.describe("online Bot Sweep", () => {
     }
   });
 
+  test("social: watch a match, join it in progress, quick-chat, end and rematch", async ({ browser }: { browser: Browser }) => {
+    gateWorld("sf");
+    const first = await browser.newContext(), second = await browser.newContext();
+    try {
+      const a = await open(first);
+      await a.getByRole("button", { name: "Play with friends" }).click();
+      await a.getByRole("button", { name: "Play online" }).click();
+      await waitNet(a, `n.info()?.phase === "lobby"`);
+      const code = await net(a, (n) => n.info()!.code);
+      await a.getByRole("button", { name: "Ready", exact: true }).click();
+      await a.getByRole("button", { name: "Start solo practice" }).click();
+      await waitNet(a, `n.match() !== null`, 120_000);
+      // B finds the running public match, watches it (no body in the match), then stops.
+      const b = await open(second);
+      await b.getByRole("button", { name: "Play with friends" }).click();
+      const row = b.getByRole("list", { name: "Public rooms" }).locator("li", { hasText: code });
+      await expect(row).toContainText("playing", { timeout: 30_000 });
+      await row.getByRole("button", { name: "Watch" }).click();
+      await waitNet(b, `n.info()?.playerId === "s1" && n.match() !== null`, 120_000);
+      await expect(b.getByRole("status", { name: "Online match" })).toContainText("Watching");
+      expect(await net(b, (n) => Object.keys(n.match()!.players))).toEqual(["p1"]);
+      await b.getByRole("button", { name: "Stop watching" }).click();
+      await waitNet(b, `n.info()?.phase === "none"`);
+      // Then joins the same match in progress as a player.
+      await b.getByRole("button", { name: "Play with friends" }).click();
+      await b.getByRole("list", { name: "Public rooms" }).locator("li", { hasText: code }).getByRole("button", { name: "Join in progress" }).click();
+      await waitNet(b, `n.info()?.playerId === "p2" && n.match() !== null && n.match().players.p2 !== undefined`, 120_000);
+      for (const page of [a, b]) await waitNet(page, `Object.keys(n.match().ext.modes.match.players).sort().join() === "p1,p2"`, 120_000);
+      // Quick chat: a preset phrase by key, shown to the other player with B's name.
+      const bName = await net(b, (n) => n.info()!.members.find((m) => m.id === "p2")!.name);
+      await b.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await b.keyboard.press("Digit1");
+      await expect(a.getByRole("log", { name: "Chat" })).toContainText(`${bName}: Nice melt!`, { timeout: 30_000 });
+      expect((await health()).mismatches).toBe(0);
+      // End, then the host's rematch brings both back to the lobby, not ready.
+      await a.getByRole("button", { name: "End match" }).click();
+      for (const page of [a, b]) await waitNet(page, `n.info()?.phase === "results"`, 120_000);
+      await expect(b.getByRole("button", { name: "Rematch" })).toHaveCount(0);
+      await a.getByRole("button", { name: "Rematch" }).click();
+      for (const page of [a, b]) await waitNet(page, `n.info()?.phase === "lobby" && n.info().members.length === 2 && n.info().members.every((m) => !m.ready)`);
+      for (const page of [a, b]) { await page.getByRole("button", { name: "Leave room" }).click(); await waitNet(page, `n.info()?.phase === "none"`); }
+      for (const page of [a, b]) expect((page as Page & { problems?: string[] }).problems).toEqual([]);
+    } finally {
+      await first.close(); await second.close();
+    }
+  });
+
   test("without a relay the game boots single-player with no lobby", async ({ page }) => {
     gateWorld("sf");
     await page.goto(`/?world=sf&gfx=default&pr=0.5&radius=250`);

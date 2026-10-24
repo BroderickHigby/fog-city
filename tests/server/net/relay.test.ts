@@ -64,7 +64,7 @@ describe("relay lobby", () => {
     b.client.join(last(a).code); await until(() => last(a).members.length === 2);
     expect(last(a).members.map((m) => [m.name, m.look])).toEqual([["Quiet Heron", 4], ["Quiet Heron 2", 1]]);
     // Members carry no device token or its hash; seats keep only the hash, for stats.
-    expect(Object.keys(last(b).members[0]!).sort()).toEqual(["connected", "host", "id", "look", "name", "ready"]);
+    expect(Object.keys(last(b).members[0]!).sort()).toEqual(["connected", "host", "id", "look", "name", "ready", "spectator"]);
   });
 
   it("only the host starts, and only when everyone is ready", async () => {
@@ -80,8 +80,9 @@ describe("relay lobby", () => {
     expect(a.client.match!.matchId).toBe(b.client.match!.matchId);
   });
 
-  it("refuses joining a started match, a fifth player, and unknown codes", async () => {
-    const h = await relay(), [a] = await match(h);
+  it("refuses joining a finished match and unknown codes", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    a.client.end(); await play(h, [a, b], 3);
     const late = make(h); late.client.join(last(a).code);
     await until(() => last(late)?.status === "error");
     expect(last(late).message).toMatch(/already started/);
@@ -211,6 +212,61 @@ describe("relay persistence", () => {
       expect(codes.filter((c) => c === 200)).toHaveLength(30);
       expect(codes.at(-1)).toBe(429);
     } finally { store.close(); }
+  });
+});
+
+describe("relay social", () => {
+  it("relays preset quick-chat phrases only, at most one per 1.5 s per player", async () => {
+    const h = await relay(), a = make(h), b = make(h);
+    const heard: Array<[string, number]> = [];
+    (b.client as unknown as { options: { onChat(from: string, phrase: number): void } }).options.onChat = (from, phrase) => heard.push([from, phrase]);
+    a.client.create(); await until(() => !!last(a)?.code);
+    b.client.join(last(a).code); await until(() => last(a).members.length === 2);
+    a.client.quickChat(0); a.client.quickChat(1); await settle(60);
+    expect(heard).toEqual([["p1", 0]]);
+    h.clock.t += 1500; a.client.quickChat(5); await until(() => heard.length === 2);
+    expect(heard[1]).toEqual(["p1", 5]);
+    const s = await raw(h.url); s.send({ type: "chat", text: "free text" }); await until(() => !!s.closed);
+    expect(s.messages.at(-1)).toMatchObject({ code: "invalid_message" });
+  });
+
+  it("lets a player join a running match and adds them to it on every peer", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    await play(h, [a, b], 20);
+    const c = make(h); c.client.join(last(a).code);
+    await until(() => !!c.client.match, "join-in-progress snapshot");
+    expect(last(c).playerId).toBe("p3");
+    await play(h, [a, b, c], 61);
+    const { modeSessionOf } = await import("../../../src/sim/modes/session.ts");
+    expect(Object.keys(modeSessionOf(room(h).state!)!.match.players)).toEqual(["p1", "p2", "p3"]);
+    expect(room(h).state!.players.p3).toBeDefined();
+    for (const p of [a, b, c]) expect(hashState(p.client.match!.confirmed)).toBe(hashState(room(h).state!));
+    // A fourth fits; a fifth does not.
+    const d = make(h); d.client.join(last(a).code); await until(() => !!d.client.match);
+    const e = make(h); e.client.join(last(a).code); await until(() => last(e)?.status === "error");
+    expect(last(e).message).toMatch(/four players/);
+  });
+
+  it("lets spectators watch without a body, input or seat, and rematches back to the lobby", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    const s = make(h); s.client.spectate(last(a).code);
+    await until(() => !!s.client.match, "spectator snapshot");
+    expect(last(s).playerId).toBe("s1");
+    expect(last(a).members.find((m) => m.id === "s1")).toMatchObject({ spectator: true });
+    s.client.sample({ throttle: 1, steer: 0, brake: 0, actions: 2 });
+    await play(h, [a, b], 61);
+    while (s.client.match!.queued) s.client.advance(60);
+    expect(room(h).state!.players.s1).toBeUndefined();
+    expect(hashState(s.client.match!.confirmed)).toBe(hashState(room(h).state!));
+    expect(room(h).size).toBe(2);
+    a.client.end(); await play(h, [a, b], 3);
+    await until(() => last(s).results !== null);
+    b.client.rematch(); await until(() => last(b).message === "Only the host can do that.");
+    a.client.rematch(); await until(() => last(b).phase === "lobby");
+    expect(last(a).members.filter((m) => !m.spectator).every((m) => !m.ready)).toBe(true);
+    a.client.ready(true); b.client.ready(true); await until(() => last(a).members.filter((m) => !m.spectator).every((m) => m.ready));
+    a.client.start(); await until(() => last(a).phase === "match" && a.client.match!.matchId !== last(a).results?.matchId);
+    expect(Object.keys(room(h).state!.players).sort()).toEqual(["p1", "p2"]);
   });
 });
 

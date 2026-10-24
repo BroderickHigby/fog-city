@@ -120,6 +120,12 @@ export function stepMatch(previous:MatchState,ctx:MatchContext):MatchState {
   if(ctx.paused)return s;
   s.elapsedTicks++;
   if(ctx.endRequested){finish(s,[],"ended");return s;}
+  // Join in progress: a new founder starts fresh (no score, full runway) on the team given.
+  for(const join of [...(ctx.joins??[])].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0)){
+    const max=s.mode==="botSweep"?4:8;
+    if(s.players[join.id]||!validId(join.id)||sortedIds(s.players).length>=max||(join.team!==0&&join.team!==1))continue;
+    s.players[join.id]=player(join.id,0,s.mode,s.mode==="cleanStreets"?join.team:0);event(s,"match.joined",join.id,"",join.team);
+  }
   combat(s,ctx);if(s.result!==null)return s;
   for(const p of sortedIds(s.players).map(id=>s.players[id]!))if(p.runway<=0)down(s,p);
   if(s.mode==="botSweep") {revives(s,ctx);if(s.phase==="active" && !s.remainingBad.length && !s.relayId)finish(s,sortedIds(s.players),"sweep-complete");else if(s.elapsedTicks>=s.durationTicks)finish(s,[],"relay-update");}

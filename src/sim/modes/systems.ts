@@ -10,6 +10,8 @@ import type { MatchContext, MatchInput } from "./types.ts";
 
 /** A recorded server/host decision: end the running match now. No payload. */
 export const MODE_END_EVENT = "mode.end";
+/** A recorded server decision: `playerId` joins the running match. Payload `{ team: 0 | 1 }`. */
+export const MODE_JOIN_EVENT = "mode.join";
 
 export type MatchContextProvider=(context:SimSystemContext)=>MatchContext;
 export const defaultMatchContext:MatchContextProvider=context=>{
@@ -46,7 +48,11 @@ export const defaultMatchContext:MatchContextProvider=context=>{
     return sourceId&&session?.match.players[sourceId]?{...event,sourceId}:event;
   });
   const endRequested=context.events.some(event=>event.tick===context.state.tick&&event.kind===MODE_END_EVENT);
-  return {tick:context.state.tick,positions,inputs,combatEvents,...(endRequested?{endRequested}:{})};
+  const joins=context.events.filter(event=>event.tick===context.state.tick&&event.kind===MODE_JOIN_EVENT&&typeof event.playerId==="string").map(event=>{
+    const team=(event.payload as {team?:unknown}|undefined)?.team;
+    return {id:event.playerId!,team:team===1?1:0};
+  });
+  return {tick:context.state.tick,positions,inputs,combatEvents,...(endRequested?{endRequested}:{}),...(joins.length?{joins}:{})};
 };
 export function createModesSystem(provider:MatchContextProvider=defaultMatchContext):SimSystem {
   return {key:"modes",step(context){

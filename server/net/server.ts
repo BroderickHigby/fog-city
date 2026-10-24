@@ -212,7 +212,9 @@ export function createRelay(options: RelayOptions) {
         try {
           if (!found || found.closed) throw new Error("room_missing");
           if (found.bundle.name !== message.world) throw new Error("world_mismatch");
-          playerId = message.action === "join" ? found.join(peer, t, message.profile, message.device) : found.rejoin(peer, message.token!, t, message.profile, message.device);
+          playerId = message.action === "join" ? found.join(peer, t, message.profile, message.device)
+            : message.action === "spectate" ? found.spectate(peer, t, message.profile, message.device)
+            : found.rejoin(peer, message.token!, t, message.profile, message.device);
           room = found;
         } catch (error) {
           entry.failed.push(t);
@@ -242,6 +244,8 @@ export function createRelay(options: RelayOptions) {
           case "ready": room.ready(playerId, message.ready); break;
           case "bots": room.setBots(playerId, message.count); break;
           case "mode": room.setMode(playerId, message.mode); break;
+          case "chat": room.chat(playerId, message.phrase, t); break;
+          case "rematch": room.rematch(playerId); break;
           case "start": room.start(playerId, message.mode, t); break;
           case "end": room.end(playerId); break;
           case "resync": room.resync(playerId, message.reason, t); break;

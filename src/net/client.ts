@@ -38,6 +38,8 @@ export interface ClientOptions {
   /** A new seat (store it for a rejoin) or null (forget it). */
   onSeat(seat: Seat | null): void;
   onResults?(results: Results, playerId: string): void;
+  /** A preset quick-chat phrase from a room member (index into QUICK_CHAT). */
+  onChat?(from: string, phrase: number): void;
   /** Reconnect attempts after an unexpected drop, with backoff. */
   reconnectAttempts?: number;
   /** Defaults to a WebSocket. */
@@ -75,6 +77,11 @@ export class RelayClient {
   quick(): void { this.open({ action: "quick" }); }
   join(code: string): void { this.open({ action: "join", code: code.trim().toUpperCase() }); }
   rejoin(seat: Seat): void { this.seat = seat; this.open({ action: "rejoin", code: seat.code, token: seat.token }); }
+  /** Watch a room by code without playing. */
+  spectate(code: string): void { this.open({ action: "spectate", code: code.trim().toUpperCase() }); }
+  isSpectator(): boolean { return this.info.members.some((m) => m.id === this.info.playerId && m.spectator); }
+  quickChat(phrase: number): void { this.send({ type: "chat", phrase }); }
+  rematch(): void { this.send({ type: "rematch" }); }
 
   ready(ready: boolean): void { this.send({ type: "ready", ready }); }
   setBots(count: number): void { this.send({ type: "bots", count }); }
@@ -97,7 +104,7 @@ export class RelayClient {
   sample(input: SimInput): void {
     this.actions |= input.actions;
     const match = this.match;
-    if (!match || this.info.phase !== "match" || !this.socket?.open) return;
+    if (!match || this.info.phase !== "match" || !this.socket?.open || this.isSpectator()) return;
     const control = { ...input, actions: this.actions };
     const seq = match.sample(control);
     if (seq === null) return;
@@ -189,6 +196,7 @@ export class RelayClient {
         this.emit();
         return;
       }
+      case "chat": this.options.onChat?.(message.from, message.phrase); return;
       case "pong": this.info.rttMs = Math.max(0, (this.options.now ?? Date.now)() - message.t); this.emit(); return;
       case "error": {
         this.lastError = message.code;
