@@ -502,6 +502,8 @@ async function boot(): Promise<void> {
     // A UI-paused game still applies a command the modal just queued (an answer, a purchase).
     // Under a debug pause only stepN/stepFrames advance the sim; queued commands wait for them.
     else if(!debugPaused&&queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
+    const simSeconds = (performance.now() - simStart) / 1000;
+    const simCatchingUp = (match ? match.ticksThisFrame : pacer.stats().ticksThisFrame) > 1;
     const alpha = match ? match.alpha : paused ? 1 : pacer.alpha();
     const shownPrev = match ? match.prev : prev, shown = match ? match.curr : curr, me_ = match ? match.playerId : LOCAL_PLAYER;
 
@@ -572,7 +574,7 @@ async function boot(): Promise<void> {
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     const minute = gameMinuteOfDay(shown, clockStart);
     local.id = me_;
-    view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, (performance.now() - simStart) / 1000);
+    view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
     if (!guard.contextLost) view.render();
 
     const info = view.info(renderInfo);

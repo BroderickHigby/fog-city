@@ -37,7 +37,7 @@ export interface MultiplayerOptions {
   /** The page switched between the city and a match. */
   onModeChange?(inMatch: boolean): void;
 }
-export interface MatchView { prev: SimState; curr: SimState; alpha: number; playerId: string }
+export interface MatchView { prev: SimState; curr: SimState; alpha: number; playerId: string; ticksThisFrame: number }
 export interface MultiplayerHook {
   available: boolean;
   /** True while a relay match (or its results) owns the screen. */
@@ -327,7 +327,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       if (!currView) prevView = currView = next;
       else if (steps || next !== currView) { prevView = currView; currView = next; }
       renderHud();
-      return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: info?.playerId ?? match.playerId };
+      return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: info?.playerId ?? match.playerId, ticksThisFrame: steps };
     },
     dispose() { win.clearInterval(roomTimer); client.dispose(); root.remove(); hud.remove(); },
   };

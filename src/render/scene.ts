@@ -518,7 +518,7 @@ export class SceneRenderer {
    * Per-frame update after the sim has stepped. `dtSeconds` is the frame time the animation
    * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure;
    * `simSeconds` is how much of it the sim's ticks took, which the graphics governor leaves out:
-   * a slow sim is not cured by drawing less.
+   * a slow sim is not cured by drawing less. Frames catching up several ticks are also left out.
    */
   frame(
     dtSeconds: number,
@@ -527,12 +527,13 @@ export class SceneRenderer {
     minuteOfDay: number,
     frameSeconds: number = dtSeconds,
     simSeconds = 0,
+    simCatchingUp = false,
   ): void {
     this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
-    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), !this.tilesSettled() || document.hidden);
+    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), simCatchingUp || !this.tilesSettled() || document.hidden);
     if (step) this.stepDown(step);
     if (local) {
       const t = local.target;
