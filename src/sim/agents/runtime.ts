@@ -6,7 +6,7 @@ import { Action, type InputFrame, type SimInput, type SimState } from "../contra
 import { AGENT_SPEC, ROBOTAXI_BODY, agentsOf, personIsChild, type AgentState } from "../agents.ts";
 import { CAR } from "../car.ts";
 import { DETOUR_CLEAR_M, DETOUR_LOOK_M, DETOUR_REJOIN_M, DETOUR_TICKS, boxGap, detourWaypoint, type DetourBox } from "./detour.ts";
-import { dcos, dsin, datan2, clamp } from "../dmath.ts";
+import { dcos, dsin, datan2, clamp, PI } from "../dmath.ts";
 import type { AgentMotionProposal as CoreAgentMotionProposal } from "../motion.ts";
 import { circleBlocked, groundHeight, segmentBlocked, type World } from "../world.ts";
 import type { AttackKind, AttackRequest, CombatActor, CombatState } from "../combat-contract.ts";
@@ -70,6 +70,10 @@ export interface RuntimeActor extends RuntimeSpawn {
   hiddenTellId: string | null;
   /** v10: walking round a stopped vehicle to (x, z), where its route carries on from `cursor` (detour.ts). */
   detour?: { x: number; z: number; cursor: SidewalkCursor; until: number } | null;
+  /** v11: when it last began a glance at someone standing near (GLANCE_COOLDOWN_TICKS). */
+  glanced?: number;
+  /** v10: where and when it last made progress while wanting to walk (WALKER_STALL_TICKS). */
+  stall?: { x: number; z: number; tick: number };
 }
 
 export interface AgentMotionProposal extends CoreAgentMotionProposal {
@@ -119,6 +123,8 @@ export interface AgentRuntimeOptions {
   fog?: number;
   /** Position-specific weather/fog; core supplies the authoritative sample. */
   fogAt?: (x:number,z:number)=>number;
+  /** Where weather sends a bad robot standing at (x, z) (shelter from rain, inland off a flooded promenade), or null. */
+  weatherRefuge?: (x:number,z:number)=>{x:number;z:number}|null;
   /** Core owns player-controlled bodies, so autonomous brains never propose motion for them. */
   controlledActorIds?: readonly string[];
   conversionCap?: number;
@@ -312,10 +318,23 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
   return {goal:null,speed:actor.model==="trundle"?1:animal(actor.model)?1.3:1.6};
 }
 
-/** Vehicles standing still (players' cars, robotaxis, vans, buses), as of the previous tick. */
+/** Every vehicle body (players' cars, robotaxis, vans, buses), as of the previous tick. */
+function vehicleBoxes(sim:Readonly<SimState>):DetourBox[]{
+  const out:DetourBox[]=[];
+  for(const id of keys(sim.players)){const c=sim.players[id]!.car;out.push({x:c.x,z:c.z,heading:c.heading,hl:CAR.halfLength,hw:CAR.halfWidth});}
+  for(const a of sim.ext.agents?.list??[])if(a.kind==="robotaxi")out.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??ROBOTAXI_BODY.halfLength,hw:a.halfWidth??ROBOTAXI_BODY.halfWidth});
+  return out;
+}
+
+/** Bodies standing still that walkers go round (players' cars, robotaxis, vans, buses, a player on foot), as of the previous tick. */
 function stoppedVehicles(sim:Readonly<SimState>):DetourBox[]{
   const out:DetourBox[]=[];
-  for(const id of keys(sim.players)){const c=sim.players[id]!.car;if(Math.abs(c.speed)<.1)out.push({x:c.x,z:c.z,heading:c.heading,hl:CAR.halfLength,hw:CAR.halfWidth});}
+  for(const id of keys(sim.players)){
+    const p=sim.players[id]!,c=p.car;
+    if(Math.abs(c.speed)<.1)out.push({x:c.x,z:c.z,heading:c.heading,hl:CAR.halfLength,hw:CAR.halfWidth});
+    // A player standing on the pavement: walkers step round them too.
+    if(p.mode==="foot"&&p.foot&&Math.abs(p.foot.speed)<.1)out.push({x:p.foot.x,z:p.foot.z,heading:p.foot.heading,hl:.35,hw:.35});
+  }
   for(const a of sim.ext.agents?.list??[])if(a.kind==="robotaxi"&&Math.abs(a.speed)<.1)out.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??ROBOTAXI_BODY.halfLength,hw:a.halfWidth??ROBOTAXI_BODY.halfWidth});
   return out;
 }
@@ -328,10 +347,10 @@ function stoppedVehicles(sim:Readonly<SimState>):DetourBox[]{
 function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor:RuntimeActor,speed:number,stopped:readonly DetourBox[],isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number}|null{
   const r=actor.radius;
   const within=(reach:number)=>stopped.filter(b=>Math.abs(b.x-actor.x)<=reach+b.hl+b.hw&&Math.abs(b.z-actor.z)<=reach+b.hl+b.hw);
-  // Nothing standing still within reach of the next DETOUR_LOOK_M of route: the common case, no route walk.
+  // Nothing standing still within reach of the next DETOUR_LOOK_M of route and no detour under way:
+  // the common case, no route walk.
   if(!actor.route||(!actor.detour&&!within(DETOUR_LOOK_M+r+.2).length)){actor.detour=null;return null;}
   const boxes=within(DETOUR_REJOIN_M+r+DETOUR_CLEAR_M+1);
-  if(!boxes.length){actor.detour=null;return null;}
   const walkable=(ax:number,az:number,bx:number,bz:number)=>!segmentBlocked(world,ax,az,bx,bz)&&!circleBlocked(world,bx,bz,r);
   const blocking=(tx:number,tz:number)=>{
     // The first stopped vehicle the straight line to (tx, tz) runs into.
@@ -351,6 +370,7 @@ function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor
     return way;
   }
   actor.detour=null;
+  if(!boxes.length)return null;
   // Is the next stretch of route into a stopped vehicle's body?
   let box:DetourBox|null=null,from=0;
   for(let d=.5;d<=DETOUR_LOOK_M&&!box;d+=.5){
@@ -375,10 +395,88 @@ function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor
   return null;
 }
 
+/** After a glance at someone standing near, a walker does not glance again for this many ticks (10 s). */
+export const GLANCE_COOLDOWN_TICKS=600;
+
+/** A walker that has not moved WALKER_STALL_M in this many ticks while wanting to walk picks a new way. */
+export const WALKER_STALL_TICKS=240;
+/** ...and must get this far from where it stalled to count as progress (jittering in place is not), metres. */
+const WALKER_STALL_M=1;
+
+/**
+ * Would the physical layer (motion.ts applyMotionBodies) refuse this walker's step towards `goal`?
+ * Its body would end inside a facade's clearance or cross one, or come nearer a vehicle's body it
+ * is already within its radius + 0.1 m of.
+ */
+function stepRefused(world:World,actor:RuntimeActor,goal:{x:number;z:number},speed:number,vehicles:readonly DetourBox[]):boolean{
+  const dx=goal.x-actor.x,dz=goal.z-actor.z,l=Math.sqrt(dx*dx+dz*dz);
+  if(l<1e-9)return false;
+  const step=Math.min(l,speed*DT),x=actor.x+dx/l*step,z=actor.z+dz/l*step;
+  if(circleBlocked(world,x,z,actor.radius)||segmentBlocked(world,actor.x,actor.z,x,z))return true;
+  return vehicles.some(v=>{const after=boxGap(x,z,v);return after<actor.radius+.15&&after<boxGap(actor.x,actor.z,v);});
+}
+
+/** Can a walker go straight from where it stands to (x, z): no facade on the way, never nearer a vehicle than its berth? */
+function walkableTo(world:World,actor:RuntimeActor,x:number,z:number,vehicles:readonly DetourBox[]):boolean{
+  const r=actor.radius,dx=x-actor.x,dz=z-actor.z,l=Math.sqrt(dx*dx+dz*dz);
+  if(segmentBlocked(world,actor.x,actor.z,x,z))return false;
+  if(l<1e-9)return true;
+  // Finely over the first steps (a corner can clip the very next tick's step and not a longer one),
+  // then every 0.2 m.
+  const at:number[]=[];
+  for(let d=.02;d<Math.min(l,.3);d+=.02)at.push(d);
+  for(let d=.3;d<l;d+=.2)at.push(d);
+  at.push(l);
+  for(const d of at){
+    const px=actor.x+dx/l*d,pz=actor.z+dz/l*d;
+    if(circleBlocked(world,px,pz,r))return false;
+    if(vehicles.some(v=>{const g=boxGap(px,pz,v);return g<r+.2&&g<boxGap(actor.x,actor.z,v);}))return false;
+  }
+  return true;
+}
+
+/** Wedged in a nook: the free spot 0.6 m away (one of 16 directions) that is nearest `toward`, or null. */
+function stepOut(world:World,actor:RuntimeActor,vehicles:readonly DetourBox[],toward:{x:number;z:number}):{x:number;z:number;cursor:SidewalkCursor}|null{
+  let best:{x:number;z:number}|null=null,score=Infinity;
+  for(let i=0;i<16;i++){
+    const a=i*PI/8,x=actor.x+dsin(a)*.6,z=actor.z-dcos(a)*.6;
+    if(!walkableTo(world,actor,x,z,vehicles))continue;
+    const d=distance({x,z},toward);
+    if(d<score){score=d;best={x,z};}
+  }
+  return best?{...best,cursor:{...actor.cursor}}:null;
+}
+
+/** Sideways shifts tried off a sidewalk line that hugs a facade, metres (+ = right of the route). */
+const FACADE_SHIFTS_M:readonly number[]=[0,.3,-.3,.6,-.6,1,-1,1.5,-1.5];
+
+/**
+ * Where a walker heads when its route line runs too close to a facade for its body: the first
+ * point ahead on the route (0.5 to 8 m), or beside it (FACADE_SHIFTS_M, away from the wall), where
+ * the body fits and that it can walk straight to, with the route cursor at that point.
+ */
+function clearAhead(world:World,graph:SidewalkGraph,actor:RuntimeActor,vehicles:readonly DetourBox[],isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number;cursor:SidewalkCursor}|null{
+  const fits=(x:number,z:number)=>walkableTo(world,actor,x,z,vehicles);
+  for(let d=.5;d<=8;d+=.5){
+    const p=advanceSidewalkRoute(graph,actor.route!,actor.cursor,d,edge=>isBlocked(edge));
+    if(p.blockedEdgeId!==null)return null;
+    const q=advanceSidewalkRoute(graph,actor.route!,actor.cursor,d+.25,edge=>isBlocked(edge)).point;
+    const tx=q.x-p.point.x,tz=q.z-p.point.z,tl=Math.sqrt(tx*tx+tz*tz);
+    // Right of the route there (none where the route has no direction: only the line itself).
+    const rx=tl>1e-6?-tz/tl:0,rz=tl>1e-6?tx/tl:0;
+    for(const shift of tl>1e-6?FACADE_SHIFTS_M:[0]){
+      const x=p.point.x+rx*shift,z=p.point.z+rz*shift;
+      if(fits(x,z))return {x,z,cursor:p.cursor};
+    }
+    if(p.finished)return null;
+  }
+  return null;
+}
+
 function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
   return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
 }
-function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>,stopped:readonly DetourBox[]):void{
+function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>,stopped:readonly DetourBox[],vehicles:readonly DetourBox[]):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
     const controls=options.vehicleControls?.[actor.id];
@@ -390,7 +488,14 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const updating=(activeCombat(sim)?.attacks??[]).some(attack=>attack.kind==="forced-update"&&attack.targetId===actor.id);
   const frozen=Boolean(effect&&effect.phase!=="active"||updating);
   let speed=frozen?0:wanted.speed*(effect?.movementScale??1);
-  let goal=wanted.goal;
+  let goal=wanted.goal,direct=false;
+  // Bad firmware has no splash seal: in the rain an idle bad robot heads for shelter (a tell),
+  // and on a King-tide day it keeps off the flooded waterfront. Chases and flight still win, and
+  // authored mission and scene bodies (significant) keep their scripts.
+  if(actor.firmware==="bad"&&!actor.significant&&!wanted.goal&&intent?.movement?.kind!=="hold"&&options.weatherRefuge){
+    const refuge=options.weatherRefuge(actor.x,actor.z);
+    if(refuge){const d=distance(actor,refuge);goal=d>.4?refuge:null;speed=d>.4?Math.min(speed,1.6):0;direct=d<10;}
+  }
   if(effect?.repair&&actor.firmware==="good"){
     const kiosks=(world.gameplay?.anchors??[]).filter(anchor=>anchor.kind==="repair-kiosk").sort((a,b)=>distance(actor,a)-distance(actor,b)||compare(a.id,b.id));
     const kiosk=kiosks[0];if(kiosk){goal=distance(actor,kiosk)>2?kiosk:null;speed=goal?Math.min(speed,.9):0;}
@@ -404,7 +509,9 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       const input=inputs[player.id],seen=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
       const observed:PerceivedStimulus[]=[];
       // A glance is at someone standing near; a driver sitting in a stopped car is not one (people walk round it).
-      if(player.mode==="foot"&&distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
+      // A glance is brief and does not repeat for GLANCE_COOLDOWN_TICKS: people look at someone
+      // standing near, then carry on, instead of freezing round them.
+      if(player.mode==="foot"&&distance(actor,player)<=4&&!(actor.glanced!==undefined&&sim.tick-actor.glanced<GLANCE_COOLDOWN_TICKS))observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
       if(input&&(input.actions&Action.horn))observed.push({sourceId:player.id,kind:"horn",x:player.x,z:player.z,seen,heard:true});
       if(player.mode==="vehicle")observed.push({sourceId:player.id,kind:"vehicle",x:player.x,z:player.z,seen,heard:false,speedMps:Math.abs(player.speed)});
       for(const emitted of activeCombat(sim)?.events??[])if(emitted.sourceId===player.id){
@@ -418,19 +525,26 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     if(actor.model==="dog"&&(!owner||distance(actor,owner)>4)){speed=0;goal=null;}
     else {
     const reaction=reactToPerception({actor:{id:actor.id,kind:actor.model==="pigeon"?"pigeon":actor.model==="dog"?"dog":actor.firmware==="good"?"good-robot":"person",x:actor.x,z:actor.z,wet:(effect?.wetUntil??0)>sim.tick,...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.level!==undefined?{subtlety:actor.level}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),...(actor.model==="dog"&&actor.ownerId&&others.find(other=>other.id===actor.ownerId)?{leash:{ownerId:actor.ownerId,ownerX:others.find(other=>other.id===actor.ownerId)!.x,ownerZ:others.find(other=>other.id===actor.ownerId)!.z,lengthM:4}}:{})},state:actor.reaction,stimuli,tick:sim.tick,dodgeOverrideActive:false,routineVelocity:{vx:dsin(actor.heading)*speed,vz:-dcos(actor.heading)*speed}});
+    if(reaction.state.mode==="glance"&&actor.reaction.mode!=="glance")actor.glanced=sim.tick;
     actor.reaction=reaction.state;
     if(reaction.movement.kind==="hold")speed=0;
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
-  if(speed<=0||frozen||actor.posted){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
-  if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"){
-    const node=goal?nearestSidewalkNode(graph,goal):actor.goalNode;
+  if(speed<=0||frozen||actor.posted){delete actor.stall;state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
+  // (The last few metres to a shelter leave the sidewalk line for the wall or the stop itself.)
+  if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"&&!direct){
+    // A walker that has wanted to walk for WALKER_STALL_TICKS without getting anywhere picks a
+    // new way (a corner it cannot get round, a crossing that never clears): it never stands frozen.
+    let stalled=false;
+    if(!actor.stall||distance(actor,actor.stall)>WALKER_STALL_M)actor.stall={x:actor.x,z:actor.z,tick:sim.tick};
+    else if(sim.tick-actor.stall.tick>=WALKER_STALL_TICKS){stalled=true;actor.route=null;actor.detour=null;actor.stall={x:actor.x,z:actor.z,tick:sim.tick};}
+    const node=goal&&!stalled?nearestSidewalkNode(graph,goal):actor.goalNode;
     if(!actor.route||actor.goalNode!==node||actor.cursor.stepIndex>=actor.route.steps.length){
       const start=nearestSidewalkNode(graph,actor);
       const candidates=goal?[node]:nearbyNodes(graph,actor,60).filter(n=>n.id!==start).map(n=>n.id);
       if(candidates.length){
-        const end=candidates[hash(`${actor.id}:${sim.tick>>9}`)%candidates.length]!;
+        const end=candidates[hash(`${actor.id}:${stalled?sim.tick:sim.tick>>9}`)%candidates.length]!;
         const route=shortestSidewalkRoute(graph,start,end);
         actor.route=route;actor.cursor={stepIndex:0,distanceM:0};actor.goalNode=end;actor.detour=null;
       }
@@ -441,6 +555,16 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       else{
         const next=advanceSidewalkRoute(graph,actor.route,actor.cursor,speed*DT,edge=>Boolean(options.crossingBlocked?.(edge.id)));
         goal=next.point;actor.pendingCursor=next.cursor;
+        // A sidewalk line that runs too close to a facade for this body: walk straight to the first
+        // point of the route ahead with room for it (as a detour, so the route carries on from there).
+        // A step the physical layer would refuse (into a facade, or nearer a vehicle it is already
+        // pressed against): walk to the first clear point of the route ahead instead, or, wedged in a
+        // nook, step out to the nearest free spot towards it. Either way, never stand frozen.
+        const near=vehicles.filter(v=>Math.abs(v.x-actor.x)<8&&Math.abs(v.z-actor.z)<8);
+        if(stepRefused(world,actor,goal,speed,near)){
+          const ahead=clearAhead(world,graph,actor,near,edge=>Boolean(options.crossingBlocked?.(edge.id)))??stepOut(world,actor,near,advanceSidewalkRoute(graph,actor.route,actor.cursor,2,edge=>Boolean(options.crossingBlocked?.(edge.id))).point);
+          if(ahead){goal={x:ahead.x,z:ahead.z};actor.pendingCursor=null;actor.detour={...ahead,until:sim.tick+DETOUR_TICKS};}
+        }
       }
     }
   }
@@ -499,6 +623,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
   const stopped=stoppedVehicles(sim);
+  const vehicles=vehicleBoxes(sim);
   if(options.densityAt){const density:Record<string,Record<string,number>>={};for(const player of people)density[player.id]=options.densityAt(player.x,player.z);state.density=density;}
   for(const actor of list){
     if(actor.retired)continue;
@@ -532,7 +657,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
     }
-    propose(world,state,actor,graph,intent,options,sim,inputs,list,people,stopped);
+    propose(world,state,actor,graph,intent,options,sim,inputs,list,people,stopped,vehicles);
   }
   return state;
 }

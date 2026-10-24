@@ -3,15 +3,15 @@
   "scenarios": {
     "city": {
       "hashes": [
-        "30145ea9",
-        "191911d0",
-        "0fa727f6",
-        "9f8ed5a5",
-        "a2bc73c8",
-        "0043cd7f"
+        "3bb8bbff",
+        "caf0d52d",
+        "e9e0e959",
+        "00c05ca1",
+        "c7b2c72d",
+        "9adb13c2"
       ],
       "coverage": {
-        "agents:final": 24,
+        "agents:final": 17,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,
@@ -20,15 +20,15 @@
     },
     "service": {
       "hashes": [
-        "c1adb0e7",
-        "7f7f2000",
-        "afc50814",
-        "4adb0fd8",
-        "9722855a",
-        "8b8e75fe",
-        "83c41024",
-        "4d184dc6",
-        "15ddf59a"
+        "ecf79fbd",
+        "d926fb82",
+        "7b522946",
+        "078faeb2",
+        "41704314",
+        "1080f6df",
+        "563e0ccf",
+        "78a4b733",
+        "dd8b907d"
       ],
       "coverage": {
         "agents:final": 2,
@@ -40,12 +40,12 @@
     },
     "mission": {
       "hashes": [
-        "a91fe16d",
-        "f865038a",
-        "e6c866b8",
-        "4f1248f3",
-        "1c8958bc",
-        "c25773ed"
+        "da75f977",
+        "30492b67",
+        "244cc158",
+        "6944749d",
+        "99ae5c0a",
+        "b287f771"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,19 +57,38 @@
     },
     "city-wave3": {
       "hashes": [
-        "88a01208",
-        "cca726e6",
-        "142c6e90",
-        "69bc3375",
-        "53230900",
-        "47fe7a22"
+        "ae6bbfda",
+        "f06c0cf9",
+        "1bd830b3",
+        "e8ebc309",
+        "d1cbdfd4",
+        "b6962946"
       ],
       "coverage": {
-        "agents:final": 24,
+        "agents:final": 17,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,
         "missions:mission.stage": 3
+      }
+    },
+    "city-wave3-rain": {
+      "hashes": [
+        "e794ad7a",
+        "e9e60b89",
+        "ffb1534a",
+        "e658d02c",
+        "79f0c24c",
+        "e8d047c1"
+      ],
+      "coverage": {
+        "agents:final": 17,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3,
+        "weather:rain": 900,
+        "weather:wet": 900
       }
     }
   }

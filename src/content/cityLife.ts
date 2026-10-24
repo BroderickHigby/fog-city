@@ -6,7 +6,7 @@
 
 import cityLifeJson from "../../content/city-life.json" with { type: "json" };
 import { DIRECTOR_CARDS, checkDirectorCards, type DirectorCard, type DirectorCardsFile } from "./directorCards.ts";
-import { DISTRICTS, districtsAt, type LatLon } from "./places.ts";
+import { BASELINE_BAD_RATE, DISTRICTS, badRobotRate, districtsAt, protectedAreaAt, type LatLon } from "./places.ts";
 
 export type PopulationKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const POPULATION_KINDS: readonly PopulationKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
@@ -16,6 +16,8 @@ export interface CityLifeFile {
   version: 1;
   population: {
     maxScale: number;
+    /** Multiplies the bad-robot share outside protected areas. */
+    badScale: number;
     base: PopulationScale;
     hours: Array<{ from: number; to: number; scale: PopulationScale }>;
     districts: Record<string, Partial<PopulationScale>>;
@@ -56,6 +58,15 @@ export function populationScale(p: LatLon, hour: number, f: CityLifeFile = CITY_
   const out = {} as PopulationScale;
   for (const k of POPULATION_KINDS) out[k] = Math.min(pop.maxScale, pop.base[k] * (band?.scale[k] ?? 1) * (local?.[k] ?? 1));
   return out;
+}
+
+/**
+ * The bad-robot share at a point (places.ts badRobotRate x badScale), never above 30%; in a
+ * protected area it stays the baseline, never more (docs/design.md, The living city).
+ */
+export function cityBadRate(p: LatLon, f: CityLifeFile = CITY_LIFE): number {
+  if (protectedAreaAt(p)) return BASELINE_BAD_RATE;
+  return Math.min(0.3, badRobotRate(p) * f.population.badScale);
 }
 
 /** Every rule beyond the schema. Empty means shippable. */

@@ -12,10 +12,11 @@
     "provenance": { "$ref": "provenance" },
     "population": {
       "type": "object",
-      "required": ["maxScale", "base", "hours", "districts"],
+      "required": ["maxScale", "badScale", "base", "hours", "districts"],
       "additionalProperties": false,
       "properties": {
         "maxScale": { "type": "number", "minimum": 1, "maximum": 4 },
+        "badScale": { "type": "number", "minimum": 1, "maximum": 5 },
         "base": { "$ref": "#/$defs/scale" },
         "hours": {
           "type": "array",

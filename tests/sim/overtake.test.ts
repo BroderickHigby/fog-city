@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   AGENT_SPEC,
   CAR,
+  PASS_FOOT_WAIT_TICKS,
   PASS_WAIT_TICKS,
   ROBOTAXI_BODY,
   agentsOf,
@@ -164,6 +165,34 @@ describe("robotaxis go round a stopped vehicle", () => {
     }
     expect(backed).toBeGreaterThan(1);
     expect(passed).toBe(true);
+  }, LONG_RUN_MS);
+
+  it("someone standing still in its lane (a player on foot): after 3 s it goes round with the walker berth to spare", () => {
+    const world = gridCity();
+    let s = createInitialState(world, 7, ["p1", "p2"], { x: -20, z: 150, heading: 0 });
+    // p2 stands in the eastbound lane of h11; p1 is off on the grid's west edge.
+    s = { ...s, players: { ...s.players, p2: { ...s.players.p2!, car: { ...s.players.p2!.car, x: -20, z: 250 }, mode: "foot", foot: makeFoot(PARKED.x, 0, LANE_Z, 0) } } };
+    const list = agentsOf(s).filter((a) => !(a.kind === "robotaxi" && Math.abs(a.z - 100) < 8 && a.x > 60 && a.x < 240));
+    const template = agentsOf(s).find((a) => a.kind === "robotaxi")!;
+    const east = lanePath(world.roads!.edges[world.roads!.edgeIndex.get("h11")!]!, 1, 0);
+    const a = placeTaxi(world, template, 9001, "h11", 1, east.len / 2 - 25, 8);
+    s = { ...s, ext: { ...s.ext, agents: { nextId: 9002, list: [...list, a].sort((p, q) => p.id - q.id) } } };
+    let passed = false, closest = Infinity, waited = 0;
+    for (let t = 0; t < 1500 && !passed; t++) {
+      s = step(world, s, {});
+      expect(dodgeExtOf(s).contacts).toBe(0);
+      const ta = agentsOf(s).find((x) => x.id === 9001);
+      if (!ta) break;
+      if (ta.speed < 0.05 && ta.pass === undefined) waited++;
+      const f = s.players.p2!.foot!;
+      const fx = f.x - ta.x, fz = f.z - ta.z, hx = dsin(ta.heading), hz = -dcos(ta.heading);
+      const along = Math.abs(fx * hx + fz * hz) - ROBOTAXI_BODY.halfLength, lat = Math.abs(-fx * hz + fz * hx) - ROBOTAXI_BODY.halfWidth;
+      closest = Math.min(closest, Math.hypot(Math.max(0, along), Math.max(0, lat)) - 0.35);
+      passed = ta.x > PARKED.x + 8 && Math.abs(ta.z - LANE_Z) < 0.2;
+    }
+    expect(passed).toBe(true);
+    expect(waited).toBeGreaterThanOrEqual(PASS_FOOT_WAIT_TICKS);
+    expect(closest).toBeGreaterThan(0.75);
   }, LONG_RUN_MS);
 
   it("with no room to go round (two cars side by side across the street) it waits and honks, touching nothing", () => {

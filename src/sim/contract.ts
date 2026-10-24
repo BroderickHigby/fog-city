@@ -19,15 +19,20 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-// v10 (city life): robotaxis go round a stopped vehicle in their lane (AgentState.pass,
-// src/sim/overtake.ts) and walkers walk round one in their way (RuntimeActor.detour,
-// src/sim/agents/detour.ts). Both fields are optional and absent from older saves, so the
-// upgrade only restamps. (9 is reserved for the structural world integration.)
-// v11 (city life): the game composition scales ambient densities by district and hour
+// v9 is reserved for the structural world (World stream) and is never written by this chain.
+// v10: wave-3 weather (src/sim/fog): seeded marine layer, winter rain, wet-road traction, rain
+// puddles, shelter, the King tide's flooded promenade, rain breaking phone hacks and the
+// per-shot wet rule. ext.fog gains its typed shape; an upgraded v8 save keeps every field and
+// the fog reducer fills ext.fog on its first tick.
+// v11 (city life): robotaxis go round a stopped vehicle in their lane (AgentState.pass,
+// src/sim/overtake.ts); walkers walk round one in their way and never stand frozen on a step the
+// physical layer refuses (RuntimeActor.detour/stall, src/sim/agents/detour.ts and runtime.ts).
+// The new fields are optional and absent from older saves, so the upgrade only restamps.
+// v12 (city life): the game composition scales ambient densities by district and hour
 // (content/city-life.json; AgentsRuntimeState.density) and stages the Ambient Director's cards
 // as street incidents (src/sim/agents/incidents.ts; AgentsRuntimeState.incidents/nextIncident).
 // All new fields are optional: the upgrade only restamps.
-export const SIM_VERSION = 11;
+export const SIM_VERSION = 12;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

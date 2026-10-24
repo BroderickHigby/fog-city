@@ -45,14 +45,29 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   if(target)blips.push({id:"mission-target",kind:"safehouse",label:mission?.title??uiText("ui.hud.objective"),...target});
   // Street incidents the director staged for this player (src/sim/agents/incidents.ts): a bounty
   // blip on each bad robot still on its feet, and a card in BotBounty.
-  const runtime=agentsRuntimeOf(state),bounties:{id:string;title:string;detail:string;multiplier:number;confirmed:boolean}[]=[];
+  const runtime=agentsRuntimeOf(state),shown=new Set<string>(),bounties:{id:string;title:string;detail:string;multiplier:number;confirmed:boolean}[]=[];
   for(const id of Object.keys(runtime?.incidents??{}).sort()){
     const incident=runtime!.incidents![id]!;if(incident.playerId!==playerId)continue;
     const card=CITY_DIRECTOR_CARDS.find(c=>c.id===incident.cardId);
     const live=incident.targetIds.map(t=>runtime!.actors[t]).filter(a=>a&&!a.retired&&(state.ext.combat?.targets[a.id]?.phase??"active")==="active");
     if(!live.length)continue;
+    for(const actor of live)shown.add(actor!.id);
     for(const actor of live)blips.push({id:`${id}:${actor!.id}`,kind:"bounty",label:card?.title??id,x:actor!.x,z:actor!.z});
     bounties.push({id,title:card?.title??id,detail:card?.blurb??"",multiplier:card?.payoff.kind==="catchInTheAct"?1.5:1,confirmed:true});
+  }
+  // Bad robots the player has found: flagged by a Bot Check scan (a mark, right or wrong: the
+  // scanner can be fooled), or openly hostile nearby (alerted, attacking or fleeing within 150 m).
+  const ownCombat=state.ext.combat?.players[playerId];
+  for(const mark of ownCombat?.marks??[]){
+    const actor=runtime?.actors[mark.targetId];
+    if(!actor||actor.retired||mark.untilTick<state.tick||shown.has(actor.id))continue;
+    shown.add(actor.id);blips.push({id:`flagged:${actor.id}`,kind:"robot",label:uiText("ui.map.flagged"),x:actor.x,z:actor.z});
+  }
+  for(const id of Object.keys(runtime?.actors??{}).sort()){
+    const actor=runtime!.actors[id]!;
+    if(actor.retired||actor.firmware!=="bad"||shown.has(id)||!body||Math.hypot(actor.x-body.x,actor.z-body.z)>150)continue;
+    if(!["alerted","attack","flee"].includes(actor.behavior)||(state.ext.combat?.targets[id]?.phase??"active")!=="active")continue;
+    shown.add(id);blips.push({id:`hostile:${id}`,kind:"robot",label:uiText("ui.map.hostile"),x:actor.x,z:actor.z});
   }
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;

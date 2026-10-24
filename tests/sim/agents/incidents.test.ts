@@ -98,7 +98,7 @@ describe("the director's cards are staged as street incidents", () => {
 });
 
 describe("ambient robots at the city-life densities", () => {
-  it("the game composition fills the streets with more robots than the base densities; people stay as they were", () => {
+  it("the game composition shifts the street mix toward robots without adding bodies", () => {
     const world = gridCity();
     const count = (s: SimState, robots: boolean) => agentsOf(s).filter((a) => (a.runtimeId === undefined || a.runtimeLegacy === true) && !AGENT_SPEC[a.kind].road && (a.kind !== "person") === robots).length;
     let game = standing(world, 150, 150), bare = game;
@@ -106,17 +106,18 @@ describe("ambient robots at the city-life densities", () => {
       game = step(world, game, {}, [], systems);
       bare = step(world, bare, {});
     }
-    expect(agentsRuntimeOf(game)!.density!.p1!.errandRobot).toBeGreaterThan(1.5);
-    expect(count(game, true)).toBeGreaterThan(1.5 * count(bare, true));
-    expect(Math.abs(count(game, false) - count(bare, false))).toBeLessThanOrEqual(0.25 * count(bare, false) + 2);
+    expect(agentsRuntimeOf(game)!.density!.p1!.errandRobot).toBeGreaterThan(1.3);
+    expect(count(game, true)).toBeGreaterThan(1.2 * count(bare, true));
+    expect(count(game, false)).toBeLessThan(0.7 * count(bare, false));
+    expect(count(game, true) + count(game, false)).toBeLessThanOrEqual(count(bare, true) + count(bare, false));
   }, LONG_RUN_MS);
 });
 
-describe("v10 save (before city-life densities and incidents)", () => {
+describe("v11 save (before city-life densities and incidents)", () => {
   it("upgrades to the current version with every field kept, then fills in densities and stages incidents", async () => {
-    const saved = (await import("../../golden/legacy-saves/v10-game-grid.json")).default as unknown as { simVersion: number; hash: string; state: SimState };
+    const saved = (await import("../../golden/legacy-saves/v11-game-grid.json")).default as unknown as { simVersion: number; hash: string; state: SimState };
     const { SIM_VERSION, hashState, upgradeState, canonicalJson } = await import("../../../src/sim/index.ts");
-    expect(saved.simVersion).toBe(10);
+    expect(saved.simVersion).toBe(11);
     const old = saved.state;
     expect(hashState(old)).toBe(saved.hash);
     expect(agentsRuntimeOf(old)!.incidents).toBeUndefined();

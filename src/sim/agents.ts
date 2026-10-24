@@ -97,7 +97,10 @@ import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts
 import {
   PASS_BEYOND_M,
   PASS_RAMPS_M,
+  PASS_FOOT_SLACK_M,
+  PASS_FOOT_WAIT_TICKS,
   PASS_RETRY_TICKS,
+  PASS_SIDE_CLEAR_M,
   PASS_SPEED_MPS,
   PASS_STANDOFF_M,
   PASS_TARGET_GAP_M,
@@ -308,6 +311,8 @@ export const NEAR_RANGE_M = 200;
 export const LOD_STRIDE = 4;
 export const SPAWN_MIN_PLAYER_M = 60;
 export const SPAWN_PER_POP = 2;
+/** With city-life densities, a kind over its budget sheds at most this many agents per population pass. */
+export const TRIM_PER_POP = 4;
 /** The most ambient agents around one player (the areas nearest to that player). */
 export const MAX_AGENTS = 512;
 /** The most ambient agents in a state, however many players. */
@@ -464,12 +469,15 @@ interface Obs {
   claim?: boolean;
 }
 
-/** A vehicle body robotaxis may go round once it stands still. */
+/** A body robotaxis may go round once it stands still in their lane: a vehicle, or someone on foot. */
 interface PassBody {
-  /** "p:<player id>" or "a:<agent id>". */
+  /** "p:<player id>" (a car), "pf:<player id>" (a player on foot) or "a:<agent id>". */
   key: string;
   rect: Rect;
   speed: number;
+  /** Someone on foot (a person, a robot, a player's walker): passed only with the walker berth to spare. */
+  foot?: boolean;
+  child?: boolean;
 }
 
 /** A vehicle body for planning a pass: everything with wheels near the road. */
@@ -586,7 +594,8 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
       box: { fx: dsin(c.heading), fz: -dcos(c.heading), hl: CAR.halfLength, hw: CAR.halfWidth },
       pass: { key: `p:${id}`, rect: rectAt(c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth), speed: c.speed },
     });
-    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false, foot: true });
+    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false, foot: true,
+      pass: { key: `pf:${id}`, rect: rectAt(p.foot.x, p.foot.z, 0, FOOT.radius, FOOT.radius), speed: p.foot.speed, foot: true } });
   }
   return out;
 }
@@ -769,7 +778,9 @@ function agentObstacles(list: readonly AgentState[], g: RoadGraph | null = null,
       const hw = ROBOTAXI_BODY.halfWidth + grow;
       out.push({ x: a.x, z: a.z, r: Math.sqrt(hl * hl + hw * hw), id: a.id, player: false, road, onlyFor: "foot", box: { fx: dsin(a.heading), fz: -dcos(a.heading), hl, hw } });
     } else {
-      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child: a.kind === "person" && personIsChild(a.id) });
+      const r = a.radius ?? spec.radius, child = a.child === true || (a.kind === "person" && personIsChild(a.id));
+      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child,
+        pass: { key: `a:${a.id}`, rect: rectAt(a.x, a.z, 0, r, r), speed: a.speed, foot: true, child } });
     }
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
@@ -1430,7 +1441,9 @@ function planPass(c: Ctx, a: Readonly<AgentState>, e: RoadEdgeInfo, lane: Path, 
   if (span.sMin <= a.s) return null;
   const end = lane.len - 1;
   const s2 = span.sMax + ROBOTAXI_BODY.halfLength + PASS_BEYOND_M;
-  for (const off of passOffsets(span, ROBOTAXI_BODY.halfWidth, laneOffset(e, a.dir, a.lane), e.widthM / 2)) {
+  // Someone on foot: the robotaxis' walker berth (a child's wider one) and some more alongside.
+  const side = target.foot ? (target.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + PASS_FOOT_SLACK_M : PASS_SIDE_CLEAR_M;
+  for (const off of passOffsets(span, ROBOTAXI_BODY.halfWidth, laneOffset(e, a.dir, a.lane), e.widthM / 2, side)) {
     for (const ramp of PASS_RAMPS_M) {
       const s1 = a.s + ramp;
       const hold = Math.max(s1, s2);
@@ -1616,7 +1629,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   }
 
   if (spec.road && a.conn === null) {
-    if (pass === undefined && stoodStill && a.speed < 0.05 && a.wait >= PASS_WAIT_TICKS) {
+    if (pass === undefined && stoodStill && a.speed < 0.05 && a.wait >= (blocker!.pass!.foot ? PASS_FOOT_WAIT_TICKS : PASS_WAIT_TICKS)) {
       if ((c.tick + a.id) % PASS_RETRY_TICKS === 0) {
         // Waited behind a vehicle standing still: go round it if the road is clear (it sets off next tick).
         const planned = planPass(c, a, e, cur, blocker!.pass!);
@@ -2095,6 +2108,28 @@ export function populate(
     let sum = 0;
     for (const { ar } of active) sum += budget(seed, ar, kind, scaleOf(ar, kind));
     room.set(kind, sum - (totals.get(kind) ?? 0));
+  }
+  // City-life densities (game composition): a kind over its scaled budget (fewer people than the
+  // base densities, or a district or hour that wants fewer) sheds its surplus out of every player's
+  // view, the farthest first, at most TRIM_PER_POP per kind per population pass. Never in bare
+  // step() (no scales), where wanderers between areas are no surplus.
+  if (scales.length > 0 && !initial) {
+    const drop = new Set<number>();
+    for (const kind of AGENT_KINDS) {
+      const surplus = Math.min(TRIM_PER_POP, -room.get(kind)!);
+      if (surplus <= 0) continue;
+      const out = list
+        .filter((a) => a.kind === kind && (a.runtimeId === undefined || a.runtimeLegacy === true) && a.dodge === null && minDist2(bodies, a.x, a.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M)
+        .sort((p, q) => minDist2(bodies, q.x, q.z) - minDist2(bodies, p.x, p.z) || p.id - q.id)
+        .slice(0, surplus);
+      for (const a of out) drop.add(a.id);
+      room.set(kind, room.get(kind)! + out.length);
+    }
+    if (drop.size) {
+      const kept = list.filter((a) => !drop.has(a.id));
+      list.length = 0;
+      list.push(...kept);
+    }
   }
   const minPlayer = initial ? 6 : SPAWN_MIN_PLAYER_M;
   for (const { ar } of active) {

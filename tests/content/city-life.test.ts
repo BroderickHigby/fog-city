@@ -2,7 +2,9 @@
 // pacing and the street-incident cards stay consistent with the districts, the cards and the
 // robot tables.
 import { describe, expect, it } from "vitest";
-import { CITY_DIRECTOR_CARDS, CITY_LIFE, POPULATION_KINDS, cardWeight, checkCityLife, populationScale } from "../../src/content/cityLife.ts";
+import { CITY_DIRECTOR_CARDS, CITY_LIFE, cardWeight, checkCityLife, cityBadRate, populationScale } from "../../src/content/cityLife.ts";
+import { DISTRICTS, badRobotRate } from "../../src/content/places.ts";
+import { AGENT_SPEC } from "../../src/sim/agents.ts";
 import { DIRECTOR_CARDS } from "../../src/content/directorCards.ts";
 import { toLatLon } from "../../src/geo/project.ts";
 
@@ -13,18 +15,28 @@ describe("content/city-life.json", () => {
     expect(checkCityLife()).toEqual([]);
   });
 
-  it("robots outnumber their old density everywhere by day, and never pass the cap", () => {
-    for (const hour of [0, 3, 6, 9, 12, 17, 21]) {
-      const s = populationScale(at(0, 0), hour);
-      for (const k of POPULATION_KINDS) {
-        expect(s[k]).toBeGreaterThan(0);
-        expect(s[k]).toBeLessThanOrEqual(CITY_LIFE.population.maxScale);
+  it("more robots, fewer people, and never more bodies than the base densities (the sim is at its frame budget)", () => {
+    const base = (["robotaxi", "errandRobot", "sidewalkBot", "person"] as const);
+    const walkers = (["errandRobot", "sidewalkBot", "person"] as const);
+    const total = (scale: Record<string, number>, kinds: readonly string[]) => kinds.reduce((n, k) => n + AGENT_SPEC[k as "person"].perKm * scale[k]!, 0);
+    const ones = Object.fromEntries(base.map((k) => [k, 1]));
+    for (const d of [null, ...DISTRICTS.map((x) => x.id)]) {
+      for (const h of CITY_LIFE.population.hours) {
+        const s = { ...ones } as Record<string, number>;
+        for (const k of base) s[k] = Math.min(CITY_LIFE.population.maxScale, CITY_LIFE.population.base[k] * h.scale[k] * ((d ? CITY_LIFE.population.districts[d]?.[k] : undefined) ?? 1));
+        expect(total(s, walkers), `${d} ${h.from}-${h.to}`).toBeLessThanOrEqual(total(ones, walkers) + 1e-9);
+        expect(s.robotaxi, `${d} ${h.from}-${h.to}`).toBeLessThanOrEqual(1);
       }
     }
     const noon = populationScale(at(0, 0), 12);
-    expect(noon.errandRobot).toBeGreaterThanOrEqual(2);
-    expect(noon.sidewalkBot).toBeGreaterThanOrEqual(2);
-    expect(noon.person).toBe(1);
+    expect(noon.errandRobot).toBeGreaterThanOrEqual(1.3);
+    expect(noon.sidewalkBot).toBeGreaterThanOrEqual(1.3);
+    expect(noon.person).toBeLessThan(1);
+  });
+
+  it("the bad share: the design's rate scaled by badScale, never above 30%, the baseline in protected areas", () => {
+    expect(CITY_LIFE.population.badScale).toBeGreaterThanOrEqual(1);
+    expect(cityBadRate(at(0, 0))).toBeCloseTo(Math.min(0.3, badRobotRate(at(0, 0)) * CITY_LIFE.population.badScale), 12);
   });
 
   it("night shifts the mix toward Trundles (design: The living city, Routines)", () => {

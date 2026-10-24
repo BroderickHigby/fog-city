@@ -19,16 +19,16 @@ describe("street-level bounties", () => {
     const incident = Object.values(agentsRuntimeOf(s)!.incidents!)[0]!;
     const target = agentsRuntimeOf(s)!.actors[incident.targetIds[0]!]!;
     const view = uiProjection(s, "p1", world.roads as unknown as RoadGraph);
-    const blip = view.map.blips.find((b) => b.kind === "bounty");
+    const blip = view.map!.blips.find((b) => b.kind === "bounty");
     expect(blip).toBeDefined();
     expect(blip!.label).toBe("Crosswalk squatter");
     expect(Math.hypot(blip!.x - target.x, blip!.z - target.z)).toBeLessThan(0.01);
     expect(view.bounties?.map((b) => b.title)).toEqual(["Crosswalk squatter"]);
     const other = uiProjection(s, "p2", world.roads as unknown as RoadGraph);
-    expect(other.map.blips.some((b) => b.kind === "bounty")).toBe(false);
+    expect(other.map!.blips.some((b) => b.kind === "bounty")).toBe(false);
     // Melted (any phase but active): no longer on the map.
     const combat = s.ext.combat!;
     const melted = { ...s, ext: { ...s.ext, combat: { ...combat, targets: { ...combat.targets, [target.id]: { ...(combat.targets[target.id] ?? {}), phase: "heap" } } } } } as SimState;
-    expect(uiProjection(melted, "p1", world.roads as unknown as RoadGraph).map.blips.some((b) => b.kind === "bounty")).toBe(false);
+    expect(uiProjection(melted, "p1", world.roads as unknown as RoadGraph).map!.blips.some((b) => b.kind === "bounty")).toBe(false);
   });
 });

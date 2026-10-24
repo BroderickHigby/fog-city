@@ -45,6 +45,10 @@ export const PASS_VEHICLE_GAP_M = 0.8;
 export const PASS_BEYOND_M = 2;
 /** Distance kept from the kerb: the body's side stays this far inside the carriageway, metres. */
 export const PASS_KERB_M = 0.25;
+/** Going round someone (a person or a robot) standing still in the lane: wait this long first, ticks (3 s). */
+export const PASS_FOOT_WAIT_TICKS = 180;
+/** ...and keep this much more than the robotaxis' walker berth from them alongside, metres. */
+export const PASS_FOOT_SLACK_M = 0.3;
 /** Ease-out lengths tried, shortest first, metres. */
 export const PASS_RAMPS_M: readonly number[] = [7, 9, 11];
 /** Spacing of the poses a planned corridor is checked at, metres. */
@@ -162,11 +166,11 @@ export function rectOnPath(path: Path, r: Readonly<Rect>): { sMin: number; sMax:
  * centre's offset from the road centreline, halfRoad half the road width). Smallest first, left
  * first on a tie.
  */
-export function passOffsets(span: { latMin: number; latMax: number }, bodyHalfWidth: number, laneLat: number, halfRoad: number): number[] {
+export function passOffsets(span: { latMin: number; latMax: number }, bodyHalfWidth: number, laneLat: number, halfRoad: number, sideClear = PASS_SIDE_CLEAR_M): number[] {
   const out: number[] = [];
   const limit = halfRoad - bodyHalfWidth - PASS_KERB_M;
-  const left = Math.min(0, span.latMin - bodyHalfWidth - PASS_SIDE_CLEAR_M);
-  const right = Math.max(0, span.latMax + bodyHalfWidth + PASS_SIDE_CLEAR_M);
+  const left = Math.min(0, span.latMin - bodyHalfWidth - sideClear);
+  const right = Math.max(0, span.latMax + bodyHalfWidth + sideClear);
   if (left < 0 && Math.abs(laneLat + left) <= limit) out.push(left);
   if (right > 0 && Math.abs(laneLat + right) <= limit) out.push(right);
   return out.sort((a, b) => Math.abs(a) - Math.abs(b) || a - b);
