@@ -19,17 +19,17 @@
       "checkpoints": [
         {
           "id": "arrive",
-          "label": "Pier 70 parking approach",
-          "lat": 37.7605,
-          "lon": -122.3874,
+          "label": "Illinois St at 20th St, Pier 70",
+          "lat": 37.76055,
+          "lon": -122.38757,
           "radiusM": 12
         },
         {
           "id": "park",
-          "label": "Signed space on Illinois St",
-          "lat": 37.761,
-          "lon": -122.3872,
-          "radiusM": 12
+          "label": "Signed spaces on Illinois St, 19th to 20th",
+          "lat": 37.76119,
+          "lon": -122.38763,
+          "radiusM": 30
         }
       ]
     },
@@ -795,7 +795,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:d8d3f556",
+    "contentHash": "fnv1a32:e3b9a552",
     "reviewedBy": [],
     "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
   }

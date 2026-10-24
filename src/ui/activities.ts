@@ -39,6 +39,10 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
     if (snapshot.missions.players[playerId]?.missionId === running.id && snapshot.missions.players[playerId]?.status === "active") {
       return { active: { id: running.id, title, remainingTicks, detail: copy("ui.activity.inMission") } };
     }
+    // Search & Park: on the signed street, the panel asks for a legal stop (the map points at a legal bay).
+    if (running.kind === "parking" && index >= checkpoints.length - 1 && own.parking?.progress.completed !== true) {
+      return { active: { id: running.id, title, remainingTicks, detail: copy("ui.activity.park") } };
+    }
     const run = own.plainWords;
     if (running.id === PLAIN_WORDS_ID && run) {
       const runtime = agentsRuntimeOf(state)?.actors ?? {};

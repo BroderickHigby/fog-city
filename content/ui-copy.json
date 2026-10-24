@@ -212,12 +212,14 @@
     "ui.activity.spinner": "Sign-spinner",
     "ui.activity.officeHours": "Ramen Office Hours",
     "ui.activity.offerHere": "At {place}. Book a slot with the partners.",
-    "ui.activity.inMission": "The partners are waiting. Answer them, then call the bad robot."
+    "ui.activity.inMission": "The partners are waiting. Answer them, then call the bad robot.",
+    "ui.activity.searchAndPark": "Search & Park",
+    "ui.activity.park": "Read the Street Cleaning signs, park inside a legal space and press the interact key (R)."
   },
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:ea2c4a27",
+    "contentHash": "fnv1a32:b9b135f7",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }
