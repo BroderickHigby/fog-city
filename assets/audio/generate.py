@@ -271,12 +271,53 @@ def moat_jingle() -> np.ndarray:
     return fade(normalize(sig, -3.0), 0.002, 0.15)
 
 
+def horn() -> np.ndarray:
+    """A car horn held down: two reed-like tones a major third apart (400 and 500 Hz, the
+    classic dual-trumpet interval) through a brassy band-pass. Both tones and every harmonic
+    complete whole cycles in 0.5 s, so the loop is seamless; the player's horn plays it for as
+    long as the button is held, with the attack and release shaped at playback."""
+    t = t_axis(0.5)
+    sig = np.zeros(len(t))
+    for f0, amp in ((400.0, 1.0), (500.0, 0.85)):
+        for k in range(1, 9):
+            # A clipped-reed spectrum: odd harmonics stronger, falling off with k.
+            sig += amp * (1.0 if k % 2 else 0.55) / k**0.9 * np.sin(2 * np.pi * f0 * k * t)
+    sig = np.tanh(sig * 0.9)
+    # Static (time-invariant) colouring keeps the loop periodic: a fixed EQ via FFT.
+    spec = np.fft.rfft(sig)
+    freqs = np.fft.rfftfreq(len(sig), 1 / SR)
+    shape = np.exp(-((np.log2(np.maximum(freqs, 1) / 1800.0)) ** 2) / 1.6) + 0.25
+    sig = np.fft.irfft(spec * shape, len(sig))
+    return normalize(sig, -3.0)
+
+
+def robotaxi_horn() -> np.ndarray:
+    """A robotaxi's horn: two short, polite electronic chirps rising a fifth (C6 then G6),
+    soft square tones with a quick pitch blip on each attack. Deliberately apologetic: the
+    car honks like it is asking permission."""
+    t = t_axis(0.62)
+    sig = np.zeros(len(t))
+    for start, f0 in ((0.0, 1046.5), (0.22, 1568.0)):
+        i0 = int(start * SR)
+        n = int(0.16 * SR)
+        tt = np.arange(n) / SR
+        f = f0 * (1 + 0.06 * np.exp(-tt / 0.012))
+        phase = 2 * np.pi * np.cumsum(f) / SR
+        tone = np.tanh(2.2 * np.sin(phase)) * 0.7 + 0.3 * np.sin(2 * phase)
+        env = np.minimum(1, tt / 0.006) * np.exp(-tt / 0.09)
+        sig[i0:i0 + n] += tone * env
+    sig = biquad(sig, "lowpass", 5000)
+    return fade(normalize(sig, -4.0), 0.002, 0.05)
+
+
 SOUNDS = {
     "spray": (spray, True, "Blaster stream loop: play while firing; loops seamlessly (use the .ogg for gapless looping)."),
     "splash": (splash, False, "Water lands on a robot or the pavement."),
     "rust-creak": (rust_creak, False, "A joint rusting solid: rust past 0.5, seize and slump."),
     "melt-fizz": (melt_fizz, False, "A robot melting into a rust heap (slumping -> heap)."),
     "moat-jingle": (moat_jingle, False, "Moat Labs four-note jingle (A4 D5 E5 B4): bad robots hum it (tell, subtlety 3)."),
+    "horn": (horn, True, "The player's car horn: loop while the horn button is held (use the .ogg for gapless looping)."),
+    "robotaxi-horn": (robotaxi_horn, False, "A robotaxi's polite double chirp when it honks (agent mode honk)."),
 }
 
 

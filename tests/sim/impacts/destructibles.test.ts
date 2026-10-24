@@ -10,6 +10,8 @@ import {
   carDamage,
   createInitialState,
   impactsOf,
+  propBroken,
+  propKnock,
   makeCar,
   propIndex,
   propsFromStreetDetail,
@@ -26,7 +28,8 @@ import {
 } from "../../../src/sim/index.ts";
 import { nodeClearance, streetTreeSpots, streetlightSpots } from "../../../src/render/roads.ts";
 import type { RoadEdge } from "../../../src/render/types.ts";
-import { loadWorld, worldExists } from "../../helpers.ts";
+import { loadWorld, readJson, readJsonIfExists, worldExists } from "../../helpers.ts";
+import type { StreetDetailIndex } from "../../../src/io/world-load.ts";
 import { LONG_RUN_MS, gridCity } from "../fixtures.ts";
 
 const I = (throttle: number, steer = 0, brake = 0): SimInput => ({ throttle, steer, brake, actions: 0 });
@@ -35,10 +38,15 @@ function parity(name: string): void {
   const { world, roads } = loadWorld(name, { roads: true });
   const edges = (roads as unknown as RoadsFile).edges as unknown as RoadEdge[];
   const clearance = nodeClearance({ edges });
+  // With World detail's street trees (street-detail.json) the renderer draws those instead of
+  // its road-graph trees (foliage.ts setPlacements), so the sim's trees are those, at the file's x, z.
+  const detail = readJsonIfExists<StreetDetailIndex>(`public/tiles/${name}/street-detail.json`);
+  const real = detail?.layers?.trees ? readJson<{ trees: Array<[number, number, number, number, number]> }>(`public/tiles/${name}/${detail.layers.trees}`).trees : null;
   const drawn = [
-    ...streetTreeSpots(edges, clearance).map((s) => ["tree", s.x, s.z] as const),
+    ...(real ? real.map(([, x, z]) => ({ x, z })) : streetTreeSpots(edges, clearance)).map((s) => ["tree", s.x, s.z] as const),
     ...streetlightSpots(edges, clearance).map((s) => ["lamp", s.x, s.z] as const),
   ];
+  if (real) expect(propIndex(world).list.some((p) => p.kind === "tree" && p.id.split(":").length > 2), `${name}: no road-graph trees`).toBe(false);
   const sim = propIndex(world).list.filter((p) => p.kind === "tree" || p.kind === "lamp");
   expect(sim.length, name).toBe(drawn.length);
   // Every drawn prop has a sim prop of its kind within a millimetre.
@@ -49,6 +57,14 @@ function parity(name: string): void {
 }
 
 describe("the sim's props are the renderer's", () => {
+  it.skipIf(!worldExists("sf"))("sf: World detail's signal poles, stop signs and sign posts are props with their ids", () => {
+    const { world } = loadWorld("sf", { roads: true });
+    const idx = propIndex(world);
+    const furniture = readJson<{ signals: Array<{ id: string; x: number; z: number }>; stopSigns: Array<{ id: string }> }>("public/tiles/sf/street-furniture.json");
+    const sig = furniture.signals[0]!;
+    expect(idx.byId.get(sig.id)).toMatchObject({ kind: "signal", x: sig.x, z: sig.z });
+    expect(idx.byId.get(furniture.stopSigns[0]!.id)?.kind).toBe("sign");
+  }, 120_000);
   it("dev-city", () => parity("dev-city"));
   it.skipIf(!worldExists("sf"))("sf (the whole city)", () => parity("sf"), 120_000);
 });
@@ -91,11 +107,15 @@ describe("hitting street props", () => {
     const fast = drive(world, aimAt(world, p, 5, 12), 60);
     const k = impactsOf(fast[fast.length - 1]!)!.props![p.id]!;
     expect(k.state).toBe("fallen");
+    // The read-only accessors renderers use.
+    expect(propKnock(fast[fast.length - 1]!, p.id)).toEqual(k);
+    expect(propBroken(fast[fast.length - 1]!, p.id)).toBe(true);
     // It fell the way it was hit (east, bearing pi/2).
     expect(Math.abs(k.dir - Math.PI / 2)).toBeLessThan(0.3);
     const slow = drive(world, aimAt(world, p, 5, 4), 90);
     const end = slow[slow.length - 1]!;
     expect(impactsOf(end)?.props?.[p.id]).toBeUndefined();
+    expect(propKnock(end, p.id)).toBeUndefined();
     expect(end.players.p!.car.x).toBeLessThan(p.x - 2);
     expect(impactsOf(end)!.events.some((e) => e.kind === "car-prop" && e.broke === false)).toBe(true);
   });

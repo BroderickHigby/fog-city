@@ -4,7 +4,8 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { assembleWorldFiles } from "../src/io/world-load.ts";
+import { assembleWorldFiles, type StreetDetailIndex } from "../src/io/world-load.ts";
+import { propsFromStreetDetail, type PropPlacement } from "../src/sim/props.ts";
 import { buildWorld, type BoundaryFile, type RoadsFile, type TileCollider, type World } from "../src/sim/index.ts";
 import type { GameplayWorldData } from "../src/sim/gameplay-world.ts";
 import { navigationFromPipeline, type PipelineSidewalks } from "../src/sim/agents/pipeline-navigation.ts";
@@ -91,6 +92,8 @@ export interface WorldFilesNode {
   transit: TransitLayer | null;
   parking?: ParkingLayer | null;
   streetCleaning?: StreetCleaningLayer | null;
+  /** World detail's street props (street-detail.json), when the world has them (src/io/world-load.ts). */
+  streetProps?: PropPlacement[] | null;
   /** Where the colliders came from: the collider pack (when the manifest names one) or per-tile JSON. */
   colliders: "pack" | "json";
 }
@@ -119,8 +122,13 @@ export function loadWorldFiles(name: string): WorldFilesNode {
   const transit = manifest.layers?.transit ? readJson<TransitLayer>(`${dir}/${manifest.layers.transit}`) : null;
   const parking = manifest.layers?.parking ? readJson<ParkingLayer>(`${dir}/${manifest.layers.parking}`) : null;
   const streetCleaning = manifest.layers?.streetCleaning ? readJson<StreetCleaningLayer>(`${dir}/${manifest.layers.streetCleaning}`) : null;
-  const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary, { gameplay, sidewalks, transit, parking, streetCleaning });
-  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, gameplay, sidewalks, transit, parking, streetCleaning, colliders: files.colliders };
+  const detail = readJsonIfExists<StreetDetailIndex>(`${dir}/street-detail.json`);
+  const layer = <T>(file: string | undefined): T | null => (file ? readJson<T>(`${dir}/${file}`) : null);
+  const streetProps = detail?.layers
+    ? propsFromStreetDetail({ trees: layer(detail.layers.trees), furniture: layer(detail.layers.furniture), signs: layer(detail.layers.signs) })
+    : null;
+  const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary, { gameplay, sidewalks, transit, parking, streetCleaning, streetProps });
+  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, gameplay, sidewalks, transit, parking, streetCleaning, streetProps, colliders: files.colliders };
   worldFilesCache.set(name, out);
   return out;
 }
@@ -128,13 +136,14 @@ export function loadWorldFiles(name: string): WorldFilesNode {
 /** buildWorld(tiles, roads, boundary): the world as a manifest describes it. */
 export function buildWorldWithRoads(
   tiles: readonly TileCollider[], roads: unknown, boundary: BoundaryFile | null = null,
-  layers: Pick<WorldFilesNode, "gameplay" | "sidewalks" | "transit" | "parking" | "streetCleaning"> = { gameplay: null, sidewalks: null, transit: null },
+  layers: Pick<WorldFilesNode, "gameplay" | "sidewalks" | "transit" | "parking" | "streetCleaning" | "streetProps"> = { gameplay: null, sidewalks: null, transit: null },
 ): World {
   const world = buildWorld(tiles, (roads ?? null) as RoadsFile | null, boundary, layers.gameplay ?? undefined);
   if (layers.sidewalks) world.sidewalks = navigationFromPipeline(layers.sidewalks).graph;
   if (layers.transit) world.transit = layers.transit;
   if (layers.parking) world.parking = layers.parking;
   if (layers.streetCleaning) world.streetCleaning = layers.streetCleaning;
+  if (layers.streetProps) (world as World & { props?: readonly PropPlacement[] }).props = layers.streetProps;
   return world;
 }
 

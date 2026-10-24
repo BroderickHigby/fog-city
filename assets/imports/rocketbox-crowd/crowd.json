@@ -1,0 +1,22 @@
+{
+  "$comment": "Pedestrian crowd: Microsoft Rocketbox adult avatars (MIT). Six women and six men for variety of clothing, build and age; children are not in the crowd. Clips per gender.",
+  "commit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
+  "clips": {
+    "f": { "idle": "all_animations_max_motextr_static/f_idle_neutral_01.max.fbx", "walk": "all_animations_max_motextr_xy/f_walk_neutral.max.fbx", "run": "all_animations_max_motextr_xy/f_run_neutral.max.fbx" },
+    "m": { "idle": "all_animations_max_motextr_static/m_idle_neutral_01.max.fbx", "walk": "all_animations_max_motextr_xy/m_walk_neutral.max.fbx", "run": "all_animations_max_motextr_xy/m_run_neutral.max.fbx" }
+  },
+  "characters": [
+    { "name": "Female_Adult_01", "group": "Adults", "gender": "f" },
+    { "name": "Female_Adult_03", "group": "Adults", "gender": "f" },
+    { "name": "Female_Adult_05", "group": "Adults", "gender": "f" },
+    { "name": "Female_Adult_07", "group": "Adults", "gender": "f" },
+    { "name": "Female_Adult_09", "group": "Adults", "gender": "f" },
+    { "name": "Female_Adult_11", "group": "Adults", "gender": "f" },
+    { "name": "Male_Adult_02", "group": "Adults", "gender": "m" },
+    { "name": "Male_Adult_04", "group": "Adults", "gender": "m" },
+    { "name": "Male_Adult_06", "group": "Adults", "gender": "m" },
+    { "name": "Male_Adult_08", "group": "Adults", "gender": "m" },
+    { "name": "Male_Adult_10", "group": "Adults", "gender": "m" },
+    { "name": "Male_Adult_12", "group": "Adults", "gender": "m" }
+  ]
+}

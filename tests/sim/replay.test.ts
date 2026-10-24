@@ -78,7 +78,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes
 
 describe("legacy SIM_VERSION 4 replays", () => {
   it("runs on the deliberately versioned current contract", () => {
-    expect(SIM_VERSION).toBe(13);
+    expect(SIM_VERSION).toBe(16);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
@@ -177,12 +177,15 @@ describe("legacy SIM_VERSION 4 replays", () => {
 });
 
 /**
- * hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4; re-pinned at
- * v13 (impacts.ts, props.ts: the dev world's road-graph lamp posts are bodies the car now meets).
+ * hashState every 300 ticks of the first replay above, first recorded at SIM_VERSION 4. Re-pinned
+ * at v11: its walking segments move at the new on-foot pace (was 87d67d3d 016c3bfe 7f325229
+ * ef174bed 08f17ea5 up to v8); re-pinned at v16 (impacts.ts, props.ts: the dev world's road-graph
+ * lamp posts are bodies the car now meets; was 09b7020e 06a4a7b0 b3c9fb8d b78d58f3 a6e7a5a4).
  */
-const PINNED_V4: string[] = ["368ef14a", "a105235c", "f3429e34", "f1255410", "182de9c4"];
+const PINNED_V4: string[] = ["a8fc61c6", "a85b20d1", "a19eb69e", "4c6145ed", "ddcd557b"];
 /**
- * hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4; re-pinned at v12
- * (impacts.ts: robots no longer dive out of a player's car's way, from tick 300 on).
+ * hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4; re-pinned at v15
+ * (impacts.ts: robots no longer dive out of a player's car's way, from tick 300 on; was f5981263
+ * 52415258 d09fb88c b80c1bfc 324c2580 70237636 at v11-v14).
  */
 const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "a62c6b3f", "1e6e26b4", "76120241", "5d6005c6"];

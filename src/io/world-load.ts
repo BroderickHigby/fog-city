@@ -9,6 +9,9 @@
 //  - The road graph (manifest.roads) and the world's edge and shore (manifest.layers.boundary).
 //    A file the manifest names that cannot be loaded fails the load: a client must never run a
 //    roadless or wall-less world beside its peers.
+//  - Street props from World detail's street-detail.json (real street trees, signal poles, stop
+//    signs and sign posts), which a car can hit and break (src/sim/props.ts). Absent (the dev
+//    worlds), the sim places its street trees where the renderer's road-graph trees stand.
 
 import { decodeColliderPack, type BoundaryFile, type RoadsFile, type TileCollider } from "../sim/index.ts";
 import type { Assets } from "./assets.ts";
@@ -17,6 +20,7 @@ import { navigationFromPipeline, type PipelineSidewalks } from "../sim/agents/pi
 import type { TransitLayer } from "../sim/agents/transit-runtime.ts";
 import { buildWorld, type World } from "../sim/world.ts";
 import type { ParkingLayer, StreetCleaningLayer } from "../sim/parking-data.ts";
+import { propsFromStreetDetail, type PropPlacement, type StreetDetailFiles } from "../sim/props.ts";
 
 /**
  * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
@@ -46,6 +50,8 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   transit?: TransitLayer | null;
   parking?: ParkingLayer | null;
   streetCleaning?: StreetCleaningLayer | null;
+  /** World detail's street props (street-detail.json), when the world has them. */
+  streetProps?: PropPlacement[] | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
 }
@@ -59,7 +65,7 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
   colliders: { pack: Uint8Array } | { json: TileCollider[] },
   roads: RoadsFile | null,
   boundary: BoundaryFile | null,
-  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit"|"parking"|"streetCleaning">={},
+  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit"|"parking"|"streetCleaning"|"streetProps">={},
 ): WorldFiles<M> {
   if ("pack" in colliders) {
     const pack = decodeColliderPack(colliders.pack);
@@ -80,6 +86,7 @@ export function buildLoadedWorld(files:WorldFiles):World {
   if(files.transit)world.transit=files.transit;
   if(files.parking)world.parking=files.parking;
   if(files.streetCleaning)world.streetCleaning=files.streetCleaning;
+  if(files.streetProps)(world as World&{props?:readonly PropPlacement[]}).props=files.streetProps;
   return world;
 }
 
@@ -122,5 +129,22 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
     parkingFile?assets.json<ParkingLayer>(base+parkingFile).catch((err:unknown)=>{throw named("parking layer",parkingFile,err);}):Promise.resolve(null),
     cleaningFile?assets.json<StreetCleaningLayer>(base+cleaningFile).catch((err:unknown)=>{throw named("street-cleaning layer",cleaningFile,err);}):Promise.resolve(null),
   ]);
-  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit,parking,streetCleaning});
+  const streetProps=await loadStreetProps(assets,base);
+  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit,parking,streetCleaning,streetProps});
+}
+
+/** The street-detail.json index's layers a car can hit. */
+export interface StreetDetailIndex { layers?: { trees?: string; furniture?: string; signs?: string } }
+
+/**
+ * World detail's street props. No street-detail.json (the dev worlds): null. Once the index is
+ * there, a layer it names that cannot be loaded fails the load, as the other layers do.
+ */
+export async function loadStreetProps(assets: Assets, base: string): Promise<PropPlacement[] | null> {
+  const index = await assets.json<StreetDetailIndex>(`${base}street-detail.json`).catch(() => null);
+  if (!index?.layers) return null;
+  const layer = <K extends keyof StreetDetailFiles>(file: string | undefined): Promise<StreetDetailFiles[K] | null> =>
+    file ? assets.json<NonNullable<StreetDetailFiles[K]>>(base + file).catch((err: unknown) => { throw named("street-detail layer", file, err); }) : Promise.resolve(null);
+  const [trees, furniture, signs] = await Promise.all([layer<"trees">(index.layers.trees), layer<"furniture">(index.layers.furniture), layer<"signs">(index.layers.signs)]);
+  return propsFromStreetDetail({ trees, furniture, signs });
 }

@@ -703,6 +703,11 @@ export function propBroken(state: Readonly<SimState>, id: string): boolean {
   return impactsOf(state)?.props?.[id] !== undefined;
 }
 
+/** How prop `id` lies once broken (read-only, for renderers posing it), else undefined. */
+export function propKnock(state: Readonly<SimState>, id: string): Readonly<PropKnock> | undefined {
+  return impactsOf(state)?.props?.[id];
+}
+
 /** What a sliding body hit takes the reaction. */
 function slideContacts(w: Work, selfKey: string, contacts: readonly CarContact[]): void {
   for (const k of contacts) receive(w, k.key, k, selfKey, true);

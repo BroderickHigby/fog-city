@@ -6,11 +6,16 @@ well." Goal: driving feels physical, the way GTA does.
 
 ## Plan and PRs
 
-| PR | Branch | Scope | State |
-|---|---|---|---|
-| 1. Car vs car | `work/impacts/car-vs-car` | momentum exchange, spin, knocked robotaxis, dents/condition, impact events, sparks/smoke/scuffs, ram soak, browser check | pushed; unit suite green (3,283 passed); full browser suite running |
-| 2. Car vs robot | `work/impacts/car-vs-robot` (stacked on 1) | robots bowled over / toppled / disabled; good-robot penalty; robots stop dodging cars | coded, impact tests green; goldens to re-record; not pushed |
-| 3. Destructibles | `work/impacts/destructibles` (stacked on 2) | street trees, lamp posts, hydrants (renderer-identical placement, stable ids), fall/lean/snap, reset | coded, impact tests green; not pushed |
+| PR | Branch | GitHub | SIM_VERSION | State |
+|---|---|---|---|---|
+| 1. Car vs car | `work/impacts/car-vs-car` | #50 | 11 | draft; unit 3,369 + browser 40/40 green |
+| 2. Car vs robot | `work/impacts/car-vs-robot` | #57 (stacked on #50) | 12 | draft; unit 3,374 + browser 18/18 green |
+| 3. Destructibles | `work/impacts/destructibles` | #62 (stacked on #57) | 13 | draft; unit 3,387 + browser 19/19 green |
+
+All three draft into `integrate/wave2`. Each merges the one below it, so #57's diff
+includes #50 and #62's includes both until they land. Version chain 8 -> 10
+(weather, already merged) -> 11 -> 12 -> 13, each a no-rewrite `upgradeState` step.
+
 
 ## What the player's car did before this stream (finding, `ff7db5b`)
 
@@ -103,3 +108,4 @@ the same; nothing reuses a stamp with different behaviour.
 - 2026-10-23: started from `ff7db5b`. Read handoff, design, car/step/agents/dodge/motion.
 - 2026-10-23 23:15 UTC: PR 1 pushed (`348c74a`); PR 2 (`d87ebfd`+e2e) and PR 3 (`5018313`+e2e) committed
   in worktrees. Full unit suite green on PR 1; browser suite in progress.
+- 2026-10-24 00:50 UTC: all three PRs opened as drafts and watched: #50, #57, #62. Each stacks on the one below.

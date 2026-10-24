@@ -36,6 +36,19 @@ async function feed(page: Page, driver: CampaignDriver): Promise<void> {
   expect(canonicalJson(actual ?? await simState(page))).toBe(canonicalJson(driver.state));
 }
 
+/** Debug pause holds queued commands too: apply one recorded command with one neutral tick. */
+async function applyQueuedCommand(page: Page, kind: string, targetId?: string): Promise<void> {
+  await page.waitForFunction(({ kind, targetId }) => {
+    const handle = (window as unknown as FogWindow).__fogcity!;
+    return handle.commands!().some(event => {
+      const command = event.payload as { kind?: string; targetId?: string };
+      return event.tick === handle.state().tick + 1 && command.kind === kind &&
+        (targetId === undefined || command.targetId === targetId);
+    });
+  }, { kind, targetId }, { timeout: 60_000 });
+  await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.stepN(1));
+}
+
 test.use({ viewport: { width: 960, height: 540 } });
 test("Hot Desk and the first purchase complete through real controls, then Spill waits for acknowledgement", async ({ page }) => {
   test.setTimeout(2_700_000);
@@ -53,16 +66,16 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   await feed(page, first);
   console.info("Campaign browser reached signup with exact replay state");
   const signup = page.getByRole("dialog", { name: "Hot Desk", exact: true });
-  await expect(signup).toBeVisible();
+  // The dialog appears on the next rendered UI frame; under CI SwiftShader that can take
+  // seconds (docs/testing.md, "Load-proof": every real-time wait allows at least 60 s).
+  await expect(signup).toBeVisible({ timeout: 60_000 });
   await signup.getByRole("button", { name: "Something with robots", exact: true }).click();
+  await applyQueuedCommand(page, "startup-define");
   await page.waitForFunction(() => {
-    const handle = (window as unknown as FogWindow).__fogcity!;
-    if (handle.state().ext.missions?.players.p1?.stepId !== "cone") return false;
-    handle.pause();
-    // Closing the form resumes movement; settle with recorded neutral input before the counter.
-    handle.stepN(12);
-    return true;
+    return (window as unknown as FogWindow).__fogcity!.state().ext.missions?.players.p1?.stepId === "cone";
   });
+  // Closing the form leaves the debug pause intact; settle with recorded neutral input.
+  await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.stepN(12));
   const signed = await simState(page);
   expect(signed.ext.player?.players.p1?.startupKitId).toBeTruthy();
   const vendor = DEFAULT_CATALOG.sites.find(site => site.id === "fidi-desk" && site.kind === "vendor")!;
@@ -70,10 +83,12 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   expect(Math.hypot(body.x - vendor.x, body.z - vendor.z)).toBeLessThanOrEqual(18);
   expect(Math.abs(body.speed)).toBeLessThan(.3);
   await page.getByRole("button", { name: "Counter", exact: true }).click();
-  const tank = page.locator("article").filter({ has: page.getByRole("heading", { name: "Tank I", exact: true }) });
+  // tank-1 is sold as Pressure I since water became unlimited (2026-10-23): +2 m of reach.
+  const tank = page.locator("article").filter({ has: page.getByRole("heading", { name: "Pressure I", exact: true }) });
   await expect(tank.getByRole("button", { name: "Buy", exact: true })).toBeEnabled();
   const beforeBuy = await simState(page);
   await tank.getByRole("button", { name: "Buy", exact: true }).click();
+  await applyQueuedCommand(page, "buy");
   await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().ext.economy?.players.p1?.ownedItemIds.includes("tank-1"));
   const bought = await simState(page);
   expect(bought.ext.economy!.players.p1!.cashCents).toBe(beforeBuy.ext.economy!.players.p1!.cashCents - 60_000);
@@ -87,7 +102,9 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   expect(restored.ext.economy!.players.p1!.cashCents).toBe(bought.ext.economy!.players.p1!.cashCents);
   expect(restored.ext.economy!.players.p1!.ownedItemIds).toContain("tank-1");
   await expect(tank.getByRole("button", { name: "Owned", exact: true })).toBeDisabled();
-  await expect(page.locator(".fc-cluster")).toContainText("/ 12 L");
+  await expect(page.locator(".fc-cluster")).toContainText("∞");
+  // The upgrade took effect in the loadout (it now adds reach rather than litres).
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().ext.progression?.players.p1?.tankTier === 1);
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
   const beforeCone = await simState(page);
@@ -95,12 +112,15 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   await quietRenderer(page, () => plan(second, () => second.coneHotDeskSpot()));
   console.info(`Campaign completion planned: ${second.frames.length} input frames`);
   await feed(page, second);
+  // The rendered frame notices completion and records the next mission; it cannot tick it
+  // through a debug pause. Wait for that command, then include its neutral tick in the replay.
+  await applyQueuedCommand(page, "mission-start", "spill");
   await page.waitForFunction(() => {
     const progress = (window as unknown as FogWindow).__fogcity!.state().ext.missions?.players.p1;
     return progress?.missionId === "spill" && progress.stepId === "posting";
   });
   const call = page.getByRole("dialog", { name: "Spill", exact: true });
-  await expect(call).toBeVisible();
+  await expect(call).toBeVisible({ timeout: 60_000 });
   const awaitingCall = await simState(page);
   expect(awaitingCall.ext.missions!.players.p1!.completedIds.filter(id => id === "hot-desk")).toHaveLength(1);
   expect(awaitingCall.ext.missions!.players.p1!.rewardedIds).toContain("hot-desk:moved-in");
@@ -108,11 +128,9 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   expect(awaitingCall.ext.economy!.players.p1!.ownedItemIds).toEqual(expect.arrayContaining(["vendor:fidi-desk", "app:bot-bounty"]));
   expect(awaitingCall.ext.economy!.players.p1!.cashCents).toBeGreaterThanOrEqual(beforeCone.ext.economy!.players.p1!.cashCents + 50_000);
   await call.getByRole("button", { name: "Continue", exact: true }).click();
+  await applyQueuedCommand(page, "mission-ack");
   await page.waitForFunction(() => {
-    const handle = (window as unknown as FogWindow).__fogcity!;
-    if (handle.state().ext.missions?.players.p1?.stepId !== "go") return false;
-    handle.pause();
-    return true;
+    return (window as unknown as FogWindow).__fogcity!.state().ext.missions?.players.p1?.stepId === "go";
   });
   const final = await simState(page);
   console.info(`Campaign browser acknowledged Spill at tick ${final.tick}`);

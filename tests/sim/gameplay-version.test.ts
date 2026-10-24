@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildWorld, canonicalJson, createGameSystems, hashState, SIM_VERSION, step, upgradeState, type SimState } from "../../src/sim/index.ts";
 import saved from "../golden/legacy-saves/v7-gameplay.json";
 import saved8 from "../golden/legacy-saves/v8-gameplay.json";
+import saved10 from "../golden/legacy-saves/v10-gameplay.json";
 import { deepFreeze } from "../helpers.ts";
 
-describe("v7 composed gameplay save migration", () => {
+describe("v7 to current composed gameplay save migration", () => {
   it("preserves every field of a real v7 save, including opaque extensions", () => {
     expect(saved.simVersion).toBe(7);
     expect(saved.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
@@ -16,8 +17,11 @@ describe("v7 composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(13);
+    // v7 -> v8 -> v10 -> v11 -> ... -> v15 -> v16 (v9 is reserved for the structural world): behaviour only, every field kept.
+    expect(SIM_VERSION).toBe(16);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
+    expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
+    expect(upgradeState(deepFreeze({ ...old, version: 10 }))).toEqual(upgraded);
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
     expect(upgradeState(JSON.parse(before))).toEqual(upgraded);
@@ -51,6 +55,7 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
+    // (Through weather, sprint, rides, unlimited water and impacts: no fields change.)
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
@@ -71,5 +76,35 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
     expect(a.ext.fog).toEqual({ version: 1, missionCursor: expect.any(Number), windows: [] });
     expect(a.ext.missions?.players.p?.missionId).toBe(old.ext.missions?.players.p?.missionId);
     expect(() => canonicalJson(a)).not.toThrow();
+  });
+});
+
+describe("v10 to v13 unlimited-water save migration", () => {
+  it("preserves every field of a real wave-3 v10 save", () => {
+    expect(saved10.simVersion).toBe(10);
+    expect(saved10.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
+    const recorded = saved10.state as unknown as SimState;
+    expect(hashState(recorded)).toBe(saved10.hash);
+    expect(recorded.ext.fog).toBeDefined();
+    const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
+    const before = canonicalJson(old);
+    const upgraded = upgradeState(old);
+    expect(upgraded).toEqual({ ...old, version: 16 });
+    expect(canonicalJson(old)).toBe(before);
+    expect(upgradeState(upgraded)).toBe(upgraded);
+  });
+
+  it("keeps spraying from a saved, nearly empty tank without draining it", () => {
+    const world = buildWorld([]), systems = createGameSystems({ wave: 3 });
+    let state = upgradeState(deepFreeze(saved10.state) as unknown as SimState);
+    const combat = state.ext.combat!;
+    state = { ...state, ext: { ...state.ext, combat: { ...combat, players: { ...combat.players, p: { ...combat.players.p!, water: 0.01 } } } } };
+    let shots = 0;
+    for (let tick = 0; tick < 120; tick++) {
+      state = step(world, state, { p: { throttle: 0, steer: 0, brake: 0, actions: 2, aimYaw: tick * 0.05, aimPitch: 0 } }, [], systems);
+      shots += state.ext.combat!.events.filter(event => event.kind === "weapon.water").length;
+    }
+    expect(shots).toBeGreaterThanOrEqual(15);
+    expect(state.ext.combat!.players.p!.water).toBe(0.01);
   });
 });
