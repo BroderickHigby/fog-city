@@ -27,6 +27,7 @@
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
+import { FramePacer } from "./frame-pacer.ts";
 import { openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
@@ -236,8 +237,17 @@ async function boot(): Promise<void> {
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
+  // Two independent pauses: the debug handle's (tests step the sim by hand and nothing else may
+  // advance it) and the UI's (an open modal). Only a UI pause lets a queued command through.
+  let debugPaused = false;
+  let uiPaused = false;
   let paused = false;
-  let acc = 0;
+  const setPaused = (): void => {
+    paused = debugPaused || uiPaused;
+    pacer.reset();
+    last = performance.now();
+  };
+  const pacer = new FramePacer(DT);
   let last = performance.now();
   const systems=createGameSystems({wave:GAME_WAVE});
   let requestedMission="hot-desk";
@@ -254,11 +264,11 @@ async function boot(): Promise<void> {
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
-    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
+    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;pacer.reset();last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   };
   const gameUI=mountGameUI(container,{audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
-    pause:value=>{paused=value;acc=0;last=performance.now();},
+    pause:value=>{uiPaused=value;setPaused();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;sendRideDestination();},
     interaction:choiceId=>{
@@ -277,13 +287,16 @@ async function boot(): Promise<void> {
   };
   // Online Bot Sweep (src/ui/multiplayer.ts): absent without a configured relay. The city waits,
   // unstepped, while a match owns the screen.
-  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";acc=0;last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
+  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
   const sprayTracker=new SprayTracker();
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
+  // Debug only: a small badge while the sim cannot keep up and game time runs slower (frame-pacer.ts).
+  const slowBadge=diagnostics||params.get("perf")==="1"?document.createElement("div"):null;
+  if(slowBadge){slowBadge.id="sim-slow";slowBadge.hidden=true;slowBadge.style.cssText="position:fixed;left:8px;bottom:8px;z-index:50;padding:2px 6px;font:12px/1.4 monospace;color:#fff;background:rgba(160,40,20,.8);border-radius:3px;pointer-events:none";document.body.appendChild(slowBadge);}
   const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
   const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
@@ -359,11 +372,12 @@ async function boot(): Promise<void> {
     commands:()=>JSON.parse(JSON.stringify(recordedCommands)) as SimEvent[],
     hash: () => hashState(curr),
     pause: () => {
-      paused = true;
+      debugPaused = true;
+      setPaused();
     },
     resume: () => {
-      paused = false;
-      last = performance.now();
+      debugPaused = false;
+      setPaused();
     },
     stepN: (n, input) => {
       for (let i = 0; i < n; i++) advance(input ?? { ...NEUTRAL_INPUT });
@@ -449,8 +463,9 @@ async function boot(): Promise<void> {
     if (inOnlineMatch) {
       if (flying) keyboard.clearActions();
     } else if (!paused) {
-      acc += dtFrame;
-      while (acc >= DT) {
+      pacer.begin(dtFrame);
+      while (pacer.wantTick()) {
+        const t0 = performance.now();
         if (flying) {
           // The fly camera owns the keys: the player gets neutral input.
           keyboard.clearActions();
@@ -480,11 +495,14 @@ async function boot(): Promise<void> {
             hud.hint(touchControls ? HINT_SPRINT_TOUCH : HINT_SPRINT, now);
           }
         }
-        acc -= DT;
+        pacer.ticked(performance.now() - t0);
       }
+      pacer.end();
     }
-    else if(queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
-    const alpha = match ? match.alpha : paused ? 1 : acc / DT;
+    // A UI-paused game still applies a command the modal just queued (an answer, a purchase).
+    // Under a debug pause only stepN/stepFrames advance the sim; queued commands wait for them.
+    else if(!debugPaused&&queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
+    const alpha = match ? match.alpha : paused ? 1 : pacer.alpha();
     const shownPrev = match ? match.prev : prev, shown = match ? match.curr : curr, me_ = match ? match.playerId : LOCAL_PLAYER;
 
     // Player ids change only when the sim state does (once per tick at most).
@@ -582,7 +600,7 @@ async function boot(): Promise<void> {
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!inOnlineMatch)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(!inOnlineMatch&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
