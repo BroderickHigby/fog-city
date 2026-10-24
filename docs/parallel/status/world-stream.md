@@ -117,6 +117,23 @@ Open, with evidence:
   California route follower overshooting a 100° turn; Sutro's 4 cm from a vertex-mean shift.
 - Broadway tunnel road/sim disagreement (6.6 m) and below-surface travel: agent still working.
 
+### Gate measurement corrections, checked on the 544f67c baseline world
+
+`73845a9` corrects three measurements to what their metrics name. Each was run on the 544f67c
+world (its tiles under current code, `/home/user/fog-old`) as well as the candidate. Metrics whose
+measurement did not change reproduce their recorded baselines exactly there (carriageway 384,
+Lombard 2, pedestrian 62, freeway inside footprints 435, low hulls p99 8.3), so the comparison is
+sound. Corrected values on the baseline world:
+
+| Metric | Recorded baseline | Corrected, 544f67c world |
+| --- | ---: | ---: |
+| `N.far.tallHullsOff3m` | 44 | 9 |
+| `F.buried.walkerLowWallStops` | 29 | 0 |
+| `C.freeway.maxGradePct` | 143.22 | 139.07 |
+
+The corrections are stricter, not looser. The candidate is held to the corrected old-world value
+(the baseline is lowered to it), never to the old looser number.
+
 ## PR (c) progress (`work/world/physics`)
 
 - `fb915d6` cherry-picked (conflict resolved keeping per-player `ownerId`).
