@@ -568,12 +568,16 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       }
     }
   }
+  const straightOn=!goal;
   if(!goal)goal={x:actor.x+dsin(actor.heading),z:actor.z-dcos(actor.heading)};
-  // Whatever steers it (its route, its brain chasing or fleeing, a reaction): a step the physical
-  // layer would refuse becomes a step out to the nearest free spot towards where it wants to go.
-  if(actor.model!=="drone"){
+  // A bad robot's brain chasing or fleeing straight at something, or a walker with no route walking
+  // straight on (route walking has its own recovery above): a step the physical layer would refuse becomes a step out to the nearest free
+  // spot towards where it wants to go, instead of pressing against a vehicle for good.
+  if(actor.model!=="drone"&&!direct){
     const near=vehicles.filter(v=>Math.abs(v.x-actor.x)<8&&Math.abs(v.z-actor.z)<8);
-    if(stepRefused(world,actor,goal,speed,near)){const out=stepOut(world,actor,near,goal);if(out){goal={x:out.x,z:out.z};actor.pendingCursor=null;}}
+    const brain=intent?.movement?.kind==="pursue"||intent?.movement?.kind==="flee";
+    // Walking straight on, only a vehicle's refusal counts (a wall it stands at is where it waits).
+    if((brain&&stepRefused(world,actor,goal,speed,near))||(straightOn&&!brain&&stepRefused(world,actor,goal,speed,near)&&!stepRefused(world,actor,goal,speed,[]))){const out=stepOut(world,actor,near,goal);if(out){goal={x:out.x,z:out.z};actor.pendingCursor=null;}}
   }
   const length=distance(actor,goal),travel=Math.min(length,speed*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
