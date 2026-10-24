@@ -14,6 +14,9 @@
 //       profile is the bore. Where a ramp meets a surface street it comes down to the street.
 //     - Where the profile stands more than DECK_MIN_LIFT_M over the ground (or over water) it is
 //       a deck (structures.ts): kind freeway or ramp, layer 2 where it crosses over another deck.
+//     - A freeway that runs out of the world over the water (onto the Golden Gate Bridge, not
+//       modelled) holds the height it has reached out to its end, rather than falling toward
+//       the water and stopping in mid-air.
 //   Grade separations (two edges crossing with no node in common, one over the other): the
 //     bare-earth DEM removes the bridge but keeps the cut and the fill, so the edge whose ground
 //     dips (CUT_DIP_M: down into the cut under its removed span) or humps (HUMP_M: up its approach
@@ -70,8 +73,10 @@ const OVERPASS_MIN_CREST_M = 25;
 const APPROACH_M = 12;
 /** Street samples for bridges, overpasses and underpasses. */
 const STREET_STEP_M = 2;
-/** A bridge deck spans its water to the ground this far inland on both banks. */
+/** A bridge deck spans its water to the ground at least this far inland on both banks... */
 const BANK_M = 15;
+/** ...and out to the highest ground this far inland (its abutment). */
+const BANK_REACH_M = 45;
 /** The Lefty O'Doul Bridge (3rd St over Mission Creek), lat/lon, and how near a 3rd St bridge must be. */
 const LEFTY_ODOUL: [number, number] = [37.7766, -122.3906];
 const LEFTY_ODOUL_REACH_M = 200;
@@ -1117,6 +1122,32 @@ export function buildDecks(
     }
     stats.shortRamps = [...short].sort((p, q) => (p[0] < q[0] ? -1 : 1)).map(([id, g]) => `${id} ${(g * 100).toFixed(1)}%`);
   }
+  // A freeway that runs out to the world's edge over the water (Hwy 101 onto the Golden Gate
+  // Bridge, which the world does not model: Assets) carries on onto its bridge. The lowest
+  // profile has nothing to hold it up there, so it fell at FREEWAY_GRADE toward the water and
+  // stopped in mid-air over the shore (34 m over the water under Hwy 101 Northbound). Instead its
+  // deck holds the height it has reached from its landward end, never coming down toward the
+  // water, out to the edge's end where the world's walls stand. (Raising never breaks a lower
+  // bound, and the running maximum is never steeper than the profile it follows.)
+  const heldToBridge = new Set<string>();
+  for (const e of fwy) {
+    const es = edgeSamples.get(e.id)!;
+    const last = es.idx.length - 1;
+    const deadAt = (k: number): boolean => adj[es.idx[k]!]!.length === 1 && W[es.idx[k]!] === 1;
+    if (deadAt(0) === deadAt(last)) continue;
+    heldToBridge.add(e.id);
+    const toEnd = deadAt(last);
+    let top = -Infinity;
+    for (let q = 0; q <= last; q++) {
+      const i = es.idx[toEnd ? q : last - q]!;
+      if (!Number.isNaN(pinned[i]!)) {
+        top = Y[i]!;
+        continue;
+      }
+      top = Math.max(top, Y[i]!);
+      Y[i] = top;
+    }
+  }
   // A street the freeway no longer clears (a portal or a ramp's foot is too near) bridges over
   // the freeway instead: an overpass, like a street over a cut.
   const open = overZone.filter((c) => inBore(c.f.id, c.sf) === null).map((c) => ({ c, y: heightAt(c.P[0], c.P[1]), counted: false }));
@@ -1138,9 +1169,10 @@ export function buildDecks(
   const profiles = new Map<string, (s: number) => number | null>();
   for (const e of fwy) {
     const es = edgeSamples.get(e.id)!;
-    // Open water longer than MAX_WATER_SPAN_M, or running out to where the road leaves the world
-    // (a dead end over the water), is a bridge the world does not model (the Bay Bridge, the
-    // Golden Gate Bridge: Assets): no deck there, and no ribbon.
+    // Open water longer than MAX_WATER_SPAN_M is a bridge the world does not model (the Bay
+    // Bridge: Assets): no deck there, and no ribbon. A road running out to where it leaves the
+    // world over the water (the Golden Gate Bridge's approach, held level above) keeps its deck
+    // to its end: the walls stop a car there, not a drop to the water.
     const open = new Uint8Array(es.idx.length);
     const last = es.idx.length - 1;
     for (let k = 0; k < es.idx.length; k++) {
@@ -1148,7 +1180,7 @@ export function buildDecks(
       let k1 = k;
       while (k1 + 1 < es.idx.length && W[es.idx[k1 + 1]!] === 1) k1++;
       const deadEnd = (k === 0 && adj[es.idx[0]!]!.length === 1) || (k1 === last && adj[es.idx[last]!]!.length === 1);
-      if (deadEnd || es.s[k1]! - es.s[k]! > MAX_WATER_SPAN_M) for (let q = k; q <= k1; q++) open[q] = 1;
+      if (deadEnd ? !heldToBridge.has(e.id) : es.s[k1]! - es.s[k]! > MAX_WATER_SPAN_M) for (let q = k; q <= k1; q++) open[q] = 1;
       k = k1;
     }
     const lifted = es.idx.map((i, k) => !open[k] && (W[i] === 1 || Y[i]! - H[i]! > DECK_MIN_LIFT_M) && inBore(e.id, es.s[k]!) === null);
@@ -1444,7 +1476,27 @@ export function buildDecks(
         if (!wet[k]) continue;
         let k1 = k;
         while (k1 + 1 < st.length && wet[k1 + 1]) k1++;
-        const A = Math.max(0, st[k]! - BANK_M), B = Math.min(L, st[k1]! + BANK_M);
+        // Each abutment: the highest dry ground from BANK_M to BANK_REACH_M inland (the approach
+        // climbs to it), so the deck never sags under the bank it leaves from.
+        const abutment = (edgeS: number, dir: number): number => {
+          let best = Math.max(0, Math.min(L, edgeS + dir * BANK_M));
+          let bestY = -Infinity;
+          for (let d = BANK_M; d <= BANK_REACH_M; d += STREET_STEP_M) {
+            const S = edgeS + dir * d;
+            if (S < 0 || S > L) break;
+            const [x, z] = at(S);
+            if (waterAt(x, z)) continue;
+            const y = heightAt(x, z);
+            if (y > bestY + 1e-6) {
+              bestY = y;
+              best = S;
+            }
+          }
+          return best;
+        };
+        const A = abutment(st[k]!, -1), B = abutment(st[k1]!, 1);
+        const hingeS = Math.max(0, st[k]! - BANK_M); // (the bascule hinges at the near bank...
+        const midS = (Math.max(0, st[k]! - BANK_M) + Math.min(L, st[k1]! + BANK_M)) / 2; // (...its leaf is the piece over the middle)
         k = k1;
         if (B - A < 4) continue;
         const [ax, az] = at(A), [bx, bz] = at(B);
@@ -1467,13 +1519,13 @@ export function buildDecks(
           q.deck = true;
           stats.bridges.push(did);
           if (q.name === "3rd St") {
-            const mid = at((A + B) / 2);
+            const mid = at(midS);
             const d = Math.hypot(mid[0] - lefty.x, mid[1] - lefty.z);
             const leaf = pieces.find((p) => p.path.some((v) => Math.hypot(v[0] - mid[0], v[2] - mid[1]) < STREET_STEP_M));
             if (leaf && d <= LEFTY_ODOUL_REACH_M && (!leftyBox.best || d < leftyBox.best.d)) {
               // The leaf is the piece over the water's middle; it hinges on the line across the
               // road at the bridge's first bank.
-              const [hx, hz] = at(A), [nx2, nz2] = at(A + STREET_STEP_M);
+              const [hx, hz] = at(hingeS), [nx2, nz2] = at(hingeS + STREET_STEP_M);
               const Lh = Math.hypot(nx2 - hx, nz2 - hz) || 1;
               const px = (-(nz2 - hz) / Lh) * (q.widthM / 2), pz = ((nx2 - hx) / Lh) * (q.widthM / 2);
               leftyBox.best = { d, deckId: leaf.id, tile: leaf.tile, hinge: [[r2(hx - px), r2(hz - pz)], [r2(hx + px), r2(hz + pz)]] };

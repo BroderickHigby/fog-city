@@ -213,10 +213,36 @@ describe("sf world: freeway decks (W-03, W-07)", () => {
     expect(wet).toBeGreaterThan(5);
   });
 
+  it("freeways running out of the world over the water hold their height out to their end (no deck ending in mid-air)", () => {
+    // Hwy 101 onto the Golden Gate Bridge and I-80 onto the Bay Bridge's east span (neither
+    // modelled): the deck reaches the edge's end (where the walls stand), never falling toward
+    // the water (Hwy 101 Northbound used to stop 34 m over the shore).
+    const g = new Ground(pack.tiles.map((t) => ({ ix: t.ix, iz: t.iz, field: t.ground })));
+    const ends = fwy.filter((e) => {
+      const a = e.points[0]!, b = e.points[e.points.length - 1]!;
+      const deg = (n: string): number => roads.edges.filter((q) => q.a === n || q.b === n).length;
+      return (deg(e.a) === 1 && g.waterAt(a[0], a[1])) !== (deg(e.b) === 1 && g.waterAt(b[0], b[1]));
+    });
+    expect(ends.map((e) => e.name).sort()).toEqual(["Hwy 101 Northbound", "Hwy 101 Southbound", "I-80 Eastbound", "I-80 Westbound"]);
+    for (const e of ends) {
+      const deadAtEnd = g.waterAt(e.points[e.points.length - 1]![0], e.points[e.points.length - 1]![1]);
+      const pts = samples(e.points, 2);
+      if (!deadAtEnd) pts.reverse(); // landward end first
+      let top = -Infinity;
+      for (const [x, z] of pts) {
+        const y = surfaceY(e, x, z);
+        expect(y, `${e.id} at ${x.toFixed(1)},${z.toFixed(1)}`).toBeGreaterThanOrEqual(top - 0.15); // (a road within DECK_MIN_LIFT_M of the ground drapes on it)
+        top = Math.max(top, y);
+      }
+      expect(top, e.id).toBeGreaterThan(40);
+    }
+  });
+
   it("the MacArthur Tunnel, the Presidio Parkway's tunnels and the Yerba Buena Island tunnel are freeway bores, not decks over the hills", () => {
     const bored = new Set(tunnels.filter((t) => t.kind === "tunnel").map((t) => roads.edges.find((e) => e.id === t.edge)!.name));
     for (const n of ["Hwy 1 Northbound", "Hwy 1 Southbound", "Hwy 101 Northbound", "Hwy 101 Southbound", "I-80 Eastbound", "I-80 Westbound"]) expect(bored.has(n), n).toBe(true);
-    // No freeway deck stands more than 50 m over its ground (Yerba Buena Island's ridge was 90 m).
-    for (const d of fwDecks) for (const [x, y, z] of d.path) expect(y - heightAt(x, z), `${d.id} at ${x},${z}`).toBeLessThan(50);
+    // No freeway deck stands more than 50 m over the land under it (Yerba Buena Island's ridge was
+    // 90 m). Over the water it may: I-80 leaves the island onto the Bay Bridge's east span 54 m up.
+    for (const d of fwDecks) for (const [x, y, z] of d.path) if (heightAt(x, z) > 0.1) expect(y - heightAt(x, z), `${d.id} at ${x},${z}`).toBeLessThan(50);
   });
 });
