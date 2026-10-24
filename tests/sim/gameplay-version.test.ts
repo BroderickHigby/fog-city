@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildWorld, canonicalJson, createGameSystems, hashState, SIM_VERSION, step, upgradeState, type SimState } from "../../src/sim/index.ts";
 import saved from "../golden/legacy-saves/v7-gameplay.json";
 import saved8 from "../golden/legacy-saves/v8-gameplay.json";
+import saved10 from "../golden/legacy-saves/v10-gameplay.json";
 import { deepFreeze } from "../helpers.ts";
 
 describe("v7 composed gameplay save migration", () => {
@@ -16,7 +17,7 @@ describe("v7 composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(10);
+    expect(SIM_VERSION).toBe(11);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
@@ -51,7 +52,7 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(upgraded).toEqual({ ...old, version: 10 });
+    expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
     expect(() => upgradeState({ ...old, version: 9 })).toThrow("cannot upgrade");
@@ -71,5 +72,20 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
     expect(a.ext.fog).toEqual({ version: 1, missionCursor: expect.any(Number), windows: [] });
     expect(a.ext.missions?.players.p?.missionId).toBe(old.ext.missions?.players.p?.missionId);
     expect(() => canonicalJson(a)).not.toThrow();
+  });
+});
+
+describe("v10 to v11 live conversion budget save migration", () => {
+  it("preserves every field of a real wave-3 v10 save, including the saved baseBadCount", () => {
+    expect(saved10.simVersion).toBe(10);
+    const recorded = saved10.state as unknown as SimState;
+    expect(hashState(recorded)).toBe(saved10.hash);
+    const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
+    const before = canonicalJson(old);
+    const upgraded = upgradeState(old);
+    expect(upgraded).toEqual({ ...old, version: 11 });
+    expect(upgraded.ext.robots?.baseBadCount).toBe(recorded.ext.robots?.baseBadCount);
+    expect(canonicalJson(old)).toBe(before);
+    expect(upgradeState(upgraded)).toBe(upgraded);
   });
 });

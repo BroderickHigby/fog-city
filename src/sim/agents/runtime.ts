@@ -427,6 +427,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
+  const naturalBad=naturalBadCount(sim,state);
   for(const actor of list){
     if(actor.retired)continue;
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
@@ -454,7 +455,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       if(actor.brain.lastTick>=sim.tick)continue;
       const own=activeCombat(sim)?.targets[actor.id];
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:naturalBad,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
@@ -465,6 +466,16 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
 }
 
 /** Shared combat snapshots use the core's observed positions, never unaccepted proposals. */
+/**
+ * The conversion budget's base: bad robots active now that were not converted. Converted
+ * robots may at most match it (brain canConvert, combat conversionCap). The start-of-run
+ * baseBadCount goes stale as the city admits more robots, which froze every forced update.
+ */
+export function naturalBadCount(sim:Readonly<SimState>,runtime:Readonly<AgentsRuntimeState>|undefined=agentsRuntimeOf(sim)):number{
+  if(!runtime)return 0;
+  return keys(runtime.actors).filter(id=>{const actor=runtime.actors[id]!;return actor.firmware==="bad"&&!actor.converted&&!actor.retired&&phase(sim,id)==="active";}).length;
+}
+
 export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
   const state=agentsRuntimeOf(sim);if(!state)return [];
   return keys(state.actors).map(id=>state.actors[id]!).filter(actor=>!actor.retired&&actor.fidelity!=="abstract"&&actor.fidelity!=="despawn").map(actor=>({id:actor.id,kind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:actor.speed,radius:actor.radius,height:actor.height,firmware:actor.firmware,

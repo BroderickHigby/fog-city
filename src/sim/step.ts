@@ -134,6 +134,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    complete saved state, including active missions, combat effects and future extensions.
  *  - v8 -> v10 (v9 is the structural world's reserved stamp): weather changes behaviour only.
  *    Every saved field is kept; ext.fog, when absent, is created by the fog reducer.
+ *  - v10 -> v11: the live conversion budget changes behaviour only; every saved field is kept.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -142,7 +143,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
-  if (s.version === 8) return { ...s, version: 10 };
+  if (s.version === 8) return upgradeState({ ...s, version: 10 });
+  if (s.version === 10) return { ...s, version: 11 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
