@@ -4,7 +4,8 @@ import { PLAIN_WORDS_BOARDS, PLAIN_WORDS_LADDER } from "../../../src/sim/activit
 import { createMissions } from "../../../src/sim/missions/system.ts";
 import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import { ACTIVITY_RULES } from "../../../src/content/gameplay.ts";
-import type { ActivitiesState, CombatActor, GameplayContext, GameplayFact, WaterTrace } from "../../../src/sim/player/types.ts";
+import type { ActivitiesState, GameplayContext, GameplayFact, WaterTrace } from "../../../src/sim/player/types.ts";
+import type { CombatActor } from "../../../src/sim/combat-contract.ts";
 
 const activity = DEFAULT_CATALOG.activities.find(value => value.id === "plain-words")!;
 type Patch = Partial<GameplayContext> & { at?: { x: number; z: number } };
