@@ -19,22 +19,32 @@
 //   &pr=1.5                      cap on devicePixelRatio
 //   &cam=chase|first-person|fly  starting camera
 //
-// Keys: WASD/arrows drive (or walk), Space brake (sprint on foot); F enter/exit, E fire,
-// Q scan, H horn (sim actions). Render only: C chase/first-person, V free fly camera (WASD
-// move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
+// Keys: WASD/arrows drive (or walk), Space brake; on foot W jogs, Shift (or Space, pad LT) sprints, F beside an empty robotaxi hops in
+// (a phone-map waypoint is where it goes; F again gets out); F enter/exit, E fire,
+// Q scan, H horn (sim actions; src/audio/horn.ts sounds it). Render only: C chase/first-person, V free fly camera (WASD
+// move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night;
+// in the chase camera, mouse or touch drag on the view (or the pad's right stick) orbits round you.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
+import { FramePacer } from "./frame-pacer.ts";
 import { openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
+import { availableGamepads } from "./input/controller.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
+import { mountMultiplayer } from "./ui/multiplayer.ts";
+import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
-import { GameAudio } from "./audio/mixer.ts";
+import { SprayTracker } from "./render/held-blaster.ts";
+import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, parseGfxRequest, probeGpu } from "./render/gfx.ts";
+import { ContextGuard, RESUME_KEY, SAFE_MODE_KEY, hideGraphicsNotice, showGraphicsNotice } from "./render/context-guard.ts";
+import { createGameAudioDirector } from "./audio/index.ts";
+import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
 import { contentHash } from "./content/barks.ts";
@@ -46,11 +56,13 @@ import { missionParkingDestination } from "./sim/missions/parking-world.ts";
 import { agentsRuntimeOf } from "./sim/agents/runtime.ts";
 import { renderWithRuntimeActors } from "./render/runtime-actors.ts";
 import { gameplaySnapshot } from "./sim/player/adapter.ts";
+import { RIDE_DESTINATION_EVENT, boardableTaxi } from "./sim/ride.ts";
+import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
-import { Hud, exitHint, type HudData } from "./render/hud.ts";
+import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
@@ -83,6 +95,17 @@ const GAME_WAVE: 3 | 4 = PREVIEW_WAVE === 4 ? 4 : RELEASED_WAVE;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
+/** Chase orbit: radians per pixel dragged, and radians per second at full right stick. */
+const ORBIT_PER_PX = 0.006;
+const ORBIT_STICK_RATE = 2.6;
+
+/** A sessionStorage value, or null where storage is unavailable (private mode, sandboxed frames). */
+function sessionValue(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function setSessionValue(key: string, value: string | null): void {
+  try { if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
 
 function numParam(p: URLSearchParams, k: string): number | null {
   const v = p.get(k);
@@ -182,17 +205,28 @@ async function boot(): Promise<void> {
           return f ? assets.json<TileCollider>(base + f).catch(() => null) : Promise.resolve(null);
         }
       : undefined;
+  // The graphics tier (gfx.ts): from the GPU unless ?gfx= names one; after the GPU was lost
+  // this session (context-guard.ts), safe mode starts low. ?quality= and ?shadows= still win.
+  const safeMode = sessionValue(SAFE_MODE_KEY) === "1";
+  const gpu = probeGpu();
+  const gfxRequest = parseGfxRequest(params.get("gfx"));
+  const gfx = chooseTier(gfxRequest, gpu, safeMode);
+  const tierSettings = TIER_SETTINGS[gfx.tier];
   const view = new SceneRenderer(
     container,
     { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
     {
       radius: numParam(params, "radius") ?? 1500,
-      shadows: params.has("shadows") ? params.get("shadows") === "1" : undefined,
-      quality: params.has("quality") ? params.get("quality") === "1" : params.get("gfx") === "high" ? true : undefined,
+      shadows: params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
+      quality: params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
       timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
         ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
-      maxPixelRatio: numParam(params, "pr") ?? 2,
+      maxPixelRatio: numParam(params, "pr") ?? tierSettings.maxPixelRatio,
+      pixelBudget: params.has("pr") ? undefined : tierSettings.pixelBudget,
+      tier: gfx.tier,
+      governed: gfxRequest === "auto" && !params.has("pr") && !params.has("quality") && !params.has("shadows"),
+      preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
       landmarks: landmarksDoc,
     },
@@ -206,8 +240,17 @@ async function boot(): Promise<void> {
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
+  // Two independent pauses: the debug handle's (tests step the sim by hand and nothing else may
+  // advance it) and the UI's (an open modal). Only a UI pause lets a queued command through.
+  let debugPaused = false;
+  let uiPaused = false;
   let paused = false;
-  let acc = 0;
+  const setPaused = (): void => {
+    paused = debugPaused || uiPaused;
+    pacer.reset();
+    last = performance.now();
+  };
+  const pacer = new FramePacer(DT);
   let last = performance.now();
   const systems=createGameSystems({wave:GAME_WAVE});
   let requestedMission="hot-desk";
@@ -218,30 +261,45 @@ async function boot(): Promise<void> {
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const gameUI=mountGameUI(container,{copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
+  const audio=createGameAudioDirector({host:container,missions:MISSIONS});void audio.load();
+  const restoreSave=(data:Parameters<typeof validateSavedProgression>[0]):void=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
-    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
+    curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;pacer.reset();last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
-  }},callbacks:{
-    pause:value=>{paused=value;acc=0;last=performance.now();},
+  };
+  const gameUI=mountGameUI(container,{audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
+    pause:value=>{uiPaused=value;setPaused();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
-    waypoint:point=>{waypoint=point;},
+    waypoint:point=>{waypoint=point;sendRideDestination();},
     interaction:choiceId=>{
       const progress=gameplaySnapshot({state:curr}).missions.players[LOCAL_PLAYER];
       const mission=MISSIONS.find(m=>m.id===progress?.missionId),current=mission?.steps.find(s=>s.id===progress?.stepId);
       if(choiceId==="retry")send({kind:"mission-retry"});
-      else if(current?.type==="dialogue")send({kind:"mission-answer",questionId:current.questions[progress?.questionIndex??0]?.id,choiceId});
+      else if(current?.type==="dialogue"){const questionId=current.questions[progress?.questionIndex??0]?.id;send({kind:"mission-answer",questionId,choiceId});if(questionId)audio.answered(questionId,choiceId);}
       else send({kind:"mission-ack"});
     },
   }});
+  /** A rider's destination enters the sim as a recorded event (src/sim/ride.ts). */
+  const sendRideDestination=():void=>{
+    if(!waypoint||!curr.players[LOCAL_PLAYER]?.ride)return;
+    const event:SimEvent={tick:curr.tick+1,kind:RIDE_DESTINATION_EVENT,playerId:LOCAL_PLAYER,payload:{x:Math.round(waypoint.x),z:Math.round(waypoint.z)}};
+    queuedEvents.push(event);recordedCommands.push(event);
+  };
+  // Online Bot Sweep (src/ui/multiplayer.ts): absent without a configured relay. The city waits,
+  // unstepped, while a match owns the screen.
+  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
+    restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
-  const audio=new GameAudio();void audio.load(assets).catch(()=>{});
+  const sprayTracker=new SprayTracker();
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
+  // Debug only: a small badge while the sim cannot keep up and game time runs slower (frame-pacer.ts).
+  const slowBadge=diagnostics||params.get("perf")==="1"?document.createElement("div"):null;
+  if(slowBadge){slowBadge.id="sim-slow";slowBadge.hidden=true;slowBadge.style.cssText="position:fixed;left:8px;bottom:8px;z-index:50;padding:2px 6px;font:12px/1.4 monospace;color:#fff;background:rgba(160,40,20,.8);border-radius:3px;pointer-events:none";document.body.appendChild(slowBadge);}
   const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
   const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
@@ -252,6 +310,9 @@ async function boot(): Promise<void> {
     const tick=curr.tick+1,pending=queuedEvents.filter(event=>event.tick===tick);
     queuedEvents=queuedEvents.filter(event=>event.tick>tick);
     curr = step(world, curr, frame, [...events,...pending],systems);
+    // Every horn in the stepped frame sounds (keys, pad and touch all set Action.horn).
+    const me = curr.players[LOCAL_PLAYER];
+    if (me) for (const blast of hornBlasts(frame, curr)) audio.playHorn(blast);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -268,7 +329,7 @@ async function boot(): Promise<void> {
     }
     return p;
   };
-  const target: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false };
+  const target: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false, pitch: 0 };
   const local = { id: LOCAL_PLAYER, target };
   const fly: FlyInput = { ...NO_FLY_INPUT };
   const drag = { x: 0, y: 0 };
@@ -314,11 +375,12 @@ async function boot(): Promise<void> {
     commands:()=>JSON.parse(JSON.stringify(recordedCommands)) as SimEvent[],
     hash: () => hashState(curr),
     pause: () => {
-      paused = true;
+      debugPaused = true;
+      setPaused();
     },
     resume: () => {
-      paused = false;
-      last = performance.now();
+      debugPaused = false;
+      setPaused();
     },
     stepN: (n, input) => {
       for (let i = 0; i < n; i++) advance(input ?? { ...NEUTRAL_INPUT });
@@ -345,6 +407,8 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    loseContext: () => view.renderer.forceContextLoss(),
+    restoreContext: () => view.renderer.forceContextRestore(),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
@@ -353,6 +417,28 @@ async function boot(): Promise<void> {
   });
 
   let nextUiUpdate=0;
+  const touchControls = matchMedia("(pointer: coarse)").matches;
+  let sprintHints = 0;
+  let nextTaxiHint = 0;
+  let sprintHintDue = false;
+  // A lost WebGL context (context-guard.ts): stop drawing, keep the sim and the UI going, and
+  // rebuild on restore. If it does not come back, save and reload in safe mode at that save.
+  const guard = new ContextGuard(view.renderer.domElement, {
+    onLost: () => showGraphicsNotice(container, "Graphics paused: the GPU is resetting…"),
+    onRestored: () => { view.contextRestored(); hideGraphicsNotice(container); },
+    onGiveUp: () => {
+      showGraphicsNotice(container, "Graphics reset. Reloading at your last save…");
+      setSessionValue(SAFE_MODE_KEY, "1");
+      setSessionValue(RESUME_KEY, "1");
+      void saveStore.save("auto", captureProgression(curr, LOCAL_PLAYER)).catch(() => {}).finally(() => location.reload());
+    },
+  });
+  // Back from a graphics reset: carry on from the save made just before it.
+  if (sessionValue(RESUME_KEY) === "1") {
+    setSessionValue(RESUME_KEY, null);
+    void saveStore.load("auto").then((save) => { if (save) restoreSave(save.data); }).catch(() => {});
+  }
+
   const frame = (now: number): void => {
     const frameS = (now - last) / 1000;
     const dtFrame = Math.min(frameS, MAX_FRAME_S);
@@ -365,12 +451,24 @@ async function boot(): Promise<void> {
     const flying = view.rig.mode === "fly";
     if (flying) readFly(dtFrame);
     else {
+      // Chase orbit (render only): mouse/touch drag, or the pad's right stick.
       pointer.takeDrag(drag);
       pointer.takeWheel();
+      const pad = availableGamepads().find((p) => p?.connected);
+      const stick = (v: number | undefined): number => (v === undefined || !Number.isFinite(v) || Math.abs(v) < 0.18 ? 0 : v);
+      view.rig.orbit(drag.x * ORBIT_PER_PX + stick(pad?.axes[2]) * ORBIT_STICK_RATE * dtFrame,
+        drag.y * ORBIT_PER_PX + stick(pad?.axes[3]) * ORBIT_STICK_RATE * dtFrame);
     }
-    if (!paused) {
-      acc += dtFrame;
-      while (acc >= DT) {
+    const simStart = performance.now(); // discount city or online simulation time in the graphics governor
+    // During a match the relay's timeline is drawn instead of the city (which does not step).
+    const inOnlineMatch = multiplayer.inMatch();
+    const match = inOnlineMatch ? multiplayer.frame(dtFrame, flying ? () => ({ ...NEUTRAL_INPUT }) : () => gameUI.sampleInput()) : null;
+    if (inOnlineMatch) {
+      if (flying) keyboard.clearActions();
+    } else if (!paused) {
+      pacer.begin(dtFrame);
+      while (pacer.wantTick()) {
+        const t0 = performance.now();
         if (flying) {
           // The fly camera owns the keys: the player gets neutral input.
           keyboard.clearActions();
@@ -379,19 +477,43 @@ async function boot(): Promise<void> {
           const input = gameUI.sampleInput();
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
-          const hint = exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
+          // (A robotaxi rider gets out when the taxi stops: no car exit hints.)
+          const hailed = curr.players[LOCAL_PLAYER]?.hail;
+          const newHail = !!hailed && hailed.agentId !== before?.hail?.agentId;
+          if (newHail) hud.hint(HINT_TAXI_HAILED, now);
+          const hint = before?.ride || curr.players[LOCAL_PLAYER]?.ride || newHail ? null : exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
           if (hint) hud.hint(hint, now);
+          const rider = curr.players[LOCAL_PLAYER];
+          if (rider?.ride && !before?.ride) {
+            // Just hopped in: head for the waypoint if one is set.
+            sendRideDestination();
+            hud.hint(waypoint ? HINT_TAXI_HEADING : HINT_TAXI_RIDING, now);
+          }
+          // The first few times the player jogs off after getting out, say how to sprint.
+          const after = curr.players[LOCAL_PLAYER];
+          if (before?.mode === "vehicle" && after?.mode === "foot" && sprintHints < SPRINT_HINTS) sprintHintDue = true;
+          if (sprintHintDue && after?.mode === "foot" && after.foot && after.foot.speed > 1.5 && !after.foot.sprint) {
+            sprintHintDue = false;
+            sprintHints++;
+            hud.hint(touchControls ? HINT_SPRINT_TOUCH : HINT_SPRINT, now);
+          }
         }
-        acc -= DT;
+        pacer.ticked(performance.now() - t0);
       }
+      pacer.end();
     }
-    else if(queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
-    const alpha = paused ? 1 : acc / DT;
+    // A UI-paused game still applies a command the modal just queued (an answer, a purchase).
+    // Under a debug pause only stepN/stepFrames advance the sim; queued commands wait for them.
+    else if(!debugPaused&&queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
+    const simSeconds = (performance.now() - simStart) / 1000;
+    const simCatchingUp = (match ? match.ticksThisFrame : pacer.stats().ticksThisFrame) > 1;
+    const alpha = match ? match.alpha : paused ? 1 : pacer.alpha();
+    const shownPrev = match ? match.prev : prev, shown = match ? match.curr : curr, me_ = match ? match.playerId : LOCAL_PLAYER;
 
     // Player ids change only when the sim state does (once per tick at most).
-    if (curr.players !== idsFor) {
-      idsFor = curr.players;
-      ids = sortedIds(curr.players);
+    if (shown.players !== idsFor) {
+      idsFor = shown.players;
+      ids = sortedIds(shown.players);
       const key = ids.join("\u0001");
       if (key !== playersKey) {
         playersKey = key;
@@ -399,8 +521,8 @@ async function boot(): Promise<void> {
       }
     }
     for (const id of ids) {
-      const pc = curr.players[id]!;
-      const pp = prev.players[id] ?? pc;
+      const pc = shown.players[id]!;
+      const pp = shownPrev.players[id] ?? pc;
       const P = poseFor(id);
       const a = pp.car;
       const b = pc.car;
@@ -426,7 +548,7 @@ async function boot(): Promise<void> {
         f.speed = lerp(fa.speed, fb.speed, alpha);
       }
       view.setFoot(id, onFoot ? P.foot : null);
-      if (id === LOCAL_PLAYER) {
+      if (id === me_) {
         // The camera and HUD follow the body the player controls (activeBody), interpolated.
         const src = onFoot ? P.foot : c;
         target.x = src.x;
@@ -435,18 +557,37 @@ async function boot(): Promise<void> {
         target.heading = src.heading;
         target.onFoot = onFoot;
         target.speed = onFoot ? P.foot.speed : c.speed;
+        target.pitch = onFoot || pc.ride ? 0 : c.pitch;
+        // Riding a robotaxi: follow the taxi, not the parked car.
+        const rb = pc.ride, ra = pp.ride ?? rb;
+        if (rb && ra) {
+          target.x = lerp(ra.x, rb.x, alpha);
+          target.y = lerp(ra.y, rb.y, alpha);
+          target.z = lerp(ra.z, rb.z, alpha);
+          target.heading = ra.heading + wrapAngle(rb.heading - ra.heading) * alpha;
+          target.speed = lerp(ra.speed, rb.speed, alpha);
+        }
       }
     }
-    view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
-    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
-    audio.update(curr.ext.combat,LOCAL_PLAYER,paused);
-    const minute = gameMinuteOfDay(curr, clockStart);
-    view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
-    view.render();
+    // The blaster and its stream follow the displayed city or online match.
+    const sprays = sprayTracker.update(shown.ext.combat?.projectiles);
+    for (const id of ids) view.setSpray(id, sprays.get(id) ?? null);
+    view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
+    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out));
+    audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
+    const minute = gameMinuteOfDay(shown, clockStart);
+    local.id = me_;
+    view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
+    if (!guard.contextLost) view.render();
 
     const info = view.info(renderInfo);
-    const me = curr.players[LOCAL_PLAYER];
+    const me = shown.players[me_];
     hudData.speedMps = me ? activeBody(me).speed : 0;
+    // On foot beside an empty robotaxi (and not beside your own car): say F hops in.
+    if (me && me.mode === "foot" && me.foot && now >= nextTaxiHint && !hud.hintText()) {
+      nextTaxiHint = now + 500;
+      if (!canEnterCar(world, me.car, me.foot.x, me.foot.z) && boardableTaxi(world, curr, me.foot.x, me.foot.z)) hud.hint(HINT_TAXI_BOARD, now);
+    }
     hudData.x = target.x;
     hudData.z = target.z;
     hudData.onFoot = target.onFoot;
@@ -462,9 +603,9 @@ async function boot(): Promise<void> {
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
-    autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    if(!inOnlineMatch)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
+    if(!inOnlineMatch&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

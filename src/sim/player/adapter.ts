@@ -1,4 +1,5 @@
 import { Action } from "../contract.ts";
+import { playerPose } from "../ride.ts";
 import { dcos,dsin } from "../dmath.ts";
 import { segmentBlocked } from "../world.ts";
 import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
@@ -39,7 +40,7 @@ export function combatFacts(events:readonly CombatEvent[],combat?:Pick<CombatSta
  });
 }
 export const defaultGameplayProvider:GameplayProvider=context=>{
- const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=player.mode==="foot"&&player.foot?player.foot:player.car;return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
+ const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=playerPose(player);return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
  const clock=context.state.ext.clock as {day?:number;month?:number}|undefined;
  return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
@@ -48,7 +49,8 @@ export interface ObservedGameplayOptions {
  wave?:number;
  actors:(context:SimSystemContext)=>readonly CombatActor[];
  facts?:(context:SimSystemContext)=>readonly GameplayFact[];
- fog?:(context:SimSystemContext)=>number;
+ /** Fog density at a player's own body (x, z). */
+ fog?:(context:SimSystemContext,x:number,z:number)=>number;
  protectedArea?:(x:number,z:number)=>boolean;
  associateIds?:(context:SimSystemContext)=>readonly string[];
  missionParking?:(context:SimSystemContext)=>GameplayContext["missionParking"];
@@ -61,7 +63,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
   const melted=new Set((context.state.ext.combat?.events??[]).filter(e=>e.kind==="robot.heap").map(e=>e.targetId));
   const visible=(a:{x:number;z:number},b:{x:number;z:number},radius:number)=>distanceSquared({...a,y:0},{...b,y:0})<=radius*radius&&!segmentBlocked(context.world,a.x,a.z,b.x,b.z);
   const observations=base.bodies.map(body=>{
-   const player=context.state.players[body.id]!,pose=player.mode==="foot"&&player.foot?player.foot:player.car;
+   const player=context.state.players[body.id]!,pose=playerPose(player);
    const isWatching=!!((context.inputs[body.id]?.actions??0)&Action.watch);
    const forward=(actor:CombatActor)=>(actor.x-body.x)*dsin(pose.heading)-(actor.z-body.z)*dcos(pose.heading);
    const angularError=(actor:CombatActor)=>{const x=actor.x-body.x,z=actor.z-body.z,d2=x*x+z*z,cross=x*dcos(pose.heading)+z*dsin(pose.heading);return d2>0?cross*cross/d2:0;};
@@ -69,7 +71,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
    const watchingActorId=candidates[0]?.id;const old=previous.player.players[body.id];
    const progress=context.state.ext.missions?.players[body.id],bindings=context.state.ext.robots?.missionBindings??{},actorBindings:Record<string,string>={};
    if(progress?.missionId){const shared=`${progress.missionId}:`,owned=`${body.id}:${progress.missionId}:`;for(const key of Object.keys(bindings).sort())if(key.startsWith(shared))actorBindings[key.slice(shared.length)]=bindings[key]!;for(const key of Object.keys(bindings).sort())if(key.startsWith(owned))actorBindings[key.slice(owned.length)]=bindings[key]!;}
-   return {playerId:body.id,actorBindings,seenByBad:actors.some(a=>a.firmware==="bad"&&context.state.ext.combat?.targets[a.id]?.alerted&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&visible(body,a,200)),fog:options.fog?.(context)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
+   return {playerId:body.id,actorBindings,seenByBad:actors.some(a=>a.firmware==="bad"&&context.state.ext.combat?.targets[a.id]?.alerted&&visible(body,a,40)),seenByAssociate:actors.some(a=>associateIds.has(a.id)&&visible(body,a,40)),associateWithin200:actors.some(a=>associateIds.has(a.id)&&visible(body,a,200)),fog:options.fog?.(context,body.x,body.z)??0,protectedArea:options.protectedArea?.(body.x,body.z)??false,...(watchingActorId?{watchingActorId,watchedTicks:old?.watchingActorId===watchingActorId?(old.watchedTicks??0)+1:1}:{})};
   });
   return {...base,...options.calendar?.(context)??{},wave:options.wave??2,observations,actorBodies:actors,rustByActor:Object.fromEntries(Object.keys(context.state.ext.combat?.targets??{}).sort().map(id=>[id,context.state.ext.combat!.targets[id]!.rust])),missionParking:options.missionParking?.(context),facts:[...base.facts,...options.facts?.(context)??[]],actors:actors.map(actor=>({id:actor.id,firmware:actor.firmware,armoured:actor.model==="patrol"||actor.model==="walker",subtlety:actor.subtlety??1,caughtInAct:context.state.ext.combat?.attacks.some(a=>a.attackerId===actor.id&&a.active)??false,witnessedByBad:melted.has(actor.id)&&actors.some(other=>other.id!==actor.id&&other.firmware==="bad"&&visible(actor,other,30)),peopleWitnesses:melted.has(actor.id)?actors.filter(other=>other.kind==="person"&&visible(actor,other,25)).length:0}))};
  };

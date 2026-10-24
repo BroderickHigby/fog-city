@@ -79,6 +79,7 @@
     "ui.controls.phone": "Phone",
     "ui.controls.altFire": "Lob flowers",
     "ui.controls.gear": "Use gear",
+    "ui.controls.horn": "Horn",
     "ui.controls.streak": "Call a Hype reward",
     "ui.controls.breakFree": "Let go",
     "ui.controls.closeAd": "Close advert",
@@ -183,13 +184,30 @@
     "ui.audio.master": "Master volume",
     "ui.bell.listen": "Listen: bell {heard} of {count}. Round {round}, {wins}–{losses}.",
     "ui.bell.turn": "Your turn: ring with interact ({rung} of {count}). Round {round}, {wins}–{losses}.",
-    "ui.bell.pause": "Round {round} over: {wins}–{losses}."
+    "ui.bell.pause": "Round {round} over: {wins}–{losses}.",
+    "ui.help.open": "Controls",
+    "ui.help.title": "Controls",
+    "ui.help.hint": "Press ? or F1 any time to open this list. Esc closes it.",
+    "ui.help.keyboard": "Keyboard",
+    "ui.help.gamepad": "Gamepad",
+    "ui.help.move": "Drive, or jog on foot",
+    "ui.help.sprint": "Sprint on foot (with W)",
+    "ui.help.emote": "Emote",
+    "ui.help.horn": "Horn",
+    "ui.help.pause": "Pause menu",
+    "ui.help.orbit": "Swing the camera round you (it settles behind you as you move)",
+    "ui.help.camera": "Switch chase or first-person camera",
+    "ui.help.fly": "Free-fly camera (WASD, Space and Shift, drag to look)",
+    "ui.help.night": "Toggle night",
+    "ui.help.show": "Show these controls",
+    "ui.help.menu": "Phone. In menus, A selects and B closes",
+    "ui.help.hold": "(hold)"
   },
   "provenance": {
     "source": "agent",
-    "authorSession": "lane/content/wave2-2026-10-23",
-    "contentHash": "fnv1a32:d2eed466",
+    "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
+    "contentHash": "fnv1a32:58c0ca68",
     "reviewedBy": [],
-    "review": "Authored for the published UI request. Pending independent review; existing approved names reused."
+    "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }
 }

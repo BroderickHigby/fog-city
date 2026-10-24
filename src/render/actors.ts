@@ -9,6 +9,7 @@
 
 import * as THREE from "three";
 import { PlayerBodies } from "./player-body.ts";
+import { HeldBlasters, type SprayCue } from "./held-blaster.ts";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
 import { advanceGait, gaitAmount, rollWheel } from "./agent-lod.ts";
 import { packedMaterial } from "./agent-packing.ts";
@@ -214,10 +215,13 @@ export class Actors {
   private readonly peopleMaterial = packedMaterial(true);
   private readonly people: PeopleRig;
   private bodies: PlayerBodies | null = null;
+  private blasters: HeldBlasters | null = null;
+  private readonly sprays = new Map<string, SprayCue>();
   private disposed = false;
   private readonly contacts = new ContactShadows(MAX_PLAYERS_DRAWN * 2);
 
-  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false, bytes?: (path: string) => Promise<Uint8Array>) {
+  constructor(registry: ModelRegistry<THREE.Object3D>, lights: NightLights, shadows = false, bytes?: (path: string) => Promise<Uint8Array>,
+    blasterBytes?: (path: string) => Promise<Uint8Array>) {
     this.registry = registry;
     this.lights = lights;
     this.shadows = shadows;
@@ -225,6 +229,12 @@ export class Actors {
     this.group.name = "actors";
     this.group.add(this.people.group);
     this.group.add(this.contacts.mesh);
+    if (blasterBytes) void HeldBlasters.load(blasterBytes).then(blasters => {
+      if (this.disposed) { blasters.dispose(); return; }
+      this.blasters = blasters;
+    }).catch(error => {
+      if (!this.disposed) console.warn("water blaster prop: not drawn:", error);
+    });
     if (bytes) void PlayerBodies.load(bytes, shadows).then(bodies => {
       if (this.disposed) { bodies.dispose(); return; }
       this.bodies = bodies;
@@ -365,9 +375,21 @@ export class Actors {
     Object.assign(v.walker, pose);
   }
 
+  /** This frame's spray for player `id` (the stream's direction, and whether a shot just left), or null. */
+  setSpray(id: string, cue: SprayCue | null): void {
+    if (cue) this.sprays.set(id, cue);
+    else this.sprays.delete(id);
+  }
+
+  /** Where player `id`'s stream leaves the blaster's nozzle (world), or null when it is put away. */
+  nozzle(id: string, out: THREE.Vector3): THREE.Vector3 | null {
+    return this.blasters?.nozzle(id, out) ?? null;
+  }
+
   /** Per frame, after setCar/setFoot: draws the walkers. */
   update(dt: number): void {
     this.bodies?.begin();
+    this.blasters?.begin();
     this.people.begin();
     this.contacts.begin();
     for (const [id, v] of this.players) {
@@ -385,11 +407,15 @@ export class Actors {
       v.gaitAmount += (gaitAmount(w.speed, 1.6) - v.gaitAmount) * Math.min(1, dt * 6);
       if (this.hidden === id && this.hiddenPart === "person") continue;
       if (this.walkers >= MAX_PLAYERS_DRAWN) continue;
-      if (this.bodies) this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt, v.colorIndex === 0 ? undefined : v.look.shirt);
-      else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
+      if (this.bodies) {
+        this.bodies.add(id, w.x, w.y, w.z, w.heading, w.speed, dt, v.colorIndex === 0 ? undefined : v.look.shirt);
+        const root = this.bodies.rootOf(id);
+        if (root && this.blasters) this.blasters.pose(id, root, this.sprays.get(id) ?? null, dt, this.shadows);
+      } else this.people.add(w.x, w.y, w.z, w.heading, v.look, Math.sin(v.gait) * v.gaitAmount);
     }
     this.people.end();
     this.bodies?.end();
+    this.blasters?.end();
     this.contacts.end();
   }
 
@@ -413,6 +439,8 @@ export class Actors {
     this.disposed = true;
     this.bodies?.dispose();
     this.bodies = null;
+    this.blasters?.dispose();
+    this.blasters = null;
     this.remove(new Set());
     this.people.dispose();
     this.peopleMaterial.dispose();

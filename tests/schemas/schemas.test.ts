@@ -31,7 +31,16 @@ interface ManifestShape {
 }
 
 /** Files beside the manifest that are not named by it, and the schema each validates against. */
-const EXTRAS: Record<string, string> = { "storefronts.json": "storefronts", "report.json": "tile-report" };
+const EXTRAS: Record<string, string> = {
+  "storefronts.json": "storefronts",
+  "report.json": "tile-report",
+  // Render-only street detail (pipeline/build-street-detail.ts): the index and its layers.
+  "street-detail.json": "street-detail",
+  "street-markings.json": "street-markings",
+  "street-furniture.json": "street-furniture",
+  "street-signs.json": "street-signs",
+  "street-trees.json": "street-trees",
+};
 
 describe("world tiles validate", () => {
   const worlds = readdirSync(join(ROOT, "public/tiles"));

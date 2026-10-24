@@ -34,6 +34,13 @@ export interface LightingPreset {
   /** High cloud layer shared by the visible sky, IBL and water reflections. */
   cloudCoverage?: number;
   cloudOpacity?: number;
+  /**
+   * How bright the clouds' lit tops are (1 = daylight white) and how much warm city glow lights
+   * their undersides. Night clouds are dim moonlit grey with an orange underglow, never white
+   * (a white cloud on a black sky reads as a photo negative).
+   */
+  cloudLight?: number;
+  cloudGlow?: number;
   /** Dusk can raise city lights gradually without switching the simulation clock. */
   nightFactor?: number;
 }
@@ -115,6 +122,8 @@ export const TWILIGHT: LightingPreset = {
   water: 0.65,
   cloudCoverage: 0.4,
   cloudOpacity: 0.55,
+  cloudLight: 0.45,
+  cloudGlow: 0.012,
   nightFactor: 0.45,
 };
 
@@ -125,9 +134,10 @@ export const NIGHT: LightingPreset = {
   sunColor: 0xaabce4,
   sunIntensity: 0.3,
   hemiSky: 0x2d4067,
-  hemiGround: 0x312b26,
-  hemiIntensity: 0.29,
-  envIntensity: 0.23,
+  // The ground bounce is the street lights' warm spill: people and robots stay readable.
+  hemiGround: 0x4a3a2c,
+  hemiIntensity: 0.5,
+  envIntensity: 0.3,
   zenith: 0x071326,
   horizonWarm: 0x343344,
   horizonCool: 0x27384c,
@@ -137,11 +147,13 @@ export const NIGHT: LightingPreset = {
   sunFogColor: 0x52627b,
   sunFogStrength: 0.22,
   fog: { density: 0.00026, falloff: 1 / 100, baseY: 0, distK: 1 / 13500 },
-  exposure: 1.08,
+  exposure: 1.25,
   stars: 1,
   water: 0.25,
   cloudCoverage: 0.22,
   cloudOpacity: 0.38,
+  cloudLight: 0.035,
+  cloudGlow: 0.03,
   nightFactor: 1,
 };
 
@@ -166,6 +178,9 @@ export const skyUniforms = {
   uStars: { value: 0 },
   uCloudCoverage: { value: 0 },
   uCloudOpacity: { value: 0 },
+  /** The clouds' lit colour and their warm city underglow (linear). */
+  uCloudLight: { value: new THREE.Color(0.86, 0.9, 0.94) },
+  uCloudGlow: { value: new THREE.Color(0, 0, 0) },
   /** Display-space fog colour (same as the scene fog's uniform). */
   uFogDisplay: { value: new THREE.Vector3() },
 };
@@ -182,6 +197,8 @@ uniform float uSunDisc;
 uniform float uStars;
 uniform float uCloudCoverage;
 uniform float uCloudOpacity;
+uniform vec3 uCloudLight;
+uniform vec3 uCloudGlow;
 float fcSkyHash( vec2 p ) {
   vec3 q = fract( vec3( p.xyx ) * 0.1031 );
   q += dot( q, q.yzx + 33.33 );
@@ -219,8 +236,10 @@ vec3 fcSkyRadiance( vec3 d ) {
     density *= density * mix( 0.25, 1.0, smoothstep( 0.25, 0.8, broad ) );
     float cloud = ( 1.0 - exp( -density * 1.4 ) ) * uCloudOpacity * 0.62;
     cloud *= smoothstep( 0.14, 0.30, y );
-    vec3 shade = mix( horizon * 0.82, vec3( 0.86, 0.9, 0.94 ), smoothstep( 0.25, 0.8, field ) );
+    vec3 shade = mix( horizon * 0.82, uCloudLight, smoothstep( 0.25, 0.8, field ) );
     vec3 litCloud = shade + uSunColorSky * ( 0.025 + 0.04 * pow( sd, 8.0 ) ) * ( 0.75 + fine * 0.25 );
+    // City glow on the undersides: strongest low in the sky, over the lit city.
+    litCloud += uCloudGlow * ( 1.0 - smoothstep( 0.15, 0.7, y ) ) * ( 0.6 + 0.4 * ( 1.0 - field ) );
     sky = mix( sky, litCloud, cloud );
   }
   return sky;
@@ -311,6 +330,8 @@ export function applySkyPreset(p: LightingPreset): void {
   skyUniforms.uStars.value = p.stars;
   skyUniforms.uCloudCoverage.value = p.cloudCoverage ?? 0;
   skyUniforms.uCloudOpacity.value = p.cloudOpacity ?? 0;
+  skyUniforms.uCloudLight.value.setRGB(0.86, 0.9, 0.94).multiplyScalar(p.cloudLight ?? 1);
+  skyUniforms.uCloudGlow.value.setRGB(1, 0.62, 0.38).multiplyScalar(p.cloudGlow ?? 0);
   const f = skyUniforms.uFogDisplay.value;
   f.set(((p.fogColor >> 16) & 255) / 255, ((p.fogColor >> 8) & 255) / 255, (p.fogColor & 255) / 255);
   const sd = skyUniforms.uSunDirSky.value;
