@@ -46,6 +46,25 @@ function skin(root: THREE.Object3D): THREE.SkinnedMesh {
   expect(found, "actual GLB must contain skinned geometry").toBeDefined();
   return found!;
 }
+function shoeSoles(root: THREE.Object3D): number[] {
+  const soles: number[] = [];
+  root.traverse(object => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    const indices = mesh.geometry.getAttribute("skinIndex");
+    const weights = mesh.geometry.getAttribute("skinWeight");
+    const feet = new Set(mesh.skeleton.bones.map((bone, i) => /_Foot$|_Toe/.test(bone.name) ? i : -1));
+    const point = new THREE.Vector3();
+    for (let i = 0; i < mesh.geometry.getAttribute("position").count; i++) {
+      let footWeight = 0;
+      for (let k = 0; k < 4; k++) if (feet.has(indices.getComponent(i,k))) footWeight += weights.getComponent(i,k);
+      if (footWeight < 0.5) continue;
+      mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
+      soles.push(point.y);
+    }
+  });
+  return soles;
+}
 function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });
@@ -114,34 +133,36 @@ describe("generic online player avatar", () => {
   it("keeps shoe soles on the model ground plane through idle, walking, jogging and sprinting", async () => {
     const humans = await PlayerBodies.load(importedBytes, false);
     disposables.push(humans);
-    for (const speed of [0, 1.39, 3, 7]) {
-      for (let frame = 0; frame < 4; frame++) {
+    for (const [speed, duration] of [[0, 9.933], [1.39, 1.033], [3, 2.567], [7, 0.7]] as const) {
+      for (let frame = 0; frame < Math.ceil((duration + 0.3) * 30); frame++) {
         humans.begin();
-        humans.add("p1", 0, 0, 0, 0, speed, 0.25);
+        humans.add("p1", 0, 0, 0, 0, speed, 1 / 30);
         humans.end();
+        if (frame < 9) continue; // Settled clips; the separate test covers the blend.
         const root = body(humans.group, "p1");
         root.updateMatrixWorld(true);
-        const soles: number[] = [];
-        root.traverse(object => {
-          const mesh = object as THREE.SkinnedMesh;
-          if (!mesh.isSkinnedMesh) return;
-          const indices = mesh.geometry.getAttribute("skinIndex");
-          const weights = mesh.geometry.getAttribute("skinWeight");
-          const feet = new Set(mesh.skeleton.bones.map((bone, i) => /_Foot$|_Toe/.test(bone.name) ? i : -1));
-          const point = new THREE.Vector3();
-          for (let i = 0; i < mesh.geometry.getAttribute("position").count; i++) {
-            let footWeight = 0;
-            for (let k = 0; k < 4; k++) if (feet.has(indices.getComponent(i,k))) footWeight += weights.getComponent(i,k);
-            if (footWeight < 0.5) continue;
-            mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
-            soles.push(point.y);
-          }
-        });
+        const soles = shoeSoles(root);
         expect(soles.length).toBeGreaterThan(50);
         expect(Math.min(...soles)).toBeGreaterThan(-0.06);
         expect(Math.min(...soles)).toBeLessThan(0.12);
         expect(Math.max(...soles)).toBeGreaterThan(0.02);
       }
+    }
+  });
+
+  it.each([30, 60])("keeps shoes above the ground tolerance during idle-to-jog blending at %i Hz", async hz => {
+    const humans = await PlayerBodies.load(importedBytes, false);
+    disposables.push(humans);
+    humans.begin(); humans.add("p1", 0, 0, 0, 0, 0, 0); humans.end();
+    for (let frame = 0; frame < Math.ceil(0.4 * hz); frame++) {
+      humans.begin(); humans.add("p1", 0, 0, 0, 0, 3, 1 / hz); humans.end();
+      const root = body(humans.group, "p1");
+      root.updateMatrixWorld(true);
+      const soles = shoeSoles(root);
+      expect(soles.length).toBeGreaterThan(50);
+      expect(Math.min(...soles), `frame ${frame + 1} at ${hz} Hz`).toBeGreaterThan(-0.06);
+      expect(Math.min(...soles)).toBeLessThan(0.12);
+      expect(root.position.toArray()).toEqual([0, 0, 0]);
     }
   });
 

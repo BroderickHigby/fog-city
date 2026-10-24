@@ -201,7 +201,8 @@ export class PlayerBodies {
       const to = body.actions[wanted];
       if (to) {
         to.reset().play();
-        if (from) to.crossFadeFrom(from, 0.25, false);
+        // Enter the imported jog promptly: a longer idle blend folds the shoes into the ground.
+        if (from) to.crossFadeFrom(from, body.actions.jog && wanted === "jog" ? 0.1 : 0.25, false);
         body.current = wanted;
       }
     }
