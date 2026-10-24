@@ -217,17 +217,31 @@ describe("protected targets and wrong-target consequences", () => {
   it("requires three impacts within two seconds and penalizes once per wet episode", () => {
     const s = state();
     const adult = actor({ kind: "person", firmware: "none", model: undefined, posture: "standing" });
+    // Each impact here is its own shot: a particle born on the tick it was fired.
     applyWaterHit(s, adult, water());
-    s.tick = 60; applyWaterHit(s, adult, water());
+    s.tick = 60; applyWaterHit(s, adult, water({ bornTick: 60 }));
     expect(s.events).toEqual([]);
-    s.tick = 120; applyWaterHit(s, adult, water());
+    s.tick = 120; applyWaterHit(s, adult, water({ bornTick: 120 }));
     expect(s.targets.bot!.wetUntil).toBe(120 + EFFECTS.wetDuration);
     expect(s.events.filter(event => event.kind === "economy.penalty")).toMatchObject([{ amount: 20, detail: "reputation:-3" }]);
-    for (let n = 0; n < 100; n++) applyWaterHit(s, adult, water());
+    for (let n = 0; n < 100; n++) applyWaterHit(s, adult, water({ bornTick: 120 - n }));
     expect(s.events.filter(event => event.kind === "person.wet")).toHaveLength(1);
     s.tick = 120 + EFFECTS.wetDuration;
-    for (let n = 0; n < 3; n++) applyWaterHit(s, adult, water());
+    for (let n = 0; n < 3; n++) applyWaterHit(s, adult, water({ bornTick: s.tick - 6 * n }));
     expect(s.events.filter(event => event.kind === "person.wet")).toHaveLength(2);
+  });
+
+  it("counts a multi-pellet shot once: one Wide Boost trigger never wets a bystander (pr-14 review)", () => {
+    const s = state();
+    const adult = actor({ kind: "person", firmware: "none", model: undefined, posture: "standing" });
+    s.tick = 10;
+    for (let pellet = 0; pellet < 3; pellet++) applyWaterHit(s, adult, water({ id: pellet + 1, bornTick: 9 }));
+    expect(s.events).toEqual([]);
+    expect(s.targets.bot!.wetHits).toEqual([9]);
+    s.tick = 20; for (let pellet = 0; pellet < 3; pellet++) applyWaterHit(s, adult, water({ id: pellet + 4, bornTick: 19 }));
+    expect(s.events).toEqual([]);
+    s.tick = 30; applyWaterHit(s, adult, water({ id: 7, bornTick: 29 }));
+    expect(s.events.filter(event => event.kind === "person.wet")).toHaveLength(1);
   });
 
   it("does not accumulate impacts outside the rolling time span or from vehicles", () => {
