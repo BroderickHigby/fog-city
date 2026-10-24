@@ -109,10 +109,10 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     const nextInteraction=next.interaction?.id??"";
     if(nextInteraction!==interactionId){interactionId=nextInteraction;if(next.interaction)setModal("interaction");else if(modal==="interaction")setModal(undefined);}
     stats.get("runway")!.textContent=`${bounded(next.runwayMonths,0,999).toFixed(1)} mo`;
-    stats.get("cash")!.textContent=formatMoney(next.cashCents);stats.get("water")!.textContent=`${bounded(next.waterLitres,0,9999).toFixed(1)} / ${bounded(next.capacityLitres,0,9999).toFixed(0)} L`;
+    stats.get("cash")!.textContent=formatMoney(next.cashCents);stats.get("water")!.textContent="∞";
     stats.get("water")!.parentElement!.querySelector("small")!.textContent=copy(next.salt?"ui.hud.salt":"ui.hud.water");
     stats.get("water")!.parentElement!.dataset.alert=String(next.salt);stats.get("water")!.parentElement!.title=copy(next.salt?"ui.hud.salt":"ui.hud.fresh");
-    stats.get("water")!.parentElement!.querySelector("progress")!.value=next.capacityLitres>0?bounded(next.waterLitres/next.capacityLitres,0,1):0;
+    stats.get("water")!.parentElement!.querySelector("progress")!.value=1;
     stats.get("threat")!.textContent=String(Math.round(bounded(next.threat,0,100)));stats.get("reputation")!.textContent=String(Math.round(bounded(next.reputation,-999,999)));
     objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveDetail.textContent=next.objective?.detail??next.interaction?.detail??"";
     speed.textContent=`${Math.round(bounded(next.speedMps,0,200)*3.6)} km/h`;drawMap(canvas,next);

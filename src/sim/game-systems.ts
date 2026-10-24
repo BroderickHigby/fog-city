@@ -29,7 +29,7 @@ export interface GameSystemsOptions {
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v12.json pins this path.
+ * tests/golden/composed-v13.json pins this path.
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;

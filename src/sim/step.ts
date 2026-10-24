@@ -138,7 +138,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    Every saved field is kept; ext.fog, when absent, is created by the fog reducer.
  *  - v10 -> v11: faster on-foot pace and Action.sprint change behaviour only; every field is kept.
  *  - v11 -> v12: robotaxi rides. PlayerState.ride is optional (absent = not riding); every field is kept.
- *  - v12 -> v13: optional traffic pass and walker detour state; every saved field is kept.
+ *  - v12 -> v13: unlimited water and optional traffic pass/walker detour state; every saved field is kept.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;

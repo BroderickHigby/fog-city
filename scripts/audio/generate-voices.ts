@@ -1,6 +1,7 @@
 // node scripts/audio/generate-voices.ts [--generate] [--dry-run]
 //
-// Mission voices: writes public/audio/voice/manifest.json (every mission line with its id,
+// Mission voices: writes public/audio/voice/manifest.json (every mission line, and every line of
+// the player's inner voice (src/audio/inner-voice.ts), with its id,
 // speaker, text, subtitle cues and file) and, with --generate, synthesises missing lines with
 // ElevenLabs. Build-time only: the API key never reaches the page, dist/ or a log.
 //
@@ -20,8 +21,9 @@
 //
 // --dry-run with --generate: checks the account and prints the plan without generating.
 //
-// Needs ELEVENLABS_API_KEY in the environment (the owner's Doppler project). ffmpeg with
-// libopus. Never prints, logs or writes the key.
+// Needs an ElevenLabs key in the environment: FOGCITY_ELEVENLABS_API_KEY first (a key set just
+// for the game, e.g. from the owner's daringly.env.local), else ELEVENLABS_API_KEY (the owner's
+// Doppler project). ffmpeg with libopus. Never prints, logs or writes the key.
 
 import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -29,6 +31,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MISSIONS } from "../../src/content/catalog.ts";
+import { innerVoiceLines } from "../../src/audio/inner-voice.ts";
 import {
   estimateDurationS, missionVoiceLines, subtitleCues, voiceHashInput,
   type SpeakerVoice, type VoiceLine, type VoiceManifest, type VoiceManifestLine, type VoiceSettings,
@@ -76,7 +79,12 @@ export const lineHash = (line: Pick<VoiceLine, "text">, voiceId: string, setting
 export const fileFor = (hash: string): string => `audio/voice/${hash.slice(0, 20)}.ogg`;
 
 /** Lines in order, each with the hash and file it would have; silent speakers have no hash. */
-export function plan(casting: Casting, lines: readonly VoiceLine[] = missionVoiceLines(MISSIONS)): Array<{ line: VoiceLine; hash: string; file: string | null; voice: SpeakerVoice }> {
+/** Every line the game can speak: the mission lines, then the player's inner voice. */
+export function allVoiceLines(): VoiceLine[] {
+  return [...missionVoiceLines(MISSIONS), ...innerVoiceLines(MISSIONS)];
+}
+
+export function plan(casting: Casting, lines: readonly VoiceLine[] = allVoiceLines()): Array<{ line: VoiceLine; hash: string; file: string | null; voice: SpeakerVoice }> {
   return lines.map((line) => {
     const voice = casting.speakers[line.speaker];
     if (!voice) throw new Error(`${line.id}: speaker "${line.speaker}" has no casting in assets/audio/voices.json`);
@@ -112,18 +120,32 @@ export function buildManifest(casting: Casting, root = ROOT): VoiceManifest {
   };
 }
 
+/** The variables a key is read from, first set wins. */
+export const KEY_VARIABLES: readonly string[] = ["FOGCITY_ELEVENLABS_API_KEY", "ELEVENLABS_API_KEY"];
+
+/** The key and the variable it came from; null when none is set. */
+export function keySource(env: NodeJS.ProcessEnv = process.env): { variable: string; key: string } | null {
+  for (const variable of KEY_VARIABLES) {
+    const key = env[variable];
+    if (key) return { variable, key };
+  }
+  return null;
+}
+
 /** Removes anything that looks like an ElevenLabs key from text bound for a log or an error. */
 export function redact(text: string): string {
-  const key = process.env.ELEVENLABS_API_KEY;
   let out = text.replace(/sk_[A-Za-z0-9]{8,}/g, "[redacted]");
-  if (key) out = out.split(key).join("[redacted]");
+  for (const variable of KEY_VARIABLES) {
+    const key = process.env[variable];
+    if (key) out = out.split(key).join("[redacted]");
+  }
   return out;
 }
 
 function apiKey(): string {
-  const key = process.env.ELEVENLABS_API_KEY;
-  if (!key) throw new Error("ELEVENLABS_API_KEY is not set (the owner's Doppler project provides it)");
-  return key;
+  const source = keySource();
+  if (!source) throw new Error(`no ElevenLabs key: set ${KEY_VARIABLES.join(" or ")}`);
+  return source.key;
 }
 
 async function api(path: string, init: RequestInit = {}): Promise<Response> {
@@ -165,6 +187,7 @@ export async function main(argv: readonly string[]): Promise<void> {
   mkdirSync(VOICE_DIR, { recursive: true });
   if (argv.includes("--generate")) {
     const sub = await subscription();
+    console.log(`Key from ${keySource()!.variable} (value not shown)`);
     console.log(`ElevenLabs account: tier ${sub.tier}, ${sub.characterCount} of ${sub.characterLimit} characters used`);
     const commercial = commercialTier(sub.tier);
     casting.account = { ...casting.account, checked: new Date().toISOString().slice(0, 10), tier: sub.tier, characterCount: sub.characterCount, characterLimit: sub.characterLimit, commercialUse: commercial };

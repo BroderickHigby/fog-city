@@ -1,0 +1,511 @@
+{
+  "repository": "https://github.com/microsoft/Microsoft-Rocketbox",
+  "commit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
+  "files": [
+    {
+      "path": "Assets/Animations/all_animations_max_motextr_static/f_idle_neutral_01.max.fbx",
+      "bytes": 2959360,
+      "sha256": "fd68b33ea9e290dc734ca8c3a71ef5842bb2dfe719853ff84f6336d06d39fdcb"
+    },
+    {
+      "path": "Assets/Animations/all_animations_max_motextr_static/m_idle_neutral_01.max.fbx",
+      "bytes": 2418544,
+      "sha256": "818cc185af21390575f7fbfdeb3012ba2ce5969fbcb220ea725a2617b339a6e2"
+    },
+    {
+      "path": "Assets/Animations/all_animations_max_motextr_xy/f_run_neutral.max.fbx",
+      "bytes": 895504,
+      "sha256": "3665a15cc1fea263ffb642b22e0a12c7d3bc771fead869f8fec3959fbd584eeb"
+    },
+    {
+      "path": "Assets/Animations/all_animations_max_motextr_xy/f_walk_neutral.max.fbx",
+      "bytes": 1002832,
+      "sha256": "e210c9e34949a4eacad0a85021d4d1a59aab177ca1737e6038309896147ebae2"
+    },
+    {
+      "path": "Assets/Animations/all_animations_max_motextr_xy/m_run_neutral.max.fbx",
+      "bytes": 877760,
+      "sha256": "2f5647b86022ddbb702819ce939c7012e3636796fff93d1b979ea716a71dff5f"
+    },
+    {
+      "path": "Assets/Animations/all_animations_max_motextr_xy/m_walk_neutral.max.fbx",
+      "bytes": 958512,
+      "sha256": "93089851a370e3a117a6bd04c002815f7133fce41c6271e9eb448ca1228b154f"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Export/Female_Adult_01.fbx",
+      "bytes": 609152,
+      "sha256": "8cbaf86576004b96469bc80df123b97fef788f4a7bb3f3eaa616fcfaf55698a3"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "c038b01c5d05831c3f4e8c6daa18394e8a4851372acd3fcbdf30e7ee53c56cae"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "86b9b5a5aa73bd97244b35f97f3799c31b3db70426d7d607cbdc2dd271ace346"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "9b813e68b243074f74c4bbfb26d41cce2a70361efa09fcabe1962b4267bedb90"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "0d3153c59c54908d5f5194ffe3a7d882351f0dd74f9ef44ab3a2f164a3bf9d8e"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "522f3372283ea4161ed56d85471be15e02628df73a966447e4456bc169d310b2"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "302c56927d1d032084fb4faca784591dd8ab42e8bafb1029db157f73608eb251"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_01/Textures/f001_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "12c9c366814e665687fe64056421213686b50a972a5ad47295f247d6a8ff7369"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Export/Female_Adult_03.fbx",
+      "bytes": 791312,
+      "sha256": "d8930ca41e72166310622c9ffacd752d93459518ca5e59c84a32b07a10acaebd"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "fc22fd6bd6686d5638bab7d24cdb435d180e6065325796b41b1966f047843e2c"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "32dcbdb41b263b0286313bb1ff3bce05dd45e177080aefe4da9f42aa64af4993"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "e00d7111fe7cad599a511c85335c4070a3a0e381b70b4cec3a2d72af3c772cf6"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "4c45609d3385a5358378424f72615637e061ff56c66343a71045adc04b7a27df"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "8b42537bb2d57cb5255b71072a424a0385e5c799af0e0fcfb5d8adefd7290aeb"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "cbf4fc752c09c94f326ac3611441c9b686d9028411b83e35577d348982bc44d2"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_03/Textures/f003_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "31c5ae34c355c71aef8ec8c67ece37009f385a1081db378df5e7987158aec523"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Export/Female_Adult_05.fbx",
+      "bytes": 594160,
+      "sha256": "fffbb46af5f0f0323abad47f04f6067ec6f8757a345d5e53804601bbb77feca4"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "e15c1c5c0a7fca62be865c426c69ecad703da904d2456d040bbba73cedae8e81"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "ec9178c102448266f0c910a5ba9b0e87ee4d57c8d3428a6db5cdb4e28e5d15c2"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "c3787081a845994f8852e83a8b4e6ec71a9b96c811f08466c52293f806999aba"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "4e3be559aab4a52d5b55c65447daa8922e633cac049361386a185753d072f1e6"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "9a700fa27b8d840c22b42534a34e69e47d919524885e589dba2394e055ae2c25"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "3bb55a2332d762e319620e30b4c53c98c5b6e1dd284c69335009ba8c2707d8b6"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_05/Textures/f005_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "8573246d70931d4a2b0fc330024c2b3df4f450de368b4eedd21bb3276855d456"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Export/Female_Adult_07.fbx",
+      "bytes": 591744,
+      "sha256": "faaa677ad270784b87538d16839c179b0930a121fa0bb3fed8f3ed189b33a98a"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "9a2e740bce46ff2e00c8a24074ee28a1d63198024d03718d5fde6cbfe7ef0fd3"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "21a439db76068e88e9bec36cc32c678e339c13d23f897eb197711381daf272a9"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "694409439c8ee5c35052b7eacff2f3640e1b29da96819616869308ea4452497f"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "65e399a091d27b2e66f202ba3628c270f513f80a1ea5776771f5e9239ddeed15"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "0e9ca730fe44b83bf5024673d8973ef5c0a04cc6817af42a27b4471c5bc3d5e5"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "d3f1ac4e0f26218e9a07eea3345c5b8b2d24b24a1daa06b9fcb45009ba0d9dd0"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_07/Textures/f007_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "c7c59dfb5f79160ac7cb88091b7c3e9148f9868008915f35ebfe29dc34e917c1"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Export/Female_Adult_09.fbx",
+      "bytes": 611632,
+      "sha256": "a578ec65cabf169d7b13c0bb0a6c472e898857e81f6207b2af7f846d8b0d8523"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "7e2a7688798489cb2a124947c581c1f5c0cd62b36303d5cee1d9b0baf320724b"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "90e9d6392791536cb461ec213a92a5462c1d5dbe4c9c750a4518e9813f2ba6c6"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "999f11385bfcd9a35dc864669066f72686b54124d3b1b8855557ab2a00662b15"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "b311e6f30a9b587d62e4fd301354b24ea7f58a6cdf2c39abb73d46d9d40e799a"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "e64c9aecd08b5e872d06ed830e17dfa83d2095702ccb5cdab6870e82bfdaabb7"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "6ade18e411a0b216966c25418a0c440ca73eea90da2e4e83bfcce2d2ea5c8385"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_09/Textures/f009_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "868688524e4427758e716da5cc9bc3a6c6b35cf640e4fbe81c99618a750babf4"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Export/Female_Adult_11.fbx",
+      "bytes": 612192,
+      "sha256": "713d79f1bf21e20e9c1e9ec4ed4d421c84c0466dfdeebf59d47af81b71b8ca88"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "e9797c77c32009ba0485aa351876063daa0e88250fba4884377faf8cea1d5eb6"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "f767de8eca7b7e0b25cd8d5869398678e4fd2cef9cd764267ec631221922d3e4"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "a26ccfbfc43e237f8d2c1dabaf8da033f533d6a14d5ebca004a212f0a5623ce3"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "f2439ebb800708c467f3cf0147568d3e9c3c61ac76977363fc992d16e8b38efe"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "3271569db6b47df4d388d92cd622ab194a84f222109b4910e5376c72b12d328a"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "31ec6dba7675e53f03e3e2258ad4878ef01d4cff118b8339de7d8d54ef9aa747"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Female_Adult_11/Textures/f011_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "07d5e246c49b95a15c336e4135d1d9a5cebfe2e3cb68b6041346ddf8c61b12f0"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Export/Male_Adult_02.fbx",
+      "bytes": 539920,
+      "sha256": "1c65e292e9057a23f7f70969f6971c631c1316fcaaf93e575a4557201c835018"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "52ef8bad71600de972eabeab2845019cf8ce6e274f11b9c7fbd315566c51e232"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "531408d53eb369c8b546af69dac123ac8fb88e3238abb8e4cd7dd923580275eb"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "cba40ba56cb546ad28db07098583ed455b105d42c28b49db457880c90ef8b871"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "f7d7d06bc9e3bee73bb037a0c55ca2915593fa5ef7b08da3f6a59409ed5cfc8f"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "92c0dc60b1df8eec91a7528a5bde296ccc8f278c8c92945620c6d87435d67764"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "57456d659b7d8caf79bcbdf49389fc2699d514eb72b73c7beddbba4635537f19"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_02/Textures/m003_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "2c0751e05d78587d3898ce60bbea8b3f23e78150b7e497b7e97fe8c66e91ee1e"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Export/Male_Adult_04.fbx",
+      "bytes": 571296,
+      "sha256": "fe0d026bc59e7d7ea8f4049edf77ee8040e050224b44a10fb4727b9b3d6efba0"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "8dd7a0a1de383bd295f9f6f42b4ab484b2afa4ab920521a161bd18b18c3aae0f"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "1d5062e2c5012bca62c2090cf064c8e2d335daafb0ab62b431e47c628ad781a7"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "f3b693a9e7a6090f01a6e6f199eb9d53ba0b3f236ca596074fcb915d5bcfbc1f"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "e889edd96192a396efec0bf0baed370fdff4a8d3b2efdc3809722eb19cd21941"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "ca51b8fd271751dd5b58493038c0ac4496c3c51a986d69541723a680ccbcf91b"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "dd4ca495955bab36c599030b880f78e8bb6f20d4112353298cdd8800d15a50ff"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_04/Textures/m006_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "3c5656dbad4872676c9469f6da09690c0e891148394165dda11b265cb2b014c0"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Export/Male_Adult_06.fbx",
+      "bytes": 548576,
+      "sha256": "537284add0fb8bd3bf9dd9459cba2c6d4d34de50b86dfdfef09c2c57cbf1a878"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "f92110adc6f33c8802652e4c2f5282226e3fbee672f510b3fb765a1599dd3f91"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "7416e297789e42ce3f23af46a3dea9d372046034e2b18c0bf4a3b18569a97c72"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "ea260e6d6464b5deac4ab187e046472fd0ef27141b56eccec861bbc3d454fde7"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "b3f7731c506ae105bead54cb558c366ed9e72463565f78727365e52a90b841c5"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "1710343a59dfb60f8369772aebfafbb3c507f2b1f62f4341effe7ed07ee431b9"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "75ff79448342413273d4ce225887fa46d98671bb0a97460134a1c2971b4e2719"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_06/Textures/m011_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "7cb2146e511c1bd207f5e7f061c8b66915db1bbc15c3748c6d98469630fd346d"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Export/Male_Adult_08.fbx",
+      "bytes": 508784,
+      "sha256": "e0d979315a5f11050945522f9f084932807af2edeefbdb380a2c9aa36c9f9bb3"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "9b6cef05b86497ffca6f131842950341302fa170e5ce3de1c2446501be774b91"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "e77af685914352cf75755d45254cdab57d3af3c6fa848a1f2f871250eb87d3ab"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "16afa1e387ff944626e2399d00de4fb0428ed25d01a1b1288723b41fe807a8d2"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "5d3723b8d6f6175b26adb1f2d46ade55b19630c2cee1bd2e43dbd293c6fa7d38"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "0a43fbc692b1cf9237f21c869eb2192e16057aa62e34117e569f9b0c0a2b9796"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "74506bb81943954c6923108a80c82bd647de5bbb3c834d14847471e9b5e89afa"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_08/Textures/m014_opacity_color.tga",
+      "bytes": 16777260,
+      "sha256": "282684b09dd7e3b7b521387240855773f419a90c67ba58ff9ad478a7ec01cc93"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Export/Male_Adult_10.fbx",
+      "bytes": 541104,
+      "sha256": "6a7a693d9a7ea6c866037f0cc8e45c5243bbcff008665b2ae505f72a6648ae00"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "5424cf19d81306897f005a94e104cfff08dd0d75cba57734cc056baab85e12cb"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "7a9e4d43aa92d9eaf9d85d81a6554dea6ade8196f7416b325bf8107da45ccb66"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "afb52fb44863182a26362309a867f22003401c28f21f6b88085f4af9442080cf"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "60e12ea8f638ddeb99f315a805b907c7ddbb5ea048234b0b1e58c5bfb8bc1dd3"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "42a8eeecd5c552b1052e5a9d2f4ced23b67fa78df4c6854ad95f21cb5e490393"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "0160159b16d6a5b565b1d8155f4f8614d7202c1c8e6e10ba21360cb60c81f82b"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_10/Textures/m024_opacity_color.tga",
+      "bytes": 4194348,
+      "sha256": "801be5b63549f6ca46c405a4d86c723735a7c4edcbb042c453bdb6fed31bfbdb"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Export/Male_Adult_12.fbx",
+      "bytes": 487776,
+      "sha256": "b44fa6011b934abd69954fd6c5025c1e2011e05c7892acb6bbc2e9cf70a84014"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_body_color.tga",
+      "bytes": 12582956,
+      "sha256": "9e5951e67e90ade61f33c51c9673aa1b974358dac12dc0a9abdd4b281cda6b61"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_body_normal.tga",
+      "bytes": 12582956,
+      "sha256": "284dbc5116370225af96d98bfc1c3dc77a6c695c53558f32445e8d5af4d6ae1d"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_body_specular.tga",
+      "bytes": 12582956,
+      "sha256": "2e9b4ada013a7fbc334cb69c44ad2a2cbc93c0e384c49961e2e10af36072f31f"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_head_color.tga",
+      "bytes": 12582956,
+      "sha256": "164007a5ca94b3f84b04ab77a3a7bc49f65f12af4153781dcbf429589750f7c1"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_head_normal.tga",
+      "bytes": 12582956,
+      "sha256": "11fa11d7ae8476674b89486045cf05b49a5607d0899dc30672c2e9634d8569a4"
+    },
+    {
+      "path": "Assets/Avatars/Adults/Male_Adult_12/Textures/m007_head_specular.tga",
+      "bytes": 12582956,
+      "sha256": "4482dd31552e5b6030389b51e5f443ed7f458433eeb3aa77b71c57e618cccd48"
+    }
+  ]
+}

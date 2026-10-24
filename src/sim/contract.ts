@@ -33,6 +33,9 @@
 // v13 (city life): robotaxis pass a stopped vehicle (optional AgentState.pass) and walkers
 // detour round it (optional RuntimeActor.detour); an upgraded v12 save keeps every field.
 // This is the combined release stamp shared with unlimited-water integration.
+// v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
+// reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
+// a v12 save keeps its saved water value, which no longer limits the stream.
 export const SIM_VERSION = 13;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;

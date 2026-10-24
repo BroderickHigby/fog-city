@@ -70,7 +70,8 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   expect(Math.hypot(body.x - vendor.x, body.z - vendor.z)).toBeLessThanOrEqual(18);
   expect(Math.abs(body.speed)).toBeLessThan(.3);
   await page.getByRole("button", { name: "Counter", exact: true }).click();
-  const tank = page.locator("article").filter({ has: page.getByRole("heading", { name: "Tank I", exact: true }) });
+  // tank-1 is sold as Pressure I since water became unlimited (2026-10-23): +2 m of reach.
+  const tank = page.locator("article").filter({ has: page.getByRole("heading", { name: "Pressure I", exact: true }) });
   await expect(tank.getByRole("button", { name: "Buy", exact: true })).toBeEnabled();
   const beforeBuy = await simState(page);
   await tank.getByRole("button", { name: "Buy", exact: true }).click();
@@ -87,7 +88,9 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   expect(restored.ext.economy!.players.p1!.cashCents).toBe(bought.ext.economy!.players.p1!.cashCents);
   expect(restored.ext.economy!.players.p1!.ownedItemIds).toContain("tank-1");
   await expect(tank.getByRole("button", { name: "Owned", exact: true })).toBeDisabled();
-  await expect(page.locator(".fc-cluster")).toContainText("/ 12 L");
+  await expect(page.locator(".fc-cluster")).toContainText("∞");
+  // The upgrade took effect in the loadout (it now adds reach rather than litres).
+  await page.waitForFunction(() => (window as unknown as FogWindow).__fogcity!.state().ext.progression?.players.p1?.tankTier === 1);
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
   const beforeCone = await simState(page);

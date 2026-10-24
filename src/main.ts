@@ -39,8 +39,9 @@ import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
+import { SprayTracker } from "./render/held-blaster.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
-import { HornVoice, hornBlasts } from "./audio/horn.ts";
+import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
 import { contentHash } from "./content/barks.ts";
@@ -258,8 +259,8 @@ async function boot(): Promise<void> {
   const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";acc=0;last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
-  const horn=new HornVoice();
-  const unlockAudio=()=>{audio.unlock();horn.unlock();};window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
+  const sprayTracker=new SprayTracker();
+  const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
   const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
@@ -274,7 +275,7 @@ async function boot(): Promise<void> {
     curr = step(world, curr, frame, [...events,...pending],systems);
     // Every horn in the stepped frame sounds (keys, pad and touch all set Action.horn).
     const me = curr.players[LOCAL_PLAYER];
-    if (me) for (const blast of hornBlasts(frame, curr)) horn.play(blast, activeBody(me));
+    if (me) for (const blast of hornBlasts(frame, curr)) audio.playHorn(blast);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -502,8 +503,11 @@ async function boot(): Promise<void> {
         }
       }
     }
+    // The blaster and its stream follow the displayed city or online match.
+    const sprays = sprayTracker.update(shown.ext.combat?.projectiles);
+    for (const id of ids) view.setSpray(id, sprays.get(id) ?? null);
     view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
-    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha);
+    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out));
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     const minute = gameMinuteOfDay(shown, clockStart);
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
