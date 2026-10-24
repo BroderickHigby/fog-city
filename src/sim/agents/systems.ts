@@ -35,6 +35,14 @@ function retirePreviousAttempts(state:SimState):SimState {
       }
     }
   }
+  // Side-activity actors (Plain Words spinners) live exactly as long as the run that staged them.
+  for(const playerId of Object.keys(state.ext.activities?.players??{}).sort()){
+    const run=(state.ext.activities!.players[playerId] as {plainWords?:{spinnerIds:string[]}}).plainWords,prefix=`mission:plain-words:${playerId}:`;
+    for(const id of Object.keys(runtime.actors).sort()){
+      const actor=(actors??runtime.actors)[id]!;
+      if(!actor.retired&&id.startsWith(prefix)&&!run?.spinnerIds.includes(id)){actors??={...runtime.actors};actors[id]={...actor,retired:true};}
+    }
+  }
   return actors?withRuntime(state,{...runtime,actors}):state;
 }
 
@@ -57,8 +65,8 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
     const bindings={...(agentsRuntimeOf(state)?.missionBindings??{})};
     const pending=pendingMissionStages(state,agentsRuntimeOf(state)?.missionStages);
     if(allocate){
-      const source=(state.ext.missions as unknown as {events?:unknown}|undefined)?.events;
-      const events=Array.isArray(source)?source:[];
+      const source=(state.ext.missions as unknown as {events?:unknown}|undefined)?.events,side=(state.ext.activities as unknown as {events?:unknown}|undefined)?.events;
+      const events=[...Array.isArray(source)?source:[],...Array.isArray(side)?side:[]];
       for(const raw of events){
         if(!raw||typeof raw!=="object")continue;
         const event=raw as {kind?:unknown;targetId?:unknown;detail?:unknown};

@@ -77,22 +77,22 @@
         {
           "id": "south",
           "label": "Columbus Ave at Broadway",
-          "lat": 37.7982,
-          "lon": -122.4075,
+          "lat": 37.79786,
+          "lon": -122.40667,
           "radiusM": 12
         },
         {
           "id": "square",
-          "label": "Washington Square",
-          "lat": 37.8008,
-          "lon": -122.4103,
+          "label": "Columbus Ave at Union St, Washington Square",
+          "lat": 37.80032,
+          "lon": -122.41021,
           "radiusM": 12
         },
         {
           "id": "north",
           "label": "Columbus Ave at Bay St",
-          "lat": 37.8051,
-          "lon": -122.4153,
+          "lat": 37.80517,
+          "lon": -122.41723,
           "radiusM": 12
         }
       ]
@@ -548,9 +548,132 @@
       "made by humans"
     ],
     "advanceEvery": 4,
-    "southLat": 37.7982,
-    "northLat": 37.8051,
-    "corridor": "Columbus Ave north of Broadway; never Stockton or Grant."
+    "southLat": 37.79786,
+    "northLat": 37.80517,
+    "corridor": "Columbus Ave north of Broadway; never Stockton or Grant.",
+    "boards": [
+      {
+        "id": "board-01",
+        "lat": 37.798135,
+        "lon": -122.406882,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-02",
+        "lat": 37.798835,
+        "lon": -122.407892,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-03",
+        "lat": 37.799179,
+        "lon": -122.40839,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-04",
+        "lat": 37.79982,
+        "lon": -122.409315,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-05",
+        "lat": 37.800224,
+        "lon": -122.409898,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-06",
+        "lat": 37.800805,
+        "lon": -122.410738,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-07",
+        "lat": 37.801386,
+        "lon": -122.411578,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-08",
+        "lat": 37.801849,
+        "lon": -122.412247,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-09",
+        "lat": 37.80237,
+        "lon": -122.413002,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-10",
+        "lat": 37.802232,
+        "lon": -122.413154,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-11",
+        "lat": 37.802951,
+        "lon": -122.413843,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-12",
+        "lat": 37.802812,
+        "lon": -122.413995,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-13",
+        "lat": 37.803413,
+        "lon": -122.414513,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-14",
+        "lat": 37.803277,
+        "lon": -122.414662,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-15",
+        "lat": 37.803935,
+        "lon": -122.415267,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-16",
+        "lat": 37.803796,
+        "lon": -122.415419,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-17",
+        "lat": 37.804457,
+        "lon": -122.416021,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-18",
+        "lat": 37.804262,
+        "lon": -122.416085,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-19",
+        "lat": 37.80492,
+        "lon": -122.41669,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-20",
+        "lat": 37.804841,
+        "lon": -122.416928,
+        "headingDeg": 41
+      }
+    ],
+    "boardSource": "Generated from the road graph: Columbus Ave centre lines between the Broadway (n25321000) and Bay St (n25533000) junctions, fourteen stations at equal spacing (moved up to 20 m to clear junctions), a board on each sidewalk 0.8-2.4 m beyond the kerb where the ground is open, outside DataSF's Chinatown neighbourhood and at least 15 m from Grant Ave and Stockton St, until there are twenty; headings face the street."
   },
   "benchCards": [
     {

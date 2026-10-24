@@ -1,6 +1,6 @@
 import { Action } from "../contract.ts";
 import { dcos,dsin } from "../dmath.ts";
-import { segmentBlocked } from "../world.ts";
+import { groundHeight,segmentBlocked } from "../world.ts";
 import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
 import type { SimSystem,SimSystemContext } from "../system-contract.ts";
 import type { ExtensionKey } from "../extensions.ts";
@@ -42,7 +42,10 @@ export const defaultGameplayProvider:GameplayProvider=context=>{
  const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=player.mode==="foot"&&player.foot?player.foot:player.car;return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
  const clock=context.state.ext.clock as {day?:number;month?:number}|undefined;
- return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
+ // Each of a player's stream particles from last tick to this one, for things water washes that are not actors.
+ const shots=new Map((context.previous.ext.combat?.projectiles??[]).map(shot=>[shot.id,shot]));
+ const waterTraces=(context.state.ext.combat?.projectiles??[]).filter(shot=>shot.kind==="water"&&shots.has(shot.id)).map(shot=>{const from=shots.get(shot.id)!;return {playerId:shot.ownerId,ax:from.x,az:from.z,ah:from.y-groundHeight(context.world,from.x,from.z),bx:shot.x,bz:shot.z,bh:shot.y-groundHeight(context.world,shot.x,shot.z)};});
+ return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],waterTraces,facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
 };
 export interface ObservedGameplayOptions {
  wave?:number;

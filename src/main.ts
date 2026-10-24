@@ -469,7 +469,7 @@ async function boot(): Promise<void> {
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const activityView=activityProjection(curr,LOCAL_PLAYER,GAME_WAVE,uiText);activityPanel.update(activityView);const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER)??activityDestination(activityView));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const activityView=activityProjection(curr,LOCAL_PLAYER,GAME_WAVE,uiText);activityPanel.update(activityView);const uiView=uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER)??activityDestination(activityView));gameUI.update({...uiView,...(uiView.map&&activityView.blips?{map:{...uiView.map,blips:[...uiView.map.blips,...activityView.blips]}}:{}),performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

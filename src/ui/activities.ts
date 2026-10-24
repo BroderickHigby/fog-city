@@ -4,12 +4,16 @@ import { canStartActivity, missionEngaged } from "../sim/activities/system.ts";
 import { DEFAULT_CATALOG } from "../sim/player/catalog.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
 import type { ActivityDefinition } from "../sim/player/types.ts";
-import type { MapPoint, UiCopy } from "./types.ts";
+import type { MapBlip, MapPoint, UiCopy } from "./types.ts";
+import { PLAIN_WORDS_BOARDS, PLAIN_WORDS_ID, PLAIN_WORDS_LADDER } from "../sim/activities/plain-words.ts";
+import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 
 /** What the side-activity panel shows: an offer at a start marker, or the running activity's next step. */
 export interface ActivityView {
   readonly offer?: { readonly id: string; readonly title: string; readonly detail: string };
   readonly active?: { readonly id: string; readonly title: string; readonly detail: string; readonly remainingTicks: number; readonly target?: MapPoint };
+  /** Things the run asks the player to find on the map (Plain Words boards and spinners). */
+  readonly blips?: readonly MapBlip[];
 }
 
 /** Copy keys are camelCase ids: `embarcadero-sprint` reads `ui.activity.embarcaderoSprint`. */
@@ -31,6 +35,19 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
     const checkpoints = running.checkpoints ?? [], index = own.checkpointIndex ?? 0, next = checkpoints[index];
     const remainingTicks = Math.max(0, Math.ceil((running.timeLimitS ?? 600) * 60) - (state.tick - own.activityStartedTick));
     const title = copy(activityCopyKey(running.id));
+    const run = own.plainWords;
+    if (running.id === PLAIN_WORDS_ID && run) {
+      const runtime = agentsRuntimeOf(state)?.actors ?? {};
+      const blips: MapBlip[] = [
+        ...run.boards.filter(board => board.word >= 0).map(board => {
+          const at = PLAIN_WORDS_BOARDS.find(value => value.id === board.id)!;
+          return { id: board.id, kind: "mission" as const, label: copy("ui.activity.board", { word: PLAIN_WORDS_LADDER[board.word] ?? "" }), x: at.x, z: at.z };
+        }),
+        ...run.spinnerIds.filter(id => !run.rusted.includes(id) && runtime[id]).map(id => ({ id, kind: "robot" as const, confirmed: true, label: copy("ui.activity.spinner"), x: runtime[id]!.x, z: runtime[id]!.z })),
+      ];
+      const detail = copy("ui.activity.plainWordsProgress", { washed: Math.min(own.objectiveCount ?? 0, running.objective?.count ?? 20), total: running.objective?.count ?? 20, rusted: run.rusted.length, spinners: run.spinnerIds.length, word: PLAIN_WORDS_LADDER[run.rung] ?? "" });
+      return { active: { id: running.id, title, remainingTicks, detail, ...(next ? { target: { x: next.x, z: next.z } } : {}) }, blips };
+    }
     if (next) return { active: { id: running.id, title, remainingTicks, target: { x: next.x, z: next.z },
       detail: copy("ui.activity.checkpoint", { label: label(running.id, next.id), index: index + 1, total: checkpoints.length }) } };
     const last = checkpoints.at(-1);

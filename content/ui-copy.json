@@ -205,7 +205,11 @@
     "ui.activity.finishing": "Hold position to finish.",
     "ui.activity.remaining": "{seconds} s left",
     "ui.activity.embarcaderoSprint": "Embarcadero Sprint",
-    "ui.activity.hillDelivery": "Hill delivery shift"
+    "ui.activity.hillDelivery": "Hill delivery shift",
+    "ui.activity.plainWords": "Plain Words",
+    "ui.activity.plainWordsProgress": "{washed} of {total} boards back to plain words. {rusted} of {spinners} sign-spinners rusted. The hype word is \"{word}\".",
+    "ui.activity.board": "Board: \"{word}\"",
+    "ui.activity.spinner": "Sign-spinner"
   },
   "provenance": {
     "source": "agent",

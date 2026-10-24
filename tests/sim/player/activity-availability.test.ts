@@ -7,7 +7,7 @@ import { createMissions } from "../../../src/sim/missions/system.ts";
 import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import type { ActivityDefinition, GameplayContext } from "../../../src/sim/player/types.ts";
 
-const pending = ["search-and-park", "office-hours", "plain-words", "coit-recon"];
+const pending = ["search-and-park", "office-hours", "coit-recon"];
 const authored = (id: string): ActivityDefinition => {
   const activity = ACTIVITY_DEFINITIONS.find(value => value.id === id)!;
   return { ...activity, ...toLocal(activity.checkpoints[0]!.lat, activity.checkpoints[0]!.lon), y: 0,
@@ -24,7 +24,7 @@ function context(activity: ActivityDefinition, patch: Partial<GameplayContext> =
 describe("playable activity catalog", () => {
   it("offers only the wave-three routes with physical completion in the runtime", () => {
     expect(DEFAULT_CATALOG.activities.filter(value => value.wave === 3).map(value => value.id).sort())
-      .toEqual(["embarcadero-sprint", "hill-delivery"]);
+      .toEqual(["embarcadero-sprint", "hill-delivery", "plain-words"]);
     expect(DEFAULT_CATALOG.activities.some(value => [...pending, "ramen-house"].includes(value.id))).toBe(false);
     expect(DEFAULT_CATALOG.activities.some(value => value.id === "soma-delivery")).toBe(true);
   });
