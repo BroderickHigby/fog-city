@@ -1,12 +1,12 @@
 """Bake clips for every human on generic-player.glb's skeleton: the dodge set (public/models/anim/
 dodge-clips.glb) or the crowd's varied idles and walks (public/models/anim/crowd-clips.glb).
-Usage: blender -b --python clips.py -- SOURCE_DIRECTORY OUTPUT.glb [MIXAMO_DIRECTORY] [--set dodge|crowd]
+Usage: blender -b --python clips.py -- SOURCE_DIRECTORY OUTPUT.glb [--set dodge|crowd]
 SOURCE_DIRECTORY holds Male_Adult_01.fbx and the Rocketbox motions named below (fetch.py --dodge).
 The output has no mesh or texture: only the avatar's skeleton (the same node names, so three.js
 binds its tracks to generic-player.glb's bones) and these clips, baked the way convert.py bakes
 idle/walk/run (world-space motion of the matching Rocketbox source skeleton, planar root travel
-removed: the simulation moves the body). With MIXAMO_DIRECTORY, Mixamo clips are retargeted onto
-the same rig by bone direction (see retarget_mixamo below).
+removed: the simulation moves the body). Mixamo clips for the same rig are built by
+assets/imports/mixamo/build.ts (--set dodge, --set crowd), not here.
 """
 import bpy, math, os, sys, json, struct
 from mathutils import Matrix, Vector, Quaternion
@@ -17,7 +17,6 @@ if '--set' in args:
     which = args[args.index('--set') + 1]
     args = [a for i, a in enumerate(args) if a != '--set' and (i == 0 or args[i - 1] != '--set')]
 source, output = args[0], args[1]
-mixamo = args[2] if len(args) > 2 else None
 
 # (clip name, Rocketbox file): what each dodge phase plays (src/render/human-motion.ts).
 DODGE_ROCKETBOX = [
@@ -25,11 +24,6 @@ DODGE_ROCKETBOX = [
     ('runStart', 'm_run_start.max.fbx'),      # the startled push-off into a run
     ('runStop', 'm_run_stop.max.fbx'),        # pulling up once clear
     ('recover', 'm_idle_dust_01.max.fbx'),    # brushing off, catching their breath
-]
-# (clip name, Mixamo file, first frame, last frame): retargeted (Mixamo, used in-game under its licence).
-DODGE_MIXAMO = [
-    ('stumble', 'Stumble Backwards.fbx', 1, 20),  # the override's shove: staggering back, cut before any fall
-    ('flinch', 'Dodging Right.fbx', 1, 44),       # a sidestep's flinch away from the car
 ]
 # The crowd: walks and idles to vary who does what (Lane R's skinned crowd picks by agent id).
 CROWD_ROCKETBOX = [
@@ -42,17 +36,7 @@ CROWD_ROCKETBOX = [
     ('idleTexting', 'm_cell_phone_textmessage.max.fbx'),  # (its first ROCKETBOX_MAX_FRAMES)
     ('idleWaiting', 'm_idle_waiting_01.max.fbx'),
 ]
-CROWD_MIXAMO = [
-    ('walkCasual', 'female-locomotion/walking.fbx', 1, 30),
-    ('walkTexting', 'Walking While Texting.fbx', 1, 121),
-    ('idleHappy', 'Happy Idle.fbx', 1, 61),
-    ('idleLookAround', 'Looking Around.fbx', 1, 191),
-    ('idlePhone', 'Talking On Phone.fbx', 1, 300),
-    ('idleArguing', 'Standing Arguing.fbx', 1, 300),
-    ('wave', 'Waving.fbx', 1, 17),
-    ('clap', 'Clapping.fbx', 1, 36),
-]
-ROCKETBOX, MIXAMO = (CROWD_ROCKETBOX, CROWD_MIXAMO) if which == 'crowd' else (DODGE_ROCKETBOX, DODGE_MIXAMO)
+ROCKETBOX = CROWD_ROCKETBOX if which == 'crowd' else DODGE_ROCKETBOX
 
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 bpy.ops.import_scene.fbx(filepath=os.path.join(source, 'Male_Adult_01.fbx'), use_anim=False)
@@ -134,121 +118,6 @@ for label, filename in ROCKETBOX:
     duration = (end - start) / 30
     clip_info.append({'name': label, 'source': 'Microsoft Rocketbox ' + filename, 'frames': len(samples), 'duration': duration, 'sourceSpeed': round((last - origin).length / duration, 4) if duration else 0})
     drop(imported, before_actions)
-
-# Mixamo bone -> Rocketbox bone.
-MAP = {
-    'Hips': 'Bip01 Pelvis', 'Spine': 'Bip01 Spine', 'Spine1': 'Bip01 Spine1', 'Spine2': 'Bip01 Spine2', 'Neck': 'Bip01 Neck', 'Head': 'Bip01 Head',
-}
-for side, s in (('Left', 'L'), ('Right', 'R')):
-    MAP.update({
-        f'{side}Shoulder': f'Bip01 {s} Clavicle', f'{side}Arm': f'Bip01 {s} UpperArm', f'{side}ForeArm': f'Bip01 {s} Forearm', f'{side}Hand': f'Bip01 {s} Hand',
-        f'{side}UpLeg': f'Bip01 {s} Thigh', f'{side}Leg': f'Bip01 {s} Calf', f'{side}Foot': f'Bip01 {s} Foot', f'{side}ToeBase': f'Bip01 {s} Toe0',
-    })
-
-
-def retarget_mixamo(label, path, first, last_frame):
-    """
-    Retarget by bone direction: each mapped Rocketbox bone takes its source bone's rotation since
-    the source's rest pose, applied after first turning the target's rest pose to point its bone
-    where the source's rest bone points (the T-pose/A-pose difference). The pelvis takes the source
-    hips' height change, scaled by the two rigs' hip heights; planar travel is removed.
-    """
-    actor, imported, before_actions = import_actor(path)
-    prefix = next(b.name for b in actor.data.bones if b.name.endswith('Hips'))[:-4]
-    actor.animation_data.action.frame_range  # (loaded)
-    # Rest: source and target world rotations and bone directions (in the target rig's space).
-    # The source turned as the target is (the root's half turn to face glTF -Z), so a rotation
-    # in the source's world means the same to the target: a nod is a nod, not a look up.
-    face = Matrix.Rotation(root.rotation_euler.z, 4, 'Z')
-    src_rest = {}
-    for m, r in MAP.items():
-        sb = actor.data.bones.get(prefix + m)
-        if sb is None or r not in rig.pose.bones: continue
-        # (A hand's end: its middle finger; a foot's: its toe.)
-        src_rest[r] = (face @ actor.matrix_world @ sb.matrix_local)
-    tgt_rest = {r: (rig.matrix_world @ rig.data.bones[r].matrix_local) for r in src_rest}
-    # The correction turns each limb bone's rest segment (its joint to its child's joint) onto
-    # the source's (the T-pose/A-pose difference: arms out vs down); a bone with no mapped child
-    # (hand, foot, toe, head) takes its parent's. The biped's own bone axes are not used: 3ds Max
-    # bones do not run along Blender's Y.
-    inv = {r: m for m, r in MAP.items()}
-    child_of = {}
-    for m, r in MAP.items():
-        for m2, r2 in MAP.items():
-            b2 = rig.data.bones.get(r2)
-            if b2 is not None and b2.parent is not None and b2.parent.name == r and r2 in src_rest:
-                child_of.setdefault(r, r2)
-    child_of['Bip01 Spine2'] = 'Bip01 Neck'
-    child_of['Bip01 Neck'] = 'Bip01 Head'
-    corr = {}
-    for b in rig.data.bones:
-        r = b.name
-        if r not in src_rest: continue
-        c = child_of.get(r)
-        # (Both rigs stand upright and flat-footed at rest: the trunk, the head and the feet need no turn.)
-        upright = r in ('Bip01 Pelvis', 'Bip01 Spine', 'Bip01 Spine1', 'Bip01 Spine2', 'Bip01 Neck', 'Bip01 Head') or 'Foot' in r or 'Toe' in r
-        if upright:
-            corr[r] = Quaternion()
-        elif c is not None:
-            ds = (src_rest[c].translation - src_rest[r].translation).normalized()
-            dt = (tgt_rest[c].translation - tgt_rest[r].translation).normalized()
-            corr[r] = dt.rotation_difference(ds)
-        else:
-            parent = b.parent
-            while parent is not None and parent.name not in corr: parent = parent.parent
-            corr[r] = corr[parent.name] if parent is not None else Quaternion()
-    hip_src = src_rest['Bip01 Pelvis'].translation.z
-    hip_tgt = tgt_rest['Bip01 Pelvis'].translation.z
-    k = hip_tgt / hip_src if hip_src > 1e-6 else 1
-    samples = []; origin = None; travelled = None
-    # The source's frame turned as the target's (face, above) leaves a Mixamo clip facing the rig's
-    # bind pose, which is half a turn from the way convert.py's Rocketbox clips face the body (the
-    # way it walks): turned that half turn more, every clip faces the way the body moves.
-    unturn = Quaternion((0, 0, 1), math.pi)
-    for frame in range(first, last_frame + 1):
-        bpy.context.scene.frame_set(frame); bpy.context.view_layer.update()
-        desired = {}
-        for m, r in MAP.items():
-            pb = actor.pose.bones.get(prefix + m)
-            if pb is None or r not in corr: continue
-            cur = face @ actor.matrix_world @ pb.matrix
-            delta = unturn @ cur.to_quaternion() @ src_rest[r].to_quaternion().inverted()
-            rot = delta @ corr[r] @ tgt_rest[r].to_quaternion()
-            if r == 'Bip01 Pelvis':
-                t = unturn @ cur.translation
-                if origin is None: origin = Vector((t.x, t.y, 0))
-                travelled = (Vector((t.x, t.y, 0)) - origin).length * k
-                pos = Vector((tgt_rest[r].translation.x, tgt_rest[r].translation.y, hip_tgt + (t.z - hip_src) * k))
-            else:
-                pos = None
-            # (World matrices carry the rig's import scale: keep the target rest's.)
-            mat = Matrix.LocRotScale(pos if pos is not None else Vector(), rot, tgt_rest[r].to_scale())
-            desired[r] = (mat, pos is not None)
-        # Children keep their rest offsets from their parents: position each from its parent.
-        world = {}
-        order = [b.name for b in rig.data.bones if b.name in desired]
-        for name in order:
-            mat, has_pos = desired[name]
-            bone = rig.data.bones[name]
-            if not has_pos:
-                parent = bone.parent
-                while parent is not None and parent.name not in world: parent = parent.parent
-                if parent is not None:
-                    offset = (rig.matrix_world @ parent.matrix_local).inverted() @ (rig.matrix_world @ bone.matrix_local)
-                    mat = mat.copy(); mat.translation = (world[parent.name] @ offset).translation
-                else:
-                    mat = mat.copy(); mat.translation = (rig.matrix_world @ bone.matrix_local).translation
-            world[name] = mat
-        samples.append({n: rig.matrix_world.inverted() @ world[n] for n in world})
-    keyframe(label, samples)
-    duration = (last_frame - first) / 30
-    clip_info.append({'name': label, 'source': 'Mixamo ' + os.path.relpath(path, mixamo), 'frames': len(samples), 'duration': duration, 'sourceSpeed': round(travelled / duration, 4) if travelled and duration else 0})
-    drop(imported, before_actions)
-
-
-if mixamo:
-    for label, filename, first, last_frame in MIXAMO:
-        retarget_mixamo(label, os.path.join(mixamo, filename), first, last_frame)
 
 for obj in list(bpy.data.objects):
     if obj not in (root, rig): bpy.data.objects.remove(obj, do_unlink=True)

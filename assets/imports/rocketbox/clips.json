@@ -1,218 +1,155 @@
 {
-  "builtWith": "Blender 4.5.9 LTS, assets/imports/rocketbox/clips.py (deterministic: the same inputs give the same bytes)",
-  "skeleton": "Microsoft Rocketbox Male_Adult_01 (MIT), the bones of public/models/generic-player.glb; no mesh, no textures",
-  "rocketboxCommit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
-  "mixamoSource": "the owner's Mixamo (Adobe) download, branch assets/mixamo-raw (4fa39e3); Mixamo's terms allow use in a game; the raw FBX files are not shipped, only these clips baked for the game",
-  "files": {
-    "public/models/anim/dodge-clips.glb": {
-      "bytes": 613596,
-      "sha256": "5a538590ee643e292fae85a06af9bcc5f80d93aa2e63c6b15c1e1cee5fc25040",
-      "clips": [
-        {
-          "name": "sprint",
-          "source": "Microsoft Rocketbox m_run_fast_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "81d096f62465ae038149e7726485133264e4a47d105d236370b00dc18c650526",
-          "frames": 19,
-          "durationS": 0.6,
-          "sourceSpeedMps": 5.8395
-        },
-        {
-          "name": "runStart",
-          "source": "Microsoft Rocketbox m_run_start.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "aba4486443fc3845f6d9b3d5b11d0fec9cfaeb39687b0e32d5b69493a130979d",
-          "frames": 20,
-          "durationS": 0.6333,
-          "sourceSpeedMps": 0.903
-        },
-        {
-          "name": "runStop",
-          "source": "Microsoft Rocketbox m_run_stop.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "1eb03637281bd5c363ef2262321ca3322fc55387f33c09213528a67b6058202c",
-          "frames": 39,
-          "durationS": 1.2667,
-          "sourceSpeedMps": 1.2848
-        },
-        {
-          "name": "recover",
-          "source": "Microsoft Rocketbox m_idle_dust_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "6533fb581f73cc3ba56d81872ead654e5fbcb03a1466a042fe5749cf9642b85c",
-          "frames": 166,
-          "durationS": 5.5,
-          "sourceSpeedMps": 0.0
-        },
-        {
-          "name": "stumble",
-          "source": "Mixamo Stumble Backwards.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "9bd60668cbdd6a88bbdec251efc83267f4d38687e76f40b3f1109af462f9062f",
-          "frames": 20,
-          "durationS": 0.6333,
-          "sourceSpeedMps": 0.36
-        },
-        {
-          "name": "flinch",
-          "source": "Mixamo Dodging Right.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "1ea04f26042a43b7d022403665250af4ff1a16e676201a9bf130b477f1eec3f5",
-          "frames": 44,
-          "durationS": 1.4333,
-          "sourceSpeedMps": 0.0014
-        }
-      ]
+ "builtWith": "Blender 4.5.9 LTS, assets/imports/rocketbox/clips.py (deterministic: the same inputs give the same bytes)",
+ "skeleton": "Microsoft Rocketbox Male_Adult_01 (MIT), the bones of public/models/generic-player.glb; no mesh, no textures",
+ "rocketboxCommit": "0943055db6ec570bcef9f2c8b41c9e5467c808f9",
+ "files": {
+  "public/models/anim/dodge-clips.glb": {
+   "bytes": 476728,
+   "sha256": "d7bbf292b415b4fda43e80011292d176413b8ad1bc5c191844fa92cfc6162bf1",
+   "clips": [
+    {
+     "name": "sprint",
+     "source": "Microsoft Rocketbox m_run_fast_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "81d096f62465ae038149e7726485133264e4a47d105d236370b00dc18c650526",
+     "frames": 19,
+     "durationS": 0.6,
+     "sourceSpeedMps": 5.8395
     },
-    "public/models/anim/crowd-clips.glb": {
-      "bytes": 2032792,
-      "sha256": "21788be7e0dd7a81008f9f710e13abb96507ed4a0c8a39e61e810ad233a7c5d0",
-      "clips": [
-        {
-          "name": "walkStroll",
-          "source": "Microsoft Rocketbox m_walk_stroll_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "57356aae720f92b04996fbacc28d17039a0d7ecc7846e6560ddf6a35c271afa0",
-          "frames": 48,
-          "durationS": 1.5667,
-          "sourceSpeedMps": 0.6932
-        },
-        {
-          "name": "walkSlow",
-          "source": "Microsoft Rocketbox m_walk_slow_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "8c5e5ed18be9e1062a26d230677d2801a679c70fd67f8aa8de14ff37f6d20577",
-          "frames": 45,
-          "durationS": 1.4667,
-          "sourceSpeedMps": 0.821
-        },
-        {
-          "name": "walkFast",
-          "source": "Microsoft Rocketbox m_walk_fast_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "a8b7962c7dd016b1e9781a6c0983efbac62ad069feb2884d2b2e5686ffe90053",
-          "frames": 33,
-          "durationS": 1.0667,
-          "sourceSpeedMps": 1.4954
-        },
-        {
-          "name": "walkCool",
-          "source": "Microsoft Rocketbox m_walk_cool_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "401a790aeb084c43f0cfe7b01ded3a3c6d163985e1e4454acdabd72fbf968e17",
-          "frames": 39,
-          "durationS": 1.2667,
-          "sourceSpeedMps": 1.048
-        },
-        {
-          "name": "jog",
-          "source": "Microsoft Rocketbox m_run_slow_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "56af7ac64b05653d40f64205b58b2bf915646ee70dd6e2a68bc4536d71f07c1c",
-          "frames": 24,
-          "durationS": 0.7667,
-          "sourceSpeedMps": 2.4106
-        },
-        {
-          "name": "idleBreathe",
-          "source": "Microsoft Rocketbox m_idle_breathe_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "281735704260d96e882d13e3c77d0ede00ed5d2e40805cd305000b3e5cbb1090",
-          "frames": 83,
-          "durationS": 2.7333,
-          "sourceSpeedMps": 0.0
-        },
-        {
-          "name": "idleTexting",
-          "source": "Microsoft Rocketbox m_cell_phone_textmessage.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "fe358efe720533691589b3f16d43bfb7719f51be7ae23abaa66459477fb4250b",
-          "frames": 300,
-          "durationS": 9.9667,
-          "sourceSpeedMps": 0.0076
-        },
-        {
-          "name": "idleWaiting",
-          "source": "Microsoft Rocketbox m_idle_waiting_01.max.fbx",
-          "licence": "MIT",
-          "sourceSha256": "a287fdd909c26e66841e8982336a754d7765153e302793a7b744e45deeacf751",
-          "frames": 300,
-          "durationS": 9.9667,
-          "sourceSpeedMps": 0.0013
-        },
-        {
-          "name": "walkCasual",
-          "source": "Mixamo female-locomotion/walking.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "f087387d08e313f954e20e7884ea08124498d51c604683cf487e8c49008f2e5b",
-          "frames": 30,
-          "durationS": 0.9667,
-          "sourceSpeedMps": 1.4434
-        },
-        {
-          "name": "walkTexting",
-          "source": "Mixamo Walking While Texting.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "c336be0c5e3e5e27b2d78c6d603f4f7f268f794fbbfd09bc61932efb4ef5ddc4",
-          "frames": 121,
-          "durationS": 4.0,
-          "sourceSpeedMps": 0.7475
-        },
-        {
-          "name": "idleHappy",
-          "source": "Mixamo Happy Idle.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "e40cae67648ad7a5bd5db5558e0d8056754336718746e7221381c0e751c27e24",
-          "frames": 61,
-          "durationS": 2.0,
-          "sourceSpeedMps": 0.0003
-        },
-        {
-          "name": "idleLookAround",
-          "source": "Mixamo Looking Around.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "256e6439d13e4a09f70e9081f9eb0a420dbc33ca3f075401baad81b98b688fa7",
-          "frames": 191,
-          "durationS": 6.3333,
-          "sourceSpeedMps": 0.0
-        },
-        {
-          "name": "idlePhone",
-          "source": "Mixamo Talking On Phone.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "36df80b06c67046710d6cbb3f6fbc44bbf1094e334eab441a0fd0a5e9194f643",
-          "frames": 300,
-          "durationS": 9.9667,
-          "sourceSpeedMps": 0.0024
-        },
-        {
-          "name": "idleArguing",
-          "source": "Mixamo Standing Arguing.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "fd8d13a29849dfd04b8fb740f09c4a20ec34b7c9b0d671edbb883f201cfc19d1",
-          "frames": 300,
-          "durationS": 9.9667,
-          "sourceSpeedMps": 0.0044
-        },
-        {
-          "name": "wave",
-          "source": "Mixamo Waving.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "3e72eb9efdadc2bfe2a172c83c1e1e95b70a9cb514fe189478448e5620679a8a",
-          "frames": 17,
-          "durationS": 0.5333,
-          "sourceSpeedMps": 0.0
-        },
-        {
-          "name": "clap",
-          "source": "Mixamo Clapping.fbx",
-          "licence": "Mixamo (Adobe) terms",
-          "sourceSha256": "aa0cee4dd4d0c0aaf35082b4ce13189b9bbf1ce2d5b5df14bf031bc8eb5242c0",
-          "frames": 36,
-          "durationS": 1.1667,
-          "sourceSpeedMps": 0
-        }
-      ]
+    {
+     "name": "runStart",
+     "source": "Microsoft Rocketbox m_run_start.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "aba4486443fc3845f6d9b3d5b11d0fec9cfaeb39687b0e32d5b69493a130979d",
+     "frames": 20,
+     "durationS": 0.6333,
+     "sourceSpeedMps": 0.903
+    },
+    {
+     "name": "runStop",
+     "source": "Microsoft Rocketbox m_run_stop.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "1eb03637281bd5c363ef2262321ca3322fc55387f33c09213528a67b6058202c",
+     "frames": 39,
+     "durationS": 1.2667,
+     "sourceSpeedMps": 1.2848
+    },
+    {
+     "name": "recover",
+     "source": "Microsoft Rocketbox m_idle_dust_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "6533fb581f73cc3ba56d81872ead654e5fbcb03a1466a042fe5749cf9642b85c",
+     "frames": 166,
+     "durationS": 5.5,
+     "sourceSpeedMps": 0.0
     }
+   ]
+  },
+  "public/models/anim/crowd-clips.glb": {
+   "bytes": 1205600,
+   "sha256": "a8bb4db9f254708c6a425c7b3deb6c4709633e12b544fb963d5a3fc54e34b1f3",
+   "clips": [
+    {
+     "name": "walkStroll",
+     "source": "Microsoft Rocketbox m_walk_stroll_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "57356aae720f92b04996fbacc28d17039a0d7ecc7846e6560ddf6a35c271afa0",
+     "frames": 48,
+     "durationS": 1.5667,
+     "sourceSpeedMps": 0.6932
+    },
+    {
+     "name": "walkSlow",
+     "source": "Microsoft Rocketbox m_walk_slow_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "8c5e5ed18be9e1062a26d230677d2801a679c70fd67f8aa8de14ff37f6d20577",
+     "frames": 45,
+     "durationS": 1.4667,
+     "sourceSpeedMps": 0.821
+    },
+    {
+     "name": "walkFast",
+     "source": "Microsoft Rocketbox m_walk_fast_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "a8b7962c7dd016b1e9781a6c0983efbac62ad069feb2884d2b2e5686ffe90053",
+     "frames": 33,
+     "durationS": 1.0667,
+     "sourceSpeedMps": 1.4954
+    },
+    {
+     "name": "walkCool",
+     "source": "Microsoft Rocketbox m_walk_cool_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "401a790aeb084c43f0cfe7b01ded3a3c6d163985e1e4454acdabd72fbf968e17",
+     "frames": 39,
+     "durationS": 1.2667,
+     "sourceSpeedMps": 1.048
+    },
+    {
+     "name": "jog",
+     "source": "Microsoft Rocketbox m_run_slow_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "56af7ac64b05653d40f64205b58b2bf915646ee70dd6e2a68bc4536d71f07c1c",
+     "frames": 24,
+     "durationS": 0.7667,
+     "sourceSpeedMps": 2.4106
+    },
+    {
+     "name": "idleBreathe",
+     "source": "Microsoft Rocketbox m_idle_breathe_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "281735704260d96e882d13e3c77d0ede00ed5d2e40805cd305000b3e5cbb1090",
+     "frames": 83,
+     "durationS": 2.7333,
+     "sourceSpeedMps": 0.0
+    },
+    {
+     "name": "idleTexting",
+     "source": "Microsoft Rocketbox m_cell_phone_textmessage.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "fe358efe720533691589b3f16d43bfb7719f51be7ae23abaa66459477fb4250b",
+     "frames": 300,
+     "durationS": 9.9667,
+     "sourceSpeedMps": 0.0076
+    },
+    {
+     "name": "idleWaiting",
+     "source": "Microsoft Rocketbox m_idle_waiting_01.max.fbx",
+     "licence": "MIT",
+     "sourceSha256": "a287fdd909c26e66841e8982336a754d7765153e302793a7b744e45deeacf751",
+     "frames": 300,
+     "durationS": 9.9667,
+     "sourceSpeedMps": 0.0013
+    }
+   ]
   }
+ },
+ "mixamo": {
+  "builtWith": "assets/imports/mixamo/build.ts (#82's retarget onto the same Rocketbox rig; deterministic), --set dodge and --set crowd",
+  "source": "the owner's supplied Mixamo library in assets/mixamo/ (hashes: assets/imports/mixamo/source-files.json); Mixamo (Adobe) terms; the raw FBX files are not shipped",
+  "files": {
+   "public/models/anim/mixamo-dodge.json": {
+    "bytes": 95343,
+    "sha256": "9a5a3cead79357b3497bac6e9941e9081ba1e2edd8010d9476e384672a7f87ec",
+    "clips": [
+     "stumble",
+     "flinch"
+    ]
+   },
+   "public/models/anim/mixamo-crowd.json": {
+    "bytes": 2215293,
+    "sha256": "5166cf0dfffb33b0778c5e30e78307b1e6005c8e43bc5e53d2d3a287f507c60b",
+    "clips": [
+     "walkCasual",
+     "walkTexting",
+     "idleHappy",
+     "idleLookAround",
+     "idlePhone",
+     "idleArguing",
+     "wave",
+     "clap"
+    ]
+   }
+  }
+ }
 }

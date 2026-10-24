@@ -26,24 +26,17 @@ flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/convert.py -- /
 
 `clips.py` bakes clip-only GLBs on the avatar's skeleton (no mesh or textures; three.js binds the tracks to `generic-player.glb`'s bones, or any Rocketbox `Bip01` character's, by name). The reviewed `generic-player.glb` is unchanged. Every source file's SHA-256 and each output's are in `clips.json`. The bake is deterministic.
 
-- **`dodge-clips.glb`** (≈600 KB): getting out of a car's way (`src/render/human-motion.ts` `motionFor`).
-  - Rocketbox `m_run_start` → `runStart` (the startled push-off), `m_run_fast_01` → `sprint` (time-scaled to the sim's speed so the feet don't slide), `m_run_stop` → `runStop`, `m_idle_dust_01` → `recover` (brushing off).
-  - Mixamo "Stumble Backwards" (frames 1–20, cut before the fall) → `stumble` (the override's shove) and "Dodging Right" → `flinch` (a sidestep).
-- **`crowd-clips.glb`** (≈2 MB): varied idles and walks for the crowd (Lane R's skinned crowd picks by agent id).
-  - Rocketbox `walkStroll`, `walkSlow`, `walkFast`, `walkCool`, `jog`, `idleBreathe`, `idleTexting`, `idleWaiting`. Long idles are cut to 10 s loops.
-  - Mixamo `walkCasual` (female locomotion walking), `walkTexting`, `idleHappy`, `idleLookAround`, `idlePhone`, `idleArguing`, `wave`, `clap`.
-  - Each walk's speed (`sourceSpeedMps`) is in `clips.json` and the root's extras.
+- **`dodge-clips.glb`** (≈470 KB): getting out of a car's way (`src/render/human-motion.ts` `motionFor`). Rocketbox `m_run_start` → `runStart` (the startled push-off), `m_run_fast_01` → `sprint` (time-scaled to the sim's speed so the feet don't slide), `m_run_stop` → `runStop`, `m_idle_dust_01` → `recover` (brushing off).
+- **`crowd-clips.glb`** (≈1.2 MB): varied idles and walks for the crowd (Lane R's skinned crowd picks by agent id): Rocketbox `walkStroll`, `walkSlow`, `walkFast`, `walkCool`, `jog`, `idleBreathe`, `idleTexting`, `idleWaiting`. Long idles are cut to 10 s loops. Each walk's speed (`sourceSpeedMps`) is in `clips.json` and the root's extras.
 
-**Retargeting Mixamo onto the Rocketbox rig** (`retarget_mixamo`):
-1. Each mapped bone takes its source bone's world rotation since the source's rest pose. That rotation is expressed in the target's facing (the root's half turn) so a nod stays a nod.
-2. A limb (clavicle, arm, forearm, thigh, calf) is first turned from its rest segment onto the source's (the T-pose/A-pose difference). The trunk, head and feet use both rigs' upright rest.
-3. The clip is turned to face the way the body moves, as the Rocketbox clips do.
-4. The hip height is scaled by the two rigs' hip heights, and planar root travel is removed (the sim moves the body).
+The Mixamo clips for the same skeleton come from the supplied library through the player's retarget pipeline (`assets/imports/mixamo/build.ts`, #82), not from Blender:
+- `node assets/imports/mixamo/build.ts --set dodge` → **`mixamo-dodge.json`**: "Stumble Backwards" (frames 1–20, cut before the fall) → `stumble` (the override's shove) and "Dodging Right" → `flinch` (a sidestep). `player-body.ts` loads it for every human; a crowd character keeps its own hip height (the bank's hip track is the player's).
+- `node assets/imports/mixamo/build.ts --set crowd` → **`mixamo-crowd.json`**: `walkCasual` (female locomotion walking), `walkTexting`, `idleHappy`, `idleLookAround`, `idlePhone`, `idleArguing`, `wave`, `clap`.
 
 ```sh
 python3 assets/imports/rocketbox/fetch.py /tmp/fog-rocketbox --dodge
-# the Mixamo inputs, from the owner's download (paths as in clips.py's lists):
-mkdir -p /tmp/fog-mixamo && git archive origin/assets/mixamo-raw assets/mixamo | tar -x -C /tmp/fog-mixamo --strip-components=2
-flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/anim/dodge-clips.glb /tmp/fog-mixamo --set dodge
-flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/anim/crowd-clips.glb /tmp/fog-mixamo --set crowd
+flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/anim/dodge-clips.glb --set dodge
+flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/anim/crowd-clips.glb --set crowd
+node assets/imports/mixamo/build.ts --set dodge
+node assets/imports/mixamo/build.ts --set crowd
 ```

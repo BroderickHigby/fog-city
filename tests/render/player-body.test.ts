@@ -4,12 +4,26 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { HAIR_ALPHA_CUT, PLAYER_BODY_FILE, PLAYER_DODGE_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw, motionFor } from "../../src/render/player-body.ts";
+import { HAIR_ALPHA_CUT, MIXAMO_DODGE_FILE, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PLAYER_DODGE_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw, motionFor } from "../../src/render/player-body.ts";
 import type { DodgeState } from "../../src/sim/contract.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
 const dodgeBytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_DODGE_FILE}`, import.meta.url)));
-const files = async (path: string): Promise<Uint8Array> => (path === PLAYER_DODGE_FILE ? dodgeBytes : bytes);
+const motionBytes = new Uint8Array(readFileSync(new URL(`../../public/${MIXAMO_MOTION_FILE}`, import.meta.url)));
+const mixamoDodgeBytes = new Uint8Array(readFileSync(new URL(`../../public/${MIXAMO_DODGE_FILE}`, import.meta.url)));
+const importedBytes = async (path: string): Promise<Uint8Array> => {
+  if (path === PLAYER_BODY_FILE) return bytes;
+  if (path === MIXAMO_MOTION_FILE) return motionBytes;
+  if (path === PLAYER_DODGE_FILE) return dodgeBytes;
+  if (path === MIXAMO_DODGE_FILE) return mixamoDodgeBytes;
+  throw new Error(`Unexpected asset ${path}`);
+};
+const dive = (over: Partial<DodgeState>): DodgeState => ({ phase: "dive", sx: 0, sz: 0, tx: 4, tz: 0, t: 30, dur: 70, peak: 0, hop: 0, leap: false, vx: 4, vz: 0, vmax: 4.8, ...over });
+/** The model with its own baked clips and the dodge clips only (no Mixamo locomotion bank). */
+const files = async (path: string): Promise<Uint8Array> => {
+  if (path === MIXAMO_MOTION_FILE) throw new Error("no bank");
+  return importedBytes(path);
+};
 // Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
 beforeEach(() => {
   vi.stubGlobal("self", globalThis);
@@ -43,6 +57,25 @@ function skin(root: THREE.Object3D): THREE.SkinnedMesh {
   expect(found, "actual GLB must contain skinned geometry").toBeDefined();
   return found!;
 }
+function shoeSoles(root: THREE.Object3D): number[] {
+  const soles: number[] = [];
+  root.traverse(object => {
+    const mesh = object as THREE.SkinnedMesh;
+    if (!mesh.isSkinnedMesh) return;
+    const indices = mesh.geometry.getAttribute("skinIndex");
+    const weights = mesh.geometry.getAttribute("skinWeight");
+    const feet = new Set(mesh.skeleton.bones.map((bone, i) => /_Foot$|_Toe/.test(bone.name) ? i : -1));
+    const point = new THREE.Vector3();
+    for (let i = 0; i < mesh.geometry.getAttribute("position").count; i++) {
+      let footWeight = 0;
+      for (let k = 0; k < 4; k++) if (feet.has(indices.getComponent(i,k))) footWeight += weights.getComponent(i,k);
+      if (footWeight < 0.5) continue;
+      mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
+      soles.push(point.y);
+    }
+  });
+  return soles;
+}
 function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });
@@ -71,7 +104,7 @@ it("counts material primitives, draw ranges and visible bodies in colour-pass ge
 
 describe("generic online player avatar", () => {
   it("loads actual human geometry and animates independent skeletons without moving the world pose", async () => {
-    const humans = await PlayerBodies.load(async path => { expect([PLAYER_BODY_FILE, PLAYER_DODGE_FILE]).toContain(path); return path === PLAYER_DODGE_FILE ? dodgeBytes : bytes; }, true);
+    const humans = await PlayerBodies.load(importedBytes, true);
     disposables.push(humans);
     humans.begin();
     humans.add("p1", 10, 3, -5, Math.PI / 2, 0, 0);
@@ -108,38 +141,78 @@ describe("generic online player avatar", () => {
     expect(humans.group.getObjectByName("player-body:p1")).toBeUndefined();
   });
 
-  it("keeps shoe soles on the model ground plane through idle and walking", async () => {
-    const humans = await PlayerBodies.load(async () => bytes, false);
+  it("keeps shoe soles on the model ground plane through idle, walking, jogging and sprinting", async () => {
+    const humans = await PlayerBodies.load(importedBytes, false);
     disposables.push(humans);
-    for (const speed of [0, 1.39]) {
-      for (let frame = 0; frame < 4; frame++) {
+    for (const [speed, duration] of [[0, 9.933], [1.39, 1.033], [3, 2.567], [7, 0.7]] as const) {
+      for (let frame = 0; frame < Math.ceil((duration + 0.3) * 30); frame++) {
         humans.begin();
-        humans.add("p1", 0, 0, 0, 0, speed, 0.25);
+        humans.add("p1", 0, 0, 0, 0, speed, 1 / 30);
         humans.end();
+        if (frame < 9) continue; // Settled clips; the separate test covers the blend.
         const root = body(humans.group, "p1");
         root.updateMatrixWorld(true);
-        const soles: number[] = [];
-        root.traverse(object => {
-          const mesh = object as THREE.SkinnedMesh;
-          if (!mesh.isSkinnedMesh) return;
-          const indices = mesh.geometry.getAttribute("skinIndex");
-          const weights = mesh.geometry.getAttribute("skinWeight");
-          const feet = new Set(mesh.skeleton.bones.map((bone, i) => /_Foot$|_Toe/.test(bone.name) ? i : -1));
-          const point = new THREE.Vector3();
-          for (let i = 0; i < mesh.geometry.getAttribute("position").count; i++) {
-            let footWeight = 0;
-            for (let k = 0; k < 4; k++) if (feet.has(indices.getComponent(i,k))) footWeight += weights.getComponent(i,k);
-            if (footWeight < 0.5) continue;
-            mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
-            soles.push(point.y);
-          }
-        });
+        const soles = shoeSoles(root);
         expect(soles.length).toBeGreaterThan(50);
         expect(Math.min(...soles)).toBeGreaterThan(-0.06);
         expect(Math.min(...soles)).toBeLessThan(0.12);
         expect(Math.max(...soles)).toBeGreaterThan(0.02);
       }
     }
+  });
+
+  it.each([30, 60])("keeps shoes above the ground tolerance during idle-to-jog blending at %i Hz", async hz => {
+    const humans = await PlayerBodies.load(importedBytes, false);
+    disposables.push(humans);
+    humans.begin(); humans.add("p1", 0, 0, 0, 0, 0, 0); humans.end();
+    for (let frame = 0; frame < Math.ceil(0.4 * hz); frame++) {
+      humans.begin(); humans.add("p1", 0, 0, 0, 0, 3, 1 / hz); humans.end();
+      const root = body(humans.group, "p1");
+      root.updateMatrixWorld(true);
+      const soles = shoeSoles(root);
+      expect(soles.length).toBeGreaterThan(50);
+      expect(Math.min(...soles), `frame ${frame + 1} at ${hz} Hz`).toBeGreaterThan(-0.06);
+      expect(Math.min(...soles)).toBeLessThan(0.12);
+      expect(root.position.toArray()).toEqual([0, 0, 0]);
+    }
+  });
+
+  it("shares the imported motion bank, selects jogging and sprinting, and keeps player positions exact", async () => {
+    const load = vi.fn(importedBytes);
+    const first = await PlayerBodies.load(load, false);
+    const second = await PlayerBodies.load(load, false);
+    disposables.push(first, second);
+    expect(load.mock.calls.filter(([path]) => path === MIXAMO_MOTION_FILE)).toHaveLength(1);
+    for (const [speed, motion] of [[0, "idle"], [1.39, "walk"], [3, "jog"], [7, "run"], [0, "idle"]] as const) {
+      first.begin(); first.add("p1", 12, 3, -8, 0, speed, 0.3); first.end();
+      const root = first.rootOf("p1")!;
+      expect(root.userData.motionSource).toBe("mixamo");
+      expect(root.userData.motion).toBe(motion);
+      expect(root.position.toArray()).toEqual([12, 3, -8]);
+    }
+  });
+
+  it("keeps baked movement when the optional bank is missing or malformed, and retries later loads", async () => {
+    let available = false;
+    const load = vi.fn(async (path: string) => {
+      if (path === PLAYER_BODY_FILE) return bytes;
+      if (!available) throw new Error("offline");
+      return motionBytes;
+    });
+    const fallback = await PlayerBodies.load(load, false);
+    disposables.push(fallback);
+    fallback.begin(); fallback.add("p1", 0, 0, 0, 0, 3.2, 0.4); fallback.end();
+    expect(fallback.rootOf("p1")!.userData.motion).toBe("run");
+    expect(fallback.rootOf("p1")!.userData.motionSource).toBeUndefined();
+    available = true;
+    const retry = await PlayerBodies.load(load, false);
+    disposables.push(retry);
+    retry.begin(); retry.add("p1", 0, 0, 0, 0, 3, 0.4); retry.end();
+    expect(retry.rootOf("p1")!.userData.motionSource).toBe("mixamo");
+    const malformed = await PlayerBodies.load(async path => path === PLAYER_BODY_FILE ? bytes : new TextEncoder().encode('{"version":99}'), false);
+    disposables.push(malformed);
+    malformed.begin(); malformed.add("p1", 0, 0, 0, 0, 0, 0.4); malformed.end();
+    expect(malformed.rootOf("p1")!.userData.motionSource).toBeUndefined();
   });
 
   it("eases the drawn heading toward the sim's, the short way round, snapping on first sight and reversals", () => {
@@ -207,10 +280,12 @@ describe("generic online player avatar", () => {
     await vi.waitFor(() => expect(actors.group.getObjectByName("players:bodies")).toBeDefined());
     actors.setFoot("p2", { ...pose, x: 12 });
     actors.update(1 / 60);
-    // The human and its dodge clips, once each, for every player.
-    expect(load).toHaveBeenCalledTimes(2);
-    expect(load).toHaveBeenNthCalledWith(1, PLAYER_BODY_FILE);
-    expect(load).toHaveBeenNthCalledWith(2, PLAYER_DODGE_FILE);
+    // The human, its locomotion bank and its dodge clips, once each, for every player.
+    expect(load.mock.calls).toHaveLength(4);
+    expect(load).toHaveBeenCalledWith(PLAYER_BODY_FILE);
+    expect(load).toHaveBeenCalledWith(MIXAMO_MOTION_FILE);
+    expect(load).toHaveBeenCalledWith(PLAYER_DODGE_FILE);
+    expect(load).toHaveBeenCalledWith(MIXAMO_DODGE_FILE);
     expect(actors.walkers).toBe(2);
     expect(actors.walkersFromFile).toBe(2);
     expect((actors.group.getObjectByName("players:people:body") as THREE.InstancedMesh).count).toBe(0);
@@ -279,8 +354,8 @@ describe("generic online player avatar", () => {
   it("dodging plays real clips (the dodge stream): a startled push-off, a run or sprint at the body's speed, a flinch on a sidestep, a stumble for the override's shove, brushing off after; every clip binds to the avatar's bones", async () => {
     const humans = await PlayerBodies.load(files, false);
     disposables.push(humans);
-    const all = () => true;
-    const dive = (over: Partial<DodgeState>): DodgeState => ({ phase: "dive", sx: 0, sz: 0, tx: 4, tz: 0, t: 30, dur: 70, peak: 0, hop: 0, leap: false, vx: 4, vz: 0, vmax: 4.8, ...over });
+    // A crowd body (Rocketbox locomotion: no jog).
+    const all = (m: string) => m !== "jog";
     expect(motionFor(4.8, dive({ t: 3 }), all)).toBe("runStart");
     expect(motionFor(3, dive({}), all)).toBe("run");
     expect(motionFor(5.5, dive({}), all)).toBe("sprint");
@@ -288,6 +363,16 @@ describe("generic online player avatar", () => {
     expect(motionFor(0, dive({ leap: true, t: 0, dur: 14 }), all)).toBe("stumble");
     expect(motionFor(0, dive({ phase: "recover", t: 3, dur: 36 }), all)).toBe("recover");
     expect(motionFor(0, null, all)).toBe("idle");
+    // The player (the Mixamo locomotion): a dodge runs with the same jog and run it moves with.
+    const mixamo = () => true;
+    expect(motionFor(4.8, dive({ t: 3 }), mixamo)).toBe("runStart");
+    expect(motionFor(1, dive({}), mixamo)).toBe("jog");
+    expect(motionFor(4.8, dive({}), mixamo)).toBe("jog");
+    expect(motionFor(5.5, dive({}), mixamo)).toBe("run");
+    expect(motionFor(1, dive({ tx: 1 }), mixamo)).toBe("flinch");
+    expect(motionFor(0, dive({ leap: true, t: 0, dur: 14 }), mixamo)).toBe("stumble");
+    expect(motionFor(0, dive({ phase: "recover", t: 3, dur: 36 }), mixamo)).toBe("recover");
+    for (const [v, m] of [[0, "idle"], [1.39, "walk"], [3, "jog"], [7, "run"]] as const) expect(motionFor(v, null, mixamo)).toBe(m);
     // Without the clips: the plain locomotion.
     const plain = (m: string) => m === "idle" || m === "walk" || m === "run";
     expect(motionFor(0, dive({ leap: true }), plain)).toBe("idle");
@@ -307,5 +392,33 @@ describe("generic online player avatar", () => {
       humans.end();
     }
     expect(spine.quaternion.angleTo(rest)).toBeGreaterThan(0.05);
+  });
+  it.each([30, 60])("blends the player's Mixamo walk, jog and run with every dodge phase, shoes on the ground, at %i Hz", async hz => {
+    const humans = await PlayerBodies.load(importedBytes, false);
+    disposables.push(humans);
+    // Walking, then a dodge as the sim draws it: the startle, speeding up through the jog into a
+    // run, the override's shove, recovering, and walking on.
+    const plan: Array<[number, number, DodgeState | null]> = [[0.5, 1.39, null]];
+    for (let t = 0; t < 60; t++) plan.push([1 / 60, Math.min(5.5, 1.39 + t * 0.12), dive({ t, dur: 90, vmax: 6 })]);
+    for (let t = 0; t < 30; t++) plan.push([1 / 60, 0.4, dive({ leap: true, t, dur: 30 })]);
+    for (let t = 0; t < 40; t++) plan.push([1 / 60, 0, dive({ phase: "recover", t, dur: 40 })]);
+    plan.push([0.6, 1.39, null]);
+    const seen: string[] = [];
+    for (const [seconds, speed, dodge] of plan) {
+      for (let frame = 0; frame < Math.max(1, Math.round(seconds * hz)); frame++) {
+        humans.begin(); humans.add("p1", 0, 0, 0, 0, speed, 1 / hz, undefined, dodge); humans.end();
+        const root = body(humans.group, "p1");
+        const motion = root.userData.motion as string;
+        if (seen.at(-1) !== motion) seen.push(motion);
+        root.updateMatrixWorld(true);
+        const soles = shoeSoles(root);
+        expect(soles.length).toBeGreaterThan(50);
+        expect(Math.min(...soles), `${motion} at ${hz} Hz`).toBeGreaterThan(-0.06);
+        expect(Math.min(...soles), `${motion} at ${hz} Hz`).toBeLessThan(0.12);
+        expect(root.position.toArray()).toEqual([0, 0, 0]);
+      }
+    }
+    expect(seen).toEqual(["walk", "runStart", "jog", "run", "stumble", "recover", "walk"]);
+    expect(body(humans.group, "p1").userData.motionSource).toBe("mixamo");
   });
 });

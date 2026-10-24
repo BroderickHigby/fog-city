@@ -57,3 +57,11 @@ None so far. The Rocketbox clips come from the pinned upstream (MIT).
 ### Merge notes (2026-10-24)
 - **Visual #33 (combat)** touches the same near-people loop in `agent-layer.ts`. Whoever merges second keeps both: dodge's `anim` before `crowd.add(..., dodge)` and the `dodgePose` passed to `people.add`, plus Visual's `nearPeopleWet` map (keyed by pose index) and the wetness cue on the `people.add` fallback. `PeopleRig.add` then needs both optional arguments (pose and cue).
 - **Impacts** edits `vehicleOfCar` in `src/sim/dodge.ts`: inflate terms, `CAR_DV` and the hard turn from car.ts (#81, the player car tops out around 54 m/s), knocked agents, robots not diving for player cars, and props as bodies. Whichever of us lands second merges and re-runs dodge-fuzz, dodge-soak and dodge-motion, and reports any bound that slips.
+
+### Merged #82 (integrate `ce59fcf`, 2026-10-24): one Mixamo pipeline
+The coordinator asked for #82's retarget pipeline and motion bank to be reused for the dodge clips:
+- **Mixamo clips:** `assets/imports/mixamo/build.ts` gained `--set dodge` (→ `public/models/anim/mixamo-dodge.json`: `stumble`, `flinch`) and `--set crowd` (→ `mixamo-crowd.json`: the 8 Mixamo walks and idles). Clips can be cut to a frame window. The Blender Mixamo retarget in `clips.py` is gone. `dodge-clips.glb` and `crowd-clips.glb` now hold only Rocketbox clips.
+- **Blending:** `motionFor` uses #82's thresholds when the Mixamo locomotion is loaded (walk ≥0.2, jog ≥2.4, run ≥5 m/s). A dodge runs on the same jog/run: the startle `runStart` (Rocketbox) → jog → run → `stumble` → `recover` → walk. A jog is entered with #82's 0.1 s fade; other dodge clips use 0.12 s.
+- **Crowd:** other characters play the dodge bank without its hip-position track, keeping their own hip height.
+- **Test:** a new test in `tests/render/player-body.test.ts` walks the player through a whole dodge at 30 and 60 Hz. It checks the clip order and that the shoe soles stay within #82's ground tolerance on every frame.
+- **Packed build:** `scripts/build-web.ts` packs the two new banks as well.

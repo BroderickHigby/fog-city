@@ -1,21 +1,28 @@
 // How a human body is drawn getting out of a car's way (the sim's dodge, src/sim/dodge.ts), for
 // every renderer that draws people: the player's avatar (player-body.ts), the placeholder crowd
 // (agent-layer.ts, person.ts) and any skinned crowd built on the same Rocketbox skeleton.
-//  - motionFor: which clip plays (clip names as in public/models/generic-player.glb and
-//    public/models/anim/dodge-clips.glb).
+//  - motionFor: which clip plays (clip names as in public/models/generic-player.glb, the player's
+//    Mixamo locomotion public/models/mixamo-motion.json, and the dodge clips
+//    public/models/anim/dodge-clips.glb and anim/mixamo-dodge.json).
 //  - leapDrawOffset: the clearance override puts a body somewhere at once (the hard guarantee: it
 //    must be out of the vehicle's reach this tick); it is drawn as a shove aside over the leap's
 //    ticks instead, eased, never faster than the sim's OVERRIDE_DRAW_MPS and never off the ground.
 import type { DodgeState } from "../sim/contract.ts";
 import { OVERRIDE_DRAW_MPS } from "../sim/dodge.ts";
 
-/** Clips a human body plays. idle/walk/run: generic-player.glb; the rest: anim/dodge-clips.glb. */
-export type Motion = "idle" | "walk" | "run" | "sprint" | "runStart" | "runStop" | "recover" | "stumble" | "flinch";
-export const MOTIONS: readonly Motion[] = ["idle", "walk", "run", "sprint", "runStart", "runStop", "recover", "stumble", "flinch"];
+/**
+ * Clips a human body plays. idle/walk/run: the body's own file, or for the player the Mixamo
+ * locomotion (which adds jog, and whose run is the Shift sprint); sprint, runStart, runStop,
+ * recover: anim/dodge-clips.glb (Rocketbox); stumble, flinch: anim/mixamo-dodge.json.
+ */
+export type Motion = "idle" | "walk" | "jog" | "run" | "sprint" | "runStart" | "runStop" | "recover" | "stumble" | "flinch";
+export const MOTIONS: readonly Motion[] = ["idle", "walk", "jog", "run", "sprint", "runStart", "runStop", "recover", "stumble", "flinch"];
 /** Played once and held, not looped. */
 export const ONCE: ReadonlySet<Motion> = new Set(["runStart", "runStop", "stumble", "flinch"]);
 /** A dive no longer than this is a sidestep (sim/dodge.ts SIDESTEP_M): it flinches rather than runs. */
 const SIDESTEP_M = 1.4;
+/** The Mixamo locomotion's run (the Shift sprint) from this speed, m/s (player-body.ts). */
+export const MIXAMO_RUN_AT = 5;
 /** The startle at the start of a dodge, seconds (person.ts STARTLE_S). */
 const STARTLE_S = 0.25;
 
@@ -27,14 +34,20 @@ const STARTLE_S = 0.25;
  */
 export function motionFor(speed: number, dodge: Readonly<DodgeState> | null, have: (m: Motion) => boolean): Motion {
   const v = Math.abs(speed);
-  const locomotion: Motion = v >= 4.2 && have("sprint") ? "sprint" : v >= 2.4 && have("run") ? "run" : v >= 0.2 && have("walk") ? "walk" : "idle";
+  // With the Mixamo locomotion (it has a jog): its own thresholds (player-body.ts), so a dodge's
+  // run is the same jog and run the player moves with. Otherwise the Rocketbox run and sprint.
+  const mixamo = have("jog");
+  const locomotion: Motion = mixamo
+    ? v >= MIXAMO_RUN_AT && have("run") ? "run" : v >= 2.4 ? "jog" : v >= 0.2 && have("walk") ? "walk" : "idle"
+    : v >= 4.2 && have("sprint") ? "sprint" : v >= 2.4 && have("run") ? "run" : v >= 0.2 && have("walk") ? "walk" : "idle";
   if (!dodge) return locomotion;
   if (dodge.phase === "recover") return have("recover") ? "recover" : "idle";
   if (dodge.leap) return have("stumble") ? "stumble" : "idle";
   const len = Math.hypot(dodge.tx - dodge.sx, dodge.tz - dodge.sz);
   if (len <= SIDESTEP_M && have("flinch")) return "flinch";
   if (dodge.t / 60 < STARTLE_S && have("runStart")) return "runStart";
-  return locomotion === "idle" || locomotion === "walk" ? (have("run") ? "run" : locomotion) : locomotion;
+  if (locomotion !== "idle" && locomotion !== "walk") return locomotion;
+  return mixamo ? "jog" : have("run") ? "run" : locomotion;
 }
 
 /** Smoothstep: eases in and out; its steepest slope is 1.5. */

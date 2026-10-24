@@ -414,6 +414,11 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
   }
 
+  // Retargeted motions share the byte-provider path in loose and packed builds.
+  for (const motions of ["models/mixamo-motion.json", "models/anim/mixamo-dodge.json", "models/anim/mixamo-crowd.json"]) {
+    if (existsSync(join(pub, motions))) single(motions, new Uint8Array(readFileSync(join(pub, motions))));
+  }
+
   // Optional licensed surface scans use the same relative byte provider as models.
   const surfaceDir = join(pub, "textures", "surfaces");
   if (existsSync(surfaceDir)) {
@@ -456,6 +461,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");
   write(join(out, "third-party-notices.txt"), notices +
     "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n" +
+    "\nPlayer movement: supplied Mixamo animations, retargeted to the existing Rocketbox rig. Adobe Mixamo terms apply. https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html\n" +
     "\nMusic: CC0 1.0 tracks from OpenGameArt.org. See audio/music/manifest.json for each title, author and source page.\n");
 
   const check = checkHostLimits(out);
