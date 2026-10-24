@@ -36,7 +36,12 @@
 // v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
 // reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
 // a v12 save keeps its saved water value, which no longer limits the stream.
-export const SIM_VERSION = 13;
+// v14 (performance): a quiet walker in the active fidelity tier (beyond 150 m of every anchor)
+// plans on one tick in AGENT_PLAN_STRIDE (4), staggered by id, and moves that many ticks' worth
+// (AgentMotionProposal.strideTicks); near walkers, robots with bad firmware, reacting, detouring
+// or combat-affected actors still plan every tick. No field changes: an upgraded v13 save keeps
+// every field.
+export const SIM_VERSION = 14;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

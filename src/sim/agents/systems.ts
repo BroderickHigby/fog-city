@@ -86,8 +86,9 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
       }
     }
     const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
-    if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
-    if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
+    // The planner shares actors it did not change with the previous tick: copy before retiring.
+    if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]={...runtime.actors[id]!,retired:true};}
+    if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]={...runtime.actors[id]!,retired:true};}
     runtime.missionBindings=bindings;
     runtime.missionStages=pending;
     runtime.proposals=runtime.proposals.filter(proposal=>!runtime.actors[proposal.id]?.retired);

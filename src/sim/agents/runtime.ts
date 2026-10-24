@@ -275,7 +275,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   return {state,own};
 }
 
-function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>):RobotObservations{
+function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>,nearIndex?:(x:number,z:number,radius:number)=>number[]):RobotObservations{
   const sight:RobotObservations["sight"][number][]=[],sounds:RobotObservations["sounds"][number][]=[],scans:RobotObservations["scans"][number][]=[],watches:RobotObservations["watches"][number][]=[];
   for(const player of people){
     const near=distance(actor,player)<=40;
@@ -286,7 +286,8 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(input&&(input.actions&Action.horn))sounds.push({kind:"horn",playerId:player.id,x:player.x,z:player.z});
     if(input&&(input.actions&Action.watch))watches.push({playerId:player.id,x:player.x,z:player.z,lineOfSight:visible});
   }
-  for(const other of others){
+  // Only the actors that can be within 30 m, in list order (the same sight list as a full scan).
+  for(const other of nearIndex?nearIndex(actor.x,actor.z,30).map(at=>others[at]!):others){
     if(other.id===actor.id||other.retired||other.behavior==="pending-admission"||distance(actor,other)>30)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,other.x,other.z);
     if(human(other.model))sight.push({kind:"person",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible});
@@ -340,6 +341,19 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
   return {goal:null,speed:actor.model==="trundle"?1:animal(actor.model)?1.3:1.6};
 }
 
+/** Boxes by 16 m cell of their centre. near() returns, in the list's own order, every box whose centre is within `radius` on both axes (a superset callers filter exactly). */
+interface BoxIndex{readonly boxes:readonly DetourBox[];readonly hull:number;near(x:number,z:number,radius:number):DetourBox[]}
+function boxIndex(boxes:readonly DetourBox[]):BoxIndex{
+  const CELL=16,cell=(v:number)=>Math.floor(v/CELL)+32768,grid=new Map<number,number[]>();
+  let hull=0;
+  boxes.forEach((b,i)=>{hull=Math.max(hull,b.hl+b.hw);const key=cell(b.x)*65536+cell(b.z),at=grid.get(key);if(at)at.push(i);else grid.set(key,[i]);});
+  return {boxes,hull,near(x,z,radius){
+    const at:number[]=[];
+    for(let cx=cell(x-radius);cx<=cell(x+radius);cx++)for(let cz=cell(z-radius);cz<=cell(z+radius);cz++)for(const i of grid.get(cx*65536+cz)??[])at.push(i);
+    return at.sort((a,b)=>a-b).map(i=>boxes[i]!);
+  }};
+}
+
 /** Every vehicle body (players' cars, robotaxis, vans, buses), as of the previous tick. */
 function vehicleBoxes(sim:Readonly<SimState>):DetourBox[]{
   const out:DetourBox[]=[];
@@ -366,9 +380,9 @@ function stoppedVehicles(sim:Readonly<SimState>):DetourBox[]{
  * first point of the route clear beyond it (detour.ts), and carries on from there. Returns the
  * point to head for this tick, or null to follow the route as usual.
  */
-function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor:RuntimeActor,speed:number,stopped:readonly DetourBox[],isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number}|null{
+function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor:RuntimeActor,speed:number,stopped:BoxIndex,isBlocked:(edge:SidewalkGraph["edges"][number])=>boolean):{x:number;z:number}|null{
   const r=actor.radius;
-  const within=(reach:number)=>stopped.filter(b=>Math.abs(b.x-actor.x)<=reach+b.hl+b.hw&&Math.abs(b.z-actor.z)<=reach+b.hl+b.hw);
+  const within=(reach:number)=>stopped.near(actor.x,actor.z,reach+stopped.hull).filter(b=>Math.abs(b.x-actor.x)<=reach+b.hl+b.hw&&Math.abs(b.z-actor.z)<=reach+b.hl+b.hw);
   // Nothing standing still within reach of the next DETOUR_LOOK_M of route and no detour under way:
   // the common case, no route walk.
   if(!actor.route||(!actor.detour&&!within(DETOUR_LOOK_M+r+.2).length)){actor.detour=null;return null;}
@@ -498,6 +512,24 @@ function clearAhead(world:World,graph:SidewalkGraph,actor:RuntimeActor,vehicles:
 function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
   return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
 }
+/** v14: ticks between plans for a quiet walker in the active (not full) fidelity tier. */
+export const AGENT_PLAN_STRIDE=4;
+/**
+ * May this actor plan at the lower rate? Only an ordinary walker with nothing going on: no
+ * vehicle, drone, dog on a lead, authored or significant actor, bad firmware, posted spot,
+ * pending admission, reaction, detour or combat effect. Anything else keeps planning every tick.
+ */
+function strideEligible(actor:RuntimeActor,sim:Readonly<SimState>):boolean{
+  if(vehicle(actor.model)||actor.model==="drone"||actor.ownerId!==undefined||actor.significant||actor.firmware==="bad"||actor.posted||actor.legacyId===null)return false;
+  if(actor.behavior==="pending-admission"||actor.reaction.mode!=="idle"||actor.detour)return false;
+  const combat=activeCombat(sim);
+  if(!combat)return true;
+  if(combat.targets[actor.id]!==undefined&&!quietTarget(combat.targets[actor.id]!,sim.tick))return false;
+  return !combat.attacks.some(attack=>attack.targetId===actor.id||attack.attackerId===actor.id);
+}
+function quietTarget(target:CombatState["targets"][string],tick:number):boolean{
+  return target.phase==="active"&&target.rust===0&&target.wetUntil<=tick&&target.waryUntil<=tick&&target.movementScale===1&&target.slowUntil<=tick&&target.stoppedUntil<=tick&&target.pullOverTick===0&&!target.repair;
+}
 /** One motion proposal, built field by field (the same record the spread literals used to make). */
 function proposalOf(actor:RuntimeActor,legacyId:number|null,kind:AgentMotionProposal["kind"],x:number,y:number,z:number,heading:number,speed:number,controls?:Readonly<SimInput>):AgentMotionProposal{
   const out:AgentMotionProposal={id:actor.id,numericId:actor.numericId,legacyId,kind,x,y,z,heading,speed,radius:actor.radius,height:actor.height,sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z};
@@ -511,7 +543,7 @@ function proposalOf(actor:RuntimeActor,legacyId:number|null,kind:AgentMotionProp
   if(actor.halfWidth)out.halfWidth=actor.halfWidth;
   return out;
 }
-function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>,stopped:readonly DetourBox[],vehicles:readonly DetourBox[]):void{
+function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>,stopped:BoxIndex,vehicles:BoxIndex,stride=1):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
     const controls=options.vehicleControls?.[actor.id];
@@ -585,18 +617,18 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       }
     }
     if(actor.route&&actor.route.steps.length){
-      const around=detourGoal(world,sim,graph,actor,speed,stopped,edge=>Boolean(options.crossingBlocked?.(edge.id)));
+      const around=detourGoal(world,sim,graph,actor,speed*stride,stopped,edge=>Boolean(options.crossingBlocked?.(edge.id)));
       if(around){goal=around;actor.pendingCursor=null;}
       else{
-        const next=advanceSidewalkRoute(graph,actor.route,actor.cursor,speed*DT,edge=>Boolean(options.crossingBlocked?.(edge.id)));
+        const next=advanceSidewalkRoute(graph,actor.route,actor.cursor,speed*stride*DT,edge=>Boolean(options.crossingBlocked?.(edge.id)));
         goal=next.point;actor.pendingCursor=next.cursor;
         // A sidewalk line that runs too close to a facade for this body: walk straight to the first
         // point of the route ahead with room for it (as a detour, so the route carries on from there).
         // A step the physical layer would refuse (into a facade, or nearer a vehicle it is already
         // pressed against): walk to the first clear point of the route ahead instead, or, wedged in a
         // nook, step out to the nearest free spot towards it. Either way, never stand frozen.
-        const near=vehicles.filter(v=>Math.abs(v.x-actor.x)<8&&Math.abs(v.z-actor.z)<8);
-        if(stepRefused(world,actor,goal,speed,near)){
+        const near=vehicles.near(actor.x,actor.z,8).filter(v=>Math.abs(v.x-actor.x)<8&&Math.abs(v.z-actor.z)<8);
+        if(stepRefused(world,actor,goal,speed*stride,near)){
           const ahead=clearAhead(world,graph,actor,near,edge=>Boolean(options.crossingBlocked?.(edge.id)))??stepOut(world,actor,near,advanceSidewalkRoute(graph,actor.route,actor.cursor,2,edge=>Boolean(options.crossingBlocked?.(edge.id))).point);
           if(ahead){goal={x:ahead.x,z:ahead.z};actor.pendingCursor=null;actor.detour={...ahead,until:sim.tick+DETOUR_TICKS};}
         }
@@ -604,14 +636,16 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     }
   }
   if(!goal)goal={x:actor.x+dsin(actor.heading),z:actor.z-dcos(actor.heading)};
-  const length=distance(actor,goal),travel=Math.min(length,speed*DT);
+  const length=distance(actor,goal),travel=Math.min(length,speed*stride*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
   const x=actor.x+dx*travel,z=actor.z+dz*travel;
   const clear=!segmentBlocked(world,actor.x,actor.z,x,z);
   const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):groundHeight(world,x,z);
   const actualX=clear?x:actor.x,actualZ=clear?z:actor.z;
   actor.pendingPoint={x:actualX,z:actualZ};
-  state.proposals.push(proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actualX,clear?y:actor.y,actualZ,length>1e-8?datan2(dx,-dz):actor.heading,clear?speed:0));
+  const proposal=proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actualX,clear?y:actor.y,actualZ,length>1e-8?datan2(dx,-dz):actor.heading,clear?speed*stride:0);
+  if(stride>1)proposal.strideTicks=stride;
+  state.proposals.push(proposal);
 }
 
 function contentGoalWeights(actor:RuntimeActor,wave:number):Partial<Record<RobotGoal,number>>|undefined{
@@ -648,7 +682,9 @@ function fallbackGraph(world:World):SidewalkGraph|undefined{
 /** Pure pre-movement planner. Core applies proposals once and owns final clearance. */
 export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:InputFrame,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const previous=agentsRuntimeOf(sim)??createAgentsRuntime(sim,options);
-  const {state}=synchronize(previous,sim,options);
+  // Shared: an actor is copied only when this tick changes it (own), so a distant walker that
+  // does not plan this tick (AGENT_PLAN_STRIDE) costs neither a copy nor a proposal.
+  const {state,own}=synchronize(previous,sim,options,true);
   const people=players(sim);
   const anchors=options.anchors??people.map(player=>({id:player.id,x:player.x,z:player.z}));
   const graph=options.graph??fallbackGraph(world);
@@ -657,13 +693,29 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
-  const stopped=stoppedVehicles(sim);
-  const vehicles=vehicleBoxes(sim);
-  for(const actor of list){
-    if(actor.retired)continue;
-    if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
-    if(actor.legacyId!==null&&!presentLegacy.has(actor.legacyId)){actor.fidelity="abstract";continue;}
-    const fidelity=planFidelity(actor,anchors,sim.tick);actor.fidelity=fidelity.tier;
+  const stopped=boxIndex(stoppedVehicles(sim));
+  const vehicles=boxIndex(vehicleBoxes(sim));
+  // Where each actor stands this tick (planning never moves a body), by 32 m cell, built on first use.
+  let grid:Map<number,number[]>|undefined;
+  const CELL=32,cell=(v:number)=>Math.floor(v/CELL)+32768;
+  const nearIndex=(x:number,z:number,radius:number):number[]=>{
+    if(!grid){grid=new Map();list.forEach((a,i)=>{const key=cell(a.x)*65536+cell(a.z),at=grid!.get(key);if(at)at.push(i);else grid!.set(key,[i]);});}
+    const out:number[]=[];
+    for(let cx=cell(x-radius);cx<=cell(x+radius);cx++)for(let cz=cell(z-radius);cz<=cell(z+radius);cz++)for(const i of grid.get(cx*65536+cz)??[])out.push(i);
+    return out.sort((a,b)=>a-b);
+  };
+  for(let index=0;index<list.length;index++){
+    const seen=list[index]!;
+    if(seen.retired)continue;
+    if(controlled.has(seen.id)){if(seen.intent!==null||seen.behavior!=="controlled"){const actor=list[index]=own(seen.id);actor.intent=null;actor.behavior="controlled";}continue;}
+    if(seen.legacyId!==null&&!presentLegacy.has(seen.legacyId)){if(seen.fidelity!=="abstract")(list[index]=own(seen.id)).fidelity="abstract";continue;}
+    const fidelity=planFidelity(seen,anchors,sim.tick);
+    // v14: a quiet walker beyond full fidelity plans on one tick in AGENT_PLAN_STRIDE (staggered
+    // by id) and then moves that many ticks' worth; in between it stands, untouched.
+    const stride=fidelity.tier==="active"&&strideEligible(seen,sim)?AGENT_PLAN_STRIDE:1;
+    if(stride>1&&(sim.tick+seen.numericId)%stride!==0){if(seen.fidelity!=="active")(list[index]=own(seen.id)).fidelity="active";continue;}
+    const actor=list[index]=own(seen.id);
+    actor.fidelity=fidelity.tier;
     if(fidelity.tier==="despawn"){
       actor.retired=true;actor.intent=null;
       event(state,"actor.retired",actor.id,"outside-fidelity");
@@ -686,12 +738,12 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       if(actor.brain.lastTick>=sim.tick)continue;
       const own=activeCombat(sim)?.targets[actor.id];
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people,nearIndex),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:state.baseBadCount,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
     }
-    propose(world,state,actor,graph,intent,options,sim,inputs,list,people,stopped,vehicles);
+    propose(world,state,actor,graph,intent,options,sim,inputs,list,people,stopped,vehicles,stride);
   }
   return state;
 }

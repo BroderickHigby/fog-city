@@ -23,6 +23,8 @@ export interface AgentMotionProposal {
   radius: number; height: number;
   halfLength?: number; halfWidth?: number;
   sourceX: number; sourceY: number; sourceZ: number;
+  /** v14: the proposal covers this many ticks of travel (a distant walker planning at a lower rate); speed is per stride. */
+  strideTicks?: number;
 }
 export type ObservedBody = Pick<AgentMotionProposal, "id" | "x" | "y" | "z" | "heading" | "speed">;
 
@@ -265,7 +267,7 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     // Structural sharing: a body that stays exactly where it was (blocked or standing) is kept.
     if (!car && (blocked ? body.speed === 0 : allowed === 0 && body.speed === 0 && x === body.x && z === body.z && y === body.y && heading === body.heading)) return body;
     return { ...body, x:blocked?body.x:x,z:blocked?body.z:z,y:blocked?body.y:y,heading,
-      speed:blocked?0:car?car.speed:allowed/DT,
+      speed:blocked?0:car?car.speed:allowed/(DT*(motion.strideTicks??1)),
       ...(car?{vehicle:blocked?{...car,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:0,lateral:0,yawRate:0}:{...car,x,z,y,heading}}:{}) };
   });
   return { ...state, ext:{...state.ext,agents:{...state.ext.agents,list}} };
