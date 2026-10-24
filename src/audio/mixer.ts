@@ -49,6 +49,7 @@ export class GameAudio {
   private music: MusicPlayer | null = null;
   private musicTracks: readonly MusicTrack[] = [];
   private musicTrack: string | null | undefined = undefined;
+  private musicDucked = false;
   private prefs: AudioPrefs;
   private ducked = false;
   private unlocked = false;
@@ -99,6 +100,8 @@ export class GameAudio {
         this.buses.set(bus, g);
       }
       this.applyGains(true);
+      // A backgrounded tab can leave the context suspended: resume it when the page shows again.
+      if (typeof document !== "undefined") document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void this.ctx?.resume().catch(() => {}); });
       for (const id of this.bytes.keys()) void this.decode(id);
       this.startMusic();
     }
@@ -129,6 +132,17 @@ export class GameAudio {
     if (active === this.ducked) return;
     this.ducked = active;
     this.applyGains(false);
+  }
+
+  /** Duck the music under a menu or dialog (nothing switches). */
+  setMusicDucked(on: boolean): void {
+    this.musicDucked = on;
+    this.music?.setDucked(on);
+  }
+
+  /** Per-frame upkeep: the music watchdog (stalled streams, waiting crossfades). */
+  tick(): void {
+    this.music?.tick();
   }
 
   /** The music track to play by id (null: silence, the radio switched off). */
@@ -260,7 +274,7 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
@@ -268,6 +282,7 @@ export class GameAudio {
       effectsPlayed: Object.fromEntries(this.played),
       spray: this.spray !== null,
       music: this.music?.nowPlaying() ?? null,
+      musicSwitches: this.music?.switches ?? 0,
       ducked: this.ducked,
       gains: {
         master: masterGain(this.prefs),
@@ -300,6 +315,7 @@ export class GameAudio {
       return;
     }
     if (this.musicTrack !== undefined) this.music.play(this.musicTrack);
+    this.music.setDucked(this.musicDucked);
     this.music.setEnabled(this.unlocked && audible(this.prefs, "music"));
   }
 

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { AudioPrefsStore, AUDIO_PREFS_KEY, DEFAULT_AUDIO_PREFS, loadAudioPrefs, sanitizeAudioPrefs } from "../../src/audio/prefs.ts";
 import { MUSIC_DUCK, audible, busGain, masterGain, sliderGain } from "../../src/audio/buses.ts";
-import { COMBAT_HOLD_MS, MusicContextTracker, SETTLE_MS, desiredContext, musicUrl, type MusicSignals } from "../../src/audio/music.ts";
+import { COMBAT_HOLD_MS, MIN_DWELL_MS, MusicContextTracker, SETTLE_MS, desiredContext, musicUrl, type MusicSignals } from "../../src/audio/music.ts";
 import { EffectCueTracker, JINGLE_INTERVAL_MS, SPLASH_PER_S, distanceGain, panOf, type HummingActor } from "../../src/audio/cues.ts";
 import { effectUrl } from "../../src/audio/mixer.ts";
 import { DEFAULT_STATION, RADIO_STATIONS, stationById, tune } from "../../src/audio/radio.ts";
@@ -66,7 +66,7 @@ describe("bus gains", () => {
 describe("music context", () => {
   const sig = (s: Partial<MusicSignals> = {}): MusicSignals => ({ menu: false, onFoot: false, missionUrgent: false, combat: false, ...s });
 
-  it("menu > the car radio > combat > urgent mission > on foot", () => {
+  it("the car radio > combat > urgent mission > on foot; menus are not a context", () => {
     expect(desiredContext(sig(), false)).toBe("driving");
     // In a car the radio plays whatever is going on.
     expect(desiredContext(sig({ missionUrgent: true, combat: true }), true)).toBe("driving");
@@ -74,7 +74,7 @@ describe("music context", () => {
     expect(desiredContext(sig({ onFoot: true, missionUrgent: true }), false)).toBe("mission");
     expect(desiredContext(sig({ onFoot: true, missionUrgent: true, combat: true }), false)).toBe("combat");
     expect(desiredContext(sig({ onFoot: true, missionUrgent: true }), true)).toBe("combat");
-    expect(desiredContext(sig({ combat: true, menu: true }), true)).toBe("menu");
+    expect(desiredContext(sig({ onFoot: true, combat: true, menu: true }), true)).toBe("combat");
   });
 
   it("tunes the radio round the dial, Off included, and every station plays a shipped track", () => {
@@ -90,20 +90,23 @@ describe("music context", () => {
     for (const s of RADIO_STATIONS) expect(s.name).not.toMatch(/\bK[A-Z]{2,3}\b|KFOG|KQED|KALW|Alice|Live 105/);
   });
 
-  it("settles before following a change, cuts to menus and combat at once, and holds combat", () => {
+  it("settles, keeps a minimum dwell between switches, ignores menus and holds combat", () => {
     const t = new MusicContextTracker();
     expect(t.update(sig(), 0)).toBe("driving");
     expect(t.update(sig({ onFoot: true }), 100)).toBe("driving");
     expect(t.update(sig(), 200)).toBe("driving"); // back in the car: no flap
     expect(t.update(sig({ onFoot: true }), 300)).toBe("driving");
-    expect(t.update(sig({ onFoot: true }), 300 + SETTLE_MS)).toBe("foot");
-    expect(t.update(sig({ onFoot: true, menu: true }), 2000)).toBe("menu");
-    expect(t.update(sig({ onFoot: true }), 2100)).toBe("foot");
-    expect(t.update(sig({ onFoot: true, combat: true }), 3000)).toBe("combat");
-    expect(t.update(sig({ onFoot: true, combat: true }), 3001)).toBe("combat");
-    expect(t.update(sig({ onFoot: true }), 3000 + COMBAT_HOLD_MS - 1)).toBe("combat");
-    expect(t.update(sig({ onFoot: true }), 3000 + COMBAT_HOLD_MS + 1)).toBe("combat"); // settling
-    expect(t.update(sig({ onFoot: true }), 3000 + COMBAT_HOLD_MS + 1 + SETTLE_MS)).toBe("foot");
+    expect(t.update(sig({ onFoot: true }), 300 + SETTLE_MS)).toBe("driving"); // settled, but inside the dwell
+    expect(t.update(sig({ onFoot: true }), MIN_DWELL_MS)).toBe("foot");
+    const t0 = MIN_DWELL_MS;
+    expect(t.update(sig({ onFoot: true, menu: true }), t0 + 100)).toBe("foot"); // menus duck, never switch
+    // Combat wants in at once, but waits out the dwell.
+    expect(t.update(sig({ onFoot: true, combat: true }), t0 + 1000)).toBe("foot");
+    expect(t.update(sig({ onFoot: true, combat: true }), t0 + MIN_DWELL_MS)).toBe("combat");
+    const c = t0 + MIN_DWELL_MS;
+    expect(t.update(sig({ onFoot: true }), c + COMBAT_HOLD_MS - 1)).toBe("combat");
+    expect(t.update(sig({ onFoot: true }), c + COMBAT_HOLD_MS + 1)).toBe("combat"); // settling
+    expect(t.update(sig({ onFoot: true }), c + COMBAT_HOLD_MS + 1 + SETTLE_MS)).toBe("foot");
   });
 
   it("streams Ogg Opus where supported, else the MP3", () => {
