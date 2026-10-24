@@ -1,6 +1,8 @@
-// Audio preferences: per-bus volume and mute, master, and subtitles. Presentation only: the sim
+// Audio preferences: per-bus volume and mute, master, subtitles and the car radio station. Presentation only: the sim
 // never reads them. Persisted per browser in localStorage; a missing, blocked or corrupt store
 // gives the defaults, and every value is clamped on the way in and out.
+
+import { DEFAULT_STATION, RADIO_STATIONS } from "./radio.ts";
 
 export type AudioBus = "music" | "effects" | "voice";
 export const AUDIO_BUSES: readonly AudioBus[] = ["music", "effects", "voice"];
@@ -17,6 +19,8 @@ export interface AudioPrefs {
   voiceMuted: boolean;
   /** Show subtitles while a line plays. A line whose audio fails always shows its text. */
   subtitles: boolean;
+  /** Car radio station id (radio.ts), "off" included. */
+  station: string;
 }
 
 export const AUDIO_PREFS_KEY = "fogcity.audio.v1";
@@ -32,6 +36,7 @@ export const DEFAULT_AUDIO_PREFS: Readonly<AudioPrefs> = Object.freeze({
   effectsMuted: false,
   voiceMuted: false,
   subtitles: true,
+  station: DEFAULT_STATION,
 });
 
 const unit = (value: unknown, fallback: number): number =>
@@ -53,6 +58,7 @@ export function sanitizeAudioPrefs(raw: unknown): AudioPrefs {
     effectsMuted: flag(r.effectsMuted, d.effectsMuted),
     voiceMuted: flag(r.voiceMuted, d.voiceMuted),
     subtitles: flag(r.subtitles, d.subtitles),
+    station: typeof r.station === "string" && RADIO_STATIONS.some((s) => s.id === r.station) ? r.station : d.station,
   };
 }
 

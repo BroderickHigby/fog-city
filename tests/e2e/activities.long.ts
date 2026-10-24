@@ -7,22 +7,18 @@ import { loadWorld } from "../helpers.ts";
 import { savedAfterSpill } from "../helpers/drivers/wave3-campaign.ts";
 import { bootWorld, simState, type FogWindow } from "./fixtures.ts";
 import { e2eGameSystems } from "./game-systems.ts";
-import { QUERY, Session, feed, importAndLoad, quietly, saveFile } from "./campaign-browser.ts";
+import { QUERY, Session, applyQueued, feed, importAndLoad, quietly, saveFile } from "./campaign-browser.ts";
 
 const { world, manifest } = loadWorld("sf", { roads: true });
 const systems = e2eGameSystems();
 
-/** Press the panel's Start, then hold the clock once the activity is running. */
+/** Press the panel's Start, step the tick that applies its queued command, and check the activity runs. */
 async function start(page: Page, id: string, title: string): Promise<void> {
   const panel = page.locator(".fc-activity");
   await expect(panel.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await panel.getByRole("button", { name: "Start", exact: true }).click();
-  await page.waitForFunction(activity => {
-    const handle = (window as unknown as FogWindow).__fogcity!;
-    if (handle.state().ext.activities?.players.p1?.activeActivityId !== activity) return false;
-    handle.pause();
-    return true;
-  }, id);
+  await applyQueued(page, "activity-start");
+  expect((await simState(page)).ext.activities?.players.p1?.activeActivityId).toBe(id);
 }
 
 test.use({ viewport: { width: 960, height: 540 } });

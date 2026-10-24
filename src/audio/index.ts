@@ -5,8 +5,16 @@
 
 import type { Mission } from "../content/missions.ts";
 import type { SimState } from "../sim/contract.ts";
+import { playerPose } from "../sim/ride.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
+import { agentsOf } from "../sim/agents.ts";
+import { hornGain, type HornBlast } from "./horn.ts";
+import { panOf } from "./cues.ts";
+import { isTextEntry } from "../input/keyboard.ts";
+import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
+import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
+import { InnerVoice } from "./inner-voice.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
 import { audible } from "./buses.ts";
@@ -16,7 +24,7 @@ import { MissionVoice } from "./mission-voice.ts";
 import { MUSIC_MANIFEST_PATH, MusicContextTracker, type MusicContext, type MusicManifestFile, type MusicTrack } from "./music.ts";
 import { AudioPrefsStore, type AudioPrefs } from "./prefs.ts";
 import { VOICE_MANIFEST_PATH, type VoiceManifest } from "./voice-lines.ts";
-import { VoiceQueue, type SubtitleView, type VoiceQueueEvent } from "./voice-queue.ts";
+import { PRIORITY, VoiceQueue, type SubtitleView, type VoiceQueueEvent } from "./voice-queue.ts";
 
 export { GameAudio } from "./mixer.ts";
 export { AudioPrefsStore } from "./prefs.ts";
@@ -42,8 +50,11 @@ export interface AudioDebugInfo {
   unlocked: boolean;
   context: string;
   musicContext: MusicContext | null;
-  music: { context: string; trackId: string; paused: boolean; src: string } | null;
+  musicTrack: string | null;
+  station: string;
+  music: { trackId: string; paused: boolean; src: string } | null;
   musicTracks: number;
+  musicSwitches: number;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
   voice: { current: string | null; mode: string | null; waiting: string[]; status: string; files: number };
@@ -60,6 +71,13 @@ export interface GameAudioDirector {
   /** Call from a user gesture (pointerdown / keydown): nothing sounds before it. */
   unlock(): void;
   update(frame: AudioFrame): void;
+  /**
+   * One horn blast (src/audio/horn.ts hornBlasts, per stepped frame): any player's, heard from
+   * the local player, through the effects bus. Presentation only.
+   */
+  playHorn(blast: HornBlast): void;
+  /** Tune the car radio (M / Shift+M call this): +1 next station, -1 previous. */
+  tuneRadio(step: number): RadioStation;
   /** The player answered a dialogue question (UI callback): the speaker replies. */
   answered(questionId: string, answerId: string): void;
   /** A save restore jumped the game to another moment. */
@@ -96,13 +114,43 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     },
   });
   const missionVoice = new MissionVoice(queue, options.missions);
+  const inner = new InnerVoice(options.missions);
   const cues = new EffectCueTracker();
   const musicTracker = new MusicContextTracker();
   const subtitles: MountedSubtitles = mountSubtitles(options.host);
+  const toast: MountedRadioToast = mountRadioToast(options.host);
   let manifest: VoiceManifest | null = null;
   let tracks: readonly MusicTrack[] = [];
   let musicContext: MusicContext | null = null;
+  let musicTrack: string | null = null;
+  /** The context the station card last announced (the card shows on entering "driving"). */
+  let announced: MusicContext | null = null;
   let now = 0;
+  let listener = { x: 0, z: 0, heading: 0 };
+  let inCar = false;
+  let paused = false;
+  const clock = (): number => (typeof performance !== "undefined" ? performance.now() : now);
+  const showStation = (station: RadioStation): void => toast.show(station.name, station.tagline, clock());
+  /** The track a context plays: in a car the radio station, else the context's own track. */
+  const trackFor = (context: MusicContext): string | null =>
+    context === "driving" ? stationById(prefs.get().station).trackId : (tracks.find((t) => t.context === context)?.id ?? null);
+  const tuneRadio = (step: number): RadioStation => {
+    const station = tune(prefs.get().station, step);
+    prefs.set({ station: station.id });
+    showStation(station);
+    if (musicContext === "driving") {
+      musicTrack = station.trackId;
+      mixer.setMusicTrack(musicTrack);
+    }
+    return station;
+  };
+  const onKey = (event: KeyboardEvent): void => {
+    if (event.code !== "KeyM" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+    // Tuning works in menus too; only typing in a text field is left alone.
+    if (!inCar || isTextEntry(event.target)) return;
+    tuneRadio(event.shiftKey ? -1 : 1);
+  };
+  if (typeof window !== "undefined") window.addEventListener("keydown", onKey);
   let lastFightEvent = 0;
   let disposed = false;
   const unsubscribe = prefs.subscribe((p) => mixer.setPrefs(p));
@@ -139,8 +187,10 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const { state, playerId } = frame;
       const player = state.players[playerId];
       const onFoot = player?.mode === "foot" && !!player.foot;
-      const body = onFoot ? player!.foot! : player?.car;
-      const listener = { x: body?.x ?? 0, z: body?.z ?? 0, heading: body?.heading ?? 0 };
+      inCar = !!player && !onFoot;
+      paused = frame.paused;
+      const body = player ? playerPose(player) : undefined;
+      listener = { x: body?.x ?? 0, z: body?.z ?? 0, heading: body?.heading ?? 0 };
       const combat = state.ext.combat;
       // Effects.
       const spraying = !frame.paused && !!combat?.projectiles.some((p) => p.ownerId === playerId && p.kind === "water" && p.bornTick >= combat.tick - 12);
@@ -148,7 +198,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.setPaused(frame.paused);
       const runtime = agentsRuntimeOf(state);
       const actors: HummingActor[] = runtime ? Object.values(runtime.actors) : [];
-      for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused)) mixer.play(cue);
+      for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused, agentsOf(state))) mixer.play(cue);
       // Music context.
       let fight = spraying;
       for (const e of combat?.events ?? []) {
@@ -156,24 +206,52 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         lastFightEvent = e.id;
         if (FIGHT_EVENTS.has(e.kind) && (e.sourceId === playerId || e.targetId === playerId)) fight = true;
       }
-      const missions = gameplaySnapshot({ state }).missions.players[playerId];
+      const snapshot = gameplaySnapshot({ state });
+      const missions = snapshot.missions.players[playerId];
       const mission = missions ? options.missions.find((m) => m.id === missions.missionId) : undefined;
       const step = mission?.steps.find((s) => s.id === missions?.stepId);
       const missionUrgent = missions?.status === "active" && !!step && ((step.type === "goto") || (step.type === "objective" && step.timeLimitS !== undefined));
-      musicContext = musicTracker.update({ menu: frame.paused, onFoot, missionUrgent, combat: fight }, frame.nowMs);
-      mixer.setMusicContext(musicContext);
+      // Menus and dialogs duck the music; they never switch it (a mission dialog must not cut the track).
+      mixer.setMusicDucked(frame.paused);
+      const nextContext = musicTracker.update({ menu: frame.paused, onFoot, missionUrgent, combat: fight }, frame.nowMs);
+      // Tuning in as the player gets into a car, or as audio unlocks in one.
+      const unlocked = mixer.isUnlocked();
+      if (nextContext === "driving" && unlocked && announced !== "driving") showStation(stationById(prefs.get().station));
+      if (unlocked) announced = nextContext;
+      musicContext = nextContext;
+      musicTrack = trackFor(musicContext);
+      mixer.setMusicTrack(musicTrack);
+      toast.update(clock());
+      mixer.tick();
       // Voices and subtitles.
       queue.setPaused(frame.paused, frame.nowMs);
       missionVoice.observe(missions, frame.nowMs);
+      if (!frame.paused && missions) {
+        // The player's inner voice, behind (and interrupted by) the mission's own lines.
+        const own = combat?.players[playerId];
+        const line = inner.observe({
+          missionId: missions.missionId, stepId: missions.stepId, status: missions.status, visits: missions.visits,
+          player: body ? { x: body.x, z: body.z } : null,
+          salt: own ? own.salt : null,
+          badScanTick: own?.scan?.bad ? own.scan.tick : null,
+        }, frame.nowMs / 1000);
+        if (line) queue.enqueue({ ...missionVoice.item(line, "inner"), priority: PRIORITY.ambient }, frame.nowMs);
+      }
       queue.update(frame.nowMs);
       mixer.setVoiceActive(queue.speaking());
       subtitles.update(queue.subtitle(), prefs.get().subtitles);
     },
+    playHorn(blast) {
+      if (paused) return;
+      mixer.playHorn(hornGain(blast, listener), panOf(listener, blast.x, blast.z), blast.inVehicle);
+    },
+    tuneRadio,
     answered(questionId, answerId) {
       missionVoice.answered(questionId, answerId, now);
     },
     restore(state) {
       missionVoice.reset();
+      inner.reset();
       cues.reset(state?.ext.combat);
       lastFightEvent = state?.ext.combat?.events.reduce((m, e) => Math.max(m, e.id), 0) ?? 0;
       musicTracker.reset();
@@ -182,6 +260,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     mountSettings(doc) {
       return mountAudioSettings(doc, {
         store: prefs,
+        stations: RADIO_STATIONS.map((s) => ({ id: s.id, name: s.name })),
         nowPlaying: () => {
           const playing = mixer.info().music;
           const track = playing ? tracks.find((t) => t.id === playing.trackId) : undefined;
@@ -196,8 +275,11 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         unlocked: m.unlocked,
         context: m.state,
         musicContext,
+        musicTrack,
+        station: prefs.get().station,
         music: m.music,
         musicTracks: tracks.length,
+        musicSwitches: m.musicSwitches,
         effectsLoaded: m.effectsLoaded,
         effectsPlayed: m.effectsPlayed,
         voice: { ...queue.snapshot(), status: manifest?.status ?? "missing", files: manifest?.lines.filter((l) => l.file).length ?? 0 },
@@ -213,6 +295,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       disposed = true;
       unsubscribe();
       queue.reset();
+      if (typeof window !== "undefined") window.removeEventListener("keydown", onKey);
+      toast.dispose();
       subtitles.dispose();
       mixer.dispose();
       if (typeof window !== "undefined" && window.__fogcityAudio?.info === info) delete window.__fogcityAudio;

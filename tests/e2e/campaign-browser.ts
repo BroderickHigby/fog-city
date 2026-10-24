@@ -24,12 +24,21 @@ async function openSaves(page: Page): Promise<void> {
 }
 const slot = (page: Page, n: number) => page.locator(".fc-save-panel article").filter({ has: page.getByRole("heading", { name: `Save slot ${n}`, exact: true }) });
 /**
- * Closing a dialog resumes the game clock (the UI unpauses on close), so hold it again right
- * after: planning then starts from the state the page will be fed from, not one it ran past.
+ * A debug pause is authoritative (src/main.ts): closing a dialog leaves it in place, and a
+ * command the UI queues waits for the next stepped tick. Hold it anyway after closing, so a
+ * page that ever resumed on close could not run past the state Node plans from.
  */
 export async function closeAndHold(page: Page): Promise<void> {
   await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).first().click();
   await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
+}
+/** Apply what the UI just queued (a load's next mission, a dialog choice) with one neutral tick. */
+export async function applyQueued(page: Page, kind: string): Promise<void> {
+  await page.waitForFunction(kind => {
+    const handle = (window as unknown as FogWindow).__fogcity!;
+    return handle.commands!().some(event => event.tick === handle.state().tick + 1 && (event.payload as { kind?: string }).kind === kind);
+  }, kind, { timeout: 60_000 });
+  await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.stepN(1));
 }
 /** Import a save file into a slot with the page's Import button, then load it with Load. */
 export async function importAndLoad(page: Page, text: string, n: number): Promise<void> {
@@ -47,6 +56,8 @@ export async function loadSlot(page: Page, n: number, open = true): Promise<void
   await page.locator(".fc-save-panel").getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(page.locator(".fc-save-panel [role=status]")).toHaveText("Done");
   await closeAndHold(page);
+  // A load starts the next campaign mission with a queued command.
+  await applyQueued(page, "mission-start");
 }
 export async function saveSlot(page: Page, n: number): Promise<void> {
   await openSaves(page);
@@ -78,15 +89,17 @@ export async function feed(page: Page, driver: Wave3Driver, from = driver.state.
   }
   expect(canonicalJson(actual ?? await simState(page))).toBe(canonicalJson(driver.state));
 }
-/** Click a dialog choice, then hold the clock once the sim has applied it (status:step or status). */
+/** Click a dialog choice, step the tick that applies its queued command, and check it took (status:step or status). */
 export async function choose(page: Page, dialog: string, label: string, applied: string): Promise<void> {
   await page.getByRole("dialog", { name: dialog, exact: true }).getByRole("button", { name: label, exact: true }).click();
-  await page.waitForFunction(check => {
+  await page.waitForFunction(() => {
     const handle = (window as unknown as FogWindow).__fogcity!;
-    const progress = handle.state().ext.missions?.players.p1;
-    if (`${progress?.status}:${progress?.stepId}` !== check && progress?.status !== check) return false;
-    handle.pause();
-    return true;
+    return handle.commands!().some(event => event.tick === handle.state().tick + 1);
+  }, undefined, { timeout: 60_000 });
+  await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.stepN(1));
+  await page.waitForFunction(check => {
+    const progress = (window as unknown as FogWindow).__fogcity!.state().ext.missions?.players.p1;
+    return `${progress?.status}:${progress?.stepId}` === check || progress?.status === check;
   }, applied);
 }
 
@@ -120,7 +133,9 @@ export class Session {
     if (final.tick > this.last.tick) this.chunks.push(p1Chunk(final.tick - this.last.tick));
     this.last = final;
     const commands = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.commands!());
-    const recorded = withRecordedCommands(this.chunks, this.initial.tick, commands.filter(command => command.tick > this.initial.tick) as SimEvent[]);
+    // A command queued for a tick the page has not stepped yet (the next mission after a
+    // completion) is not part of this session.
+    const recorded = withRecordedCommands(this.chunks, this.initial.tick, commands.filter(command => command.tick > this.initial.tick && command.tick <= final.tick) as SimEvent[]);
     const actual = await quietly(page, () => hashState(replay(this.world, this.initial, recorded, this.systems).final));
     const expected = hashState(final);
     writeFileSync(`test-results/${label}-replay-proof.json`, JSON.stringify({

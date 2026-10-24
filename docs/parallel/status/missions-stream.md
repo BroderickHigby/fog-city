@@ -14,7 +14,7 @@ wave-3 routes. Base: `origin/integrate/wave2` (`ff7db5b`, gameplay checkpoint `8
 | #79 | `work/missions/search-and-park` (on #78) | Search & Park: physical legal stop, `parking.legalStop` | Draft; unit and real-SF legal-bay tests green |
 | #80 | `work/missions/coit-recon` (on #79) | Coit Tower Recon producer at the design's wave four | Draft; unit tests green |
 
-All are based on integrate/wave2 `86dfb90` (SIM_VERSION 10).
+All are merged with integrate/wave2 `aae1f46` (SIM_VERSION 10).
 
 ## Done (in branches, not merged)
 
@@ -83,11 +83,25 @@ All are based on integrate/wave2 `86dfb90` (SIM_VERSION 10).
 
 ## SIM_VERSION
 
-`PlayerActivities` gains two optional fields: `plainWords` (a run) and `parking` (legal-stop
-progress). Both are additive; an older state simply lacks them. Before marking ready:
-- merge `integrate/wave2`;
-- take the next unused number (9 is reserved for the World stream);
-- add the no-op upgrade step and fixtures.
+`PlayerActivities` gains three optional fields: `plainWords` (a run), `parking` (legal-stop
+progress) and `recon`. All are additive; an older state simply lacks them. Coordinator rule
+(2026-10-24): one number covers the whole stack, stamped when the PR is marked ready as
+integrate's current SIM_VERSION + 1, with a no-op upgrade "from the previous version to this
+one" and its fixture. The coordinator restamps at merge time if another PR lands first.
+
+## Coordination (2026-10-24)
+
+- Long playthroughs run in their own workflow, `.github/workflows/campaign-long.yml`
+  (coordinator cleared the `.github` edit, since Harness has no active stream). One job per
+  `*.long.ts`, 150 minutes each; the fast campaign spec stays in `ci.yml`. Documented in
+  `docs/testing.md`, checked by `tests/e2e/harness.test.ts`.
+- Final browser acceptance must not rely on anything a real player couldn't do. Plans that
+  rewind are search in Node only: the page gets only the frames of the plan that arrives,
+  which are plain driving. At least one Demo'd Correctly run must also drive the whole way,
+  with no walking fallback. It is blocked on #38 (City life, the traffic deadlock fix).
+- Unlimited water (#44, Gameplay): asked Gameplay to update `campaign.spec.ts` ("Pressure I",
+  the "∞" HUD stat) and the two tank lines in Hot Desk and Spill content in #44 itself, so
+  the game and the tests change in one PR. Plain Words pacing is built against unlimited water.
 
 ## Blocked
 

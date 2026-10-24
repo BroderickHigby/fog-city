@@ -329,6 +329,9 @@ describe("harness wiring", () => {
     }
     // Every pull request runs CI; a push runs it again only on main.
     expect(ci).toMatch(/on:\s*\n(?:\s*#[^\n]*\n)*\s+push:\s*\n\s+branches: \[main\]\s*\n\s+pull_request:/);
+    // Failures retain their traces and reach artifact upload without spending time on later
+    // browser tests or informational screenshots. A successful run still exercises every spec.
+    expect(ci).toMatch(/\n\s+run: pnpm e2e --max-failures=1\n/);
     // The informational screenshots can never fail or cancel the job. A step that reaches its
     // timeout-minutes fails the job even under continue-on-error, so Playwright's global timeout
     // must end the captures a minute or more before that backstop, and the exit status is ignored.
@@ -336,6 +339,7 @@ describe("harness wiring", () => {
     expect(start, "ci.yml has no Screenshots step").toBeGreaterThan(-1);
     const end = ci.indexOf("\n      - ", start);
     const shots = ci.slice(start, end < 0 ? undefined : end);
+    expect(shots).toContain("steps.e2e.outcome == 'success'");
     expect(shots).toMatch(/\n\s+continue-on-error: true\n/);
     const stepMinutes = Number(/\n\s+timeout-minutes: (\d+)\n/.exec(shots)?.[1]);
     const run = /\n\s+run: ([^\n]*)/.exec(shots)?.[1] ?? "";

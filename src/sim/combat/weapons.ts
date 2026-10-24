@@ -45,7 +45,8 @@ export function waterShot(
   const relativeYaw = wrapAngle(desiredYaw - heading);
   let yaw = wrapAngle(desiredYaw);
   const pitch = clamp(Number.isFinite(input.aimPitch) ? input.aimPitch! : 0.2, -1.2, 1.2);
-  let range = player.nozzle === "pressure" ? 18 : 12;
+  // The Pressure I/II upgrades (the former tanks, same tankTier) add 2 m of reach each.
+  let range = (player.nozzle === "pressure" ? 18 : 12) + 2 * (player.tankTier ?? 0);
   let volumeScale = 1;
   let rustScale = 1;
   let spawnHeight = player.y + 1.2;
@@ -73,8 +74,7 @@ export function waterShot(
   const boosted = wave >= 4 && own.boostUntil > state.tick;
   if (boosted && own.boost === "pressure") range *= 1.5;
   const volume = (player.flowTier === 1 ? 1.2 : 0.8) / 10 * volumeScale;
-  const available = supply === "reserve" ? own.reserve : own.water;
-  if (!Number.isFinite(available) || available + 1e-10 < volume) return null;
+  // Water is unlimited (owner decision 2026-10-23): a saved low tank never stops the stream.
   const salt = supply === "reserve" ? false : own.salt || boosted && own.boost === "salt";
   const horizontal = dcos(pitch);
   return {
