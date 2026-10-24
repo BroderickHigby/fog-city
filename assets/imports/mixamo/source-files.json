@@ -1,0 +1,1037 @@
+{
+  "archiveSha256": "57f3d353fae7d571a7e79df0cb9061436b03189ccd765a9945f501d5bcf16868",
+  "files": [
+    {
+      "archivePath": "Action Adventure Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/Y Bot.fbx",
+      "sha256": "e3065aed64805b00adaddef01ac7856521f69748360d13ef7b94b607636a5f5a",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Action Adventure Pack/stand to cover (2).fbx",
+      "file": "assets/mixamo/Action Adventure Pack/stand to cover (2).fbx",
+      "sha256": "27cf7a10444bcb44593905d2c9d319bde633cc7f220f72d01c7963ad2c7f3b9a",
+      "bytes": 382593
+    },
+    {
+      "archivePath": "Action Adventure Pack/cover to stand.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/cover to stand.fbx",
+      "sha256": "cf1b988590a451aef1960a8c96165ac907f8b08e6e8155d0b382c8a6b0e2ac71",
+      "bytes": 406545
+    },
+    {
+      "archivePath": "Action Adventure Pack/stand to cover.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/stand to cover.fbx",
+      "sha256": "e40d593072839ba3ebad45de0532d6001b4bde645a744c9236c0a9e9e3db57ce",
+      "bytes": 373569
+    },
+    {
+      "archivePath": "Action Adventure Pack/crouched sneaking right.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/crouched sneaking right.fbx",
+      "sha256": "893225ba326f5a7799899a54f0bebd8baac6b0b431caed9250718926169a6e20",
+      "bytes": 374785
+    },
+    {
+      "archivePath": "Action Adventure Pack/idle.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/idle.fbx",
+      "sha256": "e0fde9acaaeadb5974c15ca1ac778f9613d78136327f1a328acd2c888ba21fb4",
+      "bytes": 610401
+    },
+    {
+      "archivePath": "Action Adventure Pack/run to stop.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/run to stop.fbx",
+      "sha256": "04c64a57aa751095d07e5a88ff3881ac6bda10b1eea31db05c36bd15221e3077",
+      "bytes": 344977
+    },
+    {
+      "archivePath": "Action Adventure Pack/left cover sneak.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/left cover sneak.fbx",
+      "sha256": "56db77dcbe038f14c6efdcfc8e210dff02d44d7a72384259efc94c8762ad6fbe",
+      "bytes": 368417
+    },
+    {
+      "archivePath": "Action Adventure Pack/hard landing.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/hard landing.fbx",
+      "sha256": "f778a56f9a91c2f4a0c279d795f9bdd552b7640674fb5f096452c2fedb5e7084",
+      "bytes": 454737
+    },
+    {
+      "archivePath": "Action Adventure Pack/idle (4).fbx",
+      "file": "assets/mixamo/Action Adventure Pack/idle (4).fbx",
+      "sha256": "0272ce7be5ff60d985e0b824efffba121fdc19d0f7a50327fc313ccbdfd1db93",
+      "bytes": 448257
+    },
+    {
+      "archivePath": "Action Adventure Pack/jumping up.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/jumping up.fbx",
+      "sha256": "83f1834ac737b62061bd6e76f34538f5ca678faac0f1a2be55969d03ad5a0a14",
+      "bytes": 336849
+    },
+    {
+      "archivePath": "Action Adventure Pack/walking.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/walking.fbx",
+      "sha256": "62d0a330c202bc56fe19aba2320cd68d7da20ff3461134967b5bdbe336c3b034",
+      "bytes": 366081
+    },
+    {
+      "archivePath": "Action Adventure Pack/idle (5).fbx",
+      "file": "assets/mixamo/Action Adventure Pack/idle (5).fbx",
+      "sha256": "9d288eced216fce9b09b91dda584a0f0f7c16f6dc29f31a58e95d9814ca78342",
+      "bytes": 438289
+    },
+    {
+      "archivePath": "Action Adventure Pack/cover to stand (2).fbx",
+      "file": "assets/mixamo/Action Adventure Pack/cover to stand (2).fbx",
+      "sha256": "c93e696b342687e614b6e2deeee8bddf7fd3d7895c44576ad7732f2d4c4e9e23",
+      "bytes": 396273
+    },
+    {
+      "archivePath": "Action Adventure Pack/falling to roll.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/falling to roll.fbx",
+      "sha256": "0f6dce9eeb11726823792ab5473d4a934cec53f8fa6d4475fd502899fa30255c",
+      "bytes": 434225
+    },
+    {
+      "archivePath": "Action Adventure Pack/idle (2).fbx",
+      "file": "assets/mixamo/Action Adventure Pack/idle (2).fbx",
+      "sha256": "177d6ca322984c2891cf5d886e7ea34b7439bfb3b676ebaeab912cef9b797036",
+      "bytes": 853905
+    },
+    {
+      "archivePath": "Action Adventure Pack/right turn.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/right turn.fbx",
+      "sha256": "d04c05bfafee0441a365cc56c2febedbb5771dfbc307af54be18241a7645109a",
+      "bytes": 357105
+    },
+    {
+      "archivePath": "Action Adventure Pack/falling idle.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/falling idle.fbx",
+      "sha256": "3db4602b95e44d847ca6a0a8b73d1ea49985634176fc5f6358193d8953b3fd5d",
+      "bytes": 347681
+    },
+    {
+      "archivePath": "Action Adventure Pack/left turn.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/left turn.fbx",
+      "sha256": "634898e59f8254ab2a495bfa9c4c55814fe28b682b4fa4d49f8036bb72d634b3",
+      "bytes": 355777
+    },
+    {
+      "archivePath": "Action Adventure Pack/crouched sneaking left.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/crouched sneaking left.fbx",
+      "sha256": "37bbda9a9df0bf05fd58b3aafc44d34be75ff7dd944cab19414f1d1da7709123",
+      "bytes": 385697
+    },
+    {
+      "archivePath": "Action Adventure Pack/right cover sneak.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/right cover sneak.fbx",
+      "sha256": "3637e80e2fa682b6d85c186888ddf6534792680521c99a9b581593113f4f2331",
+      "bytes": 372625
+    },
+    {
+      "archivePath": "Action Adventure Pack/idle (3).fbx",
+      "file": "assets/mixamo/Action Adventure Pack/idle (3).fbx",
+      "sha256": "750d1326ac9c0b4c4797d7fcde1d336a1c089e55318b63fab20ca656b3c46e40",
+      "bytes": 552913
+    },
+    {
+      "archivePath": "Action Adventure Pack/running.fbx",
+      "file": "assets/mixamo/Action Adventure Pack/running.fbx",
+      "sha256": "54a7eb9c4f30ea778431cb9b738dbb8d3202743b492ebf14985d7b850fbb6a1c",
+      "bytes": 337025
+    },
+    {
+      "archivePath": "Basic Shooter Pack/strafe right.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/strafe right.fbx",
+      "sha256": "8a1c3777f5adb17f7d6526c91864b0f53388ffb1d971955f7d6d33df42fb7630",
+      "bytes": 395089
+    },
+    {
+      "archivePath": "Basic Shooter Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/Y Bot.fbx",
+      "sha256": "ce0f7cac3974ede57bcdd16b823a7e0465cfaf73e391f708e4be15702f3e49d9",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Basic Shooter Pack/hit reaction.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/hit reaction.fbx",
+      "sha256": "93fde8ac9abd98073da3fcc1685ca562dd0efa36c5da39a3b6fbc0290407a69f",
+      "bytes": 377265
+    },
+    {
+      "archivePath": "Basic Shooter Pack/run backwards.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/run backwards.fbx",
+      "sha256": "66cd6d0ccbc122f81346b9d6ed4e72681a4cc39c7c5570c6b6124c43f6498cc7",
+      "bytes": 330001
+    },
+    {
+      "archivePath": "Basic Shooter Pack/turn left.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/turn left.fbx",
+      "sha256": "be87010062d61be2058ad3265dcc97d613c73ad7d3842e01fca00a6b744a6e54",
+      "bytes": 353985
+    },
+    {
+      "archivePath": "Basic Shooter Pack/rifle aiming idle.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/rifle aiming idle.fbx",
+      "sha256": "c23d6885c83536777b38b2fe32c253155f34495d5a7c5e619776dc751d939d5e",
+      "bytes": 497329
+    },
+    {
+      "archivePath": "Basic Shooter Pack/toss grenade.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/toss grenade.fbx",
+      "sha256": "c7f838781472370b18facc9b6ebedb0b8b202b3980b5f8fc2fdab322418880ee",
+      "bytes": 577681
+    },
+    {
+      "archivePath": "Basic Shooter Pack/reloading.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/reloading.fbx",
+      "sha256": "73fe6be462b186f1e210389ef1c69910e972107d9cb569ce062e8e25fba96e84",
+      "bytes": 576081
+    },
+    {
+      "archivePath": "Basic Shooter Pack/turning right 45 degrees.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/turning right 45 degrees.fbx",
+      "sha256": "f7735c6d3309012fa4b7253c2f6d653769d7191ad7cc1d67b5e556f6d8ab9860",
+      "bytes": 366225
+    },
+    {
+      "archivePath": "Basic Shooter Pack/walking backwards.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/walking backwards.fbx",
+      "sha256": "7ccdaf341572d0523ec11a17df9292ae823f8ab1e4ab07c3942e177f10acdd16",
+      "bytes": 396961
+    },
+    {
+      "archivePath": "Basic Shooter Pack/strafe left.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/strafe left.fbx",
+      "sha256": "dcb5c22d3f45671050044b8009a0a2986c8164643a52540f6f40452870021613",
+      "bytes": 375393
+    },
+    {
+      "archivePath": "Basic Shooter Pack/firing rifle.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/firing rifle.fbx",
+      "sha256": "1e66d4e7b5c3b87aec02764053e2e893b08be4437f3ccf649f6972332a444e91",
+      "bytes": 335121
+    },
+    {
+      "archivePath": "Basic Shooter Pack/walking.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/walking.fbx",
+      "sha256": "9d3e530606584fd31bbec4146602e56dc6c9c679a747613c07e7872cf8caecad",
+      "bytes": 370177
+    },
+    {
+      "archivePath": "Basic Shooter Pack/strafe (2).fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/strafe (2).fbx",
+      "sha256": "73a592c90dd71484bea9f30e77a5b71231737eb10a59754f05619bc0c5febdb4",
+      "bytes": 328129
+    },
+    {
+      "archivePath": "Basic Shooter Pack/strafe.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/strafe.fbx",
+      "sha256": "4d7eeab5b4178b6aa2c08c829ac001eb14f5c1eae08f681bb408ffcc878f4ef6",
+      "bytes": 322017
+    },
+    {
+      "archivePath": "Basic Shooter Pack/rifle run.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/rifle run.fbx",
+      "sha256": "cd0197ba4c95eae9e8251363f63cdf91e5ec8839ebef418514f3cb225b92184f",
+      "bytes": 344369
+    },
+    {
+      "archivePath": "Basic Shooter Pack/rifle jump.fbx",
+      "file": "assets/mixamo/Basic Shooter Pack/rifle jump.fbx",
+      "sha256": "be4efb655f5a26574296b0356f49ca7553f2773c8caa5e0e6c02a0d5f0ec355b",
+      "bytes": 335073
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance ready (2).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance ready (2).fbx",
+      "sha256": "9c0b0af004ef3df61f88075368523028fc5e72d4070ed47b7d73aa904c5200fc",
+      "bytes": 369633
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance ending 3.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance ending 3.fbx",
+      "sha256": "6b569add24109de9d7e130282cc88b4b8c7d1aa242fa0bfd97ea415791216437",
+      "bytes": 793329
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance ending 2.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance ending 2.fbx",
+      "sha256": "9e2e6c6bc7a4bc632ea6291045d50803ae570542edb47bd5325f7a38bd2181bc",
+      "bytes": 930481
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock.fbx",
+      "sha256": "a39a914d22a28138b5e19262752cacf404e21445f321bc0af30aa8b5c63c5d94",
+      "bytes": 500177
+    },
+    {
+      "archivePath": "Breakdance Pack/flair (2).fbx",
+      "file": "assets/mixamo/Breakdance Pack/flair (2).fbx",
+      "sha256": "884cfaad8841292c2ae32858f5f10047d6bc8eff7e676525c87cb6697b25fc58",
+      "bytes": 380689
+    },
+    {
+      "archivePath": "Breakdance Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Breakdance Pack/Y Bot.fbx",
+      "sha256": "7a2dc302db85b840dd3ff5c71be956719ec03a0ee79e32f08c218a85db276fdd",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance ending 1.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance ending 1.fbx",
+      "sha256": "8d09e4784755ab76b0902a7c96a292441c5cd376ac848a1b9b4a4e4b038e9af5",
+      "bytes": 785217
+    },
+    {
+      "archivePath": "Breakdance Pack/flair.fbx",
+      "file": "assets/mixamo/Breakdance Pack/flair.fbx",
+      "sha256": "7d1ded42741836f30ae58d4725ab7112929ddb34060953b4195e2254cf6c8c74",
+      "bytes": 521217
+    },
+    {
+      "archivePath": "Breakdance Pack/brooklyn uprock.fbx",
+      "file": "assets/mixamo/Breakdance Pack/brooklyn uprock.fbx",
+      "sha256": "8009dbcf062ccd2b4a9a4977fe62969cce5a4a9c6fefb3c2e21f3aa5830db2c8",
+      "bytes": 696977
+    },
+    {
+      "archivePath": "Breakdance Pack/flair (3).fbx",
+      "file": "assets/mixamo/Breakdance Pack/flair (3).fbx",
+      "sha256": "fcc861100a5ff91e6fc2d9b952b500836334cbbe6695f8678b25029f1c2805d6",
+      "bytes": 451025
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance ready (3).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance ready (3).fbx",
+      "sha256": "985b41c2ad3653bf5946a93eb04ceb6e5e5a67a805d59475c5fe0ad5a458ba98",
+      "bytes": 472193
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance footwork to freeze.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance footwork to freeze.fbx",
+      "sha256": "32958963bd30e1d24629bb32f52a065d1ba0dca289533e56f7d182f57d1fe130",
+      "bytes": 663041
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance freezes.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance freezes.fbx",
+      "sha256": "80dffdb27e70954c1399c577b9587497c16b710b711d0f39ebd1d4af925181d8",
+      "bytes": 830769
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance ready.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance ready.fbx",
+      "sha256": "0d6a42ad62755077382fa4ad2d5938c9d41c9850e6c6862bbff1c065884146ae",
+      "bytes": 407393
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance freeze var 4.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance freeze var 4.fbx",
+      "sha256": "5f6c1cb48b0f3631036c7943c9b748a68c485fb04743743960efd2740514b7fd",
+      "bytes": 700561
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance 1990 (2).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance 1990 (2).fbx",
+      "sha256": "f9cd82442ffabcd122f83e7811bc70b55e7b41ddd5aa47577982f8588ef0ba19",
+      "bytes": 404369
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock to ground (2).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock to ground (2).fbx",
+      "sha256": "386ff77b27705d7db5f96221272183c0b0b0166fdd45d0a5d7e853e908c9e1a7",
+      "bytes": 711169
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock var 1 end.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock var 1 end.fbx",
+      "sha256": "ae910d64c991de2889df77847f6d3680f158d17eddb845268182b1ed8e626ecf",
+      "bytes": 494481
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance freeze var 2.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance freeze var 2.fbx",
+      "sha256": "d0aca81c95eb192157f68f4e3db2c6faef58e2ddec95b1d887152ed8499a229a",
+      "bytes": 719249
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock (2).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock (2).fbx",
+      "sha256": "c8983cdf7b9fb28405aac4440b93666cdf7e74f379351269388ce22e9fe547ac",
+      "bytes": 628289
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock var 1 start.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock var 1 start.fbx",
+      "sha256": "c6b25908f689d213fe47a8a6a327685323f1596ad8dc3391bec62efbfded1fe6",
+      "bytes": 434033
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance freeze var 3.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance freeze var 3.fbx",
+      "sha256": "0adc81528e366edc80b237c0cc887c007512173e6fc63183601ee6b8d634bc3a",
+      "bytes": 771441
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance freeze var 1.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance freeze var 1.fbx",
+      "sha256": "30e7bf56129e5d6ea3c7b7b7bac0de98b7b7fe59f9bd01090c674dd674c50a62",
+      "bytes": 709761
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance 1990 (3).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance 1990 (3).fbx",
+      "sha256": "78261a8c6d3a94b9731a44ba937846c474d6a1b198314c44ff045dc5251b0ed0",
+      "bytes": 647329
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance footwork to idle (2).fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance footwork to idle (2).fbx",
+      "sha256": "27d56b43f8e7f4fbc27e61c4330c636c0547221eb50cc5f0ba34bf9c92649466",
+      "bytes": 1070673
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance 1990.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance 1990.fbx",
+      "sha256": "e1f968c925dcb2faed2510d86d29c521a9a1c947f2f92a929098dbace0a461d4",
+      "bytes": 530305
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance footwork to idle.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance footwork to idle.fbx",
+      "sha256": "6f304d22ae94ef697f91ba4984fcc51f71456892f217f790535aa3600bb5867a",
+      "bytes": 645073
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock var 1.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock var 1.fbx",
+      "sha256": "ab680a3f4ae6f31b07ba873d628494a64294bed7d7d607bc08df9a2cfedf79ca",
+      "bytes": 501393
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance footwork 2.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance footwork 2.fbx",
+      "sha256": "647eb9c818ee26c14998dd16cd65581e3685a0c16d4553f5810582fbfb9fea17",
+      "bytes": 445377
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance footwork 3.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance footwork 3.fbx",
+      "sha256": "2723cf2457f3969dac551187b3896a03ac8e11b59841e343c0e64db0d7ee99c0",
+      "bytes": 703937
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock var 2.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock var 2.fbx",
+      "sha256": "2fd1a52823dd485ffb5c5d9985ca0f334a81e02c0ba0c138a93f21be9dd6c7d8",
+      "bytes": 728097
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance footwork 1.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance footwork 1.fbx",
+      "sha256": "a3a9357fb293207bf3e20bf2b3dddb9656d681c962a53ee209df6e57841129a4",
+      "bytes": 619009
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance swipes.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance swipes.fbx",
+      "sha256": "c9f7456f76b2d677cb001d031c245d587070bbdd8c13b5330b1d406b1aeda602",
+      "bytes": 595489
+    },
+    {
+      "archivePath": "Breakdance Pack/crossleg freeze.fbx",
+      "file": "assets/mixamo/Breakdance Pack/crossleg freeze.fbx",
+      "sha256": "7d257df4bfd736a3c66d2b2f3238b282c5f1d8c60b1218721538c3d04128907b",
+      "bytes": 484257
+    },
+    {
+      "archivePath": "Breakdance Pack/breakdance uprock to ground.fbx",
+      "file": "assets/mixamo/Breakdance Pack/breakdance uprock to ground.fbx",
+      "sha256": "d5423f9ca77ed28ffa962f827409023c6f0b106596d65f67530ad3fe0a133cd0",
+      "bytes": 401921
+    },
+    {
+      "archivePath": "Breathing Idle.fbx",
+      "file": "assets/mixamo/Breathing Idle.fbx",
+      "sha256": "564a93a755f4a0d325d55d8a29c38c5840305e9e7e2c62f31d1d05466e167655",
+      "bytes": 1106688
+    },
+    {
+      "archivePath": "Clapping.fbx",
+      "file": "assets/mixamo/Clapping.fbx",
+      "sha256": "aa0cee4dd4d0c0aaf35082b4ce13189b9bbf1ce2d5b5df14bf031bc8eb5242c0",
+      "bytes": 353120
+    },
+    {
+      "archivePath": "Dodging Right-2.fbx",
+      "file": "assets/mixamo/Dodging Right-2.fbx",
+      "sha256": "94c24178d1b51155b4e81c4c18b1c8b7a9838a80fa14f0c719e20a6468c52f25",
+      "bytes": 378784
+    },
+    {
+      "archivePath": "Dodging Right.fbx",
+      "file": "assets/mixamo/Dodging Right.fbx",
+      "sha256": "1ea04f26042a43b7d022403665250af4ff1a16e676201a9bf130b477f1eec3f5",
+      "bytes": 378784
+    },
+    {
+      "archivePath": "Dodging.fbx",
+      "file": "assets/mixamo/Dodging.fbx",
+      "sha256": "e509b70a1d2b1c4d3731b72a37bfd15f09232eba568b6f1768414efc38343765",
+      "bytes": 450128
+    },
+    {
+      "archivePath": "Driving.fbx",
+      "file": "assets/mixamo/Driving.fbx",
+      "sha256": "62272dacfc13a888dad7d72a7c6a3e09ae234d2653035081c45b67ac128f3930",
+      "bytes": 580144
+    },
+    {
+      "archivePath": "Falling Back Death.fbx",
+      "file": "assets/mixamo/Falling Back Death.fbx",
+      "sha256": "74dd5b13663b61a5550c317c1caa924982e04bb6e54313a3b6efd28774c6d494",
+      "bytes": 513856
+    },
+    {
+      "archivePath": "Female Locomotion Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/Y Bot.fbx",
+      "sha256": "00306510a122313ac14a00c398b2d1f5c5f144c8d3caab2a4ee94ebb63394998",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Female Locomotion Pack/left strafe walk.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/left strafe walk.fbx",
+      "sha256": "2d3f0bbeb0e4b9b996b82e79c8b0fa2f8f125fea958adee02d573b84351beee3",
+      "bytes": 369889
+    },
+    {
+      "archivePath": "Female Locomotion Pack/jump.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/jump.fbx",
+      "sha256": "de2020483ff33f363655ba4376e30b825685e5b68c8a40da8ca8f9fa3e4692cb",
+      "bytes": 445313
+    },
+    {
+      "archivePath": "Female Locomotion Pack/idle.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/idle.fbx",
+      "sha256": "e0d310b3954b6b6ea4d79814ca1350f99a19728e9ed10aa6f6b2c1114666905c",
+      "bytes": 813745
+    },
+    {
+      "archivePath": "Female Locomotion Pack/walking.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/walking.fbx",
+      "sha256": "f087387d08e313f954e20e7884ea08124498d51c604683cf487e8c49008f2e5b",
+      "bytes": 373569
+    },
+    {
+      "archivePath": "Female Locomotion Pack/right strafe.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/right strafe.fbx",
+      "sha256": "4222759b43a922c2429835f4e73ade76e0595fd767e4667a528201a8e57b002f",
+      "bytes": 341457
+    },
+    {
+      "archivePath": "Female Locomotion Pack/right strafe walk.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/right strafe walk.fbx",
+      "sha256": "7b27cc454efea73a41b3be42c3535c8dbd1e9a02ecc61d58aed513ed182a45e7",
+      "bytes": 369777
+    },
+    {
+      "archivePath": "Female Locomotion Pack/right turn.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/right turn.fbx",
+      "sha256": "21014466fa654823f4ddd581fb88ace1225bbbf3abc6788d60c425a3b6b38d2b",
+      "bytes": 373345
+    },
+    {
+      "archivePath": "Female Locomotion Pack/left strafe.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/left strafe.fbx",
+      "sha256": "5407e02fc7e14e2b31cc281d87c11b7dbc6bf5ba768c7c154f5930c5355d88ea",
+      "bytes": 341457
+    },
+    {
+      "archivePath": "Female Locomotion Pack/left turn.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/left turn.fbx",
+      "sha256": "fdeab6e3d8e9ad599d3117e3cce0e53decbbc2a06a2e514a13c67582a78b71b8",
+      "bytes": 382881
+    },
+    {
+      "archivePath": "Female Locomotion Pack/running.fbx",
+      "file": "assets/mixamo/Female Locomotion Pack/running.fbx",
+      "sha256": "8cf57d64055938bc423a74c80dc8c0d1cf6021c2f686b45781f383d66c06f1b5",
+      "bytes": 345697
+    },
+    {
+      "archivePath": "Gestures Pack Basic/head nod yes.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/head nod yes.fbx",
+      "sha256": "78754897469166fcdff11c5c4acc37055465152cc0bfa00ae3c33e113f3f8b33",
+      "bytes": 476737
+    },
+    {
+      "archivePath": "Gestures Pack Basic/acknowledging.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/acknowledging.fbx",
+      "sha256": "5af27502763cec63a3f59e473f2cb0f7c17d55538e268a38822e292fc728742c",
+      "bytes": 425937
+    },
+    {
+      "archivePath": "Gestures Pack Basic/Y Bot.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/Y Bot.fbx",
+      "sha256": "96db964143ee3827f2e6b1aaed9c817548e59d26b6515750bd06507b975be81c",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Gestures Pack Basic/weight shift.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/weight shift.fbx",
+      "sha256": "60c1a718b4c353c499ec34d14cb0977259fa90201dda4ff30ddfa0d7fe8d1a1e",
+      "bytes": 870561
+    },
+    {
+      "archivePath": "Gestures Pack Basic/hard head nod.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/hard head nod.fbx",
+      "sha256": "feb78c43fcad858ea25d632e2aa31644fb709b8ed68110cc8ba59dc8a7d619cc",
+      "bytes": 393825
+    },
+    {
+      "archivePath": "Gestures Pack Basic/shaking head no.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/shaking head no.fbx",
+      "sha256": "cfca9f8c3efcb6b8becd6839921ba7cbdb0d137b1f837a4842bd91e322e526d7",
+      "bytes": 405105
+    },
+    {
+      "archivePath": "Gestures Pack Basic/sarcastic head nod.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/sarcastic head nod.fbx",
+      "sha256": "2f39b2167665ebe70ff511f6bd706fb9dbe381a46378291da70406a513d7724d",
+      "bytes": 431233
+    },
+    {
+      "archivePath": "Gestures Pack Basic/thoughtful head shake.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/thoughtful head shake.fbx",
+      "sha256": "5664b3dc8eb5291e86e71df1e9c2a704517e0d9a363e07be854c5e0ffd99ec0b",
+      "bytes": 525841
+    },
+    {
+      "archivePath": "Gestures Pack Basic/look away gesture.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/look away gesture.fbx",
+      "sha256": "e505c0dbf0cf0d5f5467f8bc132d86e0602648d4755e89ff131b638a4b573588",
+      "bytes": 433137
+    },
+    {
+      "archivePath": "Gestures Pack Basic/relieved sigh.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/relieved sigh.fbx",
+      "sha256": "b2c5fe84613c8265e815c792de0d8c3f43fe5bde49ddfc0b1415a9d82e233b92",
+      "bytes": 510657
+    },
+    {
+      "archivePath": "Gestures Pack Basic/happy hand gesture.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/happy hand gesture.fbx",
+      "sha256": "283ea315dd765ec5b9db560a53ebd2656ca9fe52b14de92f4b3db8a3e0a76598",
+      "bytes": 518353
+    },
+    {
+      "archivePath": "Gestures Pack Basic/annoyed head shake.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/annoyed head shake.fbx",
+      "sha256": "665e833829448d78b364ece571d3417817045334e0b2f1fd2a7b34ae0d4bc11e",
+      "bytes": 445281
+    },
+    {
+      "archivePath": "Gestures Pack Basic/being cocky.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/being cocky.fbx",
+      "sha256": "10ec776b6ba9fc162154f24f894ab2ec396b9d4e57744b8152f421ef4d6e0432",
+      "bytes": 518385
+    },
+    {
+      "archivePath": "Gestures Pack Basic/angry gesture.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/angry gesture.fbx",
+      "sha256": "2a2c43c7cee03ffe0703f41d9b13c44af35d644627aa272c78d33e7a4a5a656c",
+      "bytes": 460001
+    },
+    {
+      "archivePath": "Gestures Pack Basic/lengthy head nod.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/lengthy head nod.fbx",
+      "sha256": "b17760802da43c6b4464bcc73107ec4695d2e619a8f9fc777e29f1cb51e545ee",
+      "bytes": 412801
+    },
+    {
+      "archivePath": "Gestures Pack Basic/dismissing gesture.fbx",
+      "file": "assets/mixamo/Gestures Pack Basic/dismissing gesture.fbx",
+      "sha256": "e9acdec5f52acded4e913a06530ab17d20ce144acd4e5bea94583c33bd8a19b6",
+      "bytes": 556161
+    },
+    {
+      "archivePath": "Goalkeeper Diving Save-2.fbx",
+      "file": "assets/mixamo/Goalkeeper Diving Save-2.fbx",
+      "sha256": "6fcf838d52a22ec4a2e9ddf48a65c069797ebfcf111f6c84c4c6d044e4c2c92e",
+      "bytes": 646688
+    },
+    {
+      "archivePath": "Goalkeeper Diving Save.fbx",
+      "file": "assets/mixamo/Goalkeeper Diving Save.fbx",
+      "sha256": "7e461b3c5d7afdac506ea8eba3cc8c8bb54d68885a17c841e38bacbe7113784c",
+      "bytes": 627792
+    },
+    {
+      "archivePath": "Happy Idle.fbx",
+      "file": "assets/mixamo/Happy Idle.fbx",
+      "sha256": "e40cae67648ad7a5bd5db5558e0d8056754336718746e7221381c0e751c27e24",
+      "bytes": 487936
+    },
+    {
+      "archivePath": "Jogging.fbx",
+      "file": "assets/mixamo/Jogging.fbx",
+      "sha256": "2e29cd0972d4240f73aba9178b34a52ba601899a937c19f5c62a0c0459626bb8",
+      "bytes": 546656
+    },
+    {
+      "archivePath": "Jumping.fbx",
+      "file": "assets/mixamo/Jumping.fbx",
+      "sha256": "d0db9c8f120fecb5521ccdf85f5ff7c26f283e6aed543ee4a9d24683bf1e2bba",
+      "bytes": 456080
+    },
+    {
+      "archivePath": "Knocked Down.fbx",
+      "file": "assets/mixamo/Knocked Down.fbx",
+      "sha256": "5e9d4b08a3d64e53d47532c8a133ddd848da647ebfe841e6ae2b3687dee1fbc8",
+      "bytes": 549904
+    },
+    {
+      "archivePath": "Looking Around.fbx",
+      "file": "assets/mixamo/Looking Around.fbx",
+      "sha256": "256e6439d13e4a09f70e9081f9eb0a420dbc33ca3f075401baad81b98b688fa7",
+      "bytes": 827200
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk walk.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk walk.fbx",
+      "sha256": "5eac87146c9ad973e7d882f4bb371ba3ee94501e0398e12b93296b46a100794c",
+      "bytes": 552625
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk idle variation (2).fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk idle variation (2).fbx",
+      "sha256": "417d3c6da90147f9ee05995122036a4bcb1c48e92bf5ef76a8d26142845a8f5d",
+      "bytes": 735985
+    },
+    {
+      "archivePath": "Male Drunk Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/Y Bot.fbx",
+      "sha256": "193f1046a81a393fece6b4b079088a73273f66a2632fcbc28d123185774324dd",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Male Drunk Pack/backward walking turn.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/backward walking turn.fbx",
+      "sha256": "311d4f57cc98178e7bee4e815f504658f6785bb2a9b91be8ff9d818b1f89a518",
+      "bytes": 470113
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk run forward.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk run forward.fbx",
+      "sha256": "0e93b35a869f2bd30e992ddd86a5dabeca0429c8527a030a22a2af51468390d9",
+      "bytes": 460609
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk turn.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk turn.fbx",
+      "sha256": "2c02328a103a4d3709ad2ddb5d72b5853bf85b34ce6cf8abd041f9a2465d4a54",
+      "bytes": 430161
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk walking turn.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk walking turn.fbx",
+      "sha256": "6b671e745b4865c93b21e192c12511b708a04c880edbafb8bf77fb7bc159ae0b",
+      "bytes": 528289
+    },
+    {
+      "archivePath": "Male Drunk Pack/run backward arc right.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/run backward arc right.fbx",
+      "sha256": "338c34e5de5568a2c69434d48e849a03fcf1b230341576d2e363cb237ffcf07a",
+      "bytes": 403809
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk walk backwards.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk walk backwards.fbx",
+      "sha256": "a46a4765ec38b319aec9c37d1aab44364883f185bb8d59cdfad0b0842715bcbe",
+      "bytes": 431089
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk running left turn.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk running left turn.fbx",
+      "sha256": "5955da8fdc5b573fbafe19cfdaeaef313f0aa32695f4f53e133db49811acab4c",
+      "bytes": 428785
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk idle.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk idle.fbx",
+      "sha256": "f32de802c67da20d587ae998ace7757ed36092781ca27010c013ff59a1f9d29d",
+      "bytes": 797185
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk idle variation.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk idle variation.fbx",
+      "sha256": "869c6532b2eff50db6585283345b5d8853356aa1a92433d5faf79df97327a0e5",
+      "bytes": 627905
+    },
+    {
+      "archivePath": "Male Drunk Pack/drunk run backward.fbx",
+      "file": "assets/mixamo/Male Drunk Pack/drunk run backward.fbx",
+      "sha256": "486d01011b13c54cbe513b2708bf8f1eb3a7d243e47fca4edaac393dd2351566",
+      "bytes": 385729
+    },
+    {
+      "archivePath": "Male Injured Pack/injured turn right.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured turn right.fbx",
+      "sha256": "b88df6930cf96002b6e7be513cf42cd5263e41fc0075d9144621322e1ba3a93a",
+      "bytes": 341057
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run.fbx",
+      "sha256": "df42c5bdd3af9bfee76694f238115dd868c3ec3d57ed7d9dc7315869f7b84c70",
+      "bytes": 334609
+    },
+    {
+      "archivePath": "Male Injured Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Male Injured Pack/Y Bot.fbx",
+      "sha256": "e88fa1cfb0323298609694e66eae069d13033b0c598ebc028c01253af576d6a4",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Male Injured Pack/injured turn left.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured turn left.fbx",
+      "sha256": "f5b448e949c6627882fc4514e339e9521e4e28964f26a79c7307a503be6d457e",
+      "bytes": 360609
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run backwards left turn.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run backwards left turn.fbx",
+      "sha256": "2758064fb4931929fa8da124fc376d3c8969a00855cc180bcb034e8007008f82",
+      "bytes": 431025
+    },
+    {
+      "archivePath": "Male Injured Pack/injured walk.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured walk.fbx",
+      "sha256": "1e67aa9096bb65831c3913651b9ebc0d5585f887dd06b76102efc00a4220cb85",
+      "bytes": 438801
+    },
+    {
+      "archivePath": "Male Injured Pack/injured backwards turn right.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured backwards turn right.fbx",
+      "sha256": "1ad6507a1e28e577f7048ee51f8e58abcb267749cc292e797edfdfb6c3c0da4d",
+      "bytes": 343329
+    },
+    {
+      "archivePath": "Male Injured Pack/injured walk left turn.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured walk left turn.fbx",
+      "sha256": "0f46946ed978147451ff4ca9fd2931c11f4ae539795eb56580fcbef98a83b21b",
+      "bytes": 473793
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run backwards.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run backwards.fbx",
+      "sha256": "0458d2fcc1fe141e2f1345f4a9923ff4a2deab25d1130e660625eb9f9e229e7b",
+      "bytes": 332161
+    },
+    {
+      "archivePath": "Male Injured Pack/injured standing jump.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured standing jump.fbx",
+      "sha256": "e3ad6e2e26dd34f6f3ca19af63b0275a6bd684a9ece0466b3117ae8274f10394",
+      "bytes": 457377
+    },
+    {
+      "archivePath": "Male Injured Pack/injured wave idle.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured wave idle.fbx",
+      "sha256": "ad1cdc95953e5b752fa06c8d331079a73a2403168a33ed0e6228f7ed9c64084b",
+      "bytes": 632673
+    },
+    {
+      "archivePath": "Male Injured Pack/injured hurting idle.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured hurting idle.fbx",
+      "sha256": "fcdae64b26b260d94da68303e26b83836edd8d81c4635b5b5da972756b88fdb9",
+      "bytes": 756225
+    },
+    {
+      "archivePath": "Male Injured Pack/injured idle.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured idle.fbx",
+      "sha256": "3af1026ae74bbd6166bdbcfc3184cd5eff0101fb5f7b1c7fd9d9866ba429740f",
+      "bytes": 785505
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run left turn.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run left turn.fbx",
+      "sha256": "fccbcd53f69f4afeb68b13a1957f3efc3fa1a01fa43ed15cc083be5b1bcab701",
+      "bytes": 332737
+    },
+    {
+      "archivePath": "Male Injured Pack/injured backwards turn left.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured backwards turn left.fbx",
+      "sha256": "6a16bcf635013aecbd4b8334f60d85ffcf4e3bf0b5bdb339148bca881919a2cd",
+      "bytes": 346417
+    },
+    {
+      "archivePath": "Male Injured Pack/injured walk right turn.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured walk right turn.fbx",
+      "sha256": "147a2c51f506753624f0bb5e72713081ad864b75fb7a3bcc2a15e75fbe5d4065",
+      "bytes": 459025
+    },
+    {
+      "archivePath": "Male Injured Pack/injured walk backwards.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured walk backwards.fbx",
+      "sha256": "fa1ad790ec546240288dae02b9ced3fff2d8873d79416a6fe452fb86bb77f3bf",
+      "bytes": 437681
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run backwards right turn.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run backwards right turn.fbx",
+      "sha256": "1faa48b710000341ece11571bebbee8008b336309b13ee4c6f8f70d46f5e45f2",
+      "bytes": 334897
+    },
+    {
+      "archivePath": "Male Injured Pack/injured stumble idle.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured stumble idle.fbx",
+      "sha256": "01e6c5c58b34993247cecaafaf0ad33a762b9bb3648c2909bf1927750ef95fb6",
+      "bytes": 657537
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run right turn.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run right turn.fbx",
+      "sha256": "b537cfbe91b1b649d7d4d83f4ff53639587c9cbec170a966d31b0c49b863d951",
+      "bytes": 335217
+    },
+    {
+      "archivePath": "Male Injured Pack/injured run jump.fbx",
+      "file": "assets/mixamo/Male Injured Pack/injured run jump.fbx",
+      "sha256": "4c74336c86513e7cf9b62ddc1e97556f118cd884467c8fda30af168b9be9fd4c",
+      "bytes": 346849
+    },
+    {
+      "archivePath": "Male Locomotion Pack/left strafe walking.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/left strafe walking.fbx",
+      "sha256": "dcaa792fafc790174f141ee11f1017191729dd8d10a321281fe8d53e63ee93f6",
+      "bytes": 375425
+    },
+    {
+      "archivePath": "Male Locomotion Pack/left turn 90.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/left turn 90.fbx",
+      "sha256": "aeff45729161489973082556bc7b45cc24dbdea09d83c6851de74a4d103485b9",
+      "bytes": 358801
+    },
+    {
+      "archivePath": "Male Locomotion Pack/Y Bot.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/Y Bot.fbx",
+      "sha256": "3844b3f255a10c1c109d9914d1a44dfd1ef28261d7eab83b661f4a48f8de1f21",
+      "bytes": 1982369
+    },
+    {
+      "archivePath": "Male Locomotion Pack/jump.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/jump.fbx",
+      "sha256": "54fd455e8bb8a0545c063e8f6b26089439c9c4a6bba2b49db2ba1fc91632e3b3",
+      "bytes": 494369
+    },
+    {
+      "archivePath": "Male Locomotion Pack/right strafe walking.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/right strafe walking.fbx",
+      "sha256": "a0fce15d04df37d01e8c4153980371b892e3a85bd4e896bf5f3cad8a3f029fdf",
+      "bytes": 377265
+    },
+    {
+      "archivePath": "Male Locomotion Pack/right turn 90.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/right turn 90.fbx",
+      "sha256": "118144cd58ba136d09179cb27b318f4e97f7dcce5be6f6ac6d972d1ca11e06e7",
+      "bytes": 362465
+    },
+    {
+      "archivePath": "Male Locomotion Pack/idle.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/idle.fbx",
+      "sha256": "67d33f2d27242175df96408710b1b3db5b9a8dffe2a0b0d6ebc8e6f15d04b5ab",
+      "bytes": 709745
+    },
+    {
+      "archivePath": "Male Locomotion Pack/walking.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/walking.fbx",
+      "sha256": "c20b36002f792031c86d630b0c3015af8610d2256cb3de6d472630be4a0e4c6e",
+      "bytes": 377265
+    },
+    {
+      "archivePath": "Male Locomotion Pack/right strafe.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/right strafe.fbx",
+      "sha256": "8f3d980e69cc4c2614263fa497ff285f9085fd9367eb580e7e552321728730dc",
+      "bytes": 343361
+    },
+    {
+      "archivePath": "Male Locomotion Pack/left strafe.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/left strafe.fbx",
+      "sha256": "ee60312ff5653a419dcb6441cdb3aca03aa888b12ed5328bfc76d88a266789b2",
+      "bytes": 343361
+    },
+    {
+      "archivePath": "Male Locomotion Pack/standard run.fbx",
+      "file": "assets/mixamo/Male Locomotion Pack/standard run.fbx",
+      "sha256": "e615c3ecdf6710323d2c179c70e2ac8e5c48a14168a7aba5862ec7a55b8134c2",
+      "bytes": 347569
+    },
+    {
+      "archivePath": "Running.fbx",
+      "file": "assets/mixamo/Running.fbx",
+      "sha256": "ab296a4e5928f4e992f90373ccd950a1693b5bb1f47046e6e09680b7010356e2",
+      "bytes": 331440
+    },
+    {
+      "archivePath": "Sitting Idle.fbx",
+      "file": "assets/mixamo/Sitting Idle.fbx",
+      "sha256": "be792a62f0f72967a59f94b0c7fd1517be55eeb0eeff4d740363de37229b4984",
+      "bytes": 532256
+    },
+    {
+      "archivePath": "Sitting.fbx",
+      "file": "assets/mixamo/Sitting.fbx",
+      "sha256": "69598656b08d9645305754f5029270fe5ace7a6e133e4d861023dfa55b6f433f",
+      "bytes": 580816
+    },
+    {
+      "archivePath": "Standing Arguing.fbx",
+      "file": "assets/mixamo/Standing Arguing.fbx",
+      "sha256": "fd8d13a29849dfd04b8fb740f09c4a20ec34b7c9b0d671edbb883f201cfc19d1",
+      "bytes": 1984368
+    },
+    {
+      "archivePath": "Stumble Backwards.fbx",
+      "file": "assets/mixamo/Stumble Backwards.fbx",
+      "sha256": "9bd60668cbdd6a88bbdec251efc83267f4d38687e76f40b3f1109af462f9062f",
+      "bytes": 603136
+    },
+    {
+      "archivePath": "Talking On Phone.fbx",
+      "file": "assets/mixamo/Talking On Phone.fbx",
+      "sha256": "36df80b06c67046710d6cbb3f6fbc44bbf1094e334eab441a0fd0a5e9194f643",
+      "bytes": 3305952
+    },
+    {
+      "archivePath": "Texting While Standing.fbx",
+      "file": "assets/mixamo/Texting While Standing.fbx",
+      "sha256": "355b01259906c5d0fa612db33141ade323e4f902bf9e91e284fcac090caa4c0b",
+      "bytes": 2200192
+    },
+    {
+      "archivePath": "Walking While Texting.fbx",
+      "file": "assets/mixamo/Walking While Texting.fbx",
+      "sha256": "c336be0c5e3e5e27b2d78c6d603f4f7f268f794fbbfd09bc61932efb4ef5ddc4",
+      "bytes": 611056
+    },
+    {
+      "archivePath": "Walking.fbx",
+      "file": "assets/mixamo/Walking.fbx",
+      "sha256": "bb01e36936330dfa9943b190f7cab913217f1431baa03a1d448332e7918b6e4b",
+      "bytes": 364928
+    },
+    {
+      "archivePath": "Waving.fbx",
+      "file": "assets/mixamo/Waving.fbx",
+      "sha256": "3e72eb9efdadc2bfe2a172c83c1e1e95b70a9cb514fe189478448e5620679a8a",
+      "bytes": 303760
+    },
+    {
+      "archivePath": "Y Bot.fbx",
+      "file": "assets/mixamo/Y Bot.fbx",
+      "sha256": "99c7666e01289265136cfbbca2a1dcf4a42cc231f9af102a7eec274e5dbd2c08",
+      "bytes": 1982368
+    }
+  ]
+}
