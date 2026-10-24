@@ -66,10 +66,24 @@ describe("GfxGovernor", () => {
     expect(GOVERNOR_HOLD_S).toBeGreaterThan(1);
   });
 
-  it("ignores frames while tiles load and single long stalls", () => {
+  it("ignores loading, hidden frames and an isolated long stall", () => {
     const g = new GfxGovernor(true, TIER_SETTINGS.standard);
     expect(run(g, 60, 1 / 10, true)).toEqual([]);
-    expect(run(g, 60, 2)).toEqual([]);
+    expect(g.frame(2, false)).toBeNull();
+    expect(run(g, 60, 1 / 60)).toEqual([]);
+  });
+
+  it("reduces graphics during sustained visible frames longer than a second", () => {
+    const g = new GfxGovernor(true, TIER_SETTINGS.standard);
+    expect(run(g, 200, 2)).toEqual(["pixels", "pixels", "shadows", "post"]);
+  });
+
+  it("does not treat separate isolated stalls as sustained overload", () => {
+    const g = new GfxGovernor(true, TIER_SETTINGS.standard);
+    for (let i = 0; i < 30; i++) {
+      expect(g.frame(2, false)).toBeNull();
+      expect(run(g, 2, 1 / 60)).toEqual([]);
+    }
   });
 
   it("skips steps the tier cannot take", () => {

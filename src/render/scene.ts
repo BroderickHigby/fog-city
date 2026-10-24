@@ -131,8 +131,6 @@ export interface RenderInfo {
 }
 
 const SHADOW_HALF = 96;
-/** The governor never takes the drawing buffer under this many pixels. */
-const MIN_PIXEL_BUDGET = 900_000;
 const SHADOW_MAP_SIZE = 2048;
 const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
@@ -459,7 +457,9 @@ export class SceneRenderer {
   private stepDown(step: GfxStep): void {
     if (step === "pixels") {
       const buffer = this.renderer.getDrawingBufferSize(new THREE.Vector2());
-      this.pixelBudget = Math.max(MIN_PIXEL_BUDGET, Math.min(this.pixelBudget, buffer.x * buffer.y) * PIXEL_STEP);
+      // renderPixelRatio already enforces a minimum ratio. A fixed pixel floor would
+      // make reductions ineffective on phones and smaller game windows.
+      this.pixelBudget = Math.min(this.pixelBudget, buffer.x * buffer.y) * PIXEL_STEP;
       this.resize();
     } else if (step === "shadows") {
       this.renderer.shadowMap.enabled = false;
@@ -518,7 +518,8 @@ export class SceneRenderer {
    * Per-frame update after the sim has stepped. `dtSeconds` is the frame time the animation
    * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure;
    * `simSeconds` is how much of it the sim's ticks took, which the graphics governor leaves out:
-   * a slow sim is not cured by drawing less. Frames catching up several ticks are also left out.
+   * a slow sim is not cured by drawing less. A render stall can itself create a tick backlog,
+   * so catch-up alone must not disable the governor.
    */
   frame(
     dtSeconds: number,
@@ -527,13 +528,13 @@ export class SceneRenderer {
     minuteOfDay: number,
     frameSeconds: number = dtSeconds,
     simSeconds = 0,
-    simCatchingUp = false,
+    _simCatchingUp = false,
   ): void {
     this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
-    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), simCatchingUp || !this.tilesSettled() || document.hidden);
+    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), !this.tilesSettled() || document.hidden);
     if (step) this.stepDown(step);
     if (local) {
       const t = local.target;

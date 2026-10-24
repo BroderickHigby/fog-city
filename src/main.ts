@@ -228,7 +228,7 @@ async function boot(): Promise<void> {
       landmarks: landmarksDoc,
     },
   );
-  // ?debug=1 exposes the renderer for poking at from the console. Never used by tests.
+  // ?debug=1 exposes the renderer for diagnostics and graphics-recovery browser checks.
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
   const startCam = params.get("cam") as CameraMode | null;
   if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
