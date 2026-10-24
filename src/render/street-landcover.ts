@@ -159,6 +159,8 @@ function chainLink(): THREE.Texture | null {
   }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  // A fence piece is up to PIECE_MAX_M long and about 1.5 m high: about 12 cm diamonds.
+  t.repeat.set(8, 3);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
