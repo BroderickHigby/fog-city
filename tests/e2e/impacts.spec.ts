@@ -25,6 +25,22 @@ async function hold(page: Page, held: Set<string>, want: ReadonlySet<string>): P
   for (const k of want) if (!held.has(k)) { await page.keyboard.down(k); held.add(k); }
 }
 
+/**
+ * A driver who noses into a wall backs out, as a player would: under 0.5 m/s for 1.5 s of sim
+ * time while trying to drive, it holds S with the wheel the other way for 1.5 s.
+ */
+function unsticker(): (tick: number, speed: number, keys: Set<string>) => Set<string> {
+  let since = -1;
+  let until = -1;
+  return (tick, speed, keys) => {
+    if (tick < until) return new Set(["KeyS", keys.has("KeyD") ? "KeyA" : "KeyD"]);
+    if (Math.abs(speed) >= 0.5 || !keys.has("KeyW")) since = -1;
+    else if (since < 0) since = tick;
+    else if (tick - since > 90) { until = tick + 90; since = -1; }
+    return keys;
+  };
+}
+
 test.describe("impacts: car vs robotaxi through real controls", () => {
   test.use({ viewport: FAST_VIEWPORT });
 
@@ -32,6 +48,7 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
     const problems = await bootWorld(page, "dev", `${FAST_QUERY}&debug=1`);
     const me = (await page.evaluate(() => (window as unknown as { __fogcity: { simInfo(): { playerIds: string[] } } }).__fogcity.simInfo().playerIds[0]))!;
     const held = new Set<string>();
+    const unstick = unsticker();
     let target = -1;
     let hit: { kind: string; a: string; b: string; dv: number } | undefined;
     const deadline = Date.now() + 150_000;
@@ -55,7 +72,7 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
       const keys = new Set<string>(["KeyW"]);
       if (off > 0.06) keys.add("KeyD");
       else if (off < -0.06) keys.add("KeyA");
-      await hold(page, held, keys);
+      await hold(page, held, unstick(s.tick, c.speed, keys));
       if (process.env.IMPACTS_E2E_LOG) console.log(s.tick, c.x.toFixed(1), c.z.toFixed(1), c.speed.toFixed(1), "taxi", t.id, t.x.toFixed(1), t.z.toFixed(1), off.toFixed(2), [...keys].join("+"), taxis.length);
       await page.waitForTimeout(60);
     }
@@ -83,6 +100,7 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
     const problems = await bootWorld(page, "dev", `${FAST_QUERY}&debug=1`);
     const me = (await page.evaluate(() => (window as unknown as { __fogcity: { simInfo(): { playerIds: string[] } } }).__fogcity.simInfo().playerIds[0]))!;
     const held = new Set<string>();
+    const unstick = unsticker();
     let target = -1;
     let hit: { kind: string; a: string; b: string; dv: number; fell?: boolean } | undefined;
     const deadline = Date.now() + 150_000;
@@ -104,7 +122,7 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
       const keys = new Set<string>(["KeyW"]);
       if (off > 0.06) keys.add("KeyD");
       else if (off < -0.06) keys.add("KeyA");
-      await hold(page, held, keys);
+      await hold(page, held, unstick(s.tick, c.speed, keys));
       await page.waitForTimeout(60);
     }
     await hold(page, held, new Set(["KeyS"]));

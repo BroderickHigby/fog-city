@@ -1283,6 +1283,11 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
   melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
   look-dev strip per model for the owner's sign-off.
+- 2026-10-23 · **The water blaster never runs out** (owner decision: "you have a squirt gun or something that has
+  like unlimited water"). Spraying no longer drains the tank or the trunk reserve, and the HUD water meter shows ∞.
+  This overrides the tank sizes and refill economy above. Refill points stay: they still switch fresh and salt water
+  and restock balloons. The Tank I and Tank II upgrades keep their ids (so old saves load) and become Pressure I
+  and II: +2 m of reach each. A new SIM_VERSION carries the change.
 - 2026-10-23 · **You can hit cars and robots** (owner request after playing: "You should be able to hit robots, and
   you should be able to hit cars as well"). Cars exchange momentum with other cars and robotaxis (shove, spin, dents,
   car condition) instead of stopping against them like walls; a knocked robotaxi leaves its lane, sits with hazards and
@@ -1290,4 +1295,4 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   a hard hit or one dent too many disables one for longer. Replaces "you cannot run a robot over" (2026-10-20). Water
   stays the only way to melt a robot, and people, children, animals, seated people and mobility-aid users keep every
   protection: every sliding car, robotaxi and robot stops dead short of anyone. Knocking over a good robot costs $30
-  and 3 reputation; a bad one costs nothing. Implemented in `src/sim/impacts.ts` (SIM_VERSION 11).
+  and 3 reputation; a bad one costs nothing. Implemented in `src/sim/impacts.ts` (SIM_VERSION 14 and 15).

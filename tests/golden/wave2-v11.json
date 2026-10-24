@@ -1,12 +1,12 @@
 {
   "sourceInput": "wave1-v2.json",
-  "sourcePhysics": "impacts stream: cars shove robotaxis (the last segment has car-taxi hits)",
+  "sourcePhysics": "v11 on-foot pace (FOOT.walk 3.0, FOOT.sprint 7.0) on ff7db5b021db8e94551d667def8b9f345c28863b",
   "simVersion": 11,
   "hashes": [
     "f0dae7e4",
     "bb9801a7",
     "0249feec",
     "8c6a9545",
-    "5a20bc3b"
+    "2da5d7b6"
   ]
 }
