@@ -28,6 +28,13 @@ export const MARKINGS_FILE = "street-markings.json";
 export const FURNITURE_FILE = "street-furniture.json";
 export const SIGNS_FILE = "street-signs.json";
 export const TREES_FILE = "street-trees.json";
+/** Each layer file's record arrays, written one record per line (jsonLines). */
+export const LAYER_LINE_KEYS: Record<string, readonly string[]> = {
+  [MARKINGS_FILE]: ["junctions"],
+  [FURNITURE_FILE]: ["signals", "stopSigns"],
+  [SIGNS_FILE]: ["corners", "curb"],
+  [TREES_FILE]: ["trees"],
+};
 
 const STYLE_CODE = { continental: "c", standard: "s" } as const;
 
@@ -90,7 +97,7 @@ export function buildStreetDetail(
       attribution: attribution.join(" "),
       junctions: junctions.map(encodeJunction),
     },
-    ["junctions"],
+    LAYER_LINE_KEYS[MARKINGS_FILE]!,
   );
   const furnitureFile = jsonLines(
     {
@@ -103,7 +110,7 @@ export function buildStreetDetail(
       signals: furniture.signals,
       stopSigns: furniture.stopSigns,
     },
-    ["signals", "stopSigns"],
+    LAYER_LINE_KEYS[FURNITURE_FILE]!,
   );
   const signs = buildStreetSigns(roads, junctions, (rows.streetSigns ?? []) as SignRow[]);
   const signsFile = jsonLines(
@@ -117,7 +124,7 @@ export function buildStreetDetail(
       corners: signs.corners,
       curb: signs.curb,
     },
-    ["corners", "curb"],
+    LAYER_LINE_KEYS[SIGNS_FILE]!,
   );
   // Trees on land inside the world: on a tile with ground and above the sea.
   const tileIds = new Set(pack.tiles.map((t) => `${t.ix},${t.iz}`));
@@ -133,7 +140,7 @@ export function buildStreetDetail(
       classes: [...TREE_CLASSES],
       trees: trees.trees,
     },
-    ["trees"],
+    LAYER_LINE_KEYS[TREES_FILE]!,
   );
   const index = jsonPretty({
     version: 1,
