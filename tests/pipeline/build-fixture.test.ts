@@ -554,16 +554,17 @@ describe("fixture build: GLB tiles", () => {
     const collider = json<SfCollider>(out, "t1_0.collider.json");
     const ranges = scene.getObjectByName("buildings")!.userData.buildings as Array<[string, number, number]>;
     expect(ranges.map((r) => r[0])).toEqual(collider.buildings.map((b) => b.id));
-    // The freeway over the bay (x > 850) is not drawn. Positions are quantised: read them
-    // through the node's dequantising transform.
+    // The freeway runs out of the world over the bay: its deck is drawn out to its end (x = 990),
+    // where a bridge the world does not model would carry on (decks.ts). Positions are quantised:
+    // read them through the node's dequantising transform.
     scene.updateMatrixWorld(true);
     const fw = scene.getObjectByName("freeways") as unknown as Mesh<BufferGeometry>;
     const pos = fw.geometry.attributes.position as BufferAttribute;
     const v = new Vector3();
     let maxX = -Infinity;
     for (let i = 0; i < pos.count; i++) maxX = Math.max(maxX, v.fromBufferAttribute(pos, i).applyMatrix4(fw.matrixWorld).x);
-    expect(maxX).toBeLessThan(870);
-    expect(maxX).toBeGreaterThan(690);
+    expect(maxX).toBeGreaterThan(985);
+    expect(maxX).toBeLessThan(1000);
   });
 });
 

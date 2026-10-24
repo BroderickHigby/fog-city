@@ -55,8 +55,9 @@ describe("sf world: street bridges (W-12)", () => {
       const all = decks.filter((q) => q.id.split("~")[0] === d.id.split("~")[0]);
       const ends = [d.path[0]!, d.path[d.path.length - 1]!];
       for (const [x, y, z] of ends) {
-        // An end shared with the next piece of the same bridge is not a bank.
-        const shared = all.some((q) => q !== d && q.path.some(([qx, , qz]) => Math.hypot(qx - x, qz - z) < 0.05));
+        // An end shared with the next piece of the same bridge (on its edge, or on the next edge
+        // of its street: a deck reaching out to its abutment runs on along the street) is not a bank.
+        const shared = [...all, ...bridgeDecks].some((q) => q !== d && q.path.some(([qx, , qz]) => Math.hypot(qx - x, qz - z) < 0.05));
         if (shared) continue;
         const h = heightAt(x, z);
         if (h <= 0.1) continue; // a dead end over water holds its bank height
