@@ -27,6 +27,7 @@ import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
+import { StreetLightRig } from "./street-lights.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
 
@@ -70,6 +71,8 @@ export interface RenderInfo {
   cameraMode: CameraMode;
   presentation: boolean;
   lightingPreset: string;
+  /** Street lamps lit by real point lights this frame (high tier, at night). */
+  streetLightsLit: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
   night: boolean;
@@ -139,6 +142,8 @@ export class SceneRenderer {
   private readonly avatarGround = new AvatarGround();
   private readonly foliage: FoliageLayer;
   private quality: VisualQuality | null = null;
+  /** Point lights at the nearest street lamps at night (high tier only). */
+  private streetLights: StreetLightRig | null = null;
   private readonly surfaceTextures: SurfaceTextures;
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
@@ -285,6 +290,8 @@ export class SceneRenderer {
     // Keep unclipped direct rendering on devices without floating-point color targets.
     if ((opts.quality ?? !software) && this.renderer.extensions.has("EXT_color_buffer_float")) {
       this.quality = new VisualQuality(this.renderer, this.scene, this.camera);
+      this.streetLights = new StreetLightRig();
+      this.scene.add(this.streetLights.group);
     }
     const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
     this.nightOn = preset.name === "night";
@@ -340,6 +347,7 @@ export class SceneRenderer {
     this.streamer.setNight(night > 0);
     this.lights.setNight(night);
     this.agents.setNight(night);
+    this.streetLights?.setNight(night);
     this.scene.environment = this.envFor(p);
     this.scene.environmentIntensity = p.envIntensity;
   }
@@ -451,6 +459,7 @@ export class SceneRenderer {
     this.sun.position.set(sx + this.sunDir.x * 800, groundY + this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    this.streetLights?.update(cam.x, cam.z, dtSeconds, this.streamer.lampHeads());
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
     this.landmarks.update(minuteOfDay);
@@ -489,6 +498,7 @@ export class SceneRenderer {
     out.cameraMode = this.rig.mode;
     out.presentation = this.quality !== null;
     out.lightingPreset = this.activePreset;
+    out.streetLightsLit = this.streetLights?.lit ?? 0;
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
     out.night = this.nightOn;
@@ -532,6 +542,7 @@ export class SceneRenderer {
     this.avatarGround.clear();
     this.foliage.dispose();
     this.quality?.dispose();
+    this.streetLights?.dispose();
     this.far.dispose();
     this.actors.dispose();
     this.agents.dispose();
@@ -553,6 +564,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   cameraMode: "chase" as CameraMode,
   presentation: false,
   lightingPreset: "day",
+  streetLightsLit: 0,
   foliage: { near: 0, far: 0, draws: 0 }, surfaceTextures: [],
   night: false,
   tilesPending: 0,
