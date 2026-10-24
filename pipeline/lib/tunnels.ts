@@ -9,6 +9,8 @@
 //     viaducts, so no cone from the ground finds its bore; its portals are where the road's
 //     benches (cut into the island at about 52 m and 57 m) meet the ridge, and the bore runs
 //     straight between the benches' ground.
+//   - A surface tunnel whose whole chain fits under the ground on one straight grade runs on
+//     that line from end to end (throughCut): its approaches are the portals' open cuts.
 //   - The bore (bore()) runs on the straight line between two portals, where the hill stands
 //     over the highest road that never climbs faster than TUNNEL_GRADE. Outside the portals the
 //     road is at grade (a freeway's deck, decks.ts, joins it there).
@@ -115,6 +117,31 @@ function findBores(p: ReturnType<typeof profile>): Array<{ i0: number; i1: numbe
 /** The steepest a road in a tunnel climbs or falls. */
 const TUNNEL_GRADE = 0.06;
 
+/** The straight line between a surface tunnel's ends may stand this far over the ground (DEM noise at its at-grade ends). */
+export const CUT_TOLERANCE_M = 0.15;
+
+/**
+ * A surface tunnel whose whole chain fits under the ground on one straight grade: the bore runs
+ * from end to end, and its approaches are the portals' open cuts. The source draws a named
+ * tunnel from where it leaves the street network to where it rejoins it, so its ends are the
+ * only places it is at grade. The 10 m lattice smooths a cut a few lanes wide away (the Broadway
+ * Tunnel's west approach runs in a trench from Larkin St, under Hyde St, to the portal), so the
+ * cover search alone puts the portal where the hill rises and drapes the approach over the
+ * ground: up and over Hyde St, where decks.ts then read the bare-earth hump as an overpass
+ * of the tunnel over Hyde St, drawn 6.6 m over the bore its own sim surface follows (W-02, W-09).
+ * Null when the line rises out of the ground (the Stockton Tunnel's north approach is at grade)
+ * or is steeper than TUNNEL_GRADE: then the cover search's bore stands.
+ */
+export function throughCut(p: ReadonlyArray<{ s: number; h: number }>): { i0: number; i1: number; y0: number; y1: number } | null {
+  const n = p.length - 1;
+  const L = p[n]!.s - p[0]!.s;
+  if (n < 10 || L <= 0) return null;
+  const y0 = p[0]!.h, y1 = p[n]!.h;
+  if (Math.abs(y1 - y0) / L > TUNNEL_GRADE) return null;
+  for (let i = 1; i < n; i++) if (p[i]!.h < y0 + ((y1 - y0) * (p[i]!.s - p[0]!.s)) / L - CUT_TOLERANCE_M) return null;
+  return { i0: 0, i1: n, y0, y1 };
+}
+
 /** The cover at a portal's foot: the bore ends this close under the ground (a step no car notices). */
 export const PORTAL_FOOT_M = 0.1;
 /** A building whose roof is less than this over a bore's ceiling stands in the bore's open cut. */
@@ -189,7 +216,7 @@ export function findTunnels(graph: RoadGraph, heightAt: (x: number, z: number) =
       // one of FREEWAY_TUNNELS (a freeway's other cover is a cut, a climb or a bridge approach).
       const picked: Array<{ b: (typeof found)[number]; name: string }> = [];
       if (kind === "surface") {
-        if (found[0]) picked.push({ b: found[0], name: chain[0]!.name });
+        if (found[0]) picked.push({ b: throughCut(p) ?? found[0], name: chain[0]!.name });
       } else if (toLocal) {
         for (const f of FREEWAY_TUNNELS) {
           if (!f.street.test(chain[0]!.name)) continue;

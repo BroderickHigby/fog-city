@@ -164,6 +164,38 @@ function stations(length: number, step: number): number[] {
   return out;
 }
 
+/**
+ * The upper convex hull of h over [a, b], sampled every metre (the ends included), as a function
+ * of S: the lowest line set that stays on or over every sample (a taut string over the ground).
+ * Where h is concave between a and b it is the chord between them.
+ */
+export function upperHull(a: number, b: number, h: (S: number) => number): (S: number) => number {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (const t of stations(Math.max(0, b - a), 1)) {
+    const S = a + t;
+    const y = h(S);
+    // Pop while the last hull vertex lies on or under the line from the one before it to S.
+    while (xs.length >= 2) {
+      const k = xs.length - 1;
+      const x0 = xs[k - 1]!, y0 = ys[k - 1]!, x1 = xs[k]!, y1 = ys[k]!;
+      if ((x1 - x0) * (y - y0) - (y1 - y0) * (S - x0) >= 0) {
+        xs.pop();
+        ys.pop();
+      } else break;
+    }
+    xs.push(S);
+    ys.push(y);
+  }
+  return (S: number): number => {
+    if (xs.length === 1 || S <= xs[0]!) return ys[0]!;
+    for (let k = 1; k < xs.length; k++) {
+      if (S <= xs[k]!) return ys[k - 1]! + ((ys[k]! - ys[k - 1]!) * (S - xs[k - 1]!)) / (xs[k]! - xs[k - 1]! || 1);
+    }
+    return ys[ys.length - 1]!;
+  };
+}
+
 /** Proper intersection of segments ab and cd: parameters along each, or null. */
 function cross(a: P2, b: P2, c: P2, d: P2): [number, number] | null {
   const rx = b[0] - a[0], rz = b[1] - a[1];
@@ -1252,9 +1284,21 @@ export function buildDecks(
   const ribbonOf = (e: RoadEdge, s0: number, s1: number, y: (s: number) => number): RibbonVertex[] => {
     const pl = lines.get(e.id)!;
     const n = Math.max(1, Math.ceil((s1 - s0) / STREET_STEP_M));
+    const at: number[] = [];
+    for (let k = 0; k <= n; k++) at.push(s0 + ((s1 - s0) * k) / n);
+    // The centreline's own bends too: stations every STREET_STEP_M alone cut a sharp bend's
+    // corner, so the deck the sim stands on fell short of the ribbon the tile draws round it
+    // (Geneva Ave's overpass over I-280: 5 m of drawn deck over the ground beside it; W-09).
+    for (let i = 1; i < pl.pts.length - 1; i++) {
+      const c = pl.cum[i]!;
+      if (c > s0 + 0.05 && c < s1 - 0.05) at.push(c);
+    }
+    at.sort((p, q) => p - q);
     const out: RibbonVertex[] = [];
-    for (let k = 0; k <= n; k++) {
-      const s = s0 + ((s1 - s0) * k) / n;
+    let last = -Infinity;
+    for (const s of at) {
+      if (s - last < 0.05) continue;
+      last = s;
       const [x, z] = pointAt(pl, s);
       out.push(cmVertex([x, y(s), z, e.widthM]));
     }
@@ -1310,6 +1354,13 @@ export function buildDecks(
           for (const sp of spans) {
             const ya = chainGround(ch, sp.a), yb = chainGround(ch, sp.b);
             const chord = (S: number): number => ya + ((yb - ya) * (S - sp.a)) / (sp.b - sp.a || 1);
+            // Never under the ground's upper hull across the span (the chord where the ground under
+            // it is concave): over a cut (a freeway's trench) the deck leaves each lip of the cut
+            // on the line between the lips, never first following the ground over a lip and down
+            // into the cut to meet the chord between the ends (a sudden fall at the deck's start
+            // that threw a turning car off its side into the cut; W-22). The hull is at or over
+            // the chord and the ground, so the deck only ever rises where it applies.
+            const hull = upperHull(sp.a, sp.b, (S) => chainGround(ch, S));
             const bumps = sp.w.map((w) => ({ ...w, h: Math.max(0, w.target - chord(w.s)) }));
             for (const w of bumps) {
               const need = Math.PI * Math.sqrt((w.h * OVERPASS_CREST_M) / 2);
@@ -1325,7 +1376,7 @@ export function buildDecks(
                 const u = S < w.s ? (S - w.a) / (w.s - w.a || 1) : (w.b - S) / (w.b - w.s || 1);
                 up = Math.max(up, (w.h * (1 - Math.cos(Math.PI * Math.min(1, Math.max(0, u))))) / 2);
               }
-              return Math.max(chord(S) + up, chainGround(ch, S));
+              return Math.max(chord(S) + up, hull(S), chainGround(ch, S));
             };
             // One piece per edge of the chain the span covers.
             ch.edges.forEach((e, k) => {
