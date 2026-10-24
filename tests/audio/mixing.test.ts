@@ -195,6 +195,18 @@ describe("effect cues", () => {
     expect(p.update(undefined, listener, [], 0, true, [taxi("honk")])).toEqual([]);
   });
 
+  it("keeps the per-car chirp cooldown when traffic briefly leaves honk mode", () => {
+    const t = new EffectCueTracker();
+    const taxi = (mode: string): HonkingAgent => ({ id: 7, kind: "robotaxi", mode, x: 0, z: -10 });
+    expect(t.update(undefined, listener, [], 0, false, [taxi("honk")])).toHaveLength(1);
+    expect(t.update(undefined, listener, [], 100, false, [taxi("go")])).toEqual([]);
+    expect(t.update(undefined, listener, [], 200, false, [taxi("honk")])).toEqual([]);
+    expect(t.update(undefined, listener, [], ROBOTAXI_HORN_COOLDOWN_MS, false, [taxi("honk")])).toHaveLength(1);
+    // Once the taxi leaves the observed population its timestamp can be discarded.
+    t.update(undefined, listener, [], 4100, false, []);
+    expect(t.update(undefined, listener, [], 4200, false, [taxi("honk")])).toHaveLength(1);
+  });
+
   it("distance and pan helpers", () => {
     expect(distanceGain(0, 5, 10)).toBe(1);
     expect(distanceGain(7.5, 5, 10)).toBeCloseTo(0.5);

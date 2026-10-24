@@ -107,15 +107,20 @@ export class EffectCueTracker {
     // Robotaxis honk when a player blocks them: a chirp on entering "honk", again while it lasts.
     const seen = new Set<number>();
     for (const a of agents) {
-      if (a.kind !== "robotaxi" || a.mode !== "honk") continue;
+      if (a.kind !== "robotaxi") continue;
       seen.add(a.id);
+      if (a.mode !== "honk") continue;
       const last = this.honking.get(a.id);
       if (last !== undefined && nowMs - last < ROBOTAXI_HORN_COOLDOWN_MS) continue;
       this.honking.set(a.id, nowMs);
       const gain = distanceGain(Math.hypot(a.x - listener.x, a.z - listener.z), ROBOTAXI_HORN_NEAR_M, ROBOTAXI_HORN_RANGE_M);
       if (!muted && gain > 0) cues.push({ sound: "robotaxi-horn", gain: 0.8 * gain, pan: panOf(listener, a.x, a.z) });
     }
-    for (const id of [...this.honking.keys()]) if (!seen.has(id)) this.honking.delete(id);
+    // A brief return to driving must not restart the horn cooldown. A gone taxi or an
+    // expired entry no longer needs a timestamp (keeps this map bounded by nearby cars).
+    for (const [id, last] of this.honking) {
+      if (!seen.has(id) || nowMs - last >= ROBOTAXI_HORN_COOLDOWN_MS) this.honking.delete(id);
+    }
     if (!state) return cues;
     const at = (x: number, z: number, near: number, far: number): { gain: number; pan: number } =>
       ({ gain: distanceGain(Math.hypot(x - listener.x, z - listener.z), near, far), pan: panOf(listener, x, z) });

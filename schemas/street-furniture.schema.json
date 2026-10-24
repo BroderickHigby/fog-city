@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/street-furniture",
+  "title": "Traffic signal poles and stop signs at junctions (public/tiles/<world>/street-furniture.json, pipeline/lib/street-furniture.ts).",
+  "type": "object",
+  "required": ["version", "world", "snapshotDate", "signals", "stopSigns"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "world": { "type": "string" },
+    "description": { "type": "string" },
+    "snapshotDate": { "type": "string" },
+    "attribution": { "type": "string" },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "node", "x", "z", "heading", "group", "arm", "ped"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^sig:n[0-9]+:c" },
+          "node": { "type": "string" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "heading": { "type": "number", "minimum": 0, "maximum": 6.2832 },
+          "group": { "enum": [0, 1] },
+          "arm": { "type": "number", "minimum": 0 },
+          "ped": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "stopSigns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "node", "x", "z", "heading", "allWay"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^stop:n[0-9]+:c" },
+          "node": { "type": "string" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "heading": { "type": "number", "minimum": 0, "maximum": 6.2832 },
+          "allWay": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
