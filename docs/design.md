@@ -1277,6 +1277,11 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
   melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
   look-dev strip per model for the owner's sign-off.
+- 2026-10-23 · **The water blaster never runs out** (owner decision: "you have a squirt gun or something that has
+  like unlimited water"). Spraying no longer drains the tank or the trunk reserve, and the HUD water meter shows ∞.
+  This overrides the tank sizes and refill economy above. Refill points stay: they still switch fresh and salt water
+  and restock balloons. The Tank I and Tank II upgrades keep their ids (so old saves load) and become Pressure I
+  and II: +2 m of reach each. A new SIM_VERSION carries the change.
 - 2026-10-23 · **People dodge like people** (owner request: "they jump out of the way in too weird of a way …
   they like fly"). The dodge supersedes the Crazy Taxi rule's leaping dive (2026-10-21, `src/sim/dodge.ts`): a
   9 m/s dive with instant acceleration and a 0.45 m hop becomes a startled sidestep, jog or sprint on the ground
@@ -1285,7 +1290,7 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   vehicle would otherwise reach, drawn as a stumble or shove aside with no lift and never faster than 6 m/s on
   screen. Against a car driven to chase someone (a perfect pursuer with 18 m/s² of grip) no human can always get
   clear, so the no-touch fuzz's override share is bounded per scenario instead of the old 5% overall: 0 for
-  non-pursuit drivers, at most 25% for chase, weave, drift, handbrake and random pursuit; contacts stay 0 and
-  the 0.75 m clearance holds outside counted override episodes. The player plays real clips (Rocketbox runs and
-  dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the crowd's placeholder leans, lengthens
-  its stride with speed and startles. SIM_VERSION 11.
+  non-pursuit drivers, at most 25% for chase, weave, drift, handbrake, bank and random pursuit; contacts stay 0 and
+  the 0.75 m clearance holds outside counted override episodes. The player and the skinned crowd play real clips
+  (Rocketbox runs and dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the procedural
+  crowd leans, lengthens its stride with speed and startles. SIM_VERSION 14.

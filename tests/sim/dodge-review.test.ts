@@ -555,7 +555,7 @@ describe("a vehicle's reach over its next step (what the override keeps people o
 });
 
 describe("how the override's leap is drawn", () => {
-  it("a short one (a robotaxi edging up, a car brushing past) is a quick stumble; a long one a shove aside, never a hop, never drawn faster than OVERRIDE_DRAW_MPS (v11)", () => {
+  it("a short one (a robotaxi edging up, a car brushing past) is a quick stumble; a long one a shove aside, never a hop, never drawn faster than OVERRIDE_DRAW_MPS (v14)", () => {
     const short = leapShape(DODGE_PROFILE.person, 0.2);
     expect(short.peak).toBe(0);
     expect(short.dur).toBeLessThan(16);

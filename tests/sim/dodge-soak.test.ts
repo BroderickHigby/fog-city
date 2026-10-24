@@ -48,7 +48,7 @@ describe.skipIf(!SF)("the clearance soak on the real city (per PR)", () => {
         const r = soak(world, home, driver, 1200, 5, driver === "chase" ? { joins: [240, 600, 960] } : {});
         check(r);
         // A car driven along its route, swerving at people but never chasing them: people on foot
-        // always get clear without the override (v11, the dodge stream).
+        // always get clear without the override (v14, the dodge stream).
         if (driver === "nobrake") expect(r.overrides, "nobrake: overrides").toBe(0);
         if (driver === "chase") expect(r.players, "the joins happened").toBe(4);
       }

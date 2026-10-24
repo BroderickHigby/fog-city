@@ -1,12 +1,12 @@
 {
   "sourceInput": "wave1-v2.json",
-  "sourcePhysics": "dodge stream (work/dodge/natural): people dodge on their feet (v11)",
+  "sourcePhysics": "v11 on-foot pace (FOOT.walk 3.0, FOOT.sprint 7.0) on ff7db5b021db8e94551d667def8b9f345c28863b",
   "simVersion": 11,
   "hashes": [
     "f0dae7e4",
-    "a4b8e6d5",
-    "d56ed1da",
-    "acc5aac0",
-    "ed43b843"
+    "bb9801a7",
+    "0249feec",
+    "8c6a9545",
+    "2da5d7b6"
   ]
 }

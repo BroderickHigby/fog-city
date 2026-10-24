@@ -16,7 +16,7 @@ const SEEDS = 160;
  * Drivers that steer at people (chase, weave), slide or turn into them (drift, handbrake, bank:
  * a slide or hard turn at them from 8-16 m) or drive at random: no human on foot can always out-turn
  * a car with 18 m/s^2 of grip, so the override (drawn as a stumble or shove, no lift) may take
- * up to PURSUIT_SHARE of each one's dodges. A car driven straight never needs it (v11, the dodge
+ * up to PURSUIT_SHARE of each one's dodges. A car driven straight never needs it (v14, the dodge
  * stream; docs/design.md decision log 2026-10-23: the old bound, under 5% of all dodges, held only
  * with a 9 m/s superhuman dive).
  */

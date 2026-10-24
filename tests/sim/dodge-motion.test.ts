@@ -1,8 +1,8 @@
-// People get out of a car's way on their feet (SIM_VERSION 11, the dodge stream: "they jump out
+// People get out of a car's way on their feet (SIM_VERSION 14, the dodge stream: "they jump out
 // of the way in too weird of a way ... they like fly"). Bounds on how a dodging person or player
 // on foot moves, measured tick by tick (tests/sim/dodge-motion.ts): never off the ground, never
 // faster than a scramble's pace, speeding up no faster than a lunge outside the safety pull-ups,
-// and the override (the hard guarantee) a rare last resort. And the save upgrade (v10 -> v11).
+// and the override (the hard guarantee) a rare last resort. And the save upgrade (v13 -> v14).
 import { describe, expect, it } from "vitest";
 import {
   DODGE_PROFILE,
@@ -28,7 +28,7 @@ const TOP = Math.max(DODGE_PROFILE.person.speed, DODGE_PROFILE.player.speed) * E
 /** The hardest anyone speeds up or slows down on their own: a scrambling lunge. */
 const LUNGE = Math.max(DODGE_PROFILE.person.accel, DODGE_PROFILE.player.accel) * EMERGENCY_ACCEL;
 
-describe("how people move getting out of the way (v11)", () => {
+describe("how people move getting out of the way (v14)", () => {
   it("human pace: at most 6 m/s, a sprint's top speed; no faster than about 4.8 m/s unhurried", () => {
     expect(TOP).toBeLessThanOrEqual(6 + 1e-9);
     expect(DODGE_PROFILE.person.speed).toBeLessThanOrEqual(5);
@@ -96,15 +96,15 @@ describe("how people move getting out of the way (v11)", () => {
   }, LONG_RUN_MS);
 });
 
-describe("the save upgrade to people dodging on their feet (v11; dodges in flight from a real v8 save)", () => {
+describe("the save upgrade to people dodging on their feet (v14; dodges in flight from a real v8 save)", () => {
   it("a real v8 save mid-dodge: people and players lose their hop (y back on the ground), robots keep theirs, every dodge gains a standstill velocity and its profile's top speed; nothing else changes", () => {
     expect(saved.simVersion).toBe(8);
     const old = deepFreeze(saved.state as unknown as SimState);
     expect(hashState(old)).toBe(saved.hash);
     const before = canonicalJson(old);
     const up = upgradeState(old);
-    expect(SIM_VERSION).toBe(11);
-    expect(up.version).toBe(11);
+    expect(SIM_VERSION).toBe(14);
+    expect(up.version).toBe(14);
     expect(canonicalJson(old)).toBe(before);
     const ob = old.players.b!.foot!;
     const ub = up.players.b!.foot!;
@@ -134,10 +134,10 @@ describe("the save upgrade to people dodging on their feet (v11; dodges in fligh
     });
     expect(people).toBeGreaterThan(0);
     expect(robots).toBeGreaterThan(0);
-    expect({ ...up, players: {}, ext: {} }).toEqual({ ...old, version: 11, players: {}, ext: {} });
+    expect({ ...up, players: {}, ext: {} }).toEqual({ ...old, version: 14, players: {}, ext: {} });
     expect(upgradeState(up)).toBe(up);
-    // Through v10 (weather: no field changes) the same; a v10 save takes the same step.
-    expect(upgradeState({ ...old, version: 10 })).toEqual(up);
+    // Through v10..v13 (no field changes) the same; a v13 save takes the same step.
+    expect(upgradeState({ ...old, version: 13 })).toEqual(up);
     // It steps on from there, deterministically, everyone on the ground.
     const world = buildWorld([{ tileId: "flat", buildings: [], ground: null }]);
     let a = up;

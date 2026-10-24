@@ -95,11 +95,11 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browsers.outcome != 'failure' && steps.browser-deps.outcome != 'failure' }}
         env:
           E2E_REQUIRE: ${{ vars.E2E_REQUIRE }}
-        run: pnpm e2e
+        run: pnpm e2e --max-failures=1
 
       # Pictures for reviewers (test-results/shots/index.html). Informational: never fails CI.
       - name: Screenshots
-        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        if: ${{ !cancelled() && steps.e2e.outcome == 'success' }}
         continue-on-error: true
         # A step that reaches timeout-minutes fails the job even under continue-on-error, so Playwright's
         # own 9-minute limit ends slow software-GL captures first; the step limit is only a backstop.

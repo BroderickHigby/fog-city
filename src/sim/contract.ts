@@ -24,11 +24,23 @@
 // puddles, shelter, the King tide's flooded promenade, rain breaking phone hacks and the
 // per-shot wet rule. ext.fog gains its typed shape; an upgraded v8 save keeps every field and
 // the fog reducer fills ext.fog on its first tick.
-// v11 (the dodge stream, 2026-10-23): people get out of a vehicle's way on their feet, the way
+// v11 (player feel): on foot the default pace is a brisk jog (FOOT.walk 3.0 m/s) and the sprint
+// is fast (FOOT.sprint 7.0 m/s); Action.sprint (held, Shift) sprints as the brake already did.
+// Saved fields are unchanged; an upgraded v10 save keeps everything and walks at the new pace.
+// v12 (player feel): a player can ride an ambient robotaxi as a passenger (PlayerState.ride,
+// optional; absent or null = not riding) after hailing one on the street (PlayerState.hail). The taxi stays an ambient agent under every robotaxi
+// rule; the player's own car stays parked. An upgraded v11 save keeps every field (no ride).
+// v13 (city life): robotaxis pass a stopped vehicle (optional AgentState.pass) and walkers
+// detour round it (optional RuntimeActor.detour); an upgraded v12 save keeps every field.
+// This is the combined release stamp shared with unlimited-water integration.
+// v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
+// reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
+// a v12 save keeps its saved water value, which no longer limits the stream.
+// v14 (the dodge stream, 2026-10-23): people get out of a vehicle's way on their feet, the way
 // people do: a sidestep, a jog or a sprint at human speeds (about 2.5-6 m/s) with limited
 // acceleration, never a hop or a flight. DodgeState gains the body's velocity (vx, vz) and the
 // dodge's top speed (vmax); a person's hop is always 0. upgradeState lifts the previous version.
-export const SIM_VERSION = 11;
+export const SIM_VERSION = 14;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -64,6 +76,8 @@ export const Action = {
   watch: 1 << 9,
   altFire: 1 << 10,
   gear: 1 << 11,
+  /** v11: held, not one-shot. On foot with forward, sprint (the brake still sprints too). */
+  sprint: 1 << 12,
 } as const;
 
 /** Shared names for recorded facts and derived gameplay events; payloads stay plain JSON. */
@@ -156,7 +170,7 @@ export interface CarState {
  * v4: a body getting out of a vehicle's way (src/sim/dodge.ts): a dive to a clear spot, then a
  * moment to recover. While it lasts the body ignores its own controls (a player) or its path (an
  * agent), and its y includes the hop.
- * v11: a person's "dive" is on their feet (a sidestep, a jog or a sprint toward (tx, tz) at up to
+ * v14: a person's "dive" is on their feet (a sidestep, a jog or a sprint toward (tx, tz) at up to
  * vmax, speeding up and slowing down at human rates); only robots still hop.
  */
 export interface DodgeState {
@@ -178,7 +192,7 @@ export interface DodgeState {
    * or a shove aside, never a flight). Otherwise it moves from (sx, sz) to (tx, tz) over the dive.
    */
   leap: boolean;
-  // ---- v11 additions ----
+  // ---- v14 additions ----
   /** The body's horizontal velocity now, m/s (0 while recovering and after a leap). */
   vx: number;
   vz: number;
@@ -196,7 +210,7 @@ export interface FootState {
   heading: number;
   /** m/s along heading; negative when stepping back. */
   speed: number;
-  /** True while sprinting (brake held). */
+  /** True while sprinting (Action.sprint or the brake held, with forward). */
   sprint: boolean;
   // ---- v3 additions ----
   /** Vertical velocity, m/s, + = up: the ground's rise along the walk while grounded, gravity while falling. */
@@ -216,6 +230,28 @@ export interface PlayerState {
   /** v2: the walker while mode === "foot", else null. */
   foot: FootState | null;
   /** v2: enterExit was pressed above exit speed; the car brakes and the player exits once slow. */
+  exitPending: boolean;
+  /**
+   * v12: riding an ambient robotaxi as a passenger (mode stays "vehicle"; the own car stays
+   * parked where it was left and keeps colliding). Absent or null when not riding.
+   */
+  ride?: PlayerRide | null;
+  /** v12: a robotaxi this player hailed on foot (F) stops for them until `untilTick`. Absent or null: none. */
+  hail?: { agentId: number; untilTick: number } | null;
+}
+
+/** v12: a passenger ride in an ambient robotaxi (state.ext.agents id `agentId`). */
+export interface PlayerRide {
+  agentId: number;
+  /** The taxi's pose at the end of the tick, mirrored for cameras, HUDs, missions and AI. */
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+  speed: number;
+  /** Where the rider asked to go (whole metres), or null to cruise. */
+  goal: { x: number; z: number } | null;
+  /** The rider asked to get out (F, or arriving): the taxi stops, then they step out. */
   exitPending: boolean;
 }
 

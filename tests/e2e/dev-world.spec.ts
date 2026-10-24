@@ -141,6 +141,22 @@ test.describe("dev world: behaviour", () => {
     expect(problems).toEqual([]);
   });
 
+  test("a debug pause holds: opening and closing a UI modal never advances the sim", async ({ page }) => {
+    const problems = await bootWorld(page, "dev", FAST_QUERY);
+    await pause(page);
+    const t0 = (await simState(page)).tick;
+    // The phone modal pauses and, on close, unpauses the game through the UI's own callback;
+    // neither may override the debug pause, and no queued command may step the sim meanwhile.
+    await page.keyboard.press("KeyP");
+    await frames(page, 10);
+    await page.keyboard.press("KeyP");
+    await frames(page, 20);
+    expect((await simState(page)).tick).toBe(t0);
+    await stepN(page, 5, { throttle: 0, steer: 0, brake: 0, actions: 0 });
+    expect((await simState(page)).tick).toBe(t0 + 5);
+    expect(problems).toEqual([]);
+  });
+
   test("KeyC never changes the sim: paused, or with the game loop running", async ({ page }) => {
     const problems = await bootWorld(page, "dev", FAST_QUERY);
     await pause(page);

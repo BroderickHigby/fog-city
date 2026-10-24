@@ -1,5 +1,5 @@
 // The dodge: nobody is ever run over (the owner's Crazy Taxi rule, 2026-10-21; docs/design.md,
-// "Vehicles never hurt people"), and people get out of the way like people (v11, the dodge
+// "Vehicles never hurt people"), and people get out of the way like people (v14, the dodge
 // stream, 2026-10-23: on their feet, at human speeds, never a hop or a flight). Pure and deterministic; step.ts runs it once a tick, after the
 // players' cars and the agents have moved.
 //
@@ -221,7 +221,7 @@ const STEP_CHECK_M = 0.04;
 /**
  * Seconds of a vehicle's path that are predicted at `speed` m/s: 1 s, plus 0.05 s per m/s, at
  * most 2.5 s. People on foot need the time: they see a car coming, turn and run at human speeds
- * (v11; before, 0.6 s plus 0.025 s per m/s and a 9 m/s leap).
+ * (v14; before, 0.6 s plus 0.025 s per m/s and a 9 m/s leap).
  */
 export function horizonS(speed: number): number {
   return clamp(1 + 0.05 * speed, 1, 2.5);
@@ -255,7 +255,7 @@ export interface DodgeProfile {
   recover: number;
 }
 
-// People (v11, the dodge stream): a startled sidestep, jog or sprint at up to 4.8 m/s (6 m/s
+// People (v14, the dodge stream): a startled sidestep, jog or sprint at up to 4.8 m/s (6 m/s
 // scrambling), getting up to speed at 7 m/s^2 (a quick first step; 9 scrambling) and slowing the
 // same way, feet on the ground throughout. Children and anyone seated, lying down or using a
 // mobility aid move slower and keep a wider berth both ways. A player on foot gets control back

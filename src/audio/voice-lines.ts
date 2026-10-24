@@ -8,7 +8,8 @@
 
 import type { Mission } from "../content/missions.ts";
 
-export type VoiceLineKind = "line" | "intro" | "prompt" | "reply";
+/** "inner": the player's inner voice (inner-voice.ts), not tied to one mission step. */
+export type VoiceLineKind = "line" | "intro" | "prompt" | "reply" | "inner";
 
 export interface VoiceLine {
   id: string;

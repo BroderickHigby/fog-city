@@ -1,4 +1,5 @@
 import { AGENT_SPEC, agentsOf } from "../agents.ts";
+import { playerPose, ridesByAgent } from "../ride.ts";
 import type { SimState } from "../contract.ts";
 import { groundHeight, nearbyBuildings, type World } from "../world.ts";
 import { sortedIds } from "../contract.ts";
@@ -33,12 +34,14 @@ function actorMetadata(options: CombatAdapterOptions, id: string): CombatActorMe
 export function contextFromState(world:World,state:Readonly<SimState>,options:CombatAdapterOptions={}):CombatContext {
   const players:CombatPlayer[]=sortedIds(state.players).map(id=> {
     const owner=state.players[id]!;
-    const body=owner.mode==="foot" && owner.foot ? owner.foot : owner.car;
+    const body=playerPose(owner);
     return {tankTier:0,flowTier:0,scannerTier:1,...options.loadouts?.[id],id,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:body.speed,mount:owner.mode==="foot"?"foot":"vehicle"};
   });
+  // design.md: a robotaxi with a rider aboard never seizes; it pulls over and the rider steps out.
+  const ridden=ridesByAgent(state);
   const actors:CombatActor[]=agentsOf(state).map(agent=> {
     const id=`agent:${agent.id}`, spec=AGENT_SPEC[agent.kind], person=agent.kind==="person";
-    return {kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi",...actorMetadata(options,id),id,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed};
+    return {kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi",...actorMetadata(options,id),...(agent.kind==="robotaxi"&&ridden.has(agent.id)?{occupied:true}:{}),id,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed};
   });
   for (const player of players) {
     const id=`player:${player.id}`;

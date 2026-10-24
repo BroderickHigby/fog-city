@@ -62,6 +62,9 @@ function fogcityAssets(): Plugin {
 export default defineConfig({
   base: "./",
   plugins: [fogcityAssets()],
+  // Online play: the relay's WebSocket URL, fixed at build time (RELAY_URL=wss://host/relay
+  // pnpm build). Unset, the game has no online lobby and plays single-player (server/README.md).
+  define: { __FOGCITY_RELAY_URL__: JSON.stringify(process.env.RELAY_URL ?? "") },
   server: { host: "127.0.0.1" },
   preview: { host: "127.0.0.1" },
   build: { target: "es2023", sourcemap: true, copyPublicDir: false, chunkSizeWarningLimit: 2000 },
