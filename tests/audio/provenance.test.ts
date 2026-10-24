@@ -9,7 +9,8 @@ import { ROOT, readJson } from "../helpers.ts";
 import { MISSIONS } from "../../src/content/catalog.ts";
 import { missionVoiceLines, subtitleCues, estimateDurationS, splitCueText, MAX_CUE_CHARS, type VoiceManifest } from "../../src/audio/voice-lines.ts";
 import type { MusicManifest, MusicSource } from "../../scripts/audio/build-music.ts";
-import { BUDGET_CAP, buildManifest, characterBudget, commercialTier, fileFor, lineHash, plan, type Casting } from "../../scripts/audio/generate-voices.ts";
+import { innerVoiceLines } from "../../src/audio/inner-voice.ts";
+import { BUDGET_CAP, allVoiceLines, buildManifest, characterBudget, commercialTier, fileFor, lineHash, plan, type Casting } from "../../scripts/audio/generate-voices.ts";
 
 const sources = readJson<{ policy: string; tracks: MusicSource[] }>("assets/audio/music-sources.json");
 const music = readJson<MusicManifest>("public/audio/music/manifest.json");
@@ -123,9 +124,12 @@ describe("public/audio/music", () => {
 describe("mission voice manifest", () => {
   const lines = missionVoiceLines(MISSIONS);
 
-  it("lists every mission line, in content order, with the current text", () => {
-    expect(voice.lines.map((l) => l.id)).toEqual(lines.map((l) => l.id));
-    for (const [i, l] of voice.lines.entries()) {
+  it("lists every mission line, in content order, then the inner voice, with the current text", () => {
+    expect(allVoiceLines().map((l) => l.id)).toEqual([...lines, ...innerVoiceLines(MISSIONS)].map((l) => l.id));
+    expect(voice.lines.filter((l) => l.kind === "inner").map((l) => l.id)).toEqual(innerVoiceLines(MISSIONS).map((l) => l.id));
+    const missionLines = voice.lines.filter((l) => l.kind !== "inner");
+    expect(missionLines.map((l) => l.id)).toEqual(lines.map((l) => l.id));
+    for (const [i, l] of missionLines.entries()) {
       const src = lines[i]!;
       expect({ missionId: l.missionId, stepId: l.stepId, kind: l.kind, speaker: l.speaker, text: l.text }).toEqual({ missionId: src.missionId, stepId: src.stepId, kind: src.kind, speaker: src.speaker, text: src.text });
     }
@@ -135,14 +139,14 @@ describe("mission voice manifest", () => {
     expect(JSON.parse(JSON.stringify(buildManifest(casting)))).toEqual(voice);
   });
 
-  it("casts every speaker; each voiced speaker has a distinct premade voice, and the player is silent", () => {
-    const speakers = new Set(lines.map((l) => l.speaker));
+  it("casts every speaker, each voiced speaker with a distinct premade voice; the player's inner voice is its own", () => {
+    const speakers = new Set(allVoiceLines().map((l) => l.speaker));
     for (const s of speakers) expect(casting.speakers[s], s).toBeTruthy();
     const voiced = Object.values(casting.speakers).filter((s) => s.voiced);
     expect(new Set(voiced.map((s) => s.voiceId)).size).toBe(voiced.length);
     for (const s of voiced) expect(s.voiceId).toMatch(/^[A-Za-z0-9]{20}$/);
-    expect(casting.speakers.player).toMatchObject({ voiced: false, voiceId: null });
-    expect(voice.lines.filter((l) => l.speaker === "player").every((l) => l.hash === "" && l.file === null)).toBe(true);
+    expect(casting.speakers.player).toMatchObject({ voiced: true });
+    expect(casting.speakers.player!.voiceId).not.toBe(casting.speakers.cofounder!.voiceId);
   });
 
   it("names its files by a hash of text, voice and settings, so an edit regenerates only that line", () => {
