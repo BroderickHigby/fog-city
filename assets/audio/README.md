@@ -104,6 +104,29 @@ tunes. Stations are invented (no real call signs) and play the CC0 tracks above:
 
 On foot the music follows the moment again: combat, a timed mission step, or the on-foot track.
 
+### Keeping the music consistent (`src/audio/music.ts`)
+
+- **Menus never switch the track.** The pause screen, the phone, the vendor and mission dialogs
+  duck the music by about 8 dB, and it comes back up when they close. On the first build,
+  every auto-opening mission dialog cut to the menu track and straight back.
+- **At most one switch per 6 s** (`MIN_DWELL_MS`).
+  - A wanted change must settle for 2 s first (combat: 0.4 s).
+  - Combat music holds 12 s after the last spray or fight event.
+  - In a car the radio plays, whatever happens outside.
+- **No gap on a switch.** The new deck starts streaming while the old one plays on at full; the
+  3 s equal-sum crossfade begins only once the new stream is actually playing (or after 4 s).
+  A switch that arrives while the last one is still buffering reuses the buffering deck, and
+  never touches the one being heard.
+- **Each track resumes where it left off.** A watchdog restarts a stream the browser paused or
+  stalled, and the audio context resumes when the tab is shown again.
+- **One loudness** for every track: -18 LUFS, -1.5 dBTP (two-pass `loudnorm`), and every track
+  loops.
+
+`tests/audio/music-player.test.ts` drives the real tracker and player under a fake clock, with
+streams that take up to 2.5 s to start. Over 10 minutes of random context flips every ~300 ms (5
+seeds), it asserts at least 6 s between switches and no drop below half level longer than 150 ms.
+It fails on the first build's crossfade (a 920 ms gap).
+
 # Mission voices (ElevenLabs, held)
 
 `node scripts/audio/generate-voices.ts` writes `public/audio/voice/manifest.json`: every

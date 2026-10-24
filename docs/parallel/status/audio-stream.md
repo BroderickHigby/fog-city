@@ -28,6 +28,26 @@ and "the horn button doesn't work".
   - A robotaxi in agent mode `honk` plays an original, polite electronic chirp, distance-attenuated, at most once per car per 4 s.
   - `tests/e2e/player-feel.spec.ts` now checks the director's horn counter instead of counting `OscillatorNode.start` calls, as agreed with the Player-feel stream.
 
+## Music consistency (owner: "the music isn't really consistent"; in #36)
+
+Causes found in the live build (`86dfb90`):
+1. Every menu and mission dialog switched to the menu track and back.
+2. Combat cut in at once, even in a car, and bounced out about 10 s later.
+3. Timed mission steps overrode the driving music.
+4. Nothing set a minimum time between switches.
+5. The crossfade faded the old stream before the new one had buffered (an audible dip or gap).
+6. Nothing recovered a stalled or paused stream.
+
+Fixes:
+- Menus duck instead of switching.
+- In a car the radio always plays.
+- A 6 s minimum dwell, a 2 s settle (combat 0.4 s) and a 12 s combat hold.
+- 3 s crossfades that start only once the new stream plays.
+- Resume where each track left off.
+- A stall watchdog, and the AudioContext resumes when the tab is shown again.
+
+`tests/audio/music-player.test.ts` checks the switch rate and gaps, and catches the old behaviour.
+
 ## Follow-up: the player's inner voice (`work/audio/inner-voice`, stacked on the radio PR)
 
 Owner feedback: "the voice should talk just like in GTA … it kind of just tells you what to do".
