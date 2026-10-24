@@ -3,17 +3,18 @@
 Stream id `missions`. Scope: handoff §6 items 1 and 2, plus browser completions for the existing
 wave-3 routes. Base: `origin/integrate/wave2` (`ff7db5b`, gameplay checkpoint `80a05c4`, `SIM_VERSION = 8`, `GAME_WAVE = 3`).
 
-## Branches (each one seam; stacked where they share the activity reducer)
+## Branches and PRs (one seam each; stacked where they share the activity reducer)
 
-| Branch | Seam | State |
-| --- | --- | --- |
-| `work/missions/wave3-campaign-browser` | Launch Day / Demo'd Correctly drivers and browser playthrough; curbside save spawn | Launch Day completes in Node through real inputs; browser run in progress |
-| `work/missions/activity-ui` | Start side activities from the HUD; wave-3 checkpoints on real streets | Unit tests green; browser completions pending |
-| `work/missions/plain-words` (on activity-ui) | Plain Words: boards, washing, spinners, `board.washed` | Unit and real-SF placement tests green; on-foot pace being tuned |
-| `work/missions/office-hours` (on plain-words) | Ramen Office Hours: real `demo.robotPresented`; ramen-house marker removed | Unit and composed real-demo tests green |
-| `work/missions/search-and-park` (on office-hours) | Search & Park: physical legal stop, `parking.legalStop` | Unit and real-SF legal-bay tests green |
+| PR | Branch | Seam | State |
+| --- | --- | --- | --- |
+| #74 | `work/missions/wave3-campaign-browser` | Launch Day / Demo'd Correctly drivers, long browser playthroughs, two-player session, curbside save spawn | Draft. First Launch Day browser session green (exact replay `b439bf4c`); v10 re-run in progress |
+| #76 | `work/missions/activity-ui` (on #74) | Start side activities from the HUD; sprint and hill-delivery stops on real streets; hill-delivery browser playthrough | Draft; unit tests green |
+| #77 | `work/missions/plain-words` (on #76) | Plain Words: boards, washing, spinners, `board.washed` | Draft; unit tests green; not winnable on foot until #44 (unlimited water) |
+| #78 | `work/missions/office-hours` (on #77) | Ramen Office Hours: real `demo.robotPresented`; ramen-house marker removed | Draft; unit and composed real-demo tests green |
+| #79 | `work/missions/search-and-park` (on #78) | Search & Park: physical legal stop, `parking.legalStop` | Draft; unit and real-SF legal-bay tests green |
+| #80 | `work/missions/coit-recon` (on #79) | Coit Tower Recon producer at the design's wave four | Draft; unit tests green |
 
-No PR is open yet: each needs a green browser run and the full unit suite first.
+All are based on integrate/wave2 `86dfb90` (SIM_VERSION 10).
 
 ## Done (in branches, not merged)
 
