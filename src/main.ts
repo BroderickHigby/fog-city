@@ -37,6 +37,7 @@ import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
+import { SprayTracker } from "./render/held-blaster.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
 import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
@@ -251,6 +252,7 @@ async function boot(): Promise<void> {
     queuedEvents.push(event);recordedCommands.push(event);
   };
   const combatLayer=new CombatLayer(view.scene);
+  const sprayTracker=new SprayTracker();
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
   const diagnostics=params.get("debug")==="1";
@@ -489,8 +491,11 @@ async function boot(): Promise<void> {
         }
       }
     }
+    // The water blaster comes out while a player sprays (held-blaster.ts); the stream leaves its nozzle.
+    const sprays = sprayTracker.update(curr.ext.combat?.projectiles);
+    for (const id of Object.keys(curr.players)) view.setSpray(id, sprays.get(id) ?? null);
     view.setSim(renderWithRuntimeActors(prev,Object.values(agentsRuntimeOf(prev)?.actors??{})),renderWithRuntimeActors(curr,Object.values(agentsRuntimeOf(curr)?.actors??{})),alpha);
-    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha);
+    combatLayer.update(prev.ext.combat,curr.ext.combat,alpha,(id,out)=>view.nozzle(id,out));
     audio.update({state:curr,playerId:LOCAL_PLAYER,paused,nowMs:now});
     const minute = gameMinuteOfDay(curr, clockStart);
     view.frame(dtFrame, curr.players[LOCAL_PLAYER] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);

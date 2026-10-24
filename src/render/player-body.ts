@@ -5,6 +5,11 @@ import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
+/** Drawn yaw closes on the sim heading at this rate (1/s); a turn over TURN_SNAP_RAD snaps. */
+export const TURN_RATE = 14;
+export const TURN_SNAP_RAD = 2.6;
+/** Hair cards are cut out at this alpha rather than blended: no sorting against the head, and they shadow. */
+export const HAIR_ALPHA_CUT = 0.45;
 type Motion = "idle" | "walk" | "run";
 interface Body {
   root: THREE.Object3D;
@@ -14,6 +19,23 @@ interface Body {
   materials: THREE.Material[];
   skeletons: Set<THREE.Skeleton>;
   seen: boolean;
+  /** Drawn compass heading; NaN until first placed. */
+  yaw: number;
+}
+
+/** Shortest signed turn from a to b, in (-pi, pi]. */
+function turn(a: number, b: number): number {
+  const d = (b - a) % (2 * Math.PI);
+  return d > Math.PI ? d - 2 * Math.PI : d <= -Math.PI ? d + 2 * Math.PI : d;
+}
+
+/** Drawn heading for the frame: eases toward the sim heading, snapping on the first frame or a reversal. */
+export function easeYaw(drawn: number, target: number, dt: number): number {
+  if (!Number.isFinite(drawn) || !(dt > 0)) return target;
+  const d = turn(drawn, target);
+  if (Math.abs(d) > TURN_SNAP_RAD) return target;
+  const next = drawn + d * (1 - Math.exp(-TURN_RATE * dt));
+  return Math.abs(turn(next, target)) < 1e-4 ? target : next;
 }
 
 export class PlayerBodies {
@@ -39,6 +61,17 @@ export class PlayerBodies {
     this.walkSpeed = speed;
     this.runSpeed = runSpeed;
     this.group.name = "players:bodies";
+    gltf.scene.traverse(object => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        if (!material.name.endsWith("_hair") || !material.transparent) continue;
+        material.transparent = false;
+        material.depthWrite = true;
+        material.alphaTest = HAIR_ALPHA_CUT;
+        material.needsUpdate = true;
+      }
+    });
   }
 
   /** Load a body model: the player's by default, or another Rocketbox-rigged file (the crowd's). */
@@ -83,7 +116,7 @@ export class PlayerBodies {
       const clip = this.gltf.animations.find(candidate => candidate.name === name);
       return clip ? mixer.clipAction(clip) : null;
     };
-    const body: Body = { root, mixer, actions: { idle: action("idle"), walk: action("walk"), run: action("run") }, current: "idle", materials, skeletons, seen: false };
+    const body: Body = { root, mixer, actions: { idle: action("idle"), walk: action("walk"), run: action("run") }, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
     body.actions.idle?.play();
     this.group.add(root);
     this.bodies.set(id, body);
@@ -101,7 +134,8 @@ export class PlayerBodies {
     body.seen = true;
     body.root.visible = true;
     body.root.position.set(x, y, z);
-    body.root.rotation.set(0, -heading, 0);
+    body.yaw = easeYaw(body.yaw, heading, dt);
+    body.root.rotation.set(0, -body.yaw, 0);
     const velocity = Math.abs(speed);
     const wanted: Motion = velocity >= 3.2 && body.actions.run ? "run" : velocity >= 0.2 && body.actions.walk ? "walk" : "idle";
     if (wanted !== body.current) {
@@ -120,10 +154,16 @@ export class PlayerBodies {
   }
 
   end(): void {
-    for (const body of this.bodies.values()) if (!body.seen) body.root.visible = false;
+    for (const body of this.bodies.values()) if (!body.seen) {
+      body.root.visible = false;
+      body.yaw = Number.NaN; // Reappearing (out of the car, back in view) faces the sim heading at once.
+    }
   }
 
   get drawn(): number { return this.drawnCount; }
+
+  /** Player `id`'s posed body root, once it has been drawn. */
+  rootOf(id: string): THREE.Object3D | null { return this.bodies.get(id)?.root ?? null; }
 
   remove(keep: ReadonlySet<string>): void {
     for (const [id, body] of this.bodies) {

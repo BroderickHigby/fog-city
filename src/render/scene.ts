@@ -30,6 +30,7 @@ import { VisualQuality } from "./quality.ts";
 import { StreetLightRig } from "./street-lights.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
+import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
 
 export type { CameraMode } from "./cameras.ts";
@@ -269,13 +270,15 @@ export class SceneRenderer {
     });
     this.far.start();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
+    const modelBytes = async (path: string): Promise<Uint8Array> => {
+      if (assets) return assets.bytes(path);
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
+      return new Uint8Array(await response.arrayBuffer());
+    };
     this.actors = new Actors(this.registry, this.lights, this.shadows,
-      available && !available.has(PLAYER_BODY_FILE) ? undefined : async (path) => {
-        if (assets) return assets.bytes(path);
-        const response = await fetch(path);
-        if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
-        return new Uint8Array(await response.arrayBuffer());
-      });
+      available && !available.has(PLAYER_BODY_FILE) ? undefined : modelBytes,
+      available && !available.has(BLASTER_FILE) ? undefined : modelBytes);
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, this.shadows);
     this.scene.add(this.agents.group);
@@ -410,6 +413,16 @@ export class SceneRenderer {
 
   setCar(id: string, pose: CarPose): void {
     this.actors.setCar(id, pose);
+  }
+
+  /** This frame's spray for player `id` (held-blaster.ts), or null. */
+  setSpray(id: string, cue: SprayCue | null): void {
+    this.actors.setSpray(id, cue);
+  }
+
+  /** Where player `id`'s stream leaves the blaster's nozzle (world), or null. */
+  nozzle(id: string, out: THREE.Vector3): THREE.Vector3 | null {
+    return this.actors.nozzle(id, out);
   }
 
   setFoot(id: string, pose: WalkerPose | null): void {
