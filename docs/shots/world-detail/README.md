@@ -22,3 +22,10 @@ Right-hand or single images show the full street-detail stack (every stream bran
 
 - `signals-chestnut-fillmore.jpg`
 - `signals-closeup.jpg`
+
+## signs
+
+Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
+
+- `signs-blades.jpg`
+- `signs-chestnut-street.jpg`
