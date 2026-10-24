@@ -1,5 +1,5 @@
-// On foot: a walker (FootState in contract.ts) that turns with steer, walks with throttle,
-// sprints with the brake held, follows the terrain, and collides with buildings, cars,
+// On foot: a walker (FootState in contract.ts) that turns with steer, jogs with throttle,
+// sprints with Action.sprint (Shift) or the brake held, follows the terrain, and collides with buildings, cars,
 // robots and people. Getting out of the car and back in is handled in step.ts with the
 // helpers here (exitSpot, canEnterCar): never through a wall, and never into a building.
 //
@@ -20,7 +20,7 @@
 //    walker, pushes it into one (keepOffVehicles). A step that would end in one is pushed out of
 //    it in full, or, when that would put it in a building or across a wall, not taken.
 
-import { DT, type CarState, type FootState, type SimInput } from "./contract.ts";
+import { Action, DT, type CarState, type FootState, type SimInput } from "./contract.ts";
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { circleInBoxes, pushOutOfBoxes, resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
@@ -28,17 +28,22 @@ import { segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, circleBlocked, circleBlockedBand, segmentBlocked, surfaceHeight, type World } from "./world.ts";
 
 export const FOOT = {
-  /** Walking speed, m/s. */
-  walk: 1.6,
-  /** Sprinting speed (brake held), m/s. */
-  sprint: 4.8,
+  /**
+   * Default on-foot pace at full forward, m/s (v11): a brisk jog, as in GTA, not a stroll.
+   * Partial stick throttle walks slower.
+   */
+  walk: 3.0,
+  /** Sprinting speed (Action.sprint or the brake held), m/s (v11). */
+  sprint: 7.0,
   /** Stepping backwards, m/s. */
-  back: 1.0,
-  accel: 8,
-  decel: 12,
+  back: 1.4,
+  /** m/s^2: a standing start reaches the jog in 0.3 s and the sprint in 0.7 s. */
+  accel: 10,
+  decel: 14,
   /** Turning rate at full steer, rad/s. */
   turnRate: 3.0,
-  sprintTurnRate: 2.2,
+  /** Turning is slower at a sprint, so a sprint carves a wide arc. */
+  sprintTurnRate: 2.0,
   radius: 0.35,
   /** Uphill slows walking: speed / (1 + uphill * rise-per-metre). */
   uphill: 1.5,
@@ -60,6 +65,11 @@ export const FOOT = {
   /** Most the walker is pushed out of buildings and bodies in one tick, metres. */
   maxPush: 0.5,
 } as const;
+
+/** Sprinting: Action.sprint (Shift, held) or the brake (Space / LT) held, with forward. No stamina (design.md has none). */
+export function wantsSprint(input: Readonly<SimInput>): boolean {
+  return (input.brake > 0.5 || (input.actions & Action.sprint) !== 0) && input.throttle > 0.1;
+}
 
 export function makeFoot(x: number, y: number, z: number, heading: number): FootState {
   return { x, y, z, heading: wrapAngle(heading), speed: 0, sprint: false, vy: 0, grounded: true, dodge: null };
@@ -160,7 +170,7 @@ export function stepFoot(
     return { x: res.x, y: yB, z: res.z, heading: f.heading, speed, sprint: f.sprint, vy: vyB, grounded: false, dodge: null };
   }
 
-  const sprint = input.brake > 0.5 && input.throttle > 0.1;
+  const sprint = wantsSprint(input);
   const heading = wrapAngle(f.heading + input.steer * (sprint ? FOOT.sprintTurnRate : FOOT.turnRate) * DT);
   const fx = dsin(heading);
   const fz = -dcos(heading);

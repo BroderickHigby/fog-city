@@ -9,22 +9,12 @@ test.use({ viewport: { width: 640, height: 400 } });
 
 const SF_QUERY = "&gfx=default&radius=300&pr=0.5";
 
-/** Counts horn tones started through Web Audio (the horn is synthesized, no sample file). */
-async function countTones(page: import("@playwright/test").Page): Promise<void> {
-  await page.addInitScript(() => {
-    const w = window as unknown as { __tones: number };
-    w.__tones = 0;
-    const start = OscillatorNode.prototype.start;
-    OscillatorNode.prototype.start = function (this: OscillatorNode, ...args: Parameters<OscillatorNode["start"]>) {
-      w.__tones++;
-      return start.apply(this, args);
-    };
-  });
-}
+/** Horn blasts the audio director played (src/audio/index.ts playHorn, through the effects bus). */
+const hornsPlayed = (page: import("@playwright/test").Page): Promise<number> =>
+  page.evaluate(() => (window as unknown as { __fogcityAudio?: { info(): { effectsPlayed: Record<string, number>; effectsLoaded: number } } }).__fogcityAudio?.info().effectsPlayed.horn ?? 0);
 
 test("H sounds the horn and startles the people around the car", async ({ page }) => {
   gateWorld("sf");
-  await countTones(page);
   const problems = await bootWorld(page, "sf", SF_QUERY, 150_000);
   // Let the street's people spawn around the car.
   await page.waitForFunction(() => {
@@ -39,8 +29,11 @@ test("H sounds the horn and startles the people around the car", async ({ page }
   });
   expect(await listeners(), "people within earshot of the spawn").toBeGreaterThan(0);
 
+  // The first key unlocks audio; wait for the horn sample to decode, then honk.
+  await page.keyboard.press("KeyC");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __fogcityAudio?: { info(): { effectsLoaded: number } } }).__fogcityAudio?.info().effectsLoaded ?? 0), { timeout: 60_000 }).toBeGreaterThanOrEqual(7);
   await page.keyboard.press("KeyH");
-  await expect.poll(() => page.evaluate(() => (window as unknown as { __tones: number }).__tones), { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => hornsPlayed(page), { timeout: 60_000 }).toBeGreaterThanOrEqual(1);
   await expect.poll(() => page.evaluate(() => {
     const s = (window as unknown as FogWindow).__fogcity!.state();
     const actors = Object.values((s.ext as { robots: { actors: Record<string, { model: string; reaction: { mode: string; source: { id: string } | null } }> } }).robots.actors);

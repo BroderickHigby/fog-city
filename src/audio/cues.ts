@@ -3,7 +3,7 @@
 
 import type { CombatState } from "../sim/combat-contract.ts";
 
-export type EffectSound = "splash" | "melt-fizz" | "rust-creak" | "moat-jingle";
+export type EffectSound = "splash" | "melt-fizz" | "rust-creak" | "moat-jingle" | "robotaxi-horn";
 
 export interface EffectCue {
   sound: EffectSound;
@@ -29,6 +29,20 @@ export interface HummingActor {
   tellIds: readonly string[];
   hiddenTellId: string | null;
 }
+
+/** The fields of an ambient agent the robotaxi horn reads (src/sim/agents.ts AgentState). */
+export interface HonkingAgent {
+  id: number;
+  kind: string;
+  mode: string;
+  x: number;
+  z: number;
+}
+
+/** A robotaxi honking (agent mode "honk"): heard near, at most once per car per this long. */
+export const ROBOTAXI_HORN_NEAR_M = 12;
+export const ROBOTAXI_HORN_RANGE_M = 90;
+export const ROBOTAXI_HORN_COOLDOWN_MS = 4000;
 
 /** Splashes heard at full level within this, fading to nothing at SPLASH_RANGE_M. */
 export const SPLASH_NEAR_M = 6;
@@ -66,6 +80,7 @@ export class EffectCueTracker {
   private readonly slumped = new Set<string>();
   private readonly humAt = new Map<string, number>();
   private splashTimes: number[] = [];
+  private readonly honking = new Map<number, number>();
 
   /** Forget everything (a save restore): the next state's events are not replayed. */
   reset(state?: CombatState): void {
@@ -73,6 +88,7 @@ export class EffectCueTracker {
     this.waterProjectiles.clear();
     this.slumped.clear();
     this.humAt.clear();
+    this.honking.clear();
     this.splashTimes = [];
   }
 
@@ -80,8 +96,25 @@ export class EffectCueTracker {
    * Cues for this frame. `muted` (paused) consumes events without sounding them, so nothing
    * plays late when the game resumes.
    */
-  update(state: CombatState | undefined, listener: Listener, actors: readonly HummingActor[], nowMs: number, muted: boolean): EffectCue[] {
+  update(state: CombatState | undefined, listener: Listener, actors: readonly HummingActor[], nowMs: number, muted: boolean, agents: readonly HonkingAgent[] = []): EffectCue[] {
     const cues: EffectCue[] = [];
+    // Robotaxis honk when a player blocks them: a chirp on entering "honk", again while it lasts.
+    const seen = new Set<number>();
+    for (const a of agents) {
+      if (a.kind !== "robotaxi") continue;
+      seen.add(a.id);
+      if (a.mode !== "honk") continue;
+      const last = this.honking.get(a.id);
+      if (last !== undefined && nowMs - last < ROBOTAXI_HORN_COOLDOWN_MS) continue;
+      this.honking.set(a.id, nowMs);
+      const gain = distanceGain(Math.hypot(a.x - listener.x, a.z - listener.z), ROBOTAXI_HORN_NEAR_M, ROBOTAXI_HORN_RANGE_M);
+      if (!muted && gain > 0) cues.push({ sound: "robotaxi-horn", gain: 0.8 * gain, pan: panOf(listener, a.x, a.z) });
+    }
+    // A brief return to driving must not restart the horn cooldown. A gone taxi or an
+    // expired entry no longer needs a timestamp (keeps this map bounded by nearby cars).
+    for (const [id, last] of this.honking) {
+      if (!seen.has(id) || nowMs - last >= ROBOTAXI_HORN_COOLDOWN_MS) this.honking.delete(id);
+    }
     if (!state) return cues;
     const at = (x: number, z: number, near: number, far: number): { gain: number; pan: number } =>
       ({ gain: distanceGain(Math.hypot(x - listener.x, z - listener.z), near, far), pan: panOf(listener, x, z) });
