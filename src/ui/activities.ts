@@ -46,7 +46,9 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
         ...run.spinnerIds.filter(id => !run.rusted.includes(id) && runtime[id]).map(id => ({ id, kind: "robot" as const, confirmed: true, label: copy("ui.activity.spinner"), x: runtime[id]!.x, z: runtime[id]!.z })),
       ];
       const detail = copy("ui.activity.plainWordsProgress", { washed: Math.min(own.objectiveCount ?? 0, running.objective?.count ?? 20), total: running.objective?.count ?? 20, rusted: run.rusted.length, spinners: run.spinnerIds.length, word: PLAIN_WORDS_LADDER[run.rung] ?? "" });
-      return { active: { id: running.id, title, remainingTicks, detail, ...(next ? { target: { x: next.x, z: next.z } } : {}) }, blips };
+      // Point at the nearest board still showing a hype word, else the nearest standing spinner.
+      const near = [...blips].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "mission" ? -1 : 1) || (a.x - body.x) ** 2 + (a.z - body.z) ** 2 - ((b.x - body.x) ** 2 + (b.z - body.z) ** 2))[0];
+      return { active: { id: running.id, title, remainingTicks, detail, ...(near ? { target: { x: near.x, z: near.z } } : {}) }, blips };
     }
     if (next) return { active: { id: running.id, title, remainingTicks, target: { x: next.x, z: next.z },
       detail: copy("ui.activity.checkpoint", { label: label(running.id, next.id), index: index + 1, total: checkpoints.length }) } };

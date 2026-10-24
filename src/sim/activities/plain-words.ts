@@ -17,7 +17,7 @@ const BOARD_RADIUS_M = .45, BOARD_TOP_M = 1.2;
 /** A board counts as being sprayed for this many ticks after a hit, so a pulsed stream reads as continuous. */
 const SPRAY_HOLD_TICKS = 12;
 /** A spinner reaches and rebrands the nearest plain board within this range, once per interval. */
-const REBRAND_RANGE_M = 40, REBRAND_EVERY_TICKS = 10 * 60;
+const REBRAND_RANGE_M = 50, REBRAND_EVERY_TICKS = 8 * 60;
 export const PLAIN_WORDS_BOARDS: readonly { id: string; x: number; z: number; headingDeg: number }[] =
   RULES.boards.map(board => ({ id: board.id, ...toLocal(board.lat, board.lon), headingDeg: board.headingDeg }));
 export const PLAIN_WORDS_LADDER: readonly string[] = RULES.ladder;
@@ -33,7 +33,8 @@ export function startPlainWords(state: ActivitiesState, playerId: string, tick: 
   // anchored mid-corridor: a staged actor must sit within 1 km of its anchor.
   const anchor = PLAIN_WORDS_BOARDS[Math.floor(PLAIN_WORDS_BOARDS.length / 2)]!;
   const actors = spinners.map((id, index) => {
-    const near = PLAIN_WORDS_BOARDS[Math.min(PLAIN_WORDS_BOARDS.length - 1, 2 + index * 5)]!;
+    // Among the southern half's boards, so one run is a compact loop from the Broadway start.
+    const near = PLAIN_WORDS_BOARDS[Math.min(PLAIN_WORDS_BOARDS.length - 1, 1 + index * 3)]!;
     return { id, role: `${playerId}-spinner-${index + 1}`, model: "footman", firmware: "bad", offset: { x: near.x - anchor.x, z: near.z - anchor.z }, radius: .45, height: 1.6 };
   });
   event(state, "mission.scene-request", playerId, PLAIN_WORDS_ID, 0, JSON.stringify({ missionId: PLAIN_WORDS_ID, anchor: { x: anchor.x, y: 0, z: anchor.z }, actors }));

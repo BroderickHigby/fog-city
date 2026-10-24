@@ -44,7 +44,8 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    for(const fact of incoming)if(activity&&activity.id!==PLAIN_WORDS_ID&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount=(own.objectiveCount??0)+1;
    // Plain Words measures its own boards from the player's water; each wash is one objective.
    if(activity?.id===PLAIN_WORDS_ID&&own.plainWords)own.objectiveCount=(own.objectiveCount??0)+stepPlainWords(own.plainWords,ctx,body.id,tick,incoming,state);
-   const routeComplete=(own.checkpointIndex??0)>=(activity?.checkpoints?.length??0);
+   // Plain Words' checkpoints mark its corridor; the design asks for washes and rust, not a route.
+   const routeComplete=activity?.id===PLAIN_WORDS_ID||(own.checkpointIndex??0)>=(activity?.checkpoints?.length??0);
    // Route trials derive their completion from the accepted player trajectory. A
    // photo/relic request only succeeds at the final marked location after the route.
    if(activity?.kind==="timeTrial"&&routeComplete&&elapsed>=60)own.objectiveCount=Math.max(own.objectiveCount??0,1);

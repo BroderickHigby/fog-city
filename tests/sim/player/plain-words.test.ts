@@ -75,7 +75,7 @@ describe("Plain Words", () => {
     expect(PLAIN_WORDS_LADDER).toEqual(ACTIVITY_RULES.plainWords.ladder);
   });
 
-  it("stops a rusted spinner and pays only with twenty washes, every spinner rusted and the route walked", () => {
+  it("stops a rusted spinner and pays only with twenty washes and every spinner rusted", () => {
     let state = started();
     const run = state.players.p!.plainWords!;
     const heaps: GameplayFact[] = run.spinnerIds.map((id, index) => ({ id: `combat:${index + 1}`, source: "combat", sequence: index + 1, tick: 2, kind: "robot.heap", playerId: "p", actorId: id }));
@@ -83,14 +83,17 @@ describe("Plain Words", () => {
     expect(state.players.p!.plainWords!.rusted).toEqual(run.spinnerIds);
     // A rusted spinner never rebrands, even standing next to a plain board.
     let tick = 3;
+    const seen: string[] = [];
     for (const board of PLAIN_WORDS_BOARDS) {
-      for (let i = 0; i < 120; i++) state = step(state, tick++, { at: board, waterTraces: [spray(board)], actorBodies: [spinner(state, 0, board)] });
+      for (let i = 0; i < 120 && state.players.p!.activeActivityId; i++) {
+        state = step(state, tick++, { at: board, waterTraces: [spray(board)], actorBodies: [spinner(state, 0, board)] });
+        seen.push(...state.events.map(value => value.kind));
+      }
     }
-    expect(state.players.p!.plainWords!.rebrands).toBe(0);
-    expect(state.players.p!.objectiveCount).toBe(20);
-    expect(state.events.some(value => value.kind === "activity.finished")).toBe(false);
-    for (const checkpoint of activity.checkpoints!) state = step(state, tick++, { at: checkpoint });
-    expect(state.events.map(value => value.kind)).toEqual(["activity.cash", "activity.xp", "activity.finished"]);
+    expect(seen).not.toContain("plainWords.rebranded");
+    expect(seen.filter(kind => kind === "board.washed")).toHaveLength(20);
+    // The twentieth wash with every spinner rusted pays at once; the corridor needs no route.
+    expect(seen.slice(-3)).toEqual(["activity.cash", "activity.xp", "activity.finished"]);
     expect(state.players.p!.plainWords).toBeUndefined();
     expect(state.players.p!.completedIds).toEqual(["plain-words"]);
   });
