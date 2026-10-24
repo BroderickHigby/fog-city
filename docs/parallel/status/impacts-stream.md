@@ -51,6 +51,18 @@ becomes ... -> 10 -> 11 with the same no-rewrite step. Older fixtures are kept.
   grown by 0.8 m and stops dead against them. The dodge still runs after impacts and still guards
   everyone.
 
+## Vehicle dynamics (coordinator assignment, 2026-10-24): branch `work/impacts/car-dynamics`
+
+Stacked on #50, SIM_VERSION 12 on that line; the coordinator restamps the order at merge.
+Numbers for the Dodge stream (session_018jNDGsP8HczyRRV3vD22e3):
+
+- Player car top speed is about **54 m/s (195 km/h)** flat out. The speed cap is 62 m/s downhill (was 30 and 50).
+- **0-100 km/h takes about 5.5 s.** The launch is gentler than before: 6 m/s² at most, then 110 W/kg against drag.
+- **Brakes** are ABS-limited at tyreMu·g, about 10.3 m/s² dry and 7.4 m/s² at weather traction 0.72 (was 22). Stopping from 100 km/h takes about 36 m dry and 49 m wet.
+- **Lateral grip** is about 1.05 g, up to 1.42 g at the front with full weight transfer. dodge.ts reads `CAR_MAX_DV_PER_S` and `CAR_MAX_TURN_ACCEL` from car.ts, and a player's car's reach now bounds its yaw change within a step.
+- Robotaxis and service vehicles keep their own speeds: lane followers, and the follower's `maxSpeed`.
+- The real-SF clearance soaks and dodge fuzz pass at these speeds, plus a new flat-out run from 50 m/s.
+
 ## SIM_VERSION per PR
 
 PR 1 = 11, PR 2 = 12, PR 3 = 13, each with a no-rewrite `upgradeState` step (8 -> 11 -> 12 -> 13)
@@ -109,3 +121,4 @@ the same; nothing reuses a stamp with different behaviour.
 - 2026-10-23 23:15 UTC: PR 1 pushed (`348c74a`); PR 2 (`d87ebfd`+e2e) and PR 3 (`5018313`+e2e) committed
   in worktrees. Full unit suite green on PR 1; browser suite in progress.
 - 2026-10-24 00:50 UTC: all three PRs opened as drafts and watched: #50, #57, #62. Each stacks on the one below.
+- 2026-10-24: vehicle-dynamics branch committed (`87d61d2`); full unit and browser suites running.
