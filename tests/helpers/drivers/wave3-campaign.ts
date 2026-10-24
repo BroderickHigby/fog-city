@@ -63,10 +63,13 @@ export class Wave3Driver extends CampaignDriver {
   readonly trace: string[] = [];
   private sequence: number;
   private budget: number;
-  constructor(world: World, state: SimState, playerId: string, systems: readonly SimSystem[], options: { sequence?: number; budget?: number } = {}) {
+  /** Inputs held by the other players in the session while this one is planned (e.g. a parked car braking). */
+  private readonly companions: Readonly<Record<string, SimInput>>;
+  constructor(world: World, state: SimState, playerId: string, systems: readonly SimSystem[], options: { sequence?: number; budget?: number; companions?: Record<string, SimInput> } = {}) {
     super(world, state, playerId, systems as SimSystem[]);
     this.sequence = options.sequence ?? 1;
     this.budget = options.budget ?? 40_000;
+    this.companions = options.companions ?? {};
   }
   override input(input: SimInput): void {
     if (this.frames.length >= this.budget) throw new Error("Wave-3 input budget exhausted");
@@ -79,7 +82,7 @@ export class Wave3Driver extends CampaignDriver {
     this.stepWith(input, [event]);
   }
   private stepWith(input: SimInput, events: SimEvent[]): void {
-    const frame = { [this.playerId]: input };
+    const frame = { ...this.companions, [this.playerId]: input };
     this.frames.push(frame);
     this.previousState = this.state;
     this.state = step(this.world, this.state, frame, events, this.systems);
@@ -88,7 +91,6 @@ export class Wave3Driver extends CampaignDriver {
       throw new Error(`Unsafe physical step at tick ${this.state.tick}: ${JSON.stringify(clearance)}`);
     }
   }
-  override complete(): boolean { return false; }
   missionId(): string { return this.progress.missionId; }
   status(): string { return this.progress.status; }
   bound(alias: string): string {
@@ -111,7 +113,7 @@ export class Wave3Driver extends CampaignDriver {
   }
   water(): number { return this.state.ext.combat?.players[this.playerId]?.water ?? 0; }
   /** Drive the player's own car to an authored place, re-entering it first when on foot. */
-  travelTo(target: Point, stop: number, options: { maxSpeed?: number; walkIfStuck?: boolean } = {}): void {
+  travelTo(target: Point, stop: number, options: { maxSpeed?: number; walkIfStuck?: boolean; plans?: number } = {}): void {
     if (this.state.players[this.playerId]!.mode === "foot") this.inCar();
     const speed = options.maxSpeed ?? 11, from = { x: this.body.x, z: this.body.z };
     const dx = target.x - from.x, dz = target.z - from.z, length = Math.hypot(dx, dz) || 1;
@@ -128,6 +130,8 @@ export class Wave3Driver extends CampaignDriver {
       ...[[0, -300], [300, 0], [0, 300], [-300, 0]].map(([ox, oz]) => () =>
         this.cruise({ x: from.x + ox!, z: from.z + oz! }, 40, speed, 1200) && this.cruise(target, stop, speed, 1200)),
     ];
+    // Walking is the fallback when allowed: a couple of driving attempts, then on foot.
+    plans.length = Math.min(plans.length, options.plans ?? (options.walkIfStuck ? 2 : plans.length));
     for (const [index, plan] of plans.entries()) {
       const mark = this.mark();
       let arrived = false;
