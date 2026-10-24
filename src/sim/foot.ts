@@ -29,7 +29,7 @@ import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { circleInBoxes, pushOutOfBoxes, resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
 import { onStairs, segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, circleBlocked, circleBlockedBand, railPush, segmentBlocked, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
+import { ROOF_STEP_M, circleBlocked, circleBlockedBand, railPush, segmentBlocked, segmentBlockedBand, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
 
 export const FOOT = {
   /** Walking speed, m/s. */
@@ -276,12 +276,19 @@ export function closestOnCar(c: Readonly<Pick<CarState, "x" | "z" | "heading">>,
  * line (no building in between) to the nearest point of the body or to its centre: nobody
  * gets in through a wall.
  */
-export function canEnterCar(world: World, c: Readonly<Pick<CarState, "x" | "z" | "heading">>, x: number, z: number): boolean {
+export function canEnterCar(world: World, c: Readonly<Pick<CarState, "x" | "z" | "heading" | "y">>, x: number, z: number, y = c.y): boolean {
   if (distanceToCar(c, x, z) > FOOT.enterRange) return false;
+  // The same level: never into a car on the street under a deck or on the deck over a walker.
+  if (Math.abs(y - c.y) > ENTER_LEVEL_M) return false;
   const p = closestOnCar(c, x, z);
   if (segmentCrossesWall(world.walls, x, z, c.x, c.z)) return false;
-  return !segmentBlocked(world, x, z, p.x, p.z) || !segmentBlocked(world, x, z, c.x, c.z);
+  const bottom = y + ROOF_STEP_M;
+  const top = y + FOOT.height;
+  return !segmentBlockedBand(world, x, z, p.x, p.z, bottom, top) || !segmentBlockedBand(world, x, z, c.x, c.z, bottom, top);
 }
+
+/** How far a walker's feet and a car's may differ in height for it to get in. */
+const ENTER_LEVEL_M = 1.2;
 
 /**
  * Where a player steps out of a parked car: the driver's (left) side, else the right, behind,
@@ -311,11 +318,15 @@ export function exitSpot(
     [c.x - fx * end, c.z - fz * end],
     [c.x + fx * end, c.z + fz * end],
   ];
+  // Tested at the car's level, as a walker standing there would be (footBand): getting out in a
+  // bore or under a span is not blocked by the building above it.
+  const bottom = c.y + ROOF_STEP_M;
+  const top = c.y + FOOT.height;
   for (const [x, z] of spots) {
-    if (circleBlocked(world, x, z, FOOT.radius)) continue;
-    if (segmentBlocked(world, c.x, c.z, x, z)) continue;
+    if (circleBlockedBand(world, x, z, FOOT.radius, bottom, top)) continue;
+    if (segmentBlockedBand(world, c.x, c.z, x, z, bottom, top)) continue;
     if (segmentCrossesWall(world.walls, c.x, c.z, x, z)) continue;
-    const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles);
+    const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles, x, z, { bottom, top });
     if (res.hit) continue;
     // On a deck or in a bore: never out over the rail or into the bore's wall.
     const on = surfaceAt(world, c.x, c.z, c.y).kind;

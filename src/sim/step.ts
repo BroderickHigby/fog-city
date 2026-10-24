@@ -34,7 +34,7 @@ import {
 } from "./dodge.ts";
 import type { Box, Circle } from "./collide.ts";
 import { seedRng } from "./rng.ts";
-import { meshGroundHeight, type World } from "./world.ts";
+import type { World } from "./world.ts";
 import { prepareSystems, runSystems, SYSTEMS } from "./systems.ts";
 import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
@@ -61,15 +61,17 @@ export function sanitizeInput(i: Readonly<SimInput>): SimInput {
 
 /**
  * A new player in a car at the spawn, or at the nearest clear spot to it (clearCarSpot): never
- * overlapping a building, a wall or another car (`others`), and keeping `keepOff` (people,
+ * overlapping a building, a wall or another car (`others`), on the spawn's level when it gives
+ * one (Spawn.y: a deck, a tunnel floor, a roof), and keeping `keepOff` (people,
  * animals and players on foot, grown by the dodge's clearance: joinKeepOff) clear of its body.
  */
 function spawnPlayer(world: World, id: PlayerId, s: Spawn, others: ReadonlyArray<Readonly<Box>>, keepOff: readonly Circle[] = []): PlayerState {
-  const p = clearCarSpot(world, s.x, s.z, s.heading, others, keepOff);
+  const hint = s.y !== undefined && Number.isFinite(s.y) ? s.y : -Infinity;
+  const p = clearCarSpot(world, s.x, s.z, s.heading, others, keepOff, hint);
   return {
     id,
     mode: "vehicle",
-    car: makeCar(p.x, p.z, s.heading, meshGroundHeight(world, p.x, p.z)),
+    car: makeCar(p.x, p.z, s.heading, p.y),
     foot: null,
     exitPending: false,
   };
@@ -329,7 +331,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   if (p.mode === "foot" && p.foot) {
     // Diving out of a car's way, or getting up: the dodge moves the walker (dodge.ts).
     if (p.foot.dodge) return p;
-    if (pressed && canEnterCar(world, p.car, p.foot.x, p.foot.z)) {
+    if (pressed && canEnterCar(world, p.car, p.foot.x, p.foot.z, p.foot.y)) {
       return { ...p, mode: "vehicle", foot: null, exitPending: false };
     }
     const own = obs.ownBox.get(p.id) ?? null;
@@ -422,7 +424,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     if (e.kind === "player.join" && e.playerId && !players[e.playerId]) {
       const s = (e.payload ?? {}) as Partial<Spawn>;
       const others = sortedIds(players).map((id) => carBox(players[id]!.car));
-      const at: Spawn = { x: s.x ?? 0, z: s.z ?? 0, heading: s.heading ?? 0 };
+      const at: Spawn = { x: s.x ?? 0, z: s.z ?? 0, heading: s.heading ?? 0, ...(typeof s.y === "number" && Number.isFinite(s.y) ? { y: s.y } : {}) };
       players[e.playerId] = spawnPlayer(world, e.playerId, at, others, joinKeepOff({ ...prev, players }, at.x, at.z));
     } else if (e.kind === "player.leave" && e.playerId) {
       delete players[e.playerId];

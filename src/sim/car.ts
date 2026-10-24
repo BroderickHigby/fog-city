@@ -142,6 +142,10 @@ export function carBox(c: Readonly<Pick<CarState, "x" | "z" | "heading">>): Box 
 export const CLEAR_SPOT_RADIUS_M = 30;
 /** How far it looks for dry land when the requested spot is on the water (piers crowded with sheds), metres. */
 export const CLEAR_SPOT_WATER_RADIUS_M = 150;
+/** With a height hint, a candidate spot stays on the hinted level: within this much of its height... */
+const LEVEL_SLACK_M = 0.6;
+/** ...plus this rise per metre from the requested spot (a ramp or a sloping deck). */
+const LEVEL_GRADE = 0.12;
 
 /**
  * Where to put a car asked for at (x, z) facing `heading` (a spawn, a join, a respawn or a
@@ -163,7 +167,8 @@ export function clearCarSpot(
   heading: number,
   others: ReadonlyArray<Readonly<Box>> = [],
   keepOff: readonly Circle[] = [],
-): { x: number; z: number } {
+  feet = -Infinity,
+): { x: number; z: number; y: number } {
   const circles: Circle[] = [...others.flatMap((b) => carCircles(b)), ...keepOff];
   const shore = world.walls?.shore ?? null;
   const fx = dsin(heading);
@@ -175,12 +180,20 @@ export function clearCarSpot(
     }
     return onWater(shore, px, pz);
   };
-  const clear = (px: number, pz: number): boolean => {
+  // With a height hint (a save, join or respawn on a deck, in a bore or on a roof) every spot is
+  // judged on the surface at that level, and a spot whose surface is another level (the ground
+  // under a deck, the hill over a bore) is not that level: the car is never snapped to unrelated
+  // terrain. Without one, the drawn ground.
+  const hinted = feet > -Infinity;
+  const level = hinted ? surfaceAt(world, x, z, feet, true).y : meshGroundHeight(world, x, z);
+  const surfaceY = (px: number, pz: number): number => (hinted ? surfaceAt(world, px, pz, feet, true).y : meshGroundHeight(world, px, pz));
+  const clear = (px: number, pz: number, r: number): boolean => {
     if (wet(px, pz)) return false;
-    const y = meshGroundHeight(world, px, pz);
+    const y = surfaceY(px, pz);
+    if (hinted && Math.abs(y - level) > LEVEL_SLACK_M + r * LEVEL_GRADE) return false;
     return !boxBlocked(world, { x: px, z: pz, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, y + ROOF_STEP_M, circles, y + CAR.bodyHeight);
   };
-  if (clear(x, z)) return { x, z };
+  if (clear(x, z, 0)) return { x, z, y: level };
   // From the water, the way to the land crosses the shore's wall.
   const fromWater = shore !== null && onWater(shore, x, z);
   const reach = fromWater ? CLEAR_SPOT_WATER_RADIUS_M : CLEAR_SPOT_RADIUS_M;
@@ -191,10 +204,10 @@ export function clearCarSpot(
       const px = x + dsin(a) * r;
       const pz = z - dcos(a) * r;
       if ((!fromWater && segmentCrossesWall(world.walls, x, z, px, pz)) || segmentCrossesWall(world.barriers, x, z, px, pz)) continue;
-      if (clear(px, pz)) return { x: px, z: pz };
+      if (clear(px, pz, r)) return { x: px, z: pz, y: surfaceY(px, pz) };
     }
   }
-  return { x, z };
+  return { x, z, y: level };
 }
 
 /** Three circles covering the car, for other bodies that treat it as an obstacle. */

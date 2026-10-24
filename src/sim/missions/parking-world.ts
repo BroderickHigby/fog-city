@@ -1,6 +1,6 @@
 import type { SimSystemContext } from "../system-contract.ts";
 import type { World } from "../world.ts";
-import { groundHeight, groundWater } from "../world.ts";
+import { groundWater, roadSurfaceHeight } from "../world.ts";
 import { boxBlocked } from "../collide.ts";
 import { CAR } from "../car.ts";
 import { datan2 } from "../dmath.ts";
@@ -43,7 +43,8 @@ function missionBays(world: World, missionId: string, rules: readonly ParkingRul
         const offset = (road.widthM / 2 - 1.35) * (side === "R" ? 1 : -1);
         const x = ax + ux * distance - uz * offset, z = az + uz * distance + ux * offset;
         if ((x - center.x) * (x - center.x) + (z - center.z) * (z - center.z) > 350 * 350 || groundWater(world, x, z)) continue;
-        const y = groundHeight(world, x, z);
+        // The road's own surface (a deck, a bore floor or the drawn ground), never the bare earth.
+        const y = roadSurfaceHeight(world, road.id, x, z);
         if (boxBlocked(world, { x, z, heading, hl: CAR.halfLength + .2, hw: CAR.halfWidth + .2 }, y, [], y + CAR.bodyHeight)) continue;
         bays.push({ id: `parking:${road.id}:${side}:${segment}:${distance}`, edge: road.id, side, x, y, z, heading, halfLength: 3.5, halfWidth: 1.3 });
       }

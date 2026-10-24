@@ -168,7 +168,7 @@ describe("a car placed overlapping a footprint", () => {
 
   it("a clear spawn is left exactly where it was asked", () => {
     const w = world(() => 0, [block]);
-    expect(clearCarSpot(w, 30, 30, 1)).toEqual({ x: 30, z: 30 });
+    expect(clearCarSpot(w, 30, 30, 1)).toMatchObject({ x: 30, z: 30 });
   });
 });
 

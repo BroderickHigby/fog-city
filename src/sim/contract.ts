@@ -226,6 +226,12 @@ export interface Spawn {
   x: number;
   z: number;
   heading: number;
+  /**
+   * Optional height of the surface the car should stand on (a deck, a tunnel floor, a roof), as
+   * a hint: recovery keeps the car on that level instead of the bare ground under or over it.
+   * Absent means the ground. (Additive in v11.)
+   */
+  y?: number;
 }
 
 export function sortedIds<T>(rec: Readonly<Record<string, T>>): string[] {
