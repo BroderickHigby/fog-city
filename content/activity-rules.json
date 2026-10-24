@@ -43,17 +43,17 @@
       },
       "timeLimitS": 900,
       "reward": {
-        "cashCents": 30000,
-        "xp": 500
+        "cashCents": 0,
+        "xp": 0
       },
       "repeatable": true,
       "cooldownS": 720,
       "checkpoints": [
         {
           "id": "door",
-          "label": "Ramen house at Pier 70",
-          "lat": 37.7608,
-          "lon": -122.385,
+          "label": "Ramen house door on 20th St, Pier 70",
+          "lat": 37.760781,
+          "lon": -122.384976,
           "radiusM": 20
         }
       ]
@@ -795,7 +795,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:ab707d21",
+    "contentHash": "fnv1a32:d8d3f556",
     "reviewedBy": [],
     "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
   }

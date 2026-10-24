@@ -35,6 +35,10 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
     const checkpoints = running.checkpoints ?? [], index = own.checkpointIndex ?? 0, next = checkpoints[index];
     const remainingTicks = Math.max(0, Math.ceil((running.timeLimitS ?? 600) * 60) - (state.tick - own.activityStartedTick));
     const title = copy(activityCopyKey(running.id));
+    // An activity mission (Office Hours) is guided by its own mission objective and dialogues.
+    if (snapshot.missions.players[playerId]?.missionId === running.id && snapshot.missions.players[playerId]?.status === "active") {
+      return { active: { id: running.id, title, remainingTicks, detail: copy("ui.activity.inMission") } };
+    }
     const run = own.plainWords;
     if (running.id === PLAIN_WORDS_ID && run) {
       const runtime = agentsRuntimeOf(state)?.actors ?? {};
@@ -57,12 +61,15 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
     return { active: { id: running.id, title, remainingTicks, detail, ...(last ? { target: { x: last.x, z: last.z } } : {}) } };
   }
   if (missionEngaged(snapshot.missions.players[playerId], DEFAULT_CATALOG)) return {};
-  const here = activities.filter(value => value.checkpoints?.length && canStartActivity(value, own, body, state.tick, wave))
+  const completed = snapshot.missions.players[playerId]?.completedIds ?? [];
+  const here = activities.filter(value => value.checkpoints?.length && canStartActivity(value, own, body, state.tick, wave, completed))
     .sort((a, b) => (a.x - body.x) ** 2 + (a.z - body.z) ** 2 - ((b.x - body.x) ** 2 + (b.z - body.z) ** 2) || (a.id < b.id ? -1 : 1))[0];
   if (!here) return {};
   const first = here.checkpoints![0]!, finish = here.checkpoints!.at(-1)!;
-  return { offer: { id: here.id, title: copy(activityCopyKey(here.id)),
-    detail: copy("ui.activity.offer", { from: label(here.id, first.id), to: label(here.id, finish.id), seconds: here.timeLimitS ?? 600 }) } };
+  const detail = here.checkpoints!.length === 1
+    ? copy("ui.activity.offerHere", { place: label(here.id, first.id) })
+    : copy("ui.activity.offer", { from: label(here.id, first.id), to: label(here.id, finish.id), seconds: here.timeLimitS ?? 600 });
+  return { offer: { id: here.id, title: copy(activityCopyKey(here.id)), detail } };
 }
 
 /** Where the minimap should point while an activity runs. */

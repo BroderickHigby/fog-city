@@ -16,7 +16,9 @@ function attemptId(playerId:string,tick:number):string {let hash=2166136261;for(
 function start(progress:MissionProgress,mission:Mission,tick:number,playerId:string):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;if((mission.wave??2)>=3)progress.actorAttempt=attemptId(playerId,tick);else delete progress.actorAttempt;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
-export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState,activities?:Pick<ActivitiesState,"players">):MissionState {
+/** A side activity backed by a mission of the same id (Ramen Office Hours): repeatable, never part of the campaign. */
+export function activityMission(mission:Pick<Mission,"id"|"campaign">,ctx:Pick<GameplayContext,"activities">):boolean {return mission.campaign===undefined&&ctx.activities.some(a=>a.id===mission.id);}
+export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState,activities?:Pick<ActivitiesState,"players"|"events">):MissionState {
  const state:MissionState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};
  const parking=ctx.wave>=3?prepareMissionParking(previous.parking,previous,ctx,tick):undefined;
  if(parking)state.parking=parking.state;
@@ -28,7 +30,8 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   const requests=commands(ctx,body.id,["mission-start","mission-retry","mission-ack","mission-answer","startup-define"],own.commandSequence);
   for(const command of requests){
    if(command.kind==="mission-start"&&(own.status==="idle"||own.status==="complete"||own.status==="failed")){
-    const wanted=eligible.find(m=>m.id===command.targetId&&!own.completedIds.includes(m.id));
+    // Activity missions start only through their activity (door, cooldown and unlock).
+    const wanted=eligible.find(m=>m.id===command.targetId&&!own.completedIds.includes(m.id)&&!activityMission(m,ctx));
     const earlier=wanted&&eligible.some(m=>(m.campaign??0)>0&&(m.campaign??0)<(wanted.campaign??0)&&!own.completedIds.includes(m.id));
     if(wanted&&!earlier)start(own,wanted,tick,body.id);
    }
@@ -36,6 +39,11 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   }
   // A side activity in progress keeps the campaign's start area from firing until it ends.
   const busy=Boolean(activities?.players[body.id]?.activeActivityId);
+  // The activity system already checked the door, the cooldown and the unlock: start its mission.
+  for(const started of activities?.events??[]){
+   const backing=started.kind==="activity.started"&&started.playerId===body.id?ctx.missions.find(m=>m.id===started.targetId&&activityMission(m,ctx)&&(m.wave??2)<=ctx.wave):undefined;
+   if(backing&&own.status!=="active"&&own.status!=="retry")start(own,backing,tick,body.id);
+  }
   if(own.status==="idle"&&!busy){
    const mission=eligible.find(m=>m.campaign!==undefined&&!own.completedIds.includes(m.id));const first=mission?.steps.find(s=>s.id===initial(mission));
    if(mission&&first?.type==="trigger"&&first.event.kind==="enterArea"&&near(ctx,body.id,first.event.place))start(own,mission,tick,body.id);
@@ -96,7 +104,8 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
    }
    if(step.type==="retry"){own.status="retry";own.retryFrom=step.retryFrom;own.deadlineTick=tick+Math.ceil((step.cooldownS??0)*60);own.outcome=step.outcome;event(state,"mission.retry",body.id,mission.id,own.deadlineTick,step.outcome);return;}
    if(step.type==="reward"){
-    const rewardId=`${mission.id}:${step.id}`;
+    // A repeatable activity mission pays once per booking; campaign rewards pay once ever.
+    const rewardId=activityMission(mission,ctx)?`${mission.id}:${step.id}:${own.startedTick}`:`${mission.id}:${step.id}`;
     if(!own.rewardedIds.includes(rewardId)){
      own.rewardedIds.push(rewardId);
      for(const grant of step.grants){
@@ -110,7 +119,9 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     finish(step.outcome);return;
    }
    if(step.type==="end")finish(step.outcome);
-   function finish(outcome:string):void {own.outcome=outcome;own.status=mission.outcomes[outcome]?.kind==="success"||(mission as Mission&{advanceOnAnyOutcome?:boolean}).advanceOnAnyOutcome?"complete":"failed";if(own.status==="complete"&&!own.completedIds.includes(mission.id))own.completedIds.push(mission.id);event(state,"mission.finished",body.id,mission.id,0,outcome);}
+   function finish(outcome:string):void {own.outcome=outcome;own.status=mission.outcomes[outcome]?.kind==="success"||(mission as Mission&{advanceOnAnyOutcome?:boolean}).advanceOnAnyOutcome?"complete":"failed";if(own.status==="complete"&&!own.completedIds.includes(mission.id))own.completedIds.push(mission.id);event(state,"mission.finished",body.id,mission.id,0,outcome);
+    // An activity mission hands the city back: the campaign picks up again at its start areas.
+    if(activityMission(mission,ctx))own.status="idle";}
   }
  }
  return state;

@@ -209,12 +209,15 @@
     "ui.activity.plainWords": "Plain Words",
     "ui.activity.plainWordsProgress": "{washed} of {total} boards back to plain words. {rusted} of {spinners} sign-spinners rusted. The hype word is \"{word}\".",
     "ui.activity.board": "Board: \"{word}\"",
-    "ui.activity.spinner": "Sign-spinner"
+    "ui.activity.spinner": "Sign-spinner",
+    "ui.activity.officeHours": "Ramen Office Hours",
+    "ui.activity.offerHere": "At {place}. Book a slot with the partners.",
+    "ui.activity.inMission": "The partners are waiting. Answer them, then call the bad robot."
   },
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:c1c8048f",
+    "contentHash": "fnv1a32:ea2c4a27",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }

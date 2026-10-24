@@ -44,7 +44,7 @@ describe("side activities beside the campaign", () => {
     const square = MISSIONS.find(value => value.id === "launch-day")!.steps[0]!;
     if (square.type !== "trigger" || square.event.kind !== "enterArea") throw new Error("Launch Day starts in an area");
     const ctx = context(missionPlace(square.event.place));
-    const busy = { players: { p: { ...createActivities().players.p, activeActivityId: sprint.id } as never } };
+    const busy = { events: [], players: { p: { ...createActivities().players.p, activeActivityId: sprint.id } as never } };
     expect(stepMissions(waiting(), ctx, 2, createHeat(), createPlayer(), busy).players.p!.stepId).toBe("start");
     expect(stepMissions(waiting(), ctx, 2, createHeat(), createPlayer(), createActivities()).players.p!.stepId).not.toBe("start");
   });

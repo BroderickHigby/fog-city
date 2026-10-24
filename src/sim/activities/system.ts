@@ -5,6 +5,8 @@ import { Action } from "../contract.ts";
 import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,ActivityDefinition,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
 import { activityAvailable } from "./availability.ts";
+import { activityMission } from "../missions/system.ts";
+import { MISSIONS } from "../../content/catalog.ts";
 import { PLAIN_WORDS_ID,plainWordsSpinnersDone,startPlainWords,stepPlainWords } from "./plain-words.ts";
 /** A campaign mission that only waits for the player to reach its start area leaves the city open. */
 export function missionEngaged(progress:MissionState["players"][string]|undefined,ctx:Pick<GameplayContext,"missions">):boolean {
@@ -13,8 +15,13 @@ export function missionEngaged(progress:MissionState["players"][string]|undefine
  return !(first&&progress.stepId===first.id&&first.type==="trigger"&&first.event.kind==="enterArea");
 }
 /** The one start rule, shared by the reducer and the start prompt so the UI never offers a dead button. */
-export function canStartActivity(a:ActivityDefinition,own:Pick<PlayerActivities,"cooldowns"|"completedIds">,body:{x:number;z:number},tick:number,wave:number):boolean {
- return activityAvailable(a)&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns?.[a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id));
+export function canStartActivity(a:ActivityDefinition,own:Pick<PlayerActivities,"cooldowns"|"completedIds">,body:{x:number;z:number},tick:number,wave:number,completedMissionIds:readonly string[]=[]):boolean {
+ return activityAvailable(a)&&activityUnlocked(a.id,completedMissionIds)&&!["carWash","repairKiosk","vendor","mission"].includes(a.kind)&&a.wave<=wave&&planarDistanceSquared(body,a)<=a.radius*a.radius&&(own.cooldowns?.[a.id]??0)<=tick&&(a.repeatable!==false||!own.completedIds.includes(a.id));
+}
+/** An activity a mission reward unlocks (`activity:<id>`) opens once that mission is complete. */
+export function activityUnlocked(activityId:string,completedMissionIds:readonly string[]):boolean {
+ const unlockers=MISSIONS.filter(m=>m.steps.some(s=>s.type==="reward"&&s.grants.some(g=>g.kind==="unlock"&&g.unlock===`activity:${activityId}`)));
+ return !unlockers.length||unlockers.some(m=>completedMissionIds.includes(m.id));
 }
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 function createOwn(seed:number,tick:number):PlayerActivities{const [roll,rng]=nextU32(seedRng(seed));return {nextDirectorTick:tick+2700+roll%1801,directorRng:rng,activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
@@ -35,13 +42,19 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
-   const activity=ctx.activities.find(a=>a.id===command.targetId&&canStartActivity(a,own,body,tick,ctx.wave));
+   const activity=ctx.activities.find(a=>a.id===command.targetId&&canStartActivity(a,own,body,tick,ctx.wave,missions.players[body.id]?.completedIds??[]));
    if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;own.checkpointIndex=0;own.objectiveCount=0;event(state,"activity.started",body.id,activity.id);if(activity.id===PLAIN_WORDS_ID)own.plainWords=startPlainWords(state,body.id,tick);}
   }
   if(own.activeActivityId){
    const activity=ctx.activities.find(a=>a.id===own.activeActivityId&&activityAvailable(a));const elapsed=tick-own.activityStartedTick;
+   const backing=activity?ctx.missions.find(m=>m.id===activity.id&&activityMission(m,ctx)):undefined;
    const checkpoint=activity?.checkpoints?.[(own.checkpointIndex??0)];if(checkpoint&&planarDistanceSquared(body,checkpoint)<=checkpoint.radius*checkpoint.radius)own.checkpointIndex=(own.checkpointIndex??0)+1;
-   for(const fact of incoming)if(activity&&activity.id!==PLAIN_WORDS_ID&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount=(own.objectiveCount??0)+1;
+   for(const fact of incoming)if(activity&&activity.id!==PLAIN_WORDS_ID&&!backing&&fact.playerId===body.id&&fact.kind===(activity.objective?.event??"activity.objective-complete")&&(activity.objective||fact.actorId===activity.id))own.objectiveCount=(own.objectiveCount??0)+1;
+   // An activity mission (Office Hours) reports its real outcome; the activity never decides it.
+   if(backing){
+    for(const done of missions.events)if(done.playerId===body.id&&done.kind===activity!.objective?.event&&done.targetId===backing.id)own.objectiveCount=(own.objectiveCount??0)+1;
+   }
+   const backingFinished=!!backing&&missions.events.some(done=>done.playerId===body.id&&done.kind==="mission.finished"&&done.targetId===backing.id);
    // Plain Words measures its own boards from the player's water; each wash is one objective.
    if(activity?.id===PLAIN_WORDS_ID&&own.plainWords)own.objectiveCount=(own.objectiveCount??0)+stepPlainWords(own.plainWords,ctx,body.id,tick,incoming,state);
    // Plain Words' checkpoints mark its corridor; the design asks for washes and rust, not a route.
@@ -57,7 +70,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    if(activity&&objectiveComplete&&routeComplete&&elapsed>=60&&(activity.id!==PLAIN_WORDS_ID||plainWordsSpinnersDone(own.plainWords))){delete own.plainWords;
     event(state,"activity.cash",body.id,activity.id,Math.max(0,activity.rewardCents??0));event(state,"activity.xp",body.id,activity.id,Math.max(0,activity.rewardXp??100));event(state,"activity.finished",body.id,activity.id);
     if(!own.completedIds.includes(activity.id))own.completedIds.push(activity.id);own.cooldowns![activity.id]=tick+60*(activity.cooldownS??60);own.activeActivityId="";own.nextDirectorTick=tick+2700;
-   }else if(!activity||elapsed>60*(activity.timeLimitS??600)){event(state,"activity.failed",body.id,own.activeActivityId);own.activeActivityId="";delete own.plainWords;}
+   }else if(!activity||elapsed>60*(activity.timeLimitS??600)||backingFinished){event(state,"activity.failed",body.id,own.activeActivityId);own.activeActivityId="";delete own.plainWords;}
   }
  }
  return state;

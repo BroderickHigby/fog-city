@@ -1,7 +1,7 @@
 import type { ActivityDefinition } from "../player/types.ts";
 
 /** Only expose activities whose objective can be produced by this runtime.
- * Keep authored parking, recon and office hours in content until
+ * Keep authored parking and recon in content until
  * their world objects and observed outcomes are connected to the game loop.
  */
 export function activityAvailable(activity: Pick<ActivityDefinition, "wave" | "kind" | "objective" | "checkpoints">): boolean {
@@ -11,5 +11,6 @@ export function activityAvailable(activity: Pick<ActivityDefinition, "wave" | "k
     || activity.kind === "delivery" && activity.objective?.event === "delivery.completed"
     || activity.kind === "photo" && activity.objective?.event === "photo.landmarkFramed"
     || activity.kind === "relic" && activity.objective?.event === "relic.viewerFound"
-    || activity.kind === "washBoards" && activity.objective?.event === "board.washed";
+    || activity.kind === "washBoards" && activity.objective?.event === "board.washed"
+    || activity.kind === "interview" && activity.objective?.event === "demo.robotPresented";
 }
