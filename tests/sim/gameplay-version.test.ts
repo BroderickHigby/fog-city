@@ -17,7 +17,7 @@ describe("v7 to current composed gameplay save migration", () => {
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
     // v7 -> v8 -> v10 -> v11 -> v12 (v9 is reserved for the structural world): behaviour only, every field kept.
-    expect(SIM_VERSION).toBe(12);
+    expect(SIM_VERSION).toBe(13);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
     expect(upgradeState(deepFreeze({ ...old, version: 10 }))).toEqual(upgraded);
