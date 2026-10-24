@@ -1,11 +1,34 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { AnimationClip } from "three";
 import { expect, it } from "vitest";
 
 const root = new URL("../../", import.meta.url);
 const read = (path: string): Buffer => readFileSync(new URL(path, root));
+
+it("rebuilds the motion bank byte-for-byte from the committed source assets", () => {
+  const directory = mkdtempSync(join(tmpdir(), "fog-mixamo-rebuild-"));
+  try {
+    const builds = ["first.json", "second.json"].map(name => {
+      const output = join(directory, name);
+      const result = spawnSync(process.execPath, [fileURLToPath(new URL("assets/imports/mixamo/build.ts", root)), output], { encoding: "utf8" });
+      expect(result.status, result.stderr).toBe(0);
+      return readFileSync(output);
+    });
+    expect(builds[0]!.equals(builds[1]!)).toBe(true);
+    expect(builds[0]!.equals(read("public/models/mixamo-motion.json"))).toBe(true);
+    const bank = JSON.parse(builds[0]!.toString());
+    const ids = bank.clips.map((clip: { uuid: string }) => clip.uuid);
+    expect(new Set(ids).size).toBe(4);
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-8[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}, 30_000);
 
 it("retains exactly the supplied FBX source files with their archive hashes", () => {
   const manifest = JSON.parse(read("assets/imports/mixamo/source-files.json").toString()) as {

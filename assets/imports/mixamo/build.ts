@@ -1,5 +1,6 @@
 // Offline FBX -> the existing Rocketbox rig. Raw FBX is never copied to the web build.
 import { readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import * as T from "three";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
@@ -11,6 +12,7 @@ const selections = {
   run: "Running.fbx",
 };
 const bytes = readFileSync(resolve(root, "public/models/generic-player.glb"));
+const converter = readFileSync(import.meta.filename);
 const doc = JSON.parse(
   bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString(),
 );
@@ -181,13 +183,21 @@ for (const [name, file] of Object.entries(selections)) {
     new T.VectorKeyframeTrack(`${targetHip.name}.position`, times, hipValues),
   );
   const out = new T.AnimationClip(name, clip.duration, tracks).optimize();
-  result.push(T.AnimationClip.toJSON(out));
+  // Three creates a random clip UUID. Pin it to all conversion inputs so a
+  // source rebuild has identical bytes, while changed rigs/clips get new IDs.
+  const id = createHash("sha256").update(converter).update(bytes).update(data).digest().subarray(0, 16);
+  id[6] = (id[6]! & 0x0f) | 0x80;
+  id[8] = (id[8]! & 0x3f) | 0x80;
+  const hex = id.toString("hex");
+  const serialized = T.AnimationClip.toJSON(out);
+  serialized.uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  result.push(serialized);
   console.log(name, clip.duration.toFixed(3), tracks.length);
   mixer.stopAllAction();
   mixer.uncacheRoot(source);
 }
 writeFileSync(
-  resolve(root, "public/models/mixamo-motion.json"),
+  process.argv[2] ?? resolve(root, "public/models/mixamo-motion.json"),
   JSON.stringify(
     { version: 1, rig: "rocketbox", fps: 30, clips: result },
     (_key, value) =>
