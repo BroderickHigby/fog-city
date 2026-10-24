@@ -428,7 +428,8 @@ function damageCar(w: Work, id: PlayerId, c: Readonly<CarState>, px: number, pz:
   const d = w.ext.cars[id] ?? freshDamage();
   const dents = addDents(d, localOf(c.x, c.z, c.heading, px, pz), CAR.halfLength, dv);
   const loss = Math.min(DAMAGE_MAX_HIT, Math.max(0, dv - DAMAGE_FREE_DV) * DAMAGE_PER_DV);
-  w.ext.cars = { ...w.ext.cars, [id]: { ...dents, condition: Math.max(0, d.condition - loss), lastHitTick: w.tick } };
+  // (A new object: w.ext may still be the previous state's.)
+  w.ext = { ...w.ext, cars: { ...w.ext.cars, [id]: { ...dents, condition: Math.max(0, d.condition - loss), lastHitTick: w.tick } } };
 }
 
 function event(w: Work, kind: ImpactKind, a: string, b: string, k: Readonly<Pick<CarContact, "x" | "z" | "speed">>, y: number, dv: number, robot: { fell: boolean; disabled: boolean } | null = null): void {
