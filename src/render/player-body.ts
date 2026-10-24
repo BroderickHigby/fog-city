@@ -41,8 +41,9 @@ export class PlayerBodies {
     this.group.name = "players:bodies";
   }
 
-  static async load(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean): Promise<PlayerBodies> {
-    const buffer = await bytes(PLAYER_BODY_FILE);
+  /** Load a body model: the player's by default, or another Rocketbox-rigged file (the crowd's). */
+  static async load(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, file: string = PLAYER_BODY_FILE): Promise<PlayerBodies> {
+    const buffer = await bytes(file);
     const gltf = await new GLTFLoader().parseAsync(buffer.slice().buffer as ArrayBuffer, "");
     return new PlayerBodies(gltf, shadows);
   }

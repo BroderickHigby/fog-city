@@ -444,6 +444,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
 
   const notices = [
     ["Microsoft Rocketbox generic player", "assets/imports/rocketbox/LICENSE.md"],
+    ["Microsoft Rocketbox pedestrian crowd", "assets/imports/rocketbox-crowd/LICENSE.md"],
     ["Slop New York rendering reference", "assets/imports/slop-new-york/LICENSE.md"],
     ["Fog City civilian car", "assets/imports/civilian-car/LICENSE.txt"],
   ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");

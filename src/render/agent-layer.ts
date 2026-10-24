@@ -67,6 +67,7 @@ import {
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
+import type { CrowdHumans } from "./crowd-humans.ts";
 
 // ---------------------------------------------------------------- one instanced part
 
@@ -445,6 +446,13 @@ export class AgentLayer {
   }
 
   /** Scale the light channels for night (0 day .. 1 night). */
+  private crowd: CrowdHumans | null = null;
+
+  /** Draw the nearest people with the skinned crowd (null: the procedural rig only). */
+  setCrowd(crowd: CrowdHumans | null): void {
+    this.crowd = crowd;
+  }
+
   setNight(night: number): void {
     const [h, t, s] = channelIntensities(night);
     agentUniforms.fcLightK.value.x = h;
@@ -506,6 +514,7 @@ export class AgentLayer {
     this.people.begin();
     this.peopleMid.begin();
     this.peopleFar.begin();
+    this.crowd?.begin(dt);
     let drawn = 0;
     let near = 0;
     for (let i = 0; i < n; i++) {
@@ -525,6 +534,8 @@ export class AgentLayer {
           const anim = this.anim(b.id, pose, dt);
           this.wasNear.add(b.id);
           near++;
+          // The nearest people are skinned Rocketbox bodies once loaded (crowd-humans.ts).
+          if (this.crowd?.add(b.id, pose.x, pose.y, pose.z, pose.heading, b.speed, dt)) continue;
           this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount);
         } else {
           baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
@@ -557,6 +568,7 @@ export class AgentLayer {
       for (const p of v.near) tally(p.part);
     }
     this.people.end();
+    this.crowd?.end();
     for (const m of [this.people.body, this.people.arms, this.people.legs]) if (m.count > 0) tris += m.count * m.triangles;
     calls += this.people.drawCalls;
     tally(this.peopleMid);
