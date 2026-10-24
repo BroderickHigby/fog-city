@@ -21,11 +21,13 @@ import { toLocal } from "../../../src/geo/project.ts";
 import { CITY_MS, SF, fixture, moveExcess, sfWorld } from "./load.ts";
 
 /**
- * Walls a walker is held at that the regenerated world keeps under the QA's 2.5 m (cross-track,
- * Pipeline, W-05), with their height over its feet. When Pipeline raises them, empty this list
- * and restore the 2.5 m bound below in place of FOOT.height.
+ * A wall a walker is held at stands at least this far over its feet (the QA's bound, W-05). The
+ * pipeline keeps every roof ROOF_CLEAR_M (2.5 m) over the highest ground under it and at its
+ * walls' feet (pipeline/lib/terrace.ts rimMax); before the rim was counted, three walls stood
+ * 2.46 to 2.49 m over a walker on the slope at their uphill foot (201006.0002771-s1,
+ * 201006.0006258, 201006.0007825).
  */
-const LOW_WALLS: string[] = ["201006.0002771-s1 2.49", "201006.0006258 2.47", "201006.0007825 2.46"];
+const MIN_WALL_M = 2.5;
 
 interface Site {
   id: string;
@@ -65,7 +67,6 @@ describe.skipIf(!SF)("buried hillside buildings (W-05)", () => {
       for (const t of world.tiles) for (const b of t.buildings) byId.set(b.id, b);
       let crossed = 0;
       let held = 0;
-      const low: string[] = [];
       for (const s of sites()) {
         const b = byId.get(s.id)!;
         const p = toLocal(s.worst.at[0], s.worst.at[1]);
@@ -86,12 +87,10 @@ describe.skipIf(!SF)("buried hillside buildings (W-05)", () => {
             for (const q of nearbyBuildings(world, f.x, f.z, 2)) {
               if (q.topY <= q.baseY || pointInPolygon(f.x, f.z, q.footprint)) continue;
               if (closestOnBoundary(f.x, f.z, q.footprint).d2 > (FOOT.radius + 0.05) ** 2) continue;
-              // Taller than the walker always (never an invisible wall). The QA asks 2.5 m; the
-              // pipeline keeps a 4 m or taller record 2 m over its highest ground, so the walls
-              // here under 2.5 m are listed (LOW_WALLS) and sent to Pipeline.
+              // Never an invisible wall: at least the QA's 2.5 m (and so taller than the walker).
               const h = q.topY - f.y;
-              expect(h, `${s.id}: held at ${q.id}`).toBeGreaterThanOrEqual(FOOT.height);
-              if (h < 2.5) low.push(`${q.id} ${h.toFixed(2)}`);
+              expect(h, `${s.id}: held at ${q.id}`).toBeGreaterThanOrEqual(MIN_WALL_M);
+              expect(h).toBeGreaterThanOrEqual(FOOT.height);
             }
             if (!entered) held++;
             break;
@@ -104,7 +103,6 @@ describe.skipIf(!SF)("buried hillside buildings (W-05)", () => {
       // ground (W-05, pipeline half), so now the walkers meet that wall: every one either
       // crosses or is held at a wall taller than itself (one of the 31 slides along its wall).
       expect(crossed + held).toBeGreaterThanOrEqual(30);
-      expect(low.sort()).toEqual(LOW_WALLS);
     },
     CITY_MS,
   );

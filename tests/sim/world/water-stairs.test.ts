@@ -226,13 +226,22 @@ describe.skipIf(!SF)("stairways are walked, never driven (W-33)", () => {
     () => {
       const { world, roads } = sfWorld();
       const edges = roads.edges as Array<(typeof roads.edges)[number] & { stairs?: boolean; pedestrian?: boolean }>;
-      // The widest street (not stairs, not a path) at each node: where the barrier stops.
+      // The widest street (not stairs, not a path) at each node: where the barrier stops; and
+      // every street meeting there, whose carriageway (its half width plus the 0.5 m kerb margin
+      // from its centreline) is street, never stairs, however a stairway leaves it (the Twin
+      // Peaks Blvd paper stairway runs beside the drive at 15 to 20 degrees for 20 m).
       const kerb = new Map<string, number>();
+      const streetsAt = new Map<string, Array<{ half: number; l: ReturnType<typeof line> }>>();
       for (const e of edges) {
         if (e.stairs || e.pedestrian) continue;
         const h = (e.widthM ?? 10) / 2;
-        for (const n of [e.a, e.b]) kerb.set(n, Math.max(kerb.get(n) ?? 0, h));
+        for (const n of [e.a, e.b]) {
+          kerb.set(n, Math.max(kerb.get(n) ?? 0, h));
+          streetsAt.set(n, [...(streetsAt.get(n) ?? []), { half: h, l: line(e.points) }]);
+        }
       }
+      const inCarriageway = (x: number, z: number, nodes: readonly string[]): boolean =>
+        nodes.some((n) => (streetsAt.get(n) ?? []).some((st) => project(st.l, x, z).d < st.half + 0.5));
       let runs = 0;
       const onStairs: string[] = [];
       for (const e of edges) {
@@ -262,7 +271,7 @@ describe.skipIf(!SF)("stairways are walked, never driven (W-33)", () => {
           for (let t = 0; t < 240 && !on; t++) {
             c = stepCar(world, c, { throttle: 1, steer: 0, brake: 0, actions: 0 });
             const p = project(l, c.x, c.z);
-            if (p.s > s0 && p.s < s1 && p.d < STAIRS_HALF_M) on = true;
+            if (p.s > s0 && p.s < s1 && p.d < STAIRS_HALF_M && !inCarriageway(c.x, c.z, [e.a, e.b])) on = true;
           }
           runs++;
           if (on) onStairs.push(`${e.id} ${e.name ?? ""} from ${end === 0 ? "a" : "b"}`);

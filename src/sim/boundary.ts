@@ -826,18 +826,137 @@ function stairKerbs(edges: RoadsFile["edges"]): Map<string, number> {
   return kerb;
 }
 
+/** The streets (neither stairs nor pedestrian) meeting at each node: their half widths and centrelines. */
+function streetsAt(edges: RoadsFile["edges"]): Map<string, Array<{ half: number; line: Line }>> {
+  const at = new Map<string, Array<{ half: number; line: Line }>>();
+  for (const e of edges) {
+    if (e.stairs === true || e.pedestrian === true) continue;
+    const line = lineOf(e.points);
+    if (line.xs.length < 2) continue;
+    const half = (e.widthM !== undefined && e.widthM > 0 ? e.widthM : KERB_DEFAULT_M) / 2;
+    for (const n of e.a === e.b ? [e.a] : [e.a, e.b]) {
+      const list = at.get(n) ?? [];
+      list.push({ half, line });
+      at.set(n, list);
+    }
+  }
+  return at;
+}
+
+/** Distance from (x, z) to a polyline. */
+function distToLine(l: Readonly<Line>, x: number, z: number): number {
+  let best = Infinity;
+  for (let i = 1; i < l.xs.length; i++) {
+    const ax = l.xs[i - 1]!;
+    const az = l.zs[i - 1]!;
+    const ex = l.xs[i]! - ax;
+    const ez = l.zs[i]! - az;
+    const L2 = ex * ex + ez * ez;
+    let t = L2 > 0 ? ((x - ax) * ex + (z - az) * ez) / L2 : 0;
+    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = ax + ex * t - x;
+    const dz = az + ez * t - z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 < best) best = d2;
+  }
+  return Math.sqrt(best);
+}
+
+/** A stairway's barrier keeps off a meeting street's carriageway by this much beyond its kerb (a wall's WALL_END_M reach past a cut end then stops at the kerb), metres. */
+const STAIRS_CLIP_M = STAIRS_KERB_M;
+/** Sampling step along a barrier wall when clipping it to a street's carriageway, metres. */
+const STAIRS_CLIP_STEP_M = 0.1;
+/** The bollard line along a kerb stands this much beyond the clip line, so it is never clipped away as inside its own street. */
+const STAIRS_KERB_EPS_M = 0.01;
+/** Sides of the polygon that stands for the round kerb at a street's end. */
+const KERB_CAP_SIDES = 32;
+/** cos and sin of pi / 16 (2 pi / KERB_CAP_SIDES) by half angles from pi / 2, so only sqrt is used. */
+const KERB_CAP_STEP: readonly [number, number] = (() => {
+  let c = 0;
+  for (let k = 0; k < 3; k++) c = Math.sqrt((1 + c) / 2);
+  return [c, Math.sqrt(1 - c * c)];
+})();
+/** cos(pi / KERB_CAP_SIDES): the inradius of the cap polygon over its circumradius. */
+const KERB_CAP_COS = Math.sqrt((1 + KERB_CAP_STEP[0]) / 2);
+/** The cap polygon's unit vertices [x0, z0, x1, z1, ...], every 2 pi / KERB_CAP_SIDES from +x. */
+const KERB_CAP_UNIT: readonly number[] = (() => {
+  const out: number[] = [];
+  let x = 1;
+  let z = 0;
+  for (let q = 0; q < KERB_CAP_SIDES; q++) {
+    out.push(x, z);
+    const nx = x * KERB_CAP_STEP[0] - z * KERB_CAP_STEP[1];
+    z = x * KERB_CAP_STEP[1] + z * KERB_CAP_STEP[0];
+    x = nx;
+  }
+  return out;
+})();
+
+/**
+ * The pieces ([t0, t1], ascending) of the segment (ax, az) -> (bx, bz) that stand outside the
+ * carriageway of every street in `streets` (its half width plus STAIRS_CLIP_M from its
+ * centreline), found every STAIRS_CLIP_STEP_M and refined by bisection.
+ */
+function outsideStreets(ax: number, az: number, bx: number, bz: number, streets: ReadonlyArray<{ half: number; line: Line }>): Array<[number, number]> {
+  if (streets.length === 0) return [[0, 1]];
+  const dx = bx - ax;
+  const dz = bz - az;
+  const len = Math.sqrt(dx * dx + dz * dz);
+  const inside = (t: number): boolean => {
+    const x = ax + dx * t;
+    const z = az + dz * t;
+    for (const st of streets) if (distToLine(st.line, x, z) < st.half + STAIRS_CLIP_M) return true;
+    return false;
+  };
+  const edge = (t0: number, t1: number, in0: boolean): number => {
+    let lo = t0;
+    let hi = t1;
+    for (let k = 0; k < 20; k++) {
+      const mid = (lo + hi) / 2;
+      if (inside(mid) === in0) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  };
+  const n = Math.max(1, Math.ceil(len / STAIRS_CLIP_STEP_M));
+  const out: Array<[number, number]> = [];
+  let prevT = 0;
+  let prevIn = inside(0);
+  let from = prevIn ? -1 : 0;
+  for (let k = 1; k <= n; k++) {
+    const t = k / n;
+    const tin = inside(t);
+    if (tin !== prevIn) {
+      const tc = edge(prevT, t, prevIn);
+      if (tin) {
+        if (tc > from) out.push([from, tc]);
+        from = -1;
+      } else from = tc;
+    }
+    prevT = t;
+    prevIn = tin;
+  }
+  if (from >= 0 && 1 > from) out.push([from, 1]);
+  return out;
+}
+
 /**
  * Stairways are walked, never driven (world QA W-33): every roads.json `stairs` edge gets a
  * ring of "stairs" walls STAIRS_HALF_M either side of its centreline that cars cannot cross
  * (walkers ignore them: buildWorld keeps them apart from the boundary walls, as
  * World.barriers). At an end that meets a street the ring stops at that street's kerb (its half
- * width plus STAIRS_KERB_M from the node), so it never stands in the carriageway; the ring's
- * end across the stair is the bollard line a car meets there. Null when there are no stairs.
+ * width plus STAIRS_KERB_M from the node). No piece of the ring stands within STAIRS_KERB_M of
+ * the carriageway of a street meeting the stairway (its half width from its centreline; a cut
+ * wall's WALL_END_M reach stops at the kerb), and a bollard line along those kerbs, inside the
+ * ring, closes the stairway's mouth: a stairway that leaves a street at a shallow angle (the Twin
+ * Peaks Blvd paper stairway beside the drive, 15 to 20 degrees for 20 m) keeps only the walls
+ * beyond the kerb, and the street stays open. Null when there are no stairs.
  */
 export function buildStairBarriers(roads: RoadsFile | null): WallSet | null {
   if (!roads) return null;
   const edges = [...roads.edges].sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));
   const kerb = stairKerbs(edges);
+  const streets = streetsAt(edges);
   const segments: WallSegment[] = [];
   for (const e of edges) {
     if (e.stairs !== true) continue;
@@ -856,7 +975,44 @@ export function buildStairBarriers(roads: RoadsFile | null): WallSet | null {
       xs.push(c.ring[i]!);
       zs.push(c.ring[i + 1]!);
     }
-    emitLine(segments, { kind: "stairs", closed: true, xs, zs }, () => [[0, 1]]);
+    const meet = [...(streets.get(e.a) ?? []), ...(e.b !== e.a ? (streets.get(e.b) ?? []) : [])];
+    const m = xs.length;
+    emitLine(segments, { kind: "stairs", closed: true, xs, zs }, (i) => outsideStreets(xs[i]!, zs[i]!, xs[(i + 1) % m]!, zs[(i + 1) % m]!, meet));
+    // The bollard line: along each meeting street's kerb (where the ring's walls were cut off),
+    // across the stairway's mouth, outside every meeting street's carriageway.
+    // The kerb is the edge of the carriageway: the street's centreline offset either side, and
+    // round its ends (where a street stops and the stairway carries on, its mouth is that arc).
+    const kerbLine = (kxs: number[], kzs: number[], closed: boolean): void => {
+      const k = kxs.length;
+      emitLine(segments, { kind: "stairs", closed, xs: kxs, zs: kzs }, (i) => {
+        if (!closed && i + 1 >= k) return [];
+        const ax = kxs[i]!;
+        const az = kzs[i]!;
+        const bx = kxs[(i + 1) % k]!;
+        const bz = kzs[(i + 1) % k]!;
+        const inRing = insideIntervals(ax, az, bx, bz, [c], null);
+        return inRing.length === 0 ? [] : intersect(inRing, outsideStreets(ax, az, bx, bz, meet));
+      });
+    };
+    for (const st of meet) {
+      const d = st.half + STAIRS_CLIP_M + STAIRS_KERB_EPS_M;
+      for (const side of [1, -1]) {
+        const off = offsetLine(st.line.xs, st.line.zs, side * d);
+        kerbLine(off.xs, off.zs, false);
+      }
+      const last = st.line.xs.length - 1;
+      for (const [cx, cz] of [[st.line.xs[0]!, st.line.zs[0]!], [st.line.xs[last]!, st.line.zs[last]!]] as const) {
+        // A circumscribed polygon (inradius d), so no side dips inside the kerb.
+        const rr = d / KERB_CAP_COS;
+        const cxs: number[] = [];
+        const czs: number[] = [];
+        for (let q = 0; q < KERB_CAP_SIDES; q++) {
+          cxs.push(cx + rr * KERB_CAP_UNIT[2 * q]!);
+          czs.push(cz + rr * KERB_CAP_UNIT[2 * q + 1]!);
+        }
+        kerbLine(cxs, czs, true);
+      }
+    }
   }
   if (segments.length === 0) return null;
   const cells = new Map<number, number[]>();
