@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/street-signs",
+  "title": "Street-name blades, one-way and kerbside signs (public/tiles/<world>/street-signs.json, pipeline/lib/street-signs.ts).",
+  "type": "object",
+  "required": ["version", "world", "snapshotDate", "corners", "curb"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "world": { "type": "string" },
+    "description": { "type": "string" },
+    "snapshotDate": { "type": "string" },
+    "attribution": { "type": "string" },
+    "corners": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "node", "x", "z", "blades", "oneWay", "inferred"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^corner:n[0-9]+:[0-9]+$" },
+          "node": { "type": "string" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "blades": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "required": ["name", "heading"],
+              "additionalProperties": false,
+              "properties": { "name": { "type": "string", "minLength": 1 }, "heading": { "type": "number", "minimum": 0, "maximum": 3.1416 } }
+            }
+          },
+          "oneWay": { "type": "array", "maxItems": 2, "items": { "type": "number", "minimum": 0, "maximum": 6.2832 } },
+          "inferred": { "type": "boolean" }
+        }
+      }
+    },
+    "curb": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "z", "heading", "kind"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^curb:[0-9]+$" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "heading": { "type": "number", "minimum": 0, "maximum": 6.2832 },
+          "kind": { "enum": ["cleaning", "permit", "time", "noParking", "tow"] }
+        }
+      }
+    }
+  }
+}

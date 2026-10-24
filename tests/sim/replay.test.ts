@@ -76,7 +76,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes
 
 describe("legacy dodge replay under structural-world physics", () => {
   it("uses the structural-world simulation version", () => {
-    expect(SIM_VERSION).toBe(11);
+    expect(SIM_VERSION).toBe(14);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
@@ -174,7 +174,11 @@ describe("legacy dodge replay under structural-world physics", () => {
   );
 });
 
-/** hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4. */
-const PINNED_V4: string[] = ["87d67d3d", "016c3bfe", "7f325229", "ef174bed", "08f17ea5"];
+/**
+ * hashState every 300 ticks of the first replay above, first recorded at SIM_VERSION 4. Re-pinned
+ * at v11: its walking segments move at the new on-foot pace (was 87d67d3d 016c3bfe 7f325229
+ * ef174bed 08f17ea5 up to v8).
+ */
+const PINNED_V4: string[] = ["09b7020e", "06a4a7b0", "b3c9fb8d", "b78d58f3", "a6e7a5a4"];
 /** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4. */
 const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "d09fb88c", "b80c1bfc", "324c2580", "70237636"];

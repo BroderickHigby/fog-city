@@ -4,14 +4,14 @@ import { deepFreeze } from "../helpers.ts";
 import { surfaceWorld } from "./fixtures.ts";
 
 describe("structural-world migration", () => {
-  it("upgrades live v7, v8 and v10 saves to v11 without changing their bodies or extensions", () => {
+  it("upgrades live v7, v8, v10, v11, v12 and v13 saves to v14 without changing their bodies or extensions", () => {
     const world = surfaceWorld();
     const current = createInitialState(world, 41, ["p1"], { x: 30, z: 130, heading: 0 });
-    expect(SIM_VERSION).toBe(11);
-    for (const version of [7, 8, 10]) {
+    expect(SIM_VERSION).toBe(14);
+    for (const version of [7, 8, 10, 11, 12, 13]) {
       const old = deepFreeze({ ...current, version, ext: { ...current.ext, future: { keep: [1, "value"] } } });
       const migrated = upgradeState(old);
-      expect(migrated).toEqual({ ...old, version: 11 });
+      expect(migrated).toEqual({ ...old, version: 14 });
       expect(old.version).toBe(version);
       expect(upgradeState(migrated)).toBe(migrated);
       expect(() => step(world, migrated, {}, [], [])).not.toThrow();

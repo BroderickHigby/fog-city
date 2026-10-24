@@ -1,12 +1,12 @@
 {
   "sourceInput": "wave1-v2.json",
-  "sourcePhysics": "work/world: structural world surfaces under the v11 contract (qa/world-integration physics, restamped from its provisional v8)",
+  "sourcePhysics": "v11 on-foot pace (FOOT.walk 3.0, FOOT.sprint 7.0) on ff7db5b021db8e94551d667def8b9f345c28863b",
   "simVersion": 11,
   "hashes": [
     "f0dae7e4",
     "bb9801a7",
     "0249feec",
     "8c6a9545",
-    "5ed69209"
+    "2da5d7b6"
   ]
 }

@@ -17,7 +17,7 @@
   "items": [
     {
       "id": "tank-1",
-      "name": "Tank I",
+      "name": "Pressure I",
       "kind": "tank",
       "tier": 1,
       "priceCents": 60000,
@@ -25,11 +25,11 @@
       "effect": {
         "tankL": 12
       },
-      "blurb": "Twelve litres. The extra capacity is real; the confidence is yours."
+      "blurb": "Two more metres of reach. The water was never the problem; the distance was."
     },
     {
       "id": "tank-2",
-      "name": "Tank II",
+      "name": "Pressure II",
       "kind": "tank",
       "tier": 2,
       "priceCents": 150000,
@@ -38,7 +38,7 @@
       "effect": {
         "tankL": 16
       },
-      "blurb": "Sixteen litres. Refill less, rust more."
+      "blurb": "Four more metres of reach in all. Stand further back, look braver."
     },
     {
       "id": "flow-1",
@@ -93,7 +93,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:c593c9b4",
+    "contentHash": "fnv1a32:99b4c66f",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
   }

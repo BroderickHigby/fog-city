@@ -19,8 +19,8 @@
 // Instance capacities come from tierCapacity() and instanceBudget() (agent-lod.ts): mid and far
 // parts hold MAX_AGENTS, near parts nearCap (x2 for a person's arms and legs).
 // With shadows on (?shadows=1) every agent mesh casts and receives them.
-// Draw calls: robotaxi 5 near + 2, errand robot 6 + 2, sidewalk bot 3 + 2, people 3 + 2: at
-// most 25, and an InstancedMesh with no instances this frame is not drawn at all.
+// Rigid agents and procedural people are instanced; the nearest skinned people use only the
+// remaining calls within AGENT_DRAW_CALL_BUDGET, with procedural fallback for the rest.
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
 
 import * as THREE from "three";
@@ -67,6 +67,10 @@ import {
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
+import { CROWD_NEAR_MAX, type CrowdHumans } from "./crowd-humans.ts";
+
+/** Ambient agents' allocation within the design's 40-call total character budget. */
+export const AGENT_DRAW_CALL_BUDGET = 27;
 
 // ---------------------------------------------------------------- one instanced part
 
@@ -365,6 +369,7 @@ export class AgentLayer {
   private tiers = new Uint8Array(0);
   private scratch = { idx: new Int32Array(0), key: new Float64Array(0) };
   private wasNear = new Set<number>();
+  private readonly nearPeople: number[] = [];
   private anims = new Map<number, Anim>();
   private frameNo = 0;
   private readonly cue: AgentCue = { brake: 0, flash: 0, brakeUntil: 0 };
@@ -445,6 +450,13 @@ export class AgentLayer {
   }
 
   /** Scale the light channels for night (0 day .. 1 night). */
+  private crowd: CrowdHumans | null = null;
+
+  /** Draw the nearest people with the skinned crowd (null: the procedural rig only). */
+  setCrowd(crowd: CrowdHumans | null): void {
+    this.crowd = crowd;
+  }
+
   setNight(night: number): void {
     const [h, t, s] = channelIntensities(night);
     agentUniforms.fcLightK.value.x = h;
@@ -506,6 +518,7 @@ export class AgentLayer {
     this.people.begin();
     this.peopleMid.begin();
     this.peopleFar.begin();
+    this.nearPeople.length = 0;
     let drawn = 0;
     let near = 0;
     for (let i = 0; i < n; i++) {
@@ -522,10 +535,9 @@ export class AgentLayer {
       if (b.kind === "person") {
         personLook(b.id, this.look);
         if (tier === TIER_NEAR) {
-          const anim = this.anim(b.id, pose, dt);
           this.wasNear.add(b.id);
           near++;
-          this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount);
+          this.nearPeople.push(i);
         } else {
           baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
           (tier === TIER_MID ? this.peopleMid : this.peopleFar).push(_base, null, this.look);
@@ -543,6 +555,30 @@ export class AgentLayer {
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
       }
     }
+    // First account for the instanced tiers. Reserve the procedural rig's three calls whenever
+    // any near person cannot fit as a skinned body, so overflow never disappears or exceeds the
+    // allocation. Hand the remaining calls to the nearest people, independently of agent ids.
+    let fixedCalls = Number(this.peopleMid.count > 0) + Number(this.peopleFar.count > 0);
+    for (const v of this.kinds.values()) {
+      fixedCalls += Number(v.mid.count > 0) + Number(v.far.count > 0);
+      for (const p of v.near) fixedCalls += Number(p.part.count > 0);
+    }
+    const remaining = Math.max(0, AGENT_DRAW_CALL_BUDGET - fixedCalls);
+    this.nearPeople.sort((a, b) => {
+      const pa = this.poses[a]!, pb = this.poses[b]!;
+      return (pa.x - viewer.x) ** 2 + (pa.z - viewer.z) ** 2 - (pb.x - viewer.x) ** 2 - (pb.z - viewer.z) ** 2 || this.ids[a]! - this.ids[b]!;
+    });
+    let allCost = this.crowd && this.nearPeople.length <= CROWD_NEAR_MAX ? 0 : Infinity;
+    for (const i of this.nearPeople) allCost += this.crowd?.costFor(this.ids[i]!)?.drawCalls ?? Infinity;
+    const reserveFallback = this.nearPeople.length > 0 && allCost > remaining ? 3 : 0;
+    this.crowd?.begin(dt, Math.max(0, remaining - reserveFallback));
+    for (const i of this.nearPeople) {
+      const b = pairs[i]![1], pose = this.poses[i]!;
+      if (this.crowd?.add(b.id, pose.x, pose.y, pose.z, pose.heading, b.speed, dt)) continue;
+      const anim = this.anim(b.id, pose, dt);
+      personLook(b.id, this.look);
+      this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount);
+    }
     let calls = 0;
     let tris = 0;
     const tally = (m: PartMesh): void => {
@@ -557,6 +593,9 @@ export class AgentLayer {
       for (const p of v.near) tally(p.part);
     }
     this.people.end();
+    this.crowd?.end();
+    calls += this.crowd?.drawCalls ?? 0;
+    tris += this.crowd?.triangles ?? 0;
     for (const m of [this.people.body, this.people.arms, this.people.legs]) if (m.count > 0) tris += m.count * m.triangles;
     calls += this.people.drawCalls;
     tally(this.peopleMid);
