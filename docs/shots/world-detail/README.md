@@ -44,12 +44,12 @@ Right-hand or single images show the full street-detail stack (every stream bran
 
 Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
 
-- `trees-embarcadero.jpg`
-- `trees-marina-blvd.jpg`
-- `trees-palms.jpg`
+- `trees-embarcadero.png`
+- `trees-marina-blvd.png`
+- `trees-palms.png`
 
 ## storefront
 
 Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
 
-- `storefront-bar.jpg`
+- `storefront-bar.png`
