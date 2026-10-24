@@ -9,7 +9,7 @@ import type { RoadEdge as PipelineRoadEdge } from "../../../pipeline/lib/roads.t
 import { toLocal } from "../../../src/geo/project.ts";
 import { nodeClearance, streetTreeSpots, streetlightSpots } from "../../../src/render/roads.ts";
 import type { RoadEdge as RenderRoadEdge, RoadGraph as RenderRoadGraph } from "../../../src/render/types.ts";
-import { circleTouchesPolygon, groundWater, nearbyBuildings, pointInPolygon, type BuildingCollider, type World } from "../../../src/sim/index.ts";
+import { circleTouchesPolygon, groundWater, nearbyBuildings, pointInPolygon, roadSurfaceHeight, type BuildingCollider, type World } from "../../../src/sim/index.ts";
 import { ROOT } from "../../helpers.ts";
 import {
   bbox,
@@ -52,8 +52,11 @@ export function edgeClearance(world: World, e: RoadEdge, r: number): { near: num
   let near = 0;
   let inside = 0;
   let first: P2 | null = null;
-  let y: number | undefined;
-  for (const [x, z] of resample(e.points, 1)) {
+  const pts = resample(e.points, 1);
+  // Followed from the edge's own surface at its first point (a viaduct, a bore, the ground),
+  // never from the ground under or over it.
+  let y: number | undefined = pts.length ? roadSurfaceHeight(world, e.id, pts[0]![0], pts[0]![1]) : undefined;
+  for (const [x, z] of pts) {
     y = surfaceAt(world, x, z, y);
     let isNear = false;
     let isIn = false;
@@ -243,7 +246,7 @@ export async function measureStreets(gw: GameWorld): Promise<Measured> {
       insideM += c.insideM;
       if (e.kind !== "freeway") continue;
       const pts = resample(e.points, 1);
-      const g = gradeStats(surfaceProfile(gw, pts));
+      const g = gradeStats(surfaceProfile(gw, pts, roadSurfaceHeight(world, e.id, pts[0]![0], pts[0]![1])));
       if (g.steep10 > steep) {
         steep = g.steep10;
         steepAt = `${e.id} ${ll(pts[g.steepAt]![0], pts[g.steepAt]![1])}`;

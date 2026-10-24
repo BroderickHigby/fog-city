@@ -24,10 +24,10 @@ export function bilinearIn(g: Heightfield, x: number, z: number): number {
   return (h(ix, iz) * (1 - tx) + h(ix + 1, iz) * tx) * (1 - tz) + (h(ix, iz + 1) * (1 - tx) + h(ix + 1, iz + 1) * tx) * tz;
 }
 
-/** Heights every 1 m along a path, following the surface (each sample hinted by the last). */
-export function surfaceProfile(gw: GameWorld, pts: readonly P2[]): number[] {
+/** Heights every 1 m along a path, following the surface (each sample hinted by the last; the first by `startY` when given). */
+export function surfaceProfile(gw: GameWorld, pts: readonly P2[], startY?: number): number[] {
   const out: number[] = [];
-  let y: number | undefined;
+  let y: number | undefined = startY;
   for (const [x, z] of pts) {
     y = surfaceAt(gw.world, x, z, y);
     out.push(y);

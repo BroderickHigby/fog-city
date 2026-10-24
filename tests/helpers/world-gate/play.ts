@@ -8,9 +8,11 @@ import { toLocal } from "../../../src/geo/project.ts";
 import {
   CAR,
   DT,
+  FOOT,
   agentsOf,
   boxBlocked,
   buildWorld,
+  closestOnBoundary,
   createInitialState,
   groundHeight,
   hashState,
@@ -571,14 +573,23 @@ export function measureDrive(gw: GameWorld): Measured {
         }
       }
       // A walker at the wall from 8 m out: it may cross (the roof is at its feet) or stop at a wall
-      // at least 2.5 m tall; stopping at a lower one is an invisible wall.
+      // at least 2.5 m tall; stopping at a lower one is an invisible wall. The wall is the one the
+      // walker is held at (any record it is pressed against, as tests/sim/world/buried-buildings
+      // does), not the site's own record: after terracing a hillside record is several strips, and
+      // the uphill one, not the one keeping the original id, is usually the wall.
       const wx = p.x + s.worst.nx * 8;
       const wz = p.z + s.worst.nz * 8;
       let f: FootState = makeFoot(wx, groundHeight(world, wx, wz), wz, heading);
       let low = false;
       for (let t = 0; t < 600; t++) {
         f = stepFoot(world, f, { throttle: 1, steer: 0, brake: 0, actions: 0 }, [], []);
-        if (t > 120 && Math.abs(f.speed) < 0.2 && !pointInPolygon(f.x, f.z, b.footprint) && b.topY - f.y < 2.5) low = true;
+        if (t > 120 && Math.abs(f.speed) < 0.2 && !pointInPolygon(f.x, f.z, b.footprint)) {
+          for (const q of nearbyBuildings(world, f.x, f.z, 2)) {
+            if (q.topY <= q.baseY || pointInPolygon(f.x, f.z, q.footprint)) continue;
+            if (closestOnBoundary(f.x, f.z, q.footprint).d2 > (FOOT.radius + 0.05) * (FOOT.radius + 0.05)) continue;
+            if (q.topY - f.y < 2.5) low = true;
+          }
+        }
       }
       if (low) {
         lowWallStops++;

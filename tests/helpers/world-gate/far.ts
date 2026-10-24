@@ -4,7 +4,7 @@
 // vertex on whole 100 m multiples, src/render/far-layer.ts onFarLattice); hull triangles are not.
 
 import { toLocal } from "../../../src/geo/project.ts";
-import { cellKey, groundHeight } from "../../../src/sim/index.ts";
+import { cellKey, groundHeight, nearbyBuildings, pointInPolygon } from "../../../src/sim/index.ts";
 import { centroid, ll, maxOf, percentile, r2, readGlb, triangleHeight, type GameWorld } from "../world.ts";
 import { pastCountyLine } from "./edge.ts";
 import { Measured } from "./measured.ts";
@@ -154,16 +154,20 @@ export async function measureFar(gw: GameWorld): Promise<Measured> {
           noHull++;
           continue;
         }
+        // What the near tile draws at that point: the tallest roof standing over it (a podium's
+        // centroid under its own tower shows the tower in both layers; that is no pop).
+        let near = b.topY;
+        for (const q of nearbyBuildings(gw.world, cx, cz, 0.5)) if (q.topY > near && pointInPolygon(cx, cz, q.footprint)) near = q.topY;
         const d = top - b.topY;
         if (b.topY - b.baseY >= 30) {
-          if (Math.abs(d) > 3) {
+          if (Math.abs(top - near) > 3) {
             tallOff++;
-            if (worst.length < 10) worst.push(`${b.id} ${r2(d)} m`);
+            if (worst.length < 10) worst.push(`${b.id} ${r2(top - near)} m`);
           }
         } else low.push(Math.abs(d));
       }
     }
-    m.metric({ id: "N.far.tallHullsOff3m", target: 0, better: "lower", unit: "records", defects: ["W-41"], desc: "records 30 m or taller whose far hull's roof over their centroid differs from their roof by more than 3 m (the skyline pops when the tile streams in)" }, tallOff, worst);
+    m.metric({ id: "N.far.tallHullsOff3m", target: 0, better: "lower", unit: "records", defects: ["W-41"], desc: "records 30 m or taller whose far hull's roof over their centroid differs by more than 3 m from the tallest near roof standing there (the skyline pops when the tile streams in)" }, tallOff, worst);
     m.metric({ id: "N.far.recordsWithoutHull", target: 0, better: "lower", unit: "records", defects: ["W-41"], desc: "records with no far hull or cluster over their centroid" }, noHull);
     m.metric({ id: "N.far.lowHullsP99M", target: 5, better: "lower", unit: "m", defects: ["W-41"], desc: "the 99th percentile of |far hull roof - roof| for records under 30 m" }, r2(percentile(low, 99)));
   }
