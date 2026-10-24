@@ -53,7 +53,9 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
   await feed(page, first);
   console.info("Campaign browser reached signup with exact replay state");
   const signup = page.getByRole("dialog", { name: "Hot Desk", exact: true });
-  await expect(signup).toBeVisible();
+  // The dialog appears on the next rendered UI frame; under CI SwiftShader that can take
+  // seconds (docs/testing.md, "Load-proof": every real-time wait allows at least 60 s).
+  await expect(signup).toBeVisible({ timeout: 60_000 });
   await signup.getByRole("button", { name: "Something with robots", exact: true }).click();
   await page.waitForFunction(() => {
     const handle = (window as unknown as FogWindow).__fogcity!;
@@ -100,7 +102,7 @@ test("Hot Desk and the first purchase complete through real controls, then Spill
     return progress?.missionId === "spill" && progress.stepId === "posting";
   });
   const call = page.getByRole("dialog", { name: "Spill", exact: true });
-  await expect(call).toBeVisible();
+  await expect(call).toBeVisible({ timeout: 60_000 });
   const awaitingCall = await simState(page);
   expect(awaitingCall.ext.missions!.players.p1!.completedIds.filter(id => id === "hot-desk")).toHaveLength(1);
   expect(awaitingCall.ext.missions!.players.p1!.rewardedIds).toContain("hot-desk:moved-in");
