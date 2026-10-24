@@ -58,6 +58,8 @@ export class RelayClient {
   private readonly options: ClientOptions;
   private actions = 0;
   private commandSequence = 0;
+  /** A new connection needs its own snapshot/ack before it may reuse a retained match view. */
+  private inputReady = false;
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private attempts = 0;
@@ -97,7 +99,7 @@ export class RelayClient {
   sample(input: SimInput): void {
     this.actions |= input.actions;
     const match = this.match;
-    if (!match || this.info.phase !== "match" || !this.socket?.open) return;
+    if (!match || !this.inputReady || this.info.phase !== "match" || !this.socket?.open) return;
     const control = { ...input, actions: this.actions };
     const seq = match.sample(control);
     if (seq === null) return;
@@ -115,6 +117,7 @@ export class RelayClient {
   private open(hello: Pick<Hello, "action" | "code" | "token">): void {
     if (this.socket || this.disposed) return;
     this.leaving = false;
+    this.inputReady = false;
     this.set(this.info.code && hello.action === "rejoin" ? "reconnecting" : "connecting", hello.action === "rejoin" ? "Rejoining your room…" : "Connecting…");
     let socket: RelayTransport | null = null;
     const connect = this.options.transport ?? webSocketTransport;
@@ -178,6 +181,7 @@ export class RelayClient {
           this.match = new MatchTimeline(this.options.world, this.info.playerId, message.matchId, message, (tick, reason) => this.send({ type: "resync", tick, reason }));
           this.commandSequence = 0; this.actions = 0;
         }
+        this.inputReady = true;
         this.info.matchId = message.matchId;
         this.emit();
         return;

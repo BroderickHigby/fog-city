@@ -1,4 +1,5 @@
 import {Action,NEUTRAL_INPUT,type InputFrame,type SimInput,type SimState} from "../contract.ts";
+import { playerPose } from "../ride.ts";
 import {isGameplayId,type GameplayCommand} from "../gameplay-contract.ts";
 import {clamp,datan2,dcos,dsin,wrapAngle} from "../dmath.ts";
 import {segmentBlocked,type World} from "../world.ts";
@@ -29,7 +30,7 @@ export interface RivalBotPlan {state:RivalBotState;inputs:InputFrame;commands:Ga
 const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
 const distance=(a:{x:number;z:number},b:{x:number;z:number})=>Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.z-b.z)*(a.z-b.z));
 const finite=(p:{x:number;y?:number;z:number})=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&(p.y===undefined||Number.isFinite(p.y));
-function activeBody(sim:Readonly<SimState>,id:string){const p=sim.players[id]!;return p.mode==="foot"&&p.foot?p.foot:p.car;}
+function activeBody(sim:Readonly<SimState>,id:string){return playerPose(sim.players[id]!);}
 function hash(id:string){let out=2166136261;for(let i=0;i<id.length;i++)out=Math.imul(out^id.charCodeAt(i),16777619);return out>>>0;}
 export function createRivalBotState(roles:Readonly<Record<string,RivalBotRole>>):RivalBotState {
  const bots:Record<string,RivalBotMemory>={};

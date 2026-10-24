@@ -12,6 +12,7 @@ import {
   KEEP_RIGHT_M,
   LOD_STRIDE,
   NEAR_RANGE_M,
+  PASS_STANDOFF_M,
   POP_INTERVAL,
   ROBOTAXI_GAP_M,
   agentById,
@@ -292,11 +293,12 @@ describe("yielding", () => {
     expect(t.mode).toBe("honk");
     const why = explainAgent(world, s, taxi.id)!;
     expect(why.blocker).toBe("player");
-    // Bumper to bumper: at least the robotaxi gap, not much more.
+    // Behind a vehicle standing still it waits PASS_STANDOFF_M back (room to go round it, v10),
+    // never closer than the robotaxi gap and not much further.
     const along = (t.s - at) * -1;
     const gap = along - AGENT_SPEC.robotaxi.halfLength - CAR.halfLength;
     expect(gap).toBeGreaterThan(ROBOTAXI_GAP_M * 0.5);
-    expect(gap).toBeLessThan(ROBOTAXI_GAP_M + 3);
+    expect(gap).toBeLessThan(PASS_STANDOFF_M + 2);
   });
 
   it("robotaxis queue behind each other with a gap; the queue never overlaps", () => {

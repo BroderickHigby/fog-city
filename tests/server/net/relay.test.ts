@@ -156,6 +156,20 @@ describe("relay quick play", () => {
 });
 
 describe("relay Clean Streets", () => {
+  it("gives a solo Clean Streets player a bot on the opposing team", async () => {
+    const h = await relay(), a = make(h);
+    a.client.create(); await until(() => last(a)?.phase === "lobby");
+    a.client.setMode("cleanStreets"); await until(() => last(a).mode === "cleanStreets");
+    expect(last(a).bots).toBe(0);
+    a.client.ready(true); await until(() => last(a).members[0]!.ready);
+    a.client.start(); await until(() => !!a.client.match);
+    const { modeSessionOf } = await import("../../../src/sim/modes/session.ts");
+    const match = modeSessionOf(room(h).state!)!.match;
+    expect(Object.keys(room(h).state!.players).sort()).toEqual(["bot-1", "p1"]);
+    expect([match.players.p1!.team, match.players["bot-1"]!.team]).toEqual([0, 1]);
+    expect(last(a).bots).toBe(1);
+  });
+
   it("lets only the host pick the mode and starts a two-team match whose flower lobs agree on every peer", async () => {
     const h = await relay(), a = make(h), b = make(h);
     a.client.create(); await until(() => last(a)?.phase === "lobby");
@@ -168,6 +182,7 @@ describe("relay Clean Streets", () => {
     const match = modeSessionOf(room(h).state!)!.match;
     expect(match.mode).toBe("cleanStreets");
     expect([match.players.p1!.team, match.players.p2!.team]).toEqual([0, 1]);
+    expect(last(a).bots).toBe(0);
     // p1 lobs east at p2 (spawned 4 m east), through the real input path.
     for (let i = 0; i < 3; i++) { a.client.sample({ throttle: 0, steer: 0, brake: 0, actions: 1 << 10, aimYaw: Math.PI / 2 }); b.client.sample({ throttle: 0, steer: 0, brake: 0, actions: 0 }); await settle(1); h.tick(); await settle(1); a.client.advance(1); b.client.advance(1); }
     await play(h, [a, b], 60, 0);
