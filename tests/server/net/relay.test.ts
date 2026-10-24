@@ -270,6 +270,69 @@ describe("relay social", () => {
   });
 });
 
+describe("relay operations", () => {
+  it("serves readiness and Prometheus metrics, and logs structured events without tokens or full codes", async () => {
+    const lines: string[] = [];
+    const { jsonLogger } = await import("../../../server/ops/log.ts");
+    const h = await relay({ logger: jsonLogger((line) => lines.push(line)) }), [a, b] = await match(h);
+    await play(h, [a, b], 30);
+    const base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect((await fetch(`${base}/ready`)).status).toBe(200);
+    const metrics = await (await fetch(`${base}/metrics`)).text();
+    expect(metrics).toContain('fogcity_relay_rooms{label="match"} 1');
+    expect(metrics).toContain("fogcity_relay_matches_started_total 1");
+    expect(metrics).toMatch(/fogcity_relay_tick_ms_p99 [0-9.]+/);
+    expect(metrics).toContain("fogcity_relay_hash_mismatches 0");
+    const events = lines.map((l) => JSON.parse(l) as { event: string; level: string });
+    expect(events.map((e) => e.event)).toEqual(expect.arrayContaining(["room.created", "match.started"]));
+    const code = last(a).code, token = a.seat.value!.token;
+    for (const line of lines) { expect(line).not.toContain(code); expect(line).not.toContain(token); }
+  });
+
+  it("refuses a start past maxMatches without dropping the lobby, then starts once a match ends", async () => {
+    const h = await relay({ limits: { maxMatches: 1 } }), [a, b] = await match(h);
+    const c = make(h), d = make(h);
+    c.client.create(); await until(() => !!last(c)?.code, "second room");
+    d.client.join(last(c).code); await until(() => last(c).members.length === 2, "second lobby");
+    c.client.ready(true); d.client.ready(true); await until(() => last(c).members.every((m) => m.ready), "second ready");
+    c.client.start();
+    await until(() => /busy/.test(last(c).message ?? ""), "matches_full message");
+    expect(last(c).status).toBe("connected");
+    expect(last(c).phase).toBe("lobby");
+    const base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect(await (await fetch(`${base}/metrics`)).text()).toContain("fogcity_relay_matches_refused_total 1");
+    a.client.end(); await play(h, [a, b], 3);
+    expect(room(h).phase).toBe("results");
+    c.client.start();
+    await until(() => !!c.client.match && !!d.client.match, "second match starts");
+  });
+
+  it("protects metrics with a bearer token when configured", async () => {
+    const h = await relay({ metricsToken: "s3cret" }), base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect((await fetch(`${base}/metrics`)).status).toBe(401);
+    expect((await fetch(`${base}/metrics`, { headers: { authorization: "Bearer s3cret" } })).status).toBe(200);
+  });
+
+  it("drains for a restart: refuses newcomers, warns players, ends running matches with results and payouts", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    await play(h, [a, b], 20);
+    // Keep the relay ticking in real time while it drains.
+    const pump = setInterval(() => { for (const p of [a, b]) p.client.sample({ throttle: 0, steer: 0, brake: 0, actions: 0 }); h.tick(); for (const p of [a, b]) p.client.advance(1); }, 5);
+    try {
+      const drained = h.relay.drain(200, 2000);
+      await until(() => last(a).drainingUntil > 0, "draining notice");
+      const base = h.url.replace("ws:", "http:").replace("/relay", "");
+      expect((await fetch(`${base}/ready`)).status).toBe(503);
+      const late = make(h); late.client.quick(); await until(() => last(late)?.status === "error");
+      expect(last(late).message).toMatch(/restarting/);
+      await drained;
+      expect(room(h).phase).toBe("results");
+      await until(() => a.results === 1 && b.results === 1, "results before shutdown");
+      expect(last(a).results!.result.reason).toBe("ended");
+    } finally { clearInterval(pump); }
+  });
+});
+
 describe("relay transport seam", () => {
   it("runs the lobby over any transport with WebSocket semantics (here the ws package's client)", async () => {
     const h = await relay();

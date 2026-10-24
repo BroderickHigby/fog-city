@@ -68,6 +68,8 @@ export class Room {
   private finishedAt = 0;
   private arenaCursor: number;
 
+  /** Called when a match starts (mode, players including bots). */
+  onStarted: ((mode: NetModeId, players: number) => void) | null = null;
   /** Called once per finished match with what the store keeps (people only). */
   onFinished: ((match: MatchRecord) => void) | null = null;
   private startedAt = 0;
@@ -239,7 +241,16 @@ export class Room {
     for (const seat of this.seats.values()) { seat.queue = []; seat.seq = 0; seat.ack = 0; seat.lastInputAt = now; seat.commandSequence = 0; }
     this.broadcastRoom();
     for (const seat of this.seats.values()) this.sendSnapshot(seat, "start", now);
+    this.onStarted?.(mode, Object.keys(state.players).length);
   }
+
+  /** The relay is shutting down: end a running match now (a recorded decision; results still pay out). */
+  forceEnd(): void {
+    if (this.phase !== "match" || !this.state || this.events.some((e) => e.kind === MODE_END_EVENT)) return;
+    this.events.push({ tick: this.state.tick + 1, kind: MODE_END_EVENT });
+  }
+  /** Tell every connected seat something room-wide. */
+  notify(message: ServerMessage): void { for (const seat of this.seats.values()) seat.peer?.send(message); }
 
   /** Host only: a recorded server decision ends the match now (results still pay out). */
   end(id: string): void {

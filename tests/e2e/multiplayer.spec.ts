@@ -53,7 +53,7 @@ test.describe("online Bot Sweep", () => {
   test.describe.configure({ mode: "serial" });
   test.setTimeout(900_000);
   test.beforeAll(async () => { if (worldExists("sf")) await startRelay(); });
-  test.afterAll(async () => { relay?.kill("SIGTERM"); relay = null; });
+  test.afterAll(async () => { relay?.kill("SIGINT"); relay = null; }); // SIGTERM would drain for RELAY_DRAIN_SECONDS
 
   test("two browsers: invite, join, play, reload to rejoin, finish, payout once, return to the city", async ({ browser }: { browser: Browser }) => {
     gateWorld("sf");

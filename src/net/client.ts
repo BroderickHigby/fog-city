@@ -27,6 +27,8 @@ export interface ClientInfo {
   queued: number;
   recovering: boolean;
   results: Results | null;
+  /** The relay is restarting: running matches end at this time (ms since the epoch), else 0. */
+  drainingUntil: number;
 }
 
 export interface ClientOptions {
@@ -53,7 +55,7 @@ const RECONNECTABLE = new Set<string>(["slow_client", "idle", "rate_limit"]);
 const FORGET_SEAT = new Set<ErrorCode>(["room_missing", "room_expired", "seat_missing", "room_full", "room_started", "replaced", "version_mismatch", "world_mismatch", "world_unavailable"]);
 
 export class RelayClient {
-  readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", visibility: "private", bots: 0, members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null };
+  readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", visibility: "private", bots: 0, members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null, drainingUntil: 0 };
   match: MatchTimeline | null = null;
   private socket: RelayTransport | null = null;
   private seat: Seat | null = null;
@@ -197,12 +199,13 @@ export class RelayClient {
         return;
       }
       case "chat": this.options.onChat?.(message.from, message.phrase); return;
+      case "notice": this.info.drainingUntil = message.endsAt; this.emit(); return;
       case "pong": this.info.rttMs = Math.max(0, (this.options.now ?? Date.now)() - message.t); this.emit(); return;
       case "error": {
         this.lastError = message.code;
         if (FORGET_SEAT.has(message.code)) this.forget();
         // Recoverable lobby errors keep the connection.
-        if (message.code === "not_host" || message.code === "not_ready" || message.code === "arena_unavailable") { this.info.message = message.message; this.emit(); return; }
+        if (message.code === "not_host" || message.code === "not_ready" || message.code === "arena_unavailable" || message.code === "matches_full") { this.info.message = message.message; this.emit(); return; }
         this.set("error", message.message);
         return;
       }

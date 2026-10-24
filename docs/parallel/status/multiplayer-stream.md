@@ -31,7 +31,18 @@ Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-b
 5. Social — `work/multiplayer/social` (stacked on persistence): preset quick chat (keys 1–6, no
    free text, one per 1.5 s, phrases pass the content lint), join in progress (recorded
    `mode.join` + `player.join`), spectators (up to 4, no body/input/seat), host rematch.
-6. Ops readiness.
+6. Ops readiness — `work/multiplayer/ops` (stacked on social): `/ready` (503 while draining),
+   Prometheus `/metrics` (optional `METRICS_TOKEN`), structured JSON logs with no tokens, IPs or
+   full codes, graceful drain on SIGTERM (newcomers refused, a notice with the end time, running
+   matches end as a recorded `mode.end` and pay once), `RELAY_MAX_MATCHES` (default 2: a start
+   past it stays in the lobby with "every arena is busy"), `pnpm relay:load` and the capacity table
+   in `server/README.md`, and `fly.toml` with `performance-1x`, `kill_timeout` 120 s, the `/ready`
+   check and autoscale notes. `NET_VERSION` 7.
+   **Capacity finding:** the relay is one event loop and each Bot Sweep match takes about 5 ms of
+   each 16.7 ms tick, so one dedicated core runs 2 matches (8 players) in real time; from 3 on,
+   every match slows. Follow-ups that raise this, not built: rooms on worker threads (about 2
+   matches per vCPU), then room routing across machines (machine-prefixed codes + `fly-replay`)
+   before running more than one machine.
 
 ## What is playable now
 

@@ -8,7 +8,7 @@ import { DEVICE_TOKEN, validProfile, type Profile } from "./identity.ts";
 import { QUICK_CHAT } from "./chat.ts";
 
 /** Bump on any wire-format change; a client and relay that differ refuse each other. */
-export const NET_VERSION = 6;
+export const NET_VERSION = 7;
 export const MAX_PLAYERS = 4;
 /** Client prediction never runs further ahead of the confirmed state than this (133 ms). */
 export const MAX_PREDICTION_TICKS = 8;
@@ -83,6 +83,8 @@ export type ServerMessage =
   | ({ type: "results" } & Results)
   | { type: "pong"; t: number }
   | { type: "chat"; from: string; phrase: number }
+  /** The relay is restarting: running matches end (and pay out) at `endsAt` (ms since the epoch). */
+  | { type: "notice"; kind: "draining"; endsAt: number }
   | { type: "error"; code: ErrorCode; message: string };
 
 export const ERRORS = {
@@ -96,6 +98,8 @@ export const ERRORS = {
   room_started: "This match has already started. Ask for a new room.",
   seat_missing: "Your seat in that room has gone. Join again with the code.",
   server_full: "The server is full. Try again later.",
+  matches_full: "Every arena on this server is busy. Try Start again in a minute.",
+  draining: "This server is restarting for an update. Try again in a minute.",
   too_many_connections: "Too many connections from your network. Close other tabs and try again.",
   too_many_rooms: "Too many rooms from your network. Finish one first.",
   rate_limit: "Too many messages. Rejoin after a moment.",

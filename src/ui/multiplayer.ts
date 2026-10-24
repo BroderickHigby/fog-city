@@ -379,7 +379,8 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     const spectating = client.isSpectator();
     if (spectating && (!follow || !state!.players[follow])) follow = nextFollow();
     const meId = spectating ? follow : info.playerId, me = view.players[meId];
-    const net = info.status !== "connected" ? info.message : client.match?.recovering ? "Resynchronising…" : info.rttMs ? `${Math.round(info.rttMs)} ms` : "";
+    const restartIn = info.drainingUntil ? Math.max(0, Math.ceil((info.drainingUntil - Date.now()) / 1000)) : 0;
+    const net = info.drainingUntil && view.phase === "active" ? `Server update: the match ends in ${restartIn} s (you keep your payout)` : info.status !== "connected" ? info.message : client.match?.recovering ? "Resynchronising…" : info.rttMs ? `${Math.round(info.rttMs)} ms` : "";
     setText(hudClock, clock(view.remainingTicks));
     setText(hudTitle, MODE_NAMES[view.mode]);
     if (view.mode === "cleanStreets") {

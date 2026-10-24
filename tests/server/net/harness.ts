@@ -18,10 +18,10 @@ export const ARENA = { x: 0, z: 0, heading: 0 };
 
 export interface Harness { relay: Relay; url: string; clock: { t: number }; close(): Promise<void>; tick(n?: number): void }
 
-export async function startRelay(opts: { limits?: Partial<RelayLimits>; room?: Partial<RoomLimits>; world?: WorldName; store?: import("../../../server/store/store.ts").RelayStore } = {}): Promise<Harness> {
+export async function startRelay(opts: { limits?: Partial<RelayLimits>; room?: Partial<RoomLimits>; world?: WorldName; store?: import("../../../server/store/store.ts").RelayStore; logger?: import("../../../server/ops/log.ts").Logger; metricsToken?: string } = {}): Promise<Harness> {
   const clock = { t: 1_000_000 };
   const bundle = { name: opts.world ?? "dev", fingerprint: FINGERPRINT, world: WORLD, files: null as never } as WorldBundle;
-  const relay = createRelay({ worlds: new Map([[bundle.name, bundle]]), arenas: new Map([[bundle.name, [ARENA]]]), automaticTicks: false, now: () => clock.t, limits: opts.limits, room: opts.room, ...(opts.store ? { store: opts.store } : {}) });
+  const relay = createRelay({ worlds: new Map([[bundle.name, bundle]]), arenas: new Map([[bundle.name, [ARENA]]]), automaticTicks: false, now: () => clock.t, limits: opts.limits, room: opts.room, ...(opts.store ? { store: opts.store } : {}), ...(opts.logger ? { logger: opts.logger } : {}), ...(opts.metricsToken ? { metricsToken: opts.metricsToken } : {}) });
   const port = await relay.listen(0);
   return { relay, clock, url: `ws://127.0.0.1:${port}/relay`, close: () => relay.close(), tick: (n = 1) => { for (let i = 0; i < n; i++) { clock.t += 1000 / 60; relay.tick(); } } };
 }
