@@ -560,6 +560,12 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     }
   }
   if(!goal)goal={x:actor.x+dsin(actor.heading),z:actor.z-dcos(actor.heading)};
+  // Whatever steers it (its route, its brain chasing or fleeing, a reaction): a step the physical
+  // layer would refuse becomes a step out to the nearest free spot towards where it wants to go.
+  if(actor.model!=="drone"){
+    const near=vehicles.filter(v=>Math.abs(v.x-actor.x)<8&&Math.abs(v.z-actor.z)<8);
+    if(stepRefused(world,actor,goal,speed,near)){const out=stepOut(world,actor,near,goal);if(out){goal={x:out.x,z:out.z};actor.pendingCursor=null;}}
+  }
   const length=distance(actor,goal),travel=Math.min(length,speed*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
   const x=actor.x+dx*travel,z=actor.z+dz*travel;
