@@ -1,0 +1,96 @@
+# Long real-SF playthroughs (tests/e2e/*.long.ts): whole wave-3 missions played in the browser
+# through real controls, each an hour or more under SwiftShader on one worker. They run apart
+# from ci.yml, which keeps the fast campaign spec on every pull request. docs/testing.md.
+name: Campaign playthroughs
+
+on:
+  push:
+    branches: [integrate/wave2]
+  # Nightly, 09:17 UTC.
+  schedule:
+    - cron: "17 9 * * *"
+  # Pull requests that touch missions, activities, mission content or the playthroughs themselves.
+  pull_request:
+    paths:
+      - "src/sim/missions/**"
+      - "src/sim/activities/**"
+      - "content/missions*"
+      - "content/missions/**"
+      - "tests/e2e/campaign*"
+      - "tests/helpers/drivers/**"
+      - ".github/workflows/campaign-long.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: campaign-long-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  playthrough:
+    name: ${{ matrix.file }}
+    runs-on: ubuntu-24.04
+    # One playthrough per job. Playwright's global timeout (140 minutes) ends a stuck run first,
+    # so its trace and screenshots still upload before this limit cancels the job.
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        file:
+          - campaign-launch-day.long.ts
+          - campaign-two-players.long.ts
+    env:
+      CI: "true"
+      E2E_PORT: "4173"
+      E2E_GAME_WAVE: "3"
+      # The playthroughs need the real SF world and the frame-stepping debug handle: fail, never skip.
+      E2E_REQUIRE: sf,foot,render-debug,roads,step-frames
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: browser-cache
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium with system dependencies
+        if: ${{ steps.browser-cache.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies (browser from cache)
+        if: ${{ steps.browser-cache.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium
+
+      - name: Playthrough
+        run: pnpm exec playwright test --config tests/e2e/campaign-long.config.ts --workers=1 --global-timeout=8400000 ${{ matrix.file }}
+
+      # Traces and screenshots are kept on failure (playwright.config.ts).
+      - name: Upload test results
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: playthrough-${{ matrix.file }}-attempt-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: warn
