@@ -15,7 +15,7 @@ import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
 import { InnerVoice } from "./inner-voice.ts";
-import { FootstepClock, carOneShots, doorOneShots, engineParams } from "./vehicle-sound.ts";
+import { FootstepClock, carOneShots, doorOneShots, engineParams, rideEngineParams } from "./vehicle-sound.ts";
 import type { CarState } from "../sim/contract.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
@@ -133,6 +133,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let listener = { x: 0, z: 0, heading: 0 };
   // The player's car and mode last frame, for engine load, impacts, landings and doors.
   let prevCar: CarState | null = null;
+  let prevRideSpeed: number | null = null;
   let prevMode: string | undefined;
   let lastFrameMs: number | null = null;
   const footsteps = new FootstepClock();
@@ -209,13 +210,16 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const dtS = lastFrameMs === null ? 0 : Math.min(0.25, Math.max(0, (frame.nowMs - lastFrameMs) / 1000));
       lastFrameMs = frame.nowMs;
       if (player && !frame.paused) {
-        mixer.setEngine(inCar ? engineParams(player.car, prevCar, dtS) : null);
-        if (inCar) for (const s of carOneShots(player.car, prevCar)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
+        // Riding a robotaxi, the taxi's motor is heard; the player's own car is parked elsewhere.
+        const ride = player.ride ?? null;
+        mixer.setEngine(ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
+        if (inCar && !ride) for (const s of carOneShots(player.car, prevCar)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
         for (const s of doorOneShots(prevMode, player.mode)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, delayS: s.delayS });
         const step = footsteps.update(onFoot ? player.foot : null, dtS);
         if (step) mixer.play({ sound: `step-${step.variant}`, gain: step.gain, pan: 0, rate: 0.94 + 0.03 * step.variant });
       } else mixer.setEngine(null);
       prevCar = player ? { ...player.car } : null;
+      prevRideSpeed = player?.ride?.speed ?? null;
       prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
       const actors: HummingActor[] = runtime ? Object.values(runtime.actors) : [];
@@ -274,6 +278,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       missionVoice.reset();
       inner.reset();
       prevCar = null;
+      prevRideSpeed = null;
       prevMode = undefined;
       lastFrameMs = null;
       footsteps.reset();
