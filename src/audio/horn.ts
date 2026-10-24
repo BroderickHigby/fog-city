@@ -5,6 +5,7 @@
 // or failing to play never changes the sim.
 
 import { Action, type InputFrame, type SimState } from "../sim/contract.ts";
+import { playerPose } from "../sim/ride.ts";
 
 export interface HornBlast {
   playerId: string;
@@ -25,7 +26,7 @@ export function hornBlasts(frame: InputFrame, state: Readonly<SimState>): HornBl
     const player = state.players[id];
     if (!input || !player || (input.actions & Action.horn) === 0) continue;
     const foot = player.mode === "foot" && player.foot !== null;
-    const body = foot ? player.foot! : player.car;
+    const body = playerPose(player);
     out.push({ playerId: id, x: body.x, z: body.z, inVehicle: !foot });
   }
   return out;

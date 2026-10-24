@@ -2,7 +2,7 @@
 // slip and hard braking, impacts and landings scale with their speed, doors play on getting in
 // and out, and footsteps keep a pace-appropriate cadence.
 import { describe, expect, it } from "vitest";
-import { FootstepClock, IDLE_WHINE_HZ, STEP_INTERVAL_S, carOneShots, doorOneShots, engineParams, pace } from "../../src/audio/vehicle-sound.ts";
+import { FootstepClock, IDLE_WHINE_HZ, STEP_INTERVAL_S, RIDE_CABIN, carOneShots, doorOneShots, engineParams, pace, rideEngineParams } from "../../src/audio/vehicle-sound.ts";
 import type { CarState, FootState } from "../../src/sim/contract.ts";
 
 const car = (o: Partial<CarState> = {}): CarState => ({
@@ -98,5 +98,18 @@ describe("footsteps", () => {
     const still = new FootstepClock();
     for (let i = 0; i < 600; i++) expect(still.update(foot(), 1 / 60)).toBeNull();
     expect(still.update(null, 1 / 60)).toBeNull();
+  });
+});
+
+describe("riding a robotaxi", () => {
+  it("hears the taxi's motor from the back seat: softer than driving, rising with speed, never a squeal", () => {
+    const slow = rideEngineParams(4, 4, 1 / 60), fast = rideEngineParams(20, 20, 1 / 60);
+    expect(fast.whineHz).toBeGreaterThan(slow.whineHz);
+    expect(fast.roarGain).toBeGreaterThan(slow.roarGain);
+    const driving = engineParams(car({ speed: 20 }), car({ speed: 20 }), 1 / 60);
+    expect(fast.whineGain).toBeCloseTo(driving.whineGain * RIDE_CABIN, 9);
+    expect(fast.roarGain).toBeCloseTo(driving.roarGain * RIDE_CABIN, 9);
+    expect(rideEngineParams(20, 26, 1 / 60).squealGain).toBe(0);
+    expect(rideEngineParams(0, null, 0).whineHz).toBe(IDLE_WHINE_HZ);
   });
 });

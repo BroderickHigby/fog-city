@@ -135,6 +135,8 @@ export interface TileProps {
   /** Objects shown only at night. */
   nightOnly: THREE.Object3D[];
   lamps: number;
+  /** World positions of the lamp heads (x, y, z per lamp), for the street-light rig. */
+  lampHeads: Float32Array;
   trees: number;
   dispose(): void;
 }
@@ -158,6 +160,7 @@ export function buildTileProps(
   group.name = "props";
   const nightOnly: THREE.Object3D[] = [];
   const owned: Array<{ dispose(): void }> = [];
+  let lampHeads = new Float32Array(0);
 
   if (lamps.length > 0) {
     const poles = new THREE.InstancedMesh(P.pole, mats.lampPole, lamps.length);
@@ -190,6 +193,7 @@ export function buildTileProps(
     heads.name = "lamp-heads";
     pools.name = "lamp-pools";
     pools.renderOrder = 2;
+    lampHeads = glowPos;
     const glowGeo = new THREE.BufferGeometry();
     glowGeo.setAttribute("position", new THREE.BufferAttribute(glowPos, 3));
     glowGeo.computeBoundingSphere();
@@ -232,6 +236,7 @@ export function buildTileProps(
     group,
     nightOnly,
     lamps: lamps.length,
+    lampHeads,
     trees: treeCount,
     dispose() {
       for (const o of owned) o.dispose();
