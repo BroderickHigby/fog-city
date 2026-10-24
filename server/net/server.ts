@@ -1,10 +1,11 @@
 // The Fog City relay: an HTTP server with /health and one WebSocket endpoint, /relay. Rooms are
 // private (an 8-letter invitation code from a CSPRNG); everything a peer sends is size-capped,
 // rate-limited per socket and per IP, and parsed into a closed message shape before use.
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import type { RelayStore } from "../store/store.ts";
 import { createServer, type IncomingMessage } from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
-import { ERRORS, MAX_MESSAGE_BYTES, ROOM_ALPHABET, parseClientMessage, type ErrorCode, type Hello, type RoomList, type ServerMessage, type WorldName } from "../../src/net/protocol.ts";
+import { ERRORS, MAX_MESSAGE_BYTES, MODES, ROOM_ALPHABET, parseClientMessage, type ErrorCode, type Hello, type NetModeId, type RoomList, type ServerMessage, type WorldName } from "../../src/net/protocol.ts";
 import { DEFAULT_ROOM_LIMITS, Room, type Peer, type RoomLimits } from "./room.ts";
 import { FixedClock } from "./clock.ts";
 import type { WorldBundle } from "./world.ts";
@@ -45,6 +46,8 @@ export interface RelayOptions {
   clientIpHeader?: string;
   limits?: Partial<RelayLimits>;
   room?: Partial<RoomLimits>;
+  /** Match history, stats and leaderboards; absent: nothing is remembered between matches. */
+  store?: RelayStore;
   now?: () => number;
   /** false: the caller drives tick() (tests). */
   automaticTicks?: boolean;
@@ -68,13 +71,35 @@ export function createRelay(options: RelayOptions) {
   };
   const roomsOf = (ip: string): number => { let n = 0; for (const room of rooms.values()) if (!room.closed && room.creatorIp === ip) n++; return n; };
 
+  const httpWindows = new Map<string, { start: number; count: number }>();
   const server = createServer((req, res) => {
     const path = (req.url ?? "").split("?")[0];
+    const origin = req.headers.origin;
+    const cors: Record<string, string> = origin && originAllowed(req) ? { "access-control-allow-origin": origin, "access-control-allow-headers": "x-fogcity-device", vary: "Origin" } : { vary: "Origin" };
+    if (req.method === "OPTIONS" && (path === "/me" || path === "/leaderboard" || path === "/rooms")) { res.writeHead(204, { ...cors, "access-control-allow-methods": "GET" }); res.end(); return; }
+    if (req.method === "GET" && (path === "/leaderboard" || path === "/me")) {
+      // Cheap indexed reads, still capped per IP so a script cannot hammer the database.
+      const ip = clientIp(req), t = now(), window = httpWindows.get(ip) ?? { start: t, count: 0 };
+      if (t - window.start >= 10_000) { window.start = t; window.count = 0; }
+      window.count++; httpWindows.set(ip, window);
+      if (httpWindows.size > 10_000) httpWindows.clear();
+      if (window.count > 30) { res.writeHead(429, cors); res.end(); return; }
+      const json = (status: number, body: unknown): void => { res.writeHead(status, { ...cors, "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(body)); };
+      if (!options.store) { json(404, { error: "no_store" }); return; }
+      if (path === "/leaderboard") {
+        const query = new URL(req.url ?? "/", "http://relay").searchParams, mode = query.get("mode") as NetModeId, period = query.get("period") === "all" ? "all" : "week";
+        if (!MODES.includes(mode)) { json(400, { error: "mode" }); return; }
+        json(200, { mode, period, entries: options.store.leaderboard(mode, period, t, 10) });
+      } else {
+        const token = req.headers["x-fogcity-device"];
+        if (typeof token !== "string" || !/^[a-f0-9]{32}$/.test(token)) { json(400, { error: "device" }); return; }
+        json(200, { stats: options.store.stats(createHash("sha256").update(token).digest("hex")) });
+      }
+      return;
+    }
     if (req.method === "GET" && path === "/rooms") {
       // The public lobby list, readable by the game's page (CORS for allowed origins only).
-      const origin = req.headers.origin;
-      const headers: Record<string, string> = { "content-type": "application/json", "cache-control": "no-store", vary: "Origin" };
-      if (origin && originAllowed(req)) headers["access-control-allow-origin"] = origin;
+      const headers: Record<string, string> = { ...cors, "content-type": "application/json", "cache-control": "no-store" };
       const world = new URL(req.url ?? "/", "http://relay").searchParams.get("world");
       const list: RoomList = { online: sockets.clients.size, rooms: [...rooms.values()].filter((r) => !r.closed && r.visibility === "public" && r.phase !== "results" && (!world || r.bundle.name === world))
         .sort((a, b) => b.size - a.size || a.createdAt - b.createdAt).slice(0, 50).map((r) => r.listing()) };
@@ -175,6 +200,7 @@ export function createRelay(options: RelayOptions) {
         let code: string;
         do { code = Array.from(randomBytes(8), (n) => ROOM_ALPHABET[n & 31]!).join(""); } while (rooms.has(code));
         const created = new Room(code, bundle, t, ip, options.arenas.get(message.world) ?? [], roomLimits, message.action === "quick" ? "public" : "private");
+        if (options.store) { const store = options.store; created.onFinished = (match) => { store.recordMatch(match); }; }
         rooms.set(code, created);
         playerId = created.join(peer, t, message.profile, message.device);
         room = created;

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { hashState, SIM_VERSION, type SimState } from "../../../src/sim/index.ts";
 import { NET_VERSION } from "../../../src/net/protocol.ts";
 import { botSweepView } from "../../../src/sim/modes/botsweep.ts";
@@ -173,6 +174,43 @@ describe("relay Clean Streets", () => {
     expect(modeSessionOf(room(h).state!)!.match.players.p1!.score).toBe(25);
     expect(hashState(b.client.match!.confirmed)).toBe(hashState(room(h).state!));
     expect(room(h).stats.mismatches).toBe(0);
+  });
+});
+
+describe("relay persistence", () => {
+  it("records a finished match once and serves the leaderboard (names only) and each device's own stats", async () => {
+    const { openSqliteStore } = await import("../../../server/store/sqlite.ts");
+    const store = openSqliteStore(":memory:");
+    try {
+      const h = await relay({ store }), [a, b] = await match(h);
+      await play(h, [a, b], 10);
+      a.client.end(); await play(h, [a, b], 3);
+      expect(room(h).phase).toBe("results");
+      const base = h.url.replace("ws:", "http:").replace("/relay", "");
+      const board = await (await fetch(`${base}/leaderboard?mode=botSweep&period=week`)).json() as { entries: Array<{ name: string; matches: number }> };
+      expect(board.entries.map((e) => e.name).sort()).toEqual(last(a).members.map((m) => m.name).sort());
+      expect(JSON.stringify(board)).not.toMatch(/[a-f0-9]{32}/);
+      const token = (a.client as unknown as { options: { identity(): { token: string } } }).options.identity().token;
+      const me = await (await fetch(`${base}/me`, { headers: { "x-fogcity-device": token } })).json() as { stats: { matches: number } };
+      expect(me.stats.matches).toBe(1);
+      expect((await fetch(`${base}/me`)).status).toBe(400);
+      expect((await fetch(`${base}/leaderboard?mode=nope`)).status).toBe(400);
+      // Results stay up; ticking on never records the match again.
+      await play(h, [a, b], 5);
+      expect(store.stats(createHash("sha256").update(token).digest("hex"))!.matches).toBe(1);
+    } finally { store.close(); }
+  });
+
+  it("caps leaderboard requests per IP", async () => {
+    const { openSqliteStore } = await import("../../../server/store/sqlite.ts");
+    const store = openSqliteStore(":memory:");
+    try {
+      const h = await relay({ store }), base = h.url.replace("ws:", "http:").replace("/relay", "");
+      const codes: number[] = [];
+      for (let i = 0; i < 32; i++) codes.push((await fetch(`${base}/leaderboard?mode=botSweep`)).status);
+      expect(codes.filter((c) => c === 200)).toHaveLength(30);
+      expect(codes.at(-1)).toBe(429);
+    } finally { store.close(); }
   });
 });
 

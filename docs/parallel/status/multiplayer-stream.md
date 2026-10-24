@@ -24,7 +24,11 @@ Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-b
    Deferred modes: Fog Royale (needs associate duels, taxi redeploy and crate producers and
    8-player rooms) and Hide in the Crowd (needs teleoperated robot bodies); salvage stays on
    `lane/fog-royale/wave7` and `lane/modes-online/wave7`/`wave8`.
-4. Server persistence · 5. Social · 6. Ops readiness.
+4. Server persistence — `work/multiplayer/persistence` (stacked on identity): `RelayStore`
+   interface + SQLite via Node's built-in `node:sqlite` (`RELAY_DB_PATH`, `/data` volume in
+   `fly.toml`); finished matches recorded once; per-identity stats; weekly/all-time leaderboards
+   (`GET /leaderboard`, `GET /me`) and a lobby panel; retention documented in `server/README.md`.
+5. Social · 6. Ops readiness.
 
 ## What is playable now
 

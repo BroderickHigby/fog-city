@@ -248,3 +248,25 @@ export async function listRooms(url: string, world: WorldName, fetcher: typeof f
     return Array.isArray(body.rooms) && Number.isSafeInteger(body.online) ? body : null;
   } catch { return null; }
 }
+
+export interface LeaderboardRow { rank: number; name: string; look: number; best: number; matches: number; wins: number }
+export interface MyStats { name: string; matches: number; wins: number; modes: Partial<Record<NetModeId, { matches: number; wins: number; best: number; total: number }>> }
+
+/** Top players for a mode this week (since Monday 00:00 UTC) or all time; null when unreachable. */
+export async function fetchLeaderboard(url: string, mode: NetModeId, period: "week" | "all", fetcher: typeof fetch = fetch): Promise<LeaderboardRow[] | null> {
+  try {
+    const response = await fetcher(`${relayHttpBase(url)}/leaderboard?mode=${encodeURIComponent(mode)}&period=${period}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json() as { entries?: LeaderboardRow[] };
+    return Array.isArray(body.entries) ? body.entries : null;
+  } catch { return null; }
+}
+
+/** This device's own stats (the token goes in a header, never a URL). */
+export async function fetchMyStats(url: string, token: string, fetcher: typeof fetch = fetch): Promise<MyStats | null> {
+  try {
+    const response = await fetcher(`${relayHttpBase(url)}/me`, { cache: "no-store", headers: { "x-fogcity-device": token } });
+    if (!response.ok) return null;
+    return (await response.json() as { stats: MyStats | null }).stats;
+  } catch { return null; }
+}

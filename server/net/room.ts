@@ -11,6 +11,7 @@ import { ArenaUnavailableError, botSweepView, createBotSweep, stepBotSweep } fro
 import { MODE_END_EVENT } from "../../src/sim/modes/systems.ts";
 import type { Spawn } from "../../src/sim/contract.ts";
 import type { WorldBundle } from "./world.ts";
+import type { MatchRecord } from "../store/store.ts";
 
 export interface Peer { send(message: ServerMessage): void; close(code: ErrorCode): void }
 
@@ -61,6 +62,10 @@ export class Room {
   private events: SimEvent[] = [];
   private finishedAt = 0;
   private arenaCursor: number;
+
+  /** Called once per finished match with what the store keeps (people only). */
+  onFinished: ((match: MatchRecord) => void) | null = null;
+  private startedAt = 0;
 
   constructor(code: string, bundle: WorldBundle, now: number, creatorIp: string, arenas: readonly Spawn[], limits: RoomLimits = DEFAULT_ROOM_LIMITS, visibility: Visibility = "private") {
     this.visibility = visibility;
@@ -165,7 +170,7 @@ export class Room {
       } catch (error) { if (!(error instanceof ArenaUnavailableError)) throw error; }
     }
     if (!state) throw new Error("arena_unavailable");
-    this.mode = mode; this.matchId = matchId; this.state = state; this.phase = "match"; this.events = [];
+    this.mode = mode; this.matchId = matchId; this.state = state; this.phase = "match"; this.events = []; this.startedAt = now;
     for (const seat of this.seats.values()) { seat.queue = []; seat.seq = 0; seat.ack = 0; seat.lastInputAt = now; seat.commandSequence = 0; }
     this.broadcastRoom();
     for (const seat of this.seats.values()) this.sendSnapshot(seat, "start", now);
@@ -249,6 +254,14 @@ export class Room {
     const view = botSweepView(this.state);
     if (view?.phase === "finished") {
       this.phase = "results"; this.finishedAt = now;
+      if (view.result && this.onFinished) {
+        const result = view.result;
+        try {
+          this.onFinished({ id: this.matchId, mode: this.mode, world: this.bundle.name, startedAt: this.startedAt, endedAt: now, reason: result.reason,
+            players: [...this.seats.values()].filter((s) => view.players[s.id]).map((s) => ({ device: s.device, name: s.name, look: s.look,
+              team: view.players[s.id]!.team, score: view.players[s.id]!.score, won: result.winners.includes(s.id) })) });
+        } catch { /* the store failing never stops a match */ }
+      }
       this.broadcastRoom();
       for (const seat of this.seats.values()) this.sendResults(seat);
     }

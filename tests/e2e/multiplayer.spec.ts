@@ -147,6 +147,10 @@ test.describe("online Bot Sweep", () => {
       // Back to the city: the room is left and free roam steps again.
       await a.getByRole("button", { name: "Back to city" }).click();
       await waitNet(a, `n.info()?.phase === "none"`);
+      // The finished match is on this week's leaderboard, by name.
+      await a.getByRole("button", { name: "Play with friends" }).click();
+      await expect(a.getByRole("list", { name: "Top players" })).toContainText(aName, { timeout: 30_000 });
+      await expect(a.getByRole("region", { name: "Leaderboard" }).or(a.getByLabel("Leaderboard"))).toContainText("You: best");
       const after = await net(a, (_n, city) => city.tick);
       await a.waitForFunction((t) => (window as unknown as NetWindow).__fogcity!.state().tick > t + 30, after, { timeout: 60_000 });
       expect(await cityXp(a)).toBe(xpBefore + settlement.xp);

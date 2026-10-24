@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { createRelay } from "./net/server.ts";
 import { worldLoader, type WorldBundle } from "./net/world.ts";
 import { verifiedArenas } from "./net/arenas.ts";
+import { openSqliteStore } from "./store/sqlite.ts";
 import { WORLDS, type WorldName } from "../src/net/protocol.ts";
 import type { Spawn } from "../src/sim/contract.ts";
 
@@ -29,6 +30,14 @@ export async function main(): Promise<void> {
     console.log(`world ${name}: fingerprint ${bundle.fingerprint}, ${usable.length} Bot Sweep arenas (${usable.map((a) => `${a.id} ${Math.round(a.driveM)} m`).join(", ") || "none"})`);
   }
   const matchSeconds = int("RELAY_MATCH_SECONDS", 0, 0, 720);
+  // Match history and leaderboards: a file on a persistent volume in production, else memory.
+  const dbPath = process.env.RELAY_DB_PATH || ":memory:";
+  const store = openSqliteStore(dbPath);
+  console.log(`store: ${dbPath === ":memory:" ? "in memory (set RELAY_DB_PATH to keep history)" : dbPath}`);
+  const pruned = store.prune(Date.now());
+  if (pruned) console.log(`store: pruned ${pruned} rows past retention`);
+  const pruneTimer = setInterval(() => { try { store.prune(Date.now()); } catch (error) { console.error("store prune failed", error instanceof Error ? error.message : error); } }, 6 * 3600_000);
+  pruneTimer.unref();
   const relay = createRelay({
     worlds, arenas,
     allowedOrigins: (process.env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean),
@@ -40,11 +49,12 @@ export async function main(): Promise<void> {
       maxRoomsPerIp: int("RELAY_MAX_ROOMS_PER_IP", 2, 1, 1000),
     },
     room: matchSeconds ? { matchTicks: matchSeconds * 60 } : {},
+    store,
     log: (line) => console.log(line),
   });
   const bound = await relay.listen(port, host);
   console.log(`Fog City relay listening on ${host}:${bound} (ws path /relay, health /health)`);
-  const stop = (): void => { void relay.close().then(() => process.exit(0)); };
+  const stop = (): void => { void relay.close().then(() => { store.close(); process.exit(0); }); };
   process.once("SIGTERM", stop);
   process.once("SIGINT", stop);
 }

@@ -9,7 +9,7 @@ import type { WorldFiles } from "../io/world-load.ts";
 import { activeBody, DT, type SimInput, type SimState, type World } from "../sim/index.ts";
 import { botSweepView } from "../sim/modes/botsweep.ts";
 import { applyMatchSettlement, settledModeIds } from "../sim/modes/settlement.ts";
-import { listRooms, RelayClient, type ClientInfo, type Seat } from "../net/client.ts";
+import { fetchLeaderboard, fetchMyStats, listRooms, RelayClient, type LeaderboardRow, type MyStats, type ClientInfo, type Seat } from "../net/client.ts";
 import { MAX_PLAYERS, MODES, ROOM_CODE, WORLDS, type NetModeId, type Results, type RoomList, type WorldName } from "../net/protocol.ts";
 import { worldFingerprint } from "../net/world-id.ts";
 import { LOOK_NAMES, LOOK_SWATCHES, loadIdentity, randomName, saveIdentity, profileName, type Identity } from "../net/identity.ts";
@@ -76,7 +76,7 @@ const STYLE = `
 .fc-mp-panel{margin-top:8px;padding:12px 14px;background:linear-gradient(145deg,#182e37f2,#0c171ef2);border:1px solid #64838a;border-radius:10px;display:grid;gap:8px}
 .fc-mp-panel h2{font-size:15px;margin:0}.fc-mp-panel p{margin:0}.fc-mp-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .fc-mp-code{font:700 22px/1.2 ui-monospace,monospace;letter-spacing:.12em;color:#9af4c3}
-.fc-mp ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.fc-mp li{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:#08171e99;border-radius:6px}
+.fc-mp ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}.fc-mp ol li{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:#08171e99;border-radius:6px}.fc-mp ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.fc-mp li{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:#08171e99;border-radius:6px}
 .fc-mp li[data-connected=false]{opacity:.55}.fc-mp-swatch{display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-right:.4em;vertical-align:-.05em;border:1px solid #0006}.fc-mp-tags{position:fixed;inset:0;pointer-events:none;z-index:19}.fc-mp-tag{position:absolute;transform:translate(-50%,-100%);padding:2px 8px;border-radius:999px;background:#08171ecc;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;white-space:nowrap;text-shadow:0 1px 2px #000}.fc-mp-tag[data-team=rival]{border:1px solid #f08a6a}.fc-mp-tag[data-team=team]{border:1px solid #9af4c3}.fc-mp output{color:#c9d6d3;font-size:13px}
 .fc-mp-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:21;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:#08171ee6;border:1px solid #55747b;border-radius:10px;color:#f4f5ed;font:600 14px/1.3 system-ui,sans-serif;max-width:calc(100vw - 24px)}
 .fc-mp-hud strong{color:#9af4c3}.fc-mp-hud button{font:inherit;border:1px solid #64838a;border-radius:8px;background:#142c35;color:inherit;padding:6px 10px;cursor:pointer}
@@ -174,7 +174,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
 
   function render(): void {
     const phase = info?.phase ?? "none", status = info?.status ?? "offline";
-    const stamp = JSON.stringify([phase, status, info?.message, info?.code, info?.members, info?.bots, info?.mode, info?.results?.matchId, settlements.length, entering, codeDraft === "" ? 0 : 1, rooms]);
+    const stamp = JSON.stringify([phase, status, info?.message, info?.code, info?.members, info?.bots, info?.mode, board, mine, info?.results?.matchId, settlements.length, entering, codeDraft === "" ? 0 : 1, rooms]);
     if (stamp === lastStamp) return;
     lastStamp = stamp;
     const focusedCode = doc.activeElement instanceof HTMLInputElement && panel.contains(doc.activeElement);
@@ -203,7 +203,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       create.disabled = join.disabled = input.disabled = quick.disabled = busy;
       parts.push(node("div", "fc-mp-row"));
       parts.at(-1)!.append(quick, create);
-      parts.push(form, roomList(busy));
+      parts.push(form, roomList(busy), leaderboardBox());
       if (focusedCode) win.setTimeout(() => input.focus(), 0);
     } else if (phase === "lobby" && info) {
       const me = info.members.find((m) => m.id === info!.playerId), host = me?.host ?? false, allReady = info.members.every((m) => m.ready && m.connected);
@@ -271,11 +271,42 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     if (rooms.rooms.length) box.append(list);
     return box;
   }
+  // Leaderboards (relay store): best single-match score per mode, this week or all time, and
+  // this device's own totals. Names only: no other identifier ever reaches the page.
+  let board: { mode: NetModeId; period: "week" | "all"; rows: LeaderboardRow[] | null; loading: boolean } = { mode: "botSweep", period: "week", rows: null, loading: false };
+  let mine: MyStats | null = null, boardAt = 0;
+  function loadBoard(): void {
+    board = { ...board, loading: true }; boardAt = win.performance.now();
+    const want = { mode: board.mode, period: board.period };
+    void Promise.all([fetchLeaderboard(relayUrl, want.mode, want.period), fetchMyStats(relayUrl, identity.token)]).then(([rows, stats]) => {
+      if (board.mode !== want.mode || board.period !== want.period) return;
+      board = { ...board, rows, loading: false }; mine = stats; lastStamp = ""; render();
+    });
+  }
+  function leaderboardBox(): HTMLElement {
+    const box = node("section"); box.setAttribute("aria-label", "Leaderboard");
+    const tabs = node("div", "fc-mp-row");
+    for (const mode of MODES) { const b = button(MODE_NAMES[mode], () => { board = { ...board, mode, rows: null }; loadBoard(); render(); }); b.setAttribute("aria-pressed", String(board.mode === mode)); tabs.append(b); }
+    for (const period of ["week", "all"] as const) { const b = button(period === "week" ? "This week" : "All time", () => { board = { ...board, period, rows: null }; loadBoard(); render(); }); b.setAttribute("aria-pressed", String(board.period === period)); tabs.append(b); }
+    box.append(node("h2", undefined, "Leaderboard"), tabs);
+    if (board.rows === null) box.append(node("p", undefined, board.loading ? "Loading…" : "No leaderboard on this server."));
+    else if (!board.rows.length) box.append(node("p", undefined, "No matches yet. Be the first."));
+    else {
+      const list = node("ol"); list.setAttribute("aria-label", "Top players");
+      for (const r of board.rows) { const li = node("li"); li.append(swatch(r.look), node("span", undefined, `${r.rank}. ${r.name}`), node("span", undefined, `${r.best} pts · ${r.wins}/${r.matches} won`)); list.append(li); }
+      box.append(list);
+    }
+    const own = mine?.modes[board.mode];
+    box.append(node("p", undefined, own ? `You: best ${own.best} pts · ${own.wins} wins in ${own.matches} ${MODE_NAMES[board.mode]} matches` : "You: no matches yet."));
+    return box;
+  }
+
   function refreshRooms(): void {
     const now = win.performance.now();
     if (roomsLoading || panel.hidden || (info?.phase ?? "none") !== "none" || now - roomsAt < 5000) return;
     roomsLoading = true; roomsAt = now;
     void listRooms(relayUrl, worldName).then((list) => { rooms = list; roomsLoading = false; lastStamp = ""; render(); });
+    if (now - boardAt > 30_000) loadBoard();
   }
   const roomTimer = win.setInterval(refreshRooms, 1000);
 
@@ -358,6 +389,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   }
 
   function leave(): void {
+    boardAt = 0;
     client.leave();
     info = null; lastStamp = "";
     setInMatch(false);

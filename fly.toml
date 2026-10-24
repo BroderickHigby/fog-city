@@ -13,6 +13,13 @@ primary_region = "sjc"
   # Fly puts the real client address in this header; per-IP limits use it.
   CLIENT_IP_HEADER = "fly-client-ip"
 
+  # Match history and leaderboards (server/README.md, Data and retention).
+  RELAY_DB_PATH = "/data/relay.sqlite"
+
+[mounts]
+  source = "relay_data"
+  destination = "/data"
+
 [http_service]
   internal_port = 8787
   force_https = true

@@ -43,6 +43,7 @@ page's origin, or browsers on that page are refused.
 | `RELAY_MAX_CONNECTIONS_PER_IP` | `8` | Sockets per client IP. |
 | `RELAY_MAX_ROOMS_PER_IP` | `2` | Open rooms created per client IP. |
 | `RELAY_MATCH_SECONDS` | (12 min) | A shorter Bot Sweep clock, for test servers. |
+| `RELAY_DB_PATH` | `:memory:` | SQLite file for match history, stats and leaderboards (`/data/relay.sqlite` on the Fly volume). In memory, nothing survives a restart. |
 
 Fixed limits (`server/net/server.ts`, `server/net/room.ts`): messages are at most 4 KB and parsed
 into closed shapes; 150 messages a second per socket and 600 per IP; 20 failed join attempts per
@@ -56,6 +57,28 @@ connected sockets; private rooms are never listed. It sends CORS headers only to
 `GET /health` returns `{ ok, rooms, connections, worlds, mismatches, snapshots, refused,
 rateLimited, invalid }`. `mismatches` counts clients whose state hash differed from the relay's
 (each gets one snapshot); it should stay 0.
+
+## Data and retention
+
+The relay keeps only what the leaderboards need, in SQLite (`server/store/sqlite.ts`, behind the
+`RelayStore` interface in `server/store/store.ts` so the backend can be swapped):
+
+- **Identity:** the SHA-256 of each device's random guest token. The token itself is never stored
+  or logged and never shown to anyone; nothing ties it to a person.
+- **Personal data:** only the display name, which is composed from the game's vetted name parts
+  (never free text), and the chosen look (a colour preset). No email, IP address, account or chat.
+- **Match history:** finished matches (mode, world, start/end, reason) and each person's name,
+  look, team, score and win. Bots are never recorded. Kept **90 days**, then deleted.
+- **Per-identity totals:** matches, wins, best and total score per mode. Deleted with the
+  identity after **365 days** without a match.
+- **Leaderboards:** best single-match score per mode, this week (Monday 00:00 UTC) or all time;
+  names and looks only.
+- Pruning runs at boot and every 6 hours. Clearing a device's local storage starts a new identity;
+  the old one ages out under the same rules.
+
+`GET /leaderboard?mode=botSweep&period=week|all` returns the top 10; `GET /me` with the header
+`x-fogcity-device: <token>` returns that device's own totals. Both are capped at 30 requests per IP
+per 10 s and send CORS headers only to allowed origins.
 
 ## How a match works
 
