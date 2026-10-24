@@ -301,7 +301,8 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   const setText = (el: HTMLElement, text: string): void => { if (el.textContent !== text) el.textContent = text; };
   function renderHud(): void {
     const state = client.match?.confirmed, view = state ? botSweepView(state) : null;
-    if (!inMatch || !view || !info) { hud.hidden = true; return; }
+    // Only while playing: in the results the panel holds the summary, and the HUD would cover it.
+    if (!inMatch || !view || !info || info.phase !== "match") { hud.hidden = true; return; }
     const me = view.players[info.playerId];
     const net = info.status !== "connected" ? info.message : client.match?.recovering ? "Resynchronising…" : info.rttMs ? `${Math.round(info.rttMs)} ms` : "";
     setText(hudClock, clock(view.remainingTicks));
