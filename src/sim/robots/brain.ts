@@ -121,6 +121,8 @@ export const ROBOT_MEMORY_TICKS = 10 * TICK_HZ;
 export const ROBOT_WARY_TICKS = 10 * TICK_HZ;
 export const ROBOT_UPDATE_TICKS = 6 * TICK_HZ;
 export const ROBOT_FOG_CHASE_TICKS = 8 * TICK_HZ;
+/** A robot is "in fog" above this density (bot-tells.json avoidFog densityAbove; Marine Layer's threshold). Thinner haze only shortens sight. */
+export const ROBOT_FOG_DENSITY = 0.4;
 export const ROBOT_MAX_PENDING_UPDATES = 8;
 /** This policy supports at most the documented 24 simultaneous players. */
 export const ROBOT_MAX_KNOWN_PLAYERS = 24;
@@ -357,13 +359,14 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   if (wasHostile && nearestMemory) mode = "attack";
   else if (alarm) mode = "alerted";
   else mode = tick < waryUntilTick ? "wary" : "disguised";
-  if (!avoidFog || input.self.fogDensity === 0) fogChaseSinceTick = null;
+  const inFog = input.self.fogDensity > ROBOT_FOG_DENSITY;
+  if (!avoidFog || !inFog) fogChaseSinceTick = null;
   else if ((mode === "attack" || mode === "alerted") && currentPlayer) fogChaseSinceTick ??= tick;
   // A rusted robot keeps fleeing while damaged; fog permits pursuit only with current sight.
-  const fogBreakoff = avoidFog && input.self.fogDensity > 0 &&
+  const fogBreakoff = avoidFog && inFog &&
     (!(mode === "attack" || mode === "alerted") || !currentPlayer || (fogChaseSinceTick !== null && tick - fogChaseSinceTick >= ROBOT_FOG_CHASE_TICKS));
   if (input.self.rust >= 0.6 || fogBreakoff) mode = "flee";
-  const movementAvoidFog = avoidFog && !(mode === "attack" && currentPlayer && input.self.fogDensity > 0);
+  const movementAvoidFog = avoidFog && !(mode === "attack" && currentPlayer && inFog);
 
   let windup: RobotWindup | null = null;
   let update: RobotUpdateChannel | null = null;
@@ -461,5 +464,5 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
     fogChaseSinceTick, pendingUpdates,
   };
   return { state, intent: { movement, action, hideOneTell: mode === "wary", sabotageActive,
-    fogRustMultiplier: mode === "attack" && avoidFog && input.self.fogDensity > 0 ? 3 : 1 } };
+    fogRustMultiplier: mode === "attack" && avoidFog && inFog ? 3 : 1 } };
 }
