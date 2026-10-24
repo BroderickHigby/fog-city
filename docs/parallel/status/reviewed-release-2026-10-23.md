@@ -5,8 +5,12 @@ street detail, traffic detours and multiplayer code. It is a release candidate u
 combined checks pass and the production build is verified. Source inclusion, tests, a Git merge,
 deployment readiness and public availability are separate outcomes.
 
-The starting point is the deployed Batch 1 source,
+The original starting point was the deployed Batch 1 source,
 [`86dfb90`](https://github.com/BroderickHigby/fog-city/commit/86dfb9005c4f76d49ef28c79d4aa8c5bf5bd3846).
+The candidate also preserves the subsequent public release base,
+[`aae1f46`](https://github.com/BroderickHigby/fog-city/commit/aae1f46591ee04381fc1fe1e4751fb0cacd5d8c2),
+including the [PR #63 credits](https://github.com/BroderickHigby/fog-city/pull/63) and
+[PR #66 graphics recovery](https://github.com/BroderickHigby/fog-city/pull/66).
 The integration preserves the existing physical city and its held-world exclusions.
 
 ## Included source
@@ -18,7 +22,7 @@ The integration preserves the existing physical city and its held-world exclusio
 | Hail, board and ride a robotaxi | [PR #58](https://github.com/BroderickHigby/fog-city/pull/58), [`c3c47e7`](https://github.com/BroderickHigby/fog-city/commit/c3c47e7e6fc0a4282cd9288695c28afcd813c739) |
 | Car radio and one horn mixer path | [PR #36](https://github.com/BroderickHigby/fog-city/pull/36), [`9f81a52`](https://github.com/BroderickHigby/fog-city/commit/9f81a52d393feebabb24e2c7ac87aa2a95567608) |
 | Player inner-voice subtitles and music continuity | [PR #37](https://github.com/BroderickHigby/fog-city/pull/37), [`1465f67`](https://github.com/BroderickHigby/fog-city/commit/1465f6727012f2f18b994e4d3416a2b799b62558) |
-| Player avatar presentation | [PR #34](https://github.com/BroderickHigby/fog-city/pull/34), [`ac95ad9`](https://github.com/BroderickHigby/fog-city/commit/ac95ad95a6cab2dc7545ce3799a238ea7286a7d2) |
+| Player avatar presentation | [PR #34](https://github.com/BroderickHigby/fog-city/pull/34), [`ac95ad9`](https://github.com/BroderickHigby/fog-city/commit/ac95ad95a6cab2dc7545ce3799a238ea7286a7d2), plus the upstream campaign-dialog wait repair [`33da7c9`](https://github.com/BroderickHigby/fog-city/commit/33da7c9b5bd292d84c6eccb7b9525b20753ae44e) |
 | Foliage crowns | [PR #43](https://github.com/BroderickHigby/fog-city/pull/43), [`8327367`](https://github.com/BroderickHigby/fog-city/commit/8327367045eb0d16deacc3dda1e0cdffbd206a86) |
 | Night lighting | [PR #46](https://github.com/BroderickHigby/fog-city/pull/46), [`27975a2`](https://github.com/BroderickHigby/fog-city/commit/27975a260d1613b23d93cce2b6e4d3c94df10b87) |
 | Nearby skinned pedestrians | [PR #47](https://github.com/BroderickHigby/fog-city/pull/47), [`aa66a2a`](https://github.com/BroderickHigby/fog-city/commit/aa66a2ac28f017af1ae63dcf1e14d10a74f41be5) |
@@ -32,6 +36,9 @@ The integration preserves the existing physical city and its held-world exclusio
 | Relay, lobby and online Bot Sweep | [PR #32](https://github.com/BroderickHigby/fog-city/pull/32), [`c38cc23`](https://github.com/BroderickHigby/fog-city/commit/c38cc23c5a803455d61f4c60c74815234c77cf9f) |
 | Quick play, public rooms and bots | [PR #45](https://github.com/BroderickHigby/fog-city/pull/45), [`79b659a`](https://github.com/BroderickHigby/fog-city/commit/79b659ac7bb92ab4eaf121eb4960686d2adc60f6) |
 | Clean Streets online mode | [PR #51](https://github.com/BroderickHigby/fog-city/pull/51), [`aa157c8`](https://github.com/BroderickHigby/fog-city/commit/aa157c82d20e63c061bb834b546d50acfb102c0c) |
+| Credits preserved from the release base | [PR #63](https://github.com/BroderickHigby/fog-city/pull/63), [`08b53bb`](https://github.com/BroderickHigby/fog-city/commit/08b53bb49c9729a9b5e49a1fa481ec06de7e482c) |
+| GPU tiers and context recovery preserved from the release base | [PR #66](https://github.com/BroderickHigby/fog-city/pull/66), [`90efd18`](https://github.com/BroderickHigby/fog-city/commit/90efd18574db87026234f6d04c8e5f2b9107caa5) |
+| Bounded city catch-up and authoritative debug pause | [PR #72](https://github.com/BroderickHigby/fog-city/pull/72), [`00e1f30`](https://github.com/BroderickHigby/fog-city/commit/00e1f300679bc3e04ad6232fcd52d50501291bac) |
 
 The street index contains only markings, furniture, signs and DataSF street trees. The tree-only
 adaptation preserves the original tree producer, renderer, committed data and tests without
@@ -55,6 +62,14 @@ importing landcover, OSM data or OSM schema/index entries.
 - Clean Streets applies distraction after bot input planning, so flowers suppress a bot's spray
   as they suppress a human's. Starting Clean Streets with one human guarantees at least one
   bot on the opposing team, while other modes and larger groups keep their selected bot count.
+- The city frame pacer limits whole fixed ticks per rendered frame and discards excess wall-clock
+  backlog. It never controls relay-ordered multiplayer ticks. Debug pause remains authoritative
+  when a modal closes or queues a command. The graphics governor discounts only the simulation
+  section and ignores frames catching up multiple city or confirmed online ticks; avatar,
+  combat, audio and other render preparation remain part of its measured workload.
+- Context recovery preserves the free-roam city save even while an online match owns the screen.
+  A recovered GPU rebuilds the render environment; repeated loss reloads in the released safe
+  graphics mode. Credits and the existing GPU tier selection remain available.
 - Crowd admission measures actual loaded primitive/material costs, includes procedural overflow
   and retains the existing ambient draw budget. Spatial audio follows the occupied ride body;
   taxi chirp cooldowns survive brief changes between waiting and moving.
@@ -115,5 +130,20 @@ The browser suite now exercises real free-fly keys during an online match while 
 city hash/tick stay frozen and the match progresses. It also checks first-person hiding for a
 real second-player seat. These additions await the final browser gate.
 
-The final combined CI and final-head review readback are pending. No remote integration merge,
-release-branch move or production deployment is claimed by this document.
+The first combined CI passed 3,564 unit tests in 187 files after two mechanical repairs: the
+browser-spec documentation index and the asset licensing guard. Its browser run was cancelled
+when the public base advanced; the camera spec had passed, while the avatar spec had timed out
+and the campaign spec was interrupted. That run does not certify the refreshed candidate.
+
+After preserving the newer release base and adding city frame pacing, Node-22 typecheck and
+64 focused tests in seven files passed. The focused files cover frame pacing, graphics tier and
+governor policy, context recovery, held blasters, HUD/actors, avatar ground placement and the
+browser harness wiring. The upstream campaign-dialog repair restores the documented 60-second
+load-proof visibility waits in two places. No simulation assertion or timeout was changed.
+CI now stops the browser suite after its first failure so traces can upload promptly; successful
+runs still execute the complete suite, and informational screenshots run only after success.
+
+Refreshed final CI, focused avatar/context-loss browser checks and final-head review readback
+are pending. The earlier runtime preview predates the graphics/frame-pacing merge and is stale.
+The public release base described above is preserved; this candidate's remote integration merge,
+release-branch move and production deployment remain unverified.
