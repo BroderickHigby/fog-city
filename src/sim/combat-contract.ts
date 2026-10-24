@@ -83,7 +83,12 @@ export interface CombatContext {
   attacks?: readonly AttackRequest[];
   maintenance?: readonly MaintenanceRequest[];
   maintenanceKiosks?: readonly (Vec3 & { id: string })[];
-  groundHeight?: (x: number, z: number) => number;
+  /**
+   * The surface under (x, z). With `y` (the projectile's own height there), the surface at that
+   * level: a deck under a spray on the deck, a bore's floor under one in the tunnel, never the
+   * hill over it or the street under the deck. Without it, the ground.
+   */
+  groundHeight?: (x: number, z: number, y?: number) => number;
   safeLots?: readonly (Vec3 & { id: string; radius: number })[];
   streaks?: readonly StreakGrant[];
   night?: boolean;

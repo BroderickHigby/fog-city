@@ -133,7 +133,8 @@ export function segmentGroundFraction(a: Vec3, b: Vec3, ctx: CombatContext): num
   const clearance = (t: number): number => {
     const x = a.x + (b.x - a.x) * t;
     const z = a.z + (b.z - a.z) * t;
-    return a.y + (b.y - a.y) * t - height(x, z);
+    const y = a.y + (b.y - a.y) * t;
+    return y - height(x, z, y);
   };
   let previousT = 0;
   let previousClearance = clearance(0);
@@ -221,7 +222,7 @@ export function advanceProjectile(projectile: Projectile, ctx: CombatContext): P
   const next: Projectile = {
     ...projectile,
     x,
-    y: landed ? ctx.groundHeight?.(x, z) ?? 0 : projectile.y + dy * fraction,
+    y: landed ? ctx.groundHeight?.(x, z, projectile.y + dy * fraction) ?? 0 : projectile.y + dy * fraction,
     z,
     vy: projectile.vy - PROJECTILE_GRAVITY * DT * fraction,
     distance: Math.min(projectile.range, projectile.distance + length * fraction),

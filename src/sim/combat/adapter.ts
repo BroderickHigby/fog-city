@@ -1,6 +1,6 @@
 import { AGENT_SPEC, agentsOf } from "../agents.ts";
 import type { SimState } from "../contract.ts";
-import { groundHeight, nearbyBuildings, type World } from "../world.ts";
+import { groundHeight, nearbyBuildings, surfaceAt, type World } from "../world.ts";
 import { sortedIds } from "../contract.ts";
 import type { CombatActor, CombatContext, CombatPlayer, Wall } from "./types.ts";
 
@@ -52,7 +52,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     seen.add(building.id);
     walls.push({id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.underY??building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1])),footprint:building.footprint});
   }
-  return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
+  return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z,y)=>y===undefined?groundHeight(world,x,z):surfaceAt(world,x,z,y,false).y,
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),
     ...(options.fog!==undefined?{fog:options.fog}:{}),...(options.fogAt?{fogAt:options.fogAt}:{}),...(options.rain!==undefined?{rain:options.rain}:{}),...(options.night!==undefined?{night:options.night}:{}),
     ...(options.mode?{mode:options.mode}:{}),...(options.safeLots?{safeLots:options.safeLots}:{}),...(options.streaks?{streaks:options.streaks}:{}),
