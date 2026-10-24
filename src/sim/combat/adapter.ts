@@ -1,5 +1,6 @@
 import { AGENT_SPEC, agentsOf } from "../agents.ts";
 import { agentActorId } from "../identity.ts";
+import { playerPose, ridesByAgent } from "../ride.ts";
 import type { SimState } from "../contract.ts";
 import { groundHeight, nearbyBuildings, type World } from "../world.ts";
 import { sortedIds } from "../contract.ts";
@@ -46,15 +47,18 @@ function buildingWall(building: Building): Wall {
 export function contextFromState(world:World,state:Readonly<SimState>,options:CombatAdapterOptions={}):CombatContext {
   const players:CombatPlayer[]=sortedIds(state.players).map(id=> {
     const owner=state.players[id]!;
-    const body=owner.mode==="foot" && owner.foot ? owner.foot : owner.car;
+    const body=playerPose(owner);
     return {tankTier:0,flowTier:0,scannerTier:1,...options.loadouts?.[id],id,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:body.speed,mount:owner.mode==="foot"?"foot":"vehicle"};
   });
+  // design.md: a robotaxi with a rider aboard never seizes; it pulls over and the rider steps out.
+  const ridden=ridesByAgent(state);
   const actors:CombatActor[]=agentsOf(state).map(agent=> {
     const id=agentActorId(agent.id), spec=AGENT_SPEC[agent.kind], person=agent.kind==="person";
     // The defaults, then the actor lane's metadata (its defined descriptive fields), then the body.
     const actor:Record<string,unknown>={kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi"};
     const source=options.actorMetadata?.[id] as Readonly<Record<string,unknown>>|undefined;
     if(source)for(const field of METADATA_FIELDS){const value=source[field];if(value!==undefined)actor[field]=value;}
+    if(agent.kind==="robotaxi"&&ridden.has(agent.id))actor.occupied=true;
     actor.id=id;actor.x=agent.x;actor.y=agent.y;actor.z=agent.z;actor.heading=agent.heading;actor.speed=agent.speed;
     return actor as unknown as CombatActor;
   });

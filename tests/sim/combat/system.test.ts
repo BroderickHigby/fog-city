@@ -19,7 +19,8 @@ describe("integrated combat reducer",()=>{
     expect(seized).toBe(1);expect(heaps).toBe(1);expect(seizedTick).toBeLessThan(270);
     expect(state.targets.bot).toMatchObject({phase:"heap",puddle:true});
     expect(state.targets.bot!.heightScale).toBeLessThanOrEqual(.4);
-    expect(state.players.p1!.water).toBeCloseTo(4,8);
+    // Unlimited water (2026-10-23): the melt took real shots and the tank is still full.
+    expect(state.players.p1!.water).toBe(8);
   });
 
   it("never reaches a protected actor or the robot behind it across fifty scenes",()=>{
@@ -38,9 +39,10 @@ describe("integrated combat reducer",()=>{
     expect(hashState(run(a,180,inputs))).toBe(hashState(run(b,180,inputs)));
   });
 
-  it("conserves ammo, bounds particles, and remains finite after sustained empty firing",()=>{
-    const state=run(context([]),900,{p1:{fire:true,aimPitch:0}});
-    expect(state.players.p1!.water).toBe(0);expect(state.projectiles.length).toBeLessThan(40);
+  it("never drains water, keeps the fire rate, bounds particles and stays finite under sustained firing",()=>{
+    const ctx=context([]);let state=createCombatState(1,ctx),shots=0;
+    for(let n=0;n<900;n++){state=stepCombat(state,ctx,{p1:{fire:true,aimPitch:0}});shots+=state.events.filter(e=>e.kind==="weapon.water").length;}
+    expect(state.players.p1!.water).toBe(8);expect(shots).toBe(150);expect(state.projectiles.length).toBeLessThan(40);
     expect(()=>canonicalJson(state)).not.toThrow();
   });
 

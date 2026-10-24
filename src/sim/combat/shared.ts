@@ -10,6 +10,7 @@ export function protectedActor(a: CombatActor): boolean {
   return a.protected === true || a.kind === "animal" || a.kind === "person" && (a.child === true || a.mobilityAid === true || a.posture === "seated" || a.posture === "lying") || a.kind === "player" && a.robotBody !== true;
 }
 export function robotActor(a: CombatActor): boolean { return a.kind === "robot" || a.kind === "player" && a.robotBody === true; }
+/** Tank size, litres. Water no longer runs out (2026-10-23); kept for saves, refills and the salt switch. */
 export function capacity(p: CombatPlayer): number { return Math.max(1, 8 + p.tankTier * 4 - (p.perks?.includes("lean") ? 2 : 0)); }
 export function initialPlayer(p: CombatPlayer): PlayerCombat {
   return { water:capacity(p),salt:false,reserve:p.trunk?20:0,cones:3,balloons:2,nextWaterTick:0,nextConeTick:0,nextFlowerTick:0,nextGadgetTick:0,nextGearTick:0,gearUntil:0,gear:"none",refillId:"",refillTicks:0,scanId:"",scanTicks:0,nextScanTick:0,scan:null,previousMount:p.mount,held:[],boost:"none",boostUntil:0,lastParrotsTick:-3600,streakSequence:{},marks:[] };

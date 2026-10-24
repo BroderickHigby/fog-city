@@ -1,4 +1,5 @@
 import type {SimInput,SimState} from "../contract.ts";
+import { playerPose } from "../ride.ts";
 import {groundHeight,type World} from "../world.ts";
 import {makePath,projectOnPath} from "../roads.ts";
 import {createFollowerState,stepVehicleFollower,type FollowerState} from "../vehicles/follower.ts";
@@ -25,7 +26,7 @@ export interface TransitFrame {state:TransitRuntimeState;spawns:ActorBlueprint[]
 const magnitude=(x:number,z:number)=>Math.sqrt(x*x+z*z);
 const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
 const ferryIds=["s4513","s7283"];
-const playerBodies=(state:Readonly<SimState>)=>Object.keys(state.players).sort().map(id=>{const p=state.players[id]!;return p.mode==="foot"&&p.foot?p.foot:p.car;});
+const playerBodies=(state:Readonly<SimState>)=>Object.keys(state.players).sort().map(id=>{const p=state.players[id]!;return playerPose(p);});
 
 /** Source routes and stop identities remain untouched; goals project onto drivable lanes. */
 function buildFerryPlan(world:World,data:TransitLayer):{routeId:string;ferry:BusStop;stops:BusStop[]}|null{

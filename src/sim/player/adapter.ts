@@ -1,4 +1,5 @@
 import { Action } from "../contract.ts";
+import { playerPose } from "../ride.ts";
 import { dcos,dsin } from "../dmath.ts";
 import { segmentBlocked } from "../world.ts";
 import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
@@ -39,7 +40,7 @@ export function combatFacts(events:readonly CombatEvent[],combat?:Pick<CombatSta
  });
 }
 export const defaultGameplayProvider:GameplayProvider=context=>{
- const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=player.mode==="foot"&&player.foot?player.foot:player.car;return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
+ const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=playerPose(player);return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
  const clock=context.state.ext.clock as {day?:number;month?:number}|undefined;
  return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
@@ -63,7 +64,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
   const caught=new Set((context.state.ext.combat?.attacks??[]).filter(a=>a.active).map(a=>a.attackerId));
   const visible=(a:{x:number;z:number},b:{x:number;z:number},radius:number)=>distanceSquared({...a,y:0},{...b,y:0})<=radius*radius&&!segmentBlocked(context.world,a.x,a.z,b.x,b.z);
   const observations=base.bodies.map(body=>{
-   const player=context.state.players[body.id]!,pose=player.mode==="foot"&&player.foot?player.foot:player.car;
+   const player=context.state.players[body.id]!,pose=playerPose(player);
    const isWatching=!!((context.inputs[body.id]?.actions??0)&Action.watch);
    const forward=(actor:CombatActor)=>(actor.x-body.x)*dsin(pose.heading)-(actor.z-body.z)*dcos(pose.heading);
    const angularError=(actor:CombatActor)=>{const x=actor.x-body.x,z=actor.z-body.z,d2=x*x+z*z,cross=x*dcos(pose.heading)+z*dsin(pose.heading);return d2>0?cross*cross/d2:0;};
