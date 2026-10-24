@@ -124,6 +124,13 @@ export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
 const SEA_SIZE_M = 2 * CAMERA_FAR_M + 2000;
 /** Environment maps kept for the clock's sky and the presets. */
+/**
+ * Cube size of the sky's environment maps. A new one is built whenever the clock's sun moves a few
+ * degrees or the weather steps (envFor), and three's GGX prefilter costs in proportion to its
+ * pixels: at the default 256 one build stalled a SwiftShader frame for 3.7 s, at 128 for 0.6 s.
+ * The sky is smooth gradients and soft clouds, so the smaller cube costs little detail.
+ */
+const ENV_MAP_SIZE = 128;
 const ENV_CACHE_MAX = 12;
 /** The local car's headlight at full night. */
 const HEADLIGHT_NIGHT = 140;
@@ -417,7 +424,7 @@ export class SceneRenderer {
     }
     const previousLinear = fcUniforms.fcLinearOutput.value;
     fcUniforms.fcLinearOutput.value = 1;
-    try { env = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 2000).texture; }
+    try { env = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 2000, { size: ENV_MAP_SIZE }).texture; }
     finally { fcUniforms.fcLinearOutput.value = previousLinear; }
     this.envCache.set(key, env);
     while (this.envCache.size > ENV_CACHE_MAX) {
