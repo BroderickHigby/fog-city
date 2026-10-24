@@ -22,17 +22,28 @@ flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/convert.py -- /
 
 `source-files.json` records SHA-256 values for the immutable input files. Conversion retains the original 7,440 triangles and skinned rig, creates neutral idle/walk/run clips from the matching library skeleton, removes planar root travel so the simulation controls position, orients the character toward glTF -Z and normalizes the feet to the origin. Color textures use JPEG; normal/opacity textures remain PNG. Body and normal images are capped at 1024 pixels; the face color retains 2048 pixels.
 
-## Dodge clips (`public/models/generic-player-dodge.glb`)
+## Shared clips for every human on this skeleton (`public/models/anim/`)
 
-When a car comes at a player on foot, the body plays these clips (`src/render/player-body.ts` `motionFor`): `runStart` (a startled push-off), then `run` or `sprint` at the sim's speed (time-scaled to the clip's own speed so the feet don't slide), `flinch` for a short sidestep, `stumble` for the clearance override's shove, and `recover` (brushing off) once clear. The file holds only the avatar's skeleton and the clips (612 KB), so the reviewed `generic-player.glb` stays unchanged. three.js binds the tracks by bone name.
+`clips.py` bakes clip-only GLBs on the avatar's skeleton (no mesh or textures; three.js binds the tracks to `generic-player.glb`'s bones, or any Rocketbox `Bip01` character's, by name). The reviewed `generic-player.glb` is unchanged. Every source file's SHA-256 and each output's are in `clips.json`. The bake is deterministic.
 
-- Rocketbox (MIT, the same pinned commit): `m_run_fast_01`, `m_run_start`, `m_run_stop`, `m_idle_dust_01`, baked exactly as `convert.py` bakes idle/walk/run.
-- Mixamo (Adobe): `Stumble Backwards` (frames 1-20, cut before the fall) and `Dodging Right`, from the owner's download on branch `assets/mixamo-raw` (`4fa39e3`). They are retargeted onto the Rocketbox rig by bone direction: limbs are turned from T-pose to the rig's rest along their joint-to-joint segments, the trunk, head and feet are taken as both rigs' upright rest, and the hip height is scaled. Mixamo's terms allow use in games; the raw FBX files are not redistributed by the build.
-- `dodge-clips.json` records every source file's SHA-256 and the output's.
+- **`dodge-clips.glb`** (≈600 KB): getting out of a car's way (`src/render/human-motion.ts` `motionFor`).
+  - Rocketbox `m_run_start` → `runStart` (the startled push-off), `m_run_fast_01` → `sprint` (time-scaled to the sim's speed so the feet don't slide), `m_run_stop` → `runStop`, `m_idle_dust_01` → `recover` (brushing off).
+  - Mixamo "Stumble Backwards" (frames 1–20, cut before the fall) → `stumble` (the override's shove) and "Dodging Right" → `flinch` (a sidestep).
+- **`crowd-clips.glb`** (≈2 MB): varied idles and walks for the crowd (Lane R's skinned crowd picks by agent id).
+  - Rocketbox `walkStroll`, `walkSlow`, `walkFast`, `walkCool`, `jog`, `idleBreathe`, `idleTexting`, `idleWaiting`. Long idles are cut to 10 s loops.
+  - Mixamo `walkCasual` (female locomotion walking), `walkTexting`, `idleHappy`, `idleLookAround`, `idlePhone`, `idleArguing`, `wave`, `clap`.
+  - Each walk's speed (`sourceSpeedMps`) is in `clips.json` and the root's extras.
+
+**Retargeting Mixamo onto the Rocketbox rig** (`retarget_mixamo`):
+1. Each mapped bone takes its source bone's world rotation since the source's rest pose. That rotation is expressed in the target's facing (the root's half turn) so a nod stays a nod.
+2. A limb (clavicle, arm, forearm, thigh, calf) is first turned from its rest segment onto the source's (the T-pose/A-pose difference). The trunk, head and feet use both rigs' upright rest.
+3. The clip is turned to face the way the body moves, as the Rocketbox clips do.
+4. The hip height is scaled by the two rigs' hip heights, and planar root travel is removed (the sim moves the body).
 
 ```sh
 python3 assets/imports/rocketbox/fetch.py /tmp/fog-rocketbox --dodge
-git show 'origin/assets/mixamo-raw:assets/mixamo/Stumble Backwards.fbx' > '/tmp/fog-mixamo/Stumble Backwards.fbx'
-git show 'origin/assets/mixamo-raw:assets/mixamo/Dodging Right.fbx' > '/tmp/fog-mixamo/Dodging Right.fbx'
-flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/generic-player-dodge.glb /tmp/fog-mixamo
+# the Mixamo inputs, from the owner's download (paths as in clips.py's lists):
+mkdir -p /tmp/fog-mixamo && git archive origin/assets/mixamo-raw assets/mixamo | tar -x -C /tmp/fog-mixamo --strip-components=2
+flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/anim/dodge-clips.glb /tmp/fog-mixamo --set dodge
+flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/clips.py -- /tmp/fog-rocketbox public/models/anim/crowd-clips.glb /tmp/fog-mixamo --set crowd
 ```

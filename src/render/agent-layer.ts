@@ -66,6 +66,7 @@ import {
 } from "./agent-packing.ts";
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
+import { leapDrawOffset } from "./human-motion.ts";
 import { HIP, SHOULDER, STRIDE_M, WALK_ARM, WALK_LEG, dodgePose, newLook, personLook, personParts, strideFor, type PersonLook, type PersonPose } from "./person.ts";
 
 // ---------------------------------------------------------------- one instanced part
@@ -171,6 +172,8 @@ const _q = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, "YXZ");
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
+/** The override's drawn offset (human-motion.ts leapDrawOffset). */
+const _off = { x: 0, z: 0 };
 const _one = new THREE.Vector3(1, 1, 1);
 
 /** Agent placement: origin on the ground, rotation.y = -heading, nose-up pitch, uniform scale. */
@@ -500,6 +503,13 @@ export class AgentLayer {
       const b = pairs[i]![1];
       const w = this.windows.get(b.id)!;
       const p = interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), this.poses[i]!);
+      // The override moved this body at once: drawn as a shove aside from where it was (human-motion.ts).
+      if (b.dodge && b.dodge.leap && b.dodge.phase === "dive") {
+        leapDrawOffset(b.dodge, alpha, _off);
+        p.x = b.x + _off.x;
+        p.y = b.y;
+        p.z = b.z + _off.z;
+      }
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;

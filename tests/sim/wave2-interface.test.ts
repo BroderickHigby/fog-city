@@ -4,7 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v10.json";
+import currentReplay from "../golden/wave2-v11.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -83,9 +83,9 @@ describe("wave-2 shared interface", () => {
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
-      // v8 changed composed gameplay, not this core-only replay; v10 changes how people dodge
+      // v8 changed composed gameplay, not this core-only replay; v11 changes how people dodge
       // (on their feet), which this replay's traffic does from its second segment on. The v7
-      // fixture (wave2-v7.json) stays as the record; this pins v10, normalizing only the version.
+      // fixture (wave2-v7.json) stays as the record; this pins v11, normalizing only the version.
       expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
@@ -93,7 +93,7 @@ describe("wave-2 shared interface", () => {
   });
 
   it("rejects unavailable intermediate and future migrations", () => {
-    for (const version of [0, -1, 2.5, SIM_VERSION + 1, NaN]) {
+    for (const version of [0, -1, 2.5, 9, SIM_VERSION + 1, NaN]) {
       expect(() => upgradeState({ ...baseline.initial, version } as unknown as SimState)).toThrow("cannot upgrade");
     }
   });

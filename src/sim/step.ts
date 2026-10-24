@@ -40,6 +40,7 @@ import { meshGroundHeight, type World } from "./world.ts";
 import { prepareSystems, runSystems, SYSTEMS } from "./systems.ts";
 import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
+import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
 
@@ -133,10 +134,12 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    the first dive. tests/sim/legacy-saves.test.ts loads real saves from those branches.
  *  - v7 -> v8: gameplay behavior changes without a required field rewrite. Preserve the
  *    complete saved state, including active missions, combat effects and future extensions.
- *  - v8 (and v9, the structural world's) -> v10: people dodge on their feet (dodge.ts). Every
- *    dodge under way gains a velocity (0: it sets off again from a standstill) and a top speed
- *    (its profile's); a person's or a player's hop is taken off their height and set to 0, and a
- *    leap's drawn hop with it (peak 0). Robots keep their hop. Nothing else changes.
+ *  - v8 -> v10 (v9 is the structural world's reserved stamp): weather changes behaviour only.
+ *    Every saved field is kept; ext.fog, when absent, is created by the fog reducer.
+ *  - v10 -> v11: people dodge on their feet (dodge.ts). Every dodge under way gains a velocity
+ *    (0: it sets off again from a standstill) and a top speed (its profile's); a person's or a
+ *    player's hop is taken off their height and set to 0, and a leap's drawn hop with it (peak
+ *    0). Robots keep their hop. Nothing else changes.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -145,23 +148,25 @@ export function upgradeState(s: Readonly<SimState>): SimState {
     return upgradeState(upgradeLegacyFields(s, s.version + 1));
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
-  if (s.version === 8 || s.version === 9) return upgradeDodgeV10(s);
+  if (s.version === 8) return upgradeState({ ...s, version: 10 });
+  if (s.version === 10) return upgradeState(upgradeDodgeOnFoot(s, 11));
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
-/** A v8/v9 dodge as v10 has it, for a body of this class: see upgradeState. */
-function dodgeV10(d: Readonly<DodgeState>, cls: DodgeClass): DodgeState {
+/** A dodge from before people dodged on their feet, as `upgradeDodgeOnFoot` leaves it, for a body of this class. */
+function dodgeOnFoot(d: Readonly<DodgeState>, cls: DodgeClass): DodgeState {
   const prof = DODGE_PROFILE[cls];
   const person = prof.override !== null;
   return { ...d, hop: person ? 0 : d.hop, peak: person ? 0 : d.peak, vx: d.vx ?? 0, vz: d.vz ?? 0, vmax: d.vmax ?? prof.speed };
 }
 
-function upgradeDodgeV10(s: Readonly<SimState>): SimState {
+/** The step to the version (`version`) in which people dodge on their feet: see upgradeState. */
+function upgradeDodgeOnFoot(s: Readonly<SimState>, version: number): SimState {
   const players: Record<PlayerId, PlayerState> = {};
   for (const id of sortedIds(s.players)) {
     const p = s.players[id]!;
     const f = p.foot;
-    players[id] = f && f.dodge ? { ...p, foot: { ...f, y: f.y - f.dodge.hop, dodge: dodgeV10(f.dodge, "player") } } : p;
+    players[id] = f && f.dodge ? { ...p, foot: { ...f, y: f.y - f.dodge.hop, dodge: dodgeOnFoot(f.dodge, "player") } } : p;
   }
   const ext = { ...s.ext };
   const agents = ext[AGENTS_EXT_KEY];
@@ -171,12 +176,12 @@ function upgradeDodgeV10(s: Readonly<SimState>): SimState {
       list: agents.list.map((a) => {
         const cls = agentDodgeClass(a);
         if (!a.dodge || !cls) return a;
-        const d = dodgeV10(a.dodge, cls);
+        const d = dodgeOnFoot(a.dodge, cls);
         return { ...a, y: a.y - a.dodge.hop + d.hop, dodge: d };
       }),
     };
   }
-  return { ...s, version: 10, players, ext };
+  return { ...s, version, players, ext };
 }
 
 function upgradeV1(s: Readonly<SimState>): SimState {
@@ -408,7 +413,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   if (exitPending && canExit(p.car)) return getOut(p.car);
   // While an exit is pending the car brakes to a stop by itself, then the player gets out.
   const drive: SimInput = exitPending ? { throttle: 0, steer: 0, brake: 1, actions: input.actions } : input;
-  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? []);
+  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? [], tractionAt(world, obs.prev, p.car.x, p.car.z));
   if (exitPending && canExit(car)) return getOut(car);
   return { ...p, car, exitPending };
 }

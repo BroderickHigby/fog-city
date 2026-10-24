@@ -6,10 +6,13 @@ base=f'https://raw.githubusercontent.com/microsoft/Microsoft-Rocketbox/{commit}/
 paths=['Assets/Avatars/Adults/Male_Adult_01/Export/Male_Adult_01.fbx']
 paths += ['Assets/Avatars/Adults/Male_Adult_01/Textures/'+n+'.tga' for n in ['m002_body_color','m002_body_normal','m002_head_color','m002_head_normal','m002_opacity_color']]
 paths += ['Assets/Animations/all_animations_max_motextr_static/m_idle_neutral_01.max.fbx','Assets/Animations/all_animations_max_motextr_xy/m_walk_neutral.max.fbx','Assets/Animations/all_animations_max_motextr_xy/m_run_neutral.max.fbx']
-# --dodge: also the motions clips.py bakes into generic-player-dodge.glb (the dodge stream).
+# --dodge: also the motions clips.py bakes into public/models/anim/{dodge,crowd}-clips.glb (the dodge stream).
 if '--dodge' in sys.argv:
  paths += ['Assets/Animations/all_animations_max_motextr_xy/'+n+'.max.fbx' for n in ['m_run_fast_01','m_run_start','m_run_stop']]
  paths += ['Assets/Animations/all_animations_max_motextr_static/m_idle_dust_01.max.fbx']
+ # the crowd set (clips.py --set crowd)
+ paths += ['Assets/Animations/all_animations_max_motextr_xy/'+n+'.max.fbx' for n in ['m_walk_stroll_01','m_walk_slow_01','m_walk_fast_01','m_walk_cool_01','m_run_slow_01']]
+ paths += ['Assets/Animations/all_animations_max_motextr_static/'+n+'.max.fbx' for n in ['m_idle_breathe_01','m_cell_phone_textmessage','m_idle_waiting_01']]
 out=Path(sys.argv[1]);out.mkdir(parents=True,exist_ok=True)
 records=[]
 for path in paths:

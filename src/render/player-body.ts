@@ -8,37 +8,15 @@ import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { DodgeState } from "../sim/contract.ts";
-import { STARTLE_S } from "./person.ts";
+import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
-/** The dodge clips (no mesh): Rocketbox runs and recovery, Mixamo stumble and flinch (README). */
-export const PLAYER_DODGE_FILE = "models/generic-player-dodge.glb";
-type Motion = "idle" | "walk" | "run" | "sprint" | "runStart" | "runStop" | "recover" | "stumble" | "flinch";
-const MOTIONS: readonly Motion[] = ["idle", "walk", "run", "sprint", "runStart", "runStop", "recover", "stumble", "flinch"];
-/** Played once and held, not looped. */
-const ONCE: ReadonlySet<Motion> = new Set(["runStart", "runStop", "stumble", "flinch"]);
-/** A dive no longer than this is a sidestep (sim/dodge.ts SIDESTEP_M): it flinches rather than runs. */
-const SIDESTEP_M = 1.4;
+/** The dodge clips (no mesh), shared by every human on the Rocketbox skeleton (assets/imports/rocketbox/README.md). */
+export const PLAYER_DODGE_FILE = "models/anim/dodge-clips.glb";
+export { motionFor };
 /** Blend between clips, seconds (a dodge's clips change faster than a walk's). */
 const FADE_S = 0.25;
 const DODGE_FADE_S = 0.12;
-
-/**
- * Which clip a body plays: walking or standing by its speed; dodging by its phase (a startle,
- * then a run, sprint or sidestep by speed; the override's leap as a stumble; recovering, brushing
- * off). `have` says which clips loaded (a missing one falls back to the plain locomotion).
- */
-export function motionFor(speed: number, dodge: Readonly<DodgeState> | null, have: (m: Motion) => boolean): Motion {
-  const v = Math.abs(speed);
-  const locomotion: Motion = v >= 4.2 && have("sprint") ? "sprint" : v >= 2.4 && have("run") ? "run" : v >= 0.2 && have("walk") ? "walk" : "idle";
-  if (!dodge) return locomotion;
-  if (dodge.phase === "recover") return have("recover") ? "recover" : "idle";
-  if (dodge.leap) return have("stumble") ? "stumble" : "idle";
-  const len = Math.hypot(dodge.tx - dodge.sx, dodge.tz - dodge.sz);
-  if (len <= SIDESTEP_M && have("flinch")) return "flinch";
-  if (dodge.t / 60 < STARTLE_S && have("runStart")) return "runStart";
-  return locomotion === "idle" || locomotion === "walk" ? (have("run") ? "run" : locomotion) : locomotion;
-}
 interface Body {
   root: THREE.Object3D;
   mixer: THREE.AnimationMixer;

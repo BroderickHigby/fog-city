@@ -66,11 +66,12 @@ for (const speed of SPEEDS) {
     const yaw = (Math.atan2(-side.x, side.z) * 180) / Math.PI;
     const follow = async (): Promise<{ x: number; y: number; z: number }> => {
       const at = await page.evaluate((id) => {
-        type A = { id: number; x: number; y: number; z: number };
+        type A = { id: number; x: number; y: number; z: number; dodge: { hop: number } | null };
         const list = ((window as unknown as FogWindow).__fogcity!.state().ext as Record<string, { list?: A[] }>).agents?.list ?? [];
         return list.find((a) => (a as A).id === id) as A | undefined;
       }, picked.id);
-      const p = at ?? picked.person;
+      // (At the ground under them, not their height: a hop shows as a hop.)
+      const p = at ? { x: at.x, y: at.y - (at.dodge?.hop ?? 0), z: at.z } : picked.person;
       const cam = { x: p.x + side.x * SIDE_M, y: p.y + 1.1, z: p.z + side.z * SIDE_M };
       await page.evaluate(([x, y, z, yw]) => (window as unknown as FogWindow).__fogcity!.flyTo!(x!, y!, z!, yw!, -4), [cam.x, cam.y, cam.z, yaw]);
       return cam;

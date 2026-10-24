@@ -19,12 +19,16 @@
 // fields and supplies only missing vertical/dodge fields before advancing to v7.
 // v8: composed gameplay admits and retires actors consistently, applies combat motion effects,
 // and observes mission outcomes. No saved fields are removed or reset by this upgrade.
-// v9 is reserved for the structural world (height-aware walker motion; docs/FOG_CITY_HANDOFF.md).
-// v10 (the dodge stream, 2026-10-23): people get out of a vehicle's way on their feet, the way
+// v9 is reserved for the structural world (World stream) and is never written by this chain.
+// v10: wave-3 weather (src/sim/fog): seeded marine layer, winter rain, wet-road traction, rain
+// puddles, shelter, the King tide's flooded promenade, rain breaking phone hacks and the
+// per-shot wet rule. ext.fog gains its typed shape; an upgraded v8 save keeps every field and
+// the fog reducer fills ext.fog on its first tick.
+// v11 (the dodge stream, 2026-10-23): people get out of a vehicle's way on their feet, the way
 // people do: a sidestep, a jog or a sprint at human speeds (about 2.5-6 m/s) with limited
 // acceleration, never a hop or a flight. DodgeState gains the body's velocity (vx, vz) and the
-// dodge's top speed (vmax); a person's hop is always 0. upgradeState lifts v8 (and v9) saves.
-export const SIM_VERSION = 10;
+// dodge's top speed (vmax); a person's hop is always 0. upgradeState lifts the previous version.
+export const SIM_VERSION = 11;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -152,7 +156,7 @@ export interface CarState {
  * v4: a body getting out of a vehicle's way (src/sim/dodge.ts): a dive to a clear spot, then a
  * moment to recover. While it lasts the body ignores its own controls (a player) or its path (an
  * agent), and its y includes the hop.
- * v10: a person's "dive" is on their feet (a sidestep, a jog or a sprint toward (tx, tz) at up to
+ * v11: a person's "dive" is on their feet (a sidestep, a jog or a sprint toward (tx, tz) at up to
  * vmax, speeding up and slowing down at human rates); only robots still hop.
  */
 export interface DodgeState {
@@ -174,7 +178,7 @@ export interface DodgeState {
    * or a shove aside, never a flight). Otherwise it moves from (sx, sz) to (tx, tz) over the dive.
    */
   leap: boolean;
-  // ---- v10 additions ----
+  // ---- v11 additions ----
   /** The body's horizontal velocity now, m/s (0 while recovering and after a leap). */
   vx: number;
   vz: number;

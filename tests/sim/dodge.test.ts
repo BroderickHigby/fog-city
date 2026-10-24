@@ -12,6 +12,7 @@ import {
   EMERGENCY_BOOST,
   FOOT,
   LANDING_EXTRA_M,
+  LANDING_PER_MPS,
   SAMPLE_S,
   SLIP_RAD,
   advanceDodge,
@@ -68,7 +69,7 @@ function carVehicle(x: number, z: number, heading: number, speed: number, latera
 }
 
 describe("the predicted footprint", () => {
-  it("looks 1 s ahead, 0.05 s more per m/s, at most 2.5 s (v10: people on foot need the time)", () => {
+  it("looks 1 s ahead, 0.05 s more per m/s, at most 2.5 s (v11: people on foot need the time)", () => {
     expect(horizonS(0)).toBe(1);
     expect(horizonS(10)).toBeCloseTo(1.5, 12);
     expect(horizonS(20)).toBeCloseTo(2, 12);
@@ -172,8 +173,9 @@ describe("the predicted footprint", () => {
 describe("where a body dives", () => {
   const person = (x: number, z: number, id = 1) => ({ x, z, y: 0, r: 0.3, cls: "person" as const, id });
 
-  it("square to the path, to the side it is on, just clear of the footprint plus margin and the landing extra", () => {
+  it("square to the path, to the side it is on, just clear of the footprint plus margin and the landing extra (v11: more from a faster car holding its line)", () => {
     const v = carVehicle(0, 30, 0, 25); // north at 25 m/s, at the person (x 0.4 right of its line)
+    const extra = LANDING_EXTRA_M + LANDING_PER_MPS * 25;
     for (const [x, side] of [
       [0.4, 1],
       [-0.4, -1],
@@ -183,9 +185,9 @@ describe("where a body dives", () => {
       const to = chooseDive(ground(flat), b, hit, [v], [])!;
       expect(Math.sign(to.x - b.x)).toBe(side);
       expect(Math.abs(to.z - b.z)).toBeLessThan(1e-9);
-      expect(sweepClearance(v, to.x, to.z)).toBeGreaterThanOrEqual(b.r + 0.75 + LANDING_EXTRA_M - 1e-9);
+      expect(sweepClearance(v, to.x, to.z)).toBeGreaterThanOrEqual(b.r + 0.75 + extra - 1e-9);
       // ... and not much further than that (the nearest clear spot on the line).
-      expect(sweepClearance(v, to.x, to.z)).toBeLessThan(b.r + 0.75 + LANDING_EXTRA_M + 0.3);
+      expect(sweepClearance(v, to.x, to.z)).toBeLessThan(b.r + 0.75 + extra + 0.3);
     }
   });
 
@@ -204,7 +206,7 @@ describe("where a body dives", () => {
   it("its side blocked by a building: the other side, never into or through the building", () => {
     // A building's face 0.6 m right of the person (east), the car coming north 0.4 m to their left.
     const w = buildWorld([{ tileId: "b", buildings: [box("b", 1.0, -20, 20, 20)], ground: null }]);
-    const v = carVehicle(-0.4, 50, 0, 25); // (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v10)
+    const v = carVehicle(-0.4, 50, 0, 25); // (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v11)
     const b = person(0.1, 0);
     const to = chooseDive(ground(w), b, sweepHit(v, b.x, b.z, 1.05)!, [v], [])!;
     expect(to.x).toBeLessThan(-0.4); // across the car's path, to the west
@@ -216,7 +218,7 @@ describe("where a body dives", () => {
     const boundary: BoundaryFile = { version: 1, seaLevelY: 0, edges: [], shore: [{ closed: false, points: [[1, -200], [1, 200]] }] };
     const w = buildWorld([{ tileId: "f", buildings: [], ground: null }], null, boundary);
     expect(w.walls!.segments.length).toBe(1);
-    const v = carVehicle(-0.3, 50, 0, 25); // (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v10)
+    const v = carVehicle(-0.3, 50, 0, 25); // (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v11)
     const b = person(0.2, 0);
     const to = chooseDive(ground(w), b, sweepHit(v, b.x, b.z, 1.05)!, [v], [])!;
     expect(to.x).toBeLessThan(0);
@@ -231,7 +233,7 @@ describe("where a body dives", () => {
   });
 
   it("never into another vehicle's path: with a second car coming down its side, it dives the other way", () => {
-    const v = carVehicle(0, 50, 0, 25); // north, on the person's line (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v10)
+    const v = carVehicle(0, 50, 0, 25); // north, on the person's line (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v11)
     const w = carVehicle(2.6, -36, Math.PI, 25); // south, 2.6 m east (the person's side)
     expect(sweepClearance(w, 2.6, 0)).toBeLessThan(0); // its path does cross the person's row
     const b = person(0.3, 0);
@@ -241,7 +243,7 @@ describe("where a body dives", () => {
   });
 
   it("never through a stopped vehicle: with a robotaxi waiting on its side, it dives the other way, not through it", () => {
-    const v = carVehicle(0, 50, 0, 25); // north, on the person's line (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v10)
+    const v = carVehicle(0, 50, 0, 25); // north, on the person's line (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v11)
     const base = (scene(flat, [], [{ id: 9, x: 2.4, z: 0, kind: "robotaxi" }]).ext.agents as AgentsExt).list[0]!;
     const parked = vehicleOfAgent({ ...base, speed: 0, heading: 0 }, null, 1 / 60); // waiting 2.4 m east
     expect(parked.paths).toEqual([]);
@@ -259,7 +261,7 @@ describe("where a body dives", () => {
   it("not along a line the car reaches first: too close for one side, it takes a spot it reaches in time", () => {
     // The car's nose 10 m from the person, at 15 m/s (0.67 s), the person at its left front corner:
     // on foot the far side (across the car's front) is out of reach in time, so it goes left (its
-    // own side). (v10: was 1.2 m at 30 m/s, a distance only the old 9 m/s leap covered.)
+    // own side). (v11: was 1.2 m at 30 m/s, a distance only the old 9 m/s leap covered.)
     const v = carVehicle(0.5, 10 + 2.5, 0, 15);
     const b = person(-0.6, 0);
     const to = chooseDive(ground(flat), b, sweepHit(v, b.x, b.z, 1.05)!, [v], [])!;
@@ -337,7 +339,7 @@ describe("where a body dives", () => {
 describe("the clearance override", () => {
   const person = (x: number, z: number) => ({ x, z, y: 0, r: 0.3, cls: "person" as const, id: 1 });
 
-  it("puts a body inside a car at the nearest spot outside its reach plus the clearance", () => {
+  it("puts a body inside a car at the nearest spot outside its reach plus the clearance that is also clear of its path by the body's margin (v11: so it is not needed again a moment later)", () => {
     const v = carVehicle(0, 0, 0, 20);
     const b = person(0.5, -1);
     const to = overrideSpot(ground(flat), b, [v], [], 0.3)!;
@@ -345,9 +347,11 @@ describe("the clearance override", () => {
     expect(boxDistance(to.x, to.z, v.x, v.z, v.fx, v.fz, v.hl, v.hw)).toBeGreaterThanOrEqual(0.6);
     // Clear of everywhere the car can be by the next tick, by the clearance.
     expect(zoneDistance(v, to.x, to.z)).toBeGreaterThanOrEqual(0.6);
-    // Out of the near side (east), about 0.95 - 0.5 + 0.6 m away plus the car's reach.
+    // Out of the near side (east), clear of its predicted path by the margin: about
+    // 0.95 - 0.5 + 0.3 + 0.75 m away (half its width, less where the body is, its radius and margin).
     expect(to.x).toBeGreaterThan(1.5);
-    expect(Math.hypot(to.x - b.x, to.z - b.z)).toBeLessThan(0.95 - 0.5 + 0.6 + v.inflate + 0.15);
+    expect(sweepClearance(v, to.x, to.z, false)).toBeGreaterThanOrEqual(b.r + DODGE_PROFILE.person.margin - 1e-9);
+    expect(Math.hypot(to.x - b.x, to.z - b.z)).toBeLessThan(0.95 - 0.5 + b.r + DODGE_PROFILE.person.margin + 0.3);
   });
 
   it("pinned against a building, it leaps over the car to the other side, never into or through the building", () => {
@@ -447,7 +451,7 @@ describe("the dodge in step()", () => {
     expect(p.mode).toBe("go");
   });
 
-  it("a dodging person stays on the ground (v10: no hop), is in mode dive then recover, runs at no more than a scramble's pace and ignores its path meanwhile", () => {
+  it("a dodging person stays on the ground (v11: no hop), is in mode dive then recover, runs at no more than a scramble's pace and ignores its path meanwhile", () => {
     let s = scene(flat, [{ id: "a", x: 0, z: 60, heading: 0, speed: 25 }], [{ id: 1, x: 0.2, z: 0 }]);
     const modes = new Set<string>();
     let maxHop = 0;

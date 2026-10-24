@@ -1,5 +1,6 @@
-"""Bake the dodge clips for generic-player.glb into public/models/generic-player-dodge.glb.
-Usage: blender -b --python clips.py -- SOURCE_DIRECTORY OUTPUT.glb [MIXAMO_DIRECTORY]
+"""Bake clips for every human on generic-player.glb's skeleton: the dodge set (public/models/anim/
+dodge-clips.glb) or the crowd's varied idles and walks (public/models/anim/crowd-clips.glb).
+Usage: blender -b --python clips.py -- SOURCE_DIRECTORY OUTPUT.glb [MIXAMO_DIRECTORY] [--set dodge|crowd]
 SOURCE_DIRECTORY holds Male_Adult_01.fbx and the Rocketbox motions named below (fetch.py --dodge).
 The output has no mesh or texture: only the avatar's skeleton (the same node names, so three.js
 binds its tracks to generic-player.glb's bones) and these clips, baked the way convert.py bakes
@@ -11,21 +12,47 @@ import bpy, math, os, sys, json, struct
 from mathutils import Matrix, Vector, Quaternion
 
 args = sys.argv[sys.argv.index('--') + 1:]
+which = 'dodge'
+if '--set' in args:
+    which = args[args.index('--set') + 1]
+    args = [a for i, a in enumerate(args) if a != '--set' and (i == 0 or args[i - 1] != '--set')]
 source, output = args[0], args[1]
 mixamo = args[2] if len(args) > 2 else None
 
-# (clip name, Rocketbox file): what each dodge phase plays (src/render/player-body.ts).
-ROCKETBOX = [
+# (clip name, Rocketbox file): what each dodge phase plays (src/render/human-motion.ts).
+DODGE_ROCKETBOX = [
     ('sprint', 'm_run_fast_01.max.fbx'),      # running flat out out of the way
     ('runStart', 'm_run_start.max.fbx'),      # the startled push-off into a run
     ('runStop', 'm_run_stop.max.fbx'),        # pulling up once clear
     ('recover', 'm_idle_dust_01.max.fbx'),    # brushing off, catching their breath
 ]
 # (clip name, Mixamo file, first frame, last frame): retargeted (Mixamo, used in-game under its licence).
-MIXAMO = [
+DODGE_MIXAMO = [
     ('stumble', 'Stumble Backwards.fbx', 1, 20),  # the override's shove: staggering back, cut before any fall
     ('flinch', 'Dodging Right.fbx', 1, 44),       # a sidestep's flinch away from the car
 ]
+# The crowd: walks and idles to vary who does what (Lane R's skinned crowd picks by agent id).
+CROWD_ROCKETBOX = [
+    ('walkStroll', 'm_walk_stroll_01.max.fbx'),
+    ('walkSlow', 'm_walk_slow_01.max.fbx'),
+    ('walkFast', 'm_walk_fast_01.max.fbx'),
+    ('walkCool', 'm_walk_cool_01.max.fbx'),
+    ('jog', 'm_run_slow_01.max.fbx'),
+    ('idleBreathe', 'm_idle_breathe_01.max.fbx'),
+    ('idleTexting', 'm_cell_phone_textmessage.max.fbx'),  # (its first ROCKETBOX_MAX_FRAMES)
+    ('idleWaiting', 'm_idle_waiting_01.max.fbx'),
+]
+CROWD_MIXAMO = [
+    ('walkCasual', 'female-locomotion/walking.fbx', 1, 30),
+    ('walkTexting', 'Walking While Texting.fbx', 1, 121),
+    ('idleHappy', 'Happy Idle.fbx', 1, 61),
+    ('idleLookAround', 'Looking Around.fbx', 1, 191),
+    ('idlePhone', 'Talking On Phone.fbx', 1, 300),
+    ('idleArguing', 'Standing Arguing.fbx', 1, 300),
+    ('wave', 'Waving.fbx', 1, 17),
+    ('clap', 'Clapping.fbx', 1, 36),
+]
+ROCKETBOX, MIXAMO = (CROWD_ROCKETBOX, CROWD_MIXAMO) if which == 'crowd' else (DODGE_ROCKETBOX, DODGE_MIXAMO)
 
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 bpy.ops.import_scene.fbx(filepath=os.path.join(source, 'Male_Adult_01.fbx'), use_anim=False)
@@ -83,9 +110,12 @@ def drop(imported, before_actions):
         if other.users == 0: bpy.data.actions.remove(other)
 
 
+# A long Rocketbox idle is cut to its first 10 s (a loop the crowd plays from a random point).
+ROCKETBOX_MAX_FRAMES = 300
 for label, filename in ROCKETBOX:
     actor, imported, before_actions = import_actor(os.path.join(source, filename))
     src_action = actor.animation_data.action; start, end = map(int, src_action.frame_range)
+    end = min(end, start + ROCKETBOX_MAX_FRAMES - 1)
     samples = []; origin = None; last = None
     for frame in range(start, end + 1):
         bpy.context.scene.frame_set(frame); bpy.context.view_layer.update()
@@ -127,13 +157,15 @@ def retarget_mixamo(label, path, first, last_frame):
     prefix = next(b.name for b in actor.data.bones if b.name.endswith('Hips'))[:-4]
     actor.animation_data.action.frame_range  # (loaded)
     # Rest: source and target world rotations and bone directions (in the target rig's space).
-    to_rig = rig.matrix_world.inverted() @ root.matrix_world  # (target rig space from world: as the samples)
+    # The source turned as the target is (the root's half turn to face glTF -Z), so a rotation
+    # in the source's world means the same to the target: a nod is a nod, not a look up.
+    face = Matrix.Rotation(root.rotation_euler.z, 4, 'Z')
     src_rest = {}
     for m, r in MAP.items():
         sb = actor.data.bones.get(prefix + m)
         if sb is None or r not in rig.pose.bones: continue
         # (A hand's end: its middle finger; a foot's: its toe.)
-        src_rest[r] = (actor.matrix_world @ sb.matrix_local)
+        src_rest[r] = (face @ actor.matrix_world @ sb.matrix_local)
     tgt_rest = {r: (rig.matrix_world @ rig.data.bones[r].matrix_local) for r in src_rest}
     # The correction turns each limb bone's rest segment (its joint to its child's joint) onto
     # the source's (the T-pose/A-pose difference: arms out vs down); a bone with no mapped child
@@ -168,19 +200,24 @@ def retarget_mixamo(label, path, first, last_frame):
     hip_src = src_rest['Bip01 Pelvis'].translation.z
     hip_tgt = tgt_rest['Bip01 Pelvis'].translation.z
     k = hip_tgt / hip_src if hip_src > 1e-6 else 1
-    samples = []; origin = None
+    samples = []; origin = None; travelled = None
+    # The source's frame turned as the target's (face, above) leaves a Mixamo clip facing the rig's
+    # bind pose, which is half a turn from the way convert.py's Rocketbox clips face the body (the
+    # way it walks): turned that half turn more, every clip faces the way the body moves.
+    unturn = Quaternion((0, 0, 1), math.pi)
     for frame in range(first, last_frame + 1):
         bpy.context.scene.frame_set(frame); bpy.context.view_layer.update()
         desired = {}
         for m, r in MAP.items():
             pb = actor.pose.bones.get(prefix + m)
             if pb is None or r not in corr: continue
-            cur = actor.matrix_world @ pb.matrix
-            delta = cur.to_quaternion() @ src_rest[r].to_quaternion().inverted()
+            cur = face @ actor.matrix_world @ pb.matrix
+            delta = unturn @ cur.to_quaternion() @ src_rest[r].to_quaternion().inverted()
             rot = delta @ corr[r] @ tgt_rest[r].to_quaternion()
             if r == 'Bip01 Pelvis':
-                t = cur.translation
+                t = unturn @ cur.translation
                 if origin is None: origin = Vector((t.x, t.y, 0))
+                travelled = (Vector((t.x, t.y, 0)) - origin).length * k
                 pos = Vector((tgt_rest[r].translation.x, tgt_rest[r].translation.y, hip_tgt + (t.z - hip_src) * k))
             else:
                 pos = None
@@ -204,7 +241,8 @@ def retarget_mixamo(label, path, first, last_frame):
             world[name] = mat
         samples.append({n: rig.matrix_world.inverted() @ world[n] for n in world})
     keyframe(label, samples)
-    clip_info.append({'name': label, 'source': 'Mixamo ' + os.path.basename(path), 'frames': len(samples), 'duration': (last_frame - first) / 30, 'sourceSpeed': 0})
+    duration = (last_frame - first) / 30
+    clip_info.append({'name': label, 'source': 'Mixamo ' + os.path.relpath(path, mixamo), 'frames': len(samples), 'duration': duration, 'sourceSpeed': round(travelled / duration, 4) if travelled and duration else 0})
     drop(imported, before_actions)
 
 
