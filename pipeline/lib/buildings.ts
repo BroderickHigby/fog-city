@@ -788,3 +788,72 @@ export function buildBuildings(
   out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { buildings: out, stats, overridesApplied: applied };
 }
+
+/** A record with this share of its footprint inside another, larger record's... */
+export const ENCLOSED_SHARE = 0.9;
+/** ... whose roof stands no more than this above that record's roof, is hidden in it (L-01). */
+export const ENCLOSED_ROOF_M = 0.5;
+
+/**
+ * Footprint records that stand inside another, larger record and no taller than it (L-01): the
+ * same building outlined twice. The source carries them as the parts of one MultiPolygon nested in
+ * its main ring (201006.0150361-1 to -4 inside 201006.0150361: every part takes the record's
+ * heights, so their roofs z-fight) and as two records of one building (201006.0016004, 10 m,
+ * inside 201006.0000090, 19 m). Either is invisible inside the larger prism, a coplanar roof at
+ * best, so it is dropped (with its tower, if any). A smaller record that stands taller than the
+ * larger one is a roof structure on it and stays. Larger records are decided first; a record with
+ * a tower, a tower, a terrace piece, a span (underY) and an override's record are never dropped
+ * this way. The build runs it on the selection and again on the final records.
+ */
+export function dropEnclosedDuplicates(buildings: readonly Building[]): { buildings: Building[]; dropped: string[] } {
+  const area = buildings.map((b) => Math.abs(signedArea(b.footprint)));
+  const boxes = buildings.map((b) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const [x, z] of b.footprint) {
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x);
+      z0 = Math.min(z0, z); z1 = Math.max(z1, z);
+    }
+    return [x0, z0, x1, z1] as const;
+  });
+  const CELL = 50;
+  const grid = new Map<number, number[]>();
+  const key = (cx: number, cz: number): number => (cx + 4096) * 8192 + cz + 4096;
+  boxes.forEach((b, i) => {
+    for (let cx = Math.floor(b[0] / CELL); cx <= Math.floor(b[2] / CELL); cx++) {
+      for (let cz = Math.floor(b[1] / CELL); cz <= Math.floor(b[3] / CELL); cz++) (grid.get(key(cx, cz)) ?? grid.set(key(cx, cz), []).get(key(cx, cz))!).push(i);
+    }
+  });
+  const order = buildings.map((_, i) => i).sort((a, b) => area[b]! - area[a]! || (buildings[a]!.id < buildings[b]!.id ? -1 : 1));
+  const dropped = new Set<number>();
+  for (const i of order) {
+    const r = buildings[i]!;
+    // (An override's record, a landmark placeholder among them, stays: it was placed by hand.)
+    if (r.meta.towerOf !== undefined || r.meta.tower !== undefined || r.meta.pieceOf !== undefined || r.meta.heightSource === "override" || r.underY !== undefined) continue;
+    const b = boxes[i]!;
+    const ip = interiorPoint(r.footprint);
+    const seen = new Set<number>();
+    let host = -1;
+    for (const j of grid.get(key(Math.floor(ip[0] / CELL), Math.floor(ip[1] / CELL))) ?? []) {
+      if (j === i || seen.has(j) || dropped.has(j)) continue;
+      seen.add(j);
+      const o = buildings[j]!;
+      const c = boxes[j]!;
+      if (area[j]! <= area[i]! || r.topY > o.topY + ENCLOSED_ROOF_M) continue;
+      if (b[0] < c[0] - 0.5 || b[2] > c[2] + 0.5 || b[1] < c[1] - 0.5 || b[3] > c[3] + 0.5) continue;
+      if (!pointInRing(ip[0], ip[1], o.footprint)) continue;
+      let inside = 0;
+      try {
+        for (const p of intersectRing(r.footprint, o.footprint)) inside += Math.abs(signedArea(p.outer)) - p.holes.reduce((s, h) => s + Math.abs(signedArea(h)), 0);
+      } catch {
+        continue;
+      }
+      if (inside >= ENCLOSED_SHARE * area[i]!) {
+        host = j;
+        break;
+      }
+    }
+    if (host >= 0) dropped.add(i);
+  }
+  const ids = new Set([...dropped].map((i) => buildings[i]!.id));
+  return { buildings: buildings.filter((b) => !ids.has(b.id)), dropped: [...ids].sort() };
+}
