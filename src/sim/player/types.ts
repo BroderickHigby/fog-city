@@ -25,7 +25,9 @@ export interface ProgressionState { version:1; tick:number; nextId:number; playe
 /** One tick of the player's own water: where a stream particle went, with heights above the ground. */
 export interface WaterTrace { playerId:string; ax:number; az:number; ah:number; bx:number; bz:number; bh:number }
 /** A Plain Words run (src/sim/activities/plain-words.ts). word: the ladder index shown, -1 for plain words. */
+/** A Coit Tower Recon run (src/sim/activities/recon.ts). */
+export interface ReconRun { found:string[]; scanning:string; scanTicks:number }
 export interface PlainWordsRun { boards:{id:string;word:number;wash:number;sprayedUntil:number}[]; rung:number; rebrands:number; washed:number; spinnerIds:string[]; rusted:string[]; nextRebrandTick:number }
-export interface PlayerActivities { nextDirectorTick:number; directorRng:RngState; activeCardId:string; cardUntilTick:number; cardCooldowns:Record<string,number>; activeActivityId:string; activityStartedTick:number; completedIds:string[]; commandSequence:number; checkpointIndex?:number; objectiveCount?:number; cooldowns?:Record<string,number>; plainWords?:PlainWordsRun; parking?:{ progress:ParkingProgress; interacting:boolean; tick:number } }
+export interface PlayerActivities { nextDirectorTick:number; directorRng:RngState; activeCardId:string; cardUntilTick:number; cardCooldowns:Record<string,number>; activeActivityId:string; activityStartedTick:number; completedIds:string[]; commandSequence:number; checkpointIndex?:number; objectiveCount?:number; cooldowns?:Record<string,number>; plainWords?:PlainWordsRun; parking?:{ progress:ParkingProgress; interacting:boolean; tick:number }; recon?:ReconRun }
 export interface ActivitiesState { version:1; tick:number; nextId:number; players:Record<string,PlayerActivities>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface GameplaySnapshot { player:PlayerGameplayState; economy:EconomyState; heat:HeatState; missions:MissionState; progression:ProgressionState; activities:ActivitiesState }

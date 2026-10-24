@@ -171,7 +171,7 @@
     {
       "id": "coit-recon",
       "kind": "recon",
-      "wave": 3,
+      "wave": 4,
       "objective": {
         "event": "recon.signalFound",
         "count": 1
@@ -193,9 +193,9 @@
         },
         {
           "id": "view",
-          "label": "Coit Tower overlook",
-          "lat": 37.8024,
-          "lon": -122.4058,
+          "label": "Coit Tower overlook, by the viewers",
+          "lat": 37.802478,
+          "lon": -122.405743,
           "radiusM": 12
         }
       ]
@@ -795,8 +795,35 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:e3b9a552",
+    "contentHash": "fnv1a32:d9434d36",
     "reviewedBy": [],
     "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
+  },
+  "coitRecon": {
+    "scanS": 1,
+    "rangeM": 8,
+    "relays": [
+      {
+        "id": "relay-1",
+        "lat": 37.802793,
+        "lon": -122.405743
+      },
+      {
+        "id": "relay-2",
+        "lat": 37.802469,
+        "lon": -122.405346
+      },
+      {
+        "id": "relay-3",
+        "lat": 37.802215,
+        "lon": -122.405962
+      },
+      {
+        "id": "relay-4",
+        "lat": 37.802506,
+        "lon": -122.406139
+      }
+    ],
+    "source": "Four rogue signal relays on open ground 35 m from the overlook, generated from the committed colliders and road graph; the coin-op viewer and audio guide of docs/design.md arrive with wave 4."
   }
 }

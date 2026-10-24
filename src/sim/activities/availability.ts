@@ -1,8 +1,7 @@
 import type { ActivityDefinition } from "../player/types.ts";
 
-/** Only expose activities whose objective can be produced by this runtime.
- * Keep authored recon in content until
- * their world objects and observed outcomes are connected to the game loop.
+/** Only expose activities whose objective can be produced by this runtime: every kind below has
+ * a measured producer in src/sim/activities/ (or, for interviews, the mission it runs).
  */
 export function activityAvailable(activity: Pick<ActivityDefinition, "wave" | "kind" | "objective" | "checkpoints">): boolean {
   if (activity.wave < 3) return true;
@@ -13,5 +12,6 @@ export function activityAvailable(activity: Pick<ActivityDefinition, "wave" | "k
     || activity.kind === "relic" && activity.objective?.event === "relic.viewerFound"
     || activity.kind === "washBoards" && activity.objective?.event === "board.washed"
     || activity.kind === "interview" && activity.objective?.event === "demo.robotPresented"
-    || activity.kind === "parking" && activity.objective?.event === "parking.legalStop";
+    || activity.kind === "parking" && activity.objective?.event === "parking.legalStop"
+    || activity.kind === "recon" && activity.objective?.event === "recon.signalFound";
 }

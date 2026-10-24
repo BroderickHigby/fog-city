@@ -317,6 +317,55 @@
     },
     "provenance": {
       "$ref": "provenance"
+    },
+    "coitRecon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scanS",
+        "rangeM",
+        "relays",
+        "source"
+      ],
+      "properties": {
+        "scanS": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rangeM": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "relays": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "lat",
+              "lon"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^relay-[0-9]+$"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

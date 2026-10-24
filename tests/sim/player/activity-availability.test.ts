@@ -3,11 +3,11 @@ import { ACTIVITY_DEFINITIONS } from "../../../src/content/gameplay.ts";
 import { toLocal } from "../../../src/geo/project.ts";
 import { Action } from "../../../src/sim/contract.ts";
 import { createActivities, stepActivities } from "../../../src/sim/activities/system.ts";
+import { activityAvailable } from "../../../src/sim/activities/availability.ts";
 import { createMissions } from "../../../src/sim/missions/system.ts";
 import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import type { ActivityDefinition, GameplayContext } from "../../../src/sim/player/types.ts";
 
-const pending = ["coit-recon"];
 const authored = (id: string): ActivityDefinition => {
   const activity = ACTIVITY_DEFINITIONS.find(value => value.id === id)!;
   return { ...activity, ...toLocal(activity.checkpoints[0]!.lat, activity.checkpoints[0]!.lon), y: 0,
@@ -25,17 +25,20 @@ describe("playable activity catalog", () => {
   it("offers only the wave-three routes with physical completion in the runtime", () => {
     expect(DEFAULT_CATALOG.activities.filter(value => value.wave === 3).map(value => value.id).sort())
       .toEqual(["embarcadero-sprint", "hill-delivery", "office-hours", "plain-words", "search-and-park"]);
-    expect(DEFAULT_CATALOG.activities.some(value => [...pending, "ramen-house"].includes(value.id))).toBe(false);
+    expect(DEFAULT_CATALOG.activities.some(value => ["coit-recon", "ramen-house"].includes(value.id))).toBe(false);
     expect(DEFAULT_CATALOG.activities.some(value => value.id === "soma-delivery")).toBe(true);
   });
 
-  it.each(pending)("rejects unavailable %s even when a custom catalog includes it", id => {
-    const activity = authored(id), ctx = context(activity, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: id }] });
+  it.each(ACTIVITY_DEFINITIONS.filter(value => value.wave <= 3).map(value => value.id))("gives authored %s a measured producer", id => {
+    expect(activityAvailable(authored(id))).toBe(true);
+  });
+
+  it("refuses an activity kind without a producer and releases a saved one with no payout", () => {
+    const activity = { ...authored("embarcadero-sprint"), id: "made-up", kind: "unknownKind" }, ctx = context(activity, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: activity.id }] });
     const state = stepActivities(createActivities(), ctx, 1, createMissions(), 7);
     expect(state.players.p!.activeActivityId).toBe("");
     expect(state.events).toEqual([]);
-    // A saved pending activity releases the slot on its next tick, with no payout.
-    state.players.p!.activeActivityId = id;
+    state.players.p!.activeActivityId = activity.id;
     const restored = stepActivities(state, { ...ctx, commands: [] }, 2, createMissions(), 7);
     expect(restored.players.p!.activeActivityId).toBe("");
     expect(restored.events.map(value => value.kind)).toEqual(["activity.failed"]);
