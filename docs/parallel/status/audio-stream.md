@@ -67,7 +67,7 @@ Owner feedback: "the voice should talk just like in GTA … it kind of just tell
 - Subtitles only until the ElevenLabs tier allows generation. The manifest already lists every
   line: 291 in total, 15,192 characters.
 
-## PRs (all drafts while GitHub Actions is billing-blocked; local evidence on each)
+## PRs (drafts; GitHub Actions is running again as of 00:32 UTC 2026-10-24, ready once green)
 
 | PR | Branch | Contents | Stacked on |
 |---|---|---|---|
@@ -78,10 +78,10 @@ Owner feedback: "the voice should talk just like in GTA … it kind of just tell
 | #65 | sfx-vehicles | Live car engine, road and tyres; impacts; doors; footsteps | #37 |
 | #69 | sfx-robots-ui | Robot servos, beeps and audio tells; UI and mission cues; firmware-leak fix | #65 |
 | #70 | sfx-ambience | City ambience: traffic, crowd, wind, rain, foghorns, gulls | #69 |
+| (new) | sfx-impacts | Collision sounds from `ext.impacts.events` (Impacts #50/#57/#62): crunch, clank, thud, scrape, hydrant hiss | #70 |
 
 Open follow-ups:
-- Richer impacts from the Impacts stream (event shape proposed).
-- Footstep surfaces (needs a surface lookup).
+- Footstep surfaces: wait for World detail's land-cover lookup (#54).
 - Voices: generation is held until an ElevenLabs key on a paid tier is provided.
 
 ## ElevenLabs: why voices are held
@@ -150,3 +150,22 @@ combat events and projectiles, runtime actors), and nothing flows back.
 - Owner: a paid ElevenLabs tier if voiced dialogue is wanted (see above).
 - Lane R: review the `main.ts` and `build-web.ts` hook-ups.
 - Harness: optionally run `tests/audio/browser.config.ts` in CI.
+
+## SFX 4: collision sounds (`work/audio/sfx-impacts`, stacked on #70)
+
+Built against the Impacts stream's published shape (`ext.impacts.events`, last 24, durable `id`;
+`kind` car-car / car-taxi / taxi-car / taxi-taxi / car-robot / taxi-robot / robot-robot / car-prop;
+`dv`; `fell` / `disabled` on robots, `broke` on props). Read defensively: silent until #50 lands.
+
+- `src/audio/impact-sound.ts` (pure): dedupe by id, nothing replays at load or restore; tier by
+  `dv` (bump < 3, crunch 3-8, smash > 8); timbre from the surface after the dash (metal, robot,
+  wood for `prop:tree:*`, post otherwise); same pair again within 0.5 s scrapes; heard within 90 m,
+  at most 3 per frame (the player's own first); a hydrant heard breaking hisses while
+  `ext.impacts.props` holds it.
+- `src/audio/impact-synth.ts`: procedural (thump, panel noise, glass pings on a smash; robot
+  clank, fall clatter, power-down; wood crack and splinters; ringing pole; scrape; hiss).
+- The car's generic hit one-shot stands down when the player's own car is in an impact event.
+- Evidence: unit `tests/audio/impact-sound.test.ts` (8); browser: every variant rendered through
+  an OfflineAudioContext is audible and bounded. In a scratch merge with #62, Impacts' own
+  `tests/e2e/impacts.spec.ts` crash played `impact-metal`, `impact-scrape`, `impact-wood` and the
+  robotaxi horn (all 3 tests green).
