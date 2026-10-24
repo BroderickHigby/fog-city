@@ -29,8 +29,9 @@ export function spinnerId(playerId: string, startedTick: number, index: number):
 /** A fresh run: every board shows the first hype word, and four spinners are asked for near the boards. */
 export function startPlainWords(state: ActivitiesState, playerId: string, tick: number): PlainWordsRun {
   const spinners = Array.from({ length: RULES.spinnerCount }, (_, index) => spinnerId(playerId, tick, index));
-  // Spread the spinners along the corridor, each beside its own stretch of boards.
-  const anchor = PLAIN_WORDS_BOARDS[0]!;
+  // Spread the spinners along the corridor, each beside its own stretch of boards. The scene is
+  // anchored mid-corridor: a staged actor must sit within 1 km of its anchor.
+  const anchor = PLAIN_WORDS_BOARDS[Math.floor(PLAIN_WORDS_BOARDS.length / 2)]!;
   const actors = spinners.map((id, index) => {
     const near = PLAIN_WORDS_BOARDS[Math.min(PLAIN_WORDS_BOARDS.length - 1, 2 + index * 5)]!;
     return { id, role: `${playerId}-spinner-${index + 1}`, model: "footman", firmware: "bad", offset: { x: near.x - anchor.x, z: near.z - anchor.z }, radius: .45, height: 1.6 };

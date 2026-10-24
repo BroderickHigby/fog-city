@@ -4,6 +4,7 @@ import { PLAIN_WORDS_BOARDS, PLAIN_WORDS_LADDER } from "../../../src/sim/activit
 import { createMissions } from "../../../src/sim/missions/system.ts";
 import { DEFAULT_CATALOG } from "../../../src/sim/player/catalog.ts";
 import { ACTIVITY_RULES } from "../../../src/content/gameplay.ts";
+import { decodeMissionScene } from "../../../src/sim/agents/scene-actors.ts";
 import type { ActivitiesState, GameplayContext, GameplayFact, WaterTrace } from "../../../src/sim/player/types.ts";
 import type { CombatActor } from "../../../src/sim/combat-contract.ts";
 
@@ -37,6 +38,8 @@ describe("Plain Words", () => {
     const scene = JSON.parse(request.detail) as { actors: { id: string; firmware: string }[] };
     expect(scene.actors.map(value => value.id)).toEqual(run.spinnerIds);
     expect(scene.actors.every(value => value.firmware === "bad")).toBe(true);
+    // The agents runtime accepts the request as a scene it can stage.
+    expect(decodeMissionScene({ kind: request.kind, detail: request.detail })?.actors).toHaveLength(run.spinnerIds.length);
   });
 
   it("washes a board after two seconds of the player's own stream, and only then", () => {
