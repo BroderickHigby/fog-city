@@ -28,7 +28,10 @@ Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-b
    interface + SQLite via Node's built-in `node:sqlite` (`RELAY_DB_PATH`, `/data` volume in
    `fly.toml`); finished matches recorded once; per-identity stats; weekly/all-time leaderboards
    (`GET /leaderboard`, `GET /me`) and a lobby panel; retention documented in `server/README.md`.
-5. Social · 6. Ops readiness.
+5. Social — `work/multiplayer/social` (stacked on persistence): preset quick chat (keys 1–6, no
+   free text, one per 1.5 s, phrases pass the content lint), join in progress (recorded
+   `mode.join` + `player.join`), spectators (up to 4, no body/input/seat), host rematch.
+6. Ops readiness.
 
 ## What is playable now
 
