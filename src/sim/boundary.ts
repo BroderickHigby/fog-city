@@ -862,8 +862,8 @@ function distToLine(l: Readonly<Line>, x: number, z: number): number {
   return Math.sqrt(best);
 }
 
-/** A stairway's barrier keeps this far (beyond its own WALL_END_M reach) off a meeting street's carriageway, metres. */
-const STAIRS_CLIP_M = STAIRS_KERB_M + WALL_END_M;
+/** A stairway's barrier keeps off a meeting street's carriageway by this much beyond its kerb (a wall's WALL_END_M reach past a cut end then stops at the kerb), metres. */
+const STAIRS_CLIP_M = STAIRS_KERB_M;
 /** Sampling step along a barrier wall when clipping it to a street's carriageway, metres. */
 const STAIRS_CLIP_STEP_M = 0.1;
 /** The bollard line along a kerb stands this much beyond the clip line, so it is never clipped away as inside its own street. */
@@ -945,12 +945,12 @@ function outsideStreets(ax: number, az: number, bx: number, bz: number, streets:
  * ring of "stairs" walls STAIRS_HALF_M either side of its centreline that cars cannot cross
  * (walkers ignore them: buildWorld keeps them apart from the boundary walls, as
  * World.barriers). At an end that meets a street the ring stops at that street's kerb (its half
- * width plus STAIRS_KERB_M from the node); the ring's end across the stair is the bollard line a
- * car meets there. No piece of the ring stands in the carriageway of a street meeting the
- * stairway (its half width plus STAIRS_KERB_M from its centreline, the wall's own reach
- * included): a stairway that leaves a street at a shallow angle (the Twin Peaks Blvd paper
- * stairway beside the drive, 15 to 20 degrees for 20 m) keeps only the walls beyond the kerb,
- * and the street stays open. Null when there are no stairs.
+ * width plus STAIRS_KERB_M from the node). No piece of the ring stands within STAIRS_KERB_M of
+ * the carriageway of a street meeting the stairway (its half width from its centreline; a cut
+ * wall's WALL_END_M reach stops at the kerb), and a bollard line along those kerbs, inside the
+ * ring, closes the stairway's mouth: a stairway that leaves a street at a shallow angle (the Twin
+ * Peaks Blvd paper stairway beside the drive, 15 to 20 degrees for 20 m) keeps only the walls
+ * beyond the kerb, and the street stays open. Null when there are no stairs.
  */
 export function buildStairBarriers(roads: RoadsFile | null): WallSet | null {
   if (!roads) return null;
