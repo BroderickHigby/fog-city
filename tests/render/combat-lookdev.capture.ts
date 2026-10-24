@@ -18,6 +18,13 @@ const STAGES = [
   { id: "5-slumping", rust: 1, wet: 0.2, topple: 0.5, height: 0.65 },
   { id: "6-heap", rust: 1, wet: 0, topple: 1, height: 0.3 },
 ] as const;
+/**
+ * Which stage dresses which robot, nearest first. The heap goes on the nearest, where it draws
+ * with its puddle. On the sixth robot (by the kerb at x -28, z 171) the heap and its puddle did
+ * not show although the robot stands there fine, probably because the drawn ground is above its
+ * sim height there and a 0.25 m heap ends up under it (to confirm; reported to World).
+ */
+const ORDER = [STAGES[5], STAGES[0], STAGES[1], STAGES[2], STAGES[3], STAGES[4]];
 
 type LookHandle = {
   previewCombatLook?(stages: ReadonlyArray<{ rust: number; wet: number; topple: number; height?: number }> | null): number[];
@@ -32,8 +39,8 @@ test("combat look-dev", async ({ page }) => {
   await settle(page, 300_000);
   await frames(page, 30);
   await pause(page);
-  const ids = await page.evaluate((stages) => (window as unknown as { __fogcity: LookHandle }).__fogcity.previewCombatLook?.(stages) ?? [], STAGES as unknown as Array<{ rust: number; wet: number; topple: number; height?: number }>);
-  expect(ids.length, "robots near the spawn to dress").toBe(STAGES.length);
+  const ids = await page.evaluate((stages) => (window as unknown as { __fogcity: LookHandle }).__fogcity.previewCombatLook?.(stages) ?? [], ORDER as unknown as Array<{ rust: number; wet: number; topple: number; height?: number }>);
+  expect(ids.length, "robots near the spawn to dress").toBe(ORDER.length);
   const agents = await page.evaluate(() => (window as unknown as { __fogcity: LookHandle }).__fogcity.state().ext.agents?.list ?? []);
   const shots: unknown[] = [];
   for (const [i, id] of ids.entries()) {
@@ -46,7 +53,7 @@ test("combat look-dev", async ({ page }) => {
     await page.evaluate(([x, y, z, yw]) => (window as unknown as FogWindow).__fogcity!.flyTo!(x!, y!, z!, yw!, -14), [cx, a.y + 1.6, cz, yaw]);
     await settle(page, 120_000);
     await frames(page, 6);
-    const stage = STAGES[i]!;
+    const stage = ORDER[i]!;
     await page.screenshot({ path: join(OUT, `${stage.id}.png`) });
     shots.push({ stage, agent: a });
   }
