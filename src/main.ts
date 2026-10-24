@@ -37,6 +37,7 @@ import { CombatLayer } from "./render/combat-layer.ts";
 import { GameAudio } from "./audio/mixer.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
+import { restoreSpawn } from "./save/restore-spawn.ts";
 import { contentHash } from "./content/barks.ts";
 import { VENDOR } from "./content/vendor.ts";
 import { STARTUP_KITS } from "./content/kits.ts";
@@ -218,7 +219,7 @@ async function boot(): Promise<void> {
   const gameUI=mountGameUI(container,{copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:data=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
-    const spawn=site?{x:site.x,z:site.z,heading:0}:manifest.spawn;
+    const spawn=site?restoreSpawn(world,site):manifest.spawn;
     const fresh=step(world,createInitialState(world,SEED,[LOCAL_PLAYER],spawn),{[LOCAL_PLAYER]:{...NEUTRAL_INPUT}},[],systems);
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;queuedEvents=[];waypoint=undefined;acc=0;last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
