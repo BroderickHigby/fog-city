@@ -8,13 +8,15 @@ well." Goal: driving feels physical, the way GTA does.
 
 | PR | Branch | GitHub | SIM_VERSION | State |
 |---|---|---|---|---|
-| 1. Car vs car | `work/impacts/car-vs-car` | #50 | 11 | draft; unit 3,369 + browser 40/40 green |
-| 2. Car vs robot | `work/impacts/car-vs-robot` | #57 (stacked on #50) | 12 | draft; unit 3,374 + browser 18/18 green |
-| 3. Destructibles | `work/impacts/destructibles` | #62 (stacked on #57) | 13 | draft; unit 3,387 + browser 19/19 green |
+| 1. Car vs car | `work/impacts/car-vs-car` | #50 | 14 | draft; on integrate `59e5a7b`; unit + browser green locally |
+| 2. Car vs robot | `work/impacts/car-vs-robot` | #57 (stacked on #50) | 15 | draft; unit + browser green locally |
+| 3. Destructibles | `work/impacts/destructibles` | #62 (stacked on #57) | 16 | draft; real SF street props from World detail |
+| 4. Vehicle dynamics | `work/impacts/car-dynamics` | #81 (stacked on #50) | 15 | draft; unit + browser green locally |
 
-All three draft into `integrate/wave2`. Each merges the one below it, so #57's diff
-includes #50 and #62's includes both until they land. Version chain 8 -> 10
-(weather, already merged) -> 11 -> 12 -> 13, each a no-rewrite `upgradeState` step.
+All draft into `integrate/wave2`. Each merges the one below it, so #57's diff includes #50
+and #62's includes both until they land. Restamped 2026-10-24 on integrate `59e5a7b`
+(SIM_VERSION 13): impacts 14, robots 15, props 16; dynamics 15 beside robots (the coordinator
+restamps whichever lands second). Each step is a no-rewrite `upgradeState` step.
 
 
 ## What the player's car did before this stream (finding, `ff7db5b`)
@@ -53,7 +55,7 @@ becomes ... -> 10 -> 11 with the same no-rewrite step. Older fixtures are kept.
 
 ## Vehicle dynamics (coordinator assignment, 2026-10-24): branch `work/impacts/car-dynamics`
 
-Stacked on #50, SIM_VERSION 12 on that line; the coordinator restamps the order at merge.
+Stacked on #50, SIM_VERSION 15 on that line (14 is impacts); the coordinator restamps the order at merge.
 Numbers for the Dodge stream (session_018jNDGsP8HczyRRV3vD22e3):
 
 - Player car top speed is about **54 m/s (195 km/h)** flat out. The speed cap is 62 m/s downhill (was 30 and 50).
@@ -121,4 +123,8 @@ the same; nothing reuses a stamp with different behaviour.
 - 2026-10-23 23:15 UTC: PR 1 pushed (`348c74a`); PR 2 (`d87ebfd`+e2e) and PR 3 (`5018313`+e2e) committed
   in worktrees. Full unit suite green on PR 1; browser suite in progress.
 - 2026-10-24 00:50 UTC: all three PRs opened as drafts and watched: #50, #57, #62. Each stacks on the one below.
-- 2026-10-24: vehicle-dynamics branch committed (`87d61d2`); full unit and browser suites running.
+- 2026-10-24 05:30 UTC: integrate `59e5a7b` (v13) merged into #50 and forwarded: #50 v14 (`1e8a7c8`),
+  #81 v15 (`14894be`), #57 v15 (`bd260b5`, robot e2e driver now backs out of walls), #62 v16
+  (World detail's real SF trees, signal poles and signs are the sim's props via src/io/world-load.ts;
+  `propKnock(state, id)` accessor). Local only: `junction-deadlock-sf` times out at 180 s here on the
+  unmodified base too.

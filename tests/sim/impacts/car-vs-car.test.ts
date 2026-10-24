@@ -33,6 +33,7 @@ import {
   type World,
 } from "../../../src/sim/index.ts";
 import { LONG_RUN_MS, emptyWorld, gridCity } from "../fixtures.ts";
+import { deepFreeze } from "../../helpers.ts";
 
 const I = (throttle: number, steer = 0, brake = 0): SimInput => ({ throttle, steer, brake, actions: 0 });
 
@@ -183,6 +184,7 @@ describe("a player's car rear-ends a robotaxi", () => {
       expect(json).not.toContain("null,null");
     }
   }, LONG_RUN_MS);
+
 });
 
 describe("two players' cars", () => {
@@ -236,6 +238,28 @@ describe("two players' cars", () => {
     expect(a.speed).toBeCloseTo(b.speed, 3);
     expect(carDamage(states[hit]!, "a").condition).toBeCloseTo(carDamage(states[hit]!, "b").condition, 6);
   });
+});
+
+describe("purity", () => {
+  it("never mutates the state it steps from, through repeated hits", () => {
+    const world = emptyWorld();
+    const s0 = createInitialState(world, 3, ["a", "b"], { x: 0, z: 0, heading: 0 });
+    let cur: SimState = {
+      ...s0,
+      players: {
+        a: { ...s0.players.a!, car: { ...makeCar(0, 0, 0), speed: 12 } },
+        b: { ...s0.players.b!, mode: "foot" as const, car: makeCar(0, -20, 90 * (Math.PI / 180)), foot: { x: 30, y: 0, z: 30, heading: 0, speed: 0, sprint: false, vy: 0, grounded: true, dodge: null } },
+      },
+    };
+    // Car a keeps its foot down and shunts the parked car again and again. Each input state is
+    // frozen, so any write into it (or into the impacts ext a new state shares with it) throws.
+    const ticks = new Set<number>();
+    for (let t = 0; t < 300; t++) {
+      cur = step(world, deepFreeze(cur), { a: I(1) });
+      for (const e of impactsOf(cur)?.events ?? []) ticks.add(e.tick);
+    }
+    expect(ticks.size).toBeGreaterThan(1);
+  }, LONG_RUN_MS);
 });
 
 describe("a sliding robotaxi never touches anyone", () => {
