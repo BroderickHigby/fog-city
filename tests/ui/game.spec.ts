@@ -10,7 +10,8 @@ test("SF scene mounts the gameplay HUD, drives, opens phone, exits and sprays",a
   await page.screenshot({path:"test-results/sf-hud.png"});
   const before=await page.evaluate(()=>window.__fogcity!.state().players.p1!.car);
   await page.keyboard.down("KeyW");
-  await expect.poll(async()=>page.evaluate(()=>Math.abs(window.__fogcity!.state().players.p1!.car.speed)),{timeout:30000}).toBeGreaterThan(.1);
+  // Hold W until the car has really moved (not a frame count: SwiftShader may give only a few ticks).
+  await expect.poll(async()=>page.evaluate(([x,z])=>{const c=window.__fogcity!.state().players.p1!.car;return Math.hypot(c.x-x!,c.z-z!);},[before.x,before.z]),{timeout:30000}).toBeGreaterThan(.05);
   await page.keyboard.up("KeyW");await page.keyboard.down("Space");
   await expect.poll(async()=>page.evaluate(()=>Math.abs(window.__fogcity!.state().players.p1!.car.speed)),{timeout:30000}).toBeLessThan(2);
   await page.keyboard.up("Space");
