@@ -69,7 +69,7 @@ declare global { interface Window { __fogcityNet?: NetDebug } }
 const SEAT_KEY = "fog-city.relay.seat";
 const STYLE = `
 .fc-mp{position:fixed;left:16px;top:96px;z-index:21;color:#f4f5ed;font:500 14px/1.4 system-ui,sans-serif;max-width:min(340px,calc(100vw - 32px));max-height:calc(100dvh - 112px);overflow-y:auto;overscroll-behavior:contain}
-.fc-mp *{box-sizing:border-box}.fc-mp [hidden]{display:none!important}
+.fc-mp *{box-sizing:border-box}.fc-mp [hidden],.fc-mp-hud[hidden]{display:none!important}
 .fc-mp button,.fc-mp input{font:inherit;border:1px solid #64838a;border-radius:8px;background:#142c35;color:inherit;padding:8px 12px;min-height:40px;cursor:pointer}
 .fc-mp button:disabled{opacity:.5;cursor:default}.fc-mp button.fc-primary{background:#9af4c3;color:#0b1c17;border-color:#9af4c3}
 .fc-mp input{width:9.5em;text-transform:uppercase;letter-spacing:.08em;background:#0b1c22}
