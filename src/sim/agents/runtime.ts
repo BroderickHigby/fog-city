@@ -1,4 +1,5 @@
 import { BOT_TELLS, botAtLevel } from "../../content/botTells.ts";
+import { agentActorId } from "../identity.ts";
 import { ROBOT_GOALS, goalsInWave } from "../../content/robotGoals.ts";
 import { badRobotRate, protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
@@ -154,7 +155,7 @@ function initialize(spawn:RuntimeSpawn,tick:number,legacyId:number|null):Runtime
 }
 
 function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):RuntimeSpawn{
-  const id=`agent:${agent.id}`, model=agent.kind==="errandRobot"?"footman":agent.kind==="sidewalkBot"?"trundle":agent.kind;
+  const id=agentActorId(agent.id), model=agent.kind==="errandRobot"?"footman":agent.kind==="sidewalkBot"?"trundle":agent.kind;
   const firmware=options.firmware?.[id]??(model==="person"?"none":hash(`${seed}:${id}`)/4294967296<clamp((options.badRateAt??defaultBadRate)(agent.x,agent.z),0,1)?"bad":"good");
   const profiles=BOT_TELLS.archetypes.filter(profile=>profile.kind===firmware&&profile.model===(model==="trundle"?"sidewalk-bot":model==="robotaxi"?"robotaxi":"errand-robot"));
   const profile=profiles[hash(id)%Math.max(1,profiles.length)];
@@ -197,9 +198,9 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   };
   const share=(id:string,actor:RuntimeActor):void=>{state.actors[id]=actor;borrowed.add(id);};
   const bound=new Set(Object.keys(previous.missionBindings).map(key=>previous.missionBindings[key]!));
-  const embodied=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId??`agent:${actor.id}`));
+  const embodied=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId??agentActorId(actor.id)));
   for(const agent of [...agentsOf(sim)].sort((a,b)=>a.id-b.id)){
-    const id=`agent:${agent.id}`, old=previous.actors[id];known.add(id);
+    const id=agentActorId(agent.id), old=previous.actors[id];known.add(id);
     if(shared&&old&&old.x===agent.x&&old.y===agent.y&&old.z===agent.z&&old.heading===agent.heading&&old.speed===agent.speed)share(id,old);
     else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
   }
@@ -333,11 +334,24 @@ function desiredMovement(actor:RuntimeActor,intent:RobotBrainIntent|undefined,ot
 function motionMetadata(actor:RuntimeActor):Pick<AgentMotionProposal,"bodyKind"|"protected"|"child"|"mobilityAid"|"posture">{
   return {bodyKind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",...(actor.protected!==undefined?{protected:actor.protected}:{}),...(actor.child!==undefined?{child:actor.child}:{}),...(actor.mobilityAid!==undefined?{mobilityAid:actor.mobilityAid}:{}),...(actor.posture?{posture:actor.posture}:{})};
 }
+/** One motion proposal, built field by field (the same record the spread literals used to make). */
+function proposalOf(actor:RuntimeActor,legacyId:number|null,kind:AgentMotionProposal["kind"],x:number,y:number,z:number,heading:number,speed:number,controls?:Readonly<SimInput>):AgentMotionProposal{
+  const out:AgentMotionProposal={id:actor.id,numericId:actor.numericId,legacyId,kind,x,y,z,heading,speed,radius:actor.radius,height:actor.height,sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z};
+  if(controls)out.controls=controls;
+  out.bodyKind=animal(actor.model)?"animal":human(actor.model)?"person":"robot";
+  if(actor.protected!==undefined)out.protected=actor.protected;
+  if(actor.child!==undefined)out.child=actor.child;
+  if(actor.mobilityAid!==undefined)out.mobilityAid=actor.mobilityAid;
+  if(actor.posture)out.posture=actor.posture;
+  if(actor.halfLength)out.halfLength=actor.halfLength;
+  if(actor.halfWidth)out.halfWidth=actor.halfWidth;
+  return out;
+}
 function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:SidewalkGraph|undefined,intent:RobotBrainIntent|undefined,options:AgentRuntimeOptions,sim:Readonly<SimState>,inputs:InputFrame,others:RuntimeActor[],people:ReturnType<typeof players>):void{
   if(vehicle(actor.model)){
     // Legacy traffic keeps its route mover. New service/mission bodies await shared steering.
     const controls=options.vehicleControls?.[actor.id];
-    if(actor.legacyId===null||controls)state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:null,kind:"vehicle",...(controls?{controls}:{}),...motionMetadata(actor),x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
+    if(actor.legacyId===null||controls)state.proposals.push(proposalOf(actor,null,"vehicle",actor.x,actor.y,actor.z,actor.heading,0,controls));
     return;
   }
   const wanted=desiredMovement(actor,intent,others);
@@ -384,7 +398,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
-  if(speed<=0||frozen||actor.posted){state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});return;}
+  if(speed<=0||frozen||actor.posted){state.proposals.push(proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actor.x,actor.y,actor.z,actor.heading,0));return;}
   // (The last few metres to a shelter leave the sidewalk line for the wall or the stop itself.)
   if(graph?.nodes.length&&actor.model!=="drone"&&actor.reaction.mode!=="avoid"&&!direct){
     const node=goal?nearestSidewalkNode(graph,goal):actor.goalNode;
@@ -410,7 +424,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):groundHeight(world,x,z);
   const actualX=clear?x:actor.x,actualZ=clear?z:actor.z;
   actor.pendingPoint={x:actualX,z:actualZ};
-  state.proposals.push({id:actor.id,numericId:actor.numericId,legacyId:actor.legacyId,...motionMetadata(actor),kind:actor.model==="drone"?"flying":"walker",x:actualX,y:clear?y:actor.y,z:actualZ,heading:length>1e-8?datan2(dx,-dz):actor.heading,speed:clear?speed:0,radius:actor.radius,height:actor.height,...(actor.halfLength?{halfLength:actor.halfLength}:{}),...(actor.halfWidth?{halfWidth:actor.halfWidth}:{}),sourceX:actor.x,sourceY:actor.y,sourceZ:actor.z});
+  state.proposals.push(proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actualX,clear?y:actor.y,actualZ,length>1e-8?datan2(dx,-dz):actor.heading,clear?speed:0));
 }
 
 function contentGoalWeights(actor:RuntimeActor,wave:number):Partial<Record<RobotGoal,number>>|undefined{
@@ -496,10 +510,25 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
 /** Shared combat snapshots use the core's observed positions, never unaccepted proposals. */
 export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
   const state=agentsRuntimeOf(sim);if(!state)return [];
-  return keys(state.actors).map(id=>state.actors[id]!).filter(actor=>!actor.retired&&actor.fidelity!=="abstract"&&actor.fidelity!=="despawn").map(actor=>({id:actor.id,kind:animal(actor.model)?"animal":human(actor.model)?"person":"robot",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:actor.speed,radius:actor.radius,height:actor.height,firmware:actor.firmware,
-    ...(actor.model==="person"||actor.model==="associate"?{}:{model:actor.model==="pigeon"||actor.model==="dog"||actor.model==="van"||actor.model==="bus"?"footman":actor.model}),
-    protected:actor.protected??(animal(actor.model)||(human(actor.model)&&(Boolean(actor.child)||Boolean(actor.mobilityAid)||(actor.posture??"standing")!=="standing"))),...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.level!==undefined?{subtlety:actor.level}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),
-    ...(vehicle(actor.model)?{obeysTraffic:true}:{}),...(actor.model==="van"||actor.model==="bus"?{protected:true}:{}),pursuing:actor.behavior==="attack",inFidelity:true}));
+  const out:CombatActor[]=[];
+  for(const id of keys(state.actors)){
+    const actor=state.actors[id]!;
+    if(actor.retired||actor.fidelity==="abstract"||actor.fidelity==="despawn")continue;
+    const model=actor.model,isAnimal=animal(model),isHuman=human(model);
+    // Field by field: the same record the old spread literal built.
+    const body:Record<string,unknown>={id:actor.id,kind:isAnimal?"animal":isHuman?"person":"robot",x:actor.x,y:actor.y,z:actor.z,heading:actor.heading,speed:actor.speed,radius:actor.radius,height:actor.height,firmware:actor.firmware};
+    if(model!=="person"&&model!=="associate")body.model=model==="pigeon"||model==="dog"||model==="van"||model==="bus"?"footman":model;
+    body.protected=model==="van"||model==="bus"?true:actor.protected??(isAnimal||(isHuman&&(Boolean(actor.child)||Boolean(actor.mobilityAid)||(actor.posture??"standing")!=="standing")));
+    if(actor.rustScale!==undefined)body.rustScale=actor.rustScale;
+    if(actor.level!==undefined)body.subtlety=actor.level;
+    if(actor.child)body.child=true;
+    if(actor.posture)body.posture=actor.posture;
+    if(actor.mobilityAid)body.mobilityAid=true;
+    if(vehicle(model))body.obeysTraffic=true;
+    body.pursuing=actor.behavior==="attack";body.inFidelity=true;
+    out.push(body as unknown as CombatActor);
+  }
+  return out;
 }
 
 /** Refresh accepted body poses after core movement without running decisions twice. */

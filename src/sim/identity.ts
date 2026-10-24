@@ -58,3 +58,14 @@ export function releaseActorIds(state: SimState, retired: readonly string[]): Si
   for (const id of retired) delete ids[id];
   return { ...state, ext: { ...state.ext, identities: { ...previous, ids } } };
 }
+
+const legacyIds: string[] = [];
+/**
+ * `agent:<id>`, the runtime id of an ambient agent. The same string object comes back for the
+ * same id, so the hot paths that key records and sets by it hash it once instead of building a
+ * new string every tick.
+ */
+export function agentActorId(id: number): string {
+  if (!Number.isSafeInteger(id) || id < 0 || id > 1 << 20) return `agent:${id}`;
+  return legacyIds[id] ??= `agent:${id}`;
+}

@@ -1,4 +1,5 @@
 import { DT, type SimState, type SimInput, type CarState } from "./contract.ts";
+import { agentActorId } from "./identity.ts";
 import { AGENT_SPEC, ROBOTAXI_BODY, type AgentState } from "./agents.ts";
 import { CAR, carBox, makeCar, stepCar } from "./car.ts";
 import { boxBlocked, boxCrossedWall, type Box, type Circle } from "./collide.ts";
@@ -30,7 +31,7 @@ function combatRestriction(state: Readonly<SimState>, motion: AgentMotionProposa
   const combat = state.ext.combat;
   if (!combat) return { cap: Infinity, scale: 1 };
   const own = movementLimit(combat, { id: motion.id });
-  const alias = motion.id === `agent:${motion.numericId}` ? own : movementLimit(combat, { id: `agent:${motion.numericId}` });
+  const alias = motion.id === agentActorId(motion.numericId) ? own : movementLimit(combat, { id: agentActorId(motion.numericId) });
   return { cap: Math.min(own.maxSpeed ?? Infinity, alias.maxSpeed ?? Infinity), scale: Math.min(own.scale, alias.scale) };
 }
 
@@ -80,7 +81,7 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
   if (!motions.length && !retirements.length) return state;
   const retired = new Set(retirements);
   const ext = state.ext.agents ?? { nextId: 1, list: [] };
-  const list = ext.list.filter(a => !retired.has(a.runtimeId ?? `agent:${a.id}`));
+  const list = ext.list.filter(a => !retired.has(a.runtimeId ?? agentActorId(a.id)));
   const seen = new Set<number>();
   const names = new Set<string>();
   // Indexes of the bodies present before admission. A body updated below keeps its id and takes
@@ -143,7 +144,22 @@ function motionPose(body:Readonly<AgentState>,motion:AgentMotionProposal|undefin
 /** Relative sweeps reject both intents if two simultaneous hulls would intersect. */
 function conflictingVehicleIntents(bodies:readonly AgentState[],motions:ReadonlyMap<number,AgentMotionProposal>):Set<number> {
   const blocked=new Set<number>(),vehicles=bodies.filter(body=>body.kind==="robotaxi");
-  for(let i=0;i<vehicles.length;i++)for(let j=i+1;j<vehicles.length;j++){
+  // Only pairs with at least one intent can conflict, and only within reach (at most two bus
+  // hulls plus 2 m): visit each such pair once through a coarse grid instead of all pairs.
+  const CELL=24,grid=new Map<number,number[]>(),cellOf=(x:number)=>Math.floor(x/CELL);
+  let maxHull=0;
+  vehicles.forEach((v,i)=>{
+    const m=motions.get(v.id);maxHull=Math.max(maxHull,(m?.halfLength??v.halfLength??2.2)+(m?.halfWidth??v.halfWidth??.95));
+    const key=(cellOf(v.x)+32768)*65536+cellOf(v.z)+32768,at=grid.get(key);if(at)at.push(i);else grid.set(key,[i]);
+  });
+  const span=Math.ceil((2*maxHull+2)/CELL);
+  const pairs:Array<[number,number]>=[];
+  vehicles.forEach((v,i)=>{
+    if(!motions.get(v.id))return;
+    for(let cx=cellOf(v.x)-span;cx<=cellOf(v.x)+span;cx++)for(let cz=cellOf(v.z)-span;cz<=cellOf(v.z)+span;cz++)
+      for(const j of grid.get((cx+32768)*65536+cz+32768)??[])if(j!==i&&(j>i||!motions.get(vehicles[j]!.id)))pairs.push(i<j?[i,j]:[j,i]);
+  });
+  for(const [i,j] of pairs){
     const a=vehicles[i]!,b=vehicles[j]!,am=motions.get(a.id),bm=motions.get(b.id);
     if(!am&&!bm)continue;
     const reach=(am?.halfLength??a.halfLength??2.2)+(am?.halfWidth??a.halfWidth??.95)+(bm?.halfLength??b.halfLength??2.2)+(bm?.halfWidth??b.halfWidth??.95)+2;
