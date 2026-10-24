@@ -1,24 +1,35 @@
 import { protectedAreaAt, badRobotRate } from "../content/places.ts";
+import { playerPose } from "./ride.ts";
 import { toLatLon } from "../geo/project.ts";
 import { sortedIds } from "./contract.ts";
 import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { createFogSystem, fogDensity, floodDepthAt, puddlesNear, rainDensity, shelteredAt, weatherRefuge } from "./fog/index.ts";
 import { allocateActorIds } from "./identity.ts";
 import { createAgentsSystem, agentsCombatOptions } from "./agents/systems.ts";
+import type { AgentRuntimeOptions } from "./agents/runtime.ts";
 import { createCombatSystem } from "./combat/systems.ts";
-import { contextFromState } from "./combat/adapter.ts";
+import { contextFromState, type CombatAdapterOptions } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
 import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatWave, RefillSource } from "./combat-contract.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
 
-export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
+export interface GameSystemsOptions {
+  wave?: CombatWave;
+  protectedArea?: (x:number,z:number)=>boolean;
+  /** Match instances (src/sim/modes): extra agent-runtime options, e.g. the mode roster. */
+  agents?: (context:SimSystemContext)=>Partial<AgentRuntimeOptions>;
+  /** Match instances: extra combat options (mode, per-player loadouts). */
+  combat?: (context:SimSystemContext)=>CombatAdapterOptions;
+  /** Match instances: replaces the static modes registration. */
+  modes?: readonly SimSystem[];
+}
 
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v11.json pins this path (composed-v8.json is the v8 record).
+ * tests/golden/composed-v14.json pins this path (composed-v13.json is the v13 record).
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
@@ -31,6 +42,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     fog:0,
     fogAt:(x:number,z:number)=>fogAt(context,x,z),
     ...(weather?{weatherRefuge:(x:number,z:number)=>weatherRefuge(context.world,context.state,x,z)}:{}),
+    ...options.agents?.(context),
   }),allocateActorIds);
   /** Rain puddles and the King tide's flooded promenade, where each player stands: refill sources (0.5x speed, the tide salty). */
   const weatherRefills=(context:SimSystemContext):RefillSource[]=>{
@@ -44,13 +56,14 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     return out;
   };
   const combatContext=(context:SimSystemContext)=>{
+    const supplied=options.combat?.(context)??{};
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
     for(const id of sortedIds(context.state.players)){
-      const player=context.state.players[id]!,body=player.mode==="foot"&&player.foot?player.foot:player.car;
-      loadouts[id]=combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading);
+      const player=context.state.players[id]!,body=playerPose(player);
+      loadouts[id]={...combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading),...supplied.loadouts?.[id]};
     }
     const calendar=gameTime(context.state),rain=weather?rainDensity(context.state):0,extra=weatherRefills(context);
-    const combat=contextFromState(context.world,context.state,{...agentsCombatOptions(context.state),wave,loadouts,
+    const combat=contextFromState(context.world,context.state,{...supplied,...agentsCombatOptions(context.state),wave,loadouts,
       refills:extra.length?[...context.world.gameplay?.refills??[],...extra]:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
       fog:0,rain,
       fogAt:(x:number,z:number)=>fogAt(context,x,z)});
@@ -72,5 +85,5 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     cachedObservation={context,value};
     return value;
   };
-  return Object.freeze([createClockSystem(),...(weather?[createFogSystem()]:[]),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),...modeSystems]);
+  return Object.freeze([createClockSystem(),...(weather?[createFogSystem()]:[]),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),...(options.modes??modeSystems)]);
 }

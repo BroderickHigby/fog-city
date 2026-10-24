@@ -8,6 +8,7 @@ import {
   type FootState,
   type InputFrame,
   type PlayerId,
+  type PlayerRide,
   type PlayerState,
   type SimEvent,
   type SimInput,
@@ -17,7 +18,7 @@ import {
 import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
 import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar, type CarContact } from "./car.ts";
 import { agentImpactBody, carImpactBody, knockedIds, limpThrottle, stepImpacts } from "./impacts.ts";
-import { FOOT, canEnterCar, exitSpot, stepFoot } from "./foot.ts";
+import { FOOT, canEnterCar, exitSpot, stepFoot, wantsSprint } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
 import {
   DODGE_PROFILE,
@@ -42,6 +43,7 @@ import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./
 import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
+import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, destinationOf, hailableTaxi } from "./ride.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -135,9 +137,12 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    complete saved state, including active missions, combat effects and future extensions.
  *  - v8 -> v10 (v9 is the structural world's reserved stamp): weather changes behaviour only.
  *    Every saved field is kept; ext.fog, when absent, is created by the fog reducer.
- *  - v10 -> v11 (impacts.ts): cars shove, spin and dent other cars and robotaxis instead of
+ *  - v10 -> v11: faster on-foot pace and Action.sprint change behaviour only; every field is kept.
+ *  - v11 -> v12: robotaxi rides. PlayerState.ride is optional (absent = not riding); every field is kept.
+ *  - v12 -> v13: unlimited water and optional traffic pass/walker detour state; every saved field is kept.
+ *  - v13 -> v14 (impacts.ts): cars shove, spin and dent other cars and robotaxis instead of
  *    stopping against them as at a wall. Every new field is optional (ext.impacts absent until
- *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v10 save
+ *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v13 save
  *    loads unchanged.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
@@ -148,7 +153,10 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
   if (s.version === 8) return upgradeState({ ...s, version: 10 });
-  if (s.version === 10) return { ...s, version: 11 };
+  if (s.version === 10) return upgradeState({ ...s, version: 11 });
+  if (s.version === 11) return upgradeState({ ...s, version: 12 });
+  if (s.version === 12) return upgradeState({ ...s, version: 13 });
+  if (s.version === 13) return { ...s, version: 14 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -400,7 +408,7 @@ function stepPlayerWithEffects(world: World, player: PlayerState, raw: SimInput,
   const limit = movementLimit(combat, { id: `player:${player.id}`, playerId: player.id });
   if (limit.maxSpeed === null && limit.scale === 1) return stepPlayer(world, player, input, obs, contacts);
   const foot = player.mode === "foot" && player.foot;
-  const naturalCap = limit.scale < 1 ? (foot ? (input.brake ? FOOT.sprint : FOOT.walk) : CAR.maxSpeed) * limit.scale : Infinity;
+  const naturalCap = limit.scale < 1 ? (foot ? (wantsSprint(input) ? FOOT.sprint : FOOT.walk) : CAR.maxSpeed) * limit.scale : Infinity;
   const cap = Math.max(0, Math.min(limit.maxSpeed ?? Infinity, naturalCap));
   const body = foot || player.car;
   const limited = { ...body, speed: clamp(body.speed, -cap, cap) };
@@ -442,7 +450,11 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   // Bodies collide with each other as of the previous tick (after joins and leaves), so the
   // order players and agents are processed in cannot change the outcome.
   const sanitized: Record<PlayerId, SimInput> = {};
-  for (const id of sortedIds(players)) sanitized[id] = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
+  for (const id of sortedIds(players)) {
+    const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
+    // A robotaxi rider neither drives the parked car nor sprays from it: only F (get out) counts.
+    sanitized[id] = players[id]!.ride ? { ...NEUTRAL_INPUT, actions: input.actions & Action.enterExit } : input;
+  }
   const prior: SimState = { ...prev, players };
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
   const admitted = releaseActorIds(prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements), prepared.retirements);
@@ -451,8 +463,10 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const next: Record<PlayerId, PlayerState> = {};
   const contacts = new Map<PlayerId, CarContact[]>();
   for (const id of sortedIds(players)) {
+    const p = players[id]!;
     const hits: CarContact[] = [];
-    next[id] = stepPlayerWithEffects(world, players[id]!, sanitized[id]!, obs, before, hits);
+    // A rider's own car stays parked (held on the brake); settleRides handles the rider.
+    next[id] = p.ride ? { ...stepPlayer(world, { ...p, exitPending: false }, { ...NEUTRAL_INPUT, brake: 1 }, obs, hits), ride: p.ride } : stepPlayerWithEffects(world, p, sanitized[id]!, obs, before, hits);
     contacts.set(id, hits);
   }
   // (Knocked bodies are moved by impacts.ts, not by their routes.)
@@ -463,7 +477,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     : { ...admitted, tick, players: next, ext: { ...admitted.ext } };
   const physical = applyMotionBodies(world, moved, prepared.motions);
   const impacted = stepImpacts(world, physical, contacts);
-  const cleared = stepDodge(world, before, impacted);
+  const cleared = settleRides(world, before, stepDodge(world, before, impacted), sanitized, events);
   return runSystems({ world, previous: before, state: cleared, inputs: sanitized, events, observedBodies:observedMotionBodies(cleared,prepared.motions) }, systems);
 }
 
@@ -478,10 +492,106 @@ export interface ActiveBody {
 }
 
 export function activeBody(p: Readonly<PlayerState>): ActiveBody {
+  if (p.ride) {
+    const r = p.ride;
+    return { mode: "vehicle", x: r.x, y: r.y, z: r.z, heading: r.heading, speed: r.speed };
+  }
   if (p.mode === "foot" && p.foot) {
     const f = p.foot;
     return { mode: "foot", x: f.x, y: f.y, z: f.z, heading: f.heading, speed: f.speed };
   }
   const c = p.car;
   return { mode: "vehicle", x: c.x, y: c.y, z: c.z, heading: c.heading, speed: c.speed };
+}
+
+/**
+ * Robotaxi rides, after every body has moved this tick (src/sim/ride.ts). In player-id order:
+ *  - a destination event sets a rider's goal;
+ *  - a walker who pressed F and did not get into their own car hops into the nearest boardable
+ *    robotaxi (empty, stopped, fit, within reach, nothing in between);
+ *  - a rider's ride mirrors the taxi's pose; F, arriving at the goal, or the taxi pulling over
+ *    after water reaches it asks to get out; once the taxi has stopped the rider steps out at the
+ *    first clear, reachable spot beside it that no vehicle can reach this tick (the same rules as
+ *    getting out of the car), else stays aboard and tries again next tick.
+ */
+function settleRides(world: World, before: Readonly<SimState>, state: SimState, inputs: Readonly<Record<PlayerId, SimInput>>, events: readonly SimEvent[]): SimState {
+  const ids = sortedIds(state.players);
+  if (!ids.some((id) => state.players[id]!.ride || state.players[id]!.hail || (inputs[id]!.actions & Action.enterExit) !== 0)) return state;
+  const agents = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
+  const players: Record<PlayerId, PlayerState> = { ...state.players };
+  for (const id of ids) {
+    const p = players[id]!;
+    const pressed = (inputs[id]!.actions & Action.enterExit) !== 0;
+    let goal: { x: number; z: number } | null | undefined;
+    for (const e of events) if (e.kind === RIDE_DESTINATION_EVENT && e.playerId === id) goal = destinationOf(e.payload) ?? goal;
+    if (!p.ride) {
+      // A hail lapses after RIDE.hailTicks, or when the player is no longer on foot.
+      const hail = p.hail && p.hail.untilTick > state.tick && p.mode === "foot" ? p.hail : null;
+      if ((p.hail ?? null) !== hail) players[id] = { ...p, hail: null };
+      const was = before.players[id];
+      if (!pressed || p.mode !== "foot" || !p.foot || p.foot.dodge || !was || was.mode !== "foot") continue;
+      const taxi = boardableTaxi(world, { ...state, players }, p.foot.x, p.foot.z);
+      if (taxi) {
+        players[id] = { ...p, mode: "vehicle", foot: null, exitPending: false, hail: null,
+          ride: { agentId: taxi.id, x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed, goal: goal ?? null, exitPending: false } };
+        continue;
+      }
+      // None in reach: hail the nearest one passing (it pulls up and waits for you).
+      const passing = hailableTaxi(world, { ...state, players }, p.foot.x, p.foot.z, id);
+      if (passing) players[id] = { ...p, hail: { agentId: passing.id, untilTick: state.tick + RIDE.hailTicks } };
+      continue;
+    }
+    const taxi = agents.find((a) => a.id === p.ride!.agentId);
+    const pulling = (state.ext.combat?.targets[`agent:${p.ride.agentId}`]?.pullOverTick ?? 0) > state.tick;
+    const ride = { ...p.ride, ...(goal !== undefined ? { goal } : {}),
+      ...(taxi ? { x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed } : { speed: 0 }) };
+    if (!taxi || pressed || pulling || arrived(ride, ride.x, ride.z)) ride.exitPending = true;
+    if (ride.exitPending && Math.abs(ride.speed) < RIDE.exitSpeed) {
+      const foot = rideExitSpot(world, { ...state, players }, id, p.car, ride);
+      if (foot) {
+        players[id] = { ...p, mode: "foot", foot, exitPending: false, ride: null };
+        continue;
+      }
+    }
+    players[id] = { ...p, ride };
+  }
+  return { ...state, players };
+}
+
+/** Where a rider steps out of a stopped robotaxi, with getOut's rules (or null: not yet). */
+function rideExitSpot(world: World, state: Readonly<SimState>, id: PlayerId, car: Readonly<CarState>, ride: Readonly<PlayerRide>): FootState | null {
+  const agents = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
+  const near = (x: number, z: number, r: number): boolean => (x - ride.x) * (x - ride.x) + (z - ride.z) * (z - ride.z) < r * r;
+  const boxes: Box[] = [];
+  const circles: Circle[] = [];
+  for (const a of agents) {
+    if (!near(a.x, a.z, NEAR_AGENT_M)) continue;
+    if (AGENT_SPEC[a.kind].road) {
+      boxes.push({ x: a.x, z: a.z, heading: a.heading, hl: (a.halfLength ?? ROBOTAXI_BODY.halfLength) + WALKER_SKIN_M, hw: (a.halfWidth ?? ROBOTAXI_BODY.halfWidth) + WALKER_SKIN_M });
+    } else {
+      const cls = agentDodgeClass(a);
+      const person = cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot";
+      for (const c of agentCircles(a)) circles.push({ x: c.x, z: c.z, r: c.r, person });
+    }
+  }
+  for (const other of sortedIds(state.players)) {
+    const o = state.players[other]!;
+    const b = carBox(o.car);
+    boxes.push({ ...b, hl: b.hl + WALKER_SKIN_M, hw: b.hw + WALKER_SKIN_M });
+    if (other !== id && o.mode === "foot" && o.foot) circles.push({ x: o.foot.x, z: o.foot.z, r: FOOT.radius, person: true });
+  }
+  const reaching = vehiclesReaching(world, state, id, ride.x, ride.z, ROBOTAXI_BODY.halfLength + FOOT.exitGap + 2 * FOOT.radius + 1);
+  const prof = DODGE_PROFILE.player;
+  const avoid = (x: number, z: number): boolean => {
+    for (const v of reaching) {
+      const clear = v.moving ? prof.override! : STOPPED_CLEAR_M;
+      if (zoneDistance(v, x, z) < FOOT.radius + clear + 2 * v.inflate + v.speed * DT + 0.02) return true;
+      const margin = v.player === null ? Math.min(prof.margin, robotaxiBerth("player")) : prof.margin;
+      if (v.paths.length > 0 && sweepHit(v, x, z, FOOT.radius + margin + 0.05)) return true;
+    }
+    return false;
+  };
+  // exitSpot steps out from a car's sides and ends; a robotaxi's body is in `boxes`, so a spot
+  // inside or against it is refused like any other.
+  return exitSpot(world, { ...car, x: ride.x, y: ride.y, z: ride.z, heading: ride.heading }, boxes, circles, reaching.length > 0 ? avoid : null);
 }

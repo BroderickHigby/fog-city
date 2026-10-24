@@ -89,7 +89,7 @@ function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInput
     const direction=aim(player,input.aimYaw,input.aimPitch);
     const shot=waterShot(state,player,input,ctx);
     if (shot && state.projectiles.length<MAX_PROJECTILES) {
-      own[shot.supply]=Math.max(0,own[shot.supply]-shot.volume);
+      // Unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk.
       own.nextWaterTick=state.tick+shot.rateTicks;
       state.projectiles.push({id:state.nextId++,kind:"water",ownerId:player.id,x:player.x,y:shot.spawnHeight,z:player.z,
         vx:shot.direction.x*shot.speed,vy:shot.direction.y*shot.speed,vz:shot.direction.z*shot.speed,
