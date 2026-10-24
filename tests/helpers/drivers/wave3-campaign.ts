@@ -120,15 +120,18 @@ export class Wave3Driver extends CampaignDriver {
     const via = (side: number) => ({ x: (from.x + target.x) / 2 - dz / length * side, z: (from.z + target.z) / 2 + dx / length * side });
     // Traffic is deterministic, so a jam met on one plan is avoided by rewinding and trying another:
     // only the plan that arrives stays in the recorded inputs the page replays.
+    // A junction can hold a queue for tens of seconds while cross traffic passes: a plan counts
+    // as stalled only after a minute without three metres of progress.
+    const patience = 3600;
     const plans: (() => boolean)[] = [
-      () => this.cruise(target, stop, speed, 1200),
-      () => { this.hold(300); return this.cruise(target, stop, speed, 1200); },
-      () => this.cruise(via(250), 40, speed, 1200) && this.cruise(target, stop, speed, 1200),
-      () => this.cruise(via(-250), 40, speed, 1200) && this.cruise(target, stop, speed, 1200),
-      () => { this.hold(900); return this.cruise(target, stop, speed, 1200); },
+      () => this.cruise(target, stop, speed, patience),
+      () => { this.hold(300); return this.cruise(target, stop, speed, patience); },
+      () => this.cruise(via(250), 40, speed, patience) && this.cruise(target, stop, speed, patience),
+      () => this.cruise(via(-250), 40, speed, patience) && this.cruise(target, stop, speed, patience),
+      () => { this.hold(900); return this.cruise(target, stop, speed, patience); },
       // Leave the neighbourhood another way first when every direct line meets the same jam.
       ...[[0, -300], [300, 0], [0, 300], [-300, 0]].map(([ox, oz]) => () =>
-        this.cruise({ x: from.x + ox!, z: from.z + oz! }, 40, speed, 1200) && this.cruise(target, stop, speed, 1200)),
+        this.cruise({ x: from.x + ox!, z: from.z + oz! }, 40, speed, patience) && this.cruise(target, stop, speed, patience)),
     ];
     // Walking is the fallback when allowed: a couple of driving attempts, then on foot.
     plans.length = Math.min(plans.length, options.plans ?? (options.walkIfStuck ? 2 : plans.length));
