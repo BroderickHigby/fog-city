@@ -10,7 +10,9 @@
 import { describe, expect, it } from "vitest";
 import { agentsOf, createGameSystems, createInitialState, dodgeExtOf, makeFoot, step, type SimState } from "../../src/sim/index.ts";
 import { loadWorld, worldExists } from "../helpers.ts";
-import { SF_RUN_MS } from "./fixtures.ts";
+// Cost: 5,400 ticks of real SF at about 18–22 ms a tick (98–118 s measured, 2026-10-24); the
+// timeout allows 60 ms a tick, three times that, for slower machines.
+const RUN_MS = 5400 * 60;
 
 const JUNCTIONS: ReadonlyArray<readonly [number, number]> = [[-620, 746], [-866, 625], [-1169, -252]];
 
@@ -37,6 +39,6 @@ describe.skipIf(!worldExists("sf"))("no frozen walkers at the reported real-SF j
       }
       expect(worst, who).toBeLessThan(40 * 60);
       expect(dodgeExtOf(s).contacts).toBe(0);
-    }, SF_RUN_MS);
+    }, RUN_MS);
   }
 });

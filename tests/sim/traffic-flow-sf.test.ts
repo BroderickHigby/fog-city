@@ -19,7 +19,9 @@ import { agentsOf, createGameSystems, createInitialState, dodgeExtOf, makeFoot, 
 import { agentsRuntimeOf } from "../../src/sim/agents/runtime.ts";
 import { toLocal } from "../../src/geo/project.ts";
 import { loadWorld, worldExists } from "../helpers.ts";
-import { SF_RUN_MS } from "./fixtures.ts";
+// Cost: about 18–26 ms a simulated tick on real SF with the probes (Beale St, 7,200 ticks: 190 s);
+// each leg's timeout allows 60 ms a tick for slower machines.
+const MS_PER_TICK = 60;
 
 const WINDOW = 30 * 60;
 const VEHICLES = new Set(["robotaxi", "van", "bus"]);
@@ -96,5 +98,5 @@ describe.skipIf(!worldExists("sf"))("traffic flows out of the starting districts
     { street: "Laguna St", seed: 606, wave: 4, at: { x: -3408.5, z: -1071.1 }, secs: 150, limitS: 45 },
     { street: "Fillmore St", seed: 606, wave: 4, at: marina, secs: 150, limitS: 90 },
   ];
-  for (const leg of legs) it(`${leg.street} (seed ${leg.seed}, wave ${leg.wave}): no 45 s standstill, cars moving every 30 s`, () => soak(world, leg), SF_RUN_MS * 2);
+  for (const leg of legs) it(`${leg.street} (seed ${leg.seed}, wave ${leg.wave}): no 45 s standstill, cars moving every 30 s`, () => soak(world, leg), leg.secs * 60 * MS_PER_TICK);
 });
