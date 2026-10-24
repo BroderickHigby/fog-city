@@ -123,6 +123,7 @@ export const PIXEL_STEP = 0.75;
 /** Steps a tier down when frames stay slow. Feed it real frame times; it answers what to drop. */
 export class GfxGovernor {
   private slow = 0;
+  private longFrames = 0;
   private grace = GOVERNOR_GRACE_S;
   private readonly steps: GfxStep[];
   readonly taken: GfxStep[] = [];
@@ -135,18 +136,23 @@ export class GfxGovernor {
 
   /** One frame: the step to take now, or null. `busy`: tiles are loading, or the tab was hidden. */
   frame(seconds: number, busy: boolean): GfxStep | null {
-    if (this.steps.length === 0 || !(seconds > 0)) return null;
-    // A frame over a second is a stall (a hidden tab, a GC pause, a shader compile), not a rate.
-    if (seconds > 1) return null;
-    if (this.grace > 0) {
-      this.grace -= seconds;
-      return null;
-    }
+    if (this.steps.length === 0 || !(seconds > 0) || !Number.isFinite(seconds)) return null;
     if (busy) {
       this.slow = 0;
+      this.longFrames = 0;
+      this.grace = Math.max(0, this.grace - Math.min(seconds, 1));
       return null;
     }
-    this.slow = 1 / seconds < GOVERNOR_MIN_FPS ? this.slow + seconds : 0;
+    // Ignore an isolated GC/shader stall, but sustained sub-1 FPS rendering is overload.
+    // Cap its contribution so returning from one long suspension cannot skip all grace.
+    this.longFrames = seconds > 1 ? this.longFrames + 1 : 0;
+    if (seconds > 1 && this.longFrames < 3) return null;
+    const elapsed = Math.min(seconds, 1);
+    if (this.grace > 0) {
+      this.grace -= elapsed;
+      return null;
+    }
+    this.slow = 1 / seconds < GOVERNOR_MIN_FPS ? this.slow + elapsed : 0;
     if (this.slow < GOVERNOR_HOLD_S) return null;
     this.slow = 0;
     this.grace = GOVERNOR_GRACE_S;
