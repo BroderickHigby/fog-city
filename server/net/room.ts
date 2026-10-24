@@ -227,17 +227,18 @@ export class Room {
     if (this.phase !== "lobby") throw new Error("room_started");
     for (const seat of this.seats.values()) if (!seat.spectator && (!seat.ready || !seat.peer)) throw new Error("not_ready");
     const players = [...this.seats.values()].filter((s) => !s.spectator).map((s) => s.id).sort();
+    const bots = Math.min(Math.max(this.bots, mode === "cleanStreets" && players.length === 1 ? 1 : 0), MAX_PLAYERS - players.length);
     const matchId = `${this.code}-${randomBytes(3).toString("hex")}`;
     const seed = randomBytes(4).readUInt32BE() & 0x7fffffff;
     let state: SimState | null = null;
     for (let tries = 0; tries < this.arenas.length && !state; tries++) {
       const spawn = this.arenas[this.arenaCursor++ % this.arenas.length]!;
       try {
-        state = createBotSweep(this.bundle.world, { id: matchId, mode, seed, players, spawn, bots: Math.min(this.bots, MAX_PLAYERS - players.length), ...(this.limits.matchTicks ? { durationTicks: this.limits.matchTicks } : {}) });
+        state = createBotSweep(this.bundle.world, { id: matchId, mode, seed, players, spawn, bots, ...(this.limits.matchTicks ? { durationTicks: this.limits.matchTicks } : {}) });
       } catch (error) { if (!(error instanceof ArenaUnavailableError)) throw error; }
     }
     if (!state) throw new Error("arena_unavailable");
-    this.mode = mode; this.matchId = matchId; this.state = state; this.phase = "match"; this.events = []; this.startedAt = now;
+    this.mode = mode; this.bots = bots; this.matchId = matchId; this.state = state; this.phase = "match"; this.events = []; this.startedAt = now;
     for (const seat of this.seats.values()) { seat.queue = []; seat.seq = 0; seat.ack = 0; seat.lastInputAt = now; seat.commandSequence = 0; }
     this.broadcastRoom();
     for (const seat of this.seats.values()) this.sendSnapshot(seat, "start", now);

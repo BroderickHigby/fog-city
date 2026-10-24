@@ -2,6 +2,15 @@
   "version": 1,
   "sampleRate": 44100,
   "sounds": {
+    "horn": {
+      "files": {
+        "ogg": "audio/horn.ogg",
+        "mp3": "audio/horn.mp3"
+      },
+      "durationS": 0.5,
+      "loop": true,
+      "use": "The player's car horn: loop while the horn button is held (use the .ogg for gapless looping)."
+    },
     "melt-fizz": {
       "files": {
         "ogg": "audio/melt-fizz.ogg",
@@ -25,6 +34,15 @@
         "E5",
         "B4"
       ]
+    },
+    "robotaxi-horn": {
+      "files": {
+        "ogg": "audio/robotaxi-horn.ogg",
+        "mp3": "audio/robotaxi-horn.mp3"
+      },
+      "durationS": 0.62,
+      "loop": false,
+      "use": "A robotaxi's polite double chirp when it honks (agent mode honk)."
     },
     "rust-creak": {
       "files": {

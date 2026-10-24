@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/street-detail",
+  "title": "Index of the render-only street-detail layers (public/tiles/<world>/street-detail.json, pipeline/build-street-detail.ts).",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "snapshotDate",
+    "attribution",
+    "layers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "snapshotDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "attribution": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "layers": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "markings": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
+        },
+        "furniture": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
+        },
+        "signs": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
+        },
+        "trees": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    }
+  }
+}

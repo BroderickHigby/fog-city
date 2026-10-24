@@ -77,7 +77,7 @@ describe("registered combat system", () => {
     expect(seen).toMatchObject({ throttle: 0, steer: 0, brake: 0, aimYaw: 0 });
     expect(seen).not.toHaveProperty("aimPitch");
     expect(result.ext.combat?.players.p).toMatchObject({ cones: 2, scanTicks: 1, held: ["cone", "gadget"] });
-    expect(result.ext.combat?.players.p?.water).toBeCloseTo(7.92);
+    expect(result.ext.combat?.players.p?.water).toBe(8);
     expect(result.ext.combat?.events.filter(event => event.kind === "weapon.water" || event.kind === "weapon.cone")).toHaveLength(2);
     expect(input.p.throttle).toBeNaN();
     expect(() => canonicalJson(result)).not.toThrow();

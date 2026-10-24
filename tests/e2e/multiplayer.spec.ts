@@ -7,7 +7,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { worldExists, ROOT } from "../helpers.ts";
-import { gateWorld, type FogWindow } from "./fixtures.ts";
+import { FAST_VIEWPORT, gateWorld, type FogWindow } from "./fixtures.ts";
 import { PORT } from "../../playwright.config.ts";
 import type { NetDebug } from "../../src/ui/multiplayer.ts";
 import type { SimState } from "../../src/sim/index.ts";
@@ -15,6 +15,11 @@ import type { SimState } from "../../src/sim/index.ts";
 const RELAY_PORT = Number(process.env.E2E_RELAY_PORT ?? PORT + 1101);
 const RELAY = `ws://127.0.0.1:${RELAY_PORT}/relay`;
 type NetWindow = FogWindow & { __fogcityNet?: NetDebug };
+
+// These are behavior checks; two full-size SF SwiftShader views can exhaust the rejoin grace.
+test.use({ viewport: FAST_VIEWPORT });
+// Focus the canvas clear of the mobile bottom match HUD, left minimap and top-right controls.
+const GAME_FOCUS = { x: 430, y: 180 };
 
 let relay: ChildProcess | null = null;
 let relayLog = "";
@@ -102,15 +107,44 @@ test.describe("online Bot Sweep", () => {
       const matchPlayers = await net(a, (n) => Object.keys(n.match()!.players).sort());
       expect(matchPlayers).toEqual(["p1", "p2"]);
 
+      // Free fly keeps the relay timeline running with neutral player controls. It never
+      // resumes the parked free-roam city, even while the camera owns the movement keys.
+      const cityHash = await a.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash());
+      const matchTick = await net(a, n => n.match()!.tick);
+      await a.locator("canvas").first().click({ position: GAME_FOCUS });
+      await a.keyboard.press("KeyV");
+      await expect.poll(() => a.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode), { timeout: 60_000 }).toBe("fly");
+      await a.keyboard.down("KeyW");
+      await waitNet(a, `n.match().tick > ${matchTick} + 60`, 120_000);
+      await a.keyboard.up("KeyW");
+      expect(await net(a, (_n, city) => city.tick)).toBe(cityTick);
+      expect(await a.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash())).toBe(cityHash);
+      await a.keyboard.press("KeyV");
+      await expect.poll(() => a.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode), { timeout: 60_000 }).toBe("chase");
+
+      // The second seat is p2, so its first-person camera must hide p2's own human body,
+      // while p1 remains in its car. Returning to chase restores that same body.
+      await b.locator("canvas").first().click({ position: GAME_FOCUS });
+      await b.keyboard.press("KeyF");
+      await waitNet(b, `n.match().players.p2.mode === "foot"`, 120_000);
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().walkersFromFile), { timeout: 60_000 }).toBe(1);
+      await b.keyboard.press("KeyC");
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode), { timeout: 60_000 }).toBe("first-person");
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().walkersFromFile), { timeout: 60_000 }).toBe(0);
+      await b.keyboard.press("KeyC");
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().walkersFromFile), { timeout: 60_000 }).toBe(1);
+      await b.keyboard.press("KeyF");
+      await waitNet(b, `n.match().players.p2.mode === "vehicle"`, 120_000);
+
       // Player 1 drives; player 2's browser sees player 1's car move (inputs relayed by player id).
       const z0 = await net(b, (n) => n.match()!.players.p1!.car.z), x0 = await net(b, (n) => n.match()!.players.p1!.car.x);
-      await a.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await a.locator("canvas").first().click({ position: GAME_FOCUS });
       await a.keyboard.down("KeyW");
       await waitNet(b, `Math.hypot(n.match().players.p1.car.x - ${x0}, n.match().players.p1.car.z - ${z0}) > 3`, 120_000);
       await a.keyboard.up("KeyW");
       // And the other way round.
       const p2 = await net(a, (n) => ({ x: n.match()!.players.p2!.car.x, z: n.match()!.players.p2!.car.z }));
-      await b.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await b.locator("canvas").first().click({ position: GAME_FOCUS });
       await b.keyboard.down("KeyW");
       await waitNet(a, `Math.hypot(n.match().players.p2.car.x - ${p2.x}, n.match().players.p2.car.z - ${p2.z}) > 3`, 120_000);
       await b.keyboard.up("KeyW");
@@ -232,7 +266,7 @@ test.describe("online Bot Sweep", () => {
       await expect(a.getByRole("status", { name: "Online match" })).toContainText("Your team 0 : 0 Rivals");
       expect(await net(b, (n) => { const m = (n.match()!.ext.modes as { match: { mode: string; players: Record<string, { team: number }> } }).match; return [m.mode, m.players.p1!.team, m.players.p2!.team]; })).toEqual(["cleanStreets", 0, 1]);
       // B lobs flowers (held); the sim decides whether a rival is in sight. Nothing breaks either way.
-      await b.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await b.locator("canvas").first().click({ position: GAME_FOCUS });
       await b.keyboard.down("KeyB"); await b.waitForTimeout(1500); await b.keyboard.up("KeyB");
       for (const page of [a, b]) await waitNet(page, `n.stats() && n.stats().frames > 120`, 120_000);
       expect((await health()).mismatches).toBe(0);

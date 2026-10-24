@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { PLAYER_BODY_FILE, PlayerBodies } from "../../src/render/player-body.ts";
+import { HAIR_ALPHA_CUT, PLAYER_BODY_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw } from "../../src/render/player-body.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
 // Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
@@ -46,6 +46,25 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   return { promise, resolve };
 }
 const pose = { x: 10, y: 3, z: -5, heading: Math.PI / 2, speed: 0 };
+
+it("counts material primitives, draw ranges and visible bodies in colour-pass geometry costs", () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(18 * 3), 3));
+  geometry.addGroup(0, 6, 0);
+  geometry.addGroup(6, 12, 1);
+  geometry.setDrawRange(3, 12);
+  const opaque = new THREE.MeshBasicMaterial();
+  const transparent = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide });
+  const root = new THREE.Group();
+  const mesh = new THREE.Mesh(geometry, [opaque, transparent]);
+  root.add(mesh);
+  expect(bodyRenderCost(root)).toEqual({ drawCalls: 3, triangles: 7 }); // 1 + two passes of 3
+  transparent.visible = false;
+  expect(bodyRenderCost(root)).toEqual({ drawCalls: 1, triangles: 1 });
+  root.visible = false;
+  expect(bodyRenderCost(root)).toEqual({ drawCalls: 0, triangles: 0 });
+  geometry.dispose(); opaque.dispose(); transparent.dispose();
+});
 
 describe("generic online player avatar", () => {
   it("loads actual human geometry and animates independent skeletons without moving the world pose", async () => {
@@ -117,6 +136,58 @@ describe("generic online player avatar", () => {
         expect(Math.min(...soles)).toBeLessThan(0.12);
         expect(Math.max(...soles)).toBeGreaterThan(0.02);
       }
+    }
+  });
+
+  it("eases the drawn heading toward the sim's, the short way round, snapping on first sight and reversals", () => {
+    expect(easeYaw(Number.NaN, 1, 1 / 60)).toBe(1);
+    expect(easeYaw(0.5, 1, 0)).toBe(1);
+    const step = easeYaw(0, 1, 1 / 60);
+    expect(step).toBeGreaterThan(0.1);
+    expect(step).toBeLessThan(0.5);
+    let yaw = 0;
+    for (let frame = 0; frame < 45; frame++) yaw = easeYaw(yaw, 1, 1 / 60);
+    expect(yaw).toBe(1);
+    // Across north: from 350 degrees to 10 degrees turns through 0, not through 180.
+    const across = easeYaw((350 * Math.PI) / 180, (10 * Math.PI) / 180, 1 / 60);
+    expect(Math.cos(across)).toBeGreaterThan(Math.cos((10 * Math.PI) / 180));
+    expect(easeYaw(0, TURN_SNAP_RAD + 0.1, 1 / 60)).toBe(TURN_SNAP_RAD + 0.1);
+  });
+
+  it("turns the body over a few frames, and faces the sim heading at once when it reappears", async () => {
+    const humans = await PlayerBodies.load(async () => bytes, false);
+    disposables.push(humans);
+    const draw = (heading: number, dt: number, shown = true): THREE.Object3D => {
+      humans.begin();
+      if (shown) humans.add("p1", 0, 0, 0, heading, 1.39, dt);
+      humans.end();
+      return body(humans.group, "p1");
+    };
+    expect(draw(0, 0).rotation.y).toBe(-0);
+    const turning = -draw(1.2, 1 / 60).rotation.y;
+    expect(turning).toBeGreaterThan(0);
+    expect(turning).toBeLessThan(1.2);
+    draw(1.2, 1 / 60, false);
+    expect(draw(-1.5, 1 / 60).rotation.y).toBe(1.5);
+  });
+
+  it("cuts the hair cards out at an alpha threshold instead of blending them", async () => {
+    const humans = await PlayerBodies.load(async () => bytes, true);
+    disposables.push(humans);
+    humans.begin();
+    humans.add("p1", 0, 0, 0, 0, 0, 0);
+    humans.end();
+    const hair: THREE.Material[] = [];
+    body(humans.group, "p1").traverse(object => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) if (m.name.endsWith("_hair")) hair.push(m);
+    });
+    expect(hair.length).toBeGreaterThan(0);
+    for (const m of hair) {
+      expect(m.transparent).toBe(false);
+      expect(m.depthWrite).toBe(true);
+      expect(m.alphaTest).toBe(HAIR_ALPHA_CUT);
     }
   });
 
