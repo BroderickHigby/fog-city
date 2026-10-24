@@ -82,6 +82,25 @@ describe("robotaxi rides", () => {
     expect(dodgeExtOf(s).contacts).toBe(0);
   });
 
+  it("a vanished taxi lets its rider out at the last ride pose without F", () => {
+    const { s: s0 } = besideTaxi();
+    const boarded = step(world, s0, F);
+    const ride = boarded.players.p!.ride!;
+    const car = boarded.players.p!.car;
+    const missing = { ...boarded, ext: { ...boarded.ext, agents: {
+      ...boarded.ext.agents!, list: boarded.ext.agents!.list.filter((a) => a.id !== ride.agentId),
+    } } };
+    const s = step(world, missing, IDLE);
+    const p = s.players.p!;
+    expect(p.ride).toBeNull();
+    expect(p.mode).toBe("foot");
+    expect(Math.hypot(p.foot!.x - ride.x, p.foot!.z - ride.z)).toBeLessThan(4);
+    expect(p.car.x).toBe(car.x);
+    expect(p.car.z).toBe(car.z);
+    expect(dodgeExtOf(s).contacts).toBe(0);
+    expect(dodgeExtOf(s).failures).toBe(0);
+  });
+
   it("F with no taxi in reach hails one passing: it pulls up and waits, then the hail lapses", () => {
     const s0 = createInitialState(world, 5, ["p"], { x: 150, z: 0, heading: Math.PI / 2 });
     const taxi = s0.ext.agents!.list.find((a) => a.kind === "robotaxi")!;

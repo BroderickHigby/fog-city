@@ -525,7 +525,7 @@ function settleRides(world: World, before: Readonly<SimState>, state: SimState, 
     const pulling = (state.ext.combat?.targets[`agent:${p.ride.agentId}`]?.pullOverTick ?? 0) > state.tick;
     const ride = { ...p.ride, ...(goal !== undefined ? { goal } : {}),
       ...(taxi ? { x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed } : { speed: 0 }) };
-    if (pressed || pulling || arrived(ride, ride.x, ride.z)) ride.exitPending = true;
+    if (!taxi || pressed || pulling || arrived(ride, ride.x, ride.z)) ride.exitPending = true;
     if (ride.exitPending && Math.abs(ride.speed) < RIDE.exitSpeed) {
       const foot = rideExitSpot(world, { ...state, players }, id, p.car, ride);
       if (foot) {

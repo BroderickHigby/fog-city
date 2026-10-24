@@ -65,6 +65,7 @@
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
+import { rideRouteNext } from "./ride-route.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import { movementLimit } from "./combat/system.ts";
 import {
@@ -734,8 +735,7 @@ function canWalk(e: RoadEdgeInfo, dir: Dir): boolean {
  */
 function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road: boolean, rng: number, goal: { x: number; z: number } | null = null): [string, Dir, number, number] {
   const node = g.nodes[endNode(e, dir)]!;
-  // A ridden robotaxi heads for its rider's goal: the street whose far end is nearest to it
-  // (greedy and deterministic: no random draw for the street).
+  // A ridden taxi follows a cached shortest route, including a legal turn back if needed.
   const [ix, iz] = endTangent(e, dir);
   const options: Array<{ edge: RoadEdgeInfo; dir: Dir; w: number }> = [];
   for (const o of node.out) {
@@ -748,19 +748,12 @@ function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road:
   }
   let r = rng;
   let pick: { edge: RoadEdgeInfo; dir: Dir } | null = null;
-  if (options.length === 0) {
+  if (goal && road) {
+    const next = rideRouteNext(g, node.index, goal);
+    if (next) pick = { edge: g.edges[next.edge]!, dir: next.dir };
+  } else if (options.length === 0) {
     const back: Dir = dir === 1 ? -1 : 1;
     if (road ? canDrive(e, back) : canWalk(e, back)) pick = { edge: e, dir: back };
-  } else if (goal) {
-    let best = Infinity;
-    for (const o of options) {
-      const far = g.nodes[endNode(o.edge, o.dir)]!;
-      const d = (far.x - goal.x) * (far.x - goal.x) + (far.z - goal.z) * (far.z - goal.z);
-      if (d < best) {
-        best = d;
-        pick = o;
-      }
-    }
   } else {
     let total = 0;
     for (const o of options) total += o.w;
