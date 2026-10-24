@@ -85,7 +85,12 @@ export class DemoDayDriver extends GameplayDriver {
           this.input({ throttle: Math.abs(error) < .65 ? 1 : 0, steer: clamp(error / (2.2 * DT), -1, 1), brake: 1, actions: 0 });
           const now = distance(this.body, node);
           stuck = now > last - .02 ? stuck + 1 : 0; last = now;
-          if (stuck > 45) { this.walkTo(node, 2.5, 3000); break; }
+          if (stuck > 45) {
+            // Blocked: let the planner find a way round to this node. When it finds none (the
+            // node sits behind a wall from here), carry on to the next node of the route.
+            try { this.walkTo(node, 2.5, 3000); } catch (error) { if (!String(error).includes("No walkable route")) throw error; }
+            break;
+          }
         }
       }
     }
