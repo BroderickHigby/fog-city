@@ -26,12 +26,16 @@ function arg(name: string): string | undefined {
 }
 const flag = (name: string): boolean => process.argv.includes(`--${name}`);
 
-/** street-detail.json and the layer files it lists, when present. */
+/**
+ * street-detail.json and the layer files it lists, when present: the files build-street-detail.ts
+ * owns. storefronts.json is this producer's own output even when the index lists it.
+ */
 function foreignFiles(dir: string): Set<string> {
   const index = join(dir, "street-detail.json");
   if (!existsSync(index)) return new Set();
   const doc = JSON.parse(readFileSync(index, "utf8")) as { layers?: Record<string, string> };
-  return new Set(["street-detail.json", ...Object.keys(doc.layers ?? {}).sort().map((k) => doc.layers![k]!)]);
+  const owned = Object.keys(doc.layers ?? {}).sort().map((k) => doc.layers![k]!).filter((f) => f !== "storefronts.json");
+  return new Set(["street-detail.json", ...owned]);
 }
 
 async function main(): Promise<void> {
