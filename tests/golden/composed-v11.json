@@ -3,12 +3,12 @@
   "scenarios": {
     "city": {
       "hashes": [
-        "3bb8bbff",
-        "caf0d52d",
-        "e9e0e959",
-        "00c05ca1",
-        "c7b2c72d",
-        "9adb13c2"
+        "97c7644a",
+        "59e71105",
+        "2a129a9d",
+        "29759cba",
+        "08e06015",
+        "b91fe087"
       ],
       "coverage": {
         "agents:final": 17,
@@ -22,13 +22,13 @@
       "hashes": [
         "ecf79fbd",
         "d926fb82",
-        "7b522946",
-        "078faeb2",
-        "41704314",
-        "1080f6df",
-        "563e0ccf",
-        "78a4b733",
-        "dd8b907d"
+        "925fe766",
+        "8b0c118c",
+        "b0132292",
+        "e589c4c6",
+        "3f4d37fa",
+        "3ca40f5f",
+        "674072f1"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,12 +57,12 @@
     },
     "city-wave3": {
       "hashes": [
-        "ae6bbfda",
-        "f06c0cf9",
-        "1bd830b3",
-        "e8ebc309",
-        "d1cbdfd4",
-        "b6962946"
+        "f0ed0823",
+        "94e28ae1",
+        "4a500e5f",
+        "20c4103c",
+        "50b14bd4",
+        "38c67f27"
       ],
       "coverage": {
         "agents:final": 17,
@@ -74,12 +74,12 @@
     },
     "city-wave3-rain": {
       "hashes": [
-        "e794ad7a",
-        "e9e60b89",
-        "ffb1534a",
-        "e658d02c",
-        "79f0c24c",
-        "e8d047c1"
+        "89b03743",
+        "29e302d5",
+        "542921b1",
+        "995de5b5",
+        "e0367bf0",
+        "321cc4ab"
       ],
       "coverage": {
         "agents:final": 17,

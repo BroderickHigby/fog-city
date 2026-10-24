@@ -64,6 +64,8 @@
 
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
+import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
+import { rideRouteNext } from "./ride-route.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import { movementLimit } from "./combat/system.ts";
 import {
@@ -291,7 +293,7 @@ export interface AgentState {
   rng: number;
   /** v4: diving out of a vehicle's way, or getting up after it (src/sim/dodge.ts), else null. */
   dodge: DodgeState | null;
-  /** v10 robotaxis: going round a stopped vehicle on the current lane (src/sim/overtake.ts); absent otherwise. */
+  /** v13 robotaxis: going round a stopped vehicle on the current lane (src/sim/overtake.ts); absent otherwise. */
   pass?: PassState;
 }
 
@@ -572,9 +574,9 @@ function nearestBody(bodies: readonly Body[], x: number, z: number): number {
 export function playerBodies(state: Readonly<SimState>): Body[] {
   const out: Body[] = [];
   for (const id of sortedIds(state.players)) {
-    const p = state.players[id]!;
-    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z });
-    else out.push({ x: p.car.x, z: p.car.z });
+    // A rider counts where the taxi is (keeps it stepped every tick and never despawned).
+    const b = playerPose(state.players[id]!);
+    out.push({ x: b.x, z: b.z });
   }
   return out;
 }
@@ -823,8 +825,9 @@ function canWalk(e: RoadEdgeInfo, dir: Dir): boolean {
  * otherwise the nearer side, which means crossing a street). ["", dir, 0] at a dead end with
  * no way on.
  */
-function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road: boolean, rng: number): [string, Dir, number, number] {
+function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road: boolean, rng: number, goal: { x: number; z: number } | null = null): [string, Dir, number, number] {
   const node = g.nodes[endNode(e, dir)]!;
+  // A ridden taxi follows a cached shortest route, including a legal turn back if needed.
   const [ix, iz] = endTangent(e, dir);
   const options: Array<{ edge: RoadEdgeInfo; dir: Dir; w: number }> = [];
   for (const o of node.out) {
@@ -837,7 +840,10 @@ function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road:
   }
   let r = rng;
   let pick: { edge: RoadEdgeInfo; dir: Dir } | null = null;
-  if (options.length === 0) {
+  if (goal && road) {
+    const next = rideRouteNext(g, node.index, goal);
+    if (next) pick = { edge: g.edges[next.edge]!, dir: next.dir };
+  } else if (options.length === 0) {
     const back: Dir = dir === 1 ? -1 : 1;
     if (road ? canDrive(e, back) : canWalk(e, back)) pick = { edge: e, dir: back };
   } else {
@@ -1339,6 +1345,10 @@ interface Ctx {
   /** Ids of every robotaxi. */
   road: Set<number>;
   winners: Set<number>;
+  /** Ridden robotaxis (step.ts boards riders): their goal and whether the rider asked to stop. */
+  rides: ReturnType<typeof ridesByAgent>;
+  /** Robotaxis hailed by a player on foot: they pull up and wait (step.ts). */
+  hailed: Map<number, number>;
   /** The tick being stepped to (pass re-checks are spread over PASS_RETRY_TICKS by id). */
   tick: number;
   /** Every vehicle (players' cars, robotaxis, service vehicles) and everyone on foot, for planning a pass. */
@@ -1584,6 +1594,15 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   if (spec.road) cruise = Math.min(cruise, e.speedLimitMps * 1.1);
   let target = cruise;
   let limitedByObstacle = false;
+  // A rider asked to get out, or the taxi is at their goal: stop here (in lane, as for a fare).
+  const ride = c.rides.get(a.id);
+  if ((ride && (ride.exitPending || arrived(ride, a.x, a.z))) || c.hailed.has(a.id)) target = 0;
+  // Heading for a rider's goal: re-plan the next street while well short of the junction (never
+  // once committed to it: claimed, on a connector, or close enough to be contending for it).
+  if (spec.road && ride?.goal && a.conn === null && a.node === "" && cur.len - a.s > 15) {
+    const [n, d, l] = chooseNext(g, e, a.dir, a.lane, true, a.rng, ride.goal);
+    if (n !== a.next || d !== a.ndir) a = { ...a, next: n, ndir: d, nlane: l };
+  }
   if (spec.road) {
     if (a.conn) {
       target = Math.min(target, turnSpeed(a.conn, cruise));
@@ -1629,8 +1648,11 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   }
 
   if (spec.road && a.conn === null) {
-    if (pass === undefined && stoodStill && a.speed < 0.05 && a.wait >= (blocker!.pass!.foot ? PASS_FOOT_WAIT_TICKS : PASS_WAIT_TICKS)) {
-      if ((c.tick + a.id) % PASS_RETRY_TICKS === 0) {
+    const passWait = blocker?.pass?.foot ? PASS_FOOT_WAIT_TICKS : PASS_WAIT_TICKS;
+    if (pass === undefined && stoodStill && a.speed < 0.05 && a.wait >= passWait) {
+      // Try before the first backup, even off this id's retry slot. Backing over a probe-sample
+      // boundary can let it creep forward and reset wait before the scheduled slot ever arrives.
+      if (a.wait < passWait + ticks || (c.tick + a.id) % PASS_RETRY_TICKS === 0) {
         // Waited behind a vehicle standing still: go round it if the road is clear (it sets off next tick).
         const planned = planPass(c, a, e, cur, blocker!.pass!);
         if (planned) return { ...a, pass: planned, speed: 0, mode: "yield", rng };
@@ -1729,7 +1751,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     conn = cp;
     curEdge = plan.edge;
     curPath = plan.path;
-    const [n2, d2, l2, r2] = chooseNext(g, plan.edge, plan.dir, plan.lane, spec.road, rng);
+    const [n2, d2, l2, r2] = chooseNext(g, plan.edge, plan.dir, plan.lane, spec.road, rng, ride?.goal ?? null);
     next = n2;
     ndir = d2;
     nlane = l2;
@@ -1774,7 +1796,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     // Refuse the move: stay put and wait. (A walker never steps or sidesteps closer than
     // WALKER_VEHICLE_GAP_M to a vehicle's body: the dodge counts that close as in its way.)
     wait = a.wait + ticks;
-    if (spec.road && wait > ROBOTAXI_STUCK_TICKS) return null;
+    // (A ridden taxi waits on: its rider is let out where it stands, never dropped with it.)
+    if (spec.road && wait > ROBOTAXI_STUCK_TICKS && !ride) return null;
     if (!spec.road && wait > WALKER_TURN_TICKS) return turnAround(c, { ...a, rng });
     return { ...a, speed: 0, wait, mode: "wait", rng };
   }
@@ -2300,8 +2323,9 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   }
   const byId = new Map<number, AgentState>();
   for (const a of ext.list) byId.set(a.id, a);
+  const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet };
+  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -2314,7 +2338,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     const n = stepAgent(ctx, a, dt, limit);
     if (!n) continue;
     // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.
-    if (n.wait > STUCK_REMOVE_TICKS && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
+    if (n.wait > STUCK_REMOVE_TICKS && !rides.has(n.id) && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
     list.push(n);
   }
 

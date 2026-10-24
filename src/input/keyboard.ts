@@ -2,7 +2,7 @@ import { Action, type SimInput } from "../sim/contract.ts";
 
 const NO_PRESSES: readonly string[] = Object.freeze([]);
 
-const HELD: Readonly<Record<string, number>> = { KeyE: Action.fire, Enter: Action.fire, KeyQ: Action.scan, KeyZ: Action.watch, KeyB: Action.altFire, KeyR: Action.interact };
+const HELD: Readonly<Record<string, number>> = { KeyE: Action.fire, Enter: Action.fire, KeyQ: Action.scan, KeyZ: Action.watch, KeyB: Action.altFire, KeyR: Action.interact, ShiftLeft: Action.sprint, ShiftRight: Action.sprint };
 export const KEY_ACTIONS: Readonly<Record<string, number>> = { KeyF: Action.enterExit, KeyH: Action.horn, KeyG: Action.gadget, KeyU: Action.gear, KeyT: Action.cone, KeyX: Action.streak, KeyY: Action.emote };
 
 export function isTextEntry(target: EventTarget | null): boolean {

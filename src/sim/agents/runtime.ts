@@ -1,4 +1,5 @@
 import { BOT_TELLS, botAtLevel } from "../../content/botTells.ts";
+import { playerPose } from "../ride.ts";
 import { ROBOT_GOALS, goalsInWave } from "../../content/robotGoals.ts";
 import { badRobotRate, protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
@@ -68,7 +69,7 @@ export interface RuntimeActor extends RuntimeSpawn {
   tellIds: string[];
   tellIntensity: number;
   hiddenTellId: string | null;
-  /** v10: walking round a stopped vehicle to (x, z), where its route carries on from `cursor` (detour.ts). */
+  /** v13: walking round a stopped vehicle to (x, z), where its route carries on from `cursor` (detour.ts). */
   detour?: { x: number; z: number; cursor: SidewalkCursor; until: number } | null;
   /** v11: when it last began a glance at someone standing near (GLANCE_COOLDOWN_TICKS). */
   glanced?: number;
@@ -145,7 +146,7 @@ const attackKinds:Record<string,AttackKind>={shove:"shove",grocerySnatch:"snatch
 const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
 function keys<T>(record:Readonly<Record<string,T>>):string[]{return Object.keys(record).sort(compare);}
 function distance(a:{x:number;z:number},b:{x:number;z:number}):number{return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.z-b.z)*(a.z-b.z));}
-function bodyOf(player:SimState["players"][string]){return player.mode==="foot"&&player.foot?player.foot:player.car;}
+function bodyOf(player:SimState["players"][string]){return playerPose(player);}
 function players(state:Readonly<SimState>){return keys(state.players).map(id=>({id,mode:state.players[id]!.mode,...bodyOf(state.players[id]!)}));}
 function hash(value:string):number{let out=2166136261;for(let i=0;i<value.length;i++)out=Math.imul(out^value.charCodeAt(i),16777619);return out>>>0;}
 function defaultBadRate(x:number,z:number):number{const point=toLatLon(x,z);return badRobotRate([point.lat,point.lon]);}

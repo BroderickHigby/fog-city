@@ -6,11 +6,14 @@ little bit more action."
 
 ## Now
 
-- **PR 1, going round stopped vehicles** — [#38](https://github.com/BroderickHigby/fog-city/pull/38)
-  (draft), branch `work/city-life/overtake` (from `origin/integrate/wave2` `ff7db5b`).
-  SIM_VERSION **10** (9 stays reserved for the World stream's structural integration). Local:
-  typecheck, full vitest and the new Chromium check on real SF pass; waiting on CI.
-- **PR 2, more robots and more action** — next, on `work/city-life/robots-action`.
+- **PR 1, going round stopped vehicles**: [#38](https://github.com/BroderickHigby/fog-city/pull/38),
+  merged into `integrate/wave2` (with the real-SF junction deadlock fix). Follow-ups made after the
+  merge (a narrower general step-out for walkers, the junction soak at 40 s) are folded into PR 2.
+- **PR 2, more robots and more action**: branch `work/city-life/robots-action`, merged with
+  `integrate/wave2` `59e5a7b` (v13), stamped **SIM_VERSION 14** (13 → 14 is a pure restamp).
+  CI is blocked by billing, so the PR stays a draft with local evidence posted on it.
+- Next: readable robots (visible tells, a first-time explainer, plain scan reasons, a map legend;
+  intro text coordinated with Missions).
 
 ## PR 1: going round stopped vehicles (SIM_VERSION 10)
 
@@ -67,14 +70,21 @@ Known, pre-existing, not changed: the robotaxi deadlock breaker (`GHOST_TICKS`) 
 robotaxis squeeze through each other at a gridlocked junction far from any pass (seen on the grid
 city with seed 23 on the old code too).
 
-## PR 2 plan: more robots, more action
+## PR 2: more robots, more action (SIM_VERSION 14)
 
-- Robot presence per district and hour from data, raising Footmen and Trundles toward the
-  design's 3–4 robots per person, inside the existing per-player cap and LOD.
-- Stage the Ambient Director's cards for real (today `director.stage` is emitted and nothing
-  spawns): a snatch, a delivery bot blocking a crosswalk, a robotaxi standoff, a malfunction
-  spree, with street-level bounty blips on the map.
-- Pacing tuned so something is within 150 m most of the time, without spam.
+- `content/city-life.json` (schema, provenance hash, `src/content/cityLife.ts`): density per kind
+  by hour band and district, the bad-robot share (never raised in protected areas), director
+  pacing, and three new incident cards (crosswalk squatter, robotaxi standoff, malfunction spree).
+- The street mix shifts toward robots **without adding bodies**: population is trimmed out of view
+  so the agent total stays at or below the old one.
+- The Ambient Director's cards are staged for real (`src/sim/agents/incidents.ts`) 25–70 m from the
+  player: snatch, crosswalk squatter, nose-to-nose robotaxi standoff, malfunction spree. They show
+  as bounty blips and cards; robots flagged by Bot Check and bad robots on to you show on the map.
+- Real-SF soak (wave 3, seed 7, a minute at each hub): bad robots within 300 m, mean, FiDi 15.3
+  (12.3 before), SoMa 23.3 (19.8), Marina 11.3 (7.3), North Beach 5.8 (4.7); about one incident
+  a minute; agents 434/357/367/418 (before 445/379/410/429); 16.7–19.9 ms/tick on the test
+  machine with probes, the same as before.
+- Known limit: a car abandoned inside a junction (on a turn connector) still blocks that turn.
 
 ## Requests for Lane R
 
