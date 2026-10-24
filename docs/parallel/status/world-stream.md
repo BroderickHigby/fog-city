@@ -8,8 +8,8 @@ commands of §10. Coordinator session: `session_012u6jdJxkY41mYkqG3yG9Xk`.
 | PR | Branch | Seam | State |
 | --- | --- | --- | --- |
 | (a) | `work/world/source-cache` | Structural world import as SIM_VERSION 9, source cache and pipeline reproducibility | in progress |
-| (b) | `work/world/defects` | Generator, collision and sweep fixes for the §4 defect table | not started |
-| (c) | `work/world/physics-v9` | Height-aware motion, surface-aware recovery, agent surfaces, 8→9 migration tests | not started |
+| (b) | `work/world/defects` | Generator, collision and sweep fixes for the §4 defect table | in progress, pushed, no PR yet |
+| (c) | `work/world/physics` | Height-aware motion, surface-aware recovery, agent surfaces, migration tests | in progress, pushed, no PR yet |
 | (d) | `work/world/render-wiring` | §5 `main.ts` wiring, structural renderer files, camera/tunnel probes | not started |
 
 ## Decisions
@@ -85,9 +85,51 @@ assertion stays.
 - `showcase.ts`, `detail.ts`, sidewalks/kerbs (`sidewalks.ts`), the house-kit facade shader and
   `structures.ts` reach `integrate/wave2` only through PR (d).
 
+## PR (b) progress (`work/world/defects`)
+
+Merged root-cause fixes (code only; tiles regenerate once after all groups):
+- Freeways that run off the world over water hold their height (US-101 Golden Gate approach,
+  I-80 onto the Bay Bridge east span): max freeway grade 345.06 → 133.07 % (baseline 143.22).
+  Creek bridges span to the highest dry ground 15–45 m inland: dipping decks 3 → 0, bridge
+  runs failing 13 → 7.
+- Footprints generated twice dropped (newer-parcel lots retire the footprints they enclose;
+  nested multi-part rings): duplicates 26 → 6, coplanar roofs 11 → 0. Far hulls cover each tall
+  record's centroids: far hulls off 3 m 110 → 88.
+- Stairway barriers never stand in a meeting street's carriageway (the Twin Peaks route's wall);
+  street corridors widen on bends by the car's swept path (Lombard hairpin); roofs clear the
+  ground at their walls' feet too: stopped routes 3 → 1, named runs stopped 3 → 1, buried
+  walker low walls 30 → 28.
+- Southern boundary: probe start poses that straddle a wall are rejected, the probe drives ≥ 12
+  approaches over 6 lanes at three headings, 0.02 m kept; a recovery test shows clearCarSpot
+  never produces such a pose (coordinator's three conditions).
+- Pack test: lake flags vs cover digits and building undersides compared exactly.
+
+Open, with evidence:
+- Placement rise 1.69 m and the Twin Peaks route's 0.93 s airborne: every ground cell is split
+  along one fixed diagonal, which makes a shelf then a 54 % drop on some slopes. Fix: a
+  data-chosen diagonal in every consumer (pipeline mesh, terrain, terrace, ribbons, far mesh,
+  sim, gate copy, renderer). Next, after the Broadway agent finishes in the same code.
+- Gate measurement questions, to be settled by measuring both the 544f67c world and the
+  candidate with a corrected measurement, never by raising a baseline: the road follower starts
+  freeway edges at ground height under viaducts (insideFootprints 113 m, the remaining 133 %);
+  far hulls compared with the record's own roof under its own tower (82 of 88); buried low walls
+  compared with the record carrying the original id rather than the wall touched (28); the
+  California route follower overshooting a 100° turn; Sutro's 4 cm from a vertex-mean shift.
+- Broadway tunnel road/sim disagreement (6.6 m) and below-surface travel: agent still working.
+
+## PR (c) progress (`work/world/physics`)
+
+- `fb915d6` cherry-picked (conflict resolved keeping per-player `ownerId`).
+- Runtime walkers: admission, accepted step and swept segment at the body's band; stacked-level
+  bodies ignored. sf-agents' "in a building" failure was a body under a span (underside 4.7 m up).
+- clearCarSpot/spawn/join take a level hint (`Spawn.y`, additive); exit and enter are level-aware;
+  mission parking bays on the road's own surface; projectiles find the surface at their level.
+- Each new test file fails on the code before its fix.
+
 ## Salvaged commits
 
 - `qa/world-integration` `4556f8a` (merged in `4244369`).
+- `qa/agent-surfaces` `fb915d6` (cherry-picked as `a5085d8` on `work/world/physics`).
 
 ## Log
 
