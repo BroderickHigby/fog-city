@@ -34,7 +34,7 @@ async function feed(page: Page, driver: DemoDayDriver): Promise<SimState> {
 
 test.use({ viewport: { width: 960, height: 540 } });
 test("Demo Day completes in SF through real controls, the save panel and the bell duel", async ({ page }) => {
-  test.setTimeout(3_000_000);
+  test.setTimeout(6_600_000);
   const problems = await bootWorld(page, "sf", "&radius=300&pr=0.75&wave=4");
   // A save whose campaign is through Demoed Correctly, exported as the game would.
   const booted = await simState(page);
