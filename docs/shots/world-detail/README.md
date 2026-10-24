@@ -29,3 +29,13 @@ Right-hand or single images show the full street-detail stack (every stream bran
 
 - `signs-blades.jpg`
 - `signs-chestnut-street.jpg`
+
+## landcover
+
+Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
+
+- `landcover-bay-fortmason.jpg`
+- `landcover-fence.jpg`
+- `landcover-fortmason-meadow.jpg`
+- `landcover-fortmason-top.jpg`
+- `landcover-marina-green.jpg`
