@@ -269,7 +269,10 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(other.id===actor.id||other.retired||other.behavior==="pending-admission"||distance(actor,other)>30)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,other.x,other.z);
     if(human(other.model))sight.push({kind:"person",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible});
-    else if(!animal(other.model))sight.push({kind:"robot",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible,alignment:other.firmware==="bad"?"bad":"good",operational:phase(sim,other.id)==="active"});
+    // Robots see robots of their own medium only: a robot on foot never takes a robotaxi, van or
+    // bus for a mark to update or an ally to run to (it walked into the road and stood at the
+    // taxi's nose while the taxi yielded to it, a standoff that held FiDi traffic for good).
+    else if(!animal(other.model)&&vehicle(other.model)===vehicle(actor.model))sight.push({kind:"robot",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible,alignment:other.firmware==="bad"?"bad":"good",operational:phase(sim,other.id)==="active"});
   }
   for(const received of activeCombat(sim)?.events??[]){
     const source=people.find(player=>player.id===received.sourceId);

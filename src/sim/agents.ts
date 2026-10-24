@@ -324,6 +324,12 @@ export const ROBOTAXI_GAP_M = 1.5;
 export const STOPLINE_M = 0.5;
 /** A lane whose first metres hold a robotaxi is full: nobody enters the junction toward it. */
 export const EXIT_CLEAR_M = 7;
+/**
+ * A lane into another junction shorter than this is a short link: a robotaxi waiting at its far
+ * line (backed off as far as stopPoint goes, 8 m) still has its tail in the junction behind it,
+ * so it keeps that junction (released at halfLength + 1 m) while it waits.
+ */
+export const SHORT_LINK_M = 2 * AGENT_SPEC.robotaxi.halfLength + 1 + STOPLINE_M + 8;
 export const WALKER_GAP_M = 0.3;
 export const GHOST_AFTER_TICKS = 20 * 60;
 export const GHOST_TICKS = 2 * 60;
@@ -1295,6 +1301,20 @@ function joinPaths(p: Path, q: Path): Path {
   return makePath(xs, zs);
 }
 
+/** On a short link (SHORT_LINK_M), still holding the junction at its start (its tail is in it). */
+function rearHold(g: RoadGraph, a: Readonly<AgentState>): boolean {
+  if (a.node === "" || a.conn !== null) return false;
+  const ei = g.edgeIndex.get(a.edge);
+  if (ei === undefined) return false;
+  const e = g.edges[ei]!;
+  return g.nodes[startNode(e, a.dir)]!.id === a.node && basePath(e, a).len < SHORT_LINK_M && g.nodes[endNode(e, a.dir)]!.degree >= 3;
+}
+
+/** Whether a planned lane is a short link (SHORT_LINK_M) into another junction. */
+function shortLink(g: RoadGraph, plan: Plan): boolean {
+  return plan.path.len < SHORT_LINK_M && g.nodes[endNode(plan.edge, plan.dir)]!.degree >= 3;
+}
+
 /** The path through the junction a robotaxi waiting at the end of its lane will take (turn + exit), or null. */
 function plannedConnector(g: RoadGraph, a: Readonly<AgentState>): Path | null {
   const ei = g.edgeIndex.get(a.edge);
@@ -1705,8 +1725,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   let ndir = a.ndir;
   let nlane = a.nlane;
   let resume = a.resume;
-  if (spec.road && a.conn === null && a.node === "" && c.winners.has(a.id)) {
-    node = g.nodes[endNode(e, a.dir)]!.id; // claim the junction
+  if (spec.road && a.conn === null && (a.node === "" || rearHold(g, a)) && c.winners.has(a.id)) {
+    node = g.nodes[endNode(e, a.dir)]!.id; // claim the junction (letting go of the one behind)
   }
   let curEdge = e;
   let curPath = cur;
@@ -2248,8 +2268,19 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   // Nobody enters toward a lane whose start is full (no blocking the box).
   const holders = new Map<string, Hold[]>();
   const fullStart = new Set<string>();
+  // Short links (SHORT_LINK_M) by edge|dir that a robotaxi is on, turning onto, or holds the
+  // junction at their start to come down: nobody enters one against such traffic.
+  const linked = new Set<string>();
   for (const a of ext.list) {
     if (!AGENT_SPEC[a.kind].road) continue;
+    linked.add(`${a.edge}|${a.dir}`);
+    if (a.node !== "" && a.conn === null) {
+      const ei = g.edgeIndex.get(a.edge);
+      if (ei !== undefined && g.nodes[endNode(g.edges[ei]!, a.dir)]!.id === a.node) {
+        const plan = planNext(g, a);
+        if (plan) linked.add(`${plan.edge.id}|${plan.dir}`);
+      }
+    }
     if (a.node !== "") {
       const ni = g.nodeIndex.get(a.node);
       if (ni !== undefined && g.nodes[ni]!.degree >= 3) {
@@ -2266,24 +2297,34 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const contenders = new Map<string, AgentState[]>();
   for (const a of ext.list) {
     const spec = AGENT_SPEC[a.kind];
-    if (!spec.road || a.ghost > 0 || a.node !== "") continue;
+    if (!spec.road || a.ghost > 0) continue;
+    // On a short link with its tail still in the junction behind (rearHold): it contends for the
+    // junction ahead from wherever it waits, or it would hold the one behind while every other
+    // approach takes the one ahead.
+    const rear = rearHold(g, a);
+    if (a.node !== "" && !rear) continue;
     const rem = remainingOnPath(g, a);
     if (!rem) continue;
     const nd = g.nodes[rem.node]!;
     if (nd.degree < 3) continue;
-    if (rem.dist > spec.halfLength + STOPLINE_M + 9) continue;
+    if (rem.dist > spec.halfLength + STOPLINE_M + 9 && !rear) continue;
     let w = waiters.get(nd.id);
     if (!w) waiters.set(nd.id, (w = []));
     w.push({ a, path: plannedConnector(g, a) });
     const dt = stepDt.get(a.id) ?? DT;
-    if (rem.dist > spec.halfLength + STOPLINE_M + 1 + a.speed * dt) continue;
+    if (rem.dist > spec.halfLength + STOPLINE_M + 1 + a.speed * dt && !(rear && a.speed < 0.05)) continue;
     const plan = planNext(g, a);
     if (plan && fullStart.has(`${plan.edge.id}|${plan.dir}|${plan.lane}`)) continue;
+    // Down a short link against a robotaxi coming up it (or holding its far junction to): each
+    // would hold the junction the other waits for, for good (Fillmore St between Retiro Way and
+    // Marina Blvd, 15.7 m: the Fleet Week getaway jam, 2026-10-24).
+    if (plan && shortLink(g, plan) && linked.has(`${plan.edge.id}|${-plan.dir}`)) continue;
     let l = contenders.get(nd.id);
     if (!l) contenders.set(nd.id, (l = []));
     l.push(a);
   }
   const winners = new Set<number>();
+  const entering = new Set<string>(); // short links winners turn onto this tick, by edge|dir
   for (const key of [...contenders.keys()].sort()) {
     const l = contenders.get(key)!.slice().sort((p, q) => q.wait - p.wait || p.id - q.id);
     const ws = waiters.get(key) ?? [];
@@ -2308,7 +2349,11 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
         const wb: Hold = { id: w.a.id, path: null, x: w.a.x, z: w.a.z, heading: w.a.heading };
         if (holdConflicts(path, wb) && !(w.path && holdConflicts(w.path, me))) ok = false;
       }
+      const plan = planNext(g, a);
+      const link = plan && shortLink(g, plan) ? plan : null;
+      if (link && entering.has(`${link.edge.id}|${-link.dir}`)) continue;
       if (!ok) continue;
+      if (link) entering.add(`${link.edge.id}|${link.dir}`);
       winners.add(a.id);
       hs.push({ id: a.id, path, x: a.x, z: a.z, heading: a.heading });
     }
