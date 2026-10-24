@@ -17,6 +17,7 @@ on:
       - "content/missions*"
       - "content/missions/**"
       - "tests/e2e/campaign*"
+      - "tests/e2e/*.long.ts"
       - "tests/helpers/drivers/**"
       - ".github/workflows/campaign-long.yml"
   workflow_dispatch:
@@ -41,6 +42,7 @@ jobs:
         file:
           - campaign-launch-day.long.ts
           - campaign-two-players.long.ts
+          - activities.long.ts
     env:
       CI: "true"
       E2E_PORT: "4173"
