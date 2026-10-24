@@ -58,6 +58,7 @@ import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { ASSET_INDEX, type AssetIndex, type AssetIndexEntry, type AssetPart } from "../src/io/assets.ts";
 import { RUNTIME_LAYERS } from "../src/io/world-load.ts";
+import { STREET_DETAIL_INDEX } from "../src/render/street-markings.ts";
 
 export const ROOT = join(import.meta.dirname, "..");
 /** The page host's limits (measured; anything else is refused at publish). */
@@ -365,7 +366,12 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     if (!manifest.worldColliders) throw new Error(`world ${world} has no collider pack (manifest.worldColliders): the hosted build ships no per-tile colliders`);
     // JSON as is: the manifest, the road graph and the data layers the game reads.
     const present = new Set(readdirSync(dir));
-    const jsonFiles = [...new Set(["manifest.json", manifest.roads, ...RUNTIME_LAYERS.map((l) => manifest.layers?.[l])])]
+    // Render-only street detail (pipeline/build-street-detail.ts): its index and the layers it lists.
+    const detail = present.has(STREET_DETAIL_INDEX)
+      ? (JSON.parse(readFileSync(join(dir, STREET_DETAIL_INDEX), "utf8")) as { layers?: Record<string, string> })
+      : null;
+    const detailFiles = detail ? [STREET_DETAIL_INDEX, ...Object.values(detail.layers ?? {})] : [];
+    const jsonFiles = [...new Set(["manifest.json", manifest.roads, ...RUNTIME_LAYERS.map((l) => manifest.layers?.[l]), ...detailFiles])]
       .filter((f): f is string => typeof f === "string" && f.length > 0)
       .sort();
     for (const f of jsonFiles) {
@@ -444,6 +450,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
 
   const notices = [
     ["Microsoft Rocketbox generic player", "assets/imports/rocketbox/LICENSE.md"],
+    ["Microsoft Rocketbox pedestrian crowd", "assets/imports/rocketbox-crowd/LICENSE.md"],
     ["Slop New York rendering reference", "assets/imports/slop-new-york/LICENSE.md"],
     ["Fog City civilian car", "assets/imports/civilian-car/LICENSE.txt"],
   ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");
