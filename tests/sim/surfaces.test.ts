@@ -271,9 +271,12 @@ describe("stairways are walked, never driven", () => {
 
   it("a walker climbs the stairs from the street to the top", () => {
     const trace = walk(makeFoot(-100, 0, 198, SOUTH), I(1, 0, 1), 60 * 30, w);
-    const end = trace[trace.length - 1]!;
-    expect(end.z).toBeGreaterThan(255);
-    expect(end.y).toBeGreaterThan(25);
+    // Where it first passes the stairs' top (at the v11 sprint it then runs on, off the fixture's
+    // 600 m lattice, inside the 30 s).
+    const top = trace.find((f) => f.z > 255);
+    expect(top, "reaches the top of the stairs").toBeDefined();
+    expect(top!.y).toBeGreaterThan(25);
+    expect(trace.slice(0, trace.indexOf(top!)).every((f) => f.grounded), "walks up, never falls").toBe(true);
     expect(FOOT.maxGrade).toBeGreaterThanOrEqual(0.5);
   });
 });
