@@ -131,7 +131,7 @@ describe("robotaxi rides", () => {
     expect(s.players.p!.mode).toBe("foot");
   });
 
-  it("is deterministic through a JSON round trip mid-ride, and a v11 save upgrades unchanged", () => {
+  it("is deterministic through a JSON round trip mid-ride, and v11/v12 saves upgrade unchanged", () => {
     const { s: s0 } = besideTaxi();
     let s = step(world, s0, F);
     s = step(world, s, IDLE, [destination(s, 300, 300)]);
@@ -144,6 +144,7 @@ describe("robotaxi rides", () => {
     expect(hashState(b)).toBe(hashState(a));
     // A v12 save mid-ride keeps the active taxi, destination, parked car and every ext field.
     const riding = { ...s, version: 12 };
+    expect(riding.players.p!.ride).toBeTruthy();
     const ridingBefore = canonicalJson(riding);
     expect(upgradeState(riding)).toEqual({ ...riding, version: 13 });
     expect(canonicalJson(riding)).toBe(ridingBefore);

@@ -5,6 +5,7 @@
 
 import type { Mission } from "../content/missions.ts";
 import type { SimState } from "../sim/contract.ts";
+import { playerPose } from "../sim/ride.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { agentsOf } from "../sim/agents.ts";
 import { hornGain, type HornBlast } from "./horn.ts";
@@ -184,7 +185,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const onFoot = player?.mode === "foot" && !!player.foot;
       inCar = !!player && !onFoot;
       paused = frame.paused;
-      const body = onFoot ? player!.foot! : player?.car;
+      const body = player ? playerPose(player) : undefined;
       listener = { x: body?.x ?? 0, z: body?.z ?? 0, heading: body?.heading ?? 0 };
       const combat = state.ext.combat;
       // Effects.
