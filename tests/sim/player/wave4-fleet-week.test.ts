@@ -69,14 +69,15 @@ function fleetWeek() {
   const target = missionPlace(chase.target);
   const start = car();
   if (process.env.FLEET_DUMP) writeFileSync(process.env.FLEET_DUMP, JSON.stringify(state));
-  // Keep pace a few metres behind the car (on its tail, on the road) until it reaches the target.
+  // Keep pace with the car from the pavement side (25 m to its left, off the carriageway) until it
+  // waits at the target.
   let peak = 0;
   until(() => stepId() !== "chase", 240 * 60, () => {
     const c = car();
     peak = Math.max(peak, Math.abs(c.speed));
     if (process.env.FLEET_DUMP && state.tick % 120 === 0) console.log("CAR", state.tick, c.x.toFixed(1), c.z.toFixed(1), c.speed.toFixed(2), c.heading.toFixed(2));
     const near = Math.hypot(c.x - target.x, c.z - target.z) < 30 && Math.abs(c.speed) < 0.5;
-    placeFoot(near ? target.x : c.x - 8 * Math.sin(c.heading), near ? target.z : c.z + 8 * Math.cos(c.heading));
+    placeFoot(near ? target.x : c.x - 25 * Math.cos(c.heading), near ? target.z : c.z - 25 * Math.sin(c.heading));
     tick();
   });
   expect(stepId()).toBe("cone");

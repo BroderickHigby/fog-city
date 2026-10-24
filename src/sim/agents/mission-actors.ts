@@ -1,4 +1,5 @@
 import { BOT_TELLS } from "../../content/botTells.ts";
+import { playerPose } from "../ride.ts";
 import type { MissionActor } from "../../content/missions.ts";
 import { sortedIds, type SimState } from "../contract.ts";
 import { dcos, dsin, datan2, PI } from "../dmath.ts";
@@ -92,7 +93,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
       // A staged taxi is parked, so it need not begin on a routable traffic lane.
       // Keep the authored radius and require a clear hull plus a usable hood approach.
       const player=sim.players[sortedIds(sim.players)[0]??""];
-      const facing=player?(player.mode==="foot"&&player.foot?player.foot:player.car):stage.place;
+      const facing=player?playerPose(player):stage.place;
       for(let ring=0;ring<=Math.min(16,Math.floor(stage.radius/3));ring++)for(let index=0;index<Math.max(1,8*ring);index++){
         const angle=index*2*PI/Math.max(1,8*ring),x=stage.place.x+dsin(angle)*ring*3,z=stage.place.z+dcos(angle)*ring*3,heading=datan2(facing.x-x,-(facing.z-z));
         for(let turn=0;turn<4;turn++)candidates.push({x,z,heading:heading+turn*PI/2,id:`park:${ring}:${index}:${turn}`});

@@ -2,6 +2,7 @@
 // five-star attention grant, then the bell duel at the Powell & Market turntable played with
 // interact on the producer's own response ticks. Route traversal is outside this test (bodies
 // are placed); world, combat, heat and economy outcomes are real.
+import { fogDensity } from "../../../src/sim/fog/index.ts";
 import { describe, expect, it } from "vitest";
 import { Action, type SimState, type SimEvent, type SimInput } from "../../../src/sim/contract.ts";
 import { buildWorld } from "../../../src/sim/world.ts";
@@ -69,7 +70,10 @@ function demoDay(outcome: "win" | "lose") {
   until(() => stepId() !== "melt-pusher", 2400, () => { refillIfDry(); face("pusher"); tick(Action.fire); });
   tick();
   expect(stepId()).toBe("corner");
-  expect(state.ext.heat!.players.p!.vcQuarters).toBe(20);
+  // Five stars on the melts, then the plaza's real fog at this hour (0.5) halves the time to
+  // the first decay (heat/system.ts): four stars by the corner.
+  expect(fogDensity(world, state, state.players.p!.foot!.x, state.players.p!.foot!.z)).toBeGreaterThan(0.4);
+  expect(state.ext.heat!.players.p!.vcQuarters).toBe(16);
   const cashBefore = state.ext.economy!.players.p!.cashCents;
 
   // Cornered at the Powell & Market turntable: interact on foot starts the duel.

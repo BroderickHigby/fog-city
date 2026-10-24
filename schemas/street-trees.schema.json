@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/street-trees",
+  "title": "Street trees from San Francisco Public Works' Street Tree Inventory (public/tiles/<world>/street-trees.json, pipeline/lib/street-trees.ts).",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "classes",
+    "trees"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "snapshotDate": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "classes": {
+      "const": [
+        "broadleaf",
+        "conifer",
+        "palm"
+      ]
+    },
+    "trees": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 5,
+        "maxItems": 5,
+        "prefixItems": [
+          {
+            "type": "integer",
+            "minimum": 1
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "enum": [
+              0,
+              1,
+              2
+            ]
+          },
+          {
+            "type": "number",
+            "minimum": 2,
+            "maximum": 30
+          }
+        ]
+      }
+    }
+  }
+}
