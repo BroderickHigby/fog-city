@@ -58,6 +58,22 @@ export function engineParams(car: CarState, prev: CarState | null, dtS: number):
   };
 }
 
+/** Riding in the back of a robotaxi: its motor and road, softer from the rear seat; it never squeals. */
+export const RIDE_CABIN = 0.6;
+
+export function rideEngineParams(speed: number, prevSpeed: number | null, dtS: number): EngineParams {
+  const s = clamp01(Math.abs(speed) / MAX_SPEED_MPS);
+  const accel = prevSpeed !== null && dtS > 0 ? (Math.abs(speed) - Math.abs(prevSpeed)) / dtS : 0;
+  const load = clamp01(accel / 4);
+  return {
+    whineHz: IDLE_WHINE_HZ + WHINE_HZ_PER_MPS * Math.abs(speed),
+    whineGain: (0.035 + 0.11 * Math.sqrt(s) + 0.07 * load) * RIDE_CABIN,
+    roarCutoff: 220 + 38 * Math.abs(speed),
+    roarGain: 0.32 * Math.pow(s, 1.2) * RIDE_CABIN,
+    squealGain: 0,
+  };
+}
+
 /** Impacts and landings since the previous frame. */
 export function carOneShots(car: CarState, prev: CarState | null): VehicleOneShot[] {
   if (!prev) return [];
