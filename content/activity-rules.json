@@ -673,7 +673,7 @@
         "headingDeg": 41
       }
     ],
-    "boardSource": "Generated from the road graph: Columbus Ave centre lines between the Broadway (n25321000) and Bay St (n25533000) junctions, fourteen stations at equal spacing (moved up to 20 m to clear junctions), a board on each sidewalk 0.8-2.4 m beyond the kerb where the ground is open, outside DataSF's Chinatown neighbourhood and at least 15 m from Grant Ave and Stockton St, until there are twenty; headings face the street."
+    "boardSource": "Generated from the road graph: Columbus Ave centre lines between the Broadway (n25321000) and Bay St (n25533000) junctions, fourteen stations at equal spacing (moved up to 20 m to clear junctions), a board on each sidewalk 0.8-2.4 m beyond the kerb where the ground is open, outside the city's Chinatown analysis neighbourhood and at least 15 m from Grant Ave and Stockton St, until there are twenty; headings face the street."
   },
   "benchCards": [
     {
@@ -795,7 +795,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:7950ac8b",
+    "contentHash": "fnv1a32:ab707d21",
     "reviewedBy": [],
     "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
   }
