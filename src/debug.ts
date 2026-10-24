@@ -22,6 +22,8 @@ export interface RenderInfo {
   /** Display only; never assert on it (SwiftShader). */
   fps: number;
   pixelRatio: number;
+  /** The graphics tier (render/gfx.ts), its pixel budget now, and the governor's steps so far. */
+  gfx?: { tier: string; pixelBudget: number; steps: readonly string[] };
   shadows: boolean;
   /** Ambient agents drawn last frame (full models near the camera plus far proxies). */
   agents: number;
@@ -46,6 +48,8 @@ export interface RenderInfo {
   farSeamEdges: number;
   /** The camera's far plane, metres. */
   cameraFar: number;
+  /** Pipeline-placed street detail near the camera: junction patches, crosswalks, stop bars, signals, stop signs, street signs. */
+  streetDetail?: { layers: string[]; junctions: number; cellsBuilt: number; patches: number; crosswalks: number; stopBars: number; signals: number; stopSigns: number; signPosts: number; blades: number; curbSigns: number; trees: number; palms: number };
 }
 
 export interface LandmarkInfo {
@@ -103,6 +107,9 @@ export interface DebugHandle {
    * topple, optional height scale), nearest first; null restores what the sim says. Render-only.
    */
   previewCombatLook?(stages: ReadonlyArray<{ rust: number; wet: number; topple: number; height?: number }> | null): number[];
+  /** Force a WebGL context loss and, later, its restore (WEBGL_lose_context), to test recovery. */
+  loseContext?(): void;
+  restoreContext?(): void;
   setCameraMode(mode: CameraModeName): void;
   /** Switch to the fly camera at (x, y, z) looking along compass yaw, pitch (degrees, + up). */
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;

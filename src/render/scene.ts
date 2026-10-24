@@ -27,8 +27,13 @@ import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
+import { StreetLightRig } from "./street-lights.ts";
+import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
+import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
+import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
+import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -41,6 +46,13 @@ export interface RenderOptions {
   night: boolean;
   /** Upper bound on devicePixelRatio. */
   maxPixelRatio: number;
+  /** Most drawing-buffer pixels (gfx.ts TIER_SETTINGS); unbounded when omitted. */
+  pixelBudget?: number;
+  /** The graphics tier (gfx.ts), for reports; and whether the governor may step it down. */
+  tier?: GfxTier;
+  governed?: boolean;
+  /** Keep the drawing buffer between frames (software renderers: tests read the canvas). */
+  preserveDrawingBuffer?: boolean;
   /** Known model files (paths under public/), or null to try every URL. */
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
@@ -70,6 +82,11 @@ export interface RenderInfo {
   cameraMode: CameraMode;
   presentation: boolean;
   lightingPreset: string;
+  /** Street lamps lit by real point lights this frame (high tier, at night). */
+  streetLightsLit: number;
+  /** Pedestrians drawn as skinned Rocketbox people last frame, and crowd characters loaded. */
+  crowdDrawn: number;
+  crowdLoaded: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
   night: boolean;
@@ -79,6 +96,8 @@ export interface RenderInfo {
   landmarks: number;
   fps: number;
   pixelRatio: number;
+  /** The graphics tier, its pixel budget now, and the governor's steps so far. */
+  gfx?: { tier: GfxTier | "unknown"; pixelBudget: number; steps: readonly GfxStep[] };
   shadows: boolean;
   /** Ambient agents drawn last frame (near models plus far proxies), and of those with full models. */
   agents: number;
@@ -107,9 +126,13 @@ export interface RenderInfo {
   cameraFar: number;
   /** CPU-renderer fallback diagnostics; native GPUs have no radius limit. */
   farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
+  /** Pipeline-placed street detail near the camera (street-detail.ts). */
+  streetDetail?: StreetDetailInfo;
 }
 
 const SHADOW_HALF = 96;
+/** The governor never takes the drawing buffer under this many pixels. */
+const MIN_PIXEL_BUDGET = 900_000;
 const SHADOW_MAP_SIZE = 2048;
 const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
@@ -129,6 +152,7 @@ export class SceneRenderer {
   readonly agents: AgentLayer;
   readonly landmarks: LandmarkLayer;
   readonly far: FarLayer;
+  readonly streetDetail: StreetDetailLayer;
   readonly lights = new NightLights();
   private readonly container: HTMLElement;
   private readonly materials: SharedMaterials;
@@ -139,10 +163,18 @@ export class SceneRenderer {
   private readonly avatarGround = new AvatarGround();
   private readonly foliage: FoliageLayer;
   private quality: VisualQuality | null = null;
+  /** Point lights at the nearest street lamps at night (high tier only). */
+  private streetLights: StreetLightRig | null = null;
+  private crowd: CrowdHumans | null = null;
   private readonly surfaceTextures: SurfaceTextures;
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
   private dayPreset: LightingPreset = DAY;
+  private lastPreset: LightingPreset = DAY;
+  private readonly maxPixelRatio: number;
+  private pixelBudget: number;
+  private readonly tier: GfxTier | "unknown";
+  private governor: GfxGovernor | null = null;
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   private readonly headlight = new THREE.SpotLight(0xfff0d8, 0, 90, 0.52, 0.55, 1.4);
@@ -171,13 +203,21 @@ export class SceneRenderer {
     this.container = container;
     this.ground = world.ground;
     this.water.setLevel(world.manifest.water?.y ?? 0);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+    // The presentation chain renders into its own target and anti-aliases with FXAA, so the
+    // canvas needs no MSAA then: at a large drawing buffer MSAA alone costs hundreds of MB.
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: opts.quality !== true,
+      preserveDrawingBuffer: opts.preserveDrawingBuffer ?? true,
+      powerPreference: "high-performance",
+    });
     const gl = this.renderer.getContext();
     const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
     const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
     const software = /swiftshader|llvmpipe|software/i.test(rendererName);
     this.shadows = opts.shadows ?? !software;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio));
+    this.maxPixelRatio = opts.maxPixelRatio;
+    this.pixelBudget = opts.pixelBudget ?? Infinity;
+    this.tier = opts.tier ?? "unknown";
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = this.shadows;
@@ -258,17 +298,40 @@ export class SceneRenderer {
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
+    this.streetDetail = new StreetDetailLayer({
+      foliage: this.foliage,
+      base: world.base,
+      json: assets ? (path) => assets.json(path) : fetchJson,
+      ground: world.ground,
+      materials: this.materials,
+    });
+    this.scene.add(this.streetDetail.group);
+    void this.streetDetail.load();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
+    const modelBytes = async (path: string): Promise<Uint8Array> => {
+      if (assets) return assets.bytes(path);
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
+      return new Uint8Array(await response.arrayBuffer());
+    };
     this.actors = new Actors(this.registry, this.lights, this.shadows,
-      available && !available.has(PLAYER_BODY_FILE) ? undefined : async (path) => {
-        if (assets) return assets.bytes(path);
-        const response = await fetch(path);
-        if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
-        return new Uint8Array(await response.arrayBuffer());
-      });
+      available && !available.has(PLAYER_BODY_FILE) ? undefined : modelBytes,
+      available && !available.has(BLASTER_FILE) ? undefined : modelBytes);
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, this.shadows);
     this.scene.add(this.agents.group);
+    // The nearest pedestrians as skinned Rocketbox people, when the build carries the crowd.
+    const crowdFiles = CROWD_FILES.filter((f) => !available || available.has(f));
+    if (crowdFiles.length > 0) {
+      this.crowd = new CrowdHumans(async (path) => {
+        if (assets) return assets.bytes(path);
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Crowd model: ${response.status} ${path}`);
+        return new Uint8Array(await response.arrayBuffer());
+      }, this.shadows, crowdFiles);
+      this.agents.setCrowd(this.crowd);
+      this.scene.add(this.crowd.group);
+    }
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -285,11 +348,16 @@ export class SceneRenderer {
     // Keep unclipped direct rendering on devices without floating-point color targets.
     if ((opts.quality ?? !software) && this.renderer.extensions.has("EXT_color_buffer_float")) {
       this.quality = new VisualQuality(this.renderer, this.scene, this.camera);
+      this.streetLights = new StreetLightRig();
+      this.scene.add(this.streetLights.group);
     }
     const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
     this.nightOn = preset.name === "night";
     if (!this.nightOn) this.dayPreset = preset;
     this.applyPreset(preset);
+    this.governor = new GfxGovernor(opts.governed ?? false, {
+      post: this.quality !== null, shadows: this.shadows, pixelBudget: this.pixelBudget, maxPixelRatio: this.maxPixelRatio,
+    });
     window.addEventListener("resize", () => this.resize());
     this.resize();
   }
@@ -316,6 +384,7 @@ export class SceneRenderer {
   }
 
   private applyPreset(p: LightingPreset): void {
+    this.lastPreset = p;
     const night = p.nightFactor ?? (p.name === "night" ? 1 : 0);
     this.quality?.setPreset(p);
     this.activePreset = p.name;
@@ -340,6 +409,7 @@ export class SceneRenderer {
     this.streamer.setNight(night > 0);
     this.lights.setNight(night);
     this.agents.setNight(night);
+    this.streetLights?.setNight(night);
     this.scene.environment = this.envFor(p);
     this.scene.environmentIntensity = p.envIntensity;
   }
@@ -386,20 +456,65 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled() && this.streetDetail.settled();
   }
 
   resize(): void {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
+    // The drawing buffer follows the screen up to the tier's pixel budget (gfx.ts).
+    this.renderer.setPixelRatio(renderPixelRatio(window.devicePixelRatio || 1, w, h, this.pixelBudget, this.maxPixelRatio));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.quality?.resize(w, h);
   }
 
+  /** The governor's step down (gfx.ts): fewer pixels, then no shadows, then no post chain. */
+  private stepDown(step: GfxStep): void {
+    if (step === "pixels") {
+      const buffer = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.pixelBudget = Math.max(MIN_PIXEL_BUDGET, Math.min(this.pixelBudget, buffer.x * buffer.y) * PIXEL_STEP);
+      this.resize();
+    } else if (step === "shadows") {
+      this.renderer.shadowMap.enabled = false;
+      this.sun.castShadow = false;
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+      // Every lit material compiled its shadow lookups: recompile them without.
+      this.scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        for (const mat of Array.isArray(m) ? m : m ? [m] : []) mat.needsUpdate = true;
+      });
+    } else if (this.quality) {
+      this.quality.dispose();
+      this.quality = null;
+    }
+  }
+
+  /**
+   * After the GL context came back (context-guard.ts): three.js re-uploads geometry and textures
+   * from their CPU copies by itself; the sky's environment maps lived only on the GPU, so they
+   * are made again.
+   */
+  contextRestored(): void {
+    this.envCache.clear();
+    this.applyPreset(this.lastPreset);
+    this.resize();
+  }
+
   setCar(id: string, pose: CarPose): void {
     this.actors.setCar(id, pose);
+  }
+
+  /** This frame's spray for player `id` (held-blaster.ts), or null. */
+  setSpray(id: string, cue: SprayCue | null): void {
+    this.actors.setSpray(id, cue);
+  }
+
+  /** Where player `id`'s stream leaves the blaster's nozzle (world), or null. */
+  nozzle(id: string, out: THREE.Vector3): THREE.Vector3 | null {
+    return this.actors.nozzle(id, out);
   }
 
   setFoot(id: string, pose: WalkerPose | null): void {
@@ -416,7 +531,9 @@ export class SceneRenderer {
 
   /**
    * Per-frame update after the sim has stepped. `dtSeconds` is the frame time the animation
-   * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure.
+   * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure;
+   * `simSeconds` is how much of it the sim's ticks took, which the graphics governor leaves out:
+   * a slow sim is not cured by drawing less. Frames catching up several ticks are also left out.
    */
   frame(
     dtSeconds: number,
@@ -424,11 +541,15 @@ export class SceneRenderer {
     fly: Readonly<FlyInput>,
     minuteOfDay: number,
     frameSeconds: number = dtSeconds,
+    simSeconds = 0,
+    simCatchingUp = false,
   ): void {
     this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
+    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), simCatchingUp || !this.tilesSettled() || document.hidden);
+    if (step) this.stepDown(step);
     if (local) {
       const t = local.target;
       this.actors.hideFor(this.rig.mode === "first-person" ? local.id : null, t.onFoot ? "person" : "car");
@@ -466,8 +587,10 @@ export class SceneRenderer {
     this.sun.position.set(sx + this.sunDir.x * 800, groundY + this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    this.streetLights?.update(cam.x, cam.z, dtSeconds, this.streamer.lampHeads());
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
+    this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
   }
 
@@ -504,6 +627,9 @@ export class SceneRenderer {
     out.cameraMode = this.rig.mode;
     out.presentation = this.quality !== null;
     out.lightingPreset = this.activePreset;
+    out.streetLightsLit = this.streetLights?.lit ?? 0;
+    out.crowdDrawn = this.crowd?.drawn ?? 0;
+    out.crowdLoaded = this.crowd?.loaded ?? 0;
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
     out.night = this.nightOn;
@@ -513,6 +639,7 @@ export class SceneRenderer {
     out.landmarks = this.landmarks.count;
     out.fps = this.fpsAvg;
     out.pixelRatio = this.renderer.getPixelRatio();
+    out.gfx = { tier: this.tier, pixelBudget: this.pixelBudget, steps: this.governor?.taken ?? [] };
     out.shadows = this.shadows;
     const a: AgentRenderInfo = this.agents.info();
     out.agents = a.drawn;
@@ -533,6 +660,7 @@ export class SceneRenderer {
     out.farSeamEdges = f.seamEdges;
     out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
     out.cameraFar = this.camera.far;
+    out.streetDetail = this.streetDetail.info();
     return out;
   }
 
@@ -547,9 +675,12 @@ export class SceneRenderer {
     this.avatarGround.clear();
     this.foliage.dispose();
     this.quality?.dispose();
+    this.streetLights?.dispose();
     this.far.dispose();
+    this.streetDetail.dispose();
     this.actors.dispose();
     this.agents.dispose();
+    this.crowd?.dispose();
     this.sky.dispose();
     this.water.dispose();
     for (const m of this.materials.all) m.dispose();
@@ -568,6 +699,9 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   cameraMode: "chase" as CameraMode,
   presentation: false,
   lightingPreset: "day",
+  streetLightsLit: 0,
+  crowdDrawn: 0,
+  crowdLoaded: 0,
   foliage: { near: 0, far: 0, draws: 0 }, surfaceTextures: [],
   night: false,
   tilesPending: 0,
@@ -596,6 +730,12 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
 
 /** An ArrayBuffer holding exactly these bytes (GLTFLoader.parse takes a whole buffer). */
+async function fetchJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
 function bufferOf(bytes: Uint8Array): ArrayBuffer {
   if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength && bytes.buffer instanceof ArrayBuffer) return bytes.buffer;
   return bytes.slice().buffer as ArrayBuffer;

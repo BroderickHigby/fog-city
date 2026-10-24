@@ -118,15 +118,15 @@ describe("splashes", () => {
     const layer = new CombatLayer(new THREE.Scene());
     const a = state([water(1, 0), water(2, 5)]);
     const b = state([water(2, 6)]);
-    layer.update(undefined, a, 0, 1 / 60);
-    layer.update(a, b, 0, 1 / 60);
+    layer.update(undefined, a, 0, undefined, 1 / 60);
+    layer.update(a, b, 0, undefined, 1 / 60);
     expect(layer.splashCount).toBe(1);
     const drops = layer.root.getObjectByName("gameplay-splashes") as THREE.InstancedMesh;
     expect(drops.count).toBe(SPLASH_DROPS);
     // The same pair of states again (a frame between ticks) adds nothing.
-    layer.update(a, b, 0.5, 1 / 60);
+    layer.update(a, b, 0.5, undefined, 1 / 60);
     expect(layer.splashCount).toBe(1);
-    layer.update(a, b, 0.5, SPLASH_S + 0.01);
+    layer.update(a, b, 0.5, undefined, SPLASH_S + 0.01);
     expect(layer.splashCount).toBe(0);
     expect(drops.count).toBe(0);
     layer.dispose();
@@ -135,8 +135,8 @@ describe("splashes", () => {
   it("never holds more than SPLASH_MAX splashes", () => {
     const layer = new CombatLayer(new THREE.Scene());
     const many = state(Array.from({ length: SPLASH_MAX + 10 }, (_, i) => water(i + 1, i)));
-    layer.update(undefined, many, 0, 0);
-    layer.update(many, state([]), 0, 0);
+    layer.update(undefined, many, 0, undefined, 0);
+    layer.update(many, state([]), 0, undefined, 0);
     expect(layer.splashCount).toBe(SPLASH_MAX);
     layer.dispose();
   });
