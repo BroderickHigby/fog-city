@@ -20,12 +20,12 @@ hardware look or performance claim.
 
 Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
 
-- `signals-chestnut-fillmore.jpg`
-- `signals-closeup.jpg`
+- `signals-chestnut-fillmore.png`
+- `signals-closeup.png`
 
 ## signs
 
 Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
 
-- `signs-blades.jpg`
-- `signs-chestnut-street.jpg`
+- `signs-blades.png`
+- `signs-chestnut-street.png`
