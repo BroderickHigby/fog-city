@@ -138,6 +138,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    Every saved field is kept; ext.fog, when absent, is created by the fog reducer.
  *  - v10 -> v11: faster on-foot pace and Action.sprint change behaviour only; every field is kept.
  *  - v11 -> v12: robotaxi rides. PlayerState.ride is optional (absent = not riding); every field is kept.
+ *  - v12 -> v13: unlimited water changes behaviour only; every saved field is kept.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -148,7 +149,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
   if (s.version === 8) return upgradeState({ ...s, version: 10 });
   if (s.version === 10) return upgradeState({ ...s, version: 11 });
-  if (s.version === 11) return { ...s, version: 12 };
+  if (s.version === 11) return upgradeState({ ...s, version: 12 });
+  if (s.version === 12) return { ...s, version: 13 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

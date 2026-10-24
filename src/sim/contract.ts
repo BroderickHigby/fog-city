@@ -30,7 +30,11 @@
 // v12 (player feel): a player can ride an ambient robotaxi as a passenger (PlayerState.ride,
 // optional; absent or null = not riding) after hailing one on the street (PlayerState.hail). The taxi stays an ambient agent under every robotaxi
 // rule; the player's own car stays parked. An upgraded v11 save keeps every field (no ride).
-export const SIM_VERSION = 12;
+
+// v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
+// reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
+// a v12 save keeps its saved water value, which no longer limits the stream.
+export const SIM_VERSION = 13;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

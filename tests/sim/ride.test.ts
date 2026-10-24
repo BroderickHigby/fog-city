@@ -142,10 +142,15 @@ describe("robotaxi rides", () => {
       b = step(world, b, IDLE);
     }
     expect(hashState(b)).toBe(hashState(a));
-    expect(SIM_VERSION).toBe(12);
+    // A v12 save mid-ride keeps the active taxi, destination, parked car and every ext field.
+    const riding = { ...s, version: 12 };
+    const ridingBefore = canonicalJson(riding);
+    expect(upgradeState(riding)).toEqual({ ...riding, version: 13 });
+    expect(canonicalJson(riding)).toBe(ridingBefore);
+    expect(SIM_VERSION).toBe(13);
     const old = { ...createInitialState(world, 5, ["p"], { x: 150, z: 0, heading: 0 }), version: 11 };
     const before = canonicalJson(old);
-    expect(upgradeState(old)).toEqual({ ...old, version: 12 });
+    expect(upgradeState(old)).toEqual({ ...old, version: 13 });
     expect(canonicalJson(old)).toBe(before);
   });
 });
