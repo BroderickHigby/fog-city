@@ -6,7 +6,7 @@
 // Each person keeps one character (picked from its agent id) for as long as it lives. A body
 // unseen for CROWD_FORGET_S is disposed, so memory follows the people near the camera.
 import * as THREE from "three";
-import { PlayerBodies } from "./player-body.ts";
+import { PlayerBodies, type BodyRenderCost } from "./player-body.ts";
 
 export const CROWD_FILES: readonly string[] = [
   "Female_Adult_01", "Female_Adult_03", "Female_Adult_05", "Female_Adult_07", "Female_Adult_09", "Female_Adult_11",
@@ -33,6 +33,9 @@ export class CrowdHumans {
   private time = 0;
   private lastSweep = 0;
   private drawnCount = 0;
+  private drawBudget = Infinity;
+  private calls = 0;
+  private tris = 0;
   private disposed = false;
 
   constructor(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, files: readonly string[] = CROWD_FILES) {
@@ -54,10 +57,21 @@ export class CrowdHumans {
   get loaded(): number { return this.kinds.filter(Boolean).length; }
   /** People drawn as skinned bodies last frame. */
   get drawn(): number { return this.drawnCount; }
+  /** Actual colour-pass primitives/triangles of the accepted bodies this frame. */
+  get drawCalls(): number { return this.calls; }
+  get triangles(): number { return this.tris; }
 
-  begin(dt: number): void {
+  /** Cost of this person's loaded character, or null while it needs the procedural fallback. */
+  costFor(id: number): Readonly<BodyRenderCost> | null {
+    return this.kinds[characterFor(id, this.kinds.length)]?.renderCost ?? null;
+  }
+
+  begin(dt: number, drawBudget = Infinity): void {
     this.time += Math.max(0, dt);
     this.drawnCount = 0;
+    this.calls = 0;
+    this.tris = 0;
+    this.drawBudget = Math.max(0, drawBudget);
     for (const k of this.kinds) k?.begin();
   }
 
@@ -69,9 +83,13 @@ export class CrowdHumans {
     if (this.disposed || this.drawnCount >= CROWD_NEAR_MAX) return false;
     const bodies = this.kinds[characterFor(id, this.kinds.length)];
     if (!bodies) return false;
+    const cost = bodies.renderCost;
+    if (this.calls + cost.drawCalls > this.drawBudget) return false;
     bodies.add(String(id), x, y, z, heading, speed, dt);
     this.seen.set(id, this.time);
     this.drawnCount++;
+    this.calls += cost.drawCalls;
+    this.tris += cost.triangles;
     return true;
   }
 

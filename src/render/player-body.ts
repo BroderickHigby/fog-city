@@ -11,6 +11,33 @@ export const TURN_SNAP_RAD = 2.6;
 /** Hair cards are cut out at this alpha rather than blended: no sorting against the head, and they shadow. */
 export const HAIR_ALPHA_CUT = 0.45;
 type Motion = "idle" | "walk" | "run";
+export interface BodyRenderCost { drawCalls: number; triangles: number }
+
+/** Colour-pass primitives and triangles, including material groups and clipped draw ranges. */
+export function bodyRenderCost(root: THREE.Object3D): BodyRenderCost {
+  const cost = { drawCalls: 0, triangles: 0 };
+  root.traverseVisible(object => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const geometry = mesh.geometry;
+    const total = geometry.index?.count ?? geometry.getAttribute("position").count;
+    const range = geometry.drawRange;
+    const count = (material: THREE.Material | undefined, start: number, size: number): void => {
+      if (!material?.visible) return;
+      const end = Math.min(total, range.start + range.count, start + size);
+      const triangles = Math.max(0, Math.floor((end - Math.max(range.start, start)) / 3));
+      if (triangles === 0) return;
+      const passes = material.transparent && material.side === THREE.DoubleSide && !material.forceSinglePass ? 2 : 1;
+      cost.drawCalls += passes;
+      cost.triangles += triangles * passes;
+    };
+    if (Array.isArray(mesh.material)) {
+      for (const group of geometry.groups) count(mesh.material[group.materialIndex ?? 0], group.start, group.count);
+    } else count(mesh.material, 0, total);
+  });
+  return cost;
+}
+
 interface Body {
   root: THREE.Object3D;
   mixer: THREE.AnimationMixer;
@@ -40,6 +67,8 @@ export function easeYaw(drawn: number, target: number, dt: number): number {
 
 export class PlayerBodies {
   readonly group = new THREE.Group();
+  /** Each clone has the prototype's same geometry/material colour-pass cost. */
+  readonly renderCost: Readonly<BodyRenderCost>;
   private readonly bodies = new Map<string, Body>();
   private readonly walkSpeed: number;
   private readonly runSpeed: number;
@@ -72,6 +101,7 @@ export class PlayerBodies {
         material.needsUpdate = true;
       }
     });
+    this.renderCost = Object.freeze(bodyRenderCost(gltf.scene));
   }
 
   /** Load a body model: the player's by default, or another Rocketbox-rigged file (the crowd's). */

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { HAIR_ALPHA_CUT, PLAYER_BODY_FILE, PlayerBodies, TURN_SNAP_RAD, easeYaw } from "../../src/render/player-body.ts";
+import { HAIR_ALPHA_CUT, PLAYER_BODY_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw } from "../../src/render/player-body.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
 // Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
@@ -46,6 +46,25 @@ function deferred<T>(): { promise: Promise<T>; resolve(value: T): void } {
   return { promise, resolve };
 }
 const pose = { x: 10, y: 3, z: -5, heading: Math.PI / 2, speed: 0 };
+
+it("counts material primitives, draw ranges and visible bodies in colour-pass geometry costs", () => {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(18 * 3), 3));
+  geometry.addGroup(0, 6, 0);
+  geometry.addGroup(6, 12, 1);
+  geometry.setDrawRange(3, 12);
+  const opaque = new THREE.MeshBasicMaterial();
+  const transparent = new THREE.MeshBasicMaterial({ transparent: true, side: THREE.DoubleSide });
+  const root = new THREE.Group();
+  const mesh = new THREE.Mesh(geometry, [opaque, transparent]);
+  root.add(mesh);
+  expect(bodyRenderCost(root)).toEqual({ drawCalls: 3, triangles: 7 }); // 1 + two passes of 3
+  transparent.visible = false;
+  expect(bodyRenderCost(root)).toEqual({ drawCalls: 1, triangles: 1 });
+  root.visible = false;
+  expect(bodyRenderCost(root)).toEqual({ drawCalls: 0, triangles: 0 });
+  geometry.dispose(); opaque.dispose(); transparent.dispose();
+});
 
 describe("generic online player avatar", () => {
   it("loads actual human geometry and animates independent skeletons without moving the world pose", async () => {
