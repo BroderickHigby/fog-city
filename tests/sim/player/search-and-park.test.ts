@@ -55,7 +55,7 @@ describe("Search & Park", () => {
 it("offers a legal signed space on Illinois St from the committed SF rules", () => {
   const world = sfWorld().world, rules = readJson<ParkingLayer>("public/tiles/sf/parking.json"), cleaning = readJson<StreetCleaningLayer>("public/tiles/sf/street-cleaning.json");
   const start = createInitialState(buildWorld([]), 319, ["p"], { x: street.x, z: street.z, heading: 0 });
-  const state = { ...start, ext: { ...start.ext, activities: { ...createActivities(), players: { p: { activeActivityId: "search-and-park" } } } } } as typeof start;
+  const state = { ...start, ext: { ...start.ext, activities: { ...createActivities(), players: { p: { activeActivityId: "search-and-park" } } } } } as unknown as typeof start;
   const result = buildMissionParkingWorld({ world, state, previous: state, inputs: {}, events: [] }, rules.rules, cleaning.rules);
   const target = result.targets.find(value => value.missionId === "search-and-park" && value.stepId === "park")!;
   expect(target.bayIds.length).toBeGreaterThan(0);
