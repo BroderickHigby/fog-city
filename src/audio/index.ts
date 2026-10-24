@@ -12,7 +12,8 @@ import { panOf } from "./cues.ts";
 import { isTextEntry } from "../input/keyboard.ts";
 import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
-import { gameplaySnapshot } from "../sim/player/adapter.ts";
+import { gameplaySnapshot, playerView } from "../sim/player/adapter.ts";
+import { RobotChirpClock, robotWhirrs, type SoundingActor } from "./robot-sound.ts";
 import { InnerVoice } from "./inner-voice.ts";
 import { FootstepClock, carOneShots, doorOneShots, engineParams } from "./vehicle-sound.ts";
 import type { CarState } from "../sim/contract.ts";
@@ -58,6 +59,8 @@ export interface AudioDebugInfo {
   musicSwitches: number;
   /** The car's live engine sound is running. */
   engine: boolean;
+  /** Robots whose servos are audible now. */
+  robotVoices: number;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
   voice: { current: string | null; mode: string | null; waiting: string[]; status: string; files: number };
@@ -93,7 +96,12 @@ export interface GameAudioDirector {
 }
 
 /** Combat events that mean the local player is in a robot fight. */
-const FIGHT_EVENTS = new Set(["robot.seized", "robot.slumping", "robot.heap", "robot.knockdown", "robot.alert", "robot.blinded", "player.stumble", "player.handshake"]);
+/**
+ * Combat events that mean the local player is in a robot fight. Never robot.alert, robot.wary,
+ * robot.blinded or robot.glance: those fire for one firmware only, so music following them would
+ * tell the player which robots are bad.
+ */
+export const FIGHT_EVENTS: ReadonlySet<string> = new Set(["robot.seized", "robot.slumping", "robot.heap", "robot.knockdown", "player.stumble", "player.handshake"]);
 const VOICE_EVENT_LOG = 64;
 
 declare global {
@@ -135,6 +143,18 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let prevMode: string | undefined;
   let lastFrameMs: number | null = null;
   const footsteps = new FootstepClock();
+  const chirps = new RobotChirpClock();
+  // Last-seen values for one-shot UI and game cues (null: not yet seen, so nothing plays on load).
+  let lastMissionKey: string | null = null;
+  let lastMissionStatus: string | null = null;
+  let lastCash: number | null = null;
+  let lastScanTick: number | null = null;
+  let phoneOpen = false;
+  const onClick = (event: MouseEvent): void => {
+    const target = event.target as Element | null;
+    if (target?.closest?.(".fc-ui button")) mixer.playSynth("click", 0.6);
+  };
+  if (typeof document !== "undefined") document.addEventListener("click", onClick, true);
   let inCar = false;
   let paused = false;
   const clock = (): number => (typeof performance !== "undefined" ? performance.now() : now);
@@ -217,7 +237,16 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       prevCar = player ? { ...player.car } : null;
       prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
-      const actors: HummingActor[] = runtime ? Object.values(runtime.actors) : [];
+      const actors: HummingActor[] & SoundingActor[] = runtime ? Object.values(runtime.actors) : [];
+      // Robots: the nearest servos whirr, each model beeps on its own rhythm, and the tryCarDoors
+      // tell chimes "pairing...". Nothing reads firmware (robot-sound.ts).
+      const inactive = (id: string): boolean => { const phase = combat?.targets[id]?.phase; return !!phase && phase !== "active"; };
+      mixer.setRobots(frame.paused ? [] : robotWhirrs(actors, listener, inactive));
+      if (!frame.paused)
+        for (const c of chirps.update(actors, listener, inactive, frame.nowMs)) {
+          if (c.kind === "pairing") mixer.playSynth("pairing", c.gain, c.pan);
+          else mixer.playBeep(c.notes, c.gain, c.pan);
+        }
       for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused, agentsOf(state))) mixer.play(cue);
       // Music context.
       let fight = spraying;
@@ -228,6 +257,21 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       }
       const snapshot = gameplaySnapshot({ state });
       const missions = snapshot.missions.players[playerId];
+      // Stingers: a mission starting and completing. Money: cash going up. The scanner's verdict.
+      const missionKey = missions?.missionId ?? "";
+      if (lastMissionKey !== null && missionKey && missionKey !== lastMissionKey && missions?.status === "active") mixer.playSynth("mission-start", 0.7);
+      if (lastMissionStatus !== null && missions?.status === "complete" && lastMissionStatus !== "complete") mixer.playSynth("mission-complete", 0.8);
+      lastMissionKey = missionKey;
+      lastMissionStatus = missions?.status ?? "";
+      const cash = playerView(snapshot, playerId).cashCents;
+      if (lastCash !== null && cash >= lastCash + 100) mixer.playSynth("money", 0.6);
+      lastCash = cash;
+      const scan = combat?.players[playerId]?.scan;
+      if (scan && lastScanTick !== null && scan.tick !== lastScanTick) mixer.playSynth(scan.bad ? "scan-bad" : "scan-good", 0.6);
+      lastScanTick = scan?.tick ?? (lastScanTick ?? -1);
+      const phoneNow = typeof document !== "undefined" && !!document.querySelector(".fc-phone-apps");
+      if (phoneNow && !phoneOpen) mixer.playSynth("phone", 0.6);
+      phoneOpen = phoneNow;
       const mission = missions ? options.missions.find((m) => m.id === missions.missionId) : undefined;
       const step = mission?.steps.find((s) => s.id === missions?.stepId);
       const missionUrgent = missions?.status === "active" && !!step && ((step.type === "goto") || (step.type === "objective" && step.timeLimitS !== undefined));
@@ -274,6 +318,11 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       inner.reset();
       prevCar = null;
       prevMode = undefined;
+      chirps.reset();
+      lastMissionKey = null;
+      lastMissionStatus = null;
+      lastCash = null;
+      lastScanTick = null;
       lastFrameMs = null;
       footsteps.reset();
       cues.reset(state?.ext.combat);
@@ -305,6 +354,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         musicTracks: tracks.length,
         musicSwitches: m.musicSwitches,
         engine: m.engine,
+        robotVoices: m.robotVoices,
         effectsLoaded: m.effectsLoaded,
         effectsPlayed: m.effectsPlayed,
         voice: { ...queue.snapshot(), status: manifest?.status ?? "missing", files: manifest?.lines.filter((l) => l.file).length ?? 0 },
@@ -321,6 +371,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       unsubscribe();
       queue.reset();
       if (typeof window !== "undefined") window.removeEventListener("keydown", onKey);
+      if (typeof document !== "undefined") document.removeEventListener("click", onClick, true);
       toast.dispose();
       subtitles.dispose();
       mixer.dispose();

@@ -11,6 +11,8 @@ import { DUCK_ATTACK_S, DUCK_RELEASE_S, audible, busGain, masterGain } from "./b
 import type { EffectCue, EffectSound } from "./cues.ts";
 import { MusicPlayer, type MusicTrack } from "./music.ts";
 import { VehicleSynth } from "./vehicle-synth.ts";
+import { RobotVoices, SYNTH_CUES, beepTones, playTones, type SynthCue } from "./synth-sfx.ts";
+import type { RobotWhirr } from "./robot-sound.ts";
 import type { EngineParams } from "./vehicle-sound.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
 import type { VoiceHandle, VoicePlayer } from "./voice-queue.ts";
@@ -59,6 +61,7 @@ export class GameAudio {
   private musicTrack: string | null | undefined = undefined;
   private musicDucked = false;
   private vehicle: VehicleSynth | null = null;
+  private robots: RobotVoices | null = null;
   private engineOn = false;
   private prefs: AudioPrefs;
   private ducked = false;
@@ -157,6 +160,33 @@ export class GameAudio {
     }
     this.engineOn = params !== null;
     this.vehicle?.set(params);
+  }
+
+  /** A procedural cue (UI, stingers, money, scan result, the pairing tell) on the effects bus. */
+  playSynth(cue: SynthCue, gain = 1, pan = 0): void {
+    const ctx = this.ctx, bus = this.buses.get("effects");
+    if (!ctx || !bus || !this.unlocked) return;
+    playTones(ctx, bus, SYNTH_CUES[cue], gain, pan);
+    this.played.set(cue, (this.played.get(cue) ?? 0) + 1);
+  }
+
+  /** A robot's beep pattern. */
+  playBeep(notes: readonly number[], gain: number, pan: number): void {
+    const ctx = this.ctx, bus = this.buses.get("effects");
+    if (!ctx || !bus || !this.unlocked) return;
+    playTones(ctx, bus, beepTones(notes), gain, pan);
+    this.played.set("robot-beep", (this.played.get("robot-beep") ?? 0) + 1);
+  }
+
+  /** The nearest robots' servo whirrs (empty: silence). */
+  setRobots(whirrs: readonly RobotWhirr[]): void {
+    const ctx = this.ctx, bus = this.buses.get("effects");
+    if (!ctx || !bus || !this.unlocked) return;
+    if (!this.robots) {
+      if (whirrs.length === 0) return;
+      this.robots = new RobotVoices(ctx, bus);
+    }
+    this.robots.update(whirrs);
   }
 
   /** Duck the music under a menu or dialog (nothing switches). */
@@ -300,7 +330,7 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; robotVoices: number; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
@@ -308,6 +338,7 @@ export class GameAudio {
       effectsPlayed: Object.fromEntries(this.played),
       spray: this.spray !== null,
       engine: this.engineOn,
+      robotVoices: this.robots?.count() ?? 0,
       music: this.music?.nowPlaying() ?? null,
       musicSwitches: this.music?.switches ?? 0,
       ducked: this.ducked,
@@ -324,6 +355,8 @@ export class GameAudio {
     this.stopSpray();
     this.vehicle?.dispose();
     this.vehicle = null;
+    this.robots?.dispose();
+    this.robots = null;
     for (const a of this.active) this.stopEffect(a);
     this.music?.dispose();
     this.music = null;

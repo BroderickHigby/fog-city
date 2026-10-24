@@ -135,6 +135,12 @@ export class EffectCueTracker {
         this.splashTimes.push(nowMs);
         cues.push({ sound: "splash", ...where });
       } else if (event.kind === "robot.slumping" || event.kind === "robot.heap") {
+        // The heap lands with a clatter (the impact sample, low and slow), as well as the fizz.
+        if (event.kind === "robot.heap") {
+          const pos = targetPos(event.targetId);
+          const where = pos ? at(pos.x, pos.z, 10, ROBOT_RANGE_M) : { gain: 1, pan: 0 };
+          cues.push({ sound: "impact", gain: 0.55 * where.gain, pan: where.pan, rate: 0.55 });
+        }
         // The fizz runs from the slump into the heap: one per robot.
         if (event.kind === "robot.heap" && this.slumped.has(event.targetId)) continue;
         this.slumped.add(event.targetId);

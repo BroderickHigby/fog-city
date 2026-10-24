@@ -12,6 +12,7 @@ import type {} from "../../src/debug.ts";
 import type {} from "../../src/audio/index.ts";
 import type { VoiceManifest } from "../../src/audio/voice-lines.ts";
 import { toLocal } from "../../src/geo/project.ts";
+import { MAX_ROBOT_VOICES, ROBOT_HEAR_M, ROBOT_VOICES } from "../../src/audio/robot-sound.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const TONE = readFileSync(join(import.meta.dirname, "fixtures", "tone-6s.ogg"));
@@ -170,6 +171,23 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await page.keyboard.down("KeyW");
   await expect.poll(async () => { const p = (await audio(page)).effectsPlayed; return (p["step-1"] ?? 0) + (p["step-2"] ?? 0) + (p["step-3"] ?? 0) + (p["step-4"] ?? 0); }, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
   await page.keyboard.up("KeyW");
+  // Robot servos: exactly the nearest active robots within earshot are voiced (up to three).
+  await expect.poll(async () => {
+    const [voices, inRange] = await page.evaluate(({ range, max, models }) => {
+      const s = window.__fogcity!.state(), p = s.players.p1!, b = p.mode === "foot" && p.foot ? p.foot : p.car;
+      const ext = s.ext as { robots?: { actors: Record<string, { id: string; model: string; x: number; z: number; retired: boolean }> }; combat?: { targets: Record<string, { phase: string }> } };
+      const n = Object.values(ext.robots?.actors ?? {}).filter((a) => !a.retired && models.includes(a.model) && (ext.combat?.targets[a.id]?.phase ?? "active") === "active" && Math.hypot(a.x - b.x, a.z - b.z) <= range).length;
+      return [window.__fogcityAudio!.info().robotVoices, Math.min(max, n)];
+    }, { range: ROBOT_HEAR_M, max: MAX_ROBOT_VOICES, models: Object.keys(ROBOT_VOICES) });
+    return voices === inRange;
+  }, { timeout: 60_000 }).toBe(true);
+  // The phone chimes open, and its buttons click.
+  await page.keyboard.press("KeyP");
+  await expect.poll(async () => (await audio(page)).effectsPlayed.phone ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Map", exact: true }).click();
+  await expect.poll(async () => (await audio(page)).effectsPlayed.click ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
   // On foot, spraying: the spray loop plays and the music cuts to combat.
   await page.keyboard.down("KeyE");
   await expect.poll(async () => (await audio(page)).effectsPlayed.spray ?? 0, { timeout: 60_000 }).toBeGreaterThan(0);
