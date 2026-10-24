@@ -30,7 +30,10 @@
 // v12 (player feel): a player can ride an ambient robotaxi as a passenger (PlayerState.ride,
 // optional; absent or null = not riding) after hailing one on the street (PlayerState.hail). The taxi stays an ambient agent under every robotaxi
 // rule; the player's own car stays parked. An upgraded v11 save keeps every field (no ride).
-export const SIM_VERSION = 12;
+// v13 (city life): robotaxis pass a stopped vehicle (optional AgentState.pass) and walkers
+// detour round it (optional RuntimeActor.detour); an upgraded v12 save keeps every field.
+// This is the combined release stamp shared with unlimited-water integration.
+export const SIM_VERSION = 13;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
