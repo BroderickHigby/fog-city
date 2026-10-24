@@ -67,18 +67,18 @@ Owner feedback: "the voice should talk just like in GTA … it kind of just tell
 - Subtitles only until the ElevenLabs tier allows generation. The manifest already lists every
   line: 291 in total, 15,192 characters.
 
-## PRs (drafts; GitHub Actions is running again as of 00:32 UTC 2026-10-24, ready once green)
+## PRs (drafts; GitHub Actions billing-blocked again since ~03:12 UTC 2026-10-24: local evidence on each)
 
 | PR | Branch | Contents | Stacked on |
 |---|---|---|---|
 | #28 | soundtrack-voices | Soundtrack, voice pipeline, mixer, settings, static build audio | merged (batch #42) |
-| #36 | radio-horn | Car radio, one horn path, music consistency fix | integrate/wave2 |
-| #37 | inner-voice | GTA-style inner voice, `FOGCITY_ELEVENLABS_API_KEY` | #36 |
-| #63 | credits | Credits panel (OSM/ODbL, DataSF, CC0 music, Rocketbox, Lucide, Poly Haven) | integrate/wave2 |
+| #36 | radio-horn | Car radio, one horn path, music consistency fix | folded into release #67 (closed) |
+| #37 | inner-voice | GTA-style inner voice, `FOGCITY_ELEVENLABS_API_KEY` | folded into release #67 (closed) |
+| #63 | credits | Credits panel (OSM/ODbL, DataSF, CC0 music, Rocketbox, Lucide, Poly Haven) | merged |
 | #65 | sfx-vehicles | Live car engine, road and tyres; impacts; doors; footsteps | #37 |
 | #69 | sfx-robots-ui | Robot servos, beeps and audio tells; UI and mission cues; firmware-leak fix | #65 |
 | #70 | sfx-ambience | City ambience: traffic, crowd, wind, rain, foghorns, gulls | #69 |
-| (new) | sfx-impacts | Collision sounds from `ext.impacts.events` (Impacts #50/#57/#62): crunch, clank, thud, scrape, hydrant hiss | #70 |
+| #73 | sfx-impacts | Collision sounds from `ext.impacts.events` (Impacts #50/#57/#62): crunch, clank, thud, scrape, hydrant hiss | #70 |
 
 Open follow-ups:
 - Footstep surfaces: wait for World detail's land-cover lookup (#54).
@@ -169,3 +169,17 @@ Built against the Impacts stream's published shape (`ext.impacts.events`, last 2
   an OfflineAudioContext is audible and bounded. In a scratch merge with #62, Impacts' own
   `tests/e2e/impacts.spec.ts` crash played `impact-metal`, `impact-scrape`, `impact-wood` and the
   robotaxi horn (all 3 tests green).
+
+## After release #67 (`integrate/wave2` @ `59e5a7b`, 2026-10-24)
+
+- #36 and #37 shipped inside #67. One horn path survived (`HornVoice` gone; `main.ts` calls
+  `audio.playHorn`). #67 also improved the robotaxi honk cooldown and added `tests/audio/director.test.ts`.
+- #67 added robotaxi rides (`player.ride`, mode `vehicle`, own car parked). Fixed in #65: the engine
+  follows the ridden taxi from the back seat, and the parked car's hits no longer play. Fixed in #73:
+  the ridden taxi is the player's own body for collision sounds.
+- #65, #69, #70 and #73 have `59e5a7b` merged in. Typecheck and vitest are green on each;
+  `player-feel.spec.ts` (horn) passes.
+- **Blocker outside audio:** `tests/audio/audio.spec.ts` "real controls…" fails on the bare
+  `59e5a7b` base too. The sim runs at 3.0 ticks/s under SwiftShader, against 16.3 before #67;
+  frames are GPU-bound, with shader programs being recompiled during play (`getProgramInfoLog`,
+  935 ms per 8 s). Reported to the coordinator for Lane R. The spec is unchanged.
