@@ -54,6 +54,7 @@ export interface AudioDebugInfo {
   station: string;
   music: { trackId: string; paused: boolean; src: string } | null;
   musicTracks: number;
+  musicSwitches: number;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
   voice: { current: string | null; mode: string | null; waiting: string[]; status: string; files: number };
@@ -122,6 +123,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let tracks: readonly MusicTrack[] = [];
   let musicContext: MusicContext | null = null;
   let musicTrack: string | null = null;
+  /** The context the station card last announced (the card shows on entering "driving"). */
+  let announced: MusicContext | null = null;
   let now = 0;
   let listener = { x: 0, z: 0, heading: 0 };
   let inCar = false;
@@ -143,7 +146,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   };
   const onKey = (event: KeyboardEvent): void => {
     if (event.code !== "KeyM" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-    if (paused || !inCar || isTextEntry(event.target)) return;
+    // Tuning works in menus too; only typing in a text field is left alone.
+    if (!inCar || isTextEntry(event.target)) return;
     tuneRadio(event.shiftKey ? -1 : 1);
   };
   if (typeof window !== "undefined") window.addEventListener("keydown", onKey);
@@ -207,13 +211,18 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const mission = missions ? options.missions.find((m) => m.id === missions.missionId) : undefined;
       const step = mission?.steps.find((s) => s.id === missions?.stepId);
       const missionUrgent = missions?.status === "active" && !!step && ((step.type === "goto") || (step.type === "objective" && step.timeLimitS !== undefined));
+      // Menus and dialogs duck the music; they never switch it (a mission dialog must not cut the track).
+      mixer.setMusicDucked(frame.paused);
       const nextContext = musicTracker.update({ menu: frame.paused, onFoot, missionUrgent, combat: fight }, frame.nowMs);
-      // Tuning in as the player gets into a car (once audio can play).
-      if (nextContext === "driving" && musicContext !== "driving" && mixer.isUnlocked()) showStation(stationById(prefs.get().station));
+      // Tuning in as the player gets into a car, or as audio unlocks in one.
+      const unlocked = mixer.isUnlocked();
+      if (nextContext === "driving" && unlocked && announced !== "driving") showStation(stationById(prefs.get().station));
+      if (unlocked) announced = nextContext;
       musicContext = nextContext;
       musicTrack = trackFor(musicContext);
       mixer.setMusicTrack(musicTrack);
       toast.update(clock());
+      mixer.tick();
       // Voices and subtitles.
       queue.setPaused(frame.paused, frame.nowMs);
       missionVoice.observe(missions, frame.nowMs);
@@ -270,6 +279,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         station: prefs.get().station,
         music: m.music,
         musicTracks: tracks.length,
+        musicSwitches: m.musicSwitches,
         effectsLoaded: m.effectsLoaded,
         effectsPlayed: m.effectsPlayed,
         voice: { ...queue.snapshot(), status: manifest?.status ?? "missing", files: manifest?.lines.filter((l) => l.file).length ?? 0 },

@@ -86,14 +86,16 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   expect((await audio(page)).subtitle?.mode).toBe("text");
   await page.screenshot({ path: "test-results/audio-subtitles.png" });
 
-  // A real key: Escape opens the pause screen, unlocks audio and switches to the menu track.
+  // A real key: Escape opens the pause screen and unlocks audio. The radio (in the car at the
+  // start) keeps playing under the menu, ducked: menus never switch the track.
   await page.keyboard.press("Escape");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect.poll(async () => (await audio(page)).unlocked, { timeout: 30_000 }).toBe(true);
-  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("menu");
+  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("drive");
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
-  expect((await audio(page)).music?.src).toMatch(/audio\/music\/menu\.(ogg|mp3)$/);
+  expect((await audio(page)).music?.src).toMatch(/audio\/music\/drive\.(ogg|mp3)$/);
+  const switchesAtPause = (await audio(page)).musicSwitches;
   await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(7);
   // The paused game holds the line, and the dialog covers the subtitles.
   const held = (await audio(page)).voice.current;
@@ -114,8 +116,10 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(true);
   await dialog.getByRole("checkbox", { name: "Mute music" }).uncheck();
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
-  expect((await audio(page)).music?.trackId).toBe("menu");
-  await expect(dialog.getByText(/Now playing: "Midnight Drive" by congusbongus \(CC0 1\.0\)/)).toBeVisible();
+  expect((await audio(page)).music?.trackId).toBe("drive");
+  await expect(dialog.getByText(/Now playing: "Midnight Cruiser" by Zane Little Music \(CC0 1\.0\)/)).toBeVisible();
+  // The whole pause screen visit, mutes included, switched nothing.
+  expect((await audio(page)).musicSwitches).toBe(switchesAtPause);
   await page.screenshot({ path: "test-results/audio-settings.png" });
   expect((await audio(page)).voice.current).toBe(held);
   await page.keyboard.press("Escape");
