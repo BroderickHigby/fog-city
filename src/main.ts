@@ -22,7 +22,8 @@
 // Keys: WASD/arrows drive (or walk), Space brake; on foot W jogs, Shift (or Space, pad LT) sprints, F beside an empty robotaxi hops in
 // (a phone-map waypoint is where it goes; F again gets out); F enter/exit, E fire,
 // Q scan, H horn (sim actions; src/audio/horn.ts sounds it). Render only: C chase/first-person, V free fly camera (WASD
-// move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night.
+// move, Space/Shift up/down, arrows or mouse drag look, wheel speed, right Shift boost), N night;
+// in the chase camera, mouse or touch drag on the view (or the pad's right stick) orbits round you.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import { installDebugHandle } from "./debug.ts";
@@ -30,6 +31,7 @@ import { openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
+import { availableGamepads } from "./input/controller.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
@@ -84,6 +86,9 @@ const GAME_WAVE = 3;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
+/** Chase orbit: radians per pixel dragged, and radians per second at full right stick. */
+const ORBIT_PER_PX = 0.006;
+const ORBIT_STICK_RATE = 2.6;
 
 function numParam(p: URLSearchParams, k: string): number | null {
   const v = p.get(k);
@@ -279,7 +284,7 @@ async function boot(): Promise<void> {
     }
     return p;
   };
-  const target: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false };
+  const target: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false, pitch: 0 };
   const local = { id: LOCAL_PLAYER, target };
   const fly: FlyInput = { ...NO_FLY_INPUT };
   const drag = { x: 0, y: 0 };
@@ -380,8 +385,13 @@ async function boot(): Promise<void> {
     const flying = view.rig.mode === "fly";
     if (flying) readFly(dtFrame);
     else {
+      // Chase orbit (render only): mouse/touch drag, or the pad's right stick.
       pointer.takeDrag(drag);
       pointer.takeWheel();
+      const pad = availableGamepads().find((p) => p?.connected);
+      const stick = (v: number | undefined): number => (v === undefined || !Number.isFinite(v) || Math.abs(v) < 0.18 ? 0 : v);
+      view.rig.orbit(drag.x * ORBIT_PER_PX + stick(pad?.axes[2]) * ORBIT_STICK_RATE * dtFrame,
+        drag.y * ORBIT_PER_PX + stick(pad?.axes[3]) * ORBIT_STICK_RATE * dtFrame);
     }
     if (!paused) {
       acc += dtFrame;
@@ -468,6 +478,7 @@ async function boot(): Promise<void> {
         target.heading = src.heading;
         target.onFoot = onFoot;
         target.speed = onFoot ? P.foot.speed : c.speed;
+        target.pitch = onFoot || pc.ride ? 0 : c.pitch;
         // Riding a robotaxi: follow the taxi, not the parked car.
         const rb = pc.ride, ra = pp.ride ?? rb;
         if (rb && ra) {

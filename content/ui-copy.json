@@ -192,6 +192,7 @@
     "ui.help.emote": "Emote",
     "ui.help.horn": "Horn",
     "ui.help.pause": "Pause menu",
+    "ui.help.orbit": "Swing the camera round you (it settles behind you as you move)",
     "ui.help.camera": "Switch chase or first-person camera",
     "ui.help.fly": "Free-fly camera (WASD, Space and Shift, drag to look)",
     "ui.help.night": "Toggle night",
@@ -202,7 +203,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:d17055d8",
+    "contentHash": "fnv1a32:a4c08bb0",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }
