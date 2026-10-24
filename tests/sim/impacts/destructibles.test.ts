@@ -12,6 +12,7 @@ import {
   impactsOf,
   makeCar,
   propIndex,
+  propsFromStreetDetail,
   propsNear,
   step,
   stepImpacts,
@@ -156,5 +157,30 @@ describe("hitting street props", () => {
     const a = drive(world, aimAt(world, p, 5, 12), 80).at(-1)!;
     const b = drive(world, aimAt(world, p, 5, 12), 80).at(-1)!;
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+});
+
+describe("World detail's props (street-trees.json, street-furniture.json, street-signs.json)", () => {
+  const files = {
+    trees: { classes: ["broadleaf", "conifer", "palm"], trees: [[1, 10, 5, 1, 3.2], [3, 20, 5, 0, 6.8], [4, 30, 5, 2, 12]] as Array<[number, number, number, number, number]> },
+    furniture: { signals: [{ id: "sig:n1:c2", x: 40, z: 5 }], stopSigns: [{ id: "stop:n1:c3", x: 50, z: 5 }] },
+    signs: { corners: [{ id: "corner:n1:0", x: 60, z: 5 }], curb: [{ id: "curb:7", x: 70, z: 5 }] },
+  };
+  it("keep their ids, size trees by height and replace the road-graph trees", () => {
+    const world = gridCity();
+    const placed = propsFromStreetDetail(files);
+    expect(placed.map((p) => p.id)).toEqual(["tree:1", "tree:3", "tree:4", "sig:n1:c2", "stop:n1:c3", "corner:n1:0", "curb:7"]);
+    const withDetail = Object.assign(Object.create(Object.getPrototypeOf(world)), world, { props: placed }) as World;
+    const idx = propIndex(withDetail);
+    expect(idx.byId.get("tree:1")!.size).toBe("sapling");
+    expect(idx.byId.get("tree:3")!.size).toBe("young");
+    expect(idx.byId.get("tree:4")!.size).toBe("mature");
+    expect(idx.byId.get("sig:n1:c2")!.kind).toBe("signal");
+    expect(idx.byId.get("curb:7")!.breakSpeed).toBeLessThan(3);
+    // Only the real trees: the road-graph ones are gone, the lamp posts stay.
+    const trees = idx.list.filter((p) => p.kind === "tree");
+    expect(trees.map((p) => p.id).sort()).toEqual(["tree:1", "tree:3", "tree:4"]);
+    expect(idx.list.some((p) => p.kind === "lamp")).toBe(true);
+    expect(propIndex(world).list.some((p) => p.id.startsWith("tree:h"))).toBe(true);
   });
 });

@@ -7,8 +7,11 @@
 //
 // What a hit does depends on the prop (PROP_SPECS): a sapling cannot stop a car (it snaps), a
 // young tree, a lamp post or a hydrant breaks when hit fast enough and is a wall below that, and
-// a mature tree is always a wall. Props placed later from real data (signs, signals, fences,
-// bins, newspaper boxes: the World detail stream) join through `world.props` with the same specs.
+// a mature tree is always a wall. Props placed from real data join through `world.props` with the
+// same specs: propsFromStreetDetail reads the World detail stream's street-trees.json (SF's street
+// tree inventory, ids tree:<treeid>, sized by their height), street-furniture.json (signal poles,
+// stop signs) and street-signs.json (corner blade posts, kerbside signs), keeping their ids. When
+// real trees are given, they replace the road-graph trees (the renderer draws them instead).
 
 import type { World } from "./world.ts";
 import { cellKey } from "./world.ts";
@@ -41,6 +44,8 @@ export interface PropPlacement {
   kind: PropKind;
   x: number;
   z: number;
+  /** A tree's height, metres (its size class and trunk follow from it). */
+  height?: number;
 }
 
 /** Per-kind physics (all values tune). Trees by size class. */
@@ -53,6 +58,35 @@ export const PROP_SPECS: Readonly<Record<Exclude<PropKind, "tree">, Pick<Prop, "
   fence: { r: 0.08, height: 1.2, mass: 20, breakSpeed: 1.5 },
   newsbox: { r: 0.3, height: 1.1, mass: 45, breakSpeed: 1.5 },
 };
+
+/** A real tree's size class from its height: saplings under 4 m snap, trees from 9 m never break. */
+export function treeSizeOfHeight(h: number): TreeSize {
+  return h < 4 ? "sapling" : h < 9 ? "young" : "mature";
+}
+
+/** A real street tree's prop (World detail): a height-sized trunk. */
+export function realTreeProp(id: string, x: number, z: number, height: number): Prop {
+  const size = treeSizeOfHeight(height);
+  return { id, kind: "tree", x, z, r: size === "sapling" ? 0.08 : 0.1 + 0.02 * height, height, mass: size === "sapling" ? 15 : 260, breakSpeed: size === "sapling" ? 0 : size === "young" ? 7 : Infinity, size };
+}
+
+/** The World detail stream's files, as far as props are concerned (render-only today: public/tiles/sf/street-*.json). */
+export interface StreetDetailFiles {
+  trees?: { classes: readonly string[]; trees: ReadonlyArray<readonly [number, number, number, number, number]> } | null;
+  furniture?: { signals?: ReadonlyArray<{ id: string; x: number; z: number }>; stopSigns?: ReadonlyArray<{ id: string; x: number; z: number }> } | null;
+  signs?: { corners?: ReadonlyArray<{ id: string; x: number; z: number }>; curb?: ReadonlyArray<{ id: string; x: number; z: number }> } | null;
+}
+
+/** World detail's trees, signal poles, stop signs and sign posts as props, with their own ids (set them as `world.props`). */
+export function propsFromStreetDetail(files: StreetDetailFiles): PropPlacement[] {
+  const out: PropPlacement[] = [];
+  for (const [id, x, z, , h] of files.trees?.trees ?? []) out.push({ id: `tree:${id}`, kind: "tree", x, z, height: h });
+  for (const p of files.furniture?.signals ?? []) out.push({ id: p.id, kind: "signal", x: p.x, z: p.z });
+  for (const p of files.furniture?.stopSigns ?? []) out.push({ id: p.id, kind: "sign", x: p.x, z: p.z });
+  for (const p of files.signs?.corners ?? []) out.push({ id: p.id, kind: "sign", x: p.x, z: p.z });
+  for (const p of files.signs?.curb ?? []) out.push({ id: p.id, kind: "sign", x: p.x, z: p.z });
+  return out;
+}
 
 /** A street tree's size class from its 0..1 variation (the renderer draws it at scale 0.75 + 0.55 v). */
 export function treeSize(v: number): TreeSize {
@@ -241,17 +275,29 @@ function rawEdges(world: World): RawEdge[] {
   }));
 }
 
+const EMPTY: PropIndex = { list: [], byId: new Map(), cells: new Map() };
+
+/**
+ * The same world with no street props at all (a flag on a shallow copy): for tests whose subject
+ * is something else on a clear sidewalk (the dodge), written before props existed.
+ */
+export function withoutStreetProps(world: World): World {
+  return Object.assign(Object.create(Object.getPrototypeOf(world) as object) as World, world, { streetProps: false });
+}
+
 /** Every prop in the world (built on first use). */
 export function propIndex(world: World): PropIndex {
+  if ((world as World & { streetProps?: boolean }).streetProps === false) return EMPTY;
   let idx = indexes.get(world);
   if (idx) return idx;
   const edges = rawEdges(world);
   const clearance = nodeClearance(edges);
-  const list: Prop[] = [...treeProps(edges, clearance), ...lampProps(edges, clearance)];
-  for (const r of world.gameplay?.refills ?? []) if (r.kind === "hydrant") list.push({ id: `hydrant:${r.id}`, kind: "hydrant", x: r.x, z: r.z, ...PROP_SPECS.hydrant });
   const extra = (world as World & { props?: readonly PropPlacement[] }).props ?? [];
+  const realTrees = extra.some((p) => p.kind === "tree");
+  const list: Prop[] = [...(realTrees ? [] : treeProps(edges, clearance)), ...lampProps(edges, clearance)];
+  for (const r of world.gameplay?.refills ?? []) if (r.kind === "hydrant") list.push({ id: `hydrant:${r.id}`, kind: "hydrant", x: r.x, z: r.z, ...PROP_SPECS.hydrant });
   for (const p of extra) {
-    if (p.kind === "tree") list.push(treeProp(p.id, p.x, p.z, 0.5));
+    if (p.kind === "tree") list.push(realTreeProp(p.id, p.x, p.z, p.height ?? 6));
     else list.push({ id: p.id, kind: p.kind, x: p.x, z: p.z, ...PROP_SPECS[p.kind] });
   }
   list.sort((p, q) => (p.id < q.id ? -1 : p.id > q.id ? 1 : 0));

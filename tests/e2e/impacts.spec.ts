@@ -80,6 +80,52 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
     expect(problems).toEqual([]);
   });
 
+  test("driving into a robot bowls it over: it topples, lies there and gets up", async ({ page }) => {
+    const problems = await bootWorld(page, "dev", `${FAST_QUERY}&debug=1`);
+    const me = (await page.evaluate(() => (window as unknown as { __fogcity: { simInfo(): { playerIds: string[] } } }).__fogcity.simInfo().playerIds[0]))!;
+    const held = new Set<string>();
+    let target = -1;
+    let hit: { kind: string; a: string; b: string; dv: number; fell?: boolean } | undefined;
+    const deadline = Date.now() + 150_000;
+    while (Date.now() < deadline) {
+      const s = await simState(page);
+      hit = (impacts(s)?.events as Array<{ kind: string; a: string; b: string; dv: number; fell?: boolean }> | undefined)?.find((e) => e.a === `p:${me}` && e.kind === "car-robot");
+      if (hit) break;
+      const c = s.players[me]!.car;
+      const robots = agents(s).filter((a) => (a.kind === "errandRobot" || a.kind === "sidewalkBot") && !a.knock);
+      let t = robots.find((a) => a.id === target);
+      if (!t) {
+        t = robots.sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0];
+        target = t?.id ?? -1;
+      }
+      if (!t) { await hold(page, held, new Set()); await page.waitForTimeout(250); continue; }
+      let off = Math.atan2(t.x - c.x, -(t.z - c.z)) - c.heading;
+      while (off > Math.PI) off -= 2 * Math.PI;
+      while (off < -Math.PI) off += 2 * Math.PI;
+      const keys = new Set<string>(["KeyW"]);
+      if (off > 0.06) keys.add("KeyD");
+      else if (off < -0.06) keys.add("KeyA");
+      await hold(page, held, keys);
+      await page.waitForTimeout(60);
+    }
+    await hold(page, held, new Set(["KeyS"]));
+    expect(hit, "the car hit a robot within the time limit").toBeDefined();
+    const id = Number(hit!.b.slice(2));
+    // It topples (its pitch, which the agent layer draws), then is back on its feet.
+    await page.waitForFunction((id) => {
+      const s = (window as unknown as { __fogcity: { state(): SimState } }).__fogcity.state();
+      const a = ((s.ext.agents as { list?: AgentState[] } | undefined)?.list ?? []).find((x) => x.id === id);
+      return !a || Math.abs(a.pitch) > 1;
+    }, id, { timeout: 60_000 });
+    await hold(page, held, new Set());
+    await page.waitForFunction((id) => {
+      const s = (window as unknown as { __fogcity: { state(): SimState } }).__fogcity.state();
+      const a = ((s.ext.agents as { list?: AgentState[] } | undefined)?.list ?? []).find((x) => x.id === id);
+      return !a || (a.knock === undefined && a.pitch === 0);
+    }, id, { timeout: 120_000 });
+    expect(problems).toEqual([]);
+  });
+
   test("driving into a street tree knocks it over (or snaps it), and the renderer topples it", async ({ page }) => {
     // The breakable trees and where they are, from the same world in Node (props.ts).
     const { world } = loadWorld("dev", { roads: true });

@@ -77,7 +77,7 @@ describe("stepCar and a body it can shove", () => {
     const circles = [-1.25, 0, 1.25].map((o) => ({ x: 0, z: -5.2 + o, r: 1.05, person: false, body }));
     const contacts: CarContact[] = [];
     let c = c0;
-    for (let t = 0; t < 30 && contacts.length === 0; t++) c = stepCar(w, c, I(0), circles, contacts);
+    for (let t = 0; t < 30 && contacts.length === 0; t++) c = stepCar(w, c, I(0), circles, 1, contacts);
     expect(contacts.length).toBe(1);
     const k = contacts[0]!;
     // Normal out of the body toward the car: +z (south).
@@ -100,7 +100,7 @@ describe("stepCar and a body it can shove", () => {
     const circles = [-1.25, 0, 1.25].map((o) => ({ x: 1.6, z: -5.2 + o, r: 1.05, person: false, body }));
     const contacts: CarContact[] = [];
     let c = { ...makeCar(0, 0, 0), speed: 15 };
-    for (let t = 0; t < 30 && contacts.length === 0; t++) c = stepCar(w, c, I(0), circles, contacts);
+    for (let t = 0; t < 30 && contacts.length === 0; t++) c = stepCar(w, c, I(0), circles, 1, contacts);
     expect(contacts.length).toBe(1);
     // Hit on its front right corner, pushed back: the nose swings left (anticlockwise).
     expect(c.yawRate).toBeLessThan(-0.2);
@@ -111,7 +111,7 @@ describe("stepCar and a body it can shove", () => {
     const circles = [{ x: 0, z: -5, r: 1, person: false }];
     const contacts: CarContact[] = [];
     let c = { ...makeCar(0, 0, 0), speed: 6 };
-    for (let t = 0; t < 30; t++) c = stepCar(w, c, I(0), circles, contacts);
+    for (let t = 0; t < 30; t++) c = stepCar(w, c, I(0), circles, 1, contacts);
     expect(contacts).toEqual([]);
     expect(Math.abs(c.speed)).toBeLessThan(0.5);
   });

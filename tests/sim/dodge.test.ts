@@ -49,6 +49,7 @@ import {
   type SimState,
   type Vehicle,
   type World,
+  withoutStreetProps,
 } from "../../src/sim/index.ts";
 import { deepFreeze } from "../helpers.ts";
 import { emptyWorld, gridCity, terrainWorld } from "./fixtures.ts";
@@ -484,7 +485,7 @@ describe("the dodge in step()", () => {
     expect(dodgeExtOf(a).contacts).toBe(0);
   });
 
-  it("robots dodge too (the Footman hops, the Trundle skids), and stay solid to cars", () => {
+  it("robots do not dodge a player's car (v12, owner request): it bowls them over; they are never under the override", () => {
     expect(agentDodgeClass({ id: 1, kind: "errandRobot" })).toBe("errandRobot");
     expect(agentDodgeClass({ id: 1, kind: "sidewalkBot" })).toBe("sidewalkBot");
     expect(agentDodgeClass({ id: 1, kind: "robotaxi" })).toBeNull();
@@ -493,10 +494,14 @@ describe("the dodge in step()", () => {
       { id: 1, x: 0.2, z: 0, kind: "errandRobot" },
       { id: 2, x: -0.2, z: -10, kind: "sidewalkBot" },
     ]);
-    s = drive(flat, s, 240);
-    for (const r of agentsOf(s)) expect(Math.abs(r.x)).toBeGreaterThan(CAR.halfWidth + AGENT_SPEC[r.kind].radius + 0.75);
-    expect(s.players.a!.car.hits).toBe(0);
-    expect(dodgeExtOf(s).dives).toBe(2);
+    let knocked = 0;
+    s = drive(flat, s, 240, (k) => {
+      for (const r of agentsOf(k)) if (r.knock && r.knock.t === 0 && r.knock.phase === "slide") knocked++;
+    });
+    // Nobody dived: both were hit and knocked over (impacts.ts), and the car kept going.
+    expect(dodgeExtOf(s).dives).toBe(0);
+    expect(knocked).toBeGreaterThanOrEqual(2);
+    expect(s.players.a!.car.z).toBeLessThan(-30);
   });
 
   it("children get the wider berth: they dive further and earlier", () => {
@@ -548,7 +553,8 @@ describe("the dodge in step()", () => {
   });
 
   it("in traffic on the grid city with a player at full throttle along a crowded sidewalk: dives, and no contact", () => {
-    const world = gridCity(true);
+    // (No street props: since v13 the sidewalk's mature trees would stop the car, props.ts.)
+    const world = withoutStreetProps(gridCity(true));
     let s = createInitialState(world, 9, ["p1"], { x: 20, z: 106, heading: Math.PI / 2 });
     for (let t = 0; t < 600; t++) {
       const c = s.players.p1!.car;

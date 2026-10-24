@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "loudnessLufs": -18,
+  "tracks": [
+    {
+      "id": "drive",
+      "context": "driving",
+      "title": "Midnight Cruiser",
+      "author": "Zane Little Music",
+      "page": "https://opengameart.org/content/midnight-cruiser",
+      "licence": "CC0 1.0",
+      "files": {
+        "ogg": "audio/music/drive.ogg",
+        "mp3": "audio/music/drive.mp3"
+      },
+      "bytes": {
+        "ogg": 1297210,
+        "mp3": 1733472
+      },
+      "durationS": 144.41,
+      "loop": true
+    },
+    {
+      "id": "foot",
+      "context": "foot",
+      "title": "Electronic Outlaw",
+      "author": "Zane Little Music",
+      "page": "https://opengameart.org/content/electronic-outlaw",
+      "licence": "CC0 1.0",
+      "files": {
+        "ogg": "audio/music/foot.ogg",
+        "mp3": "audio/music/foot.mp3"
+      },
+      "bytes": {
+        "ogg": 1891105,
+        "mp3": 2083392
+      },
+      "durationS": 173.56,
+      "loop": true
+    },
+    {
+      "id": "mission",
+      "context": "mission",
+      "title": "Down to Business",
+      "author": "Zane Little Music",
+      "page": "https://opengameart.org/content/down-to-business-day-25",
+      "licence": "CC0 1.0",
+      "files": {
+        "ogg": "audio/music/mission.ogg",
+        "mp3": "audio/music/mission.mp3"
+      },
+      "bytes": {
+        "ogg": 467571,
+        "mp3": 543744
+      },
+      "durationS": 45.26,
+      "loop": true
+    },
+    {
+      "id": "combat",
+      "context": "combat",
+      "title": "Invincibility [Loop]",
+      "author": "Zane Little Music",
+      "page": "https://opengameart.org/content/invincibility-loop",
+      "licence": "CC0 1.0",
+      "files": {
+        "ogg": "audio/music/combat.ogg",
+        "mp3": "audio/music/combat.mp3"
+      },
+      "bytes": {
+        "ogg": 287808,
+        "mp3": 307872
+      },
+      "durationS": 25.61,
+      "loop": true
+    },
+    {
+      "id": "menu",
+      "context": "menu",
+      "title": "Midnight Drive",
+      "author": "congusbongus",
+      "page": "https://opengameart.org/content/midnight-drive",
+      "licence": "CC0 1.0",
+      "files": {
+        "ogg": "audio/music/menu.ogg",
+        "mp3": "audio/music/menu.mp3"
+      },
+      "bytes": {
+        "ogg": 2034885,
+        "mp3": 2443680
+      },
+      "durationS": 203.58,
+      "loop": true
+    }
+  ]
+}
