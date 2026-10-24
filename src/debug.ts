@@ -22,6 +22,8 @@ export interface RenderInfo {
   /** Display only; never assert on it (SwiftShader). */
   fps: number;
   pixelRatio: number;
+  /** The graphics tier (render/gfx.ts), its pixel budget now, and the governor's steps so far. */
+  gfx?: { tier: string; pixelBudget: number; steps: readonly string[] };
   shadows: boolean;
   /** Ambient agents drawn last frame (full models near the camera plus far proxies). */
   agents: number;
@@ -100,6 +102,9 @@ export interface DebugHandle {
   /** One entry per content/landmarks.json placement. */
   landmarks(): LandmarkInfo[];
   setNight(on: boolean): void;
+  /** Force a WebGL context loss and, later, its restore (WEBGL_lose_context), to test recovery. */
+  loseContext?(): void;
+  restoreContext?(): void;
   setCameraMode(mode: CameraModeName): void;
   /** Switch to the fly camera at (x, y, z) looking along compass yaw, pitch (degrees, + up). */
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;

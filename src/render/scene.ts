@@ -28,6 +28,7 @@ import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
 import { StreetLightRig } from "./street-lights.ts";
+import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
 import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
@@ -45,6 +46,13 @@ export interface RenderOptions {
   night: boolean;
   /** Upper bound on devicePixelRatio. */
   maxPixelRatio: number;
+  /** Most drawing-buffer pixels (gfx.ts TIER_SETTINGS); unbounded when omitted. */
+  pixelBudget?: number;
+  /** The graphics tier (gfx.ts), for reports; and whether the governor may step it down. */
+  tier?: GfxTier;
+  governed?: boolean;
+  /** Keep the drawing buffer between frames (software renderers: tests read the canvas). */
+  preserveDrawingBuffer?: boolean;
   /** Known model files (paths under public/), or null to try every URL. */
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
@@ -88,6 +96,8 @@ export interface RenderInfo {
   landmarks: number;
   fps: number;
   pixelRatio: number;
+  /** The graphics tier, its pixel budget now, and the governor's steps so far. */
+  gfx?: { tier: GfxTier | "unknown"; pixelBudget: number; steps: readonly GfxStep[] };
   shadows: boolean;
   /** Ambient agents drawn last frame (near models plus far proxies), and of those with full models. */
   agents: number;
@@ -121,6 +131,8 @@ export interface RenderInfo {
 }
 
 const SHADOW_HALF = 96;
+/** The governor never takes the drawing buffer under this many pixels. */
+const MIN_PIXEL_BUDGET = 900_000;
 const SHADOW_MAP_SIZE = 2048;
 const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
@@ -158,6 +170,11 @@ export class SceneRenderer {
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
   private dayPreset: LightingPreset = DAY;
+  private lastPreset: LightingPreset = DAY;
+  private readonly maxPixelRatio: number;
+  private pixelBudget: number;
+  private readonly tier: GfxTier | "unknown";
+  private governor: GfxGovernor | null = null;
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   private readonly headlight = new THREE.SpotLight(0xfff0d8, 0, 90, 0.52, 0.55, 1.4);
@@ -186,13 +203,21 @@ export class SceneRenderer {
     this.container = container;
     this.ground = world.ground;
     this.water.setLevel(world.manifest.water?.y ?? 0);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+    // The presentation chain renders into its own target and anti-aliases with FXAA, so the
+    // canvas needs no MSAA then: at a large drawing buffer MSAA alone costs hundreds of MB.
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: opts.quality !== true,
+      preserveDrawingBuffer: opts.preserveDrawingBuffer ?? true,
+      powerPreference: "high-performance",
+    });
     const gl = this.renderer.getContext();
     const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
     const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
     const software = /swiftshader|llvmpipe|software/i.test(rendererName);
     this.shadows = opts.shadows ?? !software;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.maxPixelRatio));
+    this.maxPixelRatio = opts.maxPixelRatio;
+    this.pixelBudget = opts.pixelBudget ?? Infinity;
+    this.tier = opts.tier ?? "unknown";
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = this.shadows;
@@ -330,6 +355,9 @@ export class SceneRenderer {
     this.nightOn = preset.name === "night";
     if (!this.nightOn) this.dayPreset = preset;
     this.applyPreset(preset);
+    this.governor = new GfxGovernor(opts.governed ?? false, {
+      post: this.quality !== null, shadows: this.shadows, pixelBudget: this.pixelBudget, maxPixelRatio: this.maxPixelRatio,
+    });
     window.addEventListener("resize", () => this.resize());
     this.resize();
   }
@@ -356,6 +384,7 @@ export class SceneRenderer {
   }
 
   private applyPreset(p: LightingPreset): void {
+    this.lastPreset = p;
     const night = p.nightFactor ?? (p.name === "night" ? 1 : 0);
     this.quality?.setPreset(p);
     this.activePreset = p.name;
@@ -418,10 +447,45 @@ export class SceneRenderer {
   resize(): void {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
+    // The drawing buffer follows the screen up to the tier's pixel budget (gfx.ts).
+    this.renderer.setPixelRatio(renderPixelRatio(window.devicePixelRatio || 1, w, h, this.pixelBudget, this.maxPixelRatio));
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.quality?.resize(w, h);
+  }
+
+  /** The governor's step down (gfx.ts): fewer pixels, then no shadows, then no post chain. */
+  private stepDown(step: GfxStep): void {
+    if (step === "pixels") {
+      const buffer = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+      this.pixelBudget = Math.max(MIN_PIXEL_BUDGET, Math.min(this.pixelBudget, buffer.x * buffer.y) * PIXEL_STEP);
+      this.resize();
+    } else if (step === "shadows") {
+      this.renderer.shadowMap.enabled = false;
+      this.sun.castShadow = false;
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+      // Every lit material compiled its shadow lookups: recompile them without.
+      this.scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        for (const mat of Array.isArray(m) ? m : m ? [m] : []) mat.needsUpdate = true;
+      });
+    } else if (this.quality) {
+      this.quality.dispose();
+      this.quality = null;
+    }
+  }
+
+  /**
+   * After the GL context came back (context-guard.ts): three.js re-uploads geometry and textures
+   * from their CPU copies by itself; the sky's environment maps lived only on the GPU, so they
+   * are made again.
+   */
+  contextRestored(): void {
+    this.envCache.clear();
+    this.applyPreset(this.lastPreset);
+    this.resize();
   }
 
   setCar(id: string, pose: CarPose): void {
@@ -452,7 +516,9 @@ export class SceneRenderer {
 
   /**
    * Per-frame update after the sim has stepped. `dtSeconds` is the frame time the animation
-   * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure.
+   * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure;
+   * `simSeconds` is how much of it the sim's ticks took, which the graphics governor leaves out:
+   * a slow sim is not cured by drawing less.
    */
   frame(
     dtSeconds: number,
@@ -460,11 +526,14 @@ export class SceneRenderer {
     fly: Readonly<FlyInput>,
     minuteOfDay: number,
     frameSeconds: number = dtSeconds,
+    simSeconds = 0,
   ): void {
     this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
+    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), !this.tilesSettled() || document.hidden);
+    if (step) this.stepDown(step);
     if (local) {
       const t = local.target;
       this.actors.hideFor(this.rig.mode === "first-person" ? local.id : null, t.onFoot ? "person" : "car");
@@ -554,6 +623,7 @@ export class SceneRenderer {
     out.landmarks = this.landmarks.count;
     out.fps = this.fpsAvg;
     out.pixelRatio = this.renderer.getPixelRatio();
+    out.gfx = { tier: this.tier, pixelBudget: this.pixelBudget, steps: this.governor?.taken ?? [] };
     out.shadows = this.shadows;
     const a: AgentRenderInfo = this.agents.info();
     out.agents = a.drawn;

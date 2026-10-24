@@ -40,6 +40,8 @@ import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { SprayTracker } from "./render/held-blaster.ts";
+import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, parseGfxRequest, probeGpu } from "./render/gfx.ts";
+import { ContextGuard, RESUME_KEY, SAFE_MODE_KEY, hideGraphicsNotice, showGraphicsNotice } from "./render/context-guard.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
 import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
@@ -92,6 +94,14 @@ const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
 /** Chase orbit: radians per pixel dragged, and radians per second at full right stick. */
 const ORBIT_PER_PX = 0.006;
 const ORBIT_STICK_RATE = 2.6;
+
+/** A sessionStorage value, or null where storage is unavailable (private mode, sandboxed frames). */
+function sessionValue(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function setSessionValue(key: string, value: string | null): void {
+  try { if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, value); } catch { /* storage unavailable */ }
+}
 
 function numParam(p: URLSearchParams, k: string): number | null {
   const v = p.get(k);
@@ -191,17 +201,28 @@ async function boot(): Promise<void> {
           return f ? assets.json<TileCollider>(base + f).catch(() => null) : Promise.resolve(null);
         }
       : undefined;
+  // The graphics tier (gfx.ts): from the GPU unless ?gfx= names one; after the GPU was lost
+  // this session (context-guard.ts), safe mode starts low. ?quality= and ?shadows= still win.
+  const safeMode = sessionValue(SAFE_MODE_KEY) === "1";
+  const gpu = probeGpu();
+  const gfxRequest = parseGfxRequest(params.get("gfx"));
+  const gfx = chooseTier(gfxRequest, gpu, safeMode);
+  const tierSettings = TIER_SETTINGS[gfx.tier];
   const view = new SceneRenderer(
     container,
     { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
     {
       radius: numParam(params, "radius") ?? 1500,
-      shadows: params.has("shadows") ? params.get("shadows") === "1" : undefined,
-      quality: params.has("quality") ? params.get("quality") === "1" : params.get("gfx") === "high" ? true : undefined,
+      shadows: params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
+      quality: params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
       timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
         ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
-      maxPixelRatio: numParam(params, "pr") ?? 2,
+      maxPixelRatio: numParam(params, "pr") ?? tierSettings.maxPixelRatio,
+      pixelBudget: params.has("pr") ? undefined : tierSettings.pixelBudget,
+      tier: gfx.tier,
+      governed: gfxRequest === "auto" && !params.has("pr") && !params.has("quality") && !params.has("shadows"),
+      preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
       landmarks: landmarksDoc,
     },
@@ -369,6 +390,8 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    loseContext: () => view.renderer.forceContextLoss(),
+    restoreContext: () => view.renderer.forceContextRestore(),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
@@ -381,6 +404,24 @@ async function boot(): Promise<void> {
   let sprintHints = 0;
   let nextTaxiHint = 0;
   let sprintHintDue = false;
+  // A lost WebGL context (context-guard.ts): stop drawing, keep the sim and the UI going, and
+  // rebuild on restore. If it does not come back, save and reload in safe mode at that save.
+  const guard = new ContextGuard(view.renderer.domElement, {
+    onLost: () => showGraphicsNotice(container, "Graphics paused: the GPU is resetting…"),
+    onRestored: () => { view.contextRestored(); hideGraphicsNotice(container); },
+    onGiveUp: () => {
+      showGraphicsNotice(container, "Graphics reset. Reloading at your last save…");
+      setSessionValue(SAFE_MODE_KEY, "1");
+      setSessionValue(RESUME_KEY, "1");
+      void saveStore.save("auto", captureProgression(curr, LOCAL_PLAYER)).catch(() => {}).finally(() => location.reload());
+    },
+  });
+  // Back from a graphics reset: carry on from the save made just before it.
+  if (sessionValue(RESUME_KEY) === "1") {
+    setSessionValue(RESUME_KEY, null);
+    void saveStore.load("auto").then((save) => { if (save) restoreSave(save.data); }).catch(() => {});
+  }
+
   const frame = (now: number): void => {
     const frameS = (now - last) / 1000;
     const dtFrame = Math.min(frameS, MAX_FRAME_S);
@@ -401,6 +442,7 @@ async function boot(): Promise<void> {
       view.rig.orbit(drag.x * ORBIT_PER_PX + stick(pad?.axes[2]) * ORBIT_STICK_RATE * dtFrame,
         drag.y * ORBIT_PER_PX + stick(pad?.axes[3]) * ORBIT_STICK_RATE * dtFrame);
     }
+    const simStart = performance.now(); // discount city or online simulation time in the graphics governor
     // During a match the relay's timeline is drawn instead of the city (which does not step).
     const inOnlineMatch = multiplayer.inMatch();
     const match = inOnlineMatch ? multiplayer.frame(dtFrame, flying ? () => ({ ...NEUTRAL_INPUT }) : () => gameUI.sampleInput()) : null;
@@ -512,8 +554,8 @@ async function boot(): Promise<void> {
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     const minute = gameMinuteOfDay(shown, clockStart);
     local.id = me_;
-    view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
-    view.render();
+    view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, (performance.now() - simStart) / 1000);
+    if (!guard.contextLost) view.render();
 
     const info = view.info(renderInfo);
     const me = shown.players[me_];
