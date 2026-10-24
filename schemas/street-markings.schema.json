@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/street-markings",
+  "title": "Junction paint: patches, crosswalks and stop bars (public/tiles/<world>/street-markings.json, pipeline/lib/street-markings.ts).",
+  "type": "object",
+  "required": ["version", "world", "snapshotDate", "junctions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "world": { "type": "string" },
+    "description": { "type": "string" },
+    "snapshotDate": { "type": "string" },
+    "attribution": { "type": "string" },
+    "junctions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "x", "z", "k", "ring", "legs"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^n" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "k": { "enum": ["arterial", "collector", "residential", "alley", "other"] },
+          "ring": { "type": "array", "minItems": 6, "items": { "type": "number" } },
+          "legs": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "array",
+              "minItems": 13,
+              "maxItems": 13,
+              "prefixItems": [
+                { "type": "string" },
+                { "type": "number" }, { "type": "number" }, { "type": "number" }, { "type": "number" },
+                { "type": "number", "exclusiveMinimum": 0 }, { "type": "number", "minimum": 0 },
+                { "enum": ["c", "s", ""] },
+                { "type": "number" }, { "type": "number" },
+                { "type": "number" }, { "type": "number" }, { "type": "number" }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
