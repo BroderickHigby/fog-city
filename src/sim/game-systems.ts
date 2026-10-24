@@ -1,4 +1,5 @@
 import { protectedAreaAt, badRobotRate } from "../content/places.ts";
+import { playerPose } from "./ride.ts";
 import { toLatLon } from "../geo/project.ts";
 import { sortedIds } from "./contract.ts";
 import { createClockSystem, gameTime } from "./clock/calendar.ts";
@@ -18,7 +19,7 @@ export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:numb
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v8.json pins this path.
+ * tests/golden/composed-v12.json pins this path.
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
@@ -46,7 +47,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   const combatContext=(context:SimSystemContext)=>{
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
     for(const id of sortedIds(context.state.players)){
-      const player=context.state.players[id]!,body=player.mode==="foot"&&player.foot?player.foot:player.car;
+      const player=context.state.players[id]!,body=playerPose(player);
       loadouts[id]=combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading);
     }
     const calendar=gameTime(context.state),rain=weather?rainDensity(context.state):0,extra=weatherRefills(context);

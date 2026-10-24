@@ -7,6 +7,7 @@ export interface ControlRow { readonly keys: string; readonly action: string; re
 /** Keyboard bindings, kept in step with src/input/keyboard.ts and the render-only keys in src/main.ts. */
 export const KEYBOARD_ROWS: readonly ControlRow[] = [
   { keys: "W A S D / ↑ ← ↓ →", action: "ui.help.move", icon: "move" },
+  { keys: "Shift", action: "ui.help.sprint", icon: "sprint", hold: true },
   { keys: "Space", action: "ui.controls.brake", icon: "sprint" },
   { keys: "F", action: "ui.controls.enterExit", icon: "car" },
   { keys: "E / Enter", action: "ui.controls.fire", icon: "water", hold: true },
@@ -31,7 +32,7 @@ export const KEYBOARD_ROWS: readonly ControlRow[] = [
 /** Standard-mapping gamepad bindings, kept in step with src/input/controller.ts and menu-gamepad.ts. */
 export const GAMEPAD_ROWS: readonly ControlRow[] = [
   { keys: "Left stick", action: "ui.help.move", icon: "move" },
-  { keys: "LT", action: "ui.controls.brake", icon: "sprint" },
+  { keys: "LT", action: "ui.controls.brake", icon: "sprint", hold: true },
   { keys: "RT", action: "ui.controls.fire", icon: "water", hold: true },
   { keys: "A", action: "ui.controls.enterExit", icon: "car" },
   { keys: "B", action: "ui.controls.cone", icon: "cone" },

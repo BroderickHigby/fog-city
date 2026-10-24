@@ -4,7 +4,7 @@ import saved from "../golden/legacy-saves/v7-gameplay.json";
 import saved8 from "../golden/legacy-saves/v8-gameplay.json";
 import { deepFreeze } from "../helpers.ts";
 
-describe("v7 composed gameplay save migration", () => {
+describe("v7 to current composed gameplay save migration", () => {
   it("preserves every field of a real v7 save, including opaque extensions", () => {
     expect(saved.simVersion).toBe(7);
     expect(saved.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
@@ -16,8 +16,11 @@ describe("v7 composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(10);
+    // v7 -> v8 -> v10 -> v11 -> v12 (v9 is reserved for the structural world): behaviour only, every field kept.
+    expect(SIM_VERSION).toBe(12);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
+    expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
+    expect(upgradeState(deepFreeze({ ...old, version: 10 }))).toEqual(upgraded);
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
     expect(upgradeState(JSON.parse(before))).toEqual(upgraded);
@@ -51,7 +54,8 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(upgraded).toEqual({ ...old, version: 10 });
+    // (Through v10 to the current v11, the on-foot pace: no field changes on either step.)
+    expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
     expect(() => upgradeState({ ...old, version: 9 })).toThrow("cannot upgrade");
