@@ -224,8 +224,11 @@ export function stepCar(
   c: Readonly<CarState>,
   input: Readonly<SimInput>,
   obstacles: readonly Circle[] = [],
+  /** Road surface grip 0..1 (1 dry; rain and flooding lower it: src/sim/fog tractionAt). Scales cornering grip and braking. */
+  traction = 1,
 ): CarState {
   const G = CAR.gravity;
+  const mu = traction > 0 && traction < 1 ? traction : 1;
   const h0 = c.heading;
   const f0x = dsin(h0);
   const f0z = -dcos(h0);
@@ -255,7 +258,7 @@ export function stepCar(
     }
     const slip = 1 - grip;
     const kin = (speed / CAR.wheelbase) * dtan(steer);
-    const gripLim = CAR.gripAccel / Math.max(absV, 1);
+    const gripLim = (CAR.gripAccel * mu) / Math.max(absV, 1);
     const lim = Math.max(gripLim, CAR.maxDriftYaw * slip);
     const want = kin * (1 + CAR.driftYawBoost * slip);
     const wantAbs = want < 0 ? -want : want;
@@ -290,6 +293,7 @@ export function stepCar(
       else engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
     }
     if (input.brake > 0) brake += (drifting ? CAR.handbrakeDecel : CAR.brakeDecel) * input.brake;
+    brake *= mu;
     const sF = g0.slopeF;
     const gravF = (-G * sF) / Math.sqrt(1 + sF * sF);
     speed += (engine + gravF) * DT;
@@ -299,7 +303,7 @@ export function stepCar(
     const sR = g0.slopeR;
     lateral += ((-G * sR) / Math.sqrt(1 + sR * sR)) * DT;
     const v2 = speed * speed + lateral * lateral;
-    const latCap = CAR.driftGripAccel + (CAR.gripAccel * 1.5 - CAR.driftGripAccel) * grip;
+    const latCap = (CAR.driftGripAccel + (CAR.gripAccel * 1.5 - CAR.driftGripAccel) * grip) * mu;
     const newLat = approach(lateral, 0, latCap * DT);
     if (grip < 1 && speed > 1) {
       const keep = Math.sqrt(Math.max(0, v2 - newLat * newLat));
