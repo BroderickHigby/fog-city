@@ -150,7 +150,7 @@
       "lines": [
         { "speaker": "cofounder", "text": "it got away with the groceries. it's fine. it's not fine. try again?" }
       ],
-      "hint": "Watch it first, then keep the stream on it. Refill at the hydrant beside the plaza.",
+      "hint": "Watch it first, then keep the stream on it. The hydrant beside the plaza swaps your water.",
       "retryFrom": "snatch"
     },
     {
@@ -167,7 +167,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:3138493b",
+    "contentHash": "fnv1a32:99e35514",
     "reviewedBy": [],
     "review": "Pending: mission text is on the user's read-in-full list (docs/ai-layer.md, Review), and a second agent session reads it against the checklist."
   }

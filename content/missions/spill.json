@@ -117,7 +117,7 @@
       "outcome": "paid",
       "lines": [
         { "speaker": "dispatch", "text": "Bounty confirmed. Payment sent. Revenue extends runway." },
-        { "speaker": "cofounder", "text": "we're profitable!!! for one afternoon!!! buy a bigger tank" }
+        { "speaker": "cofounder", "text": "we're profitable!!! for one afternoon!!! buy a better nozzle" }
       ],
       "grants": [
         { "kind": "stat", "stat": "cash", "delta": 750 },
@@ -157,7 +157,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:e246a6af",
+    "contentHash": "fnv1a32:acab9ccd",
     "reviewedBy": [],
     "review": "Pending: mission text is on the user's read-in-full list (docs/ai-layer.md, Review), and a second agent session reads it against the checklist."
   }
