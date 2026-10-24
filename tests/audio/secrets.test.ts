@@ -7,6 +7,7 @@ import { join, relative } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { ROOT } from "../helpers.ts";
 import { buildWeb } from "../../scripts/build-web.ts";
+import { keySource } from "../../scripts/audio/generate-voices.ts";
 
 /** ElevenLabs API keys: "sk_" then a long hex/alphanumeric run. */
 const KEY_PATTERN = /sk_[A-Za-z0-9]{32,}/;
@@ -31,7 +32,7 @@ function walk(dir: string, skip: (rel: string) => boolean = () => false): string
 
 /** The files among `files` that contain a pattern; for binaries, the latin1 view is scanned. */
 function scan(files: readonly string[], base: string, patterns: readonly RegExp[]): string[] {
-  const live = process.env.ELEVENLABS_API_KEY;
+  const live = process.env.ELEVENLABS_API_KEY, game = process.env.FOGCITY_ELEVENLABS_API_KEY;
   const hits: string[] = [];
   for (const f of files) {
     if (statSync(f).size > 32_000_000) continue;
@@ -39,6 +40,7 @@ function scan(files: readonly string[], base: string, patterns: readonly RegExp[
     const rel = relative(base, f).split("\\").join("/");
     for (const p of patterns) if (p.test(text)) hits.push(`${rel} matches ${p.source}`);
     if (live && live.length >= 16 && text.includes(live)) hits.push(`${rel} contains the live ELEVENLABS_API_KEY`);
+    if (game && game.length >= 16 && text.includes(game)) hits.push(`${rel} contains the live FOGCITY_ELEVENLABS_API_KEY`);
   }
   return hits;
 }
@@ -59,8 +61,15 @@ describe("ElevenLabs secrets", () => {
     expect(hits).toEqual([]);
     // And the generator reads the key from the environment, never from a file it writes.
     const generator = readFileSync(join(ROOT, "scripts/audio/generate-voices.ts"), "utf8");
-    expect(generator).toContain("process.env.ELEVENLABS_API_KEY");
+    expect(generator).toContain('["FOGCITY_ELEVENLABS_API_KEY", "ELEVENLABS_API_KEY"]');
     expect(generator).not.toMatch(/console\.(log|error|warn)\([^)]*apiKey\(\)/);
+  });
+
+  it("reads the game's own key first, then the shared one", () => {
+    expect(keySource({ FOGCITY_ELEVENLABS_API_KEY: "game-key", ELEVENLABS_API_KEY: "shared-key" })?.variable).toBe("FOGCITY_ELEVENLABS_API_KEY");
+    expect(keySource({ ELEVENLABS_API_KEY: "shared-key" })?.variable).toBe("ELEVENLABS_API_KEY");
+    expect(keySource({ FOGCITY_ELEVENLABS_API_KEY: "", ELEVENLABS_API_KEY: "shared-key" })?.variable).toBe("ELEVENLABS_API_KEY");
+    expect(keySource({})).toBeNull();
   });
 
   describe("the static build", () => {

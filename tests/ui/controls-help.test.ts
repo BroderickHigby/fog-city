@@ -15,7 +15,7 @@ describe("controls help menu", () => {
   it("lists every edge-triggered keyboard action the game binds", () => {
     const listed = new Set(KEYBOARD_ROWS.flatMap((row) => row.keys.split(/[\s/]+/)));
     for (const code of Object.keys(KEY_ACTIONS)) expect(listed.has(label(code)), code).toBe(true);
-    for (const key of ["E", "Q", "Z", "R", "B", "P", "Esc", "C", "V", "N", "Space", "F1"]) expect(listed.has(key), key).toBe(true);
+    for (const key of ["E", "Q", "Z", "R", "B", "P", "Esc", "C", "V", "N", "Space", "Shift", "F1"]) expect(listed.has(key), key).toBe(true);
   });
   it("gives every row a picture that exists", () => {
     for (const row of [...KEYBOARD_ROWS, ...GAMEPAD_ROWS]) expect(CONTROL_ICONS[row.icon], row.keys).toMatch(/^<(path|g|circle|rect) /);
