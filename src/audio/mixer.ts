@@ -13,6 +13,8 @@ import { MusicPlayer, type MusicTrack } from "./music.ts";
 import { VehicleSynth } from "./vehicle-synth.ts";
 import { RobotVoices, SYNTH_CUES, beepTones, playTones, type SynthCue } from "./synth-sfx.ts";
 import type { RobotWhirr } from "./robot-sound.ts";
+import { AmbienceSynth } from "./ambience-synth.ts";
+import type { AmbienceLevels, AmbientEvent } from "./ambience.ts";
 import type { EngineParams } from "./vehicle-sound.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
 import type { VoiceHandle, VoicePlayer } from "./voice-queue.ts";
@@ -62,6 +64,8 @@ export class GameAudio {
   private musicDucked = false;
   private vehicle: VehicleSynth | null = null;
   private robots: RobotVoices | null = null;
+  private ambience: AmbienceSynth | null = null;
+  private ambienceLevels: AmbienceLevels | null = null;
   private engineOn = false;
   private prefs: AudioPrefs;
   private ducked = false;
@@ -176,6 +180,30 @@ export class GameAudio {
     if (!ctx || !bus || !this.unlocked) return;
     playTones(ctx, bus, beepTones(notes), gain, pan);
     this.played.set("robot-beep", (this.played.get("robot-beep") ?? 0) + 1);
+  }
+
+  /** The city ambience layers (null: silence, e.g. paused). */
+  setAmbience(levels: AmbienceLevels | null): void {
+    const ctx = this.ctx, bus = this.buses.get("effects");
+    if (!ctx || !bus || !this.unlocked) return;
+    if (!this.ambience) {
+      if (!levels) return;
+      try {
+        this.ambience = new AmbienceSynth(ctx, bus);
+      } catch {
+        return;
+      }
+    }
+    this.ambienceLevels = levels;
+    this.ambience.set(levels);
+  }
+
+  /** A foghorn or gulls. */
+  playAmbientEvent(e: AmbientEvent): void {
+    if (!this.ambience || !this.unlocked) return;
+    if (e.kind === "foghorn") this.ambience.foghorn(e.gain, e.pan);
+    else this.ambience.gull(e.gain, e.pan);
+    this.played.set(e.kind, (this.played.get(e.kind) ?? 0) + 1);
   }
 
   /** The nearest robots' servo whirrs (empty: silence). */
@@ -330,7 +358,7 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; robotVoices: number; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; robotVoices: number; ambience: AmbienceLevels | null; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
@@ -339,6 +367,7 @@ export class GameAudio {
       spray: this.spray !== null,
       engine: this.engineOn,
       robotVoices: this.robots?.count() ?? 0,
+      ambience: this.ambienceLevels,
       music: this.music?.nowPlaying() ?? null,
       musicSwitches: this.music?.switches ?? 0,
       ducked: this.ducked,
@@ -357,6 +386,8 @@ export class GameAudio {
     this.vehicle = null;
     this.robots?.dispose();
     this.robots = null;
+    this.ambience?.dispose();
+    this.ambience = null;
     for (const a of this.active) this.stopEffect(a);
     this.music?.dispose();
     this.music = null;

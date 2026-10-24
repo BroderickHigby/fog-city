@@ -74,6 +74,33 @@ The test (`tests/assets/audio.test.ts`) decodes both formats with real Vorbis an
 (`@wasm-audio-decoders/ogg-vorbis`, `mpg123-decoder`; wasm, no network), and checks the length,
 peak (audible, not clipped), the spray seam and the jingle's four notes in order.
 
+## Procedural effects (no files)
+
+Synthesised live in Web Audio, so there is no licence question and nothing to download. All of them
+go through the effects bus.
+
+- **Car** (`src/audio/vehicle-synth.ts`): the motor whine, road roar and tyre squeal, described above.
+- **Robots** (`src/audio/robot-sound.ts`, `synth-sfx.ts`):
+  - the nearest three active robots' servo whirr, with a timbre per model, rising with speed;
+  - each robot's beep pattern on its own fixed rhythm;
+  - the `tryCarDoors` tell's "pairing..." chime (only while that tell shows).
+
+  Nothing reads firmware. A bad robot is audible only through its designed audio tells (this
+  chime, and `moat-jingle` for `humJingle`).
+- **UI and game** (`synth-sfx.ts`): button clicks, the phone opening, mission start (C-E-G) and
+  complete (an arpeggio plus a chord), money in, and the scanner's verdict.
+- **City ambience** (`src/audio/ambience.ts`, `ambience-synth.ts`):
+  - **Layers:**
+    - traffic rumble from vehicles within 90 m;
+    - a crowd murmur from people within 30 m, plus a daytime baseline in busy districts;
+    - wind, stronger on the waterfront and in fog;
+    - rain from the sim's weather, softer under shelter.
+  - **Car shell:** inside a car the outside is about 7 dB quieter.
+  - **Events:**
+    - foghorns across the bay in fog, every 40 to 75 s, louder on the waterfront;
+    - gulls on the waterfront by day, every 7 to 22 s.
+  - **Districts** come from the `content/districts.json` polygons, and levels change smoothly.
+
 # Music (CC0, OpenGameArt)
 
 `node scripts/audio/build-music.ts` builds `public/audio/music/` from the sources in

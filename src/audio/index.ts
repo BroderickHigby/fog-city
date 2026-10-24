@@ -14,6 +14,7 @@ import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot, playerView } from "../sim/player/adapter.ts";
 import { RobotChirpClock, robotWhirrs, type SoundingActor } from "./robot-sound.ts";
+import { AmbientEventClock, CROWD_M, TRAFFIC_M, ambienceLevels, districtAt, type AmbienceLevels } from "./ambience.ts";
 import { InnerVoice } from "./inner-voice.ts";
 import { FootstepClock, carOneShots, doorOneShots, engineParams } from "./vehicle-sound.ts";
 import type { CarState } from "../sim/contract.ts";
@@ -38,6 +39,8 @@ export interface GameAudioDirectorOptions {
   prefs?: AudioPrefsStore;
   /** URL prefix for audio/ (relative to the page; "" in dev and in the static build). */
   base?: string;
+  /** The sim's weather at a point (src/sim/fog weatherView), for rain, fog and the hour. */
+  weather?: (state: SimState, x: number, z: number) => { fog: number; rain: number; sheltered: boolean; hour: number };
 }
 
 export interface AudioFrame {
@@ -61,6 +64,8 @@ export interface AudioDebugInfo {
   engine: boolean;
   /** Robots whose servos are audible now. */
   robotVoices: number;
+  /** The ambience layer levels now (null before the first sample). */
+  ambience: AmbienceLevels | null;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
   voice: { current: string | null; mode: string | null; waiting: string[]; status: string; files: number };
@@ -144,6 +149,10 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let lastFrameMs: number | null = null;
   const footsteps = new FootstepClock();
   const chirps = new RobotChirpClock();
+  const ambientEvents = new AmbientEventClock();
+  let ambience: AmbienceLevels | null = null;
+  let ambienceFog = 0;
+  let nextAmbienceMs = 0;
   // Last-seen values for one-shot UI and game cues (null: not yet seen, so nothing plays on load).
   let lastMissionKey: string | null = null;
   let lastMissionStatus: string | null = null;
@@ -238,6 +247,32 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
       const actors: HummingActor[] & SoundingActor[] = runtime ? Object.values(runtime.actors) : [];
+      // City ambience: traffic, crowd, wind and rain, sampled four times a second; foghorns and gulls.
+      if (frame.paused) mixer.setAmbience(null);
+      else {
+        if (frame.nowMs >= nextAmbienceMs) {
+          nextAmbienceMs = frame.nowMs + 250;
+          const vehiclesNear: number[] = [], peopleNear: number[] = [];
+          for (const a of agentsOf(state)) {
+            const d = Math.hypot(a.x - listener.x, a.z - listener.z);
+            if (a.kind === "robotaxi" && d <= TRAFFIC_M) vehiclesNear.push(d);
+            else if (a.kind === "person" && d <= CROWD_M) peopleNear.push(d);
+          }
+          for (const a of runtime ? Object.values(runtime.actors) : []) {
+            if (a.retired) continue;
+            const d = Math.hypot(a.x - listener.x, a.z - listener.z);
+            if ((a.model === "robotaxi" || a.model === "van" || a.model === "bus") && d <= TRAFFIC_M) vehiclesNear.push(d);
+            else if ((a.model === "person" || a.model === "associate" || a.model === "walker") && d <= CROWD_M) peopleNear.push(d);
+          }
+          const weather = options.weather?.(state, listener.x, listener.z) ?? null;
+          ambienceFog = weather?.fog ?? 0;
+          ambience = ambienceLevels({ vehiclesNear, peopleNear, district: districtAt(listener.x, listener.z), weather, inCar });
+        }
+        if (ambience) {
+          mixer.setAmbience(ambience);
+          for (const e of ambientEvents.update(ambience, ambienceFog, frame.nowMs / 1000)) mixer.playAmbientEvent(e);
+        }
+      }
       // Robots: the nearest servos whirr, each model beeps on its own rhythm, and the tryCarDoors
       // tell chimes "pairing...". Nothing reads firmware (robot-sound.ts).
       const inactive = (id: string): boolean => { const phase = combat?.targets[id]?.phase; return !!phase && phase !== "active"; };
@@ -319,6 +354,9 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       prevCar = null;
       prevMode = undefined;
       chirps.reset();
+      ambientEvents.reset();
+      ambience = null;
+      nextAmbienceMs = 0;
       lastMissionKey = null;
       lastMissionStatus = null;
       lastCash = null;
@@ -355,6 +393,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         musicSwitches: m.musicSwitches,
         engine: m.engine,
         robotVoices: m.robotVoices,
+        ambience: m.ambience,
         effectsLoaded: m.effectsLoaded,
         effectsPlayed: m.effectsPlayed,
         voice: { ...queue.snapshot(), status: manifest?.status ?? "missing", files: manifest?.lines.filter((l) => l.file).length ?? 0 },

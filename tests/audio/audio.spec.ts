@@ -171,6 +171,8 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await page.keyboard.down("KeyW");
   await expect.poll(async () => { const p = (await audio(page)).effectsPlayed; return (p["step-1"] ?? 0) + (p["step-2"] ?? 0) + (p["step-3"] ?? 0) + (p["step-4"] ?? 0); }, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
   await page.keyboard.up("KeyW");
+  // City ambience by the Ferry Building: the waterfront (Embarcadero) is in earshot, with wind and traffic.
+  await expect.poll(async () => { const a = (await audio(page)).ambience; return !!a && a.waterfront === 1 && a.wind > 0 && a.traffic > 0; }, { timeout: 30_000 }).toBe(true);
   // Robot servos: exactly the nearest active robots within earshot are voiced (up to three).
   await expect.poll(async () => {
     const [voices, inRange] = await page.evaluate(({ range, max, models }) => {
