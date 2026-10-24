@@ -205,7 +205,16 @@ async function boot(): Promise<void> {
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
+  // Two independent pauses: the debug handle's (tests step the sim by hand and nothing else may
+  // advance it) and the UI's (an open modal). Only a UI pause lets a queued command through.
+  let debugPaused = false;
+  let uiPaused = false;
   let paused = false;
+  const setPaused = (): void => {
+    paused = debugPaused || uiPaused;
+    pacer.reset();
+    last = performance.now();
+  };
   const pacer = new FramePacer(DT);
   let last = performance.now();
   const systems=createGameSystems({wave:GAME_WAVE});
@@ -226,7 +235,7 @@ async function boot(): Promise<void> {
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;pacer.reset();last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   }},callbacks:{
-    pause:value=>{paused=value;pacer.reset();last=performance.now();},
+    pause:value=>{uiPaused=value;setPaused();},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;},
     interaction:choiceId=>{
@@ -320,11 +329,12 @@ async function boot(): Promise<void> {
     commands:()=>JSON.parse(JSON.stringify(recordedCommands)) as SimEvent[],
     hash: () => hashState(curr),
     pause: () => {
-      paused = true;
+      debugPaused = true;
+      setPaused();
     },
     resume: () => {
-      paused = false;
-      last = performance.now();
+      debugPaused = false;
+      setPaused();
     },
     stepN: (n, input) => {
       for (let i = 0; i < n; i++) advance(input ?? { ...NEUTRAL_INPUT });
@@ -393,7 +403,9 @@ async function boot(): Promise<void> {
       }
       pacer.end();
     }
-    else if(queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
+    // A UI-paused game still applies a command the modal just queued (an answer, a purchase).
+    // Under a debug pause only stepN/stepFrames advance the sim; queued commands wait for them.
+    else if(!debugPaused&&queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
     const alpha = paused ? 1 : pacer.alpha();
 
     // Player ids change only when the sim state does (once per tick at most).

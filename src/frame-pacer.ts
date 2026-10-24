@@ -23,6 +23,8 @@ export interface PacerStats {
   readonly tickMs: number;
   /** Ticks dropped since the pacer was created or reset. */
   readonly droppedTicks: number;
+  /** Ticks the last frame ran; more than one means the frame was slowed by sim catch-up. */
+  readonly ticksThisFrame: number;
 }
 
 export class FramePacer {
@@ -91,11 +93,12 @@ export class FramePacer {
   /** Forget any backlog (pause, restore). */
   reset(): void {
     this.acc = 0;
+    this.ran = 0;
     this.slowHold = 0;
     this.speedEma = 1;
   }
 
   stats(): PacerStats {
-    return { speed: this.speedEma, slow: this.slowHold > 0, tickMs: this.tickEma, droppedTicks: this.dropped };
+    return { speed: this.speedEma, slow: this.slowHold > 0, tickMs: this.tickEma, droppedTicks: this.dropped, ticksThisFrame: this.ran };
   }
 }

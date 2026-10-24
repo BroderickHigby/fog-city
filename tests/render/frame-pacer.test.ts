@@ -33,6 +33,7 @@ describe("frame pacer", () => {
     const pacer = new FramePacer(DT);
     drive(pacer, 10, DT, 2);
     expect(drive(pacer, 1, 3 * DT, 2)).toEqual([3]);
+    expect(pacer.stats().ticksThisFrame).toBe(3);
     expect(pacer.stats().droppedTicks).toBe(0);
   });
 
