@@ -8,6 +8,22 @@ withdrawn and is not built.
 
 Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-botsweep` (from `origin/integrate/wave2` `ff7db5b`).
 
+## 2026-10-24: after the #67 release (integrate/wave2 59e5a7b)
+
+- #32, #45 and #51 merged. #60, #64, #71 and #75 are merged with 59e5a7b and kept as drafts.
+  GitHub Actions refuses every job (billing), so the evidence is local.
+- Two UI bugs fixed from #60 up:
+  - A hidden match HUD still took clicks (its `display:flex` beat `hidden`).
+  - The HUD stayed drawn over the results panel and blocked "Back to city"/"Rematch".
+- Local results on #75's head:
+  - Full unit suite: 3608 passed.
+  - Multiplayer e2e: invite/rejoin/payout, quick play, Clean Streets and no-relay pass.
+  - The social test ran into the 12-minute Bot Sweep clock: with #67's render slowdown,
+    SwiftShader boots made the file take 34 min instead of 13. The relay ended the match on time
+    before the test pressed End. That is the same slowdown as the coordinator's line-165 timeout
+    on 59e5a7b, which passes here (12.7 min). Re-run once Lane R's render fix lands. The test is
+    not loosened.
+
 ## Next PRs (owner direction via coordinator, in order)
 
 1. Quick play / matchmaking — `work/multiplayer/quick-play` (stacked on #32): "Play online" joins
