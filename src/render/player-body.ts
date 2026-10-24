@@ -10,7 +10,29 @@ export const TURN_RATE = 14;
 export const TURN_SNAP_RAD = 2.6;
 /** Hair cards are cut out at this alpha rather than blended: no sorting against the head, and they shadow. */
 export const HAIR_ALPHA_CUT = 0.45;
-type Motion = "idle" | "walk" | "run";
+type Motion = "idle" | "walk" | "jog" | "run";
+export const MIXAMO_MOTION_FILE = "models/mixamo-motion.json";
+type ByteLoader = (path: string) => Promise<Uint8Array>;
+const motionBanks = new WeakMap<ByteLoader, Promise<THREE.AnimationClip[]>>();
+
+/** One shared bank for player clones; older/offline asset sets retain their baked motions. */
+function mixamoMotions(bytes: ByteLoader): Promise<THREE.AnimationClip[]> {
+  let bank = motionBanks.get(bytes);
+  if (!bank) {
+    bank = bytes(MIXAMO_MOTION_FILE).then(data => {
+      const json = JSON.parse(new TextDecoder().decode(data));
+      if (json.version !== 1 || json.rig !== "rocketbox" || !Array.isArray(json.clips)) throw new Error("Unsupported Mixamo motion bank");
+      const clips: THREE.AnimationClip[] = json.clips.map((clip: Parameters<typeof THREE.AnimationClip.parse>[0]) => THREE.AnimationClip.parse(clip));
+      if (!["idle", "walk", "jog", "run"].every(name => clips.some(clip => clip.name === name && clip.duration > 0 && clip.validate()))) throw new Error("Incomplete Mixamo motion bank");
+      return clips;
+    }).catch(() => {
+      motionBanks.delete(bytes);
+      return [];
+    });
+    motionBanks.set(bytes, bank);
+  }
+  return bank;
+}
 export interface BodyRenderCost { drawCalls: number; triangles: number }
 
 /** Colour-pass primitives and triangles, including material groups and clipped draw ranges. */
@@ -106,8 +128,12 @@ export class PlayerBodies {
 
   /** Load a body model: the player's by default, or another Rocketbox-rigged file (the crowd's). */
   static async load(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, file: string = PLAYER_BODY_FILE): Promise<PlayerBodies> {
-    const buffer = await bytes(file);
+    const [buffer, motions] = await Promise.all([bytes(file), file === PLAYER_BODY_FILE ? mixamoMotions(bytes) : Promise.resolve([])]);
     const gltf = await new GLTFLoader().parseAsync(buffer.slice().buffer as ArrayBuffer, "");
+    if (motions.length) {
+      gltf.animations = motions;
+      gltf.scene.userData.motionSource = "mixamo";
+    }
     return new PlayerBodies(gltf, shadows);
   }
 
@@ -146,7 +172,7 @@ export class PlayerBodies {
       const clip = this.gltf.animations.find(candidate => candidate.name === name);
       return clip ? mixer.clipAction(clip) : null;
     };
-    const body: Body = { root, mixer, actions: { idle: action("idle"), walk: action("walk"), run: action("run") }, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
+    const body: Body = { root, mixer, actions: { idle: action("idle"), walk: action("walk"), jog: action("jog"), run: action("run") }, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
     body.actions.idle?.play();
     this.group.add(root);
     this.bodies.set(id, body);
@@ -167,18 +193,21 @@ export class PlayerBodies {
     body.yaw = easeYaw(body.yaw, heading, dt);
     body.root.rotation.set(0, -body.yaw, 0);
     const velocity = Math.abs(speed);
-    const wanted: Motion = velocity >= 3.2 && body.actions.run ? "run" : velocity >= 0.2 && body.actions.walk ? "walk" : "idle";
+    const runAt = body.actions.jog ? 5 : 3.2;
+    const wanted: Motion = velocity >= runAt && body.actions.run ? "run" : velocity >= 2.4 && body.actions.jog ? "jog" : velocity >= 0.2 && body.actions.walk ? "walk" : "idle";
+    body.root.userData.motion = wanted;
     if (wanted !== body.current) {
       const from = body.actions[body.current];
       const to = body.actions[wanted];
       if (to) {
         to.reset().play();
-        if (from) to.crossFadeFrom(from, 0.25, false);
+        // Enter the imported jog promptly: a longer idle blend folds the shoes into the ground.
+        if (from) to.crossFadeFrom(from, body.actions.jog && wanted === "jog" ? 0.1 : 0.25, false);
         body.current = wanted;
       }
     }
     const action = body.actions[body.current];
-    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed)) : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / this.runSpeed)) : 1;
+    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed)) : body.current === "jog" ? Math.max(0.7, Math.min(2, velocity / 3)) : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / (body.actions.jog ? 7 : this.runSpeed))) : 1;
     body.mixer.update(Math.max(0, dt));
     this.drawnCount++;
   }
