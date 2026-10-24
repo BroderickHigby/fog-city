@@ -53,3 +53,7 @@ SIM_VERSION **14** on top of integrate's 13 (59e5a7b, release #67). The upgrade 
 
 ## Assets the owner should download
 None so far. The Rocketbox clips come from the pinned upstream (MIT).
+
+### Merge notes (2026-10-24)
+- **Visual #33 (combat)** touches the same near-people loop in `agent-layer.ts`. Whoever merges second keeps both: dodge's `anim` before `crowd.add(..., dodge)` and the `dodgePose` passed to `people.add`, plus Visual's `nearPeopleWet` map (keyed by pose index) and the wetness cue on the `people.add` fallback. `PeopleRig.add` then needs both optional arguments (pose and cue).
+- **Impacts** edits `vehicleOfCar` in `src/sim/dodge.ts`: inflate terms, `CAR_DV` and the hard turn from car.ts (#81, the player car tops out around 54 m/s), knocked agents, robots not diving for player cars, and props as bodies. Whichever of us lands second merges and re-runs dodge-fuzz, dodge-soak and dodge-motion, and reports any bound that slips.
