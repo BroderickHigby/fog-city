@@ -11,12 +11,12 @@ Stream id `dodge`. Branch `work/dodge/natural` (from `integrate/wave2` `ff7db5b`
 - The fuzz's override bound becomes per driver: 0 for straight; at most 25% for each pursuit driver (chase, weave, drift, handbrake, random and **bank**: approved).
 - Fix the close passes. Overrides read as human: no lift, a drawn speed bound, and a test for both.
 - List every test change in the PR body under "Test spec changes". Add the design.md decision-log entry (done).
-- SIM_VERSION: integrate/wave2's current version + 1 at ready time. Weather landed as 10, so dodge is **11**, and its upgrade is written as 10→11.
+- SIM_VERSION: integrate/wave2's current version + 1 at ready time. Release #67 brought integrate to 13, so dodge is **14**, and its upgrade is written as 13→14.
 
 ## Plan / progress
 **PR #61** (draft, `work/dodge/natural` into `integrate/wave2`).
 - [x] Measurement and evidence tooling (`tests/sim/dodge-motion*.ts`, `tests/e2e/dodge-stream.*`, `docs/shots/dodge-stream/make-strips.py`).
-- [x] Sim v11: on-foot dodge (≤4.8 m/s, scramble 6; 7 m/s² acceleration, lunge 28; no lift; look-ahead 1–2.5 s; facing follows the run).
+- [x] Sim v14: on-foot dodge (≤4.8 m/s, scramble 6; 7 m/s² acceleration, lunge 28; no lift; look-ahead 1–2.5 s; facing follows the run).
 - [x] Tuned to the coordinator's bounds. Fuzz, 160 seeds: 847 dodges, 58 overrides (6.8%, down from ~24%):
 
   | Driver | Overrides / dodges | Share |
@@ -49,7 +49,7 @@ Stream id `dodge`. Branch `work/dodge/natural` (from `integrate/wave2` `ff7db5b`
 - Ambient people are still the procedural placeholder (rigid limbs). They now move like people, but they play no skinned clips. Real clips for the crowd need the skinned or VAT crowd wired in (`public/models/humanoid-vat*` exists but is unused). That is Lane R's renderer work; I recommend it as a follow-up.
 
 ## Version
-SIM_VERSION **11** on top of weather's 10. The upgrade step is `upgradeDodgeOnFoot(s, 11)`, run from version 10, so restamping is a renumber. Fixtures: `legacy-saves/v8-mid-dodge.json` (a real v8 save mid-dodge), `composed-v11.json` and `wave2-v11.json`. The v7, v8 and v10 fixtures are kept.
+SIM_VERSION **14** on top of integrate's 13 (59e5a7b, release #67). The upgrade step is `upgradeDodgeOnFoot(s, 14)`, run from version 13. Fixtures: `legacy-saves/v8-mid-dodge.json` (a real v8 save mid-dodge), `composed-v14.json` and `wave2-v14.json`. Every older fixture is kept. `crowd-humans.ts` `add()` now takes an optional `dodge` (Lane R told, 2026-10-24). CI is billing-blocked; PR #61 stays a draft with local evidence (comment of 2026-10-24).
 
 ## Assets the owner should download
 None so far. The Rocketbox clips come from the pinned upstream (MIT).
