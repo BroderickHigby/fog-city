@@ -3,10 +3,10 @@
   "sourcePhysics": "work/world: structural world surfaces under the v11 contract (qa/world-integration physics, restamped from its provisional v8)",
   "simVersion": 11,
   "hashes": [
-    "38ff04ad",
-    "d628b94c",
-    "8a6807f5",
-    "c74e8e4e",
-    "011cdc4a"
+    "f0dae7e4",
+    "bb9801a7",
+    "0249feec",
+    "8c6a9545",
+    "5ed69209"
   ]
 }
