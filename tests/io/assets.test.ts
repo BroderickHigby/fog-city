@@ -472,6 +472,10 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
         const joined = await assets.bytes("tiles/sf/world.colliders.bin");
         expect(joined.byteLength).toBe(source.byteLength);
         expect(sha(joined)).toBe(sha(source));
+        const motionPath = "models/mixamo-motion.json";
+        const motionSource = readFileSync(join(ROOT, "public", motionPath));
+        expect(sha(await assets.bytes(motionPath))).toBe(sha(motionSource));
+        expect(Object.keys(index.files).some(path => path.endsWith(".fbx"))).toBe(false);
         const world = await loadWorldFiles(assets, "sf");
         expect(world.colliders).toBe("pack");
         expect(world.tiles.length).toBe(world.manifest.tiles.length);

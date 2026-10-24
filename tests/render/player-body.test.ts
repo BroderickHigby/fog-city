@@ -4,9 +4,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { HAIR_ALPHA_CUT, PLAYER_BODY_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw } from "../../src/render/player-body.ts";
+import { HAIR_ALPHA_CUT, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw } from "../../src/render/player-body.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
+const motionBytes = new Uint8Array(readFileSync(new URL(`../../public/${MIXAMO_MOTION_FILE}`, import.meta.url)));
+const importedBytes = async (path: string): Promise<Uint8Array> => {
+  if (path === PLAYER_BODY_FILE) return bytes;
+  if (path === MIXAMO_MOTION_FILE) return motionBytes;
+  throw new Error(`Unexpected asset ${path}`);
+};
 // Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
 beforeEach(() => {
   vi.stubGlobal("self", globalThis);
@@ -68,7 +74,7 @@ it("counts material primitives, draw ranges and visible bodies in colour-pass ge
 
 describe("generic online player avatar", () => {
   it("loads actual human geometry and animates independent skeletons without moving the world pose", async () => {
-    const humans = await PlayerBodies.load(async path => { expect(path).toBe(PLAYER_BODY_FILE); return bytes; }, true);
+    const humans = await PlayerBodies.load(importedBytes, true);
     disposables.push(humans);
     humans.begin();
     humans.add("p1", 10, 3, -5, Math.PI / 2, 0, 0);
@@ -105,10 +111,10 @@ describe("generic online player avatar", () => {
     expect(humans.group.getObjectByName("player-body:p1")).toBeUndefined();
   });
 
-  it("keeps shoe soles on the model ground plane through idle and walking", async () => {
-    const humans = await PlayerBodies.load(async () => bytes, false);
+  it("keeps shoe soles on the model ground plane through idle, walking, jogging and sprinting", async () => {
+    const humans = await PlayerBodies.load(importedBytes, false);
     disposables.push(humans);
-    for (const speed of [0, 1.39]) {
+    for (const speed of [0, 1.39, 3, 7]) {
       for (let frame = 0; frame < 4; frame++) {
         humans.begin();
         humans.add("p1", 0, 0, 0, 0, speed, 0.25);
@@ -137,6 +143,44 @@ describe("generic online player avatar", () => {
         expect(Math.max(...soles)).toBeGreaterThan(0.02);
       }
     }
+  });
+
+  it("shares the imported motion bank, selects jogging and sprinting, and keeps player positions exact", async () => {
+    const load = vi.fn(importedBytes);
+    const first = await PlayerBodies.load(load, false);
+    const second = await PlayerBodies.load(load, false);
+    disposables.push(first, second);
+    expect(load.mock.calls.filter(([path]) => path === MIXAMO_MOTION_FILE)).toHaveLength(1);
+    for (const [speed, motion] of [[0, "idle"], [1.39, "walk"], [3, "jog"], [7, "run"], [0, "idle"]] as const) {
+      first.begin(); first.add("p1", 12, 3, -8, 0, speed, 0.3); first.end();
+      const root = first.rootOf("p1")!;
+      expect(root.userData.motionSource).toBe("mixamo");
+      expect(root.userData.motion).toBe(motion);
+      expect(root.position.toArray()).toEqual([12, 3, -8]);
+    }
+  });
+
+  it("keeps baked movement when the optional bank is missing or malformed, and retries later loads", async () => {
+    let available = false;
+    const load = vi.fn(async (path: string) => {
+      if (path === PLAYER_BODY_FILE) return bytes;
+      if (!available) throw new Error("offline");
+      return motionBytes;
+    });
+    const fallback = await PlayerBodies.load(load, false);
+    disposables.push(fallback);
+    fallback.begin(); fallback.add("p1", 0, 0, 0, 0, 3.2, 0.4); fallback.end();
+    expect(fallback.rootOf("p1")!.userData.motion).toBe("run");
+    expect(fallback.rootOf("p1")!.userData.motionSource).toBeUndefined();
+    available = true;
+    const retry = await PlayerBodies.load(load, false);
+    disposables.push(retry);
+    retry.begin(); retry.add("p1", 0, 0, 0, 0, 3, 0.4); retry.end();
+    expect(retry.rootOf("p1")!.userData.motionSource).toBe("mixamo");
+    const malformed = await PlayerBodies.load(async path => path === PLAYER_BODY_FILE ? bytes : new TextEncoder().encode('{"version":99}'), false);
+    disposables.push(malformed);
+    malformed.begin(); malformed.add("p1", 0, 0, 0, 0, 0, 0.4); malformed.end();
+    expect(malformed.rootOf("p1")!.userData.motionSource).toBeUndefined();
   });
 
   it("eases the drawn heading toward the sim's, the short way round, snapping on first sight and reversals", () => {
@@ -204,7 +248,9 @@ describe("generic online player avatar", () => {
     await vi.waitFor(() => expect(actors.group.getObjectByName("players:bodies")).toBeDefined());
     actors.setFoot("p2", { ...pose, x: 12 });
     actors.update(1 / 60);
-    expect(load).toHaveBeenCalledExactlyOnceWith(PLAYER_BODY_FILE);
+    expect(load.mock.calls).toHaveLength(2);
+    expect(load).toHaveBeenCalledWith(PLAYER_BODY_FILE);
+    expect(load).toHaveBeenCalledWith(MIXAMO_MOTION_FILE);
     expect(actors.walkers).toBe(2);
     expect(actors.walkersFromFile).toBe(2);
     expect((actors.group.getObjectByName("players:people:body") as THREE.InstancedMesh).count).toBe(0);
