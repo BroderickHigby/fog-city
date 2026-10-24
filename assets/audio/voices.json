@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "note": "Mission voice casting for scripts/audio/generate-voices.ts. Only ElevenLabs premade (ElevenLabs-owned) voices are cast: no community or cloned voice, so no real person's likeness. The player stays silent (subtitles only).",
+  "note": "Mission voice casting for scripts/audio/generate-voices.ts. Only ElevenLabs premade (ElevenLabs-owned) voices are cast: no community or cloned voice, so no real person's likeness. The player speaks only as an inner voice (src/audio/inner-voice.ts).",
   "account": {
     "checked": "2026-10-23",
     "tier": "free",
@@ -77,10 +77,10 @@
     },
     "player": {
       "name": "You",
-      "voiced": false,
-      "voiceId": null,
-      "voiceName": null,
-      "why": "The player character stays silent: subtitles only."
+      "voiced": true,
+      "voiceId": "iP95p4xoKVk53GoZ742B",
+      "voiceName": "Chris",
+      "why": "Charming, down-to-earth adult male, matching the generic avatar (Rocketbox Male_Adult_01): the player's GTA-style inner voice, saying what to do and where, distinct from the cofounder's phone lines."
     }
   },
   "unused": {

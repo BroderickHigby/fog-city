@@ -81,7 +81,12 @@ describe("sf world: schemas and layout", () => {
     }
     expect(ids.size).toBe(manifest.tiles.length);
     // No stray files: everything in the directory is referenced by the manifest or a known extra.
-    const extras = new Set(["manifest.json", "roads.json", "storefronts.json", "report.json", manifest.worldColliders, ...Object.values(manifest.layers), ...manifest.far.map((f) => f.glb)]);
+    // Street detail (pipeline/build-street-detail.ts) is its own index plus the layers it lists.
+    const detail = existsSync(join(DIR, "street-detail.json"))
+      ? (JSON.parse(readFileSync(join(DIR, "street-detail.json"), "utf8")) as { layers: Record<string, string> })
+      : null;
+    const detailFiles = detail ? ["street-detail.json", ...Object.values(detail.layers)] : [];
+    const extras = new Set(["manifest.json", "roads.json", "storefronts.json", "report.json", manifest.worldColliders, ...Object.values(manifest.layers), ...manifest.far.map((f) => f.glb), ...detailFiles]);
     for (const f of readdirSync(DIR)) {
       expect(extras.has(f) || manifest.tiles.some((t) => t.collider === f || t.glb === f), f).toBe(true);
     }
