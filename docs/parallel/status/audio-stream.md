@@ -67,6 +67,23 @@ Owner feedback: "the voice should talk just like in GTA … it kind of just tell
 - Subtitles only until the ElevenLabs tier allows generation. The manifest already lists every
   line: 291 in total, 15,192 characters.
 
+## PRs (all drafts while GitHub Actions is billing-blocked; local evidence on each)
+
+| PR | Branch | Contents | Stacked on |
+|---|---|---|---|
+| #28 | soundtrack-voices | Soundtrack, voice pipeline, mixer, settings, static build audio | merged (batch #42) |
+| #36 | radio-horn | Car radio, one horn path, music consistency fix | integrate/wave2 |
+| #37 | inner-voice | GTA-style inner voice, `FOGCITY_ELEVENLABS_API_KEY` | #36 |
+| #63 | credits | Credits panel (OSM/ODbL, DataSF, CC0 music, Rocketbox, Lucide, Poly Haven) | integrate/wave2 |
+| #65 | sfx-vehicles | Live car engine, road and tyres; impacts; doors; footsteps | #37 |
+| #69 | sfx-robots-ui | Robot servos, beeps and audio tells; UI and mission cues; firmware-leak fix | #65 |
+| #70 | sfx-ambience | City ambience: traffic, crowd, wind, rain, foghorns, gulls | #69 |
+
+Open follow-ups:
+- Richer impacts from the Impacts stream (event shape proposed).
+- Footstep surfaces (needs a surface lookup).
+- Voices: generation is held until an ElevenLabs key on a paid tier is provided.
+
 ## ElevenLabs: why voices are held
 
 `GET /v1/user/subscription` on 2026-10-23 (only tier and counts logged): **tier free**, 5,975 of
