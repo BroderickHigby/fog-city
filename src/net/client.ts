@@ -3,6 +3,7 @@
 import { SIM_VERSION, type SimInput, type World } from "../sim/index.ts";
 import { MatchTimeline } from "./match.ts";
 import { webSocketTransport, type ConnectTransport, type RelayTransport } from "./transport.ts";
+import type { Identity } from "./identity.ts";
 import { ERRORS, NET_VERSION, type ErrorCode, type Hello, type Member, type NetModeId, type NetworkCommand, type Results, type RoomList, type RoomPhase, type ServerMessage, type Visibility, type WorldName } from "./protocol.ts";
 
 export type ConnectionStatus = "offline" | "connecting" | "connected" | "reconnecting" | "error";
@@ -41,6 +42,8 @@ export interface ClientOptions {
   reconnectAttempts?: number;
   /** Defaults to a WebSocket. */
   transport?: ConnectTransport;
+  /** This device's guest identity, read at each connect (the player may change name or look). */
+  identity(): Identity;
   now?: () => number;
 }
 
@@ -118,7 +121,9 @@ export class RelayClient {
     try {
       socket = connect(this.options.url, {
         onOpen: () => {
-          const message: Hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: this.options.worldName, fingerprint: this.options.fingerprint, action: hello.action };
+          const id = this.options.identity();
+          const message: Hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: this.options.worldName, fingerprint: this.options.fingerprint, action: hello.action,
+            profile: { name: [id.name[0], id.name[1]], look: id.look }, device: id.token };
           if (hello.code) message.code = hello.code;
           if (hello.token) message.token = hello.token;
           socket?.send(JSON.stringify(message));

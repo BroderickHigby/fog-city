@@ -16,7 +16,15 @@ Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-b
 2. More modes — Clean Streets: `work/multiplayer/clean-streets` (stacked on quick play): host picks
    the mode; two teams race on the BotBounty board for 8 minutes; flowers (alt-fire, B) are a
    mode-local mechanic until combat has its own flower attack; bots join the smaller team.
-3. Player identity · 4. Server persistence · 5. Social · 6. Ops readiness.
+3. Player identity — `work/multiplayer/identity` (stacked on Clean Streets): guest identity with a
+   device token in localStorage (the relay keeps only its SHA-256), a display name composed from
+   the vetted player name parts (never free text; the relay re-checks it with the content lint and
+   numbers duplicates), a look from the six the licensed avatar and car are drawn in, and
+   nametags over other players in matches (team-coloured in Clean Streets, gone past 150 m).
+   Deferred modes: Fog Royale (needs associate duels, taxi redeploy and crate producers and
+   8-player rooms) and Hide in the Crowd (needs teleoperated robot bodies); salvage stays on
+   `lane/fog-royale/wave7` and `lane/modes-online/wave7`/`wave8`.
+4. Server persistence · 5. Social · 6. Ops readiness.
 
 ## What is playable now
 

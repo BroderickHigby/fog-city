@@ -6,12 +6,13 @@
 // before rejoining; the match payout is applied once (by settlement id, kept in the save) and
 // saved straight away.
 import type { WorldFiles } from "../io/world-load.ts";
-import { DT, type SimInput, type SimState, type World } from "../sim/index.ts";
+import { activeBody, DT, type SimInput, type SimState, type World } from "../sim/index.ts";
 import { botSweepView } from "../sim/modes/botsweep.ts";
 import { applyMatchSettlement, settledModeIds } from "../sim/modes/settlement.ts";
 import { listRooms, RelayClient, type ClientInfo, type Seat } from "../net/client.ts";
 import { MAX_PLAYERS, MODES, ROOM_CODE, WORLDS, type NetModeId, type Results, type RoomList, type WorldName } from "../net/protocol.ts";
 import { worldFingerprint } from "../net/world-id.ts";
+import { LOOK_NAMES, LOOK_SWATCHES, loadIdentity, randomName, saveIdentity, profileName, type Identity } from "../net/identity.ts";
 import { formatMoney } from "./copy.ts";
 
 export interface MultiplayerCity {
@@ -36,10 +37,18 @@ export interface MultiplayerOptions {
   search?: string;
   /** The page switched between the city and a match. */
   onModeChange?(inMatch: boolean): void;
+  /** Where the guest identity lives (localStorage: one per device). */
+  identityStorage?: Pick<Storage, "getItem" | "setItem"> | null;
+  /** Each match player's chosen look (renderer colour slot), complete each time ({} after a match); bots keep their default. */
+  onLooks?(looks: Readonly<Record<string, number>>): void;
+  /** World point → CSS pixels in the game view and distance from the camera; null when behind it. */
+  project?(x: number, y: number, z: number): { x: number; y: number; distance: number } | null;
 }
 export interface MatchView { prev: SimState; curr: SimState; alpha: number; playerId: string }
 export interface MultiplayerHook {
   available: boolean;
+  /** After the frame is rendered: place other players' nametags over them. */
+  overlay(): void;
   /** True while a relay match (or its results) owns the screen. */
   inMatch(): boolean;
   /** Advance the match by one render frame; `sample` reads this tick's controls. */
@@ -68,7 +77,7 @@ const STYLE = `
 .fc-mp-panel h2{font-size:15px;margin:0}.fc-mp-panel p{margin:0}.fc-mp-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .fc-mp-code{font:700 22px/1.2 ui-monospace,monospace;letter-spacing:.12em;color:#9af4c3}
 .fc-mp ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}.fc-mp li{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:#08171e99;border-radius:6px}
-.fc-mp li[data-connected=false]{opacity:.55}.fc-mp output{color:#c9d6d3;font-size:13px}
+.fc-mp li[data-connected=false]{opacity:.55}.fc-mp-swatch{display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-right:.4em;vertical-align:-.05em;border:1px solid #0006}.fc-mp-tags{position:fixed;inset:0;pointer-events:none;z-index:19}.fc-mp-tag{position:absolute;transform:translate(-50%,-100%);padding:2px 8px;border-radius:999px;background:#08171ecc;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;white-space:nowrap;text-shadow:0 1px 2px #000}.fc-mp-tag[data-team=rival]{border:1px solid #f08a6a}.fc-mp-tag[data-team=team]{border:1px solid #9af4c3}.fc-mp output{color:#c9d6d3;font-size:13px}
 .fc-mp-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:21;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:#08171ee6;border:1px solid #55747b;border-radius:10px;color:#f4f5ed;font:600 14px/1.3 system-ui,sans-serif;max-width:calc(100vw - 24px)}
 .fc-mp-hud strong{color:#9af4c3}.fc-mp-hud button{font:inherit;border:1px solid #64838a;border-radius:8px;background:#142c35;color:inherit;padding:6px 10px;cursor:pointer}
 @media(max-width:600px){.fc-mp{top:auto;bottom:170px;left:10px}.fc-mp-hud{top:auto;bottom:8px;font-size:12px}}`;
@@ -91,10 +100,13 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   const settlements: Settlement[] = [];
   const debug: NetDebug = { available: false, info: () => null, match: () => null, stats: () => null, settlements: () => settlements.map((s) => ({ ...s })), settledIds: () => settledModeIds(options.city.get()) };
   win.__fogcityNet = debug;
-  if (!options.relayUrl || !WORLDS.includes(worldName)) return { available: false, inMatch: () => false, frame: () => null, dispose: () => {} };
+  if (!options.relayUrl || !WORLDS.includes(worldName)) return { available: false, inMatch: () => false, frame: () => null, overlay: () => {}, dispose: () => {} };
   const relayUrl = options.relayUrl;
   const storage = options.storage === undefined ? (() => { try { return win.sessionStorage; } catch { return null; } })() : options.storage;
   const fingerprint = worldFingerprint(options.files);
+  const identityStore = options.identityStorage === undefined ? (() => { try { return win.localStorage; } catch { return null; } })() : options.identityStorage;
+  let identity: Identity = loadIdentity(identityStore);
+  const setIdentity = (next: Identity): void => { identity = next; saveIdentity(identityStore, next); lastStamp = ""; render(); };
 
   const node = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => { const e = doc.createElement(tag); if (className) e.className = className; if (text !== undefined) e.textContent = text; return e; };
   const button = (label: string, fn: () => void, className?: string): HTMLButtonElement => { const b = node("button", className, label); b.type = "button"; b.addEventListener("click", fn); return b; };
@@ -135,7 +147,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     render();
   };
 
-  const client = new RelayClient({ url: relayUrl, world: options.world, worldName, fingerprint,
+  const client = new RelayClient({ url: relayUrl, world: options.world, worldName, fingerprint, identity: () => identity,
     onChange: (next) => { info = next; update(); }, onSeat: saveSeat, onResults: settle });
   debug.available = true;
   debug.info = () => ({ ...client.info, members: [...client.info.members] });
@@ -146,12 +158,14 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     if (next === inMatch) return;
     inMatch = next; acc = 0; prevView = currView = null;
     if (next) options.city.save();
+    emitLooks();
     options.onModeChange?.(next);
   };
   function update(): void {
     const phase = info?.phase ?? "none";
     // A match (or its results) owns the screen once a snapshot has arrived.
     setInMatch((phase === "match" || phase === "results") && !!client.match);
+    emitLooks();
     launcher.textContent = phase === "none" ? "Play with friends" : `Room ${info?.code ?? ""}`;
     launcher.setAttribute("aria-expanded", String(!panel.hidden));
     if (phase === "lobby" || phase === "results" || info?.status === "error" || info?.status === "reconnecting") panel.hidden = false;
@@ -167,6 +181,15 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     const parts: HTMLElement[] = [];
     if (phase === "none") {
       parts.push(node("h2", undefined, "Play online"), node("p", undefined, "Bot Sweep (co-op) or Clean Streets (teams) · up to 4 players · bots fill empty seats"));
+      const profile = node("div", "fc-mp-row");
+      const myName = profileName(identity.name[0], identity.name[1]) ?? "Guest";
+      profile.append(swatch(identity.look), node("strong", undefined, myName), button("New name", () => setIdentity({ ...identity, name: randomName() })));
+      const looks = node("div", "fc-mp-row"); looks.setAttribute("role", "group"); looks.setAttribute("aria-label", "Look");
+      LOOK_NAMES.forEach((label, look) => {
+        const pick = button(label, () => setIdentity({ ...identity, look }), identity.look === look ? "fc-primary" : undefined);
+        pick.setAttribute("aria-pressed", String(identity.look === look)); pick.prepend(swatch(look)); looks.append(pick);
+      });
+      parts.push(profile, looks);
       const quick = button("Play online", () => client.quick(), "fc-primary");
       const create = button("Create private room", () => client.create());
       const form = node("form", "fc-mp-row"), label = node("label"), input = node("input");
@@ -256,11 +279,16 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   }
   const roomTimer = win.setInterval(refreshRooms, 1000);
 
+  function swatch(look: number): HTMLElement {
+    const dot = node("span", "fc-mp-swatch"); dot.setAttribute("aria-hidden", "true");
+    dot.style.background = `#${(LOOK_SWATCHES[look] ?? LOOK_SWATCHES[0]).toString(16).padStart(6, "0")}`;
+    return dot;
+  }
   function members(current: ClientInfo): HTMLUListElement {
     const list = node("ul"); list.setAttribute("aria-label", "Players");
     for (const m of current.members) {
       const li = node("li"); li.dataset.connected = String(m.connected);
-      li.append(node("span", undefined, `${m.name}${m.id === current.playerId ? " (you)" : ""}${m.host ? " · host" : ""}`), node("span", undefined, !m.connected ? "away" : m.ready ? "ready" : "not ready"));
+      li.append(swatch(m.look), node("span", undefined, `${m.name}${m.id === current.playerId ? " (you)" : ""}${m.host ? " · host" : ""}`), node("span", undefined, !m.connected ? "away" : m.ready ? "ready" : "not ready"));
       list.append(li);
     }
     return list;
@@ -292,6 +320,41 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     endButton.hidden = view.phase !== "active" || !client.isHost();
     leaveButton.hidden = view.phase !== "active";
     hud.hidden = false;
+  }
+
+  // Nametags (docs/design.md, Seeing each other): other players' names over them, team-coloured in
+  // Clean Streets, fading out by 150 m; your own is never drawn. Render-only: never in the sim.
+  const tagLayer = node("div", "fc-mp-tags"); tagLayer.setAttribute("aria-hidden", "true");
+  options.host.append(tagLayer);
+  const tags = new Map<string, HTMLElement>();
+  let lastLooks = "";
+  function overlay(): void {
+    const state = currView, me = info?.playerId ?? "";
+    if (!inMatch || !state || !options.project) { if (tags.size) { tags.clear(); tagLayer.replaceChildren(); } return; }
+    const view = botSweepView(state), seen = new Set<string>();
+    for (const id of Object.keys(state.players).sort()) {
+      if (id === me) continue;
+      const body = activeBody(state.players[id]!), onFoot = state.players[id]!.mode === "foot";
+      const at = options.project(body.x, body.y + (onFoot ? 2.1 : 1.9), body.z);
+      if (!at || at.distance > 150) continue;
+      seen.add(id);
+      let tag = tags.get(id);
+      if (!tag) { tag = node("div", "fc-mp-tag"); tags.set(id, tag); tagLayer.append(tag); }
+      const member = info?.members.find((m) => m.id === id);
+      const text = member?.name ?? (id.startsWith("bot-") ? `Bot ${id.slice(4)}` : id);
+      if (tag.textContent !== text) tag.textContent = text;
+      tag.dataset.team = view?.mode === "cleanStreets" ? (view.players[id]?.team === view.players[me]?.team ? "team" : "rival") : "team";
+      tag.style.left = `${at.x}px`; tag.style.top = `${at.y}px`;
+      tag.style.opacity = String(at.distance < 100 ? 1 : Math.max(0, (150 - at.distance) / 50));
+    }
+    for (const [id, tag] of tags) if (!seen.has(id)) { tag.remove(); tags.delete(id); }
+  }
+  function emitLooks(): void {
+    const looks: Record<string, number> = {};
+    // Only while a match owns the screen: in the city, "p1" is always the local player.
+    if (inMatch) for (const m of info?.members ?? []) looks[m.id] = m.look;
+    const key = JSON.stringify(looks);
+    if (key !== lastLooks) { lastLooks = key; options.onLooks?.(looks); }
   }
 
   function leave(): void {
@@ -329,6 +392,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       renderHud();
       return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: info?.playerId ?? match.playerId };
     },
-    dispose() { win.clearInterval(roomTimer); client.dispose(); root.remove(); hud.remove(); },
+    overlay,
+    dispose() { win.clearInterval(roomTimer); client.dispose(); root.remove(); hud.remove(); tagLayer.remove(); },
   };
 }

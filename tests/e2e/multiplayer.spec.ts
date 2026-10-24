@@ -62,10 +62,17 @@ test.describe("online Bot Sweep", () => {
       // Host creates a private room through the lobby UI.
       const a = await open(first);
       await a.getByRole("button", { name: "Play with friends" }).click();
+      // A guest profile: a vetted generated name (re-rolled here) and a chosen look.
+      await a.getByRole("button", { name: "New name" }).click();
+      await a.getByRole("group", { name: "Look" }).getByRole("button", { name: "Ube" }).click();
+      await expect(a.getByRole("group", { name: "Look" }).getByRole("button", { name: "Ube" })).toHaveAttribute("aria-pressed", "true");
+      const aName = (await a.locator(".fc-mp-panel strong").first().textContent())!;
+      expect(aName).toMatch(/^[A-Z][a-z]+ [A-Z][a-z]+$/);
       await a.getByRole("button", { name: "Create private room" }).click();
       await waitNet(a, `n.info()?.phase === "lobby"`);
       const code = await net(a, (n) => n.info()!.code);
       expect(code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+      expect(await net(a, (n) => n.info()!.members[0]!.look)).toBe(5);
       await expect(a.locator(".fc-mp-code")).toHaveText(code);
 
       // The invited player opens the invitation link: the code is already filled in.
@@ -75,6 +82,7 @@ test.describe("online Bot Sweep", () => {
       await waitNet(a, `n.info()?.members.length === 2`);
       await waitNet(b, `n.info()?.playerId === "p2"`);
       await expect(a.getByRole("list", { name: "Players" }).locator("li")).toHaveCount(2);
+      await expect(b.getByRole("list", { name: "Players" })).toContainText(`${aName} · host`);
 
       // Start is the host's, once everyone is ready.
       await expect(b.getByRole("button", { name: "Start Bot Sweep" })).toHaveCount(0);
@@ -86,6 +94,9 @@ test.describe("online Bot Sweep", () => {
       await a.getByRole("button", { name: "Start Bot Sweep" }).click();
       for (const page of [a, b]) await waitNet(page, `n.info()?.phase === "match" && n.match() !== null`, 120_000);
       await expect(a.getByRole("status", { name: "Online match" })).toContainText("Units left");
+      // The other player's nametag floats over them; your own is never drawn.
+      await expect(b.locator(".fc-mp-tag", { hasText: aName })).toBeVisible({ timeout: 60_000 });
+      await expect(a.locator(".fc-mp-tag", { hasText: aName })).toHaveCount(0);
       // The free-roam city is not part of the match.
       const cityTick = await net(a, (_n, city) => city.tick);
       const matchPlayers = await net(a, (n) => Object.keys(n.match()!.players).sort());

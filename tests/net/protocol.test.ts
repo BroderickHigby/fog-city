@@ -5,7 +5,7 @@ import { worldFingerprint } from "../../src/net/world-id.ts";
 import { SIM_VERSION } from "../../src/sim/index.ts";
 import { loadWorldFiles } from "../helpers.ts";
 
-const hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: "sf", fingerprint: "b703eecb", action: "create" };
+const hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: "sf", fingerprint: "b703eecb", action: "create", profile: { name: ["quiet", "heron"], look: 3 }, device: "ab".repeat(16) };
 const parse = (v: unknown) => parseClientMessage(JSON.stringify(v));
 
 describe("relay protocol", () => {
@@ -25,7 +25,8 @@ describe("relay protocol", () => {
     expect(() => parse({ ...hello, sim: SIM_VERSION + 1 })).toThrow("version_mismatch");
     expect(() => parse({ ...hello, net: 1 })).toThrow("version_mismatch");
     for (const bad of [
-      { ...hello, world: "nyc" }, { ...hello, action: "join", code: "abcdefgh" }, { ...hello, action: "join", code: "ABCDEFG0" }, { ...hello, extra: 1 },
+      { ...hello, world: "nyc" }, { ...hello, profile: { name: ["quiet", "nosuchnoun"], look: 0 } }, { ...hello, profile: { name: ["quiet", "heron"], look: 6 } },
+      { ...hello, profile: { name: "Free Text", look: 0 } }, { ...hello, device: "short" }, { ...hello, device: undefined }, { ...hello, action: "join", code: "abcdefgh" }, { ...hello, action: "join", code: "ABCDEFG0" }, { ...hello, extra: 1 },
       { ...hello, action: "rejoin", code: "ABCDEFGH", token: "x" }, { type: "input", seq: 0, input: { throttle: 0, steer: 0, brake: 0, actions: 0 } },
       { type: "input", seq: 1, input: { throttle: 2, steer: 0, brake: 0, actions: 0 } }, { type: "input", seq: 1, input: { throttle: 0, steer: 0, brake: 0, actions: 1 << 20 } },
       { type: "input", seq: 1, input: { throttle: 0, steer: 0, brake: 0, actions: 0, x: 5 } }, { type: "input", seq: 1, playerId: "p2", input: { throttle: 0, steer: 0, brake: 0, actions: 0 } },

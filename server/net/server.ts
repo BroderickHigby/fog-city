@@ -167,7 +167,7 @@ export function createRelay(options: RelayOptions) {
       const quick = message.action === "quick" ? [...rooms.values()].filter((r) => r.open() && r.bundle.name === message.world)
         .sort((a, b) => b.size - a.size || a.createdAt - b.createdAt)[0] : undefined;
       if (quick) {
-        playerId = quick.join(peer, t);
+        playerId = quick.join(peer, t, message.profile, message.device);
         room = quick;
       } else if (message.action === "create" || message.action === "quick") {
         if (rooms.size >= limits.maxRooms) throw new Error("server_full");
@@ -176,7 +176,7 @@ export function createRelay(options: RelayOptions) {
         do { code = Array.from(randomBytes(8), (n) => ROOM_ALPHABET[n & 31]!).join(""); } while (rooms.has(code));
         const created = new Room(code, bundle, t, ip, options.arenas.get(message.world) ?? [], roomLimits, message.action === "quick" ? "public" : "private");
         rooms.set(code, created);
-        playerId = created.join(peer, t);
+        playerId = created.join(peer, t, message.profile, message.device);
         room = created;
         log(`room ${code.slice(0, 2)}… created`);
       } else {
@@ -186,7 +186,7 @@ export function createRelay(options: RelayOptions) {
         try {
           if (!found || found.closed) throw new Error("room_missing");
           if (found.bundle.name !== message.world) throw new Error("world_mismatch");
-          playerId = message.action === "join" ? found.join(peer, t) : found.rejoin(peer, message.token!, t);
+          playerId = message.action === "join" ? found.join(peer, t, message.profile, message.device) : found.rejoin(peer, message.token!, t, message.profile, message.device);
           room = found;
         } catch (error) {
           entry.failed.push(t);

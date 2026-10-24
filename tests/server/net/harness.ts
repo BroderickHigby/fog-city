@@ -26,10 +26,13 @@ export async function startRelay(opts: { limits?: Partial<RelayLimits>; room?: P
   return { relay, clock, url: `ws://127.0.0.1:${port}/relay`, close: () => relay.close(), tick: (n = 1) => { for (let i = 0; i < n; i++) { clock.t += 1000 / 60; relay.tick(); } } };
 }
 
+let counter = 1;
+const NAMES: Array<[string, string]> = [["quiet", "heron"], ["salty", "pumice"], ["dreamy", "tern"], ["hyped", "crane"]];
 export interface TestClient { client: RelayClient; infos: ClientInfo[]; seat: { value: Seat | null }; results: number }
-export function client(h: Harness, overrides: { fingerprint?: string; world?: WorldName } = {}): TestClient {
+export function client(h: Harness, overrides: { fingerprint?: string; world?: WorldName; name?: [string, string]; look?: number } = {}): TestClient {
   const out: TestClient = { client: null as unknown as RelayClient, infos: [], seat: { value: null }, results: 0 };
-  out.client = new RelayClient({ url: h.url, world: WORLD, worldName: overrides.world ?? "dev", fingerprint: overrides.fingerprint ?? FINGERPRINT, reconnectAttempts: 0,
+  const identity = { token: (counter++).toString(16).padStart(32, "0"), name: overrides.name ?? NAMES[counter % NAMES.length]!, look: overrides.look ?? counter % 6 };
+  out.client = new RelayClient({ url: h.url, identity: () => identity, world: WORLD, worldName: overrides.world ?? "dev", fingerprint: overrides.fingerprint ?? FINGERPRINT, reconnectAttempts: 0,
     onChange: (info) => out.infos.push(info), onSeat: (seat) => { out.seat.value = seat; }, onResults: () => { out.results++; }, now: () => h.clock.t });
   return out;
 }

@@ -2,9 +2,10 @@
 // results. The relay runs the same deterministic sim as every browser; it orders inputs keyed by
 // player id, records joins/leaves/decisions as SimEvents with their tick, and sends a full
 // snapshot only to a client that joins mid-match, rejoins, or reports a hash mismatch.
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { profileName, type Profile } from "../../src/net/identity.ts";
 import { hashState, NEUTRAL_INPUT, type SimEvent, type SimInput, type SimState } from "../../src/sim/index.ts";
-import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, type ErrorCode, type Frame, type Member, type NetModeId, type NetworkCommand, type RoomListing, type RoomPhase, type ServerMessage, type Visibility } from "../../src/net/protocol.ts";
+import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NET_VERSION, type ErrorCode, type Frame, type Member, type NetModeId, type NetworkCommand, type RoomListing, type RoomPhase, type ServerMessage, type Visibility } from "../../src/net/protocol.ts";
 import { SIM_VERSION } from "../../src/sim/contract.ts";
 import { ArenaUnavailableError, botSweepView, createBotSweep, stepBotSweep } from "../../src/sim/modes/botsweep.ts";
 import { MODE_END_EVENT } from "../../src/sim/modes/systems.ts";
@@ -30,7 +31,9 @@ export interface RoomLimits {
 export const DEFAULT_ROOM_LIMITS: RoomLimits = { lifetimeMs: 2 * 3600_000, rejoinGraceMs: 120_000, matchIdleMs: 45_000, resultsMs: 10 * 60_000, resyncIntervalMs: 2000 };
 
 interface Seat {
-  id: string; name: string; token: string; ready: boolean;
+  id: string; name: string; look: number; token: string; ready: boolean;
+  /** SHA-256 of the device's guest token: the key for stats, never the token itself. */
+  device: string;
   peer: Peer | null; disconnectedAt: number;
   queue: Array<{ seq: number; input: SimInput }>; seq: number; ack: number; lastInputAt: number;
   commandSequence: number; lastResyncAt: number;
@@ -71,14 +74,13 @@ export class Room {
   connectedCount(): number { let n = 0; for (const seat of this.seats.values()) if (seat.peer) n++; return n; }
 
   /** A new player in the lobby. Throws Error(ErrorCode). Returns the seat id. */
-  join(peer: Peer, now: number): string {
+  join(peer: Peer, now: number, profile: Profile, device: string): string {
     if (this.closed || now >= this.expiresAt) throw new Error("room_expired");
     if (this.phase !== "lobby") throw new Error("room_started");
     if (this.seats.size >= MAX_PLAYERS) throw new Error("room_full");
     let id = "";
     for (let n = 1; n <= MAX_PLAYERS && !id; n++) if (!this.seats.has(`p${n}`)) id = `p${n}`;
-    const used = new Set([...this.seats.values()].map((s) => s.name));
-    const seat: Seat = { id, name: NAME_PARTS.find((n) => !used.has(n))!, token: randomBytes(16).toString("hex"), ready: false, peer, disconnectedAt: 0,
+    const seat: Seat = { id, ...this.identify(profile, device, id), token: randomBytes(16).toString("hex"), ready: false, peer, disconnectedAt: 0,
       queue: [], seq: 0, ack: 0, lastInputAt: now, commandSequence: 0, lastResyncAt: 0 };
     this.seats.set(id, seat);
     this.bots = Math.min(this.bots, MAX_PLAYERS - this.seats.size);
@@ -88,11 +90,12 @@ export class Room {
   }
 
   /** Reattach a seat by its secret token (after a reload or a dropped connection). */
-  rejoin(peer: Peer, token: string, now: number): string {
+  rejoin(peer: Peer, token: string, now: number, profile: Profile, device: string): string {
     if (this.closed || now >= this.expiresAt) throw new Error("room_expired");
     const seat = [...this.seats.values()].find((s) => s.token === token);
     if (!seat) throw new Error("seat_missing");
     if (seat.peer && seat.peer !== peer) seat.peer.close("replaced");
+    Object.assign(seat, this.identify(profile, device, seat.id));
     seat.peer = peer; seat.disconnectedAt = 0; seat.lastInputAt = now; seat.queue = []; seat.seq = seat.ack;
     this.welcome(seat);
     if (this.phase === "match") this.sendSnapshot(seat, "rejoin", now);
@@ -260,7 +263,16 @@ export class Room {
 
   members(): Member[] {
     const host = this.hostId;
-    return [...this.seats.values()].sort((a, b) => a.id < b.id ? -1 : 1).map((s) => ({ id: s.id, name: s.name, ready: s.ready, connected: !!s.peer, host: s.id === host }));
+    return [...this.seats.values()].sort((a, b) => a.id < b.id ? -1 : 1).map((s) => ({ id: s.id, name: s.name, look: s.look, ready: s.ready, connected: !!s.peer, host: s.id === host }));
+  }
+
+  /** The name others see: the profile's vetted name, numbered if someone in the room already has it. */
+  private identify(profile: Profile, device: string, id: string): { name: string; look: number; device: string } {
+    const base = profileName(profile.name[0], profile.name[1]) ?? "Guest";
+    const taken = new Set([...this.seats.values()].filter((s) => s.id !== id).map((s) => s.name));
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
+    return { name, look: profile.look, device: createHash("sha256").update(device).digest("hex") };
   }
 
   private welcome(seat: Seat): void {

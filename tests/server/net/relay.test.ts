@@ -57,6 +57,15 @@ describe("relay lobby", () => {
     expect(a.seat.value?.token).not.toBe(b.seat.value?.token);
   });
 
+  it("shows each player's vetted profile name and look, numbering a repeated name, and keeps device tokens private", async () => {
+    const h = await relay(), a = make(h, { name: ["quiet", "heron"], look: 4 }), b = make(h, { name: ["quiet", "heron"], look: 1 });
+    a.client.create(); await until(() => !!last(a)?.code);
+    b.client.join(last(a).code); await until(() => last(a).members.length === 2);
+    expect(last(a).members.map((m) => [m.name, m.look])).toEqual([["Quiet Heron", 4], ["Quiet Heron 2", 1]]);
+    // Members carry no device token or its hash; seats keep only the hash, for stats.
+    expect(Object.keys(last(b).members[0]!).sort()).toEqual(["connected", "host", "id", "look", "name", "ready"]);
+  });
+
   it("only the host starts, and only when everyone is ready", async () => {
     const h = await relay(), a = make(h), b = make(h);
     a.client.create(); await until(() => !!last(a)?.code);
@@ -175,7 +184,7 @@ describe("relay transport seam", () => {
     const { WORLD } = await import("./harness.ts");
     const sent: string[] = [];
     const infos: Array<{ phase: string; code: string }> = [];
-    const custom = new RelayClient({ url: h.url, world: WORLD, worldName: "dev", fingerprint: FINGERPRINT, reconnectAttempts: 0, onChange: (i) => infos.push(i), onSeat: () => {},
+    const custom = new RelayClient({ url: h.url, identity: () => ({ token: "cd".repeat(16), name: ["salty", "pumice"], look: 2 }), world: WORLD, worldName: "dev", fingerprint: FINGERPRINT, reconnectAttempts: 0, onChange: (i) => infos.push(i), onSeat: () => {},
       transport: (url, handlers) => {
         const ws = new WsSocket(url);
         ws.on("open", () => handlers.onOpen()); ws.on("message", (d) => handlers.onMessage(String(d))); ws.on("close", () => handlers.onClose());
@@ -196,7 +205,7 @@ describe("relay versions", () => {
     const h = await relay();
     for (const hello of [{ sim: SIM_VERSION - 1, net: NET_VERSION }, { sim: SIM_VERSION, net: NET_VERSION + 1 }]) {
       const s = await raw(h.url);
-      s.send({ type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, ...hello });
+      s.send({ type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, profile: { name: ["quiet", "heron"], look: 0 }, device: "ab".repeat(16), ...hello });
       await until(() => !!s.closed);
       expect(s.messages[0]).toMatchObject({ type: "error", code: "version_mismatch" });
     }
@@ -319,7 +328,7 @@ describe("relay abuse limits", () => {
 
   it("caps rooms per IP and rooms per relay", async () => {
     const h = await relay({ limits: { maxRoomsPerIp: 2, maxRooms: 3 } });
-    const hello = { type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION };
+    const hello = { type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION, profile: { name: ["quiet", "heron"], look: 0 }, device: "ab".repeat(16) };
     const sockets = [await raw(h.url), await raw(h.url), await raw(h.url)];
     for (const s of sockets) s.send(hello);
     await until(() => !!sockets[2]!.closed);
@@ -360,7 +369,7 @@ describe("relay abuse limits", () => {
     const codes: string[] = [];
     for (let i = 0; i < 4; i++) {
       const s = await raw(h.url);
-      s.send({ type: "hello", action: "join", code: "ABCDEFGH", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION });
+      s.send({ type: "hello", action: "join", code: "ABCDEFGH", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION, profile: { name: ["quiet", "heron"], look: 0 }, device: "ab".repeat(16) });
       await until(() => !!s.closed);
       codes.push(String(s.messages.at(-1)?.code));
     }

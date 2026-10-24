@@ -286,7 +286,7 @@ export class Actors {
   private view(id: string): PlayerView {
     let v = this.players.get(id);
     if (v) return v;
-    const colorIndex = playerColorIndex(id);
+    const colorIndex = this.lookSlots.get(id) ?? playerColorIndex(id);
     const look = newLook();
     look.shirt.setHex(SHIRTS[colorIndex % SHIRTS.length]!);
     look.pants.setHex(PANTS[colorIndex % PANTS.length]!);
@@ -398,6 +398,19 @@ export class Actors {
     this.hidden = id;
     this.hiddenPart = part;
   }
+
+  /**
+   * Online play: a player's chosen look (a colour slot) instead of the one from their id; null
+   * clears it. A player already drawn in another look is redrawn on the next setCar.
+   */
+  setLookSlot(id: string, slot: number | null): void {
+    const want = slot === null ? undefined : ((Math.trunc(slot) % CAR_COLORS.length) + CAR_COLORS.length) % CAR_COLORS.length;
+    if (this.lookSlots.get(id) === want) return;
+    if (want === undefined) this.lookSlots.delete(id); else this.lookSlots.set(id, want);
+    const v = this.players.get(id);
+    if (v && v.colorIndex !== (want ?? playerColorIndex(id))) this.remove(new Set([...this.players.keys()].filter((other) => other !== id)));
+  }
+  private readonly lookSlots = new Map<string, number>();
 
   remove(keep: ReadonlySet<string>): void {
     this.bodies?.remove(keep);

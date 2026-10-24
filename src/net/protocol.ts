@@ -4,9 +4,10 @@ import { Action, SIM_VERSION, type InputFrame, type SimEvent, type SimInput, typ
 import { gameplayCommandFromEvent, type GameplayCommand } from "../sim/gameplay-contract.ts";
 import type { MatchPayoutEvent } from "../sim/modes/session.ts";
 import type { MatchResult } from "../sim/modes/types.ts";
+import { DEVICE_TOKEN, validProfile, type Profile } from "./identity.ts";
 
 /** Bump on any wire-format change; a client and relay that differ refuse each other. */
-export const NET_VERSION = 4;
+export const NET_VERSION = 5;
 export const MAX_PLAYERS = 4;
 /** Client prediction never runs further ahead of the confirmed state than this (133 ms). */
 export const MAX_PREDICTION_TICKS = 8;
@@ -15,8 +16,6 @@ export const WORLDS = ["dev", "dev-city", "sf"] as const;
 export type WorldName = (typeof WORLDS)[number];
 export const MODES = ["botSweep", "cleanStreets"] as const;
 export type NetModeId = (typeof MODES)[number];
-/** Generated display names: the only names a peer ever sees (never free text). */
-export const NAME_PARTS = ["Misty Otter", "Sunny Finch", "Quiet Fox", "Silver Gull"] as const;
 export const ROOM_CODE = /^[A-HJ-NP-Z2-9]{8}$/;
 export const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const TOKEN = /^[a-f0-9]{32}$/;
@@ -31,6 +30,10 @@ export interface Hello {
   action: "create" | "quick" | "join" | "rejoin";
   code?: string;
   token?: string;
+  /** The player's chosen name parts and look (validated against the content lint). */
+  profile: Profile;
+  /** This device's guest token (stats and leaderboards; never shown to anyone). */
+  device: string;
 }
 export type NetworkCommand = Omit<GameplayCommand, "playerId">;
 export type ClientMessage =
@@ -49,7 +52,7 @@ export type ClientMessage =
   | { type: "resync"; tick: number; reason: "mismatch" | "behind" }
   | { type: "ping"; t: number };
 
-export interface Member { id: string; name: string; ready: boolean; connected: boolean; host: boolean }
+export interface Member { id: string; name: string; look: number; ready: boolean; connected: boolean; host: boolean }
 export type RoomPhase = "lobby" | "match" | "results";
 export type Visibility = "private" | "public";
 /** One public room in GET /rooms. Private rooms are never listed. */
@@ -152,15 +155,17 @@ export function parseClientMessage(text: string): ClientMessage {
       break;
     case "hello": {
       const action = value.action;
-      const shape = action === "create" || action === "quick" ? ["type", "net", "sim", "world", "fingerprint", "action"]
-        : action === "join" ? ["type", "net", "sim", "world", "fingerprint", "action", "code"]
-        : action === "rejoin" ? ["type", "net", "sim", "world", "fingerprint", "action", "code", "token"] : null;
+      const base = ["type", "net", "sim", "world", "fingerprint", "action", "profile", "device"];
+      const shape = action === "create" || action === "quick" ? base
+        : action === "join" ? [...base, "code"]
+        : action === "rejoin" ? [...base, "code", "token"] : null;
       if (!shape || !keys(value, shape)) break;
       // Version first, so an old client hears why it was refused.
       if (value.net !== NET_VERSION || value.sim !== SIM_VERSION) throw new Error("version_mismatch");
       if (!WORLDS.includes(value.world as WorldName) || typeof value.fingerprint !== "string" || !/^[a-f0-9]{8,64}$/.test(value.fingerprint)) break;
       if ((action === "join" || action === "rejoin") && (typeof value.code !== "string" || !ROOM_CODE.test(value.code))) break;
       if (action === "rejoin" && (typeof value.token !== "string" || !TOKEN.test(value.token))) break;
+      if (typeof value.device !== "string" || !DEVICE_TOKEN.test(value.device) || !validProfile(value.profile)) break;
       return value as unknown as Hello;
     }
   }
