@@ -5,7 +5,7 @@ import {
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
 import v7Replay from "../golden/wave2-v7.json";
-import currentReplay from "../golden/wave2-v11.json";
+import currentReplay from "../golden/wave2-v12.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -95,7 +95,7 @@ describe("wave-2 shared interface", () => {
   });
 
   it("rejects unavailable intermediate and future migrations", () => {
-    for (const version of [0, -1, 2.5, 9, 10, SIM_VERSION + 1, NaN]) {
+    for (const version of [0, -1, 2.5, 9, SIM_VERSION + 1, NaN]) {
       expect(() => upgradeState({ ...baseline.initial, version } as unknown as SimState)).toThrow("cannot upgrade");
     }
   });

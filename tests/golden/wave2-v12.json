@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "impacts stream: cars shove robotaxis and bowl robots over",
+  "simVersion": 12,
+  "hashes": [
+    "f0d42c1f",
+    "bba0506c",
+    "0241b027",
+    "8c6856ae",
+    "5a277800"
+  ]
+}

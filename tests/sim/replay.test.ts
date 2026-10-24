@@ -176,5 +176,8 @@ describe("legacy SIM_VERSION 4 replays", () => {
 
 /** hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4. */
 const PINNED_V4: string[] = ["87d67d3d", "016c3bfe", "7f325229", "ef174bed", "08f17ea5"];
-/** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4. */
-const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "d09fb88c", "b80c1bfc", "324c2580", "70237636"];
+/**
+ * hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4; re-pinned at v12
+ * (impacts.ts: robots no longer dive out of a player's car's way, from tick 300 on).
+ */
+const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "a62c6b3f", "1e6e26b4", "76120241", "5d6005c6"];
