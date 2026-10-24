@@ -1,6 +1,7 @@
 import { observeMission } from "./observed.ts";
 import { prepareMissionParking } from "./mechanics/runtime.ts";
 import { DUEL_WIN_CENTS, DUEL_WIN_QUARTERS, prepareMissionBell } from "./mechanics/bell.ts";
+import { prepareMissionFleet } from "./mechanics/fleet.ts";
 import { clamp } from "../dmath.ts";
 import { toLocal } from "../../geo/project.ts";
 import type { Mission,Place,Step } from "../../content/missions.ts";
@@ -8,7 +9,7 @@ import { commands,distanceSquared,event,facts,sortedBodies,validId } from "../pl
 import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionState,PlayerGameplayState } from "../player/types.ts";
 
 /** Completion facts with a single measured producer; copies from any other source are dropped. */
-const MEASURED_FACTS=new Set(["demo.parkedLegally","demo.robotPresented","botCheck.falsePositiveSeen","bell.duelStarted","bell.cue","bell.ring","bell.roundWon","bell.roundLost","bell.duelWon","bell-duel.lost"]);
+const MEASURED_FACTS=new Set(["demo.parkedLegally","demo.robotPresented","botCheck.falsePositiveSeen","bell.duelStarted","bell.cue","bell.ring","bell.roundWon","bell.roundLost","bell.duelWon","bell-duel.lost","pitch.windowOpened","pitch.windowCompleted","pitch.point","pitch.missed","vehicle.recovered"]);
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 export function missionPlace(place:Place):{x:number;y:number;z:number}{return {...toLocal(place.lat,place.lon),y:0};}
@@ -26,7 +27,11 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
  // Authored completion facts have a single producer. External copies cannot bypass measurement.
  const bell=ctx.wave>=4?prepareMissionBell(previous.bell,previous,ctx,heat,tick,seed):undefined;
  if(bell)state.bell=bell.state;
- const incoming=facts({...ctx,facts:[...ctx.facts.filter(f=>!MEASURED_FACTS.has(f.kind)),...parking?.facts??[],...bell?.facts??[]]},tick,state.factCursors);
+ const fleet=ctx.wave>=4?prepareMissionFleet(previous.fleet,previous,ctx,tick):undefined;
+ if(fleet)state.fleet=fleet.state;
+ const incoming=facts({...ctx,facts:[...ctx.facts.filter(f=>!MEASURED_FACTS.has(f.kind)),...parking?.facts??[],...bell?.facts??[],...fleet?.facts??[]]},tick,state.factCursors);
+ // Pitch beats and the recovery are public too (UI prompts, audio).
+ for(const fact of fleet?.facts??[])event(state,fact.kind,fact.playerId,fact.actorId??"",fact.amount??0,fact.detail??"");
  // The duel's beats are public (UI cues, audio) and its result moves heat, cash and the player.
  for(const fact of bell?.facts??[]){
   event(state,fact.kind,fact.playerId,fact.actorId??"",fact.amount??0,fact.detail??"");

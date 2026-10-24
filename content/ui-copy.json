@@ -183,12 +183,14 @@
     "ui.audio.master": "Master volume",
     "ui.bell.listen": "Listen: bell {heard} of {count}. Round {round}, {wins}–{losses}.",
     "ui.bell.turn": "Your turn: ring with interact ({rung} of {count}). Round {round}, {wins}–{losses}.",
-    "ui.bell.pause": "Round {round} over: {wins}–{losses}."
+    "ui.bell.pause": "Round {round} over: {wins}–{losses}.",
+    "ui.pitch.loud": "Jets overhead: hold the point.",
+    "ui.pitch.quiet": "Quiet: make point {point} of {count} (interact)."
   },
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave2-2026-10-23",
-    "contentHash": "fnv1a32:d2eed466",
+    "contentHash": "fnv1a32:dbe1b903",
     "reviewedBy": [],
     "review": "Authored for the published UI request. Pending independent review; existing approved names reused."
   }

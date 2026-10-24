@@ -2,7 +2,9 @@ import type { CombatActor } from "../combat-contract.ts";
 import type { MissionObservedState } from "../missions/observed.ts";
 import type { MissionParkingWorld, MissionParkingState } from "../missions/mechanics/runtime.ts";
 import type { MissionBellState } from "../missions/mechanics/bell.ts";
-import type { RngState } from "../contract.ts";
+import type { MissionFleetState } from "../missions/mechanics/fleet.ts";
+import type { RngState, SimInput } from "../contract.ts";
+import type { FollowerBody, FollowerState } from "../vehicles/follower.ts";
 import type { Mission } from "../../content/missions.ts";
 import type { Position, GameplayBody, GameplayFact, GameplayCommand, GameplayEvent, RewardActor, PlayerObservation } from "../gameplay-contract.ts";
 export type { Position, GameplayBody, GameplayFact, GameplayCommand, GameplayEvent, RewardActor, PlayerObservation } from "../gameplay-contract.ts";
@@ -11,7 +13,9 @@ export interface VendorItem { id:string; kind:string; tier?:number; priceCents:n
 export interface GameplaySite extends Position { id:string; kind:"safehouse"|"garage"|"vendor"|"carWash"|"repairKiosk"; wave:number; radius:number; priceCents?:number; free?:boolean; vendorItems?:readonly string[] }
 export interface DirectorCard { id:string; fromWave:number; radiusM:number; cooldownS:number; protectedAreas:boolean }
 export interface ActivityDefinition extends Position { id:string; kind:string; wave:number; radius:number; rewardCents?:number; rewardXp?:number; objective?:{event:string;count:number}; checkpoints?:readonly (Position&{id:string;radius:number})[]; timeLimitS?:number; repeatable?:boolean; cooldownS?:number }
-export interface GameplayContext { wave:number; bodies:readonly GameplayBody[]; observations:readonly PlayerObservation[]; actors:readonly RewardActor[]; facts:readonly GameplayFact[]; commands:readonly GameplayCommand[]; missions:readonly Mission[]; items:readonly VendorItem[]; sites:readonly GameplaySite[]; directorCards:readonly DirectorCard[]; activities:readonly ActivityDefinition[]; validKitIds:readonly string[]; day:number; month:number; doomPayFactor?:number; hour?:number; minute?:number; actions?:Readonly<Record<string,number>>; actorBodies?:readonly CombatActor[]; rustByActor?:Readonly<Record<string,number>>; missionParking?:MissionParkingWorld }
+export interface GameplayContext { wave:number; bodies:readonly GameplayBody[]; observations:readonly PlayerObservation[]; actors:readonly RewardActor[]; facts:readonly GameplayFact[]; commands:readonly GameplayCommand[]; missions:readonly Mission[]; items:readonly VendorItem[]; sites:readonly GameplaySite[]; directorCards:readonly DirectorCard[]; activities:readonly ActivityDefinition[]; validKitIds:readonly string[]; day:number; month:number; doomPayFactor?:number; hour?:number; minute?:number; actions?:Readonly<Record<string,number>>; actorBodies?:readonly CombatActor[]; rustByActor?:Readonly<Record<string,number>>; missionParking?:MissionParkingWorld; missionDrive?:MissionDrive }
+/** Steers a mission vehicle along the road graph (the vehicle follower over the world). */
+export type MissionDrive = (body:FollowerBody,previous:Readonly<FollowerState>,target:{x:number;z:number},maxSpeed:number)=>{state:FollowerState;input:SimInput};
 export interface PlayerStatus { status:"active"|"bridge"|"down"|"acqui-hired"; bridgeUntil:number; resumeTick:number; safehouseId:string; startupKitId:string; downRounds:number; commandSequence:number; watchingActorId:string; watchedTicks:number }
 export interface PlayerGameplayState { version:1; tick:number; nextId:number; players:Record<string,PlayerStatus>; events:GameplayEvent[] }
 export interface Wallet { cashCents:number; runwayMonths:number; reputation:number; paidActorIds:string[]; ownedItemIds:string[]; ownedSiteIds:string[]; commandSequence:number }
@@ -19,7 +23,7 @@ export interface EconomyState { version:1; tick:number; nextId:number; players:R
 export interface HeatStatus { threat:number; vcQuarters:number; lastSeenTick:number; lastAssociateSeenTick:number; recentMelts:number[]; levelMelts:number; spawnSequence:number; commandSequence:number; lastWashId?:string }
 export interface HeatState { grantCursors?:Record<string,number>; version:1; tick:number; nextId:number; players:Record<string,HeatStatus>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface MissionProgress { missionId:string; stepId:string; status:"idle"|"active"|"complete"|"retry"|"failed"; startedTick:number; stepStartedTick:number; deadlineTick:number; questionIndex:number; objectiveCount:number; objectiveIds:string[]; meters:Record<string,number>; completedIds:string[]; rewardedIds:string[]; retryFrom:string; outcome:string; commandSequence:number; visits:number; actorAttempt?:string; observed?:MissionObservedState }
-export interface MissionState { parking?:MissionParkingState; bell?:MissionBellState; version:1; tick:number; nextId:number; players:Record<string,MissionProgress>; factCursors:Record<string,number>; events:GameplayEvent[] }
+export interface MissionState { parking?:MissionParkingState; bell?:MissionBellState; fleet?:MissionFleetState; version:1; tick:number; nextId:number; players:Record<string,MissionProgress>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface Progression { xp:number; rank:number; tankTier:0|1|2; flowTier:0|1; scannerTier:1|2|3|4; nozzle:"standard"|"pressure"; gadget:"balloon"|"sprinkler"|"speaker"; gear:"none"|"boots"|"airplane"; perks:string[]; streaks:string[]; streakPoints:number; streakSequence:number; banked:Record<string,number>; commandSequence:number }
 export interface ProgressionState { version:1; tick:number; nextId:number; players:Record<string,Progression>; grantCursors:Record<string,number>; events:GameplayEvent[] }
 export interface PlayerActivities { nextDirectorTick:number; directorRng:RngState; activeCardId:string; cardUntilTick:number; cardCooldowns:Record<string,number>; activeActivityId:string; activityStartedTick:number; completedIds:string[]; commandSequence:number; checkpointIndex?:number; objectiveCount?:number; cooldowns?:Record<string,number> }

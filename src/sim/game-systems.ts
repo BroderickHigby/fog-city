@@ -13,6 +13,8 @@ import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gam
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatWave } from "./combat-contract.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
+import { getawayControls } from "./missions/mechanics/fleet.ts";
+import { stepVehicleFollower } from "./vehicles/follower.ts";
 
 export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
 
@@ -28,6 +30,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return badRobotRate([p.lat,p.lon]);},
     fog:fogDensity(context.world,context.state,0,0),
     fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z),
+    ...(wave>=4?{vehicleControls:getawayControls(context.state)}:{}),
   }),allocateActorIds);
   const combatContext=(context:SimSystemContext)=>{
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
@@ -45,6 +48,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
     protectedArea,fog:context=>fogDensity(context.world,context.state,0,0),
+    ...(wave>=4?{missionDrive:(context:SimSystemContext)=>(body,previous,target,maxSpeed)=>stepVehicleFollower(context.world,body,previous,{kind:"pursue",target,stopDistance:4,maxSpeed})}:{}),
     missionParking:context=>buildMissionParkingWorld(context,context.world.parking?.rules??[],context.world.streetCleaning?.rules??[]),
     calendar:context=>{const time=gameTime(context.state);return {day:time.dayIndex,month:time.month,hour:time.hour,minute:time.minute};}});
   let cachedObservation:{context:SimSystemContext;value:ReturnType<typeof observed>}|undefined;

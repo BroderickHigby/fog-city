@@ -10,6 +10,7 @@ import { DEFAULT_CATALOG } from "../sim/player/catalog.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { missionActorBindings } from "../sim/agents/systems.ts";
 import { nearestTurntable } from "../sim/missions/mechanics/bell.ts";
+import { jetsLoud, PITCH_POINTS } from "../sim/missions/mechanics/fleet.ts";
 import type { RoadGraph } from "../render/types.ts";
 import type { InteractionView, MapEdge, MapPoint, UiView } from "./types.ts";
 const graphEdges=new WeakMap<RoadGraph,readonly MapEdge[]>();
@@ -26,7 +27,10 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const duel=duelStep?state.ext.missions?.bell?.duels[playerId]:undefined;
   const bell=duel?{round:duel.round,wins:duel.wins,losses:duel.losses,count:duel.cues.length}:undefined;
   const duelText=duel&&bell?duel.phase==="demonstration"?uiText("ui.bell.listen",{...bell,heard:duel.cues.filter(cue=>cue<=state.tick).length}):duel.phase==="response"?uiText("ui.bell.turn",{...bell,rung:duel.ringIndex}):uiText("ui.bell.pause",bell):undefined;
-  const detail=duelText||(step&&"hint"in step?step.hint:undefined)||lines||step?.note||mission?.summary||"";
+  const pitchStep=step?.type==="objective"&&step.objective.kind==="event"&&(step.objective.event==="pitch.windowOpened"||step.objective.event==="pitch.windowCompleted");
+  const pitch=pitchStep?state.ext.missions?.fleet?.pitch[playerId]:undefined;
+  const pitchText=pitch?uiText(jetsLoud(pitch.startTick,state.tick)?"ui.pitch.loud":"ui.pitch.quiet",{point:Math.min(PITCH_POINTS,pitch.points+1),count:PITCH_POINTS}):undefined;
+  const detail=duelText||pitchText||(step&&"hint"in step?step.hint:undefined)||lines||step?.note||mission?.summary||"";
   if(mission&&progress&&step&&progress.status==="active"){
     const id=`${mission.id}:${step.id}:${progress.questionIndex}`;
     if(step.type==="form")interaction={id,title:mission.title,detail,startup:true,choices:[]};
@@ -42,7 +46,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   if(mission&&progress?.status==="retry"&&state.tick>=progress.deadlineTick)interaction={id:`${mission.id}:retry:${progress.visits}`,title:mission.title,detail,choices:[{id:"retry",label:uiText("ui.common.retry")}]};
   let edges=roads?graphEdges.get(roads):undefined;if(!edges){const all:MapEdge[]=[];for(const edge of roads?.edges??[]){all.push({from:edge.a,to:edge.b});if(!edge.oneway)all.push({from:edge.b,to:edge.a});}edges=all;if(roads)graphEdges.set(roads,edges);}
   const blips=SAFEHOUSES.map(site=>({id:site.id,kind:"safehouse" as const,label:site.label,...toLocal(site.lat,site.lon)}));
-  const objectiveActor=step?.type==="objective"?(step.objective.actor??(step.objective.event==="botCheck.falsePositiveSeen"?"courier":undefined)):undefined;
+  const objectiveActor=step?.type==="objective"?(step.objective.actor??(step.objective.event==="botCheck.falsePositiveSeen"?"courier":step.objective.event==="vehicle.recovered"?"escapeCar":undefined)):undefined;
   const targetId=mission&&objectiveActor?missionActorBindings(state,mission.id,playerId)[objectiveActor]:undefined;
   const actorTarget=targetId?agentsRuntimeOf(state)?.actors[targetId]:undefined;
   const turntable=duelStep&&body?nearestTurntable(body.x,body.z):undefined;
