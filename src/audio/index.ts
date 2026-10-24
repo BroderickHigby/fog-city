@@ -16,6 +16,7 @@ import { gameplaySnapshot, playerView } from "../sim/player/adapter.ts";
 import { RobotChirpClock, robotWhirrs, type SoundingActor } from "./robot-sound.ts";
 import { AmbientEventClock, CROWD_M, TRAFFIC_M, ambienceLevels, districtAt, type AmbienceLevels } from "./ambience.ts";
 import { InnerVoice } from "./inner-voice.ts";
+import { ImpactSoundTracker, type ImpactsLike } from "./impact-sound.ts";
 import { FootstepClock, carOneShots, doorOneShots, engineParams } from "./vehicle-sound.ts";
 import type { CarState } from "../sim/contract.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
@@ -148,6 +149,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let prevMode: string | undefined;
   let lastFrameMs: number | null = null;
   const footsteps = new FootstepClock();
+  const impacts = new ImpactSoundTracker();
   const chirps = new RobotChirpClock();
   const ambientEvents = new AmbientEventClock();
   let ambience: AmbienceLevels | null = null;
@@ -238,11 +240,20 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       lastFrameMs = frame.nowMs;
       if (player && !frame.paused) {
         mixer.setEngine(inCar ? engineParams(player.car, prevCar, dtS) : null);
-        if (inCar) for (const s of carOneShots(player.car, prevCar)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
+        // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. When the
+        // player's own car is in one, its generic hit one-shot stands down (landings still play).
+        const hits = impacts.update(state.ext.impacts as ImpactsLike | undefined, listener, `p:${playerId}`, false);
+        for (const c of hits) mixer.playImpact(c);
+        const ownHit = hits.some((c) => c.self);
+        if (inCar) for (const s of carOneShots(player.car, prevCar)) if (s.landing || !ownHit) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
+        mixer.setHydrant(impacts.hydrant(state.ext.impacts as ImpactsLike | undefined, listener));
         for (const s of doorOneShots(prevMode, player.mode)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, delayS: s.delayS });
         const step = footsteps.update(onFoot ? player.foot : null, dtS);
         if (step) mixer.play({ sound: `step-${step.variant}`, gain: step.gain, pan: 0, rate: 0.94 + 0.03 * step.variant });
-      } else mixer.setEngine(null);
+      } else {
+        mixer.setEngine(null);
+        mixer.setHydrant(null);
+      }
       prevCar = player ? { ...player.car } : null;
       prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
@@ -363,6 +374,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       lastScanTick = null;
       lastFrameMs = null;
       footsteps.reset();
+      impacts.reset();
       cues.reset(state?.ext.combat);
       lastFightEvent = state?.ext.combat?.events.reduce((m, e) => Math.max(m, e.id), 0) ?? 0;
       musicTracker.reset();

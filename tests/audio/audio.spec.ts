@@ -206,3 +206,47 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect(subtitles).toBeVisible({ timeout: 60_000 });
   expect(errors).toEqual([]);
 });
+
+test("every collision sound renders audibly in a real Web Audio graph", async ({ page }) => {
+  await page.goto("/?world=dev");
+  const levels = await page.evaluate(async () => {
+    const { ImpactSynth } = await import("/src/audio/impact-synth.ts" as string);
+    const base = { tier: "crunch", hardness: 0.6, gain: 0.8, pan: 0.3, scrape: false, fell: false, disabled: false, broke: false, self: false };
+    const variants: Record<string, object> = {
+      bump: { material: "metal", tier: "bump", hardness: 0.2 },
+      crunch: { material: "metal" },
+      smash: { material: "metal", tier: "smash", hardness: 1 },
+      scrape: { material: "metal", scrape: true },
+      robot: { material: "robot", fell: true, disabled: true },
+      tree: { material: "wood", broke: true },
+      post: { material: "post", broke: true },
+    };
+    const out: Record<string, { rms: number; peak: number }> = {};
+    let id = 1;
+    for (const [name, v] of Object.entries(variants)) {
+      const ctx = new OfflineAudioContext(2, 44100 * 1.5, 44100);
+      const synth = new ImpactSynth(ctx as unknown as AudioContext, ctx.destination);
+      synth.play({ ...base, ...v, id: id++ });
+      const buf = await ctx.startRendering();
+      let sum = 0, peak = 0, n = 0;
+      for (let c = 0; c < buf.numberOfChannels; c++) for (const s of buf.getChannelData(c)) { sum += s * s; peak = Math.max(peak, Math.abs(s)); n++; }
+      out[name] = { rms: Math.sqrt(sum / n), peak };
+    }
+    // The hiss: on, then off.
+    const ctx = new OfflineAudioContext(1, 44100, 44100);
+    const synth = new ImpactSynth(ctx as unknown as AudioContext, ctx.destination);
+    synth.setHiss({ gain: 0.3, pan: 0 });
+    const buf = await ctx.startRendering();
+    let sum = 0;
+    for (const s of buf.getChannelData(0).subarray(22050)) sum += s * s;
+    out.hiss = { rms: Math.sqrt(sum / 22050), peak: 0 };
+    return out;
+  });
+  for (const [name, l] of Object.entries(levels)) {
+    expect(l.rms, name).toBeGreaterThan(0.002);
+    expect(Number.isFinite(l.rms), name).toBe(true);
+    expect(l.peak, name).toBeLessThan(1.5);
+  }
+  // Harder hits are louder.
+  expect(levels.smash!.rms).toBeGreaterThan(levels.bump!.rms);
+});

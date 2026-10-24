@@ -14,6 +14,8 @@ import { VehicleSynth } from "./vehicle-synth.ts";
 import { RobotVoices, SYNTH_CUES, beepTones, playTones, type SynthCue } from "./synth-sfx.ts";
 import type { RobotWhirr } from "./robot-sound.ts";
 import { AmbienceSynth } from "./ambience-synth.ts";
+import { ImpactSynth } from "./impact-synth.ts";
+import type { ImpactCue } from "./impact-sound.ts";
 import type { AmbienceLevels, AmbientEvent } from "./ambience.ts";
 import type { EngineParams } from "./vehicle-sound.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
@@ -66,6 +68,7 @@ export class GameAudio {
   private robots: RobotVoices | null = null;
   private ambience: AmbienceSynth | null = null;
   private ambienceLevels: AmbienceLevels | null = null;
+  private impacts: ImpactSynth | null = null;
   private engineOn = false;
   private prefs: AudioPrefs;
   private ducked = false;
@@ -204,6 +207,34 @@ export class GameAudio {
     if (e.kind === "foghorn") this.ambience.foghorn(e.gain, e.pan);
     else this.ambience.gull(e.gain, e.pan);
     this.played.set(e.kind, (this.played.get(e.kind) ?? 0) + 1);
+  }
+
+  private impactSynth(): ImpactSynth | null {
+    const ctx = this.ctx, bus = this.buses.get("effects");
+    if (!ctx || !bus || !this.unlocked) return null;
+    if (!this.impacts) {
+      try {
+        this.impacts = new ImpactSynth(ctx, bus);
+      } catch {
+        return null;
+      }
+    }
+    return this.impacts;
+  }
+
+  /** A collision (impact-sound.ts). */
+  playImpact(cue: ImpactCue): void {
+    const synth = this.impactSynth();
+    if (!synth) return;
+    synth.play(cue);
+    const key = cue.scrape ? "impact-scrape" : `impact-${cue.material}`;
+    this.played.set(key, (this.played.get(key) ?? 0) + 1);
+  }
+
+  /** A gushing hydrant's hiss (null: none near). */
+  setHydrant(h: { gain: number; pan: number } | null): void {
+    if (!h && !this.impacts) return;
+    this.impactSynth()?.setHiss(h);
   }
 
   /** The nearest robots' servo whirrs (empty: silence). */
@@ -388,6 +419,8 @@ export class GameAudio {
     this.robots = null;
     this.ambience?.dispose();
     this.ambience = null;
+    this.impacts?.dispose();
+    this.impacts = null;
     for (const a of this.active) this.stopEffect(a);
     this.music?.dispose();
     this.music = null;
