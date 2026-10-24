@@ -15,8 +15,7 @@ export const TURNTABLES: readonly { id: string; x: number; z: number }[] = Objec
   { id: "powell-market", ...toLocal(37.78475, -122.40775) },
   { id: "hyde-beach", ...toLocal(37.8066, -122.42095) },
 ].map(t => Object.freeze({ id: t.id, x: t.x, z: t.z })));
-/** A duel starts only at five stars of VC attention (20 quarters) and costs you back to two. */
-export const DUEL_MIN_QUARTERS = 20;
+/** A won duel costs you back to two stars (8 quarters). */
 export const DUEL_WIN_QUARTERS = 8;
 /** Win: "we'll circle back" and $500. */
 export const DUEL_WIN_CENTS = 50_000;
@@ -56,7 +55,7 @@ export function nearestTurntable(x: number, z: number): { id: string; x: number;
  * bell.ring, bell.roundWon/Lost, bell.duelWon, bell-duel.lost) for the mission interpreter.
  * Only this producer may supply them; the caller strips copies from other sources.
  */
-export function prepareMissionBell(previous: MissionBellState | undefined, missions: MissionState, ctx: GameplayContext, heat: HeatState, tick: number, seed: number): { state: MissionBellState; facts: GameplayFact[] } {
+export function prepareMissionBell(previous: MissionBellState | undefined, missions: MissionState, ctx: GameplayContext, _heat: HeatState, tick: number, seed: number): { state: MissionBellState; facts: GameplayFact[] } {
   const old = previous ?? { tick: -1, nextSequence: 1, previousInteract: {}, duels: {} };
   if (tick <= old.tick) return { state: old, facts: [] };
   const state: MissionBellState = { tick, nextSequence: old.nextSequence, previousInteract: {}, duels: {} }, facts: GameplayFact[] = [];
@@ -79,7 +78,9 @@ export function prepareMissionBell(previous: MissionBellState | undefined, missi
     const request: BellDuelRequest = { id, playerId: body.id, opponentId: `associate:${table.id}`, x: table.x, y: body.y, z: table.z, radius: DUEL_RADIUS_M };
     if (before?.requestId === id) {
       state.duels[body.id] = before.phase === "won" || before.phase === "lost" ? before : advanceBellDuel(before, request, body, seed, tick, old.tick, pressed, emit);
-    } else if (pressed && canStartDuel(body, request) && (heat.players[body.id]?.vcQuarters ?? 0) >= DUEL_MIN_QUARTERS) {
+    } else if (pressed && canStartDuel(body, request)) {
+      // The authored step already granted the five stars; they decay out of every associate's
+      // sight while you reach the turntable, so the mission's duel does not re-check them.
       state.duels[body.id] = newBellRound(id, request.opponentId, seed, 1, tick);
       emit({ kind: "bell.duelStarted", playerId: body.id, actorId: request.opponentId, detail: id });
     }

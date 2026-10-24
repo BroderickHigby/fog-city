@@ -5,6 +5,7 @@ import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { fogDensity } from "./fog/index.ts";
 import { allocateActorIds } from "./identity.ts";
 import { createAgentsSystem, agentsCombatOptions } from "./agents/systems.ts";
+import { agentsRuntimeOf } from "./agents/runtime.ts";
 import { createCombatSystem } from "./combat/systems.ts";
 import { contextFromState } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
@@ -34,8 +35,10 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
       const player=context.state.players[id]!,body=player.mode==="foot"&&player.foot?player.foot:player.car;
       loadouts[id]=combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading);
     }
-    const calendar=gameTime(context.state);
-    return contextFromState(context.world,context.state,{...agentsCombatOptions(context.state),wave,loadouts,
+    const calendar=gameTime(context.state),agentOptions=agentsCombatOptions(context.state),runtime=agentsRuntimeOf(context.state);
+    // From wave 4: the same live conversion budget the brains use (agents/runtime.ts naturalBad).
+    const conversionCap=wave>=4&&runtime?2*sortedIds(runtime.actors).filter(id=>{const a=runtime.actors[id]!;return a.firmware==="bad"&&!a.converted&&!a.retired&&(context.state.ext.combat?.targets[id]?.phase??"active")==="active";}).length:agentOptions.conversionCap;
+    return contextFromState(context.world,context.state,{...agentOptions,...(conversionCap!==undefined?{conversionCap}:{}),wave,loadouts,
       refills:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
       fog:fogDensity(context.world,context.state,0,0),
       fogAt:(x:number,z:number)=>fogDensity(context.world,context.state,x,z)});

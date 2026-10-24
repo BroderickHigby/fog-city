@@ -21,8 +21,8 @@ export function stepPlayer(previous:PlayerGameplayState,ctx:GameplayContext,tick
    else down();
   }
   if(own.status==="bridge"&&tick>=own.bridgeUntil)down();
-  // A lost bell duel means ACQUI-HIRED. The mission producer (its event from the tick before)
-  // only starts a duel at five stars, which may decay while the bells ring.
+  // A lost bell duel means ACQUI-HIRED. A mission duel (the producer's event from the tick
+  // before) follows the mission's own five-star grant, which decays out of associates' sight.
   const lostDuel=(danger?.vcQuarters??0)>=20&&ctx.facts.some(f=>f.playerId===body.id&&f.tick===tick&&f.kind==="bell-duel.lost")||missionEvents.some(e=>e.playerId===body.id&&e.tick===tick-1&&e.kind==="bell-duel.lost");
   if(own.status==="active"&&lostDuel){
    own.status="down";own.resumeTick=tick+1;event(state,"player.acqui-hired",body.id,"",.1);recover();
