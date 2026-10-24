@@ -1,0 +1,26 @@
+{
+ "$comment": "SHA-256 and size of every DataSF response the street-detail layers are built from (pipeline/build-street-detail.ts). A rebuild whose download differs fails unless run with --refresh.",
+ "snapshotDate": "2026-10-23",
+ "entries": [
+  {
+   "url": "https://data.sfgov.org/resource/g9zy-srvv.json?%24where=cnn%20IS%20NOT%20NULL&%24select=cnn%2Ccontinental&%24order=cnn&%24limit=50000&%24offset=0",
+   "sha256": "96ebcc62313d01d3f5afdd18813842918016800a510bcfdbee4ab05957b22457",
+   "bytes": 440102
+  },
+  {
+   "url": "https://data.sfgov.org/resource/4542-gpa3.json?%24where=cnn%20IS%20NOT%20NULL&%24select=objectid%2Ccnn%2Cstreet%2Cx_street%2Cst_facing%2Cdirection&%24order=objectid&%24limit=50000&%24offset=0",
+   "sha256": "80894c88aa54f59f1e1834439991f9a3f1af8f0016c257b975dc2f620bd910ed",
+   "bytes": 1217660
+  },
+  {
+   "url": "https://data.sfgov.org/resource/m48z-6ji4.json?%24where=status_code%20%3D%20'IS'%20AND%20shape%20IS%20NOT%20NULL%20AND%20sign_category%20IN%20('STREET%20NAME'%2C%20'ONE%20WAY(RA)'%2C%20'ONE%20WAY(LA)'%2C%20'STREET%20CLEANING'%2C%20'PARKING'%2C%20'PARKING%3ARPP'%2C%20'PARKING%3ANPRK%20ANY%20TIME'%2C%20'TOW%20(TANP%20ANY%20TIME)')&%24select=objectid%2Csign_category%2Clegend%2Csign_support%2Cstreetname%2Ccorner_side_facing%2Ccnn%2Cshape&%24order=objectid&%24limit=50000&%24offset=0",
+   "sha256": "dfa856a78c73a6480ffc16195ab2f4d78afe51eead3786731a9f7d27ffc05ffb",
+   "bytes": 13561333
+  },
+  {
+   "url": "https://data.sfgov.org/resource/m48z-6ji4.json?%24where=status_code%20%3D%20'IS'%20AND%20shape%20IS%20NOT%20NULL%20AND%20sign_category%20IN%20('STREET%20NAME'%2C%20'ONE%20WAY(RA)'%2C%20'ONE%20WAY(LA)'%2C%20'STREET%20CLEANING'%2C%20'PARKING'%2C%20'PARKING%3ARPP'%2C%20'PARKING%3ANPRK%20ANY%20TIME'%2C%20'TOW%20(TANP%20ANY%20TIME)')&%24select=objectid%2Csign_category%2Clegend%2Csign_support%2Cstreetname%2Ccorner_side_facing%2Ccnn%2Cshape&%24order=objectid&%24limit=50000&%24offset=50000",
+   "sha256": "b06074fde72b8bdccf3d507e5ebd2076444145f0d80a3f68663cbeb1f635fbff",
+   "bytes": 1874390
+  }
+ ]
+}
