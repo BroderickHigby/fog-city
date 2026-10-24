@@ -70,6 +70,8 @@ export interface RuntimeActor extends RuntimeSpawn {
   hiddenTellId: string | null;
   /** v10: walking round a stopped vehicle to (x, z), where its route carries on from `cursor` (detour.ts). */
   detour?: { x: number; z: number; cursor: SidewalkCursor; until: number } | null;
+  /** v11: when it last began a glance at someone standing near (GLANCE_COOLDOWN_TICKS). */
+  glanced?: number;
   /** v10: where and when it last made progress while wanting to walk (WALKER_STALL_TICKS). */
   stall?: { x: number; z: number; tick: number };
 }
@@ -315,10 +317,15 @@ function vehicleBoxes(sim:Readonly<SimState>):DetourBox[]{
   return out;
 }
 
-/** Vehicles standing still (players' cars, robotaxis, vans, buses), as of the previous tick. */
+/** Bodies standing still that walkers go round (players' cars, robotaxis, vans, buses, a player on foot), as of the previous tick. */
 function stoppedVehicles(sim:Readonly<SimState>):DetourBox[]{
   const out:DetourBox[]=[];
-  for(const id of keys(sim.players)){const c=sim.players[id]!.car;if(Math.abs(c.speed)<.1)out.push({x:c.x,z:c.z,heading:c.heading,hl:CAR.halfLength,hw:CAR.halfWidth});}
+  for(const id of keys(sim.players)){
+    const p=sim.players[id]!,c=p.car;
+    if(Math.abs(c.speed)<.1)out.push({x:c.x,z:c.z,heading:c.heading,hl:CAR.halfLength,hw:CAR.halfWidth});
+    // A player standing on the pavement: walkers step round them too.
+    if(p.mode==="foot"&&p.foot&&Math.abs(p.foot.speed)<.1)out.push({x:p.foot.x,z:p.foot.z,heading:p.foot.heading,hl:.35,hw:.35});
+  }
   for(const a of sim.ext.agents?.list??[])if(a.kind==="robotaxi"&&Math.abs(a.speed)<.1)out.push({x:a.x,z:a.z,heading:a.heading,hl:a.halfLength??ROBOTAXI_BODY.halfLength,hw:a.halfWidth??ROBOTAXI_BODY.halfWidth});
   return out;
 }
@@ -379,9 +386,13 @@ function detourGoal(world:World,sim:Readonly<SimState>,graph:SidewalkGraph,actor
   return null;
 }
 
+/** After a glance at someone standing near, a walker does not glance again for this many ticks (10 s). */
+export const GLANCE_COOLDOWN_TICKS=600;
+
 /** A walker that has not moved WALKER_STALL_M in this many ticks while wanting to walk picks a new way. */
 export const WALKER_STALL_TICKS=240;
-const WALKER_STALL_M=.3;
+/** ...and must get this far from where it stalled to count as progress (jittering in place is not), metres. */
+const WALKER_STALL_M=1;
 
 /**
  * Would the physical layer (motion.ts applyMotionBodies) refuse this walker's step towards `goal`?
@@ -489,7 +500,9 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       const input=inputs[player.id],seen=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
       const observed:PerceivedStimulus[]=[];
       // A glance is at someone standing near; a driver sitting in a stopped car is not one (people walk round it).
-      if(player.mode==="foot"&&distance(actor,player)<=4)observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
+      // A glance is brief and does not repeat for GLANCE_COOLDOWN_TICKS: people look at someone
+      // standing near, then carry on, instead of freezing round them.
+      if(player.mode==="foot"&&distance(actor,player)<=4&&!(actor.glanced!==undefined&&sim.tick-actor.glanced<GLANCE_COOLDOWN_TICKS))observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
       if(input&&(input.actions&Action.horn))observed.push({sourceId:player.id,kind:"horn",x:player.x,z:player.z,seen,heard:true});
       if(player.mode==="vehicle")observed.push({sourceId:player.id,kind:"vehicle",x:player.x,z:player.z,seen,heard:false,speedMps:Math.abs(player.speed)});
       for(const emitted of activeCombat(sim)?.events??[])if(emitted.sourceId===player.id){
@@ -503,6 +516,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     if(actor.model==="dog"&&(!owner||distance(actor,owner)>4)){speed=0;goal=null;}
     else {
     const reaction=reactToPerception({actor:{id:actor.id,kind:actor.model==="pigeon"?"pigeon":actor.model==="dog"?"dog":actor.firmware==="good"?"good-robot":"person",x:actor.x,z:actor.z,wet:(effect?.wetUntil??0)>sim.tick,...(actor.rustScale!==undefined?{rustScale:actor.rustScale}:{}),...(actor.level!==undefined?{subtlety:actor.level}:{}),...(actor.child?{child:true}:{}),...(actor.posture?{posture:actor.posture}:{}),...(actor.mobilityAid?{mobilityAid:true}:{}),...(actor.model==="dog"&&actor.ownerId&&others.find(other=>other.id===actor.ownerId)?{leash:{ownerId:actor.ownerId,ownerX:others.find(other=>other.id===actor.ownerId)!.x,ownerZ:others.find(other=>other.id===actor.ownerId)!.z,lengthM:4}}:{})},state:actor.reaction,stimuli,tick:sim.tick,dodgeOverrideActive:false,routineVelocity:{vx:dsin(actor.heading)*speed,vz:-dcos(actor.heading)*speed}});
+    if(reaction.state.mode==="glance"&&actor.reaction.mode!=="glance")actor.glanced=sim.tick;
     actor.reaction=reaction.state;
     if(reaction.movement.kind==="hold")speed=0;
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}

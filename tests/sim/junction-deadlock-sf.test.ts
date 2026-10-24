@@ -18,8 +18,10 @@ describe.skipIf(!worldExists("sf"))("no frozen walkers at the reported real-SF j
   for (const [x, z] of JUNCTIONS) {
     it(`(${x}, ${z}): nobody stands still for 30 s over 90 s`, () => {
       let s: SimState = createInitialState(world, 1, ["p1"], { x: x + 400, z: z + 400, heading: 0 });
-      // The player on foot by the junction; their car parked far off the streets in question.
-      s = { ...s, players: { p1: { ...s.players.p1!, mode: "foot", foot: makeFoot(x + 20, s.players.p1!.car.y, z + 20, 0) } } };
+      // The player on foot on the pavement by the junction (never in the road, where traffic would
+      // rightly wait for them); their car parked far off the streets in question.
+      const pavement = [...world.sidewalks!.nodes].sort((a, b) => Math.hypot(a.x - x - 20, a.z - z - 20) - Math.hypot(b.x - x - 20, b.z - z - 20) || (a.id < b.id ? -1 : 1))[0]!;
+      s = { ...s, players: { p1: { ...s.players.p1!, mode: "foot", foot: makeFoot(pavement.x, s.players.p1!.car.y, pavement.z, 0) } } };
       const still = new Map<number, number>();
       let worst = 0, who = "";
       for (let t = 0; t < 5400; t++) {
