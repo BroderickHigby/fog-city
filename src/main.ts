@@ -402,9 +402,10 @@ async function boot(): Promise<void> {
         drag.y * ORBIT_PER_PX + stick(pad?.axes[3]) * ORBIT_STICK_RATE * dtFrame);
     }
     // During a match the relay's timeline is drawn instead of the city (which does not step).
-    const match = multiplayer.inMatch() && !flying ? multiplayer.frame(dtFrame, () => gameUI.sampleInput()) : null;
-    if (match) {
-      // (the city loop below is skipped)
+    const inOnlineMatch = multiplayer.inMatch();
+    const match = inOnlineMatch ? multiplayer.frame(dtFrame, flying ? () => ({ ...NEUTRAL_INPUT }) : () => gameUI.sampleInput()) : null;
+    if (inOnlineMatch) {
+      if (flying) keyboard.clearActions();
     } else if (!paused) {
       acc += dtFrame;
       while (acc >= DT) {
@@ -510,6 +511,7 @@ async function boot(): Promise<void> {
     combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out));
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     const minute = gameMinuteOfDay(shown, clockStart);
+    local.id = me_;
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS);
     view.render();
 
@@ -536,8 +538,8 @@ async function boot(): Promise<void> {
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
-    if(!match)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(!match&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(!inOnlineMatch)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
+    if(!inOnlineMatch&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
     if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles}});}
     requestAnimationFrame(frame);
   };

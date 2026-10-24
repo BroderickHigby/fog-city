@@ -91,6 +91,35 @@ test.describe("online Bot Sweep", () => {
       const matchPlayers = await net(a, (n) => Object.keys(n.match()!.players).sort());
       expect(matchPlayers).toEqual(["p1", "p2"]);
 
+      // Free fly keeps the relay timeline running with neutral player controls. It never
+      // resumes the parked free-roam city, even while the camera owns the movement keys.
+      const cityHash = await a.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash());
+      const matchTick = await net(a, n => n.match()!.tick);
+      await a.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await a.keyboard.press("KeyV");
+      await expect.poll(() => a.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode), { timeout: 60_000 }).toBe("fly");
+      await a.keyboard.down("KeyW");
+      await waitNet(a, `n.match().tick > ${matchTick} + 60`, 120_000);
+      await a.keyboard.up("KeyW");
+      expect(await net(a, (_n, city) => city.tick)).toBe(cityTick);
+      expect(await a.evaluate(() => (window as unknown as FogWindow).__fogcity!.hash())).toBe(cityHash);
+      await a.keyboard.press("KeyV");
+      await expect.poll(() => a.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode), { timeout: 60_000 }).toBe("chase");
+
+      // The second seat is p2, so its first-person camera must hide p2's own human body,
+      // while p1 remains in its car. Returning to chase restores that same body.
+      await b.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await b.keyboard.press("KeyF");
+      await waitNet(b, `n.match().players.p2.mode === "foot"`, 120_000);
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().walkersFromFile), { timeout: 60_000 }).toBe(1);
+      await b.keyboard.press("KeyC");
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().cameraMode), { timeout: 60_000 }).toBe("first-person");
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().walkersFromFile), { timeout: 60_000 }).toBe(0);
+      await b.keyboard.press("KeyC");
+      await expect.poll(() => b.evaluate(() => (window as unknown as FogWindow).__fogcity!.renderInfo!().walkersFromFile), { timeout: 60_000 }).toBe(1);
+      await b.keyboard.press("KeyF");
+      await waitNet(b, `n.match().players.p2.mode === "vehicle"`, 120_000);
+
       // Player 1 drives; player 2's browser sees player 1's car move (inputs relayed by player id).
       const z0 = await net(b, (n) => n.match()!.players.p1!.car.z), x0 = await net(b, (n) => n.match()!.players.p1!.car.x);
       await a.locator("canvas").first().click({ position: { x: 300, y: 300 } });
