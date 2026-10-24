@@ -6,14 +6,14 @@ import type { MatchPayoutEvent } from "../sim/modes/session.ts";
 import type { MatchResult } from "../sim/modes/types.ts";
 
 /** Bump on any wire-format change; a client and relay that differ refuse each other. */
-export const NET_VERSION = 3;
+export const NET_VERSION = 4;
 export const MAX_PLAYERS = 4;
 /** Client prediction never runs further ahead of the confirmed state than this (133 ms). */
 export const MAX_PREDICTION_TICKS = 8;
 export const MAX_MESSAGE_BYTES = 4096;
 export const WORLDS = ["dev", "dev-city", "sf"] as const;
 export type WorldName = (typeof WORLDS)[number];
-export const MODES = ["botSweep"] as const;
+export const MODES = ["botSweep", "cleanStreets"] as const;
 export type NetModeId = (typeof MODES)[number];
 /** Generated display names: the only names a peer ever sees (never free text). */
 export const NAME_PARTS = ["Misty Otter", "Sunny Finch", "Quiet Fox", "Silver Gull"] as const;
@@ -39,6 +39,8 @@ export type ClientMessage =
   /** Host: bot teammates for the match (0–3; people always take precedence for seats). */
   | { type: "bots"; count: number }
   | { type: "start"; mode: NetModeId }
+  /** Host, in the lobby: which mode the room will play. */
+  | { type: "mode"; mode: NetModeId }
   | { type: "end" }
   | { type: "leave" }
   | { type: "input"; seq: number; input: SimInput }
@@ -130,8 +132,8 @@ export function parseClientMessage(text: string): ClientMessage {
     case "ready":
       if (keys(value, ["type", "ready"]) && typeof value.ready === "boolean") return { type: "ready", ready: value.ready };
       break;
-    case "start":
-      if (keys(value, ["type", "mode"]) && MODES.includes(value.mode as NetModeId)) return { type: "start", mode: value.mode as NetModeId };
+    case "start": case "mode":
+      if (keys(value, ["type", "mode"]) && MODES.includes(value.mode as NetModeId)) return { type: value.type, mode: value.mode as NetModeId };
       break;
     case "end": case "leave":
       if (keys(value, ["type"])) return { type: value.type };

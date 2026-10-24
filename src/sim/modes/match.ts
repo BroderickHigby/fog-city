@@ -2,14 +2,14 @@ import { clamp } from "../dmath.ts";
 import { sortedIds } from "../contract.ts";
 import type { MatchConfig,MatchContext,MatchEvent,MatchPayout,MatchPlayer,MatchState,ModeId } from "./types.ts";
 
-export const MATCH_RULES={botSweepTicks:12*60*60,cleanStreetsTicks:8*60*60,reviveTicks:3*60,reviveRange:2,downTicks:30*60,respawnTicks:15*60,lives:5,maxObjectives:256} as const;
+export const MATCH_RULES={botSweepTicks:12*60*60,cleanStreetsTicks:8*60*60,flowerCooldownTicks:90,distractedTicks:90,flowerRange:20,flowerPoints:25,reviveTicks:3*60,reviveRange:2,downTicks:30*60,respawnTicks:15*60,lives:5,maxObjectives:256} as const;
 const MODES:readonly ModeId[]=["botSweep","cleanStreets"];
 const validId=(id:string)=>/^[A-Za-z0-9:_-]{1,96}$/.test(id) && !Object.hasOwn(Object.prototype,id) && id!=="prototype";
 function event(s:MatchState,kind:string,playerId="",targetId="",amount=0,detail=""):MatchEvent {
   const e={id:s.nextEventId++,tick:s.tick,kind,playerId,targetId,amount,detail};s.events.push(e);return e;
 }
-function player(id:string,index:number,mode:ModeId):MatchPlayer {
-  return {id,team:mode==="cleanStreets"?index%2:0,runway:mode==="fogRoyale"?18:12,score:0,interruptedUpdates:0,downUntil:0,respawnAt:0,reviveTicks:0,reviverId:"",eliminated:false,bridgeUsed:false,duelUsed:false,fleeceUntil:0};
+function player(id:string,index:number,mode:ModeId,team?:number):MatchPlayer {
+  return {id,team:mode==="cleanStreets"?team??index%2:0,runway:mode==="fogRoyale"?18:12,score:0,interruptedUpdates:0,downUntil:0,respawnAt:0,reviveTicks:0,reviverId:"",eliminated:false,bridgeUsed:false,duelUsed:false,fleeceUntil:0};
 }
 
 /** Each match owns its own state. No free-roam record is read or modified here. */
@@ -22,12 +22,16 @@ export function createMatchState(config:MatchConfig):MatchState {
   if(bad.length>MATCH_RULES.maxObjectives || bad.some(id=>!validId(id)) || new Set(bad).size!==bad.length)throw new Error("Invalid match objectives");
   if(config.mode==="botSweep" && (!config.relayId || !validId(config.relayId) || bad.includes(config.relayId)))throw new Error("Bot Sweep requires a separate relay objective");
   const tick=config.tick??0;if(!Number.isSafeInteger(tick)||tick<0)throw new Error("Invalid match tick");
+  if(config.teams){
+    const keys=Object.keys(config.teams).sort();
+    if(keys.some(id=>!ids.includes(id))||ids.some(id=>config.teams![id]!==0&&config.teams![id]!==1))throw new Error("Invalid match teams");
+  }
   const limit=config.mode==="botSweep"?MATCH_RULES.botSweepTicks:config.mode==="cleanStreets"?MATCH_RULES.cleanStreetsTicks:0;
   const duration=config.durationTicks??limit;
   if(!Number.isSafeInteger(duration)||duration<60||duration>limit)throw new Error("Invalid match duration");
   return {version:1,id:config.id,mode:config.mode,seed:config.seed,tick,elapsedTicks:0,
     durationTicks:duration,
-    phase:"active",players:Object.fromEntries(ids.map((id,index)=>[id,player(id,index,config.mode)])),remainingBad:bad,relayId:config.relayId??"",lives:MATCH_RULES.lives,nextEventId:1,lastCombatTick:-1,events:[],result:null};
+    phase:"active",players:Object.fromEntries(ids.map((id,index)=>[id,player(id,index,config.mode,config.teams?.[id])])),remainingBad:bad,relayId:config.relayId??"",lives:MATCH_RULES.lives,nextEventId:1,lastCombatTick:-1,events:[],result:null};
 }
 function copy(previous:MatchState,tick:number):MatchState {
   return {...previous,tick,players:Object.fromEntries(sortedIds(previous.players).map(id=>[id,{...previous.players[id]!}])),remainingBad:[...previous.remainingBad],events:[],result:previous.result?{...previous.result,winners:[...previous.result.winners]}:null};
@@ -67,6 +71,16 @@ function combat(s:MatchState,ctx:MatchContext):void {
     else if(e.kind==="agi.pause" && s.mode!=="fogRoyale" && s.players[e.sourceId])finish(s,sortedIds(s.players).filter(id=>s.players[id]!.team===s.players[e.sourceId]!.team),"agi");
   }
   s.remainingBad.sort();if(events.length)s.lastCombatTick=Math.max(...events.map(e=>e.tick));
+}
+/** Clean Streets flowers: +25 for the thrower, and the rival cannot spray or scan for 1.5 s. */
+function flowers(s:MatchState,ctx:MatchContext):void {
+  for(const id of sortedIds(s.players)){
+    const thrower=s.players[id]!,targetId=ctx.inputs?.[id]?.flowerTarget,target=targetId?s.players[targetId]:undefined;
+    if(!target||target.team===thrower.team||thrower.downUntil>s.tick||(thrower.flowerReadyAt??0)>s.tick)continue;
+    thrower.flowerReadyAt=s.tick+MATCH_RULES.flowerCooldownTicks;
+    target.distractedUntil=s.tick+MATCH_RULES.distractedTicks;target.flowers=(target.flowers??0)+1;
+    score(s,id,MATCH_RULES.flowerPoints,"flower");event(s,"match.flower",id,target.id,1);
+  }
 }
 function revives(s:MatchState,ctx:MatchContext):void {
   for(const id of sortedIds(s.players)) {
@@ -109,7 +123,7 @@ export function stepMatch(previous:MatchState,ctx:MatchContext):MatchState {
   combat(s,ctx);if(s.result!==null)return s;
   for(const p of sortedIds(s.players).map(id=>s.players[id]!))if(p.runway<=0)down(s,p);
   if(s.mode==="botSweep") {revives(s,ctx);if(s.phase==="active" && !s.remainingBad.length && !s.relayId)finish(s,sortedIds(s.players),"sweep-complete");else if(s.elapsedTicks>=s.durationTicks)finish(s,[],"relay-update");}
-  if(s.mode==="cleanStreets" && s.elapsedTicks>=s.durationTicks)finish(s,winners(s),"time");
+  if(s.mode==="cleanStreets"){flowers(s,ctx);if(s.elapsedTicks>=s.durationTicks)finish(s,winners(s),"time");}
   return s;
 }
 export function matchPayout(state:MatchState,playerId:string):MatchPayout {

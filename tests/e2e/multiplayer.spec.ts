@@ -85,7 +85,7 @@ test.describe("online Bot Sweep", () => {
       const xpBefore = await cityXp(a);
       await a.getByRole("button", { name: "Start Bot Sweep" }).click();
       for (const page of [a, b]) await waitNet(page, `n.info()?.phase === "match" && n.match() !== null`, 120_000);
-      await expect(a.getByRole("status", { name: "Bot Sweep match" })).toContainText("Units left");
+      await expect(a.getByRole("status", { name: "Online match" })).toContainText("Units left");
       // The free-roam city is not part of the match.
       const cityTick = await net(a, (_n, city) => city.tick);
       const matchPlayers = await net(a, (n) => Object.keys(n.match()!.players).sort());
@@ -181,6 +181,44 @@ test.describe("online Bot Sweep", () => {
       for (const page of [a, b]) await waitNet(page, `n.match() !== null && Object.keys(n.match().players).sort().join() === "bot-1,p1,p2"`, 120_000);
       // The bot gets out of its car and goes sweeping in both browsers' copies of the match.
       await waitNet(b, `n.match().players["bot-1"].mode === "foot"`, 120_000);
+      for (const page of [a, b]) await waitNet(page, `n.stats() && n.stats().frames > 120`, 120_000);
+      expect((await health()).mismatches).toBe(0);
+      await a.getByRole("button", { name: "End match" }).click();
+      for (const page of [a, b]) await waitNet(page, `n.info()?.phase === "results" && n.settlements().some((s) => s.status === "paid")`, 120_000);
+      for (const page of [a, b]) { await page.getByRole("button", { name: "Back to city" }).click(); await waitNet(page, `n.info()?.phase === "none"`); }
+      for (const page of [a, b]) expect((page as Page & { problems?: string[] }).problems).toEqual([]);
+    } finally {
+      await first.close(); await second.close();
+    }
+  });
+
+  test("Clean Streets: the host picks the mode, two teams play, flowers lob, the match ends and pays once", async ({ browser }: { browser: Browser }) => {
+    gateWorld("sf");
+    const first = await browser.newContext(), second = await browser.newContext();
+    try {
+      const a = await open(first);
+      await a.getByRole("button", { name: "Play with friends" }).click();
+      await a.getByRole("button", { name: "Create private room" }).click();
+      await waitNet(a, `n.info()?.phase === "lobby"`);
+      const code = await net(a, (n) => n.info()!.code);
+      const b = await open(second, `&room=${code}`);
+      await b.getByRole("button", { name: "Join", exact: true }).click();
+      await waitNet(a, `n.info()?.members.length === 2`);
+      // Only the host can pick; everyone sees the pick.
+      await expect(b.getByRole("button", { name: "Clean Streets" })).toBeDisabled();
+      await a.getByRole("button", { name: "Clean Streets" }).click();
+      await waitNet(b, `n.info()?.mode === "cleanStreets"`);
+      await expect(b.getByText("Two teams race", { exact: false })).toBeVisible();
+      await a.getByRole("button", { name: "Ready", exact: true }).click();
+      await b.getByRole("button", { name: "Ready", exact: true }).click();
+      await expect(a.getByRole("button", { name: "Start Clean Streets" })).toBeEnabled({ timeout: 30_000 });
+      await a.getByRole("button", { name: "Start Clean Streets" }).click();
+      for (const page of [a, b]) await waitNet(page, `n.match() !== null`, 120_000);
+      await expect(a.getByRole("status", { name: "Online match" })).toContainText("Your team 0 : 0 Rivals");
+      expect(await net(b, (n) => { const m = (n.match()!.ext.modes as { match: { mode: string; players: Record<string, { team: number }> } }).match; return [m.mode, m.players.p1!.team, m.players.p2!.team]; })).toEqual(["cleanStreets", 0, 1]);
+      // B lobs flowers (held); the sim decides whether a rival is in sight. Nothing breaks either way.
+      await b.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await b.keyboard.down("KeyB"); await b.waitForTimeout(1500); await b.keyboard.up("KeyB");
       for (const page of [a, b]) await waitNet(page, `n.stats() && n.stats().frames > 120`, 120_000);
       expect((await health()).mismatches).toBe(0);
       await a.getByRole("button", { name: "End match" }).click();

@@ -10,7 +10,7 @@ import { DT, type SimInput, type SimState, type World } from "../sim/index.ts";
 import { botSweepView } from "../sim/modes/botsweep.ts";
 import { applyMatchSettlement, settledModeIds } from "../sim/modes/settlement.ts";
 import { listRooms, RelayClient, type ClientInfo, type Seat } from "../net/client.ts";
-import { MAX_PLAYERS, ROOM_CODE, WORLDS, type Results, type RoomList, type WorldName } from "../net/protocol.ts";
+import { MAX_PLAYERS, MODES, ROOM_CODE, WORLDS, type NetModeId, type Results, type RoomList, type WorldName } from "../net/protocol.ts";
 import { worldFingerprint } from "../net/world-id.ts";
 import { formatMoney } from "./copy.ts";
 
@@ -75,8 +75,13 @@ const STYLE = `
 
 function reason(text: string): string {
   return text === "sweep-complete" ? "Sweep complete: the pilot is cancelled." : text === "relay-update" ? "Time's up: the Update Relay pushed its firmware."
-    : text === "lives" ? "Out of lives." : text === "ended" ? "The host ended the match." : text === "agi" ? "AGI Achieved (Allegedly)." : "Match over.";
+    : text === "lives" ? "Out of lives." : text === "ended" ? "The host ended the match." : text === "agi" ? "AGI Achieved (Allegedly)." : text === "time" ? "Time's up: the BotBounty board is closed." : "Match over.";
 }
+const MODE_NAMES: Record<NetModeId, string> = { botSweep: "Bot Sweep", cleanStreets: "Clean Streets" };
+const MODE_BLURBS: Record<NetModeId, string> = {
+  botSweep: "Co-op: melt every beta unit and the Update Relay before the 12-minute clock runs out.",
+  cleanStreets: "Two teams race: most points from the BotBounty board in 8 minutes. Alt-fire lobs flowers at rivals (+25, they can't spray for 1.5 s).",
+};
 function clock(ticks: number): string { const s = Math.ceil(ticks / 60); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
 
 /** Mount once at boot. With no relay configured it adds nothing and the game stays single-player. */
@@ -98,7 +103,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
   const launcher = button("Play with friends", () => { panel.hidden = !panel.hidden; if (!panel.hidden) { roomsAt = 0; refreshRooms(); render(); } });
   launcher.setAttribute("aria-expanded", "false");
   const panel = node("div", "fc-mp-panel"); panel.hidden = true; panel.setAttribute("role", "group"); panel.setAttribute("aria-label", "Multiplayer lobby");
-  const hud = node("div", "fc-mp-hud"); hud.hidden = true; hud.setAttribute("role", "status"); hud.setAttribute("aria-label", "Bot Sweep match");
+  const hud = node("div", "fc-mp-hud"); hud.hidden = true; hud.setAttribute("role", "status"); hud.setAttribute("aria-label", "Online match");
   root.append(launcher, panel);
   options.host.append(root, hud);
   // Typing a room code never drives the car or fires.
@@ -155,13 +160,13 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
 
   function render(): void {
     const phase = info?.phase ?? "none", status = info?.status ?? "offline";
-    const stamp = JSON.stringify([phase, status, info?.message, info?.code, info?.members, info?.bots, info?.results?.matchId, settlements.length, entering, codeDraft === "" ? 0 : 1, rooms]);
+    const stamp = JSON.stringify([phase, status, info?.message, info?.code, info?.members, info?.bots, info?.mode, info?.results?.matchId, settlements.length, entering, codeDraft === "" ? 0 : 1, rooms]);
     if (stamp === lastStamp) return;
     lastStamp = stamp;
     const focusedCode = doc.activeElement instanceof HTMLInputElement && panel.contains(doc.activeElement);
     const parts: HTMLElement[] = [];
     if (phase === "none") {
-      parts.push(node("h2", undefined, "Bot Sweep online"), node("p", undefined, "Co-op · up to 4 players · bots fill empty seats"));
+      parts.push(node("h2", undefined, "Play online"), node("p", undefined, "Bot Sweep (co-op) or Clean Streets (teams) · up to 4 players · bots fill empty seats"));
       const quick = button("Play online", () => client.quick(), "fc-primary");
       const create = button("Create private room", () => client.create());
       const form = node("form", "fc-mp-row"), label = node("label"), input = node("input");
@@ -186,6 +191,13 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       parts.at(-1)!.append(copyLink);
       parts.push(members(info));
       const free = MAX_PLAYERS - info.members.length, alone = info.members.length === 1;
+      const modes = node("div", "fc-mp-row"); modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Mode");
+      for (const mode of MODES) {
+        const pick = button(MODE_NAMES[mode], () => client.setMode(mode), info.mode === mode ? "fc-primary" : undefined);
+        pick.setAttribute("aria-pressed", String(info.mode === mode)); pick.disabled = !host;
+        modes.append(pick);
+      }
+      parts.push(modes, node("p", undefined, MODE_BLURBS[info.mode]));
       const bots = node("div", "fc-mp-row");
       const botLabel = node("span", undefined, `Bot teammates: ${info.bots}`);
       if (host) {
@@ -196,13 +208,14 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       parts.push(bots);
       const row = node("div", "fc-mp-row");
       row.append(button(me?.ready ? "Not ready" : "Ready", () => client.ready(!me?.ready), me?.ready ? undefined : "fc-primary"));
-      if (host) { const start = button(alone && info.bots === 0 ? "Start solo practice" : "Start Bot Sweep", () => client.start(), "fc-primary"); start.disabled = !allReady; row.append(start); }
+      if (host) { const start = button(alone && info.bots === 0 ? "Start solo practice" : `Start ${MODE_NAMES[info.mode]}`, () => client.start(), "fc-primary"); start.disabled = !allReady; row.append(start); }
       row.append(button("Leave room", () => leave()));
       parts.push(row, node("p", undefined, alone && info.visibility === "public" ? "Nobody else is here yet: wait for players, add bot teammates, or play solo." : host ? (allReady ? "Everyone is ready." : "Start when everyone is ready.") : "The host starts the match when everyone is ready."));
     } else if (phase === "results" && info?.results) {
       const result = info.results.result, mine = settlements.filter((s) => s.matchId === info!.results!.matchId).at(-1);
       const won = result.winners.includes(info.playerId);
-      parts.push(node("h2", undefined, won ? "You won the sweep!" : "Match over"), node("p", undefined, reason(result.reason)));
+      const teams = info.mode === "cleanStreets" && result.reason !== "ended";
+      parts.push(node("h2", undefined, won ? (teams ? "Your team won!" : "You won the sweep!") : teams && !result.winners.length ? "A draw" : "Match over"), node("p", undefined, reason(result.reason)));
       if (mine?.status === "paid") parts.push(node("p", undefined, `+${formatMoney(mine.cashCents)} · +${mine.xp} XP added to your city.`));
       else if (mine?.status === "already") parts.push(node("p", undefined, `This match's payout (+${formatMoney(mine.cashCents)} · +${mine.xp} XP) is already in your city.`));
       parts.push(button("Back to city", () => leave(), "fc-primary"));
@@ -229,7 +242,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     for (const r of rooms.rooms) {
       const li = node("li"), joinable = r.phase === "lobby" && r.players < r.max;
       const go = button("Join", () => client.join(r.code)); go.disabled = busy || !joinable;
-      li.append(node("span", undefined, `${r.code} · ${r.players}/${r.max} players${r.bots ? ` + ${r.bots} bots` : ""} · ${r.phase === "lobby" ? "in lobby" : "playing"}`), go);
+      li.append(node("span", undefined, `${MODE_NAMES[r.mode] ?? r.mode} · ${r.code} · ${r.players}/${r.max} players${r.bots ? ` + ${r.bots} bots` : ""} · ${r.phase === "lobby" ? "in lobby" : "playing"}`), go);
       list.append(li);
     }
     if (rooms.rooms.length) box.append(list);
@@ -264,9 +277,16 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
     const me = view.players[info.playerId];
     const net = info.status !== "connected" ? info.message : client.match?.recovering ? "Resynchronising…" : info.rttMs ? `${Math.round(info.rttMs)} ms` : "";
     setText(hudClock, clock(view.remainingTicks));
-    setText(hudUnits, `Units left ${view.objectivesRemaining}${view.relayStanding ? " (Relay up)" : ""}`);
-    setText(hudLives, `Lives ${view.lives}`);
-    setText(hudScore, `Score ${me?.score ?? 0}${me?.down ? " · DOWN" : ""}`);
+    setText(hudTitle, MODE_NAMES[view.mode]);
+    if (view.mode === "cleanStreets") {
+      const mine = me?.team ?? 0;
+      setText(hudUnits, `Bounties left ${view.objectivesRemaining}`);
+      setText(hudLives, `Your team ${view.teamScores[mine] ?? 0} : ${view.teamScores[1 - mine] ?? 0} Rivals`);
+    } else {
+      setText(hudUnits, `Units left ${view.objectivesRemaining}${view.relayStanding ? " (Relay up)" : ""}`);
+      setText(hudLives, `Lives ${view.lives}`);
+    }
+    setText(hudScore, `Score ${me?.score ?? 0}${me?.down ? " · DOWN" : me?.distracted ? " · flowers!" : ""}`);
     setText(hudTeam, `Team ${info.members.filter((m) => m.connected).length}/${info.members.length}`);
     setText(hudNet, net); hudNet.hidden = !net;
     endButton.hidden = view.phase !== "active" || !client.isHost();

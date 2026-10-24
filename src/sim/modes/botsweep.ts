@@ -26,13 +26,17 @@ export const BOT_SWEEP_ARENA_RADIUS = 120;
 export const BOT_SWEEP_MAX_PLAYERS = 4;
 /** No robot is placed this close to the team spawn, so every player starts able to move. */
 export const TEAM_SPAWN_CLEAR_M = 25;
+const DISTRACTED_ACTIONS = Action.fire | Action.scan | Action.watch | Action.altFire;
 
 export class ArenaUnavailableError extends Error {
   readonly reason: "refill" | "space" | "location";
   constructor(reason: "refill" | "space" | "location", message: string) { super(message); this.name = "ArenaUnavailableError"; this.reason = reason; }
 }
 
+export type ArenaModeId = "botSweep" | "cleanStreets";
 export interface BotSweepConfig {
+  /** Bot Sweep (co-op, default) or Clean Streets (two teams racing for the most points). */
+  mode?: ArenaModeId;
   /** Stable match id; payout settlement ids are `${id}:${playerId}`. */
   id: string;
   seed: number;
@@ -41,7 +45,10 @@ export interface BotSweepConfig {
   spawn: Spawn;
   /** Optional shorter clock (ticks), at least one second, never longer than 12 minutes. */
   durationTicks?: number;
-  /** Bot teammates (`bot-1`…), so a team is never short of players; humans + bots ≤ 4. */
+  /**
+   * Bot players (`bot-1`…), so a team is never short of players; humans + bots ≤ 4. In Clean
+   * Streets people alternate teams by seat and each bot joins the smaller team.
+   */
   bots?: number;
 }
 
@@ -54,12 +61,15 @@ interface SweepInstance { version: 1; roster: RuntimeSpawn[]; center: { x: numbe
 
 export interface BotSweepView {
   id: string;
+  mode: ArenaModeId;
+  /** Clean Streets: each team's points (team 0, team 1); Bot Sweep: one shared total. */
+  teamScores: number[];
   phase: "active" | "finished";
   remainingTicks: number;
   objectivesRemaining: number;
   relayStanding: boolean;
   lives: number;
-  players: Record<string, { score: number; runway: number; down: boolean }>;
+  players: Record<string, { score: number; runway: number; down: boolean; team: number; distracted: boolean; flowers: number }>;
   result: MatchResult | null;
   payouts: readonly MatchPayoutEvent[];
 }
@@ -90,20 +100,28 @@ export function createBotSweep(world: World, config: BotSweepConfig): SimState {
   const players = [...config.players, ...botIds(bots)].sort();
   if (config.players.length < 1 || players.length > BOT_SWEEP_MAX_PLAYERS || new Set(players).size !== players.length || players.some(id => !VALID_ID.test(id))) throw new Error("Invalid match participants");
   if (excluded(config.spawn.x, config.spawn.z) || !dryPoint(world, config.spawn.x, config.spawn.z)) throw new ArenaUnavailableError("location", "Choose a dry arena outside excluded areas");
-  const relayId = `mission:mode-${config.id}:update-relay`;
+  const mode = config.mode ?? "botSweep";
+  if (mode !== "botSweep" && mode !== "cleanStreets") throw new Error("Invalid arena mode");
+  const sweepMode = mode === "botSweep";
+  const relayId = sweepMode ? `mission:mode-${config.id}:update-relay` : "";
+  const teams: Record<string, number> = {};
+  if (!sweepMode) {
+    [...config.players].sort().forEach((id, i) => { teams[id] = i % 2; });
+    for (const id of botIds(bots)) { const zero = sortedIds(teams).filter(t => teams[t] === 0).length, one = sortedIds(teams).length - zero; teams[id] = zero <= one ? 0 : 1; }
+  }
   const center = { x: config.spawn.x, y: groundHeight(world, config.spawn.x, config.spawn.z), z: config.spawn.z }, radius = BOT_SWEEP_ARENA_RADIUS;
   const arena = { center, radius }, isolated = arenaWorld(world, arena);
   if (!hasArenaRefill(isolated, arena)) throw new ArenaUnavailableError("refill", "This arena needs an accessible water refill");
-  let state = createMatchSession(isolated, { id: config.id, mode: "botSweep", seed: config.seed, players, relayId, ...(config.durationTicks !== undefined ? { durationTicks: config.durationTicks } : {}) }, config.spawn);
-  const roster = planModeRoster(isolated, state, { id: config.id, mode: "bot-sweep", playerCount: players.length, center, radius,
+  let state = createMatchSession(isolated, { id: config.id, mode, seed: config.seed, players, ...(sweepMode ? { relayId } : { teams }), ...(config.durationTicks !== undefined ? { durationTicks: config.durationTicks } : {}) }, config.spawn);
+  const roster = planModeRoster(isolated, state, { id: config.id, mode: sweepMode ? "bot-sweep" : "clean-streets", playerCount: players.length, center, radius,
     contains: (x, z) => arenaContains(arena, x, z, 1) && (x - center.x) * (x - center.x) + (z - center.z) * (z - center.z) >= TEAM_SPAWN_CLEAR_M * TEAM_SPAWN_CLEAR_M && !excluded(x, z) && dryPoint(isolated, x, z) }, isolated.sidewalks);
   // Missing objectives cannot turn an unbuilt arena into an automatic win.
-  if (roster.blocked.length || roster.actors.length !== 121) throw new ArenaUnavailableError("space", "This location has insufficient clear space for the match");
+  if (roster.blocked.length || roster.actors.length !== (sweepMode ? 121 : 120)) throw new ArenaUnavailableError("space", "This location has insufficient clear space for the match");
   const reserved = allocateActorIds(state, roster.actors.map(actor => actor.id)); state = reserved.state;
   const actors = roster.actors.map(actor => ({ ...actor, numericId: reserved.ids[actor.id]! }));
   const session = modeSessionOf(state)!;
   const instance: SweepInstance = { version: 1, roster: actors, center, radius, ...(bots ? { bots: createRivalBotState(Object.fromEntries(botIds(bots).map(id => [id, "hunter" as const]))) } : {}) };
-  const bad = actors.filter(actor => actor.firmware === "bad" && actor.id !== relayId).map(actor => actor.id).sort();
+  const bad = actors.filter(actor => actor.firmware === "bad" && (!sweepMode || actor.id !== relayId)).map(actor => actor.id).sort();
   return { ...state, ext: { ...state.ext, modes: JSON.parse(JSON.stringify({ ...session, match: { ...session.match, remainingBad: bad }, sweep: instance })) } };
 }
 
@@ -139,7 +157,12 @@ export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: In
   const local = sweep(state), session = modeSessionOf(state); if (!local || !session) throw new Error("Not a Bot Sweep match");
   const isolated = arenaWorld(world, local);
   const controls: Record<string, InputFrame[string]> = { ...inputs };
-  for (const id of sortedIds(session.match.players)) if (session.match.players[id]!.downUntil > state.tick) controls[id] = { ...NEUTRAL_INPUT };
+  for (const id of sortedIds(session.match.players)) {
+    const p = session.match.players[id]!;
+    if (p.downUntil > state.tick) controls[id] = { ...NEUTRAL_INPUT };
+    // Flowers in your hair (Clean Streets): no spraying, scanning or lobbing for a moment.
+    else if ((p.distractedUntil ?? 0) > state.tick && controls[id]) controls[id] = { ...controls[id]!, actions: controls[id]!.actions & ~DISTRACTED_ACTIONS };
+  }
   const respawns: SimEvent[] = session.match.phase !== "active" ? [] : session.match.events.filter(event => event.tick === state.tick && event.kind === "match.respawn-request" && state.players[event.playerId]).flatMap(event => [
     { tick: state.tick + 1, kind: "player.leave", playerId: event.playerId },
     { tick: state.tick + 1, kind: "player.join", playerId: event.playerId, payload: { x: local.center.x, z: local.center.z, heading: 0 } },
@@ -177,8 +200,13 @@ export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: In
 export function botSweepView(state: Readonly<SimState>): BotSweepView | null {
   const local = sweep(state), session = modeSessionOf(state); if (!local || !session) return null;
   const match = session.match, players: BotSweepView["players"] = {};
-  for (const id of sortedIds(match.players)) { const p = match.players[id]!; players[id] = { score: p.score, runway: p.runway, down: p.downUntil > state.tick }; }
-  return { id: match.id, phase: match.phase, remainingTicks: Math.max(0, match.durationTicks - match.elapsedTicks), objectivesRemaining: match.remainingBad.length + (match.relayId ? 1 : 0),
+  const teamScores = match.mode === "cleanStreets" ? [0, 0] : [0];
+  for (const id of sortedIds(match.players)) {
+    const p = match.players[id]!;
+    players[id] = { score: p.score, runway: p.runway, down: p.downUntil > state.tick, team: p.team, distracted: (p.distractedUntil ?? 0) > state.tick, flowers: p.flowers ?? 0 };
+    teamScores[match.mode === "cleanStreets" ? p.team : 0]! += p.score;
+  }
+  return { id: match.id, mode: match.mode === "cleanStreets" ? "cleanStreets" : "botSweep", teamScores, phase: match.phase, remainingTicks: Math.max(0, match.durationTicks - match.elapsedTicks), objectivesRemaining: match.remainingBad.length + (match.relayId ? 1 : 0),
     relayStanding: match.relayId !== "", lives: match.lives, players, result: match.result, payouts: session.payouts };
 }
 

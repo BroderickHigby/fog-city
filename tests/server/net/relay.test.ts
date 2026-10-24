@@ -145,6 +145,28 @@ describe("relay quick play", () => {
   });
 });
 
+describe("relay Clean Streets", () => {
+  it("lets only the host pick the mode and starts a two-team match whose flower lobs agree on every peer", async () => {
+    const h = await relay(), a = make(h), b = make(h);
+    a.client.create(); await until(() => last(a)?.phase === "lobby");
+    b.client.join(last(a).code); await until(() => last(a).members.length === 2);
+    b.client.setMode("cleanStreets"); await until(() => last(b).message === "Only the host can do that.");
+    a.client.setMode("cleanStreets"); await until(() => last(b).mode === "cleanStreets");
+    a.client.ready(true); b.client.ready(true); await until(() => last(a).members.every((m) => m.ready));
+    a.client.start(); await until(() => !!a.client.match && !!b.client.match);
+    const { modeSessionOf } = await import("../../../src/sim/modes/session.ts");
+    const match = modeSessionOf(room(h).state!)!.match;
+    expect(match.mode).toBe("cleanStreets");
+    expect([match.players.p1!.team, match.players.p2!.team]).toEqual([0, 1]);
+    // p1 lobs east at p2 (spawned 4 m east), through the real input path.
+    for (let i = 0; i < 3; i++) { a.client.sample({ throttle: 0, steer: 0, brake: 0, actions: 1 << 10, aimYaw: Math.PI / 2 }); b.client.sample({ throttle: 0, steer: 0, brake: 0, actions: 0 }); await settle(1); h.tick(); await settle(1); a.client.advance(1); b.client.advance(1); }
+    await play(h, [a, b], 60, 0);
+    expect(modeSessionOf(room(h).state!)!.match.players.p1!.score).toBe(25);
+    expect(hashState(b.client.match!.confirmed)).toBe(hashState(room(h).state!));
+    expect(room(h).stats.mismatches).toBe(0);
+  });
+});
+
 describe("relay transport seam", () => {
   it("runs the lobby over any transport with WebSocket semantics (here the ws package's client)", async () => {
     const h = await relay();

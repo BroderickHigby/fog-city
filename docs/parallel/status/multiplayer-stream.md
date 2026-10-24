@@ -13,7 +13,10 @@ Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-b
 1. Quick play / matchmaking — `work/multiplayer/quick-play` (stacked on #32): "Play online" joins
    the fullest public lobby or opens one; public room list (`GET /rooms`) with player counts;
    host-added deterministic bot teammates; solo practice.
-2. More modes · 3. Player identity · 4. Server persistence · 5. Social · 6. Ops readiness.
+2. More modes — Clean Streets: `work/multiplayer/clean-streets` (stacked on quick play): host picks
+   the mode; two teams race on the BotBounty board for 8 minutes; flowers (alt-fire, B) are a
+   mode-local mechanic until combat has its own flower attack; bots join the smaller team.
+3. Player identity · 4. Server persistence · 5. Social · 6. Ops readiness.
 
 ## What is playable now
 

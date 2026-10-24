@@ -75,7 +75,8 @@ export class RelayClient {
 
   ready(ready: boolean): void { this.send({ type: "ready", ready }); }
   setBots(count: number): void { this.send({ type: "bots", count }); }
-  start(): void { this.send({ type: "start", mode: "botSweep" }); }
+  start(): void { this.send({ type: "start", mode: this.info.mode }); }
+  setMode(mode: NetModeId): void { this.send({ type: "mode", mode }); }
   end(): void { this.send({ type: "end" }); }
   command(command: Omit<NetworkCommand, "sequence">): void { this.send({ type: "command", command: { ...command, sequence: ++this.commandSequence } }); }
 

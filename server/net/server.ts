@@ -215,6 +215,7 @@ export function createRelay(options: RelayOptions) {
           case "command": room.command(playerId, message.command); break;
           case "ready": room.ready(playerId, message.ready); break;
           case "bots": room.setBots(playerId, message.count); break;
+          case "mode": room.setMode(playerId, message.mode); break;
           case "start": room.start(playerId, message.mode, t); break;
           case "end": room.end(playerId); break;
           case "resync": room.resync(playerId, message.reason, t); break;

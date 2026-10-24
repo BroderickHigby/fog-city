@@ -134,6 +134,14 @@ export class Room {
     this.broadcastRoom();
   }
 
+  /** Host only, in the lobby: the mode the room will play. */
+  setMode(id: string, mode: NetModeId): void {
+    if (id !== this.hostId) throw new Error("not_host");
+    if (this.phase !== "lobby" || mode === this.mode) return;
+    this.mode = mode;
+    this.broadcastRoom();
+  }
+
   /** Quick play: a public lobby with a free seat. */
   open(): boolean { return !this.closed && this.visibility === "public" && this.phase === "lobby" && this.seats.size < MAX_PLAYERS; }
   listing(): RoomListing { return { code: this.code, mode: this.mode, phase: this.phase, players: this.seats.size, bots: this.bots, max: MAX_PLAYERS, world: this.bundle.name }; }
@@ -150,7 +158,7 @@ export class Room {
     for (let tries = 0; tries < this.arenas.length && !state; tries++) {
       const spawn = this.arenas[this.arenaCursor++ % this.arenas.length]!;
       try {
-        state = createBotSweep(this.bundle.world, { id: matchId, seed, players, spawn, bots: Math.min(this.bots, MAX_PLAYERS - players.length), ...(this.limits.matchTicks ? { durationTicks: this.limits.matchTicks } : {}) });
+        state = createBotSweep(this.bundle.world, { id: matchId, mode, seed, players, spawn, bots: Math.min(this.bots, MAX_PLAYERS - players.length), ...(this.limits.matchTicks ? { durationTicks: this.limits.matchTicks } : {}) });
       } catch (error) { if (!(error instanceof ArenaUnavailableError)) throw error; }
     }
     if (!state) throw new Error("arena_unavailable");
