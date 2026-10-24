@@ -9,8 +9,8 @@ old main loop then spiralled (up to 15 catch-up ticks per frame).
 | PR | Branch | What | State |
 |---|---|---|---|
 | [#72](https://github.com/BroderickHigby/fog-city/pull/72) | `work/perf/frame-pacer` | Main loop: ≤4 catch-up ticks and a 24 ms sim budget per frame; dropped time slows the game; "running slow" badge (`?debug=1`/`?perf=1`); `ticksThisFrame` for the GPU governor; debug pause authoritative (the extra-tick determinism flake) | merged via release #67 |
-| (this branch) | `work/perf/sim-hotspots` | Hash-preserving sim hotspot fixes + the `tests/sim/perf-budget.test.ts` regression guard | draft |
-| next | `work/perf/agent-lod` | Lower-rate planning for distant runtime actors (behaviour change: SIM_VERSION bump, goldens) | planned |
+| [#87](https://github.com/BroderickHigby/fog-city/pull/87) | `work/perf/sim-hotspots` | Hash-preserving sim hotspot fixes + the `tests/sim/perf-budget.test.ts` regression guard | draft (CI blocked by Actions billing; local evidence) |
+| next | `work/perf/agent-lod` | SIM_VERSION 14: distant quiet walkers plan every 4th tick, id-staggered; order-preserving grids for the planner's vehicle and sight scans | draft PR after e2e |
 
 ## How it is measured
 
@@ -98,6 +98,42 @@ Not yet at the targets (≤5 ms/tick 1p, ≤15 ms 4p; allocation halved). What r
 every runtime actor within 300 m: the planner copies each actor (≈1.4 µs for a 37-field record, measured: an explicit
 clone is no faster than the spread), proposes a move, builds its combat record; ~75 % of runtime walkers are in the
 150-300 m "active" fidelity tier. The next PR plans those at a lower, id-staggered rate (deterministic, a behaviour change).
+
+## SIM_VERSION 14 (`work/perf/agent-lod`, stacked on #87)
+
+Behaviour change, so a new stamp: a walker in the **active** fidelity tier (beyond 150 m of every anchor) with nothing
+going on (no reaction, detour, combat effect or attack, not bad firmware, not a dog on a lead, not authored/significant,
+not posted, not pending admission) plans only on ticks where `(tick + numericId) % 4 === 0` and moves four ticks' worth
+(`AgentMotionProposal.strideTicks`, body speed reported per tick). In between it is untouched: the planner now shares
+unchanged actors with the previous tick and copies only what it changes (`own()`), so a skipped walker costs neither a copy
+nor a proposal. Near walkers (≤150 m, where the player sees them) still plan every tick. The ambient-traffic layer
+already used the same id-staggered stride beyond 200 m.
+
+Hash-preserving additions on the same branch: order-preserving grids for the stopped-vehicle and vehicle box scans
+(detours, refused steps) and for bad-robot sight lists.
+
+Upgrade 13 → 14 keeps every field (`upgradeState`). `composed-v14.json` re-recorded (coverage identical in every scenario;
+`composed-v13.json` kept); four version pins moved to 14. Full vitest: only those pins and the golden failed before the
+re-record; the dodge and clearance soaks stay at zero contacts.
+
+| ticks 6,001-7,500 (1p) / 901-1,500 (4p) | v13 base `59e5a7b` | v14 branch | |
+|---|---:|---:|---|
+| 1p ms/tick | 34.4 | 13.9 | −60 % |
+| 4p ms/tick | 136.2 | 59.0 | −57 % |
+| 1p bytes/tick | 11.6 MB | 6.4 MB | −45 % |
+| 4p bytes/tick | 47.9 MB | 25.2 MB | −47 % |
+| 1p GC pause ms/tick | 6.39 | 2.34 | −63 % |
+| 4p GC pause ms/tick | 20.5 | 12.9 | −37 % |
+
+Long run (1p, ms/tick at 1k…6k): v13 base 16.4 · 18.3 · 21.1 · 28.5 · 25.6 · 29.1; v14 8.3 · 8.6 · 9.4 · 11.7 · 13.3 · 12.5.
+
+### Still short of the targets (≤5 ms/tick 1p, ≤15 ms 4p)
+
+Remaining per-tick cost at 4 players (v14, ms): agent planning 19 (route following and detour checks for ~1,000 near walkers),
+ambient traffic `stepAgents` 14 (probe 3.5, per-agent step 4.1, obstacle hashes 2.4 — robotaxis within 200 m of a player),
+combat 6, post-movement observe 4.5, motion apply 3.4, dodge 3.5, gameplay 3. The next lever is again behavioural: a wider
+LOD for ambient traffic (NEAR_RANGE_M 200 → ~120 m), which changes vehicle behaviour near people and needs the dodge/clearance
+soaks re-proven. Proposed, not done; it needs the coordinator's call.
 
 ## Regression guard
 
