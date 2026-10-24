@@ -7,14 +7,14 @@ Base: `origin/integrate/wave2` (`ff7db5b`, SIM_VERSION 8, GAME_WAVE 3).
 
 ## Plan (one PR per feature, stacked: each branch builds on the previous)
 
-| # | Branch | Feature | State |
-| --- | --- | --- | --- |
-| 1 | `work/world-detail/crosswalks` | Junction patches, continental/standard crosswalks, stop bars; Chestnut St regression test | draft PR #41; unit tests green, e2e running |
-| 2 | `work/world-detail/signals` | Traffic signals (SFMTA `ybh5-27n2`) and stop signs (SFMTA `4542-gpa3`), render-only, lamps cycle from the tick | pushed; PR after #41's CI |
-| 3 | `work/world-detail/street-signs` | White-on-green street-name blades (real names), one-way and kerbside parking signs (SFMTA `m48z-6ji4`) | pushed |
-| 4 | `work/world-detail/landcover` | Lawns (Rec and Park `38b7-6db3`, OSM), fences/walls/hedges (Rec and Park `rny7-88gk`, OSM), piers (OSM) | pushed; **needs owner sign-off on OSM (ODbL)** |
-| 5 | `work/world-detail/trees` | 135,647 real street trees (Public Works `tkzw-k3nq`) via the foliage layer; palms | pushed; touches `src/render/foliage.ts` (Lane R) |
-| 6 | `work/world-detail/storefront-signs` | Icon-only storefront blade signs, blank sign slot, bar neon, barber pole | pushed |
+| # | Branch | Feature | PR | State |
+| --- | --- | --- | --- | --- |
+| 1 | `work/world-detail/crosswalks` | Junction patches, continental/standard crosswalks, stop bars; Chestnut St regression test | #41 | draft; local typecheck, unit and e2e (39 passed, 10 skipped: no Firefox/WebKit) green; GitHub CI cannot start (account billing) |
+| 2 | `work/world-detail/signals` | Traffic signals (SFMTA `ybh5-27n2`) and stop signs (SFMTA `4542-gpa3`), render-only, lamps cycle from the tick | #52 | draft, stacked on #41 |
+| 3 | `work/world-detail/street-signs` | White-on-green street-name blades (real names), one-way and kerbside parking signs (SFMTA `m48z-6ji4`) | #53 | draft, stacked |
+| 4 | `work/world-detail/landcover` | Lawns (Rec and Park `38b7-6db3`, OSM), fences/walls/hedges (Rec and Park `rny7-88gk`, OSM), piers (OSM) | #54 | draft, stacked; **needs owner sign-off on OSM (ODbL) and an OSM credit in the UI** |
+| 5 | `work/world-detail/trees` | 135,647 real street trees (Public Works `tkzw-k3nq`) via the foliage layer; palms | #55 | draft, stacked; adds a placement API to `src/render/foliage.ts` (Lane R) |
+| 6 | `work/world-detail/storefront-signs` | Icon-only storefront blade signs, blank sign slot, bar neon, barber pole | #56 | draft, stacked; full unit suite green on this top branch, e2e running |
 
 ## Findings
 
@@ -53,5 +53,8 @@ Base: `origin/integrate/wave2` (`ff7db5b`, SIM_VERSION 8, GAME_WAVE 3).
 ## Log
 
 - 2026-10-23: started; baseline screenshots taken; root cause of the X found.
-- 2026-10-23: PR #41 (crosswalks) opened as a draft. Branches 2 to 6 pushed with unit tests;
-  browser screenshots of each next.
+- 2026-10-23: PR #41 (crosswalks) opened as a draft. Branches 2 to 6 pushed with unit tests.
+- 2026-10-24: screenshots of every feature committed (PNG; the privacy test bans JPEGs);
+  draft PRs #52 to #56 opened. GitHub Actions jobs are not starting for any branch ("recent
+  account payments have failed or your spending limit needs to be increased"): the owner must
+  fix billing before any PR can be marked ready.
