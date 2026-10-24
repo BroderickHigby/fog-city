@@ -8,21 +8,36 @@ Stream id `dodge`. Branch `work/dodge/natural` (from `integrate/wave2` `ff7db5b`
 - **Rendering:** ambient people are the procedural placeholder from `src/render/person.ts` (rigid limbs swung by a walk gait). They play **no** clips. The dive is that body translated plus the sim's hop in y, with the walk swing still running. The player on foot is the Rocketbox `generic-player.glb`, which has only idle/walk/run. **The Mixamo clips on `assets/mixamo-raw` are not loaded, retargeted or played anywhere.** The VAT humanoid crowd in `public/models/humanoid-vat*` (it has a `dive` clip) is also not wired into the game.
 
 ## Coordinator decision (2026-10-23): option A, with conditions
-- The fuzz's override bound becomes per driver: 0 for straight; at most 25% for each pursuit driver (chase, weave, drift, handbrake, random; **bank** too, pending sign-off).
+- The fuzz's override bound becomes per driver: 0 for straight; at most 25% for each pursuit driver (chase, weave, drift, handbrake, random and **bank**: approved).
 - Fix the close passes. Overrides read as human: no lift, a drawn speed bound, and a test for both.
 - List every test change in the PR body under "Test spec changes". Add the design.md decision-log entry (done).
 - SIM_VERSION: integrate/wave2's current version + 1 at ready time. Weather landed as 10, so dodge is **11**, and its upgrade is written as 10→11.
 
 ## Plan / progress
-- [x] Measurement and evidence tooling (`tests/sim/dodge-motion*.ts`, `tests/e2e/dodge-stream.*`).
-- [x] Sim: on-foot dodge (≤4.8 m/s, scramble 6; 7 m/s² acceleration, lunge 28; no lift; look-ahead 1–2.5 s; facing follows the run).
-- [~] Sim tuning to the per-driver bounds (worktree): a pre-override step that lunges away when a vehicle's reach crowds someone, a last-ditch lunge when no line is sure, a 0.8 s emergency window, landing clearance growing with vehicle speed, adults' override clearance 0.45 m. Close passes: 0. Straight: 0–1. Chase: ~23–25% (tight). Grid search running.
-- [x] Override drawn as an eased shove aside, ≤6 m/s on screen, no lift (`leapDrawOffset`; the sim's `leapShape` gives it the ticks).
-- [x] Player clips: `public/models/anim/dodge-clips.glb` (moved to a shared path).
-- [ ] Re-capture before (from `ff7db5b`) and after strips with the closer follow camera; full suite; e2e; PR.
+**PR #61** (draft, `work/dodge/natural` into `integrate/wave2`).
+- [x] Measurement and evidence tooling (`tests/sim/dodge-motion*.ts`, `tests/e2e/dodge-stream.*`, `docs/shots/dodge-stream/make-strips.py`).
+- [x] Sim v11: on-foot dodge (≤4.8 m/s, scramble 6; 7 m/s² acceleration, lunge 28; no lift; look-ahead 1–2.5 s; facing follows the run).
+- [x] Tuned to the coordinator's bounds. Fuzz, 160 seeds: 847 dodges, 58 overrides (6.8%, down from ~24%):
+
+  | Driver | Overrides / dodges | Share |
+  | --- | --- | --- |
+  | chase | 37/294 | 12.6% |
+  | bank | 9/201 | 4.5% |
+  | weave | 5/127 | 3.9% |
+  | drift | 3/84 | 3.6% |
+  | handbrake | 2/44 | 4.5% |
+  | random | 2/76 | 2.6% |
+  | straight | 0/21 | 0 |
+
+  Unexplained close passes: 0. Real-city soak: 0 contacts, `nobrake` 0 overrides, 0 overrides from robotaxis.
+  The two changes that mattered: the override prefers a spot clear of the path by the margin (no repeat overrides in a chase), and a car predicted into a wall widens its footprint.
+- [x] Override drawn as an eased shove aside: ≤6 m/s on screen, no lift.
+- [x] Player clips (`public/models/anim/dodge-clips.glb`) and the crowd set for Lane R (`public/models/anim/crowd-clips.glb`). Provenance: `assets/imports/rocketbox/clips.json`.
+- [x] Typecheck; full vitest (165 files, 3,367 passed, 1 skipped).
+- [ ] After strips (capturing), full e2e, local evidence comment on #61. Kept as a draft while GitHub Actions is blocked (coordinator).
 
 ## Interface for Lane R (skinned crowd), stable
-- **Clips:** `public/models/anim/dodge-clips.glb`. Skeleton-only Rocketbox `Bip01` rig (the same bone names as `generic-player.glb`; three.js binds by name). Clips: `sprint`, `runStart`, `runStop`, `recover` (Rocketbox, MIT) and `stumble`, `flinch` (Mixamo, retargeted). Each clip's `sourceSpeed` (m/s) is in the root node's extras `clips` JSON; sprint is 5.84.
+- **Clips:** `public/models/anim/dodge-clips.glb` (dodge) and `public/models/anim/crowd-clips.glb` (16 varied walks and idles: `walkStroll`, `walkSlow`, `walkFast`, `walkCool`, `jog`, `walkCasual`, `walkTexting`, `idleBreathe`, `idleTexting`, `idleWaiting`, `idleHappy`, `idleLookAround`, `idlePhone`, `idleArguing`, `wave`, `clap`; walk speeds in `sourceSpeedMps`). Skeleton-only Rocketbox `Bip01` rig (the same bone names as `generic-player.glb`; three.js binds by name). Clips: `sprint`, `runStart`, `runStop`, `recover` (Rocketbox, MIT) and `stumble`, `flinch` (Mixamo, retargeted). Each clip's `sourceSpeed` (m/s) is in the root node's extras `clips` JSON; sprint is 5.84.
 - **`src/render/human-motion.ts`:**
   - `motionFor(speed, dodge, have) → Motion`. `speed` is the drawn horizontal speed, whichever way the body moves; `dodge` is `AgentState.dodge` / `FootState.dodge` (a full `DodgeState`); `have(m)` says whether a clip loaded.
   - `MOTIONS` and `ONCE` (the clips to play once and hold).
