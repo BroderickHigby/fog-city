@@ -3,7 +3,9 @@
 
 import type { CombatState } from "../sim/combat-contract.ts";
 
-export type EffectSound = "splash" | "melt-fizz" | "rust-creak" | "moat-jingle" | "robotaxi-horn";
+export type EffectSound =
+  | "splash" | "melt-fizz" | "rust-creak" | "moat-jingle" | "robotaxi-horn"
+  | "door-open" | "door-close" | "impact" | "step-1" | "step-2" | "step-3" | "step-4";
 
 export interface EffectCue {
   sound: EffectSound;
@@ -11,6 +13,10 @@ export interface EffectCue {
   gain: number;
   /** -1 (left) .. 1 (right) relative to the listener's heading. */
   pan: number;
+  /** Playback rate (pitch and speed), default 1. */
+  rate?: number;
+  /** Start this many seconds from now, default 0. */
+  delayS?: number;
 }
 
 export interface Listener {

@@ -10,14 +10,22 @@
 import { DUCK_ATTACK_S, DUCK_RELEASE_S, audible, busGain, masterGain } from "./buses.ts";
 import type { EffectCue, EffectSound } from "./cues.ts";
 import { MusicPlayer, type MusicTrack } from "./music.ts";
+import { VehicleSynth } from "./vehicle-synth.ts";
+import type { EngineParams } from "./vehicle-sound.ts";
 import type { AudioBus, AudioPrefs } from "./prefs.ts";
 import type { VoiceHandle, VoicePlayer } from "./voice-queue.ts";
 
 export type Sound = EffectSound | "spray" | "horn";
-export const SOUNDS: readonly Sound[] = ["spray", "splash", "melt-fizz", "rust-creak", "moat-jingle", "horn", "robotaxi-horn"];
+export const SOUNDS: readonly Sound[] = [
+  "spray", "splash", "melt-fizz", "rust-creak", "moat-jingle", "horn", "robotaxi-horn",
+  "door-open", "door-close", "impact", "step-1", "step-2", "step-3", "step-4",
+];
 /** Effect voices sounding at once, all sounds together, and per sound. */
 export const MAX_EFFECT_VOICES = 8;
-export const MAX_PER_SOUND: Readonly<Record<EffectSound, number>> = { splash: 3, "melt-fizz": 3, "rust-creak": 3, "moat-jingle": 1, "robotaxi-horn": 2 };
+export const MAX_PER_SOUND: Readonly<Record<EffectSound, number>> = {
+  splash: 3, "melt-fizz": 3, "rust-creak": 3, "moat-jingle": 1, "robotaxi-horn": 2,
+  "door-open": 1, "door-close": 1, impact: 2, "step-1": 1, "step-2": 1, "step-3": 1, "step-4": 1,
+};
 
 interface ActiveEffect {
   sound: EffectSound;
@@ -50,6 +58,8 @@ export class GameAudio {
   private musicTracks: readonly MusicTrack[] = [];
   private musicTrack: string | null | undefined = undefined;
   private musicDucked = false;
+  private vehicle: VehicleSynth | null = null;
+  private engineOn = false;
   private prefs: AudioPrefs;
   private ducked = false;
   private unlocked = false;
@@ -134,6 +144,21 @@ export class GameAudio {
     this.applyGains(false);
   }
 
+  /** The player car's live engine, road and tyre sound; null silences it (on foot, paused). */
+  setEngine(params: EngineParams | null): void {
+    const ctx = this.ctx, bus = this.buses.get("effects");
+    if (!ctx || !bus || !this.unlocked) return;
+    if (!this.vehicle && params) {
+      try {
+        this.vehicle = new VehicleSynth(ctx, bus);
+      } catch {
+        return;
+      }
+    }
+    this.engineOn = params !== null;
+    this.vehicle?.set(params);
+  }
+
   /** Duck the music under a menu or dialog (nothing switches). */
   setMusicDucked(on: boolean): void {
     this.musicDucked = on;
@@ -199,13 +224,14 @@ export class GameAudio {
   play(cue: EffectCue): void {
     const ctx = this.ctx, bus = this.buses.get("effects"), buffer = this.buffers.get(cue.sound);
     if (!ctx || !bus || !buffer || !this.unlocked || cue.gain <= 0) return;
-    const now = ctx.currentTime;
+    const now = ctx.currentTime, at = now + Math.max(0, cue.delayS ?? 0);
     this.active = this.active.filter((a) => a.startedAt + (a.source.buffer?.duration ?? 0) > now);
     const same = this.active.filter((a) => a.sound === cue.sound);
     if (same.length >= MAX_PER_SOUND[cue.sound]) this.stopEffect(same[0]!);
     if (this.active.length >= MAX_EFFECT_VOICES) this.stopEffect(this.active[0]!);
     const source = ctx.createBufferSource();
     source.buffer = buffer;
+    if (cue.rate !== undefined) source.playbackRate.value = Math.max(0.25, Math.min(4, cue.rate));
     const gain = ctx.createGain();
     gain.gain.value = Math.max(0, Math.min(1, cue.gain));
     let tail: AudioNode = gain;
@@ -217,13 +243,13 @@ export class GameAudio {
     }
     source.connect(gain);
     tail.connect(bus);
-    const entry: ActiveEffect = { sound: cue.sound, source, startedAt: now };
+    const entry: ActiveEffect = { sound: cue.sound, source, startedAt: at };
     source.onended = () => {
       tail.disconnect();
       this.active = this.active.filter((a) => a !== entry);
     };
     this.active.push(entry);
-    source.start();
+    source.start(at);
     this.played.set(cue.sound, (this.played.get(cue.sound) ?? 0) + 1);
   }
 
@@ -274,13 +300,14 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
       effectsLoaded: this.buffers.size,
       effectsPlayed: Object.fromEntries(this.played),
       spray: this.spray !== null,
+      engine: this.engineOn,
       music: this.music?.nowPlaying() ?? null,
       musicSwitches: this.music?.switches ?? 0,
       ducked: this.ducked,
@@ -295,6 +322,8 @@ export class GameAudio {
 
   dispose(): void {
     this.stopSpray();
+    this.vehicle?.dispose();
+    this.vehicle = null;
     for (const a of this.active) this.stopEffect(a);
     this.music?.dispose();
     this.music = null;

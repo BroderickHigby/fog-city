@@ -14,6 +14,8 @@ import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
 import { gameplaySnapshot } from "../sim/player/adapter.ts";
 import { InnerVoice } from "./inner-voice.ts";
+import { FootstepClock, carOneShots, doorOneShots, engineParams } from "./vehicle-sound.ts";
+import type { CarState } from "../sim/contract.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
 import { audible } from "./buses.ts";
@@ -54,6 +56,8 @@ export interface AudioDebugInfo {
   music: { trackId: string; paused: boolean; src: string } | null;
   musicTracks: number;
   musicSwitches: number;
+  /** The car's live engine sound is running. */
+  engine: boolean;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
   voice: { current: string | null; mode: string | null; waiting: string[]; status: string; files: number };
@@ -126,6 +130,11 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let announced: MusicContext | null = null;
   let now = 0;
   let listener = { x: 0, z: 0, heading: 0 };
+  // The player's car and mode last frame, for engine load, impacts, landings and doors.
+  let prevCar: CarState | null = null;
+  let prevMode: string | undefined;
+  let lastFrameMs: number | null = null;
+  const footsteps = new FootstepClock();
   let inCar = false;
   let paused = false;
   const clock = (): number => (typeof performance !== "undefined" ? performance.now() : now);
@@ -195,6 +204,18 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const spraying = !frame.paused && !!combat?.projectiles.some((p) => p.ownerId === playerId && p.kind === "water" && p.bornTick >= combat.tick - 12);
       mixer.setSpray(spraying);
       mixer.setPaused(frame.paused);
+      // The car (engine, road, tyres, impacts), the doors and footsteps.
+      const dtS = lastFrameMs === null ? 0 : Math.min(0.25, Math.max(0, (frame.nowMs - lastFrameMs) / 1000));
+      lastFrameMs = frame.nowMs;
+      if (player && !frame.paused) {
+        mixer.setEngine(inCar ? engineParams(player.car, prevCar, dtS) : null);
+        if (inCar) for (const s of carOneShots(player.car, prevCar)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
+        for (const s of doorOneShots(prevMode, player.mode)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, delayS: s.delayS });
+        const step = footsteps.update(onFoot ? player.foot : null, dtS);
+        if (step) mixer.play({ sound: `step-${step.variant}`, gain: step.gain, pan: 0, rate: 0.94 + 0.03 * step.variant });
+      } else mixer.setEngine(null);
+      prevCar = player ? { ...player.car } : null;
+      prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
       const actors: HummingActor[] = runtime ? Object.values(runtime.actors) : [];
       for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused, agentsOf(state))) mixer.play(cue);
@@ -251,6 +272,10 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     restore(state) {
       missionVoice.reset();
       inner.reset();
+      prevCar = null;
+      prevMode = undefined;
+      lastFrameMs = null;
+      footsteps.reset();
       cues.reset(state?.ext.combat);
       lastFightEvent = state?.ext.combat?.events.reduce((m, e) => Math.max(m, e.id), 0) ?? 0;
       musicTracker.reset();
@@ -279,6 +304,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         music: m.music,
         musicTracks: tracks.length,
         musicSwitches: m.musicSwitches,
+        engine: m.engine,
         effectsLoaded: m.effectsLoaded,
         effectsPlayed: m.effectsPlayed,
         voice: { ...queue.snapshot(), status: manifest?.status ?? "missing", files: manifest?.lines.filter((l) => l.file).length ?? 0 },

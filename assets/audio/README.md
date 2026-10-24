@@ -31,6 +31,10 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
 | `moat-jingle` | 1.70 s | no | a bad robot hums it (tell, subtlety 3); Moat Labs vans and ads |
 | `horn` | 0.50 s | yes | every horn blast (H, pad L3 or the touch button; `src/audio/horn.ts`): looped for 0.42 s with a 12 ms attack and 60 ms release, or an octave up for 0.26 s for the pocket air horn on foot, heard from any player within 60 m. Loop the `.ogg` |
 | `robotaxi-horn` | 0.62 s | no | a robotaxi honks (agent mode `honk`, a player blocking it): at most once per car per 4 s, distance-attenuated |
+| `door-open` | 0.45 s | no | getting into or out of a car (`src/audio/vehicle-sound.ts` doorOneShots) |
+| `door-close` | 0.50 s | no | the door shutting, 0.55 to 0.75 s after it opens |
+| `impact` | 0.60 s | no | the player's car hitting something (a new `car.hits`): level and pitch follow `impactSpeed`; also a landing after a jump, lower |
+| `step-1`…`step-4` | 0.18 s | no | footsteps on foot, cycled without repeats, paced by walk (0.52 s), jog (0.36 s) or sprint (0.28 s) |
 
 ## How each one is made
 
@@ -49,6 +53,17 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
 - **robotaxi-horn**: an original, deliberately polite double chirp: two short soft-square tones
   rising a fifth (C6 then G6), each with a tiny pitch blip on its attack. It honks like it is asking
   permission; it copies no real vehicle's horn.
+- **door-open**: the latch's double click (band-passed noise bursts at 2.4 and 1.7 kHz), then
+  a short hinge glide.
+- **door-close**: a damped 95 Hz thunk with low body noise and a latch catch on top.
+- **impact**: a low 70 Hz body thump, a broadband crunch and three inharmonic metal partials.
+- **step-1…4**: a soft heel thud (80 to 110 Hz) and a gritty scuff (band-passed noise),
+  with different seeds per variant.
+- **The car's live sound** (`src/audio/vehicle-synth.ts`) has no file at all. It is synthesised
+  in Web Audio each frame from the car's state:
+  - an EV motor whine: a sawtooth plus a sine partial at 2.01x, pitched 110 Hz plus 21 Hz per m/s, louder under acceleration;
+  - road roar: looped noise through a low-pass that opens with speed, silent in the air;
+  - tyre squeal: noise through a narrow 1.9 kHz band-pass, driven by lateral slip, lost grip or hard braking at speed.
 - **moat-jingle**: four FM-bell notes, **A4 D5 E5 B4** (onsets 0, 0.17, 0.34, 0.56 s), the
   last held over a soft B/F# pad and a short room reverb. It ends unresolved on purpose ("Every
   robot. Eventually."). The interval pattern (up a fourth, up a tone, down a fifth) was chosen

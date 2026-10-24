@@ -96,7 +96,7 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
   expect((await audio(page)).music?.src).toMatch(/audio\/music\/drive\.(ogg|mp3)$/);
   const switchesAtPause = (await audio(page)).musicSwitches;
-  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(7);
+  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(14);
   // The paused game holds the line, and the dialog covers the subtitles.
   const held = (await audio(page)).voice.current;
   // Settings: the music slider by keyboard, subtitles off by click; both apply at once.
@@ -128,6 +128,8 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   // Drive into the Ferry Building plaza with held keys: driving music, then the mission moves on.
   await page.keyboard.down("KeyW");
   await expect.poll(async () => (await audio(page)).musicContext, { timeout: 60_000 }).toBe("driving");
+  // The car's live engine and road sound runs while driving.
+  await expect.poll(async () => (await audio(page)).engine, { timeout: 30_000 }).toBe(true);
   await page.keyboard.up("KeyW");
   // In the car the radio plays: the station card shows; M and Shift+M tune.
   const radio = page.locator(".fc-radio");
@@ -159,9 +161,16 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   expect((await audio(page)).ducked).toBe(false);
   await page.screenshot({ path: "test-results/audio-fallback.png" });
 
-  // On foot, spraying: the spray loop plays and the music cuts to combat.
+  // Out of the car: the door opens and shuts, the engine stops, and walking makes footsteps.
   await page.keyboard.press("KeyF");
   await expect.poll(async () => page.evaluate(() => window.__fogcity!.state().players.p1!.mode), { timeout: 30_000 }).toBe("foot");
+  await expect.poll(async () => (await audio(page)).effectsPlayed["door-open"] ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await audio(page)).effectsPlayed["door-close"] ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await audio(page)).engine, { timeout: 30_000 }).toBe(false);
+  await page.keyboard.down("KeyW");
+  await expect.poll(async () => { const p = (await audio(page)).effectsPlayed; return (p["step-1"] ?? 0) + (p["step-2"] ?? 0) + (p["step-3"] ?? 0) + (p["step-4"] ?? 0); }, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+  await page.keyboard.up("KeyW");
+  // On foot, spraying: the spray loop plays and the music cuts to combat.
   await page.keyboard.down("KeyE");
   await expect.poll(async () => (await audio(page)).effectsPlayed.spray ?? 0, { timeout: 60_000 }).toBeGreaterThan(0);
   await expect.poll(async () => (await audio(page)).musicContext, { timeout: 60_000 }).toBe("combat");
