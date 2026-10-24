@@ -413,8 +413,8 @@ export function surfaceHeight(world: World, x: number, z: number, feet: number):
 export function pointInPolygon(x: number, z: number, poly: ReadonlyArray<readonly [number, number]>): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, zi] = poly[i]!;
-    const [xj, zj] = poly[j]!;
+    const pi = poly[i]!, pj = poly[j]!;
+    const xi = pi[0], zi = pi[1], xj = pj[0], zj = pj[1];
     if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
   }
   return inside;
@@ -600,6 +600,11 @@ export function circleTouchesPolygon(x: number, z: number, r2: number, poly: Rea
 }
 
 
+/** Is (rx, rz) inside the box spanned by p and q? (Module level: no closure per call.) */
+function inSpan(px: number, pz: number, qx: number, qz: number, rx: number, rz: number): boolean {
+  return rx >= (px < qx ? px : qx) && rx <= (px > qx ? px : qx) && rz >= (pz < qz ? pz : qz) && rz <= (pz > qz ? pz : qz);
+}
+
 /** Do segments a-b and c-d cross or touch? */
 function segmentsMeet(ax: number, az: number, bx: number, bz: number, cx: number, cz: number, dx: number, dz: number): boolean {
   const d1 = (dx - cx) * (az - cz) - (dz - cz) * (ax - cx);
@@ -607,12 +612,10 @@ function segmentsMeet(ax: number, az: number, bx: number, bz: number, cx: number
   const d3 = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
   const d4 = (bx - ax) * (dz - az) - (bz - az) * (dx - ax);
   if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
-  const on = (px: number, pz: number, qx: number, qz: number, rx: number, rz: number): boolean =>
-    rx >= (px < qx ? px : qx) && rx <= (px > qx ? px : qx) && rz >= (pz < qz ? pz : qz) && rz <= (pz > qz ? pz : qz);
-  if (d1 === 0 && on(cx, cz, dx, dz, ax, az)) return true;
-  if (d2 === 0 && on(cx, cz, dx, dz, bx, bz)) return true;
-  if (d3 === 0 && on(ax, az, bx, bz, cx, cz)) return true;
-  if (d4 === 0 && on(ax, az, bx, bz, dx, dz)) return true;
+  if (d1 === 0 && inSpan(cx, cz, dx, dz, ax, az)) return true;
+  if (d2 === 0 && inSpan(cx, cz, dx, dz, bx, bz)) return true;
+  if (d3 === 0 && inSpan(ax, az, bx, bz, cx, cz)) return true;
+  if (d4 === 0 && inSpan(ax, az, bx, bz, dx, dz)) return true;
   return false;
 }
 

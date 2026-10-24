@@ -63,6 +63,10 @@ function samplePoints(hl: number, hw: number): Array<[number, number]> {
   ];
 }
 
+/** samplePoints() as unit multipliers of hw and hl (exact: x1, x-1, x0 and x0.5 = /2), allocation-free. */
+const SAMPLE_L = [1, -1, 1, -1, 0, 0, 1, -1, 1, 1, -1, -1] as const;
+const SAMPLE_F = [1, 1, -1, -1, 1, -1, 0, 0, 0.5, -0.5, 0.5, -0.5] as const;
+
 /**
  * Deepest penetration of an oriented box into one polygon, as the push (dx, dz) that removes it,
  * or null when they do not overlap.
@@ -82,7 +86,8 @@ function boxPolygonPush(
   let px = 0;
   let pz = 0;
   // Box points inside the polygon: push that point to the nearest edge.
-  for (const [l, f] of samplePoints(hl, hw)) {
+  for (let i = 0; i < SAMPLE_L.length; i++) {
+    const l = SAMPLE_L[i]! * hw, f = SAMPLE_F[i]! * hl;
     const x = cx + rx * l + fx * f;
     const z = cz + rz * l + fz * f;
     if (!pointInPolygon(x, z, poly)) continue;
