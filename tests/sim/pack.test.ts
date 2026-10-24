@@ -180,8 +180,20 @@ describe.skipIf(!sfPresent)("collider pack reader: the committed sf pack", () =>
         const c = readJson<TileCollider & { buildings: Array<TileCollider["buildings"][number] & { meta?: unknown }> }>(`${SF}/${manifest!.tiles[i]!.collider}`);
         const t = pack.tiles[i]!;
         expect(t.tileId).toBe(c.tileId);
-        expect(t.ground).toEqual(c.ground);
-        expect(t.buildings).toEqual(c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY })));
+        // The pack carries inland lakes as LAKE flags (ground.lake); the JSON as cover digits
+        // with the lakes' levels (schemas/world-colliders.md). Everything else is identical, and
+        // a sample is a lake in the pack exactly when its JSON cover digit names one.
+        const { cover, lakes, ...plain } = c.ground as NonNullable<typeof c.ground> & { cover?: string; lakes?: unknown[] };
+        const { lake, ...packed } = t.ground as NonNullable<typeof t.ground> & { lake?: number[] };
+        expect(packed, t.tileId).toEqual(plain);
+        const fromCover = cover ? [...cover].map((ch) => (ch >= "0" && ch <= "9" ? 1 : 0)) : [];
+        if (fromCover.includes(1)) {
+          expect(lakes?.length, t.tileId).toBeGreaterThan(0);
+          expect(lake, t.tileId).toEqual(fromCover);
+        } else {
+          expect(lake, t.tileId).toBeUndefined();
+        }
+        expect(t.buildings).toEqual(c.buildings.map((b) => ({ id: b.id, footprint: b.footprint, baseY: b.baseY, topY: b.topY, ...(b.underY !== undefined ? { underY: b.underY } : {}) })));
         json.push(c);
       }
       const fromPack: World = buildWorld(picks.map((i) => pack.tiles[i]!));

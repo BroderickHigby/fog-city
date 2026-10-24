@@ -14,6 +14,7 @@ import {
   buildWalls,
   buildWorld,
   carBox,
+  clearCarSpot,
   circleHitsWall,
   createInitialState,
   dcos,
@@ -418,32 +419,89 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
     const south = Math.max(...land.map((s) => Math.max(s.az, s.bz)));
     const edge = land.filter((s) => s.az === s.bz && s.az >= south - 500 && s.nz < 0 && s.len >= 200);
     expect(edge.length).toBeGreaterThan(0);
+    // Each approach starts 50 m inside the edge, facing it head-on or 20 degrees either way, and
+    // drives at full throttle (about 17 m/s at the wall). A start pose must itself be a pose play
+    // can produce: its body clear of every wall (overshoot < 0). The southern strip is only about
+    // 50 m deep in places, so a start 50 m back can land on the creek shore's own wall instead
+    // (at x 1450-1480 the body starts 2.2 m across the 30 m land wall at z 9620, and that start
+    // pose, not the drive, was the 2.1978 m once measured here); such a start is skipped, and
+    // the test after this one shows recovery never produces it.
     let tried = 0;
+    const lanes = new Set<number>();
     for (const w of edge) {
       for (let t = 20; t < w.len - 20; t += 10) {
         const x = w.ax + w.ux * t;
-        const start = makeCar(x, w.az - 50, Math.PI, groundHeight(world, x, w.az - 50));
-        // Free run in the world without walls: the car would cross the county boundary.
-        let free = start;
-        let clear = true;
-        for (let i = 0; i < 300 && clear; i++) {
-          free = stepCar(noWalls, free, FULL);
-          if (free.hits > 0) clear = false;
+        for (const heading of [Math.PI, Math.PI - 0.35, Math.PI + 0.35]) {
+          const sx = x - dsin(heading) * 50;
+          const sz = w.az + dcos(heading) * 50;
+          const start = makeCar(sx, sz, heading, groundHeight(world, sx, sz));
+          if (overshoot(world, start) >= 0) continue;
+          // Free run in the world without walls: the car would cross the county boundary.
+          let free = start;
+          let clear = true;
+          for (let i = 0; i < 300 && clear; i++) {
+            free = stepCar(noWalls, free, FULL);
+            if (free.hits > 0) clear = false;
+          }
+          if (!clear || free.z < w.az + 10) continue;
+          tried++;
+          lanes.add(w.az * 1e5 + x);
+          const trace = drive(world, start, 600);
+          let peak = 0;
+          for (const c of trace) {
+            peak = Math.max(peak, Math.abs(c.speed));
+            expect(overshoot(world, c), `x ${x.toFixed(0)} heading ${heading.toFixed(2)}`).toBeLessThan(0.02);
+            expect(c.y, "the car stays on the ground of the last built row").toBeGreaterThan(groundHeight(world, c.x, w.az - 10) - 3);
+          }
+          expect(peak, "the car reaches the wall at speed").toBeGreaterThan(10);
+          const last = trace[trace.length - 1]!;
+          expect(last.hits).toBeGreaterThan(0);
+          expect(Math.abs(last.speed)).toBeLessThan(3);
         }
-        if (!clear || free.z < w.az + 10) continue;
-        tried++;
-        const trace = drive(world, start, 600);
-        for (const c of trace) {
-          expect(overshoot(world, c), `x ${x.toFixed(0)}`).toBeLessThan(0.02);
-          expect(c.y, "the car stays on the ground of the last built row").toBeGreaterThan(groundHeight(world, c.x, w.az - 10) - 3);
-        }
-        const last = trace[trace.length - 1]!;
-        expect(last.hits).toBeGreaterThan(0);
-        expect(Math.abs(last.speed)).toBeLessThan(3);
-        return;
+        if (lanes.size >= 8) break;
       }
     }
-    expect(tried, "no clear approach to the southern land edge found").toBeGreaterThan(0);
+    expect(tried, "no clear approach to the southern land edge found").toBeGreaterThanOrEqual(12);
+    expect(lanes.size).toBeGreaterThanOrEqual(6);
+  }, SF_RUN_MS);
+
+  it("spawn, join and teleport recovery never leave a car straddling the southern edge's walls", () => {
+    // The pose the old southern-edge probe started from: x 1450-1480, z 9620, facing south, on
+    // a 30 m land wall at a creek shore just inside the county line. Its body straddles that
+    // wall (a wall segment lies inside it; one corner 2.2 m past it). clearCarSpot (spawn, join,
+    // respawn, teleport and the save-load path through spawnPlayer) must move such a request to
+    // a pose whose body holds no wall and whose every corner is inside, reached without crossing
+    // a wall, so play can never start from it.
+    // Inside the city here: reached in a straight line from an interior point of the strip
+    // without crossing a wall, and not on the water (points no anchor sees are not sampled).
+    const anchors: Array<[number, number]> = [[1500, 9645], [1300, 9645], [1640, 9640], [1420, 9655]];
+    const insidePoint = (x: number, z: number): boolean =>
+      !onWater(world.walls!.shore, x, z) && anchors.some(([ax, az]) => !segmentCrossesWall(world.walls, ax, az, x, z));
+    const outside = (c: CarState): boolean => corners(c).some(([x, z]) => !insidePoint(x, z));
+    const holdsWall = (c: CarState): boolean => boxBlocked(world, carBox(c), c.y + 0.3, [], c.y + CAR.bodyHeight);
+    for (const x of [1450, 1460, 1470, 1480]) {
+      const asked = makeCar(x, 9620, Math.PI, groundHeight(world, x, 9620));
+      expect(holdsWall(asked), `asked pose at x ${x} straddles the wall`).toBe(true);
+      expect(overshoot(world, asked), `asked pose at x ${x}`).toBeGreaterThan(2);
+      const spot = clearCarSpot(world, x, 9620, Math.PI);
+      const placed = makeCar(spot.x, spot.z, Math.PI, groundHeight(world, spot.x, spot.z));
+      expect(holdsWall(placed), `placed pose for x ${x}`).toBe(false);
+      expect(outside(placed), `placed pose for x ${x}`).toBe(false);
+      expect(segmentCrossesWall(world.walls, x, 9620, spot.x, spot.z), "recovery never crosses a wall to get there").toBe(false);
+    }
+    // And a sweep of requests along the whole southern strip (inside the city; play never asks
+    // for a spot past the county line): every recovered pose is clear.
+    let moved = 0;
+    for (let x = 1230; x <= 1690; x += 7) {
+      for (const z of [9600, 9610, 9615, 9620, 9625, 9630, 9640, 9650]) {
+        if (!insidePoint(x, z)) continue;
+        const spot = clearCarSpot(world, x, z, Math.PI);
+        const placed = makeCar(spot.x, spot.z, Math.PI, groundHeight(world, spot.x, spot.z));
+        if (spot.x !== x || spot.z !== z) moved++;
+        expect(holdsWall(placed) || outside(placed), `recovered pose for ${x},${z} at ${spot.x},${spot.z}`).toBe(false);
+      }
+    }
+    expect(moved).toBeGreaterThan(20);
   }, SF_RUN_MS);
 
   it("a car driven at the Ocean Beach shoreline stops on the land side, above the sea", () => {
