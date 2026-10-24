@@ -3,32 +3,32 @@
   "scenarios": {
     "city": {
       "hashes": [
-        "7d5fa71f",
-        "0818bfe9",
-        "eac099e8",
-        "a244736e",
-        "5c5e4cc2",
-        "4d172dcc"
+        "97c9a2e1",
+        "59e4d26e",
+        "2a105c06",
+        "2977db51",
+        "08de217e",
+        "b9269c4c"
       ],
       "coverage": {
         "agents:final": 17,
-        "combat:projectile.ended": 36,
-        "combat:weapon.water": 39,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
         "identities:final": 2,
         "missions:mission.stage": 3
       }
     },
     "service": {
       "hashes": [
-        "e4597f37",
-        "c936adb8",
-        "1741abad",
-        "fb897190",
-        "60bbb796",
-        "6a1035d0",
-        "f1c2de28",
-        "87cde5b6",
-        "a884803a"
+        "ecf3ce26",
+        "d9293a19",
+        "926225fd",
+        "8b0555c7",
+        "b0156129",
+        "e58c035d",
+        "3f4f7691",
+        "3cac5e24",
+        "673e345a"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,12 +57,12 @@
     },
     "city-wave3": {
       "hashes": [
-        "30f03116",
-        "d693669d",
-        "725f1315",
-        "68c17c98",
-        "6211ea9d",
-        "a3e3ac06"
+        "f0f556e8",
+        "94e04c4a",
+        "4a585d24",
+        "20bbc177",
+        "50a8fd0f",
+        "38cecdec"
       ],
       "coverage": {
         "agents:final": 17,
@@ -74,12 +74,12 @@
     },
     "city-wave3-rain": {
       "hashes": [
-        "712ba64a",
-        "b895cc14",
-        "661c8d43",
-        "8a942e8e",
-        "88ee04a1",
-        "bfa9f4a0"
+        "89b88608",
+        "29df313e",
+        "5426e31a",
+        "995ba71e",
+        "e02e2d2b",
+        "32251370"
       ],
       "coverage": {
         "agents:final": 17,

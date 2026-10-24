@@ -1,4 +1,4 @@
-// Vehicle dynamics in the browser, through real controls (car.ts, SIM_VERSION 12): on the dev
+// Vehicle dynamics in the browser, through real controls (car.ts, SIM_VERSION 15): on the dev
 // world the player holds W from rest, then S to brake. The car pulls like a modern EV off the line
 // (about 6 m/s^2 average, the old arcade car pulled 9.5) and brakes at about 1 g (ABS at the
 // tyres' grip; the old car stopped at over 2 g). Rates are measured against the sim's ticks, so

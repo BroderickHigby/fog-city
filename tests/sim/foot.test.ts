@@ -125,7 +125,30 @@ describe("getting out and back in", () => {
 describe("walking", () => {
   const start = (world: World): SimState => run(world, createInitialState(world, 1, ["p1"], { x: 0, z: 0, heading: 0 }), PRESS, 1);
 
-  it("walks at ~1.6 m/s and sprints (brake held) much faster", () => {
+  it("jogs briskly by default and Shift (Action.sprint) sprints fast, with a short ramp (v11)", () => {
+    expect(FOOT.walk).toBeGreaterThanOrEqual(2.8);
+    expect(FOOT.sprint).toBeGreaterThanOrEqual(6.5);
+    expect(FOOT.sprint).toBeLessThanOrEqual(7.5);
+    let s = run(wall, start(wall), F(1), 30);
+    expect(s.players.p1!.foot!.speed).toBeCloseTo(FOOT.walk, 5);
+    s = run(wall, s, F(1, 0, 0, Action.sprint), 30);
+    expect(s.players.p1!.foot!.speed).toBeCloseTo(FOOT.sprint, 5);
+    expect(s.players.p1!.foot!.sprint).toBe(true);
+    // Shift alone, or backwards, is not a sprint.
+    s = run(wall, s, F(0, 0, 0, Action.sprint), 60);
+    expect(s.players.p1!.foot!.sprint).toBe(false);
+    expect(s.players.p1!.foot!.speed).toBe(0);
+    // Turning is slower at a sprint than at a jog.
+    expect(FOOT.sprintTurnRate).toBeLessThan(FOOT.turnRate);
+  });
+
+  it("Action.sprint does nothing in the car", () => {
+    const init = createInitialState(wall, 1, ["p1"], { x: 0, z: 0, heading: 0 });
+    const a = run(wall, init, F(1), 60), b = run(wall, init, F(1, 0, 0, Action.sprint), 60);
+    expect(b.players.p1!.car).toEqual(a.players.p1!.car);
+  });
+
+  it("jogs at FOOT.walk and sprints (brake held) much faster", () => {
     let s = run(wall, start(wall), F(1), 90);
     expect(s.players.p1!.foot!.speed).toBeCloseTo(FOOT.walk, 5);
     expect(s.players.p1!.foot!.sprint).toBe(false);

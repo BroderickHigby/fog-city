@@ -32,7 +32,7 @@ describe.skipIf(!SF)("ramming robotaxis on the real city", () => {
     }
   }, 600_000);
 
-  it("flat out at the v12 top speed (starting at 50 m/s) along the Ferry Building route, no brakes: nobody is touched", () => {
+  it("flat out at the v15 top speed (starting at 50 m/s) along the Ferry Building route, no brakes: nobody is touched", () => {
     const r = soak(world, { ...home, speed: 50 }, "nobrake", 1200, 13);
     expect(r.contacts, r.name).toBe(0);
     expect(r.failures, `${r.name}: the override gave up`).toBe(0);

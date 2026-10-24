@@ -140,6 +140,30 @@ describe("bad-robot attack channels", () => {
     expect(state.attacks).toEqual([]);
   });
 
+  it("refuses to start a forced update on an occupied robotaxi", () => {
+    const ctx = context([robot(), robot("taxi", { firmware: "good", model: "robotaxi", occupied: true, z: 2 })],
+      { attacks: [request("forced-update", { targetId: "taxi" })] });
+    const state = fresh(ctx);
+    const events = frames(state, ctx, 361);
+    expect(events.some(e => e.kind === ATTACK_EVENT.windup || e.kind === ATTACK_EVENT.converted)).toBe(false);
+    expect(state.attacks).toEqual([]);
+  });
+
+  it("cancels a forced update when a rider boards, but permits conversion after they leave", () => {
+    const taxi = robot("taxi", { firmware: "good", model: "robotaxi", z: 2 });
+    const ctx = context([robot(), taxi], { attacks: [request("forced-update", { targetId: "taxi" })] });
+    const state = fresh(ctx);
+    tick(state, ctx); frames(state, ctx, 359);
+    const occupied = { ...ctx, actors: [robot(), { ...taxi, occupied: true }] };
+    const cancelled = tick(state, occupied);
+    expect(cancelled.some(e => e.kind === ATTACK_EVENT.converted)).toBe(false);
+    expect(cancelled.some(e => e.kind === ATTACK_EVENT.interrupted)).toBe(true);
+    expect(state.attacks).toEqual([]);
+    const empty = { ...ctx, attacks: [request("forced-update", { id: "a2", sequence: 2, targetId: "taxi" })] };
+    const resumed = frames(state, empty, 361);
+    expect(resumed.filter(e => e.kind === ATTACK_EVENT.converted)).toMatchObject([{ targetId: "taxi" }]);
+  });
+
   it("counts conversions within one tick so simultaneous channels cannot exceed the cap", () => {
     const actors = [robot("a"), robot("b"), robot("good-a", { firmware: "good", z: 2 }), robot("good-b", { firmware: "good", z: 2 })];
     const ctx = frozen(context(actors, { conversionCap: 3, attacks: [

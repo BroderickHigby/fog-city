@@ -87,7 +87,8 @@ describe("water weapon configuration", () => {
     }
     const p = player({ mount: "roof", trunk: true, roofCannon: true });
     expect(waterShot(state(p), p, { fire: true }, context(p, { wave: 3 }))).toBeNull();
-    expect(waterShot(state(p, { reserve: 0 }), p, { fire: true }, context(p, { wave: 4 }))).toBeNull();
+    // Unlimited water: an owned cannon on an owned trunk fires even from an empty reserve.
+    expect(waterShot(state(p, { reserve: 0 }), p, { fire: true }, context(p, { wave: 4 }))).toMatchObject({ supply: "reserve" });
   });
 
   it("fires the roof cannon at any speed with half rust and fresh trunk water", () => {
@@ -122,11 +123,19 @@ describe("water weapon configuration", () => {
     expect(waterShot({ ...s, pauseUntil: 10 }, p, { fire: true }, ctx)).not.toBeNull();
   });
 
-  it("checks the correct supply without modifying either tank", () => {
-    const p = player();
-    expect(waterShot(state(p, { water: 0.079, reserve: 20 }), p, { fire: true }, context(p))).toBeNull();
+  it("fires from a near-empty tank or trunk without modifying either (unlimited water)", () => {
+    const p = player(), low = state(p, { water: 0.079, reserve: 20 }), before = JSON.stringify(low);
+    expect(waterShot(low, p, { fire: true }, context(p))).toMatchObject({ supply: "water" });
     const roof = player({ mount: "roof", trunk: true, roofCannon: true });
-    expect(waterShot(state(roof, { water: 8, reserve: 0.079 }), roof, { fire: true }, context(roof, { wave: 4 }))).toBeNull();
+    expect(waterShot(state(roof, { water: 8, reserve: 0.079 }), roof, { fire: true }, context(roof, { wave: 4 }))).toMatchObject({ supply: "reserve" });
+    expect(JSON.stringify(low)).toBe(before);
+  });
+
+  it("adds 2 m of reach per Pressure tier (the former tank upgrades)", () => {
+    for (const tankTier of [0, 1, 2] as const) {
+      const p = player({ tankTier });
+      expect(waterShot(state(p), p, { fire: true }, context(p))!.range).toBe(12 + 2 * tankTier);
+    }
   });
 
   it("honours the flower distraction on an aliased player body", () => {

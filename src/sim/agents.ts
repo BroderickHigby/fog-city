@@ -64,6 +64,8 @@
 
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
+import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
+import { rideRouteNext } from "./ride-route.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
 import { movementLimit } from "./combat/system.ts";
 import {
@@ -74,6 +76,7 @@ import {
   dirIndex,
   projectOnPath,
   endNode,
+  laneOffset,
   lanePath,
   makePath,
   offsetAdvance,
@@ -93,6 +96,31 @@ import {
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
 import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts";
+import {
+  PASS_BEYOND_M,
+  PASS_RAMPS_M,
+  PASS_FOOT_SLACK_M,
+  PASS_FOOT_WAIT_TICKS,
+  PASS_RETRY_TICKS,
+  PASS_SIDE_CLEAR_M,
+  PASS_SPEED_MPS,
+  PASS_STANDOFF_M,
+  PASS_TARGET_GAP_M,
+  PASS_VEHICLE_GAP_M,
+  PASS_WAIT_TICKS,
+  PASS_POSE_STEP_M,
+  passLat,
+  passOffsets,
+  passPose,
+  passTime,
+  pointRectGap,
+  poseHeading,
+  rectAt,
+  rectGap,
+  rectOnPath,
+  type PassState,
+  type Rect,
+} from "./overtake.ts";
 
 export type AgentKind = "robotaxi" | "errandRobot" | "sidewalkBot" | "person";
 export const AGENT_KINDS: readonly AgentKind[] = ["robotaxi", "errandRobot", "sidewalkBot", "person"];
@@ -265,10 +293,12 @@ export interface AgentState {
   rng: number;
   /** v4: diving out of a vehicle's way, or getting up after it (src/sim/dodge.ts), else null. */
   dodge: DodgeState | null;
-  /** v11: knocked off its path by a hit (src/sim/impacts.ts); absent otherwise. stepAgents leaves it alone. */
+  /** v14: knocked off its path by a hit (src/sim/impacts.ts); absent otherwise. stepAgents leaves it alone. */
   knock?: import("./impacts.ts").KnockState;
-  /** v11: how dented each side is (src/sim/impacts.ts); absent while undamaged. */
+  /** v14: how dented each side is (src/sim/impacts.ts); absent while undamaged. */
   dents?: import("./impacts.ts").Dents;
+  /** v13 robotaxis: going round a stopped vehicle on the current lane (src/sim/overtake.ts); absent otherwise. */
+  pass?: PassState;
 }
 
 /** state.ext.agents */
@@ -435,6 +465,38 @@ interface Obs {
    * other robotaxis (how traffic spaces itself) and its drawn body, a box, to walkers.
    */
   onlyFor?: "road" | "foot";
+  /** A vehicle a robotaxi may go round once it is standing still (a player's car, a service vehicle, a seized robotaxi). */
+  pass?: PassBody;
+  /** A robotaxi going round a stopped vehicle (never ignored by the deadlock breaker or a mutual yield). */
+  passing?: boolean;
+  /** The stretch of road a passing robotaxi has claimed ahead of it: robotaxis stop short of it. */
+  claim?: boolean;
+}
+
+/** A body robotaxis may go round once it stands still in their lane: a vehicle, or someone on foot. */
+interface PassBody {
+  /** "p:<player id>" (a car), "pf:<player id>" (a player on foot) or "a:<agent id>". */
+  key: string;
+  rect: Rect;
+  speed: number;
+  /** Someone on foot (a person, a robot, a player's walker): passed only with the walker berth to spare. */
+  foot?: boolean;
+  child?: boolean;
+}
+
+/** A vehicle body for planning a pass: everything with wheels near the road. */
+interface PassVehicle extends PassBody {
+  id: number;
+}
+
+/** Someone on foot, for planning a pass: position, velocity, radius. */
+interface PassFoot {
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+  r: number;
+  child: boolean;
 }
 
 interface Body {
@@ -514,9 +576,9 @@ function nearestBody(bodies: readonly Body[], x: number, z: number): number {
 export function playerBodies(state: Readonly<SimState>): Body[] {
   const out: Body[] = [];
   for (const id of sortedIds(state.players)) {
-    const p = state.players[id]!;
-    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z });
-    else out.push({ x: p.car.x, z: p.car.z });
+    // A rider counts where the taxi is (keeps it stepped every tick and never despawned).
+    const b = playerPose(state.players[id]!);
+    out.push({ x: b.x, z: b.z });
   }
   return out;
 }
@@ -534,8 +596,10 @@ function playerObstacles(state: Readonly<SimState>): Obs[] {
       player: true,
       road: false,
       box: { fx: dsin(c.heading), fz: -dcos(c.heading), hl: CAR.halfLength, hw: CAR.halfWidth },
+      pass: { key: `p:${id}`, rect: rectAt(c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth), speed: c.speed },
     });
-    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false, foot: true });
+    if (p.mode === "foot" && p.foot) out.push({ x: p.foot.x, z: p.foot.z, r: FOOT.radius, id: -1, player: true, road: false, foot: true,
+      pass: { key: `pf:${id}`, rect: rectAt(p.foot.x, p.foot.z, 0, FOOT.radius, FOOT.radius), speed: p.foot.speed, foot: true } });
   }
   return out;
 }
@@ -679,20 +743,48 @@ const WALKER_PREDICT_S: readonly number[] = [0.6, 1.2];
 /** Seconds ahead a moving robotaxi's position is projected (seen by walkers at the kerb). */
 const ROBOTAXI_PREDICT_S: readonly number[] = [1.0, 2.0];
 
-function agentObstacles(list: readonly AgentState[]): Obs[] {
+/** Spacing of a passing robotaxi's claim circles along its profile, metres. */
+const CLAIM_STEP_M = 2.5;
+/** Only where the profile is at least this far off the lane does it claim road, metres. */
+const CLAIM_LAT_M = 0.5;
+
+/** The body robotaxis plan a pass around: a service vehicle's own extents, else the drawn robotaxi. */
+function vehicleRect(a: Readonly<AgentState>): Rect {
+  return rectAt(a.x, a.z, a.heading, a.halfLength ?? ROBOTAXI_BODY.halfLength, a.halfWidth ?? ROBOTAXI_BODY.halfWidth);
+}
+
+/**
+ * Obstacles of the agents. With the road graph: a passing robotaxi also claims the road ahead
+ * of it along its profile. `passable`: robotaxi ids others may go round once they stand still
+ * (seized ones); service and mission vehicles (runtimeId) always may.
+ */
+function agentObstacles(list: readonly AgentState[], g: RoadGraph | null = null, passable: ReadonlySet<number> = new Set()): Obs[] {
   const out: Obs[] = [];
   for (const a of list) {
     const spec = AGENT_SPEC[a.kind];
     const road = spec.road;
     if (road) {
       // To robotaxis, its two circles; to walkers, its drawn body (with a berth while it moves).
-      for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, onlyFor: "road" });
+      const pass = a.runtimeId !== undefined || passable.has(a.id) ? { key: `a:${a.id}`, rect: vehicleRect(a), speed: a.speed } : undefined;
+      const passing = a.pass !== undefined;
+      for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, onlyFor: "road", ...(pass ? { pass } : {}), ...(passing ? { passing } : {}) });
+      const ei = g && a.pass && a.conn === null ? g.edgeIndex.get(a.edge) : undefined;
+      if (g && a.pass && ei !== undefined) {
+        const lane = basePath(g.edges[ei]!, a);
+        for (let d = a.s + CLAIM_STEP_M; d < a.pass.s3; d += CLAIM_STEP_M) {
+          if (Math.abs(passLat(a.pass, d)) < CLAIM_LAT_M) continue;
+          const q = passPose(lane, a.pass, d);
+          out.push({ x: q.x, z: q.z, r: spec.radius, id: a.id, player: false, road, onlyFor: "road", passing: true, claim: true });
+        }
+      }
       const grow = a.speed > TAXI_STOPPED_MPS ? WALKER_TAXI_BERTH_M : 0;
       const hl = ROBOTAXI_BODY.halfLength + grow;
       const hw = ROBOTAXI_BODY.halfWidth + grow;
       out.push({ x: a.x, z: a.z, r: Math.sqrt(hl * hl + hw * hw), id: a.id, player: false, road, onlyFor: "foot", box: { fx: dsin(a.heading), fz: -dcos(a.heading), hl, hw } });
     } else {
-      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child: a.kind === "person" && personIsChild(a.id) });
+      const r = a.radius ?? spec.radius, child = a.child === true || (a.kind === "person" && personIsChild(a.id));
+      out.push({ x: a.x, z: a.z, r: spec.radius, id: a.id, player: false, road, foot: true, child,
+        pass: { key: `a:${a.id}`, rect: rectAt(a.x, a.z, 0, r, r), speed: a.speed, foot: true, child } });
     }
     if (a.speed > (road ? 1 : 0.3)) {
       const hx = dsin(a.heading);
@@ -735,8 +827,9 @@ function canWalk(e: RoadEdgeInfo, dir: Dir): boolean {
  * otherwise the nearer side, which means crossing a street). ["", dir, 0] at a dead end with
  * no way on.
  */
-function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road: boolean, rng: number): [string, Dir, number, number] {
+function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road: boolean, rng: number, goal: { x: number; z: number } | null = null): [string, Dir, number, number] {
   const node = g.nodes[endNode(e, dir)]!;
+  // A ridden taxi follows a cached shortest route, including a legal turn back if needed.
   const [ix, iz] = endTangent(e, dir);
   const options: Array<{ edge: RoadEdgeInfo; dir: Dir; w: number }> = [];
   for (const o of node.out) {
@@ -749,7 +842,10 @@ function chooseNext(g: RoadGraph, e: RoadEdgeInfo, dir: Dir, lane: number, road:
   }
   let r = rng;
   let pick: { edge: RoadEdgeInfo; dir: Dir } | null = null;
-  if (options.length === 0) {
+  if (goal && road) {
+    const next = rideRouteNext(g, node.index, goal);
+    if (next) pick = { edge: g.edges[next.edge]!, dir: next.dir };
+  } else if (options.length === 0) {
     const back: Dir = dir === 1 ? -1 : 1;
     if (road ? canDrive(e, back) : canWalk(e, back)) pick = { edge: e, dir: back };
   } else {
@@ -871,6 +967,19 @@ export interface Seg {
   from: number;
   /** Lateral shift applied to points on this segment (walkers' sidestep, current segment only). */
   lat: number;
+  /** A robotaxi's pass profile on its current lane (overtake.ts): the shift by arc length instead of `lat`. */
+  pass?: PassState;
+}
+
+/** Position and unit tangent (the way the body faces) at arc length s of a route segment. */
+function segPose(sg: Seg, s: number): { x: number; z: number; tx: number; tz: number } {
+  if (sg.pass) {
+    const p = passPose(sg.path, sg.pass, s);
+    return { x: p.x, z: p.z, tx: p.hx, tz: p.hz };
+  }
+  const q = pathPoint(sg.path, s);
+  const o = offsetPoint(sg.path, s, sg.lat);
+  return { x: o.x, z: o.z, tx: q.tx, tz: q.tz };
 }
 
 /**
@@ -901,6 +1010,8 @@ function routeAhead(g: RoadGraph, a: Readonly<AgentState>): Route {
   if (a.conn) {
     segs.push({ path: connectorPath(a.conn), from: a.s, lat: a.lat });
     segs.push({ path: lane, from: a.resume, lat: 0 });
+  } else if (a.pass && AGENT_SPEC[a.kind].road) {
+    segs.push({ path: lane, from: a.s, lat: 0, pass: a.pass });
   } else {
     segs.push({ path: lane, from: a.s, lat: a.lat });
   }
@@ -953,9 +1064,8 @@ export function agentRouteAt(world: World, a: Readonly<AgentState>, ds: readonly
       sg = segAt(route, ++si);
     }
     if (!sg) break;
-    const q = pathPoint(sg.path, sg.from + d - base);
-    const o = offsetPoint(sg.path, sg.from + d - base, sg.lat);
-    out.push({ x: o.x, z: o.z, tx: q.tx, tz: q.tz, d });
+    const o = segPose(sg, sg.from + d - base);
+    out.push({ x: o.x, z: o.z, tx: o.tx, tz: o.tz, d });
   }
   return out;
 }
@@ -966,6 +1076,10 @@ interface Hit {
   player: boolean;
   /** Blocker's side relative to the probe point (+ = right of travel). */
   side: number;
+  /** A vehicle that may be gone round once it stands still (Obs.pass). */
+  pass?: PassBody;
+  /** A passing robotaxi, or the road it claimed. */
+  passing?: boolean;
 }
 
 interface ProbeResult {
@@ -1000,7 +1114,7 @@ function probe(
   for (const o of scratch) {
     if (o.id === a.id) continue;
     if (o.onlyFor !== undefined && o.onlyFor !== (spec.road ? "road" : "foot")) continue;
-    if (o.road && ignoreRobotaxis) continue;
+    if (o.road && ignoreRobotaxis && o.passing !== true) continue;
     if (o.predicted && o.road === spec.road) continue;
     const dx = o.x - a.x;
     const dz = o.z - a.z;
@@ -1020,8 +1134,8 @@ function probe(
       sg = segAt(route, ++si);
     }
     if (!sg) break;
-    const q = pathPoint(sg.path, sg.from + d - base);
-    const { x: px, z: pz } = offsetPoint(sg.path, sg.from + d - base, sg.lat);
+    const { x: px, z: pz, tx, tz } = segPose(sg, sg.from + d - base);
+    const q = { tx, tz };
     for (const o of near) {
       const dx = o.x - px;
       const dz = o.z - pz;
@@ -1041,7 +1155,7 @@ function probe(
         gap = Math.max(0, d - spec.halfLength - o.r);
       }
       const side = dx * -q.tz + dz * q.tx;
-      const hit: Hit = { gap, id: o.id, player: o.player, side };
+      const hit: Hit = { gap, id: o.id, player: o.player, side, ...(o.pass ? { pass: o.pass } : {}), ...(o.passing ? { passing: true } : {}) };
       if (!first || gap < first.gap) {
         if (first && first.id !== hit.id) second = first;
         first = hit;
@@ -1233,6 +1347,124 @@ interface Ctx {
   /** Ids of every robotaxi. */
   road: Set<number>;
   winners: Set<number>;
+  /** Ridden robotaxis (step.ts boards riders): their goal and whether the rider asked to stop. */
+  rides: ReturnType<typeof ridesByAgent>;
+  /** Robotaxis hailed by a player on foot: they pull up and wait (step.ts). */
+  hailed: Map<number, number>;
+  /** The tick being stepped to (pass re-checks are spread over PASS_RETRY_TICKS by id). */
+  tick: number;
+  /** Every vehicle (players' cars, robotaxis, service vehicles) and everyone on foot, for planning a pass. */
+  vehicles: PassVehicle[];
+  feet: PassFoot[];
+}
+
+/** A vehicle slower than this stands still for going round it, m/s. */
+const PASS_STOPPED_MPS = 0.1;
+
+/**
+ * Is the road clear for robotaxi a to drive pass profile p on `lane` from arc length `from` to its
+ * end? Every pose (PASS_POSE_STEP_M apart) keeps the body: out of buildings; PASS_TARGET_GAP_M
+ * from the vehicle it goes round; PASS_VEHICLE_GAP_M from every other vehicle, a moving one where
+ * it is predicted (straight on at its speed) from a second before to 1.5 s after the robotaxi
+ * gets there; and its walkers' slow berth from everyone on foot, now and where they are
+ * predicted when it gets there.
+ */
+function passClear(c: Ctx, a: Readonly<AgentState>, lane: Path, p: Readonly<PassState>, from: number): boolean {
+  const spec = AGENT_SPEC[a.kind];
+  const self = `a:${a.id}`;
+  const ds: number[] = [];
+  for (let d = Math.max(from, p.s0); d < p.s3; d += PASS_POSE_STEP_M) ds.push(d);
+  ds.push(p.s3);
+  const mid = pathPoint(lane, (Math.max(from, p.s0) + p.s3) / 2);
+  const reach = (p.s3 - Math.max(from, p.s0)) / 2 + Math.abs(p.off) + ROBOTAXI_BODY.halfLength + 2;
+  const tMax = passTime(p.s3 - a.s, spec.accel) + 1.5;
+  const near = (x: number, z: number, extra: number): boolean => (x - mid.x) * (x - mid.x) + (z - mid.z) * (z - mid.z) <= (reach + extra) * (reach + extra);
+  const vehicles = c.vehicles.filter((v) => v.key !== self && near(v.rect.x, v.rect.z, v.rect.hl + PASS_VEHICLE_GAP_M + Math.abs(v.speed) * tMax));
+  const feet = c.feet.filter((f) => near(f.x, f.z, f.r + ROBOTAXI_SLOW_BERTH_CHILD_M + Math.sqrt(f.vx * f.vx + f.vz * f.vz) * tMax));
+  for (const d of ds) {
+    const q = passPose(lane, p, d);
+    const heading = poseHeading(q);
+    if (bodyBlocked(c.world, a.kind, q.x, q.z, heading)) return false;
+    const body: Rect = { x: q.x, z: q.z, fx: q.hx, fz: q.hz, hl: ROBOTAXI_BODY.halfLength, hw: ROBOTAXI_BODY.halfWidth };
+    const t = passTime(d - a.s, spec.accel);
+    for (const v of vehicles) {
+      if (v.key === p.target) {
+        if (rectGap(body, v.rect) < PASS_TARGET_GAP_M) return false;
+        continue;
+      }
+      if (Math.abs(v.speed) < PASS_STOPPED_MPS) {
+        if (rectGap(body, v.rect) < PASS_VEHICLE_GAP_M) return false;
+        continue;
+      }
+      for (const dt of [-1, 0, 0.75, 1.5]) {
+        const tt = Math.max(0, t + dt);
+        const moved: Rect = { ...v.rect, x: v.rect.x + v.rect.fx * v.speed * tt, z: v.rect.z + v.rect.fz * v.speed * tt };
+        if (rectGap(body, moved) < PASS_VEHICLE_GAP_M) return false;
+      }
+    }
+    for (const f of feet) {
+      const berth = (f.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M + f.r;
+      for (const tt of [0, t, t + 1]) {
+        if (pointRectGap(f.x + f.vx * tt, f.z + f.vz * tt, body) < berth) return false;
+      }
+    }
+  }
+  return true;
+}
+
+/** How fast a robotaxi backs up to the standoff behind a vehicle standing still, m/s. */
+const PASS_BACKUP_MPS = 0.8;
+
+/**
+ * May robotaxi a back up to arc length `s` on its lane? Its body there keeps PASS_VEHICLE_GAP_M
+ * from every vehicle (a moving one now and a second on), its walkers' slow berth from everyone on
+ * foot, and out of buildings.
+ */
+function backClear(c: Ctx, a: Readonly<AgentState>, lane: Path, s: number): boolean {
+  const q = pathPoint(lane, s);
+  const heading = datan2(q.tx, -q.tz);
+  if (bodyBlocked(c.world, a.kind, q.x, q.z, heading)) return false;
+  const body: Rect = { x: q.x, z: q.z, fx: q.tx, fz: q.tz, hl: ROBOTAXI_BODY.halfLength, hw: ROBOTAXI_BODY.halfWidth };
+  const self = `a:${a.id}`;
+  const reach = ROBOTAXI_BODY.halfLength + 20;
+  for (const v of c.vehicles) {
+    if (v.key === self || Math.abs(v.rect.x - q.x) > reach || Math.abs(v.rect.z - q.z) > reach) continue;
+    for (const t of Math.abs(v.speed) < PASS_STOPPED_MPS ? [0] : [0, 0.5, 1]) {
+      const moved: Rect = { ...v.rect, x: v.rect.x + v.rect.fx * v.speed * t, z: v.rect.z + v.rect.fz * v.speed * t };
+      if (rectGap(body, moved) < PASS_VEHICLE_GAP_M) return false;
+    }
+  }
+  for (const f of c.feet) {
+    if (Math.abs(f.x - q.x) > reach || Math.abs(f.z - q.z) > reach) continue;
+    const berth = (f.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M + f.r;
+    if (pointRectGap(f.x, f.z, body) < berth || pointRectGap(f.x + f.vx, f.z + f.vz, body) < berth) return false;
+  }
+  return true;
+}
+
+/**
+ * A pass round `target` (standing still ahead of robotaxi a on `lane`), or null when there is no
+ * room or the road is not clear: the smaller offset that clears it inside the carriageway (left
+ * first), the shortest ease-out that keeps every pose clear (passClear), easing back in
+ * PASS_BEYOND_M past its front, all before the lane ends.
+ */
+function planPass(c: Ctx, a: Readonly<AgentState>, e: RoadEdgeInfo, lane: Path, target: PassBody): PassState | null {
+  const span = rectOnPath(lane, target.rect);
+  if (span.sMin <= a.s) return null;
+  const end = lane.len - 1;
+  const s2 = span.sMax + ROBOTAXI_BODY.halfLength + PASS_BEYOND_M;
+  // Someone on foot: the robotaxis' walker berth (a child's wider one) and some more alongside.
+  const side = target.foot ? (target.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + PASS_FOOT_SLACK_M : PASS_SIDE_CLEAR_M;
+  for (const off of passOffsets(span, ROBOTAXI_BODY.halfWidth, laneOffset(e, a.dir, a.lane), e.widthM / 2, side)) {
+    for (const ramp of PASS_RAMPS_M) {
+      const s1 = a.s + ramp;
+      const hold = Math.max(s1, s2);
+      const p: PassState = { off, s0: a.s, s1, s2: hold, s3: hold + ramp, commit: span.sMin - ROBOTAXI_BODY.halfLength - 0.5, target: target.key };
+      if (p.s3 > end) break;
+      if (passClear(c, a, lane, p, a.s)) return p;
+    }
+  }
+  return null;
 }
 
 /**
@@ -1333,6 +1565,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
 
   const e = g.edges[ei]!;
   const cur = basePath(e, a);
+  // Going round a stopped vehicle (overtake.ts): only on the lane it was planned on.
+  let pass = spec.road && a.pass && a.conn === null ? a.pass : undefined;
   const pr = c.probes.get(a.id) ?? { first: null, second: null };
   let blocker = pr.first;
   if (blocker && !blocker.player) {
@@ -1340,8 +1574,9 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     const mutual = other !== undefined && other.first !== null && other.first.id === a.id;
     if (spec.road) {
       // Two robotaxis each blocking the other: one that holds a junction goes first (the other
-      // is waiting for that junction anyway), otherwise the lower id.
-      if (mutual && c.road.has(blocker.id)) {
+      // is waiting for that junction anyway), otherwise the lower id. Never round a pass:
+      // neither drives into the other there; the one meeting it waits short of its claim.
+      if (mutual && c.road.has(blocker.id) && pass === undefined && blocker.passing !== true) {
         const otherHolds = c.holding.has(blocker.id);
         const iHold = c.holding.has(a.id);
         if (iHold && !otherHolds) blocker = pr.second;
@@ -1361,6 +1596,15 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   if (spec.road) cruise = Math.min(cruise, e.speedLimitMps * 1.1);
   let target = cruise;
   let limitedByObstacle = false;
+  // A rider asked to get out, or the taxi is at their goal: stop here (in lane, as for a fare).
+  const ride = c.rides.get(a.id);
+  if ((ride && (ride.exitPending || arrived(ride, a.x, a.z))) || c.hailed.has(a.id)) target = 0;
+  // Heading for a rider's goal: re-plan the next street while well short of the junction (never
+  // once committed to it: claimed, on a connector, or close enough to be contending for it).
+  if (spec.road && ride?.goal && a.conn === null && a.node === "" && cur.len - a.s > 15) {
+    const [n, d, l] = chooseNext(g, e, a.dir, a.lane, true, a.rng, ride.goal);
+    if (n !== a.next || d !== a.ndir) a = { ...a, next: n, ndir: d, nlane: l };
+  }
   if (spec.road) {
     if (a.conn) {
       target = Math.min(target, turnSpeed(a.conn, cruise));
@@ -1385,7 +1629,10 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
       }
     }
   }
-  const gapMin = spec.road ? ROBOTAXI_GAP_M : WALKER_GAP_M;
+  // Behind a vehicle standing still that it may go round: wait further back, room to ease out.
+  const stoodStill = spec.road && pass === undefined && blocker !== null && blocker.pass !== undefined && Math.abs(blocker.pass.speed) < PASS_STOPPED_MPS;
+  const gapMin = spec.road ? (stoodStill ? PASS_STANDOFF_M : ROBOTAXI_GAP_M) : WALKER_GAP_M;
+  if (pass) target = Math.min(target, PASS_SPEED_MPS);
   if (blocker) {
     const v = Math.sqrt(2 * spec.decel * Math.max(0, blocker.gap - gapMin));
     if (v < target) {
@@ -1399,6 +1646,32 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     if (lim < target) {
       target = lim;
       limitedByObstacle = true;
+    }
+  }
+
+  if (spec.road && a.conn === null) {
+    const passWait = blocker?.pass?.foot ? PASS_FOOT_WAIT_TICKS : PASS_WAIT_TICKS;
+    if (pass === undefined && stoodStill && a.speed < 0.05 && a.wait >= passWait) {
+      // Try before the first backup, even off this id's retry slot. Backing over a probe-sample
+      // boundary can let it creep forward and reset wait before the scheduled slot ever arrives.
+      if (a.wait < passWait + ticks || (c.tick + a.id) % PASS_RETRY_TICKS === 0) {
+        // Waited behind a vehicle standing still: go round it if the road is clear (it sets off next tick).
+        const planned = planPass(c, a, e, cur, blocker!.pass!);
+        if (planned) return { ...a, pass: planned, speed: 0, mode: "yield", rng };
+      }
+      // Stopped too close to steer round it (it pulled up behind it while it still moved, or it
+      // stopped right in front): back up along its lane to the standoff, while the way back is clear.
+      const back = a.s - PASS_BACKUP_MPS * dt;
+      if (blocker!.gap < PASS_STANDOFF_M - 0.3 && back >= 0 && backClear(c, a, cur, back)) {
+        const q = pathPoint(cur, back);
+        const heading = datan2(q.tx, -q.tz);
+        return { ...a, x: q.x, y: meshGroundHeight(c.world, q.x, q.z), z: q.z, heading, pitch: bodyPitch(c.world, q.x, q.z, heading), s: back, speed: 0, wait: a.wait + ticks, mode: "yield", rng };
+      }
+    } else if (pass && a.s < pass.commit && (c.tick + a.id) % PASS_RETRY_TICKS === 0 && !passClear(c, a, cur, pass, a.s)) {
+      // Not yet alongside and the road is no longer clear: ease back in behind it, and wait again.
+      const now = passLat(pass, a.s);
+      pass = Math.abs(now) < 0.05 ? undefined
+        : { ...pass, off: now, s0: a.s - 1, s1: a.s, s2: a.s, s3: Math.min(cur.len - 0.5, a.s + Math.max(3, PASS_RAMPS_M[0]! * Math.abs(now / pass.off))), commit: a.s };
     }
   }
 
@@ -1480,7 +1753,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     conn = cp;
     curEdge = plan.edge;
     curPath = plan.path;
-    const [n2, d2, l2, r2] = chooseNext(g, plan.edge, plan.dir, plan.lane, spec.road, rng);
+    const [n2, d2, l2, r2] = chooseNext(g, plan.edge, plan.dir, plan.lane, spec.road, rng, ride?.goal ?? null);
     next = n2;
     ndir = d2;
     nlane = l2;
@@ -1491,11 +1764,26 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     node = ""; // tail clear of the junction: release it
   }
 
-  // Pose on the (possibly new) path.
+  // Pose on the (possibly new) path; a pass ends once eased back in (or off its lane).
+  if (pass && (conn !== null || curEdge !== e || s >= pass.s3)) pass = undefined;
   const path = conn ? connectorPath(conn) : curPath;
-  const q = pathPoint(path, s);
-  const { x, z } = offsetPoint(path, s, lat);
-  const heading = datan2(q.tx, -q.tz);
+  let x: number;
+  let z: number;
+  let heading: number;
+  if (pass) {
+    const p = passPose(path, pass, s);
+    x = p.x;
+    z = p.z;
+    heading = poseHeading(p);
+    lat = passLat(pass, s);
+  } else {
+    const q = pathPoint(path, s);
+    const o = offsetPoint(path, s, lat);
+    x = o.x;
+    z = o.z;
+    heading = datan2(q.tx, -q.tz);
+    if (spec.road) lat = 0;
+  }
 
   // Blocked: stopped (robotaxi) or reduced to a shuffle (walker) by something in the way,
   // including something right in front that right of way says to ignore but cannot be
@@ -1505,19 +1793,20 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   // A walker's wait only clears once it is really walking again (not inching along).
   let wait = blocked ? a.wait + ticks : spec.road || speed > 0.6 * cruise ? 0 : Math.max(0, a.wait - ticks);
   // On a safe lane (roads.ts LANE_SAFE_M) a robotaxi cannot touch a building: skip the check.
-  const safe = spec.road && conn === null && curEdge.laneSafe[dirIndex(dir)][lane] === true;
+  const safe = spec.road && conn === null && pass === undefined && curEdge.laneSafe[dirIndex(dir)][lane] === true;
   if ((!safe && bodyBlocked(c.world, a.kind, x, z, heading)) || (!spec.road && nearerVehicle(c, a, x, z))) {
     // Refuse the move: stay put and wait. (A walker never steps or sidesteps closer than
     // WALKER_VEHICLE_GAP_M to a vehicle's body: the dodge counts that close as in its way.)
     wait = a.wait + ticks;
-    if (spec.road && wait > ROBOTAXI_STUCK_TICKS) return null;
+    // (A ridden taxi waits on: its rider is let out where it stands, never dropped with it.)
+    if (spec.road && wait > ROBOTAXI_STUCK_TICKS && !ride) return null;
     if (!spec.road && wait > WALKER_TURN_TICKS) return turnAround(c, { ...a, rng });
     return { ...a, speed: 0, wait, mode: "wait", rng };
   }
   if (!spec.road && wait > WALKER_TURN_TICKS) return turnAround(c, { ...a, rng });
 
   let ghost = Math.max(0, a.ghost - ticks);
-  if (spec.road && ghost === 0 && wait > GHOST_AFTER_TICKS && (!blocker || (!blocker.player && c.road.has(blocker.id)))) {
+  if (spec.road && pass === undefined && ghost === 0 && wait > GHOST_AFTER_TICKS && (!blocker || (!blocker.player && c.road.has(blocker.id) && blocker.passing !== true))) {
     ghost = GHOST_TICKS;
     wait = 0;
   }
@@ -1527,7 +1816,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     mode = spec.road && blocker && blocker.player && wait > 120 ? "honk" : "wait";
   } else if (limitedByObstacle && target < cruise * 0.9) mode = "yield";
 
-  return {
+  const out: AgentState = {
     ...a,
     x,
     y: meshGroundHeight(c.world, x, z),
@@ -1551,6 +1840,9 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     mode,
     rng,
   };
+  if (pass) out.pass = pass;
+  else delete out.pass;
+  return out;
 }
 
 function approachTo(v: number, target: number, maxDelta: number): number {
@@ -1847,6 +2139,26 @@ export function populate(
   return { ext: { nextId, list }, rng: r };
 }
 
+/** Every vehicle and everyone on foot as of the previous tick, for planning passes (passClear). */
+function passBodies(state: Readonly<SimState>, list: readonly AgentState[]): { vehicles: PassVehicle[]; feet: PassFoot[] } {
+  const vehicles: PassVehicle[] = [];
+  const feet: PassFoot[] = [];
+  for (const id of sortedIds(state.players)) {
+    const p = state.players[id]!;
+    const c = p.car;
+    vehicles.push({ key: `p:${id}`, id: -1, rect: rectAt(c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth), speed: c.speed });
+    if (p.mode === "foot" && p.foot) {
+      const f = p.foot;
+      feet.push({ x: f.x, z: f.z, vx: dsin(f.heading) * f.speed, vz: -dcos(f.heading) * f.speed, r: FOOT.radius, child: false });
+    }
+  }
+  for (const a of list) {
+    if (AGENT_SPEC[a.kind].road) vehicles.push({ key: `a:${a.id}`, id: a.id, rect: vehicleRect(a), speed: a.speed });
+    else feet.push({ x: a.x, z: a.z, vx: dsin(a.heading) * a.speed, vz: -dcos(a.heading) * a.speed, r: a.radius ?? AGENT_SPEC[a.kind].radius, child: a.child === true || (a.kind === "person" && personIsChild(a.id)) });
+  }
+  return { vehicles, feet };
+}
+
 /** Initial ambient population for a new state (empty when the world has no roads). */
 export function initialAgents(world: World, state: Readonly<SimState>): { ext: AgentsExt; rng: RngState } {
   return populate(world, { nextId: 1, list: [] }, state.rng, playerBodies(state), state.seed, true, playerCars(state));
@@ -1863,7 +2175,16 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
 
-  const obs = [...playerObstacles(prev), ...agentObstacles(ext.list)];
+  // Seized robotaxis stand where they stopped: others may go round them.
+  const passable = new Set<number>();
+  if (prev.ext.combat) {
+    for (const a of ext.list) {
+      if (!AGENT_SPEC[a.kind].road || a.runtimeId !== undefined) continue;
+      const limit = movementLimit(prev.ext.combat, { id: `agent:${a.id}` });
+      if (limit.maxSpeed === 0 || limit.scale <= 0) passable.add(a.id);
+    }
+  }
+  const obs = [...playerObstacles(prev), ...agentObstacles(ext.list, g, passable)];
   const { hash, footHash, boxHash } = buildHashes(obs);
   const routes = new Map<number, Route>();
 
@@ -1965,7 +2286,9 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   }
   const byId = new Map<number, AgentState>();
   for (const a of ext.list) byId.set(a.id, a);
-  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners };
+  const rides = ridesByAgent(prev);
+  const { vehicles, feet } = passBodies(prev, ext.list);
+  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -1978,7 +2301,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     const n = stepAgent(ctx, a, dt, limit);
     if (!n) continue;
     // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.
-    if (n.wait > STUCK_REMOVE_TICKS && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
+    if (n.wait > STUCK_REMOVE_TICKS && !rides.has(n.id) && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
     list.push(n);
   }
 
@@ -2020,7 +2343,7 @@ export function explainAgent(world: World, state: Readonly<SimState>, id: number
   const a = agentById(state, id);
   if (!g || !a) return null;
   const ext = state.ext[AGENTS_EXT_KEY] as AgentsExt;
-  const hash = buildHash([...playerObstacles(state), ...agentObstacles(ext.list)]);
+  const hash = buildHash([...playerObstacles(state), ...agentObstacles(ext.list, g)]);
   const pr = probe(g, a, hash, a.ghost > 0, []);
   const rem = remainingOnPath(g, a);
   let holder: number | null = null;

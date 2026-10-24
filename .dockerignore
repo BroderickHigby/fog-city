@@ -1,0 +1,19 @@
+# Docker build context for server/deploy/Dockerfile (the relay): sim inputs only.
+node_modules
+dist
+test-results
+playwright-report
+.git
+assets
+docs
+tests
+pipeline
+scripts
+public/models
+public/audio
+public/tiles/dev
+public/tiles/dev-city
+public/tiles/sf/*.glb
+public/tiles/sf/*.collider.json
+**/*.blend
+**/*.blend1

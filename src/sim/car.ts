@@ -1,6 +1,6 @@
 // Car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
 //
-// v12 dynamics (the owner: "drive faster", "more realistic"): a modern EV, 0-100 km/h in about
+// v15 dynamics (the owner: "drive faster", "more realistic"): a modern EV, 0-100 km/h in about
 // 5.5 s (drive limited by what the tyres put down, then by the motor's power, CAR.powerPerKg / v)
 // and about 195 km/h flat out (power meets drag). The tyres share one grip budget, tyreMu g scaled
 // by the road's traction (a friction circle): braking or drive leaves less for cornering. Braking
@@ -57,7 +57,7 @@ import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./worl
 export const CAR = {
   /**
    * About the top speed on the flat, m/s (~195 km/h), where the motor's power meets drag and
-   * rolling resistance (v12 dynamics: a modern EV). Gravity can take you past it downhill; other
+   * rolling resistance (v15 dynamics: a modern EV). Gravity can take you past it downhill; other
    * code uses it as "the car's natural top speed".
    */
   maxSpeed: 54,

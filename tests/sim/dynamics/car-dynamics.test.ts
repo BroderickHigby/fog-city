@@ -1,4 +1,4 @@
-// Vehicle dynamics (car.ts, SIM_VERSION 12): the owner asked for faster, more realistic driving.
+// Vehicle dynamics (car.ts, SIM_VERSION 15): the owner asked for faster, more realistic driving.
 // A modern-EV car: 0-100 km/h in 4-6 s, about 180-200 km/h flat out, realistic braking distances
 // (longer in the wet), cornering held to the tyres' grip (understeer at the limit), braking and
 // cornering sharing that grip (a friction circle), weight transfer, a handbrake that kicks the

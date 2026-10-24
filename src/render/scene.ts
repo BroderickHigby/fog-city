@@ -27,9 +27,13 @@ import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
 import { VisualQuality } from "./quality.ts";
+import { StreetLightRig } from "./street-lights.ts";
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
+import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
+import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
+import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -78,6 +82,11 @@ export interface RenderInfo {
   cameraMode: CameraMode;
   presentation: boolean;
   lightingPreset: string;
+  /** Street lamps lit by real point lights this frame (high tier, at night). */
+  streetLightsLit: number;
+  /** Pedestrians drawn as skinned Rocketbox people last frame, and crowd characters loaded. */
+  crowdDrawn: number;
+  crowdLoaded: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
   night: boolean;
@@ -117,6 +126,8 @@ export interface RenderInfo {
   cameraFar: number;
   /** CPU-renderer fallback diagnostics; native GPUs have no radius limit. */
   farBudget?: { radius: number | null; queued: number; loading: number; failed: number };
+  /** Pipeline-placed street detail near the camera (street-detail.ts). */
+  streetDetail?: StreetDetailInfo;
 }
 
 const SHADOW_HALF = 96;
@@ -141,6 +152,7 @@ export class SceneRenderer {
   readonly agents: AgentLayer;
   readonly landmarks: LandmarkLayer;
   readonly far: FarLayer;
+  readonly streetDetail: StreetDetailLayer;
   readonly lights = new NightLights();
   private readonly container: HTMLElement;
   private readonly materials: SharedMaterials;
@@ -151,6 +163,9 @@ export class SceneRenderer {
   private readonly avatarGround = new AvatarGround();
   private readonly foliage: FoliageLayer;
   private quality: VisualQuality | null = null;
+  /** Point lights at the nearest street lamps at night (high tier only). */
+  private streetLights: StreetLightRig | null = null;
+  private crowd: CrowdHumans | null = null;
   private readonly surfaceTextures: SurfaceTextures;
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
@@ -283,17 +298,40 @@ export class SceneRenderer {
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
+    this.streetDetail = new StreetDetailLayer({
+      foliage: this.foliage,
+      base: world.base,
+      json: assets ? (path) => assets.json(path) : fetchJson,
+      ground: world.ground,
+      materials: this.materials,
+    });
+    this.scene.add(this.streetDetail.group);
+    void this.streetDetail.load();
     // With ?shadows=1 the players and the agents cast (and receive) shadows like the city.
+    const modelBytes = async (path: string): Promise<Uint8Array> => {
+      if (assets) return assets.bytes(path);
+      const response = await fetch(path);
+      if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
+      return new Uint8Array(await response.arrayBuffer());
+    };
     this.actors = new Actors(this.registry, this.lights, this.shadows,
-      available && !available.has(PLAYER_BODY_FILE) ? undefined : async (path) => {
-        if (assets) return assets.bytes(path);
-        const response = await fetch(path);
-        if (!response.ok) throw new Error(`Player model: ${response.status} ${path}`);
-        return new Uint8Array(await response.arrayBuffer());
-      });
+      available && !available.has(PLAYER_BODY_FILE) ? undefined : modelBytes,
+      available && !available.has(BLASTER_FILE) ? undefined : modelBytes);
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, this.shadows);
     this.scene.add(this.agents.group);
+    // The nearest pedestrians as skinned Rocketbox people, when the build carries the crowd.
+    const crowdFiles = CROWD_FILES.filter((f) => !available || available.has(f));
+    if (crowdFiles.length > 0) {
+      this.crowd = new CrowdHumans(async (path) => {
+        if (assets) return assets.bytes(path);
+        const response = await fetch(path);
+        if (!response.ok) throw new Error(`Crowd model: ${response.status} ${path}`);
+        return new Uint8Array(await response.arrayBuffer());
+      }, this.shadows, crowdFiles);
+      this.agents.setCrowd(this.crowd);
+      this.scene.add(this.crowd.group);
+    }
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
@@ -310,6 +348,8 @@ export class SceneRenderer {
     // Keep unclipped direct rendering on devices without floating-point color targets.
     if ((opts.quality ?? !software) && this.renderer.extensions.has("EXT_color_buffer_float")) {
       this.quality = new VisualQuality(this.renderer, this.scene, this.camera);
+      this.streetLights = new StreetLightRig();
+      this.scene.add(this.streetLights.group);
     }
     const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
     this.nightOn = preset.name === "night";
@@ -369,6 +409,7 @@ export class SceneRenderer {
     this.streamer.setNight(night > 0);
     this.lights.setNight(night);
     this.agents.setNight(night);
+    this.streetLights?.setNight(night);
     this.scene.environment = this.envFor(p);
     this.scene.environmentIntensity = p.envIntensity;
   }
@@ -400,7 +441,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled();
+    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled() && this.streetDetail.settled();
   }
 
   resize(): void {
@@ -451,6 +492,16 @@ export class SceneRenderer {
     this.actors.setCar(id, pose);
   }
 
+  /** This frame's spray for player `id` (held-blaster.ts), or null. */
+  setSpray(id: string, cue: SprayCue | null): void {
+    this.actors.setSpray(id, cue);
+  }
+
+  /** Where player `id`'s stream leaves the blaster's nozzle (world), or null. */
+  nozzle(id: string, out: THREE.Vector3): THREE.Vector3 | null {
+    return this.actors.nozzle(id, out);
+  }
+
   setFoot(id: string, pose: WalkerPose | null): void {
     this.actors.setFoot(id, pose ? { ...pose, y: this.avatarGround.heightAt(pose.x, pose.y, pose.z) } : null);
   }
@@ -467,7 +518,7 @@ export class SceneRenderer {
    * Per-frame update after the sim has stepped. `dtSeconds` is the frame time the animation
    * uses (main.ts clamps it); `frameSeconds` is the real, unclamped frame time, for the FPS figure;
    * `simSeconds` is how much of it the sim's ticks took, which the graphics governor leaves out:
-   * a slow sim is not cured by drawing less.
+   * a slow sim is not cured by drawing less. Frames catching up several ticks are also left out.
    */
   frame(
     dtSeconds: number,
@@ -476,12 +527,13 @@ export class SceneRenderer {
     minuteOfDay: number,
     frameSeconds: number = dtSeconds,
     simSeconds = 0,
+    simCatchingUp = false,
   ): void {
     this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
-    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), !this.tilesSettled() || document.hidden);
+    const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), simCatchingUp || !this.tilesSettled() || document.hidden);
     if (step) this.stepDown(step);
     if (local) {
       const t = local.target;
@@ -520,8 +572,10 @@ export class SceneRenderer {
     this.sun.position.set(sx + this.sunDir.x * 800, groundY + this.sunDir.y * 800, sz + this.sunDir.z * 800);
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
+    this.streetLights?.update(cam.x, cam.z, dtSeconds, this.streamer.lampHeads());
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
+    this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
   }
 
@@ -558,6 +612,9 @@ export class SceneRenderer {
     out.cameraMode = this.rig.mode;
     out.presentation = this.quality !== null;
     out.lightingPreset = this.activePreset;
+    out.streetLightsLit = this.streetLights?.lit ?? 0;
+    out.crowdDrawn = this.crowd?.drawn ?? 0;
+    out.crowdLoaded = this.crowd?.loaded ?? 0;
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
     out.night = this.nightOn;
@@ -588,6 +645,7 @@ export class SceneRenderer {
     out.farSeamEdges = f.seamEdges;
     out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
     out.cameraFar = this.camera.far;
+    out.streetDetail = this.streetDetail.info();
     return out;
   }
 
@@ -602,9 +660,12 @@ export class SceneRenderer {
     this.avatarGround.clear();
     this.foliage.dispose();
     this.quality?.dispose();
+    this.streetLights?.dispose();
     this.far.dispose();
+    this.streetDetail.dispose();
     this.actors.dispose();
     this.agents.dispose();
+    this.crowd?.dispose();
     this.sky.dispose();
     this.water.dispose();
     for (const m of this.materials.all) m.dispose();
@@ -623,6 +684,9 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   cameraMode: "chase" as CameraMode,
   presentation: false,
   lightingPreset: "day",
+  streetLightsLit: 0,
+  crowdDrawn: 0,
+  crowdLoaded: 0,
   foliage: { near: 0, far: 0, draws: 0 }, surfaceTextures: [],
   night: false,
   tilesPending: 0,
@@ -651,6 +715,12 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
 const NO_TARGET: CameraTarget = Object.freeze({ x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot: false });
 
 /** An ArrayBuffer holding exactly these bytes (GLTFLoader.parse takes a whole buffer). */
+async function fetchJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+  return (await response.json()) as T;
+}
+
 function bufferOf(bytes: Uint8Array): ArrayBuffer {
   if (bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength && bytes.buffer instanceof ArrayBuffer) return bytes.buffer;
   return bytes.slice().buffer as ArrayBuffer;

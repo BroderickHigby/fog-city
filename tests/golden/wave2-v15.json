@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v15 vehicle dynamics (car.ts) on top of v14 impacts, on 59e5a7ba",
+  "simVersion": 15,
+  "hashes": [
+    "2729bc59",
+    "719d46b4",
+    "8a24aba2",
+    "b3ebbb65",
+    "598cf698"
+  ]
+}

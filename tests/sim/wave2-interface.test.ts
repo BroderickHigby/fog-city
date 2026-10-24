@@ -4,7 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v12.json";
+import currentReplay from "../golden/wave2-v15.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -83,10 +83,10 @@ describe("wave-2 shared interface", () => {
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
-      // v8 changed composed gameplay, not this core-only replay; v11 (impacts.ts) changed it only
-      // where a car meets a robotaxi (wave2-v11.json); v12 (car.ts vehicle dynamics) changes how
-      // every input drives, so each segment has its v12 hash. Older fixtures are kept.
-      expect(hashState(state)).toBe(currentReplay.hashes[i]);
+      // v8 changed composed gameplay, not this core-only replay; v11 (on-foot pace) and v14
+      // (impacts.ts) changed it; v15 (car.ts vehicle dynamics) changes how every input drives, so
+      // each segment has its v15 hash. Older fixtures are kept.
+      expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
     }
     expect(state.players.p1!.mode).toBe("foot");
     expect(state.tick).toBe(300);
