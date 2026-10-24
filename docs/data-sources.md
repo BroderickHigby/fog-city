@@ -667,6 +667,7 @@ committed files, so a world rebuild is followed by a street-detail rebuild.
 | Lawns | DataSF *Functional Areas maintained by Recreation and Parks Department*, [`38b7-6db3`](https://data.sfgov.org/resource/38b7-6db3.json), SF Rec and Park, PDDL 1.0: `Lawn`, `Non-landscaped Greenspace`, `Natural Area` polygons | `objectid`, `funcarea_id`, `functional_area_type`, `shape` |
 | Park fences | DataSF *Linear Assets Maintained by the Recreation and Parks Department*, [`rny7-88gk`](https://data.sfgov.org/resource/rny7-88gk.json), SF Rec and Park, PDDL 1.0: `Fence` and `Gate` lines | `objectid`, `asset_id`, `asset_type`, `asset_subtype`, `shape` |
 | Grass, barriers, piers outside the city's records | OpenStreetMap, the extract `data/osm/sf-2026-10-23.osm.pbf` on branch `data/osm-sf` (Geofabrik norcal, OSM timestamp 2026-10-22T20:21:33Z, SHA-256 `90f1a33c…f3be4`, pinned in `pipeline/build-street-detail.ts`). **ODbL 1.0, © OpenStreetMap contributors.** | grass: `landuse=grass/meadow/village_green`, `landcover=grass`, `natural=grassland`, `leisure=pitch` on grass (ways and multipolygons); barriers: `barrier=fence/wall/retaining_wall/hedge/guard_rail` (`height`); piers: `man_made=pier` (`floating`, `width`, `area`) |
+| Street trees | DataSF *San Francisco Street Tree Inventory*, [`tkzw-k3nq`](https://data.sfgov.org/resource/tkzw-k3nq.json), San Francisco Public Works, PDDL 1.0 | `treeid`, `species`, `mapdbh`, `latitude`, `longitude` |
 | Street signs | DataSF *Street Signs*, [`m48z-6ji4`](https://data.sfgov.org/resource/m48z-6ji4.json), SFMTA, PDDL 1.0. In-service rows (`status_code = 'IS'`) of the categories STREET NAME, ONE WAY(RA/LA), STREET CLEANING, PARKING, PARKING:RPP, PARKING:NPRK ANY TIME and TOW (TANP ANY TIME). | `objectid`, `sign_category`, `legend`, `sign_support`, `streetname`, `corner_side_facing`, `cnn`, `shape` |
 
 ### Junction paint (`street-markings.json`)
@@ -774,6 +775,23 @@ the earlier "no OpenStreetMap data" policy needs the owner's sign-off for it.
   floating): the Marina's yacht-harbour docks, Fort Mason's and the Embarcadero's piers. Decks
   stand 1.4 m above the sea (0.45 m when floating), never below the ground.
 * Ids: `rpd:<id>…`, `osm:w<way>` / `osm:r<relation>`, with `@cx,cz` for each grass cell piece.
+
+### Street trees (`street-trees.json`)
+
+`pipeline/lib/street-trees.ts`. Every inventoried tree with a position and a species, on land
+inside the world: 135,647 trees (123,167 broadleaf, 7,781 conifer, 4,699 palm); 4.1 MB.
+
+* **Class** from the genus: palms (Phoenix, Washingtonia, Syagrus, Trachycarpus, … and the
+  palm-like Cordyline and Yucca), conifers (pines, cypresses, redwoods, junipers, yews,
+  podocarps, araucarias, cedars, Casuarina), broadleaf otherwise. Empty planting sites,
+  "Landscape Plants" and undetermined rows are left out.
+* **Height** from trunk diameter (`mapdbh`, inches): broadleaf 3 m + 0.42 m/in (3–20 m),
+  conifer 4 m + 0.5 m/in (3.5–30 m), palm 3.5 m + 0.55 m/in (2.5–22 m); a missing or
+  implausible DBH takes 6.5 / 9 / 8 m.
+* **Rendering**: broadleaf and conifer trees go to the foliage layer (`src/render/foliage.ts`,
+  which owns their look), replacing the procedural street trees once loaded; palms are drawn by
+  `src/render/street-trees.ts`. Trees load within 1.3 km of the camera.
+* Ids: `tree:<treeid>`.
 
 ## Gameplay data (the wave-2 spike)
 

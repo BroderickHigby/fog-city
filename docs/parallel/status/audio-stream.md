@@ -13,6 +13,60 @@ Stream id `audio` (handoff §8). Branch `work/audio/soundtrack-voices`, cut from
 | Mission voices | **Pipeline complete; generation held (licence).** Manifest of all 120 mission lines (8,304 characters) with mission, speaker, line id, text, subtitle cues and file. Voice queue with priority, interruption, retry, pause, reset/reload and a subtitle fallback. Every line currently plays as timed subtitles. |
 | Static build | **Fixed.** `scripts/build-web.ts` never shipped `public/audio/`, so even the existing effects were silent in the hosted build. It now copies audio as plain `.ogg/.mp3/.json` files. |
 
+## Follow-up: car radio and horns (`work/audio/radio-horn`, stacked on #28)
+
+Owner feedback, relayed by the coordinator: "as soon as you get in a car, there should be music"
+and "the horn button doesn't work".
+
+- **Car radio.** In a car the music is a station:
+  - Four invented stations (Runway FM 88.5, Series A 101.3, Pivot 94.9 and Burn Rate 107.7) over the CC0 tracks, plus Off.
+  - M tunes forward and Shift+M back. A station card shows on getting in or tuning.
+  - A station picker is in settings, and the station persists.
+  - On foot, the music follows combat, a timed mission step, or the on-foot track.
+- **Horns** (synthesized in `assets/audio/generate.py`):
+  - One horn path: #31's `hornBlasts(frame, state)` (H, pad L3 or the touch button, any player) feeds `audio.playHorn(blast)`. That plays the synthesized dual-tone sample through the effects bus (volume and mute apply, one unlock): about 0.42 s in a car, or an octave up for the pocket air horn on foot. #31's separate `HornVoice` synth and its second AudioContext are removed.
+  - A robotaxi in agent mode `honk` plays an original, polite electronic chirp, distance-attenuated, at most once per car per 4 s.
+  - `tests/e2e/player-feel.spec.ts` now checks the director's horn counter instead of counting `OscillatorNode.start` calls, as agreed with the Player-feel stream.
+
+## Music consistency (owner: "the music isn't really consistent"; in #36)
+
+Causes found in the live build (`86dfb90`):
+1. Every menu and mission dialog switched to the menu track and back.
+2. Combat cut in at once, even in a car, and bounced out about 10 s later.
+3. Timed mission steps overrode the driving music.
+4. Nothing set a minimum time between switches.
+5. The crossfade faded the old stream before the new one had buffered (an audible dip or gap).
+6. Nothing recovered a stalled or paused stream.
+
+Fixes:
+- Menus duck instead of switching.
+- In a car the radio always plays.
+- A 6 s minimum dwell, a 2 s settle (combat 0.4 s) and a 12 s combat hold.
+- 3 s crossfades that start only once the new stream plays.
+- Resume where each track left off.
+- A stall watchdog, and the AudioContext resumes when the tab is shown again.
+
+`tests/audio/music-player.test.ts` checks the switch rate and gaps, and catches the old behaviour.
+
+## Follow-up: the player's inner voice (`work/audio/inner-voice`, stacked on the radio PR)
+
+Owner feedback: "the voice should talk just like in GTA … it kind of just tells you what to do".
+
+- `src/audio/inner-voice.ts` builds a finite bank of 171 lines (6,888 characters) from the mission
+  data. The lines cover:
+  - going to a place, rushed when the timer is 300 s or less;
+  - the start place of a mission;
+  - reminders while still far away;
+  - each objective kind;
+  - a refill switching between fresh and salt water (the blaster never runs dry);
+  - a fresh "bad" scan ("That bot's acting sketchy.");
+  - a win or a retry.
+- Variants rotate least-recently-used, and each situation has a cooldown, with a 6 s gap between
+  asides. It speaks at the lowest priority, behind the cofounder's lines.
+- The player is cast as Chris, a premade voice distinct from the cofounder.
+- Subtitles only until the ElevenLabs tier allows generation. The manifest already lists every
+  line: 291 in total, 15,192 characters.
+
 ## ElevenLabs: why voices are held
 
 `GET /v1/user/subscription` on 2026-10-23 (only tier and counts logged): **tier free**, 5,975 of

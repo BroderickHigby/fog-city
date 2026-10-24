@@ -198,6 +198,11 @@ export class TileStreamer {
     for (const r of this.records.values()) if (r.state === "ready") this.applyHidden(r);
   }
 
+  /** The lamp heads of every tile in the scene (x, y, z triples), for the street-light rig. */
+  *lampHeads(): IterableIterator<Float32Array> {
+    for (const r of this.records.values()) if (r.props && r.props.lampHeads.length > 0) yield r.props.lampHeads;
+  }
+
   setNight(on: boolean): void {
     this.nightVisible = on;
     for (const r of this.records.values()) if (r.props) for (const o of r.props.nightOnly) o.visible = on;

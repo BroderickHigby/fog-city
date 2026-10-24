@@ -39,3 +39,11 @@ Right-hand or single images show the full street-detail stack (every stream bran
 - `landcover-fortmason-meadow.png`
 - `landcover-fortmason-top.png`
 - `landcover-marina-green.png`
+
+## trees
+
+Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
+
+- `trees-embarcadero.png`
+- `trees-marina-blvd.png`
+- `trees-palms.png`

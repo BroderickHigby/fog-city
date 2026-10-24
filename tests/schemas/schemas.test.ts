@@ -41,6 +41,7 @@ const EXTRAS: Record<string, string> = {
   "street-signs.json": "street-signs",
   "street-landcover.json": "street-landcover",
   "street-osm.json": "street-osm",
+  "street-trees.json": "street-trees",
 };
 
 describe("world tiles validate", () => {

@@ -99,7 +99,9 @@ export class GameplayDriver {
       while (waypoint < route.length - 1 && Math.hypot(body.x - route[waypoint]!.x, body.z - route[waypoint]!.z) < .35) waypoint++;
       const goal = route[waypoint]!;
       const error = wrapAngle(datan2(goal.x - body.x, -(goal.z - body.z)) - body.heading);
-      this.input({ throttle: Math.abs(error) < .65 ? 1 : 0, steer: clamp(error / (2.2 * DT), -1, 1), brake: 1, actions: 0 });
+      // Sprint (brake held) while far; jog the last metres so a 7 m/s sprint (v11) cannot overshoot the stop.
+      const far = Math.hypot(body.x - target.x, body.z - target.z) > stopDistance + 6;
+      this.input({ throttle: Math.abs(error) < .65 ? 1 : 0, steer: clamp(error / ((far ? 2.2 : 3) * DT), -1, 1), brake: far ? 1 : 0, actions: 0 });
       if ((i + 1) % 120 === 0) {
         if (Math.hypot(this.body.x - checkpoint.x, this.body.z - checkpoint.z) < .5) {
           if (replans >= 4) throw new Error(`Walking made no progress after four consecutive replans at ${JSON.stringify(this.body)} toward ${JSON.stringify(target)}`);
