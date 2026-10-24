@@ -83,18 +83,32 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
   const list = ext.list.filter(a => !retired.has(a.runtimeId ?? `agent:${a.id}`));
   const seen = new Set<number>();
   const names = new Set<string>();
+  // Indexes of the bodies present before admission. A body updated below keeps its id and takes
+  // the motion's (unique) runtime id, and admitted bodies carry ids and names already in seen
+  // and names, so neither lookup can change answer as the loop runs.
+  const firstById = new Map<number, number>();
+  const byRuntime = new Map<string, number[]>();
+  list.forEach((a, i) => {
+    if (!firstById.has(a.id)) firstById.set(a.id, i);
+    if (a.runtimeId !== undefined) { const at = byRuntime.get(a.runtimeId); if (at) at.push(i); else byRuntime.set(a.runtimeId, [i]); }
+  });
   for (const motion of [...motions].sort((a,b) => a.numericId-b.numericId)) {
     valid(motion);
     if (seen.has(motion.numericId) || names.has(motion.id)) throw new Error("Duplicate physical actor ID");
     seen.add(motion.numericId); names.add(motion.id);
-    const conflictingBody = list.find(a => a.runtimeId === motion.id && a.id !== motion.numericId);
-    if (conflictingBody) throw new Error("Physical actor identity changed");
-    const index = list.findIndex(a => a.id === motion.numericId);
+    if (byRuntime.get(motion.id)?.some(i => list[i]!.id !== motion.numericId)) throw new Error("Physical actor identity changed");
+    const index = firstById.get(motion.numericId) ?? -1;
     if (index >= 0) {
       const body = list[index]!;
       if ((body.kind === "robotaxi") !== (motion.kind === "vehicle")) throw new Error("Physical actor body kind changed");
       if (body.runtimeId !== undefined ? body.runtimeId !== motion.id : motion.legacyId !== body.id || motion.id !== `agent:${body.id}`) throw new Error("Physical actor identity changed");
-      list[index] = { ...body, runtimeId:motion.id, runtimeLegacy:body.runtimeLegacy ?? motion.legacyId !== null,
+      const runtimeLegacy = body.runtimeLegacy ?? motion.legacyId !== null;
+      // Structural sharing: a body that already carries every field unchanged is kept as is.
+      if (body.runtimeId === motion.id && body.runtimeLegacy === runtimeLegacy && body.radius === motion.radius && body.height === motion.height
+        && (motion.halfLength === undefined || body.halfLength === motion.halfLength) && (motion.halfWidth === undefined || body.halfWidth === motion.halfWidth)
+        && (motion.protected === undefined || body.protected === motion.protected) && (motion.child === undefined || body.child === motion.child)
+        && (motion.mobilityAid === undefined || body.mobilityAid === motion.mobilityAid) && (motion.posture === undefined || body.posture === motion.posture)) continue;
+      list[index] = { ...body, runtimeId:motion.id, runtimeLegacy,
         radius:motion.radius,height:motion.height,
         ...(motion.halfLength!==undefined?{halfLength:motion.halfLength}:{}),...(motion.halfWidth!==undefined?{halfWidth:motion.halfWidth}:{}),
         ...(motion.protected!==undefined?{protected:motion.protected}:{}),...(motion.child!==undefined?{child:motion.child}:{}),
@@ -116,7 +130,7 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
       pitch:0,vmax:0,edge:"",dir:1,lane:0,s:0,next:"",ndir:1,nlane:0,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:"go",rng:motion.numericId,dodge:null });
   }
   list.sort((a,b) => a.id-b.id);
-  return { ...state, ext: { ...state.ext, agents: { nextId: Math.max(ext.nextId, ...list.map(a => a.id + 1)), list } } };
+  return { ...state, ext: { ...state.ext, agents: { nextId: list.reduce((m, a) => Math.max(m, a.id + 1), ext.nextId), list } } };
 }
 
 function motionPose(body:Readonly<AgentState>,motion:AgentMotionProposal|undefined,t:number):Box {

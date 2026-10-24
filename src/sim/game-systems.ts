@@ -1,6 +1,6 @@
 import { protectedAreaAt, badRobotRate } from "../content/places.ts";
 import { toLatLon } from "../geo/project.ts";
-import { sortedIds } from "./contract.ts";
+import { sortedIds, type SimState } from "./contract.ts";
 import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { createFogSystem, fogDensity, floodDepthAt, puddlesNear, rainDensity, shelteredAt, weatherRefuge } from "./fog/index.ts";
 import { allocateActorIds } from "./identity.ts";
@@ -12,6 +12,15 @@ import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gam
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatWave, RefillSource } from "./combat-contract.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
+
+/** Same tick, players and every extension slot but combat (the combat context's inputs). */
+function sameExceptCombat(a:Readonly<SimState>,b:Readonly<SimState>):boolean{
+  if(a.tick!==b.tick||a.seed!==b.seed||a.players!==b.players)return false;
+  const keys=Object.keys(a.ext);
+  if(keys.length!==Object.keys(b.ext).length)return false;
+  for(const key of keys)if(key!=="combat"&&(a.ext as Record<string,unknown>)[key]!==(b.ext as Record<string,unknown>)[key])return false;
+  return true;
+}
 
 export interface GameSystemsOptions { wave?: CombatWave; protectedArea?: (x:number,z:number)=>boolean }
 
@@ -43,7 +52,18 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     }
     return out;
   };
+  // The combat system and the observed gameplay provider both read this snapshot within one
+  // tick; nothing it reads (players, agents, robots, clock, weather, progression) changes in
+  // between, only ext.combat, which it never reads. Reuse it while those are the same objects.
+  let cachedCombat:{context:SimSystemContext;value:ReturnType<typeof buildCombatContext>}|undefined;
   const combatContext=(context:SimSystemContext)=>{
+    const hit=cachedCombat;
+    if(hit&&hit.context.world===context.world&&sameExceptCombat(hit.context.state,context.state))return hit.value;
+    const value=buildCombatContext(context);
+    cachedCombat={context,value};
+    return value;
+  };
+  const buildCombatContext=(context:SimSystemContext)=>{
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
     for(const id of sortedIds(context.state.players)){
       const player=context.state.players[id]!,body=player.mode==="foot"&&player.foot?player.foot:player.car;

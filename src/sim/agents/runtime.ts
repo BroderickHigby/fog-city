@@ -126,7 +126,9 @@ const DT=1/60;
 const BODY_EPSILON=.015;
 const attackKinds:Record<string,AttackKind>={shove:"shove",grocerySnatch:"snatch",adBlast:"ad-blast",phoneHack:"phone-hack",handshake:"handshake"};
 const compare=(a:string,b:string)=>a<b?-1:a>b?1:0;
-function keys<T>(record:Readonly<Record<string,T>>):string[]{return Object.keys(record).sort(compare);}
+/** Sorted ids of an actors record that synchronize() built (no key is added to it afterwards). */
+const sortedActorIds=new WeakMap<object,readonly string[]>();
+function keys<T>(record:Readonly<Record<string,T>>):string[]{const hit=sortedActorIds.get(record);return hit?[...hit]:Object.keys(record).sort(compare);}
 function distance(a:{x:number;z:number},b:{x:number;z:number}):number{return Math.sqrt((a.x-b.x)*(a.x-b.x)+(a.z-b.z)*(a.z-b.z));}
 function bodyOf(player:SimState["players"][string]){return player.mode==="foot"&&player.foot?player.foot:player.car;}
 function players(state:Readonly<SimState>){return keys(state.players).map(id=>({id,mode:state.players[id]!.mode,...bodyOf(state.players[id]!)}));}
@@ -205,9 +207,10 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
       fidelity:old.legacyId===null?old.fidelity:"abstract"};
   }
   for(const observed of options.observedBodies??[]){const actor=state.actors[observed.id];if(actor&&[observed.x,observed.y,observed.z,observed.heading,observed.speed??0].every(Number.isFinite))Object.assign(actor,observed);}
-  if(keys(state.actors).length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
+  const ids=Object.keys(state.actors).sort(compare);
+  if(ids.length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
   const numericIds=new Set<number>();
-  for(const id of keys(state.actors)){
+  for(const id of ids){
     const actor=state.actors[id]!;
     if(numericIds.has(actor.numericId))throw new Error("Duplicate numeric runtime actor ID");numericIds.add(actor.numericId);
     if(actor.pendingCursor&&actor.pendingPoint&&distance(actor,actor.pendingPoint)<=BODY_EPSILON)actor.cursor={...actor.pendingCursor};
@@ -232,7 +235,8 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
     }
     state.lastCombatTick=combat.tick;
   }
-  if(state.baseBadCount===0)state.baseBadCount=keys(state.actors).filter(id=>state.actors[id]!.firmware==="bad"&&!state.actors[id]!.converted).length;
+  if(state.baseBadCount===0)state.baseBadCount=ids.filter(id=>state.actors[id]!.firmware==="bad"&&!state.actors[id]!.converted).length;
+  sortedActorIds.set(state.actors,ids);
   return state;
 }
 
