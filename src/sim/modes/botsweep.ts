@@ -157,17 +157,22 @@ export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: In
   const local = sweep(state), session = modeSessionOf(state); if (!local || !session) throw new Error("Not a Bot Sweep match");
   const isolated = arenaWorld(world, local);
   const controls: Record<string, InputFrame[string]> = { ...inputs };
-  for (const id of sortedIds(session.match.players)) {
-    const p = session.match.players[id]!;
-    if (p.downUntil > state.tick) controls[id] = { ...NEUTRAL_INPUT };
-    // Flowers in your hair (Clean Streets): no spraying, scanning or lobbing for a moment.
-    else if ((p.distractedUntil ?? 0) > state.tick && controls[id]) controls[id] = { ...controls[id]!, actions: controls[id]!.actions & ~DISTRACTED_ACTIONS };
-  }
+  const limitControls = (): void => {
+    for (const id of sortedIds(session.match.players)) {
+      const p = session.match.players[id]!;
+      if (p.downUntil > state.tick) controls[id] = { ...NEUTRAL_INPUT };
+      // Apply after input generation: flowers affect human and bot controls equally.
+      else if ((p.distractedUntil ?? 0) > state.tick && controls[id]) controls[id] = { ...controls[id]!, actions: controls[id]!.actions & ~DISTRACTED_ACTIONS };
+    }
+  };
   const respawns: SimEvent[] = session.match.phase !== "active" ? [] : session.match.events.filter(event => event.tick === state.tick && event.kind === "match.respawn-request" && state.players[event.playerId]).flatMap(event => [
     { tick: state.tick + 1, kind: "player.leave", playerId: event.playerId },
     { tick: state.tick + 1, kind: "player.join", playerId: event.playerId, payload: { x: local.center.x, z: local.center.z, heading: 0 } },
   ]);
-  if (!local.bots || session.match.phase !== "active") return step(isolated, state, controls, [...events, ...respawns], SYSTEMS);
+  if (!local.bots || session.match.phase !== "active") {
+    limitControls();
+    return step(isolated, state, controls, [...events, ...respawns], SYSTEMS);
+  }
   // Bot teammates see only what a player could (visible bodies, completed scans; never firmware)
   // and play through the same controls and recorded commands as people. Deterministic: their
   // memory lives in the match state.
@@ -191,6 +196,7 @@ export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: In
     // Bots sweep on foot: out of the car first.
     controls[id] = player.mode === "vehicle" ? { ...NEUTRAL_INPUT, actions: Math.abs(player.car.speed) < .1 ? Action.enterExit : 0, brake: 1 } : plan.inputs[id] ?? { ...NEUTRAL_INPUT };
   }
+  limitControls();
   const next = step(isolated, state, controls, [...events, ...commanded, ...respawns], SYSTEMS);
   const modes = next.ext.modes as unknown as Record<string, unknown>;
   return { ...next, ext: { ...next.ext, modes: JSON.parse(JSON.stringify({ ...modes, sweep: { ...local, bots: plan.state } })) } };

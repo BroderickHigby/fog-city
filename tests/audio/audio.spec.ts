@@ -1,6 +1,6 @@
 // The game's audio in a real browser, driven by real keyboard and pointer input: subtitles show
-// the opening mission lines; the first key unlocks audio; music follows the context (menu,
-// driving, combat) and streams; the settings panel changes and persists the mix; driving into
+// the opening mission lines; the first key unlocks audio; music follows the context (menu, the
+// car radio with M / Shift+M tuning, combat on foot) and streams; H sounds the horn; the settings panel changes and persists the mix; driving into
 // the Ferry Building plaza advances Hot Desk, and its next lines play as voice (ducking the music)
 // or, when the file is missing, retry and fall back to subtitles that show even with subtitles
 // turned off. Voice files are not generated yet (ElevenLabs is held on a free tier), so the
@@ -62,7 +62,7 @@ async function driveTo(page: Page, to: { x: number; z: number }, radius: number)
 
 test.use({ viewport: { width: 960, height: 540 } });
 
-test("real controls play Hot Desk with subtitles, contextual music, mixing and the voice fallback", async ({ page }) => {
+test("real controls play Hot Desk with subtitles, contextual music, the car radio, the horn, mixing and the voice fallback", async ({ page }) => {
   test.setTimeout(420_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -86,15 +86,17 @@ test("real controls play Hot Desk with subtitles, contextual music, mixing and t
   expect((await audio(page)).subtitle?.mode).toBe("text");
   await page.screenshot({ path: "test-results/audio-subtitles.png" });
 
-  // A real key: Escape opens the pause screen, unlocks audio and switches to the menu track.
+  // A real key: Escape opens the pause screen and unlocks audio. The radio (in the car at the
+  // start) keeps playing under the menu, ducked: menus never switch the track.
   await page.keyboard.press("Escape");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await expect.poll(async () => (await audio(page)).unlocked, { timeout: 30_000 }).toBe(true);
-  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("menu");
+  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("drive");
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
-  expect((await audio(page)).music?.src).toMatch(/audio\/music\/menu\.(ogg|mp3)$/);
-  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(5);
+  expect((await audio(page)).music?.src).toMatch(/audio\/music\/drive\.(ogg|mp3)$/);
+  const switchesAtPause = (await audio(page)).musicSwitches;
+  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(7);
   // The paused game holds the line, and the dialog covers the subtitles.
   const held = (await audio(page)).voice.current;
   // Settings: the music slider by keyboard, subtitles off by click; both apply at once.
@@ -114,8 +116,10 @@ test("real controls play Hot Desk with subtitles, contextual music, mixing and t
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(true);
   await dialog.getByRole("checkbox", { name: "Mute music" }).uncheck();
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
-  expect((await audio(page)).music?.trackId).toBe("menu");
-  await expect(dialog.getByText(/Now playing: "Midnight Drive" by congusbongus \(CC0 1\.0\)/)).toBeVisible();
+  expect((await audio(page)).music?.trackId).toBe("drive");
+  await expect(dialog.getByText(/Now playing: "Midnight Cruiser" by Zane Little Music \(CC0 1\.0\)/)).toBeVisible();
+  // The whole pause screen visit, mutes included, switched nothing.
+  expect((await audio(page)).musicSwitches).toBe(switchesAtPause);
   await page.screenshot({ path: "test-results/audio-settings.png" });
   expect((await audio(page)).voice.current).toBe(held);
   await page.keyboard.press("Escape");
@@ -125,6 +129,21 @@ test("real controls play Hot Desk with subtitles, contextual music, mixing and t
   await page.keyboard.down("KeyW");
   await expect.poll(async () => (await audio(page)).musicContext, { timeout: 60_000 }).toBe("driving");
   await page.keyboard.up("KeyW");
+  // In the car the radio plays: the station card shows; M and Shift+M tune.
+  const radio = page.locator(".fc-radio");
+  await expect.poll(async () => (await audio(page)).musicTrack, { timeout: 30_000 }).toBe("drive");
+  await page.keyboard.press("KeyM");
+  await expect(radio).toContainText("Series A 101.3", { timeout: 30_000 });
+  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("menu");
+  expect((await audio(page)).station).toBe("series-a");
+  await page.keyboard.press("Shift+KeyM");
+  await expect(radio).toContainText("Runway FM 88.5", { timeout: 30_000 });
+  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("drive");
+  await page.screenshot({ path: "test-results/audio-radio.png" });
+  // H sounds one horn blast through the effects bus (src/audio/horn.ts reads the stepped input).
+  const hornsBefore = (await audio(page)).effectsPlayed.horn ?? 0;
+  await page.keyboard.press("KeyH");
+  await expect.poll(async () => (await audio(page)).effectsPlayed.horn ?? 0, { timeout: 30_000 }).toBe(hornsBefore + 1);
   await driveTo(page, PLAZA, 30);
   await expect.poll(async () => mission(page), { timeout: 120_000 }).not.toBe("hot-desk:arrive");
 
@@ -152,7 +171,7 @@ test("real controls play Hot Desk with subtitles, contextual music, mixing and t
   await page.reload();
   await bootGame(page, errors);
   const after = await audio(page);
-  expect(after.prefs).toMatchObject({ music: 0.4, subtitles: false, effectsMuted: false });
+  expect(after.prefs).toMatchObject({ music: 0.4, subtitles: false, effectsMuted: false, station: "runway" });
   await expect.poll(async () => (await audio(page)).voiceEvents.some((e) => e.kind === "start" && e.id.startsWith("hot-desk.")), { timeout: 120_000 }).toBe(true);
   // Lines without audio (locked: no gesture yet) still show, subtitles off or not.
   await expect(subtitles).toBeVisible({ timeout: 60_000 });

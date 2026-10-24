@@ -7,6 +7,8 @@ import { botSweepView, createBotSweep, stepBotSweep } from "../../../src/sim/mod
 import { modeSessionOf } from "../../../src/sim/modes/session.ts";
 import { MATCH_RULES } from "../../../src/sim/modes/match.ts";
 import { MODE_END_EVENT, MODE_JOIN_EVENT } from "../../../src/sim/modes/systems.ts";
+import { makeFoot } from "../../../src/sim/foot.ts";
+import type { RivalBotState } from "../../../src/sim/bots/controller.ts";
 
 const world = buildWorld([], null, null, { version: 1, world: "fixture", sourceSnapshot: "test", refills: [{ id: "water", kind: "hydrant", x: 0, y: 0, z: 10, radius: 3, salt: false }], anchors: [], tiles: [], territories: [] });
 const config = { id: "room-cs", seed: 3, players: ["p1", "p2"], spawn: { x: 0, z: 0, heading: 0 }, mode: "cleanStreets" as const };
@@ -54,6 +56,26 @@ describe("Clean Streets match instance", () => {
     team = stepBotSweep(world, team, { p1: lob(PI / 2) });
     // p1 and p3 share team 0; the nearest east is p2 (team 1) at 4 m, p3 at 8 m behind it.
     expect(botSweepView(team)!.players.p3!.flowers).toBe(0);
+  });
+
+  it("suppresses a distracted bot's planned spray just like a human's", () => {
+    let state = stepBotSweep(world, createBotSweep(world, { ...config, players: ["p1"], bots: 1 }), {});
+    const target = Object.values(state.ext.robots!.actors).find(actor => actor.model === "footman")!;
+    const bot = state.players["bot-1"]!;
+    bot.mode = "foot";
+    bot.foot = makeFoot(target.x, target.y, target.z + 6, 0);
+    const modes = state.ext.modes as unknown as {
+      match: { players: Record<string, { distractedUntil?: number }> };
+      sweep: { bots: RivalBotState };
+    };
+    modes.sweep.bots.bots["bot-1"]!.knowledge = [{ id: target.id, kind: "robot", x: target.x, y: target.y, z: target.z,
+      seenTick: state.tick, expiresTick: state.tick + 600, status: "bad", scanTick: state.tick, suspicion: 1, rival: false }];
+    const clear = stepBotSweep(world, JSON.parse(JSON.stringify(state)), {});
+    expect(clear.ext.combat!.events.some(event => event.kind === "weapon.water" && event.sourceId === "bot-1")).toBe(true);
+    modes.match.players["bot-1"]!.distractedUntil = state.tick + 90;
+    state = stepBotSweep(world, state, {});
+    expect(botSweepView(state)!.players["bot-1"]!.distracted).toBe(true);
+    expect(state.ext.combat!.events.some(event => event.kind === "weapon.water" && event.sourceId === "bot-1")).toBe(false);
   });
 
   it("finishes on the clock with the higher team winning, and pays everyone once", () => {

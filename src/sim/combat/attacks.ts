@@ -79,6 +79,7 @@ function validTarget(kind: AttackKind, target: Target): boolean {
   if (target.player) return kind !== "snatch" && kind !== "forced-update";
   // NPC people and animals never participate in robot attacks, including adults.
   if (target.actor?.kind !== "robot" || target.actor.firmware !== "good" || target.actor.protected === true) return false;
+  if (kind === "forced-update" && target.actor.model === "robotaxi" && target.actor.occupied) return false;
   return kind === "snatch" || kind === "forced-update" || kind === "shove";
 }
 

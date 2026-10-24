@@ -7,6 +7,7 @@ export interface ControlRow { readonly keys: string; readonly action: string; re
 /** Keyboard bindings, kept in step with src/input/keyboard.ts and the render-only keys in src/main.ts. */
 export const KEYBOARD_ROWS: readonly ControlRow[] = [
   { keys: "W A S D / ↑ ← ↓ →", action: "ui.help.move", icon: "move" },
+  { keys: "Shift", action: "ui.help.sprint", icon: "sprint", hold: true },
   { keys: "Space", action: "ui.controls.brake", icon: "sprint" },
   { keys: "F", action: "ui.controls.enterExit", icon: "car" },
   { keys: "E / Enter", action: "ui.controls.fire", icon: "water", hold: true },
@@ -22,6 +23,7 @@ export const KEYBOARD_ROWS: readonly ControlRow[] = [
   { keys: "H", action: "ui.help.horn", icon: "horn" },
   { keys: "P", action: "ui.controls.phone", icon: "phone" },
   { keys: "Esc", action: "ui.help.pause", icon: "pause" },
+  { keys: "Mouse drag", action: "ui.help.orbit", icon: "camera", hold: true },
   { keys: "C", action: "ui.help.camera", icon: "camera" },
   { keys: "V", action: "ui.help.fly", icon: "fly" },
   { keys: "N", action: "ui.help.night", icon: "night" },
@@ -31,7 +33,7 @@ export const KEYBOARD_ROWS: readonly ControlRow[] = [
 /** Standard-mapping gamepad bindings, kept in step with src/input/controller.ts and menu-gamepad.ts. */
 export const GAMEPAD_ROWS: readonly ControlRow[] = [
   { keys: "Left stick", action: "ui.help.move", icon: "move" },
-  { keys: "LT", action: "ui.controls.brake", icon: "sprint" },
+  { keys: "LT", action: "ui.controls.brake", icon: "sprint", hold: true },
   { keys: "RT", action: "ui.controls.fire", icon: "water", hold: true },
   { keys: "A", action: "ui.controls.enterExit", icon: "car" },
   { keys: "B", action: "ui.controls.cone", icon: "cone" },
@@ -39,6 +41,7 @@ export const GAMEPAD_ROWS: readonly ControlRow[] = [
   { keys: "Y", action: "ui.controls.interact", icon: "interact", hold: true },
   { keys: "LB", action: "ui.controls.watch", icon: "watch", hold: true },
   { keys: "RB", action: "ui.controls.altFire", icon: "flowers", hold: true },
+  { keys: "Right stick", action: "ui.help.orbit", icon: "camera" },
   { keys: "L3", action: "ui.help.horn", icon: "horn" },
   { keys: "R3", action: "ui.controls.scan", icon: "scan", hold: true },
   { keys: "D-pad ↑", action: "ui.controls.gear", icon: "gear" },

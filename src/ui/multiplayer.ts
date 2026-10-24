@@ -45,7 +45,7 @@ export interface MultiplayerOptions {
   /** World point → CSS pixels in the game view and distance from the camera; null when behind it. */
   project?(x: number, y: number, z: number): { x: number; y: number; distance: number } | null;
 }
-export interface MatchView { prev: SimState; curr: SimState; alpha: number; playerId: string }
+export interface MatchView { prev: SimState; curr: SimState; alpha: number; playerId: string; ticksThisFrame: number }
 export interface MultiplayerHook {
   available: boolean;
   /** After the frame is rendered: place other players' nametags over them. */
@@ -69,7 +69,7 @@ declare global { interface Window { __fogcityNet?: NetDebug } }
 
 const SEAT_KEY = "fog-city.relay.seat";
 const STYLE = `
-.fc-mp{position:fixed;left:16px;top:96px;z-index:21;color:#f4f5ed;font:500 14px/1.4 system-ui,sans-serif;max-width:min(340px,calc(100vw - 32px))}
+.fc-mp{position:fixed;left:16px;top:96px;z-index:21;color:#f4f5ed;font:500 14px/1.4 system-ui,sans-serif;max-width:min(340px,calc(100vw - 32px));max-height:calc(100dvh - 112px);overflow-y:auto;overscroll-behavior:contain}
 .fc-mp *{box-sizing:border-box}.fc-mp [hidden]{display:none!important}
 .fc-mp button,.fc-mp input{font:inherit;border:1px solid #64838a;border-radius:8px;background:#142c35;color:inherit;padding:8px 12px;min-height:40px;cursor:pointer}
 .fc-mp button:disabled{opacity:.5;cursor:default}.fc-mp button.fc-primary{background:#9af4c3;color:#0b1c17;border-color:#9af4c3}
@@ -81,7 +81,7 @@ const STYLE = `
 .fc-mp li[data-connected=false]{opacity:.55}.fc-mp-swatch{display:inline-block;width:.8em;height:.8em;border-radius:50%;margin-right:.4em;vertical-align:-.05em;border:1px solid #0006}.fc-mp-feed{position:fixed;left:50%;top:96px;transform:translateX(-50%);z-index:21;display:grid;gap:4px;pointer-events:none}.fc-mp-feed p{margin:0;padding:4px 10px;border-radius:8px;background:#08171ed9;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;text-align:center}.fc-mp-tags{position:fixed;inset:0;pointer-events:none;z-index:19}.fc-mp-tag{position:absolute;transform:translate(-50%,-100%);padding:2px 8px;border-radius:999px;background:#08171ecc;color:#f4f5ed;font:600 13px/1.3 system-ui,sans-serif;white-space:nowrap;text-shadow:0 1px 2px #000}.fc-mp-tag[data-team=rival]{border:1px solid #f08a6a}.fc-mp-tag[data-team=team]{border:1px solid #9af4c3}.fc-mp output{color:#c9d6d3;font-size:13px}
 .fc-mp-hud{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:21;display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center;padding:8px 12px;background:#08171ee6;border:1px solid #55747b;border-radius:10px;color:#f4f5ed;font:600 14px/1.3 system-ui,sans-serif;max-width:calc(100vw - 24px)}
 .fc-mp-hud strong{color:#9af4c3}.fc-mp-hud button{font:inherit;border:1px solid #64838a;border-radius:8px;background:#142c35;color:inherit;padding:6px 10px;cursor:pointer}
-@media(max-width:600px){.fc-mp{top:auto;bottom:170px;left:10px}.fc-mp-hud{top:auto;bottom:8px;font-size:12px}}`;
+@media(max-width:600px){.fc-mp{top:auto;bottom:170px;left:10px;max-height:calc(100dvh - 186px)}.fc-mp-hud{top:auto;bottom:8px;font-size:12px}}`;
 
 function reason(text: string): string {
   return text === "sweep-complete" ? "Sweep complete: the pilot is cancelled." : text === "relay-update" ? "Time's up: the Update Relay pushed its firmware."
@@ -473,7 +473,7 @@ export function mountMultiplayer(options: MultiplayerOptions): MultiplayerHook {
       if (!currView) prevView = currView = next;
       else if (steps || next !== currView) { prevView = currView; currView = next; }
       renderHud();
-      return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: spectating ? (follow || nextFollow()) : info?.playerId ?? match.playerId };
+      return { prev: prevView!, curr: currView, alpha: Math.min(1, acc / DT), playerId: spectating ? (follow || nextFollow()) : info?.playerId ?? match.playerId, ticksThisFrame: steps };
     },
     overlay,
     dispose() { win.clearInterval(roomTimer); win.removeEventListener("keydown", chatKeys); client.dispose(); root.remove(); hud.remove(); tagLayer.remove(); feed.remove(); },
