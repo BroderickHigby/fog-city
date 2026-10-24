@@ -197,6 +197,26 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     ...state.ext.agents.list.filter(body=>body.kind==="robotaxi").map(body=>({
       box:{x:body.x,z:body.z,heading:body.heading,hl:body.halfLength??ROBOTAXI_BODY.halfLength,hw:body.halfWidth??ROBOTAXI_BODY.halfWidth},
       y:body.y,height:body.height??ROBOTAXI_BODY.height}))];
+  // Vehicle boxes by 16 m cell, so each walker tests only the vehicles that can reach it.
+  const VEHICLE_CELL = 16;
+  const vehicleGrid = new Map<number, number[]>();
+  let vehicleReach = 0;
+  vehicleBoxes.forEach((vehicle, i) => {
+    vehicleReach = Math.max(vehicleReach, vehicle.box.hl + vehicle.box.hw);
+    const key = (Math.floor(vehicle.box.x / VEHICLE_CELL) + 32768) * 65536 + Math.floor(vehicle.box.z / VEHICLE_CELL) + 32768;
+    const at = vehicleGrid.get(key);
+    if (at) at.push(i); else vehicleGrid.set(key, [i]);
+  });
+  const nearbyVehicles = (x: number, z: number, reach: number, out: number[]): number[] => {
+    out.length = 0;
+    for (let cx = Math.floor((x - reach) / VEHICLE_CELL); cx <= Math.floor((x + reach) / VEHICLE_CELL); cx++)
+      for (let cz = Math.floor((z - reach) / VEHICLE_CELL); cz <= Math.floor((z + reach) / VEHICLE_CELL); cz++) {
+        const at = vehicleGrid.get((cx + 32768) * 65536 + cz + 32768);
+        if (at) for (const i of at) out.push(i);
+      }
+    return out;
+  };
+  const candidates: number[] = [];
   const list = state.ext.agents.list.map(body => {
     const motion = byId.get(body.id);
     if (!motion || body.dodge) return body;
@@ -204,7 +224,8 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     const allowed = Math.min(length, Math.abs(motion.speed)*DT + (restricted.has(body.id) ? 0 : 1e-6));
     const x = body.x + (length>0?dx/length*allowed:0), z = body.z + (length>0?dz/length*allowed:0);
     let blocked = vehicleConflicts.has(body.id) || motion.kind!=="vehicle" && (circleBlocked(world,x,z,motion.radius) || segmentBlocked(world,body.x,body.z,x,z));
-    if (motion.kind === "walker") for (const vehicle of vehicleBoxes) {
+    if (motion.kind === "walker") for (const index of nearbyVehicles(body.x, body.z, vehicleReach + motion.radius + allowed + .1, candidates)) {
+      const vehicle = vehicleBoxes[index]!;
       const box=vehicle.box,reach=box.hl+box.hw+motion.radius+allowed+.1;
       if(Math.abs(body.x-box.x)>reach||Math.abs(body.z-box.z)>reach||body.y>=vehicle.y+vehicle.height+.1||vehicle.y>=body.y+motion.height+.1)continue;
       const fx=dsin(box.heading),fz=-dcos(box.heading),before=boxDistance(body.x,body.z,box.x,box.z,fx,fz,box.hl,box.hw);
@@ -225,6 +246,8 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
       }
     }
     const car=physicalCars.get(body.id),heading=blocked?body.heading:body.heading+turn;
+    // Structural sharing: a body that stays exactly where it was (blocked or standing) is kept.
+    if (!car && (blocked ? body.speed === 0 : allowed === 0 && body.speed === 0 && x === body.x && z === body.z && y === body.y && heading === body.heading)) return body;
     return { ...body, x:blocked?body.x:x,z:blocked?body.z:z,y:blocked?body.y:y,heading,
       speed:blocked?0:car?car.speed:allowed/DT,
       ...(car?{vehicle:blocked?{...car,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:0,lateral:0,yawRate:0}:{...car,x,z,y,heading}}:{}) };

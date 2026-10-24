@@ -180,18 +180,34 @@ function event(state:AgentsRuntimeState,kind:AgentRuntimeEvent["kind"],actorId:s
   state.events.push({id:`${state.tick}:${state.events.length}`,tick:state.tick,kind,actorId,detail});
 }
 
-function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:AgentRuntimeOptions):AgentsRuntimeState{
+/**
+ * The runtime record for this tick. With `shared` false every actor is a fresh copy the planner
+ * may mutate. With `shared` true (the post-movement observation, which changes few actors) an
+ * actor is copied only when this tick changes it, and an unchanged one stays the previous
+ * tick's object: structural sharing. Either way the result has equal contents.
+ */
+function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:AgentRuntimeOptions,shared=false):{state:AgentsRuntimeState;own:(id:string)=>RuntimeActor}{
   const state:AgentsRuntimeState={...previous,tick:sim.tick,actors:{},attacks:[],proposals:[],events:[]};
   const known=new Set<string>();
+  const borrowed=new Set<string>();
+  /** The actor, as an object this tick may change (a copy when it was shared). */
+  const own=(id:string):RuntimeActor=>{
+    if(borrowed.has(id)){borrowed.delete(id);state.actors[id]={...state.actors[id]!};}
+    return state.actors[id]!;
+  };
+  const share=(id:string,actor:RuntimeActor):void=>{state.actors[id]=actor;borrowed.add(id);};
   const bound=new Set(Object.keys(previous.missionBindings).map(key=>previous.missionBindings[key]!));
   const embodied=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId??`agent:${actor.id}`));
   for(const agent of [...agentsOf(sim)].sort((a,b)=>a.id-b.id)){
     const id=`agent:${agent.id}`, old=previous.actors[id];known.add(id);
-    state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
+    if(shared&&old&&old.x===agent.x&&old.y===agent.y&&old.z===agent.z&&old.heading===agent.heading&&old.speed===agent.speed)share(id,old);
+    else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
   }
   for(const spawn of [...(options.spawns??[])].sort((a,b)=>compare(a.id,b.id))){
     if(known.has(spawn.id))throw new Error("Duplicate runtime actor ID");known.add(spawn.id);
-    state.actors[spawn.id]=previous.actors[spawn.id]?{...previous.actors[spawn.id]!}:initialize(spawn,sim.tick,null);
+    const old=previous.actors[spawn.id];
+    if(shared&&old)share(spawn.id,old);
+    else state.actors[spawn.id]=old?{...old}:initialize(spawn,sim.tick,null);
   }
   for(const id of keys(previous.actors)){
     const old=previous.actors[id]!;
@@ -200,31 +216,40 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
     // culling removes that body, retain no motionless virtual replacement.
     // Authored/service vehicles have legacyId=null and keep their own follower.
     if(old.legacyId!==null&&vehicle(old.model)&&!embodied.has(id)&&!bound.has(id))continue;
-    if(old.significant||old.legacyId===null)state.actors[id]={...old,
+    if(old.significant||old.legacyId===null){
       // A significant ambient actor can return after its physical body was
       // culled. Its stable ID survives; it now needs normal physical admission.
-      ...(old.legacyId!==null&&!embodied.has(id)?{legacyId:null}:{}),
-      fidelity:old.legacyId===null?old.fidelity:"abstract"};
+      const legacyId=old.legacyId!==null&&!embodied.has(id)?null:old.legacyId,fidelity=old.legacyId===null?old.fidelity:"abstract";
+      if(shared&&legacyId===old.legacyId&&fidelity===old.fidelity)share(id,old);
+      else state.actors[id]={...old,...(old.legacyId!==null&&!embodied.has(id)?{legacyId:null}:{}),fidelity};
+    }
   }
-  for(const observed of options.observedBodies??[]){const actor=state.actors[observed.id];if(actor&&[observed.x,observed.y,observed.z,observed.heading,observed.speed??0].every(Number.isFinite))Object.assign(actor,observed);}
+  for(const observed of options.observedBodies??[]){
+    const actor=state.actors[observed.id];
+    if(actor&&[observed.x,observed.y,observed.z,observed.heading,observed.speed??0].every(Number.isFinite)
+      &&(actor.id!==observed.id||actor.x!==observed.x||actor.y!==observed.y||actor.z!==observed.z||actor.heading!==observed.heading||actor.speed!==observed.speed))Object.assign(own(observed.id),observed);
+  }
   const ids=Object.keys(state.actors).sort(compare);
   if(ids.length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
   const numericIds=new Set<number>();
   for(const id of ids){
-    const actor=state.actors[id]!;
+    let actor=state.actors[id]!;
     if(numericIds.has(actor.numericId))throw new Error("Duplicate numeric runtime actor ID");numericIds.add(actor.numericId);
-    if(actor.pendingCursor&&actor.pendingPoint&&distance(actor,actor.pendingPoint)<=BODY_EPSILON)actor.cursor={...actor.pendingCursor};
-    actor.pendingCursor=null;actor.pendingPoint=null;
+    if(actor.pendingCursor!==null||actor.pendingPoint!==null){
+      actor=own(id);
+      if(actor.pendingCursor&&actor.pendingPoint&&distance(actor,actor.pendingPoint)<=BODY_EPSILON)actor.cursor={...actor.pendingCursor};
+      actor.pendingCursor=null;actor.pendingPoint=null;
+    }
     const effects=activeCombat(sim)?.targets[id];
-    if(effects&&(effects.rust>0||effects.waryUntil>sim.tick||effects.phase!=="active"))actor.significant=true;
+    if(effects&&(effects.rust>0||effects.waryUntil>sim.tick||effects.phase!=="active")&&actor.significant!==true)own(id).significant=true;
   }
   const combat=activeCombat(sim);
   if(combat&&combat.tick>state.lastCombatTick){
     for(const received of combat.events){
-      const actor=state.actors[received.targetId];
+      const actor=state.actors[received.targetId]?own(received.targetId):undefined;
       if(received.kind==="robot.inventory"){
         if(actor)actor.bag="empty";
-        const source=state.actors[received.sourceId];if(source)source.bag="full";
+        if(state.actors[received.sourceId])own(received.sourceId).bag="full";
       }
       if(!actor)continue;
       if(received.kind==="robot.converted"){
@@ -237,7 +262,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   }
   if(state.baseBadCount===0)state.baseBadCount=ids.filter(id=>state.actors[id]!.firmware==="bad"&&!state.actors[id]!.converted).length;
   sortedActorIds.set(state.actors,ids);
-  return state;
+  return {state,own};
 }
 
 function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>):RobotObservations{
@@ -422,7 +447,7 @@ function fallbackGraph(world:World):SidewalkGraph|undefined{
 /** Pure pre-movement planner. Core applies proposals once and owns final clearance. */
 export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:InputFrame,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const previous=agentsRuntimeOf(sim)??createAgentsRuntime(sim,options);
-  const state=synchronize(previous,sim,options);
+  const {state}=synchronize(previous,sim,options);
   const people=players(sim);
   const anchors=options.anchors??people.map(player=>({id:player.id,x:player.x,z:player.z}));
   const graph=options.graph??fallbackGraph(world);
@@ -480,7 +505,7 @@ export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
 /** Refresh accepted body poses after core movement without running decisions twice. */
 export function observeAgentRuntime(sim:Readonly<SimState>,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const previous=agentsRuntimeOf(sim)??createAgentsRuntime(sim,options);
-  const observed=synchronize(previous,sim,options);
+  const {state:observed,own}=synchronize(previous,sim,options,true);
   let attacks=previous.attacks;
   if(options.observedBodies!==undefined){
     // Core may defer a blocked spawn. Keep its durable staging record, but do not publish
@@ -493,9 +518,10 @@ export function observeAgentRuntime(sim:Readonly<SimState>,options:AgentRuntimeO
       const actor=observed.actors[id]!;
       if(actor.retired||actor.legacyId!==null||actor.model==="drone")continue;
       if(!physical.has(id)){
-        waiting.add(id);actor.fidelity="abstract";actor.behavior="pending-admission";actor.speed=0;actor.intent=null;
+        waiting.add(id);
+        if(actor.fidelity!=="abstract"||actor.behavior!=="pending-admission"||actor.speed!==0||actor.intent!==null){const body=own(id);body.fidelity="abstract";body.behavior="pending-admission";body.speed=0;body.intent=null;}
       }else if(actor.behavior==="pending-admission"){
-        actor.fidelity=planFidelity(actor,anchors,sim.tick).tier;actor.behavior="idle";
+        const body=own(id);body.fidelity=planFidelity(body,anchors,sim.tick).tier;body.behavior="idle";
       }
     }
     if(waiting.size)attacks=attacks.filter(attack=>!waiting.has(attack.attackerId)&&!waiting.has(attack.targetId));
