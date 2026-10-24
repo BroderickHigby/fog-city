@@ -139,6 +139,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    stopping against them as at a wall. Every new field is optional (ext.impacts absent until
  *    the first hit, AgentState.knock and .dents absent on an untouched agent), so a v10 save
  *    loads unchanged.
+ *  - v11 -> v12 (car.ts): vehicle dynamics change behaviour only; CarState keeps every field.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -148,7 +149,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   }
   if (s.version === 7) return upgradeState({ ...s, version: 8 });
   if (s.version === 8) return upgradeState({ ...s, version: 10 });
-  if (s.version === 10) return { ...s, version: 11 };
+  if (s.version === 10) return upgradeState({ ...s, version: 11 });
+  if (s.version === 11) return { ...s, version: 12 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

@@ -31,4 +31,13 @@ describe.skipIf(!SF)("ramming robotaxis on the real city", () => {
       expect(r.hits, `${r.name}: robotaxis hit`).toBeGreaterThan(2);
     }
   }, 600_000);
+
+  it("flat out at the v12 top speed (starting at 50 m/s) along the Ferry Building route, no brakes: nobody is touched", () => {
+    const r = soak(world, { ...home, speed: 50 }, "nobrake", 1200, 13);
+    expect(r.contacts, r.name).toBe(0);
+    expect(r.failures, `${r.name}: the override gave up`).toBe(0);
+    expect(r.unexplained.slice(0, 5), r.name).toEqual([]);
+    expect(r.jumps.slice(0, 5), r.name).toEqual([]);
+    expect(r.driven, r.name).toBeGreaterThan(300);
+  }, 600_000);
 });

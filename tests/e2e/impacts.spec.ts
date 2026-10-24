@@ -55,6 +55,11 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
       const keys = new Set<string>(["KeyW"]);
       if (off > 0.06) keys.add("KeyD");
       else if (off < -0.06) keys.add("KeyA");
+      // As a driver would: lift, and brake if fast, to turn in (realistic tyres understeer at speed).
+      if (Math.abs(off) > 0.5 && c.speed > 8) {
+        keys.delete("KeyW");
+        if (c.speed > 14) keys.add("KeyS");
+      }
       await hold(page, held, keys);
       if (process.env.IMPACTS_E2E_LOG) console.log(s.tick, c.x.toFixed(1), c.z.toFixed(1), c.speed.toFixed(1), "taxi", t.id, t.x.toFixed(1), t.z.toFixed(1), off.toFixed(2), [...keys].join("+"), taxis.length);
       await page.waitForTimeout(60);

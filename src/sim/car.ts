@@ -1,4 +1,14 @@
-// Arcade car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
+// Car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
+//
+// v12 dynamics (the owner: "drive faster", "more realistic"): a modern EV, 0-100 km/h in about
+// 5.5 s (drive limited by what the tyres put down, then by the motor's power, CAR.powerPerKg / v)
+// and about 195 km/h flat out (power meets drag). The tyres share one grip budget, tyreMu g scaled
+// by the road's traction (a friction circle): braking or drive leaves less for cornering. Braking
+// and accelerating move weight between the axles (CAR.weightTransfer): the front axle's grip caps
+// how fast the car turns (understeer at the limit), the rear's how well it holds a slide (it lets
+// go first under hard braking). The brakes are ABS-limited to the tyres' grip (about 36 m from
+// 100 km/h dry, longer wet), a handbrake turn kicks the tail out (CAR.handbrakeKick), and the
+// wheels turn more slowly at speed. The rest below is the model that carries all of that.
 //
 // Model, per tick:
 //  - Velocity is (speed, lateral) in the car's frame. Yaw rotates the frame but not the
@@ -45,27 +55,54 @@ import { segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
 export const CAR = {
-  /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
-  maxSpeed: 30,
+  /**
+   * About the top speed on the flat, m/s (~195 km/h), where the motor's power meets drag and
+   * rolling resistance (v12 dynamics: a modern EV). Gravity can take you past it downhill; other
+   * code uses it as "the car's natural top speed".
+   */
+  maxSpeed: 54,
+  /** Hard cap on the speed along the body, m/s (downhill), and the fastest reverse. */
+  speedCap: 62,
   maxReverse: 8,
-  /** Engine acceleration at low speed, m/s^2; fades out over the top engineFade of maxSpeed. */
-  accel: 9.5,
-  engineFade: 0.35,
+  /**
+   * Drive: at most `accel` m/s^2 (what the tyres put down from rest), and no more than
+   * `powerPerKg` / v (the motor's power, W per kg): 0 to 100 km/h in about 5 s.
+   */
+  accel: 6,
+  powerPerKg: 110,
   reverseAccel: 5,
-  brakeDecel: 22,
-  /** Brake deceleration while drifting (the brake acts as a light handbrake). */
+  /** Brake demand at full pedal, m/s^2; ABS holds it to what the tyres can give (tyreMu g). */
+  brakeDecel: 11,
+  /** Brake deceleration while drifting (the brake is the handbrake: rear wheels locked). */
   handbrakeDecel: 4,
+  /** A handbrake turn starting kicks the tail out at this yaw rate, rad/s (toward the steer). */
+  handbrakeKick: 0.9,
   rolling: 0.25,
   /** Aerodynamic drag coefficient: a = aero * v^2. */
-  aero: 0.0012,
+  aero: 0.0006,
   wheelbase: 2.7,
   maxSteer: 0.6,
+  /** Wheel angle rate, rad/s, slowing with speed (steerRate / (1 + v / steerRateRef)): calm at speed. */
   steerRate: 3.2,
+  steerRateRef: 25,
   steerSpeedRef: 11,
-  /** Max lateral acceleration with full grip, m/s^2. */
-  gripAccel: 18,
+  /**
+   * Tyres: the friction coefficient of the four together on a dry road (scaled by traction in
+   * the wet). Drive or braking and cornering share it (a friction circle): sqrt(long^2 + lat^2)
+   * <= tyreMu g.
+   */
+  tyreMu: 1.05,
+  /** Max lateral acceleration with full grip, m/s^2 (tyreMu g). */
+  gripAccel: 10.3,
+  /**
+   * Weight transfer: braking at a m/s^2 loads the front axle by weightTransfer * a / g (more
+   * front grip: sharper turn-in) and lightens the rear as much (it lets go first); accelerating
+   * does the opposite (understeer). Clamped to +-maxTransfer.
+   */
+  weightTransfer: 0.5,
+  maxTransfer: 0.35,
   /** Lateral friction while fully sliding, m/s^2. */
-  driftGripAccel: 9,
+  driftGripAccel: 6,
   driftYawBoost: 0.6,
   maxDriftYaw: 1.9,
   /** rad/s of counter-yaw per radian of slip angle while sliding. */
@@ -122,6 +159,18 @@ export const CAR = {
   /** Coulomb friction between the bodies along the contact, as a share of the normal impulse. */
   bodyFriction: 0.15,
 } as const;
+
+/**
+ * The most a car's velocity can change in one second on its own (not counting a hit on a body,
+ * which dodge.ts bounds separately), m/s^2, a safe upper bound on the model above: the rear
+ * axle's grip with full weight transfer (x1.5 sliding catch-up), the stronger of braking and
+ * drive, drag at the speed cap, rolling, understeer scrub, and gravity on any slope.
+ */
+export const CAR_MAX_DV_PER_S =
+  CAR.gripAccel * (1 + CAR.maxTransfer) * 1.5 + Math.max(CAR.brakeDecel, CAR.accel) + CAR.aero * CAR.speedCap * CAR.speedCap + CAR.rolling + CAR.understeerScrub + CAR.gravity;
+
+/** The hardest a car's tyres can turn it, as lateral acceleration, m/s^2 (front grip with full weight transfer). */
+export const CAR_MAX_TURN_ACCEL = CAR.gripAccel * (1 + CAR.maxTransfer);
 
 /**
  * A car's hit on a body it can shove, from stepCar: the impulse on the car (kg m/s) along the
@@ -338,14 +387,29 @@ export function stepCar(
   const absV = speed < 0 ? -speed : speed;
   const steerIn = input.steer < 0 ? -input.steer : input.steer;
 
-  // Speed-sensitive steering lock.
+  // Speed-sensitive steering lock, and a wheel that turns more calmly at speed.
   const steerLimit = CAR.maxSteer / (1 + absV / CAR.steerSpeedRef);
-  const steer = approach(c.steer, input.steer * steerLimit, CAR.steerRate * DT);
+  const steer = approach(c.steer, input.steer * steerLimit, (CAR.steerRate / (1 + absV / CAR.steerRateRef)) * DT);
+
+  // The tyres' grip budget (a friction circle) and what drive or braking takes of it this tick,
+  // with the weight transfer that goes with it: load = +1 braking at 1 g, -1 accelerating at 1 g.
+  const muG = CAR.tyreMu * G * mu;
+  const thr0 = input.throttle;
+  const wantBrake = (thr0 > 0 && speed < -0.1) || (thr0 < 0 && speed > 0.1) ? (thr0 < 0 ? -thr0 : thr0) : 0;
+  const pedal = Math.min(1, wantBrake + (input.brake > 0 && !(input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) ? input.brake : 0));
+  const drive = thr0 > 0 && speed >= -0.1 ? thr0 * Math.min(CAR.accel, CAR.powerPerKg / Math.max(absV, 1)) : 0;
+  const longUse = Math.min(muG, Math.max(pedal * CAR.brakeDecel, drive));
+  const latBudget = Math.sqrt(Math.max(0, muG * muG - longUse * longUse));
+  const transfer = clamp((CAR.weightTransfer * (pedal * Math.min(CAR.brakeDecel, muG) - drive)) / G, -CAR.maxTransfer, CAR.maxTransfer);
+  const frontGrip = latBudget * (1 + transfer);
+  const rearGrip = latBudget * (1 - transfer);
 
   let drifting = false;
   let scrub = 0;
   if (onGround) {
     if (input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) {
+      // Handbrake turn: the rear wheels lock and let go; the tail kicks out toward the steer.
+      if (grip >= 0.95) yawRate += (input.steer < 0 ? -1 : 1) * CAR.handbrakeKick;
       grip = Math.max(0, grip - CAR.gripDrop * DT);
       drifting = true;
     } else {
@@ -354,7 +418,8 @@ export function stepCar(
     }
     const slip = 1 - grip;
     const kin = (speed / CAR.wheelbase) * dtan(steer);
-    const gripLim = (CAR.gripAccel * mu) / Math.max(absV, 1);
+    // The front axle's grip limits how fast the car can turn (understeer at the limit).
+    const gripLim = frontGrip / Math.max(absV, 1);
     const lim = Math.max(gripLim, CAR.maxDriftYaw * slip);
     const want = kin * (1 + CAR.driftYawBoost * slip);
     const wantAbs = want < 0 ? -want : want;
@@ -380,16 +445,10 @@ export function stepCar(
   if (onGround) {
     const thr = input.throttle;
     let engine = 0;
-    let brake = 0;
-    if (thr > 0) {
-      if (speed < -0.1) brake += CAR.brakeDecel * thr;
-      else engine += CAR.accel * thr * clamp((CAR.maxSpeed - speed) / (CAR.maxSpeed * CAR.engineFade), 0, 1);
-    } else if (thr < 0) {
-      if (speed > 0.1) brake += CAR.brakeDecel * -thr;
-      else engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
-    }
-    if (input.brake > 0) brake += (drifting ? CAR.handbrakeDecel : CAR.brakeDecel) * input.brake;
-    brake *= mu;
+    // Brakes, held by ABS to the tyres' grip (wet roads stop longer); the handbrake while drifting.
+    const brake = Math.min(muG, pedal * CAR.brakeDecel) + (drifting ? CAR.handbrakeDecel * input.brake * mu : 0);
+    if (thr > 0 && speed >= -0.1) engine += Math.min(drive, muG);
+    else if (thr < 0 && speed <= 0.1) engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
     const sF = g0.slopeF;
     const gravF = (-G * sF) / Math.sqrt(1 + sF * sF);
     speed += (engine + gravF) * DT;
@@ -399,7 +458,9 @@ export function stepCar(
     const sR = g0.slopeR;
     lateral += ((-G * sR) / Math.sqrt(1 + sR * sR)) * DT;
     const v2 = speed * speed + lateral * lateral;
-    const latCap = (CAR.driftGripAccel + (CAR.gripAccel * 1.5 - CAR.driftGripAccel) * grip) * mu;
+    // The rear axle holds the slide: what the friction circle leaves it (less under braking),
+    // down to the sliding friction while drifting.
+    const latCap = CAR.driftGripAccel * mu + (rearGrip * 1.5 - CAR.driftGripAccel * mu) * grip;
     const newLat = approach(lateral, 0, latCap * DT);
     if (grip < 1 && speed > 1) {
       const keep = Math.sqrt(Math.max(0, v2 - newLat * newLat));
@@ -418,7 +479,7 @@ export function stepCar(
     speed -= CAR.aero * speed * (speed < 0 ? -speed : speed) * DT;
     lateral -= CAR.aero * lateral * (lateral < 0 ? -lateral : lateral) * DT;
   }
-  speed = clamp(speed, -15, 50);
+  speed = clamp(speed, -15, CAR.speedCap);
 
   // Move in substeps, sliding along whatever we touch.
   let x = c.x;

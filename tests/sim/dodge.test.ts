@@ -5,6 +5,7 @@
 // the real city is tests/sim/dodge-soak.test.ts.
 import { describe, expect, it } from "vitest";
 import {
+  CAR_MAX_TURN_ACCEL,
   AGENT_SPEC,
   CAR,
   DODGE_MIN_SPEED,
@@ -123,8 +124,9 @@ describe("the predicted footprint", () => {
     const turned = Math.atan2(arc.at(-1)!.fx, -arc.at(-1)!.fz);
     expect(turned).toBeCloseTo(0.5 * arc.at(-1)!.t, 6);
     expect(Math.atan2(line.at(-1)!.fx, -line.at(-1)!.fz)).toBeCloseTo(turned, 9);
-    // The hardest turn: CAR.gripAccel / speed rad/s, bending further east than the arc.
-    expect(Math.atan2(hard.at(-1)!.fx, -hard.at(-1)!.fz)).toBeCloseTo((CAR.gripAccel / 20) * hard.at(-1)!.t, 6);
+    // The hardest turn: CAR_MAX_TURN_ACCEL / speed rad/s (the front's grip with full weight
+    // transfer, v12 dynamics), bending further east than the arc.
+    expect(Math.atan2(hard.at(-1)!.fx, -hard.at(-1)!.fz)).toBeCloseTo((CAR_MAX_TURN_ACCEL / 20) * hard.at(-1)!.t, 6);
     expect(hard.at(-1)!.x).toBeGreaterThan(arc.at(-1)!.x + 1);
     // A robotaxi keeps to its route: no such guess.
     expect(predictPaths({ ...v, spread: 0 })).toHaveLength(2);

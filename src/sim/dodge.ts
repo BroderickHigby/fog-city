@@ -82,9 +82,9 @@
 // body's decision sees the spots the bodies before it chose.
 
 import { DT, sortedIds, type CarState, type DodgeState, type FootState, type PlayerId, type PlayerState, type SimState } from "./contract.ts";
-import { clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
+import { HALF_PI, clamp, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { hash32 } from "./rng.ts";
-import { CAR, carCircles } from "./car.ts";
+import { CAR, CAR_MAX_DV_PER_S, CAR_MAX_TURN_ACCEL, carCircles } from "./car.ts";
 import { boxBlocked, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
 import {
@@ -176,7 +176,7 @@ const SLIP_COS = dcos(SLIP_RAD);
  * The most a player's car's velocity changes over a tick in any direction, m/s: the engine, full
  * tyre grip sideways and gravity on the steepest street (its reach allows for it).
  */
-export const CAR_DV = (CAR.accel + CAR.gripAccel * 1.5 + CAR.gravity) * DT;
+export const CAR_DV = CAR_MAX_DV_PER_S * DT;
 /** A dive step is checked against the vehicles' reach every this many metres. */
 const STEP_CHECK_M = 0.04;
 
@@ -514,6 +514,17 @@ export function vehicleOfCar(
     }
   }
   if (touch) v.inflate += turn * halfDiag;
+  // Its yaw rate can change over the step (car.ts: it eases toward a target set by the steering,
+  // its grip and, while sliding, the pull of the slide), and a handbrake turn starting this step
+  // kicks it: its corners swing that much further than its present yaw rate says. A bound on the
+  // target: the boosted kinematic rate at full lock plus the slide's pull.
+  const slip = 1 - c.grip;
+  const absV = (c.speed < 0 ? -c.speed : c.speed) + CAR_DV;
+  const lock = CAR.maxSteer / (1 + (c.speed < 0 ? -c.speed : c.speed) / CAR.steerSpeedRef);
+  const target = (absV / CAR.wheelbase) * dtan(lock) * (1 + CAR.driftYawBoost * slip) + CAR.stability * slip * HALF_PI + CAR.maxDriftYaw * slip;
+  const yawNow = c.yawRate < 0 ? -c.yawRate : c.yawRate;
+  const yawStep = Math.min(1, CAR.yawResponse * DT) * (target + yawNow) + (absV > CAR.driftMinSpeed && c.grip >= 0.95 ? CAR.handbrakeKick : 0);
+  v.inflate += yawStep * DT * halfDiag;
   v.inflate += Math.min(CAR.maxPush, shove);
   if (touch && v.speed + CAR_DV > 1) v.inflate += CAR.wallAlign * DT * halfDiag;
   return v;
@@ -659,7 +670,7 @@ export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, worl
  * 0.05 rad over the horizon): the arc its velocity draws as it turns; the straight line it would
  * slide along with its body still yawing (a drift or a handbrake turn); and, for a vehicle that
  * can be steered anywhere (spread > 0, a player's car), the arc of the hardest turn its tyres
- * allow that way (CAR.gripAccel / speed, so a car chasing someone round a bend is not
+ * allow that way (CAR_MAX_TURN_ACCEL / speed, so a car chasing someone round a bend is not
  * underestimated). Not turning: one straight path. Sliding (its velocity more than
  * SLIP_RAD off its nose): also the path it takes if its tyres bite again, setting off along its
  * nose (a drift caught straightens out toward wherever the nose points, faster than any turn).
@@ -680,7 +691,7 @@ export function predictPaths(
   // [yaw rate of the path, yaw rate of the body, sets off along the nose]
   const kinds: Array<[number, number, boolean]> = turning ? [[yaw, yaw, false], [0, yaw, false]] : [[0, yaw, false]];
   if (turning && (v.spread ?? 0) > 0) {
-    const hard = Math.min(CAR.gripAccel / v.speed, 1.2);
+    const hard = Math.min(CAR_MAX_TURN_ACCEL / v.speed, 1.2);
     if (hard > (yaw < 0 ? -yaw : yaw)) kinds.push([yaw < 0 ? -hard : hard, yaw < 0 ? -hard : hard, false]);
   }
   // (cos of the angle between the velocity and the nose)

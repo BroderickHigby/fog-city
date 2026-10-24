@@ -76,7 +76,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes
 
 describe("legacy SIM_VERSION 4 replays", () => {
   it("runs on the deliberately versioned current contract", () => {
-    expect(SIM_VERSION).toBe(11);
+    expect(SIM_VERSION).toBe(12);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
@@ -174,7 +174,10 @@ describe("legacy SIM_VERSION 4 replays", () => {
   );
 });
 
-/** hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4. */
-const PINNED_V4: string[] = ["87d67d3d", "016c3bfe", "7f325229", "ef174bed", "08f17ea5"];
-/** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4. */
-const PINNED_V4_DODGE: string[] = ["f5981263", "52415258", "d09fb88c", "b80c1bfc", "324c2580", "70237636"];
+/**
+ * hashState every 300 ticks of the first replay above, recorded at SIM_VERSION 4; re-pinned at
+ * v12 (car.ts vehicle dynamics: the same inputs now drive the more realistic car).
+ */
+const PINNED_V4: string[] = ["31527baa", "721042f9", "45eec0a7", "e7a70216", "70ba036e"];
+/** hashState every 100 ticks of the dodge replay, recorded at SIM_VERSION 4; re-pinned at v12 (as above). */
+const PINNED_V4_DODGE: string[] = ["64bae003", "d6038e50", "08d9fede", "3e4079e0", "d6f3b93d", "4fa95eeb"];

@@ -26,7 +26,10 @@
 // the fog reducer fills ext.fog on its first tick.
 // v11: cars shove, spin and dent other cars and robotaxis (src/sim/impacts.ts): ext.impacts, and
 // optional AgentState.knock/dents. (9 stays reserved for the structural world.)
-export const SIM_VERSION = 11;
+// v12: vehicle dynamics (car.ts): a modern-EV power curve (0-100 km/h in about 5.5 s, about
+// 195 km/h flat out), a friction-circle tyre model with weight transfer, ABS-limited braking and a
+// handbrake kick. CarState keeps its fields; behaviour changes only.
+export const SIM_VERSION = 12;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
