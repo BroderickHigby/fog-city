@@ -294,6 +294,10 @@ export interface AgentState {
   rng: number;
   /** v4: diving out of a vehicle's way, or getting up after it (src/sim/dodge.ts), else null. */
   dodge: DodgeState | null;
+  /** v14: knocked off its path by a hit (src/sim/impacts.ts); absent otherwise. stepAgents leaves it alone. */
+  knock?: import("./impacts.ts").KnockState;
+  /** v14: how dented each side is (src/sim/impacts.ts); absent while undamaged. */
+  dents?: import("./impacts.ts").Dents;
   /** v13 robotaxis: going round a stopped vehicle on the current lane (src/sim/overtake.ts); absent otherwise. */
   pass?: PassState;
 }

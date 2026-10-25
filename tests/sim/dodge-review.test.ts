@@ -239,18 +239,30 @@ describe("a body on a roof or a deck", () => {
 describe("people in a corner or against a wall", () => {
   const corner4 = (): AgentState[] => [[-0.4, 0.4], [-1.1, 0.45], [-0.45, 1.15], [-1.2, 1.2]].map(([x, z], i) => agent(CORNER, 200 + i, "person", x!, z!));
 
-  it("four people in an inside corner, a car coming up beside them at 10 m/s that brakes and steers into them 8 m short (repro-corner, probe-park): never inside it, before or after it hits the wall and stops still turning", () => {
+  it("four people in an inside corner, a car coming up beside them at 10 m/s that brakes and steers into them 6 m short (repro-corner, probe-park): never inside it, before or after it hits the wall and stops still turning", () => {
+    // (8 m short before the v12 dynamics; with realistic tyres the car reaches the walls still
+    // turning when it turns in 6 m short, as the review saw.)
     const s0 = scene(CORNER, [{ id: "c", x: -3.4, z: 40, heading: 0, speed: 10 }], [], corner4());
     let stoppedTurning = 0;
     const { s, contacts } = run(CORNER, s0, 240, (k) => {
       const c = k.players.c!.car;
       if (c.speed === 0 && Math.abs(c.yawRate) > 0.05) stoppedTurning++;
-      return { c: c.z - 1 <= 8 ? { throttle: 1, steer: 1, brake: 1, actions: 0 } : FULL };
+      return { c: c.z - 1 <= 6 ? { throttle: 1, steer: 1, brake: 1, actions: 0 } : FULL };
     });
     expectNoContact(s, contacts, "corner drift");
     // The scene does what the review saw: the car ends against the walls, at a standstill but still turning.
     expect(stoppedTurning).toBeGreaterThan(3);
   });
+
+  it("the same corner from 9.5 to 14 m/s, turning in 6 to 10 m short: never inside it", () => {
+    for (const v of [9.5, 10, 11, 12, 13, 14]) {
+      for (const short of [6, 7, 8, 9, 10]) {
+        const s0 = scene(CORNER, [{ id: "c", x: -3.4, z: 40, heading: 0, speed: v }], [], corner4());
+        const { s, contacts } = run(CORNER, s0, 240, (k) => ({ c: k.players.c!.car.z - 1 <= short ? { throttle: 1, steer: 1, brake: 1, actions: 0 } : FULL }));
+        expectNoContact(s, contacts, `corner drift v${v} short${short}`);
+      }
+    }
+  }, LONG_RUN_MS);
 
   it("a car at a standstill that is still turning counts as moving: its reach covers its turn, and the override keeps its full clearance from it", () => {
     // 0.39 rad/s at a standstill (the review's probe-park, tick 127): its corners move at 0.94 m/s.

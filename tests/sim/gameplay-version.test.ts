@@ -17,8 +17,8 @@ describe("v7 to current composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    // v7 -> v8 -> v10 -> v11 -> v12 -> v13 (v9 is reserved for the structural world): behaviour only, every field kept.
-    expect(SIM_VERSION).toBe(13);
+    // v7 -> v8 -> v10 -> v11 -> ... -> v15 -> v16 (v9 is reserved for the structural world): behaviour only, every field kept.
+    expect(SIM_VERSION).toBe(16);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
     expect(upgradeState(deepFreeze({ ...old, version: 10 }))).toEqual(upgraded);
@@ -55,7 +55,7 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    // (Through weather, sprint, rides and unlimited water: no fields change.)
+    // (Through weather, sprint, rides, unlimited water and impacts: no fields change.)
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
@@ -89,7 +89,7 @@ describe("v10 to v13 unlimited-water save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(upgraded).toEqual({ ...old, version: 13 });
+    expect(upgraded).toEqual({ ...old, version: 16 });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
   });

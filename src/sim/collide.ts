@@ -19,6 +19,29 @@ export interface Circle {
   r: number;
   /** A person (agent or player on foot): bumping one never hurts them; cars count it separately. */
   person: boolean;
+  /**
+   * The movable body this circle is a slice of (another car, a robotaxi): a car that hits it
+   * exchanges momentum with it instead of stopping as at a wall (car.ts, impacts.ts).
+   */
+  body?: ImpactBody;
+}
+
+/** A body that can be shoved: its key, mass and velocity as of the start of the tick. */
+export interface ImpactBody {
+  /** "p:<player id>" (a player's car) or "a:<agent id>". */
+  key: string;
+  /** Kilograms. */
+  mass: number;
+  /** Centre and world velocity, m/s. */
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+  /**
+   * A street prop (props.ts): a hit closing slower than this meets it as an immovable body (a
+   * wall that spins the car); at this speed or more it breaks and only its mass counts.
+   */
+  breakSpeed?: number;
 }
 
 /** An oriented rectangle: centre, compass heading, half length (along heading) and half width. */
@@ -41,6 +64,8 @@ export interface BoxResolve {
   person: boolean;
   /** Length of the pushes out of buildings and circles that were applied (at most maxPush). */
   pushed: number;
+  /** The circle behind the deepest push, when the deepest push came from a circle, else null. */
+  circle: Circle | null;
 }
 
 const EPS = 1e-4;
@@ -364,6 +389,8 @@ export function resolveBox(
   let person = false;
   let bestPersonDepth = 0;
   let bestOtherDepth = 0;
+  let deepest = 0;
+  let deepestCircle: Circle | null = null;
   let budget = maxPush;
   let pushed = 0;
   // Direction of a push the spent budget held back (counts as the contact normal if nothing moved).
@@ -376,6 +403,7 @@ export function resolveBox(
     let bestD2 = 0;
     let bestIsPerson = false;
     let bestIsWall = false;
+    let bestCircle: Circle | null = null;
     for (const b of nearbyBuildings(world, x, z, reach)) {
       if (!blocksBand(b, y, top)) continue;
       const p = boxPolygonPush(x, z, fx, fz, rx, rz, box.hl, box.hw, b.footprint);
@@ -386,6 +414,7 @@ export function resolveBox(
         best = p;
         bestIsPerson = false;
         bestIsWall = false;
+        bestCircle = null;
       }
     }
     if (world.walls) {
@@ -398,6 +427,7 @@ export function resolveBox(
           best = p;
           bestIsPerson = false;
           bestIsWall = true;
+          bestCircle = null;
         }
       }
     }
@@ -414,9 +444,14 @@ export function resolveBox(
         best = p;
         bestIsPerson = c.person;
         bestIsWall = false;
+        bestCircle = c;
       }
     }
     if (!best) break;
+    if (bestD2 > deepest) {
+      deepest = bestD2;
+      deepestCircle = bestCircle;
+    }
     let px = best[0];
     let pz = best[1];
     if (!bestIsWall) {
@@ -466,13 +501,17 @@ export function resolveBox(
       tz += best[1];
       hit = true;
       bestOtherDepth = Math.max(bestOtherDepth, bestD2);
+      if (bestD2 > deepest) {
+        deepest = bestD2;
+        deepestCircle = null;
+      }
     }
   }
   person = hit && bestPersonDepth > bestOtherDepth;
   const tl = Math.sqrt(tx * tx + tz * tz);
   const nx = tl > 1e-12 ? tx / tl : heldX;
   const nz = tl > 1e-12 ? tz / tl : heldZ;
-  return { x, z, hit, nx, nz, person, pushed };
+  return { x, z, hit, nx, nz, person, pushed, circle: deepestCircle };
 }
 
 /** Does an oriented box overlap any building that blocks the band from y to top (blocksBand), any wall or any circle? */

@@ -235,7 +235,7 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
   const candidates: number[] = [];
   const list = state.ext.agents.list.map(body => {
     const motion = byId.get(body.id);
-    if (!motion || body.dodge) return body;
+    if (!motion || body.dodge || body.knock) return body;
     const dx = motion.x-body.x,dz = motion.z-body.z,length = Math.sqrt(dx*dx+dz*dz);
     const allowed = Math.min(length, Math.abs(motion.speed)*DT + (restricted.has(body.id) ? 0 : 1e-6));
     const x = body.x + (length>0?dx/length*allowed:0), z = body.z + (length>0?dz/length*allowed:0);

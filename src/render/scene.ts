@@ -603,6 +603,11 @@ export class SceneRenderer {
     this.quality?.resize(w, h);
   }
 
+  /** Knocked-over street trees (impact-layer.ts) through the foliage layer. */
+  setFoliageOverride(fn: ((x: number, z: number, matrix: THREE.Matrix4) => THREE.Matrix4 | null) | null): void {
+    this.foliage.setOverride(fn);
+  }
+
   /** The governor's step down (gfx.ts): fewer pixels, then no shadows, then no post chain. */
   private stepDown(step: GfxStep): void {
     if (step === "pixels") {

@@ -13,7 +13,10 @@ import { contextFromState, type CombatAdapterOptions } from "./combat/adapter.ts
 import { systems as modeSystems } from "./modes/systems.ts";
 import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
-import type { CombatWave, RefillSource } from "./combat-contract.ts";
+import type { CombatActor, CombatWave, RefillSource } from "./combat-contract.ts";
+import type { GameplayFact } from "./gameplay-contract.ts";
+import { impactsOf } from "./impacts.ts";
+import type { AgentsExt } from "./agents.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
 
 /** Same tick, players and every extension slot but combat (the combat context's inputs). */
@@ -23,6 +26,32 @@ function sameExceptCombat(a:Readonly<SimState>,b:Readonly<SimState>):boolean{
   if(keys.length!==Object.keys(b.ext).length)return false;
   for(const key of keys)if(key!=="combat"&&(a.ext as Record<string,unknown>)[key]!==(b.ext as Record<string,unknown>)[key])return false;
   return true;
+}
+
+/** Knocking over a good robot with your car: $30 and 3 reputation (impacts.ts; design decision log 2026-10-23). */
+export const RAM_GOOD_ROBOT_CENTS = 3000;
+
+/**
+ * A player's car knocking a good robot over this tick becomes an economy penalty (a fact the
+ * economy reducer already settles: cash and reputation). Bad robots cost nothing. `actors` (the
+ * combat actors, with their firmware) is only built when there is such a hit.
+ */
+export function rammedRobotFacts(context:SimSystemContext,actors:()=>readonly CombatActor[]):GameplayFact[] {
+  const tick=context.state.tick;
+  const hits=(impactsOf(context.state)?.events??[]).filter(e=>e.tick===tick&&e.kind==="car-robot"&&e.fell===true&&e.a.startsWith("p:"));
+  if(!hits.length)return [];
+  const list=(context.state.ext.agents as AgentsExt|undefined)?.list??[];
+  const all=actors();
+  const out:GameplayFact[]=[];
+  for(const e of hits){
+    const agent=list.find(a=>a.id===Number(e.b.slice(2)));
+    if(!agent)continue;
+    const actorId=agent.runtimeId??`agent:${agent.id}`;
+    const actor=all.find(a=>a.id===actorId);
+    if(!actor||actor.kind!=="robot"||actor.firmware!=="good")continue;
+    out.push({id:`world:ram-${e.id}`,source:"world",sequence:e.id,tick,kind:"economy.penalty",playerId:e.a.slice(2),actorId,amount:RAM_GOOD_ROBOT_CENTS/100,detail:"reputation:-3 rammed"});
+  }
+  return out;
 }
 
 export interface GameSystemsOptions {
@@ -39,7 +68,7 @@ export interface GameSystemsOptions {
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v13.json pins this path.
+ * tests/golden/composed-v14.json pins this path (older versions keep their own records).
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
@@ -96,6 +125,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     return rain>0?{...combat,actors:combat.actors.map(actor=>actor.kind==="robot"&&actor.sheltered===undefined?{...actor,sheltered:shelteredAt(context.world,actor.x,actor.z)}:actor)}:combat;
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
+    facts:context=>rammedRobotFacts(context,()=>combatContext(context).actors),
     protectedArea,fog:(context,x,z)=>fogAt(context,x,z),
     missionParking:context=>buildMissionParkingWorld(context,context.world.parking?.rules??[],context.world.streetCleaning?.rules??[]),
     calendar:context=>{const time=gameTime(context.state);return {day:time.dayIndex,month:time.month,hour:time.hour,minute:time.minute};}});

@@ -165,12 +165,12 @@ describe("robotaxi rides", () => {
     const riding = { ...s, version: 12 };
     expect(riding.players.p!.ride).toBeTruthy();
     const ridingBefore = canonicalJson(riding);
-    expect(upgradeState(riding)).toEqual({ ...riding, version: 13 });
+    expect(upgradeState(riding)).toEqual({ ...riding, version: 16 });
     expect(canonicalJson(riding)).toBe(ridingBefore);
-    expect(SIM_VERSION).toBe(13);
+    expect(SIM_VERSION).toBe(16);
     const old = { ...createInitialState(world, 5, ["p"], { x: 150, z: 0, heading: 0 }), version: 11 };
     const before = canonicalJson(old);
-    expect(upgradeState(old)).toEqual({ ...old, version: 13 });
+    expect(upgradeState(old)).toEqual({ ...old, version: 16 });
     expect(canonicalJson(old)).toBe(before);
   });
 });

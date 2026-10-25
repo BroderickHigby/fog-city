@@ -548,7 +548,8 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       // standing near, then carry on, instead of freezing round them.
       if(player.mode==="foot"&&distance(actor,player)<=4&&!(actor.glanced!==undefined&&sim.tick-actor.glanced<GLANCE_COOLDOWN_TICKS))observed.push({sourceId:player.id,kind:"nearby",x:player.x,z:player.z,seen,heard:false});
       if(input&&(input.actions&Action.horn))observed.push({sourceId:player.id,kind:"horn",x:player.x,z:player.z,seen,heard:true});
-      if(player.mode==="vehicle")observed.push({sourceId:player.id,kind:"vehicle",x:player.x,z:player.z,seen,heard:false,speedMps:Math.abs(player.speed)});
+      // People and animals step back from a moving car; robots do not (a car bowls them over: impacts.ts).
+      if(player.mode==="vehicle"&&actor.firmware!=="good")observed.push({sourceId:player.id,kind:"vehicle",x:player.x,z:player.z,seen,heard:false,speedMps:Math.abs(player.speed)});
       for(const emitted of activeCombat(sim)?.events??[])if(emitted.sourceId===player.id){
         if(emitted.kind==="weapon.water")observed.push({sourceId:player.id,kind:"spray",x:player.x,z:player.z,seen,heard:true});
         if(emitted.kind==="robot.glance"&&emitted.targetId===actor.id)observed.push({sourceId:player.id,kind:"ping",x:player.x,z:player.z,seen,heard:true});

@@ -36,7 +36,13 @@
 // v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
 // reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
 // a v12 save keeps its saved water value, which no longer limits the stream.
-export const SIM_VERSION = 13;
+// v14: cars shove, spin and dent other cars and robotaxis (src/sim/impacts.ts): ext.impacts, and
+// optional AgentState.knock/dents. An upgraded v13 save keeps every field.
+// Combined v14: cars bowl robots over (impacts.ts); robots no longer dodge a player's car.
+// Combined v14: street props a car can break (props.ts, impacts.ts): optional ext.impacts.props.
+// Combined v14 also adds modern-EV acceleration, friction-circle tyres, ABS braking and handbrake.
+// Vehicle fields are unchanged; the combined release also preserves optional damage/prop state.
+export const SIM_VERSION = 14;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

@@ -40,6 +40,10 @@ import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
+import { ImpactLayer } from "./render/impact-layer.ts";
+import { PropDamage } from "./render/prop-damage.ts";
+import { propIndex } from "./sim/props.ts";
+import { meshGroundHeight } from "./sim/world.ts";
 import { SprayTracker } from "./render/held-blaster.ts";
 import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, parseGfxRequest, probeGpu } from "./render/gfx.ts";
 import { ContextGuard, RESUME_KEY, SAFE_MODE_KEY, hideGraphicsNotice, showGraphicsNotice } from "./render/context-guard.ts";
@@ -297,6 +301,13 @@ async function boot(): Promise<void> {
   const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
+  const impactLayer=new ImpactLayer(view.scene);
+  const props=propIndex(world);
+  const propDamage=new PropDamage(view.scene,{prop:id=>props.byId.get(id),
+    hydrants:(world.gameplay?.refills??[]).filter(r=>r.kind==="hydrant").map(r=>({id:`hydrant:${r.id}`,x:r.x,z:r.z})),
+    ground:(x,z)=>meshGroundHeight(world,x,z),setFoliageOverride:fn=>view.setFoliageOverride(fn)});
+  if (params.get("debug") === "1") (window as unknown as { __fogcityImpacts?: ImpactLayer }).__fogcityImpacts = impactLayer;
+  if (params.get("debug") === "1") (window as unknown as { __fogcityProps?: PropDamage }).__fogcityProps = propDamage;
   const sprayTracker=new SprayTracker();
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
@@ -582,6 +593,8 @@ async function boot(): Promise<void> {
     for (const id of ids) view.setSpray(id, sprays.get(id) ?? null);
     view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
     combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out),dtFrame);
+    impactLayer.update(shownPrev,shown,alpha,dtFrame,target.x,target.z);
+    propDamage.update(shown,dtFrame,target.x,target.z);
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     // The sim's calendar is the game clock when its clock system runs; the light follows it
     // unless a look is pinned (?tod=, ?night=1, N). The weather is read at the camera.

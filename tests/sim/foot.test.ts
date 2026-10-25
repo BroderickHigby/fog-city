@@ -225,7 +225,8 @@ describe("walking", () => {
     let lastSpeed = s.players.p1!.car.speed;
     let slowed = 0;
     let touched = 0;
-    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 300, (k) => {
+    // (360 ticks: the v12 launch is gentler, so the car needs a moment longer to pass the walker's spot.)
+    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 360, (k) => {
       const c = k.players.p1!.car;
       const f = k.players.p2!.foot!;
       if (f.dodge) dived = true;
@@ -318,7 +319,7 @@ describe("walls between the car and the walker", () => {
     expect(s.players.p1!.car.speed).toBe(0);
     // p2 drives off, then p1 can drive after it: throttle is no longer overridden by a pending exit.
     s = run(pen, s, { p1: { throttle: 0, steer: 0, brake: 0, actions: 0 }, p2: { throttle: 1, steer: 0, brake: 0, actions: 0 } }, 60);
-    s = run(pen, s, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 }, p2: { throttle: 1, steer: 0, brake: 0, actions: 0 } }, 60);
+    s = run(pen, s, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 }, p2: { throttle: 1, steer: 0, brake: 0, actions: 0 } }, 75);
     expect(s.players.p1!.car.speed).toBeGreaterThan(5);
     expect(s.players.p1!.car.z).toBeLessThan(-3);
   });

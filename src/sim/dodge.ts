@@ -64,8 +64,10 @@
 // limits: no shove takes it into one), a player joining (the car is placed clear of everyone on
 // foot), the population refill (never within SPAWN_VEHICLE_CLEAR_M of a vehicle's body).
 //
-// Robots dodge by the same rules but are not under the override: they stay solid to cars (a car
-// that reaches one stops against it), and water is the only way to beat one.
+// Robots dodge robotaxis by the same rules but are not under the override, and they do not get out
+// of a player's car's way at all (owner request, 2026-10-23): a car bowls them over (impacts.ts),
+// and a knocked robot is not a dodger until it is back on its feet. Water is still the only way to
+// beat one.
 //
 // Robotaxis are measured by their drawn body (ROBOTAXI_BODY, a box), player cars by their body box.
 // Robotaxis keep a berth from people (agents.ts berthLimit) that makes both the dive and the
@@ -82,10 +84,10 @@
 // body's decision sees the spots the bodies before it chose.
 
 import { DT, sortedIds, type CarState, type DodgeState, type FootState, type PlayerId, type PlayerState, type SimState } from "./contract.ts";
-import { clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
+import { HALF_PI, clamp, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { hash32 } from "./rng.ts";
-import { CAR, carCircles } from "./car.ts";
-import { boxBlocked, type Circle } from "./collide.ts";
+import { CAR, CAR_MAX_DV_PER_S, CAR_MAX_TURN_ACCEL, carCircles } from "./car.ts";
+import { boxBlocked, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
 import {
   AGENTS_EXT_KEY,
@@ -107,6 +109,7 @@ import {
   type Route,
 } from "./agents.ts";
 import { segmentCrossesWall } from "./boundary.ts";
+import { propsNear } from "./props.ts";
 import { ROOF_STEP_M, cellKey, circleBlocked, circleBlockedBand, meshGroundHeight, meshGroundRange, surfaceHeight, type World } from "./world.ts";
 
 // ---------------------------------------------------------------- tuning (the guarantee is not tunable)
@@ -176,7 +179,7 @@ const SLIP_COS = dcos(SLIP_RAD);
  * The most a player's car's velocity changes over a tick in any direction, m/s: the engine, full
  * tyre grip sideways and gravity on the steepest street (its reach allows for it).
  */
-export const CAR_DV = (CAR.accel + CAR.gripAccel * 1.5 + CAR.gravity) * DT;
+export const CAR_DV = CAR_MAX_DV_PER_S * DT;
 /** A dive step is checked against the vehicles' reach every this many metres. */
 const STEP_CHECK_M = 0.04;
 
@@ -490,12 +493,41 @@ export function vehicleOfCar(
   // The furthest its body can get over the step (twice the reach's growth about its middle pose).
   const e = 2 * v.inflate + 0.05;
   let touch = shove > 0;
+  // A body it can shove (another car, a robotaxi: car.ts bodyHit) changes its velocity by up to
+  // (1 + restitution) times their closing speed, mid-step, when it can touch one.
+  let kick = 0;
   for (const k of circles) {
     const d = boxDistance(k.x, k.z, c.x, c.z, fx, fz, CAR.halfLength, CAR.halfWidth);
     if (k.r - d > shove) shove = k.r - d;
-    if (d < k.r + e) touch = true;
+    if (d < k.r + e) {
+      touch = true;
+      if (k.body) kick = Math.max(kick, (1 + CAR.bodyRestitution) * (v.speed + CAR_DV + Math.sqrt(k.body.vx * k.body.vx + k.body.vz * k.body.vz)));
+    }
   }
+  v.inflate += kick * DT;
   if (!touch) touch = boxBlocked(world, { ...box, hl: box.hl + e, hw: box.hw + e }, y, [], top);
+  // Spinning (a hit's kick, car.ts bodyHit) it can swing a corner into a building and be pushed
+  // out by the overlap, which moves its whole body by up to the corner's sweep. (The probes
+  // above sample the outline, so also look at the box turned by the most this step can turn it.)
+  const yawAbs = c.yawRate < 0 ? -c.yawRate : c.yawRate;
+  const turn = (yawAbs + 0.5) * DT;
+  if (!touch && yawAbs > 0.3) {
+    for (const h of [c.heading + turn, c.heading - turn]) {
+      if (boxBlocked(world, { ...box, heading: h, hl: box.hl + e, hw: box.hw + e }, y, [], top)) touch = true;
+    }
+  }
+  if (touch) v.inflate += turn * halfDiag;
+  // Its yaw rate can change over the step (car.ts: it eases toward a target set by the steering,
+  // its grip and, while sliding, the pull of the slide), and a handbrake turn starting this step
+  // kicks it: its corners swing that much further than its present yaw rate says. A bound on the
+  // target: the boosted kinematic rate at full lock plus the slide's pull.
+  const slip = 1 - c.grip;
+  const absV = (c.speed < 0 ? -c.speed : c.speed) + CAR_DV;
+  const lock = CAR.maxSteer / (1 + (c.speed < 0 ? -c.speed : c.speed) / CAR.steerSpeedRef);
+  const target = (absV / CAR.wheelbase) * dtan(lock) * (1 + CAR.driftYawBoost * slip) + CAR.stability * slip * HALF_PI + CAR.maxDriftYaw * slip;
+  const yawNow = c.yawRate < 0 ? -c.yawRate : c.yawRate;
+  const yawStep = Math.min(1, CAR.yawResponse * DT) * (target + yawNow) + (absV > CAR.driftMinSpeed && c.grip >= 0.95 ? CAR.handbrakeKick : 0);
+  v.inflate += yawStep * DT * halfDiag;
   v.inflate += Math.min(CAR.maxPush, shove);
   if (touch && v.speed + CAR_DV > 1) v.inflate += CAR.wallAlign * DT * halfDiag;
   return v;
@@ -510,18 +542,33 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
   const c = after.players[id]!.car;
   const lim = CAR.halfLength + CAR.halfWidth + 6;
   const circles: Circle[] = [];
-  const add = (k: { x: number; z: number; r: number }): void => {
-    if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push({ x: k.x, z: k.z, r: k.r, person: false });
+  const add = (k: { x: number; z: number; r: number }, body?: ImpactBody): void => {
+    if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push(body ? { x: k.x, z: k.z, r: k.r, person: false, body } : { x: k.x, z: k.z, r: k.r, person: false });
   };
-  for (const other of sortedIds(after.players)) if (other !== id) for (const k of carCircles(after.players[other]!.car)) add(k);
+  // (Only its velocity matters to the reach: the key and mass are not used.)
+  const moving = (key: string, x: number, z: number, vx: number, vz: number): ImpactBody => ({ key, mass: CAR.mass, x, z, vx, vz });
+  for (const other of sortedIds(after.players)) {
+    if (other === id) continue;
+    const o = after.players[other]!.car;
+    const ofx = dsin(o.heading);
+    const ofz = -dcos(o.heading);
+    const body = moving(`p:${other}`, o.x, o.z, o.speed * ofx - o.lateral * ofz, o.speed * ofz + o.lateral * ofx);
+    for (const k of carCircles(o)) add(k, body);
+  }
   // (An agent's circles lie within its half length of it.)
   const lim2 = lim + AGENT_SPEC.robotaxi.halfLength;
   for (const a of (after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) {
     if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim2 * lim2) continue;
     const cls = agentDodgeClass(a);
     if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;
-    for (const k of agentCircles(a)) add(k);
+    const vx = a.knock ? a.knock.vx : a.speed * dsin(a.heading);
+    const vz = a.knock ? a.knock.vz : -a.speed * dcos(a.heading);
+    // (Robots too: a car bowls them over, car.ts bodyHit.)
+    const body = moving(`a:${a.id}`, a.x, a.z, vx, vz);
+    for (const k of agentCircles(a)) add(k, body);
   }
+  // Street props (props.ts): a bounce off one changes its velocity like a shove (broken ones too: a bound).
+  for (const q of propsNear(world, c.x, c.z, lim)) add({ x: q.x, z: q.z, r: q.r }, moving(`prop:${q.id}`, q.x, q.z, 0, 0));
   return vehicleOfCar(id, c, before.players[id]?.car ?? null, world, circles);
 }
 
@@ -549,7 +596,7 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   const fz = -dcos(a.heading);
   // Its route: its exact pose at each predicted sample's distance (as stepAgent will put it).
   let route: RoutePoint[] | null = null;
-  if (predict && world && a.runtimeId === undefined && a.speed >= DODGE_MIN_SPEED) {
+  if (predict && world && a.runtimeId === undefined && !a.knock && a.speed >= DODGE_MIN_SPEED) {
     const ds = [0];
     const n = Math.ceil(horizonS(a.speed) / SAMPLE_S - 1e-9);
     let dist = 0;
@@ -566,7 +613,10 @@ export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentStat
   // it turns now: a connector starting).
   const yawAbs = yaw < 0 ? -yaw : yaw;
   const dv = (spec.accel + a.speed * (yawAbs + 1)) * dt;
-  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, hl, hw, a.speed * fx, a.speed * fz, yaw, decel, {
+  // A robotaxi knocked off its lane by a hit (impacts.ts) slides at its knock velocity and spins
+  // at its knock yaw rate, braking no harder than its slide does.
+  const knock = a.knock;
+  return makeVehicle(`a:${a.id}`, null, a.x, a.z, a.heading, hl, hw, knock ? knock.vx : a.speed * fx, knock ? knock.vz : a.speed * fz, knock ? knock.yaw : yaw, knock ? 0 : decel, {
     react: ROBOTAXI_REACT_S,
     route: route && route.length >= 2 ? route : null,
     predict,
@@ -593,7 +643,8 @@ const ZONE_STEP_M = 0.04;
  * the later pose's heading). Leaves the vehicle as it is where the route is unknown.
  */
 export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, world: World, segs: Route | null = null): void {
-  if (a.runtimeId !== undefined) return;
+  // (A body off its route, a system's or one knocked by a hit, keeps the reach its velocity gives.)
+  if (a.runtimeId !== undefined || a.knock) return;
   const spec = AGENT_SPEC[a.kind];
   const travel = (a.speed + spec.accel * dt) * dt;
   const n = Math.max(1, Math.ceil(travel / ZONE_STEP_M - 1e-9));
@@ -625,7 +676,7 @@ export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, worl
  * 0.05 rad over the horizon): the arc its velocity draws as it turns; the straight line it would
  * slide along with its body still yawing (a drift or a handbrake turn); and, for a vehicle that
  * can be steered anywhere (spread > 0, a player's car), the arc of the hardest turn its tyres
- * allow that way (CAR.gripAccel / speed, so a car chasing someone round a bend is not
+ * allow that way (CAR_MAX_TURN_ACCEL / speed, so a car chasing someone round a bend is not
  * underestimated). Not turning: one straight path. Sliding (its velocity more than
  * SLIP_RAD off its nose): also the path it takes if its tyres bite again, setting off along its
  * nose (a drift caught straightens out toward wherever the nose points, faster than any turn).
@@ -646,7 +697,7 @@ export function predictPaths(
   // [yaw rate of the path, yaw rate of the body, sets off along the nose]
   const kinds: Array<[number, number, boolean]> = turning ? [[yaw, yaw, false], [0, yaw, false]] : [[0, yaw, false]];
   if (turning && (v.spread ?? 0) > 0) {
-    const hard = Math.min(CAR.gripAccel / v.speed, 1.2);
+    const hard = Math.min(CAR_MAX_TURN_ACCEL / v.speed, 1.2);
     if (hard > (yaw < 0 ? -yaw : yaw)) kinds.push([yaw < 0 ? -hard : hard, yaw < 0 ? -hard : hard, false]);
   }
   // (cos of the angle between the velocity and the nose)
@@ -1520,7 +1571,8 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   }
   agents.forEach((a, index) => {
     const cls = agentDodgeClass(a);
-    if (!cls) return;
+    // (A robot knocked over by a hit tumbles where it is sent: impacts.ts.)
+    if (!cls || a.knock) return;
     const hop = a.dodge ? a.dodge.hop : 0;
     recs.push({
       player: null,
@@ -1653,7 +1705,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const predictOf = (sv: Src, vi: number): boolean => {
     if (sv.predict === null) {
       const a = sv.a!;
-      if (a.runtimeId !== undefined) { sv.predict = true; return true; }
+      if (a.runtimeId !== undefined || a.knock) { sv.predict = true; return true; }
       // (Its predicted footprint ends where braking at no less than ROBOTAXI_BRAKE_MPS2 stops it.)
       const reach = brakingReach(a.speed);
       sv.predict = false;
@@ -1725,6 +1777,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     for (const i of nearOf[vi] ?? []) {
       const r = recs[i]!;
       if (v.player !== null && v.player === r.player) continue; // a player's own car
+      // Robots do not get out of a player's car's way: it bowls them over (impacts.ts). They
+      // still dodge robotaxis, which keep their berth anyway.
+      if (v.player !== null && (r.cls === "errandRobot" || r.cls === "sidewalkBot")) continue;
       const margin = DODGE_PROFILE[r.cls].margin;
       // (Not when it cannot be at their height: a car in the street under someone on a roof.)
       const hit = sweepHitBand(world, v, r.x, r.z, r.r + (v.player === null ? Math.min(margin, robotaxiBerth(r.cls)) : margin), r.y);
