@@ -17,8 +17,8 @@ describe("v7 to current composed gameplay save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { flags: [true, false], nested: { score: 37 } } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    // v7 -> v8 -> v10 -> v11 -> v12 -> v13 (v9 is reserved for the structural world): behaviour only, every field kept.
-    expect(SIM_VERSION).toBe(13);
+    // v7 -> v8 -> v10 -> v11 -> v12 -> v13 -> v14 (v9 is never written): every field kept.
+    expect(SIM_VERSION).toBe(14);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
     expect(upgradeState(deepFreeze({ ...old, version: 10 }))).toEqual(upgraded);
@@ -44,7 +44,7 @@ describe("v7 to current composed gameplay save migration", () => {
   });
 });
 
-describe("v8 to v10 weather save migration (v9 is the structural world's reserved stamp)", () => {
+describe("v8 weather save migration through v10 to the current stamp (9 is never written)", () => {
   it("preserves every field of a real wave-3 v8 save and never writes stamp 9", () => {
     expect(saved8.simVersion).toBe(8);
     expect(saved8.wave).toBe(3);
@@ -79,7 +79,7 @@ describe("v8 to v10 weather save migration (v9 is the structural world's reserve
   });
 });
 
-describe("v10 to v13 unlimited-water save migration", () => {
+describe("v10 unlimited-water save migration through v13 to the current stamp", () => {
   it("preserves every field of a real wave-3 v10 save", () => {
     expect(saved10.simVersion).toBe(10);
     expect(saved10.sourceCommit).toMatch(/^[a-f0-9]{40}$/);
@@ -89,7 +89,7 @@ describe("v10 to v13 unlimited-water save migration", () => {
     const old = deepFreeze({ ...recorded, ext: { ...recorded.ext, future: { kept: [1, 2] } } });
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(upgraded).toEqual({ ...old, version: 13 });
+    expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);
   });

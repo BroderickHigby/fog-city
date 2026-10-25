@@ -8,8 +8,9 @@ type Footprint = { footprint: readonly P2[] };
 export function gameplayLand(
   tiles: readonly Pick<TileRef, "ix" | "iz">[],
   size: number,
-  ground: Pick<Ground, "heightAt" | "waterAt">,
+  ground: Pick<Ground, "heightAt" | "waterAt"> & Partial<Pick<Ground, "field">>,
   buildings: readonly Footprint[],
+  lakeMasks: ReadonlyMap<string, readonly number[]> = new Map(),
 ): (x: number, z: number) => boolean {
   const ids = new Set(tiles.map(t => `${t.ix},${t.iz}`));
   const cells = new Map<string, Footprint[]>();
@@ -23,9 +24,17 @@ export function gameplayLand(
       }
     }
   }
+  const lakeAt = (x: number, z: number): boolean => {
+    const mask = lakeMasks.get(`t${Math.floor(x / size)}_${Math.floor(z / size)}`);
+    const field = mask && ground.field?.(x, z);
+    if (!mask || !field) return false;
+    const ix = Math.min(field.nx - 1, Math.max(0, Math.round((x - field.x0) / field.cellSizeM)));
+    const iz = Math.min(field.nz - 1, Math.max(0, Math.round((z - field.z0) / field.cellSizeM)));
+    return mask[iz * field.nx + ix] === 1;
+  };
   return (x, z) => Number.isFinite(x) && Number.isFinite(z)
     && ids.has(`${Math.floor(x / size)},${Math.floor(z / size)}`)
-    && ground.heightAt(x, z) !== null && !ground.waterAt(x, z)
+    && ground.heightAt(x, z) !== null && !ground.waterAt(x, z) && !lakeAt(x, z)
     && !(cells.get(`${Math.floor(x / 50)},${Math.floor(z / 50)}`) ?? []).some(b => pointInRing(x, z, b.footprint));
 }
 

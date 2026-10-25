@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "work/world: structural world surfaces under the v14 contract",
+  "simVersion": 14,
+  "hashes": [
+    "f4e33cf5",
+    "bfa4d3e6",
+    "0650c0fd",
+    "8863d334",
+    "29990577"
+  ]
+}

@@ -52,7 +52,7 @@ describe("sf world: schemas and layout", () => {
     const cv = v("tile-collider");
     for (const c of colliders) expect(cv(c), `${c.tileId}: ${ajv.errorsText(cv.errors)}`).toBe(true);
     expect(Object.keys(manifest.layers).sort()).toEqual(
-      ["boundary", "districts", "fountains", "gameplay", "hydrants", "parking", "sidewalks", "signals", "streetCleaning", "transit"].sort(),
+      ["boundary", "districts", "fountains", "gameplay", "hydrants", "parking", "sidewalks", "signals", "storefronts", "streetCleaning", "transit"].sort(),
     );
     for (const [layer, file] of Object.entries(manifest.layers)) {
       const lv = v(layer === "gameplay" ? "tile-gameplay" : file.replace(/\.json$/, ""));
@@ -67,6 +67,8 @@ describe("sf world: schemas and layout", () => {
     expect(manifest.roads).toBe("roads.json");
     expect(manifest.attribution.join(" ")).toMatch(/DataSF/);
     expect(manifest.attribution.join(" ")).toMatch(/3DEP/);
+    // The world QA sources (ground cover, lakes, park land, lot outlines) are credited too.
+    for (const src of ["gtr9-ntp6", "ni2e-vpbg", "National Hydrography Dataset", "National Park Service", "acdm-wktn"]) expect(manifest.attribution.join(" "), src).toContain(src);
     const ids = new Set<string>();
     for (const t of manifest.tiles) {
       expect(t.id).toBe(tileId(t.ix, t.iz));
@@ -230,11 +232,19 @@ describe("sf world: buildings", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
     expect(fx.towers).toHaveLength(631);
     expect(Object.keys(fx.dropped).every((id) => fx.towers.includes(id))).toBe(true);
+    // The world QA passes remove a few more, each listed in report.json: a tower a street or
+    // freeway runs through is an overhead structure the LiDAR saw (W-16), and a tower goes with
+    // its podium when that is redeveloped land (W-01); a height override from a public record
+    // (pipeline/overrides.json, W-16: the Transit Center) leaves no tower either.
+    const rep = readJson("public/tiles/sf/report.json") as { clearance: { towersOnStreets: string[]; staleDropped: string[] } };
+    const overridden = new Set((readJson("pipeline/overrides.json") as { buildings: Array<{ id: string; heightM?: number }> }).buildings.filter((o) => o.heightM !== undefined).map((o) => o.id));
+    const qa = new Set([...rep.clearance.towersOnStreets, ...rep.clearance.staleDropped]);
     const lost: string[] = [];
     for (const id of fx.towers) {
       const why = fx.dropped[id];
       if (!why) {
-        if (!byId.has(id)) lost.push(id);
+        const podium = id.slice(0, -"-tower".length);
+        if (!byId.has(id) && !qa.has(id) && !qa.has(podium) && !overridden.has(podium)) lost.push(id);
         continue;
       }
       expect(byId.has(id), `${id} is listed as dropped (${why}) but stands`).toBe(false);
@@ -356,6 +366,11 @@ describe("sf world: buildings", () => {
   it("no gap on slopes: walls start (meta.footY) at or below the ground at every footprint vertex", () => {
     const bad: string[] = [];
     for (const b of buildings) {
+      // A span over a street starts at its underside, over the street (W-01).
+      if (b.meta.piece === "span") {
+        expect(b.meta.footY, b.id).toBe(b.underY);
+        continue;
+      }
       expect(b.meta.footY).toBeLessThanOrEqual(b.baseY);
       for (const [x, z] of b.footprint) {
         if (!insideWorld(x, z)) continue; // past the world's edge there is no ground at all
@@ -390,7 +405,9 @@ describe("sf world: buildings", () => {
     const byId = new Map(buildings.map((b) => [b.id, b]));
     const bad: string[] = [];
     for (const b of buildings) {
-      if (b.meta.towerOf || !b.meta.stories || b.meta.heightSource !== "lidar") continue;
+      // Storeys describe the whole building: checked on its main record, not on its terrace
+      // strips or spans (W-28, W-01).
+      if (b.meta.towerOf || b.meta.piece || !b.meta.stories || b.meta.heightSource !== "lidar") continue;
       const h = b.meta.tower ? byId.get(b.meta.tower)!.meta.heightM : b.meta.heightM;
       if (b.meta.stories * 6 + 15 < h || b.meta.stories * 2.4 > h + 10) bad.push(`${b.id} ${b.meta.stories} storeys, ${h} m`);
     }

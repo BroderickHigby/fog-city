@@ -91,22 +91,28 @@ export function tileHeightfield(t: TileRef, elev: Elevation): Heightfield {
  * same arithmetic as src/sim/world.ts groundHeight(). Indexed by tile for speed.
  */
 export class Ground {
-  private byTile = new Map<string, Heightfield>();
+  // Numeric keys (no string per lookup: the pipeline asks millions of times).
+  private byTile = new Map<number, Heightfield>();
   constructor(fields: ReadonlyArray<{ ix: number; iz: number; field: Heightfield }>) {
-    for (const f of fields) this.byTile.set(`${f.ix},${f.iz}`, f.field);
+    for (const f of fields) this.byTile.set(Ground.key(f.ix, f.iz), f.field);
+  }
+
+  private static key(ix: number, iz: number): number {
+    return (ix + 4096) * 8192 + (iz + 4096);
   }
 
   /** The heightfield covering (x, z); a point exactly on a tile's far border also belongs to that tile. */
   field(x: number, z: number): Heightfield | undefined {
     const ix = Math.floor(x / TILE_SIZE_M);
     const iz = Math.floor(z / TILE_SIZE_M);
+    const f = this.byTile.get(Ground.key(ix, iz));
+    if (f) return f;
     const onX = x === ix * TILE_SIZE_M;
     const onZ = z === iz * TILE_SIZE_M;
     return (
-      this.byTile.get(`${ix},${iz}`) ??
-      (onX ? this.byTile.get(`${ix - 1},${iz}`) : undefined) ??
-      (onZ ? this.byTile.get(`${ix},${iz - 1}`) : undefined) ??
-      (onX && onZ ? this.byTile.get(`${ix - 1},${iz - 1}`) : undefined)
+      (onX ? this.byTile.get(Ground.key(ix - 1, iz)) : undefined) ??
+      (onZ ? this.byTile.get(Ground.key(ix, iz - 1)) : undefined) ??
+      (onX && onZ ? this.byTile.get(Ground.key(ix - 1, iz - 1)) : undefined)
     );
   }
 
@@ -147,6 +153,32 @@ export class Ground {
     const h11 = g.heights[(iz + 1) * g.nx + ix + 1] ?? 0;
     if (tx + tz <= 1) return h00 + (h10 - h00) * tx + (h01 - h00) * tz;
     return h11 + (h01 - h11) * (1 - tx) + (h10 - h11) * (1 - tz);
+  }
+
+  /**
+   * Bounds on the ground over a box: the extremes of every lattice sample of the cells the box
+   * touches (both the bilinear and the triangulated ground stay within their cell's samples).
+   * Null where the box leaves the tiles.
+   */
+  boxBounds(x0: number, z0: number, x1: number, z1: number): { min: number; max: number } | null {
+    let min = Infinity;
+    let max = -Infinity;
+    const c = 10;
+    for (let gx = Math.floor(x0 / c); gx <= Math.ceil(x1 / c); gx++) {
+      for (let gz = Math.floor(z0 / c); gz <= Math.ceil(z1 / c); gz++) {
+        const x = gx * c;
+        const z = gz * c;
+        const f = this.field(x, z);
+        if (!f) return null;
+        const i = Math.round((x - f.x0) / f.cellSizeM);
+        const k = Math.round((z - f.z0) / f.cellSizeM);
+        const h = f.heights[k * f.nx + i];
+        if (h === undefined) return null;
+        if (h < min) min = h;
+        if (h > max) max = h;
+      }
+    }
+    return Number.isFinite(min) ? { min, max } : null;
   }
 
   /** True when the nearest lattice sample to (x, z) is water. */

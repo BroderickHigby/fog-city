@@ -139,6 +139,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v10 -> v11: faster on-foot pace and Action.sprint change behaviour only; every field is kept.
  *  - v11 -> v12: robotaxi rides. PlayerState.ride is optional (absent = not riding); every field is kept.
  *  - v12 -> v13: unlimited water and optional traffic pass/walker detour state; every saved field is kept.
+ *  - v13 -> v14: structural surfaces change stepping, but no saved fields change. Preserve the
+ *    complete state and let the next tick select the supported deck, bore or ground surface.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -150,7 +152,8 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 8) return upgradeState({ ...s, version: 10 });
   if (s.version === 10) return upgradeState({ ...s, version: 11 });
   if (s.version === 11) return upgradeState({ ...s, version: 12 });
-  if (s.version === 12) return { ...s, version: 13 };
+  if (s.version === 12) return upgradeState({ ...s, version: 13 });
+  if (s.version === 13) return { ...s, version: 14 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

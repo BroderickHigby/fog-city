@@ -443,6 +443,9 @@ describe("fixture build: placeholder and keepTower overrides", () => {
     expect(() => checkOverrides([{ ...o, heightM: 10 }, { ...o, id: "y", keepTower: true }, { ...o, id: "z", heightM: 3, placeholder: true }])).not.toThrow();
     expect(() => checkOverrides([{ ...o }])).toThrow(/exactly one/);
     expect(() => checkOverrides([{ ...o, heightM: 10, keepTower: true }])).toThrow(/exactly one/);
+    expect(() => checkOverrides([{ ...o, standing: true }])).not.toThrow();
+    expect(() => checkOverrides([{ ...o, heightM: 10, standing: true }])).toThrow(/exactly one/);
+    expect(() => checkOverrides([{ ...o, keepTower: true, standing: true }])).toThrow(/exactly one/);
     expect(() => checkOverrides([{ ...o, keepTower: true, placeholder: true }])).toThrow(/placeholder needs heightM/);
     expect(() => checkOverrides([{ ...o, heightM: 10 }, { ...o, heightM: 20 }])).toThrow(/listed twice/);
     expect(() => checkOverrides([{ ...o, heightM: 0, keepTower: true }])).toThrow(/positive number/);
@@ -546,7 +549,8 @@ describe("fixture build: GLB tiles", () => {
   it("load in three.js with the documented nodes, and building ranges in collider order", async () => {
     const scene = await loadGlbWithThree(out.files.get("t1_0.glb")!);
     const names = scene.children.map((c) => c.name);
-    expect(names).toEqual(["ground", "roads", "freeways", "buildings"]);
+    // structures (deck sides and columns, glb.ts) only where a tile has an elevated deck.
+    expect(names.filter((n) => n !== "structures")).toEqual(["ground", "roads", "freeways", "buildings"]);
     const collider = json<SfCollider>(out, "t1_0.collider.json");
     const ranges = scene.getObjectByName("buildings")!.userData.buildings as Array<[string, number, number]>;
     expect(ranges.map((r) => r[0])).toEqual(collider.buildings.map((b) => b.id));

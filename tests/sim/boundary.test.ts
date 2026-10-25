@@ -411,28 +411,31 @@ describe.skipIf(!SF)("boundary walls on the real city", () => {
     expect(blocked / n).toBeLessThan(1e-4);
   }, SF_RUN_MS);
 
-  it("a car driven at the land edge at the southern city limit stops there instead of dropping off the world", () => {
-    // The land run along z = 10000 (the last built row): find a stretch with no building in the way.
-    const edge = world.walls!.segments.filter((s) => s.kind === "land" && s.az === 10000 && s.bz === 10000 && s.len >= 200);
+  it("a car driven at the southern city boundary stops there instead of leaving the city", () => {
+    // The county boundary can cut through the last built row. Select its actual southern
+    // land runs, rather than assuming the wall follows the old z = 10000 tile border.
+    const land = world.walls!.segments.filter((s) => s.kind === "land");
+    const south = Math.max(...land.map((s) => Math.max(s.az, s.bz)));
+    const edge = land.filter((s) => s.az === s.bz && s.az >= south - 500 && s.nz < 0 && s.len >= 200);
     expect(edge.length).toBeGreaterThan(0);
     let tried = 0;
     for (const w of edge) {
       for (let t = 20; t < w.len - 20; t += 10) {
         const x = w.ax + w.ux * t;
-        const start = makeCar(x, 9950, Math.PI, groundHeight(world, x, 9950));
-        // Free run in the world without walls: the car would leave the tiles.
+        const start = makeCar(x, w.az - 50, Math.PI, groundHeight(world, x, w.az - 50));
+        // Free run in the world without walls: the car would cross the county boundary.
         let free = start;
         let clear = true;
         for (let i = 0; i < 300 && clear; i++) {
           free = stepCar(noWalls, free, FULL);
           if (free.hits > 0) clear = false;
         }
-        if (!clear || free.z < 10010) continue;
+        if (!clear || free.z < w.az + 10) continue;
         tried++;
         const trace = drive(world, start, 600);
         for (const c of trace) {
           expect(overshoot(world, c), `x ${x.toFixed(0)}`).toBeLessThan(0.02);
-          expect(c.y, "the car stays on the ground of the last built row").toBeGreaterThan(groundHeight(world, c.x, 9990) - 3);
+          expect(c.y, "the car stays on the ground of the last built row").toBeGreaterThan(groundHeight(world, c.x, w.az - 10) - 3);
         }
         const last = trace[trace.length - 1]!;
         expect(last.hits).toBeGreaterThan(0);

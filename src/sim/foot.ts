@@ -14,8 +14,12 @@
 //    and lands when its feet reach the surface again.
 //  - It cannot walk up ground that rises more than FOOT.maxGrade * FOOT.gradeReach within
 //    FOOT.gradeReach ahead (a slope steeper than 1:1 that is taller than a metre); it slides
-//    along such a bank instead. A short steep bank (a step) is climbed.
+//    along such a bank instead. A short steep bank (a step) is climbed. On a stairway the limit
+//    is FOOT.stairGrade: the steps climb what no slope would.
 //  - Pushes out of buildings and bodies are capped at FOOT.maxPush a tick.
+//  - On a deck or in a tunnel bore the walker is held by the deck's rails and the bore's walls
+//    (world.ts railPush): it never walks off a viaduct or into the hill around a bore; in a bore
+//    the ceiling is over its head.
 //  - Vehicle bodies (the boxes) are hard limits: nothing, not even a person overlapping the
 //    walker, pushes it into one (keepOffVehicles). A step that would end in one is pushed out of
 //    it in full, or, when that would put it in a building or across a wall, not taken.
@@ -24,8 +28,8 @@ import { Action, DT, type CarState, type FootState, type SimInput } from "./cont
 import { approach, clamp, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { circleInBoxes, pushOutOfBoxes, resolveCircleAll, type Band, type Box, type Circle } from "./collide.ts";
 import { CAR } from "./car.ts";
-import { segmentCrossesWall } from "./boundary.ts";
-import { ROOF_STEP_M, circleBlocked, circleBlockedBand, segmentBlocked, surfaceHeight, type World } from "./world.ts";
+import { onStairs, segmentCrossesWall } from "./boundary.ts";
+import { ROOF_STEP_M, circleBlocked, circleBlockedBand, railPush, segmentBlocked, supported, surfaceAt, surfaceHeight, type World } from "./world.ts";
 
 export const FOOT = {
   /**
@@ -58,6 +62,8 @@ export const FOOT = {
   gravity: 9.81,
   /** Steepest ground the walker walks up or down in control, rise per metre. */
   maxGrade: 1,
+  /** On a stairway (the steps are steeper than any slope walked; boundary.ts onStairs), rise per metre. */
+  stairGrade: 2.5,
   /** How far ahead the walker looks for a bank too steep to climb, metres. */
   gradeReach: 1,
   /** Extra drop per tick still followed on foot (lattice corners, a kerb), metres. */
@@ -80,11 +86,21 @@ function bandAt(y: number): Band {
   return { bottom: y + ROOF_STEP_M, top: y + FOOT.height };
 }
 
+/** The steepest grade walked at (x, z): a stairway's steps, or FOOT.maxGrade. */
+function gradeAt(world: World, x: number, z: number): number {
+  return onStairs(world.stairs, x, z) ? FOOT.stairGrade : FOOT.maxGrade;
+}
+
 /** Is the ground within FOOT.gradeReach of (x, z) along (dx, dz) (a unit vector) too steep to walk up from feet height y? */
 function tooSteep(world: World, x: number, z: number, y: number, dx: number, dz: number): boolean {
   const r = FOOT.gradeReach;
-  // (A hair of tolerance: exactly 1:1 is climbable whatever the rounding.)
-  return surfaceHeight(world, x + dx * r, z + dz * r, y) - y > FOOT.maxGrade * r + 1e-9;
+  const ax = x + dx * r;
+  const az = z + dz * r;
+  // (From the street at a stairway's foot the first step is climbed: the stairs' grade where
+  // either the walker or the ground ahead is on them. A hair of tolerance: exactly 1:1 is
+  // climbable whatever the rounding.)
+  const grade = Math.max(gradeAt(world, x, z), gradeAt(world, ax, az));
+  return surfaceHeight(world, ax, az, y) - y > grade * r + 1e-9;
 }
 
 /**
@@ -207,7 +223,18 @@ export function stepFoot(
     }
   }
 
-  const res = keepOffVehicles(world, f.x, f.z, resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush), FOOT.radius, boxes, band);
+  let res = keepOffVehicles(world, f.x, f.z, resolveCircleAll(world, f.x + dx, f.z + dz, FOOT.radius, boxes, circles, f.x, f.z, band, FOOT.maxPush), FOOT.radius, boxes, band);
+  const s0 = surfaceAt(world, f.x, f.z, f.y);
+  if (s0.kind === "deck" || s0.kind === "tunnel") {
+    // Held by the rail or the bore wall, a radius inside the ribbon's edge; where that is not
+    // enough (a corner), it stays where it was.
+    const p = railPush(world, res.x, res.z, f.y, FOOT.radius);
+    if (p) {
+      const x = res.x + p.dx;
+      const z = res.z + p.dz;
+      res = supported(world, x, z, f.y, false) && !segmentCrossesWall(world.walls, f.x, f.z, x, z) ? { x, z, hit: true } : { x: f.x, z: f.z, hit: true };
+    } else if (!supported(world, res.x, res.z, f.y, false)) res = { x: f.x, z: f.z, hit: true };
+  }
   // Report the speed actually achieved along the heading (pressing into a wall reads as 0), never
   // more than the walker's own: being pushed out of a building or a car is not walking.
   const speed = clamp(((res.x - f.x) * fx + (res.z - f.z) * fz) / DT, speed0 < 0 ? speed0 : 0, speed0 > 0 ? speed0 : 0);
@@ -215,7 +242,9 @@ export function stepFoot(
   const mz = res.z - f.z;
   const moved = Math.sqrt(mx * mx + mz * mz);
   const s1 = surfaceHeight(world, res.x, res.z, f.y);
-  if (s1 < f.y - (FOOT.maxGrade * moved + FOOT.dropTolerance)) {
+  // (Stepping off a stairway's last step into the street is still the stairs' grade.)
+  const grade = Math.max(gradeAt(world, res.x, res.z), gradeAt(world, f.x, f.z));
+  if (s1 < f.y - (grade * moved + FOOT.dropTolerance)) {
     // Walked off a drop: start falling from here (never upward: there is no jump).
     const vy0 = f.vy < 0 ? f.vy : 0;
     const vyB = vy0 - FOOT.gravity * DT;
@@ -223,7 +252,7 @@ export function stepFoot(
     if (yB > s1) return { x: res.x, y: yB, z: res.z, heading, speed, sprint, vy: vyB, grounded: false, dodge: null };
   }
   // On the surface: its rise along the walk, as a rate, limited to what walking can climb.
-  const lim = (moved / DT) * FOOT.maxGrade;
+  const lim = (moved / DT) * grade;
   const vy = clamp((s1 - f.y) / DT, -lim, lim);
   return { x: res.x, y: s1, z: res.z, heading, speed, sprint, vy: vy + 0, grounded: true, dodge: null };
 }
@@ -298,6 +327,9 @@ export function exitSpot(
     if (segmentCrossesWall(world.walls, c.x, c.z, x, z)) continue;
     const res = resolveCircleAll(world, x, z, FOOT.radius, boxes, circles);
     if (res.hit) continue;
+    // On a deck or in a bore: never out over the rail or into the bore's wall.
+    const on = surfaceAt(world, c.x, c.z, c.y).kind;
+    if ((on === "deck" || on === "tunnel") && !supported(world, x, z, c.y, false)) continue;
     if (avoid && avoid(x, z)) continue;
     return makeFoot(x, surfaceHeight(world, x, z, c.y), z, c.heading);
   }

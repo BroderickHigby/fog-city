@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { buildWorldFiles } from "./lib/build.ts";
 import type { Override } from "./lib/buildings.ts";
 import { loadWorldConfig } from "./lib/config.ts";
+import { loadLandcoverConfig } from "./lib/landcover.ts";
 import { downloadAll } from "./lib/sources.ts";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -24,6 +25,18 @@ function arg(name: string): string | undefined {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 const flag = (name: string): boolean => process.argv.includes(`--${name}`);
+
+/**
+ * street-detail.json and the layer files it lists, when present: the files build-street-detail.ts
+ * owns. storefronts.json is this producer's own output even when the index lists it.
+ */
+function foreignFiles(dir: string): Set<string> {
+  const index = join(dir, "street-detail.json");
+  if (!existsSync(index)) return new Set();
+  const doc = JSON.parse(readFileSync(index, "utf8")) as { layers?: Record<string, string> };
+  const owned = Object.keys(doc.layers ?? {}).sort().map((k) => doc.layers![k]!).filter((f) => f !== "storefronts.json");
+  return new Set(["street-detail.json", ...owned]);
+}
 
 async function main(): Promise<void> {
   const world = arg("world") ?? "sf";
@@ -35,14 +48,21 @@ async function main(): Promise<void> {
   const cfg = loadWorldConfig(ROOT, world);
   const overrides = (JSON.parse(readFileSync(join(ROOT, "pipeline/overrides.json"), "utf8")) as { buildings: Override[] }).buildings;
   log(`world ${world}: ${cfg.areas.length} areas (${cfg.areas.map((a) => a.id).join(", ")})`);
-  const raw = await downloadAll(cfg, { cacheDir, offline: flag("offline"), refresh: flag("refresh"), log });
+  const addLots = overrides.filter((o) => o.add && o.parcel).map((o) => o.parcel!);
+  const raw = await downloadAll(cfg, { cacheDir, offline: flag("offline"), refresh: flag("refresh"), log }, addLots);
   log(`inputs: ${raw.buildings.length} footprints, ${raw.streets.length} street segments, ${raw.parcels.length} parcels, ${raw.businesses.length} businesses, ${raw.dems.length} DEMs (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   if (flag("fetch-only")) return;
 
-  const { files, report } = await buildWorldFiles(cfg, raw, overrides);
+  const landcover = cfg.citywide ? loadLandcoverConfig(ROOT) : undefined;
+  const { files, report } = await buildWorldFiles(cfg, raw, overrides, { landcover });
   let total = 0;
   for (const b of files.values()) total += b.byteLength;
   log(`built ${files.size} files, ${(total / 1e6).toFixed(2)} MB (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+
+  // Files another generator owns in the same directory: pipeline/build-street-detail.ts writes
+  // street-detail.json and the layers it lists from this world's roads. They are neither stale
+  // nor removed here; rebuild them with that script after the roads change.
+  const foreign = foreignFiles(outDir);
 
   if (flag("check")) {
     const differ: string[] = [];
@@ -50,7 +70,7 @@ async function main(): Promise<void> {
       const p = join(outDir, rel);
       if (!existsSync(p) || !Buffer.from(bytes).equals(readFileSync(p))) differ.push(rel);
     }
-    const stale = existsSync(outDir) ? readdirSync(outDir).filter((f) => !files.has(f)) : [];
+    const stale = existsSync(outDir) ? readdirSync(outDir).filter((f) => !files.has(f) && !foreign.has(f)) : [];
     if (differ.length || stale.length) {
       console.error(`check FAILED: ${differ.length} files differ, ${stale.length} stale`);
       for (const f of [...differ, ...stale].slice(0, 20)) console.error(`  ${f}`);
@@ -61,7 +81,7 @@ async function main(): Promise<void> {
   }
 
   mkdirSync(outDir, { recursive: true });
-  for (const f of readdirSync(outDir)) if (!files.has(f)) rmSync(join(outDir, f));
+  for (const f of readdirSync(outDir)) if (!files.has(f) && !foreign.has(f)) rmSync(join(outDir, f));
   for (const [rel, bytes] of files) writeFileSync(join(outDir, rel), bytes);
   log(`wrote ${outDir}`);
   const b = report.buildings;
