@@ -4,7 +4,7 @@ import { clamp } from "../dmath.ts";
 import { toLocal } from "../../geo/project.ts";
 import type { Mission,Place,Step } from "../../content/missions.ts";
 import { commands,distanceSquared,event,facts,sortedBodies,validId } from "../player/common.ts";
-import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionState,PlayerGameplayState } from "../player/types.ts";
+import type { ActivitiesState,GameplayContext,GameplayFact,HeatState,MissionProgress,MissionState,PlayerGameplayState } from "../player/types.ts";
 
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
@@ -16,7 +16,7 @@ function attemptId(playerId:string,tick:number):string {let hash=2166136261;for(
 function start(progress:MissionProgress,mission:Mission,tick:number,playerId:string):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;if((mission.wave??2)>=3)progress.actorAttempt=attemptId(playerId,tick);else delete progress.actorAttempt;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
-export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState):MissionState {
+export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState,activities?:Pick<ActivitiesState,"players">):MissionState {
  const state:MissionState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};
  const parking=ctx.wave>=3?prepareMissionParking(previous.parking,previous,ctx,tick):undefined;
  if(parking)state.parking=parking.state;
@@ -34,7 +34,9 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
    }
    if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";own.startedTick=tick;own.actorAttempt=attemptId(body.id,tick);delete own.observed;enter(own,own.retryFrom,tick);}
   }
-  if(own.status==="idle"){
+  // A side activity in progress keeps the campaign's start area from firing until it ends.
+  const busy=Boolean(activities?.players[body.id]?.activeActivityId);
+  if(own.status==="idle"&&!busy){
    const mission=eligible.find(m=>m.campaign!==undefined&&!own.completedIds.includes(m.id));const first=mission?.steps.find(s=>s.id===initial(mission));
    if(mission&&first?.type==="trigger"&&first.event.kind==="enterArea"&&near(ctx,body.id,first.event.place))start(own,mission,tick,body.id);
   }
@@ -46,7 +48,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   own.commandSequence=Math.max(own.commandSequence,...requests.map(c=>c.sequence),0);
   if(player.events.some(e=>e.playerId===body.id&&e.kind==="player.acqui-hired")){own.status="retry";own.retryFrom=mission?initial(mission):"";own.deadlineTick=tick+1;}
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
-   if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack")?step.next:undefined:near(ctx,body.id,step.event.place)?step.next:undefined;
+   if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack")?step.next:undefined:!busy&&near(ctx,body.id,step.event.place)?step.next:undefined;
    if(step.type==="goto"){
     own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60);
     if(near(ctx,body.id,step.target)&&(!step.travel||step.travel==="any"||step.travel===body.mode))return step.next;

@@ -198,12 +198,21 @@
     "ui.help.night": "Toggle night",
     "ui.help.show": "Show these controls",
     "ui.help.menu": "Phone. In menus, A selects and B closes",
-    "ui.help.hold": "(hold)"
+    "ui.help.hold": "(hold)",
+    "ui.activity.panel": "Side activity",
+    "ui.activity.start": "Start",
+    "ui.activity.offer": "From {from} to {to}. You have {seconds} s.",
+    "ui.activity.checkpoint": "Reach {label} ({index} of {total})",
+    "ui.activity.handOver": "Hand over the groceries at {label}: press the interact key (R).",
+    "ui.activity.finishing": "Hold position to finish.",
+    "ui.activity.remaining": "{seconds} s left",
+    "ui.activity.embarcaderoSprint": "Embarcadero Sprint",
+    "ui.activity.hillDelivery": "Hill delivery shift"
   },
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:a4c08bb0",
+    "contentHash": "fnv1a32:a43f9e79",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }

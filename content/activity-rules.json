@@ -129,9 +129,9 @@
         },
         {
           "id": "finish",
-          "label": "Mission Bay waterfront",
-          "lat": 37.778,
-          "lon": -122.389,
+          "label": "King St at 2nd St, Mission Bay waterfront",
+          "lat": 37.77986,
+          "lon": -122.38959,
           "radiusM": 12
         }
       ]
@@ -155,15 +155,15 @@
         {
           "id": "pickup",
           "label": "Hyde at Union",
-          "lat": 37.7985,
-          "lon": -122.4195,
+          "lat": 37.7992,
+          "lon": -122.41905,
           "radiusM": 12
         },
         {
           "id": "drop",
           "label": "Lombard at Leavenworth",
-          "lat": 37.802,
-          "lon": -122.4185,
+          "lat": 37.8022,
+          "lon": -122.41797,
           "radiusM": 12
         }
       ]
@@ -672,7 +672,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:56494111",
+    "contentHash": "fnv1a32:7950ac8b",
     "reviewedBy": [],
     "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
   }

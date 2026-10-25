@@ -303,6 +303,25 @@ describe("harness wiring", () => {
     for (const f of specs) expect(doc, `docs/testing.md does not mention ${f}`).toContain(f);
   });
 
+  it("the long-playthrough workflow and docs/testing.md cover every *.long.ts", () => {
+    const doc = readFileSync(join(ROOT, "docs/testing.md"), "utf8");
+    const workflow = readFileSync(join(ROOT, ".github/workflows/campaign-long.yml"), "utf8");
+    const long = readdirSync(join(ROOT, "tests/e2e")).filter((f) => f.endsWith(".long.ts"));
+    expect(long.length).toBeGreaterThan(0);
+    for (const f of long) {
+      expect(doc, `docs/testing.md does not mention ${f}`).toContain(f);
+      expect(workflow, `campaign-long.yml does not run ${f}`).toContain(`- ${f}`);
+    }
+    expect(workflow).toContain("pnpm install --frozen-lockfile");
+    expect(workflow).toContain("--config tests/e2e/campaign-long.config.ts");
+    expect(workflow).toContain("actions/upload-artifact");
+    // Playwright must stop a stuck playthrough before the job limit, so its results upload.
+    const jobMinutes = Number(/\n\s+timeout-minutes: (\d+)\n/.exec(workflow)?.[1]);
+    const globalMs = Number(/--global-timeout=(\d+)/.exec(workflow)?.[1]);
+    expect(globalMs).toBeGreaterThan(0);
+    expect(globalMs).toBeLessThanOrEqual((jobMinutes - 5) * 60_000);
+  });
+
   it("CI installs from the lockfile and runs typecheck, unit tests and e2e", () => {
     const ci = readFileSync(join(ROOT, ".github/workflows/ci.yml"), "utf8");
     for (const cmd of ["pnpm install --frozen-lockfile", "pnpm typecheck", "pnpm test", "pnpm e2e", "actions/upload-artifact"]) {
