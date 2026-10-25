@@ -36,7 +36,10 @@
 // v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
 // reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
 // a v12 save keeps its saved water value, which no longer limits the stream.
-export const SIM_VERSION = 13;
+// v14: the forced-update conversion budget is live (2 x the bad robots now active that were not
+// converted) instead of 2 x the count at the runtime's first tick, which froze every forced
+// update once the city admitted more robots. No field changes (baseBadCount stays saved).
+export const SIM_VERSION = 14;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

@@ -7,7 +7,7 @@ import { planMissionActors, stageActorId } from "./mission-actors.ts";
 import {pendingMissionStages} from "./mission-staging.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
-  agentsRuntimeOf, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
+  agentsRuntimeOf, naturalBadCount, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
   runtimeAttackRequests, type AgentRuntimeOptions, type AgentMotionProposal,
 } from "./runtime.ts";
 
@@ -121,7 +121,7 @@ export function agentsCombatOptions(state: Readonly<SimState>): CombatAdapterOpt
     if (runtime?.actors[actor.id]?.legacyId !== null) actorMetadata[actor.id] = actor;
     else extraActors.push(actor);
   }
-  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?{conversionCap:runtime.baseBadCount*2}:{}) };
+  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?{conversionCap:naturalBadCount(state,runtime)*2}:{}) };
 }
 
 /** Core composes the configured provider once world navigation and service data are loaded. */

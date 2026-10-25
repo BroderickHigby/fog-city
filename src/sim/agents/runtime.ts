@@ -657,9 +657,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
-  // From wave 4 the conversion budget is live: converted robots may at most match the natural
-  // bad robots now active. (The start-of-run base goes stale as the city's population grows.)
-  const naturalBad=list.filter(actor=>actor.firmware==="bad"&&!actor.converted&&!actor.retired&&phase(sim,actor.id)==="active").length;
+  const naturalBad=naturalBadCount(sim,state);
   const stopped=stoppedVehicles(sim);
   const vehicles=vehicleBoxes(sim);
   for(const actor of list){
@@ -692,7 +690,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       // fog breaks off ambient pursuit, not an authored scene the founder walked into.
       const scripted=(options.wave??2)>=4&&actor.significant&&actor.id.startsWith("mission:");
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:scripted?0:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:(options.wave??2)>=4?naturalBad:state.baseBadCount,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:naturalBad,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
@@ -703,6 +701,16 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
 }
 
 /** Shared combat snapshots use the core's observed positions, never unaccepted proposals. */
+/**
+ * The conversion budget's base: bad robots active now that were not converted. Converted
+ * robots may at most match it (brain canConvert, combat conversionCap). The start-of-run
+ * baseBadCount goes stale as the city admits more robots, which froze every forced update.
+ */
+export function naturalBadCount(sim:Readonly<SimState>,runtime:Readonly<AgentsRuntimeState>|undefined=agentsRuntimeOf(sim)):number{
+  if(!runtime)return 0;
+  return keys(runtime.actors).filter(id=>{const actor=runtime.actors[id]!;return actor.firmware==="bad"&&!actor.converted&&!actor.retired&&phase(sim,id)==="active";}).length;
+}
+
 export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
   const state=agentsRuntimeOf(sim);if(!state)return [];
   const out:CombatActor[]=[];
