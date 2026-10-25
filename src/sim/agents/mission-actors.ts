@@ -103,6 +103,17 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
       const angle=index*2*PI/(8*ring),d=ring*3;
       candidates.push({x:stage.place.x+dsin(angle)*d,z:stage.place.z+dcos(angle)*d,id:`fallback:${ring}:${index}`});
     }
+    // A posted update scene must begin within channel range; its actors deliberately do not
+    // wander to a shared pavement node before the player gets an opportunity to interrupt.
+    if(!taxi&&definition.posted&&definition.archetype==="updatePusher"){
+      const mark=result.actors.filter(other=>other.firmware==="good"&&other.model!=="robotaxi")
+        .sort((a,b)=>magnitude(a.x-stage.place.x,a.z-stage.place.z)-magnitude(b.x-stage.place.x,b.z-stage.place.z)||compare(a.id,b.id))[0];
+      candidates.length=0;
+      if(mark)for(let index=0;index<16;index++){
+        const angle=index*2*PI/16,x=mark.x+dsin(angle)*2.7,z=mark.z+dcos(angle)*2.7;
+        if(magnitude(x-stage.place.x,z-stage.place.z)<=stage.radius&&!segmentBlocked(world,x,z,mark.x,mark.z))candidates.push({x,z,id:`channel:${index}`});
+      }
+    }
     const spot=candidates.find(p=>{
       if(!taxi)return clear(p.x,p.z,radius);
       if(!placementAllowed(p.x,p.z)||!serviceEntryClear(world,{...p,heading:p.heading??0},[...physical,...result.actors],ROBOTAXI_BODY.halfLength,ROBOTAXI_BODY.halfWidth,ROBOTAXI_BODY.height))return false;
