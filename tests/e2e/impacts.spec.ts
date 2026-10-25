@@ -8,6 +8,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { FAST_QUERY, FAST_VIEWPORT, bootWorld, simState } from "./fixtures.ts";
 import { propIndex, type AgentState, type SimState } from "../../src/sim/index.ts";
 import { loadWorld } from "../helpers.ts";
+import { pursuitKeys } from "./impact-driver.ts";
 
 interface ImpactWindow {
   __fogcityImpacts?: { bursts: number };
@@ -121,12 +122,7 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
         target = t?.id ?? -1;
       }
       if (!t) { await hold(page, held, new Set()); await page.waitForTimeout(250); continue; }
-      let off = Math.atan2(t.x - c.x, -(t.z - c.z)) - c.heading;
-      while (off > Math.PI) off -= 2 * Math.PI;
-      while (off < -Math.PI) off += 2 * Math.PI;
-      const keys = new Set<string>(["KeyW"]);
-      if (off > 0.06) keys.add("KeyD");
-      else if (off < -0.06) keys.add("KeyA");
+      const keys = pursuitKeys(c, t);
       await hold(page, held, unstick(s.tick, c.speed, keys));
       await page.waitForTimeout(60);
     }
@@ -137,13 +133,13 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
     await page.waitForFunction((id) => {
       const s = (window as unknown as { __fogcity: { state(): SimState } }).__fogcity.state();
       const a = ((s.ext.agents as { list?: AgentState[] } | undefined)?.list ?? []).find((x) => x.id === id);
-      return !a || Math.abs(a.pitch) > 1;
+      return a !== undefined && Math.abs(a.pitch) > 1;
     }, id, { timeout: 60_000 });
     await hold(page, held, new Set());
     await page.waitForFunction((id) => {
       const s = (window as unknown as { __fogcity: { state(): SimState } }).__fogcity.state();
       const a = ((s.ext.agents as { list?: AgentState[] } | undefined)?.list ?? []).find((x) => x.id === id);
-      return !a || (a.knock === undefined && a.pitch === 0);
+      return a !== undefined && a.knock === undefined && a.pitch === 0;
     }, id, { timeout: 120_000 });
     expect(problems).toEqual([]);
   });
@@ -167,12 +163,8 @@ test.describe("impacts: car vs robotaxi through real controls", () => {
       const c = s.players[me]!.car;
       // The nearest breakable tree ahead-ish, kept once picked.
       if (!target) target = [...trees].sort((a, b) => Math.hypot(a.x - c.x, a.z - c.z) - Math.hypot(b.x - c.x, b.z - c.z))[0];
-      let off = Math.atan2(target!.x - c.x, -(target!.z - c.z)) - c.heading;
-      while (off > Math.PI) off -= 2 * Math.PI;
-      while (off < -Math.PI) off += 2 * Math.PI;
-      const keys = new Set<string>(["KeyW"]);
-      if (off > 0.06) keys.add("KeyD");
-      else if (off < -0.06) keys.add("KeyA");
+      // Young trees need >7 m/s to break; slow only while turning in.
+      const keys = pursuitKeys(c, target!, 10);
       await hold(page, held, keys);
       await page.waitForTimeout(60);
     }
