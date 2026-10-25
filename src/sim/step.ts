@@ -152,6 +152,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 10) return upgradeState({ ...s, version: 11 });
   if (s.version === 11) return upgradeState({ ...s, version: 12 });
   if (s.version === 12) return upgradeState({ ...s, version: 13 });
+  // v14 (city life) adds only optional fields (runtime density and incidents): restamp.
   if (s.version === 13) return { ...s, version: 14 };
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }

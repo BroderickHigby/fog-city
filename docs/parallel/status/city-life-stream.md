@@ -6,11 +6,14 @@ little bit more action."
 
 ## Now
 
-- **PR 1, going round stopped vehicles** — [#38](https://github.com/BroderickHigby/fog-city/pull/38)
-  (draft), branch `work/city-life/overtake` (from `origin/integrate/wave2` `ff7db5b`).
-  SIM_VERSION **10** (9 stays reserved for the World stream's structural integration). Local:
-  typecheck, full vitest and the new Chromium check on real SF pass; waiting on CI.
-- **PR 2, more robots and more action** — next, on `work/city-life/robots-action`.
+- **PR 1, going round stopped vehicles**: [#38](https://github.com/BroderickHigby/fog-city/pull/38),
+  merged into `integrate/wave2` (with the real-SF junction deadlock fix). Follow-ups made after the
+  merge (a narrower general step-out for walkers, the junction soak at 40 s) are folded into PR 2.
+- **PR 2, more robots and more action**: branch `work/city-life/robots-action`, merged with
+  `integrate/wave2` `59e5a7b` (v13), stamped **SIM_VERSION 14** (13 → 14 is a pure restamp).
+  CI is blocked by billing, so the PR stays a draft with local evidence posted on it.
+- Next: readable robots (visible tells, a first-time explainer, plain scan reasons, a map legend;
+  intro text coordinated with Missions).
 
 ## PR 1: going round stopped vehicles (SIM_VERSION 10)
 
@@ -67,14 +70,35 @@ Known, pre-existing, not changed: the robotaxi deadlock breaker (`GHOST_TICKS`) 
 robotaxis squeeze through each other at a gridlocked junction far from any pass (seen on the grid
 city with seed 23 on the old code too).
 
-## PR 2 plan: more robots, more action
+## PR 2: more robots, more action (SIM_VERSION 14)
 
-- Robot presence per district and hour from data, raising Footmen and Trundles toward the
-  design's 3–4 robots per person, inside the existing per-player cap and LOD.
-- Stage the Ambient Director's cards for real (today `director.stage` is emitted and nothing
-  spawns): a snatch, a delivery bot blocking a crosswalk, a robotaxi standoff, a malfunction
-  spree, with street-level bounty blips on the map.
-- Pacing tuned so something is within 150 m most of the time, without spam.
+- `content/city-life.json` (schema, provenance hash, `src/content/cityLife.ts`): density per kind
+  by hour band and district, the bad-robot share (never raised in protected areas), director
+  pacing, and three new incident cards (crosswalk squatter, robotaxi standoff, malfunction spree).
+- The street mix shifts toward robots **without adding bodies**: population is trimmed out of view
+  so the agent total stays at or below the old one.
+- The Ambient Director's cards are staged for real (`src/sim/agents/incidents.ts`) 25–70 m from the
+  player: snatch, crosswalk squatter, nose-to-nose robotaxi standoff, malfunction spree. They show
+  as bounty blips and cards; robots flagged by Bot Check and bad robots on to you show on the map.
+- Real-SF soak (wave 3, seed 7, a minute at each hub): bad robots within 300 m, mean, FiDi 15.3
+  (12.3 before), SoMa 23.3 (19.8), Marina 11.3 (7.3), North Beach 5.8 (4.7); about one incident
+  a minute; agents 434/357/367/418 (before 445/379/410/429); 16.7–19.9 ms/tick on the test
+  machine with probes, the same as before.
+- Known limit: a car abandoned inside a junction (on a turn connector) still blocks that turn.
+- Traffic flow (same v14, coordinator priority 2026-10-24): two jams fixed at the source.
+  - A disguised bad Footman took a robotaxi for a robot to force-update, walked into Beale St and
+    stood at its nose; the robotaxi yielded for good (Missions' FiDi stall). Robots now see
+    robots of their own medium only.
+  - Fillmore St between Retiro Way and Marina Blvd is a 15.7 m link between two all-way stops: a
+    robotaxi waiting on it kept the junction behind and could not contend for the one ahead; one
+    the other way did the same (cyclic wait, then ghosts flooded the box). Such a robotaxi now
+    contends for the junction ahead, and nobody enters a short link against traffic on it.
+  - `tests/sim/traffic-flow-sf.test.ts`: Beale St, Market, Mission, Howard and The Embarcadero
+    (seed 1, wave 3), Marina Blvd, Laguna St and Fillmore St (seed 606, wave 4). Worst
+    standstills 3–22 s on the FiDi exits (Mission St was 109 s before), 18–37 s at the Marina;
+    traffic moves in every 30 s window; zero contacts.
+  - SF soak timeouts allow 60 ms per simulated tick (3x the measured cost) so slower machines
+    do not time out (`junction-deadlock-sf` was at 98–118 s of a 180 s limit).
 
 ## Requests for Lane R
 

@@ -39,6 +39,14 @@
 // v14: the forced-update conversion budget is live (2 x the bad robots now active that were not
 // converted) instead of 2 x the count at the runtime's first tick, which froze every forced
 // update once the city admitted more robots. No field changes (baseBadCount stays saved).
+// v14 (city life): the game composition shifts the street mix toward robots by district and hour
+// without adding bodies (content/city-life.json; AgentsRuntimeState.density), stages the Ambient
+// Director's cards as street incidents (src/sim/agents/incidents.ts; AgentsRuntimeState.incidents
+// and nextIncident), and a chasing robot pressed against a vehicle steps out instead of freezing.
+// Traffic flow (same version): robots on foot no longer take vehicles for robots to update (a
+// Footman stood at a robotaxi's nose for good), and a robotaxi on a short link between two
+// junctions contends for the one ahead instead of holding the one behind (SHORT_LINK_M).
+// All new fields are optional: the upgrade only restamps.
 export const SIM_VERSION = 14;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;

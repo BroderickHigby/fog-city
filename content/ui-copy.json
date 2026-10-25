@@ -201,7 +201,9 @@
     "ui.help.night": "Toggle night",
     "ui.help.show": "Show these controls",
     "ui.help.menu": "Phone. In menus, A selects and B closes",
-    "ui.help.hold": "(hold)"
+    "ui.help.hold": "(hold)",
+    "ui.map.flagged": "Flagged by Bot Check",
+    "ui.map.hostile": "Bad robot, on to you"
   },
   "provenance": {
     "source": "agent",
