@@ -22,6 +22,8 @@ describe("SF foliage", () => {
       const model = createFoliagePrototype(species, far);
       const triangles = (model.bark.index!.count + model.leaves.index!.count) / 3;
       expect(triangles).toBeLessThan(1000);
+      // The far tier is drawn up to FOLIAGE_FAR_LIMIT times (the street-tree data fills it).
+      if (far) expect(triangles, "far tree triangles").toBeLessThanOrEqual(64);
       expect(model.leaves.getAttribute("uv")).toBeDefined();
       const top = Math.max(model.bark.boundingBox!.max.y, model.leaves.boundingBox!.max.y);
       expect(top).toBeCloseTo(species === 0 ? 6.6 : 10.5, 3);
