@@ -32,6 +32,7 @@ export interface RuntimeSpawn {
   x: number; y: number; z: number; heading: number;
   radius: number; height: number;
   halfLength?: number; halfWidth?: number;
+  /** Unsigned motion speed. Physical bodies keep signed forward velocity separately. */
   speed?: number;
   protected?: boolean;
   child?: boolean;
@@ -177,7 +178,7 @@ function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):R
   const firmware=options.firmware?.[id]??(model==="person"?"none":hash(`${seed}:${id}`)/4294967296<clamp((options.badRateAt??defaultBadRate)(agent.x,agent.z),0,1)?"bad":"good");
   const profiles=BOT_TELLS.archetypes.filter(profile=>profile.kind===firmware&&profile.model===(model==="trundle"?"sidewalk-bot":model==="robotaxi"?"robotaxi":"errand-robot"));
   const profile=profiles[hash(id)%Math.max(1,profiles.length)];
-  return {id,numericId:agent.id,model,firmware,...(profile?{archetype:profile.id,level:1+hash(`${id}:level`)%5}:{}),x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed,
+  return {id,numericId:agent.id,model,firmware,...(profile?{archetype:profile.id,level:1+hash(`${id}:level`)%5}:{}),x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:Math.abs(agent.speed),
     radius:AGENT_SPEC[agent.kind].radius,height:model==="trundle"?.7:1.8,
     ...(model==="person"?{posture:"standing" as const,protected:personIsChild(agent.id),child:personIsChild(agent.id),mobilityAid:false}:{})};
 }
@@ -219,8 +220,8 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   const embodied=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId??agentActorId(actor.id)));
   for(const agent of [...agentsOf(sim)].sort((a,b)=>a.id-b.id)){
     const id=agentActorId(agent.id), old=previous.actors[id];known.add(id);
-    if(shared&&old&&old.x===agent.x&&old.y===agent.y&&old.z===agent.z&&old.heading===agent.heading&&old.speed===agent.speed)share(id,old);
-    else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
+    if(shared&&old&&old.x===agent.x&&old.y===agent.y&&old.z===agent.z&&old.heading===agent.heading&&old.speed===Math.abs(agent.speed))share(id,old);
+    else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:Math.abs(agent.speed)}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
   }
   for(const spawn of [...(options.spawns??[])].sort((a,b)=>compare(a.id,b.id))){
     if(known.has(spawn.id))throw new Error("Duplicate runtime actor ID");known.add(spawn.id);
@@ -246,7 +247,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   for(const observed of options.observedBodies??[]){
     const actor=state.actors[observed.id];
     if(actor&&[observed.x,observed.y,observed.z,observed.heading,observed.speed??0].every(Number.isFinite)
-      &&(actor.id!==observed.id||actor.x!==observed.x||actor.y!==observed.y||actor.z!==observed.z||actor.heading!==observed.heading||actor.speed!==observed.speed))Object.assign(own(observed.id),observed);
+      &&(actor.id!==observed.id||actor.x!==observed.x||actor.y!==observed.y||actor.z!==observed.z||actor.heading!==observed.heading||actor.speed!==Math.abs(observed.speed??0)))Object.assign(own(observed.id),observed,{speed:Math.abs(observed.speed??0)});
   }
   const ids=Object.keys(state.actors).sort(compare);
   if(ids.length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
