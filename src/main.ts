@@ -26,6 +26,7 @@
 // in the chase camera, mouse or touch drag on the view (or the pad's right stick) orbits round you.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
+import * as THREE from "three";
 import { installDebugHandle } from "./debug.ts";
 import { FramePacer } from "./frame-pacer.ts";
 import { openAssets } from "./io/assets.ts";
@@ -301,7 +302,10 @@ async function boot(): Promise<void> {
   };
   // Online Bot Sweep (src/ui/multiplayer.ts): absent without a configured relay. The city waits,
   // unstepped, while a match owns the screen.
-  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
+  const projected=new THREE.Vector3();let lookIds:string[]=[];
+  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,
+    onLooks:looks=>{for(const id of lookIds)if(!(id in looks))view.actors.setLookSlot(id,null);lookIds=Object.keys(looks);for(const id of lookIds)view.actors.setLookSlot(id,looks[id]!);},
+    project:(x,y,z)=>{const cam=view.camera;projected.set(x,y,z);const distance=projected.distanceTo(cam.position);projected.project(cam);if(projected.z>1||projected.z<-1)return null;const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(projected.x+1)/2*r.width,y:r.top+(1-projected.y)/2*r.height,distance};},onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
   const impactLayer=new ImpactLayer(view.scene);
@@ -620,6 +624,7 @@ async function boot(): Promise<void> {
     local.id = me_;
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
     if (!guard.contextLost) view.render();
+    multiplayer.overlay();
 
     const info = view.info(renderInfo);
     const me = shown.players[me_];

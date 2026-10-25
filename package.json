@@ -17,7 +17,8 @@
     "e2e": "playwright test",
     "shots": "playwright test --config tests/e2e/shots.config.ts",
     "verify": "pnpm typecheck && pnpm test && pnpm e2e",
-    "relay": "node server/main.ts"
+    "relay": "node server/main.ts",
+    "relay:load": "node server/load/load-test.ts"
   },
   "dependencies": {
     "three": "0.186.1",
