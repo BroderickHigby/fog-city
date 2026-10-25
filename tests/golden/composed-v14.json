@@ -3,32 +3,32 @@
   "scenarios": {
     "city": {
       "hashes": [
-        "3fc3fb3e",
-        "c6ea131c",
-        "9bf565a4",
-        "31c36bb7",
-        "8759e88c",
-        "fa12d3a5"
+        "7de3e8f5",
+        "fb62c1db",
+        "c0dc04d5",
+        "04fb1e86",
+        "f5c821a7",
+        "6528af1a"
       ],
       "coverage": {
-        "agents:final": 17,
-        "combat:projectile.ended": 38,
-        "combat:weapon.water": 41,
+        "agents:final": 13,
+        "combat:projectile.ended": 36,
+        "combat:weapon.water": 39,
         "identities:final": 2,
         "missions:mission.stage": 3
       }
     },
     "service": {
       "hashes": [
-        "e8ef4aac",
-        "d52f43fb",
-        "77455707",
-        "0396642b",
-        "45789825",
-        "148dc91e",
-        "5a4adf0e",
-        "7c9c6eba",
-        "d984ce6c"
+        "42cf0e9b",
+        "c0b51e2a",
+        "6411b611",
+        "787dac47",
+        "6806d9ef",
+        "d76df6f8",
+        "5dbfdb61",
+        "3192c565",
+        "8e6b04d7"
       ],
       "coverage": {
         "agents:final": 2,
@@ -40,12 +40,12 @@
     },
     "mission": {
       "hashes": [
-        "bdfe6c57",
-        "7f4fbc97",
-        "3b5491f6",
-        "a210b13b",
-        "accb6bef",
-        "a2b1b45b"
+        "21f610f9",
+        "57f2edb4",
+        "03506782",
+        "73684b77",
+        "0d81ef3f",
+        "525e3d43"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,15 +57,15 @@
     },
     "city-wave3": {
       "hashes": [
-        "aa727553",
-        "ec78d2a0",
-        "5dbedc9a",
-        "1209779b",
-        "c9befc49",
-        "d0ed1511"
+        "3fc648f4",
+        "1e9d825b",
+        "4bf2f4b4",
+        "bc7b6b09",
+        "8d1b299a",
+        "140ef1ff"
       ],
       "coverage": {
-        "agents:final": 17,
+        "agents:final": 13,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,
@@ -74,15 +74,15 @@
     },
     "city-wave3-rain": {
       "hashes": [
-        "e39b62f3",
-        "e5f13e30",
-        "08a949b4",
-        "06fd0bba",
-        "352ac31b",
-        "e7c0e568"
+        "ae1f4ee6",
+        "51db3fce",
+        "ea15c971",
+        "bba031cf",
+        "161046ce",
+        "0de2bdbf"
       ],
       "coverage": {
-        "agents:final": 17,
+        "agents:final": 13,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,

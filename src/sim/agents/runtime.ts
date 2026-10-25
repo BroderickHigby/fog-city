@@ -104,6 +104,11 @@ export interface AgentsRuntimeState {
   attacks: AttackRequest[];
   proposals: AgentMotionProposal[];
   events: AgentRuntimeEvent[];
+  /** v11 city life: each player's ambient density multipliers by kind (read by populate in agents.ts). */
+  density?: Record<string, Record<string, number>>;
+  /** v11 city life: street incidents staged for the director (incidents.ts), by id, and the next number. */
+  incidents?: Record<string, import("./incidents.ts").Incident>;
+  nextIncident?: number;
 }
 
 export interface AgentRuntimeOptions {
@@ -129,6 +134,10 @@ export interface AgentRuntimeOptions {
   anchors?: readonly FidelityAnchor[];
   protectedArea?: (x:number,z:number)=>boolean;
   crossingBlocked?: (edgeId:string)=>boolean;
+  /** v11 city life: ambient density multipliers by kind for an area owned by a player standing at (x, z). */
+  densityAt?: (x:number,z:number)=>Record<string,number>;
+  /** v11 city life: stage the director's cards as street incidents (incidents.ts). */
+  director?: { cards: readonly import("../../content/directorCards.ts").DirectorCard[]; stageM: readonly [number,number]; maxActive: number };
 }
 
 export const MAX_RUNTIME_ACTORS = 4096;
@@ -290,7 +299,10 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(other.id===actor.id||other.retired||other.behavior==="pending-admission"||distance(actor,other)>30)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,other.x,other.z);
     if(human(other.model))sight.push({kind:"person",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible});
-    else if(!animal(other.model))sight.push({kind:"robot",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible,alignment:other.firmware==="bad"?"bad":"good",operational:phase(sim,other.id)==="active"});
+    // Robots see robots of their own medium only: a robot on foot never takes a robotaxi, van or
+    // bus for a mark to update or an ally to run to (it walked into the road and stood at the
+    // taxi's nose while the taxi yielded to it, a standoff that held FiDi traffic for good).
+    else if(!animal(other.model)&&vehicle(other.model)===vehicle(actor.model))sight.push({kind:"robot",id:other.numericId,x:other.x,z:other.z,lineOfSight:visible,alignment:other.firmware==="bad"?"bad":"good",operational:phase(sim,other.id)==="active"});
   }
   for(const received of activeCombat(sim)?.events??[]){
     const source=people.find(player=>player.id===received.sourceId);
@@ -604,7 +616,17 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
       }
     }
   }
+  const straightOn=!goal;
   if(!goal)goal={x:actor.x+dsin(actor.heading),z:actor.z-dcos(actor.heading)};
+  // A bad robot's brain chasing or fleeing straight at something, or a walker with no route walking
+  // straight on (route walking has its own recovery above): a step the physical layer would refuse becomes a step out to the nearest free
+  // spot towards where it wants to go, instead of pressing against a vehicle for good.
+  if(actor.model!=="drone"&&!direct){
+    const near=vehicles.filter(v=>Math.abs(v.x-actor.x)<8&&Math.abs(v.z-actor.z)<8);
+    const brain=intent?.movement?.kind==="pursue"||intent?.movement?.kind==="flee";
+    // Walking straight on, only a vehicle's refusal counts (a wall it stands at is where it waits).
+    if((brain&&stepRefused(world,actor,goal,speed,near))||(straightOn&&!brain&&stepRefused(world,actor,goal,speed,near)&&!stepRefused(world,actor,goal,speed,[]))){const out=stepOut(world,actor,near,goal);if(out){goal={x:out.x,z:out.z};actor.pendingCursor=null;}}
+  }
   const length=distance(actor,goal),travel=Math.min(length,speed*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
   const x=actor.x+dx*travel,z=actor.z+dz*travel;
@@ -639,7 +661,7 @@ function queueAttack(state:AgentsRuntimeState,actor:RuntimeActor,intent:RobotBra
 }
 
 const graphCache=new WeakMap<World,SidewalkGraph>();
-function fallbackGraph(world:World):SidewalkGraph|undefined{
+export function fallbackGraph(world:World):SidewalkGraph|undefined{
   if(!world.roads)return undefined;
   let graph=graphCache.get(world);
   if(!graph){graph=buildFallbackSidewalkGraph(world.roads);graphCache.set(world,graph);}
@@ -658,11 +680,10 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
   const physical=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId));
   const controlled=new Set(options.controlledActorIds??[]);
   const badCount=list.filter(actor=>actor.firmware==="bad"&&!actor.retired&&phase(sim,actor.id)==="active").length;
-  // From wave 4 the conversion budget is live: converted robots may at most match the natural
-  // bad robots now active. (The start-of-run base goes stale as the city's population grows.)
-  const naturalBad=list.filter(actor=>actor.firmware==="bad"&&!actor.converted&&!actor.retired&&phase(sim,actor.id)==="active").length;
+  const naturalBad=naturalBadCount(sim,state);
   const stopped=stoppedVehicles(sim);
   const vehicles=vehicleBoxes(sim);
+  if(options.densityAt){const density:Record<string,Record<string,number>>={};for(const player of people)density[player.id]=options.densityAt(player.x,player.z);state.density=density;}
   for(const actor of list){
     if(actor.retired)continue;
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
@@ -693,7 +714,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       // fog breaks off ambient pursuit, not an authored scene the founder walked into.
       const scripted=(options.wave??2)>=4&&actor.significant&&actor.id.startsWith("mission:");
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:scripted?0:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:(options.wave??2)>=4?naturalBad:state.baseBadCount,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:naturalBad,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
@@ -704,6 +725,16 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
 }
 
 /** Shared combat snapshots use the core's observed positions, never unaccepted proposals. */
+/**
+ * The conversion budget's base: bad robots active now that were not converted. Converted
+ * robots may at most match it (brain canConvert, combat conversionCap). The start-of-run
+ * baseBadCount goes stale as the city admits more robots, which froze every forced update.
+ */
+export function naturalBadCount(sim:Readonly<SimState>,runtime:Readonly<AgentsRuntimeState>|undefined=agentsRuntimeOf(sim)):number{
+  if(!runtime)return 0;
+  return keys(runtime.actors).filter(id=>{const actor=runtime.actors[id]!;return actor.firmware==="bad"&&!actor.converted&&!actor.retired&&phase(sim,id)==="active";}).length;
+}
+
 export function runtimeCombatActors(sim:Readonly<SimState>):CombatActor[]{
   const state=agentsRuntimeOf(sim);if(!state)return [];
   const out:CombatActor[]=[];

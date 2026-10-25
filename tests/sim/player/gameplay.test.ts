@@ -1,4 +1,7 @@
 import { describe,it,expect } from "vitest";
+import { CITY_LIFE } from "../../../src/content/cityLife.ts";
+/** The director's idle window in ticks (content/city-life.json; 45–75 s before the owner asked for more action). */
+const IDLE_TICKS=CITY_LIFE.director.idleWindowS.map(s=>s*60) as [number,number];
 import { MISSIONS } from "../../../src/content/catalog.ts";
 import { createEconomy,createWallet,stepEconomy } from "../../../src/sim/economy/system.ts";
 import { createHeat,createHeatStatus,stepHeat } from "../../../src/sim/heat/system.ts";
@@ -85,10 +88,10 @@ describe("authored mission runtime",()=>{
 });
 
 describe("director and registered simulation",()=>{
- it("stages an encounter within 150m in the seeded 45–75 second window",()=>{
+ it("stages an encounter within 150m in the seeded city-life idle window",()=>{
   const ctx=context({directorCards:[{id:"encounter",fromWave:2,radiusM:150,cooldownS:60,protectedAreas:false}]});
   for(let seed=1;seed<=20;seed++){
-   const first=stepActivities(createActivities(),ctx,0,createMissions(),seed);const due=first.players.p!.nextDirectorTick;expect(due).toBeGreaterThanOrEqual(2700);expect(due).toBeLessThanOrEqual(4500);const next=stepActivities(freeze(first),ctx,due,createMissions(),seed);const staged=next.events.find(e=>e.kind==="director.stage")!;expect(staged).toBeDefined();expect(staged.amount).toBeLessThanOrEqual(150);expect(JSON.parse(staged.detail).x).toBeLessThanOrEqual(150);
+   const first=stepActivities(createActivities(),ctx,0,createMissions(),seed);const due=first.players.p!.nextDirectorTick;expect(due).toBeGreaterThanOrEqual(IDLE_TICKS[0]);expect(due).toBeLessThanOrEqual(IDLE_TICKS[1]);const next=stepActivities(freeze(first),ctx,due,createMissions(),seed);const staged=next.events.find(e=>e.kind==="director.stage")!;expect(staged).toBeDefined();expect(staged.amount).toBeLessThanOrEqual(150);expect(JSON.parse(staged.detail).x).toBeLessThanOrEqual(150);
   }
  });
  it("requires authoritative activity facts and registers every owned extension deterministically",()=>{

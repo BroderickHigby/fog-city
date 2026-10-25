@@ -15,6 +15,7 @@ import {
   DODGE_PROFILE,
   FOOT,
   LEAP_TICKS,
+  OVERRIDE_DRAW_MPS,
   PARKED_SPEED,
   ROBOTAXI_BODY,
   ROBOTAXI_CREEP_MPS,
@@ -566,13 +567,16 @@ describe("a vehicle's reach over its next step (what the override keeps people o
 });
 
 describe("how the override's leap is drawn", () => {
-  it("a short one (a robotaxi edging up, a car brushing past) is a quick stumble-hop; a long one the big superhuman hop", () => {
+  it("a short one (a robotaxi edging up, a car brushing past) is a quick stumble; a long one a shove aside, never a hop, never drawn faster than OVERRIDE_DRAW_MPS (v14)", () => {
     const short = leapShape(DODGE_PROFILE.person, 0.2);
-    expect(short.peak).toBeLessThan(0.5);
+    expect(short.peak).toBe(0);
     expect(short.dur).toBeLessThan(16);
     const long = leapShape(DODGE_PROFILE.person, 4);
     expect(long.peak).toBe(DODGE_PROFILE.person.leapPeak);
+    expect(long.peak).toBe(0);
     expect(long.dur).toBe(LEAP_TICKS);
+    // Eased (smoothstep, steepest 1.5 times the mean) over its ticks: no faster than OVERRIDE_DRAW_MPS.
+    for (let d = 0.1; d <= 4 + 1e-9; d += 0.1) expect((1.5 * d) / (leapShape(DODGE_PROFILE.person, d).dur / 60)).toBeLessThanOrEqual(OVERRIDE_DRAW_MPS + 1e-9);
     // Never higher or longer for a shorter leap.
     let last = leapShape(DODGE_PROFILE.person, 0);
     for (let d = 0.1; d <= 6; d += 0.1) {

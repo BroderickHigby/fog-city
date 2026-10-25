@@ -1,4 +1,4 @@
-import { protectedAreaAt, badRobotRate } from "../content/places.ts";
+import { protectedAreaAt } from "../content/places.ts";
 import { playerPose } from "./ride.ts";
 import { toLatLon } from "../geo/project.ts";
 import { sortedIds, type SimState } from "./contract.ts";
@@ -18,6 +18,7 @@ import type { GameplayFact } from "./gameplay-contract.ts";
 import { impactsOf } from "./impacts.ts";
 import type { AgentsExt } from "./agents.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
+import { CITY_DIRECTOR_CARDS, CITY_LIFE, cityBadRate, populationScale } from "../content/cityLife.ts";
 
 /** Same tick, players and every extension slot but combat (the combat context's inputs). */
 function sameExceptCombat(a:Readonly<SimState>,b:Readonly<SimState>):boolean{
@@ -77,7 +78,10 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   const weather=wave>=3;
   const fogAt=(context:SimSystemContext,x:number,z:number)=>weather?fogDensity(context.world,context.state,x,z):0;
   const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,
-    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return badRobotRate([p.lat,p.lon]);},
+    // City life (content/city-life.json): ambient density by district and hour, and the director's incidents.
+    densityAt:(x:number,z:number)=>{const p=toLatLon(x,z);return populationScale([p.lat,p.lon],gameTime(context.state).hour);},
+    director:{cards:CITY_DIRECTOR_CARDS,stageM:CITY_LIFE.director.stageM,maxActive:3},
+    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return cityBadRate([p.lat,p.lon]);},
     fog:0,
     fogAt:(x:number,z:number)=>fogAt(context,x,z),
     ...(weather?{weatherRefuge:(x:number,z:number)=>weatherRefuge(context.world,context.state,x,z)}:{}),

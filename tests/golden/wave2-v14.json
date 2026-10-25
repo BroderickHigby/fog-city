@@ -1,12 +1,12 @@
 {
   "sourceInput": "wave1-v2.json",
-  "sourcePhysics": "v14 impacts (src/sim/impacts.ts: player 2 rear-ends a robotaxi in the last segment) on 59e5a7ba",
+  "sourcePhysics": "dodge stream (work/dodge/natural): people dodge on their feet (v14)",
   "simVersion": 14,
   "hashes": [
     "f4e33cf5",
-    "bfa4d3e6",
-    "0650c0fd",
-    "8863d334",
-    "a62366c1"
+    "a0b091c4",
+    "d1758753",
+    "b0b8e519",
+    "e09514e3"
   ]
 }

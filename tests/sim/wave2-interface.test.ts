@@ -5,7 +5,7 @@ import {
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
 import v11Replay from "../golden/wave2-v11.json";
-import currentReplay from "../golden/wave2-v16.json";
+import currentReplay from "../golden/wave2-v14.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -84,10 +84,9 @@ describe("wave-2 shared interface", () => {
     for (let i = 0; i < baseline.segments.length; i++) {
       const segment = baseline.segments[i]!;
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
-      // v11 changes the on-foot pace, which the log's last (walking) segment uses; v14
-      // (impacts.ts) changes it only where a car meets a robotaxi (player 2 rear-ends one in the
-      // last segment). The first four segments still match the v11 fixture payload exactly.
-      // Normalize only the version header for an exact payload check.
+      // v11 changed the on-foot pace, which the log's last (walking) segment uses; v14 changes how
+      // people dodge (on their feet), which this replay's traffic does. The v7 and v11 fixtures
+      // stay as the record; this pins v14, normalizing only the version header.
       expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
       if (i < 4) expect(hashState({ ...state, version: v11Replay.simVersion })).toBe(v11Replay.hashes[i]);
     }

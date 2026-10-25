@@ -5,21 +5,29 @@ import { Action } from "../contract.ts";
 import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
 import { activityAvailable } from "./availability.ts";
+import { CITY_LIFE, cardWeight } from "../../content/cityLife.ts";
+/** Director pacing (content/city-life.json): ticks between incidents [min, min + span), and how long one stays staged. */
+const IDLE_MIN=Math.round(CITY_LIFE.director.idleWindowS[0]*60),IDLE_SPAN=Math.round((CITY_LIFE.director.idleWindowS[1]-CITY_LIFE.director.idleWindowS[0])*60)+1,STAGED=Math.round(CITY_LIFE.director.stagedS*60);
 export function createActivities(tick=0):ActivitiesState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
-function createOwn(seed:number,tick:number):PlayerActivities{const [roll,rng]=nextU32(seedRng(seed));return {nextDirectorTick:tick+2700+roll%1801,directorRng:rng,activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
+function createOwn(seed:number,tick:number):PlayerActivities{const [roll,rng]=nextU32(seedRng(seed));return {nextDirectorTick:tick+IDLE_MIN+roll%IDLE_SPAN,directorRng:rng,activeCardId:"",cardUntilTick:0,cardCooldowns:{},activeActivityId:"",activityStartedTick:0,completedIds:[],commandSequence:0,checkpointIndex:0,objectiveCount:0,cooldowns:{}};}
 /** Director schedules are independent per player and persisted in snapshots. */
 export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick:number,missions:MissionState,seed:number):ActivitiesState {
  const state:ActivitiesState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};const incoming=facts(ctx,tick,state.factCursors);
  for(const body of sortedBodies(ctx)){
   let hash=seed;for(const char of body.id)hash=(Math.imul(hash,31)+char.charCodeAt(0))>>>0;
   const old=previous.players[body.id]??createOwn(hash,tick);const own:PlayerActivities={...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds],cooldowns:{...old.cooldowns}};state.players[body.id]=own;
-  const missionActive=missions.players[body.id]?.status==="active";const observation=ctx.observations.find(o=>o.playerId===body.id);
-  if(missionActive||own.activeActivityId)own.nextDirectorTick=tick+2700;
+  const missionActive=missions.players[body.id]?.status==="active";
+  // A travel leg of a mission (a goto step) leaves room for a street incident on the way (city life).
+  const progress=missions.players[body.id],travelling=missionActive&&ctx.missions.find(m=>m.id===progress?.missionId)?.steps.find(step=>step.id===progress?.stepId)?.type==="goto";
+  const busy=missionActive&&!travelling;const observation=ctx.observations.find(o=>o.playerId===body.id);
+  if(busy||own.activeActivityId)own.nextDirectorTick=tick+IDLE_MIN;
   if(own.activeCardId&&tick>=own.cardUntilTick)own.activeCardId="";
-  if(!missionActive&&!own.activeActivityId&&!own.activeCardId&&tick>=own.nextDirectorTick){
+  if(!busy&&!own.activeActivityId&&!own.activeCardId&&tick>=own.nextDirectorTick){
    const choices=ctx.directorCards.filter(card=>card.fromWave<=ctx.wave&&(own.cardCooldowns[card.id]??0)<=tick&&(!observation?.protectedArea||card.protectedAreas)).sort((a,b)=>a.id<b.id?-1:1);
-   const [roll,rng]=nextU32(own.directorRng);own.directorRng=rng;own.nextDirectorTick=tick+2700+roll%1801;
-   if(choices.length){const card=choices[roll%choices.length]!,x=body.x+Math.min(75,card.radiusM),z=body.z,location=toLatLon(x,z);if(card.protectedAreas||!protectedAreaAt([location.lat,location.lon])){own.activeCardId=card.id;own.cardUntilTick=tick+1200;own.cardCooldowns[card.id]=tick+Math.ceil(card.cooldownS*60);event(state,"director.stage",body.id,card.id,Math.min(150,card.radiusM),JSON.stringify({x,y:body.y,z}));}}
+   const [roll,rng]=nextU32(own.directorRng);own.directorRng=rng;own.nextDirectorTick=tick+IDLE_MIN+roll%IDLE_SPAN;
+   // Weighted pick (content/city-life.json director.weights; 1 when absent).
+   let total=0;for(const c of choices)total+=cardWeight(c.id);let left=total?roll%total:0,pick=choices[0];for(const c of choices){left-=cardWeight(c.id);if(left<0){pick=c;break;}}
+   if(choices.length){const card=pick!,x=body.x+Math.min(75,card.radiusM),z=body.z,location=toLatLon(x,z);if(card.protectedAreas||!protectedAreaAt([location.lat,location.lon])){own.activeCardId=card.id;own.cardUntilTick=tick+STAGED;own.cardCooldowns[card.id]=tick+Math.ceil(card.cooldownS*60);event(state,"director.stage",body.id,card.id,Math.min(150,card.radiusM),JSON.stringify({x,y:body.y,z}));}}
   }
   for(const command of commands(ctx,body.id,["activity-start","activity-complete"],own.commandSequence)){
    own.commandSequence=command.sequence;
@@ -42,7 +50,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    const objectiveComplete=(own.objectiveCount??0)>=(activity?.objective?.count??1);
    if(activity&&objectiveComplete&&routeComplete&&elapsed>=60){
     event(state,"activity.cash",body.id,activity.id,Math.max(0,activity.rewardCents??0));event(state,"activity.xp",body.id,activity.id,Math.max(0,activity.rewardXp??100));event(state,"activity.finished",body.id,activity.id);
-    if(!own.completedIds.includes(activity.id))own.completedIds.push(activity.id);own.cooldowns![activity.id]=tick+60*(activity.cooldownS??60);own.activeActivityId="";own.nextDirectorTick=tick+2700;
+    if(!own.completedIds.includes(activity.id))own.completedIds.push(activity.id);own.cooldowns![activity.id]=tick+60*(activity.cooldownS??60);own.activeActivityId="";own.nextDirectorTick=tick+IDLE_MIN;
    }else if(!activity||elapsed>60*(activity.timeLimitS??600)){event(state,"activity.failed",body.id,own.activeActivityId);own.activeActivityId="";}
   }
  }

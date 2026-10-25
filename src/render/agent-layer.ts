@@ -66,7 +66,8 @@ import {
 } from "./agent-packing.ts";
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
-import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
+import { leapDrawOffset } from "./human-motion.ts";
+import { HIP, SHOULDER, STRIDE_M, WALK_ARM, WALK_LEG, dodgePose, newLook, personLook, personParts, strideFor, type PersonLook, type PersonPose } from "./person.ts";
 import { CROWD_NEAR_MAX, type CrowdHumans } from "./crowd-humans.ts";
 
 /** Ambient agents' allocation within the design's 40-call total character budget. */
@@ -177,6 +178,8 @@ const _q = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, "YXZ");
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
+/** The override's drawn offset (human-motion.ts leapDrawOffset). */
+const _off = { x: 0, z: 0 };
 const _one = new THREE.Vector3(1, 1, 1);
 
 /** Agent placement: origin on the ground, rotation.y = -heading, nose-up pitch, uniform scale. */
@@ -186,15 +189,18 @@ function baseMatrix(x: number, y: number, z: number, heading: number, pitch: num
   return out.compose(_p.set(x, y, z), _q, _s.setScalar(scale));
 }
 
-/** base x T(pivot) x Ry(ry) x Rx(rx). */
-function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4): THREE.Matrix4 {
-  _e.set(rx, ry, 0, "YXZ");
+/** base x T(pivot) x Ry(ry) x Rx(rx) x Rz(rz). */
+function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4, rz = 0): THREE.Matrix4 {
+  _e.set(rx, ry, rz, "YXZ");
   _q.setFromEuler(_e);
   _local.compose(_p.set(px, py, pz), _q, _one);
   return out.multiplyMatrices(base, _local);
 }
 
 // ---------------------------------------------------------------- people (agents and players)
+
+/** A plain walk (person.ts dodgePose with no dodge, at walking speed). */
+const WALK_POSE: Readonly<PersonPose> = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
 
 /** Instanced people: body, two arms, two legs per person; also draws players on foot. */
 export class PeopleRig {
@@ -222,18 +228,20 @@ export class PeopleRig {
     this.legs.begin();
   }
 
-  /** One person: `swing` is sin(gait phase) times the gait amount (-1..1). */
-  /** `cue`: only its wetness is used for people (a soaked passer-by reads darker and glossier). */
-  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number, cue: Readonly<AgentCue> | null = null): void {
+  /**
+   * One person: `swing` is sin(gait phase) times the gait amount (-1..1); `pose` (person.ts
+   * dodgePose) leans the body and scales the swing for a run, a startle, a stumble (default: a walk).
+   */
+  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number, pose: Readonly<PersonPose> = WALK_POSE, cue: Readonly<AgentCue> | null = null): void {
     if (this.body.count >= this.body.capacity) return;
-    baseMatrix(x, y, z, heading, 0, look.scale, _base);
+    baseMatrix(x, y, z, heading, pose.lean, look.scale, _base);
     this.body.push(_base, cue, look);
-    const leg = 0.42 * swing;
-    const arm = 0.34 * swing;
+    const leg = pose.legGain * swing;
+    const arm = pose.armGain * swing;
     this.legs.push(partMatrix(_base, -HIP[0], HIP[1], HIP[2], leg, 0, _m), cue, look);
     this.legs.push(partMatrix(_base, HIP[0], HIP[1], HIP[2], -leg, 0, _m), cue, look);
-    this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], -arm, 0, _m), cue, look);
-    this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], arm, 0, _m), cue, look);
+    this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], -arm, 0, _m, -pose.armOut), cue, look);
+    this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], arm, 0, _m, pose.armOut), cue, look);
   }
 
   end(): void {
@@ -324,6 +332,8 @@ interface Anim {
   z: number;
   heading: number;
   seen: number;
+  /** Horizontal speed as drawn (smoothed over frames), m/s: what a person's gait and pose follow. */
+  v: number;
 }
 
 export interface AgentRenderInfo {
@@ -390,6 +400,7 @@ export class AgentLayer {
   /** Rust-stained water pooled under each heap (the sim's puddle): a flat, glossy disc. */
   private readonly puddles: THREE.InstancedMesh;
   private puddleCount = 0;
+  private readonly pose: PersonPose = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
@@ -544,6 +555,13 @@ export class AgentLayer {
       const b = pairs[i]![1];
       const w = this.windows.get(b.id)!;
       const p = interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), this.poses[i]!);
+      // The override moved this body at once: drawn as a shove aside from where it was (human-motion.ts).
+      if (b.dodge && b.dodge.leap && b.dodge.phase === "dive") {
+        leapDrawOffset(b.dodge, alpha, _off);
+        p.x = b.x + _off.x;
+        p.y = b.y;
+        p.z = b.z + _off.z;
+      }
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -628,11 +646,12 @@ export class AgentLayer {
     this.crowd?.begin(dt, Math.max(0, remaining - reserveFallback));
     for (const i of this.nearPeople) {
       const b = pairs[i]![1], pose = this.poses[i]!;
-      if (this.crowd?.add(b.id, pose.x, pose.y, pose.z, pose.heading, b.speed, dt)) continue;
-      const anim = this.anim(b.id, pose, dt);
+      // (Its drawn speed: a dodging person moves whichever way it goes, a sidestep sideways.)
+      const anim = this.anim(b.id, pose, dt, 0.35, 2.7, 1.3, true);
+      if (this.crowd?.add(b.id, pose.x, pose.y, pose.z, pose.heading, b.dodge ? anim.v : b.speed, dt, b.dodge)) continue;
       personLook(b.id, this.look);
       this.personCue.wet = this.nearPeopleWet.get(i) ?? 0;
-      this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount, this.personCue);
+      this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount, dodgePose(b.dodge, anim.v, this.pose), this.personCue);
     }
     let calls = 0;
     let tris = 0;
@@ -700,12 +719,16 @@ export class AgentLayer {
     this.scratch = { idx: new Int32Array(cap), key: new Float64Array(cap) };
   }
 
-  /** The animation state of a near agent, advanced to this frame's pose. */
-  private anim(id: number, pose: AgentPose, dt: number, wheelRadius = 0.35, wheelbase = 2.7, cruise = 1.3): Anim {
+  /**
+   * The animation state of a near agent, advanced to this frame's pose. A person (`person`) steps
+   * by the distance it is drawn to move whichever way it goes (a sidestep swings its legs too),
+   * with longer steps the faster it goes (strideFor), so its feet never slide.
+   */
+  private anim(id: number, pose: AgentPose, dt: number, wheelRadius = 0.35, wheelbase = 2.7, cruise = 1.3, person = false): Anim {
     let an = this.anims.get(id);
     const fresh = !an || this.frameNo - an.seen > 2;
     if (!an) {
-      an = { wheel: 0, steer: 0, gait: (id * 1.7) % (Math.PI * 2), amount: 0, x: pose.x, z: pose.z, heading: pose.heading, seen: 0 };
+      an = { wheel: 0, steer: 0, gait: (id * 1.7) % (Math.PI * 2), amount: 0, x: pose.x, z: pose.z, heading: pose.heading, seen: 0, v: 0 };
       this.anims.set(id, an);
     }
     let dist = 0;
@@ -724,8 +747,9 @@ export class AgentLayer {
       an.steer = 0;
     }
     an.wheel = rollWheel(an.wheel, dist, wheelRadius);
-    an.gait = advanceGait(an.gait, dist, STRIDE_M);
-    const want = gaitAmount(pose.speed, cruise);
+    if (dt > 0) an.v += (Math.abs(dist) / dt - an.v) * Math.min(1, dt * 12);
+    an.gait = advanceGait(an.gait, dist, person ? strideFor(an.v) : STRIDE_M);
+    const want = gaitAmount(person ? an.v : pose.speed, cruise);
     an.amount += (want - an.amount) * Math.min(1, dt * 5);
     an.x = pose.x;
     an.z = pose.z;

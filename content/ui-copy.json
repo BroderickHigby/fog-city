@@ -201,12 +201,14 @@
     "ui.help.night": "Toggle night",
     "ui.help.show": "Show these controls",
     "ui.help.menu": "Phone. In menus, A selects and B closes",
-    "ui.help.hold": "(hold)"
+    "ui.help.hold": "(hold)",
+    "ui.map.flagged": "Flagged by Bot Check",
+    "ui.map.hostile": "Bad robot, on to you"
   },
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:58c0ca68",
+    "contentHash": "fnv1a32:47126322",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }

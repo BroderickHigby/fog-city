@@ -400,7 +400,8 @@ ACQUI-HIRED.
     layer.
   - The person-clearance override: any vehicle with a person or animal in its swept path within
     its stopping distance + 2 m brakes to a stop, whatever its tuning. Occupied cable cars and
-    buses count as people for the override. Pedestrians hop aside (slapstick dives, GTA-style).
+    buses count as people for the override. Pedestrians get out of the way on their feet: a
+    startled sidestep, jog or sprint at human speed, never a hop (decision log, 2026-10-23).
   - Pedestrians cross only at crosswalks, during their signal phase, with gap acceptance: they
     never step out in front of a vehicle whose stopping distance exceeds the gap. Dodging comes
     before the override. The `?bench=` summary reports override activations per minute; the target
@@ -1303,3 +1304,15 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   would land; a knocked hydrant gushes. Broken props stay broken and come back once no player has been within 80 m for
   3 minutes. Signs, signals, fences, bins and newspaper boxes use the same rules when World detail places them
   (`src/sim/props.ts`, SIM_VERSION 16).
+- 2026-10-23 · **People dodge like people** (owner request: "they jump out of the way in too weird of a way …
+  they like fly"). The dodge supersedes the Crazy Taxi rule's leaping dive (2026-10-21, `src/sim/dodge.ts`): a
+  9 m/s dive with instant acceleration and a 0.45 m hop becomes a startled sidestep, jog or sprint on the ground
+  at 4.8 m/s (6 m/s scrambling), speeding up at 7 m/s² (a late lunge 28) and braking to a stop, seen 1–2.5 s
+  ahead by the vehicle's speed. The no-contact guarantee is unchanged: the clearance override still moves anyone a
+  vehicle would otherwise reach, drawn as a stumble or shove aside with no lift and never faster than 6 m/s on
+  screen. Against a car driven to chase someone (a perfect pursuer with 18 m/s² of grip) no human can always get
+  clear, so the no-touch fuzz's override share is bounded per scenario instead of the old 5% overall: 0 for
+  non-pursuit drivers, at most 25% for chase, weave, drift, handbrake, bank and random pursuit; contacts stay 0 and
+  the 0.75 m clearance holds outside counted override episodes. The player and the skinned crowd play real clips
+  (Rocketbox runs and dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the procedural
+  crowd leans, lengthens its stride with speed and startles. SIM_VERSION 14.
