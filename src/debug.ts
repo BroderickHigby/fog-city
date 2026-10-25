@@ -102,6 +102,11 @@ export interface DebugHandle {
   /** One entry per content/landmarks.json placement. */
   landmarks(): LandmarkInfo[];
   setNight(on: boolean): void;
+  /**
+   * Look-dev only: draw the robots nearest the camera with these combat looks (rust, wetness,
+   * topple, optional height scale), nearest first; null restores what the sim says. Render-only.
+   */
+  previewCombatLook?(stages: ReadonlyArray<{ rust: number; wet: number; topple: number; height?: number }> | null): number[];
   /** Force a WebGL context loss and, later, its restore (WEBGL_lose_context), to test recovery. */
   loseContext?(): void;
   restoreContext?(): void;

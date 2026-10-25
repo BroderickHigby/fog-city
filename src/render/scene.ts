@@ -425,6 +425,21 @@ export class SceneRenderer {
     return env;
   }
 
+  /**
+   * Look-dev only (debug handle): draw the robots nearest the camera with these combat looks,
+   * nearest first (null: as the sim says). Render-only; returns the agent ids it chose.
+   */
+  previewCombatLook(stages: ReadonlyArray<{ rust: number; wet: number; topple: number; height?: number }> | null): number[] {
+    if (!stages) {
+      this.agents.setCombatLookOverride(null);
+      return [];
+    }
+    const c = this.camera.position;
+    const ids = this.agents.nearestRobots(c.x, c.z, stages.length);
+    this.agents.setCombatLookOverride(new Map(ids.map((id, i) => [id, { ...stages[i]! }])));
+    return ids;
+  }
+
   /** Camera mode switch from outside the key handler (debug, URL). */
   setCameraMode(m: CameraMode): void {
     this.rig.setMode(m);

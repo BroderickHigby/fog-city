@@ -407,6 +407,7 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    previewCombatLook: (stages) => view.previewCombatLook(stages),
     loseContext: () => view.renderer.forceContextLoss(),
     restoreContext: () => view.renderer.forceContextRestore(),
     setCameraMode: (m) => view.setCameraMode(m),
@@ -573,7 +574,7 @@ async function boot(): Promise<void> {
     const sprays = sprayTracker.update(shown.ext.combat?.projectiles);
     for (const id of ids) view.setSpray(id, sprays.get(id) ?? null);
     view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
-    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out));
+    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out),dtFrame);
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     const minute = gameMinuteOfDay(shown, clockStart);
     local.id = me_;
