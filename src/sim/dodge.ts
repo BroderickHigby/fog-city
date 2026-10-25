@@ -1635,15 +1635,18 @@ export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfil
   const dist = Math.sqrt(dx * dx + dz * dz);
   // The speed it wants: as fast as it can go and still stop at the spot, braking a * DT a tick
   // (so it arrives at walking pace or less, without a jolt).
-  const h = (a * DT) / 2;
-  let want = Math.sqrt(2 * a * dist + h * h) - h;
+  const most = a * DT;
+  // Semi-implicit steps spend v*DT now, then (v-most)*DT, and so on.
+  // Invert that discrete stopping distance rather than the continuous parabola:
+  // the final fractional step must also fit without a snap or a hard stop.
+  const ticks = Math.max(1, Math.ceil((Math.sqrt(1 + 8 * dist / (most * DT)) - 1) / 2));
+  let want = (dist / DT + most * ticks * (ticks - 1) / 2) / ticks;
   if (want > d.vmax) want = d.vmax;
   const wx = dist > 1e-9 ? (dx / dist) * want : 0;
   const wz = dist > 1e-9 ? (dz / dist) * want : 0;
   let ax = wx - d.vx;
   let az = wz - d.vz;
   const dv = Math.sqrt(ax * ax + az * az);
-  const most = a * DT;
   if (dv > most) {
     ax *= most / dv;
     az *= most / dv;
@@ -1651,9 +1654,9 @@ export function advanceDodge(d: Readonly<DodgeState>, prof: Readonly<DodgeProfil
   const vx = d.vx + ax;
   const vz = d.vz + az;
   const sp = Math.sqrt(vx * vx + vz * vz);
-  // There this tick (or close enough and nearly stopped, or out of time): it stops on the spot.
-  // (Within one more tick's step, at no more than one tick's speed-up: it stops on the spot.)
-  if (dist <= (sp + most) * DT + 1e-6 || t >= DIVE_MAX_TICKS) {
+  // Arrive only when this step reaches the spot and the next tick can spend
+  // the remaining speed. Redirected dives may be too fast to stop here yet.
+  if ((sp <= most + 1e-9 && dist <= sp * DT + 1e-9) || t >= DIVE_MAX_TICKS) {
     const tx = t >= DIVE_MAX_TICKS && dist > sp * DT ? x + vx * DT : d.tx;
     const tz = t >= DIVE_MAX_TICKS && dist > sp * DT ? z + vz * DT : d.tz;
     return { dodge: { ...d, phase: "recover", tx, tz, t: 0, dur: prof.recover, hop: 0, vx: 0, vz: 0 }, x: tx, z: tz };

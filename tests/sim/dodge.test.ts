@@ -305,6 +305,16 @@ describe("where a body dives", () => {
     expect([r.x, r.z]).toEqual([3, 0]);
   });
 
+  it("does not snap a moving dive onto a newly nearby target and stop abruptly", () => {
+    const prof = DODGE_PROFILE.person;
+    const d: DodgeState = { phase: "dive", sx: 0, sz: 0, tx: .02, tz: 0, t: 20, dur: 60, peak: 0, hop: 0, leap: false, vx: 1.5, vz: 0, vmax: prof.speed };
+    const n = advanceDodge(d, prof, 0, 0);
+    expect(n.dodge!.phase).toBe("dive");
+    const vx = n.x * 60;
+    expect(Math.abs(vx - d.vx) * 60).toBeLessThanOrEqual(prof.accel * 1.01);
+    expect(n.dodge!.vx).toBeCloseTo(vx, 12);
+  });
+
   it("a dive turned toward a new landing carries on from where the body is, keeping its velocity: no restart, no jump, no instant turn", () => {
     const prof = DODGE_PROFILE.person;
     let d: DodgeState = { phase: "dive", sx: 0, sz: 0, tx: 3, tz: 0, t: 0, dur: 60, peak: prof.peak, hop: 0, leap: false, vx: 0, vz: 0, vmax: prof.speed };

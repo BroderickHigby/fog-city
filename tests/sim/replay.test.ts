@@ -187,5 +187,5 @@ describe("legacy SIM_VERSION 4 replays", () => {
 // Dodge-only unpublished v14 pins: bf2217c0 f43800ad c68a2f6b 1b68947f eb620d2b;
 // dodge replay: f5981263 52415258 7c0b2db6 94e9aa88 d465022c 9c21df5d.
 // Combined v14 deliberately also includes impacts, breakable props and new vehicle dynamics.
-const PINNED_V14: string[] = ["1f3c401e", "e7c2dc3a", "bc7f40a2", "f291f3aa", "ac913451"];
-const PINNED_V14_DODGE: string[] = ["64bae003", "d6038e50", "08d9fede", "2b2bc817", "09d40efc", "f68d7a28"];
+const PINNED_V14: string[] = ["98560089", "580be1a8", "4a814c8f", "ccf041b4", "5b09a0e5"];
+const PINNED_V14_DODGE: string[] = ["64bae003", "d6038e50", "08d9fede", "2b2bc817", "0ce66233", "360c0f1e"];
