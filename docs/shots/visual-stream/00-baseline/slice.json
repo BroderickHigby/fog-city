@@ -1,0 +1,662 @@
+{
+ "query": "&gfx=high&shadows=1&gpumem=1",
+ "problems": [],
+ "views": [
+  {
+   "id": "ferry-plaza-golden",
+   "title": "Harry Bridges Plaza to the clock tower (the owner's spot), golden hour",
+   "x": -110.5,
+   "z": 112.5,
+   "up": 2.4,
+   "yaw": 28,
+   "pitch": -5,
+   "tod": "golden",
+   "groundY": 3.1526249999999996,
+   "settled": true,
+   "frameMs": {
+    "median": 1733.199999999997,
+    "p90": 1933.199999999997
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 206,
+    "triangles": 1291566,
+    "tilesLoaded": 34,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "golden",
+    "foliage": {
+     "near": 21,
+     "far": 2672,
+     "draws": 8
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": false,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.5769341718109954,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 229,
+    "agentsNear": 5,
+    "agentsTotal": 237,
+    "agentDrawCalls": 16,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 5,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 129,
+    "textures": 28,
+    "programs": 42,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 146359882,
+     "renderbufferBytes": 22880256,
+     "textures": 28,
+     "renderbuffers": 4
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "ferry-plaza-night",
+   "title": "The same view at night",
+   "x": -110.5,
+   "z": 112.5,
+   "up": 2.4,
+   "yaw": 28,
+   "pitch": -5,
+   "tod": "night",
+   "groundY": 3.1526249999999996,
+   "settled": true,
+   "frameMs": {
+    "median": 1666.6000000000058,
+    "p90": 1766.6000000000058
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 178,
+    "triangles": 1218768,
+    "tilesLoaded": 34,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "night",
+    "foliage": {
+     "near": 21,
+     "far": 2672,
+     "draws": 8
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": true,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.6185822095756504,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 256,
+    "agentsNear": 1,
+    "agentsTotal": 264,
+    "agentDrawCalls": 13,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 5,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 136,
+    "textures": 31,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 152709589,
+     "renderbufferBytes": 26025984,
+     "textures": 31,
+     "renderbuffers": 5
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "market-street-noon",
+   "title": "Down Market St from the Embarcadero, noon",
+   "x": -42,
+   "z": 52,
+   "up": 1.7,
+   "yaw": 233,
+   "pitch": 2,
+   "tod": "noon",
+   "groundY": 3.1748000000000003,
+   "settled": true,
+   "frameMs": {
+    "median": 3916.5,
+    "p90": 4066.5999999999767
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 259,
+    "triangles": 1688416,
+    "tilesLoaded": 34,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "noon",
+    "foliage": {
+     "near": 3,
+     "far": 2502,
+     "draws": 6
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": false,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.2597470064157495,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 255,
+    "agentsNear": 8,
+    "agentsTotal": 255,
+    "agentDrawCalls": 25,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 13,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 202,
+    "textures": 32,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 159001045,
+     "renderbufferBytes": 29171712,
+     "textures": 32,
+     "renderbuffers": 6
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "crosswalk-noon",
+   "title": "Crosswalk and kerb at the foot of Market St, noon",
+   "x": -84,
+   "z": 122,
+   "up": 1.7,
+   "yaw": 60,
+   "pitch": -18,
+   "tod": "noon",
+   "groundY": 3.138,
+   "settled": true,
+   "frameMs": {
+    "median": 2316.5,
+    "p90": 2433.2000000000116
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 175,
+    "triangles": 1194655,
+    "tilesLoaded": 35,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "noon",
+    "foliage": {
+     "near": 20,
+     "far": 2620,
+     "draws": 8
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": false,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.4316670983337694,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 280,
+    "agentsNear": 2,
+    "agentsTotal": 287,
+    "agentDrawCalls": 16,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 5,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 205,
+    "textures": 32,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 159001045,
+     "renderbufferBytes": 29171712,
+     "textures": 32,
+     "renderbuffers": 6
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "embarcadero-north-golden",
+   "title": "The Embarcadero promenade looking north, golden hour",
+   "x": -118,
+   "z": -136,
+   "up": 1.7,
+   "yaw": 321,
+   "pitch": 1,
+   "tod": "golden",
+   "groundY": 3.095200000000001,
+   "settled": true,
+   "frameMs": {
+    "median": 2399.9000000000233,
+    "p90": 2466.5999999999767
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 163,
+    "triangles": 1305052,
+    "tilesLoaded": 36,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "golden",
+    "foliage": {
+     "near": 3,
+     "far": 2562,
+     "draws": 6
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": false,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.4316857327865314,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 220,
+    "agentsNear": 15,
+    "agentsTotal": 281,
+    "agentDrawCalls": 25,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 5,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 216,
+    "textures": 32,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 159001045,
+     "renderbufferBytes": 29171712,
+     "textures": 32,
+     "renderbuffers": 6
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "ferry-from-bay-golden",
+   "title": "The Ferry Building and skyline from the Bay, golden hour",
+   "x": 450,
+   "z": -150,
+   "up": 10,
+   "yaw": 245,
+   "pitch": 6,
+   "tod": "golden",
+   "groundY": 0,
+   "settled": true,
+   "frameMs": {
+    "median": 1933.3000000000466,
+    "p90": 2099.9000000000233
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 201,
+    "triangles": 1094632,
+    "tilesLoaded": 32,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "golden",
+    "foliage": {
+     "near": 0,
+     "far": 1354,
+     "draws": 4
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": false,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.4511210357738839,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 0,
+    "agentsNear": 0,
+    "agentsTotal": 281,
+    "agentDrawCalls": 0,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 12,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 203,
+    "textures": 32,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 159001045,
+     "renderbufferBytes": 29171712,
+     "textures": 32,
+     "renderbuffers": 6
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "ferry-from-bay-night",
+   "title": "The same from the Bay at night",
+   "x": 450,
+   "z": -150,
+   "up": 10,
+   "yaw": 245,
+   "pitch": 6,
+   "tod": "night",
+   "groundY": 0,
+   "settled": true,
+   "frameMs": {
+    "median": 1933.1999999999534,
+    "p90": 2016.5999999999767
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 228,
+    "triangles": 1051776,
+    "tilesLoaded": 32,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "night",
+    "foliage": {
+     "near": 0,
+     "far": 1354,
+     "draws": 4
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": true,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.5128468126570532,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 0,
+    "agentsNear": 0,
+    "agentsTotal": 308,
+    "agentDrawCalls": 0,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 19,
+    "farCellsDrawn": 12,
+    "farTriangles": 245522,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 218,
+    "textures": 32,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 159001045,
+     "renderbufferBytes": 29171712,
+     "textures": 32,
+     "renderbuffers": 6
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  },
+  {
+   "id": "downtown-415-noon",
+   "title": "415 Mission from the street, noon",
+   "x": -215,
+   "z": 555,
+   "up": 1.7,
+   "yaw": 220,
+   "pitch": 28,
+   "tod": "noon",
+   "groundY": 4.237500000000001,
+   "settled": true,
+   "frameMs": {
+    "median": 3416.5,
+    "p90": 3499.9000000000233
+   },
+   "software": true,
+   "render": {
+    "drawCalls": 166,
+    "triangles": 1733779,
+    "tilesLoaded": 39,
+    "cameraMode": "fly",
+    "presentation": true,
+    "lightingPreset": "noon",
+    "foliage": {
+     "near": 30,
+     "far": 3269,
+     "draws": 8
+    },
+    "surfaceTextures": [
+     "asphalt",
+     "concrete"
+    ],
+    "night": false,
+    "tilesPending": 0,
+    "tilesTotal": 583,
+    "tilesFailed": 0,
+    "landmarks": 2,
+    "fps": 0.2955781508630821,
+    "pixelRatio": 1,
+    "shadows": true,
+    "agents": 146,
+    "agentsNear": 0,
+    "agentsTotal": 317,
+    "agentDrawCalls": 4,
+    "agentModels": [
+     "robotaxi",
+     "errandRobot",
+     "sidewalkBot"
+    ],
+    "playerCarsFromFile": 1,
+    "walkers": 0,
+    "walkersFromFile": 0,
+    "farCellsTotal": 33,
+    "farCells": 20,
+    "farCellsDrawn": 13,
+    "farTriangles": 280871,
+    "farSeamEdges": 0,
+    "cameraFar": 20000,
+    "farBudget": {
+     "radius": 6000,
+     "queued": 0,
+     "loading": 0,
+     "failed": 0
+    }
+   },
+   "gpu": {
+    "geometries": 246,
+    "textures": 32,
+    "programs": 44,
+    "textureBytesEst": 3801088,
+    "gpu": {
+     "textureBytes": 159001045,
+     "renderbufferBytes": 29171712,
+     "textures": 32,
+     "renderbuffers": 6
+    },
+    "fov": 62,
+    "width": 1920,
+    "height": 1080,
+    "pixelRatio": 1
+   }
+  }
+ ]
+}

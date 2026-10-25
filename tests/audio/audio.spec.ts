@@ -12,6 +12,7 @@ import type {} from "../../src/debug.ts";
 import type {} from "../../src/audio/index.ts";
 import type { VoiceManifest } from "../../src/audio/voice-lines.ts";
 import { toLocal } from "../../src/geo/project.ts";
+import { MAX_ROBOT_VOICES, ROBOT_HEAR_M, ROBOT_VOICES } from "../../src/audio/robot-sound.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 const TONE = readFileSync(join(import.meta.dirname, "fixtures", "tone-6s.ogg"));
@@ -96,7 +97,7 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect.poll(async () => (await audio(page)).music?.paused, { timeout: 30_000 }).toBe(false);
   expect((await audio(page)).music?.src).toMatch(/audio\/music\/drive\.(ogg|mp3)$/);
   const switchesAtPause = (await audio(page)).musicSwitches;
-  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(7);
+  await expect.poll(async () => (await audio(page)).effectsLoaded, { timeout: 30_000 }).toBe(14);
   // The paused game holds the line, and the dialog covers the subtitles.
   const held = (await audio(page)).voice.current;
   // Settings: the music slider by keyboard, subtitles off by click; both apply at once.
@@ -128,6 +129,8 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   // Drive into the Ferry Building plaza with held keys: driving music, then the mission moves on.
   await page.keyboard.down("KeyW");
   await expect.poll(async () => (await audio(page)).musicContext, { timeout: 60_000 }).toBe("driving");
+  // The car's live engine and road sound runs while driving.
+  await expect.poll(async () => (await audio(page)).engine, { timeout: 30_000 }).toBe(true);
   await page.keyboard.up("KeyW");
   // In the car the radio plays: the station card shows; M and Shift+M tune.
   const radio = page.locator(".fc-radio");
@@ -159,9 +162,35 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   expect((await audio(page)).ducked).toBe(false);
   await page.screenshot({ path: "test-results/audio-fallback.png" });
 
-  // On foot, spraying: the spray loop plays and the music cuts to combat.
+  // Out of the car: the door opens and shuts, the engine stops, and walking makes footsteps.
   await page.keyboard.press("KeyF");
   await expect.poll(async () => page.evaluate(() => window.__fogcity!.state().players.p1!.mode), { timeout: 30_000 }).toBe("foot");
+  await expect.poll(async () => (await audio(page)).effectsPlayed["door-open"] ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await audio(page)).effectsPlayed["door-close"] ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await expect.poll(async () => (await audio(page)).engine, { timeout: 30_000 }).toBe(false);
+  await page.keyboard.down("KeyW");
+  await expect.poll(async () => { const p = (await audio(page)).effectsPlayed; return (p["step-1"] ?? 0) + (p["step-2"] ?? 0) + (p["step-3"] ?? 0) + (p["step-4"] ?? 0); }, { timeout: 60_000 }).toBeGreaterThanOrEqual(2);
+  await page.keyboard.up("KeyW");
+  // City ambience by the Ferry Building: the waterfront (Embarcadero) is in earshot, with wind and traffic.
+  await expect.poll(async () => { const a = (await audio(page)).ambience; return !!a && a.waterfront === 1 && a.wind > 0 && a.traffic > 0; }, { timeout: 30_000 }).toBe(true);
+  // Robot servos: exactly the nearest active robots within earshot are voiced (up to three).
+  await expect.poll(async () => {
+    const [voices, inRange] = await page.evaluate(({ range, max, models }) => {
+      const s = window.__fogcity!.state(), p = s.players.p1!, b = p.mode === "foot" && p.foot ? p.foot : p.car;
+      const ext = s.ext as { robots?: { actors: Record<string, { id: string; model: string; x: number; z: number; retired: boolean }> }; combat?: { targets: Record<string, { phase: string }> } };
+      const n = Object.values(ext.robots?.actors ?? {}).filter((a) => !a.retired && models.includes(a.model) && (ext.combat?.targets[a.id]?.phase ?? "active") === "active" && Math.hypot(a.x - b.x, a.z - b.z) <= range).length;
+      return [window.__fogcityAudio!.info().robotVoices, Math.min(max, n)];
+    }, { range: ROBOT_HEAR_M, max: MAX_ROBOT_VOICES, models: Object.keys(ROBOT_VOICES) });
+    return voices === inRange;
+  }, { timeout: 60_000 }).toBe(true);
+  // The phone chimes open, and its buttons click.
+  await page.keyboard.press("KeyP");
+  await expect.poll(async () => (await audio(page)).effectsPlayed.phone ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.getByRole("button", { name: "Map", exact: true }).click();
+  await expect.poll(async () => (await audio(page)).effectsPlayed.click ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toBeHidden();
+  // On foot, spraying: the spray loop plays and the music cuts to combat.
   await page.keyboard.down("KeyE");
   await expect.poll(async () => (await audio(page)).effectsPlayed.spray ?? 0, { timeout: 60_000 }).toBeGreaterThan(0);
   await expect.poll(async () => (await audio(page)).musicContext, { timeout: 60_000 }).toBe("combat");
@@ -176,4 +205,48 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   // Lines without audio (locked: no gesture yet) still show, subtitles off or not.
   await expect(subtitles).toBeVisible({ timeout: 60_000 });
   expect(errors).toEqual([]);
+});
+
+test("every collision sound renders audibly in a real Web Audio graph", async ({ page }) => {
+  await page.goto("/?world=dev");
+  const levels = await page.evaluate(async () => {
+    const { ImpactSynth } = await import("/src/audio/impact-synth.ts" as string);
+    const base = { tier: "crunch", hardness: 0.6, gain: 0.8, pan: 0.3, scrape: false, fell: false, disabled: false, broke: false, self: false };
+    const variants: Record<string, object> = {
+      bump: { material: "metal", tier: "bump", hardness: 0.2 },
+      crunch: { material: "metal" },
+      smash: { material: "metal", tier: "smash", hardness: 1 },
+      scrape: { material: "metal", scrape: true },
+      robot: { material: "robot", fell: true, disabled: true },
+      tree: { material: "wood", broke: true },
+      post: { material: "post", broke: true },
+    };
+    const out: Record<string, { rms: number; peak: number }> = {};
+    let id = 1;
+    for (const [name, v] of Object.entries(variants)) {
+      const ctx = new OfflineAudioContext(2, 44100 * 1.5, 44100);
+      const synth = new ImpactSynth(ctx as unknown as AudioContext, ctx.destination);
+      synth.play({ ...base, ...v, id: id++ });
+      const buf = await ctx.startRendering();
+      let sum = 0, peak = 0, n = 0;
+      for (let c = 0; c < buf.numberOfChannels; c++) for (const s of buf.getChannelData(c)) { sum += s * s; peak = Math.max(peak, Math.abs(s)); n++; }
+      out[name] = { rms: Math.sqrt(sum / n), peak };
+    }
+    // The hiss: on, then off.
+    const ctx = new OfflineAudioContext(1, 44100, 44100);
+    const synth = new ImpactSynth(ctx as unknown as AudioContext, ctx.destination);
+    synth.setHiss({ gain: 0.3, pan: 0 });
+    const buf = await ctx.startRendering();
+    let sum = 0;
+    for (const s of buf.getChannelData(0).subarray(22050)) sum += s * s;
+    out.hiss = { rms: Math.sqrt(sum / 22050), peak: 0 };
+    return out;
+  });
+  for (const [name, l] of Object.entries(levels)) {
+    expect(l.rms, name).toBeGreaterThan(0.002);
+    expect(Number.isFinite(l.rms), name).toBe(true);
+    expect(l.peak, name).toBeLessThan(1.5);
+  }
+  // Harder hits are louder.
+  expect(levels.smash!.rms).toBeGreaterThan(levels.bump!.rms);
 });

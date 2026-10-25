@@ -1,0 +1,90 @@
+{
+  "$comment": "The Ferry/Market vertical slice (docs/visual/README.md): fixed cameras for before/after comparisons. Positions are local metres (origin at the Ferry Building clock tower, +x east, +z south); up is metres above the ground at (x, z); yaw is a compass bearing in degrees; pitch is degrees (+ up). Lighting is a sky.ts preset; weather is clear (the sim's fog is zero in this checkpoint). FOV is the renderer's 62 degrees, recorded per view.",
+  "query": "&gfx=high&shadows=1&gpumem=1",
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "views": [
+    {
+      "id": "ferry-plaza-golden",
+      "title": "Harry Bridges Plaza to the clock tower (the owner's spot), golden hour",
+      "x": -110.5,
+      "z": 112.5,
+      "up": 2.4,
+      "yaw": 28,
+      "pitch": -5,
+      "tod": "golden"
+    },
+    {
+      "id": "ferry-plaza-night",
+      "title": "The same view at night",
+      "x": -110.5,
+      "z": 112.5,
+      "up": 2.4,
+      "yaw": 28,
+      "pitch": -5,
+      "tod": "night"
+    },
+    {
+      "id": "market-street-noon",
+      "title": "Down Market St from the Embarcadero, noon",
+      "x": -42,
+      "z": 52,
+      "up": 1.7,
+      "yaw": 233,
+      "pitch": 2,
+      "tod": "noon"
+    },
+    {
+      "id": "crosswalk-noon",
+      "title": "Crosswalk and kerb at the foot of Market St, noon",
+      "x": -84,
+      "z": 122,
+      "up": 1.7,
+      "yaw": 60,
+      "pitch": -18,
+      "tod": "noon"
+    },
+    {
+      "id": "embarcadero-north-golden",
+      "title": "The Embarcadero promenade looking north, golden hour",
+      "x": -118,
+      "z": -136,
+      "up": 1.7,
+      "yaw": 321,
+      "pitch": 1,
+      "tod": "golden"
+    },
+    {
+      "id": "ferry-from-bay-golden",
+      "title": "The Ferry Building and skyline from the Bay, golden hour",
+      "x": 450,
+      "z": -150,
+      "up": 10,
+      "yaw": 245,
+      "pitch": 6,
+      "tod": "golden"
+    },
+    {
+      "id": "ferry-from-bay-night",
+      "title": "The same from the Bay at night",
+      "x": 450,
+      "z": -150,
+      "up": 10,
+      "yaw": 245,
+      "pitch": 6,
+      "tod": "night"
+    },
+    {
+      "id": "downtown-415-noon",
+      "title": "415 Mission from the street, noon",
+      "x": -215,
+      "z": 555,
+      "up": 1.7,
+      "yaw": 220,
+      "pitch": 28,
+      "tod": "noon"
+    }
+  ]
+}

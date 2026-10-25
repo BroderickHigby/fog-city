@@ -310,6 +310,54 @@ def robotaxi_horn() -> np.ndarray:
     return fade(normalize(sig, -4.0), 0.002, 0.05)
 
 
+def door_open() -> np.ndarray:
+    """A car door opening: the latch's double click, then a short hinge glide."""
+    rng = np.random.default_rng(301)
+    t = t_axis(0.45)
+    n = len(t)
+    sig = np.zeros(n)
+    for start, f, amp in ((0.0, 2400, 1.0), (0.035, 1700, 0.7)):
+        i = int(start * SR)
+        L = int(0.025 * SR)
+        tt = np.arange(L) / SR
+        click = rng.standard_normal(L) * np.exp(-tt / 0.004)
+        sig[i:i + L] += biquad(click, "bandpass", f, 2.0) * amp
+    glide = biquad(rng.standard_normal(n), "bandpass", 900, 6.0) * np.exp(-((t - 0.2) / 0.09) ** 2) * 0.25
+    sig += glide
+    return fade(normalize(sig, -6.0), 0.001, 0.05)
+
+
+def door_close() -> np.ndarray:
+    """A car door shutting: a damped low thunk with a latch catch on top."""
+    rng = np.random.default_rng(302)
+    t = t_axis(0.5)
+    thunk = np.sin(2 * np.pi * (95 * t - 40 * t**2)) * np.exp(-t / 0.07)
+    body = biquad(rng.standard_normal(len(t)), "lowpass", 400) * np.exp(-t / 0.05) * 0.8
+    latch = biquad(rng.standard_normal(len(t)), "bandpass", 2600, 3.0) * np.exp(-np.maximum(t - 0.012, 0) / 0.006) * (t >= 0.012) * 0.6
+    return fade(normalize(thunk + body + latch, -3.0), 0.0005, 0.08)
+
+
+def impact() -> np.ndarray:
+    """A car bumping into something solid: a low body thump with a short metal clank."""
+    rng = np.random.default_rng(303)
+    t = t_axis(0.6)
+    thump = np.sin(2 * np.pi * (70 * t - 30 * t**2)) * np.exp(-t / 0.09)
+    crunch = biquad(rng.standard_normal(len(t)), "bandpass", 1200, 0.8) * np.exp(-t / 0.035) * 0.9
+    clank = np.zeros(len(t))
+    for f, d in ((523.0, 0.25), (1311.0, 0.15), (2207.0, 0.08)):
+        clank += np.sin(2 * np.pi * f * t) * np.exp(-t / d) * 0.18
+    return fade(normalize(thump + crunch + clank, -2.0), 0.0005, 0.1)
+
+
+def footstep(seed: int) -> np.ndarray:
+    """One shoe on pavement: a soft heel thud and a gritty scuff, varied by the seed."""
+    rng = np.random.default_rng(400 + seed)
+    t = t_axis(0.18)
+    heel = np.sin(2 * np.pi * rng.uniform(80, 110) * t) * np.exp(-t / 0.018)
+    scuff = biquad(rng.standard_normal(len(t)), "bandpass", rng.uniform(1800, 3200), 1.2) * np.exp(-np.maximum(t - 0.01, 0) / rng.uniform(0.025, 0.045)) * (t >= 0.01) * 0.55
+    return fade(normalize(heel + scuff, -4.0), 0.0005, 0.03)
+
+
 SOUNDS = {
     "spray": (spray, True, "Blaster stream loop: play while firing; loops seamlessly (use the .ogg for gapless looping)."),
     "splash": (splash, False, "Water lands on a robot or the pavement."),
@@ -318,6 +366,13 @@ SOUNDS = {
     "moat-jingle": (moat_jingle, False, "Moat Labs four-note jingle (A4 D5 E5 B4): bad robots hum it (tell, subtlety 3)."),
     "horn": (horn, True, "The player's car horn: loop while the horn button is held (use the .ogg for gapless looping)."),
     "robotaxi-horn": (robotaxi_horn, False, "A robotaxi's polite double chirp when it honks (agent mode honk)."),
+    "door-open": (door_open, False, "A car door opening (getting in or out)."),
+    "door-close": (door_close, False, "A car door shutting."),
+    "impact": (impact, False, "The player's car hitting something solid; level and pitch follow the impact speed."),
+    "step-1": (lambda: footstep(1), False, "Footstep on pavement, variant 1 of 4."),
+    "step-2": (lambda: footstep(2), False, "Footstep on pavement, variant 2 of 4."),
+    "step-3": (lambda: footstep(3), False, "Footstep on pavement, variant 3 of 4."),
+    "step-4": (lambda: footstep(4), False, "Footstep on pavement, variant 4 of 4."),
 }
 
 

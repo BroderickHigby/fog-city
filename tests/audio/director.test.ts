@@ -47,4 +47,52 @@ describe("audio director occupied body", () => {
       director.dispose();
     }
   });
+
+  it("while riding, the engine follows the taxi and the parked car's hits stay silent", () => {
+    const state = JSON.parse(JSON.stringify(saved10.state)) as SimState;
+    state.version = SIM_VERSION;
+    const player = state.players.p!;
+    player.mode = "vehicle";
+    player.foot = null;
+    player.car = { ...player.car, x: -2000, z: 3000, heading: 0, speed: 0, hits: 0 };
+    player.ride = { agentId: 7, x: 100, y: 0, z: 200, heading: Math.PI / 2, speed: 12, goal: null, exitPending: false };
+    const engine = vi.spyOn(GameAudio.prototype, "setEngine");
+    const play = vi.spyOn(GameAudio.prototype, "play").mockImplementation(() => {});
+    const director = createGameAudioDirector({ host: {} as HTMLElement, missions: MISSIONS, prefs: new AudioPrefsStore(null) });
+    try {
+      director.update({ state, playerId: "p", paused: false, nowMs: 0 });
+      // Something bumps the parked car while its owner rides elsewhere.
+      player.car = { ...player.car, hits: 1, impactSpeed: 9 };
+      director.update({ state, playerId: "p", paused: false, nowMs: 16 });
+      const last = engine.mock.calls.at(-1)?.[0];
+      expect(last).not.toBeNull();
+      expect(last!.whineHz).toBeGreaterThan(300);
+      expect(last!.squealGain).toBe(0);
+      expect(play.mock.calls.some(([cue]) => cue.sound === "impact")).toBe(false);
+    } finally {
+      director.dispose();
+    }
+  });
+
+  it("while riding, a crash involving the ridden taxi is the player's own hit", () => {
+    const state = JSON.parse(JSON.stringify(saved10.state)) as SimState;
+    state.version = SIM_VERSION;
+    const player = state.players.p!;
+    player.mode = "vehicle";
+    player.foot = null;
+    player.car = { ...player.car, x: -2000, z: 3000 };
+    player.ride = { agentId: 7, x: 100, y: 0, z: 200, heading: 0, speed: 12, goal: null, exitPending: false };
+    const impact = vi.spyOn(GameAudio.prototype, "playImpact").mockImplementation(() => {});
+    const director = createGameAudioDirector({ host: {} as HTMLElement, missions: MISSIONS, prefs: new AudioPrefsStore(null) });
+    try {
+      director.update({ state, playerId: "p", paused: false, nowMs: 0 });
+      const hit = { id: 1, tick: 10, kind: "taxi-taxi", a: "a:7", b: "a:9", x: 140, y: 0, z: 200, speed: 9, dv: 6 };
+      (state.ext as Record<string, unknown>).impacts = { version: 1, nextId: 2, events: [hit], cars: {} };
+      director.update({ state, playerId: "p", paused: false, nowMs: 16 });
+      expect(impact).toHaveBeenCalledTimes(1);
+      expect(impact.mock.calls[0]![0]).toMatchObject({ self: true, pan: 0, material: "metal", tier: "crunch" });
+    } finally {
+      director.dispose();
+    }
+  });
 });
