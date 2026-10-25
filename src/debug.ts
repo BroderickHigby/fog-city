@@ -107,6 +107,21 @@ export interface DebugHandle {
    * topple, optional height scale), nearest first; null restores what the sim says. Render-only.
    */
   previewCombatLook?(stages: ReadonlyArray<{ rust: number; wet: number; topple: number; height?: number }> | null): number[];
+  /** Switch the lighting preset (as ?tod= does at boot). Render-only. */
+  setTimeOfDay?(name: "noon" | "golden" | "twilight" | "night"): void;
+  /** GPU resource figures for budget reports; walks the scene, so call it on demand. */
+  renderStats?(): {
+    geometries: number;
+    textures: number;
+    programs: number;
+    textureBytesEst: number;
+    /** With ?gpumem=1: bytes the GPU holds in textures and renderbuffers (src/render/gpu-memory.ts). */
+    gpu: { textureBytes: number; renderbufferBytes: number; textures: number; renderbuffers: number } | null;
+    fov: number;
+    width: number;
+    height: number;
+    pixelRatio: number;
+  };
   /** Force a WebGL context loss and, later, its restore (WEBGL_lose_context), to test recovery. */
   loseContext?(): void;
   restoreContext?(): void;

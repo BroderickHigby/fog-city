@@ -35,6 +35,7 @@ import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
 import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
+import { trackGpuMemory, type GpuMemory } from "./gpu-memory.ts";
 import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
 
 export type { CameraMode } from "./cameras.ts";
@@ -45,6 +46,8 @@ export interface RenderOptions {
   shadows?: boolean;
   quality?: boolean;
   timeOfDay?: keyof typeof LIGHTING_PRESETS;
+  /** Account GPU memory (gpu-memory.ts) for renderStats (?gpumem=1; the visual slice). */
+  gpuMemory?: boolean;
   night: boolean;
   /** Upper bound on devicePixelRatio. */
   maxPixelRatio: number;
@@ -197,6 +200,8 @@ export class SceneRenderer {
   private readonly envScene = new THREE.Scene();
   private readonly registry: ModelRegistry<THREE.Object3D>;
   private readonly shadows: boolean;
+  /** Reads the GPU memory totals when ?gpumem=1 turned the accounting on. */
+  private readonly gpuMemory: (() => GpuMemory) | null;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
   /** Lighting fixed by ?tod=, ?night=1, the N key or the debug handle; otherwise it follows the game clock. */
@@ -230,6 +235,7 @@ export class SceneRenderer {
       powerPreference: "high-performance",
     });
     const gl = this.renderer.getContext();
+    this.gpuMemory = opts.gpuMemory ? trackGpuMemory(gl as WebGL2RenderingContext) : null;
     const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
     const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
     const software = /swiftshader|llvmpipe|software/i.test(rendererName);
@@ -406,6 +412,59 @@ export class SceneRenderer {
     this.lightingPinned = on;
     this.daylightKey = "";
     this.applyPreset(on ? NIGHT : this.dayPreset);
+  }
+
+  /** Switch to a named lighting preset (noon, golden, twilight, night), as ?tod= does at boot. */
+  setTimeOfDay(name: keyof typeof LIGHTING_PRESETS): void {
+    this.lightingPinned = true;
+    const p = LIGHTING_PRESETS[name];
+    this.nightOn = p.name === "night";
+    if (!this.nightOn) this.dayPreset = p;
+    this.applyPreset(p);
+  }
+
+  /**
+   * GPU resource figures for budget reports (the visual slice, docs/visual/): renderer.info's live
+   * geometries, textures and shader programs; with ?gpumem=1 the bytes the GPU holds in textures
+   * and renderbuffers (gpu-memory.ts); and a scene-scan estimate of material textures (each unique
+   * texture's base level at 4 bytes a texel, a third more with mipmaps), which misses textures
+   * bound only through shader uniforms. Walks the scene: call it on demand, not every frame.
+   */
+  renderStats(): { geometries: number; textures: number; programs: number; textureBytesEst: number; gpu: GpuMemory | null; fov: number; width: number; height: number; pixelRatio: number } {
+    const seen = new Set<THREE.Texture>();
+    let bytes = 0;
+    const add = (t: unknown): void => {
+      const tex = t as THREE.Texture | null;
+      if (!tex || !(tex as THREE.Texture).isTexture || seen.has(tex)) return;
+      seen.add(tex);
+      const img = tex.image as { width?: number; height?: number; data?: { byteLength?: number } } | undefined;
+      const w = img?.width ?? 0;
+      const h = img?.height ?? 0;
+      const base = img?.data?.byteLength ?? w * h * 4;
+      bytes += tex.generateMipmaps ? (base * 4) / 3 : base;
+    };
+    this.scene.traverse((o) => {
+      const mats = (o as THREE.Mesh).material;
+      if (!mats) return;
+      for (const m of Array.isArray(mats) ? mats : [mats]) {
+        for (const v of Object.values(m as unknown as Record<string, unknown>)) add(v);
+        const u = (m as THREE.ShaderMaterial).uniforms;
+        if (u) for (const v of Object.values(u)) add(v?.value);
+      }
+    });
+    add(this.scene.environment);
+    const size = this.renderer.getSize(new THREE.Vector2());
+    return {
+      geometries: this.renderer.info.memory.geometries,
+      textures: this.renderer.info.memory.textures,
+      programs: this.renderer.info.programs?.length ?? 0,
+      textureBytesEst: Math.round(bytes),
+      gpu: this.gpuMemory ? this.gpuMemory() : null,
+      fov: this.camera.fov,
+      width: size.x,
+      height: size.y,
+      pixelRatio: this.renderer.getPixelRatio(),
+    };
   }
 
   /** Whether the lighting follows the game clock (setDaylight) rather than a fixed preset. */

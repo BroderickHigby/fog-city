@@ -221,6 +221,7 @@ async function boot(): Promise<void> {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
       quality: params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
+      gpuMemory: params.get("gpumem") === "1",
       timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
         ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
@@ -412,6 +413,8 @@ async function boot(): Promise<void> {
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
     previewCombatLook: (stages) => view.previewCombatLook(stages),
+    setTimeOfDay: (name) => view.setTimeOfDay(name),
+    renderStats: () => view.renderStats(),
     loseContext: () => view.renderer.forceContextLoss(),
     restoreContext: () => view.renderer.forceContextRestore(),
     setCameraMode: (m) => view.setCameraMode(m),
