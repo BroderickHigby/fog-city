@@ -50,6 +50,10 @@
         "trees": {
           "type": "string",
           "pattern": "^[a-z0-9-]+\\.json$"
+        },
+        "storefronts": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
         }
       }
     },

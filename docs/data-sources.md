@@ -766,6 +766,17 @@ inside the world: 135,647 trees (123,167 broadleaf, 7,781 conifer, 4,699 palm); 
   `src/render/street-trees.ts`. Trees load within 1.3 km of the camera.
 * Ids: `tree:<treeid>`.
 
+### Storefront signs (the `storefronts` layer)
+
+The index lists the world's `storefronts.json` (see [Storefronts](#storefronts-storefrontsjson))
+so the renderer (`src/render/storefront-signs.ts`) can sign each shopfront. Following
+`docs/design.md` ("storefronts stay unnamed: iconography only, with an empty sign slot
+reserved"), nothing carries a name, a word or a logo: every shop gets a blank fascia band over
+the door (the reserved sign slot) and a projecting blade sign with its trade's icon (cup, fork
+and knife, burger, beer mug, scissors, comb, bag, hanger, flower, cross, hammer, basket,
+bubbles, wrench, sofa, bottle, plug, pump, drop, star); bars get a beer-mug neon in the window
+and barbers a striped pole. Ids are the storefront ids.
+
 ## Gameplay data (the wave-2 spike)
 
 Each dataset the roadmap asks for, its DataSF id and licence (read from the dataset's
