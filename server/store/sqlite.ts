@@ -66,7 +66,9 @@ export function openSqliteStore(path: string): RelayStore {
         for (const p of match.players) {
           if (!DEVICE.test(p.device)) continue;
           const score = Math.max(0, Math.trunc(p.score));
-          insertPlayer.run(match.id, p.device, p.name, p.look, p.team, score, p.won ? 1 : 0);
+          // One identity may occupy multiple tabs/seats. The history key is one row per match
+          // and identity, so its aggregate must advance only when that row was inserted.
+          if (Number(insertPlayer.run(match.id, p.device, p.name, p.look, p.team, score, p.won ? 1 : 0).changes) === 0) continue;
           upsertPlayer.run(p.device, p.name, p.look, match.endedAt);
           upsertMode.run(p.device, match.mode, p.won ? 1 : 0, score, score);
         }

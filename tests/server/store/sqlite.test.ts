@@ -27,6 +27,14 @@ describe("relay store (SQLite)", () => {
     expect(store.stats("not-a-hash")).toBeNull();
   });
 
+  it("counts a shared device once when multiple seats finish the same match", () => {
+    store = openSqliteStore(":memory:");
+    store.recordMatch(match("multi-tab", MON + 1000, [p(A, "Quiet Heron", 10, true), p(A, "Quiet Heron 2", 20, true)]));
+    expect(store.stats(A)).toEqual({ name: "Quiet Heron", matches: 1, wins: 1, modes: {
+      botSweep: { matches: 1, wins: 1, best: 10, total: 10 } } });
+    expect(store.leaderboard("botSweep", "week", MON + 2000)).toEqual(store.leaderboard("botSweep", "all", MON + 2000));
+  });
+
   it("ranks the week and all time by best score, shows names only, and resets weekly on Monday UTC", () => {
     store = openSqliteStore(":memory:");
     store.recordMatch(match("old", MON - 1000, [p(B, "Salty Pumice", 900, true, 3)]));
