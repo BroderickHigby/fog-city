@@ -40,8 +40,15 @@ rotations, removes horizontal root motion and preserves vertical hip motion.
 Each player retains an independent mixer and skeleton. Missing or unsupported
 motion banks fall back to the model's original baked animations.
 
-The retargeted clips are calibrated to `generic-player.glb`; they are not
-applied to the different crowd rigs. No simulation, replay or save schema
+The retargeted clips are calibrated to `generic-player.glb`; the locomotion is
+not applied to the different crowd rigs.
+
+The same converter builds the dodge stream's banks (`--set dodge`,
+`public/models/anim/mixamo-dodge.json`: `stumble`, `flinch`; `--set crowd`,
+`public/models/anim/mixamo-crowd.json`: varied walks and idles), each clip cut to
+a window of its source. Every human plays the dodge bank; a crowd character
+drops its hip-position track and keeps its own hip height. Provenance:
+`assets/imports/rocketbox/clips.json`. No simulation, replay or save schema
 changes are required.
 
 ## Source terms

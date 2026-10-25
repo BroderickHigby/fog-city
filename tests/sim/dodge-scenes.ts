@@ -387,7 +387,7 @@ export interface Result {
   joined: boolean;
 }
 
-export function run(sc: Scene): Result {
+export function run(sc: Scene, onTick?: (before: SimState, after: SimState) => void): Result {
   let s = sc.state;
   const close: Array<{ key: string; tick: number; clear: number }> = [];
   const overridden = new Map<string, number[]>();
@@ -397,7 +397,9 @@ export function run(sc: Scene): Result {
   let minChild = Infinity;
   for (let t = 0; t < sc.ticks; t++) {
     const ev = eventsAt(sc, t, s);
+    const prev = s;
     s = step(sc.world, s, { ...drive(sc, t, s), ...ev.inputs }, ev.events);
+    onTick?.(prev, s);
     const c = s.players.car!.car;
     bumps = 0;
     for (const id of Object.keys(s.players)) bumps += s.players[id]!.car.personBumps;

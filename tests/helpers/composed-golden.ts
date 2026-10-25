@@ -1,4 +1,4 @@
-// The composed-path golden replays (tests/golden/composed-v14.json): step() through
+// The composed-path golden replays (tests/golden/composed-v<SIM_VERSION>.json): step() through
 // createGameSystems(), the registry the game, the headless drivers and the relay run, rather
 // than the core-only [] of the physics goldens. Every scenario is open loop: its inputs and
 // events are a function of the tick alone, so a behaviour change on the composed path shows

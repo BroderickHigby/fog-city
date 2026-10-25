@@ -64,6 +64,7 @@ import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from 
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import { leapDrawOffset } from "./render/human-motion.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
   Action,
@@ -87,6 +88,8 @@ import {
 } from "./sim/index.ts";
 
 const LOCAL_PLAYER = "p1";
+/** The override's drawn offset for a player on foot (render/human-motion.ts). */
+const leapOff = { x: 0, z: 0 };
 const SEED = 1;
 /** The released wave. ?wave=4 previews the next wave's missions (QA and browser tests only). */
 const RELEASED_WAVE = 3;
@@ -546,6 +549,14 @@ async function boot(): Promise<void> {
         f.z = lerp(fa.z, fb.z, alpha);
         f.heading = fa.heading + wrapAngle(fb.heading - fa.heading) * alpha;
         f.speed = lerp(fa.speed, fb.speed, alpha);
+        f.dodge = fb.dodge;
+        // The override moved them at once: drawn as a shove aside (render/human-motion.ts).
+        if (fb.dodge && fb.dodge.leap && fb.dodge.phase === "dive") {
+          leapDrawOffset(fb.dodge, alpha, leapOff);
+          f.x = fb.x + leapOff.x;
+          f.y = fb.y;
+          f.z = fb.z + leapOff.z;
+        }
       }
       view.setFoot(id, onFoot ? P.foot : null);
       if (id === me_) {

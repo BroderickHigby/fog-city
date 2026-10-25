@@ -5,12 +5,49 @@ import { resolve } from "node:path";
 import * as T from "three";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 const root = resolve(import.meta.dirname, "../../..");
-const selections = {
-  idle: "Breathing Idle.fbx",
-  walk: "Walking.fbx",
-  jog: "Jogging.fbx",
-  run: "Running.fbx",
+// `node build.ts [--set dodge|crowd] [output]`: the player's locomotion bank (by default), or the
+// banks every human on the Rocketbox skeleton shares (src/render/human-motion.ts): `dodge`, the
+// override's shove and a sidestep's flinch; `crowd`, varied walks and idles for the skinned crowd.
+// A clip may be cut to a window of its source in Mixamo's 30 fps frames, first..last (1-based,
+// inclusive).
+const args = process.argv.slice(2);
+const set = args.includes("--set") ? args[args.indexOf("--set") + 1]! : "player";
+const output = args.find((a, i) => a !== "--set" && args[i - 1] !== "--set");
+type Selection = string | { file: string; first: number; last: number };
+const sets: Record<string, { out: string; clips: Record<string, Selection> }> = {
+  player: {
+    out: "public/models/mixamo-motion.json",
+    clips: {
+      idle: "Breathing Idle.fbx",
+      walk: "Walking.fbx",
+      jog: "Jogging.fbx",
+      run: "Running.fbx",
+    },
+  },
+  dodge: {
+    out: "public/models/anim/mixamo-dodge.json",
+    clips: {
+      // Staggering back from a shove, cut before any fall.
+      stumble: { file: "Stumble Backwards.fbx", first: 1, last: 20 },
+      flinch: { file: "Dodging Right.fbx", first: 1, last: 44 },
+    },
+  },
+  crowd: {
+    out: "public/models/anim/mixamo-crowd.json",
+    clips: {
+      walkCasual: { file: "Female Locomotion Pack/walking.fbx", first: 1, last: 30 },
+      walkTexting: { file: "Walking While Texting.fbx", first: 1, last: 121 },
+      idleHappy: { file: "Happy Idle.fbx", first: 1, last: 61 },
+      idleLookAround: { file: "Looking Around.fbx", first: 1, last: 191 },
+      idlePhone: { file: "Talking On Phone.fbx", first: 1, last: 300 },
+      idleArguing: { file: "Standing Arguing.fbx", first: 1, last: 300 },
+      wave: { file: "Waving.fbx", first: 1, last: 17 },
+      clap: { file: "Clapping.fbx", first: 1, last: 36 },
+    },
+  },
 };
+if (!sets[set]) throw Error(`Unknown set: ${set}`);
+const selections = sets[set]!.clips;
 const bytes = readFileSync(resolve(root, "public/models/generic-player.glb"));
 const converter = readFileSync(import.meta.filename);
 const doc = JSON.parse(
@@ -88,7 +125,8 @@ const yaw = new T.Quaternion().setFromAxisAngle(
 const worldQ = (o: T.Object3D) => o.getWorldQuaternion(new T.Quaternion());
 const worldP = (o: T.Object3D) => o.getWorldPosition(new T.Vector3());
 const result = [];
-for (const [name, file] of Object.entries(selections)) {
+for (const [name, selection] of Object.entries(selections)) {
+  const file = typeof selection === "string" ? selection : selection.file;
   const data = readFileSync(resolve(root, "assets/mixamo", file));
   const source = new FBXLoader().parse(
     data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),
@@ -135,15 +173,20 @@ for (const [name, file] of Object.entries(selections)) {
   const clip = source.animations[0]!;
   const mixer = new T.AnimationMixer(source);
   mixer.clipAction(clip).play();
-  const count = Math.max(2, Math.ceil(clip.duration * 30) + 1),
+  const from = typeof selection === "string" ? 0 : (selection.first - 1) / 30,
+    duration =
+      typeof selection === "string"
+        ? clip.duration
+        : Math.min(clip.duration, (selection.last - 1) / 30) - from;
+  const count = Math.max(2, Math.ceil(duration * 30) + 1),
     times = Array.from(
       { length: count },
-      (_, i) => (i * clip.duration) / (count - 1),
+      (_, i) => (i * duration) / (count - 1),
     );
   const values = pairs.map(() => [] as number[]),
     hipValues: number[] = [];
   for (const time of times) {
-    mixer.setTime(time);
+    mixer.setTime(from + time);
     source.updateMatrixWorld(true);
     const desired = pairs.map((p, i) =>
       yaw
@@ -182,7 +225,7 @@ for (const [name, file] of Object.entries(selections)) {
   tracks.push(
     new T.VectorKeyframeTrack(`${targetHip.name}.position`, times, hipValues),
   );
-  const out = new T.AnimationClip(name, clip.duration, tracks).optimize();
+  const out = new T.AnimationClip(name, duration, tracks).optimize();
   // Three creates a random clip UUID. Pin it to all conversion inputs so a
   // source rebuild has identical bytes, while changed rigs/clips get new IDs.
   const id = createHash("sha256").update(converter).update(bytes).update(data).digest().subarray(0, 16);
@@ -192,12 +235,12 @@ for (const [name, file] of Object.entries(selections)) {
   const serialized = T.AnimationClip.toJSON(out);
   serialized.uuid = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
   result.push(serialized);
-  console.log(name, clip.duration.toFixed(3), tracks.length);
+  console.log(name, duration.toFixed(3), tracks.length);
   mixer.stopAllAction();
   mixer.uncacheRoot(source);
 }
 writeFileSync(
-  process.argv[2] ?? resolve(root, "public/models/mixamo-motion.json"),
+  output ?? resolve(root, sets[set]!.out),
   JSON.stringify(
     { version: 1, rig: "rocketbox", fps: 30, clips: result },
     (_key, value) =>

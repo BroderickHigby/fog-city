@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "dodge stream (work/dodge/natural): people dodge on their feet (v14)",
+  "simVersion": 14,
+  "hashes": [
+    "f4e33cf5",
+    "a0b091c4",
+    "d1758753",
+    "b0b8e519",
+    "e09514e3"
+  ]
+}

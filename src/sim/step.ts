@@ -5,6 +5,7 @@ import {
   SIM_VERSION,
   sortedIds,
   type CarState,
+  type DodgeState,
   type FootState,
   type InputFrame,
   type PlayerId,
@@ -31,6 +32,7 @@ import {
   vehicleOfAgent,
   vehicleOfCar,
   zoneDistance,
+  type DodgeClass,
   type Vehicle,
 } from "./dodge.ts";
 import type { Box, Circle } from "./collide.ts";
@@ -139,7 +141,10 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v10 -> v11: faster on-foot pace and Action.sprint change behaviour only; every field is kept.
  *  - v11 -> v12: robotaxi rides. PlayerState.ride is optional (absent = not riding); every field is kept.
  *  - v12 -> v13: unlimited water and optional traffic pass/walker detour state; every saved field is kept.
- *  - v13 -> v14: the live conversion budget changes behaviour only; every saved field is kept.
+ *  - v13 -> v14: people dodge on their feet (dodge.ts). Every dodge under way gains a velocity
+ *    (0: it sets off again from a standstill) and a top speed (its profile's); a person's or a
+ *    player's hop is taken off their height and set to 0, and a leap's drawn hop with it (peak
+ *    0). Robots keep their hop. Nothing else changes.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -152,9 +157,39 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 10) return upgradeState({ ...s, version: 11 });
   if (s.version === 11) return upgradeState({ ...s, version: 12 });
   if (s.version === 12) return upgradeState({ ...s, version: 13 });
-  // v14 (city life) adds only optional fields (runtime density and incidents): restamp.
-  if (s.version === 13) return { ...s, version: 14 };
+  if (s.version === 13) return upgradeState(upgradeDodgeOnFoot(s, 14));
   throw new Error(`cannot upgrade sim state version ${s.version}`);
+}
+
+/** A dodge from before people dodged on their feet, as `upgradeDodgeOnFoot` leaves it, for a body of this class. */
+function dodgeOnFoot(d: Readonly<DodgeState>, cls: DodgeClass): DodgeState {
+  const prof = DODGE_PROFILE[cls];
+  const person = prof.override !== null;
+  return { ...d, hop: person ? 0 : d.hop, peak: person ? 0 : d.peak, vx: d.vx ?? 0, vz: d.vz ?? 0, vmax: d.vmax ?? prof.speed };
+}
+
+/** The step to the version (`version`) in which people dodge on their feet: see upgradeState. */
+function upgradeDodgeOnFoot(s: Readonly<SimState>, version: number): SimState {
+  const players: Record<PlayerId, PlayerState> = {};
+  for (const id of sortedIds(s.players)) {
+    const p = s.players[id]!;
+    const f = p.foot;
+    players[id] = f && f.dodge ? { ...p, foot: { ...f, y: f.y - f.dodge.hop, dodge: dodgeOnFoot(f.dodge, "player") } } : p;
+  }
+  const ext = { ...s.ext };
+  const agents = ext[AGENTS_EXT_KEY];
+  if (agents) {
+    ext[AGENTS_EXT_KEY] = {
+      ...agents,
+      list: agents.list.map((a) => {
+        const cls = agentDodgeClass(a);
+        if (!a.dodge || !cls) return a;
+        const d = dodgeOnFoot(a.dodge, cls);
+        return { ...a, y: a.y - a.dodge.hop + d.hop, dodge: d };
+      }),
+    };
+  }
+  return { ...s, version, players, ext };
 }
 
 function upgradeV1(s: Readonly<SimState>): SimState {
