@@ -44,7 +44,6 @@ import { SprayTracker } from "./render/held-blaster.ts";
 import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, parseGfxRequest, probeGpu } from "./render/gfx.ts";
 import { ContextGuard, RESUME_KEY, SAFE_MODE_KEY, hideGraphicsNotice, showGraphicsNotice } from "./render/context-guard.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
-import { weatherView } from "./sim/fog/index.ts";
 import { hornBlasts } from "./audio/horn.ts";
 import { SaveStore, IndexedDbSaveBackend, MemorySaveBackend, Autosave } from "./save/index.ts";
 import { captureProgression, restoreProgression, validateSavedProgression } from "./save/progression.ts";
