@@ -3,7 +3,7 @@
 //
 //   position, normal
 //   color   vec3  base colour (linear), from the glTF material
-//   fcPbr   vec2  roughness, metalness
+//   fcPbr   vec3  roughness, metalness, clearcoat (1 on paint and glass: a sharp lacquer lobe)
 //   fcEmit  vec4  emissive colour (linear, times the material's channelRatio so it keeps its
 //                 own night level) and the light channel (lights.ts):
 //                 0 none, 1 head lights, 2 tail/brake lights, 3 status lights (faces, status lines, signs)
@@ -36,6 +36,8 @@ export interface PackedSurface {
   metalness: number;
   emissive: readonly [number, number, number];
   channel: number;
+  /** 0..1: a sharp clear lacquer over the base (car paint, glass); 0 elsewhere. */
+  clearcoat?: number;
   /** People only: weights of the shirt, trousers, skin and hair instance colours. */
   slot?: readonly [number, number, number, number];
 }
@@ -55,8 +57,14 @@ export function surfaceOf(m: THREE.Material): PackedSurface {
     metalness: typeof s.metalness === "number" ? s.metalness : 0,
     emissive,
     channel,
+    clearcoat: CLEARCOAT_MATERIALS.test(m.name ?? "") ? 1 : 0,
   };
 }
+
+/** Materials drawn with a clearcoat lobe: vehicle paint and glass ("paint", "paint_white", "glass"...). */
+export const CLEARCOAT_MATERIALS = /^(paint|glass)/;
+/** The clearcoat's own roughness: a polished lacquer. */
+export const CLEARCOAT_ROUGHNESS = 0.06;
 
 /**
  * One geometry in the packed format: positions and normals transformed by `matrix`, every
@@ -99,7 +107,7 @@ export function packGeometry(src: THREE.BufferGeometry, s: PackedSurface, matrix
   }
   if (!nrm) g.computeVertexNormals();
   fill(g, "color", 3, n, s.color);
-  fill(g, "fcPbr", 2, n, [s.roughness, s.metalness]);
+  fill(g, "fcPbr", 3, n, [s.roughness, s.metalness, s.clearcoat ?? 0]);
   fill(g, "fcEmit", 4, n, [s.emissive[0], s.emissive[1], s.emissive[2], s.channel]);
   if (slots) fill(g, "fcSlot", 4, n, s.slot ?? [0, 0, 0, 0]);
   return g;
@@ -161,11 +169,11 @@ export function mergePacked(list: readonly THREE.BufferGeometry[]): THREE.Buffer
 // ---------------------------------------------------------------- the shader
 
 const VERTEX_PARS = /* glsl */ `
-attribute vec2 fcPbr;
+attribute vec3 fcPbr;
 attribute vec4 fcEmit;
 attribute vec4 fcCue;
 uniform vec4 fcLightK;
-varying vec2 vFcPbr;
+varying vec3 vFcPbr;
 varying vec3 vFcEmit;
 varying vec2 vFcCombat;
 varying vec3 vFcObj;
@@ -200,7 +208,7 @@ const VERTEX_MAIN = /* glsl */ `
 `;
 
 const FRAGMENT_PARS = /* glsl */ `
-varying vec2 vFcPbr;
+varying vec3 vFcPbr;
 varying vec3 vFcEmit;
 varying vec2 vFcCombat;
 varying vec3 vFcObj;
@@ -255,12 +263,18 @@ function patchAgentShader(shader: THREE.WebGLProgramParametersWithUniforms): voi
       "#include <roughnessmap_fragment>\n  roughnessFactor = mix( mix( vFcPbr.x, 0.92, fcRustCover ), 0.18, 0.75 * vFcCombat.y );",
     )
     .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\n  metalnessFactor = mix( vFcPbr.y, 0.1, fcRustCover );")
-    .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance += vFcEmit;");
+    .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance += vFcEmit;")
+    // Physical (vehicles and robots): the clearcoat lobe only where the surface asks for it,
+    // and none where it has rusted.
+    .replace("#include <lights_physical_fragment>", "#include <lights_physical_fragment>\n#ifdef USE_CLEARCOAT\n  material.clearcoat *= vFcPbr.z * ( 1.0 - fcRustCover );\n#endif");
 }
 
 /** The packed agent material; `slots` = people (per-instance clothing and skin colours). */
 export function packedMaterial(slots: boolean): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, name: slots ? "fc:agent-people" : "fc:agent" });
+  // People are cloth and skin; vehicles and robots get a physical material for the clearcoat.
+  const m = slots
+    ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, name: "fc:agent-people" })
+    : new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, metalness: 0, clearcoat: 1, clearcoatRoughness: CLEARCOAT_ROUGHNESS, name: "fc:agent" });
   if (slots) m.defines = { FC_SLOTS: "" };
   m.onBeforeCompile = patchAgentShader;
   m.customProgramCacheKey = () => (slots ? "fc:agent-slots:v2" : "fc:agent:v2");

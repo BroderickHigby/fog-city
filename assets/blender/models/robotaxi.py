@@ -124,6 +124,31 @@ def glass_point(y, t, off, side=1):
     return (side * (bx + dx * t + nx * off), y, bz + dz * t + nz * off)
 
 
+def shut_line(mb, pts, mat, r=0.0045):
+    """A panel shut line: a thin dark rod along the body surface through pts (x, y, z)."""
+    for p0, p1 in zip(pts, pts[1:]):
+        mb.cyl_between(p0, p1, r, 5, mat, caps=False)
+
+
+def surface_point(y, x_frac, top=True):
+    """A point just proud of the body surface at y, at x_frac of the half width (top: on the
+    bonnet/roof side of the shoulder, else on the flank between rocker and belt)."""
+    hw, zb, zs, zc = V.interp(STATIONS, y)
+    half = V.half_section(hw, zb, zs, zc, tumble=TUMBLE, sr=SR, mid=MID)
+    pts = half[4:] if top else half[1:5]
+    # walk the polyline by x (top) or z (flank) and interpolate
+    if top:
+        x = (hw - TUMBLE - SR) * x_frac
+        for (x0, z0), (x1, z1) in zip(pts, pts[1:]):
+            if min(x0, x1) <= x <= max(x0, x1) and x0 != x1:
+                z = z0 + (z1 - z0) * (x - x0) / (x1 - x0)
+                return (x, y, z + 0.004)
+        return (x, y, zc + 0.004)
+    sec = side_section(y)
+    z = sec[0][1] + (sec[-1][1] - sec[0][1]) * x_frac
+    return (side_x(y, z) + 0.004, y, z)
+
+
 def band_loop(rc=0.15, n_side=16, n_end=8, n_arc=5):
     """Points round the roof edge (x, y, z) with their outward plan normals (nx, ny): the
     front-right corner, the right side, the rear corners, the left side, the front-left
@@ -191,8 +216,11 @@ def glass_panel(mb, ys, lo, hi, side, off, mat):
 
 def main() -> None:
     fc.reset()
-    paint = fc.material("paint_white", "#eceee9", 0.3, 0.05)
-    glass = fc.material("glass", "#1b232b", 0.08, 0.6)
+    # An off-white rather than paper white (it no longer blows out in sun), and glass as glass:
+    # dielectric and smooth. The renderer adds a clear lacquer lobe to both (agent-packing.ts).
+    paint = fc.material("paint_white", "#dfe2df", 0.34, 0.0)
+    glass = fc.material("glass", "#1b232b", 0.05, 0.0)
+    seam = fc.material("seam", "#090a0b", 0.8)
     clad = fc.material("cladding", "#3a3e44", 0.7)
     under = fc.material("underbody", "#0e0f10", 0.9)
     cabin = fc.material("cabin_dark", "#17191c", 0.9)
@@ -245,12 +273,25 @@ def main() -> None:
     for p0, p1 in zip(rail, rail[1:]):
         mb.cyl_between(p0, p1, 0.008, 6, clad, caps=False)
 
-    # --- front: short slim headlight strips at the nose corners, a radar patch low down
+    # --- panel shut lines: the bonnet's rear edge and its sides along the shoulders, and the
+    # bumper splits at the nose and tail corners, so the body reads as pressed panels
+    yb = 1.52
+    shut_line(mb, [surface_point(yb, f) for f in (-0.98, -0.6, -0.3, 0.0, 0.3, 0.6, 0.98)], seam)
     for sx in (1, -1):
+        side_pts = [surface_point(y, 0.98) for y in (yb, 1.8, 2.1, 2.3)]
+        shut_line(mb, [(sx * x, y, z) for x, y, z in side_pts], seam)
+        for yy, lo, hi in ((2.25, 0.08, 0.62), (-2.30, 0.12, 0.66)):
+            flank = [surface_point(yy, t, top=False) for t in (lo, (lo + hi) / 2, hi)]
+            shut_line(mb, [(sx * x, y, z) for x, y, z in flank], seam)
+    # --- front: short slim headlight strips at the nose corners in dark lamp housings, a
+    # radar patch low down
+    for sx in (1, -1):
+        V.strip(mb, sx * 0.36, sx * 0.62, 2.455, 2.47, 0.58, 0.06, lens)
         V.strip(mb, sx * 0.38, sx * 0.60, 2.462, 2.49, 0.585, 0.035, head)
     mb.box(-0.14, 2.462, 0.42, 0.14, 2.486, 0.50, lens)
     # --- rear: short tail strips at the corners and the hatch's lower seam
     for sx in (1, -1):
+        V.strip(mb, sx * 0.42, sx * 0.78, -2.475, -2.455, 0.895, 0.065, lens)
         V.strip(mb, sx * 0.44, sx * 0.76, -2.49, -2.462, 0.90, 0.04, tail)
     mb.box(-0.42, -2.488, 0.86, 0.42, -2.47, 0.872, clad)
     # wheel-arch liners
@@ -305,7 +346,7 @@ def main() -> None:
     door["slideM"] = SLIDE_M
 
     for name, y, sx in (("wheel_FL", Y_F, -1), ("wheel_FR", Y_F, 1), ("wheel_RL", Y_R, -1), ("wheel_RR", Y_R, 1)):
-        V.wheel(name, WR, WW, tire, rim, hub=clad, side=sx, parent=root,
+        V.wheel(name, WR, WW, tire, rim, hub=clad, seg=24, spokes=7, side=sx, parent=root,
                 location=(sx * (0.95 - WW / 2 - 0.03), y, WR), extras={"steer": name.startswith("wheel_F")})
 
     fc.export_glb("robotaxi.glb", BUDGET)
