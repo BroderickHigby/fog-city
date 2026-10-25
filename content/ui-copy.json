@@ -208,7 +208,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:58c0ca68",
+    "contentHash": "fnv1a32:47126322",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }

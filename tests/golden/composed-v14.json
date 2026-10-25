@@ -3,15 +3,15 @@
   "scenarios": {
     "city": {
       "hashes": [
-        "3fc3fb3e",
-        "558b6e2e",
-        "5b19d645",
-        "11142f3c",
-        "4d9c5d22",
-        "4d8dd9b5"
+        "6267b573",
+        "a77d764e",
+        "638d649a",
+        "68d259d6",
+        "aee8c7b7",
+        "73da650d"
       ],
       "coverage": {
-        "agents:final": 17,
+        "agents:final": 13,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,
@@ -20,15 +20,15 @@
     },
     "service": {
       "hashes": [
-        "e8ef4aac",
-        "d52f43fb",
-        "77455707",
-        "0396642b",
-        "45789825",
-        "148dc91e",
-        "5a4adf0e",
-        "7c9c6eba",
-        "d984ce6c"
+        "f6d648f8",
+        "d07ae073",
+        "fb3daa36",
+        "c866d110",
+        "7887b545",
+        "7c3b117c",
+        "5505c691",
+        "633997e9",
+        "2976b4a1"
       ],
       "coverage": {
         "agents:final": 2,
@@ -40,12 +40,12 @@
     },
     "mission": {
       "hashes": [
-        "bdfe6c57",
-        "7f4fbc97",
-        "3b5491f6",
-        "a210b13b",
-        "accb6bef",
-        "a2b1b45b"
+        "21f610f9",
+        "57f2edb4",
+        "03506782",
+        "73684b77",
+        "0d81ef3f",
+        "525e3d43"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,15 +57,15 @@
     },
     "city-wave3": {
       "hashes": [
-        "aa727553",
-        "d03062f6",
-        "54de14e7",
-        "37ad254c",
-        "88221ef5",
-        "dad2ac75"
+        "193905ea",
+        "e90b2dda",
+        "3ecd60fc",
+        "fb50958e",
+        "39b5d35a",
+        "b83ec60d"
       ],
       "coverage": {
-        "agents:final": 17,
+        "agents:final": 13,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,
@@ -74,15 +74,15 @@
     },
     "city-wave3-rain": {
       "hashes": [
-        "e39b62f3",
-        "4a43703e",
-        "f23245e8",
-        "d2290a54",
-        "0f897182",
-        "61216c0d"
+        "6c73ec38",
+        "e948645f",
+        "dc251d9c",
+        "90c77ba4",
+        "01812f48",
+        "ec37e6da"
       ],
       "coverage": {
-        "agents:final": 17,
+        "agents:final": 13,
         "combat:projectile.ended": 38,
         "combat:weapon.water": 41,
         "identities:final": 2,
