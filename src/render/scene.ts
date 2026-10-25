@@ -302,6 +302,7 @@ export class SceneRenderer {
       json: assets ? (path) => assets.json(path) : fetchJson,
       ground: world.ground,
       materials: this.materials,
+      waterY: world.manifest.water?.y ?? 0,
     });
     this.scene.add(this.streetDetail.group);
     void this.streetDetail.load();

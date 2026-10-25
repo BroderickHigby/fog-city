@@ -30,9 +30,19 @@ Right-hand or single images show the full street-detail stack (every stream bran
 - `signs-blades.png`
 - `signs-chestnut-street.png`
 
+## landcover
+
+Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
+
+- `landcover-bay-fortmason.png`
+- `landcover-fence.png`
+- `landcover-fortmason-meadow.png`
+- `landcover-fortmason-top.png`
+- `landcover-marina-green.png`
+
 ## trees
 
-Source branch review images; the original capture also includes later landcover that is excluded from this release.
+Right-hand or single images show the full street-detail stack (every stream branch up to storefront signs), so later features may appear too.
 
 - `trees-embarcadero.png`
 - `trees-marina-blvd.png`

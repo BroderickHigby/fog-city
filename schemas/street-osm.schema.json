@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/street-osm",
+  "title": "Grass, barriers and piers derived from OpenStreetMap, ODbL 1.0 (public/tiles/<world>/street-osm.json, pipeline/lib/landcover.ts).",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "license",
+    "attribution",
+    "grass",
+    "barriers",
+    "piers"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "snapshotDate": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string",
+      "pattern": "ODbL"
+    },
+    "grass": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "rings"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "lawn",
+              "meadow",
+              "pitch",
+              "natural"
+            ]
+          },
+          "rings": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 6,
+              "items": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "barriers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "h",
+          "pts"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "fence",
+              "wall",
+              "hedge",
+              "rail"
+            ]
+          },
+          "h": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 6
+          },
+          "pts": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "piers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "floating"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "ring": {
+            "type": "array",
+            "minItems": 6,
+            "items": {
+              "type": "number"
+            }
+          },
+          "line": {
+            "type": "array",
+            "minItems": 4,
+            "items": {
+              "type": "number"
+            }
+          },
+          "width": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "floating": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}
