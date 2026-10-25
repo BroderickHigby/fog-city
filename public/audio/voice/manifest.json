@@ -575,8 +575,8 @@
    "id": "spill.paid.line1",
    "kind": "line",
    "speaker": "cofounder",
-   "text": "we're profitable!!! for one afternoon!!! buy a bigger tank",
-   "hash": "f2476d5f2133363b75aad816be9037ffdeaccf68df009f09827f130379bb99ed",
+   "text": "we're profitable!!! for one afternoon!!! buy a better nozzle",
+   "hash": "56dd9f4f89ae901d88b60d1bb9106b0f6b381c49ba46d0ae551fb5548daacef6",
    "file": null,
    "durationS": 4.35,
    "measured": false,
@@ -584,7 +584,7 @@
     {
      "startS": 0,
      "endS": 4.35,
-     "text": "we're profitable!!! for one afternoon!!! buy a bigger tank"
+     "text": "we're profitable!!! for one afternoon!!! buy a better nozzle"
     }
    ]
   },
