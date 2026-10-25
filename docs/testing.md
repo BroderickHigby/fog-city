@@ -366,6 +366,33 @@ failure does not hide another. `test-results/` (Playwright artefacts and HTML re
 its commands have run locally with `CI=true`; its first run on GitHub's runners happens on
 the first push.
 
+### Long campaign playthroughs (`.github/workflows/campaign-long.yml`)
+
+Whole wave-3 missions played in the real SF world through real controls and the page's own
+dialogs. Each runs an hour or more under SwiftShader, so they live in `tests/e2e/*.long.ts`
+under their own config (`tests/e2e/campaign-long.config.ts`, Chromium only) and their own
+workflow. Every pull request still runs the fast `campaign.spec.ts` in `ci.yml`.
+
+The workflow runs on pushes to `integrate/wave2`, nightly at 09:17 UTC, by hand, and on pull
+requests that touch `src/sim/missions/**`, `src/sim/activities/**`, `content/missions*`,
+`tests/e2e/campaign*` or the mission drivers (`tests/helpers/drivers/**`). Each playthrough
+is its own job with a 150-minute limit. Playwright's `--global-timeout` (140 minutes) ends a
+stuck run first, so its traces and failure screenshots upload as an artifact. `E2E_REQUIRE`
+is fixed in the workflow (`sf`, `foot`, `render-debug`, `roads`, `step-frames`), so a
+missing prerequisite fails rather than skips.
+
+| Playthrough | Proves |
+|---|---|
+| `campaign-launch-day.long.ts` | From a post-Spill save loaded through the save panel: Launch Day driven and walked to Washington Square, held Watch, held scan, the false positive, compare, melt and the pivot; reward paid once and scanner tier 2; a save and reload after completion keeps the cash and moves the campaign on; a mid-mission reload restarts Launch Day unpaid; a timed-out attempt retries with a fresh suspect and completes, still paid once. Each segment is planned in Node, fed to the page as frames, matched state for state and replay-hashed; zero protected-body contacts. |
+| `campaign-two-players.long.ts` | Two players in one session: p2 joins and plays Hot Desk while p1 waits; p1 plays Launch Day while p2 waits. Each player's bindings, objective guidance and rewards stay their own and are paid once, including after p1's save is reloaded and p2's is imported. |
+
+Run one locally (one worker, the lock and memory rules above apply):
+
+```sh
+E2E_REQUIRE=sf,foot,render-debug,roads,step-frames E2E_GAME_WAVE=3 \
+  pnpm exec playwright test --config tests/e2e/campaign-long.config.ts --workers=1 campaign-launch-day
+```
+
 ## Static web build (`pnpm build`)
 
 `pnpm build` (also `pnpm build:web`) runs `scripts/build-web.ts`: `vite build` with `base: "./"`
