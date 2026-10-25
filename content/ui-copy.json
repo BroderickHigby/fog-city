@@ -182,6 +182,9 @@
     "ui.audio.music": "Music",
     "ui.audio.effects": "Effects",
     "ui.audio.master": "Master volume",
+    "ui.bell.listen": "Listen: bell {heard} of {count}. Round {round}, {wins}–{losses}.",
+    "ui.bell.turn": "Your turn: ring with interact ({rung} of {count}). Round {round}, {wins}–{losses}.",
+    "ui.bell.pause": "Round {round} over: {wins}–{losses}.",
     "ui.help.open": "Controls",
     "ui.help.title": "Controls",
     "ui.help.hint": "Press ? or F1 any time to open this list. Esc closes it.",
@@ -203,7 +206,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:a4c08bb0",
+    "contentHash": "fnv1a32:58c0ca68",
     "reviewedBy": [],
     "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
   }

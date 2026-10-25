@@ -1,6 +1,7 @@
 import type { CombatActor } from "../combat-contract.ts";
 import type { MissionObservedState } from "../missions/observed.ts";
 import type { MissionParkingWorld, MissionParkingState } from "../missions/mechanics/runtime.ts";
+import type { MissionBellState } from "../missions/mechanics/bell.ts";
 import type { RngState } from "../contract.ts";
 import type { Mission } from "../../content/missions.ts";
 import type { Position, GameplayBody, GameplayFact, GameplayCommand, GameplayEvent, RewardActor, PlayerObservation } from "../gameplay-contract.ts";
@@ -18,7 +19,7 @@ export interface EconomyState { version:1; tick:number; nextId:number; players:R
 export interface HeatStatus { threat:number; vcQuarters:number; lastSeenTick:number; lastAssociateSeenTick:number; recentMelts:number[]; levelMelts:number; spawnSequence:number; commandSequence:number; lastWashId?:string }
 export interface HeatState { grantCursors?:Record<string,number>; version:1; tick:number; nextId:number; players:Record<string,HeatStatus>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface MissionProgress { missionId:string; stepId:string; status:"idle"|"active"|"complete"|"retry"|"failed"; startedTick:number; stepStartedTick:number; deadlineTick:number; questionIndex:number; objectiveCount:number; objectiveIds:string[]; meters:Record<string,number>; completedIds:string[]; rewardedIds:string[]; retryFrom:string; outcome:string; commandSequence:number; visits:number; actorAttempt?:string; observed?:MissionObservedState }
-export interface MissionState { parking?:MissionParkingState; version:1; tick:number; nextId:number; players:Record<string,MissionProgress>; factCursors:Record<string,number>; events:GameplayEvent[] }
+export interface MissionState { parking?:MissionParkingState; bell?:MissionBellState; version:1; tick:number; nextId:number; players:Record<string,MissionProgress>; factCursors:Record<string,number>; events:GameplayEvent[] }
 export interface Progression { xp:number; rank:number; tankTier:0|1|2; flowTier:0|1; scannerTier:1|2|3|4; nozzle:"standard"|"pressure"; gadget:"balloon"|"sprinkler"|"speaker"; gear:"none"|"boots"|"airplane"; perks:string[]; streaks:string[]; streakPoints:number; streakSequence:number; banked:Record<string,number>; commandSequence:number }
 export interface ProgressionState { version:1; tick:number; nextId:number; players:Record<string,Progression>; grantCursors:Record<string,number>; events:GameplayEvent[] }
 export interface PlayerActivities { nextDirectorTick:number; directorRng:RngState; activeCardId:string; cardUntilTick:number; cardCooldowns:Record<string,number>; activeActivityId:string; activityStartedTick:number; completedIds:string[]; commandSequence:number; checkpointIndex?:number; objectiveCount?:number; cooldowns?:Record<string,number> }

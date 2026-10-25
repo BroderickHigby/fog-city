@@ -12,6 +12,7 @@ import { AGENT_SPEC, ROBOTAXI_BODY } from "../agents.ts";
 import { serviceEntryClear, type ServiceBlocker } from "./service-runtime.ts";
 import { agentsRuntimeOf, type RuntimeSpawn } from "./runtime.ts";
 import type { SidewalkGraph } from "./navigation.ts";
+import { MISSIONS } from "../../content/catalog.ts";
 
 export interface MissionStage {
   missionId: string;
@@ -113,6 +114,14 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
     return [stable];
   }
   for(const id of [...stage.actorIds].sort(compare))place(id,new Set());
+  // A staged update pusher starts out working its mark: it faces the nearest good robot staged
+  // with it (Demo Day's guest), so its sight cone holds the robot it is about to update.
+  // (From the wave-4 missions on: earlier missions keep their recorded staging.)
+  if((MISSIONS.find(mission=>mission.id===stage.missionId)?.wave??2)>=4)for(const actor of result.actors){
+    if(actor.firmware!=="bad"||actor.archetype!=="updatePusher")continue;
+    const mark=result.actors.filter(other=>other.firmware==="good"&&other.model!=="robotaxi").sort((a,b)=>magnitude(a.x-actor.x,a.z-actor.z)-magnitude(b.x-actor.x,b.z-actor.z)||compare(a.id,b.id))[0];
+    if(mark&&magnitude(mark.x-actor.x,mark.z-actor.z)>1e-6)actor.heading=datan2(mark.x-actor.x,-(mark.z-actor.z));
+  }
   result.blocked=[...new Set(result.blocked)].sort(compare);
   result.actors.sort((a,b)=>compare(a.id,b.id));
   return result;

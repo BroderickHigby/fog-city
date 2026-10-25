@@ -6,6 +6,7 @@ import { createClockSystem, gameTime } from "./clock/calendar.ts";
 import { createFogSystem, fogDensity, floodDepthAt, puddlesNear, rainDensity, shelteredAt, weatherRefuge } from "./fog/index.ts";
 import { allocateActorIds } from "./identity.ts";
 import { createAgentsSystem, agentsCombatOptions } from "./agents/systems.ts";
+import { agentsRuntimeOf } from "./agents/runtime.ts";
 import type { AgentRuntimeOptions } from "./agents/runtime.ts";
 import { createCombatSystem } from "./combat/systems.ts";
 import { contextFromState, type CombatAdapterOptions } from "./combat/adapter.ts";
@@ -84,7 +85,10 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
       loadouts[id]={...combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading),...supplied.loadouts?.[id]};
     }
     const calendar=gameTime(context.state),rain=weather?rainDensity(context.state):0,extra=weatherRefills(context);
-    const combat=contextFromState(context.world,context.state,{...supplied,...agentsCombatOptions(context.state),wave,loadouts,
+    const agentOptions=agentsCombatOptions(context.state),runtime=agentsRuntimeOf(context.state);
+    // From wave 4: the same live conversion budget the brains use (agents/runtime.ts naturalBad).
+    const conversionCap=wave>=4&&runtime?2*sortedIds(runtime.actors).filter(id=>{const a=runtime.actors[id]!;return a.firmware==="bad"&&!a.converted&&!a.retired&&(context.state.ext.combat?.targets[id]?.phase??"active")==="active";}).length:agentOptions.conversionCap;
+    const combat=contextFromState(context.world,context.state,{...supplied,...agentOptions,...(conversionCap!==undefined?{conversionCap}:{}),wave,loadouts,
       refills:extra.length?[...context.world.gameplay?.refills??[],...extra]:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
       fog:0,rain,
       fogAt:(x:number,z:number)=>fogAt(context,x,z)});
