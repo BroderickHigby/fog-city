@@ -26,7 +26,9 @@ import { Water } from "./water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
-import { VisualQuality } from "./quality.ts";
+import { VisualQuality, presentationLook, type PresentationLook } from "./quality.ts";
+import { daylightAt } from "./daylight.ts";
+import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
@@ -57,6 +59,8 @@ export interface RenderOptions {
   models: ReadonlySet<string> | null;
   /** content/landmarks.json, parsed, or null. */
   landmarks: unknown;
+  /** The promenade the King tide floods (the sim's TIDE_PROMENADE), or none. */
+  tide?: TideStrip;
 }
 
 export interface WorldData {
@@ -82,6 +86,9 @@ export interface RenderInfo {
   cameraMode: CameraMode;
   presentation: boolean;
   lightingPreset: string;
+  /** Whether the light follows the game clock, and the weather drawn (rain streaks, puddles, tide depth). */
+  followsClock: boolean;
+  weather: { fog: number; rain: boolean; wetness: number; puddles: number; tideM: number };
   /** Street lamps lit by real point lights this frame (high tier, at night). */
   streetLightsLit: number;
   /** Pedestrians drawn as skinned Rocketbox people last frame, and crowd characters loaded. */
@@ -137,6 +144,15 @@ const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
 const SEA_SIZE_M = 2 * CAMERA_FAR_M + 2000;
+/** Environment maps kept for the clock's sky and the presets. */
+/**
+ * Cube size of the sky's environment maps. A new one is built whenever the clock's sun moves a few
+ * degrees or the weather steps (envFor), and three's GGX prefilter costs in proportion to its
+ * pixels: at the default 256 one build stalled a SwiftShader frame for 3.7 s, at 128 for 0.6 s.
+ * The sky is smooth gradients and soft clouds, so the smaller cube costs little detail.
+ */
+const ENV_MAP_SIZE = 128;
+const ENV_CACHE_MAX = 12;
 /** The local car's headlight at full night. */
 const HEADLIGHT_NIGHT = 140;
 
@@ -168,7 +184,6 @@ export class SceneRenderer {
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
   private dayPreset: LightingPreset = DAY;
-  private lastPreset: LightingPreset = DAY;
   private readonly maxPixelRatio: number;
   private pixelBudget: number;
   private readonly tier: GfxTier | "unknown";
@@ -184,6 +199,12 @@ export class SceneRenderer {
   private readonly shadows: boolean;
   private readonly sunDir = new THREE.Vector3();
   private nightOn = false;
+  /** Lighting fixed by ?tod=, ?night=1, the N key or the debug handle; otherwise it follows the game clock. */
+  private lightingPinned = false;
+  /** The lighting before weather, its grade and its environment-map key. */
+  private baseLight: { preset: LightingPreset; look: PresentationLook; envKey: string } = { preset: DAY, look: presentationLook("day"), envKey: "day" };
+  private weatherLook: WeatherLook = CLEAR_WEATHER;
+  private readonly weather: WeatherLayer;
   private headlightBase = 0;
   private sim: { prev: SimState; curr: SimState; alpha: number } | null = null;
   private readonly viewer: Viewer = { x: 0, z: 0, fx: 0, fz: -1 };
@@ -349,8 +370,11 @@ export class SceneRenderer {
       this.streetLights = new StreetLightRig();
       this.scene.add(this.streetLights.group);
     }
+    this.weather = new WeatherLayer(opts.tide ?? null, world.ground);
+    this.scene.add(this.weather.root);
     const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
     this.nightOn = preset.name === "night";
+    this.lightingPinned = !!opts.timeOfDay || opts.night;
     if (!this.nightOn) this.dayPreset = preset;
     this.applyPreset(preset);
     this.governor = new GfxGovernor(opts.governed ?? false, {
@@ -378,13 +402,53 @@ export class SceneRenderer {
   setNight(on: boolean): void {
     if (on === this.nightOn) return;
     this.nightOn = on;
+    // Night is a look the player holds; turning it off hands the light back to the game clock.
+    this.lightingPinned = on;
+    this.daylightKey = "";
     this.applyPreset(on ? NIGHT : this.dayPreset);
   }
 
-  private applyPreset(p: LightingPreset): void {
-    this.lastPreset = p;
+  /** Whether the lighting follows the game clock (setDaylight) rather than a fixed preset. */
+  get followsClock(): boolean {
+    return !this.lightingPinned;
+  }
+
+  private daylightKey = "";
+
+  /**
+   * The game clock's light: the sun for the date and hour, the presets blended by its
+   * elevation (daylight.ts). A no-op while the lighting is pinned. Cheap to call every
+   * frame: it re-applies only when the hour has moved by a game minute.
+   */
+  setDaylight(month: number, day: number, hour: number): void {
+    if (this.lightingPinned) return;
+    const key = `${month}/${day}/${Math.floor(hour * 60)}`;
+    if (key === this.daylightKey) return;
+    this.daylightKey = key;
+    const d = daylightAt(month, day, hour);
+    this.nightOn = false;
+    this.applyPreset(d.preset, d.look, d.envKey);
+  }
+
+  /** The sim's weather at the camera (weatherView); the lighting re-applies when fog or rain move by 1%. */
+  setWeather(w: WeatherLook): void {
+    const before = this.weatherLook;
+    this.weatherLook = w;
+    if (Math.abs(before.fog - w.fog) > 0.01 || Math.abs(before.rain - w.rain) > 0.01 || (before.rain > 0) !== (w.rain > 0) || (before.fog > 0) !== (w.fog > 0)) {
+      const b = this.baseLight;
+      this.applyLit(b.preset, b.look, b.envKey);
+    }
+  }
+
+  private applyPreset(p: LightingPreset, look: PresentationLook = presentationLook(p.name), envKey: string = p.name): void {
+    this.baseLight = { preset: p, look, envKey };
+    this.applyLit(p, look, envKey);
+  }
+
+  private applyLit(base: LightingPreset, look: PresentationLook, envKey: string): void {
+    const p = weatherLight(base, this.weatherLook);
     const night = p.nightFactor ?? (p.name === "night" ? 1 : 0);
-    this.quality?.setPreset(p);
+    this.quality?.setPreset(p, look);
     this.activePreset = p.name;
     applySkyPreset(p);
     this.fog.color.setHex(p.fogColor);
@@ -408,19 +472,31 @@ export class SceneRenderer {
     this.lights.setNight(night);
     this.agents.setNight(night);
     this.streetLights?.setNight(night);
-    this.scene.environment = this.envFor(p);
+    this.scene.environment = this.envFor(`${envKey}:${weatherKey(this.weatherLook)}`);
     this.scene.environmentIntensity = p.envIntensity;
   }
 
-  /** Image-based lighting from the sky itself, generated once per preset. */
-  private envFor(p: LightingPreset): THREE.Texture {
-    let env = this.envCache.get(p.name);
-    if (!env) {
-      const previousLinear = fcUniforms.fcLinearOutput.value;
-      fcUniforms.fcLinearOutput.value = 1;
-      try { env = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 2000).texture; }
-      finally { fcUniforms.fcLinearOutput.value = previousLinear; }
-      this.envCache.set(p.name, env);
+  /**
+   * Image-based lighting from the sky itself (the sky uniforms must already hold the light),
+   * generated once per key: a preset, or a few degrees of the clock's sun and a step of weather.
+   * The cache keeps the ENV_CACHE_MAX most recent maps.
+   */
+  private envFor(key: string): THREE.Texture {
+    let env = this.envCache.get(key);
+    if (env) {
+      this.envCache.delete(key);
+      this.envCache.set(key, env);
+      return env;
+    }
+    const previousLinear = fcUniforms.fcLinearOutput.value;
+    fcUniforms.fcLinearOutput.value = 1;
+    try { env = this.pmrem.fromScene(this.envScene, 0.02, 0.1, 2000, { size: ENV_MAP_SIZE }).texture; }
+    finally { fcUniforms.fcLinearOutput.value = previousLinear; }
+    this.envCache.set(key, env);
+    while (this.envCache.size > ENV_CACHE_MAX) {
+      const oldest = this.envCache.keys().next().value as string;
+      this.envCache.get(oldest)?.dispose();
+      this.envCache.delete(oldest);
     }
     return env;
   }
@@ -499,7 +575,8 @@ export class SceneRenderer {
    */
   contextRestored(): void {
     this.envCache.clear();
-    this.applyPreset(this.lastPreset);
+    const b = this.baseLight;
+    this.applyLit(b.preset, b.look, b.envKey);
     this.resize();
   }
 
@@ -593,6 +670,7 @@ export class SceneRenderer {
     this.foliage.update(cam.x, cam.z);
     this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
+    this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);
   }
 
   /**
@@ -628,6 +706,8 @@ export class SceneRenderer {
     out.cameraMode = this.rig.mode;
     out.presentation = this.quality !== null;
     out.lightingPreset = this.activePreset;
+    out.followsClock = !this.lightingPinned;
+    out.weather = { fog: this.weatherLook.fog, wetness: this.weatherLook.wetness, ...this.weather.info };
     out.streetLightsLit = this.streetLights?.lit ?? 0;
     out.crowdDrawn = this.crowd?.drawn ?? 0;
     out.crowdLoaded = this.crowd?.loaded ?? 0;
@@ -684,6 +764,7 @@ export class SceneRenderer {
     this.crowd?.dispose();
     this.sky.dispose();
     this.water.dispose();
+    this.weather.dispose();
     for (const m of this.materials.all) m.dispose();
     this.nightMats.glow.dispose();
     this.nightMats.pool.dispose();
@@ -700,6 +781,8 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   cameraMode: "chase" as CameraMode,
   presentation: false,
   lightingPreset: "day",
+  followsClock: false,
+  weather: { fog: 0, rain: false, wetness: 0, puddles: 0, tideM: 0 },
   streetLightsLit: 0,
   crowdDrawn: 0,
   crowdLoaded: 0,
