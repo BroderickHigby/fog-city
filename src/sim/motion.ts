@@ -1,4 +1,5 @@
 import { DT, type SimState, type SimInput, type CarState } from "./contract.ts";
+import { agentActorId } from "./identity.ts";
 import { AGENT_SPEC, ROBOTAXI_BODY, type AgentState } from "./agents.ts";
 import { CAR, carBox, makeCar, stepCar } from "./car.ts";
 import { boxBlocked, boxCrossedWall, type Box, type Circle } from "./collide.ts";
@@ -30,7 +31,7 @@ function combatRestriction(state: Readonly<SimState>, motion: AgentMotionProposa
   const combat = state.ext.combat;
   if (!combat) return { cap: Infinity, scale: 1 };
   const own = movementLimit(combat, { id: motion.id });
-  const alias = motion.id === `agent:${motion.numericId}` ? own : movementLimit(combat, { id: `agent:${motion.numericId}` });
+  const alias = motion.id === agentActorId(motion.numericId) ? own : movementLimit(combat, { id: agentActorId(motion.numericId) });
   return { cap: Math.min(own.maxSpeed ?? Infinity, alias.maxSpeed ?? Infinity), scale: Math.min(own.scale, alias.scale) };
 }
 
@@ -80,21 +81,35 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
   if (!motions.length && !retirements.length) return state;
   const retired = new Set(retirements);
   const ext = state.ext.agents ?? { nextId: 1, list: [] };
-  const list = ext.list.filter(a => !retired.has(a.runtimeId ?? `agent:${a.id}`));
+  const list = ext.list.filter(a => !retired.has(a.runtimeId ?? agentActorId(a.id)));
   const seen = new Set<number>();
   const names = new Set<string>();
+  // Indexes of the bodies present before admission. A body updated below keeps its id and takes
+  // the motion's (unique) runtime id, and admitted bodies carry ids and names already in seen
+  // and names, so neither lookup can change answer as the loop runs.
+  const firstById = new Map<number, number>();
+  const byRuntime = new Map<string, number[]>();
+  list.forEach((a, i) => {
+    if (!firstById.has(a.id)) firstById.set(a.id, i);
+    if (a.runtimeId !== undefined) { const at = byRuntime.get(a.runtimeId); if (at) at.push(i); else byRuntime.set(a.runtimeId, [i]); }
+  });
   for (const motion of [...motions].sort((a,b) => a.numericId-b.numericId)) {
     valid(motion);
     if (seen.has(motion.numericId) || names.has(motion.id)) throw new Error("Duplicate physical actor ID");
     seen.add(motion.numericId); names.add(motion.id);
-    const conflictingBody = list.find(a => a.runtimeId === motion.id && a.id !== motion.numericId);
-    if (conflictingBody) throw new Error("Physical actor identity changed");
-    const index = list.findIndex(a => a.id === motion.numericId);
+    if (byRuntime.get(motion.id)?.some(i => list[i]!.id !== motion.numericId)) throw new Error("Physical actor identity changed");
+    const index = firstById.get(motion.numericId) ?? -1;
     if (index >= 0) {
       const body = list[index]!;
       if ((body.kind === "robotaxi") !== (motion.kind === "vehicle")) throw new Error("Physical actor body kind changed");
       if (body.runtimeId !== undefined ? body.runtimeId !== motion.id : motion.legacyId !== body.id || motion.id !== `agent:${body.id}`) throw new Error("Physical actor identity changed");
-      list[index] = { ...body, runtimeId:motion.id, runtimeLegacy:body.runtimeLegacy ?? motion.legacyId !== null,
+      const runtimeLegacy = body.runtimeLegacy ?? motion.legacyId !== null;
+      // Structural sharing: a body that already carries every field unchanged is kept as is.
+      if (body.runtimeId === motion.id && body.runtimeLegacy === runtimeLegacy && body.radius === motion.radius && body.height === motion.height
+        && (motion.halfLength === undefined || body.halfLength === motion.halfLength) && (motion.halfWidth === undefined || body.halfWidth === motion.halfWidth)
+        && (motion.protected === undefined || body.protected === motion.protected) && (motion.child === undefined || body.child === motion.child)
+        && (motion.mobilityAid === undefined || body.mobilityAid === motion.mobilityAid) && (motion.posture === undefined || body.posture === motion.posture)) continue;
+      list[index] = { ...body, runtimeId:motion.id, runtimeLegacy,
         radius:motion.radius,height:motion.height,
         ...(motion.halfLength!==undefined?{halfLength:motion.halfLength}:{}),...(motion.halfWidth!==undefined?{halfWidth:motion.halfWidth}:{}),
         ...(motion.protected!==undefined?{protected:motion.protected}:{}),...(motion.child!==undefined?{child:motion.child}:{}),
@@ -116,7 +131,7 @@ export function prepareMotionBodies(world: World, state: SimState, motions: read
       pitch:0,vmax:0,edge:"",dir:1,lane:0,s:0,next:"",ndir:1,nlane:0,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:"go",rng:motion.numericId,dodge:null });
   }
   list.sort((a,b) => a.id-b.id);
-  return { ...state, ext: { ...state.ext, agents: { nextId: Math.max(ext.nextId, ...list.map(a => a.id + 1)), list } } };
+  return { ...state, ext: { ...state.ext, agents: { nextId: list.reduce((m, a) => Math.max(m, a.id + 1), ext.nextId), list } } };
 }
 
 function motionPose(body:Readonly<AgentState>,motion:AgentMotionProposal|undefined,t:number):Box {
@@ -129,7 +144,22 @@ function motionPose(body:Readonly<AgentState>,motion:AgentMotionProposal|undefin
 /** Relative sweeps reject both intents if two simultaneous hulls would intersect. */
 function conflictingVehicleIntents(bodies:readonly AgentState[],motions:ReadonlyMap<number,AgentMotionProposal>):Set<number> {
   const blocked=new Set<number>(),vehicles=bodies.filter(body=>body.kind==="robotaxi");
-  for(let i=0;i<vehicles.length;i++)for(let j=i+1;j<vehicles.length;j++){
+  // Only pairs with at least one intent can conflict, and only within reach (at most two bus
+  // hulls plus 2 m): visit each such pair once through a coarse grid instead of all pairs.
+  const CELL=24,grid=new Map<number,number[]>(),cellOf=(x:number)=>Math.floor(x/CELL);
+  let maxHull=0;
+  vehicles.forEach((v,i)=>{
+    const m=motions.get(v.id);maxHull=Math.max(maxHull,(m?.halfLength??v.halfLength??2.2)+(m?.halfWidth??v.halfWidth??.95));
+    const key=(cellOf(v.x)+32768)*65536+cellOf(v.z)+32768,at=grid.get(key);if(at)at.push(i);else grid.set(key,[i]);
+  });
+  const span=Math.ceil((2*maxHull+2)/CELL);
+  const pairs:Array<[number,number]>=[];
+  vehicles.forEach((v,i)=>{
+    if(!motions.get(v.id))return;
+    for(let cx=cellOf(v.x)-span;cx<=cellOf(v.x)+span;cx++)for(let cz=cellOf(v.z)-span;cz<=cellOf(v.z)+span;cz++)
+      for(const j of grid.get((cx+32768)*65536+cz+32768)??[])if(j!==i&&(j>i||!motions.get(vehicles[j]!.id)))pairs.push(i<j?[i,j]:[j,i]);
+  });
+  for(const [i,j] of pairs){
     const a=vehicles[i]!,b=vehicles[j]!,am=motions.get(a.id),bm=motions.get(b.id);
     if(!am&&!bm)continue;
     const reach=(am?.halfLength??a.halfLength??2.2)+(am?.halfWidth??a.halfWidth??.95)+(bm?.halfLength??b.halfLength??2.2)+(bm?.halfWidth??b.halfWidth??.95)+2;
@@ -183,6 +213,26 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     ...state.ext.agents.list.filter(body=>body.kind==="robotaxi").map(body=>({
       box:{x:body.x,z:body.z,heading:body.heading,hl:body.halfLength??ROBOTAXI_BODY.halfLength,hw:body.halfWidth??ROBOTAXI_BODY.halfWidth},
       y:body.y,height:body.height??ROBOTAXI_BODY.height}))];
+  // Vehicle boxes by 16 m cell, so each walker tests only the vehicles that can reach it.
+  const VEHICLE_CELL = 16;
+  const vehicleGrid = new Map<number, number[]>();
+  let vehicleReach = 0;
+  vehicleBoxes.forEach((vehicle, i) => {
+    vehicleReach = Math.max(vehicleReach, vehicle.box.hl + vehicle.box.hw);
+    const key = (Math.floor(vehicle.box.x / VEHICLE_CELL) + 32768) * 65536 + Math.floor(vehicle.box.z / VEHICLE_CELL) + 32768;
+    const at = vehicleGrid.get(key);
+    if (at) at.push(i); else vehicleGrid.set(key, [i]);
+  });
+  const nearbyVehicles = (x: number, z: number, reach: number, out: number[]): number[] => {
+    out.length = 0;
+    for (let cx = Math.floor((x - reach) / VEHICLE_CELL); cx <= Math.floor((x + reach) / VEHICLE_CELL); cx++)
+      for (let cz = Math.floor((z - reach) / VEHICLE_CELL); cz <= Math.floor((z + reach) / VEHICLE_CELL); cz++) {
+        const at = vehicleGrid.get((cx + 32768) * 65536 + cz + 32768);
+        if (at) for (const i of at) out.push(i);
+      }
+    return out;
+  };
+  const candidates: number[] = [];
   const list = state.ext.agents.list.map(body => {
     const motion = byId.get(body.id);
     if (!motion || body.dodge) return body;
@@ -190,7 +240,8 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
     const allowed = Math.min(length, Math.abs(motion.speed)*DT + (restricted.has(body.id) ? 0 : 1e-6));
     const x = body.x + (length>0?dx/length*allowed:0), z = body.z + (length>0?dz/length*allowed:0);
     let blocked = vehicleConflicts.has(body.id) || motion.kind!=="vehicle" && (circleBlocked(world,x,z,motion.radius) || segmentBlocked(world,body.x,body.z,x,z));
-    if (motion.kind === "walker") for (const vehicle of vehicleBoxes) {
+    if (motion.kind === "walker") for (const index of nearbyVehicles(body.x, body.z, vehicleReach + motion.radius + allowed + .1, candidates)) {
+      const vehicle = vehicleBoxes[index]!;
       const box=vehicle.box,reach=box.hl+box.hw+motion.radius+allowed+.1;
       if(Math.abs(body.x-box.x)>reach||Math.abs(body.z-box.z)>reach||body.y>=vehicle.y+vehicle.height+.1||vehicle.y>=body.y+motion.height+.1)continue;
       const fx=dsin(box.heading),fz=-dcos(box.heading),before=boxDistance(body.x,body.z,box.x,box.z,fx,fz,box.hl,box.hw);
@@ -211,6 +262,8 @@ export function applyMotionBodies(world: World, state: SimState, motions: readon
       }
     }
     const car=physicalCars.get(body.id),heading=blocked?body.heading:body.heading+turn;
+    // Structural sharing: a body that stays exactly where it was (blocked or standing) is kept.
+    if (!car && (blocked ? body.speed === 0 : allowed === 0 && body.speed === 0 && x === body.x && z === body.z && y === body.y && heading === body.heading)) return body;
     return { ...body, x:blocked?body.x:x,z:blocked?body.z:z,y:blocked?body.y:y,heading,
       speed:blocked?0:car?car.speed:allowed/DT,
       ...(car?{vehicle:blocked?{...car,x:body.x,y:body.y,z:body.z,heading:body.heading,speed:0,lateral:0,yawRate:0}:{...car,x,z,y,heading}}:{}) };

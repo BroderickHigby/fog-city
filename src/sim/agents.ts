@@ -62,6 +62,7 @@
 // when it has recovered it walks on from where it landed (rejoinAt: a connector back onto its
 // sidewalk a little ahead), never jumping back to its line.
 
+import { agentActorId } from "./identity.ts";
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
@@ -2293,7 +2294,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
       list.push(a);
       continue;
     }
-    const limit = prev.ext.combat ? movementLimit(prev.ext.combat, { id: a.runtimeId ?? `agent:${a.id}` }) : undefined;
+    const limit = prev.ext.combat ? movementLimit(prev.ext.combat, { id: a.runtimeId ?? agentActorId(a.id) }) : undefined;
     const n = stepAgent(ctx, a, dt, limit);
     if (!n) continue;
     // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.

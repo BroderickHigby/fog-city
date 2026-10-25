@@ -124,7 +124,9 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
   for(const id of Object.keys(old.vehicles).sort()){const vehicle=old.vehicles[id]!;if(vehicle.retiredTick===null||sim.tick-vehicle.retiredTick<7200)state.vehicles[id]={...vehicle};}
   const frame:ServiceRuntimeFrame={state,spawns:[],controls:{},retirements:[],events:[]};
   const runtime=agentsRuntimeOf(sim);
-  const blockers=serviceBlockersOf(sim,pending);
+  // Built on first use: most ticks plan no entry and never read it (sim is fixed meanwhile).
+  let blockerList:ServiceBlocker[]|undefined;
+  const blockers=()=>blockerList??=serviceBlockersOf(sim,pending);
   const planned:ServiceBlocker[]=[];
   const emit=(kind:ServiceEvent["kind"],vehicle:Pick<ServiceVehicle,"id"|"requestId">,amount=0,detail="")=>frame.events.push({id:`${sim.tick}:${frame.events.length}`,tick:sim.tick,kind,actorId:vehicle.id,requestId:vehicle.requestId,amount,detail});
   for(const request of threatRequestsOf(sim)){
@@ -134,7 +136,7 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
     state.receipts.push({id:request.id,tick:request.requestTick});
     if(Object.keys(state.vehicles).filter(key=>state.vehicles[key]!.phase!=="retired").length>=16){emit("service.blocked",{id,requestId:request.id},0,"capacity");continue;}
     const target=serviceRoadPoint(world,request.player,0,12,0,[]);
-    const origin=target?serviceRoadPoint(world,request.player,100,140,120,[...blockers,...planned],2.7,1.1,point=>{
+    const origin=target?serviceRoadPoint(world,request.player,100,140,120,[...blockers(),...planned],2.7,1.1,point=>{
       const follow=stepVehicleFollower(world,{...point,speed:0},createFollowerState({...point,speed:0}),{kind:"pursue",target,stopDistance:1,maxSpeed:13});
       let length=0;for(let i=1;i<follow.state.route.length;i++){const a=follow.state.route[i-1]!,b=follow.state.route[i]!;length+=distance({x:a[0],z:a[1]},{x:b[0],z:b[1]});}
       return follow.status!=="no-route"&&length<=180;
@@ -150,9 +152,9 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
     const vehicle=state.vehicles[id]!;if(vehicle.phase==="retired")continue;
     const body=runtime?.actors[id];
     if(!body){
-      if(serviceEntryClear(world,vehicle.origin,blockers)){
+      if(serviceEntryClear(world,vehicle.origin,blockers())){
         const spawn:ActorBlueprint={id,model:"van",firmware:"good",...vehicle.origin,radius:1.2,height:2.4,halfLength:2.7,halfWidth:1.1,protected:true,significant:true};
-        frame.spawns.push(spawn);blockers.push(spawn);
+        frame.spawns.push(spawn);blockers().push(spawn);
       }
       continue;
     }
@@ -161,7 +163,7 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
     if(vehicle.phase==="driving"&&follow.distanceToGoal<=2&&follow.stopped){
       const plan=planMissionActors(world,sim,{missionId:`reinforce-${vehicle.requestId}`,stepId:"arrival",actorIds:["unit0","unit1"],definitions:{unit0:{kind:"badRobot"},unit1:{kind:"badRobot"}},place:{x:body.x,y:body.y,z:body.z},radius:12});
       if(plan.actors.length!==2){frame.controls[id]={throttle:0,steer:0,brake:1,actions:0};continue;}
-      frame.spawns.push(...plan.actors);blockers.push(...plan.actors);vehicle.deliveredTick=sim.tick;vehicle.phase="returning";
+      frame.spawns.push(...plan.actors);blockers().push(...plan.actors);vehicle.deliveredTick=sim.tick;vehicle.phase="returning";
       emit("service.delivered",vehicle,2,sim.tick-vehicle.requestTick<=1200?"on-time":"late");
     }else if(vehicle.phase==="returning"){
       const offscreen=Object.keys(sim.players).sort().every(playerId=>{const player=sim.players[playerId]!,p=player.mode==="foot"&&player.foot?player.foot:player.car;return distance(body,p)>300;});
