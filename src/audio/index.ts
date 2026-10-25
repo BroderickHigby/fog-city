@@ -13,8 +13,13 @@ import { panOf } from "./cues.ts";
 import { isTextEntry } from "../input/keyboard.ts";
 import { mountRadioToast, type MountedRadioToast } from "../ui/radio-toast.ts";
 import { RADIO_STATIONS, stationById, tune, type RadioStation } from "./radio.ts";
-import { gameplaySnapshot } from "../sim/player/adapter.ts";
+import { gameplaySnapshot, playerView } from "../sim/player/adapter.ts";
+import { RobotChirpClock, robotWhirrs, type SoundingActor } from "./robot-sound.ts";
+import { AmbientEventClock, CROWD_M, TRAFFIC_M, ambienceLevels, districtAt, type AmbienceLevels } from "./ambience.ts";
 import { InnerVoice } from "./inner-voice.ts";
+import { ImpactSoundTracker, type ImpactsLike } from "./impact-sound.ts";
+import { FootstepClock, carOneShots, doorOneShots, engineParams, rideEngineParams } from "./vehicle-sound.ts";
+import type { CarState } from "../sim/contract.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
 import { audible } from "./buses.ts";
@@ -36,6 +41,8 @@ export interface GameAudioDirectorOptions {
   prefs?: AudioPrefsStore;
   /** URL prefix for audio/ (relative to the page; "" in dev and in the static build). */
   base?: string;
+  /** The sim's weather at a point (src/sim/fog weatherView), for rain, fog and the hour. */
+  weather?: (state: SimState, x: number, z: number) => { fog: number; rain: number; sheltered: boolean; hour: number };
 }
 
 export interface AudioFrame {
@@ -55,6 +62,12 @@ export interface AudioDebugInfo {
   music: { trackId: string; paused: boolean; src: string } | null;
   musicTracks: number;
   musicSwitches: number;
+  /** The car's live engine sound is running. */
+  engine: boolean;
+  /** Robots whose servos are audible now. */
+  robotVoices: number;
+  /** The ambience layer levels now (null before the first sample). */
+  ambience: AmbienceLevels | null;
   effectsLoaded: number;
   effectsPlayed: Record<string, number>;
   voice: { current: string | null; mode: string | null; waiting: string[]; status: string; files: number };
@@ -90,7 +103,12 @@ export interface GameAudioDirector {
 }
 
 /** Combat events that mean the local player is in a robot fight. */
-const FIGHT_EVENTS = new Set(["robot.seized", "robot.slumping", "robot.heap", "robot.knockdown", "robot.alert", "robot.blinded", "player.stumble", "player.handshake"]);
+/**
+ * Combat events that mean the local player is in a robot fight. Never robot.alert, robot.wary,
+ * robot.blinded or robot.glance: those fire for one firmware only, so music following them would
+ * tell the player which robots are bad.
+ */
+export const FIGHT_EVENTS: ReadonlySet<string> = new Set(["robot.seized", "robot.slumping", "robot.heap", "robot.knockdown", "player.stumble", "player.handshake"]);
 const VOICE_EVENT_LOG = 64;
 
 declare global {
@@ -127,6 +145,29 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let announced: MusicContext | null = null;
   let now = 0;
   let listener = { x: 0, z: 0, heading: 0 };
+  // The player's car and mode last frame, for engine load, impacts, landings and doors.
+  let prevCar: CarState | null = null;
+  let prevRideSpeed: number | null = null;
+  let prevMode: string | undefined;
+  let lastFrameMs: number | null = null;
+  const footsteps = new FootstepClock();
+  const impacts = new ImpactSoundTracker();
+  const chirps = new RobotChirpClock();
+  const ambientEvents = new AmbientEventClock();
+  let ambience: AmbienceLevels | null = null;
+  let ambienceFog = 0;
+  let nextAmbienceMs = 0;
+  // Last-seen values for one-shot UI and game cues (null: not yet seen, so nothing plays on load).
+  let lastMissionKey: string | null = null;
+  let lastMissionStatus: string | null = null;
+  let lastCash: number | null = null;
+  let lastScanTick: number | null = null;
+  let phoneOpen = false;
+  const onClick = (event: MouseEvent): void => {
+    const target = event.target as Element | null;
+    if (target?.closest?.(".fc-ui button")) mixer.playSynth("click", 0.6);
+  };
+  if (typeof document !== "undefined") document.addEventListener("click", onClick, true);
   let inCar = false;
   let paused = false;
   const clock = (): number => (typeof performance !== "undefined" ? performance.now() : now);
@@ -196,8 +237,69 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const spraying = !frame.paused && !!combat?.projectiles.some((p) => p.ownerId === playerId && p.kind === "water" && p.bornTick >= combat.tick - 12);
       mixer.setSpray(spraying);
       mixer.setPaused(frame.paused);
+      // The car (engine, road, tyres, impacts), the doors and footsteps.
+      const dtS = lastFrameMs === null ? 0 : Math.min(0.25, Math.max(0, (frame.nowMs - lastFrameMs) / 1000));
+      lastFrameMs = frame.nowMs;
+      if (player && !frame.paused) {
+        // Riding a robotaxi, the taxi's motor is heard; the player's own car is parked elsewhere.
+        const ride = player.ride ?? null;
+        mixer.setEngine(ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
+        // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. The player's
+        // own body is the ridden taxi while riding. When it is in one, the car's generic hit
+        // one-shot stands down (landings still play).
+        const selfKey = ride ? `a:${ride.agentId}` : `p:${playerId}`;
+        const hits = impacts.update(state.ext.impacts as ImpactsLike | undefined, listener, selfKey, false);
+        for (const c of hits) mixer.playImpact(c);
+        const ownHit = hits.some((c) => c.self);
+        if (inCar && !ride) for (const s of carOneShots(player.car, prevCar)) if (s.landing || !ownHit) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
+        mixer.setHydrant(impacts.hydrant(state.ext.impacts as ImpactsLike | undefined, listener));
+        for (const s of doorOneShots(prevMode, player.mode)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, delayS: s.delayS });
+        const step = footsteps.update(onFoot ? player.foot : null, dtS);
+        if (step) mixer.play({ sound: `step-${step.variant}`, gain: step.gain, pan: 0, rate: 0.94 + 0.03 * step.variant });
+      } else {
+        mixer.setEngine(null);
+        mixer.setHydrant(null);
+      }
+      prevCar = player ? { ...player.car } : null;
+      prevRideSpeed = player?.ride?.speed ?? null;
+      prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
-      const actors: HummingActor[] = runtime ? Object.values(runtime.actors) : [];
+      const actors: HummingActor[] & SoundingActor[] = runtime ? Object.values(runtime.actors) : [];
+      // City ambience: traffic, crowd, wind and rain, sampled four times a second; foghorns and gulls.
+      if (frame.paused) mixer.setAmbience(null);
+      else {
+        if (frame.nowMs >= nextAmbienceMs) {
+          nextAmbienceMs = frame.nowMs + 250;
+          const vehiclesNear: number[] = [], peopleNear: number[] = [];
+          for (const a of agentsOf(state)) {
+            const d = Math.hypot(a.x - listener.x, a.z - listener.z);
+            if (a.kind === "robotaxi" && d <= TRAFFIC_M) vehiclesNear.push(d);
+            else if (a.kind === "person" && d <= CROWD_M) peopleNear.push(d);
+          }
+          for (const a of runtime ? Object.values(runtime.actors) : []) {
+            if (a.retired) continue;
+            const d = Math.hypot(a.x - listener.x, a.z - listener.z);
+            if ((a.model === "robotaxi" || a.model === "van" || a.model === "bus") && d <= TRAFFIC_M) vehiclesNear.push(d);
+            else if ((a.model === "person" || a.model === "associate" || a.model === "walker") && d <= CROWD_M) peopleNear.push(d);
+          }
+          const weather = options.weather?.(state, listener.x, listener.z) ?? null;
+          ambienceFog = weather?.fog ?? 0;
+          ambience = ambienceLevels({ vehiclesNear, peopleNear, district: districtAt(listener.x, listener.z), weather, inCar });
+        }
+        if (ambience) {
+          mixer.setAmbience(ambience);
+          for (const e of ambientEvents.update(ambience, ambienceFog, frame.nowMs / 1000)) mixer.playAmbientEvent(e);
+        }
+      }
+      // Robots: the nearest servos whirr, each model beeps on its own rhythm, and the tryCarDoors
+      // tell chimes "pairing...". Nothing reads firmware (robot-sound.ts).
+      const inactive = (id: string): boolean => { const phase = combat?.targets[id]?.phase; return !!phase && phase !== "active"; };
+      mixer.setRobots(frame.paused ? [] : robotWhirrs(actors, listener, inactive));
+      if (!frame.paused)
+        for (const c of chirps.update(actors, listener, inactive, frame.nowMs)) {
+          if (c.kind === "pairing") mixer.playSynth("pairing", c.gain, c.pan);
+          else mixer.playBeep(c.notes, c.gain, c.pan);
+        }
       for (const cue of cues.update(combat, listener, actors, frame.nowMs, frame.paused, agentsOf(state))) mixer.play(cue);
       // Music context.
       let fight = spraying;
@@ -208,6 +310,21 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       }
       const snapshot = gameplaySnapshot({ state });
       const missions = snapshot.missions.players[playerId];
+      // Stingers: a mission starting and completing. Money: cash going up. The scanner's verdict.
+      const missionKey = missions?.missionId ?? "";
+      if (lastMissionKey !== null && missionKey && missionKey !== lastMissionKey && missions?.status === "active") mixer.playSynth("mission-start", 0.7);
+      if (lastMissionStatus !== null && missions?.status === "complete" && lastMissionStatus !== "complete") mixer.playSynth("mission-complete", 0.8);
+      lastMissionKey = missionKey;
+      lastMissionStatus = missions?.status ?? "";
+      const cash = playerView(snapshot, playerId).cashCents;
+      if (lastCash !== null && cash >= lastCash + 100) mixer.playSynth("money", 0.6);
+      lastCash = cash;
+      const scan = combat?.players[playerId]?.scan;
+      if (scan && lastScanTick !== null && scan.tick !== lastScanTick) mixer.playSynth(scan.bad ? "scan-bad" : "scan-good", 0.6);
+      lastScanTick = scan?.tick ?? (lastScanTick ?? -1);
+      const phoneNow = typeof document !== "undefined" && !!document.querySelector(".fc-phone-apps");
+      if (phoneNow && !phoneOpen) mixer.playSynth("phone", 0.6);
+      phoneOpen = phoneNow;
       const mission = missions ? options.missions.find((m) => m.id === missions.missionId) : undefined;
       const step = mission?.steps.find((s) => s.id === missions?.stepId);
       const missionUrgent = missions?.status === "active" && !!step && ((step.type === "goto") || (step.type === "objective" && step.timeLimitS !== undefined));
@@ -252,6 +369,20 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     restore(state) {
       missionVoice.reset();
       inner.reset();
+      prevCar = null;
+      prevRideSpeed = null;
+      prevMode = undefined;
+      chirps.reset();
+      ambientEvents.reset();
+      ambience = null;
+      nextAmbienceMs = 0;
+      lastMissionKey = null;
+      lastMissionStatus = null;
+      lastCash = null;
+      lastScanTick = null;
+      lastFrameMs = null;
+      footsteps.reset();
+      impacts.reset();
       cues.reset(state?.ext.combat);
       lastFightEvent = state?.ext.combat?.events.reduce((m, e) => Math.max(m, e.id), 0) ?? 0;
       musicTracker.reset();
@@ -280,6 +411,9 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         music: m.music,
         musicTracks: tracks.length,
         musicSwitches: m.musicSwitches,
+        engine: m.engine,
+        robotVoices: m.robotVoices,
+        ambience: m.ambience,
         effectsLoaded: m.effectsLoaded,
         effectsPlayed: m.effectsPlayed,
         voice: { ...queue.snapshot(), status: manifest?.status ?? "missing", files: manifest?.lines.filter((l) => l.file).length ?? 0 },
@@ -296,6 +430,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       unsubscribe();
       queue.reset();
       if (typeof window !== "undefined") window.removeEventListener("keydown", onKey);
+      if (typeof document !== "undefined") document.removeEventListener("click", onClick, true);
       toast.dispose();
       subtitles.dispose();
       mixer.dispose();
