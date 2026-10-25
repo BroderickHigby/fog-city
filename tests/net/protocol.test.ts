@@ -5,7 +5,7 @@ import { worldFingerprint } from "../../src/net/world-id.ts";
 import { SIM_VERSION } from "../../src/sim/index.ts";
 import { loadWorldFiles } from "../helpers.ts";
 
-const hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: "sf", fingerprint: "b703eecb", action: "create" };
+const hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: "sf", fingerprint: "b703eecb", action: "create", profile: { name: ["quiet", "heron"], look: 3 }, device: "ab".repeat(16) };
 const parse = (v: unknown) => parseClientMessage(JSON.stringify(v));
 
 describe("relay protocol", () => {
@@ -18,6 +18,9 @@ describe("relay protocol", () => {
     expect(parse({ ...hello, action: "quick" })).toMatchObject({ action: "quick" });
     expect(parse({ type: "bots", count: 3 })).toEqual({ type: "bots", count: 3 });
     expect(parse({ type: "mode", mode: "cleanStreets" })).toEqual({ type: "mode", mode: "cleanStreets" });
+    expect(parse({ type: "chat", phrase: 5 })).toEqual({ type: "chat", phrase: 5 });
+    expect(parse({ type: "rematch" })).toEqual({ type: "rematch" });
+    expect(parse({ ...hello, action: "spectate", code: "ABCDEFGH" })).toMatchObject({ action: "spectate" });
     expect(parse({ type: "start", mode: "botSweep" })).toEqual({ type: "start", mode: "botSweep" });
     expect(parse({ type: "resync", tick: 60, reason: "mismatch" })).toEqual({ type: "resync", tick: 60, reason: "mismatch" });
   });
@@ -25,11 +28,12 @@ describe("relay protocol", () => {
     expect(() => parse({ ...hello, sim: SIM_VERSION + 1 })).toThrow("version_mismatch");
     expect(() => parse({ ...hello, net: 1 })).toThrow("version_mismatch");
     for (const bad of [
-      { ...hello, world: "nyc" }, { ...hello, action: "join", code: "abcdefgh" }, { ...hello, action: "join", code: "ABCDEFG0" }, { ...hello, extra: 1 },
+      { ...hello, world: "nyc" }, { ...hello, profile: { name: ["quiet", "nosuchnoun"], look: 0 } }, { ...hello, profile: { name: ["quiet", "heron"], look: 6 } },
+      { ...hello, profile: { name: "Free Text", look: 0 } }, { ...hello, device: "short" }, { ...hello, device: undefined }, { ...hello, action: "join", code: "abcdefgh" }, { ...hello, action: "join", code: "ABCDEFG0" }, { ...hello, extra: 1 },
       { ...hello, action: "rejoin", code: "ABCDEFGH", token: "x" }, { type: "input", seq: 0, input: { throttle: 0, steer: 0, brake: 0, actions: 0 } },
       { type: "input", seq: 1, input: { throttle: 2, steer: 0, brake: 0, actions: 0 } }, { type: "input", seq: 1, input: { throttle: 0, steer: 0, brake: 0, actions: 1 << 20 } },
       { type: "input", seq: 1, input: { throttle: 0, steer: 0, brake: 0, actions: 0, x: 5 } }, { type: "input", seq: 1, playerId: "p2", input: { throttle: 0, steer: 0, brake: 0, actions: 0 } },
-      { type: "start", mode: "fogRoyale" }, { type: "mode", mode: "hideInTheCrowd" }, { type: "bots", count: 4 }, { type: "bots", count: -1 }, { ...hello, action: "quick", code: "ABCDEFGH" }, { type: "chat", text: "hi" }, { type: "snapshot", state: {} }, { type: "resync", tick: 1 }, [], null,
+      { type: "start", mode: "fogRoyale" }, { type: "mode", mode: "hideInTheCrowd" }, { type: "chat", phrase: 6 }, { type: "chat", text: "hi" }, { type: "chat", phrase: 1, text: "x" }, { ...hello, action: "spectate" }, { type: "bots", count: 4 }, { type: "bots", count: -1 }, { ...hello, action: "quick", code: "ABCDEFGH" }, { type: "chat", text: "hi" }, { type: "snapshot", state: {} }, { type: "resync", tick: 1 }, [], null,
     ]) expect(() => parse(bad), JSON.stringify(bad)).toThrow("invalid_message");
     expect(() => parseClientMessage("{")).toThrow("invalid_message");
     expect(() => parseClientMessage(" ".repeat(MAX_MESSAGE_BYTES + 1))).toThrow("invalid_message");

@@ -8,6 +8,22 @@ withdrawn and is not built.
 
 Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-botsweep` (from `origin/integrate/wave2` `ff7db5b`).
 
+## 2026-10-24: after the #67 release (integrate/wave2 59e5a7b)
+
+- #32, #45 and #51 merged. #60, #64, #71 and #75 are merged with 59e5a7b and kept as drafts.
+  GitHub Actions refuses every job (billing), so the evidence is local.
+- Two UI bugs fixed from #60 up:
+  - A hidden match HUD still took clicks (its `display:flex` beat `hidden`).
+  - The HUD stayed drawn over the results panel and blocked "Back to city"/"Rematch".
+- Local results on #75's head:
+  - Full unit suite: 3608 passed.
+  - Multiplayer e2e: invite/rejoin/payout, quick play, Clean Streets and no-relay pass.
+  - The social test ran into the 12-minute Bot Sweep clock: with #67's render slowdown,
+    SwiftShader boots made the file take 34 min instead of 13. The relay ended the match on time
+    before the test pressed End. That is the same slowdown as the coordinator's line-165 timeout
+    on 59e5a7b, which passes here (12.7 min). Re-run once Lane R's render fix lands. The test is
+    not loosened.
+
 ## Next PRs (owner direction via coordinator, in order)
 
 1. Quick play / matchmaking — `work/multiplayer/quick-play` (stacked on #32): "Play online" joins
@@ -16,7 +32,33 @@ Stream id `multiplayer` · handoff §7 · branch `work/multiplayer/relay-lobby-b
 2. More modes — Clean Streets: `work/multiplayer/clean-streets` (stacked on quick play): host picks
    the mode; two teams race on the BotBounty board for 8 minutes; flowers (alt-fire, B) are a
    mode-local mechanic until combat has its own flower attack; bots join the smaller team.
-3. Player identity · 4. Server persistence · 5. Social · 6. Ops readiness.
+3. Player identity — `work/multiplayer/identity` (stacked on Clean Streets): guest identity with a
+   device token in localStorage (the relay keeps only its SHA-256), a display name composed from
+   the vetted player name parts (never free text; the relay re-checks it with the content lint and
+   numbers duplicates), a look from the six the licensed avatar and car are drawn in, and
+   nametags over other players in matches (team-coloured in Clean Streets, gone past 150 m).
+   Deferred modes: Fog Royale (needs associate duels, taxi redeploy and crate producers and
+   8-player rooms) and Hide in the Crowd (needs teleoperated robot bodies); salvage stays on
+   `lane/fog-royale/wave7` and `lane/modes-online/wave7`/`wave8`.
+4. Server persistence — `work/multiplayer/persistence` (stacked on identity): `RelayStore`
+   interface + SQLite via Node's built-in `node:sqlite` (`RELAY_DB_PATH`, `/data` volume in
+   `fly.toml`); finished matches recorded once; per-identity stats; weekly/all-time leaderboards
+   (`GET /leaderboard`, `GET /me`) and a lobby panel; retention documented in `server/README.md`.
+5. Social — `work/multiplayer/social` (stacked on persistence): preset quick chat (keys 1–6, no
+   free text, one per 1.5 s, phrases pass the content lint), join in progress (recorded
+   `mode.join` + `player.join`), spectators (up to 4, no body/input/seat), host rematch.
+6. Ops readiness — `work/multiplayer/ops` (stacked on social): `/ready` (503 while draining),
+   Prometheus `/metrics` (optional `METRICS_TOKEN`), structured JSON logs with no tokens, IPs or
+   full codes, graceful drain on SIGTERM (newcomers refused, a notice with the end time, running
+   matches end as a recorded `mode.end` and pay once), `RELAY_MAX_MATCHES` (default 2: a start
+   past it stays in the lobby with "every arena is busy"), `pnpm relay:load` and the capacity table
+   in `server/README.md`, and `fly.toml` with `performance-1x`, `kill_timeout` 120 s, the `/ready`
+   check and autoscale notes. `NET_VERSION` 7.
+   **Capacity finding:** the relay is one event loop and each Bot Sweep match takes about 5 ms of
+   each 16.7 ms tick, so one dedicated core runs 2 matches (8 players) in real time; from 3 on,
+   every match slows. Follow-ups that raise this, not built: rooms on worker threads (about 2
+   matches per vCPU), then room routing across machines (machine-prefixed codes + `fly-replay`)
+   before running more than one machine.
 
 ## What is playable now
 

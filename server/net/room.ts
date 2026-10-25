@@ -2,14 +2,18 @@
 // results. The relay runs the same deterministic sim as every browser; it orders inputs keyed by
 // player id, records joins/leaves/decisions as SimEvents with their tick, and sends a full
 // snapshot only to a client that joins mid-match, rejoins, or reports a hash mismatch.
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { profileName, type Profile } from "../../src/net/identity.ts";
 import { hashState, NEUTRAL_INPUT, type SimEvent, type SimInput, type SimState } from "../../src/sim/index.ts";
-import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NAME_PARTS, NET_VERSION, type ErrorCode, type Frame, type Member, type NetModeId, type NetworkCommand, type RoomListing, type RoomPhase, type ServerMessage, type Visibility } from "../../src/net/protocol.ts";
+import { MAX_PLAYERS, MAX_PREDICTION_TICKS, NET_VERSION, type ErrorCode, type Frame, type Member, type NetModeId, type NetworkCommand, type RoomListing, type RoomPhase, type ServerMessage, type Visibility } from "../../src/net/protocol.ts";
 import { SIM_VERSION } from "../../src/sim/contract.ts";
 import { ArenaUnavailableError, botSweepView, createBotSweep, stepBotSweep } from "../../src/sim/modes/botsweep.ts";
-import { MODE_END_EVENT } from "../../src/sim/modes/systems.ts";
+import { MODE_END_EVENT, MODE_JOIN_EVENT } from "../../src/sim/modes/systems.ts";
+import { modeSessionOf } from "../../src/sim/modes/session.ts";
+import { QUICK_CHAT_INTERVAL_MS } from "../../src/net/chat.ts";
 import type { Spawn } from "../../src/sim/contract.ts";
 import type { WorldBundle } from "./world.ts";
+import type { MatchRecord } from "../store/store.ts";
 
 export interface Peer { send(message: ServerMessage): void; close(code: ErrorCode): void }
 
@@ -30,7 +34,12 @@ export interface RoomLimits {
 export const DEFAULT_ROOM_LIMITS: RoomLimits = { lifetimeMs: 2 * 3600_000, rejoinGraceMs: 120_000, matchIdleMs: 45_000, resultsMs: 10 * 60_000, resyncIntervalMs: 2000 };
 
 interface Seat {
-  id: string; name: string; token: string; ready: boolean;
+  id: string; name: string; look: number; token: string; ready: boolean;
+  /** SHA-256 of the device's guest token: the key for stats, never the token itself. */
+  device: string;
+  /** Watching only: no body, no input, no ready; never counts toward the four players. */
+  spectator: boolean;
+  lastChatAt: number;
   peer: Peer | null; disconnectedAt: number;
   queue: Array<{ seq: number; input: SimInput }>; seq: number; ack: number; lastInputAt: number;
   commandSequence: number; lastResyncAt: number;
@@ -59,6 +68,12 @@ export class Room {
   private finishedAt = 0;
   private arenaCursor: number;
 
+  /** Called when a match starts (mode, players including bots). */
+  onStarted: ((mode: NetModeId, players: number) => void) | null = null;
+  /** Called once per finished match with what the store keeps (people only). */
+  onFinished: ((match: MatchRecord) => void) | null = null;
+  private startedAt = 0;
+
   constructor(code: string, bundle: WorldBundle, now: number, creatorIp: string, arenas: readonly Spawn[], limits: RoomLimits = DEFAULT_ROOM_LIMITS, visibility: Visibility = "private") {
     this.visibility = visibility;
     this.code = code; this.bundle = bundle; this.createdAt = now; this.creatorIp = creatorIp; this.limits = limits; this.arenas = arenas;
@@ -66,33 +81,93 @@ export class Room {
   }
 
   get expiresAt(): number { return this.createdAt + this.limits.lifetimeMs; }
-  get hostId(): string { return [...this.seats.keys()].sort()[0] ?? ""; }
-  get size(): number { return this.seats.size; }
+  get hostId(): string { return [...this.seats.values()].filter((s) => !s.spectator).map((s) => s.id).sort()[0] ?? ""; }
+  /** People playing (or seated to play): spectators excluded. */
+  get size(): number { let n = 0; for (const s of this.seats.values()) if (!s.spectator) n++; return n; }
+  get spectators(): number { return this.seats.size - this.size; }
   connectedCount(): number { let n = 0; for (const seat of this.seats.values()) if (seat.peer) n++; return n; }
 
   /** A new player in the lobby. Throws Error(ErrorCode). Returns the seat id. */
-  join(peer: Peer, now: number): string {
+  /**
+   * A new player: in the lobby, or joining a running match while it has a free place (people and
+   * bots together at most four). Throws Error(ErrorCode). Returns the seat id.
+   */
+  join(peer: Peer, now: number, profile: Profile, device: string): string {
     if (this.closed || now >= this.expiresAt) throw new Error("room_expired");
-    if (this.phase !== "lobby") throw new Error("room_started");
-    if (this.seats.size >= MAX_PLAYERS) throw new Error("room_full");
+    if (this.phase === "results") throw new Error("room_started");
+    if (this.size >= MAX_PLAYERS) throw new Error("room_full");
+    if (this.phase === "match") {
+      const match = this.state ? modeSessionOf(this.state)?.match : undefined;
+      if (!match || match.phase !== "active" || Object.keys(match.players).length + this.events.filter((e) => e.kind === MODE_JOIN_EVENT).length >= MAX_PLAYERS) throw new Error("room_full");
+    }
     let id = "";
     for (let n = 1; n <= MAX_PLAYERS && !id; n++) if (!this.seats.has(`p${n}`)) id = `p${n}`;
-    const used = new Set([...this.seats.values()].map((s) => s.name));
-    const seat: Seat = { id, name: NAME_PARTS.find((n) => !used.has(n))!, token: randomBytes(16).toString("hex"), ready: false, peer, disconnectedAt: 0,
-      queue: [], seq: 0, ack: 0, lastInputAt: now, commandSequence: 0, lastResyncAt: 0 };
-    this.seats.set(id, seat);
-    this.bots = Math.min(this.bots, MAX_PLAYERS - this.seats.size);
+    const seat = this.newSeat(id, peer, now, profile, device, false);
+    this.bots = Math.min(this.bots, MAX_PLAYERS - this.size);
     this.welcome(seat);
+    if (this.phase === "match" && this.state) {
+      // Join in progress: recorded decisions, so every peer adds the same founder on the same tick.
+      const match = modeSessionOf(this.state)!.match, tick = this.state.tick + 1;
+      const teams = [0, 0];
+      for (const pid of Object.keys(match.players)) teams[match.players[pid]!.team === 1 ? 1 : 0]!++;
+      const center = this.arenaCenter();
+      this.events.push({ tick, kind: MODE_JOIN_EVENT, playerId: id, payload: { team: teams[1]! < teams[0]! ? 1 : 0 } },
+        { tick, kind: "player.join", playerId: id, payload: center });
+      this.sendSnapshot(seat, "rejoin", now);
+    }
     this.broadcastRoom();
     return id;
   }
 
+  /** Watch a room (lobby or match) without playing. At most four spectators. */
+  spectate(peer: Peer, now: number, profile: Profile, device: string): string {
+    if (this.closed || now >= this.expiresAt) throw new Error("room_expired");
+    if (this.spectators >= MAX_PLAYERS) throw new Error("room_full");
+    let id = "";
+    for (let n = 1; n <= MAX_PLAYERS && !id; n++) if (!this.seats.has(`s${n}`)) id = `s${n}`;
+    const seat = this.newSeat(id, peer, now, profile, device, true);
+    this.welcome(seat);
+    if (this.phase === "match") this.sendSnapshot(seat, "rejoin", now);
+    this.broadcastRoom();
+    if (this.phase === "results") this.sendResults(seat);
+    return id;
+  }
+
+  /** A preset phrase from one seat to everyone in the room, at most one per 1.5 s. */
+  chat(id: string, phrase: number, now: number): void {
+    const seat = this.seats.get(id);
+    if (!seat || now - seat.lastChatAt < QUICK_CHAT_INTERVAL_MS) return;
+    seat.lastChatAt = now;
+    for (const other of this.seats.values()) other.peer?.send({ type: "chat", from: id, phrase });
+  }
+
+  /** Host, after a match: the same people back in the lobby, not ready, for another round. */
+  rematch(id: string): void {
+    if (id !== this.hostId) throw new Error("not_host");
+    if (this.phase !== "results") return;
+    this.phase = "lobby"; this.state = null; this.events = [];
+    for (const seat of this.seats.values()) seat.ready = false;
+    this.broadcastRoom();
+  }
+
+  private newSeat(id: string, peer: Peer, now: number, profile: Profile, device: string, spectator: boolean): Seat {
+    const seat: Seat = { id, ...this.identify(profile, device, id), token: randomBytes(16).toString("hex"), ready: false, peer, disconnectedAt: 0,
+      queue: [], seq: 0, ack: 0, lastInputAt: now, commandSequence: 0, lastResyncAt: 0, spectator, lastChatAt: -Infinity };
+    this.seats.set(id, seat);
+    return seat;
+  }
+  private arenaCenter(): { x: number; z: number; heading: number } {
+    const sweep = (this.state?.ext.modes as { sweep?: { center: { x: number; z: number } } } | undefined)?.sweep;
+    return { x: sweep?.center.x ?? 0, z: sweep?.center.z ?? 0, heading: 0 };
+  }
+
   /** Reattach a seat by its secret token (after a reload or a dropped connection). */
-  rejoin(peer: Peer, token: string, now: number): string {
+  rejoin(peer: Peer, token: string, now: number, profile: Profile, device: string): string {
     if (this.closed || now >= this.expiresAt) throw new Error("room_expired");
     const seat = [...this.seats.values()].find((s) => s.token === token);
     if (!seat) throw new Error("seat_missing");
     if (seat.peer && seat.peer !== peer) seat.peer.close("replaced");
+    Object.assign(seat, this.identify(profile, device, seat.id));
     seat.peer = peer; seat.disconnectedAt = 0; seat.lastInputAt = now; seat.queue = []; seat.seq = seat.ack;
     this.welcome(seat);
     if (this.phase === "match") this.sendSnapshot(seat, "rejoin", now);
@@ -121,7 +196,7 @@ export class Room {
 
   ready(id: string, ready: boolean): void {
     const seat = this.seats.get(id);
-    if (!seat || this.phase !== "lobby") return;
+    if (!seat || seat.spectator || this.phase !== "lobby") return;
     seat.ready = ready;
     this.broadcastRoom();
   }
@@ -150,8 +225,8 @@ export class Room {
   start(id: string, mode: NetModeId, now: number): void {
     if (id !== this.hostId) throw new Error("not_host");
     if (this.phase !== "lobby") throw new Error("room_started");
-    for (const seat of this.seats.values()) if (!seat.ready || !seat.peer) throw new Error("not_ready");
-    const players = [...this.seats.keys()].sort();
+    for (const seat of this.seats.values()) if (!seat.spectator && (!seat.ready || !seat.peer)) throw new Error("not_ready");
+    const players = [...this.seats.values()].filter((s) => !s.spectator).map((s) => s.id).sort();
     const bots = Math.min(Math.max(this.bots, mode === "cleanStreets" && players.length === 1 ? 1 : 0), MAX_PLAYERS - players.length);
     const matchId = `${this.code}-${randomBytes(3).toString("hex")}`;
     const seed = randomBytes(4).readUInt32BE() & 0x7fffffff;
@@ -163,11 +238,20 @@ export class Room {
       } catch (error) { if (!(error instanceof ArenaUnavailableError)) throw error; }
     }
     if (!state) throw new Error("arena_unavailable");
-    this.mode = mode; this.bots = bots; this.matchId = matchId; this.state = state; this.phase = "match"; this.events = [];
+    this.mode = mode; this.bots = bots; this.matchId = matchId; this.state = state; this.phase = "match"; this.events = []; this.startedAt = now;
     for (const seat of this.seats.values()) { seat.queue = []; seat.seq = 0; seat.ack = 0; seat.lastInputAt = now; seat.commandSequence = 0; }
     this.broadcastRoom();
     for (const seat of this.seats.values()) this.sendSnapshot(seat, "start", now);
+    this.onStarted?.(mode, Object.keys(state.players).length);
   }
+
+  /** The relay is shutting down: end a running match now (a recorded decision; results still pay out). */
+  forceEnd(): void {
+    if (this.phase !== "match" || !this.state || this.events.some((e) => e.kind === MODE_END_EVENT)) return;
+    this.events.push({ tick: this.state.tick + 1, kind: MODE_END_EVENT });
+  }
+  /** Tell every connected seat something room-wide. */
+  notify(message: ServerMessage): void { for (const seat of this.seats.values()) seat.peer?.send(message); }
 
   /** Host only: a recorded server decision ends the match now (results still pay out). */
   end(id: string): void {
@@ -218,7 +302,7 @@ export class Room {
     if (now >= this.expiresAt) { this.close("room_expired"); return; }
     for (const seat of [...this.seats.values()]) {
       if (!seat.peer && seat.disconnectedAt && now - seat.disconnectedAt >= this.limits.rejoinGraceMs) this.leave(seat.id);
-      else if (seat.peer && this.phase === "match" && now - seat.lastInputAt >= this.limits.matchIdleMs) { const peer = seat.peer; this.disconnect(seat.id, peer, now); peer.close("idle"); }
+      else if (seat.peer && !seat.spectator && this.phase === "match" && now - seat.lastInputAt >= this.limits.matchIdleMs) { const peer = seat.peer; this.disconnect(seat.id, peer, now); peer.close("idle"); }
     }
     if (this.closed) return;
     if (this.phase === "results" && now - this.finishedAt >= this.limits.resultsMs) { this.close("room_expired"); return; }
@@ -247,6 +331,14 @@ export class Room {
     const view = botSweepView(this.state);
     if (view?.phase === "finished") {
       this.phase = "results"; this.finishedAt = now;
+      if (view.result && this.onFinished) {
+        const result = view.result;
+        try {
+          this.onFinished({ id: this.matchId, mode: this.mode, world: this.bundle.name, startedAt: this.startedAt, endedAt: now, reason: result.reason,
+            players: [...this.seats.values()].filter((s) => view.players[s.id]).map((s) => ({ device: s.device, name: s.name, look: s.look,
+              team: view.players[s.id]!.team, score: view.players[s.id]!.score, won: result.winners.includes(s.id) })) });
+        } catch { /* the store failing never stops a match */ }
+      }
       this.broadcastRoom();
       for (const seat of this.seats.values()) this.sendResults(seat);
     }
@@ -261,7 +353,16 @@ export class Room {
 
   members(): Member[] {
     const host = this.hostId;
-    return [...this.seats.values()].sort((a, b) => a.id < b.id ? -1 : 1).map((s) => ({ id: s.id, name: s.name, ready: s.ready, connected: !!s.peer, host: s.id === host }));
+    return [...this.seats.values()].sort((a, b) => a.id < b.id ? -1 : 1).map((s) => ({ id: s.id, name: s.name, look: s.look, ready: s.ready, connected: !!s.peer, host: s.id === host, spectator: s.spectator }));
+  }
+
+  /** The name others see: the profile's vetted name, numbered if someone in the room already has it. */
+  private identify(profile: Profile, device: string, id: string): { name: string; look: number; device: string } {
+    const base = profileName(profile.name[0], profile.name[1]) ?? "Guest";
+    const taken = new Set([...this.seats.values()].filter((s) => s.id !== id).map((s) => s.name));
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
+    return { name, look: profile.look, device: createHash("sha256").update(device).digest("hex") };
   }
 
   private welcome(seat: Seat): void {

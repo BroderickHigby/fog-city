@@ -3,6 +3,7 @@
 import { SIM_VERSION, type SimInput, type World } from "../sim/index.ts";
 import { MatchTimeline } from "./match.ts";
 import { webSocketTransport, type ConnectTransport, type RelayTransport } from "./transport.ts";
+import type { Identity } from "./identity.ts";
 import { ERRORS, NET_VERSION, type ErrorCode, type Hello, type Member, type NetModeId, type NetworkCommand, type Results, type RoomList, type RoomPhase, type ServerMessage, type Visibility, type WorldName } from "./protocol.ts";
 
 export type ConnectionStatus = "offline" | "connecting" | "connected" | "reconnecting" | "error";
@@ -26,6 +27,8 @@ export interface ClientInfo {
   queued: number;
   recovering: boolean;
   results: Results | null;
+  /** The relay is restarting: running matches end at this time (ms since the epoch), else 0. */
+  drainingUntil: number;
 }
 
 export interface ClientOptions {
@@ -37,10 +40,14 @@ export interface ClientOptions {
   /** A new seat (store it for a rejoin) or null (forget it). */
   onSeat(seat: Seat | null): void;
   onResults?(results: Results, playerId: string): void;
+  /** A preset quick-chat phrase from a room member (index into QUICK_CHAT). */
+  onChat?(from: string, phrase: number): void;
   /** Reconnect attempts after an unexpected drop, with backoff. */
   reconnectAttempts?: number;
   /** Defaults to a WebSocket. */
   transport?: ConnectTransport;
+  /** This device's guest identity, read at each connect (the player may change name or look). */
+  identity(): Identity;
   now?: () => number;
 }
 
@@ -48,7 +55,7 @@ const RECONNECTABLE = new Set<string>(["slow_client", "idle", "rate_limit"]);
 const FORGET_SEAT = new Set<ErrorCode>(["room_missing", "room_expired", "seat_missing", "room_full", "room_started", "replaced", "version_mismatch", "world_mismatch", "world_unavailable"]);
 
 export class RelayClient {
-  readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", visibility: "private", bots: 0, members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null };
+  readonly info: ClientInfo = { status: "offline", message: "", code: "", playerId: "", phase: "none", mode: "botSweep", visibility: "private", bots: 0, members: [], matchId: "", rttMs: 0, queued: 0, recovering: false, results: null, drainingUntil: 0 };
   match: MatchTimeline | null = null;
   private socket: RelayTransport | null = null;
   private seat: Seat | null = null;
@@ -74,6 +81,11 @@ export class RelayClient {
   quick(): void { this.open({ action: "quick" }); }
   join(code: string): void { this.open({ action: "join", code: code.trim().toUpperCase() }); }
   rejoin(seat: Seat): void { this.seat = seat; this.open({ action: "rejoin", code: seat.code, token: seat.token }); }
+  /** Watch a room by code without playing. */
+  spectate(code: string): void { this.open({ action: "spectate", code: code.trim().toUpperCase() }); }
+  isSpectator(): boolean { return this.info.members.some((m) => m.id === this.info.playerId && m.spectator); }
+  quickChat(phrase: number): void { this.send({ type: "chat", phrase }); }
+  rematch(): void { this.send({ type: "rematch" }); }
 
   ready(ready: boolean): void { this.send({ type: "ready", ready }); }
   setBots(count: number): void { this.send({ type: "bots", count }); }
@@ -96,7 +108,7 @@ export class RelayClient {
   sample(input: SimInput): void {
     this.actions |= input.actions;
     const match = this.match;
-    if (!match || !this.inputReady || this.info.phase !== "match" || !this.socket?.open) return;
+    if (!match || !this.inputReady || this.info.phase !== "match" || !this.socket?.open || this.isSpectator()) return;
     const control = { ...input, actions: this.actions };
     const seq = match.sample(control);
     if (seq === null) return;
@@ -121,7 +133,9 @@ export class RelayClient {
     try {
       socket = connect(this.options.url, {
         onOpen: () => {
-          const message: Hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: this.options.worldName, fingerprint: this.options.fingerprint, action: hello.action };
+          const id = this.options.identity();
+          const message: Hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: this.options.worldName, fingerprint: this.options.fingerprint, action: hello.action,
+            profile: { name: [id.name[0], id.name[1]], look: id.look }, device: id.token };
           if (hello.code) message.code = hello.code;
           if (hello.token) message.token = hello.token;
           socket?.send(JSON.stringify(message));
@@ -188,12 +202,14 @@ export class RelayClient {
         this.emit();
         return;
       }
+      case "chat": this.options.onChat?.(message.from, message.phrase); return;
+      case "notice": this.info.drainingUntil = message.endsAt; this.emit(); return;
       case "pong": this.info.rttMs = Math.max(0, (this.options.now ?? Date.now)() - message.t); this.emit(); return;
       case "error": {
         this.lastError = message.code;
         if (FORGET_SEAT.has(message.code)) this.forget();
         // Recoverable lobby errors keep the connection.
-        if (message.code === "not_host" || message.code === "not_ready" || message.code === "arena_unavailable") { this.info.message = message.message; this.emit(); return; }
+        if (message.code === "not_host" || message.code === "not_ready" || message.code === "arena_unavailable" || message.code === "matches_full") { this.info.message = message.message; this.emit(); return; }
         this.set("error", message.message);
         return;
       }
@@ -245,5 +261,27 @@ export async function listRooms(url: string, world: WorldName, fetcher: typeof f
     if (!response.ok) return null;
     const body = await response.json() as RoomList;
     return Array.isArray(body.rooms) && Number.isSafeInteger(body.online) ? body : null;
+  } catch { return null; }
+}
+
+export interface LeaderboardRow { rank: number; name: string; look: number; best: number; matches: number; wins: number }
+export interface MyStats { name: string; matches: number; wins: number; modes: Partial<Record<NetModeId, { matches: number; wins: number; best: number; total: number }>> }
+
+/** Top players for a mode this week (since Monday 00:00 UTC) or all time; null when unreachable. */
+export async function fetchLeaderboard(url: string, mode: NetModeId, period: "week" | "all", fetcher: typeof fetch = fetch): Promise<LeaderboardRow[] | null> {
+  try {
+    const response = await fetcher(`${relayHttpBase(url)}/leaderboard?mode=${encodeURIComponent(mode)}&period=${period}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const body = await response.json() as { entries?: LeaderboardRow[] };
+    return Array.isArray(body.entries) ? body.entries : null;
+  } catch { return null; }
+}
+
+/** This device's own stats (the token goes in a header, never a URL). */
+export async function fetchMyStats(url: string, token: string, fetcher: typeof fetch = fetch): Promise<MyStats | null> {
+  try {
+    const response = await fetcher(`${relayHttpBase(url)}/me`, { cache: "no-store", headers: { "x-fogcity-device": token } });
+    if (!response.ok) return null;
+    return (await response.json() as { stats: MyStats | null }).stats;
   } catch { return null; }
 }
