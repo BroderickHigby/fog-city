@@ -179,10 +179,13 @@ describe("legacy SIM_VERSION 4 replays", () => {
 /**
  * hashState every 300 ticks of the first replay above (stamped version 4), and every 100 ticks of
  * the dodge replay, re-pinned at SIM_VERSION 14 (people dodge on their feet; the first two dodge
- * hashes, before anyone dodges, are unchanged). Earlier pins: replay ["87d67d3d", "016c3bfe",
+ * hashes include the combined dynamics/props behavior). Earlier pins: replay ["87d67d3d", "016c3bfe",
  * "7f325229", "ef174bed", "08f17ea5"] from v4 to v10, ["09b7020e", "06a4a7b0", "b3c9fb8d",
  * "b78d58f3", "a6e7a5a4"] from v11 (the on-foot pace) to v13; dodge ["f5981263", "52415258",
  * "d09fb88c", "b80c1bfc", "324c2580", "70237636"] from v4 to v13.
  */
-const PINNED_V14: string[] = ["bf2217c0", "f43800ad", "c68a2f6b", "1b68947f", "eb620d2b"];
-const PINNED_V14_DODGE: string[] = ["f5981263", "52415258", "7c0b2db6", "94e9aa88", "d465022c", "9c21df5d"];
+// Dodge-only unpublished v14 pins: bf2217c0 f43800ad c68a2f6b 1b68947f eb620d2b;
+// dodge replay: f5981263 52415258 7c0b2db6 94e9aa88 d465022c 9c21df5d.
+// Combined v14 deliberately also includes impacts, breakable props and new vehicle dynamics.
+const PINNED_V14: string[] = ["1f3c401e", "e7c2dc3a", "bc7f40a2", "f291f3aa", "ac913451"];
+const PINNED_V14_DODGE: string[] = ["64bae003", "d6038e50", "08d9fede", "2b2bc817", "09d40efc", "f68d7a28"];

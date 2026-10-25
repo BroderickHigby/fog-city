@@ -4,7 +4,6 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import v11Replay from "../golden/wave2-v11.json";
 import currentReplay from "../golden/wave2-v14.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
@@ -88,7 +87,8 @@ describe("wave-2 shared interface", () => {
       // people dodge (on their feet), which this replay's traffic does. The v7 and v11 fixtures
       // stay as the record; this pins v14, normalizing only the version header.
       expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
-      if (i < 4) expect(hashState({ ...state, version: v11Replay.simVersion })).toBe(v11Replay.hashes[i]);
+      // The old v11 prefix-equality assertion predates v14 dodge velocity/profile fields and
+      // combined vehicle dynamics. Historical v11 data stays unchanged; this release pins its own payload.
     }
     expect(state.players.p1!.mode).toBe("foot");
     expect(state.tick).toBe(300);
