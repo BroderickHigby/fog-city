@@ -17,15 +17,17 @@ startup and controls flows remain available.
 ## Local validation
 
 - TypeScript, 79 UI unit tests and 2 UI-copy content tests pass.
-- Nine disclosure browser tests and ten existing UI browser tests pass with one
+- Eleven disclosure browser tests and ten existing UI browser tests pass with one
   Chromium worker. Coverage includes keyboard/gamepad focus, blocked gameplay
   input, live status values, mission continuation, mobile actions, long content,
-  low-runway/attention priority, and speed/touch-control overlap.
+  low-runway/attention priority, and speed/joystick/navigation/touch-action overlap.
 - At 1280 × 800, 390 × 844, 320 × 740 and an effective 200% desktop zoom viewport
   of 640 × 400, the default header is 44 px high and mission chip is 46 px high.
   No header, navigation or touch-control overlaps were observed. The previous
   long-mission fixture occupied 412–716 px vertically and overflowed the two
   smallest viewports; the complete text now scrolls inside its opened dialog.
+  Additional 844 × 390 and 768 × 1024 touch cases verify the full control layout
+  and that the minimap canvas remains inside its frame.
 - A native Chrome/WebGPU night scene verified the built HTML, asset index and
   JavaScript. The status dialog displayed all five explained values, Escape
   restored focus, and no browser errors occurred. Simulation tick 0 and state

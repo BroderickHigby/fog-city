@@ -57,6 +57,9 @@ async function inspectBounds(page: Page, testInfo: TestInfo): Promise<void> {
       hud: rect(hud), buttons, objective: rect(document.querySelector(".fc-objective")!),
       navigation: rect(document.querySelector(".fc-navigation")!),
       speed: rect(document.querySelector(".fc-speed")!),
+      minimap: rect(document.querySelector(".fc-minimap")!),
+      mapCanvas: rect(document.querySelector(".fc-minimap canvas")!),
+      touchStick: document.querySelector(".fc-stick") ? rect(document.querySelector(".fc-stick")!) : null,
       touchActions: document.querySelector(".fc-touch-actions") ? rect(document.querySelector(".fc-touch-actions")!) : null };
   });
   await testInfo.attach("HUD geometry", { body: JSON.stringify(geometry, null, 2), contentType: "application/json" });
@@ -80,11 +83,26 @@ async function inspectBounds(page: Page, testInfo: TestInfo): Promise<void> {
   expect(geometry.objective.height).toBeLessThanOrEqual(100);
   expect(geometry.objective.right).toBeLessThanOrEqual(geometry.width + 1);
   expect(geometry.objective.bottom).toBeLessThanOrEqual(geometry.navigation.y);
-  if (geometry.touchActions) {
-    const a = geometry.speed, b = geometry.touchActions;
-    expect(Math.min(a.right, b.right) - Math.max(a.x, b.x) > 1
-      && Math.min(a.bottom, b.bottom) - Math.max(a.y, b.y) > 1,
-    "Speed display overlaps the touch action grid").toBe(false);
+  expect(geometry.mapCanvas.right, "Minimap canvas escapes its container").toBeLessThanOrEqual(geometry.minimap.right + 1);
+  expect(geometry.mapCanvas.bottom, "Minimap canvas escapes its container").toBeLessThanOrEqual(geometry.minimap.bottom + 1);
+  if (geometry.touchActions && geometry.touchStick) {
+    const panels = [
+      ["navigation", geometry.navigation], ["speed", geometry.speed],
+      ["joystick", geometry.touchStick], ["actions", geometry.touchActions],
+      ["objective", geometry.objective],
+    ] as const;
+    for (const [name, box] of panels) {
+      expect(box.x, `${name} begins outside the viewport`).toBeGreaterThanOrEqual(0);
+      expect(box.y, `${name} begins outside the viewport`).toBeGreaterThanOrEqual(0);
+      expect(box.right, `${name} ends outside the viewport`).toBeLessThanOrEqual(geometry.width + 1);
+      expect(box.bottom, `${name} ends outside the viewport`).toBeLessThanOrEqual(geometry.height + 1);
+    }
+    for (let i = 0; i < panels.length; i++) for (let j = i + 1; j < panels.length; j++) {
+      const [nameA, a] = panels[i]!, [nameB, b] = panels[j]!;
+      expect(Math.min(a.right, b.right) - Math.max(a.x, b.x) > 1
+        && Math.min(a.bottom, b.bottom) - Math.max(a.y, b.y) > 1,
+      `${nameA} overlaps ${nameB}`).toBe(false);
+    }
   }
 }
 
@@ -92,6 +110,8 @@ for (const layout of [
   { name: "desktop", width: 1280, height: 800, touch: false },
   { name: "mobile", width: 390, height: 844, touch: true },
   { name: "320px narrow", width: 320, height: 740, touch: true },
+  { name: "844px touch landscape", width: 844, height: 390, touch: true },
+  { name: "768px touch portrait", width: 768, height: 1024, touch: true },
   // 1280x800 at 200% zoom has this effective CSS viewport; avoid a CSS transform,
   // which leaves media queries unchanged and can conceal responsive failures.
   { name: "200% effective desktop zoom", width: 640, height: 400, touch: false },
