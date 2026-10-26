@@ -23,7 +23,9 @@ import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
 import { BuildingDetailLayer, characterizeBuildings, type BuildingCharacter, type BuildingDetailStats } from "./building-character.ts";
-import type { TileCollider } from "../sim/world.ts";
+import { heightOnField, type Heightfield, type TileCollider } from "../sim/world.ts";
+import { drapePavement } from "./pavement-drape.ts";
+import { makeTerrainGroundFn } from "./ground.ts";
 import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
 import {
@@ -145,11 +147,12 @@ export class TileStreamer {
       return tileBounds(t, size, opts.colliders.get(t.id) ?? null);
     });
     const edges = opts.roads?.edges ?? [];
+    const terrainTiles = [...opts.colliders.values()];
     this.roadsByTile = assignEdgesToTiles(edges, this.bounds);
     this.clearance = opts.roads ? nodeClearance(opts.roads) : new Map();
     this.roadCtx = opts.roads
       ? {
-          ground: opts.ground,
+          ground: terrainTiles.some(t => t.ground) ? makeTerrainGroundFn(terrainTiles) : opts.ground,
           degrees: nodeDegrees(opts.roads),
           nodeHalfWidth: nodeHalfWidth(opts.roads),
           nodeOuter: this.clearance,
@@ -350,9 +353,13 @@ export class TileStreamer {
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
-      const geo = mesh.geometry;
-      rec.geometries.push(geo);
+      let geo = mesh.geometry;
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      if (mats.length && mats.every(m => { const layer = tileLayer(m.name, mesh.name); return layer === "road" || layer === "freeway"; })) {
+        const draped = drapePavement(geo, mesh.matrixWorld, this.pavementFields(rec, geo, mesh.matrixWorld));
+        if (draped) { geo.dispose(); mesh.geometry = geo = draped; }
+      }
+      rec.geometries.push(geo);
       const next = mats.map((m) => {
         const layer = tileLayer(m.name, mesh.name);
         if (!layer) {
@@ -387,6 +394,23 @@ export class TileStreamer {
     this.startBuild(rec, { buildings: !layers.buildings, ground: !layers.ground, roads: !layers.roads });
   }
 
+  /** Only fields touched by this mesh, including long fallback edges and neighbours. */
+  private pavementFields(rec: TileRecord, geometry: THREE.BufferGeometry, matrix: THREE.Matrix4): Heightfield[] {
+    geometry.computeBoundingBox();
+    const bounds = geometry.boundingBox!.clone().applyMatrix4(matrix);
+    const fields = new Map<string, Heightfield>();
+    for (const tile of [rec.collider, ...this.opts.colliders.values()]) {
+      const f = tile?.ground;
+      if (!f) continue;
+      if (f.x0 > bounds.max.x || f.z0 > bounds.max.z || f.x0 + (f.nx-1)*f.cellSizeM < bounds.min.x || f.z0 + (f.nz-1)*f.cellSizeM < bounds.min.z) continue;
+      // A fallback JSON collider and the packed collider can be separate objects
+      // for the same field. Prefer the fallback without double-counting coverage.
+      const key = `${f.x0},${f.z0},${f.nx},${f.nz},${f.cellSizeM}`;
+      if (!fields.has(key)) fields.set(key,f);
+    }
+    return [...fields.values()];
+  }
+
   private startBuild(rec: TileRecord, layers: { buildings: boolean; ground: boolean; roads: boolean }): void {
     const collider = rec.collider ?? this.opts.colliders.get(rec.id);
     if (!collider && !rec.glbLoaded) {
@@ -402,7 +426,11 @@ export class TileStreamer {
       collider,
       bounds: this.bounds.find((b) => b.id === rec.id)!,
       roads: this.roadsByTile.get(rec.id) ?? [],
-      roadCtx: this.roadCtx,
+      roadCtx: this.roadCtx ? { ...this.roadCtx, ground: (x,z) => {
+        const g = collider.ground;
+        return g && x >= g.x0 && z >= g.z0 && x <= g.x0+(g.nx-1)*g.cellSizeM && z <= g.z0+(g.nz-1)*g.cellSizeM
+          ? heightOnField(g,x,z) : this.roadCtx!.ground(x,z);
+      } } : null,
       layers,
     });
   }
@@ -439,7 +467,11 @@ export class TileStreamer {
     if (meshes) {
       const add = (data: TileMeshes["ground"], mat: THREE.Material, name: string): void => {
         if (!data) return;
-        const g = geometryFromMeshData(data);
+        let g = geometryFromMeshData(data);
+        if (name === "roads") {
+          const draped = drapePavement(g, IDENTITY, this.pavementFields(rec, g, IDENTITY));
+          if (draped) { g.dispose(); g = draped; }
+        }
         if(name==="buildings"){
           const colliders=new Map((rec.collider??this.opts.colliders.get(rec.id))?.buildings.map(b=>[b.id,b])??[]);
           rec.characters.push(...characterizeBuildings(g,IDENTITY,colliders));

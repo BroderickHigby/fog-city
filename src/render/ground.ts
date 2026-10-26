@@ -3,7 +3,7 @@
 // by a coarse grid so draping a whole city's roads does not scan every tile per sample.
 // tests/render/ground.test.ts checks it against the sim.
 
-import type { Heightfield, TileCollider } from "../sim/world.ts";
+import { heightOnField, type Heightfield, type TileCollider } from "../sim/world.ts";
 import type { GroundFn } from "./types.ts";
 
 const CELL = 250;
@@ -23,7 +23,7 @@ function sample(g: Heightfield, x: number, z: number): number | null {
   return (h00 * (1 - tx) + h10 * tx) * (1 - tz) + (h01 * (1 - tx) + h11 * tx) * tz;
 }
 
-export function makeGroundFn(tiles: readonly TileCollider[]): GroundFn {
+function lookup(tiles: readonly TileCollider[], triangleSurface: boolean): GroundFn {
   const sorted = [...tiles].sort((a, b) => (a.tileId < b.tileId ? -1 : a.tileId > b.tileId ? 1 : 0));
   const grid = new Map<number, Heightfield[]>();
   const key = (cx: number, cz: number): number => (cx + 32768) * 65536 + (cz + 32768);
@@ -46,8 +46,13 @@ export function makeGroundFn(tiles: readonly TileCollider[]): GroundFn {
     if (!list) return 0;
     for (const g of list) {
       const h = sample(g, x, z);
-      if (h !== null) return h;
+      if (h !== null) return triangleSurface ? heightOnField(g, x, z) : h;
     }
     return 0;
   };
 }
+
+export function makeGroundFn(tiles: readonly TileCollider[]): GroundFn { return lookup(tiles, false); }
+
+/** Rendered pavement follows the drawn terrain triangles, not the bilinear sim field. */
+export function makeTerrainGroundFn(tiles: readonly TileCollider[]): GroundFn { return lookup(tiles, true); }

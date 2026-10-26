@@ -15,7 +15,7 @@ import { createSharedMaterials, materialFor, tileLayer } from "../../src/render/
 import { createNightMaterials } from "../../src/render/props.ts";
 import { TileStreamer, dropWaterTriangles } from "../../src/render/tile-streamer.ts";
 import type { Manifest, RoadGraph } from "../../src/render/types.ts";
-import type { TileCollider } from "../../src/sim/world.ts";
+import { heightOnField, type TileCollider, type Heightfield } from "../../src/sim/world.ts";
 import { ROOT, readJson } from "../helpers.ts";
 
 function world(name: string) {
@@ -73,6 +73,34 @@ const meshes = (root: THREE.Object3D): THREE.Mesh[] => {
   });
   return out;
 };
+
+describe("pavement repair at tile admission", () => {
+  it("drapes long fallback roads using distinct packed and fallback copies of terrain", async () => {
+    const field = (x0: number): Heightfield => ({ x0, z0: 0, nx: 4, nz: 3, cellSizeM: 10,
+      heights: [2,2,2,2, 2,5,2,2, 2,2,2,2] });
+    const fields = [field(0),field(30),field(60)];
+    const colliders = new Map(fields.map((ground,i) => [`t${i}`,{tileId:`t${i}`,ground,buildings:[]} as TileCollider]));
+    const parent = new THREE.Group(), materials = createSharedMaterials();
+    const roads: RoadGraph = {version:1,nodes:[],edges:[{id:"long",a:"a",b:"b",kind:"residential",lanes:1,oneway:false,widthM:4,points:[[0,10],[80,10]]}]};
+    const streamer = new TileStreamer({ parent, materials, night:createNightMaterials(), colliders, roads,
+      ground:makeGroundFn([...colliders.values()]), base:"/test/", radius:200, glbRetryMs:0,
+      manifest:{version:1,world:"repair",spawn:{x:10,z:10,heading:0},tiles:[{id:"t0",bbox:[0,0,30,20],collider:"unused.json",glb:"bad.glb"}]},
+      loadGltf:async()=>{throw new Error("fixture uses fallback");},
+      fallbackCollider:async()=>structuredClone(colliders.get("t0")!),
+    });
+    try {
+      await quietly(()=>settle(streamer,10,10));
+      parent.updateMatrixWorld(true);
+      const road = parent.getObjectByName("roads") as THREE.Mesh;
+      expect(road).toBeDefined();
+      for (const [x,f] of [[10,fields[0]!],[70,fields[2]!]] as const) {
+        const hit = new THREE.Raycaster(new THREE.Vector3(x,20,10),new THREE.Vector3(0,-1,0)).intersectObject(road)[0];
+        expect(hit, `pavement at ${x}`).toBeDefined();
+        expect(hit!.point.y).toBeGreaterThan(heightOnField(f,x,10)+.01);
+      }
+    } finally { streamer.dispose(); }
+  });
+});
 
 describe("TileStreamer startup surface readiness", () => {
   const tile = (id: string, bbox: [number, number, number, number]) => ({ id, bbox, glb: `${id}.glb`, collider: `${id}.json` });
