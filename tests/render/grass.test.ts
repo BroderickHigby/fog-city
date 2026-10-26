@@ -48,15 +48,17 @@ describe("DataSF grass", () => {
     l.dispose();
   });
 
-  it("keeps turf and blades out of the actual carriageway and building footprint", () => {
+  it("keeps turf and every blade vertex out of raised sidewalks, carriageways and buildings", () => {
     const roads: RoadGraph = { version: 1, nodes: [], edges: [{ id: "r", a: "a", b: "b", kind: "residential", widthM: 4, lanes: 1, oneway: false, points: [[10, -20], [10, 40]] }] };
     const footprint: Array<[number, number]> = [[1, 1], [6, 1], [6, 6], [1, 6]];
     const tile: TileCollider = { tileId: "t", ground: null, buildings: [{ id: "b", baseY: 2, topY: 20, footprint }] };
     const l = new GrassLayer({ ground: () => 2, roads, colliders: new Map([["t", tile]]) }); l.setData(doc()); settle(l);
     for (const name of ["grass-surface", "grass-blades"]) {
-      expect(centres(mesh(l, name).geometry).every(([x, z]) => (x < 7.75001 || x > 12.24999) && !pointInPolygon(x, z, footprint))).toBe(true);
+      expect(centres(mesh(l, name).geometry).every(([x, z]) => (x < 4.75001 || x > 15.24999) && !pointInPolygon(x, z, footprint))).toBe(true);
+      const p = mesh(l, name).geometry.getAttribute("position");
+      for (let i = 0; i < p.count; i++) expect(p.getX(i) < 4.75001 || p.getX(i) > 15.24999).toBe(true);
     }
-    expect(area(mesh(l, "grass-surface").geometry)).toBeCloseTo(400 - 90 - 25, 3);
+    expect(area(mesh(l, "grass-surface").geometry)).toBeCloseTo(171.25, 3);
     l.dispose();
   });
 
@@ -98,9 +100,36 @@ describe("DataSF grass", () => {
     });
     const l = flat(); l.setData({ grass }); settle(l, 0, 0);
     expect(l.info().patches).toBe(96);
-    expect(l.info().blades).toBe(GRASS_BLADE_CAP);
+    expect(l.info().bladeTriangles).toBeGreaterThan(GRASS_BLADE_CAP - 6);
+    expect(l.info().bladeTriangles).toBeLessThanOrEqual(GRASS_BLADE_CAP);
+    expect(l.info().blades).toBe(l.info().bladeTriangles / 2);
     expect(l.info().surfaceTriangles).toBeLessThanOrEqual(GRASS_SURFACE_CAP);
     expect(l.info().drawCalls).toBe(2);
+    l.dispose();
+  });
+
+  it("finishes its global obstacle index while the camera keeps changing neighborhoods", () => {
+    const roads: RoadGraph = { version: 1, nodes: [], edges: Array.from({ length: 5000 }, (_, i) => ({
+      id: `r${i}`, a: "a", b: "b", kind: "residential", widthM: 4, lanes: 1, oneway: false, points: [[1000 + i * .01, 1000], [1000 + i * .01, 1001]] as Array<[number, number]>,
+    })) };
+    const l = new GrassLayer({ ground: () => 2, roads }); l.setData(doc());
+    // Every thirty zero-budget calls the old combined task restarted before its 40+ index
+    // yields finished. Camera-independent preprocessing must retain that progress.
+    for (let i = 0; i < 150; i++) l.update(Math.floor(i / 30) % 2 ? 31 : 10, 10, 0);
+    expect(l.info()).toMatchObject({ pending: false, patches: 1 });
+    expect(l.info().surfaceTriangles).toBeGreaterThan(0);
+    l.dispose();
+  });
+
+  it("draws short bent leaves in small tufts with separate leaf and triangle counts", () => {
+    const l = flat(); l.setData(doc()); settle(l);
+    const g = mesh(l, "grass-blades").geometry, p = g.getAttribute("position"), roots = g.getAttribute("_grassRoot");
+    expect(l.info().blades).toBeGreaterThan(0);
+    expect(l.info().bladeTriangles).toBe(l.info().blades * 2);
+    for (let i = 0; i < p.count; i++) {
+      expect(p.getY(i) - roots.getX(i)).toBeLessThanOrEqual(.10001);
+      expect(p.getY(i) - roots.getX(i)).toBeGreaterThanOrEqual(-.00301);
+    }
     l.dispose();
   });
 });

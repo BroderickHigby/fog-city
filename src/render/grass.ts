@@ -3,7 +3,7 @@
 import * as THREE from "three";
 import { heightOnField, type Heightfield, type TileCollider } from "../sim/world.ts";
 import { hashString, mix32, unit } from "./hash.ts";
-import { roadHalfWidth } from "./roads.ts";
+import { roadHalfWidth, sidewalkWidth } from "./roads.ts";
 import { fcUniforms, injectUniforms } from "./materials.ts";
 import type { GroundFn, RoadGraph } from "./types.ts";
 
@@ -122,7 +122,9 @@ function* masks(lawns: readonly Lawn[], opts: GrassOptions): Generator<void, Mas
   const index = new MaskIndex(lawns);
   let n = 0;
   for (const e of opts.roads?.edges ?? []) {
-    const w = roadHalfWidth(e) + .25;
+    // The rendered road includes raised sidewalks, not just its carriageway. Keep short
+    // foliage outside that whole paved footprint so its tips cannot poke through paving.
+    const w = roadHalfWidth(e) + sidewalkWidth(e) + .25;
     for (let i = 1; i < e.points.length; i++) {
       const a = e.points[i - 1]!, b = e.points[i]!, dx = b[0] - a[0], dz = b[1] - a[1], len = Math.hypot(dx, dz);
       if (len < .01) continue;
@@ -169,10 +171,10 @@ function* terrainPieces(poly: P[], terrain: Terrain): Generator<P[]> {
   }
 }
 
-const GREEN = new THREE.Color(0x64864a), DRY = new THREE.Color(0x9b9958), DARK = new THREE.Color(0x425e31);
+const GREEN = new THREE.Color(0x3d642b), DRY = new THREE.Color(0x77713e), DARK = new THREE.Color(0x334c24);
 function lawnColor(x: number, z: number): THREE.Color {
   const moisture = .5 + .25 * Math.sin(x * .027 + z * .013) + .25 * Math.cos(z * .035 - x * .011);
-  return GREEN.clone().lerp(DRY, Math.max(0, moisture - .58) * .7).multiplyScalar(.93 + .07 * Math.sin(x * .11 + z * .04));
+  return GREEN.clone().lerp(DRY, Math.max(0, moisture - .48) * .65).multiplyScalar(.90 + .08 * Math.sin(x * .11 + z * .04));
 }
 interface Arrays { position: number[]; color: number[]; roots?: number[] }
 const append = (a: Arrays, p: P, y: number, c: THREE.Color, root = y): void => { a.position.push(p[0], y, p[1]); a.color.push(c.r, c.g, c.b); a.roots?.push(root); };
@@ -183,12 +185,12 @@ function geometry(a: Arrays): THREE.BufferGeometry {
   if (a.roots) g.setAttribute("_grassRoot", new THREE.Float32BufferAttribute(a.roots, 1));
   g.computeVertexNormals(); g.computeBoundingSphere(); return g;
 }
-interface Result { surface: Arrays; blades: Arrays; patches: number }
+interface Result { surface: Arrays; blades: Arrays; patches: number; leaves: number }
 
 /** Pure bounded geometry builder exposed for shape, mask and terrain tests. */
 export function* buildGrass(lawns: readonly Lawn[], opts: GrassOptions, index: MaskIndex, x: number, z: number): Generator<void, Result> {
   const surface: Arrays = { position: [], color: [] }, blades: Arrays = { position: [], color: [], roots: [] };
-  let patches = 0;
+  let patches = 0, leaves = 0;
   const nearest = lawns.map(l => ({ l, d: Math.hypot(Math.max(l.bbox[0] - x, 0, x - l.bbox[2]), Math.max(l.bbox[1] - z, 0, z - l.bbox[3])) })).filter(v => v.d <= GRASS_RADIUS).sort((a, b) => a.d - b.d || a.l.id.localeCompare(b.l.id)).slice(0, GRASS_PATCH_CAP);
   for (const { l: lawn } of nearest) {
     const start = surface.position.length, terrain = terrainAt(opts, lawn), obstacles = index.get(lawn.bbox), seed = hashString(lawn.id);
@@ -212,28 +214,40 @@ export function* buildGrass(lawns: readonly Lawn[], opts: GrassOptions, index: M
       if (++processed % 16 === 0) yield;
     }
     if (surface.position.length > start) patches++;
-    // One deterministic sample per 0.7 m square, jittered safely inside the lawn/obstacle mesh.
-    const step = .7;
+    // Small three-leaf tufts: each narrow, bent leaf is two tapered triangles rather than a
+    // broad upright spike. Stable world-grid samples thin at distance before the GPU fade.
+    const step = .9;
     const b = lawn.bbox;
     for (let gx = Math.floor(Math.max(b[0], x - GRASS_BLADE_RADIUS) / step); gx <= Math.floor(Math.min(b[2], x + GRASS_BLADE_RADIUS) / step); gx++) for (let gz = Math.floor(Math.max(b[1], z - GRASS_BLADE_RADIUS) / step); gz <= Math.floor(Math.min(b[3], z + GRASS_BLADE_RADIUS) / step); gz++) {
       if (++processed % 256 === 0) yield;
-      if (blades.position.length / 9 >= GRASS_BLADE_CAP) break;
+      if (blades.position.length / 9 + 6 > GRASS_BLADE_CAP) break;
       const r = mix32(mix32(seed, gx), gz), u = unit(r), v = unit(mix32(r, 3));
       const px = (gx + .18 + u * .64) * step, pz = (gz + .18 + v * .64) * step;
-      if (Math.hypot(px - x, pz - z) > GRASS_BLADE_RADIUS) continue;
-      const halfWidth = .018 + .018 * v, heading = u * Math.PI * 2, dx = Math.cos(heading) * halfWidth, dz = Math.sin(heading) * halfWidth;
+      const distance = Math.hypot(px - x, pz - z);
+      if (distance > GRASS_BLADE_RADIUS || unit(mix32(r, 7)) > Math.max(.08, 1 - distance / GRASS_BLADE_RADIUS)) continue;
       const inside = (p: P): boolean => inRing(p, lawn.rings[0]!) && !lawn.rings.slice(1).some(ring => inRing(p, ring)) && !obstacles.some(m => inRing(p, m.polygon));
-      if (!inside([px, pz]) || !inside([px - dx, pz - dz]) || !inside([px + dx, pz + dz])) continue;
-      const y = terrain.ground(px, pz) + .018, height = .09 + .11 * v;
+      if (!inside([px, pz])) continue;
+      const y = terrain.ground(px, pz) + .018;
       if (!Number.isFinite(y) || y < 1.218) continue;
-      const base = lawnColor(px, pz).lerp(DARK, .32), tip = lawnColor(px, pz).multiplyScalar(1.12);
-      append(blades, [px - dx, pz - dz], terrain.ground(px - dx, pz - dz) + .015, base, y);
-      append(blades, [px + dx, pz + dz], terrain.ground(px + dx, pz + dz) + .015, base, y);
-      append(blades, [px + dx * .9, pz + dz * .9], y + height, tip, y);
+      const base = lawnColor(px, pz).lerp(DARK, .18), tip = lawnColor(px, pz).multiplyScalar(1.08);
+      for (let leaf = 0; leaf < 3; leaf++) {
+        const variation = unit(mix32(r, leaf + 11)), height = .045 + variation * .055;
+        const heading = u * Math.PI * 2 + leaf * Math.PI * 2 / 3;
+        const tx = Math.cos(heading), tz = Math.sin(heading), width = .003 + v * .003;
+        const bend = height * (.18 + variation * .16);
+        const a: P = [px - tx * width, pz - tz * width], b: P = [px + tx * width, pz + tz * width];
+        const c: P = [px + tx * (bend * .45 - width * .45), pz + tz * (bend * .45 - width * .45)];
+        const d: P = [px + tx * bend, pz + tz * bend];
+        if (![a, b, c, d].every(inside)) continue;
+        const ay = terrain.ground(...a) + .015, by = terrain.ground(...b) + .015;
+        append(blades, a, ay, base, y); append(blades, b, by, base, y); append(blades, c, y + height * .55, tip, y);
+        append(blades, b, by, base, y); append(blades, d, y + height, tip, y); append(blades, c, y + height * .55, tip, y);
+        leaves++;
+      }
     }
     yield;
   }
-  return { surface, blades, patches };
+  return { surface, blades, patches, leaves };
 }
 
 export class GrassLayer {
@@ -245,8 +259,9 @@ export class GrassLayer {
   private readonly blades = new THREE.Mesh(new THREE.BufferGeometry(), this.bladeMaterial);
   private lawns: Lawn[] = [];
   private index: MaskIndex | null = null;
+  private indexPending: Generator<void, MaskIndex> | null = null;
   private pending: Generator<void, Result> | null = null;
-  private x = Infinity; private z = Infinity; private patches = 0; private loaded = false;
+  private x = Infinity; private z = Infinity; private patches = 0; private leaves = 0; private loaded = false; private dirty = false;
   constructor(opts: GrassOptions) {
     this.opts = opts; this.group.name = "grass"; this.surface.name = "grass-surface"; this.blades.name = "grass-blades";
     this.surface.visible = false; this.blades.visible = false;
@@ -261,7 +276,7 @@ export class GrassLayer {
         float grassMow = 0.5 + 0.5 * sin((vGrassXZ.x + vGrassXZ.y * 0.18) * 0.44);
         diffuseColor.rgb *= 0.94 + grassMow * 0.055 + grassFine * (1.0 - smoothstep(0.025,0.12,grassFilter)) * 0.045;`);
     };
-    this.surfaceMaterial.customProgramCacheKey = () => "fc:grass-surface:v1";
+    this.surfaceMaterial.customProgramCacheKey = () => "fc:grass-surface:v2";
     this.bladeMaterial.onBeforeCompile = shader => {
       injectUniforms(shader);
       shader.uniforms.fcGrassTime = fcUniforms.fcTime;
@@ -273,33 +288,44 @@ export class GrassLayer {
           transformed.y = _grassRoot + (position.y - _grassRoot) * grassFade;
           transformed.x += sin(fcGrassTime * 1.4 + position.x * 0.23 + position.z * 0.17) * grassHeight * 0.12 * grassFade;`);
     };
-    this.bladeMaterial.customProgramCacheKey = () => "fc:grass-blades:v1";
+    this.bladeMaterial.customProgramCacheKey = () => "fc:grass-blades:v2";
   }
-  setData(doc: unknown): void { this.lawns = grassShapes(doc); this.loaded = true; this.index = null; this.x = Infinity; this.pending = null; this.clear(); }
+  setData(doc: unknown): void {
+    this.lawns = grassShapes(doc); this.loaded = true; this.index = null;
+    this.indexPending = this.lawns.length ? masks(this.lawns, this.opts) : null;
+    this.x = Infinity; this.pending = null; this.dirty = false; this.clear();
+  }
   update(x: number, z: number, budgetMs = 3): void {
     if (!this.loaded) return;
-    if (!this.lawns.length) { this.x = x; this.z = z; this.pending = null; return; }
+    if (!this.lawns.length) { this.x = x; this.z = z; this.pending = null; this.dirty = false; return; }
     if (Math.hypot(x - this.x, z - this.z) >= 20) {
       this.x = x; this.z = z;
-      const self = this;
-      this.pending = (function* () { if (!self.index) self.index = yield* masks(self.lawns, self.opts); return yield* buildGrass(self.lawns, self.opts, self.index, x, z); })();
+      this.pending = null; this.dirty = true;
     }
     const start = performance.now();
+    // The citywide obstacle index is independent of the camera. Moving while it builds
+    // must not restart it; only the later camera-dependent geometry task may be replaced.
+    while (this.indexPending) {
+      const next = this.indexPending.next();
+      if (next.done) { this.index = next.value; this.indexPending = null; break; }
+      if (performance.now() - start >= budgetMs) return;
+    }
+    if (this.index && this.dirty) { this.pending = buildGrass(this.lawns, this.opts, this.index, this.x, this.z); this.dirty = false; }
     while (this.pending) {
       const next = this.pending.next();
       if (next.done) {
         this.surface.geometry.dispose(); this.blades.geometry.dispose();
-        this.surface.geometry = geometry(next.value.surface); this.blades.geometry = geometry(next.value.blades); this.patches = next.value.patches; this.pending = null;
+        this.surface.geometry = geometry(next.value.surface); this.blades.geometry = geometry(next.value.blades); this.patches = next.value.patches; this.leaves = next.value.leaves; this.pending = null;
         this.surface.visible = this.surface.geometry.getAttribute("position").count > 0; this.blades.visible = this.blades.geometry.getAttribute("position").count > 0; break;
       }
       if (performance.now() - start >= budgetMs) break;
     }
   }
-  settled(): boolean { return !this.pending && (!this.loaded || Number.isFinite(this.x)); }
+  settled(): boolean { return !this.indexPending && !this.pending && !this.dirty && (!this.loaded || Number.isFinite(this.x)); }
   info(): GrassInfo {
-    const surfaceTriangles = (this.surface.geometry.getAttribute("position")?.count ?? 0) / 3, blades = (this.blades.geometry.getAttribute("position")?.count ?? 0) / 3;
-    return { loaded: this.loaded, areas: this.lawns.length, patches: this.patches, blades, surfaceTriangles, bladeTriangles: blades, drawCalls: Number(surfaceTriangles > 0) + Number(blades > 0), pending: !this.settled() };
+    const surfaceTriangles = (this.surface.geometry.getAttribute("position")?.count ?? 0) / 3, bladeTriangles = (this.blades.geometry.getAttribute("position")?.count ?? 0) / 3;
+    return { loaded: this.loaded, areas: this.lawns.length, patches: this.patches, blades: this.leaves, surfaceTriangles, bladeTriangles, drawCalls: Number(surfaceTriangles > 0) + Number(bladeTriangles > 0), pending: !this.settled() };
   }
-  private clear(): void { this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surface.geometry = new THREE.BufferGeometry(); this.blades.geometry = new THREE.BufferGeometry(); this.surface.visible = false; this.blades.visible = false; this.patches = 0; }
-  dispose(): void { this.pending = null; this.lawns = []; this.index = null; this.clear(); this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surfaceMaterial.dispose(); this.bladeMaterial.dispose(); this.group.removeFromParent(); }
+  private clear(): void { this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surface.geometry = new THREE.BufferGeometry(); this.blades.geometry = new THREE.BufferGeometry(); this.surface.visible = false; this.blades.visible = false; this.patches = 0; this.leaves = 0; }
+  dispose(): void { this.pending = null; this.indexPending = null; this.dirty = false; this.lawns = []; this.index = null; this.clear(); this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surfaceMaterial.dispose(); this.bladeMaterial.dispose(); this.group.removeFromParent(); }
 }
