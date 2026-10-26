@@ -74,6 +74,96 @@ const meshes = (root: THREE.Object3D): THREE.Mesh[] => {
   return out;
 };
 
+describe("TileStreamer startup surface readiness", () => {
+  const tile = (id: string, bbox: [number, number, number, number]) => ({ id, bbox, glb: `${id}.glb`, collider: `${id}.json` });
+  const near = tile("near", [0, 0, 100, 100]);
+  function setup(tiles: Manifest["tiles"], radius = 400, colliders: ReadonlyMap<string, TileCollider> = new Map()) {
+    const pending = new Map<string, { resolve: (gltf: GLTF) => void; reject: (error: Error) => void }>();
+    const parent = new THREE.Group();
+    const streamer = new TileStreamer({
+      parent, manifest: { version: 1, world: "startup-test", spawn: { x: 10, z: 10, heading: 0 }, tiles },
+      base: "/startup/", colliders, roads: null, ground: () => 3,
+      materials: createSharedMaterials(), night: createNightMaterials(), radius, maxConcurrent: 4, glbRetryMs: 0,
+      loadGltf: url => new Promise((resolve, reject) => { pending.set(url, { resolve, reject }); }),
+    });
+    const resolve = async (id: string): Promise<void> => {
+      const scene = new THREE.Group();
+      const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ name: "fc:ground" }));
+      ground.position.y = 3; ground.name = "ground"; scene.add(ground);
+      pending.get(`/startup/${id}.glb`)!.resolve({ scene } as GLTF);
+      await Promise.resolve();
+    };
+    return { streamer, parent, pending, resolve };
+  }
+
+  it("waits for every nearby real tile while unrelated downloads remain pending", async () => {
+    const { streamer, pending, resolve } = setup([near, tile("west", [-100, 0, 0, 100]), tile("far", [200, 0, 300, 100])]);
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(false);
+    streamer.update(10, 10);
+    expect(pending.size).toBe(3);
+    await resolve("near");
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(false);
+    await resolve("west");
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(true);
+    expect(streamer.stats().pending).toBe(1);
+    expect(streamer.settled()).toBe(false);
+    streamer.dispose();
+  });
+
+  it("counts the 60m boundary but ignores a tile beyond it", async () => {
+    const { streamer, resolve } = setup([near, tile("edge", [70, 0, 100, 50]), tile("outside", [70.01, 0, 100.01, 50])]);
+    streamer.update(10, 10);
+    await resolve("near");
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(false);
+    await resolve("edge");
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(true);
+    expect(streamer.stats().pending).toBe(1);
+    streamer.dispose();
+  });
+
+  it("uses a smaller configured streaming radius rather than waiting for unrequested tiles", async () => {
+    const { streamer, pending, resolve } = setup([near, tile("outside-radius", [30, 0, 100, 50])], 10);
+    streamer.update(10, 10);
+    expect(pending.size).toBe(1);
+    await resolve("near");
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(true);
+    streamer.dispose();
+  });
+
+  it("waits for collider fallback geometry, not just completion of a failed download", async () => {
+    const collider: TileCollider = { tileId: "near", buildings: [], ground: { x0: 0, z0: 0, cellSizeM: 100, nx: 2, nz: 2, heights: [3, 3, 3, 3] } };
+    const { streamer, parent, pending } = setup([near], 60, new Map([["near", collider]]));
+    streamer.update(10, 10);
+    await quietly(async () => {
+      pending.get("/startup/near.glb")!.reject(new Error("unavailable tile"));
+      await Promise.resolve();
+      expect(streamer.startupSurfaceReady(10, 10)).toBe(false);
+      for (let i = 0; i < 10 && !streamer.startupSurfaceReady(10, 10); i++) streamer.update(10, 10, 50);
+    });
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(true);
+    const ground = parent.getObjectByName("tile:near")?.getObjectByName("ground") as THREE.Mesh;
+    expect(ground.geometry.getAttribute("position").count).toBeGreaterThan(0);
+    expect(streamer.stats()).toMatchObject({ ready: 1, pending: 0 });
+    streamer.dispose();
+  });
+
+  it("does not expose a failed critical tile as ready", async () => {
+    const { streamer, pending } = setup([near]);
+    streamer.update(10, 10);
+    await quietly(async () => { pending.get("/startup/near.glb")!.reject(new Error("no tile and no fallback")); await Promise.resolve(); });
+    expect(streamer.stats().failed).toBe(1);
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(false);
+    streamer.dispose();
+  });
+
+  it("does not wait for the entire world when no manifest tile covers the starting neighborhood", () => {
+    const { streamer } = setup([tile("distant", [500, 500, 600, 600])]);
+    expect(streamer.startupSurfaceReady(10, 10)).toBe(true);
+    expect(streamer.startupSurfaceReady(NaN, 10)).toBe(false);
+    streamer.dispose();
+  });
+});
+
 describe("TileStreamer", () => {
   it("builds a glb: null tile from its collider, with roads and street props", async () => {
     const { streamer, parent, materials } = make("dev");

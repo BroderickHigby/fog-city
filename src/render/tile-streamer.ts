@@ -37,7 +37,7 @@ import {
 } from "./roads.ts";
 import { buildTileMeshes, type TileMeshes } from "./tile-build.ts";
 import type { RoadContext } from "./tile-geometry.ts";
-import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
+import { DEFAULT_HYSTERESIS_M, DEFAULT_RADIUS_M, distanceToBounds, selectTiles, tileBounds, type TileBounds } from "./tile-select.ts";
 import type { GroundFn, Manifest, ManifestTile, RoadEdge, RoadGraph } from "./types.ts";
 
 export interface StreamerOptions {
@@ -190,6 +190,17 @@ export class TileStreamer {
   settled(): boolean {
     if (this.dirty || this.queue.length > 0 || this.inFlight > 0 || !this.characters.settled()) return false;
     for (const r of this.records.values()) if (r.state === "loading" || r.state === "building") return false;
+    return true;
+  }
+
+  /** Street/terrain coverage for the first view, without waiting for distant scenery. */
+  startupSurfaceReady(x: number, z: number): boolean {
+    if (!Number.isFinite(x) || !Number.isFinite(z)) return false;
+    const radius = Math.min(60, this.radius);
+    for (const bounds of this.bounds) {
+      if (distanceToBounds(bounds, x, z) <= radius && this.records.get(bounds.id)?.state !== "ready") return false;
+    }
+    // A debug camera over open water has no nearby land tile to wait for.
     return true;
   }
 
