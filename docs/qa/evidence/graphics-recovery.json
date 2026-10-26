@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "name": "legacy restores same context and paused sim hash",
+      "before": {
+        "hash": "841ac9e9",
+        "backend": "webgl-legacy"
+      },
+      "after": {
+        "hash": "841ac9e9",
+        "backend": "webgl-legacy"
+      }
+    },
+    {
+      "name": "node reset saves progression and reloads once into legacy",
+      "before": {
+        "backend": "webgl-node",
+        "hash": "eb159a40",
+        "wallet": {
+          "cashCents": 200000,
+          "runwayMonths": 18,
+          "reputation": 50,
+          "paidActorIds": [],
+          "ownedItemIds": [],
+          "ownedSiteIds": [
+            "fidi-desk",
+            "marina-garage",
+            "mission-bay-garage"
+          ],
+          "commandSequence": 0
+        }
+      },
+      "after": {
+        "backend": "webgl-legacy",
+        "safe": "1",
+        "wallet": {
+          "cashCents": 200000,
+          "runwayMonths": 18,
+          "reputation": 50,
+          "paidActorIds": [],
+          "ownedItemIds": [],
+          "ownedSiteIds": [
+            "fidi-desk",
+            "marina-garage",
+            "mission-bay-garage"
+          ],
+          "commandSequence": 0
+        },
+        "tick": 1
+      },
+      "url": "http://127.0.0.1:4370/?world=dev&renderer=legacy&radius=200&pr=.5&gfx=low&quality=0&shadows=0&debug=1&capture=1"
+    }
+  ],
+  "errors": [],
+  "expectedResetMessages": [
+    "[fog-city] Graphics device lost: Unknown reason"
+  ],
+  "passed": true
+}

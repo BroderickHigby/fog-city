@@ -1,0 +1,173 @@
+{
+  "passed": true,
+  "source": {
+    "revision": "67c422abeab63f0e29bfe67e31780b48cc9b5195",
+    "status": "",
+    "simulationTreeSHA256": "824061cbb1f2d0a39526b5b8ef771afc00cb6937820eca156a7a2953574baf94",
+    "renderTree": "7a20139599252bb2a8ca4d612f46569d6229f897",
+    "worldTree": "fd03f3fab3942bcd77b024072966f92f94e07132"
+  },
+  "startedAt": "2026-10-26T10:16:13.357Z",
+  "finishedAt": "2026-10-26T10:22:53.073Z",
+  "errors": [],
+  "closeError": null,
+  "ownedPidsStillPresent": [],
+  "shots": [
+    {
+      "name": "windup",
+      "tick": 3932,
+      "hash": "33252cfa",
+      "rust": 0,
+      "phase": "active",
+      "buffer": {
+        "width": 480,
+        "height": 300,
+        "cssWidth": 960,
+        "cssHeight": 600
+      },
+      "pixelRatio": 0.5,
+      "images": {
+        "primary": "03932-windup.png",
+        "bot": "03932-windup-bot.png"
+      }
+    },
+    {
+      "name": "resolved",
+      "tick": 3980,
+      "hash": "05c668c0",
+      "rust": 0,
+      "phase": "active",
+      "buffer": {
+        "width": 480,
+        "height": 300,
+        "cssWidth": 960,
+        "cssHeight": 600
+      },
+      "pixelRatio": 0.5,
+      "images": {
+        "primary": "03980-resolved.png",
+        "bot": "03980-resolved-bot.png"
+      }
+    },
+    {
+      "name": "firstRust",
+      "tick": 4000,
+      "hash": "311aff8f",
+      "rust": 0.025,
+      "phase": "active",
+      "buffer": {
+        "width": 480,
+        "height": 300,
+        "cssWidth": 960,
+        "cssHeight": 600
+      },
+      "pixelRatio": 0.5,
+      "images": {
+        "primary": "04000-firstRust.png",
+        "bot": "04000-firstRust-bot.png"
+      }
+    },
+    {
+      "name": "rust60",
+      "tick": 4138,
+      "hash": "3ccfa43a",
+      "rust": 0.6000000000000002,
+      "phase": "active",
+      "buffer": {
+        "width": 480,
+        "height": 300,
+        "cssWidth": 960,
+        "cssHeight": 600
+      },
+      "pixelRatio": 0.5,
+      "images": {
+        "primary": "04138-rust60.png",
+        "bot": "04138-rust60-bot.png"
+      }
+    },
+    {
+      "name": "seized",
+      "tick": 4242,
+      "hash": "06279848",
+      "rust": 1,
+      "phase": "seized",
+      "buffer": {
+        "width": 480,
+        "height": 300,
+        "cssWidth": 960,
+        "cssHeight": 600
+      },
+      "pixelRatio": 0.5,
+      "images": {
+        "primary": "04242-seized.png",
+        "bot": "04242-seized-bot.png"
+      }
+    },
+    {
+      "name": "heap",
+      "tick": 4362,
+      "hash": "12a94c7b",
+      "rust": 1,
+      "phase": "heap",
+      "buffer": {
+        "width": 480,
+        "height": 300,
+        "cssWidth": 960,
+        "cssHeight": 600
+      },
+      "pixelRatio": 0.5,
+      "images": {
+        "primary": "04362-heap.png",
+        "bot": "04362-heap-bot.png"
+      }
+    }
+  ],
+  "popupDismissal": {
+    "referenceTick": 4362,
+    "referenceHash": "12a94c7b",
+    "selectedId": "agent:538:3",
+    "visibleIndex": 0,
+    "beforeIds": [
+      "agent:538:3"
+    ],
+    "queuedBefore": 1,
+    "queuedCommand": {
+      "tick": 4363,
+      "kind": "gameplay.command",
+      "playerId": "p1",
+      "payload": {
+        "kind": "close-ad",
+        "targetId": "agent:538:3",
+        "sequence": 2
+      }
+    },
+    "after": {
+      "tick": 4363,
+      "hash": "8925f6e1",
+      "ids": [],
+      "visibleCards": 0,
+      "events": [
+        {
+          "id": 584,
+          "tick": 4363,
+          "kind": "attack.ended",
+          "sourceId": "agent:538",
+          "targetId": "p1",
+          "amount": 0,
+          "detail": "ad-blast:closed"
+        },
+        {
+          "id": 585,
+          "tick": 4363,
+          "kind": "player.ad-popup",
+          "sourceId": "agent:538",
+          "targetId": "p1",
+          "amount": -1,
+          "detail": "closed"
+        }
+      ]
+    },
+    "image": "04363-selected-ad-dismissed.png",
+    "scope": "Extended UI probe after the verified 4362-frame reference; reference final hash remains12a94c7b"
+  }
+}

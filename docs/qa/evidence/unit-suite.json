@@ -1,0 +1,33 @@
+{
+  "sourceHead": "67c422abeab63f0e29bfe67e31780b48cc9b5195",
+  "sourceTree": "73718f843b9cebb5c042aa1ffb30ed8fe99e0c90",
+  "command": "pnpm exec vitest run --maxWorkers=2",
+  "nodeMajor": 22,
+  "heapMBPerWorker": 2048,
+  "fileTotals": {
+    "passed": 251,
+    "failed": 1,
+    "total": 252
+  },
+  "testTotals": {
+    "passed": 3995,
+    "failed": 1,
+    "skipped": 1,
+    "total": 3997
+  },
+  "durationSeconds": 660.28,
+  "exitCode": 1,
+  "failure": {
+    "test": "tests/sim/perf-budget.test.ts",
+    "metric": "allocationBytesPerTick",
+    "actual": 6108174.8,
+    "maximum": 5978783.2,
+    "calibratedTimeRatio": 5.302,
+    "maximumTimeRatio": 8.536,
+    "baselineChanged": false
+  },
+  "ciRun": false,
+  "fullVerifyRun": false,
+  "rawLogSHA256": "d0d7226848fa4a60cb5625fdd39ce13125365291505b1c9ea5f8ee1828f45725",
+  "scope": "All functional unit tests passed; allocation and broader performance hold remain open."
+}
