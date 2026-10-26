@@ -12,8 +12,9 @@ import { parseArgs } from "node:util";
 import { getHeapStatistics } from "node:v8";
 import type { DebugHandle } from "../../src/debug.ts";
 import type { SceneRenderer } from "../../src/render/scene.ts";
-import type { InputFrame, SimInput } from "../../src/sim/contract.ts";
+import type { InputFrame, SimInput, SimState } from "../../src/sim/contract.ts";
 import type { ImpactsExt } from "../../src/sim/impacts.ts";
+import type { AgentState } from "../../src/sim/agents.ts";
 import { buildRoadGraph, makePath, pathPoint, projectOnPath, type RoadsFile } from "../../src/sim/roads.ts";
 import { followerRoute } from "../../src/sim/vehicles/follower.ts";
 import type { World } from "../../src/sim/world.ts";
@@ -60,7 +61,8 @@ mkdirSync(out,{recursive:true});
 const report={startedAt:new Date().toISOString(),url:url.href,artifact,candidate,sourceStart:source(),sourceEnd:null as ReturnType<typeof source>|null,
   scope:`Native Metal packed-candidate vehicle mechanics; ${world} seed1; ordinary recorded controls with real-road routing and bounded retargeting; actual rendered vertex hulls. Screenshots require visual inspection. No FPS acceptance.`,
   viewport:{width:640,height:400},browserHeapMB:1024,deadlineMinutes:6,stateReplacementCalls:0,teleports:0,spawnOverrides:0,
-  errors:[] as string[],warnings:[] as string[],frames:[] as unknown[],shots:[] as string[],checks:[] as string[],initial:null as unknown,gpu:null as unknown,replay:null as unknown,passed:false,failure:null as string|null};
+  errors:[] as string[],warnings:[] as string[],frames:[] as unknown[],replayContactFrames:[] as unknown[],shots:[] as string[],checks:[] as string[],initial:null as unknown,gpu:null as unknown,replay:null as unknown,
+  collision:null as {targetId:number;hitTick:number;aftermathFrames:number;aftermathTargetIds:number[]}|null,passed:false,failure:null as string|null};
 const flush=()=>writeFileSync(join(out,"proof.json"),JSON.stringify(report,null,2)+"\n");
 let browser:Browser|undefined,page:Page|undefined;
 let rejectFatal!:(reason:Error)=>void;
@@ -69,6 +71,8 @@ const checked=<T>(promise:Promise<T>)=>Promise.race([promise,fatal]);
 const fail=(message:string)=>{if(report.errors.length<25)report.errors.push(message);rejectFatal(new Error(message));};
 const deadline=setTimeout(()=>fail("Vehicle QA exceeded its six-minute bound"),6*60_000);
 type QAWindow=Window&{__fogcity:DebugHandle;__fogcityView:SceneRenderer};
+type DrawnPart={part:{mesh:import("three").InstancedMesh};pivot:import("three").Vector3;channel:{type:string}};
+type ObservedAgentLayer={kinds:Map<string,{source:string;near:DrawnPart[]}>;civilianNear:{mesh:import("three").InstancedMesh}|null;lastCurr?:SimState;pairs:Array<[unknown,AgentState]>;poses:Array<{x:number;y:number;z:number}>;tiers:Uint8Array;frameNo:number;hiddenAgent:number|null};
 async function renderFrames(n=2):Promise<void> {
   await checked(page!.evaluate(n=>new Promise<void>((done,reject)=>{
     const timer=setTimeout(()=>reject(new Error("No normal rendered frame within30s")),30_000);
@@ -97,8 +101,30 @@ async function boot():Promise<void> {
   report.initial??=initial;report.gpu=initial.gpu;flush();
 }
 
+/** A camera still easing after an eight-tick input batch may legitimately leave a taxi in mid LOD. */
+async function warmTarget(targetId:number):Promise<void> {
+  await renderFrames(2);
+  try {
+    await checked(page!.waitForFunction(targetId=>{
+      const w=window as unknown as QAWindow,h=w.__fogcity,layer=w.__fogcityView.agents as unknown as ObservedAgentLayer;
+      const index=layer.pairs.findIndex(pair=>pair[1].id===targetId),view=layer.kinds.get("robotaxi");
+      const target=index<0?null:layer.pairs[index]![1],civilian=target?.kind==="robotaxi"&&target.runtimeId===undefined&&target.vehicle===undefined&&target.id%8===7;
+      const drawn=civilian?layer.civilianNear?.mesh.visible&&layer.civilianNear.mesh.count>0
+        :view?.source==="file"&&view.near.some(p=>p.channel.type==="none"&&p.part.mesh.visible&&p.part.mesh.count>0);
+      return layer.lastCurr?.tick===h.state().tick&&index>=0&&layer.tiers[index]===3&&drawn;
+    },targetId,{timeout:15_000,polling:"raf"}));
+  }catch(error){
+    const diagnostic=await page!.evaluate(targetId=>{
+      const w=window as unknown as QAWindow,h=w.__fogcity,v=w.__fogcityView,s=h.state(),layer=v.agents as unknown as ObservedAgentLayer;
+      const index=layer.pairs.findIndex(pair=>pair[1].id===targetId),view=layer.kinds.get("robotaxi");
+      return {targetId,target:s.ext.agents!.list.find(a=>a.id===targetId),tick:s.tick,renderedTick:layer.lastCurr?.tick,tier:index<0?null:layer.tiers[index],camera:v.camera.position.toArray(),render:h.renderInfo(),modelSource:view?.source,civilianNear:layer.civilianNear?{name:layer.civilianNear.mesh.name,count:layer.civilianNear.mesh.count,visible:layer.civilianNear.mesh.visible}:null,parts:view?.near.map(p=>({name:p.part.mesh.name,count:p.part.mesh.count,visible:p.part.mesh.visible,pivot:p.pivot.toArray(),channel:p.channel.type}))};
+    },targetId);
+    report.frames.push({warmTargetFailure:diagnostic});flush();throw new Error(`Selected taxi did not become an actual near GLB draw after bounded normal frames: ${JSON.stringify(diagnostic)}`,{cause:error});
+  }
+}
+
 /** Inspect the real draw's vertices; derive constructors from scene values, no extra Three instance. */
-async function drawnHull(targetId:number):Promise<{tick:number;hash:string;player:{local:{min:number[];max:number[]};hull:number[][];scale:number[]};taxiHull:number[][];render:unknown}> {
+async function drawnHull(targetId:number):Promise<{tick:number;hash:string;player:{local:{min:number[];max:number[]};hull:number[][];scale:number[]};taxiHull:number[][];identity:{targetId:number};render:unknown}> {
   return checked(page!.evaluate(targetId=>{
     const w=window as unknown as QAWindow,h=w.__fogcity,v=w.__fogcityView,before=h.hash(),s=h.state();
     const car=v.actors.group.children.find(child=>!!child.getObjectByName("civilian_car"));
@@ -114,17 +140,45 @@ async function drawnHull(targetId:number):Promise<{tick:number;hash:string;playe
       }
     });
     const target=s.ext.agents!.list.find(a=>a.id===targetId);if(!target)throw new Error("Selected actual taxi vanished");
-    const body=v.agents.group.getObjectByName("agents:robotaxi:body") as import("three").InstancedMesh|undefined;
-    if(!body?.visible||body.count===0)throw new Error("Target taxi is not drawn by actual near GLB parts");
-    let index=-1,distance=Infinity;
-    for(let i=0;i<body.count;i++){body.getMatrixAt(i,instance);point.setFromMatrixPosition(instance);const d=Math.hypot(point.x-target.x,point.z-target.z);if(d<distance){index=i;distance=d;}}
-    if(index<0||distance>1)throw new Error("Cannot identify the target's drawn instance");
-    v.agents.group.traverse(node=>{
-      const mesh=node as import("three").InstancedMesh;
-      if(!mesh.isInstancedMesh||!mesh.visible||!mesh.name.startsWith("agents:robotaxi:")||mesh.count<=index||/:(mid|far)$/.test(mesh.name))return;
-      mesh.updateWorldMatrix(true,false);mesh.getMatrixAt(index,instance);const position=mesh.geometry.getAttribute("position");
-      for(let i=0;i<position.count;i++){point.fromBufferAttribute(position,i).applyMatrix4(instance).applyMatrix4(mesh.matrixWorld);taxi.push([point.x,point.z]);}
+    const layer=v.agents as unknown as ObservedAgentLayer,view=layer.kinds.get("robotaxi");
+    const isCivilian=(a:AgentState)=>a.kind==="robotaxi"&&a.runtimeId===undefined&&a.vehicle===undefined&&a.id%8===7;
+    const civilian=isCivilian(target),parts:DrawnPart[]=civilian&&layer.civilianNear
+      ?[{part:layer.civilianNear,pivot:car.position.clone().set(0,0,0),channel:{type:"shader-wheel"}}]:view?.near??[];
+    const body=civilian?layer.civilianNear?.mesh:parts.find(p=>p.channel.type==="none"&&p.pivot.lengthSq()===0)?.part.mesh;
+    const modelSource=civilian&&layer.civilianNear?"file:civilian-car":view?.source;
+    if((civilian?!layer.civilianNear:view?.source!=="file")||!body?.visible||body.count===0)throw new Error("Target vehicle is not drawn by its live model's near GLB roster");
+    // Both draw rosters append in pair order, but civilians use their own merged PartMesh.
+    // Identity must follow that exact roster; the taxi roster cannot identify a civilian.
+    const ordered=layer.pairs.flatMap((pair,i)=>{
+      const b=pair[1];
+      return layer.tiers[i]===3&&b.kind==="robotaxi"&&isCivilian(b)===civilian&&b.id!==layer.hiddenAgent?[{id:b.id,pose:layer.poses[i]}]:[];
     });
+    const index=ordered.findIndex(entry=>entry.id===targetId);
+    const origins=Array.from({length:body.count},(_,i)=>{body.getMatrixAt(i,instance);point.setFromMatrixPosition(instance);return {index:i,id:ordered[i]?.id,origin:point.toArray(),pose:ordered[i]?.pose};});
+    const origin=origins[index]?.origin,distance=origin?Math.hypot(origin[0]!-target.x,origin[2]!-target.z):Infinity;
+    if(index<0||body.count!==ordered.length||distance>1)throw new Error("Cannot identify target GLB draw slot: "+JSON.stringify({targetId,target,index,distance,bodyCount:body.count,orderedCount:ordered.length,origins,parts:parts.map(p=>({name:p.part.mesh.name,count:p.part.mesh.count,visible:p.part.mesh.visible,pivot:p.pivot.toArray()}))}));
+    for(const part of parts){
+      const mesh=part.part.mesh;
+      if(!mesh.visible||mesh.count<=index)continue;
+      mesh.updateWorldMatrix(true,false);mesh.getMatrixAt(index,instance);const position=mesh.geometry.getAttribute("position");
+      const wheel=mesh.geometry.getAttribute("fcWheel"),motion=mesh.geometry.getAttribute("fcCarMotion");
+      if(civilian&&(!wheel||!motion))throw new Error("Actual civilian draw is missing its wheel shader attributes");
+      const spin=civilian?motion!.getX(index):0,steer=civilian?motion!.getY(index):0;
+      for(let i=0;i<position.count;i++){
+        point.fromBufferAttribute(position,i);
+        if(civilian&&wheel!.getW(i)>.5){
+          const px=wheel!.getX(i),py=wheel!.getY(i),pz=wheel!.getZ(i);
+          point.x-=px;point.y-=py;point.z-=pz;
+          // createGpuPackedMaterial's node setup deforms the actual merged GLB vertices
+          // before framework instancing, on both WebGPU and the verified node-WebGL backend.
+          const y=point.y*Math.cos(spin)+point.z*Math.sin(spin);
+          point.z=point.z*Math.cos(spin)-point.y*Math.sin(spin);point.y=y;
+          if(wheel!.getW(i)>1.5){const x=point.x*Math.cos(steer)+point.z*Math.sin(steer);point.z=point.z*Math.cos(steer)-point.x*Math.sin(steer);point.x=x;}
+          point.x+=px;point.y+=py;point.z+=pz;
+        }
+        point.applyMatrix4(instance).applyMatrix4(mesh.matrixWorld);taxi.push([point.x,point.z]);
+      }
+    }
     // The monotone hull removes internal geometry before the independent SAT test in Node.
     const hull=(points:number[][])=>{
       const sorted=points.sort((a,b)=>a[0]!-b[0]!||a[1]!-b[1]!).filter((p,i,a)=>!i||p[0]!==a[i-1]![0]||p[1]!==a[i-1]![1]);
@@ -132,7 +186,8 @@ async function drawnHull(targetId:number):Promise<{tick:number;hash:string;playe
       const half=(points:number[][])=>{const result:number[][]=[];for(const p of points){while(result.length>1&&cross(result.at(-2)!,result.at(-1)!,p)<=0)result.pop();result.push(p);}return result;};
       const lower=half(sorted),upper=half([...sorted].reverse());return [...lower.slice(0,-1),...upper.slice(0,-1)];
     };
-    const result={tick:s.tick,hash:before,player:{local:{min,max},hull:hull(player),scale:car.scale.toArray()},taxiHull:hull(taxi),render:h.renderInfo()};
+    const pairIndex=layer.pairs.findIndex(pair=>pair[1].id===targetId);
+    const result={tick:s.tick,hash:before,player:{local:{min,max},hull:hull(player),scale:car.scale.toArray()},taxiHull:hull(taxi),identity:{targetId,index,distance,modelSource,civilian,shaderDeformation:civilian?"node-fcWheel-fcCarMotion-before-instance":"part-instance-matrices",tier:layer.tiers[pairIndex],renderedTick:layer.lastCurr?.tick,frameNo:layer.frameNo,camera:v.camera.position.toArray(),parts:parts.map(p=>({name:p.part.mesh.name,count:p.part.mesh.count,visible:p.part.mesh.visible}))},render:h.renderInfo()};
     if(h.hash()!==before)throw new Error("Draw-geometry inspection mutated simulation");return result;
   },targetId));
 }
@@ -154,27 +209,32 @@ try {
   page.on("console",message=>{if(message.type()==="error")fail(message.text());else if(message.type()==="warning"&&report.warnings.length<20)report.warnings.push(message.text());});
   page.on("response",response=>{if(response.status()>=400)fail(`HTTP ${response.status()}: ${response.url()}`);});
   await boot();report.checks.push("Served bundle/index match the supplied packed candidate; actual Apple/Metal node-WebGL; SIM18/seed1");
-  const inputs:InputFrame[]=[],trace:unknown[]=[];
-  let target=-1,hitTick=-1,stuckSince=-1,reverseUntil=-1,afterFrames=0,lastProgressTick=0,bestDistance=Infinity;
+  const inputs:InputFrame[]=[],trace:unknown[]=[],aftermathTargetIds:number[]=[];
+  let target=-1,hitTick=-1,collisionTarget=-1,stuckSince=-1,reverseUntil=-1,afterFrames=0,lastProgressTick=0,bestDistance=Infinity;
   const avoid:number[]=[];
   let route:{target:number;x:number;z:number;points:[number,number][]}|null=null;
   const driveStarted=Date.now();
   while(inputs.length<9000&&Date.now()-driveStarted<150_000){
-    const sample=await checked(page.evaluate(({target,stuckSince,reverseUntil,avoid})=>{
+    const sample=await checked(page.evaluate(({target,hitTick,stuckSince,reverseUntil,avoid})=>{
       const h=(window as unknown as QAWindow).__fogcity,s=h.state(),car=s.players.p1!.car;
-      const taxis=s.ext.agents!.list.filter(a=>a.kind==="robotaxi"&&a.runtimeId===undefined&&a.id%8!==7&&!avoid.includes(a.id));
-      const taxi=taxis.find(a=>a.id===target)??taxis.sort((a,b)=>Math.hypot(a.x-car.x,a.z-car.z)-Math.hypot(b.x-car.x,b.z-car.z))[0];
-      if(!taxi)throw new Error("No eligible ordinary ambient taxi in the selected world");
+      const vehicles=s.ext.agents!.list.filter(a=>a.kind==="robotaxi");
+      const taxis=vehicles.filter(a=>a.runtimeId===undefined&&!(a.vehicle===undefined&&a.id%8===7)&&!avoid.includes(a.id));
+      // Pursuit may prefer a taxi; once any genuine road vehicle is hit, follow exactly that
+      // body's aftermath. Reapplying the pursuit roster would silently replace civilian7.
+      const taxi=hitTick>=0?vehicles.find(a=>a.id===target)
+        :taxis.find(a=>a.id===target)??taxis.sort((a,b)=>Math.hypot(a.x-car.x,a.z-car.z)-Math.hypot(b.x-car.x,b.z-car.z))[0];
+      if(!taxi)throw new Error(hitTick>=0?"The actual collided vehicle vanished during its aftermath":"No eligible ordinary ambient taxi in the selected world");
       let error=Math.atan2(taxi.x-car.x,-(taxi.z-car.z))-car.heading;while(error>Math.PI)error-=2*Math.PI;while(error< -Math.PI)error+=2*Math.PI;
       if(Math.abs(car.speed)>.5)stuckSince=-1;else if(stuckSince<0)stuckSince=s.tick;else if(s.tick-stuckSince>90){reverseUntil=s.tick+90;stuckSince=-1;}
       const distance=Math.hypot(taxi.x-car.x,taxi.z-car.z),desired=Math.abs(error)>.5?4:Math.min(14,Math.max(8,distance*.6));
       const reverse=s.tick<reverseUntil,input:SimInput={throttle:reverse?-1:car.speed>desired+.5?0:1,steer:Math.abs(error)<.06?0:Math.sign(error)*(reverse?-1:1),brake:!reverse&&car.speed>desired+.5?1:0,actions:0};
       const hit=(s.ext.impacts as ImpactsExt|undefined)?.events.find(e=>(e.kind==="car-taxi"||e.kind==="taxi-car")&&[e.a,e.b].includes("p:p1"));
       return {tick:s.tick,target:taxi.id,car,taxi,distance,input,hit,stuckSince,reverseUntil};
-    },{target,stuckSince,reverseUntil,avoid}));
+    },{target,hitTick,stuckSince,reverseUntil,avoid}));
     if(target!==sample.target){lastProgressTick=sample.tick;bestDistance=Infinity;route=null;}
     target=sample.target;stuckSince=sample.stuckSince;reverseUntil=sample.reverseUntil;
-    if(sample.hit&&hitTick<0){hitTick=sample.hit.tick;target=Number((sample.hit.a.startsWith("a:")?sample.hit.a:sample.hit.b).slice(2));}
+    if(sample.hit&&hitTick<0){hitTick=sample.hit.tick;target=Number((sample.hit.a.startsWith("a:")?sample.hit.a:sample.hit.b).slice(2));collisionTarget=target;}
+    if(hitTick>=0)assert(target===collisionTarget,"Aftermath target changed away from the actual collided vehicle");
     if(sample.distance<bestDistance-2){bestDistance=sample.distance;lastProgressTick=sample.tick;}
     if(hitTick<0&&sample.tick-lastProgressTick>360){avoid.push(target);if(avoid.length>3)avoid.shift();target=-1;route=null;bestDistance=Infinity;lastProgressTick=sample.tick;continue;}
     let driving=sample.input;
@@ -194,26 +254,54 @@ try {
     const frames=Array.from({length:count},()=>({p1:input}));inputs.push(...frames);
     await checked(page.evaluate(frames=>(window as unknown as QAWindow).__fogcity.stepFrames(frames),frames));await renderFrames(1);
     if(near){
+      await warmTarget(target);
       const hull=await drawnHull(target),overlap=penetration(hull.player.hull,hull.taxiHull);
       assert(hull.player.local.min[0]!>=-.950001&&hull.player.local.max[0]!<=.950001&&hull.player.local.min[2]!>=-2.200001&&hull.player.local.max[2]!<=2.200001,"Actual personal car exceeds its physical footprint");
       assert(overlap<=.03,`Actual drawn vehicle hulls overlap ${overlap.toFixed(4)}m at tick${hull.tick}`);
       trace.push({...sample,input,drawnTick:hull.tick,renderedPenetrationM:overlap});
-      report.frames.push({tick:hull.tick,hash:hull.hash,target,player:hull.player,taxiHull:hull.taxiHull,renderedPenetrationM:overlap,hit:sample.hit??null});
+      report.frames.push({tick:hull.tick,hash:hull.hash,target,player:hull.player,taxiHull:hull.taxiHull,identity:hull.identity,renderedPenetrationM:overlap,hit:sample.hit??null});
       if(report.shots.length===0){await checked(page.screenshot({path:join(out,"approach.png"),timeout:20_000}));report.shots.push("approach.png");}
-      if(hitTick>=0){afterFrames++;if([1,2,4,8,16,32,48].includes(afterFrames)){const file=`contact-${String(afterFrames).padStart(2,"0")}.png`;await checked(page.screenshot({path:join(out,file),timeout:20_000}));report.shots.push(file);}if(afterFrames>=48)break;}
+      if(hitTick>=0){
+        aftermathTargetIds.push(hull.identity.targetId);afterFrames++;
+        report.collision={targetId:collisionTarget,hitTick,aftermathFrames:afterFrames,aftermathTargetIds:[...aftermathTargetIds]};
+        if([1,2,4,8,16,32,48].includes(afterFrames)){const file=`contact-${String(afterFrames).padStart(2,"0")}.png`;await checked(page.screenshot({path:join(out,file),timeout:20_000}));report.shots.push(file);}
+        if(afterFrames>=48)break;
+      }
     }
     if(inputs.length%120<8)flush();
   }
   assert(hitTick>=0&&afterFrames>=48,"Ordinary recorded driving did not produce and follow a car/taxi collision inside the bound");
+  assert(aftermathTargetIds.length===48&&aftermathTargetIds.every(id=>id===collisionTarget),"All48 aftermath frames must identify the same actual collided vehicle draw");
   const final=await checked(page.evaluate(()=>({hash:(window as unknown as QAWindow).__fogcity.hash(),tick:(window as unknown as QAWindow).__fogcity.state().tick})));
   writeFileSync(join(out,"controls.json"),JSON.stringify({world,seed:1,version:18,initial:report.initial,frames:inputs,trace,expectedFinalHash:final.hash})+"\n");
-  report.checks.push(`Actual personal GLB fits CAR; no drawn hull penetration over3cm across ${report.frames.length} contact-approach/aftermath frames; hit tick${hitTick}`);flush();
+  report.checks.push(`Actual personal GLB fits CAR; no drawn hull penetration over3cm across ${report.frames.length} contact-approach/aftermath frames; hit tick${hitTick}, all48 aftermath draws identify collided vehicle${collisionTarget}`);flush();
   // Same browser/page, same untouched packed build: replay only those recorded ordinary inputs.
+  // The original drive batches distant input eight ticks at a time. Measure its collision
+  // window one tick at a time on replay so an impact inside such a batch cannot go unseen.
   await boot();
-  for(let i=0;i<inputs.length;i+=64){await checked(page.evaluate(frames=>(window as unknown as QAWindow).__fogcity.stepFrames(frames),inputs.slice(i,i+64)));if(i%512===0)await renderFrames(1);}
+  const replayWindowStart=Math.max(1,hitTick-5),replayTicks:number[]=[],replayTargetIds:number[]=[];
+  let replayMaxPenetrationM=0,exactHitShot:string|null=null;
+  for(let i=0;i<inputs.length;i++){
+    await checked(page.evaluate(frame=>(window as unknown as QAWindow).__fogcity.stepFrames([frame]),inputs[i]!));
+    const tick=i+1;
+    if(tick<replayWindowStart){if(tick%64===0)await renderFrames(1);continue;}
+    await renderFrames(1);await warmTarget(collisionTarget);
+    const drawn=await drawnHull(collisionTarget),overlap=penetration(drawn.player.hull,drawn.taxiHull);
+    assert(drawn.tick===tick,"Replay draw does not represent the expected single input tick");
+    assert(drawn.identity.targetId===collisionTarget,"Replay collision draw changed away from the actual collided vehicle");
+    assert(drawn.player.local.min[0]!>=-.950001&&drawn.player.local.max[0]!<=.950001&&drawn.player.local.min[2]!>=-2.200001&&drawn.player.local.max[2]!<=2.200001,"Actual replay personal car exceeds its physical footprint");
+    assert(overlap<=.03,`Actual replay vehicle hulls overlap ${overlap.toFixed(4)}m at collision-window tick${drawn.tick}`);
+    replayTicks.push(drawn.tick);replayTargetIds.push(drawn.identity.targetId);replayMaxPenetrationM=Math.max(replayMaxPenetrationM,overlap);
+    report.replayContactFrames.push({tick:drawn.tick,hash:drawn.hash,target:collisionTarget,player:drawn.player,taxiHull:drawn.taxiHull,identity:drawn.identity,renderedPenetrationM:overlap});
+    if(tick===hitTick){exactHitShot=`exact-hit-${hitTick}.png`;await checked(page.screenshot({path:join(out,exactHitShot),timeout:20_000}));report.shots.push(exactHitShot);}
+    if(tick%16===0)flush();
+  }
   const replayHash=await checked(page.evaluate(()=>(window as unknown as QAWindow).__fogcity.hash()));
   assert(replayHash===final.hash,"Fresh-page replay of the recorded controls diverged");
-  report.replay={frames:inputs.length,hash:replayHash,hitTick};report.checks.push("Fresh-page ordinary-input replay reproduced the exact final simulation hash");
+  assert(replayTicks.length===final.tick-replayWindowStart+1&&replayTicks.every((tick,i)=>tick===replayWindowStart+i),"Replay must inspect every collision-window tick through the final recorded frame");
+  assert(replayTargetIds.every(id=>id===collisionTarget)&&exactHitShot!==null,"Replay must retain the collided vehicle identity and capture the exact impact tick");
+  report.replay={frames:inputs.length,hash:replayHash,hitTick,collisionTarget,collisionWindow:{startTick:replayWindowStart,endTick:final.tick,frames:replayTicks.length,targetIds:replayTargetIds,maxRenderedPenetrationM:replayMaxPenetrationM,exactHitShot}};
+  report.checks.push(`Fresh-page ordinary-input replay reproduced the exact final simulation hash; actual collided draw${collisionTarget} stays within3cm at every tick${replayWindowStart}..${final.tick}, with exact impact tick${hitTick} captured`);
   report.sourceEnd=source();assert(report.sourceEnd.vehicleSourceSHA256===report.sourceStart.vehicleSourceSHA256,"Vehicle source changed during QA");
   report.passed=report.errors.length===0;
 }catch(error){report.failure=String(error instanceof Error?error.stack:error);process.exitCode=1;}
