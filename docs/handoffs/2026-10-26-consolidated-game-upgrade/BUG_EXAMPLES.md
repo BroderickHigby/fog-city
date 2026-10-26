@@ -95,7 +95,7 @@ and Audio settings. The live UI also has saved-progress controls; a Graphics
 selector is absent. This is the starting point for the requested phone redesign
 and Auto/Low/Standard/High selector.
 
-![Current audit: phone and settings before the requested redesign](current-settings.png)
+![Current audit: phone and settings before the requested redesign](current-settings.jpg)
 
 ## Other reported issues without a corresponding supplied screenshot here
 
