@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "title": "Welcome to Fog City",
+  "disclosure": "Machine-generated fictional narration using Supertonic 3 stock voice M1. No real person is portrayed.",
+  "lines": [
+    {
+      "id": "opening.city",
+      "text": "San Francisco, five years from now. The hills are still steep. The fog still rolls in. And most of the robots are just trying to do their jobs.",
+      "file": "audio/opening/opening.city.mp3",
+      "durationS": 9.921383,
+      "bytes": 119789,
+      "sha256": "b6271eeb7f679066b4fd41b01d7b62c32a96f3a2a0cd0c2b2d50aba0e0b36c9b",
+      "sourceWavSha256": "c8669f5f763a8ad03fa86f54dd7c0766d91ee9b785dbf90fbb2adfe3c33bf24b"
+    },
+    {
+      "id": "opening.founder",
+      "text": "You have a small company, a car, and eighteen months of runway. Today, the city has a different problem.",
+      "file": "audio/opening/opening.founder.mp3",
+      "durationS": 7.231338,
+      "bytes": 87502,
+      "sha256": "59b655c1225129258d1609b3a83cb1f75416d146d5dba661398fd8947f300b8c",
+      "sourceWavSha256": "d316c31ec8a701627882e01a38781ab083a177da8f81ba2f64f478413d0f9a67"
+    },
+    {
+      "id": "opening.update",
+      "text": "Moat Labs pushed a corrupted update. Some robots now grab, chase, and force that update onto others. A warning diamond marks a confirmed hostile robot.",
+      "file": "audio/opening/opening.update.mp3",
+      "durationS": 10.473855,
+      "bytes": 126372,
+      "sha256": "28744df9adbf5536a8b91e0698517a338ae3fa67a1e32344ebbfbda57524326a",
+      "sourceWavSha256": "ed9c3308108e3823dcbbee0d365247ca789b6c2583ff8af75cdab0314651dbb0"
+    },
+    {
+      "id": "opening.blaster",
+      "text": "Your water blaster rusts hostile robots until they seize and collapse. Watch their attack wind-up, keep your distance, and leave people, animals, and helpful robots alone.",
+      "file": "audio/opening/opening.blaster.mp3",
+      "durationS": 11.516667,
+      "bytes": 138910,
+      "sha256": "6a8d45ee1bdf726b45b7700e682f295ec12ecba30a85f0cc37754dffcf0b2567",
+      "sourceWavSha256": "14af25b2fc86b6d2dd8ded5ed22242a286974ad90566ca0ce4afe2269effe974"
+    },
+    {
+      "id": "opening.choices",
+      "text": "Drive the hills. Take a bounty. Explore a landmark. Or start a timed taxi shift. Your phone holds the map, your bank, and graphics and audio settings.",
+      "file": "audio/opening/opening.choices.mp3",
+      "durationS": 10.804422,
+      "bytes": 130447,
+      "sha256": "94f6c56d4ed1706b2f41f79b8aa2fa02fa7ca80515e3477a4be2229df0638b08",
+      "sourceWavSha256": "adabb245e325e74e2fd5beb9e808516e4b00cfc8edb53bd1916f1b20b8c8ff69"
+    },
+    {
+      "id": "opening.first-job",
+      "text": "Start at the Ferry Building plaza on the Embarcadero. Your cofounder has a first job for you, and a desk waiting in the Financial District. Probably.",
+      "file": "audio/opening/opening.first-job.mp3",
+      "durationS": 10.067098,
+      "bytes": 121670,
+      "sha256": "67ef4f7f887cebbf46f038474e21078e2c250cba0ca547aa3b73d237eb06c020",
+      "sourceWavSha256": "1759f2d5decd52f007f1baec81f95b2b72b842c521581c01c891a09d139397b9"
+    }
+  ],
+  "source": {
+    "model": "Supertonic 3",
+    "voice": "M1 stock preset",
+    "modelRevision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "codeRevision": "1e9799e964ea4c0dad7cde993b65c3c813a7b373",
+    "outputRights": "Model OpenRAIL-M section6 claims no rights in generated outputs; required machine-generated disclosure is displayed. Script and game presentation are original Fog City work.",
+    "provenance": "assets/imports/supertonic-3/README.md",
+    "seed": 20261026,
+    "denoisingSteps": 8,
+    "speed": 1.05,
+    "encode": "MP3 mono44.1kHz96kbps, integrated -18LUFS/truepeak -2dB; no music or cloned person reference"
+  }
+}
