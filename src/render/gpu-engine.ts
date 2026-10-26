@@ -21,6 +21,18 @@ export interface PostProcessingInfo { enabled: boolean; ssr: boolean; bloom: boo
 type ThreeConsole = (type: "log" | "warn" | "error", message: string, ...parameters: unknown[]) => void;
 const normalThreeConsole: ThreeConsole = (type, message, ...parameters) => console[type](message, ...parameters);
 
+/** Keep the sampled scene depth valid on the r186 WebGL node backend. */
+export function createGpuScenePass(scene: THREE.Scene, camera: THREE.Camera, backend: "webgpu" | "webgl-node"): ReturnType<typeof pass> {
+  // PassNode upgrades reversed depth to FloatType. The pinned WebGL fallback's
+  // multisample renderbuffer stays DEPTH_COMPONENT24, so resolving it into that
+  // DEPTH_COMPONENT32F texture is invalid. Render directly into the depth texture
+  // on this backend; disabling depth resolve would instead leave SSR stale depth.
+  // Set the option because PassNode.setup overwrites renderTarget.samples.
+  const scenePass = pass(scene, camera, backend === "webgl-node" ? { samples: 0 } : undefined);
+  scenePass.renderTarget.storeMultisampledColorBuffer = false;
+  return scenePass;
+}
+
 /** WebGPU forwards structured GPUErrorEvent objects despite its legacy string type. */
 export function graphicsErrorMessage(value: unknown): string {
   if (typeof value === "string") return value;
@@ -167,8 +179,7 @@ export class GpuEngine {
   }
 
   private createPipeline(scene: THREE.Scene, camera: THREE.Camera): void {
-    const scenePass = pass(scene, camera); this.scenePass = scenePass;
-    scenePass.renderTarget.storeMultisampledColorBuffer = false;
+    const scenePass = createGpuScenePass(scene, camera, this.backend); this.scenePass = scenePass;
     const reflectionFade = smoothstep(360, 180, positionView.z.negate());
     const sceneMrt = mrt({ output, normal: normalView, metalRough: vec2(roughness.lessThan(.75).select(metalness.mul(reflectionFade), 0), roughness) });
     sceneMrt.setBlendMode("normal", new BlendMode(MaterialBlending));

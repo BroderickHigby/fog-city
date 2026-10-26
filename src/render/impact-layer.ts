@@ -4,6 +4,7 @@ import { CAR } from "../sim/car.ts";
 import { ROBOTAXI_BODY } from "../sim/agents.ts";
 import type { SimState } from "../sim/contract.ts";
 import { impactsOf, type Dents, type ImpactEvent } from "../sim/impacts.ts";
+import { createPortablePoints, type PortablePoints } from "./portable-points.ts";
 
 // Impact presentation (src/sim/impacts.ts): a burst of sparks at every hit (more for a harder
 // one), smoke from a battered car's bonnet, dark crumple scuffs on each dented side of the
@@ -44,6 +45,8 @@ export class ImpactLayer {
   private readonly smokeGeo = new THREE.BufferGeometry();
   private readonly sparkPos = new Float32Array(SPARKS * 3);
   private readonly smokePos = new Float32Array(SMOKE * 3);
+  private readonly sparkDraw: PortablePoints;
+  private readonly smokeDraw: PortablePoints;
   private readonly scuffs: THREE.InstancedMesh;
   private readonly tmp = new THREE.Object3D();
   private readonly color = new THREE.Color();
@@ -57,8 +60,9 @@ export class ImpactLayer {
     this.root.name = "impacts";
     this.sparkGeo.setAttribute("position", new THREE.BufferAttribute(this.sparkPos, 3).setUsage(THREE.DynamicDrawUsage));
     this.smokeGeo.setAttribute("position", new THREE.BufferAttribute(this.smokePos, 3).setUsage(THREE.DynamicDrawUsage));
-    const sparkPoints = new THREE.Points(this.sparkGeo, new THREE.PointsMaterial({ color: 0xffc46b, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }));
-    const smokePoints = new THREE.Points(this.smokeGeo, new THREE.PointsMaterial({ color: 0x5a5753, size: 1.1, sizeAttenuation: true, transparent: true, opacity: 0.45, depthWrite: false }));
+    this.sparkDraw = createPortablePoints(this.sparkGeo, { color: 0xffc46b, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    this.smokeDraw = createPortablePoints(this.smokeGeo, { color: 0x5a5753, size: 1.1, sizeAttenuation: true, transparent: true, opacity: 0.45, depthWrite: false });
+    const sparkPoints = this.sparkDraw.object, smokePoints = this.smokeDraw.object;
     sparkPoints.name = "impact-sparks";
     smokePoints.name = "impact-smoke";
     for (const p of [sparkPoints, smokePoints]) p.frustumCulled = false;
@@ -118,6 +122,7 @@ export class ImpactLayer {
     if (this.scuffs.instanceColor) this.scuffs.instanceColor.needsUpdate = true;
     this.write(this.sparks, this.sparkPos, this.sparkGeo);
     this.write(this.smoke, this.smokePos, this.smokeGeo);
+    this.sparkDraw.sync(); this.smokeDraw.sync();
   }
 
   /** Sparks alive now (for tests). */
@@ -185,11 +190,11 @@ export class ImpactLayer {
   }
 
   dispose(): void {
+    this.sparkDraw.dispose(); this.smokeDraw.dispose();
     this.sparkGeo.dispose();
     this.smokeGeo.dispose();
     this.scuffs.geometry.dispose();
     (this.scuffs.material as THREE.Material).dispose();
-    for (const c of this.root.children) if (c instanceof THREE.Points) (c.material as THREE.Material).dispose();
     this.root.removeFromParent();
   }
 }

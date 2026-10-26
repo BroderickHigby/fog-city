@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { SimState } from "../sim/contract.ts";
 import { impactsOf, type PropKnock } from "../sim/impacts.ts";
 import type { Prop } from "../sim/props.ts";
+import { createPortablePoints, type PortablePoints } from "./portable-points.ts";
 
 // Broken street props (src/sim/impacts.ts, src/sim/props.ts): street trees topple (or lean, or
 // snap), lamp posts keel over, and fire hydrants, drawn here at their refill points, are knocked
@@ -43,6 +44,7 @@ export class PropDamage {
   private readonly hydrants: THREE.InstancedMesh;
   private readonly geyserGeo = new THREE.BufferGeometry();
   private readonly geyserPos = new Float32Array(GEYSER * 3);
+  private readonly geyserDraw: PortablePoints;
   private readonly water: Water[] = [];
   private readonly tmp = new THREE.Object3D();
   private readonly m1 = new THREE.Matrix4();
@@ -77,7 +79,8 @@ export class PropDamage {
     this.hydrants.frustumCulled = false;
     this.hydrants.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.geyserGeo.setAttribute("position", new THREE.BufferAttribute(this.geyserPos, 3).setUsage(THREE.DynamicDrawUsage));
-    const geyser = new THREE.Points(this.geyserGeo, new THREE.PointsMaterial({ color: 0xbfe6ff, size: 0.22, transparent: true, opacity: 0.8, depthWrite: false }));
+    this.geyserDraw = createPortablePoints(this.geyserGeo, { color: 0xbfe6ff, size: 0.22, transparent: true, opacity: 0.8, depthWrite: false });
+    const geyser = this.geyserDraw.object;
     geyser.name = "hydrant-geyser";
     geyser.frustumCulled = false;
     this.root.add(this.hydrants, geyser);
@@ -216,12 +219,14 @@ export class PropDamage {
     }
     this.geyserGeo.setDrawRange(0, w);
     (this.geyserGeo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
+    this.geyserDraw.sync();
   }
 
   dispose(): void {
     this.opts.setFoliageOverride(null);
     this.hydrants.geometry.dispose();
     (this.hydrants.material as THREE.Material).dispose();
+    this.geyserDraw.dispose();
     this.geyserGeo.dispose();
     this.root.removeFromParent();
   }
