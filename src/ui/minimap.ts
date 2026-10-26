@@ -2,7 +2,7 @@ import { mapCoordinates } from "./navigation.ts";
 import { atlasFor, MAP_COLORS, paintAtlas, routeSegments, type MapAtlas } from "./map-atlas.ts";
 import type { MapPoint, UiView } from "./types.ts";
 
-const COLORS:Record<string,string>={water:"#73cff9",mission:"#ffd579",safehouse:"#aef0ba",bounty:"#f9a0a7",wash:"#b9c6ff",robot:"#ff8a79"};
+const COLORS:Record<string,string>={water:"#73cff9",mission:"#ffd579",safehouse:"#aef0ba",bounty:"#f9a0a7",wash:"#b9c6ff",robot:"#ff8a79",landmark:"#e4c8a0"};
 const MAX_CACHE_SIDE=1024;
 type Surface=HTMLCanvasElement|OffscreenCanvas;
 interface Cache { atlas:MapAtlas;surface:Surface;center:MapPoint;radius:number;viewRadius:number;size:number;ratio:number;paints:number }

@@ -31,6 +31,7 @@ import { installDebugHandle } from "./debug.ts";
 import { FramePacer } from "./frame-pacer.ts";
 import { openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
+import { replaceLandmarkWorld } from "./io/landmark-world.ts";
 import { Keyboard } from "./input/keyboard.ts";
 import { PointerLook } from "./input/pointer.ts";
 import { availableGamepads } from "./input/controller.ts";
@@ -40,6 +41,8 @@ import { mountMultiplayer } from "./ui/multiplayer.ts";
 import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
+import { landmarkBlips } from "./ui/landmarks.ts";
+import { PALACE_LAGOON } from "./render/landmark-water.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
 import { ImpactLayer } from "./render/impact-layer.ts";
 import { PropDamage } from "./render/prop-damage.ts";
@@ -187,7 +190,8 @@ async function boot(): Promise<void> {
   const { manifest, tiles } = files;
   const roads = files.roads as RoadGraph | null;
   // One reference-only presentation packet: the map uses exactly the loaded SF city.
-  const mapGeography = { tiles, roads, boundary: files.boundary, districts };
+  const mapGeography = { tiles, roads, boundary: files.boundary, districts,
+    ...(worldName==="sf"?{landmarks:landmarkBlips(landmarksDoc),inlandWater:[PALACE_LAGOON.ring as [number,number][]]}:{}) };
   // Once, at load: with the road graph the sim runs ambient traffic (state.ext.agents).
   status(roads ? `building ${worldName} streets…` : `building ${worldName}…`);
   await paint();
@@ -200,7 +204,7 @@ async function boot(): Promise<void> {
   const ground = (x: number, z: number): number => groundHeight(world, x, z);
   const occluded = (x: number, y: number, z: number): boolean => {
     for (const b of nearbyBuildings(world, x, z, 0.6)) {
-      if (y < b.topY + 0.3 && y > b.baseY - 2 && pointInPolygon(x, z, b.footprint)) return true;
+      if (y < b.topY + 0.3 && y > b.baseY - 2 && (b.underY===undefined||y>b.underY-.3) && pointInPolygon(x, z, b.footprint)) return true;
     }
     return false;
   };
@@ -216,7 +220,7 @@ async function boot(): Promise<void> {
     files.colliders === "pack" && assets.mode === "loose"
       ? (id: string): Promise<TileCollider | null> => {
           const f = tileColliderFile.get(id);
-          return f ? assets.json<TileCollider>(base + f).catch(() => null) : Promise.resolve(null);
+          return f ? assets.json<TileCollider>(base + f).then(tile=>replaceLandmarkWorld([tile],worldName).tiles[0]!).catch(() => null) : Promise.resolve(null);
         }
       : undefined;
   // The graphics tier (gfx.ts): from the GPU unless ?gfx= names one; after the GPU was lost
@@ -229,7 +233,7 @@ async function boot(): Promise<void> {
   const tierSettings = TIER_SETTINGS[gfx.tier];
   const view = await SceneRenderer.create(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
+    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider, landmarkReplacements:files.landmarkReplacements },
     {
       backend: ["webgpu", "webgl", "legacy"].includes(rendererRequest ?? "")
         ? rendererRequest as "webgpu" | "webgl" | "legacy" : safeMode ? "legacy" : "auto",

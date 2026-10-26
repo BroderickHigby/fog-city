@@ -21,6 +21,7 @@ import type { TransitLayer } from "../sim/agents/transit-runtime.ts";
 import { buildWorld, type World } from "../sim/world.ts";
 import type { ParkingLayer, StreetCleaningLayer } from "../sim/parking-data.ts";
 import { propsFromStreetDetail, type PropPlacement, type StreetDetailFiles } from "../sim/props.ts";
+import { replaceLandmarkWorld, type LandmarkWorldReplacement } from "./landmark-world.ts";
 
 /**
  * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
@@ -32,6 +33,7 @@ export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "game
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
+  world?: string;
   spawn: { x: number; z: number; heading: number };
   tiles: ReadonlyArray<{ id: string; collider: string }>;
   roads?: string | null;
@@ -54,6 +56,8 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   streetProps?: PropPlacement[] | null;
   /** Where the colliders came from. */
   colliders: "pack" | "json";
+  /** Authored open-air architecture replacing solid footprint extrusions. */
+  landmarkReplacements?: LandmarkWorldReplacement[];
 }
 
 /**
@@ -74,9 +78,9 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
     if (ids.length !== want.length || ids.some((id, i) => id !== want[i])) {
       throw new Error(`collider pack ${manifest.worldColliders}: its ${ids.length} tiles are not the manifest's ${want.length}`);
     }
-    return { manifest, tiles: pack.tiles, roads, boundary, colliders: "pack", ...layers };
+    return { manifest, ...replaceLandmarkWorld(pack.tiles,manifest.world), roads, boundary, colliders: "pack", ...layers };
   }
-  return { manifest, tiles: colliders.json, roads, boundary, colliders: "json", ...layers };
+  return { manifest, ...replaceLandmarkWorld(colliders.json,manifest.world), roads, boundary, colliders: "json", ...layers };
 }
 
 /** Browser, server and replay tools must build the same immutable world metadata. */

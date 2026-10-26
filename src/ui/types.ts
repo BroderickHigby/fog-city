@@ -18,8 +18,10 @@ export interface MapEdge {
 export interface MapGeography {
   readonly tiles:readonly TileCollider[]; readonly roads:RoadGraph|null;
   readonly boundary:BoundaryFile|null; readonly districts?:unknown;
+  readonly landmarks?:readonly MapBlip[];
+  readonly inlandWater?:readonly (readonly (readonly [number,number])[])[];
 }
-export interface MapBlip extends MapPoint { readonly id:string; readonly kind:"water"|"mission"|"safehouse"|"bounty"|"wash"|"robot"; readonly label:string; readonly confirmed?:boolean }
+export interface MapBlip extends MapPoint { readonly id:string; readonly kind:"water"|"mission"|"safehouse"|"bounty"|"wash"|"robot"|"landmark"; readonly label:string; readonly confirmed?:boolean }
 export interface MapView {
   readonly geography?:MapGeography;
   readonly nodes:readonly MapNode[];

@@ -9,7 +9,7 @@ type Ring = readonly Point[];
 export type MapBounds = readonly [number, number, number, number];
 interface Base { readonly bounds:MapBounds }
 export interface MapRoad extends Base { readonly kind:"road"; readonly points:Ring; readonly width:number; readonly name:string; readonly highway:boolean }
-export interface MapPolygon extends Base { readonly kind:"building"|"park"; readonly rings:readonly Ring[]; readonly shade:number }
+export interface MapPolygon extends Base { readonly kind:"building"|"park"|"water"; readonly rings:readonly Ring[]; readonly shade:number }
 export interface MapGround extends Base { readonly kind:"ground"; readonly field:Readonly<Heightfield> }
 export interface MapShore extends Base { readonly kind:"shore"; readonly points:Ring }
 export type MapFeature=MapRoad|MapPolygon|MapGround|MapShore;
@@ -43,6 +43,7 @@ export class MapAtlas {
     else{const byId=new Map(nodes.map(n=>[n.id,n]));for(const edge of edges){if(edge.reversed)continue;const from=byId.get(edge.from),to=byId.get(edge.to),points=edge.points??(from&&to?[[from.x,from.z],[to.x,to.z]] as Point[]:[]);const b=bounds(points);if(b)add({kind:"road",points,bounds:b,width:Math.max(3,Math.min(40,edge.widthM??7)),name:edge.name??"",highway:edge.kind==="freeway"||edge.kind==="ramp"});}}
     const districts=(geography?.districts as {districts?:Array<{name?:string;polygons?:readonly (readonly Ring[])[]}>}|null)?.districts;
     for(const district of Array.isArray(districts)?districts:[]){if(!PARK_NAMES.has(district.name??"")||!Array.isArray(district.polygons))continue;for(const rings of district.polygons){const b=rings[0]&&bounds(rings[0]);if(b&&rings[0]!.length>=3)add({kind:"park",rings,bounds:b,shade:0});}}
+    for(const ring of geography?.inlandWater??[]){const b=bounds(ring);if(b&&ring.length>=3)add({kind:"water",rings:[ring],bounds:b,shade:0});}
     for(const shore of geography?.boundary?.shore??[]){const b=bounds(shore.points);if(b)add({kind:"shore",points:shore.points as Ring,bounds:b});}
     this.hasGround=ground;this.features=count;
   }
@@ -99,11 +100,11 @@ export function paintAtlas(c:CanvasRenderingContext2D,atlas:MapAtlas,center:MapP
     const f=feature.field;if(!f.water){c.fillRect(f.x0,f.z0,(f.nx-1)*f.cellSizeM,(f.nz-1)*f.cellSizeM);continue;}
     for(let z=0;z<f.nz-1;z++){let run=-1;for(let x=0;x<f.nx;x++){const land=x<f.nx-1&&f.water[z*f.nx+x]!==1;if(land&&run<0)run=x;if(!land&&run>=0){c.fillRect(f.x0+run*f.cellSizeM,f.z0+z*f.cellSizeM,(x-run)*f.cellSizeM,f.cellSizeM);run=-1;}}}
   }
-  for(const kind of ["park","building"] as const)for(let shade=0;shade<(kind==="park"?1:3);shade++){
+  for(const kind of ["park","water","building"] as const)for(let shade=0;shade<(kind==="building"?3:1);shade++){
     const rows=features.filter((f):f is MapPolygon=>f.kind===kind&&f.shade===shade&&(kind==="park"||(f.bounds[2]-f.bounds[0])*scale>=.8&&(f.bounds[3]-f.bounds[1])*scale>=.8));if(!rows.length)continue;
     const path=typeof Path2D!=="undefined"?new Path2D():null;if(!path)c.beginPath();for(const f of rows)f.rings.forEach((ring,index)=>polygon(path??c,ring,index>0));
-    c.fillStyle=kind==="park"?MAP_COLORS.park:MAP_COLORS.building[shade]!;if(path)c.fill(path);else c.fill();
-    c.strokeStyle=kind==="park"?MAP_COLORS.parkEdge:MAP_COLORS.buildingEdge;c.lineWidth=1/scale;if(path)c.stroke(path);else c.stroke();
+    c.fillStyle=kind==="park"?MAP_COLORS.park:kind==="water"?MAP_COLORS.water:MAP_COLORS.building[shade]!;if(path)c.fill(path);else c.fill();
+    c.strokeStyle=kind==="park"?MAP_COLORS.parkEdge:kind==="water"?MAP_COLORS.shore:MAP_COLORS.buildingEdge;c.lineWidth=1/scale;if(path)c.stroke(path);else c.stroke();
   }
   const roads=features.filter((f):f is MapRoad=>f.kind==="road");
   const groups=new Map<string,MapRoad[]>();for(const road of roads){const key=`${road.width}:${road.highway}`;const rows=groups.get(key);if(rows)rows.push(road);else groups.set(key,[road]);}

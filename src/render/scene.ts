@@ -15,6 +15,9 @@ import { createPavementMask } from "./pavement.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
+import { LandmarkFallbacks } from "./landmark-fallback.ts";
+import { filterLandmarkHulls } from "./landmark-mask.ts";
+import type { LandmarkWorldReplacement } from "../io/landmark-world.ts";
 import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
@@ -27,6 +30,7 @@ import { clearRenderRetirementOwner, setRenderRetirementOwner, type RenderRetire
 import type { BuildingDetailStats } from "./building-character.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
+import { createLandmarkWater } from "./landmark-water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
@@ -91,6 +95,7 @@ export interface WorldData {
   districts?: unknown;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
+  landmarkReplacements?: readonly LandmarkWorldReplacement[];
 }
 
 export interface RenderInfo {
@@ -190,6 +195,7 @@ export class SceneRenderer {
   readonly actors: Actors;
   readonly agents: AgentLayer;
   readonly landmarks: LandmarkLayer;
+  private readonly landmarkFallbacks:LandmarkFallbacks;
   readonly far: FarLayer;
   readonly streetDetail: StreetDetailLayer;
   readonly lights = new NightLights();
@@ -198,6 +204,7 @@ export class SceneRenderer {
   private readonly nightMats: NightMaterials;
   private readonly sky = new Sky();
   private readonly water = new Water(SEA_SIZE_M);
+  private readonly landmarkWater: THREE.Mesh | null;
   private readonly ground: (x: number, z: number) => number;
   private readonly avatarGround = new AvatarGround();
   private readonly foliage: FoliageLayer;
@@ -353,11 +360,13 @@ export class SceneRenderer {
       parkPavementRegions(parks)) : undefined;
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
+    const landmarkSources=world.landmarkReplacements?.flatMap(l=>l.sources)??[];
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain, pavement),
+      filterGeometry:landmarkSources.length?(geo,m)=>filterLandmarkHulls(geo,m,landmarkSources):undefined,
       ground: world.ground,
       budget: softwareFarBudget(rendererName),
     });
@@ -427,17 +436,24 @@ export class SceneRenderer {
       this.agents.setCrowd(this.crowd);
       this.scene.add(this.crowd.group);
     }
+    this.landmarkFallbacks=new LandmarkFallbacks(world.landmarkReplacements??[],ids=>this.streamer.hideBuildings(ids));
+    this.prepareShadows(this.landmarkFallbacks.group);
+    this.scene.add(this.landmarkFallbacks.group);
     this.landmarks = new LandmarkLayer(
       opts.landmarks,
       this.registry,
       world.ground,
-      (ids) => this.streamer.hideBuildings(ids),
+      (ids) => this.streamer.hideBuildings([...ids,...(world.landmarkReplacements??[])
+        .filter(l=>l.sources.some(b=>ids.includes(b.id))).flatMap(l=>l.colliders.map(b=>b.id))]),
       (root) => {
+        this.landmarkFallbacks.retire(root.name.slice("landmark:".length));
         this.prepareShadows(root);
         this.lights.track(root);
       },
     );
     this.scene.add(this.landmarks.group);
+    this.landmarkWater = createLandmarkWater(world.manifest.world, (gpu?.water ?? this.water.mesh).material as THREE.Material);
+    if(this.landmarkWater)this.scene.add(this.landmarkWater);
     this.rig = new CameraRig(this.camera, world.ground, world.occluded);
 
     // Keep unclipped direct rendering on devices without floating-point color targets.
@@ -989,12 +1005,15 @@ export class SceneRenderer {
       this.quality?.dispose();
       this.streetLights?.dispose();
       this.far.dispose();
+      this.landmarkFallbacks.dispose();
       this.streetDetail.dispose();
       this.actors.dispose();
       this.agents.dispose();
       this.crowd?.dispose();
       this.sky.dispose();
       this.water.dispose();
+      this.landmarkWater?.geometry.dispose();
+      (this.landmarkWater?.material as THREE.Material | undefined)?.dispose();
       this.weather.dispose();
       for (const m of this.materials.all) m.dispose();
       this.nightMats.glow.dispose();

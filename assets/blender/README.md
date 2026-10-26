@@ -660,3 +660,23 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 - founder-default, the player's default look, was matched by eye to the project owner's
   reference photos, which are kept outside the repo; no image data from them is in any file
   (see founder-default, Privacy).
+
+## Palace of Fine Arts
+
+`models/palace_of_fine_arts.py` creates an original open rotunda and curved
+colonnades at the existing SF site. The terracotta dome, octagonal arcade,
+Corinthian columns and coffers follow the [California Office of Historic
+Preservation nomination](https://ohp.parks.ca.gov/pages/1067/files/CHL_San%20Francisco_Palace%20of%20Fine%20Arts.pdf)
+and the [SF Recreation and Parks site](https://recpark.sf.gov/Facilities/Facility/Details/Palace-of-Fine-Arts-423).
+No third-party model or texture is included. The existing exhibition hall stays.
+
+The 1.33 MB GLB contains 38,608 triangles and eight material primitives. Its 415
+structural collision pieces are in `content/palace-of-fine-arts.json`; the loader
+uses that packet before indexing the world and includes it in the world identity.
+The generator writes the model and this packet together. Do not replace it
+with a solid rotunda footprint: people and the camera must pass under its arches.
+
+`build_palace_lagoon.py` traces the existing terrain's low basin into
+`content/palace-lagoon.json`. This is a small render-only water surface using the
+existing water shader, also shown on the map. It changes no terrain samples or
+simulation water rules. Regenerate it only when the source DEM changes.
