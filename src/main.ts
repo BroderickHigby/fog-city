@@ -4,8 +4,8 @@
 // world once behind the loading text (the road graph's clearance sampling takes ~0.2 s for a
 // small world, ~1.5 s citywide; never per frame), then run a fixed-timestep loop and render
 // interpolated poses: players, and the sim's ambient agents (robotaxis, robots, people).
-// Render tiles stream in and out around the camera without ever blocking the loop; the far
-// skyline is drawn beyond them.
+// The starting streets load behind a covered view before play begins. Later tiles stream
+// around the camera without blocking the loop; the far skyline is drawn beyond them.
 //
 // Files come through src/io/assets.ts: loose files from the dev server, or the packed layout
 // of a production build (pnpm build), always relative to the page.
@@ -413,8 +413,8 @@ async function boot(): Promise<void> {
 
   // Graphics recovery can restore a different starting street. Resolve it before revealing
   // the first view, while retaining the existing progression validation and spawn rules.
-  if (sessionValue(RESUME_KEY) === "1") {
-    setSessionValue(RESUME_KEY, null);
+  const resumingAfterReset = sessionValue(RESUME_KEY) === "1";
+  if (resumingAfterReset) {
     await saveStore.load("auto").then(save => { if (save) restoreSave(save.data); }).catch(() => {});
   }
   status(`loading ${worldName} streets…`);
@@ -439,6 +439,8 @@ async function boot(): Promise<void> {
   });
   container.setAttribute("aria-busy", "false");
   loading?.classList.remove("loading-screen");
+  loading?.removeAttribute("role");
+  if (resumingAfterReset) setSessionValue(RESUME_KEY, null);
   if (legacyHud) legacyHud.hidden = !diagnostics;
   keyboard.setBlocked(false);
   pacer.reset(); last = performance.now();
