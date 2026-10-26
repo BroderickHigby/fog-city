@@ -115,6 +115,18 @@ describe("rogue encounters, v17", () => {
     expect(events).toContain("player.phone-hack");
   });
 
+  it("reacts to actual spraying beyond the automatic encounter radius", () => {
+    let state = initial();
+    state.players.p!.foot!.z = -20;
+    const registry = systems([bot()]);
+    state = step(world, state, { p: { ...idle, actions: Action.fire, aimYaw: Math.PI } }, [], registry);
+    expect(state.ext.combat!.events.some(event => event.kind === "weapon.water")).toBe(true);
+    expect(agentsRuntimeOf(state)!.actors.rogue!.brain!.mode).toBe("disguised");
+    for (let tick = 0; tick < 2; tick++) state = step(world, state, { p: idle }, [], registry);
+    expect(agentsRuntimeOf(state)!.actors.rogue!.brain!.mode).toBe("attack");
+    expect(agentsRuntimeOf(state)!.actors.rogue!.intent!.movement).toMatchObject({ kind: "pursue", target: { kind: "player", id: "p" } });
+  });
+
   it("does not redirect an eligible foot encounter onto a closer car or protected player", () => {
     for (const mode of ["vehicle", "protected"] as const) {
       let state = initial();
@@ -128,7 +140,7 @@ describe("rogue encounters, v17", () => {
         state = { ...state, ext: { ...state.ext, robots: runtime } };
       }
       expect(requests, mode).toEqual(["p"]);
-      expect(agentsRuntimeOf(state)!.actors.rogue!.brain!.knowledge.find(row => row.playerId === "q")!.engage).toBe(false);
+      expect(agentsRuntimeOf(state)!.actors.rogue!.brain!.knowledge.find(row => row.playerId === "q")!.targetable).toBe(false);
     }
   });
 

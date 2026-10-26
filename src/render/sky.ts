@@ -54,8 +54,10 @@ export const GOLDEN: LightingPreset = {
   sunIntensity: 5.8,
   hemiSky: 0x9abbe6,
   hemiGround: 0xc88a62,
-  hemiIntensity: 1.48,
-  envIntensity: 0.54,
+  // A restrained sky/bounce fill keeps shaded SF asphalt and tree crowns readable;
+  // the directional sun still supplies over three times the hemisphere intensity.
+  hemiIntensity: 1.7,
+  envIntensity: 0.62,
   zenith: 0x4779ae,
   horizonWarm: 0xe9d1b5,
   horizonCool: 0xbacddd,
@@ -65,7 +67,7 @@ export const GOLDEN: LightingPreset = {
   sunFogColor: 0xe8d5b8,
   sunFogStrength: 0.62,
   fog: { density: 0.0002, falloff: 1 / 95, baseY: 0, distK: 1 / 16000 },
-  exposure: 1.0,
+  exposure: 1.04,
   stars: 0,
   water: 1,
   cloudCoverage: 0.35,
@@ -85,8 +87,8 @@ export const NOON: LightingPreset = {
   sunIntensity: 6.6,
   hemiSky: 0xaad2ff,
   hemiGround: 0xb89678,
-  hemiIntensity: 1.58,
-  envIntensity: 0.58,
+  hemiIntensity: 1.76,
+  envIntensity: 0.67,
   zenith: 0x3977b6,
   horizonWarm: 0xd4e2e9,
   horizonCool: 0xc2d6e6,
@@ -96,6 +98,7 @@ export const NOON: LightingPreset = {
   fog: { density: 0.00016, falloff: 1 / 110, baseY: 0, distK: 1 / 18000 },
   cloudCoverage: 0.25,
   cloudOpacity: 0.62,
+  exposure: 1.0,
 };
 
 export const TWILIGHT: LightingPreset = {

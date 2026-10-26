@@ -58,8 +58,11 @@ const bumpNormal = Fn(([height]: [F]) => {
 /** Analytic ambient sky visibility, not a screen-space AO or a GI measurement. */
 export function canyonSkyAO(relativeHeight: F = positionWorld.y.sub(gpuMaterialUniforms.cameraGround)): F {
   const openness = smoothstep(0, 68, max(relativeHeight, 0));
-  const crevice = smoothstep(0, 7.5, max(relativeHeight, 0)).mul(.22).add(.78);
-  return mix(.44, 1, openness).mul(crevice);
+  // SF's low blocks and open waterfront expose more sky than the reference's
+  // Manhattan canyon. Retain contact shading without crushing shaded asphalt,
+  // branches and street-facing windows to the old .34 ambient-light floor.
+  const crevice = smoothstep(0, 7.5, max(relativeHeight, 0)).mul(.12).add(.88);
+  return mix(.58, 1, openness).mul(crevice);
 }
 
 function common(source?: THREE.Material, physical = false): CityNodeMaterial {
@@ -220,12 +223,56 @@ function buildingMaterial(source: THREE.Material): CityNodeMaterial {
   m.roughnessNode = mix(.82, mix(.16, .28, seed), glassMask);
   m.metalnessNode = glassMask.mul(mix(.12, .58, modern));
   m.aoNode = canyonSkyAO(positionWorld.y.sub(meta.y)).mul(mix(1, .75, frame));
-  const relief = mortar.mul(-.004).add(frame.mul(.012)).add(course.mul(.014)).sub(window.mul(.025));
-  const reliefFade = float(1).sub(smoothstep(.05, .2, max(length(fwidth(fuv)), .0001)));
+  // Height must have its own >=two-pixel ramps. Differentiating the narrower
+  // color masks made sills sparkle like rivets at the game's reduced resolution,
+  // and their perturbed normals also destabilized shadow normal-bias offsets.
+  const ramp = max(fw.mul(2), .02);
+  const reliefX = pulse(grid.x, x0, x1, ramp.x);
+  const reliefWindow = reliefX.mul(pulse(grid.y, y0, y1, ramp.y));
+  const sill = reliefX.mul(pulse(grid.y, y0.sub(.035), y0, ramp.y));
+  const bandCoord = fuv.y.div(story);
+  const belt = pulse(bandCoord, float(.97), float(1), max(fwidth(bandCoord).mul(2), .02)).mul(float(1).sub(modern));
+  const facePixel = max(fwidth(fuv.x), fwidth(fuv.y));
+  const brickFace = smoothstep(0, .018, min(fract(blockX), float(1).sub(fract(blockX))).mul(blockM.x))
+    .mul(smoothstep(0, .018, min(fract(block.y), float(1).sub(fract(block.y))).mul(blockM.y)))
+    .mul(.003).mul(brick).mul(float(1).sub(smoothstep(.006, .012, facePixel)));
+  const relief = brickFace.add(sill.mul(.014)).add(belt.mul(.012)).sub(reliefWindow.mul(.012));
+  const reliefFade = float(1).sub(smoothstep(18, 140, length(positionWorld.sub(cameraPosition))))
+    .mul(float(1).sub(smoothstep(.03, .1, max(fw.x, fw.y)))).mul(float(1).sub(roof));
   m.normalNode = bumpNormal(relief.mul(reliefFade));
   m.emissiveNode = room.rgb.mul(room.a).mul(glassMask).mul(gpuMaterialUniforms.night).mul(.95);
   m.userData.fcGpuKind = "building";
   return m;
+}
+
+/** World-metre scored concrete, shared by sidewalk ribbons and neutral land. */
+function pavingSurface(p: V2, source: V3): { color: V3; height: F; roughness: F } {
+  const grid = p.div(1.5), footprint = max(fwidth(grid), .00001);
+  const distance = length(positionWorld.sub(cameraPosition));
+  const detail = float(1).sub(smoothstep(30, 180, distance));
+  // Integrate the periodic band from an unwrapped coordinate, so a joint has
+  // continuous coverage across cell boundaries and converges to its mean in LOD.
+  const jointX = pulse(grid.x, float(0), float(.022), footprint.x);
+  const jointZ = pulse(grid.y, float(0), float(.022), footprint.y);
+  const joints = max(jointX, jointZ).mul(detail);
+  const panel = mix(.5, hash2(floor(grid)), float(1).sub(smoothstep(.15, .6, max(footprint.x, footprint.y))));
+  const tone = noise2(p.mul(.48));
+  const pixel = length(fwidth(p));
+  const grainVisible = float(1).sub(smoothstep(.02, .07, pixel));
+  const grain = noise2(p.mul(14)).sub(.5).mul(grainVisible);
+  const concrete = mix(color(0x85837b), color(0xa19c90), tone);
+  const base = mix(source, concrete, .74).mul(panel.sub(.5).mul(.16).add(1));
+  const wet = clamp(gpuMaterialUniforms.wet, 0, 1);
+  const damp = noise2(p.mul(.18).add(vec2(7.4, -13.1))).mul(wet);
+  const albedo = base.mul(float(1).sub(joints.mul(.38))).add(grain.mul(.025))
+    .mul(mix(1, .74, max(wet.mul(.35), damp)));
+  // Normal relief uses a wider filter than color, as with the facade sills.
+  const ramp = max(footprint.mul(2), .012);
+  const reliefJoint = max(pulse(grid.x, float(0), float(.022), ramp.x), pulse(grid.y, float(0), float(.022), ramp.y));
+  const reliefFade = float(1).sub(smoothstep(18, 100, distance));
+  const height = noise2(p.mul(4.5)).sub(.5).mul(.002).mul(grainVisible)
+    .sub(reliefJoint.mul(.009)).mul(reliefFade).mul(float(1).sub(wet.mul(.6)));
+  return { color: albedo, height, roughness: mix(float(.92).sub(panel.mul(.055)), .48, damp) };
 }
 
 function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean): CityNodeMaterial {
@@ -247,14 +294,16 @@ function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean
     const stripe = freeway ? max(line(ruv.x.sub(1 / 3), halfWidth), line(ruv.x.sub(2 / 3), halfWidth)) : line(ruv.x.sub(.5), halfWidth).mul(step(7, width));
     asphalt = mix(asphalt, color(0xcac8b9), stripe.mul(dash));
   }
-  const slab = p.div(1.5), edge = max(line(fract(slab.x), float(.007)), line(fract(slab.y), float(.007)));
-  const concrete = mix(vcol.mul(.9), color(0xaaa79e).mul(.8), .35).mul(float(1).sub(edge.mul(.22)));
+  const paving = pavingSurface(p, vcol);
+  // Keep colored lane paint and very bright markings outside the concrete palette.
+  const neutral = float(1).sub(smoothstep(.2, .4, chroma)).mul(float(1).sub(smoothstep(.55, .72, maximum)));
+  const concrete = mix(vcol, paving.color, neutral);
   const wet = clamp(gpuMaterialUniforms.wet, 0, 1), puddle = smoothstep(.58, .77, noise2(p.mul(.13))).mul(wet);
-  m.colorNode = mix(concrete, asphalt, asphaltMask).mul(mix(1, .62, max(wet.mul(.5), puddle)));
-  m.roughnessNode = mix(.9, mix(.38, .12, puddle), wet);
+  m.colorNode = mix(concrete, asphalt.mul(mix(1, .62, max(wet.mul(.5), puddle))), asphaltMask);
+  m.roughnessNode = mix(mix(.82, paving.roughness, neutral.mul(float(1).sub(asphaltMask))), mix(.38, .12, puddle), wet);
   m.metalnessNode = puddle.mul(.5);
   const height = noise2(p.mul(8.5)).sub(.5).mul(.0032).mul(float(1).sub(smoothstep(.025, .08, pixel)));
-  m.normalNode = bumpNormal(height.mul(asphaltMask).mul(float(1).sub(puddle)));
+  m.normalNode = bumpNormal(mix(paving.height.mul(neutral), height, asphaltMask).mul(float(1).sub(puddle)));
   return m;
 }
 
@@ -262,10 +311,13 @@ function groundMaterial(source: THREE.Material): CityNodeMaterial {
   const m = common(source); m.vertexColors = false;
   const vcol = attribute("color", "vec3"), p = positionWorld.xz;
   const green = step(vcol.r.mul(1.14), vcol.g).mul(step(vcol.b.mul(1.1), vcol.g));
-  const cell = p.div(1.5), seam = max(line(fract(cell.x), float(.007)), line(fract(cell.y), float(.007)));
+  const range = max(vcol.r, max(vcol.g, vcol.b)).sub(min(vcol.r, min(vcol.g, vcol.b)));
+  const paved = float(1).sub(smoothstep(.035, .12, range)).mul(float(1).sub(green));
+  const paving = pavingSurface(p, vcol);
   const grit = noise2(p.mul(5)).sub(.5).mul(.035).mul(float(1).sub(smoothstep(.03, .2, length(fwidth(p)))));
-  m.colorNode = vcol.mul(float(1).sub(seam.mul(.2).mul(float(1).sub(green))).add(grit));
-  m.roughness = .96; m.aoNode = mix(.78, 1, green);
+  m.colorNode = mix(vcol.mul(float(1).add(grit)), paving.color, paved);
+  m.normalNode = bumpNormal(paving.height.mul(paved));
+  m.roughnessNode = mix(.96, paving.roughness, paved); m.aoNode = mix(.78, 1, green);
   return m;
 }
 

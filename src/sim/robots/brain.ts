@@ -20,6 +20,8 @@ export interface PlayerSight extends SightBase {
   readonly threatening: boolean;
   /** An admitted rogue encounter may initiate against this visible on-foot player. */
   readonly engage?: boolean;
+  /** v17 eligibility is separate from the distance that may initiate an encounter. */
+  readonly targetable?: boolean;
 }
 export interface RobotSight extends SightBase {
   readonly kind: "robot";
@@ -78,7 +80,7 @@ export interface PlayerKnowledge extends BrainPoint {
   readonly expiresTick: number;
   readonly channel: "sight" | "hearing" | "broadcast";
   /** Last-seen v17 encounter eligibility. Absent in legacy observations and saves. */
-  readonly engage?: boolean;
+  readonly targetable?: boolean;
 }
 export interface CloseWatch { readonly playerId: string; readonly startedTick: number }
 export interface RobotWindup { readonly target: BrainTarget; readonly attack: RobotAttack; readonly startedTick: number }
@@ -197,6 +199,7 @@ function validateInput(state: RobotBrainState, input: RobotBrainInput): void {
       boolean(observation.inVehicle, "player vehicle flag");
       boolean(observation.threatening, "player threat flag");
       if(observation.engage!==undefined)boolean(observation.engage,"player encounter flag");
+      if(observation.targetable!==undefined)boolean(observation.targetable,"player eligibility flag");
     } else if (observation.kind === "robot" || observation.kind === "person") {
       integer(observation.id, "observed id");
       if (observation.kind === "robot") {
@@ -262,7 +265,7 @@ function remember(knowledge: PlayerKnowledge[], observation: PlayerKnowledge): v
   if (prior && (prior.observedTick > observation.observedTick ||
       (prior.observedTick === observation.observedTick && (rank[prior.channel] > rank[observation.channel] ||
       (rank[prior.channel] === rank[observation.channel] && (prior.x < observation.x || (prior.x === observation.x && prior.z <= observation.z))))))) return;
-  const next=observation.engage===undefined&&prior?.engage!==undefined?{...observation,engage:prior.engage}:observation;
+  const next=observation.targetable===undefined&&prior?.targetable!==undefined?{...observation,targetable:prior.targetable}:observation;
   if (index < 0) knowledge.push(next);
   else knowledge[index] = next;
 }
@@ -316,7 +319,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   const knowledge = previous.knowledge.filter((k) => tick < k.expiresTick).map((k) => ({ ...k }));
   let alarm = false;
   for (const player of players) {
-    remember(knowledge, { playerId: player.id, x: player.x, z: player.z, observedTick: tick, expiresTick: tick + ROBOT_MEMORY_TICKS, channel: "sight",...(player.engage!==undefined?{engage:player.engage}:{}) });
+    remember(knowledge, { playerId: player.id, x: player.x, z: player.z, observedTick: tick, expiresTick: tick + ROBOT_MEMORY_TICKS, channel: "sight",...(player.targetable!==undefined?{targetable:player.targetable}:{}) });
     alarm = alarm || player.threatening || player.engage===true&&!player.inVehicle;
   }
   for (const sound of input.observations.sounds) {
@@ -338,7 +341,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   knowledge.sort((a, b) => b.observedTick - a.observedTick || compareString(a.playerId, b.playerId));
   if (knowledge.length > ROBOT_MAX_KNOWN_PLAYERS) knowledge.length = ROBOT_MAX_KNOWN_PLAYERS;
   knowledge.sort((a, b) => compareString(a.playerId, b.playerId));
-  const nearestMemory = knowledge.filter(k=>k.engage!==false).sort((a, b) => distanceSq(input.self, a) - distanceSq(input.self, b) || compareString(a.playerId, b.playerId))[0];
+  const nearestMemory = knowledge.filter(k=>k.targetable!==false).sort((a, b) => distanceSq(input.self, a) - distanceSq(input.self, b) || compareString(a.playerId, b.playerId))[0];
   let waryUntilTick = previous.waryUntilTick;
   const closeWatches: CloseWatch[] = [];
   for (const watch of input.observations.watches) {

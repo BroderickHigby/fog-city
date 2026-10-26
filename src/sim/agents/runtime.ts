@@ -306,9 +306,10 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     const near=distance(actor,player)<=40;
     if(!near)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
+    const targetable=mayEngage&&player.mode==="foot"&&!protectedArea(player.x,player.z);
     const input=inputs[player.id];
     if(distance(actor,player)<=30)sight.push({kind:"player",id:player.id,x:player.x,z:player.z,heading:player.heading,inVehicle:player.mode==="vehicle",lineOfSight:visible,threatening:(activeCombat(sim)?.events??[]).some(event=>event.sourceId===player.id&&event.kind==="weapon.water"),
-      ...(encounters?{engage:mayEngage&&player.mode==="foot"&&distance(actor,player)<=18&&!protectedArea(player.x,player.z)}:{})});
+      ...(encounters?{engage:targetable&&distance(actor,player)<=18,targetable}:{})});
     if(input&&(input.actions&Action.horn))sounds.push({kind:"horn",playerId:player.id,x:player.x,z:player.z});
     if(input&&(input.actions&Action.watch))watches.push({playerId:player.id,x:player.x,z:player.z,lineOfSight:visible});
   }
