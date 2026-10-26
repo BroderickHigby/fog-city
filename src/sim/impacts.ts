@@ -59,8 +59,9 @@ import { agentDodgeClass } from "./dodge.ts";
 import { connector, lanePath, pathPoint, projectOnPath } from "./roads.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import type { CombatState } from "./combat-contract.ts";
-import { propIndex, type PropKind } from "./props.ts";
+import { propIndex, propsNear, type PropKind } from "./props.ts";
 import { ROOF_STEP_M, circleBlocked, meshGroundHeight, type World } from "./world.ts";
+import { VEHICLE_SKIN, hullAt, hullBandsMeet, hullContact, sweepHulls, vehiclePairs, type VehicleHull, type VehicleMotion, type HullContact } from "./vehicle-contacts.ts";
 
 export const IMPACTS_EXT_KEY = "impacts";
 
@@ -997,4 +998,199 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
   const ext = { ...state.ext, [IMPACTS_EXT_KEY]: w.ext };
   if (agentsExt) ext[AGENTS_EXT_KEY] = { ...agentsExt, list: agents };
   return { ...state, players: w.players, ext };
+}
+
+interface SolidVehicle {
+  key: string;
+  player: PlayerId|null;
+  agent: number|null;
+  oldAgent: Readonly<AgentState>|null;
+  motion: VehicleMotion;
+  pose: VehicleHull;
+  refused: boolean;
+  recovered: boolean;
+}
+
+/**
+ * v18's final physical vehicle seam. Individual movers still protect the static world and
+ * people; this pass closes simultaneous movement and the rounded-corner gaps between them.
+ * It shortens already proposed travel, never pushes a normally separated car sideways.
+ */
+export function resolveVehicleContacts(world: World, before: Readonly<SimState>, state: SimState): SimState {
+  if(state.version<18)return state;
+  const list=state.ext.agents?.list??[],oldAgents=new Map((before.ext.agents?.list??[]).map(a=>[a.id,a]));
+  const bodies:SolidVehicle[]=[];
+  const hull=(key:string,c:Readonly<{x:number;y:number;z:number;heading:number}>,hl:number,hw:number,height:number):VehicleHull=>({key,x:c.x,y:c.y,z:c.z,heading:c.heading,hl,hw,height});
+  for(const id of sortedIds(state.players)){
+    const car=state.players[id]!.car,old=before.players[id]?.car??car,key=`p:${id}`;
+    const after=hull(key,car,CAR.halfLength,CAR.halfWidth,CAR.bodyHeight);
+    bodies.push({key,player:id,agent:null,oldAgent:null,motion:{before:hull(key,old,CAR.halfLength,CAR.halfWidth,CAR.bodyHeight),after},pose:after,refused:false,recovered:false});
+  }
+  for(const a of list)if(AGENT_SPEC[a.kind].road){
+    const old=oldAgents.get(a.id)??a,key=`a:${a.id}`,d=dimsOf(a),after=hull(key,a,d.hl,d.hw,d.height);
+    bodies.push({key,player:null,agent:a.id,oldAgent:old,motion:{before:hull(key,old,d.hl,d.hw,d.height),after},pose:after,refused:false,recovered:false});
+  }
+  if(bodies.length<2)return state;
+  bodies.sort((a,b)=>a.key<b.key?-1:a.key>b.key?1:0);
+  const pairs=vehiclePairs(bodies.map(b=>b.motion));
+  if(!pairs.length)return state;
+  const neighbours:number[][]=bodies.map(()=>[]);
+  for(const [i,j] of pairs){neighbours[i]!.push(j);neighbours[j]!.push(i);}
+  const w:Work={tick:state.tick,players:state.players,agents:list.slice(),index:new Map(list.map((a,i)=>[a.id,i])),
+    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat};
+  const missed=new Map<number,{i:number;j:number;contact:HullContact}>();
+  const poseChanged=(a:Readonly<VehicleHull>,b:Readonly<VehicleHull>)=>a.x!==b.x||a.y!==b.y||a.z!==b.z||a.heading!==b.heading;
+  const trajectory=(b:SolidVehicle):VehicleMotion=>({before:b.motion.before,after:b.pose});
+  const safe=(b:SolidVehicle,p:VehicleHull):boolean=>{
+    const obstacles=slideObstacles(w,b.key,p.x,p.z,p.hl+p.hw+1).filter(c=>c.person);
+    // A shortened turn or inherited-overlap recovery must keep the same solid street
+    // props as ordinary driving. Broken props and vertically separate bodies stay clear.
+    for(const prop of propsNear(world,p.x,p.z,p.hl+p.hw+1)){
+      if(w.ext.props?.[prop.id])continue;
+      const base=meshGroundHeight(world,prop.x,prop.z);
+      if(p.y>=base+prop.height||p.y+p.height<=base)continue;
+      obstacles.push({x:prop.x,z:prop.z,r:prop.r,person:false});
+    }
+    return !boxBlocked(world,p,p.y+ROOF_STEP_M,obstacles,p.y+p.height)&&!boxCrossedWall(world,p,b.motion.before);
+  };
+  const cut=(i:number,t:number):boolean=>{
+    const b=bodies[i]!,a=b.agent===null?null:w.agents[w.index.get(b.agent)!];
+    // An ambient follower's coordinates and complete path cursor are one pose. Refusing its
+    // whole small step is safer than interpolating x/z while retaining a consumed connector.
+    if(a&&!a.knock&&!a.manualCar&&!a.vehicle)t=0;
+    let p=hullAt(trajectory(b),Math.max(0,t));
+    if(!safe(b,p))p=b.motion.before;
+    const changed=poseChanged(b.pose,p);
+    if(changed){b.pose=p;b.refused=true;}
+    return changed;
+  };
+  let changed=false;
+  for(let pass=0;pass<4;pass++){
+    let shortened=false;
+    for(const [i,j] of pairs){
+      const a=bodies[i]!,b=bodies[j]!,start=hullContact(a.motion.before,b.motion.before);
+      // A legacy/save overlap is handled separately, with bounded validated recovery.
+      if(hullBandsMeet(a.motion.before,b.motion.before)&&start.gap< -1e-8){
+        const end=hullContact(a.pose,b.pose);
+        if(hullBandsMeet(a.pose,b.pose)&&end.gap<start.gap-1e-8){shortened=cut(i,0)||shortened;shortened=cut(j,0)||shortened;}
+        if(hullBandsMeet(a.pose,b.pose)&&end.gap<VEHICLE_SKIN)missed.set(i*bodies.length+j,{i,j,contact:end});
+        continue;
+      }
+      const hit=sweepHulls(trajectory(a),trajectory(b));
+      if(!hit||hit.t>1)continue;
+      missed.set(i*bodies.length+j,{i,j,contact:hit});
+      // Tiny safety retreat also keeps a numerical touching pair free to move apart next tick.
+      const t=Math.max(0,hit.t-1e-6);
+      shortened=cut(i,t)||shortened;shortened=cut(j,t)||shortened;
+    }
+    changed=changed||shortened;
+    if(!shortened)break;
+  }
+  // Dense chains can need more pair iterations than the normal budget. Roll back the whole
+  // connected broad-phase component, so one rollback cannot introduce another chain contact.
+  const roots=bodies.map((_,i)=>i),root=(i:number):number=>{while(roots[i]!==i){roots[i]=roots[roots[i]!]!;i=roots[i]!;}return i;};
+  for(const [i,j] of pairs){const a=root(i),b=root(j);if(a!==b)roots[b]=a;}
+  const blocked=new Set<number>();
+  for(const [i,j] of pairs){
+    const a=bodies[i]!,b=bodies[j]!;
+    if(hullBandsMeet(a.motion.before,b.motion.before)&&hullContact(a.motion.before,b.motion.before).gap< -1e-8)continue;
+    const hit=sweepHulls(trajectory(a),trajectory(b));
+    // A skin contact at the endpoint is expected; only an earlier intersection needs rollback.
+    if(hit&&hit.t<1-1e-5)blocked.add(root(i));
+  }
+  for(let i=0;i<bodies.length;i++)if(blocked.has(root(i)))changed=cut(i,0)||changed;
+
+  // Older saves can begin with intersecting hulls. Recover at most maxPush per body, only
+  // along a validated free direction, and never worsen another vehicle's overlap.
+  const recoveryUsed=bodies.map(()=>0);
+  for(let pass=0;pass<2;pass++)for(const [i,j] of pairs){
+    const a=bodies[i]!,b=bodies[j]!;
+    if(!hullBandsMeet(a.pose,b.pose))continue;
+    const contact=hullContact(a.pose,b.pose);if(contact.gap>=-1e-8)continue;
+    for(const [index,sign] of [[i,1],[j,-1]] as const){
+      const body=bodies[index]!,distance=Math.min(CAR.maxPush-recoveryUsed[index]!,CAR.maxPush/2,(-contact.gap+VEHICLE_SKIN)/2);
+      if(distance<=1e-10)continue;
+      const p={...body.pose,x:body.pose.x+contact.nx*distance*sign,z:body.pose.z+contact.nz*distance*sign};
+      if(!safe(body,p))continue;
+      let clear=true;
+      for(const other of neighbours[index]!){
+        if(other===(index===i?j:i))continue;
+        const o=bodies[other]!.pose;if(!hullBandsMeet(p,o))continue;
+        if(hullContact(p,o).gap<Math.min(0,hullContact(body.pose,o).gap)-1e-8){clear=false;break;}
+      }
+      if(clear){body.pose=p;body.recovered=true;recoveryUsed[index]=recoveryUsed[index]!+distance;changed=true;}
+    }
+  }
+
+  const repose=(c:CarState,p:VehicleHull):CarState=>{
+    const v=carVelocity(c),fx=dsin(p.heading),fz=-dcos(p.heading);
+    return {...c,x:p.x,y:p.y,z:p.z,heading:p.heading,speed:(v.vx*fx+v.vz*fz)+0,lateral:(v.vx*-fz+v.vz*fx)+0};
+  };
+  for(const body of bodies){
+    if(!poseChanged(body.motion.after,body.pose))continue;
+    const p=body.pose;
+    if(body.player!==null){
+      const player=w.players[body.player]!;
+      w.players={...w.players,[body.player]:{...player,car:repose(player.car,p)}};
+    }else{
+      const index=w.index.get(body.agent!)!,a=w.agents[index]!;
+      let next:AgentState={...a,x:p.x,y:p.y,z:p.z,heading:p.heading};
+      if(body.refused&&!a.knock&&!a.manualCar&&!a.vehicle&&body.oldAgent){
+        const old=body.oldAgent;
+        next={...next,edge:old.edge,dir:old.dir,lane:old.lane,s:old.s,next:old.next,ndir:old.ndir,nlane:old.nlane,
+          conn:old.conn,node:old.node,resume:old.resume,lat:old.lat,wait:old.wait+1,mode:"yield"};
+        if(old.pass)next.pass=old.pass;else delete next.pass;
+        if(old.trafficRoute)next.trafficRoute=old.trafficRoute;else delete next.trafficRoute;
+      }
+      if(body.recovered&&!next.knock&&!next.manualCar&&!next.vehicle)next={...next,knock:{phase:"stopped",vx:0,vz:0,yaw:0,t:0,age:0},speed:0,mode:"honk",node:""};
+      if(next.vehicle){const car=repose(next.vehicle,p);next={...next,vehicle:car,speed:car.speed};}
+      if(next.manualCar){const car=repose(next.manualCar,p);next={...next,manualCar:car,speed:car.speed};}
+      w.agents[index]=next;
+    }
+  }
+  let impulsed=false;
+  const velocity=(b:SolidVehicle):{vx:number;vz:number}=>{
+    if(b.player!==null)return carVelocity(w.players[b.player]!.car);
+    const a=w.agents[w.index.get(b.agent!)!]!;
+    return !a.knock&&a.vehicle&&!a.manualCar?carVelocity(a.vehicle):agentVelocity(a);
+  };
+  const markHit=(body:SolidVehicle,speed:number):void=>{
+    const mark=(c:CarState):CarState=>({...c,speed:c.speed+0,lateral:c.lateral+0,yawRate:c.yawRate+0,sinceContact:0,
+      ...(speed>=CAR.hitMinSpeed&&c.sinceContact>=CAR.hitCooldown?{hits:c.hits+1,impactSpeed:speed}:{})});
+    if(body.player!==null){const p=w.players[body.player]!;w.players={...w.players,[body.player]:{...p,car:mark(p.car)}};}
+    else{const index=w.index.get(body.agent!)!,a=w.agents[index]!;
+      w.agents[index]={...a,...(a.vehicle?{vehicle:mark(a.vehicle)}:{}),...(a.manualCar?{manualCar:mark(a.manualCar)}:{})};}
+  };
+  for(const {i,j} of missed.values()){
+    const a=bodies[i]!,b=bodies[j]!;
+    // A later pair can shorten this body's motion before an earlier recorded contact. Only
+    // a contact still reached by the final hulls can exchange momentum or emit a crunch.
+    if(!hullBandsMeet(a.pose,b.pose))continue;
+    const contact=hullContact(a.pose,b.pose);
+    if(contact.gap>VEHICLE_SKIN+.0001)continue;
+    if(w.ext.events.some(e=>e.tick===state.tick&&(e.a===a.key&&e.b===b.key||e.a===b.key&&e.b===a.key)))continue;
+    const av=velocity(a),bv=velocity(b),ad=a.player!==null?CAR_DIMS:dimsOf(w.agents[w.index.get(a.agent!)!]!),bd=b.player!==null?CAR_DIMS:dimsOf(w.agents[w.index.get(b.agent!)!]!);
+    const hit=bodyHit({mass:ad.mass,k2:ad.k2,x:a.pose.x,z:a.pose.z,...av},
+      {key:b.key,mass:bd.mass,x:b.pose.x,z:b.pose.z,...bv},
+      {x:contact.x,z:contact.z,r:0,person:false},contact.nx,contact.nz,CAR.bodyRestitution);
+    if(!hit)continue;
+    // receive understands knock velocity. Runtime physical controls also carry lateral speed.
+    for(const body of [a,b])if(body.agent!==null){const index=w.index.get(body.agent)!,actor=w.agents[index]!;
+      if(actor.vehicle&&!actor.manualCar&&!actor.knock){const v=carVelocity(actor.vehicle);w.agents[index]={...actor,knock:{phase:"slide",...v,yaw:actor.vehicle.yawRate,t:0,age:0}};}}
+    const k=hit.contact;
+    receive(w,a.key,{...k,nx:-k.nx,nz:-k.nz,tx:-k.tx,tz:-k.tz},b.key,true);
+    receive(w,b.key,k,a.key,true);
+    markHit(a,k.speed);markHit(b,k.speed);impulsed=true;
+  }
+  if(!changed&&!impulsed)return state;
+  // Both controller memories must follow the authoritative outer body, including a new knock.
+  w.agents=w.agents.map(a=>{
+    if(!a.vehicle&&!a.manualCar)return a;
+    const sync=(c:CarState):CarState=>{
+      const v=a.knock??carVelocity(c),fx=dsin(a.heading),fz=-dcos(a.heading);
+      return {...c,x:a.x,y:a.y,z:a.z,heading:a.heading,speed:(v.vx*fx+v.vz*fz)+0,lateral:(v.vx*-fz+v.vz*fx)+0,yawRate:(a.knock?.yaw??c.yawRate)+0};
+    };
+    return {...a,...(a.vehicle?{vehicle:sync(a.vehicle)}:{}),...(a.manualCar?{manualCar:sync(a.manualCar)}:{})};
+  });
+  return {...state,players:w.players,ext:{...state.ext,...(state.ext.agents?{agents:{...state.ext.agents,list:w.agents}}:{}),...(impulsed?{impacts:w.ext}:{})}};
 }

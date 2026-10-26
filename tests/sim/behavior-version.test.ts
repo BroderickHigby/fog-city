@@ -19,8 +19,8 @@ describe("v14 civilian traffic save through the current migration chain", () => 
     expect(dodgeExtOf(old).dives).toBeGreaterThan(0);
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     const before = canonicalJson(old), upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(17);
-    expect(upgraded).toEqual({ ...old, version: 17 });
+    expect(SIM_VERSION).toBe(18);
+    expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgraded.players).toBe(old.players);
     expect(upgraded.ext).toBe(old.ext);
     expect(upgraded.ext.compatibilitySentinel).toEqual({ nested: { keep: [37, true, "v14"] } });
@@ -44,7 +44,7 @@ describe("v14 civilian traffic save through the current migration chain", () => 
     const first = run(false), restored = run(true);
     expect(restored.hashes).toEqual(first.hashes);
     expect(hashState(restored.state)).toBe(hashState(first.state));
-    expect(first.state.version).toBe(17);
+    expect(first.state.version).toBe(SIM_VERSION);
     expect(first.state.tick).toBe(saved.state.tick + saved.frames.length);
     expect(first.state.ext.missions?.players.p1?.missionId).toBe("hot-desk");
     expect(first.state.ext.economy?.players.p1?.cashCents).toBe(saved.state.ext.economy.players.p1.cashCents);

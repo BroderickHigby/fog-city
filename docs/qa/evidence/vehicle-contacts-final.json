@@ -1,0 +1,600 @@
+{
+  "simulationCodeCommit": "70748d3bd29928b8bcd6a6816f4c67388ef9640c",
+  "harnessCommit": "54511c730aa4d8496b81719c269dad3e383fae7a",
+  "vehicleSourceSHA256": "b0792c3e9dbee7c45a6812352d945e8eafd52d8ffd0569480fa06fd60e3ea9a5",
+  "functional": {
+    "files": 22,
+    "passed": 283
+  },
+  "goldenAndSave": {
+    "files": 13,
+    "passed": 89,
+    "historicalFilesUnchanged": 36
+  },
+  "typecheck": "pass",
+  "native": {
+    "passed": true,
+    "gpu": {
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "error": 0
+    },
+    "collision": {
+      "targetId": 7,
+      "hitTick": 129,
+      "aftermathFrames": 48,
+      "aftermathTargetIds": [
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7,
+        7
+      ]
+    },
+    "replay": {
+      "frames": 184,
+      "hash": "26a4d2cc",
+      "hitTick": 129,
+      "collisionTarget": 7,
+      "collisionWindow": {
+        "startTick": 124,
+        "endTick": 184,
+        "frames": 61,
+        "targetIds": [
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7,
+          7
+        ],
+        "maxRenderedPenetrationM": 0,
+        "exactHitShot": "exact-hit-129.png"
+      }
+    },
+    "frameMeasurements": [
+      {
+        "tick": 124,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 125,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 126,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 127,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 128,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 129,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 130,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 131,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 132,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 133,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 134,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 135,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 136,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 137,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 138,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 139,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 140,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 141,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 142,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 143,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 144,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 145,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 146,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 147,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 148,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 149,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 150,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 151,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 152,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 153,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 154,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 155,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 156,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 157,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 158,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 159,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 160,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 161,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 162,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 163,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 164,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 165,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 166,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 167,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 168,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 169,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 170,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 171,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 172,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 173,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 174,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 175,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 176,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 177,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 178,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 179,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 180,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 181,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 182,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 183,
+        "targetId": 7,
+        "penetrationM": 0
+      },
+      {
+        "tick": 184,
+        "targetId": 7,
+        "penetrationM": 0
+      }
+    ],
+    "errors": [],
+    "checks": [
+      "Served bundle/index match the supplied packed candidate; actual Apple/Metal node-WebGL; SIM18/seed1",
+      "Actual personal GLB fits CAR; no drawn hull penetration over3cm across 48 contact-approach/aftermath frames; hit tick129, all48 aftermath draws identify collided vehicle7",
+      "Fresh-page ordinary-input replay reproduced the exact final simulation hash; actual collided draw7 stays within3cm at every tick124..184, with exact impact tick129 captured"
+    ]
+  },
+  "recording": {
+    "world": "sf",
+    "seed": 1,
+    "version": 18,
+    "initialHash": "75caa314",
+    "expectedFinalHash": "26a4d2cc",
+    "frames": 184,
+    "rleInputs": [
+      {
+        "ticks": 64,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": -1,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.26046029610517346,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.5581008799680648,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.709451708789023,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.7189346279707737,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.6824432945894953,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.6309970447943382,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.567879108042349,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 0,
+            "steer": 0.49277201453545566,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 8,
+        "input": {
+          "p1": {
+            "throttle": 1,
+            "steer": 0.3966697351480154,
+            "brake": 0,
+            "actions": 0
+          }
+        }
+      },
+      {
+        "ticks": 48,
+        "input": {
+          "p1": {
+            "throttle": 0,
+            "steer": 0,
+            "brake": 1,
+            "actions": 0
+          }
+        }
+      }
+    ],
+    "decode": "Expand each input object ticks times, preserving order; stepFrames receives the resulting InputFrame list. No events, teleport or state injection."
+  },
+  "performanceHold": "open; no FPS/RAM plateau/full verify claim",
+  "ci": "skipped by owner request"
+}

@@ -18,7 +18,7 @@ import {
 } from "./contract.ts";
 import { clamp, HALF_PI, TAU, wrapAngle } from "./dmath.ts";
 import { CAR, CLEAR_SPOT_RADIUS_M, carBox, carCircles, clearCarSpot, makeCar, stepCar, type CarContact } from "./car.ts";
-import { agentImpactBody, carImpactBody, impactsOf, knockedIds, limpThrottle, stepImpacts } from "./impacts.ts";
+import { agentImpactBody, carImpactBody, impactsOf, knockedIds, limpThrottle, resolveVehicleContacts, stepImpacts } from "./impacts.ts";
 import { propsNear } from "./props.ts";
 import { FOOT, canEnterCar, exitSpot, stepFoot, wantsSprint } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, agentCircles, initialAgents, stepAgents, type AgentsExt, type AgentState } from "./agents.ts";
@@ -161,6 +161,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v15 -> v16: optional manual taxi controls; preserve all existing state unchanged.
  *  - v16 -> v17: visible rogue encounters and mixed ambient firmware rolls. Existing
  *    firmware, missions, attacks and every saved extension remain unchanged.
+ *  - v17 -> v18: swept full-hull vehicle contacts; every saved field remains unchanged.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -177,6 +178,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 14) return upgradeState({ ...s, version: 15 });
   if (s.version === 15) return upgradeState({ ...s, version: 16 });
   if (s.version === 16) return upgradeState({ ...s, version: 17 });
+  if (s.version === 17) return upgradeState({ ...s, version: 18 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -543,7 +545,9 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     : { ...admitted, tick, players: next, ext: { ...admitted.ext } };
   const physical = applyMotionBodies(world, moved, prepared.motions);
   const manual = stepManualTaxis(world, before, physical, sanitized);
-  const impacted = syncManualTaxiImpacts(stepImpacts(world, manual.state, contacts, manual.contacts));
+  const collisions = stepImpacts(world, manual.state, contacts, manual.contacts);
+  // Both moving trajectories must settle before people choose their escape and riders follow.
+  const impacted = syncManualTaxiImpacts(resolveVehicleContacts(world, before, collisions));
   const cleared = settleRides(world, before, stepDodge(world, before, impacted), sanitized, events);
   return runSystems({ world, previous: before, state: cleared, inputs: sanitized, events, observedBodies:observedMotionBodies(cleared,prepared.motions) }, systems);
 }

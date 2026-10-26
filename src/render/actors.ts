@@ -18,6 +18,7 @@ import { hashString } from "./hash.ts";
 import type { ModelRegistry } from "./model-registry.ts";
 import { dodgePose, newLook, strideFor, type PersonLook, type PersonPose } from "./person.ts";
 import type { DodgeState } from "../sim/contract.ts";
+import { CAR } from "../sim/car.ts";
 import { ContactShadows } from "./contact-shadows.ts";
 import type { Pose } from "./types.ts";
 
@@ -197,6 +198,30 @@ interface PlayerView {
   drawnSpeed: number;
 }
 
+/** Fit the authored car around its sim origin; its copied world pose is not a model dimension. */
+function fitPlayerCar(car: THREE.Object3D): void {
+  const bounds = new THREE.Box3();
+  const box = new THREE.Box3();
+  const rootScale = new THREE.Matrix4().makeScale(car.scale.x, car.scale.y, car.scale.z);
+  const visit = (node: THREE.Object3D, parent: THREE.Matrix4): void => {
+    // Compose a separate local matrix: do not reset a moved car or alter authored child transforms.
+    const matrix = node === car ? parent : parent.clone().multiply(node.matrixAutoUpdate
+      ? new THREE.Matrix4().compose(node.position, node.quaternion, node.scale) : node.matrix);
+    const mesh = node as THREE.Mesh;
+    if (mesh.isMesh) {
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      if (mesh.geometry.boundingBox) bounds.union(box.copy(mesh.geometry.boundingBox).applyMatrix4(matrix));
+    }
+    for (const child of node.children) visit(child, matrix);
+  };
+  visit(car, rootScale);
+  if (bounds.isEmpty()) return;
+  const width = Math.max(Math.abs(bounds.min.x), Math.abs(bounds.max.x));
+  const length = Math.max(Math.abs(bounds.min.z), Math.abs(bounds.max.z));
+  const scale = Math.min(1, width > 0 ? CAR.halfWidth / width : 1, length > 0 ? CAR.halfLength / length : 1);
+  car.scale.multiplyScalar(scale);
+}
+
 /** The wheel nodes of a car model (extras {"wheel": "FL", "radius", "steer"}). */
 export function findWheels(car: THREE.Object3D): Wheel[] {
   const out: Wheel[] = [];
@@ -204,7 +229,9 @@ export function findWheels(car: THREE.Object3D): Wheel[] {
     const u = o.userData as { wheel?: unknown; radius?: unknown; steer?: unknown };
     if (typeof u.wheel !== "string") return;
     o.rotation.order = "YXZ";
-    out.push({ node: o, radius: typeof u.radius === "number" && u.radius > 0 ? u.radius : 0.35, steer: u.steer === true, angle: 0 });
+    // The personal car's uniform fit scales its rolling radius, without changing shared extras.
+    const radius = typeof u.radius === "number" && u.radius > 0 ? u.radius : 0.35;
+    out.push({ node: o, radius: radius * car.scale.y, steer: u.steer === true, angle: 0 });
   });
   return out;
 }
@@ -276,6 +303,7 @@ export class Actors {
 
   private adopt(v: PlayerView, car: THREE.Object3D, source: "file" | "fallback"): void {
     car.rotation.order = "YXZ";
+    fitPlayerCar(car);
     v.car = car;
     v.carSource = source;
     v.wheels = findWheels(car);

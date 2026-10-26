@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v18: solid vehicle bodies resolve contact after simultaneous movement and retain bounded deadlock escape without phasing; v16 and earlier fixture bytes are preserved",
+  "simVersion": 18,
+  "hashes": [
+    "23216748",
+    "7590810d",
+    "86196c63",
+    "afd1719c",
+    "e2cb389f"
+  ]
+}

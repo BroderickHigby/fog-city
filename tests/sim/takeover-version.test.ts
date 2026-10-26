@@ -19,8 +19,8 @@ describe("actual v15 save through the current migration chain", () => {
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     expect(old.ext.missions?.players.p1?.status).toBe("active");
     const current = upgradeState(old);
-    expect(SIM_VERSION).toBe(17);
-    expect(current).toEqual({ ...old, version: 17 });
+    expect(SIM_VERSION).toBe(18);
+    expect(current).toEqual({ ...old, version: SIM_VERSION });
     expect(current.players).toBe(old.players);
     expect(current.ext).toBe(old.ext);
     expect(current.ext.compatibilitySentinel).toEqual({ nested: { keep: [37, true, "v15"] } });
@@ -45,7 +45,7 @@ describe("actual v15 save through the current migration chain", () => {
     expect(restored.hashes).toEqual(direct.hashes);
     expect(hashState(restored.state)).toBe(hashState(direct.state));
     expect(direct.state.tick).toBe(saved.state.tick + saved.frames.length);
-    expect(direct.state.version).toBe(17);
+    expect(direct.state.version).toBe(SIM_VERSION);
     expect(direct.state.ext.missions?.players.p1?.missionId).toBe("hot-desk");
     expect(direct.state.ext.economy?.players.p1?.cashCents).toBe(saved.state.ext.economy.players.p1.cashCents);
     expect(direct.state.ext.compatibilitySentinel).toEqual(saved.state.ext.compatibilitySentinel);
