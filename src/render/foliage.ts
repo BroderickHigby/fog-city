@@ -3,7 +3,7 @@
 // Slop New York's MIT-licensed foliage design (leaf sprays, coverage-preserving alpha mips,
 // instanced distance tiers), implemented here for Fog City's WebGL renderer.
 import * as THREE from "three";
-import { mergeGeometries, mergeVertices } from "three/addons/utils/BufferGeometryUtils.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { fcUniforms, injectUniforms } from "./materials.ts";
 
 export const FOLIAGE_NEAR_LIMIT = 192;
@@ -12,17 +12,14 @@ export const FOLIAGE_NEAR_M = 110;
 export const FOLIAGE_FAR_M = 700;
 const REPICK_M = 12;
 const ALPHA_CUTOFF = 0.42;
-const LEAVES_PER_SPRAY = 46;
+const LEAVES_PER_SPRAY = 30;
 /**
  * Leaf cards per crown, near and far. The far tier draws up to FOLIAGE_FAR_LIMIT trees (the
  * street-tree data fills it: about 4,000 within 1.4 km of the Ferry Building), so a far tree is
  * a capless trunk, the opaque core and a few large cards: about 60 triangles, not 226.
  */
-export const NEAR_CARDS = 140;
-export const FAR_CARDS = 16;
-/** The opaque inner crown, as a fraction of the crown's radius and height: gaps between cards show deep foliage, not sky. */
-const CORE_SCALE = 0.72;
-const CORE_COLOR = 0x46582f;
+export const NEAR_CARDS = 196;
+export const FAR_CARDS = 22;
 export type Species = 0 | 1;
 interface Placement { matrix: THREE.Matrix4; x: number; z: number; species: Species; tint: THREE.Color }
 interface TileTrees { placements: Placement[]; originals: Array<{ mesh: THREE.InstancedMesh; visible: boolean }> }
@@ -141,63 +138,68 @@ function combine(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return merged;
 }
 
-/** A tree keeps the original placement height: broadleaf 6.6 m, cypress 10.5 m. */
+/** A tree keeps the original placement height, while its crown grows from visible limbs/twigs.
+ * No opaque inner ellipsoid fills the gaps: light and sky can reach between leaf sprays. */
 export function createFoliagePrototype(species: Species, far: boolean): Prototype {
-  const random = rng(0x7100 + species * 391 + (far ? 0 : 0));
+  const random = rng(0x7100 + species * 391);
   const bark: THREE.BufferGeometry[] = [], cards: THREE.BufferGeometry[] = [];
-  const height = species === 0 ? 6.6 : 10.5;
-  const crownY = species === 0 ? 4.55 : 7.5;
-  const radius = species === 0 ? 2.35 : 2.1;
-  bark.push(branch(new THREE.Vector3(0, -0.1, 0), new THREE.Vector3(0.13, crownY + 0.8, 0.05), 0.23, 0.07, far ? 4 : 9, far));
-  // Far trees are seen from beyond FOLIAGE_NEAR_M: limbs inside the crown do not show.
-  const limbs = far ? 0 : 11;
-  for (let i = 0; i < limbs; i++) {
-    const angle = i * 2.39996, reach = radius * (0.57 + random() * 0.33), y = crownY - 1.0 + random() * 1.45;
-    const start = new THREE.Vector3(0.08, species === 0 ? 2.1 + i * 0.11 : 3.3 + i * 0.2, 0);
+  const height = species === 0 ? 6.6 : 10.5, crownY = species === 0 ? 4.55 : 7.5;
+  const radius = species === 0 ? 2.35 : 2.1, crownHeight = species === 0 ? 1.8 : 3.0;
+  bark.push(branch(new THREE.Vector3(0, -.1, 0), new THREE.Vector3(.10, crownY + .72, .06), .20, .055, far ? 4 : 9, far));
+  const twigs: THREE.Vector3[] = [];
+  const limbCount = far ? 2 : 8;
+  for (let i = 0; i < limbCount; i++) {
+    const angle = i * 2.39996 + .2, reach = radius * (.48 + random() * .23);
+    const y = crownY - (species === 0 ? .70 : 1.1) + random() * (species === 0 ? 1.3 : 2.2);
+    const start = new THREE.Vector3(.07, species === 0 ? 2.0 + i * .17 : 3.7 + i * .24, .02);
     const end = new THREE.Vector3(Math.cos(angle) * reach, y, Math.sin(angle) * reach);
-    bark.push(branch(start, end, far ? 0.055 : 0.075, 0.018, far ? 4 : 6));
-  }
-  const count = far ? FAR_CARDS : NEAR_CARDS;
-  const crownHeight = species === 0 ? 1.8 : 3.0;
-  // The inner crown: a low ellipsoid in dark leaf green, swaying with the leaves (it is in the
-  // bark mesh, so it is opaque and shadows).
-  const core = mergeVertices(new THREE.IcosahedronGeometry(1, far ? 0 : 1));
-  core.scale(radius * CORE_SCALE, crownHeight * CORE_SCALE, radius * CORE_SCALE);
-  core.translate(0, crownY, 0);
-  bark.push(colorGeometry(core, new THREE.Color(CORE_COLOR), 0.9));
-  const radial = new THREE.Vector3(), cardNormal = new THREE.Vector3();
-  for (let i = 0; i < count; i++) {
-    const angle = random() * Math.PI * 2, vertical = random() * 2 - 1;
-    const ring = Math.sqrt(Math.max(0, 1 - vertical * vertical));
-    const inward = 0.68 + random() * 0.32;
-    const x = Math.cos(angle) * radius * ring * inward, z = Math.sin(angle) * radius * ring * inward;
-    const y = crownY + vertical * crownHeight;
-    const size = far ? 2.35 + random() * 0.4 : 0.82 + random() * 0.34;
-    const geometry = new THREE.PlaneGeometry(size, size * 1.12);
-    const normal = new THREE.Vector3(x * 0.55, (y - crownY) * 0.4 + 0.1, z * 0.55).normalize();
-    if (normal.lengthSq() < 0.1) normal.set(0, 0, 1);
-    geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal));
-    geometry.rotateY((random() - 0.5) * 0.8);
-    geometry.translate(x, y, z);
-    // Crown lighting: normals lean out from the crown's centre, so it shades as one soft volume
-    // rather than as many flat cards; cards deep in the crown and underneath are darker.
-    radial.set(x / radius, (y - crownY) / crownHeight, z / radius);
-    const depth = Math.min(1, radial.length());
-    radial.normalize();
-    const n = geometry.getAttribute("normal");
-    for (let v = 0; v < n.count; v++) {
-      cardNormal.fromBufferAttribute(n, v).multiplyScalar(0.35).addScaledVector(radial, 0.65).normalize();
-      n.setXYZ(v, cardNormal.x, cardNormal.y, cardNormal.z);
+    bark.push(branch(start, end, far ? .055 : .068, .016, far ? 3 : 5, true));
+    for (let t = 0; t < (far ? 1 : 3); t++) {
+      const branchAngle = angle + (t - 1) * .66 + (random() - .5) * .2;
+      const length = radius * (.20 + random() * .20);
+      const tip = end.clone().add(new THREE.Vector3(Math.cos(branchAngle) * length, .18 + random() * .62, Math.sin(branchAngle) * length));
+      if (!far) bark.push(branch(end, tip, .022, .006, 3, true));
+      twigs.push(tip);
     }
-    const ao = (0.6 + 0.4 * depth) * (0.78 + 0.22 * (vertical + 1) / 2);
-    colorGeometry(geometry, new THREE.Color(species === 0 ? 0xb9c597 : 0x9fb291), (0.72 + random() * 0.3) * ao);
-    cards.push(geometry);
+  }
+  const count = far ? FAR_CARDS : NEAR_CARDS, radial = new THREE.Vector3(), cardNormal = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    let x: number, y: number, z: number, vertical: number;
+    if (!far) {
+      const anchor = twigs[i % twigs.length]!;
+      const angle = random() * Math.PI * 2, spread = .12 + random() * .55;
+      x = anchor.x + Math.cos(angle) * spread; z = anchor.z + Math.sin(angle) * spread;
+      y = anchor.y + (random() - .45) * .85;
+      vertical = Math.max(-1, Math.min(1, (y - crownY) / crownHeight));
+    } else {
+      // A lumpy, open shell remains a cheap silhouette at distance, with two visible limbs.
+      const angle = i * 2.39996, v = random() * 1.75 - .8;
+      const ring = Math.sqrt(Math.max(.05, 1 - v * v)), lobe = .80 + .16 * Math.sin(angle * 3.0 + species);
+      x = Math.cos(angle) * radius * ring * lobe; z = Math.sin(angle) * radius * ring * lobe;
+      y = crownY + v * crownHeight; vertical = v;
+    }
+    const size = far ? 2.15 + random() * .4 : .68 + random() * .34;
+    const g = new THREE.PlaneGeometry(size, size * 1.12);
+    const normal = new THREE.Vector3(x * .55, (y - crownY) * .42 + .15, z * .55).normalize();
+    if (normal.lengthSq() < .1) normal.set(0, 0, 1);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal));
+    g.rotateY((random() - .5) * 1.05); g.translate(x, y, z);
+    radial.set(x / radius, (y - crownY) / crownHeight, z / radius);
+    const depth = Math.min(1, radial.length()); radial.normalize();
+    const normals = g.getAttribute("normal");
+    for (let vertex = 0; vertex < normals.count; vertex++) {
+      cardNormal.fromBufferAttribute(normals, vertex).multiplyScalar(.38).addScaledVector(radial, .62).normalize();
+      normals.setXYZ(vertex, cardNormal.x, cardNormal.y, cardNormal.z);
+    }
+    const ao = (.64 + .36 * depth) * (.80 + .20 * (vertical + 1) / 2);
+    colorGeometry(g, new THREE.Color(species === 0 ? 0xb9c597 : 0xa6b694), (.78 + random() * .25) * ao);
+    cards.push(g);
   }
   const result = { bark: combine(bark), leaves: combine(cards) };
-  // Bounds include complete cards. Normalize both parts together, preserving planted roots.
+  // Preserve the source height and planted root, including the full extent of tilted leaf cards.
   const bounds = result.bark.boundingBox!.clone().union(result.leaves.boundingBox!);
-  const scale = height / Math.max(bounds.max.y, 0.1);
-  for (const geometry of [result.bark, result.leaves]) { geometry.scale(scale, scale, scale); geometry.computeBoundingSphere(); geometry.computeBoundingBox(); }
+  const scale = height / Math.max(bounds.max.y, .1);
+  for (const g of [result.bark, result.leaves]) { g.scale(scale, scale, scale); g.computeBoundingSphere(); g.computeBoundingBox(); }
   return result;
 }
 
@@ -243,6 +245,9 @@ export class FoliageLayer {
   constructor(shadows = false) {
     this.group.name = "sf:foliage";
     this.leafMaterial.forceSinglePass = true;
+    this.barkMaterial.userData.fcGpuKind = "foliage-bark";
+    this.leafMaterial.userData.fcGpuKind = "foliage-leaf";
+    this.depthMaterial.userData.fcGpuKind = "foliage-depth";
     for (let species = 0; species < 2; species++) {
       const speciesTiers: Tier[] = [];
       for (let far = 0; far < 2; far++) {
@@ -252,7 +257,7 @@ export class FoliageLayer {
         const leaves = new THREE.InstancedMesh(prototype.leaves, this.leafMaterial, capacity);
         bark.name = `sf:foliage:${species}:${far}:bark`; leaves.name = `sf:foliage:${species}:${far}:leaves`;
         leaves.customDepthMaterial = this.depthMaterial;
-        for (const mesh of [bark, leaves]) { mesh.count = 0; mesh.castShadow = shadows; mesh.receiveShadow = shadows; mesh.frustumCulled = false; }
+        for (const mesh of [bark, leaves]) { mesh.count = 0; mesh.castShadow = shadows; mesh.receiveShadow = shadows; mesh.frustumCulled = false; mesh.matrixAutoUpdate = false; }
         speciesTiers.push({ bark, leaves, capacity }); this.group.add(bark, leaves);
       }
       this.tiers.push(speciesTiers);
@@ -334,6 +339,7 @@ export class FoliageLayer {
     candidates.sort((a, b) => a.distance - b.distance || a.x - b.x || a.z - b.z);
     const counts = [[0, 0], [0, 0]];
     this.nearCount = 0; this.farCount = 0;
+    const shaped = new THREE.Matrix4(), shape = new THREE.Matrix4();
     for (const placement of candidates) {
       const near = placement.distance <= FOLIAGE_NEAR_M && this.nearCount < FOLIAGE_NEAR_LIMIT;
       const tierIndex = near ? 0 : 1;
@@ -341,14 +347,21 @@ export class FoliageLayer {
       const count = counts[placement.species]![tierIndex]!;
       if (count >= tier.capacity || (!near && this.farCount >= FOLIAGE_FAR_LIMIT)) continue;
       const matrix = this.override?.(placement.x, placement.z, placement.matrix) ?? placement.matrix;
-      tier.bark.setMatrixAt(count, matrix); tier.leaves.setMatrixAt(count, matrix);
+      const crown = .5 + .5 * Math.sin(placement.x * .17 + placement.z * .31);
+      shaped.copy(matrix).multiply(shape.makeScale(.88 + crown * .24, 1, 1.10 - crown * .20));
+      tier.bark.setMatrixAt(count, shaped); tier.leaves.setMatrixAt(count, shaped);
       tier.leaves.setColorAt(count, placement.tint); tier.bark.setColorAt(count, placement.tint);
       counts[placement.species]![tierIndex] = count + 1;
       if (near) this.nearCount++; else this.farCount++;
     }
     for (let species = 0; species < 2; species++) for (let tier = 0; tier < 2; tier++) {
       const item = this.tiers[species]![tier]!;
-      for (const mesh of [item.bark, item.leaves]) { mesh.count = counts[species]![tier]!; mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true; }
+      for (const mesh of [item.bark, item.leaves]) {
+        mesh.count = counts[species]![tier]!;
+        mesh.instanceMatrix.clearUpdateRanges();
+        if(mesh.count){mesh.instanceMatrix.addUpdateRange(0,mesh.count*16);mesh.instanceMatrix.needsUpdate=true;}
+        if(mesh.instanceColor){mesh.instanceColor.clearUpdateRanges();if(mesh.count){mesh.instanceColor.addUpdateRange(0,mesh.count*3);mesh.instanceColor.needsUpdate=true;}}
+      }
     }
   }
 

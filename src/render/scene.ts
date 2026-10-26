@@ -39,10 +39,15 @@ import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts
 import { trackGpuMemory, type GpuMemory } from "./gpu-memory.ts";
 import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
 import type { GrassInfo } from "./grass.ts";
+import { createGpuEngine, type GpuEngine, type RendererBackendRequest, type PostProcessingInfo } from "./gpu-engine.ts";
+import { StorageInstancedBufferAttribute, type WebGPURenderer } from "three/webgpu";
+import { prepareGpuScene, setGpuMaterialsEnabled, updateGpuMaterialTime } from "./node-materials.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
 export interface RenderOptions {
+  /** Node renderer by default; legacy remains an explicit compatibility option. */
+  backend?: RendererBackendRequest;
   /** Tile load radius around the camera, metres. */
   radius: number;
   shadows?: boolean;
@@ -85,6 +90,11 @@ export interface WorldData {
 }
 
 export interface RenderInfo {
+  backend?: "webgpu" | "webgl-node" | "webgl-legacy";
+  shadowCascades?: number;
+  shadowAtlas?: { width: number; height: number } | null;
+  graphicsError?: string | null;
+  postProcessing?: PostProcessingInfo;
   /** Bounded nearby architectural geometry and its style mix. */
   buildingDetail?: BuildingDetailStats;
   grass?: GrassInfo;
@@ -165,7 +175,8 @@ const ENV_CACHE_MAX = 12;
 const HEADLIGHT_NIGHT = 140;
 
 export class SceneRenderer {
-  readonly renderer: THREE.WebGLRenderer;
+  readonly renderer: THREE.WebGLRenderer | WebGPURenderer;
+  private readonly gpu: GpuEngine | null;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(62, 1, 0.5, CAMERA_FAR_M);
   readonly rig: CameraRig;
@@ -200,7 +211,7 @@ export class SceneRenderer {
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
   private readonly headlight = new THREE.SpotLight(0xfff0d8, 0, 90, 0.52, 0.55, 1.4);
   private readonly fog = new THREE.FogExp2(0xffffff, 0.0005);
-  private readonly pmrem: THREE.PMREMGenerator;
+  private readonly pmrem: THREE.PMREMGenerator | null;
   private readonly envCache = new Map<string, THREE.Texture>();
   private readonly envScene = new THREE.Scene();
   private readonly registry: ModelRegistry<THREE.Object3D>;
@@ -226,23 +237,54 @@ export class SceneRenderer {
   private readonly statsScratch: StreamerStats = { total: 0, ready: 0, pending: 0, failed: 0, glbReady: 0, builtReady: 0 };
   /** Frames rendered since a camera jump (debug fly-to, mode switch). */
   private framesSinceJump = 0;
+  private nodeFailed = false;
+  private disposed = false;
+  /** Only admitted scene objects are held here; removed tiles immediately release their listeners. */
+  private readonly watched = new Set<THREE.Object3D>();
+  private readonly gpuChildAdded = (event: { child: THREE.Object3D }): void => this.watchGpuTree(event.child);
+  private readonly gpuChildRemoved = (event: { child: THREE.Object3D }): void => this.unwatchGpuTree(event.child);
+  private readonly resizeListener = (): void => this.resize();
+  private readonly gpuGround: GroundFn;
 
-  constructor(container: HTMLElement, world: WorldData, opts: RenderOptions) {
+  /** Initialize GPU capabilities before constructing materials or drawing the first frame. */
+  static async create(container: HTMLElement, world: WorldData, opts: RenderOptions): Promise<SceneRenderer> {
+    if (opts.backend !== "legacy") {
+      let gpu: GpuEngine | null = null;
+      let candidate: SceneRenderer | null = null;
+      try {
+        gpu = await createGpuEngine({ backend: opts.backend, shadows: opts.shadows ?? true, quality: opts.quality ?? true, high: opts.tier === "high" });
+        setGpuMaterialsEnabled(true);
+        candidate = new SceneRenderer(container, world, opts, gpu);
+        await gpu.prewarm(candidate.scene, candidate.camera);
+        return candidate;
+      } catch (error) {
+        candidate?.dispose();
+        if (gpu) { gpu.renderer.domElement.remove(); await gpu.dispose(); }
+        console.warn("[fog-city] Node renderer unavailable; using compatible WebGL renderer.", error);
+      }
+    }
+    setGpuMaterialsEnabled(false);
+    return new SceneRenderer(container, world, opts);
+  }
+
+  constructor(container: HTMLElement, world: WorldData, opts: RenderOptions, gpu: GpuEngine | null = null) {
     installFog();
+    setGpuMaterialsEnabled(gpu !== null);
+    this.gpu = gpu; this.gpuGround = world.ground;
     this.container = container;
     this.ground = world.ground;
     this.water.setLevel(world.manifest.water?.y ?? 0);
     // The presentation chain renders into its own target and anti-aliases with FXAA, so the
     // canvas needs no MSAA then: at a large drawing buffer MSAA alone costs hundreds of MB.
-    this.renderer = new THREE.WebGLRenderer({
+    this.renderer = gpu?.renderer ?? new THREE.WebGLRenderer({
       antialias: opts.quality !== true,
       preserveDrawingBuffer: opts.preserveDrawingBuffer ?? true,
       powerPreference: "high-performance",
     });
-    const gl = this.renderer.getContext();
-    this.gpuMemory = opts.gpuMemory ? trackGpuMemory(gl as WebGL2RenderingContext) : null;
-    const rendererInfo = gl.getExtension("WEBGL_debug_renderer_info");
-    const rendererName = String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
+    const gl = !gpu ? (this.renderer as THREE.WebGLRenderer).getContext() : gpu.backend === "webgl-node" ? gpu.renderer.getContext() as WebGL2RenderingContext : null;
+    this.gpuMemory = opts.gpuMemory && gl && !gpu ? trackGpuMemory(gl as WebGL2RenderingContext) : null;
+    const rendererInfo = gl?.getExtension("WEBGL_debug_renderer_info");
+    const rendererName = gl ? String(gl.getParameter(rendererInfo?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER)) : "WebGPU";
     const software = /swiftshader|llvmpipe|software/i.test(rendererName);
     this.shadows = opts.shadows ?? !software;
     this.maxPixelRatio = opts.maxPixelRatio;
@@ -251,14 +293,14 @@ export class SceneRenderer {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = this.shadows;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    if (!gpu) (this.renderer as THREE.WebGLRenderer).shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
-    this.pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.pmrem = gpu ? null : new THREE.PMREMGenerator(this.renderer as THREE.WebGLRenderer);
 
     this.scene.fog = this.fog;
-    this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target, this.hemi, this.headlight, this.headlight.target);
-    this.envScene.add(new Sky(900).mesh);
-    if (this.shadows) {
+    this.scene.add(this.hemi, this.headlight, this.headlight.target);
+    if (!gpu) { this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target); this.envScene.add(new Sky(900).mesh); }
+    if (this.shadows && !gpu) {
       this.sun.castShadow = true;
       this.sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
       const c = this.sun.shadow.camera;
@@ -282,7 +324,7 @@ export class SceneRenderer {
       const response = await fetch(path);
       if (!response.ok) throw new Error(`Surface texture: ${response.status} ${path}`);
       return new Uint8Array(await response.arrayBuffer());
-    }, { anisotropy: this.renderer.capabilities.getMaxAnisotropy() });
+    }, { anisotropy: gpu ? gpu.renderer.getMaxAnisotropy() : (this.renderer as THREE.WebGLRenderer).capabilities.getMaxAnisotropy() });
     // A packed build carries only the models it lists; the dev server's listing is the build-time one.
     const available = opts.models && assets && assets.mode === "packed" ? new Set([...opts.models].filter((u) => assets.has(u))) : opts.models;
     this.registry = new ModelRegistry<THREE.Object3D>({
@@ -381,11 +423,12 @@ export class SceneRenderer {
     this.rig = new CameraRig(this.camera, world.ground, world.occluded);
 
     // Keep unclipped direct rendering on devices without floating-point color targets.
-    if ((opts.quality ?? !software) && this.renderer.extensions.has("EXT_color_buffer_float")) {
-      this.quality = new VisualQuality(this.renderer, this.scene, this.camera);
+    if (!gpu && (opts.quality ?? !software) && (this.renderer as THREE.WebGLRenderer).extensions.has("EXT_color_buffer_float")) {
+      this.quality = new VisualQuality(this.renderer as THREE.WebGLRenderer, this.scene, this.camera);
       this.streetLights = new StreetLightRig();
       this.scene.add(this.streetLights.group);
     }
+    if (gpu) { gpu.attach(this.scene, this.camera, world.manifest.water?.y ?? 0); this.streetLights = new StreetLightRig(); this.scene.add(this.streetLights.group); }
     this.weather = new WeatherLayer(opts.tide ?? null, world.ground);
     this.scene.add(this.weather.root);
     const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
@@ -394,10 +437,44 @@ export class SceneRenderer {
     if (!this.nightOn) this.dayPreset = preset;
     this.applyPreset(preset);
     this.governor = new GfxGovernor(opts.governed ?? false, {
-      post: this.quality !== null, shadows: this.shadows, pixelBudget: this.pixelBudget, maxPixelRatio: this.maxPixelRatio,
+      post: this.quality !== null || (gpu?.presentation ?? false), shadows: this.shadows, pixelBudget: this.pixelBudget, maxPixelRatio: this.maxPixelRatio,
     });
-    window.addEventListener("resize", () => this.resize());
+    window.addEventListener("resize", this.resizeListener);
     this.resize();
+    if (gpu) this.watchGpuTree(this.scene);
+  }
+
+  /** Convert only newly admitted subtrees, including asynchronously loaded actor/model roots. */
+  private watchGpuTree(root: THREE.Object3D): void {
+    if (this.disposed || this.watched.has(root)) return;
+    root.updateWorldMatrix(true, true);
+    if (this.gpu?.backend === "webgpu") root.traverse(object => {
+      const mesh = object as THREE.InstancedMesh;
+      if (!mesh.isInstancedMesh || (mesh.instanceMatrix as THREE.InstancedBufferAttribute & { isStorageInstancedBufferAttribute?: boolean }).isStorageInstancedBufferAttribute) return;
+      const source = mesh.instanceMatrix;
+      // The reference's storage-instance procedure avoids both per-draw uniform uploads
+      // and duplicate four-location matrix vertex attributes. Keep the live CPU array.
+      const target = new StorageInstancedBufferAttribute(source.array, 16);
+      target.name = source.name; target.normalized = source.normalized; target.meshPerAttribute = source.meshPerAttribute;
+      target.setUsage(source.usage); target.gpuType = source.gpuType; target.version = source.version + 1;
+      for (const range of source.updateRanges) target.addUpdateRange(range.start, range.count);
+      mesh.instanceMatrix = target;
+    });
+    prepareGpuScene(root, { ground: this.gpuGround });
+    root.traverse(object => {
+      if (this.watched.has(object)) return;
+      this.watched.add(object);
+      object.addEventListener("childadded", this.gpuChildAdded);
+      object.addEventListener("childremoved", this.gpuChildRemoved);
+    });
+  }
+
+  private unwatchGpuTree(root: THREE.Object3D): void {
+    root.traverse(object => {
+      object.removeEventListener("childadded", this.gpuChildAdded);
+      object.removeEventListener("childremoved", this.gpuChildRemoved);
+      this.watched.delete(object);
+    });
   }
 
   private prepareShadows(root: THREE.Object3D): void {
@@ -416,7 +493,8 @@ export class SceneRenderer {
   }
 
   setNight(on: boolean): void {
-    if (on === this.nightOn) return;
+    // Returning to the clock must also unpin a daytime preset such as golden hour.
+    if (on === this.nightOn && (on || !this.lightingPinned)) return;
     this.nightOn = on;
     // Night is a look the player holds; turning it off hands the light back to the game clock.
     this.lightingPinned = on;
@@ -440,7 +518,7 @@ export class SceneRenderer {
    * texture's base level at 4 bytes a texel, a third more with mipmaps), which misses textures
    * bound only through shader uniforms. Walks the scene: call it on demand, not every frame.
    */
-  renderStats(): { geometries: number; textures: number; programs: number; textureBytesEst: number; gpu: GpuMemory | null; fov: number; width: number; height: number; pixelRatio: number } {
+  renderStats(): { geometries: number; textures: number; programs: number; textureBytesEst: number; gpu: GpuMemory | null; fov: number; width: number; height: number; pixelRatio: number; backend: string; trackedBytes: number | null } {
     const seen = new Set<THREE.Texture>();
     let bytes = 0;
     const add = (t: unknown): void => {
@@ -467,13 +545,15 @@ export class SceneRenderer {
     return {
       geometries: this.renderer.info.memory.geometries,
       textures: this.renderer.info.memory.textures,
-      programs: this.renderer.info.programs?.length ?? 0,
+      programs: this.gpu ? this.gpu.renderer.info.memory.programs : (this.renderer as THREE.WebGLRenderer).info.programs?.length ?? 0,
       textureBytesEst: Math.round(bytes),
       gpu: this.gpuMemory ? this.gpuMemory() : null,
       fov: this.camera.fov,
       width: size.x,
       height: size.y,
       pixelRatio: this.renderer.getPixelRatio(),
+      backend: this.gpu?.backend ?? "webgl-legacy",
+      trackedBytes: this.gpu ? this.gpu.renderer.info.memory.total : null,
     };
   }
 
@@ -541,8 +621,8 @@ export class SceneRenderer {
     this.lights.setNight(night);
     this.agents.setNight(night);
     this.streetLights?.setNight(night);
-    this.scene.environment = this.envFor(`${envKey}:${weatherKey(this.weatherLook)}`);
-    this.scene.environmentIntensity = p.envIntensity;
+    if (this.gpu) this.gpu.setPreset(p, look, `${envKey}:${weatherKey(this.weatherLook)}`);
+    else { this.scene.environment = this.envFor(`${envKey}:${weatherKey(this.weatherLook)}`); this.scene.environmentIntensity = p.envIntensity; }
   }
 
   /**
@@ -551,6 +631,7 @@ export class SceneRenderer {
    * The cache keeps the ENV_CACHE_MAX most recent maps.
    */
   private envFor(key: string): THREE.Texture {
+    if (!this.pmrem) throw new Error("Legacy environment generation requires the WebGL renderer");
     let env = this.envCache.get(key);
     if (env) {
       this.envCache.delete(key);
@@ -599,7 +680,7 @@ export class SceneRenderer {
 
   /** No tile queued, loading or building for where the camera is now. */
   tilesSettled(): boolean {
-    return this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled() && this.streetDetail.settled();
+    return !this.nodeFailed && !this.gpu?.failure && this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled() && this.streetDetail.settled();
   }
 
   resize(): void {
@@ -611,6 +692,7 @@ export class SceneRenderer {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
     this.quality?.resize(w, h);
+    this.gpu?.resize();
   }
 
   /** Knocked-over street trees (impact-layer.ts) through the foliage layer. */
@@ -628,6 +710,7 @@ export class SceneRenderer {
       this.resize();
     } else if (step === "shadows") {
       this.renderer.shadowMap.enabled = false;
+      this.gpu?.setShadows(false);
       this.sun.castShadow = false;
       this.sun.shadow.map?.dispose();
       this.sun.shadow.map = null;
@@ -636,9 +719,9 @@ export class SceneRenderer {
         const m = (o as THREE.Mesh).material;
         for (const mat of Array.isArray(m) ? m : m ? [m] : []) mat.needsUpdate = true;
       });
-    } else if (this.quality) {
-      this.quality.dispose();
-      this.quality = null;
+    } else {
+      this.quality?.dispose(); this.quality = null;
+      this.gpu?.disablePost();
     }
   }
 
@@ -648,10 +731,29 @@ export class SceneRenderer {
    * are made again.
    */
   contextRestored(): void {
+    if (this.gpu) { this.failNodeRenderer("The graphics context was reset; resuming in compatibility mode."); return; }
     this.envCache.clear();
     const b = this.baseLight;
     this.applyLit(b.preset, b.look, b.envKey);
     this.resize();
+  }
+
+  /** Debug/recovery hooks work on the native WebGL renderer and the node WebGL backend. */
+  forceContextLoss(): void {
+    if (!this.gpu) { (this.renderer as THREE.WebGLRenderer).forceContextLoss(); return; }
+    if (this.gpu.backend === "webgl-node") (this.gpu.renderer.getContext() as WebGL2RenderingContext).getExtension("WEBGL_lose_context")?.loseContext();
+    else this.failNodeRenderer("Graphics device reset requested.");
+  }
+  forceContextRestore(): void {
+    if (!this.gpu) { (this.renderer as THREE.WebGLRenderer).forceContextRestore(); return; }
+    if (this.gpu.backend === "webgl-node") (this.gpu.renderer.getContext() as WebGL2RenderingContext).getExtension("WEBGL_lose_context")?.restoreContext();
+  }
+  private failNodeRenderer(message: string): void {
+    if (this.nodeFailed) return;
+    this.nodeFailed = true;
+    console.warn(`[fog-city] ${message}`);
+    // Reuse the existing save-and-safe-mode recovery flow, rather than losing game progress.
+    this.renderer.domElement.dispatchEvent(new Event("webglcontextlost", { cancelable: true }));
   }
 
   setCar(id: string, pose: CarPose): void {
@@ -699,6 +801,7 @@ export class SceneRenderer {
     this.frameDelta = dtSeconds;
     this.time += dtSeconds;
     fcUniforms.fcTime.value = this.time;
+    if (this.gpu) updateGpuMaterialTime(this.time, this.ground(this.camera.position.x, this.camera.position.z));
     if (frameSeconds > 0) this.fpsAvg += (1 / Math.max(frameSeconds, 1e-3) - this.fpsAvg) * Math.min(1, frameSeconds * 2);
     const step = this.governor?.frame(Math.max(1e-4, frameSeconds - simSeconds), !this.tilesSettled() || document.hidden);
     if (step) this.stepDown(step);
@@ -747,6 +850,7 @@ export class SceneRenderer {
     this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
     this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);
+    this.gpu?.frame(this.time, this.camera, cam.y - this.ground(cam.x, cam.z));
   }
 
   /**
@@ -765,22 +869,31 @@ export class SceneRenderer {
   }
 
   render(): void {
-    if (this.quality) this.quality.render(this.frameDelta);
+    if (this.gpu) {
+      if (this.nodeFailed) return;
+      try { this.gpu.render(this.scene, this.camera); }
+      catch (error) { this.failNodeRenderer(error instanceof Error ? error.message : String(error)); return; }
+    } else if (this.quality) this.quality.render(this.frameDelta);
     else this.renderer.render(this.scene, this.camera);
     this.far.endFrame();
     this.framesSinceJump++;
-    this.lastCalls = this.renderer.info.render.calls;
+    this.lastCalls = this.gpu ? this.gpu.renderer.info.render.drawCalls : this.renderer.info.render.calls;
     this.lastTris = this.renderer.info.render.triangles;
   }
 
   /** Render stats. Fills `out` (reused by the HUD every frame) or a fresh object. */
   info(out: RenderInfo = { ...EMPTY_INFO }): RenderInfo {
+    out.backend = this.gpu?.backend ?? "webgl-legacy";
+    out.shadowCascades = this.gpu?.shadowCascades ?? (this.renderer.shadowMap.enabled ? 1 : 0);
+    out.shadowAtlas = this.gpu?.shadowAtlas ?? null;
+    out.graphicsError = this.gpu?.failure ?? null;
+    out.postProcessing = this.gpu?.postProcessing;
     const s = this.streamer.stats(this.statsScratch);
     out.drawCalls = this.lastCalls;
     out.triangles = this.lastTris;
     out.tilesLoaded = s.ready;
     out.cameraMode = this.rig.mode;
-    out.presentation = this.quality !== null;
+    out.presentation = this.quality !== null || (this.gpu?.presentation ?? false);
     out.lightingPreset = this.activePreset;
     out.followsClock = !this.lightingPinned;
     out.weather = { fog: this.weatherLook.fog, wetness: this.weatherLook.wetness, ...this.weather.info };
@@ -797,7 +910,7 @@ export class SceneRenderer {
     out.fps = this.fpsAvg;
     out.pixelRatio = this.renderer.getPixelRatio();
     out.gfx = { tier: this.tier, pixelBudget: this.pixelBudget, steps: this.governor?.taken ?? [] };
-    out.shadows = this.shadows;
+    out.shadows = this.renderer.shadowMap.enabled;
     const a: AgentRenderInfo = this.agents.info();
     out.agents = a.drawn;
     out.agentsNear = a.near;
@@ -829,6 +942,14 @@ export class SceneRenderer {
   }
 
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    window.removeEventListener("resize", this.resizeListener);
+    for (const object of this.watched) {
+      object.removeEventListener("childadded", this.gpuChildAdded);
+      object.removeEventListener("childremoved", this.gpuChildRemoved);
+    }
+    this.watched.clear();
     this.surfaceTextures.dispose();
     this.streamer.dispose();
     this.avatarGround.clear();
@@ -847,8 +968,8 @@ export class SceneRenderer {
     this.nightMats.glow.dispose();
     this.nightMats.pool.dispose();
     for (const e of this.envCache.values()) e.dispose();
-    this.pmrem.dispose();
-    this.renderer.dispose();
+    this.pmrem?.dispose();
+    if (this.gpu) void this.gpu.dispose(); else this.renderer.dispose();
   }
 }
 

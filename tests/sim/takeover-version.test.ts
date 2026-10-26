@@ -4,7 +4,7 @@ import saved from "../golden/legacy-saves/v15-pre-takeover.json";
 import { deepFreeze } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
-describe("actual v15 save migration to robotaxi takeover v16", () => {
+describe("actual v15 save through the current migration chain", () => {
   it("keeps every field of a save recorded by the previous release's own code", () => {
     expect(saved.sourceCommit).toBe("fb5d8981b600d679c796e0b1218fb78de0f0474d");
     expect(saved.simVersion).toBe(15);
@@ -19,8 +19,8 @@ describe("actual v15 save migration to robotaxi takeover v16", () => {
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     expect(old.ext.missions?.players.p1?.status).toBe("active");
     const current = upgradeState(old);
-    expect(SIM_VERSION).toBe(16);
-    expect(current).toEqual({ ...old, version: 16 });
+    expect(SIM_VERSION).toBe(17);
+    expect(current).toEqual({ ...old, version: 17 });
     expect(current.players).toBe(old.players);
     expect(current.ext).toBe(old.ext);
     expect(current.ext.compatibilitySentinel).toEqual({ nested: { keep: [37, true, "v15"] } });
@@ -45,7 +45,7 @@ describe("actual v15 save migration to robotaxi takeover v16", () => {
     expect(restored.hashes).toEqual(direct.hashes);
     expect(hashState(restored.state)).toBe(hashState(direct.state));
     expect(direct.state.tick).toBe(saved.state.tick + saved.frames.length);
-    expect(direct.state.version).toBe(16);
+    expect(direct.state.version).toBe(17);
     expect(direct.state.ext.missions?.players.p1?.missionId).toBe("hot-desk");
     expect(direct.state.ext.economy?.players.p1?.cashCents).toBe(saved.state.ext.economy.players.p1.cashCents);
     expect(direct.state.ext.compatibilitySentinel).toEqual(saved.state.ext.compatibilitySentinel);

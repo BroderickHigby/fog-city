@@ -11,7 +11,7 @@ import { createControlsHelp } from "./controls-help.ts";
 import { mountSavePanel } from "./save-panel.ts";
 import { mountCredits } from "./credits.ts";
 import { Action } from "../sim/contract.ts";
-import type { MountedGameUI, PhoneApp, UiMountOptions, UiView } from "./types.ts";
+import type { MountedGameUI, PhoneApp, UiLightingPreset, UiMountOptions, UiView } from "./types.ts";
 
 const APPS:readonly PhoneApp[]=["map","botBounty","botCheck","ride","radio","fogcast","messages","bank","playlists","settings"];
 /** Mount once, update with immutable projections, then dispose when leaving the game. */
@@ -25,15 +25,21 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   function node<K extends keyof HTMLElementTagNameMap>(tag:K,className?:string,text?:string):HTMLElementTagNameMap[K]{const element=doc.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
   function button(label:string,fn:()=>void){const b=node("button",undefined,label);b.type="button";b.addEventListener("click",fn);return b;}
   const hud=node("div","fc-hud"),cluster=node("div","fc-cluster"),tools=node("div","fc-tools");
+  const brand=node("div","fc-brand"),brandMark=node("span","fc-brand-mark","FC"),brandCopy=node("div");
+  brandMark.setAttribute("aria-hidden","true");brandCopy.append(node("strong",undefined,copy("ui.brand")),node("small",undefined,copy("ui.hud.location")));brand.append(brandMark,brandCopy);
   const stats=new Map<string,HTMLElement>();
-  for(const key of ["runway","cash","water","threat","reputation"]){const stat=node("div","fc-stat"),label=node("small",undefined,copy(`ui.hud.${key}`)),value=node("strong");stat.append(label,value);stats.set(key,value);cluster.append(stat);if(key==="water"){const progress=node("progress");progress.max=1;progress.value=0;progress.setAttribute("aria-label",copy("ui.hud.water"));stat.append(progress);}}
+  for(const key of ["runway","cash","water","threat","reputation"]){const stat=node("div","fc-stat"),label=node("small",undefined,copy(`ui.hud.${key}`)),value=node("strong");stat.title=copy(`ui.hud.${key}`);stat.append(label,value);stats.set(key,value);cluster.append(stat);if(key==="water"){const progress=node("progress");progress.max=1;progress.value=0;progress.setAttribute("aria-label",copy("ui.hud.water"));stat.append(progress);}}
   const helpButton=button(copy("ui.help.open"),()=>setModal(modal==="help"?undefined:"help"));helpButton.className="fc-help-open";helpButton.setAttribute("aria-keyshortcuts","F1 Shift+Slash");
-  tools.append(button(copy("ui.phone.open"),()=>setModal("phone")),button(copy("ui.vendor.title"),()=>setModal("vendor")),helpButton);hud.append(cluster,tools);
+  if(callbacks.lighting){const lighting=node("select","fc-lighting");lighting.setAttribute("aria-label",copy("ui.hud.lighting"));for(const preset of ["live","noon","golden","twilight","night"] as const){const option=node("option",undefined,copy(`ui.hud.lighting.${preset}`));option.value=preset;lighting.append(option);}lighting.value=options.lightingPreset??"live";lighting.addEventListener("change",()=>{callbacks.lighting?.(lighting.value as UiLightingPreset);lighting.blur();});tools.append(lighting);}
+  tools.append(button(copy("ui.phone.open"),()=>setModal("phone")),button(copy("ui.vendor.title"),()=>setModal("vendor")),helpButton);hud.append(brand,cluster,tools);
   const objective=node("aside","fc-objective"),objectiveTitle=node("h2"),objectiveDetail=node("p");objective.setAttribute("aria-label",copy("ui.hud.objective"));const resumeInteraction=button(copy("ui.common.continue"),()=>setModal("interaction"));resumeInteraction.hidden=true;objective.append(objectiveTitle,objectiveDetail,resumeInteraction);objective.hidden=true;
-  const mini=node("div","fc-minimap"),canvas=node("canvas");canvas.setAttribute("aria-label",copy("ui.phone.map"));mini.append(canvas);
-  const speed=node("div","fc-speed"),perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
+  const mini=node("div","fc-minimap"),canvas=node("canvas"),street=node("div","fc-street",copy("ui.hud.location"));canvas.setAttribute("aria-label",copy("ui.phone.map"));mini.append(street,canvas);
+  const speed=node("div","fc-speed"),mode=node("span","fc-travel-mode",copy("ui.hud.driveMode")),speedLine=node("div","fc-speed-line"),speedValue=node("strong",undefined,"0"),speedUnit=node("span",undefined," km/h");speedLine.append(speedValue,speedUnit);speed.append(mode,speedLine);
+  const hints=node("div","fc-drive-hints");hints.setAttribute("aria-hidden","true");
+  for(const [key,label]of [["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H","ui.hud.robotaxiHint"]]){const item=node("span");item.append(node("kbd",undefined,key),doc.createTextNode(` ${copy(label!)}`));hints.append(item);}
+  const perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
   const ads=node("div","fc-ads"),layer=node("div","fc-modal-layer");layer.hidden=true;
-  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,mini,speed,perf,reticle,ads,layer);host.append(root);
+  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,mini,speed,hints,perf,reticle,ads,layer);host.append(root);
   const touch=options.touch?createTouchControls(doc,controls,copy):undefined;if(touch)root.append(touch.element);
 
   function setModal(next:typeof modal):void {
@@ -119,8 +125,10 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     stats.get("water")!.parentElement!.querySelector("progress")!.value=1;
     stats.get("threat")!.textContent=String(Math.round(bounded(next.threat,0,100)));stats.get("reputation")!.textContent=String(Math.round(bounded(next.reputation,-999,999)));
     objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveDetail.textContent=next.objective?.detail??next.interaction?.detail??"";
-    speed.textContent=`${Math.round(bounded(next.speedMps,0,200)*3.6)} km/h${next.vehicleControl==="robotaxi-driver"?` · ${copy("ui.hud.robotaxiDriver")}`:next.vehicleControl==="robotaxi-passenger"?` · ${copy("ui.hud.robotaxiPassenger")}`:""}`;drawMap(canvas,next);
-    if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris`;
+    speedValue.textContent=String(Math.round(bounded(next.speedMps,0,200)*3.6));
+    mode.textContent=copy(next.vehicleControl==="robotaxi-driver"?"ui.hud.robotaxiDriver":next.vehicleControl==="robotaxi-passenger"?"ui.hud.robotaxiPassenger":next.travelMode==="foot"?"ui.hud.walkMode":"ui.hud.driveMode");
+    speed.dataset.mode=next.travelMode??"vehicle";street.textContent=next.streetName??copy("ui.hud.location");drawMap(canvas,next);
+    if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris${next.performance.backend?` · ${next.performance.backend}`:""}${next.performance.shadowCascades?` · ${next.performance.shadowCascades} sun cascades`:""}`;
     renderAds();
     // Never replace a focused form while sim snapshots arrive.
     if(modal&&modal!=="startup"&&modal!=="interaction"){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;const active=doc.activeElement as HTMLElement|null;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}

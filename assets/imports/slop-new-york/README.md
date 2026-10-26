@@ -1,23 +1,24 @@
-# Slop New York rendering reference
+# Slop New York rendering methods and attribution
 
-Source: [Mr.doob / Slop New York](https://github.com/mrdoob/slop-newyork)
+Reference requested by the owner: [Slop New York](https://mrdoob.github.io/slop-newyork/).
 
-Reviewed commit: [`039a32796faf6ff914a07946b3d3d058d291e251`](https://github.com/mrdoob/slop-newyork/tree/039a32796faf6ff914a07946b3d3d058d291e251), retrieved 23 October 2026.
+Pinned source: [mrdoob/slop-newyork at 64ad03022bee9065a170ea286e2fd8e9d2b9a268](https://github.com/mrdoob/slop-newyork/tree/64ad03022bee9065a170ea286e2fd8e9d2b9a268), reviewed October 25, 2026 (local time). This updates the earlier reference review at `039a32796faf6ff914a07946b3d3d058d291e251`.
 
-Live reference requested by the owner: <https://mrdoob.github.io/slop-newyork/>.
+The source code is MIT licensed, copyright 2026 Mr.doob. The complete notice is retained in [LICENSE.md](LICENSE.md) and included in the packed game's `third-party-notices.txt` by `scripts/build-web.ts`. No new licence applies to Fog City's geographic data through this code reuse.
 
-The source project code is MIT licensed, copyright 2026 Mr.doob. Its exact licence notice is retained in [LICENSE.md](LICENSE.md). This attribution does not extend that licence to the source project's geographic data or to third-party assets and dependencies.
+## Methods being adapted in the local renderer refactor
 
-## What Fog City uses
+- WebGPU/TSL material and post-processing boundaries, physical sky/environment lighting and two-cascade sunlight.
+- Filtered procedural masonry, facade/window framing, parallax room interiors and analytic height-based street-canyon ambient shading.
+- World-metre asphalt/concrete shading, restrained reflections, bloom and a single final tone-map/grade.
+- Spatially bounded architectural attachments and open, branch-driven foliage with leaf-spray coverage across distance levels.
 
-Fog City's `src/render/quality.ts` draws on the reference's `js/post-processing.js` approach to restrained highlight bloom, contrast around middle gray, saturation, and subtle vignette. These ideas and grading formulas are implemented in Fog City's WebGL post-processing chain using Three.js `EffectComposer`, `OutputPass`, and FXAA. The reference uses a WebGPU/TSL render graph; its complete module was not copied into Fog City.
-
-Source review also informed the choice of coherent sun/sky/environment-light presets, clearer façade recesses, and detailed foliage. Fog City's implementations remain adapted to its existing renderer, streamed world and simulation. This is a rendering reference and attribution record, not a claim that the two projects share a renderer or equivalent visual results.
+Primary implementation references are `js/main.js`, `js/lighting.js`, `js/tsl-materials.js`, `js/post-processing.js`, `js/buildings.js`, `js/fire-escapes.js`, `js/trees.js` and `js/scene-culling.js` at the pinned commit. Fog City keeps its pinned installed Three.js package; the reference's moving `three.js@dev` CDN import map is not reused.
 
 ## Data boundary
 
-No New York City geometry, street network, geographic data, map labels, landmarks, textures, character model or audio was imported from Slop New York. Fog City retains its San Francisco world data and its separately documented asset sources. Slop New York's README attributes its geographic data to NYC Open Data and OpenStreetMap contributors under their respective terms; that data is outside this reuse.
+No New York geometry, street graph, geographic database, business names, map labels, landmarks, character models or audio are imported. San Francisco source footprints, the existing street network, original vehicles and names, and their separately documented licences remain in place. The reference's NYC Open Data and OpenStreetMap/ODbL inputs are outside this adaptation.
 
-## Verification boundary
+## Evidence boundary
 
-The direct live URL was blocked by this environment's outbound network policy. The pinned source was available from GitHub and reviewed locally. The exact reference could not be rendered successfully in the current software-GPU environment, so this work does not claim a verified side-by-side visual match, performance parity, or equivalent WebGPU support. Fog City's own screenshots and QA results are recorded separately against its build.
+A source-method port does not by itself establish a visual match or performance parity. Fog City's actual backend, shader readiness, shadows, scene counts, lighting, fallback, gameplay and packed output must be checked on the resulting local build. Hardware FPS is a separate observation. Current work remains local until the complete request is ready for one consolidated PR into main.

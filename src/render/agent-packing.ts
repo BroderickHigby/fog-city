@@ -25,6 +25,7 @@ import { CAR_ART_GLSL } from "./car-appearance.ts";
 import { injectUniforms } from "./materials.ts";
 import { channelRatio, lightChannel } from "./lights.ts";
 import { clusterSimplify } from "./simplify.ts";
+import { createGpuPackedMaterial, isGpuMaterialsEnabled } from "./node-materials.ts";
 
 /** Shared by every packed material: x head, y tail, z status light intensity; w flash strength. */
 export const agentUniforms = {
@@ -321,6 +322,7 @@ if(fcWheel.w > 0.5) {
 
 /** The packed agent material; `slots` = people (per-instance clothing and skin colours). */
 export function packedMaterial(slots: boolean, vehicles = false): THREE.MeshStandardMaterial {
+  if (isGpuMaterialsEnabled()) return createGpuPackedMaterial(slots, vehicles, agentUniforms.fcLightK.value) as THREE.MeshStandardMaterial;
   // People are cloth and skin; vehicles and robots get a physical material for the clearcoat.
   const m = slots
     ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, name: "fc:agent-people" })

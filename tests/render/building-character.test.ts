@@ -59,6 +59,26 @@ describe("building character and relief",()=>{
     expect(signatures.size).toBeGreaterThanOrEqual(4);
   });
 
+  it("adds deep street-facing fixtures without changing the source footprint or filling the central roof",()=>{
+    const {character}=sample("walk-up"),mb=new MeshBuilder();
+    addBuildingCharacter(mb,{...character,family:3,seed:.71});
+    const mesh=mb.build();
+    expect(mesh.indices.length/3).toBeLessThanOrEqual(4800);
+    let projecting=false,roofVertices=0;
+    const cx=(character.minX+character.maxX)/2,cz=(character.minZ+character.maxZ)/2;
+    for(let i=0;i<mesh.positions.length;i+=3){
+      const x=mesh.positions[i]!,y=mesh.positions[i+1]!,z=mesh.positions[i+2]!;
+      if(x<character.minX-.65||x>character.maxX+.65||z<character.minZ-.65||z>character.maxZ+.65)projecting=true;
+      if(y>character.baseY+character.height+.1){
+        roofVertices++;
+        expect(x).toBeGreaterThan(character.minX);expect(x).toBeLessThan(character.maxX);
+        expect(z).toBeGreaterThan(character.minZ);expect(z).toBeLessThan(character.maxZ);
+        expect(Math.abs(x-cx)>1||Math.abs(z-cz)>1).toBe(true);
+      }
+    }
+    expect(projecting).toBe(true);expect(roofVertices).toBeGreaterThan(0);
+  });
+
   it("bounds detail count/triangles/draw calls and drops hidden or unloaded buildings immediately",()=>{
     const parent=new THREE.Group(),layer=new BuildingDetailLayer(parent);
     const buildings=Array.from({length:70},(_,i)=>sample(`b${i}`,i%10*22,Math.floor(i/10)*18).character);

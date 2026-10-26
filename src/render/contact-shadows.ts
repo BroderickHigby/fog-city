@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { injectUniforms } from "./materials.ts";
+import { isGpuMaterialsEnabled } from "./node-materials.ts";
+import { createContactNodeMaterial } from "./gpu-special.ts";
 
 /** Soft grounding for player bodies without a shadow map or another scene render. */
 export class ContactShadows {
@@ -15,12 +17,12 @@ export class ContactShadows {
   constructor(capacity: number) {
     this.capacity = capacity;
     const geometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-    const material = new THREE.MeshBasicMaterial({
+    const material = isGpuMaterialsEnabled() ? createContactNodeMaterial() : new THREE.MeshBasicMaterial({
       name: "fc:contact-shadow", color: 0x101522, opacity: 0.32,
       transparent: true, depthWrite: false, polygonOffset: true,
       polygonOffsetFactor: -1, polygonOffsetUnits: -1,
     });
-    material.onBeforeCompile = (shader) => {
+    if (!isGpuMaterialsEnabled()) material.onBeforeCompile = (shader) => {
       injectUniforms(shader);
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", "#include <common>\nvarying vec2 vContactUv;")

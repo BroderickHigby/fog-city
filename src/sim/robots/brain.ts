@@ -18,6 +18,8 @@ export interface PlayerSight extends SightBase {
   readonly inVehicle: boolean;
   /** Visible hostile behaviour, supplied by the sensing adapter, not global heat. */
   readonly threatening: boolean;
+  /** An admitted rogue encounter may initiate against this visible on-foot player. */
+  readonly engage?: boolean;
 }
 export interface RobotSight extends SightBase {
   readonly kind: "robot";
@@ -75,6 +77,8 @@ export interface PlayerKnowledge extends BrainPoint {
   readonly observedTick: number;
   readonly expiresTick: number;
   readonly channel: "sight" | "hearing" | "broadcast";
+  /** Last-seen v17 encounter eligibility. Absent in legacy observations and saves. */
+  readonly engage?: boolean;
 }
 export interface CloseWatch { readonly playerId: string; readonly startedTick: number }
 export interface RobotWindup { readonly target: BrainTarget; readonly attack: RobotAttack; readonly startedTick: number }
@@ -192,6 +196,7 @@ function validateInput(state: RobotBrainState, input: RobotBrainInput): void {
       if (!Number.isFinite(observation.heading)) throw new RangeError("player heading");
       boolean(observation.inVehicle, "player vehicle flag");
       boolean(observation.threatening, "player threat flag");
+      if(observation.engage!==undefined)boolean(observation.engage,"player encounter flag");
     } else if (observation.kind === "robot" || observation.kind === "person") {
       integer(observation.id, "observed id");
       if (observation.kind === "robot") {
@@ -257,8 +262,9 @@ function remember(knowledge: PlayerKnowledge[], observation: PlayerKnowledge): v
   if (prior && (prior.observedTick > observation.observedTick ||
       (prior.observedTick === observation.observedTick && (rank[prior.channel] > rank[observation.channel] ||
       (rank[prior.channel] === rank[observation.channel] && (prior.x < observation.x || (prior.x === observation.x && prior.z <= observation.z))))))) return;
-  if (index < 0) knowledge.push(observation);
-  else knowledge[index] = observation;
+  const next=observation.engage===undefined&&prior?.engage!==undefined?{...observation,engage:prior.engage}:observation;
+  if (index < 0) knowledge.push(next);
+  else knowledge[index] = next;
 }
 function weight(state: RobotBrainState, input: RobotBrainInput, goal: RobotGoal): number {
   const base = ROBOT_GOAL_WEIGHTS[state.archetype][goal];
@@ -310,8 +316,8 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   const knowledge = previous.knowledge.filter((k) => tick < k.expiresTick).map((k) => ({ ...k }));
   let alarm = false;
   for (const player of players) {
-    remember(knowledge, { playerId: player.id, x: player.x, z: player.z, observedTick: tick, expiresTick: tick + ROBOT_MEMORY_TICKS, channel: "sight" });
-    alarm = alarm || player.threatening;
+    remember(knowledge, { playerId: player.id, x: player.x, z: player.z, observedTick: tick, expiresTick: tick + ROBOT_MEMORY_TICKS, channel: "sight",...(player.engage!==undefined?{engage:player.engage}:{}) });
+    alarm = alarm || player.threatening || player.engage===true&&!player.inVehicle;
   }
   for (const sound of input.observations.sounds) {
     const range = sound.kind === "spray" ? 20 : 40;
@@ -332,7 +338,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   knowledge.sort((a, b) => b.observedTick - a.observedTick || compareString(a.playerId, b.playerId));
   if (knowledge.length > ROBOT_MAX_KNOWN_PLAYERS) knowledge.length = ROBOT_MAX_KNOWN_PLAYERS;
   knowledge.sort((a, b) => compareString(a.playerId, b.playerId));
-  const nearestMemory = [...knowledge].sort((a, b) => distanceSq(input.self, a) - distanceSq(input.self, b) || compareString(a.playerId, b.playerId))[0];
+  const nearestMemory = knowledge.filter(k=>k.engage!==false).sort((a, b) => distanceSq(input.self, a) - distanceSq(input.self, b) || compareString(a.playerId, b.playerId))[0];
   let waryUntilTick = previous.waryUntilTick;
   const closeWatches: CloseWatch[] = [];
   for (const watch of input.observations.watches) {

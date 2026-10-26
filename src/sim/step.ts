@@ -159,6 +159,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v14 -> v15: civilian traffic and a faster on-foot pace change behavior only. Preserve
  *    every existing field and optional extension; do not rebuild traffic or progression.
  *  - v15 -> v16: optional manual taxi controls; preserve all existing state unchanged.
+ *  - v16 -> v17: visible rogue encounters and mixed ambient firmware rolls. Existing
+ *    firmware, missions, attacks and every saved extension remain unchanged.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -174,6 +176,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 13) return upgradeState(upgradeDodgeOnFoot(s, 14));
   if (s.version === 14) return upgradeState({ ...s, version: 15 });
   if (s.version === 15) return upgradeState({ ...s, version: 16 });
+  if (s.version === 16) return upgradeState({ ...s, version: 17 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

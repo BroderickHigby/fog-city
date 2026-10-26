@@ -5,6 +5,7 @@ import { heightOnField, type Heightfield, type TileCollider } from "../sim/world
 import { hashString, mix32, unit } from "./hash.ts";
 import { roadHalfWidth, sidewalkWidth } from "./roads.ts";
 import { fcUniforms, injectUniforms } from "./materials.ts";
+import { createGpuGrassMaterial, isGpuMaterialsEnabled } from "./node-materials.ts";
 import type { GroundFn, RoadGraph } from "./types.ts";
 
 type P = [number, number];
@@ -253,8 +254,8 @@ export function* buildGrass(lawns: readonly Lawn[], opts: GrassOptions, index: M
 export class GrassLayer {
   readonly group = new THREE.Group();
   private readonly opts: GrassOptions;
-  private readonly surfaceMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, name: "fc:grass-surface", side: THREE.DoubleSide });
-  private readonly bladeMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, name: "fc:grass-blades", side: THREE.DoubleSide });
+  private readonly surfaceMaterial = isGpuMaterialsEnabled() ? createGpuGrassMaterial(false) : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, name: "fc:grass-surface", side: THREE.DoubleSide });
+  private readonly bladeMaterial = isGpuMaterialsEnabled() ? createGpuGrassMaterial(true) : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, name: "fc:grass-blades", side: THREE.DoubleSide });
   private readonly surface = new THREE.Mesh(new THREE.BufferGeometry(), this.surfaceMaterial);
   private readonly blades = new THREE.Mesh(new THREE.BufferGeometry(), this.bladeMaterial);
   private lawns: Lawn[] = [];
@@ -267,7 +268,7 @@ export class GrassLayer {
     this.surface.visible = false; this.blades.visible = false;
     this.surface.receiveShadow = true; this.blades.receiveShadow = true; this.group.add(this.surface, this.blades);
     this.surfaceMaterial.polygonOffset = true; this.surfaceMaterial.polygonOffsetFactor = -1; this.surfaceMaterial.polygonOffsetUnits = -1;
-    this.surfaceMaterial.onBeforeCompile = shader => {
+    if (!isGpuMaterialsEnabled()) this.surfaceMaterial.onBeforeCompile = shader => {
       injectUniforms(shader);
       shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vGrassXZ;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvGrassXZ = position.xz;");
       shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vGrassXZ;").replace("#include <color_fragment>", `#include <color_fragment>
@@ -276,8 +277,8 @@ export class GrassLayer {
         float grassMow = 0.5 + 0.5 * sin((vGrassXZ.x + vGrassXZ.y * 0.18) * 0.44);
         diffuseColor.rgb *= 0.94 + grassMow * 0.055 + grassFine * (1.0 - smoothstep(0.025,0.12,grassFilter)) * 0.045;`);
     };
-    this.surfaceMaterial.customProgramCacheKey = () => "fc:grass-surface:v2";
-    this.bladeMaterial.onBeforeCompile = shader => {
+    if (!isGpuMaterialsEnabled()) this.surfaceMaterial.customProgramCacheKey = () => "fc:grass-surface:v2";
+    if (!isGpuMaterialsEnabled()) this.bladeMaterial.onBeforeCompile = shader => {
       injectUniforms(shader);
       shader.uniforms.fcGrassTime = fcUniforms.fcTime;
       shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute float _grassRoot;\nuniform float fcGrassTime;")
@@ -288,7 +289,7 @@ export class GrassLayer {
           transformed.y = _grassRoot + (position.y - _grassRoot) * grassFade;
           transformed.x += sin(fcGrassTime * 1.4 + position.x * 0.23 + position.z * 0.17) * grassHeight * 0.12 * grassFade;`);
     };
-    this.bladeMaterial.customProgramCacheKey = () => "fc:grass-blades:v2";
+    if (!isGpuMaterialsEnabled()) this.bladeMaterial.customProgramCacheKey = () => "fc:grass-blades:v2";
   }
   setData(doc: unknown): void {
     this.lawns = grassShapes(doc); this.loaded = true; this.index = null;

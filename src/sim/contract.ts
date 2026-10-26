@@ -64,7 +64,11 @@
 // connected street edges; absent in older saves and removed after reaching its frontage.
 // v16: contextual H commandeers an eligible robotaxi. PlayerRide.manual and AgentState.manualCar
 // keep the driven taxi on normal physical controls; after exit it parks at its actual pose.
-export const SIM_VERSION = 16;
+// v17: nearby bad robots can initiate a visible, telegraphed encounter with an on-foot
+// player. The existing water/rust and slapstick attack reducers remain authoritative.
+// Ambient firmware rolls mix sequential IDs before sampling the authored bad-robot share.
+// Older replay versions keep the prior reactive-only behavior; saves retain every field.
+export const SIM_VERSION = 17;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

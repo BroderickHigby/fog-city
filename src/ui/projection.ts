@@ -12,6 +12,7 @@ import { DEFAULT_CATALOG } from "../sim/player/catalog.ts";
 import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { missionActorBindings } from "../sim/agents/systems.ts";
 import { nearestTurntable } from "../sim/missions/mechanics/bell.ts";
+import { streetNameAt } from "./street-name.ts";
 import type { RoadGraph } from "../render/types.ts";
 import type { InteractionView, MapBlip, MapEdge, MapPoint, UiView } from "./types.ts";
 const graphEdges=new WeakMap<RoadGraph,readonly MapEdge[]>();
@@ -78,7 +79,9 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   }
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
+  const streetName=body?streetNameAt(roads,body.x,body.z):undefined;
   return {tick:state.tick,playerId,x:body?.x??0,z:body?.z??0,heading:body?.heading??0,speedMps:body?.speed??0,...own,
+    ...(player?{travelMode:player.mode}:{}),...(streetName?{streetName}:{}),
     ...(player?.ride?{vehicleControl:player.ride.manual?"robotaxi-driver" as const:"robotaxi-passenger" as const}:{}),
     waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),

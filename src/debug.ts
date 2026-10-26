@@ -9,6 +9,11 @@ import type { GrassInfo } from "./render/grass.ts";
 export type CameraModeName = "chase" | "first-person" | "fly";
 
 export interface RenderInfo {
+  backend?: "webgpu" | "webgl-node" | "webgl-legacy";
+  shadowCascades?: number;
+  shadowAtlas?: { width:number; height:number }|null;
+  graphicsError?: string|null;
+  postProcessing?: { enabled:boolean; ssr:boolean; bloom:boolean; framesRendered:number };
   /** Bounded nearby architectural geometry and its style mix. */
   buildingDetail?: BuildingDetailStats;
   /** Terrain-following lawn surfaces and bounded nearby blade detail. */

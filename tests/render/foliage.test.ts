@@ -25,6 +25,9 @@ describe("SF foliage", () => {
       // The far tier is drawn up to FOLIAGE_FAR_LIMIT times (the street-tree data fills it).
       if (far) expect(triangles, "far tree triangles").toBeLessThanOrEqual(64);
       expect(model.leaves.getAttribute("uv")).toBeDefined();
+      const barkColors=model.bark.getAttribute("color");
+      // Wood branches form the opaque mesh; no solid green sphere fills the crown.
+      for(let v=0;v<barkColors.count;v++)expect(barkColors.getX(v)).toBeGreaterThan(barkColors.getY(v));
       const top = Math.max(model.bark.boundingBox!.max.y, model.leaves.boundingBox!.max.y);
       expect(top).toBeCloseTo(species === 0 ? 6.6 : 10.5, 3);
       model.bark.dispose(); model.leaves.dispose();
@@ -49,6 +52,9 @@ describe("SF foliage", () => {
     const bark = layer.group.getObjectByName("sf:foliage:0:0:bark") as THREE.InstancedMesh;
     const matrix = new THREE.Matrix4(); bark.getMatrixAt(0, matrix);
     expect(new THREE.Vector3().setFromMatrixPosition(matrix).toArray()).toEqual([100, 2, -50]);
+    expect(bark.instanceMatrix.updateRanges).toEqual([{start:0,count:16}]);
+    const leaves=layer.group.getObjectByName("sf:foliage:0:0:leaves") as THREE.InstancedMesh;
+    expect((leaves.material as THREE.Material).userData.fcGpuKind).toBe("foliage-leaf");
     layer.removeTile("sample"); layer.update(100, -50);
     expect(source.trees.visible).toBe(true); expect(layer.info.near).toBe(0);
     layer.dispose();

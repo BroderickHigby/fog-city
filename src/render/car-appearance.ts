@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createGpuCarPaint, isGpuMaterialsEnabled } from "./node-materials.ts";
 
 /** Original city palettes: no vehicle brands, decals, text or downloaded artwork. */
 export const CAR_PALETTES = [
@@ -46,7 +47,13 @@ export function paintCar(root: THREE.Object3D, appearance: CarAppearance): THREE
       if (!/^paint(?:_|\.|$)/.test(material.name)) return material;
       let clone = clones.get(material);
       if (!clone) {
+        if (isGpuMaterialsEnabled()) {
+          clone = createGpuCarPaint(material, appearance);
+          clones.set(material, clone);
+          return clone;
+        }
         const paint = material.clone() as THREE.MeshStandardMaterial;
+        paint.userData.fcCarAppearance = appearance;
         paint.color.copy(appearance.paint);
         const before = material.onBeforeCompile;
         paint.onBeforeCompile = (shader, renderer) => {

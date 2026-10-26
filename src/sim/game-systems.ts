@@ -69,7 +69,7 @@ export interface GameSystemsOptions {
 /**
  * The game: one explicit composition shared by the browser, headless drivers, relay sessions
  * and the sim bench. step()'s default SYSTEMS is only the static registrations (systems.ts).
- * tests/golden/composed-v14.json pins this path (older versions keep their own records).
+ * tests/golden/composed-v17-robot-encounters.json pins this path; older pins remain intact.
  */
 export function createGameSystems(options: GameSystemsOptions = {}): readonly SimSystem[] {
   const wave=options.wave??2;
@@ -77,7 +77,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   // Weather is a wave-3 system: wave 2 keeps clear skies, dry roads and no tide.
   const weather=wave>=3;
   const fogAt=(context:SimSystemContext,x:number,z:number)=>weather?fogDensity(context.world,context.state,x,z):0;
-  const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,
+  const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,engagePlayers:context.state.version>=17,
     // City life (content/city-life.json): ambient density by district and hour, and the director's incidents.
     densityAt:(x:number,z:number)=>{const p=toLatLon(x,z);return populationScale([p.lat,p.lon],gameTime(context.state).hour);},
     director:{cards:CITY_DIRECTOR_CARDS,stageM:CITY_LIFE.director.stageM,maxActive:3},

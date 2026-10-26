@@ -29,6 +29,9 @@ export interface UiView {
   readonly z:number;
   readonly heading:number;
   readonly speedMps:number;
+  /** Presentation only; the simulation continues to own movement and vehicle control. */
+  readonly travelMode?:"vehicle"|"foot";
+  readonly streetName?:string;
   /** The occupied robotaxi, distinct from the player's parked car. */
   readonly vehicleControl?:"robotaxi-driver"|"robotaxi-passenger";
   readonly runwayMonths:number;
@@ -49,10 +52,12 @@ export interface UiView {
   readonly popups?:readonly PopupView[];
   readonly phoneApps?:readonly PhoneApp[];
   readonly airPlaneMode?:boolean;
-  readonly performance?:{readonly fps:number;readonly drawCalls:number;readonly triangles:number;readonly simMs?:number};
+  readonly performance?:{readonly fps:number;readonly drawCalls:number;readonly triangles:number;readonly simMs?:number;readonly backend?:string;readonly shadowCascades?:number};
 }
 export type UiCopy=(key:string,values?:Readonly<Record<string,string|number>>)=>string;
+export type UiLightingPreset="live"|"noon"|"golden"|"twilight"|"night";
 export interface UiCallbacks {
+  readonly lighting?:(preset:UiLightingPreset)=>void;
   readonly purchase?:(itemId:string,siteId?:string)=>void;
   readonly startup?:(kitId:string)=>void;
   readonly closeAd?:(popupId:string)=>void;
@@ -66,6 +71,7 @@ export interface UiMountOptions {
   readonly callbacks?:UiCallbacks;
   readonly touch?:boolean;
   readonly showPerformance?:boolean;
+  readonly lightingPreset?:UiLightingPreset;
   readonly document?:Document;
   /** Share the host's keyboard when camera controls already use one. */
   readonly keyboard?:Keyboard;

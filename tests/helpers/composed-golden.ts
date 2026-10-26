@@ -161,9 +161,10 @@ const robotaxiDrive: ComposedScenario = {
 };
 export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission, wave3City, wave3Rain, robotaxiDrive];
 
-export function runComposedScenario(scenario: ComposedScenario): ComposedRun {
+export function runComposedScenario(scenario: ComposedScenario, version = SIM_VERSION): ComposedRun {
   const world = scenario.world(), systems = createGameSystems({ wave: scenario.wave ?? 2 });
   let state = scenario.initial(world);
+  state = { ...state, version };
   const hashes: string[] = [];
   const coverage: Record<string, number> = {};
   const count = (key: string, n = 1): void => { coverage[key] = (coverage[key] ?? 0) + n; };

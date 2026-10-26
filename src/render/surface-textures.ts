@@ -2,6 +2,7 @@
 // shaders remain authoritative; a failed scan simply leaves that material untouched.
 import * as THREE from "three";
 import type { SharedMaterials } from "./materials.ts";
+import { isGpuMaterialsEnabled } from "./node-materials.ts";
 
 export type SurfaceName = "asphalt" | "concrete";
 export const SURFACE_TEXTURE_ROOT = "textures/surfaces/";
@@ -155,6 +156,18 @@ export function loadSurfaceTextures(
   bytesProvider: BytesProvider,
   options: { anisotropy?: number } = {},
 ): SurfaceTextures {
+  // The node path evaluates filtered, metre-scaled asphalt and concrete directly.
+  // Its shaders do not consume the legacy onBeforeCompile scan uniforms; avoid
+  // downloading and decoding six unused 1K textures in that renderer.
+  if (isGpuMaterialsEnabled()) {
+    let disposed = false;
+    return {
+      ready: Promise.resolve({ loaded: [], failed: [], disposed: false }),
+      loaded: [],
+      get state() { return disposed ? "disposed" : "ready"; },
+      dispose() { disposed = true; },
+    };
+  }
   let state: SurfaceTextures["state"] = "loading";
   const loaded: SurfaceName[] = [], failed: SurfaceName[] = [];
   const owned: THREE.Texture[] = [];

@@ -7,6 +7,8 @@
 import * as THREE from "three";
 import type { LightingPreset } from "./sky.ts";
 import { fcUniforms } from "./materials.ts";
+import { isGpuMaterialsEnabled } from "./node-materials.ts";
+import { createRainNodeMaterial } from "./gpu-special.ts";
 
 /** The weather the renderer draws; a subset of the sim's WeatherView. */
 export interface WeatherLook {
@@ -198,7 +200,7 @@ export class WeatherLayer {
     this.strip = strip;
     this.ground = ground;
     this.root.name = "weather";
-    const rainMaterial = new THREE.ShaderMaterial({
+    const rainMaterial = isGpuMaterialsEnabled() ? createRainNodeMaterial(this.rainUniforms) : new THREE.ShaderMaterial({
       uniforms: this.rainUniforms, vertexShader: RAIN_VERTEX, fragmentShader: RAIN_FRAGMENT,
       transparent: true, depthWrite: false, fog: false,
     });

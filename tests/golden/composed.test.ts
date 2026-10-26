@@ -7,7 +7,8 @@
 import { describe, expect, it } from "vitest";
 import { SIM_VERSION } from "../../src/sim/index.ts";
 import { COMPOSED_SCENARIOS, runComposedScenario } from "../helpers/composed-golden.ts";
-import golden from "./composed-v16-robotaxi-takeover.json";
+import golden from "./composed-v17-robot-encounters.json";
+import previous from "./composed-v16-robotaxi-takeover.json";
 
 describe("composed-path golden replays", () => {
   it("is pinned for this SIM_VERSION and every scenario", () => {
@@ -15,6 +16,12 @@ describe("composed-path golden replays", () => {
     expect(Object.keys(golden.scenarios).sort()).toEqual(COMPOSED_SCENARIOS.map(s => s.name).sort());
   });
   for (const scenario of COMPOSED_SCENARIOS) {
+    it(`preserves the recorded v16 ${scenario.name} replay`, () => {
+      const pinned = (previous.scenarios as Record<string, { hashes: string[]; coverage: Record<string, number> }>)[scenario.name]!;
+      const run = runComposedScenario(scenario, 16);
+      expect(run.coverage).toEqual(pinned.coverage);
+      expect(run.hashes).toEqual(pinned.hashes);
+    }, 120_000);
     it(`replays ${scenario.name} to the pinned hashes`, () => {
       const pinned = (golden.scenarios as Record<string, { hashes: string[]; coverage: Record<string, number> }>)[scenario.name]!;
       const run = runComposedScenario(scenario);

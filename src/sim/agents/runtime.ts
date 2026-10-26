@@ -135,6 +135,8 @@ export interface AgentRuntimeOptions {
   /** Scenario or camera anchors are accepted only when recorded in the simulation. */
   anchors?: readonly FidelityAnchor[];
   protectedArea?: (x:number,z:number)=>boolean;
+  /** v17 game composition: close visible rogue encounters can engage an on-foot player. */
+  engagePlayers?: boolean;
   crossingBlocked?: (edgeId:string)=>boolean;
   /** v11 city life: ambient density multipliers by kind for an area owned by a player standing at (x, z). */
   densityAt?: (x:number,z:number)=>Record<string,number>;
@@ -154,6 +156,13 @@ function distance(a:{x:number;z:number},b:{x:number;z:number}):number{return Mat
 function bodyOf(player:SimState["players"][string]){return playerPose(player);}
 function players(state:Readonly<SimState>){return keys(state.players).map(id=>({id,mode:state.players[id]!.mode,...bodyOf(state.players[id]!)}));}
 function hash(value:string):number{let out=2166136261;for(let i=0;i<value.length;i++)out=Math.imul(out^value.charCodeAt(i),16777619);return out>>>0;}
+/** Sequential actor IDs need avalanche mixing before a probability threshold: raw FNV
+ * puts whole runs of nearby IDs on the same side of a low bad-firmware share. */
+function firmwareRoll(seed:number,id:string,version:number):number{
+  let value=hash(`${seed}:${id}`);
+  if(version>=17){value=Math.imul(value^(value>>>16),0x85ebca6b);value=Math.imul(value^(value>>>13),0xc2b2ae35);value=(value^(value>>>16))>>>0;}
+  return value/4294967296;
+}
 function defaultBadRate(x:number,z:number):number{const point=toLatLon(x,z);return badRobotRate([point.lat,point.lon]);}
 function defaultProtected(x:number,z:number):boolean{const point=toLatLon(x,z);return Boolean(protectedAreaAt([point.lat,point.lon]));}
 function activeCombat(state:Readonly<SimState>):CombatState|undefined{return state.ext.combat;}
@@ -174,9 +183,9 @@ function initialize(spawn:RuntimeSpawn,tick:number,legacyId:number|null):Runtime
     intent:null,reaction:IDLE_REACTION,route:null,cursor:{stepIndex:0,distanceM:0},goalNode:"",pendingCursor:null,pendingPoint:null,attackSequence:0,actionToken:"",fidelity:"full",behavior:"idle",bag,statusLight:tells.some(tell=>tell.behaviour.kind==="faceLightFlicker")?"flicker":"steady",tellIds:tells.map(tell=>tell.id),tellIntensity:profile?.intensity??1,hiddenTellId:null};
 }
 
-function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):RuntimeSpawn{
+function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions,version:number):RuntimeSpawn{
   const id=agentActorId(agent.id), model=agent.kind==="errandRobot"?"footman":agent.kind==="sidewalkBot"?"trundle":agent.kind;
-  const firmware=options.firmware?.[id]??(model==="person"?"none":hash(`${seed}:${id}`)/4294967296<clamp((options.badRateAt??defaultBadRate)(agent.x,agent.z),0,1)?"bad":"good");
+  const firmware=options.firmware?.[id]??(model==="person"?"none":firmwareRoll(seed,id,version)<clamp((options.badRateAt??defaultBadRate)(agent.x,agent.z),0,1)?"bad":"good");
   const profiles=BOT_TELLS.archetypes.filter(profile=>profile.kind===firmware&&profile.model===(model==="trundle"?"sidewalk-bot":model==="robotaxi"?"robotaxi":"errand-robot"));
   const profile=profiles[hash(id)%Math.max(1,profiles.length)];
   return {id,numericId:agent.id,model,firmware,...(profile?{archetype:profile.id,level:1+hash(`${id}:level`)%5}:{}),x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:Math.abs(agent.speed),
@@ -186,7 +195,7 @@ function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):R
 
 export function createAgentsRuntime(state:Readonly<SimState>,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const actors:Record<string,RuntimeActor>={};
-  for(const agent of [...agentsOf(state)].filter(a=>!isCivilianTraffic(a)).sort((a,b)=>a.id-b.id)) {const spawn=legacySpawn(agent,state.seed,options);actors[spawn.id]=initialize(spawn,state.tick,agent.id);}
+  for(const agent of [...agentsOf(state)].filter(a=>!isCivilianTraffic(a)).sort((a,b)=>a.id-b.id)) {const spawn=legacySpawn(agent,state.seed,options,state.version);actors[spawn.id]=initialize(spawn,state.tick,agent.id);}
   for(const spawn of [...(options.spawns??[])].sort((a,b)=>compare(a.id,b.id))){if(actors[spawn.id])throw new Error("Duplicate runtime actor ID");actors[spawn.id]=initialize(spawn,state.tick,null);}
   if(keys(actors).length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
   return {version:1,tick:state.tick,actors,missionBindings:{},baseBadCount:keys(actors).filter(id=>actors[id]!.firmware==="bad").length,lastCombatTick:-1,attacks:[],proposals:[],events:[]};
@@ -222,7 +231,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   for(const agent of [...agentsOf(sim)].filter(a=>!isCivilianTraffic(a)).sort((a,b)=>a.id-b.id)){
     const id=agentActorId(agent.id), old=previous.actors[id];known.add(id);
     if(shared&&old&&old.x===agent.x&&old.y===agent.y&&old.z===agent.z&&old.heading===agent.heading&&old.speed===Math.abs(agent.speed))share(id,old);
-    else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:Math.abs(agent.speed)}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
+    else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:Math.abs(agent.speed)}:initialize(legacySpawn(agent,sim.seed,options,sim.version),sim.tick,agent.id);
   }
   for(const spawn of [...(options.spawns??[])].sort((a,b)=>compare(a.id,b.id))){
     if(known.has(spawn.id))throw new Error("Duplicate runtime actor ID");known.add(spawn.id);
@@ -287,14 +296,19 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   return {state,own};
 }
 
-function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>):RobotObservations{
+function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>,options:AgentRuntimeOptions):RobotObservations{
   const sight:RobotObservations["sight"][number][]=[],sounds:RobotObservations["sounds"][number][]=[],scans:RobotObservations["scans"][number][]=[],watches:RobotObservations["watches"][number][]=[];
+  const protectedArea=options.protectedArea??defaultProtected;
+  const encounters=sim.version>=17&&options.engagePlayers===true&&
+    (actor.model==="footman"||actor.model==="patrol"||actor.model==="trundle"&&(options.wave??2)>=3);
+  const mayEngage=encounters&&actor.protected!==true&&!protectedArea(actor.x,actor.z);
   for(const player of people){
     const near=distance(actor,player)<=40;
     if(!near)continue;
     const visible=!segmentBlocked(world,actor.x,actor.z,player.x,player.z);
     const input=inputs[player.id];
-    if(distance(actor,player)<=30)sight.push({kind:"player",id:player.id,x:player.x,z:player.z,heading:player.heading,inVehicle:player.mode==="vehicle",lineOfSight:visible,threatening:(activeCombat(sim)?.events??[]).some(event=>event.sourceId===player.id&&event.kind==="weapon.water")});
+    if(distance(actor,player)<=30)sight.push({kind:"player",id:player.id,x:player.x,z:player.z,heading:player.heading,inVehicle:player.mode==="vehicle",lineOfSight:visible,threatening:(activeCombat(sim)?.events??[]).some(event=>event.sourceId===player.id&&event.kind==="weapon.water"),
+      ...(encounters?{engage:mayEngage&&player.mode==="foot"&&distance(actor,player)<=18&&!protectedArea(player.x,player.z)}:{})});
     if(input&&(input.actions&Action.horn))sounds.push({kind:"horn",playerId:player.id,x:player.x,z:player.z});
     if(input&&(input.actions&Action.watch))watches.push({playerId:player.id,x:player.x,z:player.z,lineOfSight:visible});
   }
@@ -640,7 +654,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   state.proposals.push(proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actualX,clear?y:actor.y,actualZ,length>1e-8?datan2(dx,-dz):actor.heading,clear?speed:0));
 }
 
-function contentGoalWeights(actor:RuntimeActor,wave:number):Partial<Record<RobotGoal,number>>|undefined{
+function contentGoalWeights(actor:RuntimeActor,wave:number,encounters=false):Partial<Record<RobotGoal,number>>|undefined{
   if(!actor.archetype||!ROBOT_GOALS.archetypes[actor.archetype])return undefined;
   const weights:Partial<Record<RobotGoal,number>>={shove:0,grocerySnatch:0,adBlast:0,phoneHack:0,handshake:0,forcedUpdate:0};
   const sabotage:Record<string,RobotGoal>={snatchGroceries:"grocerySnatch",pushUpdate:"forcedUpdate",stickAd:"adBlast",harvestData:"phoneHack"};
@@ -648,6 +662,10 @@ function contentGoalWeights(actor:RuntimeActor,wave:number):Partial<Record<Robot
     const kind=goal.attack&&goal.attack in weights?goal.attack as RobotGoal:goal.sabotage?sabotage[goal.sabotage]:undefined;
     if(kind)weights[kind]=Math.max(weights[kind]??0,goal.weight);
   }
+  // The fake-courier profile only has robot sabotage goals. Once an encounter is
+  // hostile, a wave-3 Trundle can use its existing phone-hack instead of silently
+  // following an on-foot player with no legal player-facing action.
+  if(encounters&&wave>=3&&actor.model==="trundle"&&(actor.brain?.mode==="alerted"||actor.brain?.mode==="attack")&&(weights.phoneHack??0)<=0)weights.phoneHack=1;
   return weights;
 }
 
@@ -717,9 +735,9 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       // fog breaks off ambient pursuit, not an authored scene the founder walked into.
       const scripted=(options.wave??2)>=4&&actor.significant&&actor.id.startsWith("mission:");
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:scripted?0:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:naturalBad,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people,options),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:naturalBad,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
-        goalWeights:{...contentGoalWeights(actor,options.wave??2),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
+        goalWeights:{...contentGoalWeights(actor,options.wave??2,sim.version>=17&&options.engagePlayers===true),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);
     }
     propose(world,state,actor,graph,intent,options,sim,inputs,list,people,stopped,vehicles);

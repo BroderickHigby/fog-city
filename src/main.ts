@@ -219,15 +219,19 @@ async function boot(): Promise<void> {
   // The graphics tier (gfx.ts): from the GPU unless ?gfx= names one; after the GPU was lost
   // this session (context-guard.ts), safe mode starts low. ?quality= and ?shadows= still win.
   const safeMode = sessionValue(SAFE_MODE_KEY) === "1";
+  const rendererRequest = params.get("renderer");
   const gpu = probeGpu();
   const gfxRequest = parseGfxRequest(params.get("gfx"));
   const gfx = chooseTier(gfxRequest, gpu, safeMode);
   const tierSettings = TIER_SETTINGS[gfx.tier];
-  const view = new SceneRenderer(
+  const view = await SceneRenderer.create(
     container,
     { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider },
     {
-      radius: numParam(params, "radius") ?? 1500,
+      backend: ["webgpu", "webgl", "legacy"].includes(rendererRequest ?? "")
+        ? rendererRequest as "webgpu" | "webgl" | "legacy" : safeMode ? "legacy" : "auto",
+      // Keep full-detail geometry bounded; the independent far layer retains the skyline.
+      radius: numParam(params, "radius") ?? 600,
       shadows: params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
       quality: params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
       gpuMemory: params.get("gpumem") === "1",
@@ -283,8 +287,9 @@ async function boot(): Promise<void> {
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;pacer.reset();last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   };
-  const gameUI=mountGameUI(container,{audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
+  const gameUI=mountGameUI(container,{audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",lightingPreset:["noon","golden","twilight","night"].includes(params.get("tod")??"")?params.get("tod") as "noon"|"golden"|"twilight"|"night":bootedAtNight?"night":"live",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
     pause:value=>{uiPaused=value;setPaused();},
+    lighting:preset=>{if(preset==="live")view.setNight(false);else view.setTimeOfDay(preset);},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;sendRideDestination();},
     interaction:choiceId=>{
@@ -434,8 +439,8 @@ async function boot(): Promise<void> {
     previewCombatLook: (stages) => view.previewCombatLook(stages),
     setTimeOfDay: (name) => view.setTimeOfDay(name),
     renderStats: () => view.renderStats(),
-    loseContext: () => view.renderer.forceContextLoss(),
-    restoreContext: () => view.renderer.forceContextRestore(),
+    loseContext: () => view.forceContextLoss(),
+    restoreContext: () => view.forceContextRestore(),
     setCameraMode: (m) => view.setCameraMode(m),
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
@@ -457,7 +462,11 @@ async function boot(): Promise<void> {
       showGraphicsNotice(container, "Graphics reset. Reloading at your last save…");
       setSessionValue(SAFE_MODE_KEY, "1");
       setSessionValue(RESUME_KEY, "1");
-      void saveStore.save("auto", captureProgression(curr, LOCAL_PLAYER)).catch(() => {}).finally(() => location.reload());
+      void saveStore.save("auto", captureProgression(curr, LOCAL_PLAYER)).catch(() => {}).finally(() => {
+        // A runtime failure must not loop on an explicitly requested failing backend.
+        const next = new URL(location.href); next.searchParams.set("renderer", "legacy");
+        history.replaceState(null, "", next); location.reload();
+      });
     },
   });
   // Back from a graphics reset: carry on from the save made just before it.
@@ -661,7 +670,7 @@ async function boot(): Promise<void> {
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!inOnlineMatch)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(!inOnlineMatch&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER));const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);

@@ -26,6 +26,8 @@ import * as THREE from "three";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { TILE_SIZE_M } from "../geo/project.ts";
 import { fcUniforms, injectUniforms } from "./materials.ts";
+import { isGpuMaterialsEnabled } from "./node-materials.ts";
+import { createFarNodeMaterial } from "./gpu-special.ts";
 import { disposeObject } from "./tile-streamer.ts";
 import type { Manifest } from "./types.ts";
 import { selectFarCells, type FarBudget } from "./far-selection.ts";
@@ -409,7 +411,7 @@ export function tileGrid(manifest: Manifest): { ix0: number; iz0: number; nx: nu
 
 export class FarLayer {
   readonly group = new THREE.Group();
-  readonly material: THREE.MeshStandardMaterial;
+  readonly material: THREE.MeshStandardMaterial | ReturnType<typeof createFarNodeMaterial>;
   private readonly opts: FarLayerOptions;
   private readonly builtTiles: Set<string>;
   private readonly ends: { northZ: number; southZ: number };
@@ -449,8 +451,9 @@ export class FarLayer {
       uFarMask: { value: this.mask },
       uFarMaskRect: { value: new THREE.Vector4(grid.ix0 * T, grid.iz0 * T, grid.nx * T, grid.nz * T) },
     };
-    this.material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92, metalness: 0, name: "fc:far" });
-    this.material.onBeforeCompile = (shader) => {
+    this.material = isGpuMaterialsEnabled() ? createFarNodeMaterial(this.mask, maskUniforms.uFarMaskRect.value)
+      : new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.92, metalness: 0, name: "fc:far" });
+    if (!isGpuMaterialsEnabled()) this.material.onBeforeCompile = (shader) => {
       injectUniforms(shader);
       Object.assign(shader.uniforms, maskUniforms, { fcNight: fcUniforms.fcNight });
       shader.vertexShader = shader.vertexShader

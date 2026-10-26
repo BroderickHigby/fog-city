@@ -19,11 +19,11 @@ export interface PresentationLook {
 }
 
 const LOOKS: Readonly<Record<string, PresentationLook>> = Object.freeze({
-  day: { contrast: 1.08, saturation: 1.04, balance: [1.025, 1, 0.98], bloom: 0.15, bloomThreshold: 1.3 },
-  golden: { contrast: 1.08, saturation: 1.04, balance: [1.025, 1, 0.98], bloom: 0.15, bloomThreshold: 1.3 },
-  noon: { contrast: 1.06, saturation: 1.025, balance: [1.01, 1, 0.995], bloom: 0.1, bloomThreshold: 1.5 },
-  twilight: { contrast: 1.07, saturation: 1.035, balance: [1.015, 1, 1.01], bloom: 0.18, bloomThreshold: 1.1 },
-  night: { contrast: 1.04, saturation: 1.02, balance: [0.99, 1, 1.025], bloom: 0.2, bloomThreshold: 1.0 },
+  day: { contrast: 1.12, saturation: 1.08, balance: [1.045, 1, 0.955], bloom: 0.24, bloomThreshold: 1.2 },
+  golden: { contrast: 1.12, saturation: 1.08, balance: [1.045, 1, 0.955], bloom: 0.24, bloomThreshold: 1.2 },
+  noon: { contrast: 1.1, saturation: 1.06, balance: [1.015, 1, 0.985], bloom: 0.18, bloomThreshold: 1.35 },
+  twilight: { contrast: 1.1, saturation: 1.08, balance: [1.025, 0.995, 1.015], bloom: 0.28, bloomThreshold: 1.05 },
+  night: { contrast: 1.08, saturation: 1.06, balance: [0.985, 1, 1.035], bloom: 0.3, bloomThreshold: 1.0 },
 });
 export function presentationLook(name: LightingPreset["name"]): PresentationLook { return LOOKS[name]!; }
 

@@ -11,6 +11,9 @@ const PROFILES = [
   [1, 0, 0.92, -0.05, 0.05],    // contemporary: broad curtain-wall panes
 ] as const;
 
+/** Shared numeric profile data for the WebGPU node-material path. */
+export const WINDOW_PROFILES = PROFILES;
+
 /** Apply after the existing historic-year adjustment to facadeGrid().win. */
 export function windowProfileRect(baseWin: WindowRect, family: number, seed: number): [number, number, number, number] {
   const profile = Number.isInteger(family) ? PROFILES[family] : undefined;

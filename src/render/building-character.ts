@@ -6,6 +6,7 @@ import { hashString, unit } from "./hash.ts";
 import { MeshBuilder, facadeGrid, srgb, type FacadeCode, type MeshData, type RGB } from "./tile-geometry.ts";
 import { geometryFromMeshData } from "./props.ts";
 import { windowProfileRect } from "./building-window-profile.ts";
+import { addFacadeAttachments, type WallPoint } from "./urban-attachments.ts";
 import type { GroundFn } from "./types.ts";
 
 /** Historic stone, deco office, brick/utility, low-rise residential, curtain wall. */
@@ -94,20 +95,23 @@ export const BUILDING_DETAIL_TRIANGLES=90000;
 const TRIM=srgb(0xd5cbb7),METAL=srgb(0x485457);
 function tint(c:Readonly<RGB>,scale:number):RGB{return[c[0]*scale,c[1]*scale,c[2]*scale];}
 
+/** Six closed faces with explicit axes, shared by facade fixtures and slender sloping rails. */
+function prism(mb:MeshBuilder,center:THREE.Vector3,x:THREE.Vector3,y:THREE.Vector3,z:THREE.Vector3,width:number,height:number,depth:number,color:RGB):void{
+  const axes=[x,y,z],half=[width/2,height/2,depth/2];
+  for(let face=0;face<3;face++)for(const sign of[-1,1]){
+    const u=(face+1)%3,v=(face+2)%3,n=axes[face]!,normalX=n.x*sign,normalY=n.y*sign,normalZ=n.z*sign;
+    const ids:number[]=[];
+    for(const[a,b]of[[-1,-1],[1,-1],[1,1],[-1,1]]){
+      const ua=a!*half[u]!,vb=b!*half[v]!,offset=sign*half[face]!,au=axes[u]!,av=axes[v]!;
+      ids.push(mb.v(center.x+n.x*offset+au.x*ua+av.x*vb,center.y+n.y*offset+au.y*ua+av.y*vb,center.z+n.z*offset+au.z*ua+av.z*vb,normalX,normalY,normalZ,color));
+    }
+    mb.triFacing(ids[0]!,ids[1]!,ids[2]!,normalX,normalY,normalZ);mb.triFacing(ids[0]!,ids[2]!,ids[3]!,normalX,normalY,normalZ);
+  }
+}
+const boxCenter=new THREE.Vector3(),boxX=new THREE.Vector3(),boxY=new THREE.Vector3(0,1,0),boxZ=new THREE.Vector3();
 /** A closed box in a wall's tangent/outward coordinate frame. */
 function box(mb:MeshBuilder,x:number,y:number,z:number,width:number,height:number,depth:number,tx:number,tz:number,color:RGB):void{
-  const nx=-tz,nz=tx;
-  const vertex=(a:number,b:number,c:number):[number,number,number]=>[x+tx*a+nx*c,y+b,z+tz*a+nz*c];
-  const hw=width/2,hh=height/2,hd=depth/2;
-  const faces:[number,number,number,number[][]][]=[
-    [nx,0,nz,[[-hw,-hh,hd],[hw,-hh,hd],[hw,hh,hd],[-hw,hh,hd]]],
-    [-nx,0,-nz,[[hw,-hh,-hd],[-hw,-hh,-hd],[-hw,hh,-hd],[hw,hh,-hd]]],
-    [tx,0,tz,[[hw,-hh,hd],[hw,-hh,-hd],[hw,hh,-hd],[hw,hh,hd]]],
-    [-tx,0,-tz,[[-hw,-hh,-hd],[-hw,-hh,hd],[-hw,hh,hd],[-hw,hh,-hd]]],
-    [0,1,0,[[-hw,hh,hd],[hw,hh,hd],[hw,hh,-hd],[-hw,hh,-hd]]],
-    [0,-1,0,[[-hw,-hh,-hd],[hw,-hh,-hd],[hw,-hh,hd],[-hw,-hh,hd]]],
-  ];
-  for(const[fx,fy,fz,corners]of faces){const ids=corners.map(v=>{const p=vertex(v[0]!,v[1]!,v[2]!);return mb.v(...p,fx,fy,fz,color);});mb.triFacing(ids[0]!,ids[1]!,ids[2]!,fx,fy,fz);mb.triFacing(ids[0]!,ids[2]!,ids[3]!,fx,fy,fz);}
+  prism(mb,boxCenter.set(x,y,z),boxX.set(tx,0,tz),boxY,boxZ.set(-tz,0,tx),width,height,depth,color);
 }
 function inside(fp:ReadonlyArray<readonly[number,number]>,x:number,z:number):boolean{
   let hit=false;for(let i=0,j=fp.length-1;i<fp.length;j=i++){const a=fp[i]!,b=fp[j]!;if((a[1]>z)!==(b[1]>z)&&x<(b[0]-a[0])*(z-a[1])/(b[1]-a[1])+a[0])hit=!hit;}return hit;
@@ -135,6 +139,57 @@ export function addBuildingCharacter(mb:MeshBuilder,b:Readonly<BuildingCharacter
   const stone=b.family===2?tint(b.wall,1.26):b.family===3?TRIM:tint(b.wall,1.3);
   const accent=b.family===4?METAL:tint(stone,.82+b.seed*.25);
   const walls=[...b.walls].sort((a,c)=>Math.hypot(c.bx-c.ax,c.bz-c.az)-Math.hypot(a.bx-a.ax,a.bz-a.az)).slice(0,6);
+  const wallPoint=(w:CharacterWall,p:WallPoint):THREE.Vector3=>{
+    const length=Math.hypot(w.bx-w.ax,w.bz-w.az);
+    return new THREE.Vector3(w.ax+(w.bx-w.ax)/length*p.along+w.nx*p.out,p.y,w.az+(w.bz-w.az)/length*p.along+w.nz*p.out);
+  };
+  const safe=(points:readonly THREE.Vector3[],w:CharacterWall):boolean=>points.every(p=>p.y>=Math.max(b.baseY+3.25,w.bottom+.02)&&p.y<=w.top-.12&&(!ground||p.y>=ground(p.x,p.z)+3.35));
+  addFacadeAttachments(b,walls,grid.floorH,grid.colW,win,{
+    box:(w,at,width,height,depth,col)=>{
+      if(mb.indexCount/3+12>stop)return false;
+      const len=Math.hypot(w.bx-w.ax,w.bz-w.az);
+      if(at.along-width/2<.10||at.along+width/2>len-.10)return false;
+      const low=at.y-height/2;
+      if(low<Math.max(b.baseY+3.25,w.bottom+.02)||at.y+height/2>w.top-.12)return false;
+      if(ground)for(const along of[-width/2,0,width/2])for(const out of[-depth/2,0,depth/2]){
+        const px=w.ax+(w.bx-w.ax)/len*(at.along+along)+w.nx*(at.out+out),pz=w.az+(w.bz-w.az)/len*(at.along+along)+w.nz*(at.out+out);
+        if(low<ground(px,pz)+3.35)return false;
+      }
+      const p=wallPoint(w,at);box(mb,p.x,p.y,p.z,width,height,depth,(w.bx-w.ax)/len,(w.bz-w.az)/len,col);return true;
+    },
+    beam:(w,from,to,width,col)=>{
+      if(mb.indexCount/3+12>stop)return false;
+      const a=wallPoint(w,from),end=wallPoint(w,to),direction=end.clone().sub(a),length=direction.length();
+      if(length<.01)return false;
+      const y=direction.multiplyScalar(1/length),x=new THREE.Vector3(w.nx,0,w.nz).cross(y).normalize(),z=x.clone().cross(y).normalize(),center=a.clone().add(end).multiplyScalar(.5);
+      if(x.lengthSq()<.5)return false;
+      const corners:THREE.Vector3[]=[];
+      for(const side of[-1,1])for(const normal of[-1,1])for(const t of[-1,0,1])corners.push(center.clone().addScaledVector(x,side*width/2).addScaledVector(z,normal*width/2).addScaledVector(y,t*length/2));
+      if(!safe(corners,w))return false;
+      prism(mb,center,x,y,z,width,length,width,col);return true;
+    },
+  });
+  // Small equipment groups sit away from the usual central roof bulkhead. Full box edges,
+  // not just the centre, must remain inside the real (possibly concave) roof footprint.
+  if(b.footprint.length>=3&&b.height>8){
+    const width=1.05+b.seed*.65,depth=.85+b.seed*.45,spots=[[.18,.24],[.76,.18],[.72,.76],[.24,.72]];
+    const cx=(b.minX+b.maxX)/2,cz=(b.minZ+b.maxZ)/2;
+    const centralW=Math.max(1.6,Math.min(4.4,(b.maxX-b.minX)*.28)),centralD=Math.max(1.6,Math.min(4.4,(b.maxZ-b.minZ)*.28));
+    let units=0;
+    for(let i=0;i<spots.length&&units<2;i++){
+      const [u,v]=spots[(i+Math.floor(b.seed*spots.length))%spots.length]!,x=b.minX+(b.maxX-b.minX)*u!,z=b.minZ+(b.maxZ-b.minZ)*v!;
+      if(Math.abs(x-cx)<centralW/2+width/2+.12&&Math.abs(z-cz)<centralD/2+depth/2+.12)continue;
+      if(!roofContains(b.footprint,x,z,width+.12,depth+.12)||mb.indexCount/3+96>stop)continue;
+      const y=b.baseY+b.height,h=.52+b.seed*.32;
+      if(ground&&[-1,0,1].some(a=>[-1,0,1].some(c=>y<ground(x+a*(width+.12)/2,z+c*(depth+.12)/2)+3.35)))continue;
+      box(mb,x,y+h/2,z,width,h,depth,1,0,METAL);
+      box(mb,x,y+h+.035,z,width+.08,.07,depth+.08,1,0,accent);
+      for(let bar=0;bar<4;bar++)box(mb,x,y+.12+bar*.10,z+depth/2+.015,width*.82,.026,.035,1,0,tint(METAL,1.5));
+      box(mb,x-width*.26,y+h+.19,z,.15,.32,.15,1,0,METAL);
+      box(mb,x-width*.26,y+h+.36,z,.24,.035,.24,1,0,accent);
+      units++;
+    }
+  }
   const add=(w:CharacterWall,along:number,y:number,width:number,height:number,protrusion:number,col:RGB):void=>{
     if(width<=.01||height<=.01||mb.indexCount/3+12>stop||y-height/2<b.baseY+3)return;
     const len=Math.hypot(w.bx-w.ax,w.bz-w.az),tx=(w.bx-w.ax)/len,tz=(w.bz-w.az)/len;
@@ -179,19 +234,7 @@ export function addBuildingCharacter(mb:MeshBuilder,b:Readonly<BuildingCharacter
     // A shallow high entrance canopy marks one facade without creating a ground obstacle.
     if(w===walls[0]&&b.family!==4&&b.height>6&&len>7){add(w,len*(.35+b.seed*.3),b.baseY+3.35,Math.min(3.2,len*.28),.18,.15,accent);}
   }
-  // A small rooftop service stack, only where its complete footprint fits inside the real roof.
-  const fp=b.footprint;
-  if(fp.length>=3&&b.height>8){
-    const w=1.2+b.seed*.8,d=.9+b.seed*.6,spots=[[.24,.26],[.74,.24],[.73,.74],[.26,.72]];
-    const first=Math.floor(b.seed*spots.length),spot=Array.from({length:spots.length},(_,i)=>spots[(first+i)%spots.length]!).map(([u,v])=>({x:b.minX+(b.maxX-b.minX)*u!,z:b.minZ+(b.maxZ-b.minZ)*v!})).find(p=>roofContains(fp,p.x,p.z,w+.08,d+.08));
-    if(spot&&mb.indexCount/3+36<=stop){
-      const{x,z}=spot;
-      const y=b.baseY+b.height,h=.55+b.seed*.5;
-      box(mb,x,y+h/2,z,w,h,d,1,0,METAL);
-      box(mb,x,y+h+.045,z,w+.08,.09,d+.08,1,0,accent);
-      box(mb,x-w*.25,y+h+.22,z,.16,.36,.16,1,0,METAL);
-    }
-  }
+
 }
 
 const FAMILY_NAMES=["masonry","deco","brick","residential","modern"] as const;
@@ -206,7 +249,7 @@ export class BuildingDetailLayer {
   private pending:Generator<void,{mesh:MeshData;count:number;styles:number[]},void>|null=null;private count=0;private styles=[0,0,0,0,0];
   private readonly parent:THREE.Object3D;
   private readonly ground:GroundFn|undefined;
-  constructor(parent:THREE.Object3D,ground?:GroundFn){this.parent=parent;this.ground=ground;this.mesh=new THREE.Mesh(new THREE.BufferGeometry(),this.material);this.mesh.name="building-character-details";this.mesh.receiveShadow=true;}
+  constructor(parent:THREE.Object3D,ground?:GroundFn){this.parent=parent;this.ground=ground;this.mesh=new THREE.Mesh(new THREE.BufferGeometry(),this.material);this.mesh.name="building-character-details";this.mesh.receiveShadow=true;this.mesh.castShadow=true;}
   register(tile:string,buildings:readonly BuildingCharacter[]):void{this.tiles.set(tile,buildings);this.dirty=true;}
   unregister(tile:string):void{if(this.tiles.delete(tile)){this.clear();this.dirty=true;}}
   hide(ids:Iterable<string>):void{for(const id of ids)this.hidden.add(id);this.clear();this.dirty=true;}
