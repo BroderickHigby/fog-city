@@ -864,12 +864,6 @@ export class SceneRenderer {
     this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);
     this.staticScene.update();
     this.gpu?.frame(this.time, this.camera, cam.y - this.ground(cam.x, cam.z));
-    if (this.gpu) {
-      // Dynamic instances become valid only after this frame filled their real active prefix.
-      this.gpu.admit(this.agents.group); this.gpu.admit(this.actors.group);
-      if (this.crowd) this.gpu.admit(this.crowd.group);
-      this.gpu.pumpWarmup();
-    }
   }
 
   /**

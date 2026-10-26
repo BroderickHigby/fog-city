@@ -98,6 +98,7 @@ export class GpuEngine {
   };
   private disposed = false;
   private warmupQueue: RendererWarmup | null = null;
+  private warmupClosed = false;
   private warmTargetReady = false;
   private disposal: Promise<void> | null = null;
 
@@ -160,31 +161,42 @@ export class GpuEngine {
     }
   }
 
-  private warmup(): RendererWarmup {
+  private warmup(): RendererWarmup | null {
+    if (this.disposed || this.warmupClosed) return null;
     return this.warmupQueue ??= new RendererWarmup(mesh => {
       if (!this.scene || !this.camera) return Promise.resolve();
       return compileForTarget(this.renderer, this.postEnabled ? this.scenePass : null, mesh, this.camera, this.scene);
     }, { onError: error => this.captureError(error) });
   }
-  /** Configure exactly the post pass formats before capturing shader contexts. */
+  /** Compile only during boot, before the ordinary frame/shadow loop starts. */
   async prewarm(scene: THREE.Scene, camera: THREE.Camera): Promise<void> {
+    const queue = this.warmup();
+    if (!queue) { if (this.failureMessage) throw new Error(this.failureMessage); return; }
     this.scene = scene; this.camera = camera;
-    if (this.pipeline && !this.warmTargetReady) {
-      const visible = scene.visible;
-      try { scene.visible = false; this.pipeline.render(); this.warmTargetReady = true; }
-      finally { scene.visible = visible; }
+    try {
+      if (this.pipeline && !this.warmTargetReady) {
+        const visible = scene.visible;
+        try { scene.visible = false; this.pipeline.render(); this.warmTargetReady = true; }
+        finally { scene.visible = visible; }
+      }
+      queue.admit(scene); await queue.drain();
+      if (this.failureMessage) throw new Error(this.failureMessage);
+    } finally {
+      // Pinned r186 shares mutable node/shadow compilation state with ordinary renders.
+      // Streaming admissions must never restart async compilers after the boot barrier.
+      this.warmupClosed = true;
+      queue.dispose();
+      await queue.idle();
     }
-    const queue = this.warmup(); queue.admit(scene); await queue.drain();
-    if (this.failureMessage) throw new Error(this.failureMessage);
   }
-  admit(root: THREE.Object3D): void { if (!this.disposed) this.warmup().admit(root); }
+  admit(root: THREE.Object3D): void { this.warmup()?.admit(root); }
   retire(root: THREE.Object3D): Promise<void> | void { return this.warmupQueue?.retire(root); }
   /** Whole-view shutdown also owns active borrowers whose dynamic roots already detached. */
   retireAll(): Promise<void> | void {
+    this.warmupClosed = true;
     const queue=this.warmupQueue;if(!queue)return;
     queue.dispose();if(queue.info().active)return queue.idle();
   }
-  pumpWarmup(): void { if (!this.disposed) void this.warmupQueue?.pump(); }
   get warmupInfo(): WarmupStats { return this.warmupQueue?.info() ?? {admitted:0,cachedLayouts:0,pending:0,active:false,compiled:0,cancelled:0,failed:0,lastError:null}; }
   get shadowCameras(): readonly THREE.Camera[] { return Array.from({length:this.sun.shadow.getViewportCount()},(_,i)=>this.sun.shadow.getCamera(i)); }
   staticShadowMaterial(side: THREE.Side, shadowSide: THREE.Side | null): THREE.Material {

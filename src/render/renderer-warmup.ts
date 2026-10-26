@@ -1,4 +1,4 @@
-// Admission-driven, one-at-a-time pipeline warmup. Based on Slop New York main.js (MIT,
+// Boot-only, one-at-a-time pipeline warmup. Based on Slop New York main.js (MIT,
 // Mr.doob 2026); assets/imports/slop-new-york/LICENSE.md retains the notice. No extra scene.
 import * as THREE from "three";
 
@@ -34,8 +34,8 @@ function signature(mesh:THREE.Mesh,generation:number):string {
   const instance=(mesh as THREE.InstancedMesh).isInstancedMesh?mesh.uuid:"";
   return `${generation}|${materials}|${attributes}|${rig}|${instance}|${Object.keys(mesh.geometry.morphAttributes).join(",")}`;
 }
-/** Context adapter is synchronous until compileAsync captures the real target/MRT in pinned r186. */
-export function compileForTarget(
+/** Boot owns this renderer until the async builder releases its target/MRT. */
+export async function compileForTarget(
   renderer:{getRenderTarget:()=>unknown;setRenderTarget:(target:never)=>unknown;getMRT:()=>unknown;setMRT:(target:never)=>unknown;compileAsync:(object:THREE.Object3D,camera:THREE.Camera,scene:THREE.Scene)=>Promise<void>},
   target:{renderTarget:unknown;getMRT:()=>unknown}|null,object:THREE.Object3D,camera:THREE.Camera,scene:THREE.Scene,
 ):Promise<void> {
@@ -43,9 +43,9 @@ export function compileForTarget(
   try {
     if(target){renderer.setRenderTarget(target.renderTarget as never);renderer.setMRT(target.getMRT() as never);}
     object.frustumCulled=false;
-    // The initialized renderer captures renderContext synchronously, before its async node
-    // building yields. Restore borrowed state immediately so ordinary frames cannot inherit it.
-    return renderer.compileAsync(object,camera,scene);
+    // No ordinary frame may run while boot compiles. Later node-building stages also
+    // read renderer state, so retain the real scene-pass formats through the await.
+    await renderer.compileAsync(object,camera,scene);
   }finally{object.frustumCulled=culling;renderer.setMRT(previousMRT as never);renderer.setRenderTarget(previousTarget as never);}
 }
 

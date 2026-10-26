@@ -15,9 +15,58 @@ describe("admitted GPU shader warmup",()=>{
     expect(target).toBe(oldTarget);expect(currentMrt).toBe(oldMrt);
     scenePass.dispose();oldTarget.dispose();mesh.geometry.dispose();(mesh.material as THREE.Material).dispose();
   });
+
+  it("finishes boot compilation before resolving, then releases its queue and ignores runtime admissions",async()=>{
+    const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),initial=mesh();scene.add(initial);
+    let finish!:()=>void;
+    const compile=vi.fn(()=>new Promise<void>(resolve=>{finish=resolve;}));
+    const engine=bootEngine(compile);
+    let ready=false;
+    const boot=engine.prewarm(scene,camera).then(()=>{ready=true;});
+    await vi.waitFor(()=>expect(compile).toHaveBeenCalledTimes(1));
+    expect(ready).toBe(false);
+    finish();await boot;
+    expect(ready).toBe(true);
+    expect(engine.warmupInfo).toMatchObject({admitted:0,cachedLayouts:0,pending:0,active:false,compiled:1});
+    const late=mesh();engine.admit(late);scene.add(late);
+    await engine.prewarm(scene,camera);
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(engine.warmupInfo).toMatchObject({admitted:0,pending:0,active:false,compiled:1});
+  });
+
+  it("cancels asset arrivals outside the boot snapshot without retaining their objects",async()=>{
+    const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),initial=mesh();scene.add(initial);
+    let finish!:()=>void;
+    const compile=vi.fn(()=>new Promise<void>(resolve=>{finish=resolve;}));
+    const engine=bootEngine(compile),boot=engine.prewarm(scene,camera);
+    await vi.waitFor(()=>expect(compile).toHaveBeenCalledTimes(1));
+    engine.admit(mesh());expect(engine.warmupInfo.pending).toBe(1);
+    finish();await boot;
+    expect(compile).toHaveBeenCalledTimes(1);
+    expect(engine.warmupInfo).toMatchObject({admitted:0,cachedLayouts:0,pending:0,active:false,compiled:1,cancelled:1});
+  });
+
+  it("closes boot work and propagates a failed shader instead of leaving a live retry queue",async()=>{
+    const error=vi.spyOn(console,"error").mockImplementation(()=>{});
+    try {
+      const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();scene.add(mesh());
+      const compile=vi.fn(async()=>{throw new Error("boot shader failed");}),engine=bootEngine(compile);
+      await expect(engine.prewarm(scene,camera)).rejects.toThrow("boot shader failed");
+      expect(engine.warmupInfo).toMatchObject({admitted:0,pending:0,active:false,failed:1});
+      engine.admit(mesh());expect(engine.warmupInfo.admitted).toBe(0);
+      expect(compile).toHaveBeenCalledTimes(1);
+    } finally {error.mockRestore();}
+  });
 });
 
 const mesh=(material=new THREE.MeshBasicMaterial()):THREE.Mesh=>new THREE.Mesh(new THREE.BoxGeometry(),material);
+function bootEngine(compileAsync:()=>Promise<void>):GpuEngine {
+  return Object.assign(Object.create(GpuEngine.prototype),{
+    renderer:{getRenderTarget:()=>null,setRenderTarget:()=>{},getMRT:()=>null,setMRT:()=>{},compileAsync},
+    warmupQueue:null,warmupClosed:false,scene:null,camera:null,postEnabled:false,pipeline:null,
+    disposed:false,failureMessage:null,error:null,loggedErrors:new Set<string>(),
+  }) as GpuEngine;
+}
 describe("bounded admitted pipeline work",()=>{
   it("deduplicates compatible ordinary layouts and skips zero instance placeholders until admitted",async()=>{
     const root=new THREE.Group(),material=new THREE.MeshBasicMaterial(),a=mesh(material),b=mesh(material);root.add(a,b);
@@ -55,12 +104,16 @@ describe("bounded admitted pipeline work",()=>{
     queue.admit(root);const first=queue.pump();expect(queue.pump()).toBe(first);await vi.waitFor(()=>expect(count).toBe(1));queue.invalidate();finish();await first;
     expect(queue.info().compiled).toBe(0);await queue.drain();expect(count).toBe(2);expect(maxActive).toBe(1);expect(queue.info().compiled).toBe(1);queue.dispose();
   });
-  it("restores target/MRT before an async compile yields and also on a synchronous exception",async()=>{
+  it("retains the boot target/MRT throughout async compilation and restores it on success or failure",async()=>{
     const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),a=mesh();scene.add(a);let target:unknown="old",mrt:unknown="old-mrt",finish!:()=>void;
     const during:unknown[]=[];const renderer={getRenderTarget:()=>target,setRenderTarget:(x:unknown)=>{target=x;},getMRT:()=>mrt,setMRT:(x:unknown)=>{mrt=x;},compileAsync:()=>{during.push([target,mrt]);return new Promise<void>(r=>{finish=r;});}};
     const pending=compileForTarget(renderer,{renderTarget:"actual",getMRT:()=>"actual-mrt"},a,camera,scene);
-    expect(during).toEqual([["actual","actual-mrt"]]);expect([target,mrt]).toEqual(["old","old-mrt"]);finish();await pending;
-    expect(()=>compileForTarget({...renderer,compileAsync:()=>{throw new Error("compile failure");}},{renderTarget:"actual",getMRT:()=>"actual-mrt"},a,camera,scene)).toThrow("compile failure");
+    expect(during).toEqual([["actual","actual-mrt"]]);expect([target,mrt]).toEqual(["actual","actual-mrt"]);
+    expect(a.frustumCulled).toBe(false);finish();await pending;
+    expect([target,mrt]).toEqual(["old","old-mrt"]);expect(a.frustumCulled).toBe(true);
+    await expect(compileForTarget({...renderer,compileAsync:()=>{throw new Error("compile failure");}},{renderTarget:"actual",getMRT:()=>"actual-mrt"},a,camera,scene)).rejects.toThrow("compile failure");
+    expect([target,mrt]).toEqual(["old","old-mrt"]);
+    await expect(compileForTarget({...renderer,compileAsync:async()=>{throw new Error("async compile failure");}},{renderTarget:"actual",getMRT:()=>"actual-mrt"},a,camera,scene)).rejects.toThrow("async compile failure");
     expect([target,mrt]).toEqual(["old","old-mrt"]);
   });
 });
