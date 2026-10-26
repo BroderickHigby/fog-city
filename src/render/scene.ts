@@ -695,6 +695,12 @@ export class SceneRenderer {
     return !this.nodeFailed && !this.gpu?.failure && this.framesSinceJump >= 2 && this.streamer.settled() && this.far.settled() && this.streetDetail.settled();
   }
 
+  /** Only the streets around the first visible camera, without waiting for the far skyline. */
+  startupSurfaceReady(): boolean {
+    if (this.nodeFailed || this.gpu?.failure) throw new Error(this.gpu?.failure ?? "Starting street renderer failed");
+    return this.streamer.startupSurfaceReady(this.camera.position.x, this.camera.position.z);
+  }
+
   resize(): void {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;

@@ -72,6 +72,7 @@ import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from 
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_DRIVE, HINT_TAXI_DRIVING, HINT_TAXI_EXIT, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import { prepareStartingStreets } from "./render/startup.ts";
 import { leapDrawOffset } from "./render/human-motion.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
@@ -266,6 +267,7 @@ async function boot(): Promise<void> {
   let nextCaptureProof = 0;
 
   const keyboard = new Keyboard();
+  keyboard.setBlocked(true);
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
   let curr: SimState = prev;
@@ -340,7 +342,7 @@ async function boot(): Promise<void> {
   // Debug only: a small badge while the sim cannot keep up and game time runs slower (frame-pacer.ts).
   const slowBadge=diagnostics||params.get("perf")==="1"?document.createElement("div"):null;
   if(slowBadge){slowBadge.id="sim-slow";slowBadge.hidden=true;slowBadge.style.cssText="position:fixed;left:8px;bottom:8px;z-index:50;padding:2px 6px;font:12px/1.4 monospace;color:#fff;background:rgba(160,40,20,.8);border-radius:3px;pointer-events:none";document.body.appendChild(slowBadge);}
-  const legacyHud=document.getElementById("hud");if(legacyHud)legacyHud.hidden=!diagnostics;
+  const legacyHud=document.getElementById("hud");
   const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
   const clockStart = clockStartMinute(bootedAtNight);
@@ -409,6 +411,37 @@ async function boot(): Promise<void> {
     if (w !== 0) view.rig.fly.speed = Math.max(2, Math.min(600, view.rig.fly.speed * Math.pow(1.25, -w)));
   };
 
+  // Graphics recovery can restore a different starting street. Resolve it before revealing
+  // the first view, while retaining the existing progression validation and spawn rules.
+  if (sessionValue(RESUME_KEY) === "1") {
+    setSessionValue(RESUME_KEY, null);
+    await saveStore.load("auto").then(save => { if (save) restoreSave(save.data); }).catch(() => {});
+  }
+  status(`loading ${worldName} streets…`);
+  await prepareStartingStreets({
+    nextFrame: paint,
+    render: () => {
+      const player = curr.players[LOCAL_PLAYER]!;
+      view.setCar(LOCAL_PLAYER, player.car);
+      const onFoot = player.mode === "foot" && player.foot !== null;
+      view.setFoot(LOCAL_PLAYER, onFoot ? player.foot : null);
+      const body = activeBody(player);
+      target.x = body.x; target.y = body.y; target.z = body.z;
+      target.heading = body.heading; target.speed = body.speed; target.onFoot = onFoot;
+      target.pitch = onFoot || player.ride ? 0 : player.car.pitch;
+      target.robotaxiId = player.ride?.agentId;
+      const rendered = renderWithRuntimeActors(curr, Object.values(agentsRuntimeOf(curr)?.actors ?? {}));
+      view.setSim(rendered, rendered, 1);
+      view.frame(0, local, NO_FLY_INPUT, gameMinuteOfDay(curr, clockStart));
+      view.render();
+    },
+    ready: () => view.startupSurfaceReady(),
+  });
+  container.setAttribute("aria-busy", "false");
+  loading?.classList.remove("loading-screen");
+  if (legacyHud) legacyHud.hidden = !diagnostics;
+  keyboard.setBlocked(false);
+  pacer.reset(); last = performance.now();
   const readyAt = performance.now();
   installDebugHandle({
     world: worldName,
@@ -481,12 +514,6 @@ async function boot(): Promise<void> {
       });
     },
   });
-  // Back from a graphics reset: carry on from the save made just before it.
-  if (sessionValue(RESUME_KEY) === "1") {
-    setSessionValue(RESUME_KEY, null);
-    void saveStore.load("auto").then((save) => { if (save) restoreSave(save.data); }).catch(() => {});
-  }
-
   const frame = (now: number): void => {
     const frameS = (now - last) / 1000;
     const dtFrame = Math.min(frameS, MAX_FRAME_S);
@@ -713,6 +740,12 @@ async function boot(): Promise<void> {
 
 boot().catch((err: unknown) => {
   const hud = document.getElementById("hud");
-  if (hud) hud.textContent = `Failed to start: ${err instanceof Error ? err.message : String(err)}`;
+  if (hud) {
+    hud.hidden = false;
+    hud.classList.add("loading-screen");
+    hud.textContent = `Failed to start: ${err instanceof Error ? err.message : String(err)}`;
+    const retry = document.createElement("button"); retry.textContent = "Retry";
+    retry.addEventListener("click", () => location.reload()); hud.appendChild(retry);
+  }
   console.error(err);
 });
