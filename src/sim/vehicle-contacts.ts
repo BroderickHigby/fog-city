@@ -62,10 +62,16 @@ export function sweepHulls(a: Readonly<VehicleMotion>, b: Readonly<VehicleMotion
   const dz=(a.after.z-a.before.z)-(b.after.z-b.before.z);
   const angular=diagonal(a.after.hl,a.after.hw)*Math.abs(wrapAngle(a.after.heading-a.before.heading))
     +diagonal(b.after.hl,b.after.hw)*Math.abs(wrapAngle(b.after.heading-b.before.heading));
+  // A previously resolved contact can start inside the numerical safety skin. Keeping
+  // that skin as an obstacle would reject every turning-away move at t=0, even when
+  // its actual hull stays clear. Sweep to physical contact in that case: the same
+  // conservative distance/closing bound proves every advance safe, including rotation.
+  const startGap=hullContact(hullAt(a,lo),hullAt(b,lo)).gap;
+  const margin=startGap>0&&startGap<=VEHICLE_SKIN+1e-9?0:VEHICLE_SKIN;
   let t=lo,last:HullContact|null=null;
   for(let i=0;i<32;i++){
     const c=hullContact(hullAt(a,t),hullAt(b,t));last=c;
-    if(c.gap<=VEHICLE_SKIN+1e-9){
+    if(c.gap<=margin+1e-9){
       // A touching pair that is separating along a fixed axis may leave contact freely.
       const outward=dx*c.nx+dz*c.nz;
       if(t===0&&c.gap>=-1e-8&&outward>=angular-1e-10)return null;
@@ -73,7 +79,7 @@ export function sweepHulls(a: Readonly<VehicleMotion>, b: Readonly<VehicleMotion
     }
     const closing=Math.abs(dx*c.nx+dz*c.nz)+angular;
     if(closing<1e-12)return null;
-    const advance=(c.gap-VEHICLE_SKIN)/closing;
+    const advance=(c.gap-margin)/closing;
     if(t+advance>hi)return null;
     if(advance<1e-10)return {...c,t};
     t+=advance;

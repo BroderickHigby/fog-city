@@ -59,7 +59,7 @@ import { agentDodgeClass } from "./dodge.ts";
 import { connector, lanePath, pathPoint, projectOnPath } from "./roads.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import type { CombatState } from "./combat-contract.ts";
-import { propIndex, type PropKind } from "./props.ts";
+import { propIndex, propsNear, type PropKind } from "./props.ts";
 import { ROOF_STEP_M, circleBlocked, meshGroundHeight, type World } from "./world.ts";
 import { VEHICLE_SKIN, hullAt, hullBandsMeet, hullContact, sweepHulls, vehiclePairs, type VehicleHull, type VehicleMotion, type HullContact } from "./vehicle-contacts.ts";
 
@@ -1042,8 +1042,16 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   const poseChanged=(a:Readonly<VehicleHull>,b:Readonly<VehicleHull>)=>a.x!==b.x||a.y!==b.y||a.z!==b.z||a.heading!==b.heading;
   const trajectory=(b:SolidVehicle):VehicleMotion=>({before:b.motion.before,after:b.pose});
   const safe=(b:SolidVehicle,p:VehicleHull):boolean=>{
-    const people=slideObstacles(w,b.key,p.x,p.z,p.hl+p.hw+1).filter(c=>c.person);
-    return !boxBlocked(world,p,p.y+ROOF_STEP_M,people,p.y+p.height)&&!boxCrossedWall(world,p,b.motion.before);
+    const obstacles=slideObstacles(w,b.key,p.x,p.z,p.hl+p.hw+1).filter(c=>c.person);
+    // A shortened turn or inherited-overlap recovery must keep the same solid street
+    // props as ordinary driving. Broken props and vertically separate bodies stay clear.
+    for(const prop of propsNear(world,p.x,p.z,p.hl+p.hw+1)){
+      if(w.ext.props?.[prop.id])continue;
+      const base=meshGroundHeight(world,prop.x,prop.z);
+      if(p.y>=base+prop.height||p.y+p.height<=base)continue;
+      obstacles.push({x:prop.x,z:prop.z,r:prop.r,person:false});
+    }
+    return !boxBlocked(world,p,p.y+ROOF_STEP_M,obstacles,p.y+p.height)&&!boxCrossedWall(world,p,b.motion.before);
   };
   const cut=(i:number,t:number):boolean=>{
     const b=bodies[i]!,a=b.agent===null?null:w.agents[w.index.get(b.agent)!];

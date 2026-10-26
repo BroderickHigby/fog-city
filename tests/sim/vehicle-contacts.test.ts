@@ -3,6 +3,8 @@ import { createInitialState, makeCar, makeFoot, type AgentState, type SimState }
 import { carVelocity, impactsOf, resolveVehicleContacts } from "../../src/sim/impacts.ts";
 import { hullBandsMeet, hullContact, hullAt, sweepHulls, vehiclePairs, type VehicleHull } from "../../src/sim/vehicle-contacts.ts";
 import { emptyWorld } from "./fixtures.ts";
+import { boxBlocked } from "../../src/sim/collide.ts";
+import { propIndex } from "../../src/sim/props.ts";
 
 const hull=(key:string,x:number,z:number,heading=0,y=0):VehicleHull=>({key,x,z,heading,y,hl:2.2,hw:.95,height:1.5});
 const taxi=(id:number,x:number,z:number,heading=0):AgentState=>({id,kind:"robotaxi",x,y:0,z,heading,pitch:0,speed:0,vmax:10,
@@ -100,6 +102,30 @@ describe("final vehicle contact seam",()=>{
     const wanted=carVelocity(after.players.a!.car),result=resolveVehicleContacts(world,before,after),actual=carVelocity(result.players.a!.car);
     expect(result.players.a!.car.heading).toBeLessThan(Math.PI/2);
     expect(actual.vx).toBeCloseTo(wanted.vx,7);expect(actual.vz).toBeCloseTo(wanted.vz,7);expect(impactsOf(result)!.events).toHaveLength(1);
+  });
+  it("never recovers an inherited vehicle overlap into an intact mature tree",()=>{
+    const treeWorld={...world,props:[{id:"tree:recovery",kind:"tree" as const,x:0,z:2.6,height:10}]};
+    const before=state();before.players.b={...before.players.b!,car:makeCar(0,-3.9,0)};
+    const tree=propIndex(treeWorld).byId.get("tree:recovery")!;
+    const blocked=(s:SimState)=>boxBlocked(treeWorld,rect(s.players.a!.car),.3,[{x:tree.x,z:tree.z,r:tree.r,person:false}],1.5);
+    expect(tree.breakSpeed).toBe(Infinity);expect(blocked(before)).toBe(false);
+    const result=resolveVehicleContacts(treeWorld,before,{...before,tick:1});
+    expect(blocked(result)).toBe(false);
+    expect(hullContact(rect(result.players.a!.car),rect(result.players.b!.car)).gap)
+      .toBeGreaterThan(hullContact(rect(before.players.a!.car),rect(before.players.b!.car)).gap);
+  });
+  it("does not block bounded recovery on a broken tree or above its height band",()=>{
+    const treeWorld={...world,props:[{id:"tree:recovery",kind:"tree" as const,x:0,z:2.6,height:10}]};
+    const before=state();before.players.b={...before.players.b!,car:makeCar(0,-3.9,0)};
+    const broken:SimState={...before,ext:{...before.ext,impacts:{version:1,nextId:1,events:[],cars:{},
+      props:{"tree:recovery":{kind:"tree",tick:0,state:"fallen",dir:0}}}}};
+    const high:SimState={...before,players:{a:{...before.players.a!,car:{...before.players.a!.car,y:12}},
+      b:{...before.players.b!,car:{...before.players.b!.car,y:12}}}};
+    for(const initial of [broken,high]){
+      const result=resolveVehicleContacts(treeWorld,initial,{...initial,tick:1});
+      expect(result.players.a!.car.z).toBeGreaterThan(.2);
+      expect(result.players.a!.car.y).toBe(initial.players.a!.car.y);
+    }
   });
   it("caps each body's recovery across a dense cluster of inherited overlaps",()=>{
     const initial=state(),before={...initial,players:{
