@@ -252,6 +252,16 @@ async function boot(): Promise<void> {
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
   const startCam = params.get("cam") as CameraMode | null;
   if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
+  // Reproducible render-only views for local visual QA. The player's pose is untouched.
+  const captureEnabled = params.get("debug") === "1" && ["1", "stats"].includes(params.get("capture") ?? "");
+  const captureMode = captureEnabled && params.get("capture") === "1";
+  const cameraPose = params.get("debug") === "1" ? params.get("camera")?.split(",").map(Number) : undefined;
+  if (cameraPose?.length === 5 && cameraPose.every(Number.isFinite)) {
+    view.flyTo(cameraPose[0]!, cameraPose[1]!, cameraPose[2]!, cameraPose[3]! * Math.PI / 180, cameraPose[4]! * Math.PI / 180);
+  }
+  const captureProof = captureEnabled ? document.createElement("pre") : null;
+  if (captureProof) { captureProof.hidden = true; captureProof.setAttribute("data-fog-capture", ""); container.append(captureProof); }
+  let nextCaptureProof = 0;
 
   const keyboard = new Keyboard();
   const pointer = new PointerLook(view.renderer.domElement);
@@ -259,9 +269,9 @@ async function boot(): Promise<void> {
   let curr: SimState = prev;
   // Two independent pauses: the debug handle's (tests step the sim by hand and nothing else may
   // advance it) and the UI's (an open modal). Only a UI pause lets a queued command through.
-  let debugPaused = false;
+  let debugPaused = captureMode;
   let uiPaused = false;
-  let paused = false;
+  let paused = captureMode;
   const setPaused = (): void => {
     paused = debugPaused || uiPaused;
     pacer.reset();
@@ -644,6 +654,29 @@ async function boot(): Promise<void> {
     multiplayer.overlay();
 
     const info = view.info(renderInfo);
+    if (captureProof && now >= nextCaptureProof) {
+      nextCaptureProof = now + 1000;
+      const geometries = new Set<THREE.BufferGeometry>(); let meshes = 0;
+      const detailMeshes: {name:string;triangles:number}[] = [];
+      view.scene.traverse(object => {
+        const mesh = object as THREE.Mesh;
+        if (!mesh.isMesh || !mesh.geometry) return;
+        meshes++; geometries.add(mesh.geometry);
+        if (["grass-surface", "grass-blades", "building-character-details"].includes(mesh.name)) {
+          detailMeshes.push({name:mesh.name,triangles:(mesh.geometry.getIndex()?.count ?? mesh.geometry.getAttribute("position")?.count ?? 0)/3});
+        }
+      });
+      const device = (view.renderer as unknown as {backend?:{device?:{adapterInfo?:{vendor?:string;architecture?:string;device?:string;description?:string};limits?:{maxVertexBuffers?:number;maxTextureDimension2D?:number}}}}).backend?.device;
+      const adapter = device?.adapterInfo;
+      const proof = {
+        ready:view.tilesSettled() && !info.grass?.pending && !info.buildingDetail?.pending,
+        render:info,resources:view.renderStats(),scene:{meshes,geometries:geometries.size,details:detailMeshes},
+        sim:{seed:curr.seed,tick:curr.tick,version:curr.version,assets:assets.mode,colliders:files.colliders},
+        camera:{x:view.camera.position.x,y:view.camera.position.y,z:view.camera.position.z,mode:info.cameraMode},
+        device:device?{adapter:adapter?{vendor:adapter.vendor,architecture:adapter.architecture,device:adapter.device,description:adapter.description}:null,limits:{maxVertexBuffers:device.limits?.maxVertexBuffers,maxTextureDimension2D:device.limits?.maxTextureDimension2D}}:null,
+      };
+      const json=JSON.stringify(proof);captureProof.textContent=json;captureProof.setAttribute("data-report",json);
+    }
     const me = shown.players[me_];
     hudData.speedMps = me ? activeBody(me).speed : 0;
     // On foot beside an empty robotaxi (and not beside your own car): say F hops in.
