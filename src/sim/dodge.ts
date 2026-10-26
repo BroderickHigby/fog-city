@@ -523,30 +523,31 @@ export function vehicleOfCar(
   prev: Readonly<CarState> | null = null,
   world: World | null = null,
   circles: readonly Circle[] = [],
+  dimensions: Readonly<{halfLength:number;halfWidth:number;bodyHeight:number}> = CAR,
 ): Vehicle {
   const fx = dsin(c.heading);
   const fz = -dcos(c.heading);
-  const halfDiag = Math.sqrt(CAR.halfLength * CAR.halfLength + CAR.halfWidth * CAR.halfWidth);
+  const halfDiag = Math.sqrt(dimensions.halfLength * dimensions.halfLength + dimensions.halfWidth * dimensions.halfWidth);
   let observed = 0;
   if (prev && prev !== c) {
     const turn = wrapAngle(c.heading - prev.heading);
     observed = (Math.sqrt((c.x - prev.x) * (c.x - prev.x) + (c.z - prev.z) * (c.z - prev.z)) + (turn < 0 ? -turn : turn) * halfDiag) / DT;
   }
   // Right of forward is (-fz, fx).
-  const v = makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, CAR.halfLength, CAR.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, {
+  const v = makeVehicle(`p:${id}`, id, c.x, c.z, c.heading, dimensions.halfLength, dimensions.halfWidth, c.speed * fx - c.lateral * fz, c.speed * fz + c.lateral * fx, c.yawRate, 0, {
     spread: PLAYER_SPREAD_MPS,
     dv: CAR_DV,
     observed,
     y: c.y,
-    top: CAR.bodyHeight,
+    top: dimensions.bodyHeight,
     vy: c.vy,
     elev: world ? Math.max(0, c.y - meshGroundHeight(world, c.x, c.z)) : 0,
   });
   if (!world) return v;
-  const box = { x: c.x, z: c.z, heading: c.heading, hl: CAR.halfLength, hw: CAR.halfWidth };
+  const box = { x: c.x, z: c.z, heading: c.heading, hl: dimensions.halfLength, hw: dimensions.halfWidth };
   // Its collision band (car.ts): from its wheels plus the step it climbs to the top of its body.
   const y = c.y + ROOF_STEP_M;
-  const top = c.y + CAR.bodyHeight;
+  const top = c.y + dimensions.bodyHeight;
   // Where its predicted body runs into a building, a wall it would glance off: from then on its
   // footprint widens by IMPACT_SPREAD of its speed a second (it can be thrown along the wall,
   // toward anyone by it). Looked for every IMPACT_EVERY samples.
@@ -555,7 +556,7 @@ export function vehicleOfCar(
     let hitT = -1;
     for (let i = 0; i < path.length; i++) {
       const sm = path[i]!;
-      if (hitT < 0 && i % IMPACT_EVERY === 0 && i > 0 && boxBlocked(world, { x: sm.x, z: sm.z, heading: datan2(sm.fx, -sm.fz), hl: CAR.halfLength, hw: CAR.halfWidth }, y, [], top)) hitT = sm.t;
+      if (hitT < 0 && i % IMPACT_EVERY === 0 && i > 0 && boxBlocked(world, { x: sm.x, z: sm.z, heading: datan2(sm.fx, -sm.fz), hl: dimensions.halfLength, hw: dimensions.halfWidth }, y, [], top)) hitT = sm.t;
       if (hitT >= 0) {
         sm.extra = IMPACT_SPREAD * v.speed * (sm.t - hitT);
         if (sm.extra > grow) grow = sm.extra;
@@ -574,7 +575,7 @@ export function vehicleOfCar(
   // (1 + restitution) times their closing speed, mid-step, when it can touch one.
   let kick = 0;
   for (const k of circles) {
-    const d = boxDistance(k.x, k.z, c.x, c.z, fx, fz, CAR.halfLength, CAR.halfWidth);
+    const d = boxDistance(k.x, k.z, c.x, c.z, fx, fz, dimensions.halfLength, dimensions.halfWidth);
     if (k.r - d > shove) shove = k.r - d;
     if (d < k.r + e) {
       touch = true;
@@ -615,9 +616,8 @@ export function vehicleOfCar(
  * vehicleOfCar with what it collides with on its next step (step.ts obstaclesOf: the other
  * players' cars, and robots and robotaxis by their circles; people never).
  */
-export function carVehicle(world: World, before: Readonly<SimState>, after: Readonly<SimState>, id: PlayerId): Vehicle {
-  const c = after.players[id]!.car;
-  const lim = CAR.halfLength + CAR.halfWidth + 6;
+function physicalVehicleCircles(world: World, after: Readonly<SimState>, c: Readonly<CarState>, selfPlayer:PlayerId|null, selfAgent:number|null, halfLength:number=CAR.halfLength,halfWidth:number=CAR.halfWidth): Circle[] {
+  const lim = halfLength + halfWidth + 6;
   const circles: Circle[] = [];
   const add = (k: { x: number; z: number; r: number }, body?: ImpactBody): void => {
     if ((k.x - c.x) * (k.x - c.x) + (k.z - c.z) * (k.z - c.z) <= lim * lim) circles.push(body ? { x: k.x, z: k.z, r: k.r, person: false, body } : { x: k.x, z: k.z, r: k.r, person: false });
@@ -625,7 +625,7 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
   // (Only its velocity matters to the reach: the key and mass are not used.)
   const moving = (key: string, x: number, z: number, vx: number, vz: number): ImpactBody => ({ key, mass: CAR.mass, x, z, vx, vz });
   for (const other of sortedIds(after.players)) {
-    if (other === id) continue;
+    if (other === selfPlayer) continue;
     const o = after.players[other]!.car;
     const ofx = dsin(o.heading);
     const ofz = -dcos(o.heading);
@@ -635,18 +635,30 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
   // (An agent's circles lie within its half length of it.)
   const lim2 = lim + AGENT_SPEC.robotaxi.halfLength;
   for (const a of (after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? []) {
+    if (a.id===selfAgent) continue;
     if ((a.x - c.x) * (a.x - c.x) + (a.z - c.z) * (a.z - c.z) > lim2 * lim2) continue;
     const cls = agentDodgeClass(a);
     if (cls !== null && cls !== "errandRobot" && cls !== "sidewalkBot") continue;
-    const vx = a.knock ? a.knock.vx : a.speed * dsin(a.heading);
-    const vz = a.knock ? a.knock.vz : -a.speed * dcos(a.heading);
+    const vx = a.knock ? a.knock.vx : a.speed * dsin(a.heading) + (a.manualCar?.lateral??0)*dcos(a.heading);
+    const vz = a.knock ? a.knock.vz : -a.speed * dcos(a.heading) + (a.manualCar?.lateral??0)*dsin(a.heading);
     // (Robots too: a car bowls them over, car.ts bodyHit.)
     const body = moving(`a:${a.id}`, a.x, a.z, vx, vz);
     for (const k of agentCircles(a)) add(k, body);
   }
   // Street props (props.ts): a bounce off one changes its velocity like a shove (broken ones too: a bound).
   for (const q of propsNear(world, c.x, c.z, lim)) add({ x: q.x, z: q.z, r: q.r }, moving(`prop:${q.id}`, q.x, q.z, 0, 0));
-  return vehicleOfCar(id, c, before.players[id]?.car ?? null, world, circles);
+  return circles;
+}
+
+export function carVehicle(world: World, before: Readonly<SimState>, after: Readonly<SimState>, id: PlayerId): Vehicle {
+  const c=after.players[id]!.car;
+  return vehicleOfCar(id,c,before.players[id]?.car??null,world,physicalVehicleCircles(world,after,c,id,null));
+}
+
+/** A manual taxi uses physical controls, its real body and the bodies it may hit. Never a lane route. */
+function manualTaxiVehicle(world:World,before:Readonly<SimState>,after:Readonly<SimState>,a:Readonly<AgentState>):Vehicle {
+  const old=before.ext.agents?.list.find(other=>other.id===a.id)??null;
+  return vehicleOfAgent(a,old,DT,world,true,null,physicalVehicleCircles(world,after,a.manualCar!,null,a.id,a.halfLength??ROBOTAXI_BODY.halfLength,a.halfWidth??ROBOTAXI_BODY.halfWidth));
 }
 
 /**
@@ -655,14 +667,11 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
  * after ROBOTAXI_REACT_S), its body ROBOTAXI_BODY (its drawn size). Its yaw rate and braking come
  * from its previous pose (`prev`, stepped `dt` seconds ago); its next step is `dt` too.
  */
-export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true, segs: Route | null = null): Vehicle {
+export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true, segs: Route | null = null, circles: readonly Circle[] = []): Vehicle {
   if(a.manualCar) {
-    const vehicle=vehicleOfCar(`taxi-${a.id}`,a.manualCar,prev?.manualCar??null,world);
+    const dimensions={halfLength:a.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:a.halfWidth??ROBOTAXI_BODY.halfWidth,bodyHeight:a.height??ROBOTAXI_BODY.height};
+    const vehicle=vehicleOfCar(`taxi-${a.id}`,a.manualCar,prev?.manualCar??null,world,circles,dimensions);
     vehicle.key=`a:${a.id}`;vehicle.player=null;
-    // The drawn taxi is a little larger than the player's hatch; widen its complete reach.
-    const extra=Math.max(0,(a.halfLength??ROBOTAXI_BODY.halfLength)-CAR.halfLength,(a.halfWidth??ROBOTAXI_BODY.halfWidth)-CAR.halfWidth);
-    vehicle.hl+=extra;vehicle.hw+=extra;vehicle.inflate+=extra;
-    vehicle.minX-=extra;vehicle.maxX+=extra;vehicle.minZ-=extra;vehicle.maxZ+=extra;
     return vehicle;
   }
   const spec = AGENT_SPEC[a.kind];
@@ -1877,6 +1886,14 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const taxiHalfDiag = Math.sqrt(ROBOTAXI_BODY.halfLength * ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth * ROBOTAXI_BODY.halfWidth);
   for (const a of agents) {
     if (!AGENT_SPEC[a.kind].road) continue;
+    if(a.manualCar) {
+      const c=a.manualCar,hl=a.halfLength??ROBOTAXI_BODY.halfLength,hw=a.halfWidth??ROBOTAXI_BODY.halfWidth;
+      const halfDiag=Math.sqrt(hl*hl+hw*hw),speed=Math.sqrt(c.speed*c.speed+c.lateral*c.lateral),yaw=Math.abs(c.yawRate);
+      const slack=speed*DT+CAR_DV*DT+((yaw*DT)/2+CAR.wallAlign*DT)*halfDiag+CAR.maxPush+.05;
+      const far=hl+hw+(speed+PLAYER_SPREAD_MPS)*horizonS(speed)+slack+.5;
+      srcs.push({id:null,a,dt:DT,x:a.x,z:a.z,speed,slack,far,predict:true});
+      continue;
+    }
     const close = bodies.some((p) => (p.x - a.x) * (p.x - a.x) + (p.z - a.z) * (p.z - a.z) <= NEAR_RANGE_M * NEAR_RANGE_M);
     const dt = close ? DT : DT * LOD_STRIDE;
     const travel = (a.speed + AGENT_SPEC[a.kind].accel * dt) * dt;
@@ -1902,7 +1919,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     const hw = sv.id !== null ? CAR.halfWidth : sv.a!.halfWidth ?? ROBOTAXI_BODY.halfWidth;
     const cand = hl + hw + sv.slack + DODGE_PROFILE.care.override! + 1 + 0.75;
     if (sv.speed < DODGE_MIN_SPEED) return { cand, foot: 0 };
-    return { cand, foot: sv.id === null ? brakingReach(sv.speed) + hl + hw + maxReach + 1 : sv.far + maxReach };
+    return { cand, foot: sv.id === null && !sv.a?.manualCar ? brakingReach(sv.speed) + hl + hw + maxReach + 1 : sv.far + maxReach };
   };
   /** The dodgers within the farther of those (rec indices), null when none: one query per vehicle. */
   const nearOf: Array<number[] | null> = srcs.map((sv, vi) => {
@@ -1929,7 +1946,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
   const predictOf = (sv: Src, vi: number): boolean => {
     if (sv.predict === null) {
       const a = sv.a!;
-      if (a.runtimeId !== undefined || a.knock) { sv.predict = true; return true; }
+      if (a.runtimeId !== undefined || a.knock || a.manualCar) { sv.predict = true; return true; }
       // (Its predicted footprint ends where braking at no less than ROBOTAXI_BRAKE_MPS2 stops it.)
       const reach = brakingReach(a.speed);
       sv.predict = false;
@@ -1960,6 +1977,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     if (v) return v;
     const sv = srcs[vi]!;
     if (sv.id !== null) v = carVehicle(world, before, after, sv.id);
+    else if(sv.a!.manualCar) v=manualTaxiVehicle(world,before,after,sv.a!);
     else {
       v = vehicleOfAgent(sv.a!, prevAgents.get(sv.a!.id) ?? null, sv.dt, world, predictOf(sv, vi), routeSegs(vi));
       routeReach(v, sv.a!, sv.dt, world, routeSegs(vi));
@@ -1972,7 +1990,7 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     for (let vi = ids.length; vi < srcs.length; vi++) {
       const sv = srcs[vi]!;
       const a = sv.a!;
-      if (a.speed < DODGE_MIN_SPEED || predictOf(sv, vi)) continue;
+      if (sv.speed < DODGE_MIN_SPEED || predictOf(sv, vi)) continue;
       const lim = reach + brakingReach(a.speed) + ROBOTAXI_BODY.halfLength + ROBOTAXI_BODY.halfWidth;
       if ((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z) > lim * lim) continue;
       const was = veh(vi);

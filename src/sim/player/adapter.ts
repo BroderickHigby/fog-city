@@ -39,11 +39,12 @@ export function combatFacts(events:readonly CombatEvent[],combat?:Pick<CombatSta
   return [{id:`combat:${e.id}`,source:"combat" as const,sequence:e.id,tick:e.tick,kind,playerId,actorId,amount:e.amount,detail:e.detail}];
  });
 }
-/** A physical transition into the driver's seat is an observed fact, once per takeover. */
+/** A physical transition into the driver's seat is an observed fact, once per takeover.
+ * The taxi is the bounded producer namespace: ownership allows only one takeover per taxi/tick. */
 export function commandeerFacts(context:Pick<SimSystemContext,"state"|"previous">):GameplayFact[] {
  return sortedIds(context.state.players).flatMap(id=>{
   const ride=context.state.players[id]!.ride,was=context.previous.players[id]?.ride;
-  return ride?.manual && !(was?.manual && was.agentId===ride.agentId) ? [{id:`commandeer-${id.split("").map(c=>c.charCodeAt(0).toString(16).padStart(4,"0")).join("")}:${context.state.tick}`,source:"world" as const,sequence:context.state.tick,tick:context.state.tick,kind:"player.commandeer",playerId:id,actorId:`agent:${ride.agentId}`,amount:1,detail:"Ride shared to your feed"}] : [];
+  return ride?.manual && !(was?.manual && was.agentId===ride.agentId) ? [{id:`commandeer-${ride.agentId}:${context.state.tick}`,source:"world" as const,sequence:context.state.tick,tick:context.state.tick,kind:"player.commandeer",playerId:id,actorId:`agent:${ride.agentId}`,amount:1,detail:"Ride shared to your feed"}] : [];
  });
 }
 export const defaultGameplayProvider:GameplayProvider=context=>{

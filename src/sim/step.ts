@@ -527,8 +527,9 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   for (const id of sortedIds(players)) {
     const p = players[id]!;
     const hits: CarContact[] = [];
-    // A rider's own car stays parked (held on the brake); settleRides handles the rider.
-    next[id] = p.ride ? { ...stepPlayer(world, { ...p, exitPending: false }, { ...NEUTRAL_INPUT, brake: 1 }, obs, hits), ride: p.ride } : stepPlayerWithEffects(world, p, sanitized[id]!, obs, before, hits);
+    // A rider's parked car has one physical owner: impacts.ts settles its impulses and slide.
+    // settleRides handles the rider; never also integrate that car with stepCar here.
+    next[id] = p.ride ? { ...p, exitPending: false } : stepPlayerWithEffects(world, p, sanitized[id]!, obs, before, hits);
     contacts.set(id, hits);
   }
   // (Knocked bodies are moved by impacts.ts, not by their routes.)
